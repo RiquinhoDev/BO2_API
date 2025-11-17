@@ -1,0 +1,21 @@
+# ===== CONFIGURAÇÃO CORRETA PARA CURSEDUCA =====
+
+# URL base da API (SEM /api - é API externa!)
+CURSEDUCA_API_URL=https://prof.curseduca.pro
+
+# API Key para o header api_key
+CURSEDUCA_API_KEY=***REMOVED-CURSEDUCA-KEY***
+
+# Access Token para Authorization: Bearer
+CURSEDUCA_AccessToken=***REMOVED-CURSEDUCA-TOKEN***
+
+# ===== COMO USAR =====
+# 1. Copiar estas linhas para o seu .env
+# 2. Substituir pelos valores reais
+# 3. Reiniciar o servidor (yarn dev)
+
+# ===== RESULTADO ESPERADO =====
+# URL final: https://prof.curseduca.pro/members ✅
+# Headers:
+#   Authorization: Bearer ***REMOVED-CURSEDUCA-TOKEN***
+#   api_key: ***REMOVED-CURSEDUCA-KEY***
