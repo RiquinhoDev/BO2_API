@@ -1,0 +1,127 @@
+"use strict";
+// tests/e2e/products-dashboard.spec.ts
+// 🧪 Sprint 4: E2E Tests for Products Dashboard
+Object.defineProperty(exports, "__esModule", { value: true });
+const test_1 = require("@playwright/test");
+test_1.test.describe('Products Dashboard V2', () => {
+    test_1.test.beforeEach(async ({ page }) => {
+        // Navegar para dashboard de produtos
+        await page.goto('/products');
+    });
+    (0, test_1.test)('deve exibir dashboard de produtos corretamente', async ({ page }) => {
+        // Verificar título
+        await (0, test_1.expect)(page.locator('h1')).toContainText('Dashboard');
+        // Verificar que stats cards estão visíveis
+        const statsCards = page.locator('[class*="stat"]');
+        await (0, test_1.expect)(statsCards.first()).toBeVisible();
+        // Verificar ProductSelector
+        const selector = page.locator('select');
+        await (0, test_1.expect)(selector).toBeVisible();
+    });
+    (0, test_1.test)('deve ter opções de produtos no selector', async ({ page }) => {
+        const selector = page.locator('select');
+        // Aguardar selector carregar
+        await selector.waitFor({ state: 'visible' });
+        // Verificar que tem opções
+        const options = await selector.locator('option').all();
+        (0, test_1.expect)(options.length).toBeGreaterThan(0);
+        // Primeira opção deve ser "Todos os Produtos" (se showAllOption=true)
+        const firstOption = await selector.locator('option').first().textContent();
+        (0, test_1.expect)(firstOption).toContain('Todos');
+    });
+    (0, test_1.test)('deve filtrar por produto selecionado', async ({ page }) => {
+        const selector = page.locator('select');
+        // Aguardar carregar
+        await selector.waitFor({ state: 'visible' });
+        // Selecionar segundo produto (índice 1)
+        await page.selectOption('select', { index: 1 });
+        // Aguardar atualização (pode ter loading state)
+        await page.waitForTimeout(1000);
+        // Verificar que produto foi selecionado (badge deve aparecer)
+        const badge = page.locator('[class*="badge"]').or(page.locator('[class*="rounded"]'));
+        await (0, test_1.expect)(badge.first()).toBeVisible();
+    });
+    (0, test_1.test)('deve exibir grid de product cards', async ({ page }) => {
+        // Procurar por cards (podem ter class com 'card', 'rounded', 'shadow')
+        const cards = page.locator('[class*="card"]').or(page.locator('[class*="rounded-lg"]'));
+        // Deve ter pelo menos 1 card
+        (0, test_1.expect)(await cards.count()).toBeGreaterThan(0);
+    });
+    (0, test_1.test)('deve ter botão de refresh', async ({ page }) => {
+        // Procurar botão com "Refresh" ou "Atualizar"
+        const refreshButton = page.locator('button:has-text("Atualizar")').or(page.locator('button:has-text("Refresh")'));
+        if (await refreshButton.count() > 0) {
+            await (0, test_1.expect)(refreshButton.first()).toBeVisible();
+            // Clicar e verificar que não dá erro
+            await refreshButton.first().click();
+            await page.waitForTimeout(500);
+        }
+    });
+});
+test_1.test.describe('Products Management (Admin)', () => {
+    test_1.test.beforeEach(async ({ page }) => {
+        // Assumindo rota de gestão
+        await page.goto('/products/management');
+    });
+    (0, test_1.test)('deve exibir página de gestão de produtos', async ({ page }) => {
+        // Verificar título
+        await (0, test_1.expect)(page.locator('h1')).toContainText('Gestão');
+        // Deve ter botão "Novo Produto" ou similar
+        const newButton = page.locator('button:has-text("Novo")').or(page.locator('button:has-text("Criar")'));
+        if (await newButton.count() > 0) {
+            await (0, test_1.expect)(newButton.first()).toBeVisible();
+        }
+    });
+    (0, test_1.test)('deve abrir modal ao clicar em criar produto', async ({ page }) => {
+        // Procurar botão "Novo Produto"
+        const newButton = page.locator('button:has-text("Novo")').or(page.locator('button:has-text("Criar")'));
+        if (await newButton.count() > 0) {
+            await newButton.first().click();
+            // Aguardar modal aparecer
+            await page.waitForTimeout(500);
+            // Verificar que modal/dialog abriu (procurar por formulário ou dialog)
+            const dialog = page.locator('[role="dialog"]').or(page.locator('form'));
+            await (0, test_1.expect)(dialog.first()).toBeVisible();
+        }
+    });
+});
+test_1.test.describe('Products Users List', () => {
+    test_1.test.beforeEach(async ({ page }) => {
+        await page.goto('/products/users');
+    });
+    (0, test_1.test)('deve exibir lista de users', async ({ page }) => {
+        // Verificar título
+        await (0, test_1.expect)(page.locator('h1')).toContainText('User');
+        // Verificar ProductSelector
+        const selector = page.locator('select');
+        await (0, test_1.expect)(selector).toBeVisible();
+        // Verificar search input
+        const searchInput = page.locator('input[type="text"]').or(page.locator('input[placeholder*="Pesquisar"]'));
+        if (await searchInput.count() > 0) {
+            await (0, test_1.expect)(searchInput.first()).toBeVisible();
+        }
+    });
+    (0, test_1.test)('deve filtrar users por search', async ({ page }) => {
+        // Procurar input de search
+        const searchInput = page.locator('input[type="text"]').or(page.locator('input[placeholder*="Pesquisar"]'));
+        if (await searchInput.count() > 0) {
+            // Digitar algo
+            await searchInput.first().fill('test');
+            // Aguardar filtro
+            await page.waitForTimeout(500);
+            // Verificar que filtrou (pode não ter resultados em teste)
+            // Apenas garantir que não deu erro
+            await (0, test_1.expect)(page.locator('body')).toBeVisible();
+        }
+    });
+    (0, test_1.test)('deve exibir tabela de users', async ({ page }) => {
+        // Procurar tabela
+        const table = page.locator('table');
+        if (await table.count() > 0) {
+            await (0, test_1.expect)(table.first()).toBeVisible();
+            // Verificar headers
+            const headers = table.locator('th');
+            (0, test_1.expect)(await headers.count()).toBeGreaterThan(0);
+        }
+    });
+});

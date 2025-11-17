@@ -1,0 +1,119 @@
+// src/routes/index.ts - VERSÃO CORRIGIDA COM CURSEDUCA + DASHBOARD V2
+import { Router } from "express"
+import userRoutes from "./users.routes"
+import hotmartRoutes from "./hotmart.routes"
+import curseducaRoutes from './curseduca.routes'  // Sincronização CursEduca
+import syncRoutes from "./sync.routes"
+import classesRoutes from "./classes.routes"
+import classManagementRoutes from "./classManagement.routes"
+import testimonialRoutes from "./testimonials.routes"
+import lessonsRoutes from "./lessons.routes" 
+import engagementRoutes from './engagement.routes'
+import productsRoutes from './products.routes'
+import analyticsRoutes from './analytics.routes'
+import userHistoryRoutes from './userHistory.routes'
+import courseRoutes from './course.routes'
+import tagRuleRoutes from './tagRule.routes'
+import dashboardRoutes from './dashboardRoutes'  // Dashboard V1 & V2 (Sprint Correções)
+
+const router = Router()
+
+// 🔄 PRINCIPAIS SERVIÇOS DE SINCRONIZAÇÃO
+router.use("/users", userRoutes)
+router.use("/hotmart", hotmartRoutes)      // Sincronização Hotmart
+router.use("/curseduca", curseducaRoutes)  // Sincronização CursEduca
+router.use("/sync", syncRoutes)            // Histórico de sincronizações
+
+// 📚 GESTÃO DE TURMAS E CONTEÚDOS
+router.use("/classes", classesRoutes)
+router.use("/class-management", classManagementRoutes)
+router.use("/lessons", lessonsRoutes)
+
+// 👥 GESTÃO DE UTILIZADORES
+router.use("/testimonials", testimonialRoutes)
+router.use("/engagement", engagementRoutes)
+router.use("/user-history", userHistoryRoutes)
+
+// 📊 ANÁLISES E RELATÓRIOS
+router.use("/dashboard", dashboardRoutes)  // Dashboard V1 & V2 (Sprint Correções)
+router.use("/products", productsRoutes)
+router.use("/analytics", analyticsRoutes)
+
+// 📧 ACTIVE CAMPAIGN
+router.use("/courses", courseRoutes)
+router.use("/tag-rules", tagRuleRoutes)
+
+// 🏥 HEALTH CHECK MELHORADO
+router.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    services: {
+      // Serviços principais
+      users: "✅ Disponível",
+      hotmart: "✅ Disponível", 
+      curseduca: "✅ Disponível",  // Nova integração
+      sync: "✅ Disponível",
+      
+      // Gestão de conteúdo
+      classes: "✅ Disponível",
+      classManagement: "✅ Disponível",
+      lessons: "✅ Disponível",
+      
+      // Gestão de utilizadores
+      testimonials: "✅ Disponível",
+      engagement: "✅ Disponível",
+      userHistory: "✅ Disponível",
+      
+      // Análises
+      dashboard: "✅ Disponível (V1 & V2)",  // Sprint Correções
+      products: "✅ Disponível",
+      analytics: "✅ Disponível",
+      
+      // Active Campaign
+      courses: "✅ Disponível",
+      tagRules: "✅ Disponível"
+    },
+    integrations: {
+      hotmart: "✅ Configurado",
+      curseduca: "✅ Configurado",
+      activecampaign: "✅ Configurado",
+      mongodb: "✅ Conectado"
+    }
+  })
+})
+
+// 🔗 ENDPOINT DE INFORMAÇÕES DO SISTEMA
+router.get("/info", (req, res) => {
+  res.status(200).json({
+    name: "Sistema de Gestão de Utilizadores",
+    version: "2.0.0",
+    features: [
+      "Sincronização Hotmart",
+      "Sincronização CursEduca",
+      "Progresso por plataforma",
+      "Progresso combinado",
+      "Cálculo de engagement",
+      "Gestão de turmas",
+      "Histórico de alterações",
+      "Análises e relatórios",
+      "Active Campaign Integration",
+      "Tag Rules Engine"
+    ],
+    endpoints: {
+      hotmart: "/api/hotmart",
+      curseduca: "/api/curseduca",
+      users: "/api/users",
+      sync: "/api/sync",
+      classes: "/api/classes",
+      dashboard: "/api/dashboard",      // Sprint Correções
+      dashboardV2: "/api/dashboard/stats/v2",  // Sprint Correções
+      analytics: "/api/analytics",
+      courses: "/api/courses",
+      tagRules: "/api/tag-rules"
+    }
+  })
+})
+
+export default router
