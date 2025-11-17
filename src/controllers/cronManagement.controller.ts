@@ -70,33 +70,72 @@ class CronManagementController {
 
   /**
    * POST /api/cron/execute
-   * Executa sincronização manualmente
+   * 🆕 Executa sincronização INTELIGENTE manualmente (novo sistema)
    */
   async executeNow(req: Request, res: Response): Promise<void> {
     try {
-      console.log('🔥 [API] POST /api/cron/execute (MANUAL)')
+      console.log('🔥 [API] POST /api/cron/execute (MANUAL - INTELIGENTE)')
       
       const userId = req.body.userId // Assumindo que vem do auth middleware
+
+      // Usar novo sistema inteligente
+      const result = await cronManagementService.executeIntelligentTagSync('manual', userId)
+
+      if (result.success) {
+        res.json({
+          success: true,
+          message: 'Sincronização inteligente executada com sucesso',
+          executionId: result.executionId,
+          summary: result.summary,
+          detailsByProduct: result.detailsByProduct
+        })
+      } else {
+        res.status(500).json({
+          success: false,
+          message: 'Erro na sincronização inteligente',
+          error: result.error,
+          executionId: result.executionId
+        })
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao executar sync inteligente:', error)
+      res.status(500).json({ 
+        success: false,
+        error: error.message 
+      })
+    }
+  }
+
+  /**
+   * POST /api/cron/execute-legacy
+   * ⚠️ Executa sincronização LEGADA manualmente (sistema antigo)
+   * @deprecated Use /api/cron/execute para o novo sistema inteligente
+   */
+  async executeLegacy(req: Request, res: Response): Promise<void> {
+    try {
+      console.log('🔥 [API] POST /api/cron/execute-legacy (MANUAL - LEGADO)')
+      
+      const userId = req.body.userId
 
       const result = await cronManagementService.executeTagRulesSync('manual', userId)
 
       if (result.success) {
         res.json({
           success: true,
-          message: 'Sincronização executada com sucesso',
+          message: 'Sincronização legada executada com sucesso',
           execution: result.execution,
           result: result.result,
         })
       } else {
         res.status(500).json({
           success: false,
-          message: 'Erro na sincronização',
+          message: 'Erro na sincronização legada',
           error: result.error,
           execution: result.execution,
         })
       }
     } catch (error: any) {
-      console.error('❌ Erro ao executar sync:', error)
+      console.error('❌ Erro ao executar sync legado:', error)
       res.status(500).json({ 
         success: false,
         error: error.message 

@@ -9,6 +9,9 @@ import CronExecution from '../models/CronExecution'
 import Course from '../models/Course'
 import User from '../models/user'
 import tagRuleEngine from './tagRuleEngine'
+import ProductProfile from '../models/ProductProfile'
+import decisionEngine from './decisionEngine.service'
+import tagOrchestrator from './tagOrchestrator.service'
 import schedule from 'node-schedule'
 
 class CronManagementService {
@@ -80,7 +83,198 @@ class CronManagementService {
   }
 
   /**
-   * Executa sincronização de tags (automático ou manual)
+   * 🆕 SISTEMA INTELIGENTE: Executa sincronização usando ProductProfiles + DecisionEngine
+   */
+  async executeIntelligentTagSync(
+    type: 'automatic' | 'manual',
+    userId?: string
+  ): Promise<any> {
+    console.log(`🚀 Iniciando sincronização INTELIGENTE (${type})...`)
+    const startTime = Date.now()
+
+    const execution = await CronExecution.create({
+      cronName: 'INTELLIGENT_TAG_SYNC',
+      executionType: type,
+      status: 'running',
+      startTime: new Date(),
+      executedBy: userId,
+    })
+
+    try {
+      // ===== 1. BUSCAR PRODUCT PROFILES ATIVOS =====
+      const profiles = await ProductProfile.find({ isActive: true })
+      console.log(`📚 ${profiles.length} perfis de produto ativos encontrados`)
+
+      if (profiles.length === 0) {
+        console.warn('⚠️ Nenhum perfil de produto ativo encontrado!')
+        execution.status = 'success'
+        execution.endTime = new Date()
+        execution.duration = Date.now() - startTime
+        execution.tagsApplied = 0
+        execution.studentsProcessed = 0
+        await execution.save()
+
+        return {
+          success: true,
+          executionId: execution._id,
+          summary: {
+            duration: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
+            profilesProcessed: 0,
+            decisionsAnalyzed: 0,
+            actionsExecuted: 0,
+            message: 'Nenhum perfil ativo'
+          }
+        }
+      }
+
+      let totalDecisions = 0
+      let totalExecuted = 0
+      const results: any[] = []
+
+      // ===== 2. PARA CADA PRODUTO =====
+      for (const profile of profiles) {
+        console.log(`\n🎓 Processando produto: ${profile.name} (${profile.code})`)
+
+        // Buscar alunos que têm dados deste produto
+        const users = await User.find({
+          [`communicationByCourse.${profile.code}`]: { $exists: true }
+        })
+
+        console.log(`   👥 ${users.length} alunos encontrados`)
+
+        let productDecisions = 0
+        let productExecuted = 0
+        const productResults: any[] = []
+
+        // ===== 3. PARA CADA ALUNO, USAR DECISION ENGINE =====
+        for (const user of users) {
+          try {
+            // Avaliar decisão
+            const decision = await decisionEngine.evaluateStudent(user._id, profile.code)
+            totalDecisions++
+            productDecisions++
+
+            if (decision.shouldExecute) {
+              // Executar decisão
+              const result = await tagOrchestrator.executeDecision(
+                user._id,
+                profile.code,
+                decision
+              )
+
+              if (result.success) {
+                totalExecuted++
+                productExecuted++
+                console.log(`   ✅ ${user.email}: ${decision.action} - ${decision.reason}`)
+              } else {
+                console.log(`   ❌ ${user.email}: Falha - ${result.error}`)
+              }
+
+              productResults.push({
+                email: user.email,
+                decision,
+                result,
+                success: result.success
+              })
+            } else {
+              console.log(`   ⏭️ ${user.email}: ${decision.reason}`)
+            }
+          } catch (error: any) {
+            console.error(`   💥 Erro ao processar ${user.email}:`, error.message)
+          }
+        }
+
+        results.push({
+          productCode: profile.code,
+          productName: profile.name,
+          studentsAnalyzed: users.length,
+          decisionsConsidered: productDecisions,
+          actionsExecuted: productExecuted,
+          successRate: productDecisions > 0 
+            ? `${((productExecuted / productDecisions) * 100).toFixed(1)}%` 
+            : '0%',
+          topActions: this.summarizeActions(productResults)
+        })
+      }
+
+      const endTime = Date.now()
+      const duration = endTime - startTime
+
+      // ===== 4. SALVAR RESULTADO DA EXECUÇÃO =====
+      execution.status = 'success'
+      execution.endTime = new Date()
+      execution.duration = duration
+      execution.tagsApplied = totalExecuted
+      execution.studentsProcessed = totalDecisions
+      execution.emailsSynced = totalDecisions
+      await execution.save()
+
+      // Atualizar config com última execução
+      const config = await CronConfig.findOne({ name: 'TAG_RULES_SYNC' })
+      if (config) {
+        const newAvg = config.averageDuration
+          ? Math.round((config.averageDuration * 0.7) + (duration * 0.3))
+          : duration
+
+        await CronConfig.findOneAndUpdate(
+          { name: 'TAG_RULES_SYNC' },
+          {
+            lastRun: new Date(),
+            averageDuration: newAvg,
+          }
+        )
+      }
+
+      console.log(`\n🎉 Sincronização concluída em ${(duration / 1000).toFixed(1)}s`)
+      console.log(`📊 Resumo: ${totalDecisions} decisões → ${totalExecuted} ações executadas`)
+
+      return {
+        success: true,
+        executionId: execution._id,
+        summary: {
+          duration: `${(duration / 1000).toFixed(1)}s`,
+          profilesProcessed: profiles.length,
+          decisionsAnalyzed: totalDecisions,
+          actionsExecuted: totalExecuted,
+          successRate: totalDecisions > 0 
+            ? `${((totalExecuted / totalDecisions) * 100).toFixed(1)}%` 
+            : '0%'
+        },
+        detailsByProduct: results
+      }
+    } catch (error: any) {
+      console.error('❌ Erro na sincronização inteligente:', error)
+
+      execution.status = 'error'
+      execution.endTime = new Date()
+      execution.duration = Date.now() - startTime
+      execution.errorMessage = error.message
+      await execution.save()
+
+      return {
+        success: false,
+        executionId: execution._id,
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * Resumir ações executadas para estatísticas
+   */
+  private summarizeActions(results: any[]): any {
+    const summary: any = {}
+    results.forEach(r => {
+      if (r.decision?.action) {
+        summary[r.decision.action] = (summary[r.decision.action] || 0) + 1
+      }
+    })
+    return summary
+  }
+
+  /**
+   * ⚠️ LEGADO: Executa sincronização de tags (automático ou manual)
+   * @deprecated Use executeIntelligentTagSync() para o novo sistema
    */
   async executeTagRulesSync(
     type: 'automatic' | 'manual',
