@@ -15,6 +15,8 @@ import userHistoryRoutes from './userHistory.routes'
 import courseRoutes from './course.routes'
 import tagRuleRoutes from './tagRule.routes'
 import dashboardRoutes from './dashboardRoutes'  // Dashboard V1 & V2 (Sprint Correções)
+import productProfileRoutes from './productProfile.routes'  // Re-engagement Profiles
+import reengagementRoutes from './reengagement.routes'  // Re-engagement System
 
 const router = Router()
 
@@ -39,9 +41,11 @@ router.use("/dashboard", dashboardRoutes)  // Dashboard V1 & V2 (Sprint Correç�
 router.use("/products", productsRoutes)
 router.use("/analytics", analyticsRoutes)
 
-// 📧 ACTIVE CAMPAIGN
+// 📧 ACTIVE CAMPAIGN & RE-ENGAGEMENT
 router.use("/courses", courseRoutes)
 router.use("/tag-rules", tagRuleRoutes)
+router.use("/product-profiles", productProfileRoutes)
+router.use("/reengagement", reengagementRoutes)
 
 // 🏥 HEALTH CHECK MELHORADO
 router.get("/health", (req, res) => {
