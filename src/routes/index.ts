@@ -17,6 +17,7 @@ import tagRuleRoutes from './tagRule.routes'
 import dashboardRoutes from './dashboardRoutes'  // Dashboard V1 & V2 (Sprint Correções)
 import productProfileRoutes from './productProfile.routes'  // Re-engagement Profiles
 import reengagementRoutes from './reengagement.routes'  // Re-engagement System
+import discoveryRoutes from './discovery.routes'  // Discovery System
 
 const router = Router()
 
@@ -46,6 +47,7 @@ router.use("/courses", courseRoutes)
 router.use("/tag-rules", tagRuleRoutes)
 router.use("/product-profiles", productProfileRoutes)
 router.use("/reengagement", reengagementRoutes)
+router.use("/discovery", discoveryRoutes)
 
 // 🏥 HEALTH CHECK MELHORADO
 router.get("/health", (req, res) => {
