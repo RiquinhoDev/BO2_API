@@ -860,7 +860,7 @@ UserSchema.statics.getEnhancedUsersList = async function(filters = {}) {
 }
 
 // 🆕 ÍNDICES ATUALIZADOS para Curseduca
-UserSchema.index({ email: 1 })
+// Nota: email já tem índice automático via unique: true
 UserSchema.index({ 'discord.discordIds': 1 })
 UserSchema.index({ 'hotmart.hotmartUserId': 1 })
 UserSchema.index({ 'curseduca.curseducaUserId': 1 })
