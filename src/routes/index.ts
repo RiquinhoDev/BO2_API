@@ -1,4 +1,4 @@
-// src/routes/index.ts - VERSÃO CORRIGIDA COM CURSEDUCA + DASHBOARD V2
+// src/routes/index.ts - VERSÃO CORRIGIDA COM CURSEDUCA + DASHBOARD V2 + V2 ROUTES
 import { Router } from "express"
 import userRoutes from "./users.routes"
 import hotmartRoutes from "./hotmart.routes"
@@ -20,6 +20,13 @@ import reengagementRoutes from './reengagement.routes'  // Re-engagement System
 import discoveryRoutes from './discovery.routes'  // Discovery System
 import acReaderRoutes from './acReader.routes'  // Sprint 5: Contact Tag Reader
 
+// 🎯 SPRINT 5.2 - V2 ROUTES (Arquitetura Escalável)
+import usersV2Routes from './usersV2.routes'
+import syncV2Routes from './syncV2.routes'
+import hotmartV2Routes from './hotmartV2.routes'
+import curseducaV2Routes from './curseducaV2.routes'
+import activecampaignV2Routes from './activecampaignV2.routes'
+
 const router = Router()
 
 // 🔄 PRINCIPAIS SERVIÇOS DE SINCRONIZAÇÃO
@@ -27,6 +34,13 @@ router.use("/users", userRoutes)
 router.use("/hotmart", hotmartRoutes)      // Sincronização Hotmart
 router.use("/curseduca", curseducaRoutes)  // Sincronização CursEduca
 router.use("/sync", syncRoutes)            // Histórico de sincronizações
+
+// 🎯 V2 ROUTES - Arquitetura Escalável (Sprint 5.2)
+router.use("/v2/users", usersV2Routes)
+router.use("/v2/sync", syncV2Routes)
+router.use("/v2/hotmart", hotmartV2Routes)
+router.use("/v2/curseduca", curseducaV2Routes)
+router.use("/v2/activecampaign", activecampaignV2Routes)
 
 // 📚 GESTÃO DE TURMAS E CONTEÚDOS
 router.use("/classes", classesRoutes)

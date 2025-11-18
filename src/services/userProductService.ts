@@ -278,3 +278,61 @@ export async function isUserInProduct(
   return !!userProduct
 }
 
+// ─────────────────────────────────────────────────────────────
+// 🎯 SPRINT 5.2 - MÉTODOS HELPER ADICIONAIS
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Conta users de um produto específico
+ */
+export async function getUserCountForProduct(productId: string): Promise<number> {
+  return await UserProduct.countDocuments({ productId })
+}
+
+/**
+ * Conta users por plataforma
+ */
+export async function getUserCountsByPlatform(): Promise<Array<{ _id: string; count: number }>> {
+  return await UserProduct.aggregate([
+    {
+      $lookup: {
+        from: 'products',
+        localField: 'productId',
+        foreignField: '_id',
+        as: 'product'
+      }
+    },
+    { $unwind: '$product' },
+    {
+      $group: {
+        _id: '$product.platform',
+        count: { $sum: 1 }
+      }
+    }
+  ])
+}
+
+/**
+ * Conta users por produto
+ */
+export async function getUserCountsByProduct(): Promise<Array<{ _id: string; productName: string; count: number }>> {
+  return await UserProduct.aggregate([
+    {
+      $lookup: {
+        from: 'products',
+        localField: 'productId',
+        foreignField: '_id',
+        as: 'product'
+      }
+    },
+    { $unwind: '$product' },
+    {
+      $group: {
+        _id: '$product._id',
+        productName: { $first: '$product.name' },
+        count: { $sum: 1 }
+      }
+    }
+  ])
+}
+
