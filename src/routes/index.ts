@@ -18,6 +18,7 @@ import dashboardRoutes from './dashboardRoutes'  // Dashboard V1 & V2 (Sprint Co
 import productProfileRoutes from './productProfile.routes'  // Re-engagement Profiles
 import reengagementRoutes from './reengagement.routes'  // Re-engagement System
 import discoveryRoutes from './discovery.routes'  // Discovery System
+import acReaderRoutes from './acReader.routes'  // Sprint 5: Contact Tag Reader
 
 const router = Router()
 
@@ -48,6 +49,7 @@ router.use("/tag-rules", tagRuleRoutes)
 router.use("/product-profiles", productProfileRoutes)
 router.use("/reengagement", reengagementRoutes)
 router.use("/discovery", discoveryRoutes)
+router.use("/ac", acReaderRoutes)  // Sprint 5: Contact Tag Reader
 
 // 🏥 HEALTH CHECK MELHORADO
 router.get("/health", (req, res) => {

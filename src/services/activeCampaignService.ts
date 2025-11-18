@@ -17,7 +17,7 @@ import {
 // ─────────────────────────────────────────────────────────────
 
 class ActiveCampaignService {
-  private client: AxiosInstance
+  public client: AxiosInstance // Público para ser usado pelo ContactTagReader
   private requestCount: number = 0
   private lastResetTime: number = Date.now()
 
@@ -82,7 +82,7 @@ class ActiveCampaignService {
   // RETRY LOGIC
   // ═══════════════════════════════════════════════════════════
 
-  private async retryRequest<T>(
+  public async retryRequest<T>(
     fn: () => Promise<T>,
     retries: number = activeCampaignConfig.maxRetries
   ): Promise<T> {

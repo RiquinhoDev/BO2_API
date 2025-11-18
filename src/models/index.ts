@@ -33,6 +33,9 @@ import './StudentEngagementState'
 import './Product'
 import './UserProduct'
 
+// ===== SPRINT 5: CONTACT TAG READER =====
+import './ACContactState'
+
 // Exportar models para uso direto
 export { default as User } from './user'
 export { default as Admin } from './Admin'
@@ -61,6 +64,9 @@ export { default as StudentEngagementState } from './StudentEngagementState'
 // ===== NOVOS EXPORTS: ARCHITECTURE V2 =====
 export { default as Product } from './Product'
 export { default as UserProduct } from './UserProduct'
+
+// ===== SPRINT 5: CONTACT TAG READER =====
+export { default as ACContactState } from './ACContactState'
 
 // Função para verificar se um modelo está disponível
 function ensureModel(modelName: string): boolean {
@@ -101,7 +107,9 @@ const modelsToCheck = [
   'StudentEngagementState',
   // Architecture V2
   'Product',
-  'UserProduct'
+  'UserProduct',
+  // Sprint 5
+  'ACContactState'
 ]
 
 let availableModels = 0
