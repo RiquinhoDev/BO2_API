@@ -1,3 +1,4 @@
+// src/services/curseducaService.ts - ESTRATÉGIA V2 COMPLETA
 import axios from 'axios';
 import User, { Course } from '../models/user';
 import UserProduct from '../models/UserProduct';
@@ -7,21 +8,27 @@ const CURSEDUCA_API_URL = process.env.CURSEDUCA_API_URL;
 const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_AccessToken;
 const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY;
 
-interface CursEducaStudent {
-  id: number;
-  email: string;
-  name: string;
-  enrollmentDate: string;
-  groupId: string;
-  groupName: string;
-  progress?: number;
-  lastAccess?: string;
-}
-
 interface CursEducaGroup {
   id: number;
+  uuid?: string;
   name: string;
   description?: string;
+}
+
+interface CursEducaMember {
+  memberId?: number;
+  memberUuid?: string;
+  id?: number;
+  uuid?: string;
+  name: string;
+  email: string;
+  groupId: number;
+  groupName: string;
+  enrolledAt?: string;
+  expiresAt?: string;
+  progress?: number;
+  lastAccess?: string;
+  status?: string;
 }
 
 /**
@@ -30,6 +37,7 @@ interface CursEducaGroup {
 function mapCursEducaGroupToProduct(groupId: string, groupName: string): Course | null {
   const mapping: Record<string, Course> = {
     '4': Course.CLAREZA, // Clareza = groupId 4
+    '5': Course.OGI_V1,  // OGI = groupId 5 (ajustar conforme necessário)
     // Adicionar mais mapeamentos conforme necessário
   };
   
@@ -43,18 +51,27 @@ function mapCursEducaGroupToProduct(groupId: string, groupName: string): Course 
 }
 
 /**
- * Sincroniza estudantes do CursEduca
- * Atualiza TANTO User (V1) quanto UserProduct (V2)
+ * SINCRONIZAÇÃO CURSEDUCA - ESTRATÉGIA V2
+ * 
+ * ETAPA 1: Buscar grupos (/groups)
+ * ETAPA 2: Para cada grupo, buscar membros COM progresso (/reports/group/members)
+ * ETAPA 3: Criar/atualizar User (V1) + Product + UserProduct (V2)
  */
 export const syncCursEducaStudents = async () => {
   try {
-    console.log('🔄 Iniciando sincronização CursEduca...');
-    console.log('='.repeat(70));
+    console.log('🔄 SINCRONIZAÇÃO CURSEDUCA - ESTRATÉGIA V2');
+    console.log('='.repeat(80));
+    console.log(`📅 Data/Hora: ${new Date().toLocaleString('pt-PT')}`);
+    console.log(`🌐 API URL: ${CURSEDUCA_API_URL}`);
+    console.log(`🔑 API Key: ${CURSEDUCA_API_KEY ? '✅ Configurada' : '❌ Falta configurar'}`);
+    console.log(`🎫 Access Token: ${CURSEDUCA_ACCESS_TOKEN ? '✅ Configurado' : '❌ Falta configurar'}`);
     
-    // 1. Fetch students from CursEduca API
-    console.log('\n📡 Fetching students from CursEduca API...\n');
+    // ═══════════════════════════════════════════════════════════════════════
+    // ETAPA 1: BUSCAR TODOS OS GRUPOS
+    // ═══════════════════════════════════════════════════════════════════════
+    console.log('\n📚 ETAPA 1: Buscando grupos...\n');
     
-    const response = await axios.get(`${CURSEDUCA_API_URL}/members`, {
+    const groupsResponse = await axios.get(`${CURSEDUCA_API_URL}/groups`, {
       headers: {
         'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
         'api_key': CURSEDUCA_API_KEY,
@@ -62,198 +79,343 @@ export const syncCursEducaStudents = async () => {
       }
     });
     
-    // 🔍 Log para debug da estrutura da resposta
-    console.log('📦 Response structure:', {
-      hasData: !!response.data,
-      isArray: Array.isArray(response.data),
-      hasDataProperty: !!response.data?.data,
-      keys: Object.keys(response.data || {}),
-      sampleData: JSON.stringify(response.data).substring(0, 200)
+    console.log('📦 Estrutura da resposta de grupos:', {
+      statusCode: groupsResponse.status,
+      isArray: Array.isArray(groupsResponse.data),
+      hasDataProperty: !!groupsResponse.data?.data,
+      keys: Object.keys(groupsResponse.data || {})
     });
     
-    // 🎯 Extrair array de students (suporta múltiplas estruturas)
-    let students: CursEducaStudent[];
+    // Extrair array de grupos (suporta múltiplas estruturas)
+    const groups: CursEducaGroup[] = Array.isArray(groupsResponse.data) 
+      ? groupsResponse.data 
+      : groupsResponse.data?.data || groupsResponse.data?.groups || [];
     
-    if (Array.isArray(response.data)) {
-      // Caso 1: response.data é array direto
-      students = response.data;
-      console.log('✅ Estrutura detectada: Array direto');
-    } else if (Array.isArray(response.data?.data)) {
-      // Caso 2: response.data.data é o array
-      students = response.data.data;
-      console.log('✅ Estrutura detectada: response.data.data');
-    } else if (Array.isArray(response.data?.members)) {
-      // Caso 3: response.data.members é o array
-      students = response.data.members;
-      console.log('✅ Estrutura detectada: response.data.members');
-    } else if (Array.isArray(response.data?.results)) {
-      // Caso 4: response.data.results é o array
-      students = response.data.results;
-      console.log('✅ Estrutura detectada: response.data.results');
-    } else {
-      // Caso 5: estrutura desconhecida
-      console.error('❌ Estrutura de resposta inesperada:', response.data);
-      throw new Error('Estrutura de resposta da API CursEduca não reconhecida. Ver logs acima para detalhes.');
+    console.log(`✅ ${groups.length} grupos encontrados`);
+    
+    if (groups.length > 0) {
+      console.log('📄 Exemplo do primeiro grupo:');
+      console.log(JSON.stringify(groups[0], null, 2));
     }
     
-    console.log(`✅ ${students.length} students fetched from CursEduca`);
+    if (groups.length === 0) {
+      console.log('⚠️  Nenhum grupo encontrado. Abortando sincronização.');
+      return {
+        success: false,
+        message: 'Nenhum grupo encontrado',
+        stats: { created: 0, updated: 0, skipped: 0, errors: 0 }
+      };
+    }
     
-    // 2. Process each student
-    let created = 0;
-    let updated = 0;
-    let skipped = 0;
-    let errors = 0;
+    // Contadores globais
+    let totalCreated = 0;
+    let totalUpdated = 0;
+    let totalSkipped = 0;
+    let totalErrors = 0;
     
-    for (const student of students) {
+    // ═══════════════════════════════════════════════════════════════════════
+    // ETAPA 2: PARA CADA GRUPO, BUSCAR MEMBROS COM PROGRESSO
+    // ═══════════════════════════════════════════════════════════════════════
+    for (const group of groups) {
+      console.log(`\n${'='.repeat(80)}`);
+      console.log(`📚 Processando grupo: ${group.name} (ID: ${group.id})`);
+      console.log('='.repeat(80));
+      
+      // Mapear grupo para curso
+      const course = mapCursEducaGroupToProduct(group.id.toString(), group.name);
+      
+      if (!course) {
+        console.log(`⏭️  SKIP: Grupo "${group.name}" não mapeado para nenhum produto`);
+        totalSkipped++;
+        continue;
+      }
+      
+      console.log(`   🎯 Mapeado para: ${course}`);
+      
       try {
-        // Map CursEduca group to product
-        const course = mapCursEducaGroupToProduct(student.groupId, student.groupName);
+        // Buscar membros deste grupo COM progresso
+        console.log(`   📡 Buscando membros...`);
         
-        if (!course) {
-          skipped++;
+        const membersResponse = await axios.get(
+          `${CURSEDUCA_API_URL}/reports/group/members`,
+          {
+            params: { groupId: group.id },
+            headers: {
+              'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
+              'api_key': CURSEDUCA_API_KEY,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        console.log('📦 Estrutura da resposta de membros:', {
+          statusCode: membersResponse.status,
+          isArray: Array.isArray(membersResponse.data),
+          hasDataProperty: !!membersResponse.data?.data,
+          keys: Object.keys(membersResponse.data || {})
+        });
+        
+        // Extrair array de membros
+        const members: CursEducaMember[] = Array.isArray(membersResponse.data)
+          ? membersResponse.data
+          : membersResponse.data?.data || membersResponse.data?.members || [];
+        
+        console.log(`   ✅ ${members.length} membros encontrados`);
+        
+        if (members.length > 0) {
+          console.log('   📄 Exemplo do primeiro membro:');
+          console.log(JSON.stringify(members[0], null, 2));
+        }
+        
+        if (members.length === 0) {
+          console.log(`   ⚠️  Nenhum membro neste grupo\n`);
           continue;
         }
         
-        // Find or create user
-        let user = await User.findOne({ email: student.email });
-        
-        if (!user) {
-          // Create new user
-          user = await User.create({
-            email: student.email,
-            name: student.name,
-            curseduca: {
-              email: student.email,
-              enrollmentDate: new Date(student.enrollmentDate),
-              courses: [course],
-              progress: student.progress,
-              lastAccess: student.lastAccess ? new Date(student.lastAccess) : undefined
-            },
-            consolidatedCourses: [course],
-            allPlatforms: [Platform.CURSEDUCA]
-          });
+        // ═══════════════════════════════════════════════════════════════════════
+        // ETAPA 3: PROCESSAR CADA MEMBRO
+        // ═══════════════════════════════════════════════════════════════════════
+        for (let i = 0; i < members.length; i++) {
+          const member = members[i];
           
-          created++;
-          console.log(`✅ Created: ${student.email}`);
-        } else {
-          // Update existing user (V1 structure)
-          user.curseduca = {
-            email: student.email,
-            enrollmentDate: new Date(student.enrollmentDate),
-            courses: [course],
-            progress: student.progress,
-            lastAccess: student.lastAccess ? new Date(student.lastAccess) : undefined
-          };
+          console.log(`\n   [${i + 1}/${members.length}] ${member.email || member.name || 'SEM EMAIL'}`);
           
-          // Update consolidated courses
-          const allCourses = [
-            ...(user.discord?.courses || []),
-            ...(user.hotmart?.courses || []),
-            ...(user.curseduca?.courses || [])
-          ];
-          user.consolidatedCourses = Array.from(new Set(allCourses));
-          
-          // Update platforms
-          if (!user.allPlatforms.includes(Platform.CURSEDUCA)) {
-            user.allPlatforms.push(Platform.CURSEDUCA);
-          }
-          
-          // Update lastActivityDate
-          const lastAccess = student.lastAccess ? new Date(student.lastAccess) : new Date();
-          if (!user.lastActivityDate || lastAccess > user.lastActivityDate) {
-            user.lastActivityDate = lastAccess;
-          }
-          
-          await user.save();
-          updated++;
-          console.log(`✅ Updated: ${student.email}`);
-        }
-        
-        // V2: Create/Update UserProduct
-        const product = await Product.findOne({ code: course });
-        
-        if (product) {
-          const existingUserProduct = await UserProduct.findOne({
-            userId: user._id,
-            productId: product._id
-          });
-          
-          if (existingUserProduct) {
-            // Update existing UserProduct
-            existingUserProduct.platformData = {
-              platformId: 'CURSEDUCA',
-              externalUserId: student.id.toString(),
-              externalProductId: student.groupId
-            };
+          try {
+            // Validar email
+            if (!member.email) {
+              console.log(`      ⚠️  SKIP: Sem email`);
+              totalSkipped++;
+              continue;
+            }
             
-            existingUserProduct.progress = {
-              current: student.progress || 0,
-              total: 100,
-              percentage: student.progress || 0,
-              completedClasses: [],
-              lastUpdated: new Date()
-            };
+            const email = member.email.toLowerCase().trim();
             
-            existingUserProduct.lastActivityDate = student.lastAccess 
-              ? new Date(student.lastAccess) 
-              : new Date();
+            // ─────────────────────────────────────────────────────────────
+            // 3.1: CRIAR/ATUALIZAR USER (V1)
+            // ─────────────────────────────────────────────────────────────
+            let user = await User.findOne({ email });
             
-            await existingUserProduct.save();
-          } else {
-            // Create new UserProduct
-            await UserProduct.create({
+            if (!user) {
+              console.log(`      ➕ CRIAR novo user`);
+              
+              user = await User.create({
+                email,
+                name: member.name || email,
+                curseduca: {
+                  curseducaUserId: (member.memberId || member.id)?.toString(),
+                  curseducaUuid: member.memberUuid || member.uuid,
+                  email,
+                  groupId: group.id.toString(),
+                  groupUuid: group.uuid,
+                  groupName: group.name,
+                  groupCurseducaId: group.id,
+                  groupCurseducaUuid: group.uuid,
+                  enrollmentDate: member.enrolledAt ? new Date(member.enrolledAt) : new Date(),
+                  expiresAt: member.expiresAt ? new Date(member.expiresAt) : null,
+                  courses: [course],
+                  progress: {
+                    estimatedProgress: member.progress || 0,
+                    progressSource: 'curseduca_reports'
+                  },
+                  lastAccess: member.lastAccess ? new Date(member.lastAccess) : new Date(),
+                  memberStatus: member.status || 'ACTIVE'
+                }
+              });
+              
+              totalCreated++;
+              console.log(`      ✅ User criado: ${user._id}`);
+            } else {
+              console.log(`      🔄 ATUALIZAR user existente: ${user._id}`);
+              
+              if (!user.curseduca) {
+                user.curseduca = {} as any;
+              }
+              
+              // Atualizar dados CursEduca
+              user.curseduca.curseducaUserId = (member.memberId || member.id)?.toString();
+              user.curseduca.curseducaUuid = member.memberUuid || member.uuid;
+              user.curseduca.groupId = group.id.toString();
+              user.curseduca.groupUuid = group.uuid;
+              user.curseduca.groupName = group.name;
+              user.curseduca.groupCurseducaId = group.id;
+              user.curseduca.groupCurseducaUuid = group.uuid;
+              
+              if (member.enrolledAt) {
+                user.curseduca.enrollmentDate = new Date(member.enrolledAt);
+              }
+              
+              if (member.expiresAt) {
+                user.curseduca.expiresAt = new Date(member.expiresAt);
+              }
+              
+              // Adicionar curso se não existir
+              if (!user.curseduca.courses) {
+                user.curseduca.courses = [];
+              }
+              if (!user.curseduca.courses.includes(course)) {
+                user.curseduca.courses.push(course);
+              }
+              
+              // Atualizar progresso
+              if (!user.curseduca.progress) {
+                user.curseduca.progress = {} as any;
+              }
+              user.curseduca.progress.estimatedProgress = member.progress || 0;
+              user.curseduca.progress.progressSource = 'curseduca_reports';
+              
+              // Atualizar último acesso
+              if (member.lastAccess) {
+                user.curseduca.lastAccess = new Date(member.lastAccess);
+              }
+              
+              // Atualizar status
+              user.curseduca.memberStatus = member.status || 'ACTIVE';
+              
+              await user.save();
+              totalUpdated++;
+              console.log(`      ✅ User atualizado`);
+            }
+            
+            // ─────────────────────────────────────────────────────────────
+            // 3.2: CRIAR/ATUALIZAR PRODUCT
+            // ─────────────────────────────────────────────────────────────
+            let product = await Product.findOne({ code: course });
+            
+            if (!product) {
+              product = await Product.create({
+                code: course,
+                name: group.name,
+                platform: 'curseduca',
+                platformData: {
+                  groupId: group.id.toString(),
+                  groupUuid: group.uuid,
+                  groupName: group.name
+                },
+                isActive: true
+              });
+              console.log(`      ✅ Produto criado: ${product._id}`);
+            }
+            
+            // ─────────────────────────────────────────────────────────────
+            // 3.3: CRIAR/ATUALIZAR USERPRODUCT (V2)
+            // ─────────────────────────────────────────────────────────────
+            const existingUserProduct = await UserProduct.findOne({
               userId: user._id,
-              productId: product._id,
-              platformData: {
-                platformId: 'CURSEDUCA',
-                externalUserId: student.id.toString(),
-                externalProductId: student.groupId
-              },
-              progress: {
-                current: student.progress || 0,
-                total: 100,
-                percentage: student.progress || 0,
-                completedClasses: [],
-                lastUpdated: new Date()
-              },
-              isActive: true,
-              enrollmentDate: new Date(student.enrollmentDate),
-              lastActivityDate: student.lastAccess 
-                ? new Date(student.lastAccess) 
-                : new Date()
+              productId: product._id
             });
+            
+            if (existingUserProduct) {
+              // Atualizar UserProduct existente
+              existingUserProduct.platformData = {
+                platformId: 'CURSEDUCA',
+                externalUserId: (member.memberId || member.id)?.toString(),
+                externalProductId: group.id.toString()
+              };
+              
+              existingUserProduct.progress = {
+                current: member.progress || 0,
+                total: 100,
+                percentage: member.progress || 0,
+                completedClasses: existingUserProduct.progress?.completedClasses || [],
+                lastUpdated: new Date()
+              };
+              
+              existingUserProduct.status = member.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE';
+              existingUserProduct.isActive = member.status === 'ACTIVE';
+              existingUserProduct.lastActivityDate = member.lastAccess 
+                ? new Date(member.lastAccess) 
+                : new Date();
+              
+              if (member.expiresAt) {
+                existingUserProduct.expirationDate = new Date(member.expiresAt);
+              }
+              
+              await existingUserProduct.save();
+              console.log(`      ✅ UserProduct atualizado`);
+            } else {
+              // Criar novo UserProduct
+              await UserProduct.create({
+                userId: user._id,
+                productId: product._id,
+                platformData: {
+                  platformId: 'CURSEDUCA',
+                  externalUserId: (member.memberId || member.id)?.toString(),
+                  externalProductId: group.id.toString()
+                },
+                progress: {
+                  current: member.progress || 0,
+                  total: 100,
+                  percentage: member.progress || 0,
+                  completedClasses: [],
+                  lastUpdated: new Date()
+                },
+                status: member.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
+                isActive: member.status === 'ACTIVE',
+                enrollmentDate: member.enrolledAt ? new Date(member.enrolledAt) : new Date(),
+                expirationDate: member.expiresAt ? new Date(member.expiresAt) : null,
+                lastActivityDate: member.lastAccess ? new Date(member.lastAccess) : new Date()
+              });
+              
+              console.log(`      ✅ UserProduct criado`);
+            }
+            
+          } catch (error: any) {
+            totalErrors++;
+            console.error(`      ❌ Erro: ${error.message}`);
           }
         }
         
-      } catch (error) {
-        errors++;
-        console.error(`❌ Error processing ${student.email}:`, error);
+      } catch (error: any) {
+        console.error(`   ❌ Erro ao buscar membros do grupo "${group.name}": ${error.message}`);
+        if (error.response) {
+          console.error(`   📡 Status HTTP: ${error.response.status}`);
+          console.error(`   📄 Resposta: ${JSON.stringify(error.response.data).substring(0, 200)}`);
+        }
+        totalErrors++;
       }
     }
     
-    console.log('\n' + '='.repeat(70));
-    console.log('\n📊 SYNC RESULTS:');
-    console.log(`Total students: ${students.length}`);
-    console.log(`Created: ${created}`);
-    console.log(`Updated: ${updated}`);
-    console.log(`Skipped: ${skipped}`);
-    console.log(`Errors: ${errors}`);
-    console.log('\n✅ CursEduca sync complete!\n');
+    // ═══════════════════════════════════════════════════════════════════════
+    // RESUMO FINAL
+    // ═══════════════════════════════════════════════════════════════════════
+    console.log('\n' + '='.repeat(80));
+    console.log('📊 RESUMO DA SINCRONIZAÇÃO');
+    console.log('='.repeat(80));
+    console.log(`📚 Grupos processados: ${groups.length}`);
+    console.log(`➕ Users criados: ${totalCreated}`);
+    console.log(`🔄 Users atualizados: ${totalUpdated}`);
+    console.log(`⏭️  Ignorados: ${totalSkipped}`);
+    console.log(`❌ Erros: ${totalErrors}`);
+    console.log('='.repeat(80));
     
     return {
       success: true,
-      stats: { created, updated, skipped, errors }
+      stats: {
+        groupsProcessed: groups.length,
+        created: totalCreated,
+        updated: totalUpdated,
+        skipped: totalSkipped,
+        errors: totalErrors
+      }
     };
     
-  } catch (error) {
-    console.error('❌ Error in CursEduca sync:', error);
+  } catch (error: any) {
+    console.error('\n' + '='.repeat(80));
+    console.error('❌ ERRO CRÍTICO NA SINCRONIZAÇÃO');
+    console.error('='.repeat(80));
+    console.error(`Mensagem: ${error.message}`);
+    if (error.response) {
+      console.error(`Status HTTP: ${error.response.status}`);
+      console.error(`Resposta: ${JSON.stringify(error.response.data).substring(0, 500)}`);
+    }
+    console.error('='.repeat(80));
+    
     throw error;
   }
 };
 
 /**
- * Fetch groups from CursEduca
- * Para debug e verificação de mapeamentos
+ * Buscar grupos do CursEduca
  */
 export const fetchCursEducaGroups = async () => {
   try {
@@ -267,42 +429,28 @@ export const fetchCursEducaGroups = async () => {
       }
     });
     
-    const groups: CursEducaGroup[] = response.data;
+    const groups = Array.isArray(response.data) 
+      ? response.data 
+      : response.data?.data || response.data?.groups || [];
     
-    console.log(`\n✅ ${groups.length} groups found:\n`);
-    
-    groups.forEach(group => {
-      const mapped = mapCursEducaGroupToProduct(group.id.toString(), group.name);
-      const status = mapped ? '✅ MAPPED' : '⚠️  NOT MAPPED';
-      
-      console.log(`${status} - ID: ${group.id}, Name: ${group.name}${mapped ? ` → ${mapped}` : ''}`);
-    });
-    
+    console.log(`✅ ${groups.length} groups fetched`);
     return groups;
-    
   } catch (error) {
-    console.error('❌ Error fetching CursEduca groups:', error);
+    console.error('❌ Error fetching groups:', error);
     throw error;
   }
 };
 
 /**
- * 🧪 Testa conexão com a API CursEduca
+ * Testar conexão com CursEduca
  */
 export const testCurseducaConnection = async () => {
   try {
-    if (!CURSEDUCA_API_URL || !CURSEDUCA_ACCESS_TOKEN) {
-      return {
-        success: false,
-        message: '❌ Credenciais CursEduca não configuradas',
-        details: {
-          hasUrl: !!CURSEDUCA_API_URL,
-          hasToken: !!CURSEDUCA_ACCESS_TOKEN
-        }
-      }
-    }
-
-    // Tenta buscar grupos como teste de conexão
+    console.log('🔌 Testando conexão com CursEduca...');
+    console.log(`   URL: ${CURSEDUCA_API_URL}`);
+    console.log(`   API Key: ${CURSEDUCA_API_KEY ? '✅' : '❌'}`);
+    console.log(`   Token: ${CURSEDUCA_ACCESS_TOKEN ? '✅' : '❌'}`);
+    
     const response = await axios.get(`${CURSEDUCA_API_URL}/groups`, {
       headers: {
         'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
@@ -310,147 +458,67 @@ export const testCurseducaConnection = async () => {
         'Content-Type': 'application/json'
       },
       timeout: 10000
-    })
-
-    return {
-      success: true,
-      message: '✅ Conexão CursEduca estabelecida com sucesso',
-      details: {
-        apiUrl: CURSEDUCA_API_URL,
-        groupsFound: response.data?.length || 0,
-        timestamp: new Date().toISOString()
-      }
-    }
+    });
+    
+    console.log(`✅ Conexão bem-sucedida! Status: ${response.status}`);
+    return { success: true, status: response.status, message: 'Conexão OK' };
   } catch (error: any) {
-    return {
-      success: false,
-      message: `❌ Erro ao conectar à CursEduca: ${error.message}`,
-      details: {
-        error: error.response?.data || error.message,
-        status: error.response?.status
-      }
+    console.error('❌ Erro na conexão:', error.message);
+    if (error.response) {
+      console.error(`   Status: ${error.response.status}`);
+      console.error(`   Data: ${JSON.stringify(error.response.data).substring(0, 200)}`);
     }
+    return { success: false, error: error.message };
   }
-}
+};
 
 /**
- * 🔄 Sincroniza membros do CursEduca (alias para syncCursEducaStudents)
+ * Sincronizar membros (alias para syncCursEducaStudents)
  */
-export const syncCurseducaMembers = async () => {
-  try {
-    const result = await syncCursEducaStudents()
-    return {
-      success: true,
-      message: '✅ Sincronização de membros completa',
-      data: result
-    }
-  } catch (error: any) {
-    return {
-      success: false,
-      message: `❌ Erro ao sincronizar membros: ${error.message}`,
-      error: error.message
-    }
-  }
-}
+export const syncCurseducaMembers = syncCursEducaStudents;
 
 /**
- * 📊 Sincroniza progresso dos estudantes (placeholder por agora)
+ * Sincronizar progresso (placeholder - já incluído em syncCursEducaStudents)
  */
 export const syncCurseducaProgress = async () => {
-  try {
-    // TODO: Implementar quando a API CursEduca disponibilizar endpoint de progresso
-    console.log('⚠️ Sincronização de progresso ainda não implementada pela API CursEduca')
-    
-    return {
-      success: true,
-      message: '⚠️ Sincronização de progresso não disponível',
-      note: 'A API CursEduca ainda não fornece dados de progresso detalhados'
-    }
-  } catch (error: any) {
-    return {
-      success: false,
-      message: `❌ Erro ao sincronizar progresso: ${error.message}`,
-      error: error.message
-    }
-  }
-}
+  console.log('ℹ️  syncCurseducaProgress: Progresso já sincronizado via syncCursEducaStudents');
+  return { success: true, message: 'Use syncCursEducaStudents para sincronização completa' };
+};
 
 /**
- * 📊 Obtém estatísticas do dashboard CursEduca
+ * Obter estatísticas do dashboard CursEduca
  */
 export const getCurseducaDashboardStats = async () => {
   try {
-    console.log('📊 [DASHBOARD] Calculando estatísticas...')
+    console.log('📊 [DASHBOARD] Calculando estatísticas CursEduca...');
     
-    // Buscar users do CursEduca
-    const curseducaUsers = await User.find({
-      'curseduca.curseducaUserId': { $exists: true, $ne: null }
-    })
-    
-    // Buscar produtos CursEduca
     const curseducaProducts = await Product.find({
       platform: 'curseduca',
       isActive: true
-    })
+    });
     
-    // Buscar UserProducts relacionados
-    const userProducts = await UserProduct.find({
+    const totalUsers = await User.countDocuments({
+      'curseduca.email': { $exists: true }
+    });
+    
+    const activeUsers = await User.countDocuments({
+      'curseduca.memberStatus': 'ACTIVE'
+    });
+    
+    const totalUserProducts = await UserProduct.countDocuments({
       productId: { $in: curseducaProducts.map(p => p._id) }
-    })
+    });
     
-    // Calcular estatísticas
-    const totalUsers = curseducaUsers.length
-    const activeUsers = curseducaUsers.filter(u => 
-      u.curseduca?.lastActivity && 
-      (Date.now() - new Date(u.curseduca.lastActivity).getTime()) < 30 * 24 * 60 * 60 * 1000
-    ).length
+    console.log('✅ Estatísticas calculadas');
     
-    const totalEnrollments = userProducts.length
-    const activeEnrollments = userProducts.filter(up => up.status === 'ACTIVE').length
-    
-    // Breakdown por grupo
-    const groupBreakdown: Record<string, number> = {}
-    curseducaUsers.forEach(user => {
-      const groupName = user.curseduca?.groupName || 'Sem Grupo'
-      groupBreakdown[groupName] = (groupBreakdown[groupName] || 0) + 1
-    })
-    
-    const stats = {
-      success: true,
-      message: '✅ Estatísticas calculadas com sucesso',
-      data: {
-        overview: {
-          totalUsers,
-          activeUsers,
-          inactiveUsers: totalUsers - activeUsers,
-          totalEnrollments,
-          activeEnrollments
-        },
-        products: curseducaProducts.map(p => ({
-          id: p._id,
-          code: p.code,
-          name: p.name,
-          enrollments: userProducts.filter(up => up.productId.toString() === p._id.toString()).length
-        })),
-        groupBreakdown,
-        timestamp: new Date().toISOString()
-      }
-    }
-    
-    console.log('✅ [DASHBOARD] Estatísticas:', {
+    return {
       totalUsers,
       activeUsers,
-      products: curseducaProducts.length,
-      groups: Object.keys(groupBreakdown).length
-    })
-    
-    return stats
+      totalUserProducts,
+      products: curseducaProducts.length
+    };
   } catch (error: any) {
-    console.error('❌ [DASHBOARD] Erro ao calcular estatísticas:', error)
-    return {
-      success: false,
-      message: `❌ Erro ao buscar estatísticas: ${error.message}`,
-      error: error.message
-    }
+    console.error('❌ Erro ao calcular estatísticas:', error.message);
+    throw error;
   }
-}
+};
