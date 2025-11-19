@@ -53,7 +53,7 @@ export const syncCursEducaStudents = async () => {
     // 1. Fetch students from CursEduca API
     console.log('\n📡 Fetching students from CursEduca API...\n');
     
-    const response = await axios.get(`${CURSEDUCA_API_URL}/api/students`, {
+    const response = await axios.get(`${CURSEDUCA_API_URL}/members`, {
       headers: {
         'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
         'Content-Type': 'application/json'
@@ -224,7 +224,7 @@ export const fetchCursEducaGroups = async () => {
   try {
     console.log('📡 Fetching CursEduca groups...');
     
-    const response = await axios.get(`${CURSEDUCA_API_URL}/api/groups`, {
+    const response = await axios.get(`${CURSEDUCA_API_URL}/groups`, {
       headers: {
         'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
         'Content-Type': 'application/json'
@@ -267,7 +267,7 @@ export const testCurseducaConnection = async () => {
     }
 
     // Tenta buscar grupos como teste de conexão
-    const response = await axios.get(`${CURSEDUCA_API_URL}/api/groups`, {
+    const response = await axios.get(`${CURSEDUCA_API_URL}/groups`, {
       headers: {
         'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
         'Content-Type': 'application/json'
