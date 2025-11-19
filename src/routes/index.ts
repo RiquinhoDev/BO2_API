@@ -18,7 +18,8 @@ import dashboardRoutes from './dashboardRoutes'  // Dashboard V1 & V2 (Sprint Co
 import productProfileRoutes from './productProfile.routes'  // Re-engagement Profiles
 import reengagementRoutes from './reengagement.routes'  // Re-engagement System
 import discoveryRoutes from './discovery.routes'  // Discovery System
-import acReaderRoutes from './acReader.routes'  // Sprint 5: Contact Tag Reader
+import acReaderRoutes from './acReader.routes'  // Sprint 5: Contact Tag Reader (OLD)
+import contactTagReaderRoutes from './contactTagReader.routes'  // Sprint 5: Contact Tag Reader (NEW)
 
 // 🎯 SPRINT 5.2 - V2 ROUTES (Arquitetura Escalável)
 import usersV2Routes from './usersV2.routes'
@@ -63,7 +64,8 @@ router.use("/tag-rules", tagRuleRoutes)
 router.use("/product-profiles", productProfileRoutes)
 router.use("/reengagement", reengagementRoutes)
 router.use("/discovery", discoveryRoutes)
-router.use("/ac", acReaderRoutes)  // Sprint 5: Contact Tag Reader
+router.use("/ac", acReaderRoutes)  // Sprint 5: Contact Tag Reader (OLD)
+router.use("/ac", contactTagReaderRoutes)  // Sprint 5: Contact Tag Reader (NEW - Improved)
 
 // 🏥 HEALTH CHECK MELHORADO
 router.get("/health", (req, res) => {
