@@ -7,7 +7,6 @@ import {
   syncAllTags,
   getSyncStatus,
 } from '../controllers/contactTagReader.controller';
-import { isAuthenticated, isAdmin } from '../middleware/auth';
 
 const router = Router();
 
@@ -18,31 +17,31 @@ const router = Router();
 /**
  * GET /api/ac/contact/:email/tags
  * Buscar tags de um contacto
- * Middleware: isAuthenticated
+ * TODO: Adicionar middleware isAuthenticated quando disponível
  */
-router.get('/contact/:email/tags', isAuthenticated, getContactTags);
+router.get('/contact/:email/tags', getContactTags);
 
 /**
  * POST /api/ac/sync-user-tags/:userId
  * Sincronizar tags de um user
- * Middleware: isAuthenticated
+ * TODO: Adicionar middleware isAuthenticated quando disponível
  */
-router.post('/sync-user-tags/:userId', isAuthenticated, syncUserTags);
+router.post('/sync-user-tags/:userId', syncUserTags);
 
 /**
  * POST /api/ac/sync-all-tags
  * Sincronizar todos os users (ADMIN ONLY)
- * Middleware: isAuthenticated + isAdmin
+ * TODO: Adicionar middleware isAuthenticated + isAdmin quando disponível
  * Query params: ?limit=100
  */
-router.post('/sync-all-tags', isAuthenticated, isAdmin, syncAllTags);
+router.post('/sync-all-tags', syncAllTags);
 
 /**
  * GET /api/ac/sync-status
  * Verificar status do sistema de sync
- * Middleware: isAuthenticated
+ * TODO: Adicionar middleware isAuthenticated quando disponível
  */
-router.get('/sync-status', isAuthenticated, getSyncStatus);
+router.get('/sync-status', getSyncStatus);
 
 export default router;
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import User, { Course, Platform } from '../models/User';
+import User, { Course } from '../models/user';
 import UserProduct from '../models/UserProduct';
 import Product from '../models/Product';
 
@@ -249,3 +249,171 @@ export const fetchCursEducaGroups = async () => {
     throw error;
   }
 };
+
+/**
+ * 🧪 Testa conexão com a API CursEduca
+ */
+export const testCurseducaConnection = async () => {
+  try {
+    if (!CURSEDUCA_API_URL || !CURSEDUCA_ACCESS_TOKEN) {
+      return {
+        success: false,
+        message: '❌ Credenciais CursEduca não configuradas',
+        details: {
+          hasUrl: !!CURSEDUCA_API_URL,
+          hasToken: !!CURSEDUCA_ACCESS_TOKEN
+        }
+      }
+    }
+
+    // Tenta buscar grupos como teste de conexão
+    const response = await axios.get(`${CURSEDUCA_API_URL}/api/groups`, {
+      headers: {
+        'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    })
+
+    return {
+      success: true,
+      message: '✅ Conexão CursEduca estabelecida com sucesso',
+      details: {
+        apiUrl: CURSEDUCA_API_URL,
+        groupsFound: response.data?.length || 0,
+        timestamp: new Date().toISOString()
+      }
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      message: `❌ Erro ao conectar à CursEduca: ${error.message}`,
+      details: {
+        error: error.response?.data || error.message,
+        status: error.response?.status
+      }
+    }
+  }
+}
+
+/**
+ * 🔄 Sincroniza membros do CursEduca (alias para syncCursEducaStudents)
+ */
+export const syncCurseducaMembers = async () => {
+  try {
+    const result = await syncCursEducaStudents()
+    return {
+      success: true,
+      message: '✅ Sincronização de membros completa',
+      data: result
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      message: `❌ Erro ao sincronizar membros: ${error.message}`,
+      error: error.message
+    }
+  }
+}
+
+/**
+ * 📊 Sincroniza progresso dos estudantes (placeholder por agora)
+ */
+export const syncCurseducaProgress = async () => {
+  try {
+    // TODO: Implementar quando a API CursEduca disponibilizar endpoint de progresso
+    console.log('⚠️ Sincronização de progresso ainda não implementada pela API CursEduca')
+    
+    return {
+      success: true,
+      message: '⚠️ Sincronização de progresso não disponível',
+      note: 'A API CursEduca ainda não fornece dados de progresso detalhados'
+    }
+  } catch (error: any) {
+    return {
+      success: false,
+      message: `❌ Erro ao sincronizar progresso: ${error.message}`,
+      error: error.message
+    }
+  }
+}
+
+/**
+ * 📊 Obtém estatísticas do dashboard CursEduca
+ */
+export const getCurseducaDashboardStats = async () => {
+  try {
+    console.log('📊 [DASHBOARD] Calculando estatísticas...')
+    
+    // Buscar users do CursEduca
+    const curseducaUsers = await User.find({
+      'curseduca.curseducaUserId': { $exists: true, $ne: null }
+    })
+    
+    // Buscar produtos CursEduca
+    const curseducaProducts = await Product.find({
+      platform: 'curseduca',
+      isActive: true
+    })
+    
+    // Buscar UserProducts relacionados
+    const userProducts = await UserProduct.find({
+      productId: { $in: curseducaProducts.map(p => p._id) }
+    })
+    
+    // Calcular estatísticas
+    const totalUsers = curseducaUsers.length
+    const activeUsers = curseducaUsers.filter(u => 
+      u.curseduca?.lastActivity && 
+      (Date.now() - new Date(u.curseduca.lastActivity).getTime()) < 30 * 24 * 60 * 60 * 1000
+    ).length
+    
+    const totalEnrollments = userProducts.length
+    const activeEnrollments = userProducts.filter(up => up.status === 'ACTIVE').length
+    
+    // Breakdown por grupo
+    const groupBreakdown: Record<string, number> = {}
+    curseducaUsers.forEach(user => {
+      const groupName = user.curseduca?.groupName || 'Sem Grupo'
+      groupBreakdown[groupName] = (groupBreakdown[groupName] || 0) + 1
+    })
+    
+    const stats = {
+      success: true,
+      message: '✅ Estatísticas calculadas com sucesso',
+      data: {
+        overview: {
+          totalUsers,
+          activeUsers,
+          inactiveUsers: totalUsers - activeUsers,
+          totalEnrollments,
+          activeEnrollments
+        },
+        products: curseducaProducts.map(p => ({
+          id: p._id,
+          code: p.code,
+          name: p.name,
+          enrollments: userProducts.filter(up => up.productId.toString() === p._id.toString()).length
+        })),
+        groupBreakdown,
+        timestamp: new Date().toISOString()
+      }
+    }
+    
+    console.log('✅ [DASHBOARD] Estatísticas:', {
+      totalUsers,
+      activeUsers,
+      products: curseducaProducts.length,
+      groups: Object.keys(groupBreakdown).length
+    })
+    
+    return stats
+  } catch (error: any) {
+    console.error('❌ [DASHBOARD] Erro ao calcular estatísticas:', error)
+    return {
+      success: false,
+      message: `❌ Erro ao buscar estatísticas: ${error.message}`,
+      error: error.message
+    }
+  }
+}

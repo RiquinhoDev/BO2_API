@@ -318,14 +318,14 @@ const UserSchema: Schema = new Schema({
     // 🆕 IDs do Membro
     curseducaUserId: { 
       type: String, 
-      trim: true,
-      index: true 
+      trim: true
+      // Índice definido em UserSchema.index() abaixo (linha ~866)
     },
     curseducaUuid: { 
       type: String, 
       trim: true,
-      index: true,
       sparse: true  // 🆕 UUID do membro
+      // Índice definido em UserSchema.index() abaixo (linha ~867)
     },
     
     // 🆕 NOVO: Array para múltiplas turmas
@@ -347,21 +347,21 @@ const UserSchema: Schema = new Schema({
     // 🆕 IDs do Grupo (ID + UUID)
     groupId: { 
       type: String, 
-      trim: true,
-      index: true  // UUID do grupo (principal)
+      trim: true
+      // UUID do grupo (principal) - índice não necessário aqui
     },
     groupName: String,
     groupCurseducaId: { 
       type: String, 
       trim: true,
-      index: true,
       sparse: true  // 🆕 ID numérico do grupo
+      // Índice definido em UserSchema.index() abaixo (linha 869)
     },
     groupCurseducaUuid: { 
       type: String, 
       trim: true,
-      index: true,
       sparse: true  // 🆕 UUID do grupo
+      // Índice definido em UserSchema.index() abaixo (linha 868)
     },
     
     memberStatus: { 
