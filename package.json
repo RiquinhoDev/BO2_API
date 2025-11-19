@@ -36,6 +36,16 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
+    "lint": "eslint src/ --ext .ts",
+    "test": "jest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report",
+    "check-ac-sync": "ts-node scripts/check-ac-sync.ts",
+    "check-ac-sync:verbose": "VERBOSE=true ts-node scripts/check-ac-sync.ts",
+    "check-ac-sync:export": "EXPORT_JSON=true ts-node scripts/check-ac-sync.ts",
     "reengagement:indexes": "ts-node src/scripts/create-indexes.ts",
     "reengagement:test": "ts-node src/scripts/test-models.ts",
     "reengagement:seed": "ts-node src/scripts/seed-product-profiles.ts",
@@ -49,6 +59,7 @@
     "diagnose:dashboard": "ts-node scripts/diagnostics/diagnose-dashboard-stats.ts",
     "diagnose:email": "ts-node scripts/diagnostics/verify-email-tracking.ts",
     "diagnose:all": "npm run diagnose:segregation && npm run diagnose:dashboard && npm run diagnose:email",
-    "maintenance:indexes": "ts-node scripts/maintenance/create-indexes.ts"
+    "maintenance:indexes": "ts-node scripts/maintenance/create-indexes.ts",
+    "validate:full": "npm run build && npm run lint && npm test && npm run check-ac-sync"
   }
 }
