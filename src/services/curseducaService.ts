@@ -62,7 +62,40 @@ export const syncCursEducaStudents = async () => {
       }
     });
     
-    const students: CursEducaStudent[] = response.data;
+    // 🔍 Log para debug da estrutura da resposta
+    console.log('📦 Response structure:', {
+      hasData: !!response.data,
+      isArray: Array.isArray(response.data),
+      hasDataProperty: !!response.data?.data,
+      keys: Object.keys(response.data || {}),
+      sampleData: JSON.stringify(response.data).substring(0, 200)
+    });
+    
+    // 🎯 Extrair array de students (suporta múltiplas estruturas)
+    let students: CursEducaStudent[];
+    
+    if (Array.isArray(response.data)) {
+      // Caso 1: response.data é array direto
+      students = response.data;
+      console.log('✅ Estrutura detectada: Array direto');
+    } else if (Array.isArray(response.data?.data)) {
+      // Caso 2: response.data.data é o array
+      students = response.data.data;
+      console.log('✅ Estrutura detectada: response.data.data');
+    } else if (Array.isArray(response.data?.members)) {
+      // Caso 3: response.data.members é o array
+      students = response.data.members;
+      console.log('✅ Estrutura detectada: response.data.members');
+    } else if (Array.isArray(response.data?.results)) {
+      // Caso 4: response.data.results é o array
+      students = response.data.results;
+      console.log('✅ Estrutura detectada: response.data.results');
+    } else {
+      // Caso 5: estrutura desconhecida
+      console.error('❌ Estrutura de resposta inesperada:', response.data);
+      throw new Error('Estrutura de resposta da API CursEduca não reconhecida. Ver logs acima para detalhes.');
+    }
+    
     console.log(`✅ ${students.length} students fetched from CursEduca`);
     
     // 2. Process each student
