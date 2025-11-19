@@ -1,6 +1,9 @@
+// ⚠️ CRITICAL: dotenv.config() MUST be the first thing executed!
+import dotenv from "dotenv"
+dotenv.config()
+
 import express from "express"
 import cors from "cors"
-import dotenv from "dotenv"
 import mongoose from "mongoose" // <- aqui
 import router from "./routes"
 
@@ -51,7 +54,6 @@ import "./models"
 // Importar inicializador de CRON jobs
 import jobScheduler from "./jobs"
 
-dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 3001
 
