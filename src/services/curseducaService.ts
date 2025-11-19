@@ -5,6 +5,7 @@ import Product from '../models/Product';
 
 const CURSEDUCA_API_URL = process.env.CURSEDUCA_API_URL;
 const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_AccessToken;
+const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY;
 
 interface CursEducaStudent {
   id: number;
@@ -56,6 +57,7 @@ export const syncCursEducaStudents = async () => {
     const response = await axios.get(`${CURSEDUCA_API_URL}/members`, {
       headers: {
         'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
+        'api_key': CURSEDUCA_API_KEY,
         'Content-Type': 'application/json'
       }
     });
@@ -227,6 +229,7 @@ export const fetchCursEducaGroups = async () => {
     const response = await axios.get(`${CURSEDUCA_API_URL}/groups`, {
       headers: {
         'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
+        'api_key': CURSEDUCA_API_KEY,
         'Content-Type': 'application/json'
       }
     });
@@ -270,6 +273,7 @@ export const testCurseducaConnection = async () => {
     const response = await axios.get(`${CURSEDUCA_API_URL}/groups`, {
       headers: {
         'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
+        'api_key': CURSEDUCA_API_KEY,
         'Content-Type': 'application/json'
       },
       timeout: 10000
