@@ -365,6 +365,72 @@ class ActiveCampaignService {
       return false
     }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // ✅ SPRINT 5: CONTACT TAG READER - NOVOS MÉTODOS
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Buscar contacto por email
+   * @param email Email do contacto
+   * @returns Contacto encontrado ou null
+   */
+  async getContactByEmail(email: string): Promise<any> {
+    try {
+      await this.checkRateLimit()
+      
+      const response = await this.client.get('/api/3/contacts', {
+        params: { email }
+      })
+      
+      return response.data.contacts?.[0] || null
+    } catch (error: any) {
+      console.error(`[AC Service] Erro ao buscar contacto: ${this.formatError(error)}`)
+      throw error
+    }
+  }
+
+  /**
+   * Buscar tags de um contacto
+   * @param contactId ID do contacto no AC
+   * @returns Array de tags do contacto
+   */
+  async getContactTags(contactId: string): Promise<any[]> {
+    try {
+      await this.checkRateLimit()
+      
+      const response = await this.client.get(`/api/3/contacts/${contactId}/contactTags`)
+      
+      // Buscar detalhes das tags
+      const contactTags = response.data.contactTags || []
+      const tagsWithDetails = await Promise.all(
+        contactTags.map(async (ct: any) => {
+          try {
+            const tagResponse = await this.client.get(`/api/3/tags/${ct.tag}`)
+            return {
+              id: ct.id,
+              tag: tagResponse.data.tag?.tag || ct.tag,
+              cdate: ct.cdate,
+              seriesid: ct.seriesid
+            }
+          } catch (error) {
+            // Se falhar ao buscar tag, retornar ID apenas
+            return {
+              id: ct.id,
+              tag: ct.tag,
+              cdate: ct.cdate,
+              seriesid: ct.seriesid
+            }
+          }
+        })
+      )
+      
+      return tagsWithDetails
+    } catch (error: any) {
+      console.error(`[AC Service] Erro ao buscar tags: ${this.formatError(error)}`)
+      throw error
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
