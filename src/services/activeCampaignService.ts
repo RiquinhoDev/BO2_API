@@ -431,6 +431,213 @@ class ActiveCampaignService {
       throw error
     }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // ✅ CORREÇÃO ISSUE #1: AC TAGS POR PRODUTO
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Aplicar tag a um UserProduct específico (não ao user global)
+   * @param userId ID do user no BO
+   * @param productId ID do produto no BO
+   * @param tagName Nome da tag (ex: "OGI_INATIVO_14D")
+   * @returns Tag aplicada com sucesso
+   */
+  async applyTagToUserProduct(
+    userId: string, 
+    productId: string, 
+    tagName: string
+  ): Promise<boolean> {
+    try {
+      console.log(`[AC Service] Applying tag "${tagName}" to userId=${userId}, productId=${productId}`)
+
+      // 1. Buscar User e Product
+      const User = (await import('../models/user')).default
+      const Product = (await import('../models/Product')).default
+      const UserProduct = (await import('../models/UserProduct')).default
+
+      const user = await User.findById(userId)
+      const product = await Product.findById(productId)
+
+      if (!user || !product) {
+        console.error('[AC Service] User or Product not found')
+        return false
+      }
+
+      // 2. Aplicar tag no AC (com prefixo do produto)
+      const fullTagName = `${product.code}_${tagName}`
+      await this.addTag(user.email, fullTagName)
+
+      // 3. Atualizar UserProduct.activeCampaignData.tags
+      const userProduct = await UserProduct.findOne({ userId, productId })
+      
+      if (userProduct) {
+        const existingTags = userProduct.activeCampaignData?.tags || []
+        
+        if (!existingTags.includes(fullTagName)) {
+          await UserProduct.findByIdAndUpdate(userProduct._id, {
+            $addToSet: {
+              'activeCampaignData.tags': fullTagName
+            },
+            $set: {
+              'activeCampaignData.lastSyncAt': new Date()
+            }
+          })
+
+          console.log(`[AC Service] ✅ Tag "${fullTagName}" added to UserProduct`)
+        } else {
+          console.log(`[AC Service] Tag "${fullTagName}" already exists in UserProduct`)
+        }
+      }
+
+      return true
+    } catch (error: any) {
+      console.error(`[AC Service] Error applying tag to UserProduct: ${this.formatError(error)}`)
+      return false
+    }
+  }
+
+  /**
+   * Remover tag de um UserProduct específico
+   * @param userId ID do user no BO
+   * @param productId ID do produto no BO
+   * @param tagName Nome da tag (ex: "OGI_INATIVO_14D")
+   * @returns Tag removida com sucesso
+   */
+  async removeTagFromUserProduct(
+    userId: string,
+    productId: string,
+    tagName: string
+  ): Promise<boolean> {
+    try {
+      console.log(`[AC Service] Removing tag "${tagName}" from userId=${userId}, productId=${productId}`)
+
+      // 1. Buscar User e Product
+      const User = (await import('../models/user')).default
+      const Product = (await import('../models/Product')).default
+      const UserProduct = (await import('../models/UserProduct')).default
+
+      const user = await User.findById(userId)
+      const product = await Product.findById(productId)
+
+      if (!user || !product) {
+        console.error('[AC Service] User or Product not found')
+        return false
+      }
+
+      // 2. Remover tag no AC
+      const fullTagName = `${product.code}_${tagName}`
+      await this.removeTag(user.email, fullTagName)
+
+      // 3. Atualizar UserProduct.activeCampaignData.tags
+      const userProduct = await UserProduct.findOne({ userId, productId })
+      
+      if (userProduct) {
+        await UserProduct.findByIdAndUpdate(userProduct._id, {
+          $pull: {
+            'activeCampaignData.tags': fullTagName
+          },
+          $set: {
+            'activeCampaignData.lastSyncAt': new Date()
+          }
+        })
+
+        console.log(`[AC Service] ✅ Tag "${fullTagName}" removed from UserProduct`)
+      }
+
+      return true
+    } catch (error: any) {
+      console.error(`[AC Service] Error removing tag from UserProduct: ${this.formatError(error)}`)
+      return false
+    }
+  }
+
+  /**
+   * Sincronizar contacto no AC baseado em um produto específico
+   * @param userId ID do user
+   * @param productId ID do produto
+   * @returns Contacto sincronizado
+   */
+  async syncContactByProduct(userId: string, productId: string): Promise<any> {
+    try {
+      const User = (await import('../models/user')).default
+      const Product = (await import('../models/Product')).default
+      const UserProduct = (await import('../models/UserProduct')).default
+
+      const user = await User.findById(userId)
+      const product = await Product.findById(productId)
+      const userProduct = await UserProduct.findOne({ userId, productId })
+
+      if (!user || !product || !userProduct) {
+        throw new Error('User, Product or UserProduct not found')
+      }
+
+      // Criar/atualizar contacto no AC
+      let contact = await this.getContactByEmail(user.email)
+      
+      if (!contact) {
+        contact = await this.createOrUpdateContact({
+          email: user.email,
+          firstName: user.name?.split(' ')[0] || '',
+          lastName: user.name?.split(' ').slice(1).join(' ') || ''
+        })
+      }
+
+      // Aplicar tags do UserProduct ao AC
+      const tags = userProduct.activeCampaignData?.tags || []
+      for (const tag of tags) {
+        await this.addTag(user.email, tag)
+      }
+
+      return contact
+    } catch (error: any) {
+      console.error(`[AC Service] Error syncing contact by product: ${this.formatError(error)}`)
+      throw error
+    }
+  }
+
+  /**
+   * Remover TODAS as tags de um produto de um user
+   * @param userId ID do user
+   * @param productId ID do produto
+   * @returns Tags removidas com sucesso
+   */
+  async removeAllProductTags(userId: string, productId: string): Promise<boolean> {
+    try {
+      const User = (await import('../models/user')).default
+      const Product = (await import('../models/Product')).default
+      const UserProduct = (await import('../models/UserProduct')).default
+
+      const user = await User.findById(userId)
+      const product = await Product.findById(productId)
+      const userProduct = await UserProduct.findOne({ userId, productId })
+
+      if (!user || !product || !userProduct) {
+        return false
+      }
+
+      // Remover todas as tags do produto no AC
+      const tags = userProduct.activeCampaignData?.tags || []
+      
+      for (const tag of tags) {
+        await this.removeTag(user.email, tag)
+      }
+
+      // Limpar tags no UserProduct
+      await UserProduct.findByIdAndUpdate(userProduct._id, {
+        $set: {
+          'activeCampaignData.tags': [],
+          'activeCampaignData.lastSyncAt': new Date()
+        }
+      })
+
+      console.log(`[AC Service] ✅ All tags removed from product ${product.code} for user ${user.email}`)
+      return true
+    } catch (error: any) {
+      console.error(`[AC Service] Error removing all product tags: ${this.formatError(error)}`)
+      return false
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
