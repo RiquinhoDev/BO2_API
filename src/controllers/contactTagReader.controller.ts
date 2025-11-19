@@ -1,183 +1,141 @@
-// ✅ SPRINT 5 - Task 2: Contact Tag Reader Controller
-// Objetivo: Endpoints para ler tags de contactos do AC
-import { Request, Response } from 'express';
-import { contactTagReaderService } from '../services/ac/contactTagReader.service';
+// ✅ SPRINT 5 - Task 5.1.2: Contact Tag Reader Controller
+// Objetivo: Endpoints REST API para leitura e sincronização de tags AC → BO
+import { Request, Response } from 'express'
+import contactTagReaderService from '../services/ac/contactTagReader.service'
+
+// ═══════════════════════════════════════════════════════
+// ENDPOINTS
+// ═══════════════════════════════════════════════════════
 
 /**
  * GET /api/ac/contact/:email/tags
  * Buscar tags de um contacto no Active Campaign
+ * 
+ * @param email Email do contacto
+ * @returns ContactTagInfo com tags e produtos detectados
  */
 export const getContactTags = async (req: Request, res: Response) => {
   try {
-    const { email } = req.params;
-
-    if (!email) {
-      return res.status(400).json({
+    const { email } = req.params
+    
+    console.log(`[ContactTagReader API] GET /api/ac/contact/${email}/tags`)
+    
+    const tags = await contactTagReaderService.getContactTags(email)
+    
+    if (!tags) {
+      return res.status(404).json({
         success: false,
-        message: 'Email é obrigatório',
-      });
+        message: 'Contact not found in Active Campaign'
+      })
     }
-
-    console.log(`[ContactTagReader Controller] GET tags para: ${email}`);
-
-    const contactInfo = await contactTagReaderService.getContactTags(email);
-
+    
     res.json({
       success: true,
-      data: contactInfo,
-      meta: {
-        totalTags: contactInfo.totalTags,
-        productsInferred: contactInfo.products.length,
-        timestamp: new Date().toISOString(),
-      },
-    });
+      data: tags
+    })
   } catch (error: any) {
-    console.error('[ContactTagReader Controller] Erro ao buscar tags:', error);
-
-    const statusCode = error.message.includes('não encontrado') ? 404 : 500;
-
-    res.status(statusCode).json({
+    console.error('[ContactTagReader API] Error in getContactTags:', error)
+    res.status(500).json({
       success: false,
-      message: error.message || 'Erro ao buscar tags do contacto',
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-    });
+      message: error.message
+    })
   }
-};
+}
 
 /**
  * POST /api/ac/sync-user-tags/:userId
- * Sincronizar tags de um user do AC para o BO
+ * Sincronizar tags AC → BO para um user específico
+ * 
+ * @param userId ID do utilizador no BO
+ * @returns SyncResult com número de produtos atualizados
  */
 export const syncUserTags = async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
-
-    if (!userId) {
+    const { userId } = req.params
+    
+    console.log(`[ContactTagReader API] POST /api/ac/sync-user-tags/${userId}`)
+    
+    const result = await contactTagReaderService.syncUserTagsFromAC(userId)
+    
+    if (!result.synced) {
       return res.status(400).json({
         success: false,
-        message: 'userId é obrigatório',
-      });
+        message: result.reason
+      })
     }
-
-    console.log(`[ContactTagReader Controller] Sync tags para user: ${userId}`);
-
-    const result = await contactTagReaderService.syncUserTagsFromAC(userId);
-
-    const statusCode = result.success ? 200 : result.synced ? 200 : 500;
-
-    res.status(statusCode).json({
-      success: result.success,
-      data: result,
-      message: result.reason,
-      meta: {
-        productsUpdated: result.productsUpdated,
-        tagsDetected: result.tagsDetected,
-        hasErrors: result.errors.length > 0,
-        timestamp: new Date().toISOString(),
-      },
-    });
+    
+    res.json({
+      success: true,
+      data: result
+    })
   } catch (error: any) {
-    console.error('[ContactTagReader Controller] Erro no sync:', error);
-
+    console.error('[ContactTagReader API] Error in syncUserTags:', error)
     res.status(500).json({
       success: false,
-      message: error.message || 'Erro ao sincronizar tags do user',
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-    });
+      message: error.message
+    })
   }
-};
+}
 
 /**
  * POST /api/ac/sync-all-tags
- * Sincronizar todos os users (ADMIN ONLY)
+ * Sincronizar TODOS os users (batch) AC → BO
+ * 
+ * @query limit Número máximo de users (default: 100)
+ * @returns SyncSummary com estatísticas da sincronização
+ * @requires Admin role
  */
 export const syncAllTags = async (req: Request, res: Response) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 100;
-
-    // Validar limit
-    if (limit > 1000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Limit máximo é 1000',
-      });
-    }
-
-    console.log(`[ContactTagReader Controller] Sync em massa (limit: ${limit})`);
-
-    const summary = await contactTagReaderService.syncAllUsersFromAC(limit);
-
-    const hasErrors = summary.failed > 0;
-
+    const limit = parseInt(req.query.limit as string) || 100
+    
+    console.log(`[ContactTagReader API] POST /api/ac/sync-all-tags?limit=${limit}`)
+    
+    // TODO: Adicionar middleware isAdmin para proteger este endpoint
+    
+    const results = await contactTagReaderService.syncAllUsersFromAC(limit)
+    
     res.json({
-      success: !hasErrors || summary.synced > 0,
-      data: summary,
-      message: hasErrors
-        ? `Sync completo com ${summary.failed} erros`
-        : 'Sync completo com sucesso',
-      meta: {
-        successRate:
-          summary.totalUsers > 0
-            ? ((summary.synced / summary.totalUsers) * 100).toFixed(1) + '%'
-            : '0%',
-        averageTime:
-          summary.totalUsers > 0
-            ? Math.round(summary.duration / summary.totalUsers) + 'ms'
-            : '0ms',
-        timestamp: new Date().toISOString(),
-      },
-    });
+      success: true,
+      data: results
+    })
   } catch (error: any) {
-    console.error('[ContactTagReader Controller] Erro no sync em massa:', error);
-
+    console.error('[ContactTagReader API] Error in syncAllTags:', error)
     res.status(500).json({
       success: false,
-      message: error.message || 'Erro ao sincronizar todos os users',
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-    });
+      message: error.message
+    })
   }
-};
+}
 
 /**
  * GET /api/ac/sync-status
- * Verificar status do sistema de sync
+ * Verificar status do sistema de sincronização
+ * 
+ * @returns Status e estatísticas gerais
  */
 export const getSyncStatus = async (req: Request, res: Response) => {
   try {
-    // Buscar estatísticas gerais
-    const { User } = require('../models/User');
-    const { UserProduct } = require('../models/UserProduct');
-
-    const totalUsers = await User.countDocuments();
-    const usersWithAC = await UserProduct.countDocuments({
-      'activeCampaignData.contactId': { $exists: true },
-    });
-    const usersWith Tags = await UserProduct.countDocuments({
-      'activeCampaignData.tags.0': { $exists: true },
-    });
-
+    // Este endpoint pode retornar métricas como:
+    // - Última sincronização
+    // - Total de users sincronizados
+    // - Taxa de sucesso
+    // - etc.
+    
+    // Por agora, retornar status básico
     res.json({
       success: true,
       data: {
-        totalUsers,
-        usersWithAC,
-        usersWithTags,
-        coverage: totalUsers > 0 ? ((usersWithAC / totalUsers) * 100).toFixed(1) + '%' : '0%',
-        lastCheck: new Date().toISOString(),
-      },
-      meta: {
-        system: 'Contact Tag Reader',
-        version: '1.0.0',
-        status: 'operational',
-      },
-    });
+        message: 'Contact Tag Reader System Operational',
+        lastSync: 'N/A', // TODO: Implementar tracking de última sync
+        totalUsersSynced: 'N/A' // TODO: Implementar contador
+      }
+    })
   } catch (error: any) {
-    console.error('[ContactTagReader Controller] Erro ao verificar status:', error);
-
+    console.error('[ContactTagReader API] Error in getSyncStatus:', error)
     res.status(500).json({
       success: false,
-      message: error.message || 'Erro ao verificar status',
-    });
+      message: error.message
+    })
   }
-};
-
+}
