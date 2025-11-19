@@ -1,6 +1,6 @@
 // src/services/curseducaService.ts - ESTRATÉGIA V2 COMPLETA
 import axios from 'axios';
-import User, { Course } from '../models/user';
+import User from '../models/user';
 import UserProduct from '../models/UserProduct';
 import Product from '../models/Product';
 
@@ -16,28 +16,32 @@ interface CursEducaGroup {
 }
 
 interface CursEducaMember {
-  memberId?: number;
-  memberUuid?: string;
-  id?: number;
-  uuid?: string;
+  id: number;
+  uuid: string;
   name: string;
   email: string;
-  groupId: number;
-  groupName: string;
-  enrolledAt?: string;
-  expiresAt?: string;
+  expiresAt?: string | null;
+  enrollmentsCount?: number;
   progress?: number;
-  lastAccess?: string;
-  status?: string;
+  groups?: Array<{
+    id: number;
+    uuid: string;
+    name: string;
+  }>;
+  enteredAt?: string;
+  tenants?: Array<{
+    tenantId: number;
+  }>;
 }
 
 /**
  * Mapeia grupos do CursEduca para códigos de produtos
  */
-function mapCursEducaGroupToProduct(groupId: string, groupName: string): Course | null {
-  const mapping: Record<string, Course> = {
-    '4': Course.CLAREZA, // Clareza = groupId 4
-    '5': Course.OGI_V1,  // OGI = groupId 5 (ajustar conforme necessário)
+function mapCursEducaGroupToProduct(groupId: string, groupName: string): string | null {
+  const mapping: Record<string, string> = {
+    '6': 'CLAREZA',      // Clareza - Mensal = groupId 6
+    '7': 'CLAREZA',      // Clareza - Anual = groupId 7
+    '5': 'OGI_V1',       // OGI = groupId 5 (se existir)
     // Adicionar mais mapeamentos conforme necessário
   };
   
@@ -45,6 +49,7 @@ function mapCursEducaGroupToProduct(groupId: string, groupName: string): Course 
   
   if (!course) {
     console.log(`⚠️  Grupo não mapeado: ${groupId} (${groupName})`);
+    console.log(`   💡 Para mapear, adicionar: '${groupId}': 'PRODUCT_CODE'`);
   }
   
   return course || null;
@@ -202,23 +207,40 @@ export const syncCursEducaStudents = async () => {
                 email,
                 name: member.name || email,
                 curseduca: {
-                  curseducaUserId: (member.memberId || member.id)?.toString(),
-                  curseducaUuid: member.memberUuid || member.uuid,
-                  email,
-                  groupId: group.id.toString(),
+                  curseducaUserId: member.id.toString(),
+                  curseducaUuid: member.uuid,
+                  groupId: group.uuid || group.id.toString(),
                   groupUuid: group.uuid,
                   groupName: group.name,
-                  groupCurseducaId: group.id,
+                  groupCurseducaId: group.id.toString(),
                   groupCurseducaUuid: group.uuid,
-                  enrollmentDate: member.enrolledAt ? new Date(member.enrolledAt) : new Date(),
-                  expiresAt: member.expiresAt ? new Date(member.expiresAt) : null,
-                  courses: [course],
+                  memberStatus: 'ACTIVE',
+                  neverLogged: false,
+                  joinedDate: member.enteredAt ? new Date(member.enteredAt) : new Date(),
+                  enrolledClasses: [{
+                    classId: group.uuid || group.id.toString(),
+                    className: group.name,
+                    curseducaId: group.id.toString(),
+                    curseducaUuid: group.uuid || group.id.toString(),
+                    enteredAt: member.enteredAt ? new Date(member.enteredAt) : new Date(),
+                    expiresAt: member.expiresAt ? new Date(member.expiresAt) : undefined,
+                    isActive: true,
+                    role: 'student' as const
+                  }],
                   progress: {
                     estimatedProgress: member.progress || 0,
-                    progressSource: 'curseduca_reports'
+                    activityLevel: 'LOW',
+                    groupEngagement: 0,
+                    progressSource: 'estimated'
                   },
-                  lastAccess: member.lastAccess ? new Date(member.lastAccess) : new Date(),
-                  memberStatus: member.status || 'ACTIVE'
+                  engagement: {
+                    alternativeEngagement: 0,
+                    activityLevel: 'LOW',
+                    engagementLevel: 'NONE',
+                    calculatedAt: new Date()
+                  },
+                  lastSyncAt: new Date(),
+                  syncVersion: '3.0'
                 }
               });
               
@@ -232,44 +254,70 @@ export const syncCursEducaStudents = async () => {
               }
               
               // Atualizar dados CursEduca
-              user.curseduca.curseducaUserId = (member.memberId || member.id)?.toString();
-              user.curseduca.curseducaUuid = member.memberUuid || member.uuid;
+              user.curseduca.curseducaUserId = member.id.toString();
+              user.curseduca.curseducaUuid = member.uuid;
               user.curseduca.groupId = group.id.toString();
               user.curseduca.groupUuid = group.uuid;
               user.curseduca.groupName = group.name;
               user.curseduca.groupCurseducaId = group.id;
               user.curseduca.groupCurseducaUuid = group.uuid;
               
-              if (member.enrolledAt) {
-                user.curseduca.enrollmentDate = new Date(member.enrolledAt);
+              if (member.enteredAt) {
+                user.curseduca.enrollmentDate = new Date(member.enteredAt);
               }
               
               if (member.expiresAt) {
                 user.curseduca.expiresAt = new Date(member.expiresAt);
               }
               
-              // Adicionar curso se não existir
-              if (!user.curseduca.courses) {
-                user.curseduca.courses = [];
+              // Adicionar classe se não existir
+              if (!user.curseduca.enrolledClasses) {
+                user.curseduca.enrolledClasses = [];
               }
-              if (!user.curseduca.courses.includes(course)) {
-                user.curseduca.courses.push(course);
+              
+              const classExists = user.curseduca.enrolledClasses.some(
+                c => c.classId === (group.uuid || group.id.toString())
+              );
+              
+              if (!classExists) {
+                user.curseduca.enrolledClasses.push({
+                  classId: group.uuid || group.id.toString(),
+                  className: group.name,
+                  curseducaId: group.id.toString(),
+                  curseducaUuid: group.uuid || group.id.toString(),
+                  enteredAt: member.enteredAt ? new Date(member.enteredAt) : new Date(),
+                  expiresAt: member.expiresAt ? new Date(member.expiresAt) : undefined,
+                  isActive: true,
+                  role: 'student' as const
+                });
               }
               
               // Atualizar progresso
               if (!user.curseduca.progress) {
-                user.curseduca.progress = {} as any;
+                user.curseduca.progress = {
+                  estimatedProgress: 0,
+                  activityLevel: 'LOW',
+                  groupEngagement: 0,
+                  progressSource: 'estimated'
+                } as any;
               }
               user.curseduca.progress.estimatedProgress = member.progress || 0;
-              user.curseduca.progress.progressSource = 'curseduca_reports';
+              user.curseduca.progress.progressSource = 'estimated';
               
-              // Atualizar último acesso
-              if (member.lastAccess) {
-                user.curseduca.lastAccess = new Date(member.lastAccess);
+              // Atualizar engagement
+              if (!user.curseduca.engagement) {
+                user.curseduca.engagement = {
+                  alternativeEngagement: 0,
+                  activityLevel: 'LOW',
+                  engagementLevel: 'NONE',
+                  calculatedAt: new Date()
+                } as any;
               }
               
               // Atualizar status
-              user.curseduca.memberStatus = member.status || 'ACTIVE';
+              user.curseduca.memberStatus = 'ACTIVE';
+              user.curseduca.neverLogged = false;
+              user.curseduca.lastSyncAt = new Date();
               
               await user.save();
               totalUpdated++;
@@ -306,29 +354,17 @@ export const syncCursEducaStudents = async () => {
             
             if (existingUserProduct) {
               // Atualizar UserProduct existente
-              existingUserProduct.platformData = {
-                platformId: 'CURSEDUCA',
-                externalUserId: (member.memberId || member.id)?.toString(),
-                externalProductId: group.id.toString()
-              };
+              existingUserProduct.platform = 'curseduca';
+              existingUserProduct.platformUserId = member.id.toString();
+              existingUserProduct.platformUserUuid = member.uuid;
               
-              existingUserProduct.progress = {
-                current: member.progress || 0,
-                total: 100,
-                percentage: member.progress || 0,
-                completedClasses: existingUserProduct.progress?.completedClasses || [],
-                lastUpdated: new Date()
-              };
-              
-              existingUserProduct.status = member.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE';
-              existingUserProduct.isActive = member.status === 'ACTIVE';
-              existingUserProduct.lastActivityDate = member.lastAccess 
-                ? new Date(member.lastAccess) 
-                : new Date();
-              
-              if (member.expiresAt) {
-                existingUserProduct.expirationDate = new Date(member.expiresAt);
+              if (!existingUserProduct.progress) {
+                existingUserProduct.progress = {} as any;
               }
+              existingUserProduct.progress.percentage = member.progress || 0;
+              existingUserProduct.progress.lastActivity = new Date();
+              
+              existingUserProduct.status = 'ACTIVE';
               
               await existingUserProduct.save();
               console.log(`      ✅ UserProduct atualizado`);
@@ -337,23 +373,25 @@ export const syncCursEducaStudents = async () => {
               await UserProduct.create({
                 userId: user._id,
                 productId: product._id,
-                platformData: {
-                  platformId: 'CURSEDUCA',
-                  externalUserId: (member.memberId || member.id)?.toString(),
-                  externalProductId: group.id.toString()
-                },
+                platform: 'curseduca',
+                platformUserId: member.id.toString(),
+                platformUserUuid: member.uuid,
+                enrolledAt: member.enteredAt ? new Date(member.enteredAt) : new Date(),
+                status: 'ACTIVE',
+                source: 'PURCHASE',
                 progress: {
-                  current: member.progress || 0,
-                  total: 100,
                   percentage: member.progress || 0,
-                  completedClasses: [],
-                  lastUpdated: new Date()
+                  lastActivity: new Date()
                 },
-                status: member.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
-                isActive: member.status === 'ACTIVE',
-                enrollmentDate: member.enrolledAt ? new Date(member.enrolledAt) : new Date(),
-                expirationDate: member.expiresAt ? new Date(member.expiresAt) : null,
-                lastActivityDate: member.lastAccess ? new Date(member.lastAccess) : new Date()
+                engagement: {
+                  engagementScore: 0,
+                  lastAction: new Date()
+                },
+                classes: [{
+                  classId: group.uuid || group.id.toString(),
+                  className: group.name,
+                  joinedAt: member.enteredAt ? new Date(member.enteredAt) : new Date()
+                }]
               });
               
               console.log(`      ✅ UserProduct criado`);
