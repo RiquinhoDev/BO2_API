@@ -1,635 +1,457 @@
-// ════════════════════════════════════════════════════════════
-// 📁 src/services/ac/contactTagReader.service.ts
-// CORE: Leitura de tags do Active Campaign
-// ════════════════════════════════════════════════════════════
+// ✅ SPRINT 5 - Task 1: Contact Tag Reader Service
+// Objetivo: Ler tags de contactos do AC e sincronizar com BO
+import { acService } from './activeCampaign.service';
+import { User, IUser } from '../../models/User';
+import { UserProduct, IUserProduct } from '../../models/UserProduct';
+import { Product } from '../../models/Product';
 
-import activeCampaignService from '../activeCampaignService'
-import ProductProfile from '../../models/ProductProfile'
-import ACContactState from '../../models/ACContactState'
-import User from '../../models/user'
-import StudentEngagementState from '../../models/StudentEngagementState'
-
-// ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════
 // INTERFACES
-// ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════
 
 export interface ContactTagInfo {
-  contactId: string
-  email: string
-  lastSyncAt: Date
-  tags: Array<{
-    id: string
-    name: string
-    appliedAt: Date
-    source: 'bo_system' | 'ac_manual' | 'ac_automation' | 'unknown'
-    isSystemTag: boolean
-  }>
-  detectedProducts: Array<{
-    code: string
-    name: string
-    detectedFromTags: string[]
-    currentLevel: number | null
-    confidence: number // 0-100
-    isActive: boolean
-    suggestedAction: string
-  }>
-  inconsistencies: Array<{
-    type: 'missing_in_bo' | 'missing_in_ac' | 'level_mismatch' | 'state_conflict'
-    description: string
-    severity: 'low' | 'medium' | 'high'
-    suggestedFix: string
-  }>
-  boState?: {
-    userId: string
-    currentProducts: string[]
-    engagementStates: Array<{
-      productCode: string
-      currentLevel: number
-      currentTagAC: string
-      lastUpdate: Date
-    }>
-  }
+  contactId: string;
+  email: string;
+  tags: TagInfo[];
+  products: ProductInference[];
+  totalTags: number;
+  systemTags: number;
+  manualTags: number;
+  lastSyncAt: Date;
+}
+
+export interface TagInfo {
+  id: number;
+  tag: string;
+  origin: 'system' | 'manual';
+  createdAt?: string;
+  productInferred?: string; // Código do produto inferido
+}
+
+export interface ProductInference {
+  productCode: string;
+  productName?: string;
+  confidence: 'high' | 'medium' | 'low';
+  reason: string;
+  tags: string[];
 }
 
 export interface SyncResult {
-  email: string
-  success: boolean
-  action: 'synced' | 'no_changes' | 'error' | 'conflict_detected'
-  changesCount: number
-  conflictsCount: number
-  errors?: string[]
-  metadata?: {
-    tagsAdded: string[]
-    tagsRemoved: string[]
-    productsDetected: string[]
-    inconsistenciesFound: number
-  }
+  success: boolean;
+  synced: boolean;
+  userId: string;
+  email: string;
+  reason?: string;
+  productsUpdated: number;
+  tagsDetected: number;
+  tagsAdded: string[];
+  tagsRemoved: string[];
+  errors: string[];
 }
 
-// ─────────────────────────────────────────────────────────────
-// CLASSE PRINCIPAL
-// ─────────────────────────────────────────────────────────────
+export interface SyncSummary {
+  totalUsers: number;
+  synced: number;
+  failed: number;
+  skipped: number;
+  productsUpdated: number;
+  tagsDetected: number;
+  duration: number;
+  errors: Array<{ userId: string; error: string }>;
+}
 
-export class ContactTagReader {
+// ═══════════════════════════════════════════════════════
+// CONTACT TAG READER SERVICE
+// ═══════════════════════════════════════════════════════
 
+class ContactTagReaderService {
   /**
-   * 🏷️ CORE METHOD: Buscar todas as tags de um contacto
-   * 
-   * @param email Email do contacto
-   * @returns Informação completa sobre tags e produtos detectados
+   * Buscar todas as tags de um contacto no Active Campaign por email
    */
-  async getContactTags(email: string): Promise<ContactTagInfo | null> {
-    try {
-      console.log(`🔍 Buscando tags AC para: ${email}`)
+  async getContactTags(email: string): Promise<ContactTagInfo> {
+    console.log(`[ContactTagReader] Buscando tags para: ${email}`);
 
-      // 1. Buscar contacto no AC
-      const acContact = await activeCampaignService.getContactByEmail(email)
-      if (!acContact) {
-        console.log(`⚠️ Contacto ${email} não existe no AC`)
-        return null
+    try {
+      // 1. Buscar contacto no AC por email
+      const contact = await acService.findOrCreateContact(email);
+
+      if (!contact || !contact.id) {
+        throw new Error(`Contacto não encontrado no AC: ${email}`);
       }
 
-      // 2. Buscar todas as tags do contacto
-      const contactTags = await this.getContactAllTags(acContact.contact.id)
+      console.log(`[ContactTagReader] Contacto encontrado: ${contact.id}`);
 
-      // 3. Analisar e categorizar tags
-      const categorizedTags = await this.categorizeTags(contactTags)
+      // 2. Buscar tags do contacto
+      const contactTags = await acService.getContactTags(contact.id);
 
-      // 4. Detectar produtos baseado nas tags
-      const detectedProducts = await this.inferProductsFromTags(categorizedTags)
+      console.log(`[ContactTagReader] Tags encontradas: ${contactTags.length}`);
 
-      // 5. Buscar estado atual no BO
-      const boState = await this.getBOState(email)
+      // 3. Processar tags e inferir produtos
+      const tags: TagInfo[] = contactTags.map((ct: any) => {
+        const tagName = ct.tag || ct.name || '';
+        const origin = this.detectTagOrigin(tagName);
+        const productInferred = this.inferProductFromTag(tagName);
 
-      // 6. Detectar inconsistências
-      const inconsistencies = await this.detectInconsistencies(
-        categorizedTags, 
-        detectedProducts, 
-        boState
-      )
+        return {
+          id: ct.id,
+          tag: tagName,
+          origin,
+          createdAt: ct.cdate || ct.createdAt,
+          productInferred,
+        };
+      });
 
-      // 7. Salvar estado no cache
-      await this.saveACContactState({
-        email,
-        contactId: acContact.contact.id,
-        tags: categorizedTags,
-        detectedProducts,
-        boState,
-        lastSyncAt: new Date()
-      })
+      // 4. Inferir produtos das tags
+      const products = this.inferProducts(tags);
+
+      // 5. Contar tags por origem
+      const systemTags = tags.filter((t) => t.origin === 'system').length;
+      const manualTags = tags.filter((t) => t.origin === 'manual').length;
 
       const result: ContactTagInfo = {
-        contactId: acContact.contact.id,
+        contactId: contact.id,
         email,
+        tags,
+        products,
+        totalTags: tags.length,
+        systemTags,
+        manualTags,
         lastSyncAt: new Date(),
-        tags: categorizedTags,
-        detectedProducts,
-        inconsistencies,
-        boState
-      }
+      };
 
-      console.log(`✅ Tags AC carregadas: ${email} (${categorizedTags.length} tags, ${detectedProducts.length} produtos)`)
-      return result
+      console.log(`[ContactTagReader] Resultado:`, {
+        totalTags: result.totalTags,
+        productsInferred: result.products.length,
+      });
 
-    } catch (error) {
-      console.error(`❌ Erro ao buscar tags AC para ${email}:`, error)
-      throw error
-    }
-  }
-
-  /**
-   * 🔍 Buscar todas as tags de um contacto (método helper)
-   */
-  private async getContactAllTags(contactId: string): Promise<any[]> {
-    try {
-      // Usar API AC para buscar contactTags
-      const response = await activeCampaignService.retryRequest(async () => {
-        return await (activeCampaignService as any).client.get('/api/3/contactTags', {
-          params: {
-            'filters[contact]': contactId,
-            limit: 100 // Máximo permitido
-          }
-        })
-      })
-
-      const contactTags = response.data.contactTags || []
-      
-      // Buscar detalhes de cada tag
-      const tagsWithDetails = []
-      for (const contactTag of contactTags) {
-        const tagDetails = await this.getTagDetails(contactTag.tag)
-        if (tagDetails) {
-          tagsWithDetails.push({
-            id: contactTag.tag,
-            contactTagId: contactTag.id,
-            appliedAt: new Date(contactTag.cdate),
-            ...tagDetails
-          })
-        }
-      }
-
-      return tagsWithDetails
-
-    } catch (error) {
-      console.error(`❌ Erro ao buscar todas as tags:`, error)
-      return []
-    }
-  }
-
-  /**
-   * 🏷️ Buscar detalhes de uma tag específica
-   */
-  private async getTagDetails(tagId: string): Promise<any | null> {
-    try {
-      const response = await activeCampaignService.retryRequest(async () => {
-        return await (activeCampaignService as any).client.get(`/api/3/tags/${tagId}`)
-      })
-
-      return {
-        name: response.data.tag.tag,
-        description: response.data.tag.description || null,
-        tagType: response.data.tag.tagType || 'contact'
-      }
-
-    } catch (error) {
-      console.error(`❌ Erro ao buscar tag ${tagId}:`, error)
-      return null
-    }
-  }
-
-  /**
-   * 🏷️ Categorizar tags (sistema vs manual)
-   */
-  private async categorizeTags(tags: any[]): Promise<any[]> {
-    const systemPrefixes = [
-      'CLAREZA_', 'OGI_', 'BIBLIOTECA_', // Produtos conhecidos
-      'ACTIVE', 'INACTIVE', 'ENGAGED', 'DISENGAGED' // Estados
-    ]
-
-    return tags.map(tag => ({
-      ...tag,
-      isSystemTag: systemPrefixes.some(prefix => 
-        tag.name.toUpperCase().startsWith(prefix)
-      ),
-      source: this.inferTagSource(tag.name)
-    }))
-  }
-
-  /**
-   * 🧠 Inferir origem da tag
-   */
-  private inferTagSource(tagName: string): string {
-    const upperTag = tagName.toUpperCase()
-
-    // Tags do nosso sistema (padrões conhecidos)
-    if (upperTag.match(/^(CLAREZA|OGI|BIBLIOTECA)_\d+D$/)) {
-      return 'bo_system'
-    }
-
-    // Tags de automação AC (padrões comuns)
-    if (upperTag.includes('AUTO_') || upperTag.includes('TRIGGER_')) {
-      return 'ac_automation'
-    }
-
-    // Tags manuais (resto)
-    return 'ac_manual'
-  }
-
-  /**
-   * 🔎 Inferir produtos baseado nas tags
-   */
-  private async inferProductsFromTags(tags: any[]): Promise<any[]> {
-    try {
-      const productProfiles = await ProductProfile.find({ isActive: true })
-      const detectedProducts = []
-
-      for (const profile of productProfiles) {
-        const productTags = tags.filter(tag => 
-          tag.name.toUpperCase().startsWith(profile.code.toUpperCase())
-        )
-
-        if (productTags.length > 0) {
-          const currentLevel = this.inferCurrentLevel(productTags, profile)
-          const confidence = this.calculateConfidence(productTags, profile)
-          
-          detectedProducts.push({
-            code: profile.code,
-            name: profile.name,
-            detectedFromTags: productTags.map((t: any) => t.name),
-            currentLevel,
-            confidence,
-            isActive: productTags.some((t: any) => !t.name.includes('INACTIVE')),
-            suggestedAction: this.suggestAction(productTags, profile, currentLevel)
-          })
-        }
-      }
-
-      return detectedProducts
-
-    } catch (error) {
-      console.error(`❌ Erro ao inferir produtos:`, error)
-      return []
-    }
-  }
-
-  /**
-   * 📊 Inferir nível atual baseado nas tags
-   */
-  private inferCurrentLevel(productTags: any[], profile: any): number | null {
-    // Procurar por padrões como CLAREZA_7D, OGI_21D, etc
-    for (const tag of productTags) {
-      const match = tag.name.match(new RegExp(`${profile.code}_(\d+)D`, 'i'))
-      if (match) {
-        const days = parseInt(match[1])
-        // Mapear dias para nível
-        const level = profile.reengagementLevels.find((l: any) => l.daysInactive === days)
-        return level ? level.level : null
-      }
-    }
-
-    // Se não encontrar padrão específico mas tem tags do produto
-    return productTags.length > 0 ? 1 : null
-  }
-
-  /**
-   * 📈 Calcular confiança da detecção
-   */
-  private calculateConfidence(productTags: any[], profile: any): number {
-    let confidence = 0
-
-    // Base: tem tags do produto (+30)
-    if (productTags.length > 0) confidence += 30
-
-    // Bonus: tags seguem padrão conhecido (+40)
-    const hasKnownPattern = productTags.some((tag: any) => 
-      tag.name.match(new RegExp(`${profile.code}_\\d+D`, 'i'))
-    )
-    if (hasKnownPattern) confidence += 40
-
-    // Bonus: múltiplas tags do produto (+20)
-    if (productTags.length > 1) confidence += 20
-
-    // Bonus: tags recentes (+10)
-    const hasRecentTag = productTags.some((tag: any) => {
-      const daysSince = (Date.now() - tag.appliedAt.getTime()) / (1000 * 60 * 60 * 24)
-      return daysSince <= 30
-    })
-    if (hasRecentTag) confidence += 10
-
-    return Math.min(confidence, 100)
-  }
-
-  /**
-   * 💡 Sugerir ação baseada na análise
-   */
-  private suggestAction(productTags: any[], profile: any, currentLevel: number | null): string {
-    if (!currentLevel) {
-      return "Verificar se utilizador deve ter tags deste produto"
-    }
-
-    if (currentLevel === 1) {
-      return "Utilizador em nível inicial - monitorizar progresso"
-    }
-
-    if (currentLevel >= 3) {
-      return "Utilizador em risco alto - considerar ações adicionais"
-    }
-
-    return "Estado normal - continuar monitorização"
-  }
-
-  /**
-   * 🏠 Buscar estado atual no BO
-   */
-  private async getBOState(email: string): Promise<any | null> {
-    try {
-      const user = await User.findOne({ email }).lean()
-      if (!user) return null
-
-      // Buscar estados de engagement
-      const engagementStates = await StudentEngagementState.find({ 
-        userId: user._id 
-      }).lean()
-
-      return {
-        userId: user._id.toString(),
-        currentProducts: (user as any).courses || [],
-        engagementStates: engagementStates.map((state: any) => ({
-          productCode: state.productCode,
-          currentLevel: state.currentLevel || 0,
-          currentTagAC: state.currentTagAC || '',
-          lastUpdate: state.updatedAt
-        }))
-      }
-
-    } catch (error) {
-      console.error(`❌ Erro ao buscar estado BO:`, error)
-      return null
-    }
-  }
-
-  /**
-   * ⚠️ Detectar inconsistências BO vs AC
-   */
-  private async detectInconsistencies(
-    acTags: any[], 
-    detectedProducts: any[], 
-    boState: any
-  ): Promise<any[]> {
-    const inconsistencies = []
-
-    if (!boState) {
-      inconsistencies.push({
-        type: 'missing_in_bo',
-        description: 'Contacto existe no AC mas não no BO',
-        severity: 'medium',
-        suggestedFix: 'Criar utilizador no BO ou remover tags AC'
-      })
-      return inconsistencies
-    }
-
-    // Verificar produtos detectados vs BO
-    for (const detectedProduct of detectedProducts) {
-      const boEngagement = boState.engagementStates.find(
-        (e: any) => e.productCode === detectedProduct.code
-      )
-
-      if (!boEngagement) {
-        inconsistencies.push({
-          type: 'missing_in_bo',
-          description: `Produto ${detectedProduct.code} detectado no AC mas sem estado no BO`,
-          severity: 'high',
-          suggestedFix: 'Criar StudentEngagementState no BO'
-        })
-        continue
-      }
-
-      // Verificar níveis
-      if (detectedProduct.currentLevel && 
-          detectedProduct.currentLevel !== boEngagement.currentLevel) {
-        inconsistencies.push({
-          type: 'level_mismatch',
-          description: `Nível AC (${detectedProduct.currentLevel}) ≠ BO (${boEngagement.currentLevel})`,
-          severity: 'medium',
-          suggestedFix: 'Sincronizar níveis ou verificar lógica'
-        })
-      }
-
-      // Verificar tags
-      const expectedTag = boEngagement.currentTagAC
-      const hasExpectedTag = acTags.some((tag: any) => tag.name === expectedTag)
-      
-      if (expectedTag && !hasExpectedTag) {
-        inconsistencies.push({
-          type: 'missing_in_ac',
-          description: `Tag esperada "${expectedTag}" não encontrada no AC`,
-          severity: 'low',
-          suggestedFix: 'Re-aplicar tag ou atualizar BO'
-        })
-      }
-    }
-
-    // Verificar produtos no BO sem tags AC
-    for (const boEngagement of boState.engagementStates) {
-      const acProduct = detectedProducts.find((p: any) => p.code === boEngagement.productCode)
-      
-      if (!acProduct && boEngagement.currentTagAC) {
-        inconsistencies.push({
-          type: 'missing_in_ac',
-          description: `Produto ${boEngagement.productCode} ativo no BO mas sem tags AC`,
-          severity: 'medium',
-          suggestedFix: 'Aplicar tags AC ou limpar estado BO'
-        })
-      }
-    }
-
-    return inconsistencies
-  }
-
-  /**
-   * 💾 Salvar estado no cache local
-   */
-  private async saveACContactState(data: any): Promise<void> {
-    try {
-      await ACContactState.findOneAndUpdate(
-        { email: data.email },
-        {
-          ...data,
-          lastSyncAt: new Date()
-        },
-        { 
-          upsert: true,
-          new: true
-        }
-      )
-    } catch (error) {
-      console.error(`❌ Erro ao salvar estado AC:`, error)
-    }
-  }
-
-  /**
-   * 🔄 Sincronizar tags de um utilizador AC → BO
-   */
-  async syncUserTagsFromAC(email: string): Promise<SyncResult> {
-    try {
-      console.log(`🔄 Sincronizando tags AC → BO: ${email}`)
-
-      const contactInfo = await this.getContactTags(email)
-      if (!contactInfo) {
-        return {
-          email,
-          success: false,
-          action: 'error',
-          changesCount: 0,
-          conflictsCount: 0,
-          errors: ['Contacto não encontrado no AC']
-        }
-      }
-
-      let changesCount = 0
-      let conflictsCount = contactInfo.inconsistencies.length
-      const metadata = {
-        tagsAdded: [],
-        tagsRemoved: [],
-        productsDetected: contactInfo.detectedProducts.map((p: any) => p.code),
-        inconsistenciesFound: conflictsCount
-      }
-
-      // Aplicar mudanças se não houver conflitos críticos
-      if (conflictsCount === 0 || 
-          !contactInfo.inconsistencies.some((i: any) => i.severity === 'high')) {
-        
-        // Atualizar StudentEngagementState baseado no AC
-        for (const product of contactInfo.detectedProducts) {
-          if (product.confidence >= 70) { // Só produtos com alta confiança
-            await this.updateEngagementStateFromAC(
-              contactInfo.boState?.userId, 
-              product
-            )
-            changesCount++
-          }
-        }
-      }
-
-      const result: SyncResult = {
-        email,
-        success: true,
-        action: changesCount > 0 ? 'synced' : 'no_changes',
-        changesCount,
-        conflictsCount,
-        metadata
-      }
-
-      console.log(`✅ Sync completo: ${email} (${changesCount} mudanças, ${conflictsCount} conflitos)`)
-      return result
-
+      return result;
     } catch (error: any) {
-      console.error(`❌ Erro sync AC → BO para ${email}:`, error)
-      return {
-        email,
-        success: false,
-        action: 'error',
-        changesCount: 0,
-        conflictsCount: 0,
-        errors: [error.message]
-      }
+      console.error(`[ContactTagReader] Erro ao buscar tags:`, error);
+      throw new Error(`Erro ao buscar tags do contacto ${email}: ${error.message}`);
     }
   }
 
   /**
-   * ⚡ Atualizar StudentEngagementState baseado em dados AC
+   * Sincronizar tags de um user do AC para o BO
    */
-  private async updateEngagementStateFromAC(
-    userId: string | undefined, 
-    detectedProduct: any
-  ): Promise<void> {
-    if (!userId || !detectedProduct.currentLevel) return
+  async syncUserTagsFromAC(userId: string): Promise<SyncResult> {
+    console.log(`[ContactTagReader] Sync tags para user: ${userId}`);
+
+    const result: SyncResult = {
+      success: false,
+      synced: false,
+      userId,
+      email: '',
+      productsUpdated: 0,
+      tagsDetected: 0,
+      tagsAdded: [],
+      tagsRemoved: [],
+      errors: [],
+    };
 
     try {
-      await StudentEngagementState.findOneAndUpdate(
-        { userId, productCode: detectedProduct.code },
-        {
-          $set: {
-            currentLevel: detectedProduct.currentLevel,
-            currentTagAC: detectedProduct.detectedFromTags[0] || '',
-            lastSyncFromAC: new Date(),
-            syncSource: 'ac_reader'
+      // 1. Buscar user no BO
+      const user = await User.findById(userId).lean();
+
+      if (!user) {
+        result.reason = 'User não encontrado no BO';
+        return result;
+      }
+
+      result.email = user.email;
+
+      console.log(`[ContactTagReader] User encontrado: ${user.email}`);
+
+      // 2. Buscar tags no AC
+      const contactInfo = await this.getContactTags(user.email);
+
+      result.tagsDetected = contactInfo.totalTags;
+
+      // 3. Buscar UserProducts do user
+      const userProducts = await UserProduct.find({ userId }).populate('productId');
+
+      if (userProducts.length === 0) {
+        result.reason = 'User não tem produtos associados';
+        result.synced = true;
+        result.success = true;
+        return result;
+      }
+
+      console.log(`[ContactTagReader] UserProducts encontrados: ${userProducts.length}`);
+
+      // 4. Para cada UserProduct, atualizar tags do AC
+      for (const up of userProducts) {
+        try {
+          const product =
+            typeof up.productId === 'object' ? up.productId : await Product.findById(up.productId);
+
+          if (!product) continue;
+
+          // Tags relevantes para este produto
+          const productTags = contactInfo.tags.filter(
+            (t) =>
+              t.productInferred === product.code ||
+              t.tag.toLowerCase().includes(product.code.toLowerCase()) ||
+              t.tag.toLowerCase().includes(product.name.toLowerCase())
+          );
+
+          if (productTags.length === 0) continue;
+
+          // Atualizar UserProduct
+          const currentTags = up.activeCampaignData?.tags || [];
+          const newTags = productTags.map((t) => t.tag);
+
+          // Tags adicionadas
+          const added = newTags.filter((t) => !currentTags.includes(t));
+          const removed = currentTags.filter((t) => !newTags.includes(t));
+
+          if (added.length > 0 || removed.length > 0) {
+            // Atualizar tags
+            if (!up.activeCampaignData) {
+              up.activeCampaignData = {
+                contactId: contactInfo.contactId,
+                tags: [],
+              };
+            }
+
+            up.activeCampaignData.tags = newTags;
+            up.activeCampaignData.lastSyncAt = new Date();
+
+            // Atualizar engagement status baseado nas tags
+            const hasActiveTag = newTags.some((t) => t.toLowerCase().includes('active'));
+            const hasInactiveTag = newTags.some((t) => t.toLowerCase().includes('inactiv'));
+
+            if (hasActiveTag) {
+              if (!up.engagement) {
+                up.engagement = {
+                  lastActivityAt: new Date(),
+                  loginCount: 0,
+                };
+              }
+              // Não sobrescrever se já houver dados
+            }
+
+            if (hasInactiveTag && up.engagement) {
+              // Marcar como possivelmente inativo (mas manter dados de engagement)
+            }
+
+            await up.save();
+
+            result.productsUpdated++;
+            result.tagsAdded.push(...added);
+            result.tagsRemoved.push(...removed);
+
+            console.log(`[ContactTagReader] UserProduct atualizado:`, {
+              product: product.name,
+              tagsAdded: added,
+              tagsRemoved: removed,
+            });
           }
-        },
-        { upsert: true }
-      )
+        } catch (error: any) {
+          console.error(`[ContactTagReader] Erro ao atualizar UserProduct:`, error);
+          result.errors.push(`Erro ao atualizar produto: ${error.message}`);
+        }
+      }
 
-      console.log(`✅ Estado atualizado AC → BO: ${detectedProduct.code} nível ${detectedProduct.currentLevel}`)
+      result.synced = true;
+      result.success = result.errors.length === 0;
+      result.reason = result.success ? 'Sync completo com sucesso' : 'Sync com erros parciais';
 
-    } catch (error) {
-      console.error(`❌ Erro ao atualizar estado:`, error)
+      console.log(`[ContactTagReader] Sync resultado:`, {
+        productsUpdated: result.productsUpdated,
+        tagsAdded: result.tagsAdded.length,
+        errors: result.errors.length,
+      });
+
+      return result;
+    } catch (error: any) {
+      console.error(`[ContactTagReader] Erro no sync:`, error);
+      result.errors.push(error.message);
+      result.reason = `Erro no sync: ${error.message}`;
+      return result;
     }
   }
 
   /**
-   * 📊 Buscar múltiplos contactos (batch)
+   * Sincronizar todos os users do BO com tags do AC (em massa)
    */
-  async getMultipleContactTags(emails: string[]): Promise<ContactTagInfo[]> {
-    console.log(`🔍 Buscando tags AC para ${emails.length} contactos...`)
+  async syncAllUsersFromAC(limit: number = 100): Promise<SyncSummary> {
+    console.log(`[ContactTagReader] Sync em massa iniciado (limit: ${limit})`);
 
-    const results = []
-    const batchSize = 10 // Processar em lotes para não sobrecarregar
+    const startTime = Date.now();
 
-    for (let i = 0; i < emails.length; i += batchSize) {
-      const batch = emails.slice(i, i + batchSize)
-      
-      const batchPromises = batch.map(email => 
-        this.getContactTags(email).catch(error => {
-          console.error(`❌ Erro para ${email}:`, error)
-          return null
-        })
-      )
+    const summary: SyncSummary = {
+      totalUsers: 0,
+      synced: 0,
+      failed: 0,
+      skipped: 0,
+      productsUpdated: 0,
+      tagsDetected: 0,
+      duration: 0,
+      errors: [],
+    };
 
-      const batchResults = await Promise.all(batchPromises)
-      results.push(...batchResults.filter(r => r !== null))
+    try {
+      // Buscar users (limit)
+      const users = await User.find().select('_id email').limit(limit).lean();
 
-      // Pequeno delay entre batches
-      if (i + batchSize < emails.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
+      summary.totalUsers = users.length;
+
+      console.log(`[ContactTagReader] Users para sync: ${users.length}`);
+
+      // Sync cada user (com rate limiting)
+      for (let i = 0; i < users.length; i++) {
+        const user = users[i];
+
+        try {
+          console.log(
+            `[ContactTagReader] Sync ${i + 1}/${users.length}: ${user.email}`
+          );
+
+          const result = await this.syncUserTagsFromAC(user._id.toString());
+
+          if (result.success) {
+            summary.synced++;
+            summary.productsUpdated += result.productsUpdated;
+            summary.tagsDetected += result.tagsDetected;
+          } else if (result.synced) {
+            summary.skipped++;
+          } else {
+            summary.failed++;
+            summary.errors.push({
+              userId: user._id.toString(),
+              error: result.reason || 'Erro desconhecido',
+            });
+          }
+
+          // Rate limiting: aguardar 100ms entre requests
+          if (i < users.length - 1) {
+            await this.delay(100);
+          }
+        } catch (error: any) {
+          console.error(`[ContactTagReader] Erro no sync do user ${user.email}:`, error);
+          summary.failed++;
+          summary.errors.push({
+            userId: user._id.toString(),
+            error: error.message,
+          });
+        }
+      }
+
+      summary.duration = Date.now() - startTime;
+
+      console.log(`[ContactTagReader] Sync em massa completo:`, {
+        synced: summary.synced,
+        failed: summary.failed,
+        duration: `${summary.duration}ms`,
+      });
+
+      return summary;
+    } catch (error: any) {
+      console.error(`[ContactTagReader] Erro no sync em massa:`, error);
+      summary.duration = Date.now() - startTime;
+      throw error;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // HELPERS PRIVADOS
+  // ═══════════════════════════════════════════════════════
+
+  /**
+   * Detectar origem da tag (system vs manual)
+   */
+  private detectTagOrigin(tagName: string): 'system' | 'manual' {
+    const systemPatterns = [
+      /^OGI_/i,
+      /^CLAREZA_/i,
+      /^LEVEL_/i,
+      /^INATIVO_/i,
+      /^REENGAGEMENT_/i,
+      /_\d+D$/i, // Ex: INATIVO_7D
+    ];
+
+    for (const pattern of systemPatterns) {
+      if (pattern.test(tagName)) {
+        return 'system';
       }
     }
 
-    console.log(`✅ Processados ${results.length}/${emails.length} contactos`)
-    return results as ContactTagInfo[]
+    return 'manual';
   }
 
   /**
-   * 🔄 Sync múltiplos utilizadores AC → BO
+   * Inferir produto da tag
    */
-  async syncMultipleUsersFromAC(emails: string[]): Promise<SyncResult[]> {
-    console.log(`🔄 Sync múltiplo AC → BO: ${emails.length} utilizadores`)
+  private inferProductFromTag(tagName: string): string | undefined {
+    const tagLower = tagName.toLowerCase();
 
-    const results = []
-    
-    for (const email of emails) {
-      const result = await this.syncUserTagsFromAC(email)
-      results.push(result)
-      
-      // Pequeno delay entre syncs
-      await new Promise(resolve => setTimeout(resolve, 500))
+    if (tagLower.includes('ogi') || tagLower.includes('investimento')) {
+      return 'OGI';
     }
 
-    const summary = {
-      total: results.length,
-      synced: results.filter(r => r.action === 'synced').length,
-      noChanges: results.filter(r => r.action === 'no_changes').length,
-      errors: results.filter(r => r.action === 'error').length,
-      conflicts: results.reduce((sum, r) => sum + r.conflictsCount, 0)
+    if (tagLower.includes('clareza') || tagLower.includes('relatorio')) {
+      return 'CLAREZA';
     }
 
-    console.log(`✅ Sync múltiplo completo:`, summary)
-    return results
+    if (tagLower.includes('discord')) {
+      return 'DISCORD';
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Inferir produtos com base nas tags
+   */
+  private inferProducts(tags: TagInfo[]): ProductInference[] {
+    const productMap = new Map<string, ProductInference>();
+
+    tags.forEach((tag) => {
+      if (!tag.productInferred) return;
+
+      if (!productMap.has(tag.productInferred)) {
+        productMap.set(tag.productInferred, {
+          productCode: tag.productInferred,
+          productName: this.getProductName(tag.productInferred),
+          confidence: 'medium',
+          reason: 'Inferido de tags',
+          tags: [],
+        });
+      }
+
+      const product = productMap.get(tag.productInferred)!;
+      product.tags.push(tag.tag);
+
+      // Aumentar confiança se há múltiplas tags
+      if (product.tags.length >= 3) {
+        product.confidence = 'high';
+      }
+    });
+
+    return Array.from(productMap.values());
+  }
+
+  /**
+   * Get product name from code
+   */
+  private getProductName(code: string): string {
+    const names: Record<string, string> = {
+      OGI: 'O Grande Investimento',
+      CLAREZA: 'Relatórios Clareza',
+      DISCORD: 'Discord Community',
+    };
+
+    return names[code] || code;
+  }
+
+  /**
+   * Delay helper para rate limiting
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// EXPORT SINGLETON
-// ─────────────────────────────────────────────────────────────
-
-export default new ContactTagReader()
-
+// Export singleton
+export const contactTagReaderService = new ContactTagReaderService();
