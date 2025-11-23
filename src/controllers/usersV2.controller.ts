@@ -3,6 +3,7 @@
 
 import { Request, Response } from 'express';
 import User from '../models/user';
+import UserProduct from '../models/UserProduct';
 import { 
   getUserWithProducts,
   getUsersByProduct,
@@ -227,6 +228,39 @@ export const getUsersStats = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Error in getUsersStats:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * GET /api/v2/users/:userId/products
+ * Busca todos os produtos de um user específico
+ */
+export const getUserProducts = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    
+    // Verificar se user existe
+    const user = await User.findById(userId).lean();
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+    
+    // Buscar todos os UserProducts do user
+    const userProducts = await UserProduct.find({ userId })
+      .populate('productId', 'name code platform')
+      .lean();
+    
+    res.json({
+      success: true,
+      data: userProducts,
+      count: userProducts.length
+    });
+  } catch (error: any) {
+    console.error('Error in getUserProducts:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
