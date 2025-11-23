@@ -8,7 +8,8 @@ import {
   getUsersByProduct,
   getUserByEmail,
   createUser,
-  getUsersStats
+  getUsersStats,
+  getUserProducts
 } from '../controllers/usersV2.controller';
 
 const router = Router();
@@ -19,6 +20,9 @@ router.get('/stats/overview', getUsersStats);
 // By filters
 router.get('/by-product/:productId', getUsersByProduct);
 router.get('/by-email/:email', getUserByEmail);
+
+// User products (deve vir antes de /:id para evitar conflito)
+router.get('/:userId/products', getUserProducts);
 
 // CRUD
 router.get('/', getUsers);
