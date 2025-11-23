@@ -348,11 +348,11 @@ UserProductSchema.methods.isActive = function(): boolean {
 }
 
 UserProductSchema.methods.getCurrentClass = function(): IClassEnrollment | undefined {
-  return this.classes.find(c => !c.leftAt)
+  return this.classes.find((c: IClassEnrollment) => !c.leftAt)
 }
 
 UserProductSchema.methods.hasLeftAllClasses = function(): boolean {
-  return this.classes.every(c => c.leftAt)
+  return this.classes.every((c: IClassEnrollment) => c.leftAt)
 }
 
 UserProductSchema.methods.getDaysSinceEnrollment = function(): number {
