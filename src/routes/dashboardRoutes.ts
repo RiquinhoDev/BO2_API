@@ -1,7 +1,8 @@
 import express from 'express';
 import { getDashboardStats, getDashboardStatsV2 } from '../controllers/dashboardController';
 import { 
-  getProductsStats, 
+  getDashboardStats as getDashboardStatsNew,
+  getProductsBreakdown, 
   getEngagementDistribution, 
   compareProducts 
 } from '../controllers/dashboard.controller';
@@ -10,44 +11,51 @@ const router = express.Router();
 
 /**
  * GET /api/dashboard/stats
- * Retorna estatísticas consolidadas do dashboard (V1)
+ * Retorna estatísticas consolidadas do dashboard (V1 + V2)
+ * Agora usa o novo controller para suportar filtros avançados
  */
-router.get('/stats', getDashboardStats);
+router.get('/stats', getDashboardStatsNew);
 
 /**
  * GET /api/dashboard/stats/v2
- * Retorna estatísticas usando Architecture V2 (UserProduct)
+ * Retorna estatísticas usando Architecture V2 (UserProduct) - LEGACY
+ * Mantido para compatibilidade
  */
 router.get('/stats/v2', getDashboardStatsV2);
 
 // ═══════════════════════════════════════════════════════════
-// 🎯 DASHBOARD V2 - NOVOS ENDPOINTS
+// 🎯 DASHBOARD V2 - NOVOS ENDPOINTS (25 Nov 2025)
 // ═══════════════════════════════════════════════════════════
 
 /**
  * GET /api/dashboard/products
- * Stats agregadas de todos os produtos
+ * Breakdown de alunos por produto
  * Query params:
- *   - platforms: string (comma-separated) - Ex: "hotmart,curseduca"
+ *   - platform?: string (hotmart, curseduca, discord)
+ *   - productId?: string
+ *   - status?: string (active, inactive, completed)
+ *   - progressMin?: number (0-100)
+ *   - progressMax?: number (0-100)
  */
-router.get('/products', getProductsStats);
+router.get('/products', getProductsBreakdown);
 
 /**
  * GET /api/dashboard/engagement
- * Distribuição de engagement por faixas
+ * Distribuição de engagement dos alunos
  * Query params:
- *   - productId: string (opcional) - Filtrar por produto
+ *   - platform?: string
+ *   - productId?: string
  */
 router.get('/engagement', getEngagementDistribution);
 
 /**
- * GET /api/dashboard/compare
- * Comparação entre 2 produtos
- * Query params:
- *   - productId1: string (obrigatório)
- *   - productId2: string (obrigatório)
+ * POST /api/dashboard/compare
+ * Compara 2 produtos lado a lado
+ * Body:
+ *   - productId1: string (required)
+ *   - productId2: string (required)
  */
-router.get('/compare', compareProducts);
+router.post('/compare', compareProducts);
 
 export default router;
 
