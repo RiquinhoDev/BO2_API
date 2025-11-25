@@ -1,7 +1,7 @@
 import express from 'express';
-import { getDashboardStats, getDashboardStatsV2 } from '../controllers/dashboardController';
+import { getDashboardStats as getDashboardStatsLegacy, getDashboardStatsV2 } from '../controllers/dashboardController';
 import { 
-  getDashboardStats as getDashboardStatsNew,
+  getDashboardStats,
   getProductsBreakdown, 
   getEngagementDistribution, 
   compareProducts 
@@ -12,9 +12,9 @@ const router = express.Router();
 /**
  * GET /api/dashboard/stats
  * Retorna estatísticas consolidadas do dashboard (V1 + V2)
- * Agora usa o novo controller para suportar filtros avançados
+ * Agora usa o novo controller para suportar filtros avançados (Dashboard V2 Consolidado)
  */
-router.get('/stats', getDashboardStatsNew);
+router.get('/stats', getDashboardStats);
 
 /**
  * GET /api/dashboard/stats/v2
