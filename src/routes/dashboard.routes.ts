@@ -1,27 +1,19 @@
-import express from 'express';
-import { getDashboardStats, getDashboardStatsV2 } from '../controllers/dashboardController';
+// ════════════════════════════════════════════════════════════
+// 📁 src/routes/dashboard.routes.ts
+// ROTAS DO DASHBOARD V2
+// ════════════════════════════════════════════════════════════
+
+import { Router } from 'express'
 import { 
   getProductsStats, 
   getEngagementDistribution, 
   compareProducts 
-} from '../controllers/dashboard.controller';
+} from '../controllers/dashboard.controller'
 
-const router = express.Router();
-
-/**
- * GET /api/dashboard/stats
- * Retorna estatísticas consolidadas do dashboard (V1)
- */
-router.get('/stats', getDashboardStats);
-
-/**
- * GET /api/dashboard/stats/v2
- * Retorna estatísticas usando Architecture V2 (UserProduct)
- */
-router.get('/stats/v2', getDashboardStatsV2);
+const router = Router()
 
 // ═══════════════════════════════════════════════════════════
-// 🎯 DASHBOARD V2 - NOVOS ENDPOINTS
+// DASHBOARD V2 ENDPOINTS
 // ═══════════════════════════════════════════════════════════
 
 /**
@@ -30,7 +22,7 @@ router.get('/stats/v2', getDashboardStatsV2);
  * Query params:
  *   - platforms: string (comma-separated) - Ex: "hotmart,curseduca"
  */
-router.get('/products', getProductsStats);
+router.get('/products', getProductsStats)
 
 /**
  * GET /api/dashboard/engagement
@@ -38,7 +30,7 @@ router.get('/products', getProductsStats);
  * Query params:
  *   - productId: string (opcional) - Filtrar por produto
  */
-router.get('/engagement', getEngagementDistribution);
+router.get('/engagement', getEngagementDistribution)
 
 /**
  * GET /api/dashboard/compare
@@ -47,7 +39,7 @@ router.get('/engagement', getEngagementDistribution);
  *   - productId1: string (obrigatório)
  *   - productId2: string (obrigatório)
  */
-router.get('/compare', compareProducts);
+router.get('/compare', compareProducts)
 
-export default router;
+export default router
 
