@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Product from '../models/Product';
 import UserProduct from '../models/UserProduct';
-import User from '../models/User';
 
 // ═══════════════════════════════════════════════════════
 // 📊 ENDPOINT 1: GET /api/dashboard/stats
