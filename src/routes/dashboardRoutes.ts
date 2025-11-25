@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDashboardStats as getDashboardStatsLegacy, getDashboardStatsV2 } from '../controllers/dashboardController';
+// ✅ NOVO CONTROLLER ÚNICO - Dashboard V2 Consolidado (25 Nov 2025)
 import { 
   getDashboardStats,
   getProductsBreakdown, 
@@ -11,17 +11,10 @@ const router = express.Router();
 
 /**
  * GET /api/dashboard/stats
- * Retorna estatísticas consolidadas do dashboard (V1 + V2)
- * Agora usa o novo controller para suportar filtros avançados (Dashboard V2 Consolidado)
+ * Retorna estatísticas consolidadas do dashboard V2
+ * Suporta filtros avançados: platform, productId, status, progressMin/Max, search
  */
 router.get('/stats', getDashboardStats);
-
-/**
- * GET /api/dashboard/stats/v2
- * Retorna estatísticas usando Architecture V2 (UserProduct) - LEGACY
- * Mantido para compatibilidade
- */
-router.get('/stats/v2', getDashboardStatsV2);
 
 // ═══════════════════════════════════════════════════════════
 // 🎯 DASHBOARD V2 - NOVOS ENDPOINTS (25 Nov 2025)
