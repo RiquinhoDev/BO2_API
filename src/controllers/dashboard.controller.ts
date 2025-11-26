@@ -417,17 +417,30 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     const startTime = Date.now();
 
     // ========================================================================
-    // 🔄 DUAL READ: Buscar V1 + V2 unificados
+    // 1. BUSCAR TODOS OS USER PRODUCTS (V1 + V2 UNIFICADOS)
     // ========================================================================
-    const filteredUserProducts = await getAllUsersUnified();
+    const userProducts = await getAllUsersUnified();  // ← VARIÁVEL CORRETA!
+    console.log(`   ✅ ${userProducts.length} UserProducts unificados`);
 
+    // ========================================================================
+    // 2. CALCULAR TOTAL DE ALUNOS ÚNICOS
+    // ========================================================================
     const uniqueUserIds = new Set(
       userProducts
-        .filter(up => up.userId && (up.userId as any)._id)
-        .map(up => (up.userId as any)._id.toString())
+        .filter(up => up.userId)
+        .map(up => {
+          const userId = up.userId;
+          return typeof userId === 'object' && userId._id 
+            ? userId._id.toString() 
+            : userId.toString();
+        })
     );
     const totalStudents = uniqueUserIds.size;
+    console.log(`   ✅ ${totalStudents} alunos únicos`);
 
+    // ========================================================================
+    // 3. CALCULAR ENGAGEMENT MÉDIO
+    // ========================================================================
     const validEngagements = userProducts.filter(
       up => up.engagement?.engagementScore !== undefined
     );
@@ -439,48 +452,80 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
         ) / validEngagements.length
       : 0;
 
+    console.log(`   ✅ Engagement médio: ${avgEngagement.toFixed(1)}`);
+
+    // ========================================================================
+    // 4. CALCULAR PROGRESSO MÉDIO
+    // ========================================================================
+    const validProgress = userProducts.filter(
+      up => up.progress?.percentage !== undefined
+    );
+
+    const avgProgress = validProgress.length > 0
+      ? validProgress.reduce(
+          (sum, up) => sum + (up.progress?.percentage || 0),
+          0
+        ) / validProgress.length
+      : 0;
+
+    console.log(`   ✅ Progresso médio: ${avgProgress.toFixed(1)}%`);
+
+    // ========================================================================
+    // 5. CALCULAR ALUNOS ATIVOS
+    // ========================================================================
     const activeUserProducts = userProducts.filter(
       up => up.status === 'ACTIVE'
     );
 
     const activeUserIds = new Set(
-      activeUserProducts
-        .map(up => {
-          const userId = up.userId;
-          return typeof userId === 'object' && userId._id 
-            ? userId._id.toString() 
-            : userId.toString();
-        })
+      activeUserProducts.map(up => {
+        const userId = up.userId;
+        return typeof userId === 'object' && userId._id 
+          ? userId._id.toString() 
+          : userId.toString();
+      })
     );
     const activeCount = activeUserIds.size;
     const activeRate = totalStudents > 0 
       ? (activeCount / totalStudents) * 100 
       : 0;
 
+    console.log(`   ✅ ${activeCount} alunos ativos (${activeRate.toFixed(1)}%)`);
+
+    // ========================================================================
+    // 6. CALCULAR ALUNOS EM RISCO
+    // ========================================================================
     const atRiskUserProducts = userProducts.filter(
       up => (up.engagement?.engagementScore || 0) < 30
     );
 
     const atRiskUserIds = new Set(
-      atRiskUserProducts
-        .map(up => {
-          const userId = up.userId;
-          return typeof userId === 'object' && userId._id 
-            ? userId._id.toString() 
-            : userId.toString();
-        })
+      atRiskUserProducts.map(up => {
+        const userId = up.userId;
+        return typeof userId === 'object' && userId._id 
+          ? userId._id.toString() 
+          : userId.toString();
+      })
     );
     const atRiskCount = atRiskUserIds.size;
     const atRiskRate = totalStudents > 0 
       ? (atRiskCount / totalStudents) * 100 
       : 0;
 
+    console.log(`   🚨 ${atRiskCount} alunos em risco (${atRiskRate.toFixed(1)}%)`);
+
+    // ========================================================================
+    // 7. BREAKDOWN POR PLATAFORMA
+    // ========================================================================
     const platformCounts: Record<string, Set<string>> = {};
 
     userProducts.forEach(up => {
-      if (!up.userId || !(up.userId as any)._id) return;
+      const userId = up.userId;
+      const userIdStr = typeof userId === 'object' && userId._id 
+        ? userId._id.toString() 
+        : userId.toString();
       
-      const platform = (up.productId as any)?.platform || 'unknown';
+      const platform = up.platform || (up.productId as any)?.platform || 'unknown';
       
       if (!platformCounts[platform]) {
         platformCounts[platform] = new Set();
@@ -505,23 +550,23 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
       };
     }).sort((a, b) => b.count - a.count);
 
+    console.log(`   ✅ ${byPlatform.length} plataformas`);
+
+    // ========================================================================
+    // 8. PRODUTOS ATIVOS
+    // ========================================================================
+    const Product = (await import('../models/Product')).default;
     const activeProducts = await Product.countDocuments({ 
       status: { $ne: 'inactive' } 
     });
 
-    const validProgress = userProducts.filter(
-      up => up.progress?.percentage !== undefined  // ✅ CORRIGIDO: percentage (não progressPercentage)
-    );
+    console.log(`   ✅ ${activeProducts} produtos ativos`);
 
-    const avgProgress = validProgress.length > 0
-      ? validProgress.reduce(
-          (sum, up) => sum + (up.progress?.percentage || 0),  // ✅ CORRIGIDO: percentage
-          0
-        ) / validProgress.length
-      : 0;
-
+    // ========================================================================
+    // 9. HEALTH SCORE
+    // ========================================================================
     const retention = activeRate;
-    const growth = 15;
+    const growth = 15; // TODO: Calcular baseado em novos alunos
     
     const healthScore = Math.round(
       (avgEngagement * 0.4) +
@@ -536,57 +581,68 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
       healthScore >= 60 ? 'RAZOÁVEL' :
       'CRÍTICO';
 
+    console.log(`   🏥 Health Score: ${healthScore}/100 (${healthLevel})`);
+
+    // ========================================================================
+    // 10. QUICK FILTERS
+    // ========================================================================
+    
+    // Top Performers
     const topPerformersUserProducts = userProducts.filter(
       up =>
         (up.engagement?.engagementScore || 0) > 80 &&
-        (up.progress?.percentage || 0) > 70  // ✅ CORRIGIDO: percentage
+        (up.progress?.percentage || 0) > 70
     );
     const topPerformersCount = new Set(
-      topPerformersUserProducts
-        .map(up => {
-          const userId = up.userId;
-          return typeof userId === 'object' && userId._id 
-            ? userId._id.toString() 
-            : userId.toString();
-        })
+      topPerformersUserProducts.map(up => {
+        const userId = up.userId;
+        return typeof userId === 'object' && userId._id 
+          ? userId._id.toString() 
+          : userId.toString();
+      })
     ).size;
 
+    // Inativos 30 dias
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const inactive30dUserProducts = filteredUserProducts.filter(up => {
+    const inactive30dUserProducts = userProducts.filter(up => {
       const lastActivity = up.progress?.lastActivity;
       if (!lastActivity) return true;
       return new Date(lastActivity) < thirtyDaysAgo;
     });
     const inactive30dCount = new Set(
-      inactive30dUserProducts
-        .map(up => {
-          const userId = up.userId;
-          return typeof userId === 'object' && userId._id 
-            ? userId._id.toString() 
-            : userId.toString();
-        })
+      inactive30dUserProducts.map(up => {
+        const userId = up.userId;
+        return typeof userId === 'object' && userId._id 
+          ? userId._id.toString() 
+          : userId.toString();
+      })
     ).size;
 
+    // Novos 7 dias
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const new7dUserProducts = filteredUserProducts.filter(up => {
+    const new7dUserProducts = userProducts.filter(up => {
       const enrolled = up.enrolledAt;
       if (!enrolled) return false;
       return new Date(enrolled) > sevenDaysAgo;
     });
     const new7dCount = new Set(
-      new7dUserProducts
-        .map(up => {
-          const userId = up.userId;
-          return typeof userId === 'object' && userId._id 
-            ? userId._id.toString() 
-            : userId.toString();
-        })
+      new7dUserProducts.map(up => {
+        const userId = up.userId;
+        return typeof userId === 'object' && userId._id 
+          ? userId._id.toString() 
+          : userId.toString();
+      })
     ).size;
 
+    console.log(`   ✅ Quick Filters calculados`);
+
+    // ========================================================================
+    // 11. RESPONSE
+    // ========================================================================
     const duration = Date.now() - startTime;
     console.log(`✅ [STATS V3] Calculado em ${duration}ms`);
 
@@ -622,8 +678,8 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
           calculatedAt: new Date().toISOString(),
           durationMs: duration,
           dualReadEnabled: true,
-          v1Count: filteredUserProducts.filter(up => up._isV1).length,
-          v2Count: filteredUserProducts.filter(up => !up._isV1).length
+          v1Count: userProducts.filter((up: any) => up._isV1).length,
+          v2Count: userProducts.filter((up: any) => !up._isV1).length
         }
       }
     });
