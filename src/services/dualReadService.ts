@@ -1,6 +1,6 @@
 // BO2_API/src/services/dualReadService.ts
-// 🔄 DUAL READ SERVICE - Combina dados V1 (User) + V2 (UserProduct)
-// Data: 26 Novembro 2025
+// 🔄 DUAL READ SERVICE - CORRIGIDO PARA ESTRUTURA REAL
+// Data: 27 Novembro 2025
 
 import User from '../models/user';
 import UserProduct from '../models/UserProduct';
@@ -9,12 +9,11 @@ import Product from '../models/Product';
 /**
  * 🔄 DUAL READ: Combina dados V1 (User) + V2 (UserProduct)
  * 
- * Retorna estrutura unificada:
- * - Se user tem UserProducts → usa V2
- * - Se user só tem dados V1 (hotmart/curseduca/discord) → converte para formato V2
- * - Combina ambos se existirem
- * 
- * @returns Array de UserProducts unificados (V1 convertidos + V2 nativos)
+ * ✅ CORRIGIDO: Usa estrutura REAL do User:
+ * - user.hotmartUserId (campo direto)
+ * - user.curseducaUserId (campo direto)
+ * - user.hotmart.engagement.engagementScore (nested)
+ * - user.curseduca.progress.estimatedProgress (nested)
  */
 export async function getAllUsersUnified() {
   console.log('🔄 [DUAL READ] Iniciando...');
@@ -23,7 +22,7 @@ export async function getAllUsersUnified() {
   // ========================================================================
   // 1. BUSCAR TODOS OS USERS
   // ========================================================================
-  const users = await User.find().lean();
+  const users = await User.find({ isDeleted: { $ne: true } }).lean();
   console.log(`   ✅ ${users.length} users encontrados`);
 
   // ========================================================================
@@ -36,15 +35,14 @@ export async function getAllUsersUnified() {
   console.log(`   ✅ ${userProducts.length} UserProducts V2 encontrados`);
 
   // ========================================================================
-  // 3. MAPEAR USERPRODUCTS POR USERID
+  // 3. MAPEAR USERPRODUCTS V2 POR USERID
   // ========================================================================
   const userProductsByUserId = new Map<string, any[]>();
   const validUserProducts: any[] = [];
   
   userProducts.forEach(up => {
-    // Validar populate
     if (!up.userId || !up.productId) {
-      console.warn(`   ⚠️ UserProduct ${up._id} sem populate completo (ignorado)`);
+      console.warn(`   ⚠️ UserProduct ${up._id} sem populate (ignorado)`);
       return;
     }
     
@@ -55,7 +53,6 @@ export async function getAllUsersUnified() {
     userProductsByUserId.get(userId)!.push(up);
     validUserProducts.push(up);
   });
-
   console.log(`   ✅ ${validUserProducts.length} UserProducts V2 válidos`);
 
   // ========================================================================
