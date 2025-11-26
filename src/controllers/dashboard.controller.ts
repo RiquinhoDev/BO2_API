@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import Product from '../models/Product';
 import UserProduct from '../models/UserProduct';
 import User from '../models/User';
+// 🔄 DUAL READ SERVICE - Combina V1 + V2
+import { getAllUsersUnified, getUniqueUsersFromUnified } from '../services/dualReadService';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 📊 ENDPOINT 1: GET /api/dashboard/stats
@@ -117,18 +119,79 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 // ═══════════════════════════════════════════════════════════════════════════
 export const getProductsBreakdown = async (req: Request, res: Response) => {
   try {
+    console.log('📦 [PRODUCTS BREAKDOWN - DUAL READ]');
     const { platforms } = req.query;
 
-    const matchStage: any = {};
+    // 🔄 USAR DUAL READ
+    const userProducts = await getAllUsersUnified();
     
+    // Filtrar por plataforma se solicitado
+    let filteredUPs = userProducts;
     if (platforms && typeof platforms === 'string') {
-      const platformList = platforms.split(',');
-      const products = await Product.find({
-        platform: { $in: platformList }
-      }).select('_id');
-      matchStage.productId = { $in: products.map(p => p._id) };
+      const platformList = platforms.split(',').map(p => p.toLowerCase());
+      filteredUPs = userProducts.filter(up => {
+        const platform = up.platform || (up.productId as any)?.platform || '';
+        return platformList.includes(platform.toLowerCase());
+      });
     }
 
+    // Agrupar por produto
+    const productMap = new Map();
+
+    filteredUPs.forEach(up => {
+      const productId = up.productId?._id?.toString() || up.productId?.toString();
+      if (!productId) return;
+
+      if (!productMap.has(productId)) {
+        productMap.set(productId, {
+          productId,
+          productName: up.productId?.name || 'Unknown',
+          platform: up.platform || up.productId?.platform,
+          students: new Set(),
+          totalEngagement: 0,
+          totalProgress: 0,
+          activeStudents: new Set(),
+          count: 0
+        });
+      }
+
+      const data = productMap.get(productId);
+      const userId = up.userId;
+      const userIdStr = typeof userId === 'object' && userId._id 
+        ? userId._id.toString() 
+        : userId.toString();
+      
+      data.students.add(userIdStr);
+      data.count++;
+      data.totalEngagement += up.engagement?.engagementScore || 0;
+      data.totalProgress += up.progress?.percentage || 0;  // ✅ CORRETO
+
+      if (up.status === 'ACTIVE') {
+        data.activeStudents.add(userIdStr);
+      }
+    });
+
+    // Calcular médias
+    const breakdown = Array.from(productMap.values()).map(data => ({
+      productId: data.productId,
+      productName: data.productName,
+      platform: data.platform,
+      totalStudents: data.students.size,
+      avgEngagement: data.count > 0 
+        ? Math.round((data.totalEngagement / data.count) * 10) / 10 
+        : 0,
+      avgProgress: data.count > 0 
+        ? Math.round((data.totalProgress / data.count) * 10) / 10 
+        : 0,
+      activeStudents: data.activeStudents.size,
+      engagementRate: data.students.size > 0
+        ? Math.round((data.activeStudents.size / data.students.size) * 1000) / 10
+        : 0
+    })).sort((a, b) => b.totalStudents - a.totalStudents);
+
+    console.log(`   ✅ ${breakdown.length} produtos analisados`);
+
+    /* OLD AGGREGATION CODE - REMOVED
     const breakdown = await UserProduct.aggregate([
       { $match: matchStage },
       {
@@ -175,13 +238,14 @@ export const getProductsBreakdown = async (req: Request, res: Response) => {
       },
       { $sort: { totalStudents: -1 } }
     ]);
+    */
 
     res.json({
       success: true,
       data: breakdown
     });
   } catch (error: any) {
-    console.error('❌ Erro em getProductsBreakdown:', error);
+    console.error('❌ [PRODUCTS BREAKDOWN] Erro:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -349,27 +413,13 @@ export const compareProducts = async (req: Request, res: Response) => {
  */
 export const getDashboardStatsV3 = async (req: Request, res: Response) => {
   try {
-    console.log('📊 [STATS V3] Calculando stats consolidadas...');
+    console.log('📊 [STATS V3 - DUAL READ] Calculando stats consolidadas...');
     const startTime = Date.now();
 
-    const userProducts = await UserProduct.find()
-      .populate('userId', 'name email')
-      .populate('productId', 'name code platform')
-      .lean();
-
-    console.log(`   ✅ ${userProducts.length} UserProducts encontrados`);
-    
-    // ✅ VALIDAÇÃO: Filtrar UserProducts com populate válido
-    const validUserProducts = userProducts.filter(
-      up => up.userId && (up.userId as any)._id && up.productId && (up.productId as any).platform
-    );
-    
-    if (validUserProducts.length < userProducts.length) {
-      console.warn(`   ⚠️ ${userProducts.length - validUserProducts.length} UserProducts sem populate completo (ignorados)`);
-    }
-    
-    // Usar validUserProducts daqui pra frente
-    const filteredUserProducts = validUserProducts;
+    // ========================================================================
+    // 🔄 DUAL READ: Buscar V1 + V2 unificados
+    // ========================================================================
+    const filteredUserProducts = await getAllUsersUnified();
 
     const uniqueUserIds = new Set(
       userProducts
@@ -395,7 +445,12 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
 
     const activeUserIds = new Set(
       activeUserProducts
-        .map(up => (up.userId as any)._id.toString())
+        .map(up => {
+          const userId = up.userId;
+          return typeof userId === 'object' && userId._id 
+            ? userId._id.toString() 
+            : userId.toString();
+        })
     );
     const activeCount = activeUserIds.size;
     const activeRate = totalStudents > 0 
@@ -408,7 +463,12 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
 
     const atRiskUserIds = new Set(
       atRiskUserProducts
-        .map(up => (up.userId as any)._id.toString())
+        .map(up => {
+          const userId = up.userId;
+          return typeof userId === 'object' && userId._id 
+            ? userId._id.toString() 
+            : userId.toString();
+        })
     );
     const atRiskCount = atRiskUserIds.size;
     const atRiskRate = totalStudents > 0 
@@ -426,7 +486,7 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
         platformCounts[platform] = new Set();
       }
       
-      platformCounts[platform].add((up.userId as any)._id.toString());
+      platformCounts[platform].add(userIdStr);
     });
 
     const byPlatform = Object.entries(platformCounts).map(([name, userIds]) => {
@@ -483,7 +543,12 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     );
     const topPerformersCount = new Set(
       topPerformersUserProducts
-        .map(up => (up.userId as any)._id.toString())
+        .map(up => {
+          const userId = up.userId;
+          return typeof userId === 'object' && userId._id 
+            ? userId._id.toString() 
+            : userId.toString();
+        })
     ).size;
 
     const thirtyDaysAgo = new Date();
@@ -496,7 +561,12 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     });
     const inactive30dCount = new Set(
       inactive30dUserProducts
-        .map(up => (up.userId as any)._id.toString())
+        .map(up => {
+          const userId = up.userId;
+          return typeof userId === 'object' && userId._id 
+            ? userId._id.toString() 
+            : userId.toString();
+        })
     ).size;
 
     const sevenDaysAgo = new Date();
@@ -509,7 +579,12 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     });
     const new7dCount = new Set(
       new7dUserProducts
-        .map(up => (up.userId as any)._id.toString())
+        .map(up => {
+          const userId = up.userId;
+          return typeof userId === 'object' && userId._id 
+            ? userId._id.toString() 
+            : userId.toString();
+        })
     ).size;
 
     const duration = Date.now() - startTime;
@@ -545,7 +620,10 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
         },
         meta: {
           calculatedAt: new Date().toISOString(),
-          durationMs: duration
+          durationMs: duration,
+          dualReadEnabled: true,
+          v1Count: filteredUserProducts.filter(up => up._isV1).length,
+          v2Count: filteredUserProducts.filter(up => !up._isV1).length
         }
       }
     });
