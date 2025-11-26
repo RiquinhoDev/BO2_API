@@ -1,10 +1,12 @@
 import express from 'express';
-// ✅ NOVO CONTROLLER ÚNICO - Dashboard V2 Consolidado (25 Nov 2025)
+// ✅ DASHBOARD V2 CONTROLLERS - Consolidado + Sprint 1 & 2
 import { 
   getDashboardStats,
   getProductsBreakdown, 
   getEngagementDistribution, 
-  compareProducts 
+  compareProducts,
+  getDashboardStatsV3,  // Sprint 1
+  searchDashboard        // Sprint 2
 } from '../controllers/dashboard.controller';
 
 const router = express.Router();
@@ -49,6 +51,26 @@ router.get('/engagement', getEngagementDistribution);
  *   - productId2: string (required)
  */
 router.post('/compare', compareProducts);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🚀 SPRINT 1: STATS V3 - VERSÃO CONSOLIDADA
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/dashboard/stats/v3
+ * Stats consolidadas com Health Score e Quick Filters
+ */
+router.get('/stats/v3', getDashboardStatsV3);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔍 SPRINT 2: PESQUISA GLOBAL
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/dashboard/search?q=termo
+ * Pesquisa global por nome, email ou tags
+ */
+router.get('/search', searchDashboard);
 
 export default router;
 
