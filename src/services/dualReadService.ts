@@ -1,6 +1,15 @@
-// BO2_API/src/services/dualReadService.ts
-// 🔄 DUAL READ SERVICE - CORRIGIDO PARA ESTRUTURA REAL
+// ═══════════════════════════════════════════════════════════════════════════
+// 📁 BO2_API/src/services/dualReadService.ts
+// 🔄 DUAL READ SERVICE - CORRIGIDO PARA ESTRUTURA REAL DO USER
+// ═══════════════════════════════════════════════════════════════════════════
 // Data: 27 Novembro 2025
+// Autor: Correção baseada em estrutura real do BD
+// 
+// PROBLEMA RESOLVIDO:
+// - Código antigo procurava user.hotmart?.email (não existe)
+// - Código novo usa user.hotmartUserId (campo real)
+// - Converte engagement e progresso corretamente
+// ═══════════════════════════════════════════════════════════════════════════
 
 import User from '../models/user';
 import UserProduct from '../models/UserProduct';
@@ -9,164 +18,276 @@ import Product from '../models/Product';
 /**
  * 🔄 DUAL READ: Combina dados V1 (User) + V2 (UserProduct)
  * 
- * ✅ CORRIGIDO: Usa estrutura REAL do User:
+ * FLUXO:
+ * 1. Busca TODOS os users da BD
+ * 2. Busca TODOS os UserProducts V2 (se existirem)
+ * 3. Para cada user:
+ *    - Se tem UserProduct V2 → usa V2
+ *    - Se NÃO tem V2 → converte dados V1 para formato V2
+ * 
+ * ESTRUTURA REAL DO USER V1:
  * - user.hotmartUserId (campo direto)
  * - user.curseducaUserId (campo direto)
  * - user.hotmart.engagement.engagementScore (nested)
+ * - user.hotmart.progress.completedLessons (nested)
+ * - user.curseduca.engagement.engagementScore (nested)
  * - user.curseduca.progress.estimatedProgress (nested)
  */
 export async function getAllUsersUnified() {
-  console.log('🔄 [DUAL READ] Iniciando...');
+  console.log('\n🔄 [DUAL READ] Iniciando conversão V1→V2...');
   const startTime = Date.now();
 
   // ========================================================================
-  // 1. BUSCAR TODOS OS USERS
+  // 1. BUSCAR TODOS OS USERS (V1)
   // ========================================================================
-  const users = await User.find({ isDeleted: { $ne: true } }).lean();
-  console.log(`   ✅ ${users.length} users encontrados`);
+  const users = await User.find({ 
+    isDeleted: { $ne: true } 
+  }).lean() as any[];  // ✅ Cast para any[] para evitar erros de tipagem com lean()
+  
+  console.log(`   ✅ ${users.length} users encontrados na BD`);
 
   // ========================================================================
-  // 2. BUSCAR TODOS OS USERPRODUCTS V2
+  // 2. BUSCAR TODOS OS USERPRODUCTS V2 (se existirem)
   // ========================================================================
   const userProducts = await UserProduct.find()
     .populate('userId', 'name email')
     .populate('productId', 'name code platform')
     .lean();
+  
   console.log(`   ✅ ${userProducts.length} UserProducts V2 encontrados`);
 
   // ========================================================================
   // 3. MAPEAR USERPRODUCTS V2 POR USERID
   // ========================================================================
   const userProductsByUserId = new Map<string, any[]>();
-  const validUserProducts: any[] = [];
+  let validV2Count = 0;
   
   userProducts.forEach(up => {
+    // Validar populate
     if (!up.userId || !up.productId) {
       console.warn(`   ⚠️ UserProduct ${up._id} sem populate (ignorado)`);
       return;
     }
     
     const userId = (up.userId as any)._id?.toString() || up.userId.toString();
+    
     if (!userProductsByUserId.has(userId)) {
       userProductsByUserId.set(userId, []);
     }
+    
     userProductsByUserId.get(userId)!.push(up);
-    validUserProducts.push(up);
+    validV2Count++;
   });
-  console.log(`   ✅ ${validUserProducts.length} UserProducts V2 válidos`);
+
+  console.log(`   ✅ ${validV2Count} UserProducts V2 válidos mapeados`);
 
   // ========================================================================
-  // 4. BUSCAR PRODUTOS PARA CONVERSÃO V1→V2
+  // 4. BUSCAR PRODUTOS DA BD
   // ========================================================================
-  const products = await Product.find().lean();
-  const productsByCode = new Map(products.map(p => [p.code.toUpperCase(), p]));
+  const products = await Product.find().lean() as any[];  // ✅ Cast para any[]
   
-  console.log(`   ✅ ${products.length} produtos disponíveis`);
+  // Mapear produtos por código E por platform
+  const productsByCode = new Map(
+    products.map(p => [p.code.toUpperCase(), p])
+  );
+  
+  const productsByPlatform = {
+    hotmart: products.find(p => p.platform === 'hotmart'),
+    curseduca: products.find(p => p.platform === 'curseduca'),
+    discord: products.find(p => p.platform === 'discord')
+  };
+  
+  console.log(`   ✅ ${products.length} produtos disponíveis:`);
+  console.log(`      🔥 Hotmart: ${productsByPlatform.hotmart?.name || 'N/A'}`);
+  console.log(`      📚 CursEduca: ${productsByPlatform.curseduca?.name || 'N/A'}`);
+  console.log(`      💬 Discord: ${productsByPlatform.discord?.name || 'N/A'}`);
 
   // ========================================================================
-  // 5. CONVERTER DADOS V1 PARA FORMATO V2
+  // 5. CONVERTER DADOS V1 → V2
   // ========================================================================
   const unifiedUserProducts: any[] = [];
+  let hotmartConverted = 0;
+  let curseducaConverted = 0;
+  let discordConverted = 0;
+  let v2Used = 0;
 
   for (const user of users) {
     const userId = user._id.toString();
 
-    // Se user tem UserProducts V2, usa esses
+    // ─────────────────────────────────────────────────────────────
+    // SE USER JÁ TEM USERPRODUCTS V2 → USA ESSES!
+    // ─────────────────────────────────────────────────────────────
     if (userProductsByUserId.has(userId)) {
       const ups = userProductsByUserId.get(userId)!;
       unifiedUserProducts.push(...ups);
-      continue;
+      v2Used += ups.length;
+      continue; // Não precisa converter V1
     }
 
-    // SENÃO, converter dados V1 para formato V2
+    // ─────────────────────────────────────────────────────────────
+    // SENÃO, CONVERTER V1 → V2
+    // ─────────────────────────────────────────────────────────────
 
     // ─────────────────────────────────────────────────────────────
     // HOTMART
     // ─────────────────────────────────────────────────────────────
-    if ((user as any).hotmart?.email) {
-      const hotmartProduct = productsByCode.get('OGI') || 
-                            productsByCode.get('GRANDE_INVESTIMENTO') ||
-                            products.find(p => p.platform === 'hotmart');
+    if ((user as any).hotmartUserId) {  // ✅ Campo direto
+      const hotmartProduct = productsByPlatform.hotmart;
       
       if (hotmartProduct) {
-        const hotmartData = (user as any).hotmart;
+        const hotmartData = (user as any).hotmart || {};
+        const engagement = hotmartData.engagement || {};
+        const progress = hotmartData.progress || {};
+        
+        // Calcular progresso baseado em lições completadas
+        let progressPercentage = 0;
+        if (progress.lessonsData && progress.lessonsData.length > 0) {
+          const completedLessons = progress.lessonsData.filter((l: any) => l.completed).length;
+          progressPercentage = Math.round((completedLessons / progress.lessonsData.length) * 100);
+        } else if (progress.completedLessons) {
+          // Fallback: usar completedLessons direto
+          progressPercentage = Math.min(progress.completedLessons, 100);
+        }
+        
+        // Calcular status baseado em lastAccessDate
+        let status = 'ACTIVE';
+        const lastAccessDate = progress.lastAccessDate;
+        if (lastAccessDate) {
+          const daysSince = (Date.now() - new Date(lastAccessDate).getTime()) / (1000 * 60 * 60 * 24);
+          if (daysSince > 30) {
+            status = 'INACTIVE';
+          }
+        }
         
         unifiedUserProducts.push({
           _id: `v1-hotmart-${userId}`,
-          userId: user._id,
+          userId: {
+            _id: user._id,
+            name: (user as any).name,
+            email: (user as any).email
+          },
           productId: hotmartProduct,
           platform: 'hotmart',
-          status: hotmartData.memberStatus === 'active' ? 'ACTIVE' : 'INACTIVE',
+          platformUserId: (user as any).hotmartUserId,
+          status,
           progress: {
-            percentage: hotmartData.progress?.completedPercentage || 0,
+            percentage: progressPercentage,
+            currentModule: 0,
+            modulesCompleted: [],
+            lessonsCompleted: progress.lessonsData?.filter((l: any) => l.completed).map((l: any) => l.lessonId) || [],
+            lastActivity: progress.lastAccessDate || null
           },
           engagement: {
-            engagementScore: hotmartData.engagement?.engagementScore || 0,
+            engagementScore: engagement.engagementScore || 0,
+            engagementLevel: engagement.engagementLevel || 'NONE',
+            lastLogin: progress.lastAccessDate || null,
+            daysSinceLastLogin: lastAccessDate 
+              ? Math.floor((Date.now() - new Date(lastAccessDate).getTime()) / (1000 * 60 * 60 * 24))
+              : null,
+            totalLogins: engagement.accessCount || 0
           },
-          enrolledAt: hotmartData.joinedDate || user.createdAt,
+          enrolledAt: hotmartData.signupDate || hotmartData.purchaseDate || (user as any).createdAt || new Date(),
           source: 'MIGRATION',
           _isV1: true,
+          _platform: 'hotmart'
         });
+        
+        hotmartConverted++;
+      } else {
+        console.warn(`   ⚠️ User ${userId} tem hotmartUserId mas produto Hotmart não existe na BD`);
       }
     }
 
     // ─────────────────────────────────────────────────────────────
     // CURSEDUCA
     // ─────────────────────────────────────────────────────────────
-    if ((user as any).curseduca?.curseducaUserId) {
-      const curseducaProduct = productsByCode.get('CLAREZA') || 
-                              productsByCode.get('RELATORIOS_CLAREZA') ||
-                              products.find(p => p.platform === 'curseduca');
+    if ((user as any).curseducaUserId) {  // ✅ Campo direto
+      const curseducaProduct = productsByPlatform.curseduca;
       
       if (curseducaProduct) {
-        const curseducaData = (user as any).curseduca;
+        const curseducaData = (user as any).curseduca || {};
+        const engagement = curseducaData.engagement || {};
+        const progress = curseducaData.progress || {};
+        
+        // Status baseado em expiração
+        let status = 'ACTIVE';
+        const expiresAt = curseducaData.enrolledClasses?.[0]?.expiresAt;
+        if (expiresAt && new Date(expiresAt) < new Date()) {
+          status = 'INACTIVE';
+        }
+        
+        // Progresso estimado
+        const progressPercentage = progress.estimatedProgress || 0;
         
         unifiedUserProducts.push({
           _id: `v1-curseduca-${userId}`,
-          userId: user._id,
+          userId: {
+            _id: user._id,
+            name: (user as any).name,
+            email: (user as any).email
+          },
           productId: curseducaProduct,
           platform: 'curseduca',
-          status: curseducaData.memberStatus === 'active' ? 'ACTIVE' : 'INACTIVE',
+          platformUserId: (user as any).curseducaUserId,
+          platformUserUuid: curseducaData.curseducaUuid,
+          status,
           progress: {
-            percentage: curseducaData.progress?.completedPercentage || 0,
+            percentage: progressPercentage,
+            lastActivity: progress.lastAccessDate || null
           },
           engagement: {
-            engagementScore: curseducaData.engagement?.engagementScore || 0,
+            engagementScore: engagement.engagementScore || 0,
+            engagementLevel: engagement.engagementLevel || 'NONE',
+            lastAction: progress.lastAccessDate || null,
+            totalActions: engagement.accessCount || 0
           },
-          enrolledAt: curseducaData.joinedDate || user.createdAt,
+          enrolledAt: curseducaData.enrolledClasses?.[0]?.enteredAt || (user as any).createdAt || new Date(),
           source: 'MIGRATION',
           _isV1: true,
+          _platform: 'curseduca'
         });
+        
+        curseducaConverted++;
+      } else {
+        console.warn(`   ⚠️ User ${userId} tem curseducaUserId mas produto CursEduca não existe na BD`);
       }
     }
 
     // ─────────────────────────────────────────────────────────────
     // DISCORD
     // ─────────────────────────────────────────────────────────────
-    if ((user as any).discord?.discordId) {
-      const discordProduct = productsByCode.get('DISCORD') || 
-                            productsByCode.get('COMUNIDADE') ||
-                            products.find(p => p.platform === 'discord');
+    const discordData = (user as any).discord;
+    const discordIds = discordData?.discordIds || (user as any).discordIds;
+    
+    if (discordIds && discordIds.length > 0) {
+      const discordProduct = productsByPlatform.discord;
       
       if (discordProduct) {
-        const discordData = (user as any).discord;
-        
         unifiedUserProducts.push({
           _id: `v1-discord-${userId}`,
-          userId: user._id,
+          userId: {
+            _id: user._id,
+            name: (user as any).name,
+            email: (user as any).email
+          },
           productId: discordProduct,
           platform: 'discord',
-          status: 'ACTIVE', // Discord sempre ativo se tem ID
+          platformUserId: discordIds[0], // Primeiro Discord ID
+          status: discordData?.isDeleted ? 'INACTIVE' : 'ACTIVE',
           progress: {
-            percentage: 0, // Discord não tem progresso
+            percentage: 0  // Discord não tem progresso mensurável
           },
           engagement: {
-            engagementScore: discordData.engagement?.engagementScore || 0,
+            engagementScore: 0,  // Discord engagement é diferente
+            engagementLevel: 'NONE'
           },
-          enrolledAt: discordData.joinedDate || user.createdAt,
+          enrolledAt: discordData?.createdAt || (user as any).createdAt || new Date(),
           source: 'MIGRATION',
           _isV1: true,
+          _platform: 'discord'
         });
+        
+        discordConverted++;
       }
     }
   }
@@ -178,10 +299,16 @@ export async function getAllUsersUnified() {
   const v1Count = unifiedUserProducts.filter((up: any) => up._isV1).length;
   const v2Count = unifiedUserProducts.filter((up: any) => !up._isV1).length;
 
-  console.log(`   ✅ ${unifiedUserProducts.length} UserProducts unificados (${duration}ms)`);
-  console.log(`   📊 V1: ${v1Count} | V2: ${v2Count}`);
+  console.log(`\n   ✅ CONVERSÃO COMPLETA em ${duration}ms`);
+  console.log(`   ════════════════════════════════════════`);
+  console.log(`   📊 Total unificado: ${unifiedUserProducts.length} UserProducts`);
+  console.log(`   📦 V2 (nativos): ${v2Count}`);
+  console.log(`   🔄 V1 (convertidos): ${v1Count}`);
+  console.log(`      🔥 Hotmart: ${hotmartConverted}`);
+  console.log(`      📚 CursEduca: ${curseducaConverted}`);
+  console.log(`      💬 Discord: ${discordConverted}`);
+  console.log(`   ════════════════════════════════════════\n`);
 
-  // ✅ RETURN CORRETO!
   return unifiedUserProducts;
 }
 
@@ -202,33 +329,3 @@ export async function getUniqueUsersFromUnified(unifiedUserProducts: any[]) {
 
   return uniqueUserIds;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**
- * Helper: Verificar se UserProduct é V1 convertido
- */
-export function isV1Converted(userProduct: any): boolean {
-  return userProduct._isV1 === true || 
-         userProduct.source === 'MIGRATION' ||
-         String(userProduct._id).startsWith('v1-');
-}
-
-/**
- * Helper: Obter source do UserProduct V1
- */
-export function getV1Source(userProduct: any): string | null {
-  if (!isV1Converted(userProduct)) return null;
-  return userProduct._v1Source || null;
-}
-
