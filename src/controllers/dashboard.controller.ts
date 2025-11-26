@@ -358,6 +358,18 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
       .lean();
 
     console.log(`   ✅ ${userProducts.length} UserProducts encontrados`);
+    
+    // ✅ VALIDAÇÃO: Filtrar UserProducts com populate válido
+    const validUserProducts = userProducts.filter(
+      up => up.userId && (up.userId as any)._id && up.productId && (up.productId as any).platform
+    );
+    
+    if (validUserProducts.length < userProducts.length) {
+      console.warn(`   ⚠️ ${userProducts.length - validUserProducts.length} UserProducts sem populate completo (ignorados)`);
+    }
+    
+    // Usar validUserProducts daqui pra frente
+    const filteredUserProducts = validUserProducts;
 
     const uniqueUserIds = new Set(
       userProducts
@@ -383,7 +395,6 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
 
     const activeUserIds = new Set(
       activeUserProducts
-        .filter(up => up.userId && (up.userId as any)._id)
         .map(up => (up.userId as any)._id.toString())
     );
     const activeCount = activeUserIds.size;
@@ -397,7 +408,6 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
 
     const atRiskUserIds = new Set(
       atRiskUserProducts
-        .filter(up => up.userId && (up.userId as any)._id)
         .map(up => (up.userId as any)._id.toString())
     );
     const atRiskCount = atRiskUserIds.size;
@@ -440,12 +450,12 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     });
 
     const validProgress = userProducts.filter(
-      up => up.progress?.progressPercentage !== undefined
+      up => up.progress?.percentage !== undefined  // ✅ CORRIGIDO: percentage (não progressPercentage)
     );
 
     const avgProgress = validProgress.length > 0
       ? validProgress.reduce(
-          (sum, up) => sum + (up.progress?.progressPercentage || 0),
+          (sum, up) => sum + (up.progress?.percentage || 0),  // ✅ CORRIGIDO: percentage
           0
         ) / validProgress.length
       : 0;
@@ -469,39 +479,36 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     const topPerformersUserProducts = userProducts.filter(
       up =>
         (up.engagement?.engagementScore || 0) > 80 &&
-        (up.progress?.progressPercentage || 0) > 70
+        (up.progress?.percentage || 0) > 70  // ✅ CORRIGIDO: percentage
     );
     const topPerformersCount = new Set(
       topPerformersUserProducts
-        .filter(up => up.userId && (up.userId as any)._id)
         .map(up => (up.userId as any)._id.toString())
     ).size;
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const inactive30dUserProducts = userProducts.filter(up => {
+    const inactive30dUserProducts = filteredUserProducts.filter(up => {
       const lastActivity = up.progress?.lastActivity;
       if (!lastActivity) return true;
       return new Date(lastActivity) < thirtyDaysAgo;
     });
     const inactive30dCount = new Set(
       inactive30dUserProducts
-        .filter(up => up.userId && (up.userId as any)._id)
         .map(up => (up.userId as any)._id.toString())
     ).size;
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const new7dUserProducts = userProducts.filter(up => {
+    const new7dUserProducts = filteredUserProducts.filter(up => {
       const enrolled = up.enrolledAt;
       if (!enrolled) return false;
       return new Date(enrolled) > sevenDaysAgo;
     });
     const new7dCount = new Set(
       new7dUserProducts
-        .filter(up => up.userId && (up.userId as any)._id)
         .map(up => (up.userId as any)._id.toString())
     ).size;
 
@@ -620,7 +627,7 @@ export const searchDashboard = async (req: Request, res: Response) => {
           platform: (p.productId as any)?.platform,
           status: p.status,
           engagement: p.engagement?.engagementScore || 0,
-          progress: p.progress?.progressPercentage || 0
+          progress: p.progress?.percentage || 0  // ✅ CORRIGIDO: percentage
         })),
         avgEngagement: Math.round(avgEngagement * 10) / 10,
         tags: products.flatMap(p => p.activeCampaignData?.tags || [])
