@@ -62,203 +62,161 @@ export async function getAllUsersUnified() {
   // 4. BUSCAR PRODUTOS PARA CONVERSÃO V1→V2
   // ========================================================================
   const products = await Product.find().lean();
-  const productsByCode = new Map(products.map(p => [p.code, p]));
-  const productsByPlatform = new Map<string, any>();
+  const productsByCode = new Map(products.map(p => [p.code.toUpperCase(), p]));
   
-  // Mapear produtos por plataforma (fallback se code não existir)
-  products.forEach(p => {
-    if (p.platform && !productsByPlatform.has(p.platform)) {
-      productsByPlatform.set(p.platform, p);
-    }
-  });
-
-  console.log(`   ✅ ${products.length} produtos disponíveis para conversão`);
+  console.log(`   ✅ ${products.length} produtos disponíveis`);
 
   // ========================================================================
-  // 5. CONVERTER V1 PARA FORMATO V2
+  // 5. CONVERTER DADOS V1 PARA FORMATO V2
   // ========================================================================
-  const convertedUserProducts: any[] = [];
-  let hotmartConverted = 0;
-  let curseducaConverted = 0;
-  let discordConverted = 0;
+  const unifiedUserProducts: any[] = [];
 
   for (const user of users) {
     const userId = user._id.toString();
 
-    // Se user JÁ TEM UserProducts V2, pular conversão
+    // Se user tem UserProducts V2, usa esses
     if (userProductsByUserId.has(userId)) {
+      const ups = userProductsByUserId.get(userId)!;
+      unifiedUserProducts.push(...ups);
       continue;
     }
 
-    // ===========================================================
-    // HOTMART V1 → V2
-    // ===========================================================
-    if (user.hotmart?.email) {
-      // Tentar encontrar produto Hotmart
-      let hotmartProduct = productsByCode.get('OGI'); // Código comum Hotmart
-      if (!hotmartProduct) {
-        hotmartProduct = productsByCode.get('HOTMART');
-      }
-      if (!hotmartProduct) {
-        hotmartProduct = productsByPlatform.get('hotmart');
-      }
+    // SENÃO, converter dados V1 para formato V2
 
+    // ─────────────────────────────────────────────────────────────
+    // HOTMART
+    // ─────────────────────────────────────────────────────────────
+    if ((user as any).hotmart?.email) {
+      const hotmartProduct = productsByCode.get('OGI') || 
+                            productsByCode.get('GRANDE_INVESTIMENTO') ||
+                            products.find(p => p.platform === 'hotmart');
+      
       if (hotmartProduct) {
-        const hotmartData = user.hotmart;
-        convertedUserProducts.push({
-          _id: `v1-hotmart-${userId}`, // ID virtual
-          userId: {
-            _id: user._id,
-            name: user.name,
-            email: user.email
-          },
+        const hotmartData = (user as any).hotmart;
+        
+        unifiedUserProducts.push({
+          _id: `v1-hotmart-${userId}`,
+          userId: user._id,
           productId: hotmartProduct,
           platform: 'hotmart',
-          status: hotmartData.memberStatus === 'active' ? 'ACTIVE' : 
-                  hotmartData.memberStatus === 'cancelled' ? 'CANCELLED' :
-                  hotmartData.memberStatus === 'inactive' ? 'INACTIVE' : 'ACTIVE',
+          status: hotmartData.memberStatus === 'active' ? 'ACTIVE' : 'INACTIVE',
           progress: {
-            percentage: hotmartData.progress?.completedPercentage || 
-                       hotmartData.progress?.progressPercentage || 0,
-            lastActivity: hotmartData.progress?.lastActivity || hotmartData.lastLogin
+            percentage: hotmartData.progress?.completedPercentage || 0,
           },
           engagement: {
-            engagementScore: hotmartData.engagement?.engagementScore || 
-                            hotmartData.engagement?.score || 0,
-            lastLogin: hotmartData.lastLogin
+            engagementScore: hotmartData.engagement?.engagementScore || 0,
           },
           enrolledAt: hotmartData.joinedDate || user.createdAt,
-          source: 'MIGRATION', // Marcado como V1
-          _isV1: true, // Flag para debug
-          _v1Source: 'hotmart'
+          source: 'MIGRATION',
+          _isV1: true,
         });
-        hotmartConverted++;
       }
     }
 
-    // ===========================================================
-    // CURSEDUCA V1 → V2
-    // ===========================================================
-    if (user.curseduca?.curseducaUserId) {
-      let curseducaProduct = productsByCode.get('CLAREZA');
-      if (!curseducaProduct) {
-        curseducaProduct = productsByCode.get('CURSEDUCA');
-      }
-      if (!curseducaProduct) {
-        curseducaProduct = productsByPlatform.get('curseduca');
-      }
-
+    // ─────────────────────────────────────────────────────────────
+    // CURSEDUCA
+    // ─────────────────────────────────────────────────────────────
+    if ((user as any).curseduca?.curseducaUserId) {
+      const curseducaProduct = productsByCode.get('CLAREZA') || 
+                              productsByCode.get('RELATORIOS_CLAREZA') ||
+                              products.find(p => p.platform === 'curseduca');
+      
       if (curseducaProduct) {
-        const curseducaData = user.curseduca;
-        convertedUserProducts.push({
+        const curseducaData = (user as any).curseduca;
+        
+        unifiedUserProducts.push({
           _id: `v1-curseduca-${userId}`,
-          userId: {
-            _id: user._id,
-            name: user.name,
-            email: user.email
-          },
+          userId: user._id,
           productId: curseducaProduct,
           platform: 'curseduca',
-          status: curseducaData.memberStatus === 'active' ? 'ACTIVE' : 
-                  curseducaData.memberStatus === 'cancelled' ? 'CANCELLED' :
-                  curseducaData.memberStatus === 'inactive' ? 'INACTIVE' : 'ACTIVE',
+          status: curseducaData.memberStatus === 'active' ? 'ACTIVE' : 'INACTIVE',
           progress: {
-            percentage: curseducaData.progress?.completedPercentage || 
-                       curseducaData.progress?.progressPercentage || 0,
-            lastActivity: curseducaData.progress?.lastActivity || curseducaData.lastLogin
+            percentage: curseducaData.progress?.completedPercentage || 0,
           },
           engagement: {
-            engagementScore: curseducaData.engagement?.engagementScore || 
-                            curseducaData.engagement?.score || 0,
-            lastLogin: curseducaData.lastLogin
+            engagementScore: curseducaData.engagement?.engagementScore || 0,
           },
           enrolledAt: curseducaData.joinedDate || user.createdAt,
           source: 'MIGRATION',
           _isV1: true,
-          _v1Source: 'curseduca'
         });
-        curseducaConverted++;
       }
     }
 
-    // ===========================================================
-    // DISCORD V1 → V2
-    // ===========================================================
-    if (user.discord?.discordId) {
-      let discordProduct = productsByCode.get('DISCORD');
-      if (!discordProduct) {
-        discordProduct = productsByPlatform.get('discord');
-      }
-
+    // ─────────────────────────────────────────────────────────────
+    // DISCORD
+    // ─────────────────────────────────────────────────────────────
+    if ((user as any).discord?.discordId) {
+      const discordProduct = productsByCode.get('DISCORD') || 
+                            productsByCode.get('COMUNIDADE') ||
+                            products.find(p => p.platform === 'discord');
+      
       if (discordProduct) {
-        const discordData = user.discord;
-        convertedUserProducts.push({
+        const discordData = (user as any).discord;
+        
+        unifiedUserProducts.push({
           _id: `v1-discord-${userId}`,
-          userId: {
-            _id: user._id,
-            name: user.name,
-            email: user.email
-          },
+          userId: user._id,
           productId: discordProduct,
           platform: 'discord',
           status: 'ACTIVE', // Discord sempre ativo se tem ID
           progress: {
-            percentage: 0, // Discord não tem progresso de curso
-            lastActivity: discordData.lastSeen || discordData.joinedDate
+            percentage: 0, // Discord não tem progresso
           },
           engagement: {
-            engagementScore: discordData.engagement?.engagementScore || 
-                            discordData.engagement?.score || 0,
-            lastLogin: discordData.lastSeen
+            engagementScore: discordData.engagement?.engagementScore || 0,
           },
           enrolledAt: discordData.joinedDate || user.createdAt,
           source: 'MIGRATION',
           _isV1: true,
-          _v1Source: 'discord'
         });
-        discordConverted++;
       }
     }
   }
 
-  console.log(`   ✅ Conversão V1→V2 completa:`);
-  console.log(`      - Hotmart: ${hotmartConverted}`);
-  console.log(`      - CursEduca: ${curseducaConverted}`);
-  console.log(`      - Discord: ${discordConverted}`);
-
   // ========================================================================
-  // 6. COMBINAR V1 + V2
+  // 6. STATS FINAIS
   // ========================================================================
-  const unifiedUserProducts = [...validUserProducts, ...convertedUserProducts];
-  
   const duration = Date.now() - startTime;
-  console.log(`✅ [DUAL READ] ${unifiedUserProducts.length} UserProducts unificados em ${duration}ms`);
-  console.log(`   📊 V2 Nativos: ${validUserProducts.length}`);
-  console.log(`   📊 V1 Convertidos: ${convertedUserProducts.length}`);
+  const v1Count = unifiedUserProducts.filter((up: any) => up._isV1).length;
+  const v2Count = unifiedUserProducts.filter((up: any) => !up._isV1).length;
 
+  console.log(`   ✅ ${unifiedUserProducts.length} UserProducts unificados (${duration}ms)`);
+  console.log(`   📊 V1: ${v1Count} | V2: ${v2Count}`);
+
+  // ✅ RETURN CORRETO!
   return unifiedUserProducts;
 }
 
 /**
  * Buscar users únicos dos UserProducts unificados
  */
-export function getUniqueUsersFromUnified(unifiedUserProducts: any[]): string[] {
+export async function getUniqueUsersFromUnified(unifiedUserProducts: any[]) {
   const uniqueUserIds = [...new Set(
     unifiedUserProducts
       .filter(up => up.userId)
       .map(up => {
         const userId = up.userId;
-        // Se é objeto (populate), pegar _id
-        if (typeof userId === 'object' && userId._id) {
-          return userId._id.toString();
-        }
-        // Se é string (já é o ID)
-        return userId.toString();
+        return typeof userId === 'object' && userId._id 
+          ? userId._id.toString() 
+          : userId.toString();
       })
   )];
 
   return uniqueUserIds;
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 /**
  * Helper: Verificar se UserProduct é V1 convertido
