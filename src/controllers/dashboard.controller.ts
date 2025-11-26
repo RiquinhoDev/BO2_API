@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Product from '../models/Product';
 import UserProduct from '../models/UserProduct';
-import User from '../models/User';
+import User from '../models/user';
 // 🔄 DUAL READ SERVICE - Combina V1 + V2
 import { getAllUsersUnified, getUniqueUsersFromUnified } from '../services/dualReadService';
 
@@ -413,13 +413,13 @@ export const compareProducts = async (req: Request, res: Response) => {
  */
 export const getDashboardStatsV3 = async (req: Request, res: Response) => {
   try {
-    console.log('📊 [STATS V3 - DUAL READ] Calculando stats consolidadas...');
+    console.log('\n📊 [STATS V3 - DUAL READ] Calculando stats consolidadas...');
     const startTime = Date.now();
 
     // ========================================================================
     // 1. BUSCAR TODOS OS USER PRODUCTS (V1 + V2 UNIFICADOS)
     // ========================================================================
-    const userProducts = await getAllUsersUnified();  // ← VARIÁVEL CORRETA!
+    const userProducts = await getAllUsersUnified();
     console.log(`   ✅ ${userProducts.length} UserProducts unificados`);
 
     // ========================================================================
@@ -442,7 +442,7 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     // 3. CALCULAR ENGAGEMENT MÉDIO
     // ========================================================================
     const validEngagements = userProducts.filter(
-      up => up.engagement?.engagementScore !== undefined
+      up => up.engagement?.engagementScore !== undefined && up.engagement.engagementScore > 0
     );
 
     const avgEngagement = validEngagements.length > 0
@@ -452,13 +452,13 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
         ) / validEngagements.length
       : 0;
 
-    console.log(`   ✅ Engagement médio: ${avgEngagement.toFixed(1)}`);
+    console.log(`   ✅ Engagement médio: ${avgEngagement.toFixed(1)} (${validEngagements.length} com dados)`);
 
     // ========================================================================
     // 4. CALCULAR PROGRESSO MÉDIO
     // ========================================================================
     const validProgress = userProducts.filter(
-      up => up.progress?.percentage !== undefined
+      up => up.progress?.percentage !== undefined && up.progress.percentage > 0
     );
 
     const avgProgress = validProgress.length > 0
@@ -468,7 +468,7 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
         ) / validProgress.length
       : 0;
 
-    console.log(`   ✅ Progresso médio: ${avgProgress.toFixed(1)}%`);
+    console.log(`   ✅ Progresso médio: ${avgProgress.toFixed(1)}% (${validProgress.length} com dados)`);
 
     // ========================================================================
     // 5. CALCULAR ALUNOS ATIVOS
@@ -493,10 +493,13 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     console.log(`   ✅ ${activeCount} alunos ativos (${activeRate.toFixed(1)}%)`);
 
     // ========================================================================
-    // 6. CALCULAR ALUNOS EM RISCO
+    // 6. CALCULAR ALUNOS EM RISCO (engagement < 30)
     // ========================================================================
     const atRiskUserProducts = userProducts.filter(
-      up => (up.engagement?.engagementScore || 0) < 30
+      up => {
+        const score = up.engagement?.engagementScore || 0;
+        return score > 0 && score < 30; // Só conta se tiver engagement registado
+      }
     );
 
     const atRiskUserIds = new Set(
@@ -515,8 +518,10 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     console.log(`   🚨 ${atRiskCount} alunos em risco (${atRiskRate.toFixed(1)}%)`);
 
     // ========================================================================
-    // 7. BREAKDOWN POR PLATAFORMA
+    // 7. BREAKDOWN POR PLATAFORMA (CORRIGIDO!)
     // ========================================================================
+    console.log(`   📊 Agrupando por plataforma...`);
+    
     const platformCounts: Record<string, Set<string>> = {};
 
     userProducts.forEach(up => {
@@ -525,7 +530,17 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
         ? userId._id.toString() 
         : userId.toString();
       
-      const platform = up.platform || (up.productId as any)?.platform || 'unknown';
+      // ✅ CORREÇÃO: Ler platform diretamente do UserProduct convertido
+      // Cada UserProduct tem o campo 'platform' correto (hotmart, curseduca, discord)
+      let platform = up.platform;
+      
+      // Fallback: se não tiver platform direto, tentar ler do productId
+      if (!platform && up.productId) {
+        platform = (up.productId as any).platform || 'unknown';
+      }
+      
+      // Normalizar nome
+      platform = platform.toLowerCase();
       
       if (!platformCounts[platform]) {
         platformCounts[platform] = new Set();
@@ -550,12 +565,14 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
       };
     }).sort((a, b) => b.count - a.count);
 
-    console.log(`   ✅ ${byPlatform.length} plataformas`);
+    console.log(`   ✅ ${byPlatform.length} plataformas:`);
+    byPlatform.forEach(p => {
+      console.log(`      ${p.icon} ${p.name}: ${p.count} (${p.percentage}%)`);
+    });
 
     // ========================================================================
     // 8. PRODUTOS ATIVOS
     // ========================================================================
-    const Product = (await import('../models/Product')).default;
     const activeProducts = await Product.countDocuments({ 
       status: { $ne: 'inactive' } 
     });
@@ -566,7 +583,7 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     // 9. HEALTH SCORE
     // ========================================================================
     const retention = activeRate;
-    const growth = 15; // TODO: Calcular baseado em novos alunos
+    const growth = 15; // TODO: Calcular baseado em novos alunos últimos 30 dias
     
     const healthScore = Math.round(
       (avgEngagement * 0.4) +
@@ -587,7 +604,7 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     // 10. QUICK FILTERS
     // ========================================================================
     
-    // Top Performers
+    // Top Performers (engagement > 80 E progresso > 70)
     const topPerformersUserProducts = userProducts.filter(
       up =>
         (up.engagement?.engagementScore || 0) > 80 &&
@@ -602,13 +619,13 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
       })
     ).size;
 
-    // Inativos 30 dias
+    // Inativos 30 dias (sem lastActivity nos últimos 30 dias)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const inactive30dUserProducts = userProducts.filter(up => {
       const lastActivity = up.progress?.lastActivity;
-      if (!lastActivity) return true;
+      if (!lastActivity) return true; // Se nunca teve activity, conta como inativo
       return new Date(lastActivity) < thirtyDaysAgo;
     });
     const inactive30dCount = new Set(
@@ -644,7 +661,7 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     // 11. RESPONSE
     // ========================================================================
     const duration = Date.now() - startTime;
-    console.log(`✅ [STATS V3] Calculado em ${duration}ms`);
+    console.log(`✅ [STATS V3] Calculado em ${duration}ms\n`);
 
     res.json({
       success: true,
