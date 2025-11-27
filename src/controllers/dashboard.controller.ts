@@ -255,56 +255,97 @@ export const getProductsBreakdown = async (req: Request, res: Response) => {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 📈 ENDPOINT 3: GET /api/dashboard/engagement
-// Distribuição de engagement dos alunos
+// Distribuição de engagement dos alunos (5 NÍVEIS NOVOS)
 // ═══════════════════════════════════════════════════════════════════════════
 export const getEngagementDistribution = async (req: Request, res: Response) => {
   try {
+    console.log('📊 [ENGAGEMENT DISTRIBUTION - DUAL READ]');
     const { productId } = req.query;
 
-    const matchStage: any = {};
-    if (productId) {
-      matchStage.productId = new mongoose.Types.ObjectId(productId as string);
+    // 🔄 USAR DUAL READ
+    const userProducts = await getAllUsersUnified();
+    
+    // Filtrar por produto se solicitado
+    let filtered = userProducts;
+    if (productId && typeof productId === 'string') {
+      filtered = userProducts.filter(up => {
+        const upProductId = up.productId?._id?.toString() || up.productId?.toString();
+        return upProductId === productId;
+      });
     }
 
-    const distribution = await UserProduct.aggregate([
-      { $match: matchStage },
-      {
-        $bucket: {
-          groupBy: '$engagement.engagementScore',
-          boundaries: [0, 30, 50, 70, 100],
-          default: 'N/A',
-          output: {
-            count: { $sum: 1 },
-            users: { $addToSet: '$userId' }
-          }
-        }
-      }
-    ]);
+    console.log(`   ℹ️  Analisando ${filtered.length} UserProducts`);
 
-    const labels = ['churnRisk', 'moderate', 'good', 'excellent'];
-    const result: any = {
-      distribution: {},
-      percentages: {},
-      total: 0
+    // ✅ NOVA ESTRUTURA: 5 níveis (MUITO_BAIXO, BAIXO, MEDIO, ALTO, MUITO_ALTO)
+    const distribution = {
+      MUITO_BAIXO: 0,  // 0-24
+      BAIXO: 0,         // 25-39
+      MEDIO: 0,         // 40-59
+      ALTO: 0,          // 60-79
+      MUITO_ALTO: 0     // 80-100
     };
 
-    distribution.forEach((bucket, index) => {
-      const label = labels[index] || 'unknown';
-      const uniqueUsers = new Set(bucket.users.map((id: any) => id.toString())).size;
-      result.distribution[label] = uniqueUsers;
-      result.total += uniqueUsers;
+    // Agrupar por userId para evitar duplicação
+    const userEngagements = new Map<string, number>();
+
+    filtered.forEach(up => {
+      const score = up.engagement?.engagementScore ?? 0;
+      if (score > 0) {
+        const userId = up.userId;
+        const userIdStr = typeof userId === 'object' && userId._id 
+          ? userId._id.toString() 
+          : userId.toString();
+        
+        // Guardar o maior score deste user (se tem múltiplos produtos)
+        const currentScore = userEngagements.get(userIdStr) ?? 0;
+        if (score > currentScore) {
+          userEngagements.set(userIdStr, score);
+        }
+      }
     });
 
-    // Calcular percentagens
-    Object.keys(result.distribution).forEach(key => {
-      result.percentages[key] = result.total > 0
-        ? Math.round((result.distribution[key] / result.total) * 100 * 10) / 10
-        : 0;
+    console.log(`   ℹ️  ${userEngagements.size} alunos únicos com engagement`);
+
+    // Distribuir por níveis
+    userEngagements.forEach(score => {
+      if (score >= 80) {
+        distribution.MUITO_ALTO++;
+      } else if (score >= 60) {
+        distribution.ALTO++;
+      } else if (score >= 40) {
+        distribution.MEDIO++;
+      } else if (score >= 25) {
+        distribution.BAIXO++;
+      } else {
+        distribution.MUITO_BAIXO++;
+      }
     });
+
+    const total = userEngagements.size;
+
+    // Calcular percentagens
+    const percentages = {
+      MUITO_BAIXO: total > 0 ? Math.round((distribution.MUITO_BAIXO / total) * 100 * 10) / 10 : 0,
+      BAIXO: total > 0 ? Math.round((distribution.BAIXO / total) * 100 * 10) / 10 : 0,
+      MEDIO: total > 0 ? Math.round((distribution.MEDIO / total) * 100 * 10) / 10 : 0,
+      ALTO: total > 0 ? Math.round((distribution.ALTO / total) * 100 * 10) / 10 : 0,
+      MUITO_ALTO: total > 0 ? Math.round((distribution.MUITO_ALTO / total) * 100 * 10) / 10 : 0
+    };
+
+    console.log(`   ✅ Distribuição calculada:`);
+    console.log(`      MUITO_ALTO: ${distribution.MUITO_ALTO} (${percentages.MUITO_ALTO}%)`);
+    console.log(`      ALTO: ${distribution.ALTO} (${percentages.ALTO}%)`);
+    console.log(`      MEDIO: ${distribution.MEDIO} (${percentages.MEDIO}%)`);
+    console.log(`      BAIXO: ${distribution.BAIXO} (${percentages.BAIXO}%)`);
+    console.log(`      MUITO_BAIXO: ${distribution.MUITO_BAIXO} (${percentages.MUITO_BAIXO}%)`);
 
     res.json({
       success: true,
-      data: result
+      data: {
+        distribution,
+        percentages,
+        total
+      }
     });
   } catch (error: any) {
     console.error('❌ Erro em getEngagementDistribution:', error);
