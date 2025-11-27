@@ -439,36 +439,70 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     console.log(`   ✅ ${totalStudents} alunos únicos`);
 
     // ========================================================================
-    // 3. CALCULAR ENGAGEMENT MÉDIO
+    // 3. CALCULAR ENGAGEMENT MÉDIO ✅ CORRIGIDO: AGRUPAR POR USER
     // ========================================================================
-    const validEngagements = userProducts.filter(
-      up => up.engagement?.engagementScore !== undefined && up.engagement.engagementScore > 0
-    );
+    // Agrupar UserProducts por userId e calcular média POR USER
+    const userEngagements = new Map<string, number[]>();
+    
+    userProducts.forEach(up => {
+      if (up.engagement?.engagementScore !== undefined && up.engagement.engagementScore > 0) {
+        const userId = up.userId;
+        const userIdStr = typeof userId === 'object' && userId._id 
+          ? userId._id.toString() 
+          : userId.toString();
+        
+        if (!userEngagements.has(userIdStr)) {
+          userEngagements.set(userIdStr, []);
+        }
+        userEngagements.get(userIdStr)!.push(up.engagement.engagementScore);
+      }
+    });
 
-    const avgEngagement = validEngagements.length > 0
-      ? validEngagements.reduce(
-          (sum, up) => sum + (up.engagement?.engagementScore || 0),
-          0
-        ) / validEngagements.length
+    // Calcular média de engagement POR USER, depois média global
+    let totalUserEngagement = 0;
+    userEngagements.forEach(engagements => {
+      const userAvg = engagements.reduce((a, b) => a + b, 0) / engagements.length;
+      totalUserEngagement += userAvg;
+    });
+
+    const avgEngagement = userEngagements.size > 0
+      ? totalUserEngagement / userEngagements.size
       : 0;
 
-    console.log(`   ✅ Engagement médio: ${avgEngagement.toFixed(1)} (${validEngagements.length} com dados)`);
+    console.log(`   ✅ Engagement médio: ${avgEngagement.toFixed(1)} (${userEngagements.size} alunos com dados)`);
 
     // ========================================================================
-    // 4. CALCULAR PROGRESSO MÉDIO
+    // 4. CALCULAR PROGRESSO MÉDIO ✅ CORRIGIDO: AGRUPAR POR USER
     // ========================================================================
-    const validProgress = userProducts.filter(
-      up => up.progress?.percentage !== undefined && up.progress.percentage > 0
-    );
+    // Agrupar UserProducts por userId e calcular média POR USER
+    const userProgress = new Map<string, number[]>();
+    
+    userProducts.forEach(up => {
+      if (up.progress?.percentage !== undefined && up.progress.percentage > 0) {
+        const userId = up.userId;
+        const userIdStr = typeof userId === 'object' && userId._id 
+          ? userId._id.toString() 
+          : userId.toString();
+        
+        if (!userProgress.has(userIdStr)) {
+          userProgress.set(userIdStr, []);
+        }
+        userProgress.get(userIdStr)!.push(up.progress.percentage);
+      }
+    });
 
-    const avgProgress = validProgress.length > 0
-      ? validProgress.reduce(
-          (sum, up) => sum + (up.progress?.percentage || 0),
-          0
-        ) / validProgress.length
+    // Calcular média de progresso POR USER, depois média global
+    let totalUserProgress = 0;
+    userProgress.forEach(progresses => {
+      const userAvg = progresses.reduce((a, b) => a + b, 0) / progresses.length;
+      totalUserProgress += userAvg;
+    });
+
+    const avgProgress = userProgress.size > 0
+      ? totalUserProgress / userProgress.size
       : 0;
 
-    console.log(`   ✅ Progresso médio: ${avgProgress.toFixed(1)}% (${validProgress.length} com dados)`);
+    console.log(`   ✅ Progresso médio: ${avgProgress.toFixed(1)}% (${userProgress.size} alunos com dados)`);
 
     // ========================================================================
     // 5. CALCULAR ALUNOS ATIVOS
@@ -580,10 +614,31 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     console.log(`   ✅ ${activeProducts} produtos ativos`);
 
     // ========================================================================
-    // 9. HEALTH SCORE
+    // 9. HEALTH SCORE ✅ CORRIGIDO: CRESCIMENTO REAL + CÁLCULO POR USER
     // ========================================================================
     const retention = activeRate;
-    const growth = 15; // TODO: Calcular baseado em novos alunos últimos 30 dias
+    
+    // ✅ Calcular novos alunos últimos 30 dias (por userId único)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const newUsers = new Set<string>();
+    userProducts.forEach(up => {
+      if (up.enrolledAt && new Date(up.enrolledAt) >= thirtyDaysAgo) {
+        const userId = up.userId;
+        const userIdStr = typeof userId === 'object' && userId._id 
+          ? userId._id.toString() 
+          : userId.toString();
+        newUsers.add(userIdStr);
+      }
+    });
+    
+    const newUsersCount = newUsers.size;
+    const growth = totalStudents > 0 
+      ? (newUsersCount / totalStudents) * 100 
+      : 0;
+    
+    console.log(`   📈 Crescimento: ${newUsersCount} novos alunos últimos 30 dias (${growth.toFixed(1)}%)`);
     
     const healthScore = Math.round(
       (avgEngagement * 0.4) +

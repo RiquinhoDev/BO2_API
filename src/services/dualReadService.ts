@@ -304,14 +304,11 @@ export async function getAllUsersUnified() {
         ? (getNestedValue(user, mapping.progressPath) || {})
         : {};
 
-      // 5️⃣ Calcular status (usar lógica custom SE houver dados)
-      let status: string;
-      if (hasData && mapping.statusLogic) {
-        status = mapping.statusLogic(platformData);
-      } else {
-        // Default: ACTIVE se não houver dados para decidir
-        status = 'ACTIVE';
-      }
+      // 5️⃣ ✅ CORREÇÃO: Status SEMPRE 'ACTIVE' na conversão
+      // Status reflete turmas Discord (ativação/inativação manual)
+      // NÃO deve usar statusLogic das plataformas (ex: lastAccessDate)
+      // Status só muda por ações manuais (inativar turma, expulsar aluno, etc)
+      const status: string = 'ACTIVE';
 
       // 6️⃣ Calcular progresso (usar lógica custom SE houver dados)
       let progressPercentage: number;
