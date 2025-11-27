@@ -444,6 +444,9 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     // Agrupar UserProducts por userId e calcular média POR USER
     const userEngagements = new Map<string, number[]>();
     
+    let addedCount = 0;
+    let skippedCount = 0;
+    
     userProducts.forEach(up => {
       if (up.engagement?.engagementScore !== undefined && up.engagement.engagementScore > 0) {
         const userId = up.userId;
@@ -455,14 +458,27 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
           userEngagements.set(userIdStr, []);
         }
         userEngagements.get(userIdStr)!.push(up.engagement.engagementScore);
+        addedCount++;
+      } else {
+        skippedCount++;
       }
     });
+    
+    console.log(`   📊 Engagement: ${addedCount} produtos adicionados, ${skippedCount} pulados (score = 0 ou undefined)`);
 
     // Calcular média de engagement POR USER, depois média global
     let totalUserEngagement = 0;
-    userEngagements.forEach(engagements => {
+    let exampleUsers = 0;
+    
+    userEngagements.forEach((engagements, userId) => {
       const userAvg = engagements.reduce((a, b) => a + b, 0) / engagements.length;
       totalUserEngagement += userAvg;
+      
+      // Log de exemplo para os primeiros 5 alunos
+      if (exampleUsers < 5) {
+        console.log(`   👤 User ${userId.substring(0, 8)}... tem ${engagements.length} produto(s): [${engagements.join(', ')}] → Média: ${userAvg.toFixed(1)}`);
+        exampleUsers++;
+      }
     });
 
     const avgEngagement = userEngagements.size > 0
