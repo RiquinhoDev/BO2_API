@@ -235,6 +235,22 @@ export async function getAllUsersUnified() {
     const userId = user._id.toString();
 
     // ─────────────────────────────────────────────────────────────
+    // ✅ CORREÇÃO 2: DETECTAR STATUS ATUAL DO USER (ANTES do continue!)
+    // Se user já tem UserProducts V2, usar status deles
+    // Se user é novo, default 'ACTIVE'
+    // ─────────────────────────────────────────────────────────────
+    let userStatus = 'ACTIVE'; // Default para users completamente novos
+    
+    if (userProductsByUserId.has(userId)) {
+      // User já tem produtos, pegar status de qualquer um
+      // (Todos UserProducts do mesmo user devem ter mesmo status)
+      const existingUps = userProductsByUserId.get(userId)!;
+      if (existingUps.length > 0) {
+        userStatus = existingUps[0].status || 'ACTIVE';
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // SE USER JÁ TEM USERPRODUCTS V2 → USA ESSES!
     // ─────────────────────────────────────────────────────────────
     if (userProductsByUserId.has(userId)) {
@@ -304,11 +320,11 @@ export async function getAllUsersUnified() {
         ? (getNestedValue(user, mapping.progressPath) || {})
         : {};
 
-      // 5️⃣ ✅ CORREÇÃO: Status SEMPRE 'ACTIVE' na conversão
-      // Status reflete turmas Discord (ativação/inativação manual)
-      // NÃO deve usar statusLogic das plataformas (ex: lastAccessDate)
-      // Status só muda por ações manuais (inativar turma, expulsar aluno, etc)
-      const status: string = 'ACTIVE';
+      // 5️⃣ ✅ CORREÇÃO 2: Manter status do user se já existir
+      // Se user já tem UserProducts → usa status deles
+      // Se user é novo → default 'ACTIVE'
+      // Status reflete turmas Discord, NÃO statusLogic das plataformas
+      const status: string = userStatus;
 
       // 6️⃣ Calcular progresso (usar lógica custom SE houver dados)
       let progressPercentage: number;

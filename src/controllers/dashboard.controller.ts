@@ -675,13 +675,13 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     ).size;
 
     // Inativos 30 dias (sem lastActivity nos últimos 30 dias)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoInactive = new Date();
+    thirtyDaysAgoInactive.setDate(thirtyDaysAgoInactive.getDate() - 30);
 
     const inactive30dUserProducts = userProducts.filter(up => {
       const lastActivity = up.progress?.lastActivity;
       if (!lastActivity) return true; // Se nunca teve activity, conta como inativo
-      return new Date(lastActivity) < thirtyDaysAgo;
+      return new Date(lastActivity) < thirtyDaysAgoInactive;
     });
     const inactive30dCount = new Set(
       inactive30dUserProducts.map(up => {
