@@ -1,12 +1,13 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // 📁 BO2_API/src/services/dualReadService.ts
-// 🔄 DUAL READ SERVICE - VERSÃO ESCALÁVEL E DINÂMICA
+// 🔄 DUAL READ SERVICE - VERSÃO FINAL ESCALÁVEL
 // ═══════════════════════════════════════════════════════════════════════════
 // Data: 27 Novembro 2025
 // Arquitetura: Configuration Over Code
 // 
-// ESCALABILIDADE:
+// FEATURES:
 // - ✅ Lê TODOS os produtos da BD automaticamente
+// - ✅ Converte users MESMO SEM dados nested (usa defaults)
 // - ✅ Para cada user, verifica TODAS as plataformas possíveis
 // - ✅ NÃO hardcoded - funciona com quantos produtos quiseres
 // - ✅ Adiciona produto novo → Funciona imediatamente
@@ -126,12 +127,23 @@ function getNestedValue(obj: any, path: string): any {
 }
 
 /**
+ * Helper: Calcular engagement level baseado em score
+ */
+function calculateEngagementLevel(score: number): string {
+  if (score >= 80) return 'MUITO_ALTO';
+  if (score >= 60) return 'ALTO';
+  if (score >= 40) return 'MEDIO';
+  if (score >= 25) return 'BAIXO';
+  return 'MUITO_BAIXO';
+}
+
+/**
  * 🔄 DUAL READ: Combina dados V1 (User) + V2 (UserProduct)
  * 
  * ARQUITETURA ESCALÁVEL:
  * 1. Busca TODOS os produtos da BD
  * 2. Para cada user, itera por TODAS as plataformas definidas em PLATFORM_MAPPINGS
- * 3. Se user tem dados dessa plataforma → cria UserProduct
+ * 3. Se user tem ID da plataforma → cria UserProduct (MESMO sem dados nested)
  * 4. Sistema funciona com quantos produtos quiseres adicionar
  */
 export async function getAllUsersUnified() {
@@ -211,6 +223,7 @@ export async function getAllUsersUnified() {
   // ========================================================================
   const unifiedUserProducts: any[] = [];
   const conversionStats = new Map<string, number>();
+  const warnedPlatforms = new Set<string>(); // Para não repetir warnings
   let v2Used = 0;
 
   // Inicializar contadores para cada plataforma
@@ -235,7 +248,7 @@ export async function getAllUsersUnified() {
     // ITERAR POR TODAS AS PLATAFORMAS DEFINIDAS (ESCALÁVEL!)
     // ─────────────────────────────────────────────────────────────
     for (const mapping of PLATFORM_MAPPINGS) {
-      // Verificar se user tem ID desta plataforma
+      // 1️⃣ Verificar se user tem ID desta plataforma
       let platformUserId: string | null = null;
       
       if (mapping.userIdField.includes('.')) {
@@ -251,41 +264,61 @@ export async function getAllUsersUnified() {
         platformUserId = user[mapping.userIdField];
       }
 
-      // Se não tem ID, skip
+      // ❌ Se não tem ID, skip
       if (!platformUserId) continue;
 
-      // Verificar se tem DADOS desta plataforma
-      const platformData = getNestedValue(user, mapping.dataPath);
-      if (!platformData || Object.keys(platformData).length === 0) {
-        continue; // Tem ID mas não tem dados → skip
-      }
-
-      // Verificar se produto desta plataforma existe
+      // 2️⃣ Verificar se produto desta plataforma existe
       const product = productsByPlatform.get(mapping.platform);
       if (!product) {
-        console.warn(`   ⚠️ Produto ${mapping.platform} não existe na BD`);
+        // Só avisar uma vez por plataforma
+        if (!warnedPlatforms.has(mapping.platform)) {
+          console.warn(`   ⚠️ Produto ${mapping.platform} não existe na BD`);
+          warnedPlatforms.add(mapping.platform);
+        }
         continue;
       }
 
-      // ─────────────────────────────────────────────────────────────
-      // EXTRAIR DADOS USANDO MAPPING
-      // ─────────────────────────────────────────────────────────────
-      const engagementData = getNestedValue(user, mapping.engagementPath) || {};
-      const progressData = getNestedValue(user, mapping.progressPath) || {};
+      // 3️⃣ Buscar dados nested (se existirem)
+      const platformData = getNestedValue(user, mapping.dataPath) || {};
+      
+      // ✅ MUDANÇA CRÍTICA: NÃO skip se não tiver dados!
+      // Continua mesmo sem dados, usa defaults
+      const hasData = platformData && Object.keys(platformData).length > 0;
+      
+      // 4️⃣ Extrair engagement e progress (com fallbacks)
+      const engagementData = hasData 
+        ? (getNestedValue(user, mapping.engagementPath) || {})
+        : {};
+      
+      const progressData = hasData
+        ? (getNestedValue(user, mapping.progressPath) || {})
+        : {};
 
-      // Calcular status (usar lógica custom se existir)
-      const status = mapping.statusLogic 
-        ? mapping.statusLogic(platformData)
-        : 'ACTIVE';
+      // 5️⃣ Calcular status (usar lógica custom SE houver dados)
+      let status: string;
+      if (hasData && mapping.statusLogic) {
+        status = mapping.statusLogic(platformData);
+      } else {
+        // Default: ACTIVE se não houver dados para decidir
+        status = 'ACTIVE';
+      }
 
-      // Calcular progresso (usar lógica custom se existir)
-      const progressPercentage = mapping.progressLogic
-        ? mapping.progressLogic(platformData)
-        : 0;
+      // 6️⃣ Calcular progresso (usar lógica custom SE houver dados)
+      let progressPercentage: number;
+      if (hasData && mapping.progressLogic) {
+        progressPercentage = mapping.progressLogic(platformData);
+      } else {
+        // Default: 0% se não houver dados
+        progressPercentage = 0;
+      }
 
-      // ─────────────────────────────────────────────────────────────
-      // CRIAR USERPRODUCT CONVERTIDO
-      // ─────────────────────────────────────────────────────────────
+      // 7️⃣ Extrair engagement score
+      const engagementScore = 
+        engagementData.engagementScore || 
+        engagementData.alternativeEngagement || 
+        0;
+
+      // 8️⃣ CRIAR USERPRODUCT CONVERTIDO
       unifiedUserProducts.push({
         _id: `v1-${mapping.platform}-${userId}`,
         userId: {
@@ -302,13 +335,14 @@ export async function getAllUsersUnified() {
           lastActivity: progressData.lastAccessDate || progressData.lastActivity || null
         },
         engagement: {
-          engagementScore: engagementData.engagementScore || engagementData.alternativeEngagement || 0,
-          engagementLevel: engagementData.engagementLevel || 'NONE'
+          engagementScore,
+          engagementLevel: engagementData.engagementLevel || calculateEngagementLevel(engagementScore)
         },
         enrolledAt: platformData.signupDate || platformData.joinedDate || platformData.createdAt || user.createdAt || new Date(),
         source: 'MIGRATION',
         _isV1: true,
-        _platform: mapping.platform
+        _platform: mapping.platform,
+        _hasNestedData: hasData  // 🆕 Flag para debug
       });
 
       // Incrementar contador
