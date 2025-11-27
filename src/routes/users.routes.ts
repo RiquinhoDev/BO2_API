@@ -34,8 +34,187 @@ import {
   getUserAllClasses,
 } from "../controllers/users.controller"
 
+// 🎯 FASE 4 & 5: Import do serviço unificado
+import { getAllUsersUnified as getAllUsersUnifiedService } from "../services/dualReadService"
+
 const router = Router()
 const upload = multer({ dest: "uploads/" })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🎯 FASE 4 & 5: ENDPOINT /v2 - FILTROS AVANÇADOS DASHBOARD V2
+// ═══════════════════════════════════════════════════════════════════════════
+/**
+ * GET /api/users/v2
+ * 
+ * Endpoint para listar UserProducts com filtros avançados
+ * 
+ * Query Params:
+ * - search: Email ou nome (string)
+ * - platform: hotmart | curseduca | discord
+ * - productId: ID do produto
+ * - status: ACTIVE | INACTIVE
+ * - progressLevel: MUITO_BAIXO | BAIXO | MEDIO | ALTO | MUITO_ALTO
+ * - engagementLevel: MUITO_BAIXO | BAIXO | MEDIO | ALTO | MUITO_ALTO (pode ser CSV)
+ * - enrolledAfter: Data ISO (ex: 2025-11-20T17:14:50.954Z)
+ * - page: Número da página (default: 1)
+ * - limit: Resultados por página (default: 50, max: 100)
+ */
+router.get('/v2', async (req, res) => {
+  try {
+    console.log('🔍 [API /users/v2] Recebendo requisição:', req.query)
+    
+    const {
+      search,
+      platform,
+      productId,
+      status,
+      progressLevel,
+      engagementLevel,
+      enrolledAfter,
+      page = '1',
+      limit = '50'
+    } = req.query
+    
+    // ──────────────────────────────────────────────────────────
+    // 1. BUSCAR TODOS OS USERPRODUCTS UNIFICADOS
+    // ──────────────────────────────────────────────────────────
+    console.log('📊 [API /users/v2] Buscando UserProducts unificados...')
+    const unifiedUserProducts = await getAllUsersUnifiedService()
+    console.log(`✅ [API /users/v2] ${unifiedUserProducts.length} UserProducts encontrados`)
+    
+    // ──────────────────────────────────────────────────────────
+    // 2. APLICAR FILTROS
+    // ──────────────────────────────────────────────────────────
+    let filtered = [...unifiedUserProducts]
+    
+    // Filtro: Email/Nome
+    if (search && typeof search === 'string') {
+      const searchLower = search.toLowerCase().trim()
+      filtered = filtered.filter((up: any) => {
+        const email = up.userId?.email?.toLowerCase() || ''
+        const name = up.userId?.name?.toLowerCase() || ''
+        return email.includes(searchLower) || name.includes(searchLower)
+      })
+      console.log(`🔍 [Filtro Search] "${search}": ${filtered.length} resultados`)
+    }
+    
+    // Filtro: Plataforma
+    if (platform && platform !== 'todas' && typeof platform === 'string') {
+      filtered = filtered.filter((up: any) => 
+        up.platform?.toLowerCase() === platform.toLowerCase()
+      )
+      console.log(`🔍 [Filtro Platform] "${platform}": ${filtered.length} resultados`)
+    }
+    
+    // Filtro: Produto
+    if (productId && productId !== 'todos' && typeof productId === 'string') {
+      filtered = filtered.filter((up: any) => {
+        const prodId = up.productId?._id?.toString() || up.productId?.toString()
+        return prodId === productId
+      })
+      console.log(`🔍 [Filtro ProductId] "${productId}": ${filtered.length} resultados`)
+    }
+    
+    // Filtro: Status
+    if (status && status !== 'todos' && typeof status === 'string') {
+      filtered = filtered.filter((up: any) => 
+        up.status?.toUpperCase() === status.toUpperCase()
+      )
+      console.log(`🔍 [Filtro Status] "${status}": ${filtered.length} resultados`)
+    }
+    
+    // Filtro: Progresso
+    if (progressLevel && typeof progressLevel === 'string') {
+      const ranges: Record<string, { min: number; max: number }> = {
+        'MUITO_BAIXO': { min: 0, max: 25 },
+        'BAIXO': { min: 25, max: 40 },
+        'MEDIO': { min: 40, max: 60 },
+        'ALTO': { min: 60, max: 80 },
+        'MUITO_ALTO': { min: 80, max: 100 }
+      }
+      
+      const range = ranges[progressLevel.toUpperCase()]
+      if (range) {
+        filtered = filtered.filter((up: any) => {
+          const progress = up.progress?.percentage || 0
+          return progress >= range.min && progress < range.max
+        })
+        console.log(`🔍 [Filtro Progress] "${progressLevel}": ${filtered.length} resultados`)
+      }
+    }
+    
+    // Filtro: Engagement (suporta CSV: "MUITO_BAIXO,BAIXO")
+    if (engagementLevel && typeof engagementLevel === 'string') {
+      const levels = engagementLevel.split(',').map(l => l.trim().toUpperCase())
+      filtered = filtered.filter((up: any) => {
+        const level = (up.engagement?.engagementLevel || '').toUpperCase()
+        return levels.includes(level)
+      })
+      console.log(`🔍 [Filtro Engagement] "${engagementLevel}": ${filtered.length} resultados`)
+    }
+    
+    // Filtro: Data de Inscrição (enrolledAfter)
+    if (enrolledAfter && typeof enrolledAfter === 'string') {
+      const afterDate = new Date(enrolledAfter)
+      filtered = filtered.filter((up: any) => {
+        if (!up.enrolledAt) return false
+        const enrolledDate = new Date(up.enrolledAt)
+        return enrolledDate >= afterDate
+      })
+      console.log(`🔍 [Filtro EnrolledAfter] "${enrolledAfter}": ${filtered.length} resultados`)
+    }
+    
+    // ──────────────────────────────────────────────────────────
+    // 3. ORDENAÇÃO (opcional - por engagement decrescente)
+    // ──────────────────────────────────────────────────────────
+    filtered.sort((a: any, b: any) => {
+      const engA = a.engagement?.engagementScore || 0
+      const engB = b.engagement?.engagementScore || 0
+      return engB - engA // Maior engagement primeiro
+    })
+    
+    // ──────────────────────────────────────────────────────────
+    // 4. PAGINAÇÃO
+    // ──────────────────────────────────────────────────────────
+    const pageNum = parseInt(page as string) || 1
+    const limitNum = Math.min(parseInt(limit as string) || 50, 100)
+    
+    const total = filtered.length
+    const totalPages = Math.ceil(total / limitNum)
+    const startIndex = (pageNum - 1) * limitNum
+    const endIndex = startIndex + limitNum
+    
+    const paginatedResults = filtered.slice(startIndex, endIndex)
+    
+    console.log(`📄 [Paginação] Página ${pageNum}/${totalPages} (${paginatedResults.length} de ${total} resultados)`)
+    
+    // ──────────────────────────────────────────────────────────
+    // 5. RESPOSTA (formato compatível com frontend)
+    // ──────────────────────────────────────────────────────────
+    res.json({
+      success: true,
+      data: paginatedResults,
+      pagination: {
+        total,
+        totalPages,
+        currentPage: pageNum,
+        limit: limitNum,
+        hasMore: endIndex < total,
+        showing: paginatedResults.length
+      }
+    })
+    
+    console.log(`✅ [API /users/v2] Resposta enviada com sucesso\n`)
+    
+  } catch (error) {
+    console.error('❌ [API /users/v2] Erro ao filtrar users:', error)
+    res.status(500).json({ 
+      success: false,
+      error: 'Erro ao filtrar users',
+      message: error instanceof Error ? error.message : 'Erro desconhecido'
+    })
+  }
+})
 
 // ✅ ROTAS EXISTENTES (mantidas para compatibilidade)
 router.get("/listUsers", listUsers)
