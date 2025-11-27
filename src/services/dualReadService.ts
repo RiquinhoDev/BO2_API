@@ -248,23 +248,33 @@ export async function getAllUsersUnified() {
     // ITERAR POR TODAS AS PLATAFORMAS DEFINIDAS (ESCALÁVEL!)
     // ─────────────────────────────────────────────────────────────
     for (const mapping of PLATFORM_MAPPINGS) {
-      // 1️⃣ Verificar se user tem ID desta plataforma
+      // ──────────────────────────────────────────────────────────
+      // 1️⃣ VERIFICAR SE USER TEM ID VÁLIDO DESTA PLATAFORMA
+      // ──────────────────────────────────────────────────────────
       let platformUserId: string | null = null;
       
       if (mapping.userIdField.includes('.')) {
-        // Campo nested (ex: discord.discordIds)
+        // Campo nested (ex: discord.discordIds, curseduca.curseducaUserId)
         const value = getNestedValue(user, mapping.userIdField);
+        
         if (Array.isArray(value) && value.length > 0) {
+          // ✅ Array COM elementos
           platformUserId = value[0];
-        } else if (value) {
+        } else if (value && typeof value === 'string' && value.trim() !== '') {
+          // ✅ String válida (não vazia)
           platformUserId = value;
         }
+        // ❌ Array vazio [], null, undefined, "" → platformUserId fica null
       } else {
-        // Campo direto (ex: hotmartUserId)
-        platformUserId = user[mapping.userIdField];
+        // Campo direto na raiz (ex: hotmartUserId)
+        const value = user[mapping.userIdField];
+        if (value && typeof value === 'string' && value.trim() !== '') {
+          platformUserId = value;
+        }
       }
 
-      // ❌ Se não tem ID, skip
+      // ❌ CRÍTICO: Se não tem ID VÁLIDO, skip IMEDIATAMENTE
+      // Não importa se tem estrutura - sem ID não cria UserProduct!
       if (!platformUserId) continue;
 
       // 2️⃣ Verificar se produto desta plataforma existe
