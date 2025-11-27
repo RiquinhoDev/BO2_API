@@ -73,7 +73,7 @@ const PLATFORM_MAPPINGS: PlatformMapping[] = [
   // ─────────────────────────────────────────────────────────────
   {
     platform: 'curseduca',
-    userIdField: 'curseducaUserId',
+    userIdField: 'curseduca.curseducaUserId',
     dataPath: 'curseduca',
     engagementPath: 'curseduca.engagement',
     progressPath: 'curseduca.progress',
