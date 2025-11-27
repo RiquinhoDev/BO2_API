@@ -14,13 +14,38 @@ import {
 /**
  * GET /api/users/v2
  * Lista todos os users com seus produtos (V2)
+ * 🎯 FASE 4: Suporte para novos filtros (progressLevel, engagementLevel, enrolledAfter, search)
  */
 export const getUsers = async (req: Request, res: Response) => {
   try {
     // Query params para filtros
-    const { platform, productId, status } = req.query;
+    const { 
+      platform, 
+      productId, 
+      status,
+      search,           // Nome ou email
+      progressLevel,    // MUITO_BAIXO, BAIXO, MEDIO, ALTO, MUITO_ALTO
+      engagementLevel,  // MUITO_BAIXO,BAIXO (pode ser múltiplos)
+      enrolledAfter,    // ISO date string
+      page = '1',
+      limit = '50'
+    } = req.query;
     
     let query: any = {};
+    
+    // Filtro: Pesquisa por nome ou email
+    if (search) {
+      const searchRegex = new RegExp(search as string, 'i');
+      query.$or = [
+        { name: searchRegex },
+        { email: searchRegex }
+      ];
+    }
+    
+    // Filtro: Data de inscrição
+    if (enrolledAfter) {
+      query.createdAt = { $gte: new Date(enrolledAfter as string) };
+    }
     
     // Se filtrar por produto específico
     if (productId) {
@@ -38,7 +63,7 @@ export const getUsers = async (req: Request, res: Response) => {
     const users = await User.find(query).select('name email createdAt').lean();
     
     // Enriquecer cada user com seus produtos V2
-    const usersWithProducts = await Promise.all(
+    let usersWithProducts = await Promise.all(
       users.map(async (user) => {
         const enrichedUser = await getUserWithProducts(user._id.toString());
         
@@ -55,21 +80,64 @@ export const getUsers = async (req: Request, res: Response) => {
           );
         }
         
+        // Filtro: Progresso por nível
+        if (progressLevel) {
+          const progressRanges: any = {
+            'MUITO_BAIXO': { min: 0, max: 25 },
+            'BAIXO': { min: 25, max: 40 },
+            'MEDIO': { min: 40, max: 60 },
+            'ALTO': { min: 60, max: 80 },
+            'MUITO_ALTO': { min: 80, max: 100 }
+          };
+          
+          const range = progressRanges[progressLevel as string];
+          if (range) {
+            enrichedUser.products = enrichedUser.products.filter((p: any) => {
+              const progress = p.progress?.progressPercentage || 0;
+              return progress >= range.min && progress < range.max;
+            });
+          }
+        }
+        
+        // Filtro: Engagement por nível (pode ser múltiplos separados por vírgula)
+        if (engagementLevel) {
+          const levels = (engagementLevel as string).split(',');
+          enrichedUser.products = enrichedUser.products.filter((p: any) => {
+            const level = p.engagement?.engagementLevel || '';
+            return levels.includes(level);
+          });
+        }
+        
         return enrichedUser;
       })
     );
     
     // Filtrar users que não têm produtos após filtros
-    const filteredUsers = platform || status 
+    const hasFilters = platform || status || progressLevel || engagementLevel;
+    let filteredUsers = hasFilters 
       ? usersWithProducts.filter(u => u.products.length > 0)
       : usersWithProducts;
     
+    // Paginação
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const total = filteredUsers.length;
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = startIndex + limitNum;
+    const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+    
     res.json({ 
       success: true, 
-      data: filteredUsers,
-      count: filteredUsers.length,
+      data: paginatedUsers,
+      pagination: {
+        total,
+        totalPages: Math.ceil(total / limitNum),
+        currentPage: pageNum,
+        pageSize: limitNum,
+        hasMore: endIndex < total
+      },
       _v2Enabled: true,
-      filters: { platform, status }
+      filters: { platform, status, search, progressLevel, engagementLevel, enrolledAfter }
     });
   } catch (error: any) {
     console.error('Error in getUsers:', error);
