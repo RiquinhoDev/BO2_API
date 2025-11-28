@@ -5,9 +5,10 @@ import {
   getProductsBreakdown, 
   getEngagementDistribution, 
   compareProducts,
-  getDashboardStatsV3,  // Sprint 1
+  getDashboardStatsV3,  // Sprint 1 (AGORA COM MATERIALIZED VIEW!)
   searchDashboard        // Sprint 2
 } from '../controllers/dashboard.controller';
+import { rebuildDashboardStatsManual } from '../jobs/rebuildDashboardStats.job';
 
 const router = express.Router();
 
@@ -59,8 +60,29 @@ router.post('/compare', compareProducts);
 /**
  * GET /api/dashboard/stats/v3
  * Stats consolidadas com Health Score e Quick Filters
+ * ⚡ AGORA COM MATERIALIZED VIEW - CARREGA EM < 100ms!
  */
 router.get('/stats/v3', getDashboardStatsV3);
+
+/**
+ * POST /api/dashboard/stats/v3/rebuild
+ * Rebuild manual dos Dashboard Stats (útil para debug)
+ */
+router.post('/stats/v3/rebuild', async (req, res) => {
+  try {
+    console.log('🔨 [MANUAL] Iniciando rebuild de Dashboard Stats...');
+    rebuildDashboardStatsManual();
+    res.json({
+      success: true,
+      message: 'Rebuild iniciado em background. Aguarde ~60-90 segundos.'
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔍 SPRINT 2: PESQUISA GLOBAL

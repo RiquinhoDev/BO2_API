@@ -434,12 +434,14 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
       success: true,
       data: {
         overview: stats.overview,
+        byPlatform: stats.byPlatform,
         quickFilters: stats.quickFilters,
         platformDistribution: stats.platformDistribution,
-        _meta: {
+        meta: {
           calculatedAt: stats.calculatedAt,
           dataFreshness: stats.meta.dataFreshness,
-          responseTime: duration
+          responseTime: duration,
+          durationMs: duration // Alias para compatibilidade com frontend
         }
       }
     });
