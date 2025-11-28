@@ -20,6 +20,9 @@ import healthRoutes from './routes/health.routes'
 import cronManagementRoutes from './routes/cronManagement.routes'
 import cronManagementService from './services/cronManagement.service'
 
+// 🔥 WARM-UP: Importar função de pré-aquecimento do cache
+import { warmUpCache } from './services/dualReadService'
+
 // ✅ ACTIVE CAMPAIGN: Importar controllers para Tag Rules e Communication History
 import {
   getAllTagRules,
@@ -81,6 +84,15 @@ mongoose.connect(process.env.MONGO_URI || "")
     if (process.env.NODE_ENV === 'production') {
       systemMonitor.start()
     }
+
+    // 🔥 WARM-UP: Pré-aquecer cache ao iniciar servidor
+    console.log('\n🔥 ============================================')
+    console.log('🔥 Iniciando warm-up do cache...')
+    console.log('🔥 ============================================\n')
+    await warmUpCache()
+    console.log('\n✅ ============================================')
+    console.log('✅ Cache pré-aquecido! Servidor pronto.')
+    console.log('✅ ============================================\n')
   })
   .catch((err) => {
     console.error("❌ Erro ao ligar ao MongoDB:", err)

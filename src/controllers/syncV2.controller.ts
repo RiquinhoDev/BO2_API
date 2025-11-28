@@ -9,6 +9,7 @@ import {
   getUserWithProducts,
   dualWriteUserData
 } from '../services/userProductService';
+import { clearUnifiedCache } from '../services/dualReadService';
 
 /**
  * GENERIC SYNC ENDPOINT - ESCALA PARA QUALQUER PLATAFORMA/PRODUTO
@@ -75,6 +76,9 @@ export const syncGeneric = async (req: Request, res: Response) => {
     // 4️⃣ RETORNAR USER ENRIQUECIDO COM TODOS OS PRODUTOS
     const enrichedUser = await getUserWithProducts(user._id.toString());
     
+    // 🗑️ Limpar cache (inicia warm-up em background)
+    clearUnifiedCache();
+
     res.json({ 
       success: true, 
       data: enrichedUser,
@@ -272,6 +276,9 @@ export const syncBatch = async (req: Request, res: Response) => {
       }
     }
     
+    // 🗑️ Limpar cache após batch sync (inicia warm-up em background)
+    clearUnifiedCache();
+
     res.json({ 
       success: true, 
       data: results,

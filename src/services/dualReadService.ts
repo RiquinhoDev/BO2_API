@@ -17,6 +17,25 @@ import User from '../models/user';
 import UserProduct from '../models/UserProduct';
 import Product from '../models/Product';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔥 CACHE COM WARM-UP E BACKGROUND REFRESH
+// ═══════════════════════════════════════════════════════════════════════════
+interface CacheEntry {
+  data: any[];
+  timestamp: number;
+  isWarming: boolean;
+  stats: {
+    v1Count: number;
+    v2Count: number;
+    totalCount: number;
+  };
+}
+
+let unifiedCache: CacheEntry | null = null;
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutos
+const BACKGROUND_REFRESH_THRESHOLD = 8 * 60 * 1000; // Refresh 2 min antes de expirar
+let warmupPromise: Promise<void> | null = null;
+
 /**
  * 📋 MAPEAMENTO DE CAMPOS V1 POR PLATAFORMA
  * 
@@ -146,8 +165,8 @@ function calculateEngagementLevel(score: number): string {
  * 3. Se user tem ID da plataforma → cria UserProduct (MESMO sem dados nested)
  * 4. Sistema funciona com quantos produtos quiseres adicionar
  */
-export async function getAllUsersUnified() {
-  console.log('\n🔄 [DUAL READ ESCALÁVEL] Iniciando conversão V1→V2...');
+async function buildUnifiedCache() {
+  console.log('\n🔄 [DUAL READ ESCALÁVEL] Construindo cache...');
   const startTime = Date.now();
 
   // ========================================================================
@@ -400,7 +419,131 @@ export async function getAllUsersUnified() {
   
   console.log(`   ════════════════════════════════════════\n`);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ATUALIZAR CACHE
+  // ═══════════════════════════════════════════════════════════════════════════
+  unifiedCache = {
+    data: unifiedUserProducts,
+    timestamp: Date.now(),
+    isWarming: false,
+    stats: {
+      v1Count,
+      v2Count,
+      totalCount: unifiedUserProducts.length
+    }
+  };
+
+  const cacheBuildDuration = Date.now() - startTime;
+  console.log(`💾 [CACHE] Construído: ${unifiedUserProducts.length} UserProducts (${cacheBuildDuration}ms)`);
+
   return unifiedUserProducts;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 🔥 WARM-UP: Construir cache ANTES do primeiro acesso
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+export async function warmUpCache() {
+  if (warmupPromise) {
+    console.log('⏳ [WARM-UP] Já em progresso, aguardando...');
+    return warmupPromise;
+  }
+
+  console.log('\n🔥 [WARM-UP] Iniciando pré-aquecimento do cache...');
+
+  warmupPromise = (async () => {
+    try {
+      if (unifiedCache) {
+        unifiedCache.isWarming = true;
+      }
+
+      const startTime = Date.now();
+      await buildUnifiedCache();
+      const duration = Date.now() - startTime;
+
+      console.log(`✅ [WARM-UP] Cache pré-aquecido em ${Math.round(duration/1000)}s`);
+      console.log(`✅ [WARM-UP] Próximo acesso será instantâneo!\n`);
+
+    } catch (error) {
+      console.error('❌ [WARM-UP] Erro ao pré-aquecer cache:', error);
+    } finally {
+      warmupPromise = null;
+      if (unifiedCache) {
+        unifiedCache.isWarming = false;
+      }
+    }
+  })();
+
+  return warmupPromise;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 🔄 BACKGROUND REFRESH: Reconstrói cache ANTES de expirar
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+async function backgroundRefresh() {
+  if (!unifiedCache || unifiedCache.isWarming) return;
+
+  const age = Date.now() - unifiedCache.timestamp;
+
+  if (age > BACKGROUND_REFRESH_THRESHOLD) {
+    console.log('🔄 [BACKGROUND] Iniciando refresh preventivo do cache...');
+
+    warmUpCache().catch(err => {
+      console.error('❌ [BACKGROUND] Erro no refresh:', err);
+    });
+  }
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 🗑️ LIMPAR CACHE (Após syncs)
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+export function clearUnifiedCache() {
+  console.log('🗑️ [CACHE] Limpando cache');
+  unifiedCache = null;
+
+  console.log('🔥 [CACHE] Iniciando warm-up em background...');
+  warmUpCache().catch(err => {
+    console.error('❌ [CACHE] Erro no warm-up após clear:', err);
+  });
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 🚀 FUNÇÃO PRINCIPAL: getAllUsersUnified (COM CACHE)
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+export async function getAllUsersUnified() {
+  // Verificar se cache está válido
+  if (unifiedCache && !unifiedCache.isWarming) {
+    const age = Date.now() - unifiedCache.timestamp;
+
+    if (age < CACHE_TTL) {
+      console.log(`⚡ [CACHE HIT] ${unifiedCache.data.length} UserProducts (idade: ${Math.round(age/1000)}s)`);
+
+      // Background refresh se próximo da expiração
+      backgroundRefresh();
+
+      return unifiedCache.data;
+    } else {
+      console.log(`⏰ [CACHE] Expirado (${Math.round(age/1000)}s)`);
+    }
+  }
+
+  // Cache miss - verificar se warm-up em progresso
+  if (warmupPromise) {
+    console.log('⏳ [CACHE] Aguardando warm-up em progresso...');
+    await warmupPromise;
+    return unifiedCache!.data;
+  }
+
+  // Cache miss - construir novo
+  console.log('🔄 [CACHE MISS] Reconstruindo cache...');
+  return await buildUnifiedCache();
 }
 
 /**
