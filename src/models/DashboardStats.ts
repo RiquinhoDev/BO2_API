@@ -22,6 +22,12 @@ export interface IDashboardStats extends Document {
     activeProducts: number;
     healthScore: number;
     healthLevel: string;
+    healthBreakdown: {
+      engagement: number;
+      retention: number;
+      growth: number;
+      progress: number;
+    };
   };
   
   byPlatform: Array<{
@@ -32,8 +38,10 @@ export interface IDashboardStats extends Document {
   
   quickFilters: {
     newStudents: number;
+    new7d: number;
     atRisk: number;
     topPerformers: number;
+    inactive30d: number;
   };
   
   platformDistribution: {
@@ -66,7 +74,13 @@ const DashboardStatsSchema = new Schema<IDashboardStats>({
     atRiskRate: { type: Number, required: true },
     activeProducts: { type: Number, required: true },
     healthScore: { type: Number, required: true },
-    healthLevel: { type: String, required: true }
+    healthLevel: { type: String, required: true },
+    healthBreakdown: {
+      engagement: { type: Number, required: true },
+      retention: { type: Number, required: true },
+      growth: { type: Number, required: true },
+      progress: { type: Number, required: true }
+    }
   },
   
   byPlatform: [{
@@ -77,8 +91,10 @@ const DashboardStatsSchema = new Schema<IDashboardStats>({
   
   quickFilters: {
     newStudents: { type: Number, required: true },
+    new7d: { type: Number, required: true },
     atRisk: { type: Number, required: true },
-    topPerformers: { type: Number, required: true }
+    topPerformers: { type: Number, required: true },
+    inactive30d: { type: Number, required: true }
   },
   
   platformDistribution: { type: Schema.Types.Mixed, required: true },

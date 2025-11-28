@@ -10,7 +10,7 @@ import { buildDashboardStats } from '../services/dashboardStatsBuilder.service';
 
 /**
  * ⏰ CRON: Rebuild Dashboard Stats a cada 6 horas
- * Schedule: 0 */6 * * * (00:00, 06:00, 12:00, 18:00)
+ * Schedule: 0 star/6 * * * (00:00, 06:00, 12:00, 18:00)
  */
 export function startRebuildDashboardStatsJob() {
   // A cada 6 horas
