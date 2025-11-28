@@ -36,6 +36,9 @@ import './UserProduct'
 // ===== SPRINT 5: CONTACT TAG READER =====
 import './ACContactState'
 
+// ===== DASHBOARD STATS: MATERIALIZED VIEW =====
+import './DashboardStats'
+
 // Exportar models para uso direto
 export { default as User } from './user'
 export { default as Admin } from './Admin'
@@ -67,6 +70,9 @@ export { default as UserProduct } from './UserProduct'
 
 // ===== SPRINT 5: CONTACT TAG READER =====
 export { default as ACContactState } from './ACContactState'
+
+// ===== DASHBOARD STATS: MATERIALIZED VIEW =====
+export { DashboardStats } from './DashboardStats'
 
 // Função para verificar se um modelo está disponível
 function ensureModel(modelName: string): boolean {
@@ -109,7 +115,9 @@ const modelsToCheck = [
   'Product',
   'UserProduct',
   // Sprint 5
-  'ACContactState'
+  'ACContactState',
+  // Dashboard Stats
+  'DashboardStats'
 ]
 
 let availableModels = 0
