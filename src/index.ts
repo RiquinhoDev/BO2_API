@@ -23,6 +23,10 @@ import cronManagementService from './services/cronManagement.service'
 // 🔥 WARM-UP: Importar função de pré-aquecimento do cache
 import { warmUpCache } from './services/dualReadService'
 
+// 📊 DASHBOARD STATS: Importar CRON job de rebuild
+import { startRebuildDashboardStatsJob } from './jobs/rebuildDashboardStats.job'
+import { buildDashboardStats } from './services/dashboardStatsBuilder.service'
+
 // ✅ ACTIVE CAMPAIGN: Importar controllers para Tag Rules e Communication History
 import {
   getAllTagRules,
@@ -50,6 +54,7 @@ import "./models/UserAction"
 import "./models/CommunicationHistory"
 import "./models/CronConfig"
 import "./models/CronExecution"
+import "./models/DashboardStats"
 
 // Verificar se os modelos foram importados corretamente
 import "./models"
@@ -93,6 +98,25 @@ mongoose.connect(process.env.MONGO_URI || "")
     console.log('\n✅ ============================================')
     console.log('✅ Cache pré-aquecido! Servidor pronto.')
     console.log('✅ ============================================\n')
+    
+    // 📊 DASHBOARD STATS: Iniciar CRON job de rebuild
+    startRebuildDashboardStatsJob()
+    
+    // 📊 DASHBOARD STATS: Construir stats iniciais (primeira vez, em background)
+    console.log('\n📊 ============================================')
+    console.log('📊 Construindo Dashboard Stats iniciais...')
+    console.log('📊 ============================================\n')
+    buildDashboardStats()
+      .then(() => {
+        console.log('\n✅ ============================================')
+        console.log('✅ Dashboard Stats iniciais construídos!')
+        console.log('✅ ============================================\n')
+      })
+      .catch(err => {
+        console.error('\n❌ ============================================')
+        console.error('❌ Erro ao construir Dashboard Stats iniciais:', err)
+        console.error('❌ ============================================\n')
+      })
   })
   .catch((err) => {
     console.error("❌ Erro ao ligar ao MongoDB:", err)

@@ -413,6 +413,49 @@ export const compareProducts = async (req: Request, res: Response) => {
  */
 export const getDashboardStatsV3 = async (req: Request, res: Response) => {
   try {
+    console.log('\n📊 [STATS V3 - MATERIALIZED VIEW] Carregando stats pré-calculados...');
+    const startTime = Date.now();
+    
+    // 🚀 SOLUÇÃO: Ler de materialized view (50ms ao invés de 80s!)
+    const { getDashboardStats } = require('../services/dashboardStatsBuilder.service');
+    const stats = await getDashboardStats();
+    
+    if (!stats) {
+      return res.status(500).json({
+        success: false,
+        error: 'Dashboard Stats não disponíveis'
+      });
+    }
+    
+    const duration = Date.now() - startTime;
+    console.log(`✅ [STATS V3] Carregado em ${duration}ms (materialized view)`);
+    
+    res.json({
+      success: true,
+      data: {
+        overview: stats.overview,
+        quickFilters: stats.quickFilters,
+        platformDistribution: stats.platformDistribution,
+        _meta: {
+          calculatedAt: stats.calculatedAt,
+          dataFreshness: stats.meta.dataFreshness,
+          responseTime: duration
+        }
+      }
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Erro em getDashboardStatsV3:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Erro ao buscar stats'
+    });
+  }
+};
+
+// ✅ MANTER FUNÇÃO ANTIGA PARA REBUILDS (não exportar como endpoint)
+export const getDashboardStatsV3Legacy = async (req: Request, res: Response) => {
+  try {
     console.log('\n📊 [STATS V3 - DUAL READ] Calculando stats consolidadas...');
     const startTime = Date.now();
 

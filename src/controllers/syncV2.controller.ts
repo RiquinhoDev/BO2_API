@@ -10,6 +10,7 @@ import {
   dualWriteUserData
 } from '../services/userProductService';
 import { clearUnifiedCache } from '../services/dualReadService';
+import { rebuildDashboardStatsManual } from '../jobs/rebuildDashboardStats.job';
 
 /**
  * GENERIC SYNC ENDPOINT - ESCALA PARA QUALQUER PLATAFORMA/PRODUTO
@@ -78,6 +79,9 @@ export const syncGeneric = async (req: Request, res: Response) => {
     
     // 🗑️ Limpar cache (inicia warm-up em background)
     clearUnifiedCache();
+    
+    // 📊 Reconstruir Dashboard Stats em background
+    rebuildDashboardStatsManual();
 
     res.json({ 
       success: true, 
@@ -278,6 +282,9 @@ export const syncBatch = async (req: Request, res: Response) => {
     
     // 🗑️ Limpar cache após batch sync (inicia warm-up em background)
     clearUnifiedCache();
+    
+    // 📊 Reconstruir Dashboard Stats em background
+    rebuildDashboardStatsManual();
 
     res.json({ 
       success: true, 
