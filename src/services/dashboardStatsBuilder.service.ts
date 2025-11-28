@@ -92,9 +92,13 @@ export async function buildDashboardStats(): Promise<void> {
     let atRiskUsers = 0;
     let topPerformers = 0;
     let newUsers7d = 0;
+    let inactiveUsers30d = 0;
     
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
     userMetrics.forEach(metrics => {
       // Engagement médio do user
@@ -128,6 +132,11 @@ export async function buildDashboardStats(): Promise<void> {
       if (metrics.enrolledAt && metrics.enrolledAt >= sevenDaysAgo) {
         newUsers7d++;
       }
+      
+      // Inactive users (engagement muito baixo ou sem atividade)
+      if (!metrics.isActive || userAvgEngagement < 20) {
+        inactiveUsers30d++;
+      }
     });
     
     const totalUsers = userMetrics.size;
@@ -157,12 +166,34 @@ export async function buildDashboardStats(): Promise<void> {
     const platformDistribution: any = {};
     const byPlatform: any[] = [];
     
+    // Mapeamento de plataformas para UI
+    const platformMapping: { [key: string]: { name: string; icon: string } } = {
+      'hotmart': { name: 'Hotmart', icon: '🛒' },
+      'curseduca': { name: 'CursEduca', icon: '📚' },
+      'discord': { name: 'Discord', icon: '💬' },
+      'udemy': { name: 'Udemy', icon: '🎓' },
+      'shopify': { name: 'Shopify', icon: '🛍️' }
+    };
+    
     platformCounts.forEach((userSet, platform) => {
       const count = userSet.size;
       const percentage = totalUsers > 0 ? Math.round((count / totalUsers) * 100 * 10) / 10 : 0;
       
       platformDistribution[platform] = { count, percentage };
-      byPlatform.push({ platform, totalStudents: count, percentage });
+      
+      // Transformar para formato esperado pelo frontend
+      const platformInfo = platformMapping[platform.toLowerCase()] || { 
+        name: platform.charAt(0).toUpperCase() + platform.slice(1), 
+        icon: '📦' 
+      };
+      
+      byPlatform.push({ 
+        name: platformInfo.name,
+        count: count,
+        percentage: percentage,
+        icon: platformInfo.icon,
+        platform: platform // manter original para filtros
+      });
     });
     
     // 5. Calcular Health Score
@@ -181,18 +212,28 @@ export async function buildDashboardStats(): Promise<void> {
       healthScore >= 75 ? 'BOM' :
       healthScore >= 60 ? 'RAZOÁVEL' : 'CRÍTICO';
     
+    // Health Breakdown (componentes do health score)
+    const healthBreakdown = {
+      engagement: avgEngagement,
+      retention: retention,
+      growth: growth,
+      progress: avgProgress
+    };
+    
     // 6. Calcular próxima atualização (6 horas)
     const nextUpdate = new Date();
     nextUpdate.setHours(nextUpdate.getHours() + 6);
     
     const calculationDuration = Date.now() - startTime;
     
-    // 7. Guardar na BD (upsert - substitui se existir)
+    // 7. Guardar na BD (apagar antigo e criar novo para garantir estrutura correta)
     console.log('💾 Guardando stats na BD...');
     
-    await DashboardStats.findOneAndUpdate(
-      { version: 'v3' },
-      {
+    // Apagar stats antigos (garante estrutura atualizada)
+    await DashboardStats.deleteMany({ version: 'v3' });
+    
+    // Criar novo documento
+    await DashboardStats.create({
         version: 'v3',
         calculatedAt: new Date(),
         overview: {
@@ -205,13 +246,16 @@ export async function buildDashboardStats(): Promise<void> {
           atRiskRate,
           activeProducts: platformCounts.size,
           healthScore,
-          healthLevel
+          healthLevel,
+          healthBreakdown
         },
         byPlatform,
         quickFilters: {
           newStudents: newUsers7d,
+          new7d: newUsers7d, // Alias para compatibilidade
           atRisk: atRiskUsers,
-          topPerformers
+          topPerformers,
+          inactive30d: inactiveUsers30d
         },
         platformDistribution,
         meta: {
@@ -221,13 +265,7 @@ export async function buildDashboardStats(): Promise<void> {
           totalUserProducts: userProducts.length,
           uniqueUsers: totalUsers
         }
-      },
-      { 
-        upsert: true, 
-        new: true,
-        setDefaultsOnInsert: true
-      }
-    );
+    });
     
     console.log('\n✅ ========================================');
     console.log(`✅ Dashboard Stats construídos em ${Math.round(calculationDuration/1000)}s`);
