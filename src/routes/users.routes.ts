@@ -20,7 +20,8 @@ import {
   // ✅ NOVAS FUNÇÕES DA FASE 1
   getAllUsersUnified,
   getDashboardStats,
-  
+  lastAccessBefore,
+  topPercentage,
   // 🆕 NOVAS FUNÇÕES PARA EDITOR DE ALUNOS
   searchStudent,
   editStudent,
@@ -75,13 +76,22 @@ router.get('/v2', async (req, res) => {
       limit = '50'
     } = req.query
     
-    // ──────────────────────────────────────────────────────────
-    // 1. BUSCAR TODOS OS USERPRODUCTS UNIFICADOS
-    // ──────────────────────────────────────────────────────────
-    console.log('📊 [API /users/v2] Buscando UserProducts unificados...')
-    const unifiedUserProducts = await getAllUsersUnifiedService()
-    console.log(`✅ [API /users/v2] ${unifiedUserProducts.length} UserProducts encontrados`)
-    
+// ──────────────────────────────────────────────────────────
+// 1. BUSCAR TODOS OS USERPRODUCTS (QUERY DIRETA - RÁPIDA!)
+// ──────────────────────────────────────────────────────────
+console.log('🚀 [API /users/v2] Usando query DIRETA (otimizada para pesquisas)')
+const startFetch = Date.now()
+
+const UserProduct = require('../models/UserProduct').default
+
+const unifiedUserProducts = await UserProduct.find({})
+  .populate('userId', 'name email')
+  .populate('productId', 'name platform')
+  .lean()
+  .maxTimeMS(10000) // Timeout 10s
+
+const fetchDuration = Date.now() - startFetch
+console.log(`✅ [API /users/v2] ${unifiedUserProducts.length} UserProducts em ${fetchDuration}ms`)
     // ──────────────────────────────────────────────────────────
     // 2. APLICAR FILTROS
     // ──────────────────────────────────────────────────────────
@@ -163,10 +173,38 @@ router.get('/v2', async (req, res) => {
       })
       console.log(`🔍 [Filtro EnrolledAfter] "${enrolledAfter}": ${filtered.length} resultados`)
     }
-    
+    // Filtro: Última atividade ANTES de uma data (inativos 30d)
+    if (lastAccessBefore && typeof lastAccessBefore === 'string') {
+      const beforeDate = new Date(lastAccessBefore)
+      filtered = filtered.filter((up: any) => {
+        // Se não tem lastAccessDate, considerar inativo
+        if (!up.lastAccessDate) return true
+        const lastAccess = new Date(up.lastAccessDate)
+        return lastAccess < beforeDate
+      })
+      console.log(`🔍 [Filtro LastAccessBefore] "${lastAccessBefore}": ${filtered.length} resultados`)
+    }
     // ──────────────────────────────────────────────────────────
     // 3. ORDENAÇÃO (opcional - por engagement decrescente)
     // ──────────────────────────────────────────────────────────
+
+    if (topPercentage && typeof topPercentage === 'string') {
+  const percentage = parseInt(topPercentage)
+  if (percentage > 0 && percentage <= 100) {
+    // 1. Ordenar por engagement (maior primeiro)
+    filtered.sort((a: any, b: any) => {
+      const engA = a.engagement?.engagementScore || 0
+      const engB = b.engagement?.engagementScore || 0
+      return engB - engA
+    })
+    
+    // 2. Pegar só os top X%
+    const topCount = Math.ceil(filtered.length * (percentage / 100))
+    filtered = filtered.slice(0, topCount)
+    
+    console.log(`🏆 [Filtro TopPercentage] Top ${percentage}%: ${filtered.length}/${userProducts.length} alunos`)
+  }
+}
     filtered.sort((a: any, b: any) => {
       const engA = a.engagement?.engagementScore || 0
       const engB = b.engagement?.engagementScore || 0
