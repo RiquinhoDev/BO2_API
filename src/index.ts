@@ -99,24 +99,19 @@ mongoose.connect(process.env.MONGO_URI || "")
     console.log('✅ Cache pré-aquecido! Servidor pronto.')
     console.log('✅ ============================================\n')
     
-    // 📊 DASHBOARD STATS: Iniciar CRON job de rebuild
-    startRebuildDashboardStatsJob()
-    
-    // 📊 DASHBOARD STATS: Construir stats iniciais (primeira vez, em background)
+    // 📊 DASHBOARD STATS: Construir stats iniciais (DEPOIS do warm-up!)
     console.log('\n📊 ============================================')
     console.log('📊 Construindo Dashboard Stats iniciais...')
+    console.log('📊 (Usando cache já aquecido)')
     console.log('📊 ============================================\n')
-    buildDashboardStats()
-      .then(() => {
-        console.log('\n✅ ============================================')
-        console.log('✅ Dashboard Stats iniciais construídos!')
-        console.log('✅ ============================================\n')
-      })
-      .catch(err => {
-        console.error('\n❌ ============================================')
-        console.error('❌ Erro ao construir Dashboard Stats iniciais:', err)
-        console.error('❌ ============================================\n')
-      })
+    await buildDashboardStats()
+    console.log('\n✅ ============================================')
+    console.log('✅ Dashboard Stats iniciais construídos!')
+    console.log('✅ Servidor 100% PRONTO!')
+    console.log('✅ ============================================\n')
+    
+    // 📊 DASHBOARD STATS: Iniciar CRON job de rebuild
+    startRebuildDashboardStatsJob()
   })
   .catch((err) => {
     console.error("❌ Erro ao ligar ao MongoDB:", err)

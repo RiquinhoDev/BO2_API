@@ -31,9 +31,11 @@ export interface IDashboardStats extends Document {
   };
   
   byPlatform: Array<{
-    platform: string;
-    totalStudents: number;
+    name: string;  // Nome formatado (ex: "Hotmart")
+    count: number;  // Total de alunos
     percentage: number;
+    icon: string;  // Emoji
+    platform?: string;  // Nome original (opcional, para filtros)
   }>;
   
   quickFilters: {
@@ -84,9 +86,11 @@ const DashboardStatsSchema = new Schema<IDashboardStats>({
   },
   
   byPlatform: [{
-    platform: { type: String, required: true },
-    totalStudents: { type: Number, required: true },
-    percentage: { type: Number, required: true }
+    name: { type: String, required: true },
+    count: { type: Number, required: true },
+    percentage: { type: Number, required: true },
+    icon: { type: String, required: true },
+    platform: { type: String, required: false }
   }],
   
   quickFilters: {
