@@ -536,9 +536,24 @@ export async function getAllUsersUnified() {
 
   // Cache miss - verificar se warm-up em progresso
   if (warmupPromise) {
-    console.log('⏳ [CACHE] Aguardando warm-up em progresso...');
-    await warmupPromise;
-    return unifiedCache!.data;
+    console.log('⏳ [CACHE] Warm-up em progresso...');
+    console.log('⚡ [CACHE] Aguardando máximo 5 segundos...');
+    
+    // ✅ CORREÇÃO: Timeout de 5 segundos para evitar travamentos
+    const timeoutPromise = new Promise<void>((_, reject) => 
+      setTimeout(() => reject(new Error('Warm-up timeout')), 5000)
+    );
+    
+    try {
+      await Promise.race([warmupPromise, timeoutPromise]);
+      if (unifiedCache) {
+        console.log('✅ [CACHE] Warm-up completou dentro do timeout!');
+        return unifiedCache.data;
+      }
+    } catch (error) {
+      console.log('⚠️  [CACHE] Warm-up demorou >5s, construindo dados diretamente...');
+      // Continua para construir cache diretamente
+    }
   }
 
   // Cache miss - construir novo
