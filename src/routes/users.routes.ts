@@ -20,8 +20,7 @@ import {
   // ✅ NOVAS FUNÇÕES DA FASE 1
   getAllUsersUnified,
   getDashboardStats,
-  lastAccessBefore,
-  topPercentage,
+
   // 🆕 NOVAS FUNÇÕES PARA EDITOR DE ALUNOS
   searchStudent,
   editStudent,
@@ -64,17 +63,19 @@ router.get('/v2', async (req, res) => {
   try {
     console.log('🔍 [API /users/v2] Recebendo requisição:', req.query)
     
-    const {
-      search,
-      platform,
-      productId,
-      status,
-      progressLevel,
-      engagementLevel,
-      enrolledAfter,
-      page = '1',
-      limit = '50'
-    } = req.query
+  const {
+    search,
+    platform,
+    productId,
+    status,
+    progressLevel,
+    engagementLevel,
+    enrolledAfter,
+    lastAccessBefore,  
+    topPercentage,     
+    page = '1',
+    limit = '50'
+  } = req.query
     
 // ──────────────────────────────────────────────────────────
 // 1. BUSCAR TODOS OS USERPRODUCTS (QUERY DIRETA - RÁPIDA!)
@@ -202,7 +203,7 @@ console.log(`✅ [API /users/v2] ${unifiedUserProducts.length} UserProducts em $
     const topCount = Math.ceil(filtered.length * (percentage / 100))
     filtered = filtered.slice(0, topCount)
     
-    console.log(`🏆 [Filtro TopPercentage] Top ${percentage}%: ${filtered.length}/${userProducts.length} alunos`)
+    console.log(`🏆 [Filtro TopPercentage] Top ${percentage}%: ${filtered.length}/${unifiedUserProducts.length} alunos`)
   }
 }
     filtered.sort((a: any, b: any) => {
