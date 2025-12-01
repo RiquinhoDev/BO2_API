@@ -169,6 +169,7 @@ export interface IUser extends Document {
   metadata: {
     createdAt: Date
     updatedAt: Date
+     firstSystemEntry?:  Date
     sources: {
       discord?: { lastSync: Date, version: string }
       hotmart?: { lastSync: Date, version: string }
@@ -483,6 +484,7 @@ const UserSchema: Schema = new Schema({
   metadata: {
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
+    firstSystemEntry: { type: Date },
     sources: {
       discord: {
         lastSync: Date,
