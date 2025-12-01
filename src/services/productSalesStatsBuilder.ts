@@ -252,7 +252,7 @@ export async function buildProductSalesStats(): Promise<void> {
       const userMap = new Map(users.map(u => [u._id.toString(), u]))
       
       // 2.4. Determinar quais users são "novos" (primeiro produto)
-      const userFirstProducts = new Map<string, mongoose.Types.ObjectId>()
+  const userFirstProducts = new Map<string, string>() // ✅ MUDANÇA: mongoose.Types.ObjectId → string
       
       for (const up of userProducts) {
         const userId = (typeof up.userId === 'object' && up.userId._id 
@@ -266,18 +266,23 @@ export async function buildProductSalesStats(): Promise<void> {
           }).sort({ enrolledAt: 1 }).lean()
           
           if (allUserProducts.length > 0) {
-            userFirstProducts.set(userId, allUserProducts[0]._id)
+            // ✅ CORREÇÃO: Type assertion e conversão para string
+            const firstProductId = (allUserProducts[0]._id as mongoose.Types.ObjectId).toString()
+            userFirstProducts.set(userId, firstProductId)
           }
         }
       }
       
-      // 2.5. Processar cada UserProduct
+  // 2.5. Processar cada UserProduct
       for (const up of userProducts) {
         recordsProcessed++
         
         const userId = (typeof up.userId === 'object' && up.userId._id 
           ? up.userId._id 
           : up.userId).toString()
+        
+        // ✅ CORREÇÃO: Type assertion para up._id
+        const userProductId = (up._id as mongoose.Types.ObjectId).toString()
         
         const user = userMap.get(userId)
         
@@ -306,8 +311,9 @@ export async function buildProductSalesStats(): Promise<void> {
           const month = saleDate.getMonth() + 1
           const monthKey = `${year}-${month.toString().padStart(2, '0')}`
           
-          // Verificar se é novo estudante (primeiro produto)
-          const isNewStudent = userFirstProducts.get(userId)?.toString() === up._id.toString()
+          // ✅ CORREÇÃO: Comparação usando strings
+          const isNewStudent = userFirstProducts.get(userId) === userProductId
+          
           
           // ────────────────────────────────────────────────
           // AGREGAR POR MÊS

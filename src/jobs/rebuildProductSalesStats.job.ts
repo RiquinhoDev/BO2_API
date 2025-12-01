@@ -4,7 +4,8 @@
 // ════════════════════════════════════════════════════════════
 
 import cron from 'node-cron'
-import { buildProductSalesStats } from '../services/productSalesStatsBuilder.service'
+import { buildProductSalesStats } from '../services/productSalesStatsBuilder'
+
 
 let isRunning = false
 

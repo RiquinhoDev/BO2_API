@@ -4,12 +4,9 @@
 // ════════════════════════════════════════════════════════════
 
 import { Request, Response } from 'express'
-import { 
-  getProductSalesStats, 
-  buildProductSalesStats 
-} from '../services/productSalesStatsBuilder.service'
-import ProductSalesStats from '../models/ProductSalesStats'
 
+import ProductSalesStats from '../models/ProductSalesStats'
+import { buildProductSalesStats, getProductSalesStats } from '../services/productSalesStatsBuilder'
 // ─────────────────────────────────────────────────────────────
 // GET ALL STATS
 // ─────────────────────────────────────────────────────────────
