@@ -99,15 +99,28 @@ console.log(`✅ [API /users/v2] ${unifiedUserProducts.length} UserProducts em $
     let filtered = [...unifiedUserProducts]
     
     // Filtro: Email/Nome
-    if (search && typeof search === 'string') {
-      const searchLower = search.toLowerCase().trim()
-      filtered = filtered.filter((up: any) => {
-        const email = up.userId?.email?.toLowerCase() || ''
-        const name = up.userId?.name?.toLowerCase() || ''
-        return email.includes(searchLower) || name.includes(searchLower)
+if (search && typeof search === 'string') {
+  const searchLower = search.toLowerCase()
+  filtered = filtered.filter((up: any) => {
+    // ✅ CORREÇÃO: Acessar objetos populados corretamente
+    const userName = (up.userId?.name || '').toLowerCase()
+    const userEmail = (up.userId?.email || '').toLowerCase()
+    const match = userName.includes(searchLower) || userEmail.includes(searchLower)
+    
+    // 🐛 DEBUG TEMPORÁRIO
+    if (userEmail.includes('joaomcf37')) {
+      console.log('🐛 [DEBUG] Encontrado:', {
+        email: up.userId?.email,
+        name: up.userId?.name,
+        match,
+        searchLower
       })
-      console.log(`🔍 [Filtro Search] "${search}": ${filtered.length} resultados`)
     }
+    
+    return match
+  })
+  console.log(`🔍 [Filtro Search] "${search}": ${filtered.length} resultados`)
+}
     
     // Filtro: Plataforma
     if (platform && platform !== 'todas' && typeof platform === 'string') {
