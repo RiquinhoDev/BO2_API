@@ -61,6 +61,7 @@ import "./models"
 
 // Importar inicializador de CRON jobs
 import jobScheduler from "./jobs"
+import { startRebuildProductSalesStatsJob } from "./jobs/rebuildProductSalesStats.job"
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -147,7 +148,10 @@ app.delete('/api/tag-rules/:id', deleteTagRule)
 
 // Communication History
 app.get('/api/communication-history', getCommunicationHistory)
-
+if (process.env.ENABLE_PRODUCT_SALES_CRON !== 'false') {
+  startRebuildProductSalesStatsJob()
+  console.log('✅ CRON Product Sales Stats iniciado')
+}
 app.listen(PORT, () => {
   console.log(`🚀 Servidor iniciado em http://localhost:${PORT}/api`)
   console.log(`📊 Métricas: http://localhost:${PORT}/api/metrics`)
