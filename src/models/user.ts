@@ -484,7 +484,10 @@ const UserSchema: Schema = new Schema({
   metadata: {
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
-    firstSystemEntry: { type: Date },
+    firstSystemEntry: { 
+    type: Date,
+    description: 'Data da primeira entrada do user no sistema (calculada automaticamente)'
+  },
     sources: {
       discord: {
         lastSync: Date,

@@ -11,7 +11,7 @@ import router from "./routes"
 import metricsMiddleware from "./middleware/metrics.middleware"
 import metricsRoutes from "./routes/metrics.routes"
 import systemMonitor from "./services/systemMonitor.service"
-
+import productSalesStatsRoutes from './routes/productSalesStats.routes'
 // ✅ ACTIVE CAMPAIGN: Importar CRON job e rotas
 import './jobs/evaluateRules.job'
 import activecampaignRoutes from './routes/activecampaign.routes'
@@ -146,11 +146,17 @@ app.post('/api/tag-rules', createTagRule)
 app.put('/api/tag-rules/:id', updateTagRule)
 app.delete('/api/tag-rules/:id', deleteTagRule)
 
+
+app.use('/api/analytics/product-sales', productSalesStatsRoutes)
+console.log('✅ Routes: /api/analytics/product-sales')
+
 // Communication History
 app.get('/api/communication-history', getCommunicationHistory)
 if (process.env.ENABLE_PRODUCT_SALES_CRON !== 'false') {
   startRebuildProductSalesStatsJob()
-  console.log('✅ CRON Product Sales Stats iniciado')
+  console.log('✅ CRON Product Sales Stats iniciado (02:00 diariamente)')
+} else {
+  console.log('⏭️  CRON Product Sales Stats desativado (ENABLE_PRODUCT_SALES_CRON=false)')
 }
 app.listen(PORT, () => {
   console.log(`🚀 Servidor iniciado em http://localhost:${PORT}/api`)
