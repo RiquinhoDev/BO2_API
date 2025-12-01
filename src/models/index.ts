@@ -24,7 +24,7 @@ import './Testimonial'
 import './UnmatchedUser'
 import './UserAction'
 import './UserHistory'
-
+import ProductSalesStats from './ProductSalesStats'
 // ===== NOVOS MODELS: RE-ENGAGEMENT SYSTEM =====
 import './ProductProfile'
 import './StudentEngagementState'
@@ -117,7 +117,8 @@ const modelsToCheck = [
   // Sprint 5
   'ACContactState',
   // Dashboard Stats
-  'DashboardStats'
+  'DashboardStats',
+    'ProductSalesStats' 
 ]
 
 let availableModels = 0
