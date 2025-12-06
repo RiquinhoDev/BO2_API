@@ -61,7 +61,10 @@ const upload = multer({ dest: "uploads/" })
  */
 router.get('/v2', async (req, res) => {
   try {
-    console.log('🔍 [API /users/v2] Recebendo requisição:', req.query)
+    console.log('\n═══════════════════════════════════════════════')
+    console.log('🔍 [API /users/v2] Query params recebidos:')
+    console.log(req.query)  // ← ESTE LOG É CRUCIAL!
+    console.log('═══════════════════════════════════════════════\n')
     
   const {
     search,
