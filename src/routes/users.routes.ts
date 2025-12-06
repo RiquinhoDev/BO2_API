@@ -71,6 +71,7 @@ router.get('/v2', async (req, res) => {
     progressLevel,
     engagementLevel,
     enrolledAfter,
+    maxEngagement,
     lastAccessBefore,  
     topPercentage,     
     page = '1',
@@ -187,36 +188,53 @@ if (search && typeof search === 'string') {
       })
       console.log(`🔍 [Filtro EnrolledAfter] "${enrolledAfter}": ${filtered.length} resultados`)
     }
+
+    if (maxEngagement && typeof maxEngagement === 'string') {
+  const maxScore = parseInt(maxEngagement)
+  
+  if (!isNaN(maxScore)) {
+    filtered = filtered.filter((up: any) => {
+      const score = up.engagement?.engagementScore || 0
+      return score <= maxScore
+    })
+    
+    console.log(`🚨 [Filtro MaxEngagement] <= ${maxScore}: ${filtered.length} resultados`)
+  }
+}
     // Filtro: Última atividade ANTES de uma data (inativos 30d)
-    if (lastAccessBefore && typeof lastAccessBefore === 'string') {
-      const beforeDate = new Date(lastAccessBefore)
-      filtered = filtered.filter((up: any) => {
-        // Se não tem lastAccessDate, considerar inativo
-        if (!up.lastAccessDate) return true
-        const lastAccess = new Date(up.lastAccessDate)
-        return lastAccess < beforeDate
-      })
-      console.log(`🔍 [Filtro LastAccessBefore] "${lastAccessBefore}": ${filtered.length} resultados`)
-    }
+if (lastAccessBefore && typeof lastAccessBefore === 'string') {
+  const beforeDate = new Date(lastAccessBefore)
+  
+  const User = require('../models/user').default
+  const usersWithDiscord = await User.find({
+    'discord.engagement.lastMessageDate': { $lt: beforeDate }
+  }).select('_id').lean()
+  
+  const inactiveUserIds = usersWithDiscord.map(u => u._id.toString())
+  
+  filtered = filtered.filter((up: any) => {
+    const userId = up.userId?._id?.toString() || up.userId?.toString()
+    return inactiveUserIds.includes(userId)
+  })
+}
+
     // ──────────────────────────────────────────────────────────
     // 3. ORDENAÇÃO (opcional - por engagement decrescente)
     // ──────────────────────────────────────────────────────────
 
-    if (topPercentage && typeof topPercentage === 'string') {
+if (topPercentage && typeof topPercentage === 'string') {
   const percentage = parseInt(topPercentage)
+  
   if (percentage > 0 && percentage <= 100) {
-    // 1. Ordenar por engagement (maior primeiro)
-    filtered.sort((a: any, b: any) => {
-      const engA = a.engagement?.engagementScore || 0
-      const engB = b.engagement?.engagementScore || 0
-      return engB - engA
-    })
+    const withScores = filtered.map((up: any) => ({
+      ...up,
+      _calculatedScore: up.engagement?.engagementScore || 0
+    }))
     
-    // 2. Pegar só os top X%
-    const topCount = Math.ceil(filtered.length * (percentage / 100))
-    filtered = filtered.slice(0, topCount)
+    withScores.sort((a, b) => b._calculatedScore - a._calculatedScore)
     
-    console.log(`🏆 [Filtro TopPercentage] Top ${percentage}%: ${filtered.length}/${unifiedUserProducts.length} alunos`)
+    const topCount = Math.ceil(withScores.length * (percentage / 100))
+    filtered = withScores.slice(0, topCount)
   }
 }
     filtered.sort((a: any, b: any) => {
