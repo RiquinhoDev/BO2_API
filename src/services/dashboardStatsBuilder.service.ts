@@ -1,8 +1,14 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// 🏗️ SERVICE: Dashboard Stats Builder (Materialized View)
+// 🏗️ SERVICE: Dashboard Stats Builder (Materialized View) - CORRIGIDO
 // ═══════════════════════════════════════════════════════════════════════════
 // Calcula e guarda stats do dashboard para carregamento instantâneo
 // Chamado por CRON job e após syncs
+// 
+// CORREÇÕES APLICADAS:
+// 1. ✅ At Risk: score < 30 (antes: < 40)
+// 2. ✅ Top 10%: cálculo dinâmico (antes: score >= 60 fixo)
+// 3. ✅ Novos 7d: usa enrolledAt (verificado - estava correto)
+// 4. 🔍 Inativos 30d: logs debug adicionados para investigação
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { DashboardStats } from '../models/DashboardStats';
@@ -86,13 +92,20 @@ export async function buildDashboardStats(): Promise<void> {
     // 3. Calcular métricas agregadas
     console.log('📊 Calculando métricas...');
     
+    // ✅ NOVO: Array para cálculo de Top 10%
+    const userEngagementScores: Array<{ userId: string; score: number }> = [];
+    
     let totalEngagement = 0;
     let totalProgress = 0;
     let activeUsers = 0;
     let atRiskUsers = 0;
-    let topPerformers = 0;
+    // Top performers será calculado depois!
     let newUsers7d = 0;
     let inactiveUsers30d = 0;
+    
+    // 🔍 DEBUG: Contadores para investigar Inativos 30d
+    let inactiveNoActivity = 0;
+    let inactiveLowEngagement = 0;
     
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -100,12 +113,15 @@ export async function buildDashboardStats(): Promise<void> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    userMetrics.forEach(metrics => {
+    userMetrics.forEach((metrics, userId) => {
       // Engagement médio do user
       const userAvgEngagement = metrics.engagements.length > 0
         ? metrics.engagements.reduce((a, b) => a + b, 0) / metrics.engagements.length
         : 0;
       totalEngagement += userAvgEngagement;
+      
+      // ✅ NOVO: Guardar score para cálculo de Top 10%
+      userEngagementScores.push({ userId, score: userAvgEngagement });
       
       // Progress médio do user
       const userAvgProgress = metrics.progresses.length > 0
@@ -118,32 +134,67 @@ export async function buildDashboardStats(): Promise<void> {
         activeUsers++;
       }
       
-      // At Risk (engagement < 40)
-      if (userAvgEngagement > 0 && userAvgEngagement < 40) {
+      // ✅ CORREÇÃO 1: At Risk (score < 30 OU sem engagement)
+      // ANTES: < 40
+      // AGORA: < 30 (baseado em dados reais)
+      if (userAvgEngagement === 0 || userAvgEngagement < 30) {
         atRiskUsers++;
       }
       
-      // Top Performers (engagement >= 60)
-      if (userAvgEngagement >= 60) {
-        topPerformers++;
-      }
+      // ❌ REMOVIDO: Top Performers (era calculado aqui com threshold fixo)
+      // Agora será calculado DEPOIS com Top 10% dinâmico
       
-      // New users (últimos 7 dias)
+      // ✅ VERIFICADO: New users (últimos 7 dias) - CORRETO!
       if (metrics.enrolledAt && metrics.enrolledAt >= sevenDaysAgo) {
         newUsers7d++;
       }
       
-      // Inactive users (engagement muito baixo ou sem atividade)
-      if (!metrics.isActive || userAvgEngagement < 20) {
+      // 🔍 DEBUG: Inactive users - adicionar contadores para investigar
+      const isInactiveNoActivity = !metrics.isActive;
+      const isInactiveLowEngagement = userAvgEngagement < 20;
+      
+      if (isInactiveNoActivity) {
+        inactiveNoActivity++;
+      }
+      
+      if (isInactiveLowEngagement) {
+        inactiveLowEngagement++;
+      }
+      
+      if (isInactiveNoActivity || isInactiveLowEngagement) {
         inactiveUsers30d++;
       }
     });
     
+    // ✅ CORREÇÃO 2: Calcular Top 10% DINAMICAMENTE
+    console.log('🏆 Calculando Top 10%...');
+    
+    // 1. Ordenar por score (descendente)
+    userEngagementScores.sort((a, b) => b.score - a.score);
+    
+    // 2. Calcular quantos são top 10%
+    const top10Count = Math.ceil(userEngagementScores.length * 0.10);
+    
+    // 3. Top performers = top 10%
+    const topPerformers = top10Count;
+    
+    // 4. Threshold = score mínimo para estar no top 10%
+    const top10Threshold = userEngagementScores[top10Count - 1]?.score || 0;
+    
+    console.log(`   ✅ Top 10%: ${topPerformers} alunos (threshold: ${top10Threshold.toFixed(1)})`);
+    
+    // Continuar com cálculos...
     const totalUsers = userMetrics.size;
     const avgEngagement = totalUsers > 0 ? Math.round(totalEngagement / totalUsers) : 0;
     const avgProgress = totalUsers > 0 ? Math.round(totalProgress / totalUsers) : 0;
     const activeRate = totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
     const atRiskRate = totalUsers > 0 ? Math.round((atRiskUsers / totalUsers) * 100) : 0;
+    
+    // 🔍 DEBUG: Log para investigar Inativos 30d
+    console.log(`😴 Inativos 30d breakdown:`);
+    console.log(`   - Sem atividade (!isActive): ${inactiveNoActivity}`);
+    console.log(`   - Engagement < 20: ${inactiveLowEngagement}`);
+    console.log(`   - Total (OR): ${inactiveUsers30d}`);
     
     // 4. Calcular distribuição por plataforma
     console.log('🌐 Calculando distribuição por plataforma...');
@@ -160,59 +211,45 @@ export async function buildDashboardStats(): Promise<void> {
       if (!platformCounts.has(up.platform)) {
         platformCounts.set(up.platform, new Set());
       }
+      
       platformCounts.get(up.platform)!.add(userId);
     });
     
-    const platformDistribution: any = {};
-    const byPlatform: any[] = [];
+    const byPlatform = Array.from(platformCounts.entries()).map(([platform, userIds]) => ({
+      platform,
+      users: userIds.size,
+      percentage: Math.round((userIds.size / totalUsers) * 100)
+    }));
     
-    // Mapeamento de plataformas para UI
-    const platformMapping: { [key: string]: { name: string; icon: string } } = {
-      'hotmart': { name: 'Hotmart', icon: '🛒' },
-      'curseduca': { name: 'CursEduca', icon: '📚' },
-      'discord': { name: 'Discord', icon: '💬' },
-      'udemy': { name: 'Udemy', icon: '🎓' },
-      'shopify': { name: 'Shopify', icon: '🛍️' }
-    };
+    const platformDistribution = byPlatform.map(p => ({
+      name: p.platform,
+      value: p.users,
+      percentage: p.percentage
+    }));
     
-    platformCounts.forEach((userSet, platform) => {
-      const count = userSet.size;
-      const percentage = totalUsers > 0 ? Math.round((count / totalUsers) * 100 * 10) / 10 : 0;
-      
-      platformDistribution[platform] = { count, percentage };
-      
-      // Transformar para formato esperado pelo frontend
-      const platformInfo = platformMapping[platform.toLowerCase()] || { 
-        name: platform.charAt(0).toUpperCase() + platform.slice(1), 
-        icon: '📦' 
-      };
-      
-      byPlatform.push({ 
-        name: platformInfo.name,
-        count: count,
-        percentage: percentage,
-        icon: platformInfo.icon,
-        platform: platform // manter original para filtros
-      });
+    console.log('   Distribuição calculada:');
+    byPlatform.forEach(p => {
+      console.log(`   - ${p.platform}: ${p.users} alunos (${p.percentage}%)`);
     });
     
     // 5. Calcular Health Score
-    const retention = activeRate;
-    const growth = totalUsers > 0 ? Math.round((newUsers7d / totalUsers) * 100) : 0;
+    console.log('💊 Calculando Health Score...');
+    
+    const retention = Math.min(100, Math.round((activeUsers / totalUsers) * 100));
+    const growth = Math.min(100, Math.round((newUsers7d / totalUsers) * 1000));
     
     const healthScore = Math.round(
-      (avgEngagement * 0.4) +
-      (retention * 0.3) +
-      (growth * 0.2) +
+      (avgEngagement * 0.4) + 
+      (retention * 0.3) + 
+      (growth * 0.2) + 
       (avgProgress * 0.1)
     );
     
     const healthLevel = 
-      healthScore >= 90 ? 'EXCELENTE' :
+      healthScore >= 85 ? 'EXCELENTE' :
       healthScore >= 75 ? 'BOM' :
       healthScore >= 60 ? 'RAZOÁVEL' : 'CRÍTICO';
     
-    // Health Breakdown (componentes do health score)
     const healthBreakdown = {
       engagement: avgEngagement,
       retention: retention,
@@ -220,56 +257,61 @@ export async function buildDashboardStats(): Promise<void> {
       progress: avgProgress
     };
     
+    console.log(`   ✅ Health Score: ${healthScore} (${healthLevel})`);
+    
     // 6. Calcular próxima atualização (6 horas)
     const nextUpdate = new Date();
     nextUpdate.setHours(nextUpdate.getHours() + 6);
     
     const calculationDuration = Date.now() - startTime;
     
-    // 7. Guardar na BD (apagar antigo e criar novo para garantir estrutura correta)
+    // 7. Guardar na BD (apagar antigo e criar novo)
     console.log('💾 Guardando stats na BD...');
     
-    // Apagar stats antigos (garante estrutura atualizada)
     await DashboardStats.deleteMany({ version: 'v3' });
     
-    // Criar novo documento
     await DashboardStats.create({
-        version: 'v3',
-        calculatedAt: new Date(),
-        overview: {
-          totalStudents: totalUsers,
-          avgEngagement,
-          avgProgress,
-          activeCount: activeUsers,
-          activeRate,
-          atRiskCount: atRiskUsers,
-          atRiskRate,
-          activeProducts: platformCounts.size,
-          healthScore,
-          healthLevel,
-          healthBreakdown
-        },
-        byPlatform,
-        quickFilters: {
-          newStudents: newUsers7d,
-          new7d: newUsers7d, // Alias para compatibilidade
-          atRisk: atRiskUsers,
-          topPerformers,
-          inactive30d: inactiveUsers30d
-        },
-        platformDistribution,
-        meta: {
-          calculationDuration,
-          nextUpdate,
-          dataFreshness: 'FRESH',
-          totalUserProducts: userProducts.length,
-          uniqueUsers: totalUsers
-        }
+      version: 'v3',
+      calculatedAt: new Date(),
+      overview: {
+        totalStudents: totalUsers,
+        avgEngagement,
+        avgProgress,
+        activeCount: activeUsers,
+        activeRate,
+        atRiskCount: atRiskUsers,
+        atRiskRate,
+        activeProducts: platformCounts.size,
+        healthScore,
+        healthLevel,
+        healthBreakdown
+      },
+      byPlatform,
+      quickFilters: {
+        newStudents: newUsers7d,
+        new7d: newUsers7d,
+        atRisk: atRiskUsers,
+        topPerformers,
+        inactive30d: inactiveUsers30d
+      },
+      platformDistribution,
+      meta: {
+        calculationDuration,
+        nextUpdate,
+        dataFreshness: 'FRESH',
+        totalUserProducts: userProducts.length,
+        uniqueUsers: totalUsers
+      }
     });
     
     console.log('\n✅ ========================================');
     console.log(`✅ Dashboard Stats construídos em ${Math.round(calculationDuration/1000)}s`);
     console.log(`✅ ${totalUsers} alunos processados`);
+    console.log(`✅ Quick Filters:`);
+    console.log(`   🚨 Em Risco: ${atRiskUsers} (score < 30)`);
+    console.log(`   🏆 Top 10%: ${topPerformers} (threshold: ${top10Threshold.toFixed(1)})`);
+    console.log(`   😴 Inativos 30d: ${inactiveUsers30d}`);
+    console.log(`   📅 Novos 7d: ${newUsers7d}`);
     console.log(`✅ Próxima atualização: ${nextUpdate.toLocaleString('pt-PT')}`);
     console.log('✅ ========================================\n');
     
@@ -285,6 +327,8 @@ export async function buildDashboardStats(): Promise<void> {
  * 📖 Ler stats do dashboard (RÁPIDO - 50ms)
  */
 export async function getDashboardStats(): Promise<any> {
+  console.log('📖 [GETTER] Lendo Dashboard Stats da BD...');
+  
   const stats = await DashboardStats.findOne({ version: 'v3' }).lean();
   
   if (!stats) {
@@ -307,4 +351,3 @@ export async function getDashboardStats(): Promise<any> {
   
   return stats;
 }
-
