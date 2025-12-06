@@ -190,6 +190,12 @@ if (search && typeof search === 'string') {
         return enrolledDate >= afterDate
       })
       console.log(`🔍 [Filtro EnrolledAfter] "${enrolledAfter}": ${filtered.length} resultados`)
+
+        // 👇 NOVO: contar alunos únicos
+  const uniqueUserIds = new Set(
+    filtered.map((up: any) => up.userId?._id?.toString() || up.userId?.toString())
+  )
+  console.log(`👤 [Novos 7d] Alunos únicos neste filtro: ${uniqueUserIds.size}`)
     }
 
     if (maxEngagement && typeof maxEngagement === 'string') {
