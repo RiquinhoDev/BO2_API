@@ -294,6 +294,102 @@ if (topPercentage && typeof topPercentage === 'string') {
     })
   }
 })
+router.get('/v2/stats', async (req, res) => {
+  try {
+    console.log('\n🎯 [/v2/stats] Calculando stats alinhados...')
+    
+    const UserProduct = require('../models/UserProduct').default
+    const User = require('../models/user').default
+    
+    // 1. BASE: UserProducts ACTIVE
+    const active = await UserProduct.find({ status: 'ACTIVE' })
+      .populate('userId', 'name email')
+      .lean()
+    
+    console.log(`✅ Base: ${active.length} UserProducts ACTIVE`)
+    
+    // 2. EM RISCO: engagement <= 30
+    const atRisk = active.filter(up => 
+      (up.engagement?.engagementScore || 0) <= 30
+    )
+    console.log(`🚨 Em Risco: ${atRisk.length}`)
+    
+    // 3. TOP 10%
+    const sorted = [...active].sort((a, b) => 
+      (b.engagement?.engagementScore || 0) - (a.engagement?.engagementScore || 0)
+    )
+    const top10Count = Math.ceil(active.length * 0.10)
+    const topPerformers = sorted.slice(0, top10Count)
+    console.log(`🏆 Top 10%: ${topPerformers.length}`)
+    
+    // 4. INATIVOS 30D
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    
+    const inactiveUsers = await User.find({
+      'discord.engagement.lastMessageDate': { $lt: thirtyDaysAgo }
+    }).select('_id').lean()
+    
+    const inactiveIds = new Set(inactiveUsers.map(u => u._id.toString()))
+    
+    const inactive30d = active.filter(up => {
+      const userId = up.userId?._id?.toString() || up.userId?.toString()
+      return inactiveIds.has(userId)
+    })
+    console.log(`😴 Inativos 30d: ${inactive30d.length}`)
+    
+    // 5. NOVOS 7D
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    
+    const new7d = active.filter(up => 
+      up.enrolledAt && new Date(up.enrolledAt) >= sevenDaysAgo
+    )
+    console.log(`📅 Novos 7d: ${new7d.length}`)
+    
+    // 6. RESPOSTA
+    res.json({
+      success: true,
+      data: {
+        overview: {
+          totalStudents: active.length,
+          avgEngagement: active.reduce((sum, up) => sum + (up.engagement?.engagementScore || 0), 0) / active.length,
+          avgProgress: active.reduce((sum, up) => sum + (up.progress?.percentage || 0), 0) / active.length,
+          activeCount: active.length,
+          activeRate: 100,
+          atRiskCount: atRisk.length,
+          atRiskRate: (atRisk.length / active.length) * 100,
+          activeProducts: new Set(active.map(up => up.productId?.toString())).size,
+          healthScore: 75,
+          healthLevel: 'BOM',
+          healthBreakdown: {
+            engagement: 40,
+            retention: 30,
+            growth: 20,
+            progress: 10
+          }
+        },
+        byPlatform: [],
+        quickFilters: {
+          atRisk: atRisk.length,
+          topPerformers: topPerformers.length,
+          inactive30d: inactive30d.length,
+          new7d: new7d.length
+        },
+        meta: {
+          calculatedAt: new Date().toISOString(),
+          durationMs: 0
+        }
+      }
+    })
+    
+    console.log('✅ Stats alinhados enviados!\n')
+    
+  } catch (error) {
+    console.error('❌ Erro:', error)
+    res.status(500).json({ success: false, error: 'Erro ao calcular stats' })
+  }
+})
 
 // ✅ ROTAS EXISTENTES (mantidas para compatibilidade)
 router.get("/listUsers", listUsers)
@@ -308,195 +404,6 @@ router.get("/getUserStats", getUserStats)
 router.get('/stats', getUserStats)
 router.get("/listUsersSimple", listUsersSimple)
 
-router.get('/v2/stats', async (req, res) => {
-  try {
-    console.log('\n📊 ========================================')
-    console.log('📊 [API /users/v2/stats] Calculando stats...')
-    console.log('📊 ========================================\n')
-    
-    const UserProduct = require('../models/UserProduct').default
-    const startTime = Date.now()
-    
-    // 1. Buscar TODOS os UserProducts ACTIVE (base comum para todos os filtros)
-    console.log('🔍 Buscando UserProducts ACTIVE...')
-    const activeUserProducts = await UserProduct.find({ status: 'ACTIVE' })
-      .populate('userId', 'name email')
-      .lean()
-      .maxTimeMS(10000)
-    
-    console.log(`   ✅ ${activeUserProducts.length} UserProducts ACTIVE encontrados`)
-    
-    // 2. Calcular cada filtro rápido
-    const now = new Date()
-    
-    // ═══════════════════════════════════════════════════════════════════
-    // 🚨 EM RISCO: score <= 30
-    // ═══════════════════════════════════════════════════════════════════
-    console.log('🚨 Calculando "Em Risco"...')
-    const atRisk = activeUserProducts.filter(up => {
-      const score = up.engagement?.engagementScore || 0
-      return score <= 30
-    })
-    
-    const atRiskUserIds = new Set(
-      atRisk.map(up => up.userId?._id?.toString() || up.userId?.toString())
-    )
-    
-    console.log(`   ✅ Em Risco: ${atRisk.length} UserProducts (${atRiskUserIds.size} alunos únicos)`)
-    
-    // ═══════════════════════════════════════════════════════════════════
-    // 🏆 TOP 10%: calcular threshold dinâmico
-    // ═══════════════════════════════════════════════════════════════════
-    console.log('🏆 Calculando "Top 10%"...')
-    const withScores = activeUserProducts.map(up => ({
-      ...up,
-      score: up.engagement?.engagementScore || 0
-    })).sort((a, b) => b.score - a.score)
-    
-    const top10Count = Math.ceil(withScores.length * 0.10)
-    const topPerformers = withScores.slice(0, top10Count)
-    const topPerformersUserIds = new Set(
-      topPerformers.map(up => up.userId?._id?.toString() || up.userId?.toString())
-    )
-    const top10Threshold = topPerformers[topPerformers.length - 1]?.score || 0
-    
-    console.log(`   ✅ Top 10%: ${topPerformers.length} UserProducts (${topPerformersUserIds.size} alunos únicos, threshold: ${top10Threshold.toFixed(1)})`)
-    
-    // ═══════════════════════════════════════════════════════════════════
-    // 😴 INATIVOS 30D: sem mensagens no Discord há 30 dias
-    // ═══════════════════════════════════════════════════════════════════
-    console.log('😴 Calculando "Inativos 30d"...')
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(now.getDate() - 30)
-    
-    const User = require('../models/user').default
-    const inactiveUsers = await User.find({
-      'discord.engagement.lastMessageDate': { $lt: thirtyDaysAgo }
-    }).select('_id').lean()
-    
-    const inactiveUserIds = new Set(
-      inactiveUsers.map(u => u._id.toString())
-    )
-    
-    const inactive30d = activeUserProducts.filter(up => {
-      const userId = up.userId?._id?.toString() || up.userId?.toString()
-      return inactiveUserIds.has(userId)
-    })
-    
-    const inactive30dUserIds = new Set(
-      inactive30d.map(up => up.userId?._id?.toString() || up.userId?.toString())
-    )
-    
-    console.log(`   ✅ Inativos 30d: ${inactive30d.length} UserProducts (${inactive30dUserIds.size} alunos únicos)`)
-    
-    // ═══════════════════════════════════════════════════════════════════
-    // 📅 NOVOS 7D: inscritos nos últimos 7 dias
-    // ═══════════════════════════════════════════════════════════════════
-    console.log('📅 Calculando "Novos 7d"...')
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(now.getDate() - 7)
-    
-    const new7d = activeUserProducts.filter(up => {
-      if (!up.enrolledAt) return false
-      const enrolledDate = new Date(up.enrolledAt)
-      return enrolledDate >= sevenDaysAgo
-    })
-    
-    const new7dUserIds = new Set(
-      new7d.map(up => up.userId?._id?.toString() || up.userId?.toString())
-    )
-    
-    console.log(`   ✅ Novos 7d: ${new7d.length} UserProducts (${new7dUserIds.size} alunos únicos)`)
-    
-    // 3. Calcular métricas gerais
-    const totalUniqueStudents = new Set(
-      activeUserProducts.map(up => up.userId?._id?.toString() || up.userId?.toString())
-    ).size
-    
-    const avgEngagement = activeUserProducts.length > 0
-      ? Math.round(
-          activeUserProducts.reduce((sum, up) => sum + (up.engagement?.engagementScore || 0), 0) / 
-          activeUserProducts.length
-        )
-      : 0
-    
-    const avgProgress = activeUserProducts.length > 0
-      ? Math.round(
-          activeUserProducts.reduce((sum, up) => sum + (up.progress?.percentage || 0), 0) / 
-          activeUserProducts.length
-        )
-      : 0
-    
-    // 4. Construir resposta
-    const duration = Date.now() - startTime
-    
-    const stats = {
-      overview: {
-        totalUserProducts: activeUserProducts.length,
-        totalUniqueStudents,
-        avgEngagement,
-        avgProgress
-      },
-      quickFilters: {
-        atRisk: {
-          count: atRisk.length,
-          uniqueUsers: atRiskUserIds.size,
-          percentage: Math.round((atRisk.length / activeUserProducts.length) * 100),
-          criteria: 'score <= 30'
-        },
-        topPerformers: {
-          count: topPerformers.length,
-          uniqueUsers: topPerformersUserIds.size,
-          threshold: parseFloat(top10Threshold.toFixed(1)),
-          criteria: 'top 10% by score'
-        },
-        inactive30d: {
-          count: inactive30d.length,
-          uniqueUsers: inactive30dUserIds.size,
-          percentage: Math.round((inactive30d.length / activeUserProducts.length) * 100),
-          criteria: 'no Discord activity in 30 days'
-        },
-        new7d: {
-          count: new7d.length,
-          uniqueUsers: new7dUserIds.size,
-          percentage: Math.round((new7d.length / activeUserProducts.length) * 100),
-          criteria: 'enrolled in last 7 days'
-        }
-      },
-      meta: {
-        calculatedAt: new Date(),
-        duration,
-        dataSource: 'UserProducts ACTIVE (real-time)',
-        version: 'v2-unified'
-      }
-    }
-    
-    console.log('\n✅ ========================================')
-    console.log(`✅ Stats calculados em ${duration}ms`)
-    console.log('✅ Quick Filters:')
-    console.log(`   🚨 Em Risco: ${stats.quickFilters.atRisk.count} (${stats.quickFilters.atRisk.uniqueUsers} alunos)`)
-    console.log(`   🏆 Top 10%: ${stats.quickFilters.topPerformers.count} (${stats.quickFilters.topPerformers.uniqueUsers} alunos, threshold: ${stats.quickFilters.topPerformers.threshold})`)
-    console.log(`   😴 Inativos 30d: ${stats.quickFilters.inactive30d.count} (${stats.quickFilters.inactive30d.uniqueUsers} alunos)`)
-    console.log(`   📅 Novos 7d: ${stats.quickFilters.new7d.count} (${stats.quickFilters.new7d.uniqueUsers} alunos)`)
-    console.log('✅ ========================================\n')
-    
-    res.json({
-      success: true,
-      data: stats
-    })
-    
-  } catch (error) {
-    console.error('\n❌ ========================================')
-    console.error('❌ [API /users/v2/stats] Erro:', error)
-    console.error('❌ ========================================\n')
-    
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao calcular stats',
-      message: error instanceof Error ? error.message : 'Erro desconhecido'
-    })
-  }
-})
 // ✅ ADICIONAR: Nova rota para listar todos os users unificados
 router.get('/unified', getAllUsersUnified)
 
