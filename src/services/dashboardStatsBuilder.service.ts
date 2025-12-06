@@ -215,11 +215,29 @@ export async function buildDashboardStats(): Promise<void> {
       platformCounts.get(up.platform)!.add(userId);
     });
     
-    const byPlatform = Array.from(platformCounts.entries()).map(([platform, userIds]) => ({
-      platform,
-      users: userIds.size,
-      percentage: Math.round((userIds.size / totalUsers) * 100)
-    }));
+// Mapeamento de plataformas para nomes e ícones
+const platformIcons: Record<string, string> = {
+  'hotmart': '🛒',
+  'curseduca': '🎓',
+  'discord': '💬'
+};
+
+const platformNames: Record<string, string> = {
+  'hotmart': 'Hotmart',
+  'curseduca': 'CursEduca',
+  'discord': 'Discord'
+};
+
+const byPlatform = Array.from(platformCounts.entries()).map(([platform, userIds]) => {
+  const platformLower = platform.toLowerCase();
+  
+  return {
+    name: platformNames[platformLower] || platform,
+    icon: platformIcons[platformLower] || '📦',
+    count: userIds.size,
+    percentage: Math.round((userIds.size / totalUsers) * 100)
+  };
+});
     
     const platformDistribution = byPlatform.map(p => ({
       name: p.platform,
