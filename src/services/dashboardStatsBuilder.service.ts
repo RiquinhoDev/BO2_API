@@ -240,14 +240,14 @@ const byPlatform = Array.from(platformCounts.entries()).map(([platform, userIds]
 });
     
     const platformDistribution = byPlatform.map(p => ({
-      name: p.platform,
-      value: p.users,
+      name: p.name,
+      value: p.count,
       percentage: p.percentage
     }));
     
     console.log('   Distribuição calculada:');
     byPlatform.forEach(p => {
-      console.log(`   - ${p.platform}: ${p.users} alunos (${p.percentage}%)`);
+      console.log(`   - ${p.name}: ${p.count} alunos (${p.percentage}%)`);
     });
     
     // 5. Calcular Health Score
