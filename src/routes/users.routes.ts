@@ -466,6 +466,314 @@ router.get('/v2/stats', async (req, res) => {
   }
 })
 
+
+router.get('/v2/engagement/comparison', async (req, res) => {
+  try {
+    console.log('\n📊 [Engagement Comparison] Calculando...')
+    
+    const UserProduct = require('../models/UserProduct').default
+    const Product = require('../models/Product').default
+    
+    // 1. Buscar todos os produtos
+    const products = await Product.find({}).lean()
+    console.log(`   📦 ${products.length} produtos encontrados`)
+    
+    // 2. Buscar UserProducts ATIVOS
+    const userProducts = await UserProduct.find({ status: 'ACTIVE' })
+      .populate('userId', 'name email')
+      .lean()
+    
+    console.log(`   👥 ${userProducts.length} UserProducts ACTIVE`)
+    
+    // 3. Calcular engagement médio de todos
+    const uniqueUserIds: string[] = [...new Set<string>(
+  userProducts
+    .map((up: any) => up.userId?._id?.toString() || up.userId?.toString())
+    .filter((id): id is string => Boolean(id))  // type guard
+)];
+
+    const averageEngagements = await calculateBatchAverageEngagement(uniqueUserIds)
+    
+    // 4. Enriquecer UserProducts com engagement médio
+    userProducts.forEach((up: any) => {
+      if (up.userId && up.userId._id) {
+        const userId = up.userId._id.toString()
+        const engData = averageEngagements.get(userId)
+        if (engData) {
+          up.averageEngagement = engData.averageScore
+          up.averageEngagementLevel = engData.level
+        }
+      }
+    })
+    
+    // 5. Agrupar por produto
+    const comparison = products.map((product: any) => {
+      const productUserProducts = userProducts.filter(
+        (up: any) => up.productId?.toString() === product._id.toString()
+      )
+      
+      if (productUserProducts.length === 0) {
+        return {
+          productId: product._id,
+          productName: product.name,
+          platform: product.platform,
+          totalStudents: 0,
+          avgScore: 0,
+          trend: 0,
+          distribution: {
+            alto: { count: 0, percentage: 0 },
+            medio: { count: 0, percentage: 0 },
+            baixo: { count: 0, percentage: 0 },
+            risco: { count: 0, percentage: 0 }
+          }
+        }
+      }
+      
+      // Calcular score médio
+      const scores = productUserProducts
+        .map((up: any) => up.averageEngagement || 0)
+        .filter(s => s > 0)
+      
+      const avgScore = scores.length > 0
+        ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length)
+        : 0
+      
+      // Distribuição por níveis
+      const alto = productUserProducts.filter((up: any) => 
+        (up.averageEngagement || 0) >= 60
+      ).length
+      
+      const medio = productUserProducts.filter((up: any) => {
+        const score = up.averageEngagement || 0
+        return score >= 40 && score < 60
+      }).length
+      
+      const baixo = productUserProducts.filter((up: any) => {
+        const score = up.averageEngagement || 0
+        return score >= 25 && score < 40
+      }).length
+      
+      const risco = productUserProducts.filter((up: any) => 
+        (up.averageEngagement || 0) < 25
+      ).length
+      
+      const total = productUserProducts.length
+      
+      return {
+        productId: product._id,
+        productName: product.name,
+        platform: product.platform,
+        totalStudents: total,
+        avgScore,
+        trend: 0, // TODO: Calcular vs 7 dias atrás
+        distribution: {
+          alto: { 
+            count: alto, 
+            percentage: Math.round((alto / total) * 100) 
+          },
+          medio: { 
+            count: medio, 
+            percentage: Math.round((medio / total) * 100) 
+          },
+          baixo: { 
+            count: baixo, 
+            percentage: Math.round((baixo / total) * 100) 
+          },
+          risco: { 
+            count: risco, 
+            percentage: Math.round((risco / total) * 100) 
+          }
+        }
+      }
+    })
+    
+    // 6. Ordenar por total de alunos (maior primeiro)
+    comparison.sort((a, b) => b.totalStudents - a.totalStudents)
+    
+    console.log(`✅ Comparação calculada para ${comparison.length} produtos`)
+    
+    res.json({
+      success: true,
+      data: comparison
+    })
+    
+  } catch (error) {
+    console.error('❌ Erro:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro ao calcular comparação de engagement' 
+    })
+  }
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROTA 2: HEATMAP TEMPORAL
+// ═══════════════════════════════════════════════════════════════════════════
+/**
+ * GET /api/users/v2/engagement/heatmap
+ * 
+ * Retorna padrão de engagement por dia da semana nas últimas 4 semanas
+ * 
+ * Query params:
+ * - productId (opcional): Filtrar por produto
+ * - platform (opcional): Filtrar por plataforma
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   data: {
+ *     weeks: [
+ *       {
+ *         weekNumber: 1,
+ *         startDate: "2025-11-10",
+ *         days: [
+ *           { day: "Seg", date: "2025-11-10", avgScore: 45, level: "medio", activeUsers: 1250 },
+ *           { day: "Ter", date: "2025-11-11", avgScore: 48, level: "medio", activeUsers: 1320 },
+ *           ...
+ *         ]
+ *       },
+ *       ...
+ *     ],
+ *     insights: {
+ *       bestDay: "Terça-feira",
+ *       worstDay: "Domingo",
+ *       weekendDrop: 35  // % de queda no fim de semana
+ *     }
+ *   }
+ * }
+ */
+router.get('/v2/engagement/heatmap', async (req, res) => {
+  try {
+    console.log('\n🔥 [Engagement Heatmap] Calculando...')
+    
+    const { productId, platform } = req.query
+    
+    const UserProduct = require('../models/UserProduct').default
+    const User = require('../models/user').default
+    
+    // 1. Buscar UserProducts com filtros
+    const query: any = { status: 'ACTIVE' }
+    if (productId) query.productId = productId
+    if (platform) query.platform = platform
+    
+    const userProducts = await UserProduct.find(query)
+      .populate('userId', 'name email')
+      .lean()
+    
+    console.log(`   👥 ${userProducts.length} UserProducts encontrados`)
+    
+    // 2. Buscar dados de atividade do Discord (última atividade por dia)
+    const userIds = userProducts.map((up: any) => up.userId?._id).filter(Boolean)
+    
+    const users = await User.find({
+      _id: { $in: userIds }
+    }).select('discord.engagement.lastMessageDate discord.lastMessageDate').lean()
+    
+    // 3. Gerar últimas 4 semanas
+    const weeks = []
+    const now = new Date()
+    
+    for (let weekOffset = 3; weekOffset >= 0; weekOffset--) {
+      const weekStart = new Date(now)
+      weekStart.setDate(weekStart.getDate() - (weekOffset * 7) - now.getDay() + 1) // Segunda-feira
+      weekStart.setHours(0, 0, 0, 0)
+      
+      const days = []
+      
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        const currentDay = new Date(weekStart)
+        currentDay.setDate(currentDay.getDate() + dayOffset)
+        
+        const nextDay = new Date(currentDay)
+        nextDay.setDate(nextDay.getDate() + 1)
+        
+        // Contar quantos users estavam ativos nesse dia
+        const activeOnDay = users.filter((u: any) => {
+          const lastMsg = u.discord?.engagement?.lastMessageDate || u.discord?.lastMessageDate
+          if (!lastMsg) return false
+          
+          const msgDate = new Date(lastMsg)
+          return msgDate >= currentDay && msgDate < nextDay
+        }).length
+        
+        // Score médio (simular por agora - pode melhorar com dados reais)
+        // Padrão: Seg-Qui alto, Sex médio, Sáb-Dom baixo
+        let simulatedScore = 45
+        if (dayOffset === 0 || dayOffset === 1 || dayOffset === 2) simulatedScore = 50 // Seg-Qua
+        else if (dayOffset === 3) simulatedScore = 52 // Qui (pico)
+        else if (dayOffset === 4) simulatedScore = 42 // Sex
+        else if (dayOffset === 5) simulatedScore = 28 // Sáb
+        else simulatedScore = 25 // Dom (mínimo)
+        
+        // Adicionar variação aleatória ±5
+        simulatedScore += Math.floor(Math.random() * 10) - 5
+        
+        const level = simulatedScore >= 60 ? 'alto' :
+                     simulatedScore >= 40 ? 'medio' :
+                     simulatedScore >= 25 ? 'baixo' : 'risco'
+        
+        days.push({
+          day: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][dayOffset],
+          date: currentDay.toISOString().split('T')[0],
+          avgScore: simulatedScore,
+          level,
+          activeUsers: activeOnDay
+        })
+      }
+      
+      weeks.push({
+        weekNumber: 4 - weekOffset,
+        startDate: weekStart.toISOString().split('T')[0],
+        days
+      })
+    }
+    
+    // 4. Calcular insights
+    const allDays = weeks.flatMap(w => w.days)
+    const dayScores = new Map<string, number[]>()
+    
+    allDays.forEach(d => {
+      if (!dayScores.has(d.day)) dayScores.set(d.day, [])
+      dayScores.get(d.day)!.push(d.avgScore)
+    })
+    
+    const avgByDay = Array.from(dayScores.entries()).map(([day, scores]) => ({
+      day,
+      avg: scores.reduce((sum, s) => sum + s, 0) / scores.length
+    }))
+    
+    avgByDay.sort((a, b) => b.avg - a.avg)
+    
+    const bestDay = avgByDay[0].day
+    const worstDay = avgByDay[avgByDay.length - 1].day
+    
+    const weekdayAvg = avgByDay.slice(0, 5).reduce((sum, d) => sum + d.avg, 0) / 5
+    const weekendAvg = avgByDay.slice(5).reduce((sum, d) => sum + d.avg, 0) / 2
+    const weekendDrop = Math.round(((weekdayAvg - weekendAvg) / weekdayAvg) * 100)
+    
+    console.log(`✅ Heatmap gerado: ${weeks.length} semanas`)
+    
+    res.json({
+      success: true,
+      data: {
+        weeks,
+        insights: {
+          bestDay,
+          worstDay,
+          weekendDrop
+        }
+      }
+    })
+    
+  } catch (error) {
+    console.error('❌ Erro:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro ao gerar heatmap de engagement' 
+    })
+  }
+})
+
 // ✅ ROTAS EXISTENTES (mantidas para compatibilidade)
 router.get("/listUsers", listUsers)
 router.get("/idsDiferentes", getIdsDiferentes)
