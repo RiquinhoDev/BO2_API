@@ -36,6 +36,7 @@ import {
 
 // 🎯 FASE 4 & 5: Import do serviço unificado
 import { getAllUsersUnified as getAllUsersUnifiedService } from "../services/dualReadService"
+import { calculateBatchAverageEngagement } from "../services/engagementCalculator.service"
 
 const router = Router()
 const upload = multer({ dest: "uploads/" })
@@ -96,7 +97,47 @@ const unifiedUserProducts = await UserProduct.find({})
   .maxTimeMS(10000) // Timeout 10s
 
 const fetchDuration = Date.now() - startFetch
-console.log(`✅ [API /users/v2] ${unifiedUserProducts.length} UserProducts em ${fetchDuration}ms`)
+    console.log(`✅ [API /users/v2] ${unifiedUserProducts.length} UserProducts em ${fetchDuration}ms`)
+    // ──────────────────────────────────────────────────────────
+// 1.5. CALCULAR ENGAGEMENT MÉDIO PARA TODOS OS USERS
+// ──────────────────────────────────────────────────────────
+console.log('🧮 [API /users/v2] Calculando engagement médio...')
+const engagementStart = Date.now()
+
+// Obter IDs únicos de users
+const uniqueUserIds: string[] = [...new Set<string>(
+  unifiedUserProducts
+    .map((up: any) => up.userId?._id?.toString() || up.userId?.toString())
+    .filter((id): id is string => Boolean(id))  // type guard
+)];
+
+
+console.log(`   📊 ${uniqueUserIds.length} users únicos encontrados`)
+
+// Calcular engagement médio em batch (performance!)
+const averageEngagements = await calculateBatchAverageEngagement(uniqueUserIds)
+
+// Enriquecer cada UserProduct com engagement médio do user
+unifiedUserProducts.forEach((up: any) => {
+  if (up.userId && up.userId._id) {
+    const userId = up.userId._id.toString()
+    const engagementData = averageEngagements.get(userId)
+    
+    if (engagementData) {
+      // Adicionar ao objeto userId (para frontend acessar)
+      up.userId.averageEngagement = engagementData.averageScore
+      up.userId.averageEngagementLevel = engagementData.level
+      
+      // Também adicionar direto no UserProduct (backup)
+      up.averageEngagement = engagementData.averageScore
+      up.averageEngagementLevel = engagementData.level
+    }
+  }
+})
+
+const engagementDuration = Date.now() - engagementStart
+console.log(`✅ [API /users/v2] Engagement calculado em ${engagementDuration}ms`)
+
     // ──────────────────────────────────────────────────────────
     // 2. APLICAR FILTROS
     // ──────────────────────────────────────────────────────────
