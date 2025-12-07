@@ -347,7 +347,29 @@ router.get('/v2/stats', async (req, res) => {
     )
     console.log(`📅 Novos 7d: ${new7d.length}`)
     
-    // 6. RESPOSTA
+    // 6. CALCULAR DISTRIBUIÇÃO POR PLATAFORMA
+    const platformCounts = new Map<string, number>()
+    active.forEach(up => {
+      const platform = up.platform || 'unknown'
+      platformCounts.set(platform, (platformCounts.get(platform) || 0) + 1)
+    })
+    
+    const byPlatform = Array.from(platformCounts.entries()).map(([name, count]) => {
+      const icon = name === 'hotmart' ? '🔥' : 
+                   name === 'curseduca' ? '📚' : 
+                   name === 'discord' ? '💬' : '🌟'
+      
+      return {
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        count,
+        percentage: parseFloat(((count / active.length) * 100).toFixed(1)),
+        icon
+      }
+    }).sort((a, b) => b.count - a.count)
+    
+    console.log(`📦 Plataformas:`, byPlatform)
+    
+    // 7. RESPOSTA
     res.json({
       success: true,
       data: {
@@ -369,7 +391,7 @@ router.get('/v2/stats', async (req, res) => {
             progress: 10
           }
         },
-        byPlatform: [],
+        byPlatform,
         quickFilters: {
           atRisk: atRisk.length,
           topPerformers: topPerformers.length,
