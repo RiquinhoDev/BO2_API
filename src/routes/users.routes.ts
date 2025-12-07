@@ -213,14 +213,20 @@ if (search && typeof search === 'string') {
     }
     
     // Filtro: Engagement (suporta CSV: "MUITO_BAIXO,BAIXO")
-    if (engagementLevel && typeof engagementLevel === 'string') {
-      const levels = engagementLevel.split(',').map(l => l.trim().toUpperCase())
-      filtered = filtered.filter((up: any) => {
-        const level = (up.engagement?.engagementLevel || '').toUpperCase()
-        return levels.includes(level)
-      })
-      console.log(`🔍 [Filtro Engagement] "${engagementLevel}": ${filtered.length} resultados`)
-    }
+// Filtro: Engagement Level (USAR MÉDIA!)
+  if (engagementLevel && engagementLevel !== 'todos') {
+    const levels = (engagementLevel as string).split(',').map(l => l.trim().toUpperCase())
+    
+    filtered = filtered.filter((up: any) => {
+      // ✅ USAR ENGAGEMENT MÉDIO DO USER (não do produto individual)
+      const level = (up.userId?.averageEngagementLevel || 
+                    up.averageEngagementLevel || 
+                    'MUITO_BAIXO').toUpperCase()
+      return levels.includes(level)
+    })
+    
+    console.log(`🔍 [Filtro EngagementLevel] "${engagementLevel}": ${filtered.length} resultados`)
+  }
     
     // Filtro: Data de Inscrição (enrolledAfter)
     if (enrolledAfter && typeof enrolledAfter === 'string') {
@@ -287,11 +293,17 @@ if (topPercentage && typeof topPercentage === 'string') {
     filtered = withScores.slice(0, topCount)
   }
 }
-    filtered.sort((a: any, b: any) => {
-      const engA = a.engagement?.engagementScore || 0
-      const engB = b.engagement?.engagementScore || 0
-      return engB - engA // Maior engagement primeiro
-    })
+// Ordenação por engagement MÉDIO (decrescente)
+filtered.sort((a: any, b: any) => {
+  // ✅ USAR ENGAGEMENT MÉDIO DO USER
+  const scoreA = a.userId?.averageEngagement || 
+                 a.averageEngagement || 
+                 a.engagement?.engagementScore || 0
+  const scoreB = b.userId?.averageEngagement || 
+                 b.averageEngagement || 
+                 b.engagement?.engagementScore || 0
+  return scoreB - scoreA
+})
     
     // ──────────────────────────────────────────────────────────
     // 4. PAGINAÇÃO
