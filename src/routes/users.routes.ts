@@ -347,119 +347,317 @@ filtered.sort((a: any, b: any) => {
     })
   }
 })
+// router.get('/v2/stats', async (req, res) => {
+//   try {
+//     console.log('\n🎯 [/v2/stats] Calculando stats alinhados...')
+    
+//     const UserProduct = require('../models/UserProduct').default
+//     const User = require('../models/user').default
+    
+//     // 1. BASE: UserProducts ACTIVE
+//     const active = await UserProduct.find({ status: 'ACTIVE' })
+//       .populate('userId', 'name email')
+//       .lean()
+    
+//     console.log(`✅ Base: ${active.length} UserProducts ACTIVE`)
+    
+//     // 2. EM RISCO: engagement <= 30
+//     const atRisk = active.filter(up => 
+//       (up.engagement?.engagementScore || 0) <= 30
+//     )
+//     console.log(`🚨 Em Risco: ${atRisk.length}`)
+    
+//     // 3. TOP 10%
+//     const sorted = [...active].sort((a, b) => 
+//       (b.engagement?.engagementScore || 0) - (a.engagement?.engagementScore || 0)
+//     )
+//     const top10Count = Math.ceil(active.length * 0.10)
+//     const topPerformers = sorted.slice(0, top10Count)
+//     console.log(`🏆 Top 10%: ${topPerformers.length}`)
+    
+//     // 4. INATIVOS 30D
+//     const thirtyDaysAgo = new Date()
+//     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    
+//     const inactiveUsers = await User.find({
+//       'discord.engagement.lastMessageDate': { $lt: thirtyDaysAgo }
+//     }).select('_id').lean()
+    
+//     const inactiveIds = new Set(inactiveUsers.map(u => u._id.toString()))
+    
+//     const inactive30d = active.filter(up => {
+//       const userId = up.userId?._id?.toString() || up.userId?.toString()
+//       return inactiveIds.has(userId)
+//     })
+//     console.log(`😴 Inativos 30d: ${inactive30d.length}`)
+    
+//     // 5. NOVOS 7D
+//     const sevenDaysAgo = new Date()
+//     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    
+//     const new7d = active.filter(up => 
+//       up.enrolledAt && new Date(up.enrolledAt) >= sevenDaysAgo
+//     )
+//     console.log(`📅 Novos 7d: ${new7d.length}`)
+    
+//     // 6. CALCULAR DISTRIBUIÇÃO POR PLATAFORMA
+//     const platformCounts = new Map<string, number>()
+//     active.forEach(up => {
+//       const platform = up.platform || 'unknown'
+//       platformCounts.set(platform, (platformCounts.get(platform) || 0) + 1)
+//     })
+    
+//     const byPlatform = Array.from(platformCounts.entries()).map(([name, count]) => {
+//       const icon = name === 'hotmart' ? '🔥' : 
+//                    name === 'curseduca' ? '📚' : 
+//                    name === 'discord' ? '💬' : '🌟'
+      
+//       return {
+//         name: name.charAt(0).toUpperCase() + name.slice(1),
+//         count,
+//         percentage: parseFloat(((count / active.length) * 100).toFixed(1)),
+//         icon
+//       }
+//     }).sort((a, b) => b.count - a.count)
+    
+//     console.log(`📦 Plataformas:`, byPlatform)
+    
+//     // 7. RESPOSTA
+//     res.json({
+//       success: true,
+//       data: {
+//         overview: {
+//           totalStudents: active.length,
+//           avgEngagement: active.reduce((sum, up) => sum + (up.engagement?.engagementScore || 0), 0) / active.length,
+//           avgProgress: active.reduce((sum, up) => sum + (up.progress?.percentage || 0), 0) / active.length,
+//           activeCount: active.length,
+//           activeRate: 100,
+//           atRiskCount: atRisk.length,
+//           atRiskRate: (atRisk.length / active.length) * 100,
+//           activeProducts: new Set(active.map(up => up.productId?.toString())).size,
+//           healthScore: 75,
+//           healthLevel: 'BOM',
+//           healthBreakdown: {
+//             engagement: 40,
+//             retention: 30,
+//             growth: 20,
+//             progress: 10
+//           }
+//         },
+//         byPlatform,
+//         quickFilters: {
+//           atRisk: atRisk.length,
+//           topPerformers: topPerformers.length,
+//           inactive30d: inactive30d.length,
+//           new7d: new7d.length
+//         },
+//         meta: {
+//           calculatedAt: new Date().toISOString(),
+//           durationMs: 0
+//         }
+//       }
+//     })
+    
+//     console.log('✅ Stats alinhados enviados!\n')
+    
+//   } catch (error) {
+//     console.error('❌ Erro:', error)
+//     res.status(500).json({ success: false, error: 'Erro ao calcular stats' })
+//   }
+// })
 router.get('/v2/stats', async (req, res) => {
   try {
     console.log('\n🎯 [/v2/stats] Calculando stats alinhados...')
-    
+
     const UserProduct = require('../models/UserProduct').default
     const User = require('../models/user').default
-    
+
     // 1. BASE: UserProducts ACTIVE
     const active = await UserProduct.find({ status: 'ACTIVE' })
       .populate('userId', 'name email')
       .lean()
-    
+
     console.log(`✅ Base: ${active.length} UserProducts ACTIVE`)
-    
-    // 2. EM RISCO: engagement <= 30
-    const atRisk = active.filter(up => 
-      (up.engagement?.engagementScore || 0) <= 30
+
+    // 1.1 USERS ÚNICOS (para totalStudents / activeCount / health)
+    const uniqueUserIds = new Set<string>()
+    active.forEach((up: any) => {
+      const userId = up.userId?._id?.toString() || up.userId?.toString()
+      if (userId) uniqueUserIds.add(userId)
+    })
+    const totalUniqueStudents = uniqueUserIds.size
+    console.log(`👥 Users únicos (ACTIVE): ${totalUniqueStudents}`)
+
+    // 2. EM RISCO: engagement <= 30 (mantém a lógica por UserProduct)
+    const atRisk = active.filter(
+      (up) => (up.engagement?.engagementScore || 0) <= 30,
     )
     console.log(`🚨 Em Risco: ${atRisk.length}`)
-    
+
+    const atRiskRate =
+      active.length > 0 ? (atRisk.length / active.length) * 100 : 0
+
     // 3. TOP 10%
-    const sorted = [...active].sort((a, b) => 
-      (b.engagement?.engagementScore || 0) - (a.engagement?.engagementScore || 0)
+    const sorted = [...active].sort(
+      (a, b) =>
+        (b.engagement?.engagementScore || 0) -
+        (a.engagement?.engagementScore || 0),
     )
-    const top10Count = Math.ceil(active.length * 0.10)
+    const top10Count = Math.ceil(active.length * 0.1)
     const topPerformers = sorted.slice(0, top10Count)
     console.log(`🏆 Top 10%: ${topPerformers.length}`)
-    
+
     // 4. INATIVOS 30D
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    
+
     const inactiveUsers = await User.find({
-      'discord.engagement.lastMessageDate': { $lt: thirtyDaysAgo }
-    }).select('_id').lean()
-    
-    const inactiveIds = new Set(inactiveUsers.map(u => u._id.toString()))
-    
-    const inactive30d = active.filter(up => {
+      'discord.engagement.lastMessageDate': { $lt: thirtyDaysAgo },
+    })
+      .select('_id')
+      .lean()
+
+    const inactiveIds = new Set(inactiveUsers.map((u) => u._id.toString()))
+
+    const inactive30d = active.filter((up) => {
       const userId = up.userId?._id?.toString() || up.userId?.toString()
-      return inactiveIds.has(userId)
+      return userId && inactiveIds.has(userId)
     })
     console.log(`😴 Inativos 30d: ${inactive30d.length}`)
-    
-    // 5. NOVOS 7D
+
+    // 5. NOVOS 7D (continua a ser por UserProduct)
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    
-    const new7d = active.filter(up => 
-      up.enrolledAt && new Date(up.enrolledAt) >= sevenDaysAgo
+
+    const new7d = active.filter(
+      (up) => up.enrolledAt && new Date(up.enrolledAt) >= sevenDaysAgo,
     )
     console.log(`📅 Novos 7d: ${new7d.length}`)
-    
-    // 6. CALCULAR DISTRIBUIÇÃO POR PLATAFORMA
+
+    // 6. DISTRIBUIÇÃO POR PLATAFORMA (mantém a lógica por UserProduct)
     const platformCounts = new Map<string, number>()
-    active.forEach(up => {
+    active.forEach((up) => {
       const platform = up.platform || 'unknown'
       platformCounts.set(platform, (platformCounts.get(platform) || 0) + 1)
     })
-    
-    const byPlatform = Array.from(platformCounts.entries()).map(([name, count]) => {
-      const icon = name === 'hotmart' ? '🔥' : 
-                   name === 'curseduca' ? '📚' : 
-                   name === 'discord' ? '💬' : '🌟'
-      
-      return {
-        name: name.charAt(0).toUpperCase() + name.slice(1),
-        count,
-        percentage: parseFloat(((count / active.length) * 100).toFixed(1)),
-        icon
-      }
-    }).sort((a, b) => b.count - a.count)
-    
+
+    const byPlatform = Array.from(platformCounts.entries())
+      .map(([name, count]) => {
+        const icon =
+          name === 'hotmart'
+            ? '🔥'
+            : name === 'curseduca'
+              ? '📚'
+              : name === 'discord'
+                ? '💬'
+                : '🌟'
+
+        return {
+          name: name.charAt(0).toUpperCase() + name.slice(1),
+          count,
+          percentage: active.length
+            ? parseFloat(((count / active.length) * 100).toFixed(1))
+            : 0,
+          icon,
+        }
+      })
+      .sort((a, b) => b.count - a.count)
+
     console.log(`📦 Plataformas:`, byPlatform)
-    
+
+    // 6.1 MÉTRICAS GERAIS (agora em variáveis para usar no healthScore)
+    const avgEngagement =
+      active.length > 0
+        ? active.reduce(
+            (sum, up) => sum + (up.engagement?.engagementScore || 0),
+            0,
+          ) / active.length
+        : 0
+
+    const avgProgress =
+      active.length > 0
+        ? active.reduce(
+            (sum, up) => sum + (up.progress?.percentage || 0),
+            0,
+          ) / active.length
+        : 0
+
+    const activeProducts = new Set(
+      active.map((up) => up.productId?.toString()),
+    ).size
+
+    // 6.2 🏥 HEALTH SCORE DINÂMICO (mesma filosofia da tua versão “longa”)
+    const engagementScore = Math.min((avgEngagement / 100) * 40, 40) // máx 40 pts
+    const retentionScore = Math.min(((100 - atRiskRate) / 100) * 30, 30) // máx 30 pts
+    const growthScore =
+      totalUniqueStudents > 0
+        ? Math.min((new7d.length / totalUniqueStudents) * 100 * 0.2, 20) // máx 20 pts
+        : 0
+    const progressScore = Math.min((avgProgress / 100) * 10, 10) // máx 10 pts
+
+    const healthScore = Math.round(
+      engagementScore + retentionScore + growthScore + progressScore,
+    )
+
+    const healthLevel =
+      healthScore >= 80
+        ? 'EXCELENTE'
+        : healthScore >= 60
+          ? 'BOM'
+          : healthScore >= 40
+            ? 'MODERADO'
+            : 'CRÍTICO'
+
+    console.log(
+      `❤️ Health Score: ${healthScore}/100 (${healthLevel}) | ` +
+        `E:${Math.round(engagementScore)} R:${Math.round(retentionScore)} ` +
+        `G:${Math.round(growthScore)} P:${Math.round(progressScore)}`,
+    )
+
     // 7. RESPOSTA
     res.json({
       success: true,
       data: {
         overview: {
-          totalStudents: active.length,
-          avgEngagement: active.reduce((sum, up) => sum + (up.engagement?.engagementScore || 0), 0) / active.length,
-          avgProgress: active.reduce((sum, up) => sum + (up.progress?.percentage || 0), 0) / active.length,
-          activeCount: active.length,
+          // 👇 AGORA EM USERS ÚNICOS
+          totalStudents: totalUniqueStudents,
+          activeCount: totalUniqueStudents,
           activeRate: 100,
+
+          // Mantém cálculo de engagement/progresso baseado nos UserProducts
+          avgEngagement,
+          avgProgress,
+
+          // Mantém contagem de risco e rate com base nos UserProducts
           atRiskCount: atRisk.length,
-          atRiskRate: (atRisk.length / active.length) * 100,
-          activeProducts: new Set(active.map(up => up.productId?.toString())).size,
-          healthScore: 75,
-          healthLevel: 'BOM',
+          atRiskRate,
+
+          activeProducts,
+          healthScore,
+          healthLevel,
           healthBreakdown: {
-            engagement: 40,
-            retention: 30,
-            growth: 20,
-            progress: 10
-          }
+            engagement: Math.round(engagementScore),
+            retention: Math.round(retentionScore),
+            growth: Math.round(growthScore),
+            progress: Math.round(progressScore),
+          },
         },
         byPlatform,
         quickFilters: {
+          // 👇 Mantido por UserProduct (não mexi)
           atRisk: atRisk.length,
           topPerformers: topPerformers.length,
           inactive30d: inactive30d.length,
-          new7d: new7d.length
+          new7d: new7d.length,
         },
         meta: {
           calculatedAt: new Date().toISOString(),
-          durationMs: 0
-        }
-      }
+          durationMs: 0,
+        },
+      },
     })
-    
+
     console.log('✅ Stats alinhados enviados!\n')
-    
   } catch (error) {
     console.error('❌ Erro:', error)
     res.status(500).json({ success: false, error: 'Erro ao calcular stats' })
