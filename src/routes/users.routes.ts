@@ -282,29 +282,127 @@ if (topPercentage && typeof topPercentage === 'string') {
   const percentage = parseInt(topPercentage)
   
   if (percentage > 0 && percentage <= 100) {
-    const withScores = filtered.map((up: any) => ({
-      ...up,
-      _calculatedScore: up.engagement?.engagementScore || 0
-    }))
+    console.log(`🏆 [Filtro Top ${percentage}%] Iniciando...`)
+    console.log(`   Total ANTES do filtro: ${filtered.length} UserProducts`)
     
-    withScores.sort((a, b) => b._calculatedScore - a._calculatedScore)
+    // ════════════════════════════════════════════════════════════════
+    // PASSO 1: AGRUPAR por USER único (pegar o melhor UP de cada user)
+    // ════════════════════════════════════════════════════════════════
+    const uniqueUsers = new Map<string, any>()
     
-    const topCount = Math.ceil(withScores.length * (percentage / 100))
-    filtered = withScores.slice(0, topCount)
+    filtered.forEach((up: any) => {
+      const userId = up.userId?._id?.toString() || up.userId?.toString()
+      if (!userId) return
+      
+      const existingUP = uniqueUsers.get(userId)
+      const currentEngagement = up.userId?.averageEngagement || up.averageEngagement || 0
+      const existingEngagement = existingUP?.userId?.averageEngagement || existingUP?.averageEngagement || 0
+      
+      // Manter o UserProduct com MAIOR engagement médio deste user
+      if (!existingUP || currentEngagement > existingEngagement) {
+        uniqueUsers.set(userId, up)
+      }
+    })
+    
+    console.log(`   Users únicos encontrados: ${uniqueUsers.size}`)
+    
+    // ════════════════════════════════════════════════════════════════
+    // PASSO 2: ORDENAR users por engagement médio (decrescente)
+    // ════════════════════════════════════════════════════════════════
+    const uniqueUsersArray = Array.from(uniqueUsers.values())
+    uniqueUsersArray.sort((a, b) => {
+      const scoreA = a.userId?.averageEngagement || a.averageEngagement || 0
+      const scoreB = b.userId?.averageEngagement || b.averageEngagement || 0
+      return scoreB - scoreA
+    })
+    
+    // ════════════════════════════════════════════════════════════════
+    // PASSO 3: PEGAR top N% de USERS
+    // ════════════════════════════════════════════════════════════════
+    const topCount = Math.ceil(uniqueUsersArray.length * (percentage / 100))
+    const topUsers = uniqueUsersArray.slice(0, topCount)
+    
+    console.log(`   Top ${percentage}% = ${topCount} users`)
+    
+
+
+    
+    // ════════════════════════════════════════════════════════════════
+    // PASSO 4: CRIAR Set de userId dos top users
+    // ════════════════════════════════════════════════════════════════
+    const topUserIds = new Set<string>(
+      topUsers.map(u => u.userId?._id?.toString() || u.userId?.toString()).filter(Boolean)
+    )
+    
+    console.log(`   IDs dos top users:`, Array.from(topUserIds).slice(0, 5), '...')
+    
+    // ════════════════════════════════════════════════════════════════
+    // PASSO 5: FILTRAR para manter TODOS os UserProducts dos top users
+    // ════════════════════════════════════════════════════════════════
+    filtered = filtered.filter((up: any) => {
+      const userId = up.userId?._id?.toString() || up.userId?.toString()
+      return userId && topUserIds.has(userId)
+    })
+    
+    console.log(`✅ [Filtro Top ${percentage}%] Total DEPOIS: ${filtered.length} UserProducts (de ${topCount} users)`)
+    
+    // ════════════════════════════════════════════════════════════════
+    // VALIDAÇÃO: Verificar se realmente filtramos corretamente
+    // ════════════════════════════════════════════════════════════════
+    const finalUniqueUsers = new Set(
+      filtered.map((up: any) => up.userId?._id?.toString() || up.userId?.toString())
+    )
+    console.log(`   ✓ Validação: ${finalUniqueUsers.size} users únicos no resultado final`)
+    
+    if (finalUniqueUsers.size !== topCount) {
+      console.warn(`   ⚠️ AVISO: Esperado ${topCount} users, mas temos ${finalUniqueUsers.size}`)
+    }
   }
 }
-// Ordenação por engagement MÉDIO (decrescente)
-filtered.sort((a: any, b: any) => {
-  // ✅ USAR ENGAGEMENT MÉDIO DO USER
-  const scoreA = a.userId?.averageEngagement || 
-                 a.averageEngagement || 
-                 a.engagement?.engagementScore || 0
-  const scoreB = b.userId?.averageEngagement || 
-                 b.averageEngagement || 
-                 b.engagement?.engagementScore || 0
-  return scoreB - scoreA
-})
+
+        // ──────────────────────────────────────────────────────────
+    // 3.9. DEDUPLICATE: Manter apenas 1 UserProduct por User
+    // ──────────────────────────────────────────────────────────
+    console.log('🔄 [DEDUPLICATE] Removendo UserProducts duplicados por user...')
+    console.log(`   Total ANTES: ${filtered.length} UserProducts`)
     
+    const uniqueUsersMap = new Map<string, any>()
+    
+    filtered.forEach((up: any) => {
+      const userId = up.userId?._id?.toString() || up.userId?.toString()
+      
+      if (!userId) {
+        console.log('   ⚠️ UserProduct sem userId:', up._id)
+        return
+      }
+      
+      const existing = uniqueUsersMap.get(userId)
+      const currentEngagement = up.userId?.averageEngagement || up.averageEngagement || 0
+      const existingEngagement = existing?.userId?.averageEngagement || existing?.averageEngagement || 0
+      
+      // Manter o UserProduct com MAIOR engagement médio
+      // (se user tem múltiplos produtos, mostrar só o melhor)
+      if (!existing || currentEngagement > existingEngagement) {
+        uniqueUsersMap.set(userId, up)
+      }
+    })
+    
+    // Substituir filtered pelos users únicos
+    filtered = Array.from(uniqueUsersMap.values())
+    
+    console.log(`✅ [DEDUPLICATE] Total DEPOIS: ${filtered.length} Users únicos`)
+    
+    // Validação: garantir que não há users duplicados
+    const userIds = filtered.map((up: any) => 
+      up.userId?._id?.toString() || up.userId?.toString()
+    )
+    const uniqueCount = new Set(userIds).size
+    
+    if (uniqueCount !== filtered.length) {
+      console.warn(`   ⚠️ AVISO: Ainda há duplicados! ${filtered.length} items mas ${uniqueCount} users únicos`)
+    } else {
+      console.log(`   ✓ Validação: Todos os users são únicos ✅`)
+    }
     // ──────────────────────────────────────────────────────────
     // 4. PAGINAÇÃO
     // ──────────────────────────────────────────────────────────
@@ -465,204 +563,6 @@ filtered.sort((a: any, b: any) => {
 //     res.status(500).json({ success: false, error: 'Erro ao calcular stats' })
 //   }
 // })
-router.get('/v2/stats', async (req, res) => {
-  try {
-    console.log('\n🎯 [/v2/stats] Calculando stats alinhados...')
-
-    const UserProduct = require('../models/UserProduct').default
-    const User = require('../models/user').default
-
-    // 1. BASE: UserProducts ACTIVE
-    const active = await UserProduct.find({ status: 'ACTIVE' })
-      .populate('userId', 'name email')
-      .lean()
-
-    console.log(`✅ Base: ${active.length} UserProducts ACTIVE`)
-
-    // 1.1 USERS ÚNICOS (para totalStudents / activeCount / health)
-    const uniqueUserIds = new Set<string>()
-    active.forEach((up: any) => {
-      const userId = up.userId?._id?.toString() || up.userId?.toString()
-      if (userId) uniqueUserIds.add(userId)
-    })
-    const totalUniqueStudents = uniqueUserIds.size
-    console.log(`👥 Users únicos (ACTIVE): ${totalUniqueStudents}`)
-
-    // 2. EM RISCO: engagement <= 30 (mantém a lógica por UserProduct)
-    const atRisk = active.filter(
-      (up) => (up.engagement?.engagementScore || 0) <= 30,
-    )
-    console.log(`🚨 Em Risco: ${atRisk.length}`)
-
-    const atRiskRate =
-      active.length > 0 ? (atRisk.length / active.length) * 100 : 0
-
-    // 3. TOP 10%
-    const sorted = [...active].sort(
-      (a, b) =>
-        (b.engagement?.engagementScore || 0) -
-        (a.engagement?.engagementScore || 0),
-    )
-    const top10Count = Math.ceil(active.length * 0.1)
-    const topPerformers = sorted.slice(0, top10Count)
-    console.log(`🏆 Top 10%: ${topPerformers.length}`)
-
-    // 4. INATIVOS 30D
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
-    const inactiveUsers = await User.find({
-      'discord.engagement.lastMessageDate': { $lt: thirtyDaysAgo },
-    })
-      .select('_id')
-      .lean()
-
-    const inactiveIds = new Set(inactiveUsers.map((u) => u._id.toString()))
-
-    const inactive30d = active.filter((up) => {
-      const userId = up.userId?._id?.toString() || up.userId?.toString()
-      return userId && inactiveIds.has(userId)
-    })
-    console.log(`😴 Inativos 30d: ${inactive30d.length}`)
-
-    // 5. NOVOS 7D (continua a ser por UserProduct)
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
-    const new7d = active.filter(
-      (up) => up.enrolledAt && new Date(up.enrolledAt) >= sevenDaysAgo,
-    )
-    console.log(`📅 Novos 7d: ${new7d.length}`)
-
-    // 6. DISTRIBUIÇÃO POR PLATAFORMA (mantém a lógica por UserProduct)
-    const platformCounts = new Map<string, number>()
-    active.forEach((up) => {
-      const platform = up.platform || 'unknown'
-      platformCounts.set(platform, (platformCounts.get(platform) || 0) + 1)
-    })
-
-    const byPlatform = Array.from(platformCounts.entries())
-      .map(([name, count]) => {
-        const icon =
-          name === 'hotmart'
-            ? '🔥'
-            : name === 'curseduca'
-              ? '📚'
-              : name === 'discord'
-                ? '💬'
-                : '🌟'
-
-        return {
-          name: name.charAt(0).toUpperCase() + name.slice(1),
-          count,
-          percentage: active.length
-            ? parseFloat(((count / active.length) * 100).toFixed(1))
-            : 0,
-          icon,
-        }
-      })
-      .sort((a, b) => b.count - a.count)
-
-    console.log(`📦 Plataformas:`, byPlatform)
-
-    // 6.1 MÉTRICAS GERAIS (agora em variáveis para usar no healthScore)
-    const avgEngagement =
-      active.length > 0
-        ? active.reduce(
-            (sum, up) => sum + (up.engagement?.engagementScore || 0),
-            0,
-          ) / active.length
-        : 0
-
-    const avgProgress =
-      active.length > 0
-        ? active.reduce(
-            (sum, up) => sum + (up.progress?.percentage || 0),
-            0,
-          ) / active.length
-        : 0
-
-    const activeProducts = new Set(
-      active.map((up) => up.productId?.toString()),
-    ).size
-
-    // 6.2 🏥 HEALTH SCORE DINÂMICO (mesma filosofia da tua versão “longa”)
-    const engagementScore = Math.min((avgEngagement / 100) * 40, 40) // máx 40 pts
-    const retentionScore = Math.min(((100 - atRiskRate) / 100) * 30, 30) // máx 30 pts
-    const growthScore =
-      totalUniqueStudents > 0
-        ? Math.min((new7d.length / totalUniqueStudents) * 100 * 0.2, 20) // máx 20 pts
-        : 0
-    const progressScore = Math.min((avgProgress / 100) * 10, 10) // máx 10 pts
-
-    const healthScore = Math.round(
-      engagementScore + retentionScore + growthScore + progressScore,
-    )
-
-    const healthLevel =
-      healthScore >= 80
-        ? 'EXCELENTE'
-        : healthScore >= 60
-          ? 'BOM'
-          : healthScore >= 40
-            ? 'MODERADO'
-            : 'CRÍTICO'
-
-    console.log(
-      `❤️ Health Score: ${healthScore}/100 (${healthLevel}) | ` +
-        `E:${Math.round(engagementScore)} R:${Math.round(retentionScore)} ` +
-        `G:${Math.round(growthScore)} P:${Math.round(progressScore)}`,
-    )
-
-    // 7. RESPOSTA
-    res.json({
-      success: true,
-      data: {
-        overview: {
-          // 👇 AGORA EM USERS ÚNICOS
-          totalStudents: totalUniqueStudents,
-          activeCount: totalUniqueStudents,
-          activeRate: 100,
-
-          // Mantém cálculo de engagement/progresso baseado nos UserProducts
-          avgEngagement,
-          avgProgress,
-
-          // Mantém contagem de risco e rate com base nos UserProducts
-          atRiskCount: atRisk.length,
-          atRiskRate,
-
-          activeProducts,
-          healthScore,
-          healthLevel,
-          healthBreakdown: {
-            engagement: Math.round(engagementScore),
-            retention: Math.round(retentionScore),
-            growth: Math.round(growthScore),
-            progress: Math.round(progressScore),
-          },
-        },
-        byPlatform,
-        quickFilters: {
-          // 👇 Mantido por UserProduct (não mexi)
-          atRisk: atRisk.length,
-          topPerformers: topPerformers.length,
-          inactive30d: inactive30d.length,
-          new7d: new7d.length,
-        },
-        meta: {
-          calculatedAt: new Date().toISOString(),
-          durationMs: 0,
-        },
-      },
-    })
-
-    console.log('✅ Stats alinhados enviados!\n')
-  } catch (error) {
-    console.error('❌ Erro:', error)
-    res.status(500).json({ success: false, error: 'Erro ao calcular stats' })
-  }
-})
 
 
 router.get('/v2/engagement/comparison', async (req, res) => {
