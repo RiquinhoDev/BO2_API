@@ -445,124 +445,124 @@ if (topPercentage && typeof topPercentage === 'string') {
     })
   }
 })
-// router.get('/v2/stats', async (req, res) => {
-//   try {
-//     console.log('\n🎯 [/v2/stats] Calculando stats alinhados...')
+router.get('/v2/stats', async (req, res) => {
+  try {
+    console.log('\n🎯 [/v2/stats] Calculando stats alinhados...')
     
-//     const UserProduct = require('../models/UserProduct').default
-//     const User = require('../models/user').default
+    const UserProduct = require('../models/UserProduct').default
+    const User = require('../models/user').default
     
-//     // 1. BASE: UserProducts ACTIVE
-//     const active = await UserProduct.find({ status: 'ACTIVE' })
-//       .populate('userId', 'name email')
-//       .lean()
+    // 1. BASE: UserProducts ACTIVE
+    const active = await UserProduct.find({ status: 'ACTIVE' })
+      .populate('userId', 'name email')
+      .lean()
     
-//     console.log(`✅ Base: ${active.length} UserProducts ACTIVE`)
+    console.log(`✅ Base: ${active.length} UserProducts ACTIVE`)
     
-//     // 2. EM RISCO: engagement <= 30
-//     const atRisk = active.filter(up => 
-//       (up.engagement?.engagementScore || 0) <= 30
-//     )
-//     console.log(`🚨 Em Risco: ${atRisk.length}`)
+    // 2. EM RISCO: engagement <= 30
+    const atRisk = active.filter(up => 
+      (up.engagement?.engagementScore || 0) <= 30
+    )
+    console.log(`🚨 Em Risco: ${atRisk.length}`)
     
-//     // 3. TOP 10%
-//     const sorted = [...active].sort((a, b) => 
-//       (b.engagement?.engagementScore || 0) - (a.engagement?.engagementScore || 0)
-//     )
-//     const top10Count = Math.ceil(active.length * 0.10)
-//     const topPerformers = sorted.slice(0, top10Count)
-//     console.log(`🏆 Top 10%: ${topPerformers.length}`)
+    // 3. TOP 10%
+    const sorted = [...active].sort((a, b) => 
+      (b.engagement?.engagementScore || 0) - (a.engagement?.engagementScore || 0)
+    )
+    const top10Count = Math.ceil(active.length * 0.10)
+    const topPerformers = sorted.slice(0, top10Count)
+    console.log(`🏆 Top 10%: ${topPerformers.length}`)
     
-//     // 4. INATIVOS 30D
-//     const thirtyDaysAgo = new Date()
-//     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    // 4. INATIVOS 30D
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     
-//     const inactiveUsers = await User.find({
-//       'discord.engagement.lastMessageDate': { $lt: thirtyDaysAgo }
-//     }).select('_id').lean()
+    const inactiveUsers = await User.find({
+      'discord.engagement.lastMessageDate': { $lt: thirtyDaysAgo }
+    }).select('_id').lean()
     
-//     const inactiveIds = new Set(inactiveUsers.map(u => u._id.toString()))
+    const inactiveIds = new Set(inactiveUsers.map(u => u._id.toString()))
     
-//     const inactive30d = active.filter(up => {
-//       const userId = up.userId?._id?.toString() || up.userId?.toString()
-//       return inactiveIds.has(userId)
-//     })
-//     console.log(`😴 Inativos 30d: ${inactive30d.length}`)
+    const inactive30d = active.filter(up => {
+      const userId = up.userId?._id?.toString() || up.userId?.toString()
+      return inactiveIds.has(userId)
+    })
+    console.log(`😴 Inativos 30d: ${inactive30d.length}`)
     
-//     // 5. NOVOS 7D
-//     const sevenDaysAgo = new Date()
-//     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    // 5. NOVOS 7D
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
     
-//     const new7d = active.filter(up => 
-//       up.enrolledAt && new Date(up.enrolledAt) >= sevenDaysAgo
-//     )
-//     console.log(`📅 Novos 7d: ${new7d.length}`)
+    const new7d = active.filter(up => 
+      up.enrolledAt && new Date(up.enrolledAt) >= sevenDaysAgo
+    )
+    console.log(`📅 Novos 7d: ${new7d.length}`)
     
-//     // 6. CALCULAR DISTRIBUIÇÃO POR PLATAFORMA
-//     const platformCounts = new Map<string, number>()
-//     active.forEach(up => {
-//       const platform = up.platform || 'unknown'
-//       platformCounts.set(platform, (platformCounts.get(platform) || 0) + 1)
-//     })
+    // 6. CALCULAR DISTRIBUIÇÃO POR PLATAFORMA
+    const platformCounts = new Map<string, number>()
+    active.forEach(up => {
+      const platform = up.platform || 'unknown'
+      platformCounts.set(platform, (platformCounts.get(platform) || 0) + 1)
+    })
     
-//     const byPlatform = Array.from(platformCounts.entries()).map(([name, count]) => {
-//       const icon = name === 'hotmart' ? '🔥' : 
-//                    name === 'curseduca' ? '📚' : 
-//                    name === 'discord' ? '💬' : '🌟'
+    const byPlatform = Array.from(platformCounts.entries()).map(([name, count]) => {
+      const icon = name === 'hotmart' ? '🔥' : 
+                   name === 'curseduca' ? '📚' : 
+                   name === 'discord' ? '💬' : '🌟'
       
-//       return {
-//         name: name.charAt(0).toUpperCase() + name.slice(1),
-//         count,
-//         percentage: parseFloat(((count / active.length) * 100).toFixed(1)),
-//         icon
-//       }
-//     }).sort((a, b) => b.count - a.count)
+      return {
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        count,
+        percentage: parseFloat(((count / active.length) * 100).toFixed(1)),
+        icon
+      }
+    }).sort((a, b) => b.count - a.count)
     
-//     console.log(`📦 Plataformas:`, byPlatform)
+    console.log(`📦 Plataformas:`, byPlatform)
     
-//     // 7. RESPOSTA
-//     res.json({
-//       success: true,
-//       data: {
-//         overview: {
-//           totalStudents: active.length,
-//           avgEngagement: active.reduce((sum, up) => sum + (up.engagement?.engagementScore || 0), 0) / active.length,
-//           avgProgress: active.reduce((sum, up) => sum + (up.progress?.percentage || 0), 0) / active.length,
-//           activeCount: active.length,
-//           activeRate: 100,
-//           atRiskCount: atRisk.length,
-//           atRiskRate: (atRisk.length / active.length) * 100,
-//           activeProducts: new Set(active.map(up => up.productId?.toString())).size,
-//           healthScore: 75,
-//           healthLevel: 'BOM',
-//           healthBreakdown: {
-//             engagement: 40,
-//             retention: 30,
-//             growth: 20,
-//             progress: 10
-//           }
-//         },
-//         byPlatform,
-//         quickFilters: {
-//           atRisk: atRisk.length,
-//           topPerformers: topPerformers.length,
-//           inactive30d: inactive30d.length,
-//           new7d: new7d.length
-//         },
-//         meta: {
-//           calculatedAt: new Date().toISOString(),
-//           durationMs: 0
-//         }
-//       }
-//     })
+    // 7. RESPOSTA
+    res.json({
+      success: true,
+      data: {
+        overview: {
+          totalStudents: active.length,
+          avgEngagement: active.reduce((sum, up) => sum + (up.engagement?.engagementScore || 0), 0) / active.length,
+          avgProgress: active.reduce((sum, up) => sum + (up.progress?.percentage || 0), 0) / active.length,
+          activeCount: active.length,
+          activeRate: 100,
+          atRiskCount: atRisk.length,
+          atRiskRate: (atRisk.length / active.length) * 100,
+          activeProducts: new Set(active.map(up => up.productId?.toString())).size,
+          healthScore: 75,
+          healthLevel: 'BOM',
+          healthBreakdown: {
+            engagement: 40,
+            retention: 30,
+            growth: 20,
+            progress: 10
+          }
+        },
+        byPlatform,
+        quickFilters: {
+          atRisk: atRisk.length,
+          topPerformers: topPerformers.length,
+          inactive30d: inactive30d.length,
+          new7d: new7d.length
+        },
+        meta: {
+          calculatedAt: new Date().toISOString(),
+          durationMs: 0
+        }
+      }
+    })
     
-//     console.log('✅ Stats alinhados enviados!\n')
+    console.log('✅ Stats alinhados enviados!\n')
     
-//   } catch (error) {
-//     console.error('❌ Erro:', error)
-//     res.status(500).json({ success: false, error: 'Erro ao calcular stats' })
-//   }
-// })
+  } catch (error) {
+    console.error('❌ Erro:', error)
+    res.status(500).json({ success: false, error: 'Erro ao calcular stats' })
+  }
+})
 
 
 router.get('/v2/engagement/comparison', async (req, res) => {

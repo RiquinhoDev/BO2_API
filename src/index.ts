@@ -55,7 +55,7 @@ import "./models/CommunicationHistory"
 import "./models/CronConfig"
 import "./models/CronExecution"
 import "./models/DashboardStats"
-
+import businessAnalyticsRoutes from './routes/businessAnalytics.routes'
 // Verificar se os modelos foram importados corretamente
 import "./models"
 
@@ -147,7 +147,12 @@ app.post('/api/tag-rules', createTagRule)
 app.put('/api/tag-rules/:id', updateTagRule)
 app.delete('/api/tag-rules/:id', deleteTagRule)
 
+// No topo:
 
+
+// No meio (com outras routes):
+app.use('/api/business-analytics', businessAnalyticsRoutes)
+console.log('✅ Routes: /api/business-analytics')
 app.use('/api/analytics/product-sales', productSalesStatsRoutes)
 console.log('✅ Routes: /api/analytics/product-sales')
   analyticsCacheService.warmUpCache().catch(err => {
