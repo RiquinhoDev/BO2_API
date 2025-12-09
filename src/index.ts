@@ -62,6 +62,7 @@ import "./models"
 // Importar inicializador de CRON jobs
 import jobScheduler from "./jobs"
 import { startRebuildProductSalesStatsJob } from "./jobs/rebuildProductSalesStats.job"
+import analyticsCacheService from "./services/analyticsCache.service"
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -149,6 +150,10 @@ app.delete('/api/tag-rules/:id', deleteTagRule)
 
 app.use('/api/analytics/product-sales', productSalesStatsRoutes)
 console.log('✅ Routes: /api/analytics/product-sales')
+  analyticsCacheService.warmUpCache().catch(err => {
+    console.error('⚠️ Erro ao aquecer cache de analytics:', err)
+  })
+
 
 // Communication History
 app.get('/api/communication-history', getCommunicationHistory)
