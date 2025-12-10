@@ -65,7 +65,7 @@ import { startRebuildProductSalesStatsJob } from "./jobs/rebuildProductSalesStat
 import analyticsCacheService from "./services/analyticsCache.service"
 // No topo (com outros imports)
 import cohortAnalyticsRoutes from './routes/cohortAnalytics.routes'
-
+   import SchedulerManager from './syncUtilizadores/scheduler'
 // Com outras routes
 
 const app = express()
@@ -82,6 +82,7 @@ mongoose.connect(process.env.MONGO_URI || "")
     } catch (error) {
       console.error("⚠️ Erro ao inicializar jobs (continuando sem jobs):", error)
     }
+  
 
     // ✅ CRON MANAGEMENT: Inicializar CRON jobs de gestão
     try {
@@ -90,7 +91,7 @@ mongoose.connect(process.env.MONGO_URI || "")
     } catch (error) {
       console.error("⚠️ Erro ao inicializar CRON Management:", error)
     }
-
+await SchedulerManager.initialize()
     // ✅ SPRINT 7: Iniciar System Monitor em produção
     if (process.env.NODE_ENV === 'production') {
       systemMonitor.start()
@@ -141,6 +142,7 @@ app.use("/api/metrics", metricsRoutes)
 app.use('/api/activecampaign', activecampaignRoutes)
 app.use('/api/webhooks', webhooksRoutes)
 app.use('/api', healthRoutes)
+
 
 // ✅ CRON MANAGEMENT: Rotas de gestão de CRON jobs
 app.use('/api/cron', cronManagementRoutes)
