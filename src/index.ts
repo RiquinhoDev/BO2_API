@@ -63,6 +63,10 @@ import "./models"
 import jobScheduler from "./jobs"
 import { startRebuildProductSalesStatsJob } from "./jobs/rebuildProductSalesStats.job"
 import analyticsCacheService from "./services/analyticsCache.service"
+// No topo (com outros imports)
+import cohortAnalyticsRoutes from './routes/cohortAnalytics.routes'
+
+// Com outras routes
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -122,7 +126,8 @@ mongoose.connect(process.env.MONGO_URI || "")
 
 app.use(cors())
 app.use(express.json())
-
+app.use('/api/analytics/cohort', cohortAnalyticsRoutes)
+console.log('✅ Routes: /api/analytics/cohort')
 // ✅ SPRINT 7: Adicionar middleware de métricas
 app.use(metricsMiddleware)
 
