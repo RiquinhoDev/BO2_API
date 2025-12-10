@@ -27,7 +27,9 @@ import syncV2Routes from './syncV2.routes'
 import hotmartV2Routes from './hotmartV2.routes'
 import curseducaV2Routes from './curseducaV2.routes'
 import activecampaignV2Routes from './activecampaignV2.routes'
-
+   import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
+   import syncStatsRoutes from './syncUtilizadoresRoutes/syncStats.routes'
+   
 const router = Router()
 
 // 🔄 PRINCIPAIS SERVIÇOS DE SINCRONIZAÇÃO
@@ -66,7 +68,10 @@ router.use("/reengagement", reengagementRoutes)
 router.use("/discovery", discoveryRoutes)
 router.use("/ac", acReaderRoutes)  // Sprint 5: Contact Tag Reader (OLD)
 router.use("/ac", contactTagReaderRoutes)  // Sprint 5: Contact Tag Reader (NEW - Improved)
+// src/routes/index.ts
 
+   router.use('/cron', cronRoutes)
+   router.use('/sync', syncStatsRoutes)
 // 🏥 HEALTH CHECK MELHORADO
 router.get("/health", (req, res) => {
   res.status(200).json({
