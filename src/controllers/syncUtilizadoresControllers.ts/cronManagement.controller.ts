@@ -6,7 +6,7 @@
 
 import { Request, Response } from 'express'
 import mongoose from 'mongoose'
-import cronManagementService from '../../services/syncUtilziadoresServices/cronManagement.service'
+import syncSchedulerService from '../../services/syncUtilziadoresServices/scheduler'
 import { SyncType } from '../../models/SyncModels/CronJobConfig'
 
 
@@ -22,11 +22,11 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
     let jobs
 
     if (syncType) {
-      jobs = await cronManagementService.getJobsByType(syncType as SyncType)
+      jobs = await syncSchedulerService.getJobsByType(syncType as SyncType)
     } else if (active === 'true') {
-      jobs = await cronManagementService.getActiveJobs()
+      jobs = await syncSchedulerService.getActiveJobs()
     } else {
-      jobs = await cronManagementService.getAllJobs()
+      jobs = await syncSchedulerService.getAllJobs()
     }
 
     res.status(200).json({
@@ -65,7 +65,7 @@ export const getJobById = async (req: Request, res: Response): Promise<void> => 
       return
     }
 
-    const job = await cronManagementService.getJobById(
+    const job = await syncSchedulerService.getJobById(
       new mongoose.Types.ObjectId(id)
     )
 
@@ -78,10 +78,9 @@ export const getJobById = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Calcular próximas execuções
-    const nextExecutions = cronManagementService.getNextExecutions(
+    const nextExecutions = syncSchedulerService.getNextExecutions(
       job.schedule.cronExpression,
-      5,
-      job.schedule.timezone
+      5
     )
 
     res.status(200).json({
@@ -134,7 +133,7 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
     // TODO: Pegar user ID do token JWT
     const createdBy = new mongoose.Types.ObjectId('000000000000000000000001')
 
-    const job = await cronManagementService.createJob({
+    const job = await syncSchedulerService.createJob({
       name,
       description: description || '',
       syncType,
@@ -147,10 +146,9 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
     })
 
     // Calcular próximas execuções
-    const nextExecutions = cronManagementService.getNextExecutions(
+    const nextExecutions = syncSchedulerService.getNextExecutions(
       job.schedule.cronExpression,
-      5,
-      job.schedule.timezone
+      5
     )
 
     res.status(201).json({
@@ -190,16 +188,15 @@ export const updateJob = async (req: Request, res: Response): Promise<void> => {
       return
     }
 
-    const job = await cronManagementService.updateJob(
+    const job = await syncSchedulerService.updateJob(
       new mongoose.Types.ObjectId(id),
       updates
     )
 
     // Calcular próximas execuções
-    const nextExecutions = cronManagementService.getNextExecutions(
+    const nextExecutions = syncSchedulerService.getNextExecutions(
       job.schedule.cronExpression,
-      5,
-      job.schedule.timezone
+      5
     )
 
     res.status(200).json({
@@ -238,7 +235,7 @@ export const deleteJob = async (req: Request, res: Response): Promise<void> => {
       return
     }
 
-    await cronManagementService.deleteJob(
+    await syncSchedulerService.deleteJob(
       new mongoose.Types.ObjectId(id)
     )
 
@@ -283,7 +280,7 @@ export const toggleJob = async (req: Request, res: Response): Promise<void> => {
       return
     }
 
-    const job = await cronManagementService.toggleJob(
+    const job = await syncSchedulerService.toggleJob(
       new mongoose.Types.ObjectId(id),
       enabled
     )
@@ -326,7 +323,7 @@ export const triggerJob = async (req: Request, res: Response): Promise<void> => 
 
     console.log(`▶️ Executando job manualmente: ${id}`)
 
-    const result = await cronManagementService.executeJobManually(
+    const result = await syncSchedulerService.executeJobManually(
       new mongoose.Types.ObjectId(id),
       triggeredBy
     )
@@ -361,7 +358,6 @@ export const triggerJob = async (req: Request, res: Response): Promise<void> => 
 export const getJobHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-    const { limit = '10' } = req.query
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({
@@ -371,7 +367,7 @@ export const getJobHistory = async (req: Request, res: Response): Promise<void> 
       return
     }
 
-    const job = await cronManagementService.getJobById(
+    const job = await syncSchedulerService.getJobById(
       new mongoose.Types.ObjectId(id)
     )
 
@@ -429,10 +425,9 @@ export const validateCronExpression = async (req: Request, res: Response): Promi
     }
 
     try {
-      const nextExecutions = cronManagementService.getNextExecutions(
+      const nextExecutions = syncSchedulerService.getNextExecutions(
         cronExpression,
-        5,
-        timezone
+        5
       )
 
       res.status(200).json({
@@ -475,7 +470,7 @@ export const validateCronExpression = async (req: Request, res: Response): Promi
 
 export const getSchedulerStatus = async (req: Request, res: Response): Promise<void> => {
   try {
-    const activeJobs = await cronManagementService.getActiveJobs()
+    const activeJobs = await syncSchedulerService.getActiveJobs()
     
     const stats = {
       totalActiveJobs: activeJobs.length,
