@@ -1,11 +1,10 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/models/CronJobConfig.ts
+// 📁 src/models/SyncModels/CronJobConfig.ts
 // Model: CRON Job Configuration
 // Gestão de sincronizações automáticas agendadas
 // ════════════════════════════════════════════════════════════
 
-import mongoose, { Schema, Document } from 'mongoose'
-import { ICronJobConfigModel } from '../../services/syncUtilziadoresServices/cronManagement.service'
+import mongoose, { Schema, Document, Model } from 'mongoose'
 
 // ─────────────────────────────────────────────────────────────
 // INTERFACES
@@ -109,6 +108,12 @@ export interface ICronJobConfig extends Document {
   getSuccessRate(): number
 }
 
+// ⭐ INTERFACE DO MODEL (MÉTODOS ESTÁTICOS)
+export interface ICronJobConfigModel extends Model<ICronJobConfig> {
+  getActiveJobs(): Promise<ICronJobConfig[]>
+  getJobsByType(syncType: SyncType): Promise<ICronJobConfig[]>
+  getJobsDueForExecution(): Promise<ICronJobConfig[]>
+}
 
 // ─────────────────────────────────────────────────────────────
 // SUB-SCHEMAS
@@ -359,7 +364,7 @@ CronJobConfigSchema.index({ createdBy: 1, createdAt: -1 })
 // ─────────────────────────────────────────────────────────────
 
 CronJobConfigSchema.methods.calculateNextRun = function(): Date {
-  // Este método será implementado no service usando node-cron ou parser-cron
+  // Este método será implementado no service usando node-schedule
   // Por agora retornamos uma data placeholder
   const now = new Date()
   return new Date(now.getTime() + 24 * 60 * 60 * 1000) // +24h
@@ -439,4 +444,3 @@ const CronJobConfig =
   )
 
 export default CronJobConfig
-export { ICronJobConfigModel }
