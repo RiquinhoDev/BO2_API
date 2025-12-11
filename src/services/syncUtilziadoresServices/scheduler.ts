@@ -717,6 +717,6 @@ export class CronManagementService {
 // SINGLETON INSTANCE
 // ─────────────────────────────────────────────────────────────
 
-export const cronManagementService = new CronManagementService()
+export const syncSchedulerService = new CronManagementService()
 
-export default cronManagementService
+export default syncSchedulerService
