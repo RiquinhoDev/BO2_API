@@ -29,7 +29,7 @@ import curseducaV2Routes from './curseducaV2.routes'
 import activecampaignV2Routes from './activecampaignV2.routes'
    import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
    import syncStatsRoutes from './syncUtilizadoresRoutes/syncStats.routes'
-   
+      import syncReports from './syncUtilizadoresRoutes/syncReports.routes'
 const router = Router()
 
 // 🔄 PRINCIPAIS SERVIÇOS DE SINCRONIZAÇÃO
@@ -71,7 +71,10 @@ router.use("/ac", contactTagReaderRoutes)  // Sprint 5: Contact Tag Reader (NEW 
 // src/routes/index.ts
 
    router.use('/cron', cronRoutes)
-   router.use('/sync', syncStatsRoutes)
+router.use('/sync', syncStatsRoutes)
+ router.use('/sync/reports', syncReports)     
+
+
 // 🏥 HEALTH CHECK MELHORADO
 router.get("/health", (req, res) => {
   res.status(200).json({
