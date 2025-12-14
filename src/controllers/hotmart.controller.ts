@@ -1,15 +1,193 @@
-// src/controllers/hotmart.controller.ts - VERSÃO COMPLETAMENTE CORRIGIDA
+// src/controllers/hotmart.controller.ts
+// ✅ UNIFICADO: hotmart.controller.ts + hotmartV2.controller.ts + Universal Sync endpoints
+
 import { Request, Response } from 'express'
-import axios, { AxiosResponse } from 'axios'
+import axios from 'axios'
+import type { Types } from 'mongoose'
 import User from '../models/user'
 import SyncHistory from '../models/SyncHistory'
 import { Class } from '../models/Class'
-import user from '../models/user'
-import { UserHistory, ensureUserHistoryModel } from '../models/UserHistory'
-import { engagementPreCalc } from '../services/engagementPreCalculation'
+import { ensureUserHistoryModel } from '../models/UserHistory'
 import { calculateCombinedEngagement } from '../utils/engagementCalculator'
+import { Product } from '../models'
 
-// Interface para lições da Hotmart (baseada na documentação real)
+// ✅ IMPORT CERTO (service) – não importes do controller
+import { getUserCountForProduct, getUsersByProduct } from '../services/userProductService'
+import universalSyncService, { SyncError, SyncProgress, SyncWarning } from '../services/syncUtilziadoresServices/universalSyncService'
+import hotmartAdapter from '../services/syncUtilziadoresServices/hotmartServices/hotmart.adapter'
+
+// ✅ Universal Sync
+
+
+// ✅ NOVO (Universal Sync)
+
+
+// ─────────────────────────────────────────────────────────────
+// V2 - PRODUCTS / USERS BY PRODUCT
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/hotmart/v2/products
+ * Lista todos os produtos Hotmart
+ */
+export const getHotmartProducts = async (req: Request, res: Response) => {
+  try {
+    const products = await Product.find({ platform: 'hotmart' })
+      .select('name code platformData isActive')
+      .lean()
+
+    res.json({
+      success: true,
+      data: products,
+      count: products.length,
+      _v2Enabled: true
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+/**
+ * GET /api/hotmart/v2/products/:subdomain
+ * Busca produto Hotmart específico por subdomain
+ */
+type LeanHotmartProduct = {
+  _id: Types.ObjectId
+  name?: string
+  platformData?: { subdomain?: string }
+} & Record<string, unknown>
+
+export const getHotmartProductBySubdomain = async (req: Request, res: Response) => {
+  try {
+    const { subdomain } = req.params
+
+    const product = await Product.findOne({
+      platform: 'hotmart',
+      'platformData.subdomain': subdomain
+    })
+      .lean<LeanHotmartProduct>()
+      .exec()
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: `Produto Hotmart não encontrado para subdomain: ${subdomain}`
+      })
+    }
+
+    const userCount = await getUserCountForProduct(product._id.toString())
+
+    return res.json({
+      success: true,
+      data: { ...product, userCount },
+      _v2Enabled: true
+    })
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+
+/**
+ * GET /api/hotmart/v2/products/:subdomain/users
+ * Lista users de um produto Hotmart específico
+ */
+export const getHotmartProductUsers = async (req: Request, res: Response) => {
+  try {
+    const { subdomain } = req.params
+    const { status, minProgress } = req.query
+
+    const product = await Product.findOne({
+      platform: 'hotmart',
+      'platformData.subdomain': subdomain
+    })
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: `Produto Hotmart não encontrado para subdomain: ${subdomain}`
+      })
+    }
+
+    let users = await getUsersByProduct(product._id.toString())
+
+    if (status) {
+      users = users.filter(u =>
+        u.products.some((p: any) =>
+          p.product._id.toString() === product._id.toString() &&
+          p.platformSpecificData?.hotmart?.status === status
+        )
+      )
+    }
+
+    if (minProgress) {
+      const minProg = parseInt(minProgress as string, 10)
+      users = users.filter(u =>
+        u.products.some((p: any) =>
+          p.product._id.toString() === product._id.toString() &&
+          (p.progress?.progressPercentage || 0) >= minProg
+        )
+      )
+    }
+
+    res.json({
+      success: true,
+      data: users,
+      count: users.length,
+      filters: { status, minProgress },
+      _v2Enabled: true
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+/**
+ * GET /api/hotmart/v2/stats
+ * Estatísticas gerais dos produtos Hotmart
+ */
+export const getHotmartStats = async (req: Request, res: Response) => {
+  try {
+    const products = await Product.find({ platform: 'hotmart' }).lean()
+
+    const stats = await Promise.all(
+      products.map(async (product) => {
+        const users = await getUsersByProduct(String(product._id))
+
+        return {
+          productId: product._id,
+          productName: product.name,
+          subdomain: product.platformData?.subdomain,
+          totalUsers: users.length,
+          activeUsers: users.filter(u =>
+            u.products.some((p: any) =>
+              p.product._id.toString() === (String(product._id)) &&
+              p.platformSpecificData?.hotmart?.status === 'active'
+            )
+          ).length
+        }
+      })
+    )
+
+    res.json({
+      success: true,
+      data: stats,
+      summary: {
+        totalProducts: products.length,
+        totalUsers: stats.reduce((sum, s) => sum + s.totalUsers, 0),
+        totalActiveUsers: stats.reduce((sum, s) => sum + s.activeUsers, 0)
+      },
+      _v2Enabled: true
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// HOTMART SYNC (LEGACY + UPDATED PATHS)
+// ─────────────────────────────────────────────────────────────
+
 interface HotmartLesson {
   page_id: string
   page_name: string
@@ -19,126 +197,51 @@ interface HotmartLesson {
   completed_date?: number
 }
 
-interface ProcessingResult {
-  totalProcessed: number;
-  totalWithProgress: number;
-  totalWithClasses: number;
-  totalInserted: number;
-  totalUpdated: number;
-  totalErrors: number;
-  errors: string[];
-  uniqueClassIds: Set<string>;
-}
-interface ProgressData {
-  completedPercentage: number;
-  total: number;
-  completed: number;
-  lessons: {
-    pageId: string;
-    pageName: string;
-    moduleName: string;
-    isModuleExtra: boolean;
-    isCompleted: boolean;
-    completedDate?: Date;
-  }[];
-  lastUpdated: Date;
-}
-// Interface para progresso interno (calculado a partir das lições)
-interface LessonProgress {
-  pageId: string
-  pageName: string
-  moduleName: string
-  isModuleExtra: boolean
-  isCompleted: boolean
-  completedDate?: Date
-}
-
-// Remover interface UserProgress - não existe endpoint /progress
-// A API só tem /lessons que retorna { lessons: HotmartLesson[] }
-
-// Interface para a resposta da API da Hotmart
-interface HotmartApiResponse {
-  items: any[]
-  page_info?: {
-    next_page_token?: string
-  }
-}
-
-// Interface para resposta do token
-interface TokenResponse {
-  access_token: string
-  expires_in?: number
-}
-interface ValidationResult {
-  isValid: boolean;
-  error?: string;
-  data?: {
-    cleanEmail: string;
-    cleanName: string;
-    hotmartId: string;
-  };
-}
-
-interface BatchResult {
-  inserted: number;
-  updated: number;
-  errors: string[];
-}
-
-interface ClassResult {
-  newClassesCreated: number;
-  errors: string[];
-}
-// ✅ FUNÇÃO CORRIGIDA PARA OBTER TOKEN HOTMART
 async function getHotmartAccessToken(): Promise<string> {
   try {
-    const clientId = process.env.HOTMART_CLIENT_ID;
-    const clientSecret = process.env.HOTMART_CLIENT_SECRET;
+    const clientId = process.env.HOTMART_CLIENT_ID
+    const clientSecret = process.env.HOTMART_CLIENT_SECRET
 
     if (!clientId || !clientSecret) {
-      throw new Error('HOTMART_CLIENT_ID e HOTMART_CLIENT_SECRET são obrigatórios');
+      throw new Error('HOTMART_CLIENT_ID e HOTMART_CLIENT_SECRET são obrigatórios')
     }
 
-    // ✅ MÉTODO CORRETO: Basic Auth
-    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
-
-    console.log(`🔐 Gerando token com Basic Auth para client_id: ${clientId.substring(0, 10)}...`);
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+    console.log(`🔐 Gerando token com Basic Auth para client_id: ${clientId.substring(0, 10)}...`)
 
     const response = await axios.post(
       'https://api-sec-vlc.hotmart.com/security/oauth/token',
-      new URLSearchParams({
-        grant_type: 'client_credentials'
-      }),
+      new URLSearchParams({ grant_type: 'client_credentials' }),
       {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Authorization': `Basic ${basicAuth}`
-        },
+        }
       }
-    );
+    )
 
     if (!response.data.access_token) {
-      throw new Error('Access token não encontrado na resposta');
+      throw new Error('Access token não encontrado na resposta')
     }
 
-    console.log(`✅ Token obtido com sucesso - Expira em: ${response.data.expires_in} segundos`);
-    return response.data.access_token;
-
+    console.log(`✅ Token obtido com sucesso - Expira em: ${response.data.expires_in} segundos`)
+    return response.data.access_token
   } catch (error: any) {
-    console.error('❌ Erro detalhado ao obter token Hotmart:');
-    console.error('📊 Status:', error.response?.status);
-    console.error('📄 Resposta:', error.response?.data);
-    console.error('🔗 URL:', error.config?.url);
-    throw new Error(`Falha ao obter token de acesso da Hotmart: ${error.response?.data?.error_description || error.message}`);
+    console.error('❌ Erro detalhado ao obter token Hotmart:')
+    console.error('📊 Status:', error.response?.status)
+    console.error('📄 Resposta:', error.response?.data)
+    console.error('🔗 URL:', error.config?.url)
+    throw new Error(
+      `Falha ao obter token de acesso da Hotmart: ${error.response?.data?.error_description || error.message}`
+    )
   }
 }
 
-// Função para buscar lições de um utilizador (único endpoint que existe)
 const fetchUserLessons = async (userId: string, accessToken: string): Promise<HotmartLesson[]> => {
   try {
-    const subdomain = process.env.subdomain || 'ograndeinvestimento-bomrmk';
+    const subdomain = process.env.subdomain || 'ograndeinvestimento-bomrmk'
     console.log(`🔍 Buscando lições do utilizador ${userId}`)
-    
+
     const response = await axios.get(
       `https://developers.hotmart.com/club/api/v1/users/${userId}/lessons?subdomain=${subdomain}`,
       {
@@ -148,12 +251,12 @@ const fetchUserLessons = async (userId: string, accessToken: string): Promise<Ho
         }
       }
     )
-    
+
     console.log(`📚 Resposta da API:`, {
       hasLessons: 'lessons' in response.data,
       lessonsCount: response.data.lessons?.length || 0
     })
-    
+
     return response.data.lessons || []
   } catch (error: any) {
     console.error(`❌ Erro ao buscar lições do utilizador ${userId}:`, error.response?.data || error.message)
@@ -161,15 +264,9 @@ const fetchUserLessons = async (userId: string, accessToken: string): Promise<Ho
   }
 }
 
-// Função para calcular progresso baseado nas lições
 const calculateProgress = (lessons: HotmartLesson[]) => {
   if (lessons.length === 0) {
-    return {
-      completedPercentage: 0,
-      total: 0,
-      completed: 0,
-      lessons: []
-    }
+    return { completedPercentage: 0, total: 0, completed: 0, lessons: [] as any[] }
   }
 
   const completed = lessons.filter(lesson => lesson.is_completed).length
@@ -190,53 +287,45 @@ const calculateProgress = (lessons: HotmartLesson[]) => {
     }))
   }
 }
+
 function convertUnixTimestamp(timestamp: any): Date | null {
-  if (!timestamp) return null;
-  
-  // Verificar se já é uma string de data ISO inválida (como +055089-01-28T01:30:00.000Z)
+  if (!timestamp) return null
+
   if (typeof timestamp === 'string' && timestamp.includes('T') && timestamp.includes('Z')) {
-    const date = new Date(timestamp);
+    const date = new Date(timestamp)
     if (!isNaN(date.getTime())) {
-      const year = date.getFullYear();
+      const year = date.getFullYear()
       if (year < 2000 || year > 2030) {
-        console.warn(`Data ISO inválida detectada: ${timestamp} (ano: ${year}). Retornando null.`);
-        return null;
+        console.warn(`Data ISO inválida detectada: ${timestamp} (ano: ${year}). Retornando null.`)
+        return null
       }
-      return date;
+      return date
     }
-    return null;
+    return null
   }
-  
-  // Se é string numérica, converter para número
-  const numTimestamp = typeof timestamp === 'string' 
-    ? parseInt(timestamp, 10) 
-    : timestamp;
-    
-  if (isNaN(numTimestamp) || numTimestamp <= 0) return null;
-  
-  // Verificar se é timestamp em segundos ou milissegundos
-  // Timestamps antes de 2001 provavelmente estão em segundos
-  const timestampMs = numTimestamp < 1e12 
-    ? numTimestamp * 1000  // Segundos -> Milissegundos
-    : numTimestamp;        // Já em milissegundos
-    
-  const date = new Date(timestampMs);
-  
-  // Validar se a data é razoável (entre 2000 e 2030)
-  const year = date.getFullYear();
+
+  const numTimestamp = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp
+  if (isNaN(numTimestamp) || numTimestamp <= 0) return null
+
+  const timestampMs = numTimestamp < 1e12 ? numTimestamp * 1000 : numTimestamp
+  const date = new Date(timestampMs)
+
+  const year = date.getFullYear()
   if (year < 2000 || year > 2030) {
-    console.warn(`Data suspeita detectada: ${date.toISOString()} (timestamp: ${timestamp}). Retornando null para evitar dados inválidos.`);
-    return null;
+    console.warn(
+      `Data suspeita detectada: ${date.toISOString()} (timestamp: ${timestamp}). Retornando null para evitar dados inválidos.`
+    )
+    return null
   }
-  
-  return date;
+
+  return date
 }
-// ✅ FUNÇÃO PRINCIPAL PARA SINCRONIZAÇÃO COMPLETA - CORRIGIDA
+
+// ✅ SYNC COMPLETO (legacy)
 export const syncHotmartUsers = async (req: Request, res: Response): Promise<void> => {
   let syncRecord: any = null
 
   try {
-    // Criar registo de sincronização
     syncRecord = await SyncHistory.create({
       type: 'hotmart',
       status: 'running',
@@ -251,7 +340,6 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
 
     console.log(`🚀 [${syncRecord._id}] Iniciando sincronização Hotmart com pré-cálculo de engagement...`)
 
-    // ✅ 1. Obter token de acesso
     const accessToken = await getHotmartAccessToken()
 
     await SyncHistory.findByIdAndUpdate(syncRecord._id, {
@@ -259,9 +347,6 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
       'metadata.progress': 10
     })
 
-    console.log(`✅ [${syncRecord._id}] Token de acesso obtido`)
-
-    // ✅ 2. Buscar utilizadores da Hotmart
     let allUsers: any[] = []
     let nextPageToken: string | null = null
     let pageCount = 0
@@ -269,7 +354,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
 
     do {
       pageCount++
-      
+
       await SyncHistory.findByIdAndUpdate(syncRecord._id, {
         'metadata.currentStep': `Buscando utilizadores - Página ${pageCount}`,
         'metadata.progress': 10 + (pageCount * 2)
@@ -277,12 +362,10 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
 
       const subdomain = process.env.subdomain || 'ograndeinvestimento-bomrmk'
       let requestUrl = `https://developers.hotmart.com/club/api/v1/users?subdomain=${subdomain}`
-      if (nextPageToken) {
-        requestUrl += `&page_token=${encodeURIComponent(nextPageToken)}`
-      }
+      if (nextPageToken) requestUrl += `&page_token=${encodeURIComponent(nextPageToken)}`
 
       console.log(`🔗 [${syncRecord._id}] Requisição: ${requestUrl}`)
-      
+
       const response = await axios.get(requestUrl, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -290,12 +373,11 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
         }
       })
 
-      // ✅ Verificar estrutura real da resposta
       console.log(`📋 [${syncRecord._id}] Estrutura da resposta:`, Object.keys(response.data))
-      
+
       const users = response.data.users || response.data.items || response.data.data || []
       const pageInfo = response.data.page_info || response.data.pageInfo || response.data.pagination || {}
-      
+
       if (!Array.isArray(users)) {
         throw new Error(`Resposta inválida da API: esperado array, recebido ${typeof users}`)
       }
@@ -304,18 +386,14 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
       nextPageToken = pageInfo.next_page_token || pageInfo.nextPageToken || null
 
       console.log(`📄 [${syncRecord._id}] Página ${pageCount}: ${users.length} utilizadores`)
-
       await new Promise(resolve => setTimeout(resolve, 200))
 
     } while (nextPageToken)
 
     console.log(`📊 [${syncRecord._id}] Total encontrados: ${allUsers.length}`)
 
-    if (allUsers.length === 0) {
-      throw new Error('Nenhum utilizador encontrado na API da Hotmart')
-    }
+    if (allUsers.length === 0) throw new Error('Nenhum utilizador encontrado na API da Hotmart')
 
-    // ✅ 3. Processar utilizadores com pré-cálculo de engagement
     let totalProcessed = 0
     let totalWithProgress = 0
     let totalWithClasses = 0
@@ -323,7 +401,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
     let totalInserted = 0
     let totalUpdated = 0
     let totalErrors = 0
-    let errors: string[] = []
+    const errors: string[] = []
 
     const uniqueClassIds = new Set<string>()
 
@@ -341,155 +419,116 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
         'metadata.withEngagement': totalWithEngagement
       })
 
-      for (const user of batch) {
+      for (const apiUser of batch) {
         try {
-          // ✅ VALIDAÇÃO OBRIGATÓRIA
-          if (!user.email || !user.email.trim()) {
-            console.warn(`❌ [${syncRecord._id}] Utilizador sem email válido:`, user)
+          if (!apiUser.email || !apiUser.email.trim()) {
             totalErrors++
-            errors.push(`Utilizador sem email válido: ${JSON.stringify(user)}`)
+            errors.push(`Utilizador sem email válido: ${JSON.stringify(apiUser)}`)
+            continue
+          }
+          if (!apiUser.name || !apiUser.name.trim()) {
+            totalErrors++
+            errors.push(`Utilizador sem nome válido: ${apiUser.email}`)
             continue
           }
 
-          if (!user.name || !user.name.trim()) {
-            console.warn(`❌ [${syncRecord._id}] Utilizador sem nome válido: ${user.email}`)
-            totalErrors++
-            errors.push(`Utilizador sem nome válido: ${user.email}`)
-            continue
-          }
-
-          const hotmartId = user.id || user.user_id || user.uid || user.code
+          const hotmartId = apiUser.id || apiUser.user_id || apiUser.uid || apiUser.code
           if (!hotmartId) {
-            console.warn(`❌ [${syncRecord._id}] Utilizador sem ID Hotmart: ${user.email}`)
             totalErrors++
-            errors.push(`Utilizador sem ID Hotmart: ${user.email}`)
+            errors.push(`Utilizador sem ID Hotmart: ${apiUser.email}`)
             continue
           }
 
-          // ✅ NOVA VERIFICAÇÃO: Verificar se utilizador já existe
-          const existingUser = await User.findOne({
-            email: user.email.toLowerCase().trim()
-          })
-          
-          console.log(`🔍 [${syncRecord._id}] Verificando utilizador: ${user.email}`)
+          const existingUser = await User.findOne({ email: apiUser.email.toLowerCase().trim() })
+          console.log(`🔍 [${syncRecord._id}] Verificando utilizador: ${apiUser.email}`)
           console.log(`   • Utilizador existente: ${!!existingUser}`)
           if (existingUser) {
-            console.log(`   • Tem CursEduca: ${!!existingUser.curseducaUserId}`)
-            console.log(`   • Tem Hotmart: ${!!existingUser.hotmartUserId}`)
+            console.log(`   • Tem CursEduca: ${!!existingUser.curseduca?.curseducaUserId}`)
+            console.log(`   • Tem Hotmart: ${!!existingUser.hotmart?.hotmartUserId}`)
           }
 
-          // Processar class_id se existir
-          const userClassId = user.class_id || null
+          const userClassId = apiUser.class_id || null
           if (userClassId) {
             uniqueClassIds.add(userClassId)
             totalWithClasses++
-            console.log(`🎓 [${syncRecord._id}] Turma encontrada: ${user.email} → ${userClassId}`)
+            console.log(`🎓 [${syncRecord._id}] Turma encontrada: ${apiUser.email} → ${userClassId}`)
           }
 
-          // ✅ Buscar progresso (lições)
-          let progressData: {
-            completedPercentage: number;
-            total: number;
-            completed: number;
-            lessons: {
-              pageId: string;
-              pageName: string;
-              moduleName: string;
-              isModuleExtra: boolean;
-              isCompleted: boolean;
-              completedDate?: Date;
-            }[];
-            lastUpdated: Date;
-          } = {
+          let progressData = {
             completedPercentage: 0,
             total: 0,
             completed: 0,
-            lessons: [],
+            lessons: [] as any[],
             lastUpdated: new Date()
           }
 
           try {
             const userLessons = await fetchUserLessons(hotmartId, accessToken)
             if (userLessons.length > 0) {
-              const calculatedProgress = calculateProgress(userLessons)
+              const calculated = calculateProgress(userLessons)
               progressData = {
-                completedPercentage: calculatedProgress.completedPercentage,
-                total: calculatedProgress.total,
-                completed: calculatedProgress.completed,
-                lessons: calculatedProgress.lessons,
+                completedPercentage: calculated.completedPercentage,
+                total: calculated.total,
+                completed: calculated.completed,
+                lessons: calculated.lessons,
                 lastUpdated: new Date()
               }
               totalWithProgress++
-              console.log(`📈 [${syncRecord._id}] Progresso: ${user.email} → ${progressData.completed}/${progressData.total}`)
             }
           } catch (progressError) {
-            console.warn(`⚠️ [${syncRecord._id}] Erro ao buscar progresso de ${user.email}:`, progressError)
+            console.warn(`⚠️ [${syncRecord._id}] Erro ao buscar progresso de ${apiUser.email}:`, progressError)
           }
 
-          // ✅ NORMALIZAR EMAIL
-          const normalizedEmail = user.email.trim().toLowerCase()
-          
-          // ✅ OPERAÇÃO UPSERT COM SEGREGAÇÃO POR PLATAFORMA
+          const normalizedEmail = apiUser.email.trim().toLowerCase()
+
           bulkOperations.push({
             updateOne: {
               filter: { email: normalizedEmail },
               update: {
                 $set: {
-                  // Campos comuns
                   email: normalizedEmail,
-                  name: user.name.trim(),
-                  
-                  // ✅ APENAS CAMPOS HOTMART (não toca em curseduca.* nem discord.*)
+                  name: apiUser.name.trim(),
+
                   'hotmart.hotmartUserId': hotmartId,
-                  'hotmart.purchaseDate': convertUnixTimestamp(user.purchase_date),
-                  'hotmart.signupDate': convertUnixTimestamp(user.signup_date) || new Date(),
-                  'hotmart.plusAccess': user.plus_access || 'WITHOUT_PLUS_ACCESS',
-                  'hotmart.firstAccessDate': convertUnixTimestamp(user.first_access_date),
-                  
-                  // 🆕 TURMAS DA HOTMART
+                  'hotmart.purchaseDate': convertUnixTimestamp(apiUser.purchase_date),
+                  'hotmart.signupDate': convertUnixTimestamp(apiUser.signup_date) || new Date(),
+                  'hotmart.plusAccess': apiUser.plus_access || 'WITHOUT_PLUS_ACCESS',
+                  'hotmart.firstAccessDate': convertUnixTimestamp(apiUser.first_access_date),
+
                   'hotmart.enrolledClasses': userClassId ? [{
                     classId: userClassId,
                     className: `Turma ${userClassId}`,
                     source: 'hotmart',
                     isActive: true,
-                    enrolledAt: convertUnixTimestamp(user.purchase_date) || new Date()
+                    enrolledAt: convertUnixTimestamp(apiUser.purchase_date) || new Date()
                   }] : [],
-                  
-                  // Progresso Hotmart
+
                   'hotmart.progress': {
                     totalTimeMinutes: 0,
                     completedLessons: progressData.completed,
-                    lessonsData: progressData.lessons.map(l => ({
+                    lessonsData: progressData.lessons.map((l: any) => ({
                       lessonId: l.pageId,
                       title: l.pageName,
                       completed: l.isCompleted,
                       completedAt: l.completedDate,
                       timeSpent: 0
                     })),
-                    lastAccessDate: convertUnixTimestamp(user.last_access_date)
+                    lastAccessDate: convertUnixTimestamp(apiUser.last_access_date)
                   },
-                  
-                  // Engagement Hotmart
+
                   'hotmart.engagement': {
-                    accessCount: Number(user.access_count) || 0,
-                    engagementLevel: user.engagement || 'NONE',  // ✅ Da API Hotmart
-                    engagementScore: 0,  // Será calculado no pós-processamento
+                    accessCount: Number(apiUser.access_count) || 0,
+                    engagementLevel: apiUser.engagement || 'NONE',
+                    engagementScore: 0,
                     calculatedAt: new Date()
                   },
-                  
-                  // Metadados Hotmart
+
                   'hotmart.lastSyncAt': new Date(),
                   'hotmart.syncVersion': '2.0',
-                  
-                  // Metadados gerais
+
                   'metadata.updatedAt': new Date(),
                   'metadata.sources.hotmart.lastSync': new Date(),
                   'metadata.sources.hotmart.version': '2.0'
-                  
-                  // ⚠️ NÃO ATUALIZA:
-                  // - curseduca.* (preservado)
-                  // - discord.* (preservado)
-                  // - combined.* (calculado automaticamente pelo middleware)
                 }
               },
               upsert: true
@@ -500,209 +539,123 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
 
         } catch (userError: any) {
           totalErrors++
-          const errorMsg = `Erro ao processar ${user.email || 'email_desconhecido'}: ${userError.message}`
-          errors.push(errorMsg)
-          console.error(`❌ [${syncRecord._id}] ${errorMsg}`)
+          errors.push(`Erro ao processar ${apiUser.email || 'email_desconhecido'}: ${userError.message}`)
         }
 
         await new Promise(resolve => setTimeout(resolve, 50))
       }
 
-      // ✅ EXECUTAR OPERAÇÕES EM LOTE
       try {
         if (bulkOperations.length > 0) {
-          console.log(`💾 [${syncRecord._id}] === INÍCIO DA GRAVAÇÃO NA BD ===`)
-          console.log(`📊 [${syncRecord._id}] Operações preparadas: ${bulkOperations.length}`)
-          
-          // ✅ DETECTAR MUDANÇAS PARA HISTÓRICO
           const UserHistoryModel = ensureUserHistoryModel()
-          
-          // Buscar usuários existentes para comparar mudanças
-          const emails = bulkOperations.map(op => 
-            op.updateOne?.filter?.email
-          ).filter(Boolean)
-          
-          const existingUsers = await User.find({ 
-            email: { $in: emails } 
-          }).select('email classId className').lean()
-          
-          const existingUsersMap = new Map(
-            existingUsers.map(user => [user.email, user])
-          )
-          
-          // Preparar histórico de mudanças
+
+          const emails = bulkOperations.map(op => op.updateOne?.filter?.email).filter(Boolean)
+          const existingUsers = await User.find({ email: { $in: emails } })
+            .select('email hotmart.enrolledClasses combined.classId combined.className')
+            .lean()
+
+          const existingUsersMap = new Map(existingUsers.map((u: any) => [u.email, u]))
           const historyOperations: any[] = []
-          
+
           for (const operation of bulkOperations) {
             const email = operation.updateOne?.filter?.email
-            const newData = operation.updateOne?.update?.[0]?.$set
-            
-            if (email && newData) {
-              const existingUser = existingUsersMap.get(email)
-              
-              if (existingUser) {
-                // Verificar mudança de turma
-                if (existingUser.classId !== newData.classId) {
-                  historyOperations.push({
-                    insertOne: {
-                      document: {
-                        userId: existingUser._id,
-                        userEmail: email,
-                        changeType: 'CLASS_CHANGE',
-                        previousValue: {
-                          classId: existingUser.classId,
-                          className: existingUser.className
-                        },
-                        newValue: {
-                          classId: newData.classId,
-                          className: newData.className
-                        },
-                        changeDate: new Date(),
-                        source: 'HOTMART_SYNC',
-                        syncId: syncRecord._id,
-                        reason: 'Mudança de turma detectada na sincronização da Hotmart'
-                      }
-                    }
-                  })
-                  console.log(`📝 [${syncRecord._id}] Mudança de turma: ${email} -> ${existingUser.classId} para ${newData.classId}`)
+            const newSet = operation.updateOne?.update?.$set
+            if (!email || !newSet) continue
+
+            const existing = existingUsersMap.get(email)
+            if (!existing) continue
+
+            const prevClassId = existing?.hotmart?.enrolledClasses?.[0]?.classId || existing?.combined?.classId
+            const nextClassId = newSet?.['hotmart.enrolledClasses']?.[0]?.classId
+
+            if (nextClassId && prevClassId !== nextClassId) {
+              historyOperations.push({
+                insertOne: {
+                  document: {
+                    userId: existing._id,
+                    userEmail: email,
+                    changeType: 'CLASS_CHANGE',
+                    previousValue: { classId: prevClassId, className: existing?.combined?.className },
+                    newValue: { classId: nextClassId, className: `Turma ${nextClassId}` },
+                    changeDate: new Date(),
+                    source: 'HOTMART_SYNC',
+                    syncId: syncRecord._id,
+                    reason: 'Mudança de turma detectada na sincronização da Hotmart'
+                  }
                 }
-              }
+              })
             }
           }
-          
-          // Executar operações de histórico se houver mudanças
+
           if (historyOperations.length > 0) {
             try {
               await UserHistoryModel.bulkWrite(historyOperations, { ordered: false })
-              console.log(`📚 [${syncRecord._id}] ${historyOperations.length} registros de histórico criados`)
             } catch (historyError) {
               console.error(`❌ [${syncRecord._id}] Erro ao criar histórico:`, historyError)
             }
           }
 
-          // Executar bulkWrite
-          console.log(`⏳ [${syncRecord._id}] Executando User.bulkWrite()...`)
-          const startTime = Date.now()
-          
-          const result = await User.bulkWrite(bulkOperations, {
-            ordered: false
-          })
-          
-          const executionTime = Date.now() - startTime
-          console.log(`⚡ [${syncRecord._id}] BulkWrite executado em ${executionTime}ms`)
-          
-          // Log detalhado dos resultados
-          console.log(`📋 [${syncRecord._id}] Resultado do bulkWrite:`)
-          console.log(`   • Novos utilizadores: ${result.upsertedCount}`)
-          console.log(`   • Utilizadores atualizados: ${result.modifiedCount}`)
-          
+          const result = await User.bulkWrite(bulkOperations, { ordered: false })
           totalInserted += result.upsertedCount || 0
           totalUpdated += result.modifiedCount || 0
-          
-          // ✅ PRÉ-CALCULAR ENGAGEMENT para utilizadores processados neste lote
-          console.log(`⚡ [${syncRecord._id}] === PRÉ-CALCULANDO ENGAGEMENT ===`)
-          
-          const batchEmails = bulkOperations.map(op => op.updateOne.filter.email)
-          console.log(`🔍 [${syncRecord._id}] Emails do lote: ${batchEmails.length}`)
 
+          const batchEmails = bulkOperations.map(op => op.updateOne.filter.email)
           let successfulEngagement = 0
           const engagementErrors: string[] = []
 
           try {
             const batchUsers = await User.find(
               { email: { $in: batchEmails } },
-              { 
-                _id: 1, 
-                email: 1, 
-                'hotmart.engagement': 1,  // ✅ Novo caminho segregado
-                'hotmart.progress': 1      // ✅ Novo caminho segregado
-              }
+              { _id: 1, email: 1, 'hotmart.engagement': 1, 'hotmart.progress': 1 }
             ).lean() as any[]
 
-            console.log(`🔍 [${syncRecord._id}] Encontrados ${batchUsers.length} utilizadores para engagement`)
-
-            // Processar cada utilizador
-            for (const user of batchUsers) {
+            for (const u of batchUsers) {
               try {
-                if (!user || !user._id || !user.email) {
-                  console.warn(`⚠️ [${syncRecord._id}] Utilizador inválido:`, user)
-                  continue
-                }
+                const hotmartEngagement = u.hotmart?.engagement?.engagementLevel || 'NONE'
+                const hotmartAccessCount = u.hotmart?.engagement?.accessCount || 0
+                const hotmartProgress = u.hotmart?.progress || {}
 
-                // ✅ Buscar dados segregados
-                const hotmartEngagement = user.hotmart?.engagement?.engagementLevel || 'NONE'
-                const hotmartAccessCount = user.hotmart?.engagement?.accessCount || 0
-                const hotmartProgress = user.hotmart?.progress || { completedPercentage: 0 }
-
-                // Calcular score baseado no progresso e acessos
                 const engagementResult = calculateCombinedEngagement({
                   engagement: hotmartEngagement,
                   accessCount: hotmartAccessCount,
                   progress: hotmartProgress
                 })
 
-                // ✅ Gravar no caminho segregado
-                await User.findByIdAndUpdate(user._id, {
+                await User.findByIdAndUpdate(u._id, {
                   'hotmart.engagement.engagementScore': engagementResult.score,
                   'hotmart.engagement.engagementLevel': engagementResult.level,
                   'hotmart.engagement.calculatedAt': new Date()
                 })
 
-                console.log(`✅ [${syncRecord._id}] Engagement: ${user.email} = ${engagementResult.score}/100 (${engagementResult.level})`)
                 successfulEngagement++
-
               } catch (engagementError: any) {
-                const errorMsg = `Erro engagement ${user.email || 'unknown'}: ${engagementError.message}`
-                console.error(`❌ [${syncRecord._id}] ${errorMsg}`)
-                engagementErrors.push(errorMsg)
+                engagementErrors.push(`Erro engagement ${u.email || 'unknown'}: ${engagementError.message}`)
               }
 
               await new Promise(resolve => setTimeout(resolve, 10))
             }
-
           } catch (batchEngagementError: any) {
-            console.error(`💥 [${syncRecord._id}] Erro geral no engagement:`, batchEngagementError.message)
             engagementErrors.push(`Erro geral: ${batchEngagementError.message}`)
           }
 
           totalWithEngagement += successfulEngagement
-          console.log(`✅ [${syncRecord._id}] Engagement calculado para ${successfulEngagement}/${batchEmails.length} utilizadores`)
+          if (engagementErrors.length > 0) errors.push(...engagementErrors.slice(0, 5))
 
-          if (engagementErrors.length > 0) {
-            console.error(`❌ [${syncRecord._id}] ${engagementErrors.length} erros de engagement`)
-            errors.push(...engagementErrors.slice(0, 5))
-          }
-          
         } else {
-          console.error(`❌ [${syncRecord._id}] PROBLEMA: Nenhuma operação para executar!`)
+          console.error(`❌ [${syncRecord._id}] Nenhuma operação para executar!`)
         }
-        
       } catch (batchError: any) {
         totalErrors++
-        const errorMsg = `Erro no lote ${i}-${i + batchSize}: ${batchError.message}`
-        console.error(`💥 [${syncRecord._id}] ERRO CRÍTICO NO BULKWRITE:`, batchError.message)
-        errors.push(errorMsg)
+        errors.push(`Erro no lote ${i}-${i + batchSize}: ${batchError.message}`)
       }
 
-      console.log(`📊 [${syncRecord._id}] === STATUS ATUAL ===`)
-      console.log(`📊 [${syncRecord._id}] Total processados: ${totalProcessed}`)
-      console.log(`📊 [${syncRecord._id}] Total inseridos: ${totalInserted}`)
-      console.log(`📊 [${syncRecord._id}] Total atualizados: ${totalUpdated}`)
-      console.log(`📊 [${syncRecord._id}] Total com engagement: ${totalWithEngagement}`)
-      console.log(`📊 [${syncRecord._id}] Total erros: ${totalErrors}`)
-
-      // Pausa entre lotes
       await new Promise(resolve => setTimeout(resolve, 500))
     }
 
-    // ✅ 4. Criar turmas se necessário
-    console.log(`🎓 [${syncRecord._id}] Processando ${uniqueClassIds.size} turmas únicas...`)
-    
     let newClassesCreated = 0
     for (const classId of uniqueClassIds) {
       try {
         const existingClass = await Class.findOne({ classId })
-        
         if (!existingClass) {
           await Class.create({
             classId,
@@ -713,40 +666,15 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
             studentCount: 0,
             lastSyncAt: new Date()
           })
-          
           newClassesCreated++
-          console.log(`🆕 [${syncRecord._id}] Nova turma criada: ${classId}`)
         }
       } catch (classError: any) {
-        console.error(`❌ [${syncRecord._id}] Erro ao criar turma ${classId}:`, classError.message)
         errors.push(`Erro ao criar turma ${classId}: ${classError.message}`)
       }
     }
 
-    // ✅ 5. Verificação final na BD
-    try {
-      const hotmartUsersInDb = await User.countDocuments({ source: 'HOTMART' })
-      const recentlyUpdated = await User.countDocuments({ 
-        source: 'HOTMART',
-        lastEditedAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) }
-      })
-      const withEngagementCalculated = await User.countDocuments({
-        source: 'HOTMART',
-        engagementCalculatedAt: { $ne: null }
-      })
-      
-      console.log(`🔍 [${syncRecord._id}] === VERIFICAÇÃO FINAL NA BD ===`)
-      console.log(`   • Total utilizadores Hotmart na BD: ${hotmartUsersInDb}`)
-      console.log(`   • Atualizados nos últimos 5 min: ${recentlyUpdated}`)
-      console.log(`   • Com engagement calculado: ${withEngagementCalculated}`)
-      
-    } catch (verificationError) {
-      console.error(`❌ [${syncRecord._id}] Erro na verificação final:`, verificationError)
-    }
-
-    // ✅ 6. Finalizar com estatísticas detalhadas
     await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-      status: "completed",
+      status: 'completed',
       completedAt: new Date(),
       'metadata.currentStep': 'Sincronização concluída com engagement',
       'metadata.progress': 100,
@@ -754,28 +682,11 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
         total: totalProcessed,
         added: totalInserted,
         updated: totalUpdated,
-        withProgress: totalWithProgress,
-        withClasses: totalWithClasses,
-        withEngagement: totalWithEngagement,
-        newClassesCreated,
-        uniqueClasses: uniqueClassIds.size,
         conflicts: 0,
         errors: totalErrors
       },
       errorDetails: errors.length > 0 ? errors.slice(0, 50) : undefined
     })
-
-    console.log(`✅ [${syncRecord._id}] SINCRONIZAÇÃO CONCLUÍDA COM SUCESSO!`)
-    console.log(`📊 ESTATÍSTICAS FINAIS:`)
-    console.log(`   • Total processados: ${totalProcessed}`)
-    console.log(`   • Novos utilizadores: ${totalInserted}`)
-    console.log(`   • Utilizadores atualizados: ${totalUpdated}`)
-    console.log(`   • Com progresso: ${totalWithProgress}`)
-    console.log(`   • Com engagement calculado: ${totalWithEngagement}`)
-    console.log(`   • Com turmas: ${totalWithClasses}`)
-    console.log(`   • Turmas únicas: ${uniqueClassIds.size}`)
-    console.log(`   • Novas turmas criadas: ${newClassesCreated}`)
-    console.log(`   • Erros: ${totalErrors}`)
 
     res.status(200).json({
       message: 'Sincronização Hotmart concluída com pré-cálculo de engagement!',
@@ -798,7 +709,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
 
     if (syncRecord) {
       await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-        status: "failed",
+        status: 'failed',
         completedAt: new Date(),
         'metadata.currentStep': 'Erro na sincronização',
         errorDetails: [error.message]
@@ -813,8 +724,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
   }
 }
 
-
-// ✅ FUNÇÃO CORRIGIDA: Sincronizar apenas o progresso
+// ✅ SYNC apenas progresso (legacy)
 export const syncProgressOnly = async (req: Request, res: Response): Promise<void> => {
   let syncRecord: any = null
 
@@ -830,39 +740,25 @@ export const syncProgressOnly = async (req: Request, res: Response): Promise<voi
       }
     })
 
-    console.log(`🚀 [${syncRecord._id}] Iniciando sincronização apenas de progresso...`)
-
-    // ✅ Obter token de acesso usando método corrigido
     const accessToken = await getHotmartAccessToken()
-    console.log(`✅ [${syncRecord._id}] Token de acesso obtido`)
 
-    // Buscar utilizadores existentes com hotmartUserId
     const existingUsers = await User.find({
-      hotmartUserId: { $exists: true, $ne: null, $ne: "" }
-    }).select('_id email hotmartUserId name')
+'hotmart.hotmartUserId': { $exists: true, $nin: [null, ''] }
 
-    console.log(`📊 [${syncRecord._id}] Encontrados ${existingUsers.length} utilizadores com Hotmart ID para atualização`)
+    }).select('_id email name hotmart.hotmartUserId')
 
     if (existingUsers.length === 0) {
       await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-        status: "completed",
+        status: 'completed',
         completedAt: new Date(),
         'metadata.currentStep': 'Nenhum utilizador com Hotmart ID encontrado',
         'metadata.progress': 100,
-        stats: {
-          total: 0,
-          withProgress: 0,
-          errors: 0
-        }
+        stats: { total: 0, errors: 0 }
       })
 
       res.status(200).json({
         message: 'Nenhum utilizador com Hotmart ID encontrado para sincronização de progresso',
-        stats: {
-          total: 0,
-          withProgress: 0,
-          errors: 0
-        }
+        stats: { total: 0, errors: 0 }
       })
       return
     }
@@ -870,102 +766,90 @@ export const syncProgressOnly = async (req: Request, res: Response): Promise<voi
     let totalProcessed = 0
     let totalWithProgress = 0
     let totalErrors = 0
-    let errors: string[] = []
+    const errors: string[] = []
 
-    for (const user of existingUsers) {
+    for (const u of existingUsers as any[]) {
       try {
-        // Atualizar progresso na UI
         const progressPercentage = (totalProcessed / existingUsers.length) * 100
         await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-          'metadata.currentStep': `Atualizando progresso: ${user.email}`,
+          'metadata.currentStep': `Atualizando progresso: ${u.email}`,
           'metadata.progress': progressPercentage,
           'metadata.processed': totalProcessed,
           'metadata.withProgress': totalWithProgress
         })
 
-        // ✅ Buscar lições do utilizador
-        const userLessons = await fetchUserLessons(user.hotmartUserId!, accessToken)
-        
+        const hotmartUserId = u.hotmart?.hotmartUserId
+        if (!hotmartUserId) {
+          totalErrors++
+          errors.push(`User sem hotmartUserId: ${u.email}`)
+          totalProcessed++
+          continue
+        }
+
+        const userLessons = await fetchUserLessons(hotmartUserId, accessToken)
+
         if (userLessons.length > 0) {
           totalWithProgress++
-          
-          // ✅ Calcular progresso baseado nas lições
           const progressData = calculateProgress(userLessons)
 
-          // Atualizar na base de dados
-        await User.findByIdAndUpdate(user._id, {
-          'platformProgress.hotmart.completedPercentage': progressData.completedPercentage,
-          'platformProgress.hotmart.total': progressData.total,
-          'platformProgress.hotmart.completed': progressData.completed,
-          'platformProgress.hotmart.lessons': progressData.lessons,
-          'platformProgress.hotmart.lastUpdated': new Date(),
-          'platformMetrics.hotmart.lastAccessDate': new Date()
-        })
-
-          console.log(`✅ [${syncRecord._id}] Progresso atualizado para ${user.email}: ${progressData.completed}/${progressData.total} (${progressData.completedPercentage}%)`)
-        } else {
-          console.log(`⚠️ [${syncRecord._id}] Sem lições encontradas para ${user.email} (ID: ${user.hotmartUserId})`)
+          await User.findByIdAndUpdate(u._id, {
+            'hotmart.progress': {
+              totalTimeMinutes: 0,
+              completedLessons: progressData.completed,
+              lessonsData: progressData.lessons.map((l: any) => ({
+                lessonId: l.pageId,
+                title: l.pageName,
+                completed: l.isCompleted,
+                completedAt: l.completedDate,
+                timeSpent: 0
+              })),
+              lastAccessDate: new Date()
+            },
+            'hotmart.lastSyncAt': new Date(),
+            'metadata.updatedAt': new Date(),
+            'metadata.sources.hotmart.lastSync': new Date()
+          })
         }
 
         totalProcessed++
-
       } catch (userError: any) {
         totalErrors++
-        const errorMsg = `Erro ao atualizar progresso de ${user.email}: ${userError.message}`
-        errors.push(errorMsg)
-        console.error(`❌ [${syncRecord._id}] ${errorMsg}`)
+        errors.push(`Erro ao atualizar progresso de ${u.email}: ${userError.message}`)
+        totalProcessed++
       }
 
-      // Pequena pausa entre requests para evitar rate limiting
       await new Promise(resolve => setTimeout(resolve, 150))
     }
 
-    // Finalizar com sucesso
     await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-      status: "completed",
+      status: 'completed',
       completedAt: new Date(),
       'metadata.progress': 100,
       'metadata.currentStep': 'Sincronização de progresso concluída',
-      stats: {
-        total: totalProcessed,
-        withProgress: totalWithProgress,
-        errors: totalErrors
-      },
+      stats: { total: totalProcessed, errors: totalErrors },
       errorDetails: errors.length > 0 ? errors : undefined
     })
 
-    console.log(`✅ [${syncRecord._id}] Sincronização de progresso concluída!`)
-    console.log(`📊 Total processados: ${totalProcessed} | Com progresso: ${totalWithProgress} | Erros: ${totalErrors}`)
-
     res.status(200).json({
       message: 'Sincronização de progresso concluída!',
-      stats: {
-        total: totalProcessed,
-        withProgress: totalWithProgress,
-        errors: totalErrors
-      }
+      stats: { total: totalProcessed, withProgress: totalWithProgress, errors: totalErrors }
     })
 
   } catch (error: any) {
-    console.error(`💥 [${syncRecord?._id}] Erro na sincronização de progresso:`, error)
-
     if (syncRecord) {
       await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-        status: "failed",
+        status: 'failed',
         completedAt: new Date(),
         'metadata.currentStep': 'Erro na sincronização',
         errorDetails: [error.message]
       })
     }
 
-    res.status(500).json({
-      message: 'Erro na sincronização de progresso',
-      error: error.message
-    })
+    res.status(500).json({ message: 'Erro na sincronização de progresso', error: error.message })
   }
 }
 
-// ✅ Função simples para buscar utilizador da Hotmart (compatibilidade)
+// ✅ Compatibilidade
 export const findHotmartUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = req.query
@@ -975,8 +859,7 @@ export const findHotmartUser = async (req: Request, res: Response): Promise<void
       return
     }
 
-    // Buscar utilizador na base de dados local
-    const foundUser = await User.findOne({ email: email as string })
+    const foundUser: any = await User.findOne({ email: String(email) })
 
     if (!foundUser) {
       res.status(404).json({ message: 'Utilizador não encontrado' })
@@ -989,49 +872,29 @@ export const findHotmartUser = async (req: Request, res: Response): Promise<void
         id: foundUser._id,
         email: foundUser.email,
         name: foundUser.name,
-        hotmartUserId: foundUser.hotmartUserId,
-        status: foundUser.status,
-        progress: foundUser.progress
+        hotmartUserId: foundUser.hotmart?.hotmartUserId,
+        status: foundUser.combined?.status,
+        progress: foundUser.combined?.totalProgress
       }
     })
-
   } catch (error: any) {
-    console.error('Erro ao buscar utilizador:', error)
-    res.status(500).json({
-      message: 'Erro ao buscar utilizador',
-      error: error.message
-    })
+    res.status(500).json({ message: 'Erro ao buscar utilizador', error: error.message })
   }
 }
-// ✅ FUNÇÃO DE TESTE DA BD (adicionar às rotas)
+
+// ✅ TESTE DA BD
 export const testDatabaseConnection = async (req: Request, res: Response): Promise<void> => {
   try {
-    console.log('🧪 Testando conexão com a base de dados...')
-    
-    // ✅ MÉTODO MAIS SEGURO sem usar admin().ping()
     const userCount = await User.countDocuments()
-    console.log('✅ Contagem de utilizadores:', userCount)
-    
-    // Teste de criação
+
     const testUser = await User.create({
       email: 'test-connection@example.com',
-      name: 'Test Connection User',
-      source: 'TEST'
+      name: 'Test Connection User'
     })
-    console.log('✅ Utilizador teste criado:', testUser._id)
-    
-    // Teste de atualização
-    const updatedUser = await User.findByIdAndUpdate(
-      testUser._id,
-      { name: 'Test Updated' },
-      { new: true }
-    )
-    console.log('✅ Utilizador teste atualizado:', updatedUser?.name)
-    
-    // Teste de eliminação
+
+    await User.findByIdAndUpdate(testUser._id, { name: 'Test Updated' }, { new: true })
     await User.findByIdAndDelete(testUser._id)
-    console.log('✅ Utilizador teste eliminado')
-    
+
     res.json({
       success: true,
       message: 'Todos os testes da BD passaram com sucesso',
@@ -1039,14 +902,236 @@ export const testDatabaseConnection = async (req: Request, res: Response): Promi
       testPassed: true,
       connectionStatus: 'OK'
     })
-    
   } catch (error: any) {
-    console.error('❌ Erro no teste da BD:', error)
     res.status(500).json({
       success: false,
       message: 'Erro no teste da BD',
       error: error.message,
       connectionStatus: 'FAILED'
     })
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ✅ UNIVERSAL SYNC ENDPOINTS (NOVOS)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/hotmart/sync/universal
+ * Sincronização Hotmart usando Universal Sync Service
+ */
+export const syncHotmartUsersUniversal = async (req: Request, res: Response): Promise<void> => {
+  console.log('🚀 [HotmartUniversal] Iniciando sync via Universal Service...')
+
+  try {
+    console.log('📡 [HotmartUniversal] Buscando dados via Adapter...')
+
+    const hotmartData = await hotmartAdapter.fetchHotmartDataForSync({
+      includeProgress: true,
+      includeLessons: true,
+      progressConcurrency: 5
+    })
+
+    console.log(`✅ [HotmartUniversal] ${hotmartData.length} utilizadores preparados`)
+
+    if (hotmartData.length === 0) {
+      res.status(200).json({
+        success: false,
+        message: 'Nenhum utilizador encontrado na Hotmart',
+        data: { stats: { total: 0, inserted: 0, updated: 0, errors: 0 } }
+      })
+      return
+    }
+
+    console.log('⚡ [HotmartUniversal] Executando Universal Sync...')
+
+    const result = await universalSyncService.executeUniversalSync({
+      syncType: 'hotmart',
+      jobName: 'Hotmart Universal Sync (Manual)',
+      triggeredBy: 'MANUAL',
+      triggeredByUser: (req as any).user?._id?.toString(),
+
+      fullSync: true,
+      includeProgress: true,
+      includeTags: false,
+      batchSize: 50,
+
+      sourceData: hotmartData,
+
+onProgress: (progress: SyncProgress) => {
+  if (progress.current % 100 === 0 || progress.percentage === 100) {
+    console.log(`📊 [HotmartUniversal] ${progress.percentage.toFixed(1)}% (${progress.current}/${progress.total})`)
+  }
+},
+
+onError: (error: SyncError) => {
+  console.error(`❌ [HotmartUniversal] Erro: ${error.message}`)
+},
+
+onWarning: (warning: SyncWarning) => {
+  console.warn(`⚠️ [HotmartUniversal] Aviso: ${warning.message}`)
+}
+
+    })
+
+    console.log('✅ [HotmartUniversal] Sync concluída!')
+    console.log(`   ⏱️ Duração: ${result.duration}s`)
+    console.log(`   ✅ Inseridos: ${result.stats.inserted}`)
+    console.log(`   🔄 Atualizados: ${result.stats.updated}`)
+    console.log(`   ❌ Erros: ${result.stats.errors}`)
+
+    res.status(200).json({
+      success: result.success,
+      message: result.success
+        ? 'Sincronização via Universal Service concluída com sucesso!'
+        : 'Sincronização concluída com erros',
+      data: {
+        reportId: result.reportId,
+        syncHistoryId: result.syncHistoryId,
+        stats: result.stats,
+        duration: result.duration,
+        errorsCount: result.errors.length,
+        warningsCount: result.warnings.length,
+        reportUrl: `/api/sync/reports/${result.reportId}`,
+        syncHistoryUrl: `/api/sync/history/${result.syncHistoryId}`
+      },
+      _universalSync: true,
+      _version: '3.0'
+    })
+
+  } catch (error: any) {
+    console.error('❌ [HotmartUniversal] Erro fatal:', error)
+
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao executar sincronização via Universal Service',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
+  }
+}
+
+/**
+ * POST /api/hotmart/sync/universal/progress
+ * Sincronizar apenas progresso usando Universal Sync
+ */
+export const syncProgressOnlyUniversal = async (req: Request, res: Response): Promise<void> => {
+  console.log('📊 [HotmartProgress] Iniciando sync de progresso via Universal...')
+
+  try {
+    const existingUsers = await User.find({
+'hotmart.hotmartUserId': { $exists: true, $nin: [null, ''] }
+
+    }).select('hotmart.hotmartUserId email name').lean()
+
+    console.log(`📊 [HotmartProgress] ${existingUsers.length} utilizadores com Hotmart ID`)
+
+    if (existingUsers.length === 0) {
+      res.status(200).json({
+        success: true,
+        message: 'Nenhum utilizador com Hotmart ID encontrado',
+        data: { stats: { total: 0 } }
+      })
+      return
+    }
+
+    const userIds = existingUsers
+      .map((u: any) => u.hotmart?.hotmartUserId)
+      .filter(Boolean)
+
+    const progressMap = await hotmartAdapter.fetchProgressForExistingUsers(userIds)
+
+    const progressData = existingUsers.map((u: any) => {
+      const hotmartId = u.hotmart?.hotmartUserId
+      const progress = hotmartId ? progressMap.get(hotmartId) : undefined
+
+      return {
+        email: u.email,
+        name: u.name,
+        hotmartUserId: hotmartId,
+        progress: progress || undefined
+      }
+    })
+
+    const result = await universalSyncService.executeUniversalSync({
+      syncType: 'hotmart',
+      jobName: 'Hotmart Progress Sync (Universal)',
+      triggeredBy: 'MANUAL',
+      triggeredByUser: (req as any).user?._id?.toString(),
+      fullSync: false,
+      includeProgress: true,
+      includeTags: false,
+      batchSize: 100,
+      sourceData: progressData
+    })
+
+    res.status(200).json({
+      success: result.success,
+      message: 'Progresso sincronizado via Universal Service!',
+      data: {
+        reportId: result.reportId,
+        stats: result.stats,
+        duration: result.duration,
+        withProgress: progressMap.size
+      },
+      _universalSync: true
+    })
+
+  } catch (error: any) {
+    console.error('❌ [HotmartProgress] Erro:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+/**
+ * GET /api/hotmart/sync/compare
+ * Comparar resultados: Legacy vs Universal
+ */
+export const compareSyncMethods = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const SyncReport = (await import('../models/SyncModels/SyncReport')).default as any
+
+    const legacyHistory = await SyncHistory.find({ type: 'hotmart' })
+      .sort({ startedAt: -1 })
+      .limit(5)
+      .select('startedAt completedAt status stats')
+      .lean()
+
+    const universalReports = await SyncReport.find({ syncType: 'hotmart' })
+      .sort({ startedAt: -1 })
+      .limit(5)
+      .select('startedAt completedAt status stats duration')
+      .lean()
+
+    res.json({
+      success: true,
+      data: {
+        legacy: {
+          count: legacyHistory.length,
+          latest: legacyHistory[0],
+          all: legacyHistory
+        },
+        universal: {
+          count: universalReports.length,
+          latest: universalReports[0],
+          all: universalReports
+        },
+        comparison: {
+          avgDurationLegacy: legacyHistory.reduce((sum: number, h: any) => {
+            const duration = h.completedAt && h.startedAt
+              ? (new Date(h.completedAt).getTime() - new Date(h.startedAt).getTime()) / 1000
+              : 0
+            return sum + duration
+          }, 0) / (legacyHistory.length || 1),
+
+          avgDurationUniversal: universalReports.reduce(
+            (sum: number, r: any) => sum + (r.duration || 0),
+            0
+          ) / (universalReports.length || 1)
+        }
+      }
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message })
   }
 }

@@ -277,6 +277,80 @@ export async function isUserInProduct(
   
   return !!userProduct
 }
+/**
+ * Lista users de um produto (V2) num formato compatível com o controller:
+ * - devolve [{ ...user, products: [{ product: {...}, progress, platformSpecificData, ... }] }]
+ */
+export async function getUsersByProduct(productId: string): Promise<any[]> {
+  const userProducts = await UserProduct.find({ productId })
+    .populate('userId', 'email name hotmart curseduca discord combined metadata isActive')
+    .populate('productId', 'name code platform platformData isActive')
+    .lean()
+
+  // Agrupar por user
+  const byUser = new Map<string, any>()
+
+  for (const up of userProducts as any[]) {
+    const userDoc = up.userId && typeof up.userId === 'object' ? up.userId : null
+    const prodDoc = up.productId && typeof up.productId === 'object' ? up.productId : null
+
+    if (!userDoc || !userDoc._id) continue
+    if (!prodDoc || !prodDoc._id) continue
+
+    const uid = String(userDoc._id)
+
+    if (!byUser.has(uid)) {
+      byUser.set(uid, {
+        ...userDoc,
+        _id: userDoc._id,
+        products: [],
+        _v2Enabled: true,
+        _hasProducts: true
+      })
+    }
+
+    const platform = String(prodDoc.platform || 'unknown')
+    const statusRaw = up.status ?? up.platformStatus ?? 'ACTIVE'
+    const statusLower = String(statusRaw).toLowerCase()
+
+    const progressPercentage =
+      up.progress?.progressPercentage ??
+      up.progress?.percentage ??
+      up.progress?.progress_percent ??
+      0
+
+    const entry = {
+      _id: up._id,
+      product: prodDoc, // ✅ controller usa p.product._id
+      productId: prodDoc._id, // útil
+      status: statusLower, // opcional (compat)
+      enrolledAt: up.enrolledAt,
+      progress: {
+        ...up.progress,
+        progressPercentage
+      },
+      engagement: up.engagement,
+      classes: up.classes,
+      metadata: up.metadata,
+      platformUserId: up.platformUserId,
+      platformUserUuid: up.platformUserUuid,
+
+      // ✅ controller usa p.platformSpecificData?.hotmart?.status
+      platformSpecificData: {
+        [platform]: {
+          status: statusLower,
+          statusRaw,
+          platformUserId: up.platformUserId,
+          platformUserUuid: up.platformUserUuid
+        }
+      }
+    }
+
+    byUser.get(uid).products.push(entry)
+  }
+
+  return Array.from(byUser.values())
+}
 
 // ─────────────────────────────────────────────────────────────
 // 🎯 SPRINT 5.2 - MÉTODOS HELPER ADICIONAIS
