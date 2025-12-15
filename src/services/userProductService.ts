@@ -288,6 +288,57 @@ export async function isUserInProduct(
 export async function getUserCountForProduct(productId: string): Promise<number> {
   return await UserProduct.countDocuments({ productId })
 }
+// Lista users de um produto específico (helper para controllers, NÃO é Express handler)
+export async function getUsersByProduct(productId: string): Promise<any[]> {
+  const userProducts = await UserProduct.find({ productId })
+    .populate('userId', 'name email isActive metadata')
+    .populate('productId')
+    .lean()
+
+  // Agrupar por user (caso existam duplicados)
+  const byUser = new Map<string, any>()
+
+  for (const up of userProducts) {
+    const user = up.userId as any
+    if (!user?._id) continue
+
+    const key = String(user._id)
+    const entry = byUser.get(key) || {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      isActive: user.isActive,
+      metadata: user.metadata,
+      products: [],
+      _v2Enabled: true
+    }
+
+    entry.products.push({
+      _id: up._id,
+      product: up.productId, // <- para bater com p.product._id no controller
+      status: up.status,
+      enrolledAt: up.enrolledAt,
+      progress: up.progress
+        ? {
+            ...up.progress,
+            // compatibilidade com o teu controller (que usa progressPercentage)
+            progressPercentage:
+              (up.progress as any).progressPercentage ?? (up.progress as any).percentage ?? 0
+          }
+        : undefined,
+      engagement: up.engagement,
+      classes: up.classes,
+      platform: up.platform,
+      platformUserId: up.platformUserId,
+      platformUserUuid: up.platformUserUuid,
+      metadata: up.metadata
+    })
+
+    byUser.set(key, entry)
+  }
+
+  return Array.from(byUser.values())
+}
 
 /**
  * Conta users por plataforma

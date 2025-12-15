@@ -1,58 +1,79 @@
-// src/routes/curseduca.routes.ts - VERSÃO CORRIGIDA SEGUINDO PADRÃO HOTMART
+// src/routes/curseduca.routes.ts - V1 + V2 UNIFICADO
+
 import { Router } from 'express'
 import {
-  // FUNÇÕES PRINCIPAIS (seguindo padrão hotmart)
+  // V1
   testConnection,
   syncCurseducaUsers,
   syncProgressOnly,
   getDashboardStats,
-  
-  // FUNÇÕES AUXILIARES (compatibilidade - podem retornar 501 por enquanto)
   getGroups,
   getMembers,
   getMemberByEmail,
   getAccessReports,
   getCurseducaUsers,
   debugCurseducaAPI,
-  
-  // FUTURAS FUNCIONALIDADES (501 por enquanto)
   syncCurseducaUsersIntelligent,
   getSyncReport,
   getUserByEmail,
   cleanupDuplicates,
   getUsersWithClasses,
-  updateUserClasses
+  updateUserClasses,
+
+  // V2 (agora no mesmo controller)
+  getCurseducaProducts,
+  getCurseducaProductByGroupId,
+  getCurseducaProductUsers,
+  getCurseducaStats
 } from '../controllers/curseduca.controller'
 
 const router = Router()
 
-// 🧪 DIAGNÓSTICOS E TESTES (igual ao Hotmart)
-router.get('/test', testConnection)                                 // Igual ao /hotmart/test
+// ─────────────────────────────
+// V1 (base: /api/curseduca)
+// ─────────────────────────────
 
-// 🔄 SINCRONIZAÇÃO PRINCIPAL (seguindo padrão Hotmart)
-router.get('/syncCurseducaUsers', syncCurseducaUsers)              // Igual ao /hotmart/syncHotmartUsers
-router.post('/syncProgressOnly', syncProgressOnly)                 // Igual ao /hotmart/syncProgressOnly
+// 🧪 DIAGNÓSTICOS E TESTES
+router.get('/test', testConnection)
+
+// 🔄 SINCRONIZAÇÃO
+router.get('/syncCurseducaUsers', syncCurseducaUsers)
+router.post('/syncProgressOnly', syncProgressOnly)
 
 // 📊 ESTATÍSTICAS E DASHBOARD
-router.get('/dashboard', getDashboardStats)                        // Dados específicos CursEduca
-router.get('/stats', getDashboardStats)                            // Alias para dashboard
+router.get('/dashboard', getDashboardStats)
+router.get('/stats', getDashboardStats) // alias
 
-// 📚 API CURSEDUCA (endpoints de consulta - podem ser implementados gradualmente)
-router.get('/groups', getGroups)                                   // Listar grupos/turmas
-router.get('/members', getMembers)                                 // Listar membros
-router.get('/members/by', getMemberByEmail)                        // Buscar membro por email
-router.get('/reports/access', getAccessReports)                    // Relatórios de acesso
-router.get('/users', getCurseducaUsers)                            // Users locais com curseducaUserId
+// 📚 API CURSEDUCA (placeholders/compatibilidade)
+router.get('/groups', getGroups)
+router.get('/members', getMembers)
+router.get('/members/by', getMemberByEmail)
+router.get('/reports/access', getAccessReports)
+router.get('/users', getCurseducaUsers)
 
 // 🔧 DIAGNÓSTICOS AVANÇADOS
-router.get('/debug', debugCurseducaAPI)                            // Debug da API CursEduca
+router.get('/debug', debugCurseducaAPI)
 
-// 🚀 FUNCIONALIDADES FUTURAS (endpoints preparados para expansão)
-router.post('/syncIntelligent', syncCurseducaUsersIntelligent)     // Sync inteligente (futuro)
-router.get('/report', getSyncReport)                               // Relatório detalhado (futuro)
-router.get('/user', getUserByEmail)                                // Busca específica (futuro)
-router.post('/cleanup', cleanupDuplicates)                         // Limpeza duplicados (futuro)
-// Adicionar estas rotas
+// 🚀 FUTURO
+router.post('/syncIntelligent', syncCurseducaUsersIntelligent)
+router.get('/report', getSyncReport)
+router.get('/user', getUserByEmail)
+router.post('/cleanup', cleanupDuplicates)
+
 router.get('/users-with-classes', getUsersWithClasses)
 router.put('/user/:userId/classes', updateUserClasses)
+
+// ─────────────────────────────
+// V2 (base: /api/curseduca/v2)
+// ─────────────────────────────
+
+const v2 = Router()
+
+v2.get('/stats', getCurseducaStats)
+v2.get('/products', getCurseducaProducts)
+v2.get('/products/:groupId', getCurseducaProductByGroupId)
+v2.get('/products/:groupId/users', getCurseducaProductUsers)
+
+router.use('/v2', v2)
+
 export default router

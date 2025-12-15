@@ -4,7 +4,7 @@ import {
   syncHotmartUsers,
   findHotmartUser,
   syncProgressOnly
-} from "../controllers/hotmart.controller"
+} from "../controllers/syncUtilizadoresControllers.ts/hotmart.controller"
 
 const router = Router()
 
