@@ -4,22 +4,12 @@
 import { Request, Response } from 'express'
 import axios from 'axios'
 import type { Types } from 'mongoose'
-import User from '../models/user'
-import SyncHistory from '../models/SyncHistory'
-import { Class } from '../models/Class'
-import { ensureUserHistoryModel } from '../models/UserHistory'
-import { calculateCombinedEngagement } from '../utils/engagementCalculator'
-import { Product } from '../models'
-
-// ✅ IMPORT CERTO (service) – não importes do controller
-import { getUserCountForProduct, getUsersByProduct } from '../services/userProductService'
-import universalSyncService, { SyncError, SyncProgress, SyncWarning } from '../services/syncUtilziadoresServices/universalSyncService'
-import hotmartAdapter from '../services/syncUtilziadoresServices/hotmartServices/hotmart.adapter'
-
-// ✅ Universal Sync
-
-
-// ✅ NOVO (Universal Sync)
+import { Class, Product, SyncHistory, User } from '../../models'
+import { getUserCountForProduct, getUsersByProduct } from '../../services/userProductService'
+import { ensureUserHistoryModel } from '../../models/UserHistory'
+import { calculateCombinedEngagement } from '../../utils/engagementCalculator'
+import hotmartAdapter from '../../services/syncUtilziadoresServices/hotmartServices/hotmart.adapter'
+import universalSyncService, { SyncError, SyncProgress, SyncWarning } from '../../services/syncUtilziadoresServices/universalSyncService'
 
 
 // ─────────────────────────────────────────────────────────────
@@ -184,9 +174,6 @@ export const getHotmartStats = async (req: Request, res: Response) => {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// HOTMART SYNC (LEGACY + UPDATED PATHS)
-// ─────────────────────────────────────────────────────────────
 
 interface HotmartLesson {
   page_id: string
@@ -1089,7 +1076,7 @@ export const syncProgressOnlyUniversal = async (req: Request, res: Response): Pr
  */
 export const compareSyncMethods = async (req: Request, res: Response): Promise<void> => {
   try {
-    const SyncReport = (await import('../models/SyncModels/SyncReport')).default as any
+    const SyncReport = (await import('../../models/SyncModels/SyncReport')).default as any
 
     const legacyHistory = await SyncHistory.find({ type: 'hotmart' })
       .sort({ startedAt: -1 })

@@ -24,7 +24,7 @@ import contactTagReaderRoutes from './contactTagReader.routes'  // Sprint 5: Con
 // 🎯 SPRINT 5.2 - V2 ROUTES (Arquitetura Escalável)
 import usersV2Routes from './usersV2.routes'
 import syncV2Routes from './syncV2.routes'
-import curseducaV2Routes from './curseducaV2.routes'
+
 import activecampaignV2Routes from './activecampaignV2.routes'
    import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
    import syncStatsRoutes from './syncUtilizadoresRoutes/syncStats.routes'
@@ -40,7 +40,7 @@ router.use("/sync", syncRoutes)            // Histórico de sincronizações
 // 🎯 V2 ROUTES - Arquitetura Escalável (Sprint 5.2)
 router.use("/v2/users", usersV2Routes)
 router.use("/v2/sync", syncV2Routes)
-router.use("/v2/curseduca", curseducaV2Routes)
+
 router.use("/v2/activecampaign", activecampaignV2Routes)
 
 // 📚 GESTÃO DE TURMAS E CONTEÚDOS

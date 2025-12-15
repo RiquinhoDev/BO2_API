@@ -6,6 +6,7 @@ import {
   syncProgressOnly,
   findHotmartUser,
 
+
   // V2
   getHotmartProducts,
   getHotmartProductBySubdomain,
@@ -16,7 +17,8 @@ import {
   syncHotmartUsersUniversal,
   syncProgressOnlyUniversal,
   compareSyncMethods
-} from '../controllers/hotmart.controller'
+} from '../../src/controllers/syncUtilizadoresControllers.ts/hotmart.controller'
+
 
 const router = Router()
 
