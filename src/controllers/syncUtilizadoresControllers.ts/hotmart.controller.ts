@@ -1,13 +1,13 @@
 // src/controllers/hotmart.controller.ts - VERSÃO COMPLETAMENTE CORRIGIDA
 import { Request, Response } from 'express'
 import axios, { AxiosResponse } from 'axios'
-import User from '../models/user'
-import SyncHistory from '../models/SyncHistory'
-import { Class } from '../models/Class'
-import user from '../models/user'
-import { UserHistory, ensureUserHistoryModel } from '../models/UserHistory'
-import { engagementPreCalc } from '../services/engagementPreCalculation'
-import { calculateCombinedEngagement } from '../utils/engagementCalculator'
+import User from '../../models/user'
+import SyncHistory from '../../models/SyncHistory'
+import { Class } from '../../models/Class'
+import user from '../../models/user'
+import { UserHistory, ensureUserHistoryModel } from '../../models/UserHistory'
+import { engagementPreCalc } from '../../services/engagementPreCalculation'
+import { calculateCombinedEngagement } from '../../utils/engagementCalculator'
 
 // Interface para lições da Hotmart (baseada na documentação real)
 interface HotmartLesson {

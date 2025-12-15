@@ -25,7 +25,6 @@ import contactTagReaderRoutes from './contactTagReader.routes'  // Sprint 5: Con
 import usersV2Routes from './usersV2.routes'
 import syncV2Routes from './syncV2.routes'
 import hotmartV2Routes from './hotmartV2.routes'
-import curseducaV2Routes from './curseducaV2.routes'
 import activecampaignV2Routes from './activecampaignV2.routes'
    import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
    import syncStatsRoutes from './syncUtilizadoresRoutes/syncStats.routes'
@@ -42,7 +41,6 @@ router.use("/sync", syncRoutes)            // Histórico de sincronizações
 router.use("/v2/users", usersV2Routes)
 router.use("/v2/sync", syncV2Routes)
 router.use("/v2/hotmart", hotmartV2Routes)
-router.use("/v2/curseduca", curseducaV2Routes)
 router.use("/v2/activecampaign", activecampaignV2Routes)
 
 // 📚 GESTÃO DE TURMAS E CONTEÚDOS
