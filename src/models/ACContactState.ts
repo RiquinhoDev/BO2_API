@@ -217,41 +217,39 @@ ACContactStateSchema.methods.hasProduct = function(productCode: string): boolean
 }
 
 // ─────────────────────────────────────────────────────────────
-// MÉTODOS ESTÁTICOS
+// MÉTODOS DE INSTÂNCIA
 // ─────────────────────────────────────────────────────────────
 
-ACContactStateSchema.statics.findByProduct = function(productCode: string) {
-  return this.find({
-    'detectedProducts.code': productCode,
-    'detectedProducts.confidence': { $gte: 70 }
-  })
+ACContactStateSchema.methods.updateMetadata = function(this: IACContactState) {
+  this.metadata.totalTags = this.tags.length
+  this.metadata.systemTags = this.tags.filter((t) => t.isSystemTag).length
+  this.metadata.manualTags = this.tags.filter((t) => t.source === 'ac_manual').length
+  this.metadata.automationTags = this.tags.filter((t) => t.source === 'ac_automation').length
+  this.metadata.highConfidenceProducts = this.detectedProducts.filter((p) => p.confidence >= 80).length
 }
 
-ACContactStateSchema.statics.findWithInconsistencies = function() {
-  return this.find({
-    inconsistenciesCount: { $gt: 0 }
-  }).sort({ inconsistenciesCount: -1 })
+ACContactStateSchema.methods.getSystemTags = function(this: IACContactState): IACContactTag[] {
+  return this.tags.filter((t) => t.isSystemTag)
 }
 
-ACContactStateSchema.statics.findOldSyncs = function(daysOld: number = 7) {
-  const cutoff = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000)
-  return this.find({
-    lastSyncAt: { $lt: cutoff }
-  }).sort({ lastSyncAt: 1 })
+ACContactStateSchema.methods.getActiveProducts = function(this: IACContactState): IACDetectedProduct[] {
+  return this.detectedProducts.filter((p) => p.isActive && p.confidence >= 70)
+}
+
+ACContactStateSchema.methods.hasProduct = function(this: IACContactState, productCode: string): boolean {
+  return this.detectedProducts.some((p) => p.code === productCode && p.confidence >= 70)
 }
 
 // ─────────────────────────────────────────────────────────────
 // MIDDLEWARE
 // ─────────────────────────────────────────────────────────────
 
-// Pre-save: atualizar metadata automaticamente
-ACContactStateSchema.pre('save', function(next) {
+ACContactStateSchema.pre('save', function(this: IACContactState, next) {
   if (this.isModified('tags') || this.isModified('detectedProducts')) {
     this.updateMetadata()
   }
   next()
 })
-
 // ─────────────────────────────────────────────────────────────
 // EXPORT
 // ─────────────────────────────────────────────────────────────
