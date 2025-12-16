@@ -73,7 +73,7 @@ export const fetchHotmartDataForSync = async (
       progressMap = await hotmartHelpers.fetchBatchUserProgress(
         rawUsers,
         accessToken,
-        options.progressConcurrency || 5
+        options.progressConcurrency ||  2 
       )
 
       console.log(`✅ [HotmartAdapter] ${progressMap.size} utilizadores com progresso`)

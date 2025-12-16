@@ -914,8 +914,8 @@ export const syncHotmartUsersUniversal = async (req: Request, res: Response): Pr
     console.log('📡 [HotmartUniversal] Buscando dados via Adapter...')
 
     const hotmartData = await hotmartAdapter.fetchHotmartDataForSync({
-      includeProgress: true,
-      includeLessons: true,
+      includeProgress: false,
+      includeLessons: false,
       progressConcurrency: 5
     })
 
