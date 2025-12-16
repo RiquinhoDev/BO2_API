@@ -107,12 +107,19 @@ async function makeRequest(
     log(`\n🔍 Testando: ${testName}`, 'yellow')
     log(`   📡 ${method} ${endpoint}`, 'blue')
     
+// DEPOIS (60 minutos):
 const response = await axios({
   method,
   url: `${API_BASE_URL}${endpoint}`,
-  timeout: 300000, // ✅ 5 minutos (era 120000)
+  timeout: 3600000, // ✅ 60 minutos (1 hora)
   validateStatus: () => true
 })
+
+// Log para user saber que pode demorar
+if (endpoint.includes('hotmart')) {
+  console.log('   ⏳ Hotmart sync pode demorar 20-40 minutos (4200+ users com progresso)')
+  console.log('   ☕ Vai buscar um café! ☕')
+}
     
     const duration = Date.now() - startTime
     
