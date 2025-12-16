@@ -913,11 +913,11 @@ export const syncHotmartUsersUniversal = async (req: Request, res: Response): Pr
   try {
     console.log('📡 [HotmartUniversal] Buscando dados via Adapter...')
 
-    const hotmartData = await hotmartAdapter.fetchHotmartDataForSync({
-      includeProgress: false,
-      includeLessons: false,
-      progressConcurrency: 5
-    })
+const hotmartData = await hotmartAdapter.fetchHotmartDataForSync({
+  includeProgress: true,
+  includeLessons: true,
+  progressConcurrency: 5  // ✅ Aumentar de 2 para 5 (mais rápido mas mais carga API)
+})
 
     console.log(`✅ [HotmartUniversal] ${hotmartData.length} utilizadores preparados`)
 

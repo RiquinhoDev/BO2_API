@@ -129,7 +129,8 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
-        }
+        },
+        timeout: 30000 // ✅ 30s timeout por request
       })
 
       // Normalizar resposta (diferentes formatos possíveis)
@@ -174,15 +175,16 @@ export const fetchUserLessons = async (
   try {
     const subdomain = process.env.subdomain || 'ograndeinvestimento-bomrmk'
 
-    const response = await axios.get(
-      `https://developers.hotmart.com/club/api/v1/users/${userId}/lessons?subdomain=${subdomain}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    )
+const response = await axios.get(
+  `https://developers.hotmart.com/club/api/v1/users/${userId}/lessons?subdomain=${subdomain}`,
+  {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    timeout: 10000 // ✅ 10s timeout por request
+  }
+)
 
     return response.data.lessons || []
 
@@ -210,11 +212,21 @@ export const fetchBatchUserProgress = async (
     .map(u => u.id || u.user_id || u.uid || u.code)
     .filter(Boolean) as string[]
 
-  console.log(`📊 [HotmartProgress] Buscando progresso de ${userIds.length} utilizadores...`)
+  console.log(`📊 [HotmartProgress] Iniciando fetch de progresso...`)
+  console.log(`   👥 Total users: ${userIds.length}`)
+  console.log(`   🔢 Concurrency: ${concurrency}`)
+  console.log(`   ⏱️  Estimativa: ~${Math.ceil(userIds.length / concurrency * 0.5 / 60)} minutos`)
 
-  // Processar em batches com concorrência controlada
+  const startTime = Date.now()
+  let processedCount = 0
+
+  // Processar em batches
   for (let i = 0; i < userIds.length; i += concurrency) {
     const batch = userIds.slice(i, i + concurrency)
+    const batchNum = Math.floor(i / concurrency) + 1
+    const totalBatches = Math.ceil(userIds.length / concurrency)
+    
+    const batchStart = Date.now()
     
     const progressPromises = batch.map(async (userId) => {
       try {
@@ -224,22 +236,37 @@ export const fetchBatchUserProgress = async (
           progressMap.set(userId, progress)
         }
       } catch (error) {
-        console.warn(`⚠️ [HotmartProgress] Erro no user ${userId}`)
+        // Silencioso - não logar cada erro
       }
     })
 
     await Promise.all(progressPromises)
     
+    processedCount += batch.length
+    const batchDuration = Date.now() - batchStart
+    const elapsed = Math.floor((Date.now() - startTime) / 1000)
+    const percentage = Math.floor((processedCount / userIds.length) * 100)
+    
+    // ✅ LOG A CADA 10 BATCHES (não todos!)
+    if (batchNum % 10 === 0 || batchNum === totalBatches) {
+      const remaining = Math.ceil((userIds.length - processedCount) / concurrency * (batchDuration / 1000))
+      console.log(`   📦 Batch ${batchNum}/${totalBatches} (${percentage}%) - ${elapsed}s passados, ~${Math.ceil(remaining / 60)} min restantes`)
+    }
+    
     // Rate limiting entre batches
     if (i + concurrency < userIds.length) {
-      await new Promise(resolve => setTimeout(resolve, 200))
+      await new Promise(resolve => setTimeout(resolve, 100)) // 100ms
     }
   }
 
-  console.log(`✅ [HotmartProgress] ${progressMap.size} utilizadores com progresso`)
+  const totalDuration = Math.floor((Date.now() - startTime) / 1000)
+  console.log(`✅ [HotmartProgress] Completo!`)
+  console.log(`   ⏱️  Duração: ${totalDuration}s (${Math.floor(totalDuration / 60)} min)`)
+  console.log(`   📊 Sucesso: ${progressMap.size}/${userIds.length} users (${Math.floor(progressMap.size / userIds.length * 100)}%)`)
+  console.log(`   ⚡ Velocidade: ${(userIds.length / totalDuration).toFixed(1)} users/s`)
+
   return progressMap
 }
-
 // ═══════════════════════════════════════════════════════════
 // DATA PROCESSING
 // ═══════════════════════════════════════════════════════════

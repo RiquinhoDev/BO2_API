@@ -70,13 +70,23 @@ export const fetchHotmartDataForSync = async (
     if (options.includeProgress && options.includeLessons) {
       console.log('📊 [HotmartAdapter] Step 3/4: Buscando progresso...')
 
-      progressMap = await hotmartHelpers.fetchBatchUserProgress(
-        rawUsers,
-        accessToken,
-        options.progressConcurrency ||  2 
-      )
+console.log('📊 [HotmartAdapter] Step 3/4: Buscando progresso...')
+console.log(`   👥 ${rawUsers.length} users para processar`)
+console.log(`   🔢 Concurrency: ${options.progressConcurrency || 2}`)
+console.log(`   ⏱️  Tempo estimado: ${Math.ceil(rawUsers.length / (options.progressConcurrency || 2) * 0.5 / 60)} minutos`)
+console.log('   ☕ Isto pode demorar - vai buscar um café!')
 
-      console.log(`✅ [HotmartAdapter] ${progressMap.size} utilizadores com progresso`)
+const progressStart = Date.now()
+
+progressMap = await hotmartHelpers.fetchBatchUserProgress(
+  rawUsers,
+  accessToken,
+  options.progressConcurrency || 2
+)
+
+const progressDuration = Math.floor((Date.now() - progressStart) / 1000)
+console.log(`✅ [HotmartAdapter] Progresso obtido em ${progressDuration}s (${Math.floor(progressDuration / 60)} min)`)
+console.log(`   📊 ${progressMap.size}/${rawUsers.length} users com progresso`)
     } else {
       console.log('⏭️ [HotmartAdapter] Step 3/4: Progresso ignorado (opções)')
     }
