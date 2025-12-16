@@ -727,10 +727,17 @@ export const compareSyncMethods = async (req: Request, res: Response): Promise<v
   try {
     const SyncReport = (await import('../../models/SyncModels/SyncReport')).default as any
 
-    const legacyHistory = await SyncHistory.find({ syncType: 'CURSEDUCA' })
+    // ✅ FIX: Query flexível para encontrar qualquer formato
+    const legacyHistory = await SyncHistory.find({ 
+      $or: [
+        { type: 'curseduca' },        // Universal Sync format
+        { syncType: 'CURSEDUCA' },    // Legacy format (uppercase)
+        { type: 'CURSEDUCA' }         // Mixed case
+      ]
+    })
       .sort({ startedAt: -1 })
       .limit(5)
-      .select('startedAt completedAt status stats')
+      .select('startedAt completedAt status stats type')
       .lean()
 
     const universalReports = await SyncReport.find({ syncType: 'curseduca' })

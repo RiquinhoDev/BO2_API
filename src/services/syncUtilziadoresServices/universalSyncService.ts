@@ -353,12 +353,23 @@ syncHistoryId = hid
     // STEP 6: FINALIZAR SYNCHISTORY
     // ═══════════════════════════════════════════════════════════
 
-    await syncHistory.complete({
-      total: stats.total,
-      added: stats.inserted,
-      updated: stats.updated,
-      errors: stats.errors
-    })
+const completedAt = new Date()
+const durationSeconds = Math.floor((completedAt.getTime() - new Date(syncHistory.startedAt).getTime()) / 1000)
+
+await SyncHistory.findByIdAndUpdate(syncHistoryId, {
+  status: 'completed',
+  completedAt,
+  'stats.total': stats.total,
+  'stats.added': stats.inserted,
+  'stats.updated': stats.updated,
+  'stats.errors': stats.errors,
+  duration: durationSeconds,
+  'metrics.duration': durationSeconds,
+  'metrics.usersPerSecond': durationSeconds > 0 ? stats.total / durationSeconds : 0,
+  'metrics.avgTimePerUser': stats.total > 0 ? (durationSeconds * 1000) / stats.total : 0
+})
+
+console.log(`✅ [UniversalSync] SyncHistory finalizado: ${syncHistoryId}`)
 
     // ═══════════════════════════════════════════════════════════
     // STEP 7: CALCULAR DURAÇÃO E RETORNAR
@@ -398,14 +409,18 @@ syncHistoryId = hid
     }
 
 if (syncHistoryId) {
+  const errorTime = new Date()
+  const durationSeconds = Math.floor((errorTime.getTime() - new Date().getTime()) / 1000)
+  
   await SyncHistory.findByIdAndUpdate(syncHistoryId, {
     status: 'failed',
-    completedAt: new Date(),
+    completedAt: errorTime,
+    duration: durationSeconds,
     $push: { errorDetails: message },
     'stats.total': stats.total,
     'stats.added': stats.inserted,
     'stats.updated': stats.updated,
-    'stats.errors': stats.errors
+    'stats.errors': stats.errors + 1  // +1 para contar o erro fatal
   })
 }
 
