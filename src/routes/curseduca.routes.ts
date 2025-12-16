@@ -24,8 +24,11 @@ import {
   getCurseducaProducts,
   getCurseducaProductByGroupId,
   getCurseducaProductUsers,
-  getCurseducaStats
-} from '../controllers/curseduca.controller'
+  getCurseducaStats,
+  compareSyncMethods,
+  syncProgressOnlyUniversal,
+  syncCurseducaUsersUniversal
+} from '../controllers/syncUtilizadoresControllers.ts/curseduca.controller'
 
 const router = Router()
 
@@ -75,5 +78,12 @@ v2.get('/products/:groupId', getCurseducaProductByGroupId)
 v2.get('/products/:groupId/users', getCurseducaProductUsers)
 
 router.use('/v2', v2)
+// ─────────────────────────────────────────────────────────────
+// UNIVERSAL SYNC (novos endpoints)
+// ─────────────────────────────────────────────────────────────
+router.get('/sync/universal', syncCurseducaUsersUniversal)
+router.post('/sync/universal/progress', syncProgressOnlyUniversal)
+router.get('/sync/compare', compareSyncMethods)
+
 
 export default router
