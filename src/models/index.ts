@@ -42,8 +42,10 @@ import './DashboardStats'
 // Exportar models para uso direto
 export { default as User } from './user'
 export { default as Admin } from './Admin'
-export { default as Class } from './Class'
-export { default as ClassAnalytics } from './ClassAnalytics'
+export { Class } from './Class'
+export { ClassAnalytics } from './ClassAnalytics'
+export { Testimonial } from './Testimonial'
+
 export { default as CommunicationHistory } from './CommunicationHistory'
 export { default as Course } from './Course'
 export { default as CronConfig } from './CronConfig'
@@ -55,10 +57,8 @@ export { default as InactivationList } from './InactivationList'
 export { default as StudentClassHistory } from './StudentClassHistory'
 export { default as SyncHistory } from './SyncHistory'
 export { default as TagRule } from './TagRule'
-export { default as Testimonial } from './Testimonial'
 export { default as UnmatchedUser } from './UnmatchedUser'
 export { default as UserAction } from './UserAction'
-export { default as UserHistory } from './UserHistory'
 
 // ===== NOVOS EXPORTS: RE-ENGAGEMENT SYSTEM =====
 export { default as ProductProfile } from './ProductProfile'

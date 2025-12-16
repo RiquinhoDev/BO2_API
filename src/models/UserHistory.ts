@@ -1,7 +1,8 @@
+// src/models/UserHistory.ts - VERSÃO CORRIGIDA COMPLETA
 import mongoose, { Document, Schema } from 'mongoose'
 
 export interface IUserHistory extends Document {
-  userId: mongoose.Types.ObjectId
+  userId: mongoose.Types.ObjectId  // ✅ CORRETO na interface
   userEmail: string
   changeType: 'CLASS_CHANGE' | 'EMAIL_CHANGE' | 'MANUAL_EDIT' | 'PLATFORM_UPDATE' | 'STATUS_CHANGE' | 'INACTIVATION'
   
@@ -40,7 +41,7 @@ export interface IUserHistory extends Document {
 
 const userHistorySchema = new Schema<IUserHistory>({
   userId: {
-    type: mongoose.Types.ObjectId,
+    type: Schema.Types.ObjectId,  // ✅ CORRETO no schema
     required: true,
     ref: 'User',
     index: true
@@ -100,7 +101,7 @@ const userHistorySchema = new Schema<IUserHistory>({
     index: true
   },
   syncId: {
-    type: mongoose.Types.ObjectId,
+    type: Schema.Types.ObjectId,  // ✅ CORRETO
     ref: 'SyncHistory'
   },
   changedBy: String,
@@ -216,13 +217,17 @@ userHistorySchema.statics.getUserHistory = async function(
     .lean()
 }
 
-export const UserHistory = mongoose.model<IUserHistory>('UserHistory', userHistorySchema)
+// ✅ FIX: Export com verificação de modelo existente
+const UserHistory = mongoose.models.UserHistory || 
+  mongoose.model<IUserHistory>('UserHistory', userHistorySchema)
+
+export default UserHistory
 
 // Função helper para garantir que o modelo existe
 export function ensureUserHistoryModel() {
   try {
     return mongoose.model<IUserHistory>('UserHistory')
   } catch {
-    return mongoose.model<IUserHistory>('UserHistory', userHistorySchema)
+    return UserHistory
   }
 }

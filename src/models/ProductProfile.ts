@@ -241,38 +241,25 @@ ProductProfileSchema.index({ code: 1, isActive: 1 })  // Busca por código + ati
  * Métodos do documento
  */
 ProductProfileSchema.methods = {
-  /**
-   * Obter nível específico
-   */
-  getLevel(levelNumber: number): IReengagementLevel | undefined {
-    return this.reengagementLevels.find(l => l.level === levelNumber)
+  getLevel(this: IProductProfile, levelNumber: number): IReengagementLevel | undefined {
+    return this.reengagementLevels.find((l) => l.level === levelNumber)
   },
-  
-  /**
-   * Obter nível apropriado baseado em dias de inatividade
-   */
-  getAppropriateLevel(daysInactive: number): IReengagementLevel | null {
+
+  getAppropriateLevel(this: IProductProfile, daysInactive: number): IReengagementLevel | null {
     const sortedLevels = [...this.reengagementLevels].sort(
       (a, b) => a.daysInactive - b.daysInactive
     )
-    
-    // Encontrar o nível mais alto que o aluno atingiu
-    let appropriateLevel = null
+
+    let appropriateLevel: IReengagementLevel | null = null
     for (const level of sortedLevels) {
-      if (daysInactive >= level.daysInactive) {
-        appropriateLevel = level
-      } else {
-        break
-      }
+      if (daysInactive >= level.daysInactive) appropriateLevel = level
+      else break
     }
-    
+
     return appropriateLevel
   },
-  
-  /**
-   * Verificar se ação conta como progresso
-   */
-  countsAsProgress(actionType: string): boolean {
+
+  countsAsProgress(this: IProductProfile, actionType: string): boolean {
     return this.progressDefinition.countsAsProgress.includes(actionType)
   }
 }
