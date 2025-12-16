@@ -1,18 +1,21 @@
 // src/controllers/curseduca.controller.ts - CONTROLLER UNIFICADO (v1 + v2) COM TIPOS CORRIGIDOS
 
 import { Request, Response } from 'express'
-import User from '../models/user'
-import Product from '../models/Product'
+import User from '../../models/user'
+import Product from '../../models/Product'
 import {
   testCurseducaConnection,
   syncCurseducaMembers,
   syncCurseducaProgress,
   getCurseducaDashboardStats
-} from '../services/curseducaService'
+} from '../../services/curseducaService'
 import {
   getUsersByProduct as getUsersByProductService,
   getUserCountForProduct
-} from '../services/userProductService'
+} from '../../services/userProductService'
+import { SyncHistory } from '../../models'
+import universalSyncService, { SyncError, SyncProgress, SyncWarning } from '../../services/syncUtilziadoresServices/universalSyncService'
+import curseducaAdapter from '../../services/syncUtilziadoresServices/curseducaServices/curseduca.adapter'
 
 // ─────────────────────────────────────────────────────────────
 // Tipos auxiliares (para calar TS sem mexer nos services)
@@ -538,5 +541,233 @@ export const getCurseducaStats = async (req: Request, res: Response) => {
     })
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message })
+  }
+}
+// ─────────────────────────────────────────────────────────────
+// ✅ UNIVERSAL SYNC ENDPOINTS (NOVOS)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/curseduca/sync/universal
+ * Sincronização CursEduca usando Universal Sync Service
+ */
+
+export const syncCurseducaUsersUniversal = async (req: Request, res: Response): Promise<void> => {
+  console.log('🚀 [CurseducaUniversal] Iniciando sync via Universal Service...')
+
+  try {
+    console.log('📡 [CurseducaUniversal] Buscando dados via Adapter...')
+
+    // Query param opcional para sync apenas um grupo
+    const { groupId } = req.query
+
+    const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
+      includeProgress: true,
+      includeGroups: true,
+      groupId: groupId as string | undefined,
+      progressConcurrency: 5
+    })
+
+    console.log(`✅ [CurseducaUniversal] ${curseducaData.length} membros preparados`)
+
+    if (curseducaData.length === 0) {
+      res.status(200).json({
+        success: false,
+        message: 'Nenhum membro encontrado na CursEduca',
+        data: { stats: { total: 0, inserted: 0, updated: 0, errors: 0 } }
+      })
+      return
+    }
+
+    console.log('⚡ [CurseducaUniversal] Executando Universal Sync...')
+
+    const result = await universalSyncService.executeUniversalSync({
+      syncType: 'curseduca',
+      jobName: 'CursEduca Universal Sync (Manual)',
+      triggeredBy: 'MANUAL',
+      triggeredByUser: (req as any).user?._id?.toString(),
+
+      fullSync: true,
+      includeProgress: true,
+      includeTags: false,
+      batchSize: 50,
+
+      sourceData: curseducaData,
+
+      onProgress: (progress: SyncProgress) => {
+        if (progress.current % 50 === 0 || progress.percentage === 100) {
+          console.log(`📊 [CurseducaUniversal] ${progress.percentage.toFixed(1)}% (${progress.current}/${progress.total})`)
+        }
+      },
+
+      onError: (error: SyncError) => {
+        console.error(`❌ [CurseducaUniversal] Erro: ${error.message}`)
+      },
+
+      onWarning: (warning: SyncWarning) => {
+        console.warn(`⚠️ [CurseducaUniversal] Aviso: ${warning.message}`)
+      }
+    })
+
+    console.log('✅ [CurseducaUniversal] Sync concluída!')
+    console.log(`   ⏱️ Duração: ${result.duration}s`)
+    console.log(`   ✅ Inseridos: ${result.stats.inserted}`)
+    console.log(`   🔄 Atualizados: ${result.stats.updated}`)
+    console.log(`   ❌ Erros: ${result.stats.errors}`)
+
+    res.status(200).json({
+      success: result.success,
+      message: result.success
+        ? 'Sincronização via Universal Service concluída com sucesso!'
+        : 'Sincronização concluída com erros',
+      data: {
+        reportId: result.reportId,
+        syncHistoryId: result.syncHistoryId,
+        stats: result.stats,
+        duration: result.duration,
+        errorsCount: result.errors.length,
+        warningsCount: result.warnings.length,
+        reportUrl: `/api/sync/reports/${result.reportId}`,
+        syncHistoryUrl: `/api/sync/history/${result.syncHistoryId}`
+      },
+      _universalSync: true,
+      _version: '3.0'
+    })
+
+  } catch (error: any) {
+    console.error('❌ [CurseducaUniversal] Erro fatal:', error)
+
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao executar sincronização via Universal Service',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    })
+  }
+}
+
+/**
+ * POST /api/curseduca/sync/universal/progress
+ * Sincronizar apenas progresso usando Universal Sync
+ */
+export const syncProgressOnlyUniversal = async (req: Request, res: Response): Promise<void> => {
+  console.log('📊 [CurseducaProgress] Iniciando sync de progresso via Universal...')
+
+  try {
+    const existingUsers = await User.find({
+      $or: [
+        { 'curseduca.curseducaUserId': { $exists: true, $nin: [null, ''] } },
+        { 'curseduca.curseducaUuid': { $exists: true, $nin: [null, ''] } }
+      ]
+    }).select('curseduca.curseducaUserId curseduca.curseducaUuid email name').lean()
+
+    console.log(`📊 [CurseducaProgress] ${existingUsers.length} utilizadores com CursEduca ID`)
+
+    if (existingUsers.length === 0) {
+      res.status(200).json({
+        success: true,
+        message: 'Nenhum utilizador com CursEduca ID encontrado',
+        data: { stats: { total: 0 } }
+      })
+      return
+    }
+
+    // CursEduca: progresso vem da API principal (não tem endpoint dedicado)
+    console.log('⚠️ [CurseducaProgress] CursEduca não tem endpoint dedicado para progresso')
+    console.info('   💡 Executando sync completo filtrado por users existentes')
+
+    // Buscar dados atualizados via adapter
+    const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
+      includeProgress: true,
+      includeGroups: false, // Não precisa atualizar grupos
+      progressConcurrency: 5
+    })
+
+    // Filtrar apenas users existentes
+    const existingEmails = new Set(existingUsers.map((u: any) => u.email))
+    const filteredData = curseducaData.filter(item => existingEmails.has(item.email))
+
+    console.log(`📊 [CurseducaProgress] ${filteredData.length} users para atualizar progresso`)
+
+    const result = await universalSyncService.executeUniversalSync({
+      syncType: 'curseduca',
+      jobName: 'CursEduca Progress Sync (Universal)',
+      triggeredBy: 'MANUAL',
+      triggeredByUser: (req as any).user?._id?.toString(),
+      fullSync: false,
+      includeProgress: true,
+      includeTags: false,
+      batchSize: 100,
+      sourceData: filteredData
+    })
+
+    res.status(200).json({
+      success: result.success,
+      message: 'Progresso sincronizado via Universal Service!',
+      data: {
+        reportId: result.reportId,
+        stats: result.stats,
+        duration: result.duration
+      },
+      _universalSync: true,
+      _progressOnly: true
+    })
+
+  } catch (error: any) {
+    console.error('❌ [CurseducaProgress] Erro:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+/**
+ * GET /api/curseduca/sync/compare
+ * Comparar resultados: Legacy vs Universal
+ */
+export const compareSyncMethods = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const SyncReport = (await import('../../models/SyncModels/SyncReport')).default as any
+
+    const legacyHistory = await SyncHistory.find({ syncType: 'CURSEDUCA' })
+      .sort({ startedAt: -1 })
+      .limit(5)
+      .select('startedAt completedAt status stats')
+      .lean()
+
+    const universalReports = await SyncReport.find({ syncType: 'curseduca' })
+      .sort({ startedAt: -1 })
+      .limit(5)
+      .select('startedAt completedAt status stats duration')
+      .lean()
+
+    res.json({
+      success: true,
+      data: {
+        legacy: {
+          count: legacyHistory.length,
+          latest: legacyHistory[0],
+          all: legacyHistory
+        },
+        universal: {
+          count: universalReports.length,
+          latest: universalReports[0],
+          all: universalReports
+        },
+        comparison: {
+          avgDurationLegacy: legacyHistory.reduce((sum: number, h: any) => {
+            const duration = h.completedAt && h.startedAt
+              ? (new Date(h.completedAt).getTime() - new Date(h.startedAt).getTime()) / 1000
+              : 0
+            return sum + duration
+          }, 0) / (legacyHistory.length || 1),
+
+          avgDurationUniversal: universalReports.reduce(
+            (sum: number, r: any) => sum + (r.duration || 0),
+            0
+          ) / (universalReports.length || 1)
+        }
+      }
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message })
   }
 }
