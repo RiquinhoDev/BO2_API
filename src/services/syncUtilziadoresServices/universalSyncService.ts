@@ -397,12 +397,17 @@ syncHistoryId = hid
       await syncReportsService.completeReport(reportId, 'failed')
     }
 
-    if (syncHistoryId) {
-      const sh = await SyncHistory.findById(syncHistoryId)
-      if (sh) {
-        await sh.fail(message, stats)
-      }
-    }
+if (syncHistoryId) {
+  await SyncHistory.findByIdAndUpdate(syncHistoryId, {
+    status: 'failed',
+    completedAt: new Date(),
+    $push: { errorDetails: message },
+    'stats.total': stats.total,
+    'stats.added': stats.inserted,
+    'stats.updated': stats.updated,
+    'stats.errors': stats.errors
+  })
+}
 
     throw err
   }
