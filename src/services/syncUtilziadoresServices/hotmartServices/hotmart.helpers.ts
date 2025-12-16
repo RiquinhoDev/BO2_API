@@ -143,14 +143,16 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
       allUsers = allUsers.concat(users)
       nextPageToken = pageInfo.next_page_token || pageInfo.nextPageToken || null
 
-      console.log(`✅ [HotmartFetch] Página ${pageCount}: ${users.length} utilizadores`)
+console.log(`✅ [HotmartFetch] Página ${pageCount}: ${users.length} utilizadores | Total: ${allUsers.length}`)
+console.log(`   nextPageToken: ${nextPageToken ? 'exists' : 'null'}`)
 
-      // Rate limiting
-      await new Promise(resolve => setTimeout(resolve, 200))
-
+// Rate limiting (só se houver próxima página)
+if (nextPageToken) {
+  await new Promise(resolve => setTimeout(resolve, 200))
+}
     } while (nextPageToken)
 
-    console.log(`🎯 [HotmartFetch] Total buscado: ${allUsers.length} utilizadores`)
+    console.log(`🎯 [HotmartFetch] Busca completa: ${allUsers.length} utilizadores em ${pageCount} páginas`)
     return allUsers
 
   } catch (error: any) {
@@ -230,7 +232,7 @@ export const fetchBatchUserProgress = async (
     
     // Rate limiting entre batches
     if (i + concurrency < userIds.length) {
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise(resolve => setTimeout(resolve, 200))
     }
   }
 
