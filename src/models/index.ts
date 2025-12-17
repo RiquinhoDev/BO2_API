@@ -34,7 +34,7 @@ import './Product'
 import './UserProduct'
 
 // ===== SPRINT 5: CONTACT TAG READER =====
-import './ACContactState'
+import './acTags/ACContactState'
 
 // ===== DASHBOARD STATS: MATERIALIZED VIEW =====
 import './DashboardStats'
@@ -69,7 +69,7 @@ export { default as Product } from './Product'
 export { default as UserProduct } from './UserProduct'
 
 // ===== SPRINT 5: CONTACT TAG READER =====
-export { default as ACContactState } from './ACContactState'
+export { default as ACContactState } from './acTags/ACContactState'
 
 // ===== DASHBOARD STATS: MATERIALIZED VIEW =====
 export { DashboardStats } from './DashboardStats'

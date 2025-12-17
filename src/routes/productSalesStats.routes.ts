@@ -10,7 +10,7 @@ import {
   getProductSalesByPeriod,
   rebuildProductSalesStatsEndpoint,
   compareProducts
-} from '../controllers/productSalesStats.controller'
+} from '../controllers/products/productSalesStats.controller'
 
 const router = Router()
 

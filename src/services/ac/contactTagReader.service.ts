@@ -1,9 +1,11 @@
 // ✅ SPRINT 5 - Task 5.1.1: Contact Tag Reader Service
 // Objetivo: Ler tags do Active Campaign e sincronizar com Backoffice
-import activeCampaignService from '../activeCampaignService'
+
 import UserProduct from '../../models/UserProduct'
 import Product from '../../models/Product'
 import User from '../../models/user'
+import type { ACContactResponse } from '../../types/activecampaign.types'
+import activeCampaignService from './activeCampaignService'
 
 // ═══════════════════════════════════════════════════════
 // INTERFACES
@@ -42,12 +44,23 @@ export interface SyncSummary {
   errors: Array<{ userId: string; reason?: string; error?: string }>
 }
 
+type ACContactTagLite = {
+  id: string
+  tag: string
+  cdate?: string
+  seriesid?: string | null
+}
+
+type ProductProfileLite = {
+  code: string
+  name: string
+}
+
 // ═══════════════════════════════════════════════════════
 // SERVICE CLASS
 // ═══════════════════════════════════════════════════════
 
 class ContactTagReaderService {
-  
   /**
    * 🏷️ Buscar todas as tags de um contacto no AC
    * @param email Email do contacto
@@ -56,24 +69,27 @@ class ContactTagReaderService {
   async getContactTags(email: string): Promise<ContactTagInfo | null> {
     try {
       console.log(`[ContactTagReader] Buscando tags para: ${email}`)
-      
-      // 1. Buscar contacto no AC
-      const contact = await activeCampaignService.getContactByEmail(email)
-      if (!contact) {
+
+      // 1. Buscar contacto no AC (getContactByEmail devolve ACContactResponse)
+      const contactResp: ACContactResponse | null = await activeCampaignService.getContactByEmail(email)
+
+      if (!contactResp?.contact) {
         console.log(`[ContactTagReader] Contacto não encontrado: ${email}`)
         return null
       }
 
+      const contact = contactResp.contact
+
       // 2. Buscar tags do contacto
-      const contactTags = await activeCampaignService.getContactTags(contact.id)
-      
+      const contactTags = (await activeCampaignService.getContactTags(contact.id)) as ACContactTagLite[]
+
       // 3. Inferir produtos baseado nas tags
       const products = await this.inferProductsFromTags(contactTags)
-      
+
       return {
         contactId: contact.id,
         email: contact.email,
-        tags: contactTags.map(tag => ({
+        tags: contactTags.map((tag) => ({
           id: tag.id,
           name: tag.tag,
           appliedAt: tag.cdate ? new Date(tag.cdate) : new Date(),
@@ -81,77 +97,74 @@ class ContactTagReaderService {
         })),
         products
       }
-    } catch (error: any) {
-      console.error(`[ContactTagReader] Erro ao buscar tags: ${error.message}`)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido'
+      console.error(`[ContactTagReader] Erro ao buscar tags: ${message}`)
       throw error
     }
   }
 
   /**
    * 🔍 Inferir produtos baseado nas tags do AC
-   * @param tags Array de tags do Active Campaign
-   * @returns Array de produtos detectados
    */
-  private async inferProductsFromTags(tags: any[]): Promise<any[]> {
-    const products = []
-    
+  private async inferProductsFromTags(tags: ACContactTagLite[]): Promise<ContactTagInfo['products']> {
+    const products: ContactTagInfo['products'] = []
+
     // Buscar todos os product profiles ativos
     const productProfiles = await Product.find({ isActive: true })
-    
+      .select('code name')
+      .lean<ProductProfileLite[]>()
+
     for (const profile of productProfiles) {
+      const prefix = `${profile.code}_`
+
       // Filtrar tags que começam com o código do produto
-      const productTags = tags.filter(tag => 
-        tag.tag && tag.tag.startsWith(profile.code + '_')
-      )
-      
+      const productTags = tags.filter((t) => typeof t.tag === 'string' && t.tag.startsWith(prefix))
+
       if (productTags.length > 0) {
-        const currentLevel = this.getCurrentLevel(productTags, profile)
-        
+        const detectedFromTags = productTags.map((t) => t.tag)
+        const currentLevel = this.getCurrentLevel(detectedFromTags)
+
         products.push({
           code: profile.code,
           name: profile.name,
-          detectedFromTags: productTags.map(t => t.tag),
+          detectedFromTags,
           currentLevel,
-          isActive: productTags.some(t => t.tag.includes('_ACTIVE') || t.tag.includes('_ATIVO'))
+          isActive: detectedFromTags.some((t) => t.includes('_ACTIVE') || t.includes('_ATIVO'))
         })
       }
     }
-    
+
     console.log(`[ContactTagReader] Produtos detectados: ${products.length}`)
     return products
   }
 
   /**
    * 📊 Determinar nível atual baseado nas tags
-   * @param tags Tags relacionadas com o produto
-   * @param profile Perfil do produto
-   * @returns Nível atual (dias de inatividade ou outro métrico)
+   * (ex: "OGI_INATIVO_14D" -> 14)
    */
-  private getCurrentLevel(tags: any[], profile: any): number {
-    // Extrair números das tags (ex: "OGI_INATIVO_14D" -> 14)
-    const levels = tags
-      .map(t => {
-        const match = t.tag.match(/_(\d+)D/)
-        return match ? parseInt(match[1]) : 0
+  private getCurrentLevel(tagNames: string[]): number {
+    const levels = tagNames
+      .map((name) => {
+        const match = name.match(/_(\d+)D/)
+        return match ? Number.parseInt(match[1], 10) : 0
       })
-      .filter(n => n > 0)
-    
-    // Retornar o nível mais alto
+      .filter((n) => n > 0)
+
     return levels.length > 0 ? Math.max(...levels) : 0
   }
 
   /**
    * 🔄 Sincronizar tags AC → BO para um utilizador específico
    * @param userId ID do utilizador no BO
-   * @returns Resultado da sincronização
    */
   async syncUserTagsFromAC(userId: string): Promise<SyncResult> {
     try {
       console.log(`[ContactTagReader] Sincronizando tags para userId: ${userId}`)
-      
+
       // 1. Buscar user no BO
       const user = await User.findById(userId)
-      if (!user) {
+      if (!user?.email) {
         return { synced: false, reason: 'User not found in BO' }
       }
 
@@ -167,12 +180,8 @@ class ContactTagReaderService {
 
       // 3. Para cada produto detectado no AC, atualizar BO
       for (const product of acTags.products) {
-        const updated = await this.updateEngagementStateFromAC(
-          userId, 
-          product,
-          acTags.tags
-        )
-        
+        const updated = await this.updateEngagementStateFromAC(userId, product)
+
         if (updated) {
           productsUpdated++
           tagsAdded.push(...product.detectedFromTags)
@@ -180,51 +189,46 @@ class ContactTagReaderService {
       }
 
       console.log(`[ContactTagReader] ✅ Sincronização completa: ${productsUpdated} produtos atualizados`)
-      
+
       return {
         synced: true,
         productsUpdated,
         tagsAdded,
         tagsRemoved
       }
-    } catch (error: any) {
-      console.error(`[ContactTagReader] Erro ao sincronizar: ${error.message}`)
-      return { synced: false, reason: error.message }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido'
+      console.error(`[ContactTagReader] Erro ao sincronizar: ${message}`)
+      return { synced: false, reason: message }
     }
   }
 
   /**
-   * 📝 Atualizar StudentEngagementState baseado em tags do AC
-   * @param userId ID do utilizador
-   * @param productInfo Informação do produto detectado
-   * @param allTags Todas as tags do contacto
-   * @returns True se atualizado com sucesso
+   * 📝 Atualizar UserProduct.activeCampaignData baseado em tags do AC
    */
   private async updateEngagementStateFromAC(
     userId: string,
-    productInfo: any,
-    allTags: any[]
+    productInfo: ContactTagInfo['products'][number]
   ): Promise<boolean> {
     try {
-      // Buscar produto no BO
       const product = await Product.findOne({ code: productInfo.code })
-      if (!product) {
+      if (!product?._id) {
         console.log(`[ContactTagReader] Produto ${productInfo.code} não encontrado no BO`)
         return false
       }
 
-      // Buscar UserProduct
       const userProduct = await UserProduct.findOne({
         userId,
         productId: product._id
       })
-      
-      if (!userProduct) {
-        console.log(`[ContactTagReader] UserProduct não encontrado para userId=${userId}, productId=${product._id}`)
+
+      if (!userProduct?._id) {
+        console.log(
+          `[ContactTagReader] UserProduct não encontrado para userId=${userId}, productId=${product._id.toString()}`
+        )
         return false
       }
 
-      // Atualizar tags no UserProduct
       await UserProduct.findByIdAndUpdate(userProduct._id, {
         $set: {
           'activeCampaignData.tags': productInfo.detectedFromTags,
@@ -232,24 +236,23 @@ class ContactTagReaderService {
         }
       })
 
-      console.log(`[ContactTagReader] ✅ UserProduct ${userProduct._id} atualizado com tags do AC`)
+      console.log(`[ContactTagReader] ✅ UserProduct ${userProduct._id.toString()} atualizado com tags do AC`)
       return true
-    } catch (error: any) {
-      console.error(`[ContactTagReader] Erro ao atualizar engagement state: ${error.message}`)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido'
+      console.error(`[ContactTagReader] Erro ao atualizar engagement state: ${message}`)
       return false
     }
   }
 
   /**
    * 🔄 Sincronizar TODOS os users (batch)
-   * @param limit Número máximo de users a sincronizar
-   * @returns Sumário da sincronização
    */
   async syncAllUsersFromAC(limit: number = 100): Promise<SyncSummary> {
     console.log(`[ContactTagReader] Iniciando sync batch de ${limit} users...`)
-    
+
     const users = await User.find({}).limit(limit)
-    
+
     const results: SyncSummary = {
       total: users.length,
       synced: 0,
@@ -258,17 +261,21 @@ class ContactTagReaderService {
     }
 
     for (const user of users) {
+      const userId = user?._id?.toString?.() || ''
+      if (!userId) continue
+
       try {
-        const result = await this.syncUserTagsFromAC(user._id.toString())
+        const result = await this.syncUserTagsFromAC(userId)
         if (result.synced) {
           results.synced++
         } else {
           results.failed++
-          results.errors.push({ userId: user._id.toString(), reason: result.reason })
+          results.errors.push({ userId, reason: result.reason })
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Erro desconhecido'
         results.failed++
-        results.errors.push({ userId: user._id.toString(), error: error.message })
+        results.errors.push({ userId, error: message })
       }
     }
 
@@ -276,9 +283,5 @@ class ContactTagReaderService {
     return results
   }
 }
-
-// ═══════════════════════════════════════════════════════
-// EXPORT SINGLETON
-// ═══════════════════════════════════════════════════════
 
 export default new ContactTagReaderService()

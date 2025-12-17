@@ -4,14 +4,14 @@
 // ════════════════════════════════════════════════════════════
 
 import { Request, Response } from 'express'
-import Product from '../models/Product'
-import UserProduct from '../models/UserProduct'
-import Course from '../models/Course'
-import User from '../models/user'
+import Product from '../../models/Product'
+import UserProduct from '../../models/UserProduct'
+import Course from '../../models/Course'
+import User from '../../models/user'
 import mongoose from 'mongoose'
 
 // Importar funções legacy para compatibilidade
-import { getAllProductsStats as getLegacyStats, KNOWN_PRODUCTS } from '../services/productService'
+import { getAllProductsStats as getLegacyStats, KNOWN_PRODUCTS } from '../../services/productService'
 
 // ─────────────────────────────────────────────────────────────
 // GET ALL PRODUCTS

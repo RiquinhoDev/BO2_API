@@ -8,7 +8,7 @@ import cron from 'node-cron'
 import UserProduct from '../models/UserProduct'
 import Product from '../models/Product'
 import User from '../models/user'
-import activeCampaignService from '../services/activeCampaignService'
+import activeCampaignService from '../services/ac/activeCampaignService'
 import { decisionEngine } from '../services/decisionEngine.service'
 
 // ═══════════════════════════════════════════════════════════

@@ -4,9 +4,9 @@
 // ════════════════════════════════════════════════════════════
 
 import { Request, Response } from 'express'
-import TagRule from '../models/TagRule'
-import Course from '../models/Course'
-import tagRuleEngine from '../services/tagRuleEngine'
+import { Course, TagRule } from '../../models'
+import tagRuleEngine from '../../services/ac/tagRuleEngine'
+
 
 // ─────────────────────────────────────────────────────────────
 // LISTAR TODAS AS REGRAS (com filtros)

@@ -4,7 +4,7 @@
 // ================================================================
 
 import { Router } from 'express'
-import * as productProfileController from '../controllers/productProfile.controller'
+import * as productProfileController from '../controllers/products/productProfile.controller'
 
 const router = Router()
 

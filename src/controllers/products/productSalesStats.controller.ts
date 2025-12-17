@@ -5,8 +5,8 @@
 
 import { Request, Response } from 'express'
 
-import ProductSalesStats from '../models/ProductSalesStats'
-import { buildProductSalesStats, getProductSalesStats } from '../services/productSalesStatsBuilder'
+import ProductSalesStats from '../../models/ProductSalesStats'
+import { buildProductSalesStats, getProductSalesStats } from '../../services/productSalesStatsBuilder'
 // ─────────────────────────────────────────────────────────────
 // GET ALL STATS
 // ─────────────────────────────────────────────────────────────
