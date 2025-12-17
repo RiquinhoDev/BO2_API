@@ -4,13 +4,14 @@
 // ════════════════════════════════════════════════════════════
 
 import axios, { AxiosInstance, AxiosError } from 'axios'
-import { activeCampaignConfig, validateConfig } from '../config/activecampaign.config'
+import { activeCampaignConfig, validateConfig } from '../../config/activecampaign.config'
 import { 
   ACContact, 
+  ACContactApi, 
   ACContactResponse, 
   ACTag, 
   ACTagResponse 
-} from '../types/activecampaign.types'
+} from '../../types/activecampaign.types'
 
 // ─────────────────────────────────────────────────────────────
 // CLASSE PRINCIPAL
@@ -169,6 +170,25 @@ class ActiveCampaignService {
       throw error
     }
   }
+/**
+ * Encontrar ou criar contacto (retorna o contacto com id)
+ */
+async findOrCreateContact(email: string, name?: string): Promise<ACContactApi> {
+  const existing = await this.getContactByEmail(email)
+  if (existing?.contact) return existing.contact
+
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean)
+  const firstName = parts[0] || ''
+  const lastName = parts.slice(1).join(' ') || ''
+
+  const created = await this.createOrUpdateContact({
+    email,
+    ...(firstName ? { firstName } : {}),
+    ...(lastName ? { lastName } : {})
+  })
+
+  return created.contact
+}
 
   // ═══════════════════════════════════════════════════════════
   // TAGS
@@ -371,26 +391,6 @@ class ActiveCampaignService {
   // ═══════════════════════════════════════════════════════════
 
   /**
-   * Buscar contacto por email
-   * @param email Email do contacto
-   * @returns Contacto encontrado ou null
-   */
-  async getContactByEmail(email: string): Promise<any> {
-    try {
-      await this.checkRateLimit()
-      
-      const response = await this.client.get('/api/3/contacts', {
-        params: { email }
-      })
-      
-      return response.data.contacts?.[0] || null
-    } catch (error: any) {
-      console.error(`[AC Service] Erro ao buscar contacto: ${this.formatError(error)}`)
-      throw error
-    }
-  }
-
-  /**
    * Buscar tags de um contacto
    * @param contactId ID do contacto no AC
    * @returns Array de tags do contacto
@@ -452,9 +452,9 @@ class ActiveCampaignService {
       console.log(`[AC Service] Applying tag "${tagName}" to userId=${userId}, productId=${productId}`)
 
       // 1. Buscar User e Product
-      const User = (await import('../models/user')).default
-      const Product = (await import('../models/Product')).default
-      const UserProduct = (await import('../models/UserProduct')).default
+      const User = (await import('../../models/user')).default
+      const Product = (await import('../../models/Product')).default
+      const UserProduct = (await import('../../models/UserProduct')).default
 
       const user = await User.findById(userId)
       const product = await Product.findById(productId)
@@ -513,9 +513,9 @@ class ActiveCampaignService {
       console.log(`[AC Service] Removing tag "${tagName}" from userId=${userId}, productId=${productId}`)
 
       // 1. Buscar User e Product
-      const User = (await import('../models/user')).default
-      const Product = (await import('../models/Product')).default
-      const UserProduct = (await import('../models/UserProduct')).default
+      const User = (await import('../../models/user')).default
+      const Product = (await import('../../models/Product')).default
+      const UserProduct = (await import('../../models/UserProduct')).default
 
       const user = await User.findById(userId)
       const product = await Product.findById(productId)
@@ -560,9 +560,9 @@ class ActiveCampaignService {
    */
   async syncContactByProduct(userId: string, productId: string): Promise<any> {
     try {
-      const User = (await import('../models/user')).default
-      const Product = (await import('../models/Product')).default
-      const UserProduct = (await import('../models/UserProduct')).default
+      const User = (await import('../../models/user')).default
+      const Product = (await import('../../models/Product')).default
+      const UserProduct = (await import('../../models/UserProduct')).default
 
       const user = await User.findById(userId)
       const product = await Product.findById(productId)
@@ -604,9 +604,9 @@ class ActiveCampaignService {
    */
   async removeAllProductTags(userId: string, productId: string): Promise<boolean> {
     try {
-      const User = (await import('../models/user')).default
-      const Product = (await import('../models/Product')).default
-      const UserProduct = (await import('../models/UserProduct')).default
+      const User = (await import('../../models/user')).default
+      const Product = (await import('../../models/Product')).default
+      const UserProduct = (await import('../../models/UserProduct')).default
 
       const user = await User.findById(userId)
       const product = await Product.findById(productId)
@@ -644,5 +644,6 @@ class ActiveCampaignService {
 // EXPORT SINGLETON
 // ─────────────────────────────────────────────────────────────
 
-export default new ActiveCampaignService()
+export const activeCampaignService = new ActiveCampaignService()
+export default activeCampaignService
 

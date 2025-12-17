@@ -11,7 +11,7 @@ import {
   getProductById as getLegacyProductById, 
   getEngagementStats,
   getProductUsers 
-} from '../controllers/products.controller'
+} from '../controllers/products/products.controller'
 
 // V2 - Novo Product Controller
 import {
@@ -22,7 +22,7 @@ import {
   deleteProduct,
   getProductStudents,
   getProductAnalytics
-} from '../controllers/product.controller'
+} from '../controllers/products/product.controller'
 
 const router = Router()
 

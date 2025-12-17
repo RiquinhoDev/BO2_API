@@ -216,11 +216,11 @@ async function validateMongoDB(
     // 2. Verificar SyncHistory
     log(`   📊 Verificando SyncHistory...`, 'blue')
     const syncHistories = db.collection('synchistories')
-    const syncTypeQuery = platform === 'hotmart' ? 'hotmart' : 'CURSEDUCA'
-    const latestHistory = await syncHistories.findOne(
-      { $or: [{ type: syncTypeQuery }, { syncType: syncTypeQuery }] },
-      { sort: { startedAt: -1 } }
-    )
+
+      const latestHistory = await syncHistories.findOne(
+        { type: platform },  // ✅ SIMPLES! já vem lowercase
+        { sort: { startedAt: -1 } }
+      )
     
     if (!latestHistory) {
       log(`   ⚠️  Nenhum SyncHistory encontrado para ${platform}`, 'yellow')

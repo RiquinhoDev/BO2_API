@@ -17,15 +17,11 @@ import {
   updateTagRule,
   deleteTagRule,
   getCommunicationHistory
-} from '../controllers/activecampaign.controller'
+} from '../controllers/acTags/activecampaign.controller'
+import { getContactTags, getSyncStatus, syncAllTags, syncUserTags } from '../controllers/acTags/contactTagReader.controller'
 
 // ✅ SPRINT 5: Contact Tag Reader
-import {
-  getContactTags,
-  syncUserTags,
-  syncAllTags,
-  getSyncStatus
-} from '../controllers/contactTagReader.controller'
+
 
 const router = Router()
 

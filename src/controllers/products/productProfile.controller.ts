@@ -4,9 +4,9 @@
 // ================================================================
 
 import { Request, Response } from 'express'
-import ProductProfile from '../models/ProductProfile'
-import StudentEngagementState from '../models/StudentEngagementState'
-import CommunicationHistory from '../models/CommunicationHistory'
+import ProductProfile from '../../models/ProductProfile'
+import StudentEngagementState from '../../models/StudentEngagementState'
+import CommunicationHistory from '../../models/CommunicationHistory'
 
 /**
  * GET /api/product-profiles

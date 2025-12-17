@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals'
 import mongoose from 'mongoose'
 import contactTagReaderService from '../../src/services/ac/contactTagReader.service'
-import activeCampaignService from '../../src/services/activeCampaignService'
+import activeCampaignService from '../../src/services/ac/activeCampaignService'
 import User from '../../src/models/user'
 import Product from '../../src/models/Product'
 import UserProduct from '../../src/models/UserProduct'

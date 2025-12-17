@@ -8,7 +8,7 @@ import mongoose from 'mongoose'
 import User from '../src/models/user'
 import UserProduct from '../src/models/UserProduct'
 import Product from '../src/models/Product'
-import activeCampaignService from '../src/services/activeCampaignService'
+import activeCampaignService from '../src/services/ac/activeCampaignService'
 
 // ═══════════════════════════════════════════════════════════
 // INTERFACES

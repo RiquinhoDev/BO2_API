@@ -38,7 +38,7 @@ import {
   updateTagRule,
   deleteTagRule,
   getCommunicationHistory
-} from './controllers/activecampaign.controller'
+} from './controllers/acTags/activecampaign.controller'
 
 // Importar todos os modelos diretamente para garantir que estejam disponíveis
 import "./models/user"

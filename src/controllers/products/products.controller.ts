@@ -1,8 +1,8 @@
 // src/controllers/products.controller.ts
 import { Request, Response } from 'express'
-import { getAllProductsStats, getProductStats, KNOWN_PRODUCTS } from '../services/productService'
-import { getEngagementStatsByPlatform } from '../services/engagementService'
-import UserModel from '../models/user'
+import { getAllProductsStats, getProductStats, KNOWN_PRODUCTS } from '../../services/productService'
+import { getEngagementStatsByPlatform } from '../../services/engagementService'
+import UserModel from '../../models/user'
 
 export const getProducts = async (req: Request, res: Response) => {
   try {

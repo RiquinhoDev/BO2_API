@@ -31,6 +31,7 @@ export interface ACContactResponse {
     udate: string
   }
 }
+export type ACContactApi = ACContactResponse['contact']
 
 export interface ACTagResponse {
   contactTag: {
