@@ -7,7 +7,7 @@ import { Request, Response } from 'express'
 import Course from '../models/Course'
 import User from '../models/user'
 import UserAction from '../models/UserAction'
-import tagRuleEngine from '../services/tagRuleEngine'
+import tagRuleEngine from '../services/ac/tagRuleEngine'
 
 /**
  * GET /api/courses/ogi/students

@@ -1,7 +1,8 @@
 // ✅ SPRINT 5 - Task 5.1.2: Contact Tag Reader Controller
 // Objetivo: Endpoints REST API para leitura e sincronização de tags AC → BO
 import { Request, Response } from 'express'
-import contactTagReaderService from '../services/ac/contactTagReader.service'
+import contactTagReaderService from '../../services/ac/contactTagReader.service'
+
 
 // ═══════════════════════════════════════════════════════
 // ENDPOINTS

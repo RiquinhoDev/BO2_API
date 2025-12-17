@@ -7,7 +7,7 @@ import UserProduct from '../models/UserProduct'
 import Product from '../models/Product'
 import User from '../models/user'
 import TagRule from '../models/TagRule'
-import activeCampaignService from './activeCampaignService'
+import activeCampaignService from './ac/activeCampaignService'
 
 // ═══════════════════════════════════════════════════════════
 // INTERFACES

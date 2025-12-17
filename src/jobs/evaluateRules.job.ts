@@ -6,7 +6,7 @@
 import cron from 'node-cron'
 import Course from '../models/Course'
 import User from '../models/user'
-import tagRuleEngine from '../services/tagRuleEngine'
+import tagRuleEngine from '../services/ac/tagRuleEngine'
 import CronExecutionLog from '../models/CronExecutionLog'
 
 const CRON_SCHEDULE = '0 2 * * *' // Todos os dias às 2h da manhã
