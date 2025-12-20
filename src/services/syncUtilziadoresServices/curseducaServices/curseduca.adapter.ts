@@ -1,6 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/syncUtilziadoresServices/curseducaServices/curseduca.adapter.ts
 // CursEduca Adapter - Ponte para Universal Sync
+// ✅ CORRIGIDO: Paginação completa para buscar TODOS os membros
 // ════════════════════════════════════════════════════════════
 
 import { UniversalSourceItem } from '../universalSyncService'
@@ -43,9 +44,17 @@ interface CursEducaMember {
   }>
 }
 
-/**
- * Tipo de saída do adapter, já compatível com UniversalSync
- */
+// ✅ NOVO: Interface para resposta paginada da API
+interface PaginatedResponse<T> {
+  metadata: {
+    totalCount: number
+    limit: number
+    offset: number
+    hasMore: boolean
+  }
+  data: T[]
+}
+
 export type UniversalSyncUserData =
   Omit<UniversalSourceItem, 'email' | 'name' | 'curseducaUserId'> & {
     email: string
@@ -56,13 +65,11 @@ export type UniversalSyncUserData =
     groupName?: string
     subscriptionType?: 'MONTHLY' | 'ANNUAL'
 
-    // ✅ compatível com Universal + extras CursEduca
     progress?: UniversalSourceItem['progress'] & {
       estimatedProgress?: number
       activityLevel?: 'HIGH' | 'MEDIUM' | 'LOW'
     }
   }
-
 
 // ═══════════════════════════════════════════════════════════
 // ENV VARS
@@ -133,11 +140,99 @@ function normalizeCurseducaMember(
       activityLevel: member.progress && member.progress > 50 ? 'HIGH' : 
                       member.progress && member.progress > 20 ? 'MEDIUM' : 'LOW'
     },
-    // Campos adicionais para Universal Sync
     joinedDate: member.enteredAt ? new Date(member.enteredAt) : new Date(),
     expiresAt: member.expiresAt ? new Date(member.expiresAt) : undefined,
     enrollmentsCount: member.enrollmentsCount || 0
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ✅ NOVA FUNÇÃO: BUSCAR MEMBROS COM PAGINAÇÃO
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Busca TODOS os membros de um grupo com paginação automática
+ */
+async function fetchAllGroupMembers(
+  groupId: number,
+  headers: Record<string, string>
+): Promise<CursEducaMember[]> {
+  const allMembers: CursEducaMember[] = []
+  let offset = 0
+  const limit = 100 // Buscar 100 por página (máximo permitido pela API)
+  let hasMore = true
+  let pageCount = 0
+
+  console.log(`   📄 Iniciando paginação para grupo ${groupId}...`)
+
+  while (hasMore) {
+    pageCount++
+    
+    try {
+      const response = await axios.get(
+        `${CURSEDUCA_API_URL}/reports/group/members`,
+        {
+          params: { 
+            groupId, 
+            limit,
+            offset 
+          },
+          headers
+        }
+      )
+
+      // Extrair membros e metadata
+      let pageMembers: CursEducaMember[] = []
+      let metadata: PaginatedResponse<CursEducaMember>['metadata'] | null = null
+
+      // Detectar estrutura da resposta
+      if (response.data?.metadata && response.data?.data) {
+        // Formato paginado completo
+        pageMembers = response.data.data
+        metadata = response.data.metadata
+      } else if (Array.isArray(response.data)) {
+        // Array direto (sem metadata)
+        pageMembers = response.data
+        metadata = null
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
+        // Objeto com data mas sem metadata
+        pageMembers = response.data.data
+        metadata = null
+      } else if (response.data?.members && Array.isArray(response.data.members)) {
+        // Objeto com members
+        pageMembers = response.data.members
+        metadata = null
+      }
+
+      console.log(`      📄 Página ${pageCount}: ${pageMembers.length} membros`)
+
+      // Adicionar membros ao array total
+      allMembers.push(...pageMembers)
+
+      // Decidir se há mais páginas
+      if (metadata) {
+        // Se temos metadata, usar hasMore
+        hasMore = metadata.hasMore
+        offset += metadata.limit
+      } else {
+        // Se não temos metadata, parar se recebermos menos que o limit
+        hasMore = pageMembers.length === limit
+        offset += limit
+      }
+
+      // Rate limiting entre páginas (evitar sobrecarga da API)
+      if (hasMore) {
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
+
+    } catch (error: any) {
+      console.error(`   ❌ Erro na página ${pageCount} (offset ${offset}):`, error.message)
+      throw error
+    }
+  }
+
+  console.log(`   ✅ Paginação completa: ${allMembers.length} membros em ${pageCount} páginas`)
+  return allMembers
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -198,8 +293,8 @@ export const fetchCurseducaDataForSync = async (
       return []
     }
 
-    // STEP 2: BUSCAR MEMBROS DE CADA GRUPO
-    console.log('👥 [CurseducaAdapter] Step 2/3: Buscando membros...')
+    // STEP 2: BUSCAR MEMBROS DE CADA GRUPO (COM PAGINAÇÃO!)
+    console.log('👥 [CurseducaAdapter] Step 2/3: Buscando membros COM PAGINAÇÃO...')
     
     const allMembers: UniversalSyncUserData[] = []
     const errors: string[] = []
@@ -209,20 +304,10 @@ export const fetchCurseducaDataForSync = async (
       try {
         console.log(`   📚 Processando grupo: ${group.name} (ID: ${group.id})`)
         
-        // Buscar membros do grupo COM progresso
-        const membersResponse = await axios.get(
-          `${CURSEDUCA_API_URL}/reports/group/members`,
-          {
-            params: { groupId: group.id },
-            headers
-          }
-        )
+        // ✅ USAR NOVA FUNÇÃO COM PAGINAÇÃO
+        const rawMembers = await fetchAllGroupMembers(group.id, headers)
 
-        const rawMembers: CursEducaMember[] = Array.isArray(membersResponse.data)
-          ? membersResponse.data
-          : membersResponse.data?.data || membersResponse.data?.members || []
-
-        console.log(`      ✅ ${rawMembers.length} membros encontrados`)
+        console.log(`      ✅ Total de membros: ${rawMembers.length}`)
 
         // Normalizar membros
         for (const rawMember of rawMembers) {
@@ -281,11 +366,6 @@ export const fetchCurseducaDataForSync = async (
 // HELPER: FETCH APENAS PROGRESSO (USERS EXISTENTES)
 // ═══════════════════════════════════════════════════════════
 
-/**
- * NOTA: CursEduca não tem endpoint dedicado para progresso.
- * O progresso vem junto com os membros no endpoint /reports/group/members
- * Esta função existe para compatibilidade com o padrão, mas executa full sync
- */
 export const fetchProgressForExistingUsers = async (
   userIds: string[]
 ): Promise<Map<string, { estimatedProgress: number }>> => {
@@ -293,8 +373,6 @@ export const fetchProgressForExistingUsers = async (
   console.warn('⚠️ CursEduca não tem endpoint dedicado de progresso')
   console.info('   💡 Retornando Map vazio - use fetchCurseducaDataForSync completo')
   
-  // CursEduca não suporta fetch individual de progresso
-  // Retornar Map vazio
   return new Map()
 }
 
