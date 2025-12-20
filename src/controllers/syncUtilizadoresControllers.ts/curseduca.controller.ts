@@ -77,26 +77,28 @@ type SyncMembersStats = {
   errors: number
 }
 
-const result = (await syncCurseducaMembers()) as ServiceResult<SyncMembersStats>
+  const result = (await syncCurseducaMembers()) as ServiceResult<SyncMembersStats>
 
-const message =
-  result.message ?? (result.success ? 'Sincronização concluída com sucesso' : 'Falha na sincronização')
+  const message =
+    result.message ?? (result.success ? 'Sincronização concluída com sucesso' : 'Falha na sincronização')
 
-console.log(`${result.success ? '✅' : '❌'} Resultado:`, message)
-console.log('📊 Estatísticas:', result.stats)
+  console.log(`${result.success ? '✅' : '❌'} Resultado:`, message)
+    console.log('📊 Estatísticas:', result.stats)
+    
+    
 
-res.status(result.success ? 200 : 500).json({
-  success: result.success,
-  message,
-  ...(result.success ? {} : { error: message }),
-  stats: result.stats || {
-    groupsProcessed: 0,
-    created: 0,
-    updated: 0,
-    skipped: 0,
-    errors: 1
-  }
-})
+  res.status(result.success ? 200 : 500).json({
+    success: result.success,
+    message,
+    ...(result.success ? {} : { error: message }),
+    stats: result.stats || {
+      groupsProcessed: 0,
+      created: 0,
+      updated: 0,
+      skipped: 0,
+      errors: 1
+    }
+  })
 
     console.log(`${result.success ? '✅' : '❌'} Resultado:`, result.message)
     console.log('📊 Estatísticas:', result.stats)
@@ -614,6 +616,20 @@ export const syncCurseducaUsersUniversal = async (req: Request, res: Response): 
     console.log(`   ✅ Inseridos: ${result.stats.inserted}`)
     console.log(`   🔄 Atualizados: ${result.stats.updated}`)
     console.log(`   ❌ Erros: ${result.stats.errors}`)
+
+
+// ✅ ADICIONAR ESTAS LINHAS:
+console.log('🔄 [CurseducaUniversal] Invalidando cache e reconstruindo stats...')
+
+// Invalidar cache em memória
+const { clearUnifiedCache } = require('../../services/dualReadService')
+clearUnifiedCache()
+
+// Forçar rebuild SÍNCRONO (aguardar completar)
+const { buildDashboardStats } = require('../../services/dashboardStatsBuilder.service')
+await buildDashboardStats()
+
+console.log('✅ [CurseducaUniversal] Stats atualizados!')
 
     res.status(200).json({
       success: result.success,
