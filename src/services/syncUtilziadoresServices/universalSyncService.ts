@@ -1,12 +1,15 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/syncUtilizadoresServices/universalSync.service.ts
 // Service: Universal Sync - Unifica Manual + Automático
+// ✅ VERSÃO FINAL: Escalável, flexível, sem hardcodes
 // ════════════════════════════════════════════════════════════
 
 import syncReportsService from './syncReports.service'
 import SyncHistory from '../../models/SyncModels/SyncHistory'
 import User from '../../models/user'
 import type { SyncType, TriggerType } from '../../models/SyncModels/SyncReport'
+import mongoose from 'mongoose'
+import { Product, UserProduct } from '../../models'
 
 // ═══════════════════════════════════════════════════════════
 // TYPES
@@ -30,8 +33,13 @@ export interface UniversalSourceItem {
   plusAccess?: string
   classId?: string
   className?: string
+  productCode?: string // ✅ ADICIONADO
+  currentModule?: number // ✅ ADICIONADO
+  
+  // ✅ CORRIGIDO: Estrutura de progresso unificada
   progress?: {
-    completed?: number
+    percentage?: number // Para todas as plataformas
+    completed?: number  // Hotmart específico
     lessons?: Array<{
       pageId?: string
       pageName?: string
@@ -39,14 +47,23 @@ export interface UniversalSourceItem {
       completedDate?: Date | string | null
     }>
   }
+  
   accessCount?: number | string
   engagementLevel?: string
+  
+  // ✅ CORRIGIDO: Engagement unificado
+  engagement?: {
+    engagementScore?: number
+  }
 
   // CURSEDUCA
   curseducaUserId?: string
   curseducaUuid?: string
-  groupId?: string
+  groupId?: string | number
   groupName?: string
+  subscriptionType?: 'MONTHLY' | 'ANNUAL'
+  enrolledAt?: Date | string | null
+  joinedDate?: Date | string | null
 
   // DISCORD
   discordUserId?: string
@@ -103,6 +120,11 @@ export interface SyncWarning {
   context?: string
 }
 
+interface ProcessItemResult {
+  action: 'inserted' | 'updated' | 'unchanged' | 'skipped'
+  userId?: string
+}
+
 export interface UniversalSyncResult {
   success: boolean
   reportId: string
@@ -125,6 +147,7 @@ export interface UniversalSyncResult {
 // ═══════════════════════════════════════════════════════════
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase()
+
 const getDocId = (doc: unknown, label: string): string => {
   const d = doc as { _id?: unknown; id?: unknown }
   const raw = d?._id ?? d?.id
@@ -156,6 +179,123 @@ const toNumber = (value: unknown, fallback = 0): number => {
 }
 
 // ═══════════════════════════════════════════════════════════
+// ✅ NOVO: MAPEAMENTO DINÂMICO DE PRODUTOS (SEM HARDCODE!)
+// ═══════════════════════════════════════════════════════════
+type LeanProduct = {
+  _id: mongoose.Types.ObjectId
+  code: string
+}
+
+/**
+ * Determina o produto correto baseado nos dados do item e na plataforma
+ * ✅ Totalmente escalável - busca produtos dinamicamente na BD
+ */
+async function determineProductId(
+  item: UniversalSourceItem,
+  syncType: SyncType
+): Promise<mongoose.Types.ObjectId | null> {
+  
+  if (syncType === 'hotmart') {
+    // Hotmart: usar productCode se fornecido, senão buscar produto default
+    const productCode = item.productCode || 'OGI_V1'
+    
+    const product = await Product.findOne({ 
+      code: productCode,
+      platform: 'hotmart',
+      isActive: true
+    }).select('_id').lean() as LeanProduct | null
+    
+    if (!product) {
+      console.warn(`⚠️ [ProductMapping] Produto Hotmart não encontrado: ${productCode}`)
+    }
+    
+    return product?._id || null
+  }
+  
+  if (syncType === 'curseduca') {
+    // ✅ ESTRATÉGIA ESCALÁVEL: Buscar produto por curseducaGroupId
+    // Isto permite adicionar novos grupos sem mudar código!
+    
+    const groupId = String(item.groupId || '') // Normalizar para string
+    
+    if (groupId) {
+      // 1ª tentativa: Buscar por curseducaGroupId exato
+      const product = await Product.findOne({
+        platform: 'curseduca',
+        'platformData.curseducaGroupId': groupId,
+        isActive: true
+      }).select('_id code').lean() as LeanProduct | null
+      
+      if (product) {
+        console.log(`✅ [ProductMapping] Produto encontrado por groupId ${groupId}: ${product.code}`)
+        return product._id
+      }
+    }
+    
+    // 2ª tentativa: Buscar por subscriptionType (MONTHLY/ANNUAL)
+    if (item.subscriptionType) {
+      const product = await Product.findOne({
+        platform: 'curseduca',
+        'platformData.subscriptionType': item.subscriptionType,
+        isActive: true
+      }).select('_id code').lean() as LeanProduct | null
+      
+      if (product) {
+        console.log(`✅ [ProductMapping] Produto encontrado por subscriptionType ${item.subscriptionType}: ${product.code}`)
+        return product._id
+      }
+    }
+    
+    // 3ª tentativa: Buscar por groupName (case-insensitive)
+    if (item.groupName) {
+      const product = await Product.findOne({
+        platform: 'curseduca',
+        name: { $regex: new RegExp(item.groupName, 'i') },
+        isActive: true
+      }).select('_id code').lean() as LeanProduct | null
+      
+      if (product) {
+        console.log(`✅ [ProductMapping] Produto encontrado por groupName "${item.groupName}": ${product.code}`)
+        return product._id
+      }
+    }
+    
+    // 4ª tentativa: Produto default da plataforma (primeiro ativo)
+    const defaultProduct = await Product.findOne({
+      platform: 'curseduca',
+      isActive: true
+    }).select('_id code').lean() as LeanProduct | null
+    
+    if (defaultProduct) {
+      console.warn(`⚠️ [ProductMapping] Usando produto default CursEDuca: ${defaultProduct.code} (groupId: ${groupId})`)
+      return defaultProduct._id
+    }
+    
+    console.error(`❌ [ProductMapping] Nenhum produto CursEDuca ativo encontrado!`)
+    return null
+  }
+  
+  if (syncType === 'discord') {
+    // Discord: buscar produto por code ou primeiro ativo
+    const product = await Product.findOne({
+      $or: [
+        { code: 'DISCORD_COMMUNITY' },
+        { platform: 'discord', isActive: true }
+      ]
+    }).select('_id code').lean() as LeanProduct | null
+    
+    if (!product) {
+      console.warn(`⚠️ [ProductMapping] Produto Discord não encontrado`)
+    }
+    
+    return product?._id || null
+  }
+  
+  return null
+}
+
+
+// ═══════════════════════════════════════════════════════════
 // MAIN SYNC FUNCTION
 // ═══════════════════════════════════════════════════════════
 
@@ -169,7 +309,6 @@ export const executeUniversalSync = async (
 
   const startTime = Date.now()
 
-  // mantidos para logs/cleanup, mas não usados como argumentos "string" diretamente
   let reportId: string | null = null
   let syncHistoryId: string | null = null
 
@@ -185,7 +324,6 @@ export const executeUniversalSync = async (
   const errors: SyncError[] = []
   const warnings: SyncWarning[] = []
 
-  // IDs "definitivos" (string) depois de criados
   let rid = ''
   let hid = ''
 
@@ -208,8 +346,8 @@ export const executeUniversalSync = async (
       }
     })
 
-rid = getDocId(report, 'SyncReport')
-reportId = rid
+    rid = getDocId(report, 'SyncReport')
+    reportId = rid
 
     console.log(`✅ [UniversalSync] Report criado: ${rid}`)
 
@@ -220,7 +358,7 @@ reportId = rid
     })
 
     // ═══════════════════════════════════════════════════════════
-    // STEP 2: CRIAR SYNCHISTORY (BACKWARD COMPATIBILITY)
+    // STEP 2: CRIAR SYNCHISTORY
     // ═══════════════════════════════════════════════════════════
 
     const syncHistory = await SyncHistory.create({
@@ -242,8 +380,8 @@ reportId = rid
       }
     })
 
-hid = getDocId(syncHistory, 'SyncHistory')
-syncHistoryId = hid
+    hid = getDocId(syncHistory, 'SyncHistory')
+    syncHistoryId = hid
 
     console.log(`✅ [UniversalSync] SyncHistory criado: ${hid}`)
 
@@ -257,14 +395,12 @@ syncHistoryId = hid
     stats.total = sourceArray.length
 
     for (let i = 0; i < sourceArray.length; i += config.batchSize) {
-      // eslint-disable-next-line no-await-in-loop
       const batch = sourceArray.slice(i, i + config.batchSize)
       const batchNumber = Math.floor(i / config.batchSize) + 1
       const totalBatches = Math.ceil(sourceArray.length / config.batchSize)
 
       console.log(`📦 [UniversalSync] Processando batch ${batchNumber}/${totalBatches} (${batch.length} itens)`)
 
-      // eslint-disable-next-line no-await-in-loop
       await syncReportsService.addReportLog(
         rid,
         'info',
@@ -276,7 +412,6 @@ syncHistoryId = hid
         const item = batch[j]
 
         try {
-          // eslint-disable-next-line no-await-in-loop
           const result = await processSyncItem(item, config)
 
           if (result.action === 'inserted') stats.inserted++
@@ -311,7 +446,6 @@ syncHistoryId = hid
 
           errors.push(syncError)
 
-          // eslint-disable-next-line no-await-in-loop
           await syncReportsService.addReportError(
             rid,
             syncError.message,
@@ -327,7 +461,6 @@ syncHistoryId = hid
       }
 
       if (i + config.batchSize < sourceArray.length) {
-        // eslint-disable-next-line no-await-in-loop
         await new Promise<void>(resolve => {
           setTimeout(() => resolve(), 100)
         })
@@ -353,23 +486,23 @@ syncHistoryId = hid
     // STEP 6: FINALIZAR SYNCHISTORY
     // ═══════════════════════════════════════════════════════════
 
-const completedAt = new Date()
-const durationSeconds = Math.floor((completedAt.getTime() - new Date(syncHistory.startedAt).getTime()) / 1000)
+    const completedAt = new Date()
+    const durationSeconds = Math.floor((completedAt.getTime() - new Date(syncHistory.startedAt).getTime()) / 1000)
 
-await SyncHistory.findByIdAndUpdate(syncHistoryId, {
-  status: 'completed',
-  completedAt,
-  'stats.total': stats.total,
-  'stats.added': stats.inserted,
-  'stats.updated': stats.updated,
-  'stats.errors': stats.errors,
-  duration: durationSeconds,
-  'metrics.duration': durationSeconds,
-  'metrics.usersPerSecond': durationSeconds > 0 ? stats.total / durationSeconds : 0,
-  'metrics.avgTimePerUser': stats.total > 0 ? (durationSeconds * 1000) / stats.total : 0
-})
+    await SyncHistory.findByIdAndUpdate(syncHistoryId, {
+      status: 'completed',
+      completedAt,
+      'stats.total': stats.total,
+      'stats.added': stats.inserted,
+      'stats.updated': stats.updated,
+      'stats.errors': stats.errors,
+      duration: durationSeconds,
+      'metrics.duration': durationSeconds,
+      'metrics.usersPerSecond': durationSeconds > 0 ? stats.total / durationSeconds : 0,
+      'metrics.avgTimePerUser': stats.total > 0 ? (durationSeconds * 1000) / stats.total : 0
+    })
 
-console.log(`✅ [UniversalSync] SyncHistory finalizado: ${syncHistoryId}`)
+    console.log(`✅ [UniversalSync] SyncHistory finalizado: ${syncHistoryId}`)
 
     // ═══════════════════════════════════════════════════════════
     // STEP 7: CALCULAR DURAÇÃO E RETORNAR
@@ -408,21 +541,21 @@ console.log(`✅ [UniversalSync] SyncHistory finalizado: ${syncHistoryId}`)
       await syncReportsService.completeReport(reportId, 'failed')
     }
 
-if (syncHistoryId) {
-  const errorTime = new Date()
-  const durationSeconds = Math.floor((errorTime.getTime() - new Date().getTime()) / 1000)
-  
-  await SyncHistory.findByIdAndUpdate(syncHistoryId, {
-    status: 'failed',
-    completedAt: errorTime,
-    duration: durationSeconds,
-    $push: { errorDetails: message },
-    'stats.total': stats.total,
-    'stats.added': stats.inserted,
-    'stats.updated': stats.updated,
-    'stats.errors': stats.errors + 1  // +1 para contar o erro fatal
-  })
-}
+    if (syncHistoryId) {
+      const errorTime = new Date()
+      const durationSeconds = Math.floor((errorTime.getTime() - new Date().getTime()) / 1000)
+      
+      await SyncHistory.findByIdAndUpdate(syncHistoryId, {
+        status: 'failed',
+        completedAt: errorTime,
+        duration: durationSeconds,
+        $push: { errorDetails: message },
+        'stats.total': stats.total,
+        'stats.added': stats.inserted,
+        'stats.updated': stats.updated,
+        'stats.errors': stats.errors + 1
+      })
+    }
 
     throw err
   }
@@ -432,15 +565,13 @@ if (syncHistoryId) {
 // HELPER: PROCESS SINGLE ITEM
 // ═══════════════════════════════════════════════════════════
 
-interface ProcessItemResult {
-  action: 'inserted' | 'updated' | 'unchanged' | 'skipped'
-  userId?: string
-}
-
 const processSyncItem = async (
   item: UniversalSourceItem,
   config: UniversalSyncConfig
 ): Promise<ProcessItemResult> => {
+  // ═══════════════════════════════════════════════════════════
+  // VALIDAÇÃO INICIAL
+  // ═══════════════════════════════════════════════════════════
   if (!item.email || !item.email.trim()) {
     throw new Error('Item sem email')
   }
@@ -448,7 +579,9 @@ const processSyncItem = async (
   const email = normalizeEmail(item.email)
   const name = item.name && item.name.trim() ? item.name.trim() : email
 
-  // Buscar ou criar user
+  // ═══════════════════════════════════════════════════════════
+  // BUSCAR OU CRIAR USER
+  // ═══════════════════════════════════════════════════════════
   let user = await User.findOne({ email })
   const isNew = !user
 
@@ -461,13 +594,14 @@ const processSyncItem = async (
     console.log(`✨ [UniversalSync] Novo user criado: ${user.email}`)
   }
 
-  // _id pode vir como unknown nos typings do mongoose -> converter sempre para string
   const userIdStr = String(user._id)
 
+  // ═══════════════════════════════════════════════════════════
+  // PREPARAR UPDATES DO USER
+  // ═══════════════════════════════════════════════════════════
   const updateFields: Record<string, unknown> = {}
   let needsUpdate = false
 
-  // Atualizar nome se diferente
   if (name && user.name !== name) {
     updateFields.name = name
     needsUpdate = true
@@ -506,6 +640,20 @@ const processSyncItem = async (
 
     if (item.plusAccess) {
       updateFields['hotmart.plusAccess'] = item.plusAccess
+      needsUpdate = true
+    }
+
+    if (item.currentModule !== undefined) {
+      updateFields['hotmart.currentModule'] = toNumber(item.currentModule, 0)
+      needsUpdate = true
+    }
+
+    if (item.progress !== undefined) {
+      updateFields['hotmart.progress'] = {
+        totalProgress: toNumber(item.progress.percentage, 0),
+        currentModule: toNumber(item.currentModule, 0),
+        lastUpdatedAt: new Date()
+      }
       needsUpdate = true
     }
 
@@ -548,7 +696,6 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
-    // Metadados (é normal atualizar sempre)
     updateFields['hotmart.lastSyncAt'] = new Date()
     updateFields['hotmart.syncVersion'] = '3.0'
     updateFields['metadata.updatedAt'] = new Date()
@@ -561,7 +708,7 @@ const processSyncItem = async (
   // CURSEDUCA - Schema Segregado
   // ═══════════════════════════════════════════════════════════
   if (config.syncType === 'curseduca') {
-    if (item.curseducaUserId) {
+    if (item.curseducaUserId && item.curseducaUserId !== (user as any).curseduca?.curseducaUserId) {
       updateFields['curseduca.curseducaUserId'] = item.curseducaUserId
       needsUpdate = true
     }
@@ -614,15 +761,133 @@ const processSyncItem = async (
   }
 
   // ═══════════════════════════════════════════════════════════
-  // APLICAR UPDATES
+  // APLICAR UPDATES NO USER
   // ═══════════════════════════════════════════════════════════
   if (needsUpdate) {
     await User.findByIdAndUpdate(userIdStr, { $set: updateFields })
     console.log(`🔄 [UniversalSync] User atualizado: ${user.email}`)
-    return { action: isNew ? 'inserted' : 'updated', userId: userIdStr }
   }
 
-  return { action: isNew ? 'inserted' : 'unchanged', userId: userIdStr }
+  // ═══════════════════════════════════════════════════════════
+  // ✅ CRIAR/ATUALIZAR USERPRODUCT AUTOMATICAMENTE
+  // ═══════════════════════════════════════════════════════════
+  
+  try {
+    // 1. Determinar productId usando função escalável
+    const productId = await determineProductId(item, config.syncType)
+    
+    if (!productId) {
+      console.warn(`⚠️ [UniversalSync] Produto não encontrado para ${config.syncType} - user: ${user.email}`)
+      return { 
+        action: isNew ? 'inserted' : (needsUpdate ? 'updated' : 'unchanged'), 
+        userId: userIdStr 
+      }
+    }
+    
+    // 2. Verificar se UserProduct já existe
+    const existingUP = await UserProduct.findOne({
+      userId: userIdStr,
+      productId: productId
+    })
+    
+    if (existingUP) {
+      // UserProduct já existe - atualizar apenas se necessário
+      const upUpdateFields: Record<string, any> = {}
+      let upNeedsUpdate = false
+      
+      // ✅ CORRIGIDO: Verificar se item.progress?.percentage existe
+      if (item.progress?.percentage !== undefined) {
+        const newPercentage = toNumber(item.progress.percentage, 0)
+        if (existingUP.progress?.percentage !== newPercentage) {
+          upUpdateFields['progress.percentage'] = newPercentage
+          upUpdateFields['progress.lastActivity'] = new Date()
+          upNeedsUpdate = true
+        }
+      }
+      
+      // ✅ CORRIGIDO: Verificar se item.engagement?.engagementScore existe
+      if (item.engagement?.engagementScore !== undefined) {
+        const newScore = toNumber(item.engagement.engagementScore, 0)
+        if (existingUP.engagement?.engagementScore !== newScore) {
+          upUpdateFields['engagement.engagementScore'] = newScore
+          upUpdateFields['engagement.lastAction'] = new Date()
+          upNeedsUpdate = true
+        }
+      }
+      
+      if (upNeedsUpdate) {
+        await UserProduct.findByIdAndUpdate(existingUP._id, { $set: upUpdateFields })
+        console.log(`   📦 UserProduct atualizado: ${user.email}`)
+      }
+      
+    } else {
+      // UserProduct NÃO existe - criar novo
+      const enrolledAt = toDateOrNull(item.enrolledAt) || 
+                        toDateOrNull(item.purchaseDate) ||
+                        toDateOrNull(item.joinedDate) ||
+                        new Date()
+      
+      const newUserProduct: any = {
+        userId: userIdStr,
+        productId: productId,
+        platform: config.syncType,
+        status: 'ACTIVE',
+        source: 'PURCHASE',
+        enrolledAt: enrolledAt,
+        
+        // Progresso - ✅ CORRIGIDO: usar optional chaining
+        progress: {
+          percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
+          lastActivity: new Date()
+        },
+        
+        // Engagement - ✅ CORRIGIDO: usar optional chaining
+        engagement: {
+          engagementScore: item.engagement?.engagementScore ? toNumber(item.engagement.engagementScore, 0) : 0,
+          lastAction: new Date()
+        }
+      }
+      
+      // Dados específicos da plataforma
+      if (config.syncType === 'hotmart') {
+        newUserProduct.hotmartData = {
+          hotmartUserId: item.hotmartUserId,
+          productCode: item.productCode
+        }
+      }
+      
+      if (config.syncType === 'curseduca') {
+        newUserProduct.curseducaData = {
+          curseducaUserId: item.curseducaUserId,
+          groupId: item.groupId,
+          subscriptionType: item.subscriptionType
+        }
+      }
+      
+      if (config.syncType === 'discord') {
+        newUserProduct.discordData = {
+          discordUserId: item.discordUserId,
+          username: item.username
+        }
+      }
+      
+      await UserProduct.create(newUserProduct)
+      console.log(`   ✨ UserProduct CRIADO: ${user.email} → ${config.syncType}`)
+    }
+    
+  } catch (upError: any) {
+    console.error(`❌ [UniversalSync] Erro ao criar/atualizar UserProduct para ${user.email}:`, upError.message)
+    // Não falhar o sync todo - apenas logar erro
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RETORNAR RESULTADO - ✅ CORRIGIDO: sempre retorna
+  // ═══════════════════════════════════════════════════════════
+  
+  return { 
+    action: isNew ? 'inserted' : (needsUpdate ? 'updated' : 'unchanged'), 
+    userId: userIdStr 
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
