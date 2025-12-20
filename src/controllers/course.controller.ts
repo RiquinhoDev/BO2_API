@@ -5,7 +5,7 @@
 
 import { Request, Response } from 'express'
 import Course from '../models/Course'
-import TagRule from '../models/TagRule'
+import TagRule from '../models/acTags/TagRule'
 
 // ─────────────────────────────────────────────────────────────
 // LISTAR TODOS OS CURSOS

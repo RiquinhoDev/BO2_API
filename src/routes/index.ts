@@ -18,14 +18,13 @@ import dashboardRoutes from './dashboardRoutes'  // Dashboard V1 & V2 (Sprint Co
 import productProfileRoutes from './productProfile.routes'  // Re-engagement Profiles
 import reengagementRoutes from './reengagement.routes'  // Re-engagement System
 import discoveryRoutes from './discovery.routes'  // Discovery System
-import acReaderRoutes from './acReader.routes'  // Sprint 5: Contact Tag Reader (OLD)
-import contactTagReaderRoutes from './contactTagReader.routes'  // Sprint 5: Contact Tag Reader (NEW)
+import acReaderRoutes from './ACroutes/acReader.routes'  // Sprint 5: Contact Tag Reader (OLD)
+
 
 // 🎯 SPRINT 5.2 - V2 ROUTES (Arquitetura Escalável)
 import usersV2Routes from './usersV2.routes'
 import syncV2Routes from './syncV2.routes'
 
-import activecampaignV2Routes from './activecampaignV2.routes'
    import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
    import syncStatsRoutes from './syncUtilizadoresRoutes/syncStats.routes'
       import syncReports from './syncUtilizadoresRoutes/syncReports.routes'
@@ -41,7 +40,6 @@ router.use("/sync", syncRoutes)            // Histórico de sincronizações
 router.use("/v2/users", usersV2Routes)
 router.use("/v2/sync", syncV2Routes)
 
-router.use("/v2/activecampaign", activecampaignV2Routes)
 
 // 📚 GESTÃO DE TURMAS E CONTEÚDOS
 router.use("/classes", classesRoutes)
@@ -65,8 +63,7 @@ router.use("/product-profiles", productProfileRoutes)
 router.use("/reengagement", reengagementRoutes)
 router.use("/discovery", discoveryRoutes)
 router.use("/ac", acReaderRoutes)  // Sprint 5: Contact Tag Reader (OLD)
-router.use("/ac", contactTagReaderRoutes)  // Sprint 5: Contact Tag Reader (NEW - Improved)
-// src/routes/index.ts
+
 
    router.use('/cron', cronRoutes)
 router.use('/sync', syncStatsRoutes)

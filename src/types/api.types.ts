@@ -2,6 +2,7 @@ import { IClass } from "../models/Class"
 import { IStudentClassHistory } from "../models/StudentClassHistory"
 import { IUser } from "../models/user"
 
+
 // src/types/api.types.ts - Tipos para a API
 export interface SearchStudentQuery {
     email?: string
@@ -64,9 +65,9 @@ export interface SearchStudentQuery {
     lastUpdate: Date
   }
   
-  export interface ClassWithStats extends IClass {
-    stats?: ClassStatsResponse
-  }
+export type ClassWithStats = Omit<IClass, 'stats'> & {
+  stats?: ClassStatsResponse
+}
   
   export interface MoveStudentRequest {
     studentId: string

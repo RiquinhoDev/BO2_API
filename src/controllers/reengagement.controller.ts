@@ -4,12 +4,12 @@
 // ================================================================
 
 import { Request, Response } from 'express'
-import decisionEngine from '../services/decisionEngine.service'
+import decisionEngine from '../services/ac/decisionEngine.service'
 import tagOrchestrator from '../services/ac/tagOrchestrator.service'
 import StudentEngagementState from '../models/StudentEngagementState'
 import ProductProfile from '../models/ProductProfile'
 import User from '../models/user'
-import CommunicationHistory from '../models/CommunicationHistory'
+import CommunicationHistory from '../models/acTags/CommunicationHistory'
 
 /**
  * POST /api/reengagement/evaluate/:userId

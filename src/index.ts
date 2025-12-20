@@ -15,7 +15,7 @@ import productSalesStatsRoutes from './routes/productSalesStats.routes'
 
 // ✅ ACTIVE CAMPAIGN: Importar CRON job e rotas
 import './jobs/evaluateRules.job'
-import activecampaignRoutes from './routes/activecampaign.routes'
+import activecampaignRoutes from './routes/ACroutes/activecampaign.routes'
 import webhooksRoutes from './routes/webhooks.routes'
 import healthRoutes from './routes/health.routes'
 import cronManagementRoutes from './routes/cronManagement.routes'
@@ -53,9 +53,9 @@ import "./models/SyncHistory"
 import "./models/UnmatchedUser"
 import "./models/ClassAnalytics"
 import "./models/Course"
-import "./models/TagRule"
+import "./models/acTags/TagRule"
 import "./models/UserAction"
-import "./models/CommunicationHistory"
+import "./models/acTags/CommunicationHistory"
 import "./models/CronConfig"
 import "./models/CronExecution"
 import "./models/DashboardStats"
