@@ -11,6 +11,9 @@ import CronJobConfig, {
   ILastRunStats,
   SyncType
 } from '../../models/SyncModels/CronJobConfig'
+import universalSyncService from './universalSyncService'
+import curseducaAdapter from './curseducaServices/curseduca.adapter'
+import hotmartAdapter from './hotmartServices/hotmart.adapter'
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -505,37 +508,87 @@ export class CronManagementService {
     }
   }
 
-  private async executeHotmartSync(job: ICronJobConfig): Promise<any> {
-    console.log('🔥 Executando Hotmart sync...')
+private async executeHotmartSync(job: ICronJobConfig): Promise<any> {
+  console.log('🔥 [CRON] Executando Hotmart sync...')
 
-    // Mock implementation
+  try {
+    // 1. Buscar dados via Adapter
+    const hotmartData = await hotmartAdapter.fetchHotmartDataForSync({
+      includeProgress: true,
+      includeLessons: true,
+      progressConcurrency: 5
+    })
+
+    console.log(`✅ [CRON] ${hotmartData.length} users Hotmart preparados`)
+
+    // 2. Executar via Universal Sync
+    const result = await universalSyncService.executeUniversalSync({
+      syncType: 'hotmart',
+      jobName: job.name,
+      jobId: job._id.toString(),
+      triggeredBy: 'CRON',
+      
+      fullSync: true,
+      includeProgress: true,
+      includeTags: false,
+      batchSize: 50,
+      
+      sourceData: hotmartData
+    })
+
+    console.log(`✅ [CRON] Hotmart sync completo: ${result.stats.total} users`)
+
     return {
-      success: true,
-      stats: {
-        total: 100,
-        inserted: 10,
-        updated: 90,
-        errors: 0,
-        skipped: 0
-      }
+      success: result.success,
+      stats: result.stats
     }
+
+  } catch (error: any) {
+    console.error('❌ [CRON] Erro Hotmart sync:', error)
+    throw error
   }
+}
 
-  private async executeCurseducaSync(job: ICronJobConfig): Promise<any> {
-    console.log('📚 Executando CursEduca sync...')
+private async executeCurseducaSync(job: ICronJobConfig): Promise<any> {
+  console.log('📚 [CRON] Executando CursEduca sync...')
 
-    // Mock implementation
+  try {
+    // 1. Buscar dados via Adapter
+    const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
+      includeProgress: true,
+      includeGroups: true,
+      progressConcurrency: 5
+    })
+
+    console.log(`✅ [CRON] ${curseducaData.length} users CursEduca preparados`)
+
+    // 2. Executar via Universal Sync
+    const result = await universalSyncService.executeUniversalSync({
+      syncType: 'curseduca',
+      jobName: job.name,
+      jobId: job._id.toString(),
+      triggeredBy: 'CRON',
+      
+      fullSync: true,
+      includeProgress: true,
+      includeTags: false,
+      batchSize: 50,
+      
+      sourceData: curseducaData
+    })
+
+    console.log(`✅ [CRON] CursEduca sync completo: ${result.stats.total} users`)
+
     return {
-      success: true,
-      stats: {
-        total: 50,
-        inserted: 5,
-        updated: 45,
-        errors: 0,
-        skipped: 0
-      }
+      success: result.success,
+      stats: result.stats
     }
+
+  } catch (error: any) {
+    console.error('❌ [CRON] Erro CursEduca sync:', error)
+    throw error
   }
+}
 
   private async executeDiscordSync(job: ICronJobConfig): Promise<any> {
     console.log('💬 Executando Discord sync...')
