@@ -7,7 +7,7 @@ import mongoose from 'mongoose'
 import dotenv from 'dotenv'
 import ProductProfile from '../models/ProductProfile'
 import StudentEngagementState from '../models/StudentEngagementState'
-import CommunicationHistory from '../models/CommunicationHistory'
+import CommunicationHistory from '../models/acTags/CommunicationHistory'
 
 dotenv.config()
 

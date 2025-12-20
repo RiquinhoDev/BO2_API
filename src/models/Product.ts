@@ -12,7 +12,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 export type PlatformType = 'hotmart' | 'curseduca' | 'discord' | 'mixed'
 
 export interface IActiveCampaignProductConfig {
-  tagPrefix: string               // Ex: "OGI-V1", "CLAREZA-BASIC"
+  tagPrefix: string           
   listId: string
   automationIds?: string[]
 }

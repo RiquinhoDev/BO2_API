@@ -6,7 +6,7 @@
 import mongoose from 'mongoose'
 import dotenv from 'dotenv'
 import Course from '../models/Course'
-import TagRule from '../models/TagRule'
+import TagRule from '../models/acTags/TagRule'
 
 dotenv.config()
 

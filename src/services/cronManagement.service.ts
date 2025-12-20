@@ -10,7 +10,7 @@ import Course from '../models/Course'
 import User from '../models/user'
 import tagRuleEngine from './ac/tagRuleEngine'
 import ProductProfile from '../models/ProductProfile'
-import decisionEngine from './decisionEngine.service'
+import decisionEngine from './ac/decisionEngine.service'
 import tagOrchestrator from './ac/tagOrchestrator.service'
 import schedule from 'node-schedule'
 

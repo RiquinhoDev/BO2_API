@@ -7,10 +7,10 @@
 
 import mongoose from 'mongoose'
 import Course, { ICourse } from '../../models/Course'
-import TagRule, { ITagRule, ICondition } from '../../models/TagRule'
+import TagRule, { ITagRule, ICondition } from '../../models/acTags/TagRule'
 import User from '../../models/user'
 import UserAction from '../../models/UserAction'
-import CommunicationHistory from '../../models/CommunicationHistory'
+import CommunicationHistory from '../../models/acTags/CommunicationHistory'
 import activeCampaignService from './activeCampaignService'
 
 // ─────────────────────────────────────────────────────────────

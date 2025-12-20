@@ -4,15 +4,8 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
-import {
-  getAllRules,
-  getRuleById,
-  createRule,
-  updateRule,
-  deleteRule,
-  testRule,
-  executeRules
-} from '../controllers/tagRule.controller'
+import { createRule, deleteRule, executeRules, getAllRules, getRuleById, testRule, updateRule } from '../../controllers/acTags/tagRule.controller'
+
 
 const router = Router()
 

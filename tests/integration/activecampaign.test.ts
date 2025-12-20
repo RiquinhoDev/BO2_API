@@ -7,7 +7,7 @@ import request from 'supertest'
 import express from 'express'
 import mongoose from 'mongoose'
 import Course from '../../src/models/Course'
-import TagRule from '../../src/models/TagRule'
+import TagRule from '../../src/models/acTags/TagRule'
 import User from '../../src/models/user'
 
 // Mock do Active Campaign Service

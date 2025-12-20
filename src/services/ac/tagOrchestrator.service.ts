@@ -10,13 +10,13 @@ import UserProduct from '../../models/UserProduct'
 import Product from '../../models/Product'
 import User from '../../models/user'
 import activeCampaignService from './activeCampaignService'
-import { decisionEngineV2 } from '../decisionEngineV2.service'
-import CommunicationHistory from '../../models/CommunicationHistory'
+import CommunicationHistory from '../../models/acTags/CommunicationHistory'
 
 // (Legacy, mas útil): manter sync de estado/cooldowns se o modelo existir no projeto
 import ProductProfile, { IProductProfile, IReengagementLevel } from '../../models/ProductProfile'
 
 import StudentEngagementState from '../../models/StudentEngagementState'
+import decisionEngine from './decisionEngine.service'
 
 // ═══════════════════════════════════════════════════════════
 // INTERFACES
@@ -88,7 +88,7 @@ class TagOrchestratorV2 {
       const ctx: OrchestrationContext = { user, product, lastActivity, daysInactive }
 
       // 2) Decisões
-      const decisions = await decisionEngineV2.evaluateUserProduct(userId, productId)
+      const decisions = await decisionEngine.evaluateUserProduct(userId, productId)
 
       // 3) Aplicar tags
       for (const tag of decisions.tagsToApply || []) {

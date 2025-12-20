@@ -9,7 +9,7 @@ import UserProduct from '../models/UserProduct'
 import Product from '../models/Product'
 import User from '../models/user'
 import activeCampaignService from '../services/ac/activeCampaignService'
-import { decisionEngine } from '../services/decisionEngine.service'
+import { decisionEngine } from '../services/ac/decisionEngine.service'
 
 // ═══════════════════════════════════════════════════════════
 // INTERFACES

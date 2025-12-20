@@ -3,7 +3,7 @@
 // Controller para Contact Tag Reader endpoints
 // ════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import type { RequestHandler } from 'express'
 import { ACContactState } from '../../models'
 import User from '../../models/user'
 import contactTagReaderService, {
@@ -63,7 +63,9 @@ const normalizeToACContactState = (info: ContactTagInfo): ACContactStateUpsertPa
   }
 }
 
-const syncByEmail = async (email: string): Promise<{
+const syncByEmail = async (
+  email: string
+): Promise<{
   email: string
   userId?: string
   action: 'synced' | 'no_changes' | 'not_found' | 'error'
@@ -100,19 +102,17 @@ const syncByEmail = async (email: string): Promise<{
  * GET /api/ac/contact/:email/tags
  * Buscar todas as tags de um contacto
  */
-export const getContactTags = async (req: Request, res: Response) => {
+export const getContactTags: RequestHandler = async (req, res) => {
   try {
     const { email } = req.params
     const forceRefresh = isTruthyQuery(req.query.forceRefresh)
-
-    console.log(`🔍 GET contact tags: ${email} (forceRefresh=${forceRefresh})`)
 
     // Cache (1h) se não forçar refresh
     if (!forceRefresh) {
       const cached = await ACContactState.findOne({ email })
       if (cached && cached.lastSyncAt > new Date(Date.now() - 60 * 60 * 1000)) {
-        console.log(`✅ Retornando do cache: ${email}`)
-        return res.json({ success: true, data: cached, fromCache: true })
+        res.json({ success: true, data: cached, fromCache: true })
+        return
       }
     }
 
@@ -120,10 +120,11 @@ export const getContactTags = async (req: Request, res: Response) => {
     const contactInfo = await contactTagReaderService.getContactTags(email)
 
     if (!contactInfo) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Contacto não encontrado no Active Campaign'
       })
+      return
     }
 
     // Normalizar + guardar no cache (ACContactState) para analytics/consistência
@@ -135,17 +136,18 @@ export const getContactTags = async (req: Request, res: Response) => {
       { upsert: true, new: true }
     )
 
-    return res.json({
+    res.json({
       success: true,
       data: saved ?? payload,
       fromCache: false
     })
+    return
   } catch (error: any) {
-    console.error('❌ Erro ao buscar tags do contacto:', error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error?.message || 'Erro interno do servidor'
     })
+    return
   }
 }
 
@@ -153,7 +155,7 @@ export const getContactTags = async (req: Request, res: Response) => {
  * POST /api/ac/contact/:email/sync
  * Sincronizar tags AC → BO para um contacto (por email)
  */
-export const syncContactTags = async (req: Request, res: Response) => {
+export const syncContactTags: RequestHandler = async (req, res) => {
   try {
     const { email } = req.params
 
@@ -172,16 +174,18 @@ export const syncContactTags = async (req: Request, res: Response) => {
       )
     }
 
-    return res.json({
+    res.json({
       success: syncResult.action === 'synced' || syncResult.action === 'no_changes',
       data: syncResult
     })
+    return
   } catch (error: any) {
     console.error('❌ Erro ao sincronizar contacto:', error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error?.message || 'Erro interno do servidor'
     })
+    return
   }
 }
 
@@ -189,16 +193,18 @@ export const syncContactTags = async (req: Request, res: Response) => {
  * POST /api/ac/contacts/batch-tags
  * Buscar tags de múltiplos contactos
  */
-export const getBatchContactTags = async (req: Request, res: Response) => {
+export const getBatchContactTags: RequestHandler = async (req, res) => {
   try {
     const { emails } = req.body as { emails?: unknown }
 
     if (!Array.isArray(emails) || emails.length === 0) {
-      return res.status(400).json({ success: false, error: 'Array de emails é obrigatório' })
+      res.status(400).json({ success: false, error: 'Array de emails é obrigatório' })
+      return
     }
 
     if (emails.length > 50) {
-      return res.status(400).json({ success: false, error: 'Máximo de 50 emails por batch' })
+      res.status(400).json({ success: false, error: 'Máximo de 50 emails por batch' })
+      return
     }
 
     const normalizedEmails = emails.filter(e => typeof e === 'string') as string[]
@@ -224,7 +230,7 @@ export const getBatchContactTags = async (req: Request, res: Response) => {
 
     const found = results.filter(Boolean) as ACContactStateUpsertPayload[]
 
-    return res.json({
+    res.json({
       success: true,
       data: found,
       summary: {
@@ -233,12 +239,14 @@ export const getBatchContactTags = async (req: Request, res: Response) => {
         notFound: normalizedEmails.length - found.length
       }
     })
+    return
   } catch (error: any) {
     console.error('❌ Erro batch contact tags:', error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error?.message || 'Erro interno do servidor'
     })
+    return
   }
 }
 
@@ -246,16 +254,18 @@ export const getBatchContactTags = async (req: Request, res: Response) => {
  * POST /api/ac/contacts/batch-sync
  * Sincronizar múltiplos contactos AC → BO (por email)
  */
-export const batchSyncContacts = async (req: Request, res: Response) => {
+export const batchSyncContacts: RequestHandler = async (req, res) => {
   try {
     const { emails } = req.body as { emails?: unknown }
 
     if (!Array.isArray(emails) || emails.length === 0) {
-      return res.status(400).json({ success: false, error: 'Array de emails é obrigatório' })
+      res.status(400).json({ success: false, error: 'Array de emails é obrigatório' })
+      return
     }
 
     if (emails.length > 20) {
-      return res.status(400).json({ success: false, error: 'Máximo de 20 emails por batch sync' })
+      res.status(400).json({ success: false, error: 'Máximo de 20 emails por batch sync' })
+      return
     }
 
     const normalizedEmails = emails.filter(e => typeof e === 'string') as string[]
@@ -272,13 +282,15 @@ export const batchSyncContacts = async (req: Request, res: Response) => {
       errors: results.filter(r => r.action === 'error').length
     }
 
-    return res.json({ success: true, data: results, summary })
+    res.json({ success: true, data: results, summary })
+    return
   } catch (error: any) {
     console.error('❌ Erro batch sync contacts:', error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error?.message || 'Erro interno do servidor'
     })
+    return
   }
 }
 
@@ -290,7 +302,7 @@ export const batchSyncContacts = async (req: Request, res: Response) => {
  * GET /api/ac/analytics/overview
  * Overview geral de contactos e tags AC
  */
-export const getACOverview = async (req: Request, res: Response) => {
+export const getACOverview: RequestHandler = async (_req, res) => {
   try {
     console.log(`📊 Get AC overview`)
 
@@ -338,13 +350,15 @@ export const getACOverview = async (req: Request, res: Response) => {
       }
     }
 
-    return res.json({ success: true, data: overview })
+    res.json({ success: true, data: overview })
+    return
   } catch (error: any) {
     console.error('❌ Erro AC overview:', error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error?.message || 'Erro interno do servidor'
     })
+    return
   }
 }
 
@@ -352,7 +366,7 @@ export const getACOverview = async (req: Request, res: Response) => {
  * GET /api/ac/analytics/product/:code
  * Analytics de um produto específico
  */
-export const getProductACAnalytics = async (req: Request, res: Response) => {
+export const getProductACAnalytics: RequestHandler = async (req, res) => {
   try {
     const { code } = req.params
 
@@ -397,24 +411,23 @@ export const getProductACAnalytics = async (req: Request, res: Response) => {
       })
     })
 
-    return res.json({ success: true, data: analytics })
+    res.json({ success: true, data: analytics })
+    return
   } catch (error: any) {
     console.error('❌ Erro product AC analytics:', error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error?.message || 'Erro interno do servidor'
     })
+    return
   }
 }
 
 /**
  * GET /api/ac/inconsistencies
  * Listar inconsistências BO vs AC
- *
- * Nota: depende de (ACContactState as any).findWithInconsistencies()
- * e de existir lógica de inconsistências no teu estado/cache.
  */
-export const getInconsistencies = async (req: Request, res: Response) => {
+export const getInconsistencies: RequestHandler = async (req, res) => {
   try {
     const severity = typeof req.query.severity === 'string' ? req.query.severity : undefined
     const limitRaw = typeof req.query.limit === 'string' ? req.query.limit : '50'
@@ -434,7 +447,6 @@ export const getInconsistencies = async (req: Request, res: Response) => {
     }> = []
 
     for (const contact of contactsWithIssues) {
-      // "freshInfo" pode variar conforme a tua implementação real do service
       const freshInfo = (await contactTagReaderService.getContactTags(contact.email)) as any
 
       const issues = Array.isArray(freshInfo?.inconsistencies)
@@ -454,7 +466,7 @@ export const getInconsistencies = async (req: Request, res: Response) => {
       return sum + i.issues.length
     }, 0)
 
-    return res.json({
+    res.json({
       success: true,
       data: inconsistencies,
       summary: {
@@ -462,12 +474,14 @@ export const getInconsistencies = async (req: Request, res: Response) => {
         totalIssues
       }
     })
+    return
   } catch (error: any) {
     console.error('❌ Erro get inconsistencies:', error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error?.message || 'Erro interno do servidor'
     })
+    return
   }
 }
 
@@ -479,7 +493,7 @@ export const getInconsistencies = async (req: Request, res: Response) => {
  * POST /api/ac/maintenance/refresh-old
  * Refresh de contactos com sync antigo
  */
-export const refreshOldSyncs = async (req: Request, res: Response) => {
+export const refreshOldSyncs: RequestHandler = async (req, res) => {
   try {
     const daysOld = typeof req.body.daysOld === 'number' ? req.body.daysOld : 7
     const limit = typeof req.body.limit === 'number' ? req.body.limit : 20
@@ -487,7 +501,9 @@ export const refreshOldSyncs = async (req: Request, res: Response) => {
     console.log(`🔧 Refresh old syncs (${daysOld} days, limit ${limit})`)
 
     const oldContacts: any[] = await (ACContactState as any).findOldSyncs(daysOld).limit(limit)
-    const emails = oldContacts.map((c: any) => c.email).filter((e: any) => typeof e === 'string') as string[]
+    const emails = oldContacts
+      .map((c: any) => c.email)
+      .filter((e: any) => typeof e === 'string') as string[]
 
     const results = await Promise.all(emails.map(email => syncByEmail(email)))
 
@@ -496,13 +512,15 @@ export const refreshOldSyncs = async (req: Request, res: Response) => {
       updated: results.filter(r => r.action === 'synced').length
     }
 
-    return res.json({ success: true, data: results, summary })
+    res.json({ success: true, data: results, summary })
+    return
   } catch (error: any) {
     console.error('❌ Erro refresh old syncs:', error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error?.message || 'Erro interno do servidor'
     })
+    return
   }
 }
 
@@ -510,7 +528,7 @@ export const refreshOldSyncs = async (req: Request, res: Response) => {
  * DELETE /api/ac/cache/clear
  * Limpar cache de contactos AC
  */
-export const clearACCache = async (req: Request, res: Response) => {
+export const clearACCache: RequestHandler = async (req, res) => {
   try {
     const olderThanDays =
       typeof req.body.olderThanDays === 'number' ? req.body.olderThanDays : 30
@@ -523,18 +541,20 @@ export const clearACCache = async (req: Request, res: Response) => {
       lastSyncAt: { $lt: cutoff }
     })
 
-    return res.json({
+    res.json({
       success: true,
       data: {
         deletedCount: result.deletedCount,
         cutoffDate: cutoff
       }
     })
+    return
   } catch (error: any) {
     console.error('❌ Erro clear AC cache:', error)
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      error: error.message || 'Erro interno do servidor'
+      error: error?.message || 'Erro interno do servidor'
     })
+    return
   }
 }

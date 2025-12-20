@@ -4,7 +4,7 @@
 // =====================================================
 
 import cron from 'node-cron'
-import CommunicationHistory from '../models/CommunicationHistory'
+import CommunicationHistory from '../models/acTags/CommunicationHistory'
 import CronExecutionLog from '../models/CronExecutionLog'
 
 /**
