@@ -13,7 +13,7 @@ import productsRoutes from './products.routes'
 import analyticsRoutes from './analytics.routes'
 import userHistoryRoutes from './userHistory.routes'
 import courseRoutes from './course.routes'
-import tagRuleRoutes from './tagRule.routes'
+import tagRuleRoutes from './ACroutes/tagRule.routes'
 import dashboardRoutes from './dashboardRoutes'  // Dashboard V1 & V2 (Sprint Correções)
 import productProfileRoutes from './productProfile.routes'  // Re-engagement Profiles
 import reengagementRoutes from './reengagement.routes'  // Re-engagement System

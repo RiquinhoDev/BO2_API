@@ -612,12 +612,13 @@ export const getDashboardStatsV3Legacy = async (req: Request, res: Response) => 
 
     console.log(`   🚨 ${atRiskCount} alunos em risco (${atRiskRate.toFixed(1)}%)`);
 
-    // ========================================================================
-    // 7. BREAKDOWN POR PLATAFORMA (CORRIGIDO!)
+        // ========================================================================
+    // 7. ✅ BREAKDOWN POR PLATAFORMA - COM DEBUG DETALHADO
     // ========================================================================
     console.log(`   📊 Agrupando por plataforma...`);
     
     const platformCounts: Record<string, Set<string>> = {};
+    const platformDebug: Record<string, any> = {};
 
     userProducts.forEach(up => {
       const userId = up.userId;
@@ -625,8 +626,7 @@ export const getDashboardStatsV3Legacy = async (req: Request, res: Response) => 
         ? userId._id.toString() 
         : userId.toString();
       
-      // ✅ CORREÇÃO: Ler platform diretamente do UserProduct convertido
-      // Cada UserProduct tem o campo 'platform' correto (hotmart, curseduca, discord)
+      // Ler platform diretamente do UserProduct
       let platform = up.platform;
       
       // Fallback: se não tiver platform direto, tentar ler do productId
@@ -639,20 +639,37 @@ export const getDashboardStatsV3Legacy = async (req: Request, res: Response) => 
       
       if (!platformCounts[platform]) {
         platformCounts[platform] = new Set();
+        platformDebug[platform] = {
+          totalUserProducts: 0,
+          uniqueUsers: 0,
+          exampleEmails: []
+        };
       }
       
       platformCounts[platform].add(userIdStr);
+      platformDebug[platform].totalUserProducts++;
+      
+      // Guardar exemplo de email para debug (primeiros 3)
+      if (platformDebug[platform].exampleEmails.length < 3) {
+        const email = (up.userId as any)?.email || 'N/A';
+        platformDebug[platform].exampleEmails.push(email);
+      }
+    });
+
+    // Atualizar contagem de users únicos
+    Object.keys(platformCounts).forEach(platform => {
+      platformDebug[platform].uniqueUsers = platformCounts[platform].size;
     });
 
     const byPlatform = Object.entries(platformCounts).map(([name, userIds]) => {
-      const count = userIds.size;
+      const count = userIds.size;  // ✅ CONTA USERS ÚNICOS!
       const percentage = totalStudents > 0 
         ? (count / totalStudents) * 100 
         : 0;
 
       return {
         name: name.charAt(0).toUpperCase() + name.slice(1),
-        count,
+        count,  // ✅ USERS ÚNICOS
         percentage: Math.round(percentage * 10) / 10,
         icon: name === 'hotmart' ? '🔥' : 
               name === 'curseduca' ? '📚' : 
@@ -660,10 +677,19 @@ export const getDashboardStatsV3Legacy = async (req: Request, res: Response) => 
       };
     }).sort((a, b) => b.count - a.count);
 
+    // ✅ LOGS DE DEBUG DETALHADOS
     console.log(`   ✅ ${byPlatform.length} plataformas:`);
     byPlatform.forEach(p => {
-      console.log(`      ${p.icon} ${p.name}: ${p.count} (${p.percentage}%)`);
+      const debug = platformDebug[p.name.toLowerCase()];
+      console.log(`      ${p.icon} ${p.name}: ${p.count} users únicos (${debug.totalUserProducts} UserProducts)`);
+      console.log(`         Exemplos: ${debug.exampleEmails.join(', ')}`);
     });
+
+    console.log('\n   📊 VERIFICAÇÃO IMPORTANTE:');
+    console.log(`      Total de Users Únicos: ${totalStudents}`);
+    console.log(`      Total de UserProducts: ${userProducts.length}`);
+    console.log(`      Ratio: ${(userProducts.length / totalStudents).toFixed(2)} UserProducts/User`);
+    console.log('');
 
     // ========================================================================
     // 8. PRODUTOS ATIVOS

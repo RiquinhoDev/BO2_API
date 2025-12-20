@@ -1,8 +1,7 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/services/tagRuleEngine.ts
+// 📁 src/services/tagRuleEngine.ts (CORRIGIDO)
 // Motor de avaliação e execução de regras de tags
-// (V1 é o usado) + Extras inspirados no V2: executeAllRules, executeRuleManually,
-// summary/erros agregados, rule-level cooldown via lastRunAt, e batch otimizado.
+// ✅ SUPORTE UNIFICADO: Hotmart + CursEDuca
 // ════════════════════════════════════════════════════════════
 
 import mongoose from 'mongoose'
@@ -48,11 +47,98 @@ interface RuleExecutionResult {
 
 export interface ExecutionSummary {
   rulesFound: number
-  rulesExecuted: number            // regras que executaram pelo menos 1 vez
+  rulesExecuted: number
   usersEvaluated: number
-  executions: number               // nº de execuções (user+rule)
+  executions: number
   executionTimeMs: number
   errors: Array<{ ruleId: string; ruleName: string; courseId: string; error: string }>
+}
+
+// ─────────────────────────────────────────────────────────────
+// HELPERS DE UNIFORMIZAÇÃO DE DADOS
+// ─────────────────────────────────────────────────────────────
+
+class DataUnifier {
+  /**
+   * ✅ Detecta a plataforma de origem do user
+   */
+  static detectPlatform(user: any): 'HOTMART' | 'CURSEDUCA' | 'UNKNOWN' {
+    if (user.hotmart && Object.keys(user.hotmart).length > 0) return 'HOTMART'
+    if (user.situation || user.tenants) return 'CURSEDUCA'
+    return 'UNKNOWN'
+  }
+
+  /**
+   * ✅ Extrai status uniformizado (ACTIVE/INACTIVE)
+   */
+  static getUnifiedStatus(user: any): 'ACTIVE' | 'INACTIVE' {
+    const platform = this.detectPlatform(user)
+    
+    if (platform === 'HOTMART') {
+      return user.combined?.status || user.hotmart?.status || 'INACTIVE'
+    }
+    
+    if (platform === 'CURSEDUCA') {
+      return user.situation === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE'
+    }
+    
+    return 'INACTIVE'
+  }
+
+  /**
+   * ✅ Extrai progresso uniformizado (0-100)
+   */
+  static getUnifiedProgress(user: any, course: ICourse): number {
+    const platform = this.detectPlatform(user)
+    
+    if (platform === 'HOTMART') {
+      return user.combined?.totalProgress || 
+             user.hotmart?.progress?.totalProgress || 0
+    }
+    
+    if (platform === 'CURSEDUCA') {
+      // CursEDuca pode ter progresso em courseSpecificData
+      const communicationData = user.communicationByCourse?.get?.(course.code)
+      return communicationData?.courseSpecificData?.totalProgress || 0
+    }
+    
+    return 0
+  }
+
+  /**
+   * ✅ Extrai módulo atual uniformizado
+   */
+  static getUnifiedCurrentModule(user: any, course: ICourse): number {
+    const platform = this.detectPlatform(user)
+    
+    if (platform === 'HOTMART') {
+      return user.hotmart?.progress?.currentModule || 0
+    }
+    
+    if (platform === 'CURSEDUCA') {
+      const communicationData = user.communicationByCourse?.get?.(course.code)
+      return communicationData?.courseSpecificData?.currentModule || 0
+    }
+    
+    return 0
+  }
+
+  /**
+   * ✅ Extrai email uniformizado
+   */
+  static getUnifiedEmail(user: any): string {
+    return user.email || user.hotmart?.email || ''
+  }
+
+  /**
+   * ✅ Extrai data de criação uniformizada
+   */
+  static getUnifiedCreatedAt(user: any): Date {
+    return user.createdAt || 
+           user.metadata?.createdAt || 
+           user.hotmart?.createdAt || 
+           new Date()
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -61,8 +147,7 @@ export interface ExecutionSummary {
 
 class TagRuleEngine {
   // ═══════════════════════════════════════════════════════════
-  // ✅ EXTRA (do V2): EXECUTAR TODAS AS REGRAS ATIVAS (cron global)
-  // Usa lastRunAt como cooldown global por regra (porque não existe cooldownHours no schema)
+  // ✅ EXECUTAR TODAS AS REGRAS ATIVAS (cron global)
   // ═══════════════════════════════════════════════════════════
 
   async executeAllRules(params?: { ruleCooldownHours?: number }): Promise<ExecutionSummary> {
@@ -74,10 +159,13 @@ class TagRuleEngine {
     let executions = 0
     const executedRuleIds = new Set<string>()
 
+    console.log('🚀 [TagRuleEngine] Iniciando execução global de regras...')
+
     const rules = await TagRule.find({ isActive: true }).sort({ priority: -1 })
     const rulesFound = rules.length
+    console.log(`📋 [TagRuleEngine] ${rulesFound} regras ativas encontradas`)
 
-    // Agrupar por courseId para otimizar (fetch course 1x por grupo)
+    // Agrupar por courseId para otimizar
     const byCourse = new Map<string, ITagRule[]>()
     for (const r of rules) {
       const k = r.courseId.toString()
@@ -85,12 +173,20 @@ class TagRuleEngine {
       byCourse.get(k)!.push(r)
     }
 
-    // Query de users “ativos” (mesmo critério do teu V1 atual)
-    const activeUsers = await User.find({ 'combined.status': 'ACTIVE' })
+    // ✅ QUERY CORRIGIDA: Buscar users ativos de AMBAS as plataformas
+    const activeUsers = await User.find({
+      $or: [
+        { 'combined.status': 'ACTIVE' },      // Hotmart
+        { 'situation': 'ACTIVE' }              // CursEDuca
+      ]
+    })
+
+    console.log(`👥 [TagRuleEngine] ${activeUsers.length} users ativos encontrados`)
 
     for (const [courseIdStr, courseRules] of byCourse.entries()) {
       const course = await Course.findById(courseIdStr)
       if (!course) {
+        console.warn(`⚠️ [TagRuleEngine] Course ${courseIdStr} não encontrado`)
         for (const r of courseRules) {
           errors.push({
             ruleId: r.id.toString(),
@@ -102,22 +198,29 @@ class TagRuleEngine {
         continue
       }
 
-      // cooldown global por regra usando lastRunAt (best effort)
+      // Filtrar regras com cooldown
       const runnableRules = courseRules.filter(r => this.canRuleExecute(r, ruleCooldownHours))
-      if (runnableRules.length === 0) continue
+      if (runnableRules.length === 0) {
+        console.log(`⏸️ [TagRuleEngine] Course ${course.code}: todas as regras em cooldown`)
+        continue
+      }
 
-      console.log(`🔄 [TagRuleEngine] Course ${courseIdStr}: ${runnableRules.length} regras para executar`)
+      console.log(`🔄 [TagRuleEngine] Course ${course.code}: ${runnableRules.length} regras para executar`)
 
       // Avaliar users para este course
       for (const user of activeUsers) {
         usersEvaluated++
 
+        const platform = DataUnifier.detectPlatform(user)
+        const email = DataUnifier.getUnifiedEmail(user)
+
+        console.log(`👤 [TagRuleEngine] Avaliando ${email} (${platform})`)
+
         let userStats: any
         try {
           userStats = await this.calculateUserStats(user, course)
         } catch (e: any) {
-          // Se falhar stats, não bloqueia todo o batch
-          console.warn(`⚠️ [TagRuleEngine] Stats falharam para ${user?.email}: ${e?.message || e}`)
+          console.warn(`⚠️ [TagRuleEngine] Stats falharam para ${email}: ${e?.message || e}`)
           continue
         }
 
@@ -125,11 +228,17 @@ class TagRuleEngine {
 
         for (const rule of runnableRules) {
           try {
+            // Validar se a regra é compatível com o trackingType do course
+            if (!this.validateRuleForCourse(rule, course)) {
+              console.warn(`⚠️ [TagRuleEngine] Regra "${rule.name}" incompatível com ${course.trackingType}`)
+              continue
+            }
+
             // 1) condições
             const conditionsMet = await this.evaluateConditions(rule.conditions, context)
             if (!conditionsMet) continue
 
-            // 2) cooldown por tag no CommunicationHistory (já existia no V1)
+            // 2) cooldown por tag no CommunicationHistory
             const canExecute = await this.checkCooldown(
               context.user._id,
               (context.course as any)._id as mongoose.Types.ObjectId,
@@ -137,12 +246,15 @@ class TagRuleEngine {
             )
             if (!canExecute) continue
 
-            // 3) executar ações (sem guardar rule.lastRunAt a cada user)
+            // 3) executar ações
             await this.executeRuleActions(rule, context, { skipRuleUpdate: true })
 
             executions++
             executedRuleIds.add(rule.id.toString())
+
+            console.log(`✅ [TagRuleEngine] Regra "${rule.name}" executada para ${email}`)
           } catch (error: any) {
+            console.error(`❌ [TagRuleEngine] Erro ao executar regra "${rule.name}" para ${email}:`, error)
             errors.push({
               ruleId: rule.id.toString(),
               ruleName: rule.name,
@@ -162,7 +274,7 @@ class TagRuleEngine {
       )
     }
 
-    return {
+    const summary = {
       rulesFound,
       rulesExecuted: executedRuleIds.size,
       usersEvaluated,
@@ -170,10 +282,13 @@ class TagRuleEngine {
       executionTimeMs: Date.now() - startTime,
       errors
     }
+
+    console.log('🎉 [TagRuleEngine] Execução global completa:', summary)
+    return summary
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ✅ EXTRA (do V2): EXECUTAR UMA REGRA MANUALMENTE
+  // ✅ EXECUTAR UMA REGRA MANUALMENTE
   // ═══════════════════════════════════════════════════════════
 
   async executeRuleManually(ruleId: string): Promise<{
@@ -188,7 +303,15 @@ class TagRuleEngine {
       const course = await Course.findById(rule.courseId)
       if (!course) return { success: false, executions: 0, error: 'Course não encontrado' }
 
-      const users = await User.find({ 'combined.status': 'ACTIVE' })
+      // ✅ QUERY CORRIGIDA
+      const users = await User.find({
+        $or: [
+          { 'combined.status': 'ACTIVE' },
+          { 'situation': 'ACTIVE' }
+        ]
+      })
+
+      console.log(`🔄 [TagRuleEngine] Execução manual: regra "${rule.name}", ${users.length} users`)
 
       let executions = 0
       for (const user of users) {
@@ -202,8 +325,10 @@ class TagRuleEngine {
       // marcar lastRunAt 1x
       await TagRule.findByIdAndUpdate(ruleId, { $set: { lastRunAt: new Date() } })
 
+      console.log(`✅ [TagRuleEngine] Execução manual completa: ${executions} execuções`)
       return { success: true, executions }
     } catch (error: any) {
+      console.error('❌ [TagRuleEngine] Erro na execução manual:', error)
       return { success: false, executions: 0, error: error.message }
     }
   }
@@ -218,35 +343,45 @@ class TagRuleEngine {
   ): Promise<RuleExecutionResult[]> {
     const results: RuleExecutionResult[] = []
 
-    // 1. Buscar dados necessários
     const user = await User.findById(userId)
     if (!user) throw new Error(`User ${userId} não encontrado`)
 
     const course = await Course.findById(courseId)
     if (!course) throw new Error(`Course ${courseId} não encontrado`)
 
-    // 2. Calcular estatísticas do user
-    const userStats = await this.calculateUserStats(user, course)
+    const platform = DataUnifier.detectPlatform(user)
+    const email = DataUnifier.getUnifiedEmail(user)
 
-    // 3. Montar contexto de avaliação
+    console.log(`📋 [TagRuleEngine] Avaliando user ${email} (${platform})`)
+
+    const userStats = await this.calculateUserStats(user, course)
     const context: EvaluationContext = { user, course, userStats }
 
-    // 4. Buscar regras ativas ordenadas por prioridade
     const rules = await TagRule.find({ courseId, isActive: true }).sort({ priority: -1 })
-    console.log(`📋 Avaliando ${rules.length} regras para ${user.email}`)
+    console.log(`📋 Avaliando ${rules.length} regras para ${email}`)
 
-    // 5. Avaliar cada regra
     for (const rule of rules) {
+      // Validar compatibilidade da regra com o course
+      if (!this.validateRuleForCourse(rule, course)) {
+        results.push({
+          ruleId: rule.id.toString(),
+          ruleName: rule.name,
+          executed: false,
+          reason: `Regra incompatível com trackingType ${course.trackingType}`
+        })
+        continue
+      }
+
       const result = await this.evaluateAndExecuteRule(rule, context)
       results.push(result)
     }
 
-    console.log(`✅ Avaliação completa para ${user.email}`)
+    console.log(`✅ Avaliação completa para ${email}`)
     return results
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ✅ OTIMIZAÇÃO: AVALIAR TODOS OS USERS DE UM CURSO (sem repetir fetch de rules/course por user)
+  // ✅ AVALIAR TODOS OS USERS DE UM CURSO
   // ═══════════════════════════════════════════════════════════
 
   async evaluateAllUsersInCourse(courseId: mongoose.Types.ObjectId): Promise<void> {
@@ -256,9 +391,15 @@ class TagRuleEngine {
     if (!course) throw new Error(`Course ${courseId} não encontrado`)
 
     const rules = await TagRule.find({ courseId, isActive: true }).sort({ priority: -1 })
-    console.log(`📋 Course ${courseId}: ${rules.length} regras ativas`)
+    console.log(`📋 Course ${course.code}: ${rules.length} regras ativas`)
 
-    const users = await User.find({ 'combined.status': 'ACTIVE' })
+    // ✅ QUERY CORRIGIDA
+    const users = await User.find({
+      $or: [
+        { 'combined.status': 'ACTIVE' },
+        { 'situation': 'ACTIVE' }
+      ]
+    })
     console.log(`👥 Encontrados ${users.length} users`)
 
     let successCount = 0
@@ -266,10 +407,16 @@ class TagRuleEngine {
 
     for (const user of users) {
       try {
+        const platform = DataUnifier.detectPlatform(user)
+        const email = DataUnifier.getUnifiedEmail(user)
+
+        console.log(`👤 Avaliando ${email} (${platform})`)
+
         const userStats = await this.calculateUserStats(user, course)
         const context: EvaluationContext = { user, course, userStats }
 
         for (const rule of rules) {
+          if (!this.validateRuleForCourse(rule, course)) continue
           await this.evaluateAndExecuteRule(rule, context, { skipRuleUpdate: true })
         }
 
@@ -280,13 +427,68 @@ class TagRuleEngine {
       }
     }
 
-    // Atualizar lastRunAt 1x para as regras do curso (best effort)
+    // Atualizar lastRunAt 1x
     await TagRule.updateMany(
       { courseId, isActive: true },
       { $set: { lastRunAt: new Date() } }
     )
 
     console.log(`✅ Avaliação completa: ${successCount} sucesso, ${errorCount} erros`)
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // ✅ VALIDAR SE REGRA É COMPATÍVEL COM O COURSE
+  // ═══════════════════════════════════════════════════════════
+
+  private validateRuleForCourse(rule: ITagRule, course: ICourse): boolean {
+    const trackingType = course.trackingType
+
+    // Campos válidos por trackingType
+    const validFields = {
+      ACTION_BASED: [
+        'lastAccessDate',
+        'lastReportOpenedAt',
+        'lastReportOpened',
+        'reportsOpenedLastWeek',
+        'reportsOpenedLastMonth',
+        'totalReportsOpened',
+        'currentProgress',
+        'currentModule'
+      ],
+      LOGIN_BASED: [
+        'lastLogin',
+        'daysSinceLastLogin',
+        'currentProgress',
+        'currentModule'
+      ]
+    }
+
+    const allowedFields = validFields[trackingType] || []
+
+    // Verificar se todas as condições usam campos permitidos
+    for (const condition of rule.conditions) {
+      if (condition.type === 'SIMPLE') {
+        // ✅ Guard: verificar se field existe antes de usar includes()
+        if (!condition.field || !allowedFields.includes(condition.field)) {
+          console.warn(
+            `⚠️ Regra "${rule.name}" usa campo "${condition.field || 'undefined'}" incompatível com ${trackingType}`
+          )
+          return false
+        }
+      } else if (condition.type === 'COMPOUND' && condition.subConditions) {
+        for (const sub of condition.subConditions) {
+          // ✅ Guard: verificar se field existe antes de usar includes()
+          if (!sub.field || !allowedFields.includes(sub.field)) {
+            console.warn(
+              `⚠️ Regra "${rule.name}" usa campo "${sub.field || 'undefined'}" incompatível com ${trackingType}`
+            )
+            return false
+          }
+        }
+      }
+    }
+
+    return true
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -299,13 +501,20 @@ class TagRuleEngine {
     opts?: { skipRuleUpdate?: boolean }
   ): Promise<RuleExecutionResult> {
     try {
+      const email = DataUnifier.getUnifiedEmail(context.user)
+
       // 1. Avaliar condições
       const conditionsMet = await this.evaluateConditions(rule.conditions, context)
       if (!conditionsMet) {
-        return { ruleId: rule.id.toString(), ruleName: rule.name, executed: false, reason: 'Condições não satisfeitas' }
+        return {
+          ruleId: rule.id.toString(),
+          ruleName: rule.name,
+          executed: false,
+          reason: 'Condições não satisfeitas'
+        }
       }
 
-      // 2. Cooldown por tag no histórico (V1)
+      // 2. Cooldown por tag
       const canExecute = await this.checkCooldown(
         context.user._id,
         (context.course as any)._id as mongoose.Types.ObjectId,
@@ -313,15 +522,27 @@ class TagRuleEngine {
       )
 
       if (!canExecute) {
-        return { ruleId: rule.id.toString(), ruleName: rule.name, executed: false, reason: 'Email já enviado recentemente (cooldown)' }
+        return {
+          ruleId: rule.id.toString(),
+          ruleName: rule.name,
+          executed: false,
+          reason: 'Email já enviado recentemente (cooldown)'
+        }
       }
 
       // 3. Executar ações
       await this.executeRuleActions(rule, context, opts)
 
+      console.log(`✅ Regra "${rule.name}" executada para ${email}`)
       return { ruleId: rule.id.toString(), ruleName: rule.name, executed: true }
     } catch (error: any) {
-      return { ruleId: rule.id.toString(), ruleName: rule.name, executed: false, error: error.message }
+      console.error(`❌ Erro ao executar regra "${rule.name}":`, error)
+      return {
+        ruleId: rule.id.toString(),
+        ruleName: rule.name,
+        executed: false,
+        error: error.message
+      }
     }
   }
 
@@ -347,16 +568,15 @@ class TagRuleEngine {
     if (!field || !operator || value === undefined) return false
 
     const actualValue = this.getFieldValue(field, context)
-    if (actualValue === null) return false
-
-    switch (operator) {
-      case 'olderThan': return actualValue > value
-      case 'newerThan': return actualValue < value
-      case 'equals': return actualValue === value
-      case 'greaterThan': return actualValue > value
-      case 'lessThan': return actualValue < value
-      default: return false
+    if (actualValue === null) {
+      console.warn(`⚠️ Campo "${field}" retornou null`)
+      return false
     }
+
+    const result = this.compareValues(actualValue, operator, value)
+    console.log(`🔍 Condição: ${field} ${operator} ${value} => ${actualValue} = ${result}`)
+    
+    return result
   }
 
   private evaluateCompoundCondition(condition: ICondition, context: EvaluationContext): boolean {
@@ -367,14 +587,7 @@ class TagRuleEngine {
       const actualValue = this.getFieldValue(sub.field, context)
       if (actualValue === null) return false
 
-      switch (sub.operator) {
-        case 'olderThan': return actualValue > sub.value
-        case 'newerThan': return actualValue < sub.value
-        case 'equals': return actualValue === sub.value
-        case 'greaterThan': return actualValue > sub.value
-        case 'lessThan': return actualValue < sub.value
-        default: return false
-      }
+      return this.compareValues(actualValue, sub.operator, sub.value)
     })
 
     if (logic === 'AND') return results.every(r => r === true)
@@ -382,42 +595,83 @@ class TagRuleEngine {
     return false
   }
 
-  private getFieldValue(field: string, context: EvaluationContext): number | null {
-    const { userStats } = context
-
-    switch (field) {
-      // Clareza (ACTION_BASED)
-      case 'lastAccessDate':
-      case 'lastReportOpenedAt':
-      case 'lastModuleCompletedAt':
-      case 'lastReportOpened':
-        return userStats.daysSinceLastAction || 0
-      case 'reportsOpenedLastWeek':
-        return userStats.reportsOpenedLastWeek || 0
-      case 'reportsOpenedLastMonth':
-        return userStats.reportsOpenedLastMonth || 0
-      case 'totalReportsOpened':
-        return userStats.totalReportsOpened || 0
-
-      // OGI (LOGIN_BASED)
-      case 'lastLogin':
-      case 'daysSinceLastLogin':
-        return userStats.daysSinceLastLogin || 0
-
-      // comuns
-      case 'currentProgress':
-        return userStats.currentProgress || 0
-      case 'currentModule':
-        return userStats.currentModule || 0
-
-      default:
-        console.warn(`⚠️ Campo desconhecido: ${field}`)
-        return null
+  private compareValues(actualValue: number, operator: string, expectedValue: number): boolean {
+    switch (operator) {
+      case 'olderThan': return actualValue > expectedValue
+      case 'newerThan': return actualValue < expectedValue
+      case 'equals': return actualValue === expectedValue
+      case 'greaterThan': return actualValue > expectedValue
+      case 'lessThan': return actualValue < expectedValue
+      default: return false
     }
   }
 
   // ═══════════════════════════════════════════════════════════
-  // VERIFICAR COOLDOWN (por tag, V1)
+  // ✅ MAPEAMENTO CORRETO DE CAMPOS POR TRACKING TYPE
+  // ═══════════════════════════════════════════════════════════
+
+  private getFieldValue(field: string, context: EvaluationContext): number | null {
+    const { userStats, course } = context
+    const trackingType = course.trackingType
+
+    // ─────────────────────────────────────────────────────────
+    // ACTION_BASED (Clareza)
+    // ─────────────────────────────────────────────────────────
+    if (trackingType === 'ACTION_BASED') {
+      switch (field) {
+        case 'lastAccessDate':
+        case 'lastReportOpenedAt':
+        case 'lastReportOpened':
+          return userStats.daysSinceLastAction ?? null
+
+        case 'reportsOpenedLastWeek':
+          return userStats.reportsOpenedLastWeek ?? 0
+
+        case 'reportsOpenedLastMonth':
+          return userStats.reportsOpenedLastMonth ?? 0
+
+        case 'totalReportsOpened':
+          return userStats.totalReportsOpened ?? 0
+
+        case 'currentProgress':
+          return userStats.currentProgress ?? 0
+
+        case 'currentModule':
+          return userStats.currentModule ?? 0
+
+        default:
+          console.warn(`⚠️ Campo "${field}" não suportado em ACTION_BASED`)
+          return null
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // LOGIN_BASED (OGI)
+    // ─────────────────────────────────────────────────────────
+    if (trackingType === 'LOGIN_BASED') {
+      switch (field) {
+        case 'lastLogin':
+        case 'daysSinceLastLogin':
+          return userStats.daysSinceLastLogin ?? null
+
+        case 'currentProgress':
+          return userStats.currentProgress ?? 0
+
+        case 'currentModule':
+          return userStats.currentModule ?? 0
+
+        default:
+          console.warn(`⚠️ Campo "${field}" não suportado em LOGIN_BASED`)
+          return null
+      }
+    }
+
+    console.warn(`⚠️ TrackingType "${trackingType}" desconhecido`)
+    return null
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // VERIFICAR COOLDOWN
   // ═══════════════════════════════════════════════════════════
 
   private async checkCooldown(
@@ -438,7 +692,9 @@ class TagRuleEngine {
       })
 
       if (recentCommunication) {
-        const daysSince = Math.floor((Date.now() - recentCommunication.sentAt!.getTime()) / (1000 * 60 * 60 * 24))
+        const daysSince = Math.floor(
+          (Date.now() - recentCommunication.sentAt!.getTime()) / (1000 * 60 * 60 * 24)
+        )
         console.log(`⏸️ Tag "${tagName}" já aplicada há ${daysSince} dias (cooldown: ${cooldownDays}d)`)
         return false
       }
@@ -462,15 +718,17 @@ class TagRuleEngine {
     const { user, course, userStats } = context
     const { addTag, removeTags } = rule.actions
 
+    const email = DataUnifier.getUnifiedEmail(user)
+
     // 1. Remover tags antigas
     if (removeTags && removeTags.length > 0) {
-      console.log(`🗑️ Removendo tags: ${removeTags.join(', ')}`)
-      await activeCampaignService.removeTags(user.email, removeTags)
+      console.log(`🗑️ [${email}] Removendo tags: ${removeTags.join(', ')}`)
+      await activeCampaignService.removeTags(email, removeTags)
     }
 
     // 2. Adicionar nova tag
-    console.log(`✅ Aplicando tag: ${addTag}`)
-    await activeCampaignService.addTag(user.email, addTag)
+    console.log(`✅ [${email}] Aplicando tag: ${addTag}`)
+    await activeCampaignService.addTag(email, addTag)
 
     // 3. Registar em CommunicationHistory
     await CommunicationHistory.create({
@@ -488,7 +746,7 @@ class TagRuleEngine {
       }
     })
 
-    console.log(`📝 Comunicação registada em histórico`)
+    console.log(`📝 [${email}] Comunicação registada em histórico`)
 
     // 4. Atualizar lastRunAt (só se não estivermos em batch)
     if (!opts?.skipRuleUpdate) {
@@ -498,22 +756,31 @@ class TagRuleEngine {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // CALCULAR ESTATÍSTICAS DO USER
+  // ✅ CALCULAR ESTATÍSTICAS DO USER (UNIFORMIZADO)
   // ═══════════════════════════════════════════════════════════
 
   private async calculateUserStats(user: any, course: ICourse): Promise<any> {
     const now = new Date()
+    const platform = DataUnifier.detectPlatform(user)
+    const email = DataUnifier.getUnifiedEmail(user)
+
+    console.log(`📊 [${email}] Calculando stats (${platform}, ${course.trackingType})`)
 
     const stats: any = {
-      daysSinceLastAction: 0,
-      currentProgress: user.combined?.totalProgress || 0
+      currentProgress: DataUnifier.getUnifiedProgress(user, course),
+      currentModule: DataUnifier.getUnifiedCurrentModule(user, course)
     }
 
+    // ─────────────────────────────────────────────────────────
+    // ACTION_BASED (Clareza)
+    // ─────────────────────────────────────────────────────────
     if (course.trackingType === 'ACTION_BASED') {
+      const actionType = course.trackingConfig?.actionType || 'REPORT_OPENED'
+
       const lastAction = await UserAction.findOne({
         userId: user._id,
         courseId: (course as any)._id,
-        actionType: course.trackingConfig.actionType
+        actionType
       }).sort({ timestamp: -1 })
 
       if (lastAction) {
@@ -523,6 +790,7 @@ class TagRuleEngine {
         stats.daysSinceLastAction = 999
       }
 
+      // Reportes abertos (última semana)
       const lastWeekDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
       stats.reportsOpenedLastWeek = await UserAction.countDocuments({
         userId: user._id,
@@ -531,6 +799,7 @@ class TagRuleEngine {
         timestamp: { $gte: lastWeekDate }
       })
 
+      // Reportes abertos (último mês)
       const lastMonthDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
       stats.reportsOpenedLastMonth = await UserAction.countDocuments({
         userId: user._id,
@@ -539,13 +808,19 @@ class TagRuleEngine {
         timestamp: { $gte: lastMonthDate }
       })
 
+      // Total de reportes abertos
       stats.totalReportsOpened = await UserAction.countDocuments({
         userId: user._id,
         courseId: (course as any)._id,
         actionType: 'REPORT_OPENED'
       })
+
+      console.log(`📊 [${email}] ACTION_BASED: ${stats.daysSinceLastAction}d, ${stats.totalReportsOpened} reports`)
     }
 
+    // ─────────────────────────────────────────────────────────
+    // LOGIN_BASED (OGI)
+    // ─────────────────────────────────────────────────────────
     if (course.trackingType === 'LOGIN_BASED') {
       const lastLoginAction = await UserAction.findOne({
         userId: user._id,
@@ -556,27 +831,25 @@ class TagRuleEngine {
       if (lastLoginAction) {
         const lastLogin = new Date(lastLoginAction.timestamp || lastLoginAction.actionDate)
         stats.lastLogin = lastLogin
-        stats.daysSinceLastLogin = Math.floor((now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24))
+        stats.daysSinceLastLogin = Math.floor(
+          (now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24)
+        )
       } else {
-        const userCreated = user.metadata?.createdAt || user.createdAt || now
-        stats.daysSinceLastLogin = Math.floor((now.getTime() - userCreated.getTime()) / (1000 * 60 * 60 * 24))
+        // Fallback: usar data de criação do user
+        const userCreated = DataUnifier.getUnifiedCreatedAt(user)
+        stats.daysSinceLastLogin = Math.floor(
+          (now.getTime() - userCreated.getTime()) / (1000 * 60 * 60 * 24)
+        )
       }
 
-      const communicationData = user.communicationByCourse?.get?.(course.code)
-      if (communicationData) {
-        stats.currentProgress = communicationData.courseSpecificData?.currentModule || 0
-        stats.currentModule = communicationData.courseSpecificData?.currentModule || 0
-      } else {
-        stats.currentProgress = user.hotmart?.progress?.totalProgress || 0
-        stats.currentModule = user.hotmart?.progress?.currentModule || 0
-      }
+      console.log(`📊 [${email}] LOGIN_BASED: ${stats.daysSinceLastLogin}d desde último login`)
     }
 
     return stats
   }
 
   // ═══════════════════════════════════════════════════════════
-  // RULE-LEVEL COOLDOWN (best effort) via lastRunAt
+  // RULE-LEVEL COOLDOWN
   // ═══════════════════════════════════════════════════════════
 
   private canRuleExecute(rule: ITagRule, cooldownHours: number): boolean {
