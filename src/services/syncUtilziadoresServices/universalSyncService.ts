@@ -865,43 +865,55 @@ const processSyncItem = async (
       productId: productId
     })
     
-    if (existingUP) {
-      // ✅ ATUALIZAR UserProduct existente
-      const upUpdateFields: Record<string, any> = {}
-      let upNeedsUpdate = false
-      
-      // Progress
-      if (item.progress?.percentage !== undefined) {
-        const newPercentage = toNumber(item.progress.percentage, 0)
-        if (existingUP.progress?.percentage !== newPercentage) {
-          upUpdateFields['progress.percentage'] = newPercentage
-          upUpdateFields['progress.lastActivity'] = toDateOrNull(item.lastAccessDate) || new Date()
-          upNeedsUpdate = true
-        }
-      }
-      
-      // Engagement
-      if (item.engagement?.engagementScore !== undefined) {
-        const newScore = toNumber(item.engagement.engagementScore, 0)
-        if (existingUP.engagement?.engagementScore !== newScore) {
-          upUpdateFields['engagement.engagementScore'] = newScore
-          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
-          upNeedsUpdate = true
-        }
-      } else if (item.accessCount !== undefined) {
-        // Fallback: usar accessCount como engagementScore
-        const newScore = toNumber(item.accessCount, 0)
-        if (existingUP.engagement?.engagementScore !== newScore) {
-          upUpdateFields['engagement.engagementScore'] = newScore
-          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
-          upNeedsUpdate = true
-        }
-      }
-      
-      if (upNeedsUpdate) {
-        await UserProduct.findByIdAndUpdate(existingUP._id, { $set: upUpdateFields })
-        console.log(`   📦 UserProduct atualizado: ${user.email}`)
-      }
+if (existingUP) {
+  const upUpdateFields: Record<string, any> = {}
+  let upNeedsUpdate = false
+  // ✅ ADICIONAR ISTO na secção "if (existingUP)":
+if (item.platformData?.isPrimary !== undefined) {
+  console.log(`   📌 Atualizando isPrimary: ${item.platformData.isPrimary} para ${item.email}`)
+  upUpdateFields['isPrimary'] = item.platformData.isPrimary
+  upNeedsUpdate = true
+} else {
+  console.log(`   ⚠️  platformData.isPrimary UNDEFINED para ${item.email}`)
+}
+  // Progress
+  if (item.progress?.percentage !== undefined) {
+    const newPercentage = toNumber(item.progress.percentage, 0)
+    if (existingUP.progress?.percentage !== newPercentage) {
+      upUpdateFields['progress.percentage'] = newPercentage
+      upUpdateFields['progress.lastActivity'] = toDateOrNull(item.lastAccessDate) || new Date()
+      upNeedsUpdate = true
+    }
+  }
+  
+  // Engagement
+  if (item.engagement?.engagementScore !== undefined) {
+    const newScore = toNumber(item.engagement.engagementScore, 0)
+    if (existingUP.engagement?.engagementScore !== newScore) {
+      upUpdateFields['engagement.engagementScore'] = newScore
+      upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
+      upNeedsUpdate = true
+    }
+  } else if (item.accessCount !== undefined) {
+    const newScore = toNumber(item.accessCount, 0)
+    if (existingUP.engagement?.engagementScore !== newScore) {
+      upUpdateFields['engagement.engagementScore'] = newScore
+      upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
+      upNeedsUpdate = true
+    }
+  }
+  
+  // ✅ ADICIONAR ISTO AQUI:
+  if (item.platformData?.isPrimary !== undefined && existingUP.isPrimary !== item.platformData.isPrimary) {
+    upUpdateFields['isPrimary'] = item.platformData.isPrimary
+    upNeedsUpdate = true
+  }
+  
+  if (upNeedsUpdate) {
+    await UserProduct.findByIdAndUpdate(existingUP._id, { $set: upUpdateFields })
+    console.log(`   📦 UserProduct atualizado: ${user.email}`)
+  }
+
       
     } else {
       // ✅ CRIAR UserProduct novo
@@ -920,7 +932,15 @@ const processSyncItem = async (
         enrolledAt: enrolledAt,
 
         // ✅ ADICIONAR isPrimary
-  isPrimary: item.platformData?.isPrimary ?? true,
+isPrimary: (() => {
+  const value = item.platformData?.isPrimary
+  if (value !== undefined) {
+    console.log(`   📌 isPrimary RECEBIDO: ${value} para ${item.email}`)
+    return value
+  }
+  console.log(`   ⚠️  isPrimary UNDEFINED para ${item.email}, usando TRUE como fallback`)
+  return true
+})(),
         // ✅ PROGRESS com dados reais
         progress: {
           percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
