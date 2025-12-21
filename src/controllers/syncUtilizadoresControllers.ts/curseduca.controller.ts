@@ -611,27 +611,25 @@ export const syncCurseducaUsersUniversal = async (req: Request, res: Response): 
       }
     })
 
-    console.log('✅ [CurseducaUniversal] Sync concluída!')
-    console.log(`   ⏱️ Duração: ${result.duration}s`)
-    console.log(`   ✅ Inseridos: ${result.stats.inserted}`)
-    console.log(`   🔄 Atualizados: ${result.stats.updated}`)
-    console.log(`   ❌ Erros: ${result.stats.errors}`)
+console.log('✅ [CurseducaUniversal] Sync concluída!')
+console.log(`   ⏱️ Duração: ${result.duration}s`)
+console.log(`   ✅ Inseridos: ${result.stats.inserted}`)
+console.log(`   🔄 Atualizados: ${result.stats.updated}`)
+console.log(`   ❌ Erros: ${result.stats.errors}`)
 
-
-// ✅ ADICIONAR ESTAS LINHAS:
+// ✅ PATCH: Invalidar cache e rebuild stats
 console.log('🔄 [CurseducaUniversal] Invalidando cache e reconstruindo stats...')
 
-// Invalidar cache em memória
 const { clearUnifiedCache } = require('../../services/dualReadService')
 clearUnifiedCache()
 
-// Forçar rebuild SÍNCRONO (aguardar completar)
 const { buildDashboardStats } = require('../../services/dashboardStatsBuilder.service')
 await buildDashboardStats()
 
 console.log('✅ [CurseducaUniversal] Stats atualizados!')
 
-    res.status(200).json({
+// AGORA SIM: responder
+res.status(200).json({
       success: result.success,
       message: result.success
         ? 'Sincronização via Universal Service concluída com sucesso!'

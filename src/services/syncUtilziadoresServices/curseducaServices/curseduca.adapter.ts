@@ -135,12 +135,21 @@ function normalizeCurseducaMember(
     groupId: group.uuid || group.id.toString(),
     groupName: group.name,
     subscriptionType: detectSubscriptionType(group.name),
+    
+    // ✅ CORRIGIDO: Usar campos corretos que o Universal Sync espera
     progress: {
-      estimatedProgress: member.progress || 0,
-      activityLevel: member.progress && member.progress > 50 ? 'HIGH' : 
-                      member.progress && member.progress > 20 ? 'MEDIUM' : 'LOW'
+      percentage: member.progress || 0,  // ← MUDANÇA CRÍTICA!
+      completed: 0,
+      lessons: []
     },
+    
+    // ✅ NOVO: Engagement básico
+    engagement: {
+      engagementScore: member.progress ? Math.min(100, member.progress * 2) : 0  // Score baseado no progress
+    },
+    
     joinedDate: member.enteredAt ? new Date(member.enteredAt) : new Date(),
+    enrolledAt: member.enteredAt ? new Date(member.enteredAt) : new Date(),  // ← ADICIONAR
     expiresAt: member.expiresAt ? new Date(member.expiresAt) : undefined,
     enrollmentsCount: member.enrollmentsCount || 0
   }
