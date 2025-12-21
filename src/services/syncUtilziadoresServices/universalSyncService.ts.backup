@@ -831,13 +831,12 @@ const processSyncItem = async (
                         toDateOrNull(item.joinedDate) ||
                         new Date()
       
-const newUserProduct: any = {
-  userId: userIdStr,
-  productId: productId,
-  platform: config.syncType,
-  platformUserId: item.platformUserId || item.curseducaUserId || item.hotmartUserId || userIdStr, // ✅ ADICIONADO
-  status: 'ACTIVE',
-  source: 'PURCHASE',
+      const newUserProduct: any = {
+        userId: userIdStr,
+        productId: productId,
+        platform: config.syncType,
+        status: 'ACTIVE',
+        source: 'PURCHASE',
         enrolledAt: enrolledAt,
         
         // Progresso - ✅ CORRIGIDO: usar optional chaining
