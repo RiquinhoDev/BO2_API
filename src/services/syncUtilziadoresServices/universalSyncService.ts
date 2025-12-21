@@ -44,7 +44,10 @@ export interface UniversalSourceItem {
   className?: string
   productCode?: string // ✅ ADICIONADO
   currentModule?: number // ✅ ADICIONADO
-  
+    platformData?: {
+    isPrimary?: boolean
+    [key: string]: unknown
+  }
   // ✅ CORRIGIDO: Estrutura de progresso unificada
   progress?: {
     percentage?: number // Para todas as plataformas
@@ -612,14 +615,16 @@ const processSyncItem = async (
   }
 
   // ═══════════════════════════════════════════════════════════
-  // HOTMART - Schema Segregado
+  // ✅ HOTMART - VERSÃO COMPLETA (MANTÉM TUDO!)
   // ═══════════════════════════════════════════════════════════
   if (config.syncType === 'hotmart') {
+    // IDs
     if (item.hotmartUserId) {
       updateFields['hotmart.hotmartUserId'] = item.hotmartUserId
       needsUpdate = true
     }
 
+    // ✅ DATAS (TODAS!)
     const purchaseDate = toDateOrNull(item.purchaseDate)
     const signupDate = toDateOrNull(item.signupDate)
     const firstAccessDate = toDateOrNull(item.firstAccessDate)
@@ -634,24 +639,30 @@ const processSyncItem = async (
       needsUpdate = true
     }
     if (firstAccessDate) {
-      updateFields['hotmart.firstAccessDate'] = firstAccessDate
+      updateFields['hotmart.firstAccessDate'] = firstAccessDate  // ✅ ESSENCIAL
       needsUpdate = true
     }
     if (lastAccessDate) {
-      updateFields['hotmart.lastAccessDate'] = lastAccessDate
+      updateFields['hotmart.lastAccessDate'] = lastAccessDate    // ✅ ESSENCIAL
       needsUpdate = true
     }
 
+    // Status
     if (item.plusAccess) {
       updateFields['hotmart.plusAccess'] = item.plusAccess
       needsUpdate = true
     }
 
+    // Current Module
     if (item.currentModule !== undefined) {
       updateFields['hotmart.currentModule'] = toNumber(item.currentModule, 0)
       needsUpdate = true
     }
 
+    // ✅ PROGRESS: Existe duplicação no código atual, mas vou manter AMBOS
+    // porque servem propósitos diferentes!
+    
+    // Progress básico (sempre atualizar se progress exists)
     if (item.progress !== undefined) {
       updateFields['hotmart.progress'] = {
         totalProgress: toNumber(item.progress.percentage, 0),
@@ -661,6 +672,7 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
+    // ✅ Turmas
     if (item.classId) {
       updateFields['hotmart.enrolledClasses'] = [
         {
@@ -674,32 +686,35 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
+    // ✅ PROGRESS DETALHADO (com lições) - SOBRESCREVE o anterior se includeProgress
     if (config.includeProgress && item.progress) {
       updateFields['hotmart.progress'] = {
         totalTimeMinutes: 0,
-        completedLessons: toNumber(item.progress.completed, 0),
-        lessonsData: (item.progress.lessons || []).map(l => ({
+        completedLessons: toNumber(item.progress.completed, 0),          // ✅
+        lessonsData: (item.progress.lessons || []).map(l => ({           // ✅
           lessonId: l.pageId,
           title: l.pageName,
           completed: Boolean(l.isCompleted),
           completedAt: toDateOrNull(l.completedDate),
           timeSpent: 0
         })),
-        lastAccessDate: lastAccessDate || new Date()
+        lastAccessDate: lastAccessDate || new Date()                     // ✅
       }
       needsUpdate = true
     }
 
-    if (item.accessCount !== undefined || item.engagementLevel) {
+    // ✅ ENGAGEMENT (COMPLETO!)
+    if (item.accessCount !== undefined || item.engagementLevel || item.engagement?.engagementScore) {
       updateFields['hotmart.engagement'] = {
-        accessCount: toNumber(item.accessCount, 0),
+        accessCount: toNumber(item.accessCount, 0),                      // ✅ ESSENCIAL
         engagementLevel: item.engagementLevel || 'NONE',
-        engagementScore: 0,
+        engagementScore: item.engagement?.engagementScore || toNumber(item.accessCount, 0),  // ✅ CALCULAR
         calculatedAt: new Date()
       }
       needsUpdate = true
     }
 
+    // Metadata
     updateFields['hotmart.lastSyncAt'] = new Date()
     updateFields['hotmart.syncVersion'] = '3.0'
     updateFields['metadata.updatedAt'] = new Date()
@@ -709,9 +724,10 @@ const processSyncItem = async (
   }
 
   // ═══════════════════════════════════════════════════════════
-  // CURSEDUCA - Schema Segregado
+  // ✅ CURSEDUCA - VERSÃO COMPLETA
   // ═══════════════════════════════════════════════════════════
   if (config.syncType === 'curseduca') {
+    // IDs
     if (item.curseducaUserId && item.curseducaUserId !== (user as any).curseduca?.curseducaUserId) {
       updateFields['curseduca.curseducaUserId'] = item.curseducaUserId
       needsUpdate = true
@@ -722,7 +738,10 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
+    // Grupos
     if (item.groupId) {
+      updateFields['curseduca.groupId'] = String(item.groupId)
+      updateFields['curseduca.groupName'] = item.groupName
       updateFields['curseduca.groups'] = [
         {
           groupId: item.groupId,
@@ -733,9 +752,61 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
+    // Subscription Type
+    if (item.subscriptionType) {
+      updateFields['curseduca.subscriptionType'] = item.subscriptionType
+      needsUpdate = true
+    }
+
+    // Member Status
+    updateFields['curseduca.memberStatus'] = 'ACTIVE'
+    needsUpdate = true
+
+    // Datas
+    const joinedDate = toDateOrNull(item.joinedDate) || toDateOrNull(item.enrolledAt)
+    if (joinedDate) {
+      updateFields['curseduca.joinedDate'] = joinedDate
+      needsUpdate = true
+    }
+
+    // ✅ PROGRESS (se disponível da API)
+    if (item.progress?.percentage !== undefined) {
+      const progressPercentage = toNumber(item.progress.percentage, 0)
+      
+      updateFields['curseduca.progress'] = {
+        estimatedProgress: progressPercentage,
+        activityLevel: progressPercentage > 50 ? 'HIGH' : 
+                      progressPercentage > 20 ? 'MEDIUM' : 'LOW',
+        groupEngagement: 0,
+        progressSource: 'estimated'
+      }
+      needsUpdate = true
+    }
+
+    // ✅ ENGAGEMENT (calcular do progress se disponível)
+    if (item.progress?.percentage !== undefined || item.engagement?.engagementScore !== undefined) {
+      const engagementScore = item.engagement?.engagementScore || 
+                             (item.progress?.percentage ? toNumber(item.progress.percentage, 0) * 2 : 0)
+      
+      updateFields['curseduca.engagement'] = {
+        alternativeEngagement: Math.min(100, engagementScore),
+        activityLevel: engagementScore > 50 ? 'HIGH' : 
+                      engagementScore > 20 ? 'MEDIUM' : 'LOW',
+        engagementLevel: engagementScore > 75 ? 'MUITO_ALTO' :
+                        engagementScore > 50 ? 'ALTO' :
+                        engagementScore > 25 ? 'MEDIO' :
+                        engagementScore > 10 ? 'BAIXO' : 'MUITO_BAIXO',
+        calculatedAt: new Date()
+      }
+      needsUpdate = true
+    }
+
+    // Metadata
     updateFields['curseduca.lastSyncAt'] = new Date()
+    updateFields['curseduca.syncVersion'] = '2.0'
     updateFields['metadata.updatedAt'] = new Date()
     updateFields['metadata.sources.curseduca.lastSync'] = new Date()
+    updateFields['metadata.sources.curseduca.version'] = '2.0'
     needsUpdate = true
   }
 
@@ -795,26 +866,34 @@ const processSyncItem = async (
     })
     
     if (existingUP) {
-      // UserProduct já existe - atualizar apenas se necessário
+      // ✅ ATUALIZAR UserProduct existente
       const upUpdateFields: Record<string, any> = {}
       let upNeedsUpdate = false
       
-      // ✅ CORRIGIDO: Verificar se item.progress?.percentage existe
+      // Progress
       if (item.progress?.percentage !== undefined) {
         const newPercentage = toNumber(item.progress.percentage, 0)
         if (existingUP.progress?.percentage !== newPercentage) {
           upUpdateFields['progress.percentage'] = newPercentage
-          upUpdateFields['progress.lastActivity'] = new Date()
+          upUpdateFields['progress.lastActivity'] = toDateOrNull(item.lastAccessDate) || new Date()
           upNeedsUpdate = true
         }
       }
       
-      // ✅ CORRIGIDO: Verificar se item.engagement?.engagementScore existe
+      // Engagement
       if (item.engagement?.engagementScore !== undefined) {
         const newScore = toNumber(item.engagement.engagementScore, 0)
         if (existingUP.engagement?.engagementScore !== newScore) {
           upUpdateFields['engagement.engagementScore'] = newScore
-          upUpdateFields['engagement.lastAction'] = new Date()
+          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
+          upNeedsUpdate = true
+        }
+      } else if (item.accessCount !== undefined) {
+        // Fallback: usar accessCount como engagementScore
+        const newScore = toNumber(item.accessCount, 0)
+        if (existingUP.engagement?.engagementScore !== newScore) {
+          upUpdateFields['engagement.engagementScore'] = newScore
+          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
           upNeedsUpdate = true
         }
       }
@@ -825,31 +904,38 @@ const processSyncItem = async (
       }
       
     } else {
-      // UserProduct NÃO existe - criar novo
+      // ✅ CRIAR UserProduct novo
       const enrolledAt = toDateOrNull(item.enrolledAt) || 
                         toDateOrNull(item.purchaseDate) ||
                         toDateOrNull(item.joinedDate) ||
                         new Date()
       
-const newUserProduct: any = {
-  userId: userIdStr,
-  productId: productId,
-  platform: config.syncType,
-  platformUserId: item.platformUserId || item.curseducaUserId || item.hotmartUserId || userIdStr,  // ← ADICIONAR!
-  status: 'ACTIVE',
-  source: 'PURCHASE',
-  enrolledAt: enrolledAt,
-  
-  progress: {
-    percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
-    lastActivity: new Date()
-  },
-  
-  engagement: {
-    engagementScore: item.engagement?.engagementScore ? toNumber(item.engagement.engagementScore, 0) : 0,
-    lastAction: new Date()
-  }
-}
+      const newUserProduct: any = {
+        userId: userIdStr,
+        productId: productId,
+        platform: config.syncType,
+        platformUserId: item.curseducaUserId || item.hotmartUserId || item.discordUserId || userIdStr,
+        status: 'ACTIVE',
+        source: 'PURCHASE',
+        enrolledAt: enrolledAt,
+
+        // ✅ ADICIONAR isPrimary
+  isPrimary: item.platformData?.isPrimary ?? true,
+        // ✅ PROGRESS com dados reais
+        progress: {
+          percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
+          lastActivity: toDateOrNull(item.lastAccessDate) || new Date()
+        },
+        
+        // ✅ ENGAGEMENT com dados reais
+        engagement: {
+          engagementScore: item.engagement?.engagementScore 
+            ? toNumber(item.engagement.engagementScore, 0) 
+            : toNumber(item.accessCount, 0),  // Fallback para accessCount
+          lastAction: toDateOrNull(item.lastAccessDate) || new Date()
+        }
+      }
+
       // Dados específicos da plataforma
       if (config.syncType === 'hotmart') {
         newUserProduct.hotmartData = {
@@ -883,7 +969,7 @@ const newUserProduct: any = {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // RETORNAR RESULTADO - ✅ CORRIGIDO: sempre retorna
+  // RETORNAR RESULTADO
   // ═══════════════════════════════════════════════════════════
   
   return { 
