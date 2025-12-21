@@ -674,7 +674,16 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
       },
       errorDetails: errors.length > 0 ? errors.slice(0, 50) : undefined
     })
+// ✅ PATCH: Invalidar cache e rebuild stats
+console.log('🔄 [HotmartUniversal] Invalidando cache e reconstruindo stats...')
 
+const { clearUnifiedCache } = require('../../services/dualReadService')
+clearUnifiedCache()
+
+const { buildDashboardStats } = require('../../services/dashboardStatsBuilder.service')
+await buildDashboardStats()
+
+console.log('✅ [HotmartUniversal] Stats atualizados!')
     res.status(200).json({
       message: 'Sincronização Hotmart concluída com pré-cálculo de engagement!',
       stats: {
