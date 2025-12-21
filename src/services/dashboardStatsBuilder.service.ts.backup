@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// 🏗️ SERVICE: Dashboard Stats Builder (Materialized View) - TOTALMENTE CORRIGIDO
+// 🏗️ SERVICE: Dashboard Stats Builder (Materialized View) - CORRIGIDO
 // ═══════════════════════════════════════════════════════════════════════════
 // Calcula e guarda stats do dashboard para carregamento instantâneo
 // Chamado por CRON job e após syncs
@@ -8,9 +8,7 @@
 // 1. ✅ At Risk: score < 30 (antes: < 40)
 // 2. ✅ Top 10%: cálculo dinâmico (antes: score >= 60 fixo)
 // 3. ✅ Novos 7d: usa enrolledAt (verificado - estava correto)
-// 4. ✅ Inativos 30d: lógica corrigida (agora usa AND em vez de OR)
-// 5. ✅ Plataformas: normalização corrigida (curseduca vs CursEduca)
-// 6. ✅ Total alunos: usa Set para garantir contagem única
+// 4. 🔍 Inativos 30d: logs debug adicionados para investigação
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { DashboardStats } from '../models/DashboardStats';
@@ -41,7 +39,6 @@ export async function buildDashboardStats(): Promise<void> {
       isActive: boolean;
       enrolledAt: Date | null;
       platforms: Set<string>;
-      lastActivity: Date | null;  // ← NOVO: para calcular inativos 30d
     }>();
     
     userProducts.forEach(up => {
@@ -55,8 +52,7 @@ export async function buildDashboardStats(): Promise<void> {
           progresses: [],
           isActive: false,
           enrolledAt: null,
-          platforms: new Set(),
-          lastActivity: null  // ← NOVO
+          platforms: new Set()
         });
       }
       
@@ -85,18 +81,9 @@ export async function buildDashboardStats(): Promise<void> {
         }
       }
       
-      // ✅ NOVO: Last Activity (para inativos 30d)
-      if (up.engagement?.lastAction) {
-        const lastActionDate = new Date(up.engagement.lastAction);
-        if (!metrics.lastActivity || lastActionDate > metrics.lastActivity) {
-          metrics.lastActivity = lastActionDate;
-        }
-      }
-      
-      // ✅ CORREÇÃO 5: Normalizar plataforma antes de adicionar
+      // Platforms
       if (up.platform) {
-        const normalizedPlatform = up.platform.toLowerCase();
-        metrics.platforms.add(normalizedPlatform);
+        metrics.platforms.add(up.platform);
       }
     });
     
@@ -105,20 +92,20 @@ export async function buildDashboardStats(): Promise<void> {
     // 3. Calcular métricas agregadas
     console.log('📊 Calculando métricas...');
     
-    // ✅ Array para cálculo de Top 10%
+    // ✅ NOVO: Array para cálculo de Top 10%
     const userEngagementScores: Array<{ userId: string; score: number }> = [];
     
     let totalEngagement = 0;
     let totalProgress = 0;
     let activeUsers = 0;
     let atRiskUsers = 0;
+    // Top performers será calculado depois!
     let newUsers7d = 0;
     let inactiveUsers30d = 0;
     
-    // 🔍 DEBUG: Contadores detalhados para investigar
+    // 🔍 DEBUG: Contadores para investigar Inativos 30d
     let inactiveNoActivity = 0;
     let inactiveLowEngagement = 0;
-    let inactiveBoth = 0;
     
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -133,7 +120,7 @@ export async function buildDashboardStats(): Promise<void> {
         : 0;
       totalEngagement += userAvgEngagement;
       
-      // Guardar score para cálculo de Top 10%
+      // ✅ NOVO: Guardar score para cálculo de Top 10%
       userEngagementScores.push({ userId, score: userAvgEngagement });
       
       // Progress médio do user
@@ -148,38 +135,34 @@ export async function buildDashboardStats(): Promise<void> {
       }
       
       // ✅ CORREÇÃO 1: At Risk (score < 30 OU sem engagement)
+      // ANTES: < 40
+      // AGORA: < 30 (baseado em dados reais)
       if (userAvgEngagement === 0 || userAvgEngagement < 30) {
         atRiskUsers++;
       }
       
-      // ✅ New users (últimos 7 dias)
+      // ❌ REMOVIDO: Top Performers (era calculado aqui com threshold fixo)
+      // Agora será calculado DEPOIS com Top 10% dinâmico
+      
+      // ✅ VERIFICADO: New users (últimos 7 dias) - CORRETO!
       if (metrics.enrolledAt && metrics.enrolledAt >= sevenDaysAgo) {
         newUsers7d++;
       }
       
-      // ✅ CORREÇÃO 4: Inativos 30d (lógica corrigida - agora usa AND)
-      // User é inativo se:
-      // 1. NÃO está ativo (!isActive) E
-      // 2. Não tem atividade recente (lastActivity > 30 dias OU null)
-      const hasNoRecentActivity = !metrics.lastActivity || metrics.lastActivity < thirtyDaysAgo;
-      const hasLowEngagement = userAvgEngagement < 20;
+      // 🔍 DEBUG: Inactive users - adicionar contadores para investigar
+      const isInactiveNoActivity = !metrics.isActive;
+      const isInactiveLowEngagement = userAvgEngagement < 20;
       
-      // Contadores para debug
-      if (!metrics.isActive) {
+      if (isInactiveNoActivity) {
         inactiveNoActivity++;
       }
       
-      if (hasLowEngagement) {
+      if (isInactiveLowEngagement) {
         inactiveLowEngagement++;
       }
       
-      // ✅ DEFINIÇÃO CORRETA: Inativo = (!isActive E sem atividade recente) OU engagement muito baixo
-      if ((!metrics.isActive && hasNoRecentActivity) || (hasLowEngagement && hasNoRecentActivity)) {
+      if (isInactiveNoActivity || isInactiveLowEngagement) {
         inactiveUsers30d++;
-        
-        if (!metrics.isActive && hasLowEngagement) {
-          inactiveBoth++;
-        }
       }
     });
     
@@ -196,32 +179,27 @@ export async function buildDashboardStats(): Promise<void> {
     const topPerformers = top10Count;
     
     // 4. Threshold = score mínimo para estar no top 10%
-    const top10Threshold = top10Count > 0 ? userEngagementScores[top10Count - 1]?.score || 0 : 0;
+    const top10Threshold = userEngagementScores[top10Count - 1]?.score || 0;
     
     console.log(`   ✅ Top 10%: ${topPerformers} alunos (threshold: ${top10Threshold.toFixed(1)})`);
     
-    // ✅ CORREÇÃO 6: Total de users (já está usando userMetrics.size que é Set único)
+    // Continuar com cálculos...
     const totalUsers = userMetrics.size;
     const avgEngagement = totalUsers > 0 ? Math.round(totalEngagement / totalUsers) : 0;
     const avgProgress = totalUsers > 0 ? Math.round(totalProgress / totalUsers) : 0;
     const activeRate = totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
     const atRiskRate = totalUsers > 0 ? Math.round((atRiskUsers / totalUsers) * 100) : 0;
     
-    // 🔍 DEBUG: Log detalhado para inativos 30d
-    console.log(`😴 Inativos 30d breakdown (NOVA LÓGICA):`);
-    console.log(`   - Status inativo: ${inactiveNoActivity}`);
+    // 🔍 DEBUG: Log para investigar Inativos 30d
+    console.log(`😴 Inativos 30d breakdown:`);
+    console.log(`   - Sem atividade (!isActive): ${inactiveNoActivity}`);
     console.log(`   - Engagement < 20: ${inactiveLowEngagement}`);
-    console.log(`   - Ambos: ${inactiveBoth}`);
-    console.log(`   - Total (AND logic): ${inactiveUsers30d}`);
+    console.log(`   - Total (OR): ${inactiveUsers30d}`);
     
     // 4. Calcular distribuição por plataforma
     console.log('🌐 Calculando distribuição por plataforma...');
     
-    // ✅ CORREÇÃO 5: Usar Set para garantir users únicos por plataforma
     const platformCounts = new Map<string, Set<string>>();
-    
-    // ✅ DEBUG: Contar UserProducts por plataforma (para comparação)
-    const platformProductCounts = new Map<string, number>();
     
     userProducts.forEach(up => {
       if (!up.platform) return;
@@ -230,52 +208,36 @@ export async function buildDashboardStats(): Promise<void> {
         ? up.userId._id.toString() 
         : up.userId.toString();
       
-      // ✅ NORMALIZAR plataforma (curseduca vs CursEduca)
-      const platformNormalized = up.platform.toLowerCase();
-      
-      // Contar UserProducts (debug)
-      platformProductCounts.set(
-        platformNormalized,
-        (platformProductCounts.get(platformNormalized) || 0) + 1
-      );
-      
-      // Adicionar user ao Set (garante unicidade)
-      if (!platformCounts.has(platformNormalized)) {
-        platformCounts.set(platformNormalized, new Set());
+      if (!platformCounts.has(up.platform)) {
+        platformCounts.set(up.platform, new Set());
       }
       
-      platformCounts.get(platformNormalized)!.add(userId);
+      platformCounts.get(up.platform)!.add(userId);
     });
     
-    // Mapeamento de plataformas para nomes e ícones
-    const platformIcons: Record<string, string> = {
-      'hotmart': '🛒',
-      'curseduca': '🎓',
-      'discord': '💬'
-    };
-    
-    const platformNames: Record<string, string> = {
-      'hotmart': 'Hotmart',
-      'curseduca': 'CursEduca',
-      'discord': 'Discord'
-    };
-    
-    // ✅ Usar contagem de USERS ÚNICOS (não UserProducts)
-    const byPlatform = Array.from(platformCounts.entries()).map(([platform, userIds]) => {
-      const uniqueUsers = userIds.size;
-      const totalUserProducts = platformProductCounts.get(platform) || 0;
-      
-      return {
-        name: platformNames[platform] || platform.charAt(0).toUpperCase() + platform.slice(1),
-        icon: platformIcons[platform] || '📦',
-        count: uniqueUsers,  // ✅ USERS ÚNICOS
-        percentage: Math.round((uniqueUsers / totalUsers) * 100),
-        _debug: {
-          userProducts: totalUserProducts,
-          ratio: (totalUserProducts / uniqueUsers).toFixed(2)
-        }
-      };
-    }).sort((a, b) => b.count - a.count);  // Ordenar por contagem
+// Mapeamento de plataformas para nomes e ícones
+const platformIcons: Record<string, string> = {
+  'hotmart': '🛒',
+  'curseduca': '🎓',
+  'discord': '💬'
+};
+
+const platformNames: Record<string, string> = {
+  'hotmart': 'Hotmart',
+  'curseduca': 'CursEduca',
+  'discord': 'Discord'
+};
+
+const byPlatform = Array.from(platformCounts.entries()).map(([platform, userIds]) => {
+  const platformLower = platform.toLowerCase();
+  
+  return {
+    name: platformNames[platformLower] || platform,
+    icon: platformIcons[platformLower] || '📦',
+    count: userIds.size,
+    percentage: Math.round((userIds.size / totalUsers) * 100)
+  };
+});
     
     const platformDistribution = byPlatform.map(p => ({
       name: p.name,
@@ -283,9 +245,9 @@ export async function buildDashboardStats(): Promise<void> {
       percentage: p.percentage
     }));
     
-    console.log('   ✅ Distribuição calculada (USERS ÚNICOS):');
+    console.log('   Distribuição calculada:');
     byPlatform.forEach(p => {
-      console.log(`   - ${p.name}: ${p.count} users (${p.percentage}%) | ${p._debug.userProducts} UserProducts (ratio: ${p._debug.ratio})`);
+      console.log(`   - ${p.name}: ${p.count} alunos (${p.percentage}%)`);
     });
     
     // 5. Calcular Health Score
