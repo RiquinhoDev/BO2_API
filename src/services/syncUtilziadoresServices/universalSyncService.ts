@@ -835,24 +835,21 @@ const newUserProduct: any = {
   userId: userIdStr,
   productId: productId,
   platform: config.syncType,
-  platformUserId: item.platformUserId || item.curseducaUserId || item.hotmartUserId || userIdStr, // ✅ ADICIONADO
+  platformUserId: item.platformUserId || item.curseducaUserId || item.hotmartUserId || userIdStr,  // ← ADICIONAR!
   status: 'ACTIVE',
   source: 'PURCHASE',
-        enrolledAt: enrolledAt,
-        
-        // Progresso - ✅ CORRIGIDO: usar optional chaining
-        progress: {
-          percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
-          lastActivity: new Date()
-        },
-        
-        // Engagement - ✅ CORRIGIDO: usar optional chaining
-        engagement: {
-          engagementScore: item.engagement?.engagementScore ? toNumber(item.engagement.engagementScore, 0) : 0,
-          lastAction: new Date()
-        }
-      }
-      
+  enrolledAt: enrolledAt,
+  
+  progress: {
+    percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
+    lastActivity: new Date()
+  },
+  
+  engagement: {
+    engagementScore: item.engagement?.engagementScore ? toNumber(item.engagement.engagementScore, 0) : 0,
+    lastAction: new Date()
+  }
+}
       // Dados específicos da plataforma
       if (config.syncType === 'hotmart') {
         newUserProduct.hotmartData = {
