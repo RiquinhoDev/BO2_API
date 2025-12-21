@@ -1,12 +1,12 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/syncUtilziadoresServices/hotmartServices/hotmart.adapter.ts
 // Hotmart Adapter - Ponte para Universal Sync
+// ✅ VERSÃO COMPLETA: Retorna TODOS os campos necessários
 // ════════════════════════════════════════════════════════════
 
 import { UniversalSourceItem } from '../universalSyncService'
 import hotmartHelpers from './hotmart.helpers'
 import type { ProgressData } from './hotmart.helpers'
-
 
 // ═══════════════════════════════════════════════════════════
 // TYPES
@@ -18,12 +18,6 @@ export interface HotmartSyncOptions {
   progressConcurrency?: number
 }
 
-/**
- * Tipo de saída do adapter, já compatível com UniversalSync.
- * - estende UniversalSourceItem (inclui index signature)
- * - força email/name/hotmartUserId como obrigatórios
- * - progress com o shape que o Universal Sync processa
- */
 export type UniversalSyncUserData =
   Omit<UniversalSourceItem, 'email' | 'name' | 'hotmartUserId' | 'progress'> & {
     email: string
@@ -69,29 +63,27 @@ export const fetchHotmartDataForSync = async (
 
     if (options.includeProgress && options.includeLessons) {
       console.log('📊 [HotmartAdapter] Step 3/4: Buscando progresso...')
+      console.log(`   👥 ${rawUsers.length} users para processar`)
+      console.log(`   🔢 Concurrency: ${options.progressConcurrency || 2}`)
+      console.log(`   ⏱️  Tempo estimado: ${Math.ceil(rawUsers.length / (options.progressConcurrency || 2) * 0.5 / 60)} minutos`)
+      console.log('   ☕ Isto pode demorar - vai buscar um café!')
 
-console.log('📊 [HotmartAdapter] Step 3/4: Buscando progresso...')
-console.log(`   👥 ${rawUsers.length} users para processar`)
-console.log(`   🔢 Concurrency: ${options.progressConcurrency || 2}`)
-console.log(`   ⏱️  Tempo estimado: ${Math.ceil(rawUsers.length / (options.progressConcurrency || 2) * 0.5 / 60)} minutos`)
-console.log('   ☕ Isto pode demorar - vai buscar um café!')
+      const progressStart = Date.now()
 
-const progressStart = Date.now()
+      progressMap = await hotmartHelpers.fetchBatchUserProgress(
+        rawUsers,
+        accessToken,
+        options.progressConcurrency || 2
+      )
 
-progressMap = await hotmartHelpers.fetchBatchUserProgress(
-  rawUsers,
-  accessToken,
-  options.progressConcurrency || 2
-)
-
-const progressDuration = Math.floor((Date.now() - progressStart) / 1000)
-console.log(`✅ [HotmartAdapter] Progresso obtido em ${progressDuration}s (${Math.floor(progressDuration / 60)} min)`)
-console.log(`   📊 ${progressMap.size}/${rawUsers.length} users com progresso`)
+      const progressDuration = Math.floor((Date.now() - progressStart) / 1000)
+      console.log(`✅ [HotmartAdapter] Progresso obtido em ${progressDuration}s (${Math.floor(progressDuration / 60)} min)`)
+      console.log(`   📊 ${progressMap.size}/${rawUsers.length} users com progresso`)
     } else {
       console.log('⏭️ [HotmartAdapter] Step 3/4: Progresso ignorado (opções)')
     }
 
-    // STEP 4: NORMALIZAR DADOS
+    // STEP 4: NORMALIZAR DADOS (✅ VERSÃO COMPLETA)
     console.log('🔄 [HotmartAdapter] Step 4/4: Normalizando dados...')
 
     const normalizedUsers: UniversalSyncUserData[] = []
@@ -99,42 +91,60 @@ console.log(`   📊 ${progressMap.size}/${rawUsers.length} users com progresso`
 
     for (const rawUser of rawUsers) {
       try {
-        // valida o rawUser (assumindo que lança se faltar email/id/etc.)
+        // Validar
         hotmartHelpers.validateHotmartUser(rawUser)
 
         const hotmartId =
-          (rawUser as any).id ||
-          (rawUser as any).user_id ||
-          (rawUser as any).uid ||
-          (rawUser as any).code
+  (rawUser as any).id ||
+  (rawUser as any).user_id ||
+  (rawUser as any).uid ||
+  (rawUser as any).code
 
-        const hotmartUserId = String(hotmartId)
+if (!hotmartId) {
+  throw new Error('Hotmart user sem ID válido')
+}
 
-        const progressData = hotmartUserId ? progressMap.get(hotmartUserId) : undefined
+  const hotmartUserId = String(hotmartId)
+  const progressData = progressMap.get(hotmartUserId)
 
-        // Mantemos a normalização existente
-        const normalized = hotmartHelpers.normalizeHotmartUser(rawUser, progressData) as Partial<UniversalSourceItem> &
-          Partial<Record<string, unknown>>
+  // normalizas (pode devolver hotmartUserId opcional, não interessa)
+  const normalized = hotmartHelpers.normalizeHotmartUser(rawUser, progressData)
 
-        // 🔥 Aqui é a parte importante: alinhar progress ao shape do UniversalSync
-        const universalProgress: UniversalSourceItem['progress'] = progressData
-          ? {
-              completed: (progressData as any).completed ?? 0,
-              lessons: Array.isArray((progressData as any).lessons) ? (progressData as any).lessons : []
-            }
-          : undefined
+  normalizedUsers.push({
+    email: normalized.email,
+    name: normalized.name,
 
-        const email = String((normalized.email ?? (rawUser as any).email) || '').trim()
-        const name = String((normalized.name ?? (rawUser as any).name) || '').trim()
+    // ✅ usa o ID garantido
+    hotmartUserId,
 
-        normalizedUsers.push({
-          ...(normalized as UniversalSourceItem),
-          email,
-          name: name || email,
-          hotmartUserId,
-          // sobrescreve com shape compatível
-          progress: universalProgress
-        })
+    purchaseDate: normalized.purchaseDate,
+    signupDate: normalized.signupDate,
+    firstAccessDate: normalized.firstAccessDate,
+    lastAccessDate: normalized.lastAccessDate,
+
+    plusAccess: normalized.plusAccess,
+
+    classId: normalized.classId,
+    className: normalized.className,
+
+    accessCount: normalized.accessCount,
+    engagementLevel: normalized.engagementLevel,
+    engagement: {
+      engagementScore: normalized.accessCount || 0
+    },
+
+    progress: progressData
+      ? {
+          percentage: progressData.completedPercentage || 0,
+          completed: progressData.completed || 0,
+          lessons: progressData.lessons || []
+        }
+      : {
+          percentage: 0,
+          completed: 0,
+          lessons: []
+        }
+  })
       } catch (error: any) {
         errors.push(`${(rawUser as any).email || 'unknown'}: ${error.message}`)
       }

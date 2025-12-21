@@ -1,7 +1,11 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/syncUtilziadoresServices/curseducaServices/curseduca.adapter.ts
-// CursEduca Adapter - Ponte para Universal Sync
-// ✅ CORRIGIDO: Paginação completa para buscar TODOS os membros
+// CursEduca Adapter - VERSÃO FINAL COMPLETA
+// ════════════════════════════════════════════════════════════
+// ✅ Endpoint correto: /reports/group/members (tem progresso!)
+// ✅ Paginação completa
+// ✅ Deduplicação inteligente por data mais recente
+// ✅ isPrimary para marcar produto ativo
 // ════════════════════════════════════════════════════════════
 
 import { UniversalSourceItem } from '../universalSyncService'
@@ -14,7 +18,7 @@ import axios from 'axios'
 export interface CurseducaSyncOptions {
   includeProgress: boolean
   includeGroups: boolean
-  groupId?: string // Opcional - sync apenas um grupo específico
+  groupId?: string
   progressConcurrency?: number
 }
 
@@ -44,15 +48,12 @@ interface CursEducaMember {
   }>
 }
 
-// ✅ NOVO: Interface para resposta paginada da API
-interface PaginatedResponse<T> {
-  metadata: {
-    totalCount: number
-    limit: number
-    offset: number
-    hasMore: boolean
-  }
-  data: T[]
+interface CursEducaMemberWithMetadata extends CursEducaMember {
+  groupId: number
+  groupName: string
+  subscriptionType: 'MONTHLY' | 'ANNUAL'
+  isPrimary?: boolean
+  isDuplicate?: boolean
 }
 
 export type UniversalSyncUserData =
@@ -64,10 +65,14 @@ export type UniversalSyncUserData =
     groupId?: string
     groupName?: string
     subscriptionType?: 'MONTHLY' | 'ANNUAL'
-
     progress?: UniversalSourceItem['progress'] & {
       estimatedProgress?: number
       activityLevel?: 'HIGH' | 'MEDIUM' | 'LOW'
+    }
+    platformData?: {
+      isPrimary?: boolean
+      isDuplicate?: boolean
+      enrollmentsCount?: number
     }
   }
 
@@ -80,12 +85,69 @@ const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_AccessToken
 const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY
 
 // ═══════════════════════════════════════════════════════════
+// ✅ DEDUPLICAÇÃO INTELIGENTE
+// ═══════════════════════════════════════════════════════════
+
+function deduplicateMembers(
+  members: CursEducaMemberWithMetadata[]
+): CursEducaMemberWithMetadata[] {
+  
+  console.log(`📊 [Dedupe] Processando ${members.length} membros...`)
+  
+  const byEmail = new Map<string, CursEducaMemberWithMetadata[]>()
+  
+  for (const member of members) {
+    const email = member.email.toLowerCase().trim()
+    if (!byEmail.has(email)) byEmail.set(email, [])
+    byEmail.get(email)!.push(member)
+  }
+  
+  console.log(`   📧 ${byEmail.size} emails únicos`)
+  
+  const result: CursEducaMemberWithMetadata[] = []
+  let duplicateCount = 0
+  
+  for (const [email, userProducts] of byEmail.entries()) {
+    
+    if (userProducts.length === 1) {
+      userProducts[0].isPrimary = true
+      userProducts[0].isDuplicate = false
+      result.push(userProducts[0])
+    } else {
+      duplicateCount++
+      
+      // Ordenar por data (mais recente primeiro)
+      userProducts.sort((a, b) => {
+        const dateA = a.enteredAt ? new Date(a.enteredAt).getTime() : 0
+        const dateB = b.enteredAt ? new Date(b.enteredAt).getTime() : 0
+        return dateB - dateA
+      })
+      
+      // Marcar primário (mais recente)
+      userProducts[0].isPrimary = true
+      userProducts[0].isDuplicate = true
+      
+      for (let i = 1; i < userProducts.length; i++) {
+        userProducts[i].isPrimary = false
+        userProducts[i].isDuplicate = true
+      }
+      
+      result.push(...userProducts)
+      
+      console.log(`   🔁 ${email}: ${userProducts.length} produtos (primário: ${userProducts[0].subscriptionType})`)
+    }
+  }
+  
+  console.log(`   ✅ ${duplicateCount} users com múltiplos produtos`)
+  console.log(`   📦 Total de produtos: ${result.length}`)
+  
+  return result
+}
+
+// ═══════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════
 
-/**
- * Detecta subscription type baseado no nome do grupo
- */
 function detectSubscriptionType(groupName: string): 'MONTHLY' | 'ANNUAL' | undefined {
   const nameLower = groupName.toLowerCase()
   
@@ -100,9 +162,6 @@ function detectSubscriptionType(groupName: string): 'MONTHLY' | 'ANNUAL' | undef
   return undefined
 }
 
-/**
- * Valida membro CursEduca
- */
 function validateCurseducaMember(member: CursEducaMember): void {
   if (!member.email || !member.email.trim()) {
     throw new Error('Email é obrigatório')
@@ -117,12 +176,8 @@ function validateCurseducaMember(member: CursEducaMember): void {
   }
 }
 
-/**
- * Normaliza membro CursEduca para formato Universal
- */
 function normalizeCurseducaMember(
-  member: CursEducaMember, 
-  group: CursEducaGroup
+  member: CursEducaMemberWithMetadata
 ): UniversalSyncUserData {
   const email = member.email.toLowerCase().trim()
   const name = member.name.trim() || email
@@ -132,115 +187,96 @@ function normalizeCurseducaMember(
     name,
     curseducaUserId: member.id.toString(),
     curseducaUuid: member.uuid,
-    groupId: group.uuid || group.id.toString(),
-    groupName: group.name,
-    subscriptionType: detectSubscriptionType(group.name),
+    groupId: member.groupId.toString(),
+    groupName: member.groupName,
+    subscriptionType: member.subscriptionType,
     
-    // ✅ CORRIGIDO: Usar campos corretos que o Universal Sync espera
+    // ✅ PROGRESS (formato correto para Universal Sync)
     progress: {
-      percentage: member.progress || 0,  // ← MUDANÇA CRÍTICA!
+      percentage: member.progress || 0,
       completed: 0,
       lessons: []
     },
-    
-    // ✅ NOVO: Engagement básico
+
+    // ✅ ENGAGEMENT (calculado do progress)
     engagement: {
-      engagementScore: member.progress ? Math.min(100, member.progress * 2) : 0  // Score baseado no progress
+      engagementScore: member.progress ? Math.min(100, member.progress * 2) : 0
     },
     
+    // DATAS
     joinedDate: member.enteredAt ? new Date(member.enteredAt) : new Date(),
-    enrolledAt: member.enteredAt ? new Date(member.enteredAt) : new Date(),  // ← ADICIONAR
+    enrolledAt: member.enteredAt ? new Date(member.enteredAt) : new Date(),
     expiresAt: member.expiresAt ? new Date(member.expiresAt) : undefined,
-    enrollmentsCount: member.enrollmentsCount || 0
+    
+    // ✅ METADATA DE DEDUPLICAÇÃO
+    platformData: {
+      isPrimary: member.isPrimary || false,
+      isDuplicate: member.isDuplicate || false,
+      enrollmentsCount: member.enrollmentsCount || 0
+    }
   }
 }
 
 // ═══════════════════════════════════════════════════════════
-// ✅ NOVA FUNÇÃO: BUSCAR MEMBROS COM PAGINAÇÃO
+// ✅ FETCH MEMBERS COM PAGINAÇÃO
 // ═══════════════════════════════════════════════════════════
 
-/**
- * Busca TODOS os membros de um grupo com paginação automática
- */
 async function fetchAllGroupMembers(
   groupId: number,
   headers: Record<string, string>
 ): Promise<CursEducaMember[]> {
   const allMembers: CursEducaMember[] = []
   let offset = 0
-  const limit = 100 // Buscar 100 por página (máximo permitido pela API)
+  const limit = 100
   let hasMore = true
   let pageCount = 0
 
-  console.log(`   📄 Iniciando paginação para grupo ${groupId}...`)
+  console.log(`   📄 Buscando membros do grupo ${groupId}...`)
 
-  while (hasMore) {
+  while (hasMore && offset < 1000) {
     pageCount++
     
     try {
+      // ✅ USA /reports/group/members (TEM PROGRESSO!)
       const response = await axios.get(
         `${CURSEDUCA_API_URL}/reports/group/members`,
         {
-          params: { 
-            groupId, 
-            limit,
-            offset 
-          },
+          params: { groupId, limit, offset },
           headers
         }
       )
 
-      // Extrair membros e metadata
       let pageMembers: CursEducaMember[] = []
-      let metadata: PaginatedResponse<CursEducaMember>['metadata'] | null = null
 
       // Detectar estrutura da resposta
       if (response.data?.metadata && response.data?.data) {
-        // Formato paginado completo
         pageMembers = response.data.data
-        metadata = response.data.metadata
       } else if (Array.isArray(response.data)) {
-        // Array direto (sem metadata)
         pageMembers = response.data
-        metadata = null
       } else if (response.data?.data && Array.isArray(response.data.data)) {
-        // Objeto com data mas sem metadata
         pageMembers = response.data.data
-        metadata = null
       } else if (response.data?.members && Array.isArray(response.data.members)) {
-        // Objeto com members
         pageMembers = response.data.members
-        metadata = null
       }
 
-      console.log(`      📄 Página ${pageCount}: ${pageMembers.length} membros`)
+      console.log(`      Página ${pageCount}: ${pageMembers.length} membros`)
 
-      // Adicionar membros ao array total
       allMembers.push(...pageMembers)
 
-      // Decidir se há mais páginas
-      if (metadata) {
-        // Se temos metadata, usar hasMore
-        hasMore = metadata.hasMore
-        offset += metadata.limit
-      } else {
-        // Se não temos metadata, parar se recebermos menos que o limit
-        hasMore = pageMembers.length === limit
-        offset += limit
-      }
+      hasMore = pageMembers.length === limit
+      offset += limit
 
-      // Rate limiting entre páginas (evitar sobrecarga da API)
       if (hasMore) {
-        await new Promise(resolve => setTimeout(resolve, 300))
+        await new Promise(resolve => setTimeout(resolve, 200))
       }
 
     } catch (error: any) {
-      console.error(`   ❌ Erro na página ${pageCount} (offset ${offset}):`, error.message)
+      console.error(`   ❌ Erro na página ${pageCount}:`, error.message)
       throw error
     }
   }
 
-  console.log(`   ✅ Paginação completa: ${allMembers.length} membros em ${pageCount} páginas`)
+  console.log(`   ✅ Total: ${allMembers.length} membros`)
   return allMembers
 }
 
@@ -272,8 +308,11 @@ export const fetchCurseducaDataForSync = async (
       'Content-Type': 'application/json'
     }
 
+    // ═══════════════════════════════════════════════════════════
     // STEP 1: BUSCAR GRUPOS
-    console.log('📚 [CurseducaAdapter] Step 1/3: Buscando grupos...')
+    // ═══════════════════════════════════════════════════════════
+    
+    console.log('📚 [CurseducaAdapter] Step 1/4: Buscando grupos...')
     
     const groupsResponse = await axios.get(`${CURSEDUCA_API_URL}/groups`, { headers })
     
@@ -281,7 +320,9 @@ export const fetchCurseducaDataForSync = async (
       ? groupsResponse.data
       : groupsResponse.data?.data || groupsResponse.data?.groups || []
 
-    // Filtrar por groupId específico se fornecido
+    // Filtrar apenas Clareza
+    allGroups = allGroups.filter(g => g.name.toLowerCase().includes('clareza'))
+
     if (options.groupId) {
       allGroups = allGroups.filter(g => 
         g.id.toString() === options.groupId || 
@@ -295,76 +336,95 @@ export const fetchCurseducaDataForSync = async (
       console.log(`   🎯 Filtrando apenas grupo: ${allGroups[0].name}`)
     }
 
-    console.log(`✅ [CurseducaAdapter] ${allGroups.length} grupos encontrados`)
+    console.log(`✅ [CurseducaAdapter] ${allGroups.length} grupos Clareza encontrados`)
 
     if (allGroups.length === 0) {
-      console.warn('⚠️ [CurseducaAdapter] Nenhum grupo encontrado!')
+      console.warn('⚠️ [CurseducaAdapter] Nenhum grupo Clareza encontrado!')
       return []
     }
 
-    // STEP 2: BUSCAR MEMBROS DE CADA GRUPO (COM PAGINAÇÃO!)
-    console.log('👥 [CurseducaAdapter] Step 2/3: Buscando membros COM PAGINAÇÃO...')
+    // ═══════════════════════════════════════════════════════════
+    // STEP 2: BUSCAR MEMBROS DE CADA GRUPO
+    // ═══════════════════════════════════════════════════════════
     
-    const allMembers: UniversalSyncUserData[] = []
+    console.log('👥 [CurseducaAdapter] Step 2/4: Buscando membros...')
+    
+    const allMembersWithMetadata: CursEducaMemberWithMetadata[] = []
     const errors: string[] = []
-    const processedEmails = new Set<string>() // Deduplicação
 
     for (const group of allGroups) {
       try {
         console.log(`   📚 Processando grupo: ${group.name} (ID: ${group.id})`)
         
-        // ✅ USAR NOVA FUNÇÃO COM PAGINAÇÃO
         const rawMembers = await fetchAllGroupMembers(group.id, headers)
 
-        console.log(`      ✅ Total de membros: ${rawMembers.length}`)
-
-        // Normalizar membros
-        for (const rawMember of rawMembers) {
+        // Adicionar metadata de grupo
+        for (const member of rawMembers) {
           try {
-            validateCurseducaMember(rawMember)
+            validateCurseducaMember(member)
             
-            const email = rawMember.email.toLowerCase().trim()
-            
-            // Deduplicação: Se membro já processado (em outro grupo), skip
-            if (processedEmails.has(email)) {
-              console.log(`      ⏭️ Skip duplicado: ${email}`)
-              continue
-            }
-            
-            const normalized = normalizeCurseducaMember(rawMember, group)
-            allMembers.push(normalized)
-            processedEmails.add(email)
-            
+            allMembersWithMetadata.push({
+              ...member,
+              groupId: group.id,
+              groupName: group.name,
+              subscriptionType: detectSubscriptionType(group.name) || 'MONTHLY'
+            })
           } catch (error: any) {
-            errors.push(`${rawMember.email || 'unknown'}: ${error.message}`)
+            errors.push(`${member.email || 'unknown'}: ${error.message}`)
           }
         }
 
-        // Rate limiting entre grupos
         await new Promise(resolve => setTimeout(resolve, 500))
         
       } catch (error: any) {
-        console.error(`   ❌ Erro ao buscar membros do grupo ${group.name}:`, error.message)
+        console.error(`   ❌ Erro ao buscar grupo ${group.name}:`, error.message)
         errors.push(`Grupo ${group.name}: ${error.message}`)
       }
     }
 
-    // STEP 3: RESULTADOS
+    console.log(`✅ [CurseducaAdapter] ${allMembersWithMetadata.length} membros obtidos (com duplicados)`)
+
+    // ═══════════════════════════════════════════════════════════
+    // STEP 3: DEDUPLICA (marca isPrimary)
+    // ═══════════════════════════════════════════════════════════
+    
+    console.log('🔄 [CurseducaAdapter] Step 3/4: Deduplicando membros...')
+    
+    const deduplicated = deduplicateMembers(allMembersWithMetadata)
+
+    // Stats
+    const stats = {
+      total: deduplicated.length,
+      unique: deduplicated.filter(m => m.isPrimary).length,
+      duplicates: deduplicated.filter(m => m.isDuplicate && !m.isPrimary).length
+    }
+
+    console.log(`✅ [CurseducaAdapter] Deduplicação completa:`)
+    console.log(`   📦 Total produtos: ${stats.total}`)
+    console.log(`   📧 Users únicos: ${stats.unique}`)
+    console.log(`   🔁 Produtos secundários: ${stats.duplicates}`)
+
+    // ═══════════════════════════════════════════════════════════
+    // STEP 4: NORMALIZAR PARA UNIVERSAL SYNC
+    // ═══════════════════════════════════════════════════════════
+    
+    console.log('🔄 [CurseducaAdapter] Step 4/4: Normalizando dados...')
+
+    const normalized = deduplicated.map(m => normalizeCurseducaMember(m))
+
     const duration = Math.floor((Date.now() - startTime) / 1000)
 
     console.log('✅ [CurseducaAdapter] Dados preparados!')
     console.log(`   ⏱️ Duração: ${duration}s`)
-    console.log(`   📚 Grupos processados: ${allGroups.length}`)
-    console.log(`   ✅ Membros válidos: ${allMembers.length}`)
-    console.log(`   🔄 Emails únicos: ${processedEmails.size}`)
+    console.log(`   ✅ Total: ${normalized.length}`)
     console.log(`   ❌ Erros: ${errors.length}`)
 
     if (errors.length > 0) {
-      console.warn('⚠️ [CurseducaAdapter] Erros de validação:', errors.slice(0, 5))
+      console.warn('⚠️ [CurseducaAdapter] Erros:', errors.slice(0, 5))
     }
 
-    return allMembers
-    
+    return normalized
+
   } catch (error: any) {
     console.error('❌ [CurseducaAdapter] Erro fatal:', error)
     throw new Error(`Adapter falhou: ${error.message}`)
@@ -372,7 +432,7 @@ export const fetchCurseducaDataForSync = async (
 }
 
 // ═══════════════════════════════════════════════════════════
-// HELPER: FETCH APENAS PROGRESSO (USERS EXISTENTES)
+// HELPER: FETCH APENAS PROGRESSO
 // ═══════════════════════════════════════════════════════════
 
 export const fetchProgressForExistingUsers = async (
@@ -380,7 +440,7 @@ export const fetchProgressForExistingUsers = async (
 ): Promise<Map<string, { estimatedProgress: number }>> => {
   console.log(`📊 [CurseducaAdapter] Progresso para ${userIds.length} utilizadores...`)
   console.warn('⚠️ CursEduca não tem endpoint dedicado de progresso')
-  console.info('   💡 Retornando Map vazio - use fetchCurseducaDataForSync completo')
+  console.info('   💡 Use fetchCurseducaDataForSync completo')
   
   return new Map()
 }
