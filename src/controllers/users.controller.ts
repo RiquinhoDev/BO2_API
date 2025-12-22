@@ -1,5 +1,5 @@
 // src/controllers/users.controller.ts - PARTE 1/3
-import { Request, Response } from "express"
+import { Request, RequestHandler, Response } from "express"
 import fs from "fs"
 import path from "path"
 import XLSX from "xlsx"
@@ -838,91 +838,92 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     // ✅ DISTRIBUIÇÃO EXCLUSIVA - QUERIES ESPECÍFICAS PARA PRECISÃO
     
     // Ambos Hotmart E CursEduca
-    const bothHotmartAndCurseduca = await User.countDocuments({
-      ...baseQuery,
-      $and: [
-        // Tem Hotmart
-        {
-          $or: [
-            { hotmartUserId: { $exists: true, $ne: null, $ne: "" } },
-            { 'hotmart.hotmartUserId': { $exists: true, $ne: null, $ne: "" } }
-          ]
-        },
-        // E tem CursEduca
-        {
-          $or: [
-            { curseducaUserId: { $exists: true, $ne: null, $ne: "" } },
-            { 'curseduca.curseducaUserId': { $exists: true, $ne: null, $ne: "" } }
-          ]
-        }
-      ]
-    })
+const bothHotmartAndCurseduca = await User.countDocuments({
+  ...baseQuery,
+  $and: [
+    // Tem Hotmart
+    {
+      $or: [
+        { hotmartUserId: { $exists: true, $nin: [null, ""] } },
+        { "hotmart.hotmartUserId": { $exists: true, $nin: [null, ""] } },
+      ],
+    },
+    // E tem CursEduca
+    {
+      $or: [
+        { curseducaUserId: { $exists: true, $nin: [null, ""] } },
+        { "curseduca.curseducaUserId": { $exists: true, $nin: [null, ""] } },
+      ],
+    },
+  ],
+})
     
     // Apenas Hotmart (tem Hotmart MAS NÃO tem CursEduca)
-    const hotmartOnly = await User.countDocuments({
-      ...baseQuery,
+const hotmartOnly = await User.countDocuments({
+  ...baseQuery,
+  $and: [
+    // Tem Hotmart
+    {
+      $or: [
+        { hotmartUserId: { $exists: true, $nin: [null, ""] } },
+        { "hotmart.hotmartUserId": { $exists: true, $nin: [null, ""] } },
+      ],
+    },
+
+    // MAS NÃO tem CursEduca
+    {
       $and: [
-        // Tem Hotmart
         {
           $or: [
-            { hotmartUserId: { $exists: true, $ne: null, $ne: "" } },
-            { 'hotmart.hotmartUserId': { $exists: true, $ne: null, $ne: "" } }
-          ]
+            { curseducaUserId: { $exists: false } },
+            { curseducaUserId: null },
+            { curseducaUserId: "" },
+          ],
         },
-        // MAS NÃO tem CursEduca
         {
-          $and: [
-            {
-              $or: [
-                { curseducaUserId: { $exists: false } },
-                { curseducaUserId: null },
-                { curseducaUserId: "" }
-              ]
-            },
-            {
-              $or: [
-                { 'curseduca.curseducaUserId': { $exists: false } },
-                { 'curseduca.curseducaUserId': null },
-                { 'curseduca.curseducaUserId': "" }
-              ]
-            }
-          ]
-        }
-      ]
-    })
-    
+          $or: [
+            { "curseduca.curseducaUserId": { $exists: false } },
+            { "curseduca.curseducaUserId": null },
+            { "curseduca.curseducaUserId": "" },
+          ],
+        },
+      ],
+    },
+  ],
+})
     // Apenas CursEduca (tem CursEduca MAS NÃO tem Hotmart)
-    const curseducaOnly = await User.countDocuments({
-      ...baseQuery,
+const curseducaOnly = await User.countDocuments({
+  ...baseQuery,
+  $and: [
+    // Tem CursEduca
+    {
+      $or: [
+        { curseducaUserId: { $exists: true, $nin: [null, ""] } },
+        { "curseduca.curseducaUserId": { $exists: true, $nin: [null, ""] } },
+      ],
+    },
+
+    // MAS NÃO tem Hotmart
+    {
       $and: [
-        // Tem CursEduca
         {
           $or: [
-            { curseducaUserId: { $exists: true, $ne: null, $ne: "" } },
-            { 'curseduca.curseducaUserId': { $exists: true, $ne: null, $ne: "" } }
-          ]
+            { hotmartUserId: { $exists: false } },
+            { hotmartUserId: null },
+            { hotmartUserId: "" },
+          ],
         },
-        // MAS NÃO tem Hotmart
         {
-          $and: [
-            {
-              $or: [
-                { hotmartUserId: { $exists: false } },
-                { hotmartUserId: null },
-                { hotmartUserId: "" }
-              ]
-            },
-            {
-              $or: [
-                { 'hotmart.hotmartUserId': { $exists: false } },
-                { 'hotmart.hotmartUserId': null },
-                { 'hotmart.hotmartUserId': "" }
-              ]
-            }
-          ]
-        }
-      ]
-    })
+          $or: [
+            { "hotmart.hotmartUserId": { $exists: false } },
+            { "hotmart.hotmartUserId": null },
+            { "hotmart.hotmartUserId": "" },
+          ],
+        },
+      ],
+    },
+  ],
+})
     
     // Nenhuma plataforma (nem Hotmart nem CursEduca)
     const noPlatform = await User.countDocuments({
@@ -2822,126 +2823,134 @@ export const getUserAllClasses = async (req: Request, res: Response): Promise<vo
  * ✅ NOVO: Lista users com seus UserProducts
  * Suporta filtros avançados: platform, productId, status, search, progress, engagement
  */
-export const getUsers = async (req: Request, res: Response) => {
+
+export const getUsers: RequestHandler = async (req, res) => {
   try {
-    const { 
-      platform, 
-      productId, 
+    const {
+      platform,
+      productId,
       status,
       search,
       progressLevel,
       engagementLevel,
-      maxEngagement,        // ✅ Para "Em Risco" (<=30)
-      topPercentage,        // ✅ Para "Top 10%"
-      lastAccessBefore,     // ✅ Para "Inativos 30d"
-      enrolledAfter,        // ✅ Para "Novos 7d"
-      page = '1',
-      limit = '50'
-    } = req.query
+      maxEngagement,
+      topPercentage,
+      lastAccessBefore,
+      enrolledAfter,
+      page = "1",
+      limit = "50",
+    } = req.query as Record<string, string | undefined>
 
-    console.log('🔍 [V2] getUsers chamado com filtros:', { 
-      platform, productId, status, search, progressLevel, engagementLevel,
-      maxEngagement, topPercentage, lastAccessBefore, enrolledAfter
+    console.log("🔍 [V2] getUsers chamado com filtros:", {
+      platform,
+      productId,
+      status,
+      search,
+      progressLevel,
+      engagementLevel,
+      maxEngagement,
+      topPercentage,
+      lastAccessBefore,
+      enrolledAfter,
     })
 
-    // ✅ STRATEGY 1: Se filtrar por produto específico
-if (productId) {
-  const usersWithProduct = await getUsersForProduct(productId as string)
-  return res.json({
-    success: true,
-    data: usersWithProduct,
-    pagination: { total: usersWithProduct.length },
-    filters: { productId }
-  })
-}
+    // ✅ STRATEGY 1: Se filtrar por produto específico (query param)
+    if (productId) {
+      const usersWithProduct = await getUsersForProduct(productId)
 
-let userQuery: any = {
-  $and: [
-    {
-      $or: [
-        { isDeleted: { $exists: false } },
-        { isDeleted: false }
-      ]
+      res.json({
+        success: true,
+        data: usersWithProduct,
+        pagination: { total: usersWithProduct.length },
+        filters: { productId },
+      })
+      return
     }
-  ]
-}
 
-if (search) {
-  const searchRegex = new RegExp(search as string, 'i')
-  userQuery.$and.push({
-    $or: [{ name: searchRegex }, { email: searchRegex }]
-  })
-}
+    // Base query
+    const userQuery: any = {
+      $and: [
+        {
+          $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
+        },
+      ],
+    }
 
-if (enrolledAfter) {
-  userQuery.$and.push({ createdAt: { $gte: new Date(enrolledAfter as string) } })
-}
+    if (search) {
+      const searchRegex = new RegExp(search, "i")
+      userQuery.$and.push({ $or: [{ name: searchRegex }, { email: searchRegex }] })
+    }
 
-if (status === 'ACTIVE') {
-  userQuery.$and.push({ 'combined.status': 'ACTIVE' })
-}
+    if (enrolledAfter) {
+      userQuery.$and.push({ createdAt: { $gte: new Date(enrolledAfter) } })
+    }
+
+    if (status === "ACTIVE") {
+      userQuery.$and.push({ "combined.status": "ACTIVE" })
+    }
 
     // Buscar users base
-    const users = await User.find(userQuery)
-      .select('_id name email combined.status')
-      .lean()
+    const users = await User.find(userQuery).select("_id name email combined.status").lean()
 
     console.log(`📊 [V2] ${users.length} users encontrados`)
 
-    // ✅ STRATEGY 3: Enriquecer com UserProducts + Filtros
+    // Enriquecer com UserProducts + filtros
     let enrichedUsers = await Promise.all(
-      users.map(async (user) => {
-        // Buscar UserProducts do user
+      users.map(async (user: any) => {
         let userProducts = await UserProduct.find({ userId: user._id })
-          .populate('productId', 'name code platform')
+          .populate("productId", "name code platform")
           .lean()
 
-        // Aplicar filtros aos products
+        // Filtro: Plataforma
         if (platform) {
-          userProducts = userProducts.filter((up: any) => 
-            up.platform?.toLowerCase() === (platform as string).toLowerCase()
+          userProducts = userProducts.filter(
+            (up: any) => up.platform?.toLowerCase() === platform.toLowerCase()
           )
         }
 
+        // Filtro: Status
         if (status) {
           userProducts = userProducts.filter((up: any) => up.status === status)
         }
 
-        // ✅ FILTRO: Em Risco (maxEngagement <= 30)
+        // Filtro: Em Risco (maxEngagement <= 30)
         if (maxEngagement) {
-          const max = parseInt(maxEngagement as string)
-          userProducts = userProducts.filter((up: any) => 
-            (up.engagement?.engagementScore || 0) <= max
-          )
+          const max = parseInt(maxEngagement, 10)
+          if (!Number.isNaN(max)) {
+            userProducts = userProducts.filter(
+              (up: any) => (up.engagement?.engagementScore || 0) <= max
+            )
+          }
         }
 
-        // ✅ FILTRO: Top % (topPercentage)
+        // Filtro: Top % (placeholder)
         if (topPercentage) {
-          const threshold = 77 // Placeholder, deveria vir do dashboard stats
-          userProducts = userProducts.filter((up: any) => 
-            (up.engagement?.engagementScore || 0) >= threshold
+          const threshold = 77 // TODO: calcular dinamicamente
+          userProducts = userProducts.filter(
+            (up: any) => (up.engagement?.engagementScore || 0) >= threshold
           )
         }
 
-        // ✅ FILTRO: Inativos 30d (lastAccessBefore)
+        // Filtro: Inativos 30d (lastAccessBefore)
         if (lastAccessBefore) {
-          const cutoff = new Date(lastAccessBefore as string)
+          const cutoff = new Date(lastAccessBefore)
           userProducts = userProducts.filter((up: any) => {
             const lastAction = up.engagement?.lastAction
             return !lastAction || new Date(lastAction) < cutoff
           })
         }
 
-        // ✅ FILTRO: Progresso por nível
+        // Filtro: Progresso por nível
         if (progressLevel) {
-          const ranges: any = {
-            'MUITO_BAIXO': { min: 0, max: 25 },
-            'BAIXO': { min: 25, max: 40 },
-            'MEDIO': { min: 40, max: 60 },
-            'ALTO': { min: 60, max: 80 },
-            'MUITO_ALTO': { min: 80, max: 100 }
+          const ranges: Record<string, { min: number; max: number }> = {
+            MUITO_BAIXO: { min: 0, max: 25 },
+            BAIXO: { min: 25, max: 40 },
+            MEDIO: { min: 40, max: 60 },
+            ALTO: { min: 60, max: 80 },
+            MUITO_ALTO: { min: 80, max: 100 },
           }
-          const range = ranges[progressLevel as string]
+
+          const range = ranges[progressLevel.toUpperCase()]
           if (range) {
             userProducts = userProducts.filter((up: any) => {
               const prog = up.progress?.percentage || 0
@@ -2950,16 +2959,16 @@ if (status === 'ACTIVE') {
           }
         }
 
-        // ✅ FILTRO: Engagement por nível
+        // Filtro: Engagement por nível (CSV)
         if (engagementLevel) {
-          const levels = (engagementLevel as string).split(',')
+          const levels = engagementLevel.split(",").map((x) => x.trim())
           userProducts = userProducts.filter((up: any) => {
-            const level = up.engagement?.engagementLevel || ''
+            const level = up.engagement?.engagementLevel || ""
             return levels.includes(level)
           })
         }
 
-        // Mapear para formato do frontend
+        // Mapear para frontend
         const products = userProducts.map((up: any) => ({
           _id: up._id,
           product: up.productId,
@@ -2969,84 +2978,98 @@ if (status === 'ACTIVE') {
           isPrimary: up.isPrimary,
           progress: {
             percentage: up.progress?.percentage || 0,
-            lastActivity: up.progress?.lastActivity
+            lastActivity: up.progress?.lastActivity,
           },
           engagement: {
             score: up.engagement?.engagementScore || 0,
-            level: up.engagement?.engagementLevel || 'NONE',
-            lastAction: up.engagement?.lastAction
-          }
+            level: up.engagement?.engagementLevel || "NONE",
+            lastAction: up.engagement?.lastAction,
+          },
         }))
 
         return {
           _id: user._id,
           name: user.name,
           email: user.email,
-          status: (user as any).combined?.status || 'ACTIVE',
-          products
+          status: user.combined?.status || "ACTIVE",
+          products,
         }
       })
     )
 
-    // Filtrar users sem produtos (se houver filtros aplicados)
-    const hasFilters = platform || status || progressLevel || engagementLevel || 
-                      maxEngagement || topPercentage || lastAccessBefore
-    
+    // Se há filtros, remover users sem produtos
+    const hasFilters =
+      !!platform ||
+      !!status ||
+      !!progressLevel ||
+      !!engagementLevel ||
+      !!maxEngagement ||
+      !!topPercentage ||
+      !!lastAccessBefore
+
     if (hasFilters) {
-      enrichedUsers = enrichedUsers.filter(u => u.products.length > 0)
+      enrichedUsers = enrichedUsers.filter((u: any) => u.products.length > 0)
     }
 
     console.log(`📊 [V2] ${enrichedUsers.length} users após filtros`)
 
     // Paginação
-    const pageNum = parseInt(page as string)
-    const limitNum = parseInt(limit as string)
+    const pageNum = Math.max(1, parseInt(page, 10) || 1)
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50))
+
     const total = enrichedUsers.length
     const startIndex = (pageNum - 1) * limitNum
     const paginatedUsers = enrichedUsers.slice(startIndex, startIndex + limitNum)
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: paginatedUsers,
       pagination: {
         total,
         totalPages: Math.ceil(total / limitNum),
         page: pageNum,
-        limit: limitNum
+        limit: limitNum,
       },
-      filters: { 
-        platform, productId, status, search, progressLevel, engagementLevel,
-        maxEngagement, topPercentage, lastAccessBefore, enrolledAfter
-      }
+      filters: {
+        platform,
+        productId,
+        status,
+        search,
+        progressLevel,
+        engagementLevel,
+        maxEngagement,
+        topPercentage,
+        lastAccessBefore,
+        enrolledAfter,
+      },
     })
-
   } catch (error: any) {
-    console.error('❌ [V2] Erro em getUsers:', error)
+    console.error("❌ [V2] Erro em getUsers:", error)
     res.status(500).json({ success: false, error: error.message })
   }
 }
-
 /**
  * GET /api/users/v2/:id
  * ✅ NOVO: Busca user com todos os UserProducts
  */
-export const getUserById = async (req: Request, res: Response) => {
+
+export const getUserById: RequestHandler = async (req, res) => {
   try {
     const { id } = req.params
-    
+
     const user = await getUserWithProducts(id)
-    
+
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' })
+      res.status(404).json({ success: false, message: "User not found" })
+      return
     }
-    
+
     res.json({ success: true, data: user })
   } catch (error: any) {
-    console.error('❌ Erro em getUserById:', error)
+    console.error("❌ Erro em getUserById:", error)
     res.status(500).json({ success: false, error: error.message })
   }
 }
-
 /**
  * GET /api/users/v2/by-email/:email
  * ✅ NOVO: Busca user por email com UserProducts
@@ -3229,3 +3252,77 @@ export const createUser = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+/**
+ * GET /api/users/search
+ * Pesquisar aluno por email, nome, discordId, hotmartUserId ou curseducaUserId
+ */
+export const searchStudent = async (req: Request, res: Response): Promise<void> => {
+  const { email, name, discordId, hotmartUserId, curseducaUserId } = req.query
+
+  if (!email && !name && !discordId && !hotmartUserId && !curseducaUserId) {
+    res.status(400).json({
+      message: "Pelo menos um critério de pesquisa é necessário (email, name, discordId, hotmartUserId, ou curseducaUserId)."
+    })
+    return
+  }
+
+  try {
+    const matchConditions: any = {}
+    
+    if (email && typeof email === "string") {
+      matchConditions.email = { $regex: new RegExp(email, "i") }
+    }
+    
+    if (name && typeof name === "string") {
+      matchConditions.name = { $regex: new RegExp(name, "i") }
+    }
+    
+    if (discordId && typeof discordId === "string") {
+      matchConditions.$or = [
+        { "discord.discordIds": { $in: [discordId] } },
+        { "discordIds": { $in: [discordId] } }
+      ]
+    }
+
+    if (hotmartUserId && typeof hotmartUserId === "string") {
+      matchConditions.$or = matchConditions.$or || []
+      matchConditions.$or.push(
+        { "hotmart.hotmartUserId": hotmartUserId },
+        { "hotmartUserId": hotmartUserId }
+      )
+    }
+
+    if (curseducaUserId && typeof curseducaUserId === "string") {
+      matchConditions.$or = matchConditions.$or || []
+      matchConditions.$or.push(
+        { "curseduca.curseducaUserId": curseducaUserId },
+        { "curseducaUserId": curseducaUserId }
+      )
+    }
+
+    const students = await User.find(matchConditions)
+      .select('email name hotmart curseduca discord combined status')
+      .lean()
+
+    if (!students.length) {
+      res.status(404).json({ message: "Nenhum aluno encontrado com os critérios fornecidos." })
+      return
+    }
+
+    if (students.length > 1) {
+      res.status(200).json({
+        message: `Encontrados ${students.length} alunos`,
+        students,
+        multiple: true
+      })
+      return
+    }
+
+    res.status(200).json(students[0])
+  } catch (error: any) {
+    res.status(500).json({ 
+      message: "Erro ao buscar aluno.", 
+      details: error.message 
+    })
+  }
+}

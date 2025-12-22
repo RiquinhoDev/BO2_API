@@ -22,7 +22,6 @@ import {
   getDashboardStats,
 
   // 🆕 NOVAS FUNÇÕES PARA EDITOR DE ALUNOS
-  searchStudent,
   editStudent,
   getStudentStats,
   getStudentHistory,
@@ -36,12 +35,13 @@ import {
   getUserById,
   getUsers,
   getUsersStats,
+  searchStudent,
 } from "../controllers/users.controller"
 
 // 🎯 FASE 4 & 5: Import do serviço unificado
 import { getAllUsersUnified as getAllUsersUnifiedService } from "../services/dualReadService"
 import { calculateBatchAverageEngagement } from "../services/engagementCalculator.service"
-import { getUsersByProduct } from "../services/userProductService"
+
 import { getUserByEmail } from "../controllers/syncUtilizadoresControllers.ts/curseduca.controller"
 
 
@@ -872,7 +872,7 @@ router.post("/manualMatch", manualMatch)
 
 // 🔍 Pesquisar alunos - Compatível com ambos os formatos
 router.get("/search", searchStudent) // Rota nova padrão
-router.get("/searchStudent", searchStudent) // Compatibilidade com API antiga
+
 
 // ✏️ Editar aluno - Compatível com ambos os formatos
 router.put("/:id", editStudent) // Rota nova padrão RESTful
@@ -909,7 +909,6 @@ router.get('/users/listUsers', listUsers)
 router.get('/stats/overview', getUsersStats);
 
 // By filters
-router.get('/by-product/:productId', getUsersByProduct);
 router.get('/by-email/:email', getUserByEmail);
 
 // CRUD
