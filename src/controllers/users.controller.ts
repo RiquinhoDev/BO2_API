@@ -3217,7 +3217,7 @@ export const createUser = async (req: Request, res: Response) => {
     const user = await User.create({ email, name });
     
     // Retornar com estrutura V2 (products vazio)
-    const enrichedUser = await getUserWithProducts(user._id.toString());
+    const enrichedUser = await getUserWithProducts(user.id.toString());
     
     res.status(201).json({ 
       success: true, 
