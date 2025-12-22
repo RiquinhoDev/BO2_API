@@ -21,8 +21,6 @@ import discoveryRoutes from './discovery.routes'  // Discovery System
 import acReaderRoutes from './ACroutes/acReader.routes'  // Sprint 5: Contact Tag Reader (OLD)
 
 
-// 🎯 SPRINT 5.2 - V2 ROUTES (Arquitetura Escalável)
-import usersV2Routes from './usersV2.routes'
 import syncV2Routes from './syncV2.routes'
 
    import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
@@ -36,8 +34,7 @@ router.use("/hotmart", hotmartRoutes)      // Sincronização Hotmart
 router.use("/curseduca", curseducaRoutes)  // Sincronização CursEduca
 router.use("/sync", syncRoutes)            // Histórico de sincronizações
 
-// 🎯 V2 ROUTES - Arquitetura Escalável (Sprint 5.2)
-router.use("/v2/users", usersV2Routes)
+
 router.use("/v2/sync", syncV2Routes)
 
 
