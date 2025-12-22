@@ -92,7 +92,11 @@ export interface IUserProduct extends Document {
   
   activeCampaignData?: IActiveCampaignData
   communications?: ICommunications
-  
+  isPrimary: {
+  type: Boolean,
+  default: true,
+  index: true
+},
   metadata?: {
     purchaseValue?: number
     purchaseDate?: Date
