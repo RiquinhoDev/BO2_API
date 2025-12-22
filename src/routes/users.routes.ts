@@ -32,11 +32,18 @@ import {
   getUsersInfiniteStats,
   getProductStats,
   getUserAllClasses,
+  getUserProducts,
+  getUserById,
+  getUsers,
+  getUsersStats,
 } from "../controllers/users.controller"
 
 // 🎯 FASE 4 & 5: Import do serviço unificado
 import { getAllUsersUnified as getAllUsersUnifiedService } from "../services/dualReadService"
 import { calculateBatchAverageEngagement } from "../services/engagementCalculator.service"
+import { getUsersByProduct } from "../services/userProductService"
+import { getUserByEmail } from "../controllers/syncUtilizadoresControllers.ts/curseduca.controller"
+
 
 const router = Router()
 const upload = multer({ dest: "uploads/" })
@@ -704,42 +711,6 @@ router.get('/v2/engagement/comparison', async (req, res) => {
   }
 })
 
-// ═══════════════════════════════════════════════════════════════════════════
-// ROTA 2: HEATMAP TEMPORAL
-// ═══════════════════════════════════════════════════════════════════════════
-/**
- * GET /api/users/v2/engagement/heatmap
- * 
- * Retorna padrão de engagement por dia da semana nas últimas 4 semanas
- * 
- * Query params:
- * - productId (opcional): Filtrar por produto
- * - platform (opcional): Filtrar por plataforma
- * 
- * Response:
- * {
- *   success: true,
- *   data: {
- *     weeks: [
- *       {
- *         weekNumber: 1,
- *         startDate: "2025-11-10",
- *         days: [
- *           { day: "Seg", date: "2025-11-10", avgScore: 45, level: "medio", activeUsers: 1250 },
- *           { day: "Ter", date: "2025-11-11", avgScore: 48, level: "medio", activeUsers: 1320 },
- *           ...
- *         ]
- *       },
- *       ...
- *     ],
- *     insights: {
- *       bestDay: "Terça-feira",
- *       worstDay: "Domingo",
- *       weekendDrop: 35  // % de queda no fim de semana
- *     }
- *   }
- * }
- */
 router.get('/v2/engagement/heatmap', async (req, res) => {
   try {
     console.log('\n🔥 [Engagement Heatmap] Calculando...')
@@ -932,4 +903,19 @@ router.get('/getProductStats', getProductStats)
 router.get('/:userId/all-classes', getUserAllClasses)
 
 router.get('/users/listUsers', listUsers)
+
+
+// Stats (deve vir antes de :id para evitar conflito)
+router.get('/stats/overview', getUsersStats);
+
+// By filters
+router.get('/by-product/:productId', getUsersByProduct);
+router.get('/by-email/:email', getUserByEmail);
+
+// CRUD
+router.get('/', getUsers);
+router.get('/:id', getUserById);
+
+
+
 export default router

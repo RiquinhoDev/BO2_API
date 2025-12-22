@@ -13,6 +13,10 @@ import SyncHistory from "../models/SyncHistory"
 import StudentClassHistory from "../models/StudentClassHistory"
 import { Class } from "../models/Class"
 import { cacheService } from "../services/cache.service"
+import { getUserCountsByPlatform, getUserCountsByProduct, getUserWithProducts } from "../services/userProductService"
+import { UserProduct } from "../models"
+import { getUsersForProduct } from "../services/productUsers.service"
+
 
 type PipelineStage = mongoose.PipelineStage
 interface SyncHistoryResult {
@@ -1409,492 +1413,59 @@ export const getUserStats = async (req: Request, res: Response): Promise<void> =
     });
   }
 }
-// 🔍 PESQUISAR ALUNO - CORRIGIDO PARA NOVA ESTRUTURA SEGREGADA
-export const searchStudent = async (req: Request, res: Response): Promise<void> => {
-  const { email, name, discordId, hotmartUserId, curseducaUserId } = req.query
-
-  if (!email && !name && !discordId && !hotmartUserId && !curseducaUserId) {
-    res.status(400).json({
-      message: "Pelo menos um critério de pesquisa é necessário (email, name, discordId, hotmartUserId, ou curseducaUserId)."
-    })
-    return
-  }
-
-  try {
-    const matchConditions: any = {}
-    
-    if (email && typeof email === "string") {
-      matchConditions.email = { $regex: new RegExp(email, "i") }
-    }
-    
-    if (name && typeof name === "string") {
-      matchConditions.name = { $regex: new RegExp(name, "i") }
-    }
-    
-    if (discordId && typeof discordId === "string") {
-      // Buscar em discord.discordIds (nova estrutura) OU discordIds (compatibilidade)
-      matchConditions.$or = [
-        { "discord.discordIds": { $in: [discordId] } },
-        { "discordIds": { $in: [discordId] } }
-      ]
-    }
-
-    if (hotmartUserId && typeof hotmartUserId === "string") {
-      // Buscar em hotmart.hotmartUserId (nova estrutura) OU hotmartUserId (compatibilidade)
-      matchConditions.$or = matchConditions.$or || []
-      matchConditions.$or.push(
-        { "hotmart.hotmartUserId": hotmartUserId },
-        { "hotmartUserId": hotmartUserId }
-      )
-    }
-
-    if (curseducaUserId && typeof curseducaUserId === "string") {
-      // Buscar em curseduca.curseducaUserId (nova estrutura) OU curseducaUserId (compatibilidade)
-      matchConditions.$or = matchConditions.$or || []
-      matchConditions.$or.push(
-        { "curseduca.curseducaUserId": curseducaUserId },
-        { "curseducaUserId": curseducaUserId }
-      )
-    }
-
-    const pipeline: PipelineStage[] = [
-      {
-        $lookup: {
-          from: "classes",
-          localField: "classId",
-          foreignField: "classId",
-          as: "classInfo"
-        }
-      },
-      { $unwind: { path: "$classInfo", preserveNullAndEmptyArrays: true } },
-      { $match: matchConditions },
-      {
-        $project: {
-          // ✅ CAMPOS BÁSICOS
-          email: 1,
-          name: 1,
-          
-          // ✅ ESTRUTURA SEGREGADA POR PLATAFORMA (se existir)
-          discord: 1,
-          hotmart: 1,
-          curseduca: 1,
-          combined: 1,
-          metadata: 1,
-          
-          // ✅ CAMPOS DERIVADOS/CALCULADOS
-          displayProgress: { $ifNull: ["$combined.totalProgress", "$progress.completedPercentage", 0] },
-          displayEngagement: { $ifNull: ["$combined.combinedEngagement", "$engagementScore", 0] },
-          primarySource: { $ifNull: ["$combined.bestEngagementSource", "legacy"] },
-          
-          // ✅ INFORMAÇÕES DA TURMA
-          classId: { $ifNull: ["$combined.classId", "$classId"] },
-          className: { $ifNull: ["$classInfo.name", "$combined.className"] },
-          
-          // ✅ STATUS GERAL
-          status: { $ifNull: ["$combined.status", "$status", "INACTIVE"] },
-          
-          // ✅ CAMPOS COMPATIBILIDADE (para frontend antigo)
-          hotmartUserId: { $ifNull: ["$hotmart.hotmartUserId", "$hotmartUserId"] },
-          curseducaUserId: { $ifNull: ["$curseduca.curseducaUserId", "$curseducaUserId"] },
-          discordIds: { $ifNull: ["$discord.discordIds", "$discordIds", []] },
-          
-          // ✅ DATAS IMPORTANTES
-          createdAt: { $ifNull: ["$metadata.createdAt", "$createdAt"] },
-          updatedAt: { $ifNull: ["$metadata.updatedAt", "$updatedAt"] },
-          
-          // ✅ ENGAGEMENT E PROGRESSO (compatibilidade)
-          engagement: {
-            $cond: {
-              if: { $ne: ["$hotmart.engagement.engagementLevel", null] },
-              then: "$hotmart.engagement.engagementLevel",
-              else: { $ifNull: ["$curseduca.engagement.engagementLevel", "$engagement", "NONE"] }
-            }
-          },
-          engagementScore: {
-            $cond: {
-              if: { $ne: ["$hotmart.engagement.engagementScore", null] },
-              then: "$hotmart.engagement.engagementScore",
-              else: { $ifNull: ["$curseduca.engagement.alternativeEngagement", "$engagementScore", 0] }
-            }
-          },
-          engagementLevel: {
-            $cond: {
-              if: { $ne: ["$hotmart.engagement.engagementLevel", null] },
-              then: "$hotmart.engagement.engagementLevel",
-              else: { $ifNull: ["$curseduca.engagement.engagementLevel", "$engagementLevel", "NONE"] }
-            }
-          },
-          accessCount: {
-            $cond: {
-              if: { $ne: ["$hotmart.engagement.accessCount", null] },
-              then: "$hotmart.engagement.accessCount",
-              else: { $ifNull: ["$accessCount", 0] }
-            }
-          },
-          
-          // ✅ PROGRESSO (compatibilidade)
-          progress: {
-            $cond: {
-              if: { $ne: ["$hotmart.progress", null] },
-              then: {
-                completedPercentage: { $ifNull: ["$hotmart.progress.completedPercentage", 0] },
-                total: { $ifNull: ["$hotmart.progress.totalLessons", 0] },
-                completed: { $ifNull: ["$hotmart.progress.completedLessons", 0] },
-                totalTimeMinutes: { $ifNull: ["$hotmart.progress.totalTimeMinutes", 0] }
-              },
-              else: {
-                $cond: {
-                  if: { $ne: ["$curseduca.progress", null] },
-                  then: {
-                    completedPercentage: { $ifNull: ["$curseduca.progress.estimatedProgress", 0] },
-                    total: 1,
-                    completed: 0,
-                    totalTimeMinutes: 0
-                  },
-                  else: { $ifNull: ["$progress", { completedPercentage: 0, total: 0, completed: 0 }] }
-                }
-              }
-            }
-          },
-          
-          // ✅ CAMPOS LEGADOS (compatibilidade)
-          role: 1,
-          purchaseDate: { $ifNull: ["$hotmart.purchaseDate", "$purchaseDate"] },
-          lastAccessDate: { $ifNull: ["$hotmart.progress.lastAccessDate", "$lastAccessDate"] },
-          signupDate: { $ifNull: ["$hotmart.signupDate", "$signupDate"] },
-          firstAccessDate: { $ifNull: ["$hotmart.firstAccessDate", "$firstAccessDate"] },
-          locale: 1,
-          plusAccess: { $ifNull: ["$hotmart.plusAccess", "$plusAccess"] },
-          type: 1,
-          acceptedTerms: 1,
-          estado: 1,
-          timer: 1,
-          
-          // ✅ DADOS ESPECÍFICOS DAS PLATAFORMAS
-          platformProgress: {
-            hotmart: "$hotmart.progress",
-            curseduca: "$curseduca.progress"
-          },
-          platformMetrics: {
-            hotmart: "$hotmart.engagement",
-            curseduca: "$curseduca.engagement"
-          }
-        }
-      }
-    ]
-
-    const students = await User.aggregate(pipeline)
-
-    if (!students.length) {
-      res.status(404).json({ message: "Nenhum aluno encontrado com os critérios fornecidos." })
-      return
-    }
-
-    if (students.length > 1) {
-      res.status(200).json({
-        message: `Encontrados ${students.length} alunos`,
-        students,
-        multiple: true
-      })
-      return
-    }
-
-    res.status(200).json(students[0])
-  } catch (error: any) {
-    res.status(500).json({ 
-      message: "Erro ao buscar aluno.", 
-      details: error.message 
-    })
-  }
-}
 
 
-// ✏️ EDITAR ALUNO - CORRIGIDO PARA NOVA ESTRUTURA SEGREGADA
+
+/**
+ * PUT /api/users/:id
+ * Editar aluno (mantido)
+ */
 export const editStudent = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params
   const updateData = req.body
 
   try {
-    // Buscar estudante atual
     const currentStudent = await User.findById(id)
     if (!currentStudent) {
-      res.status(404).json({ message: "Aluno não encontrado." })
+      res.status(404).json({ message: "Aluno não encontrado" })
       return
     }
 
-    // Validação de email
+    const updateFields: any = {}
+
     if (updateData.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(updateData.email)) {
-        res.status(400).json({ message: "Email inválido." })
+        res.status(400).json({ message: "Email inválido" })
         return
       }
-
-      // Verificar se email já existe em outro usuário
-      const existingUser = await User.findOne({ 
-        email: updateData.email, 
-        _id: { $ne: id } 
-      })
-      if (existingUser) {
-        res.status(409).json({ message: "Este email já está a ser usado por outro aluno." })
-        return
-      }
+      updateFields.email = updateData.email
     }
 
-    // Preparar dados de atualização para nova estrutura
-    const updateFields: any = {}
-
-    // ✅ CAMPOS BÁSICOS
-    if (updateData.email) updateFields.email = updateData.email
     if (updateData.name) updateFields.name = updateData.name
 
-    // ✅ DISCORD - Atualizar na estrutura segregada
     if (updateData.discordIds && Array.isArray(updateData.discordIds)) {
-      const discordIdRegex = /^\d{17,19}$/
-      for (const discordId of updateData.discordIds) {
-        if (!discordIdRegex.test(discordId)) {
-          res.status(400).json({ 
-            message: `Discord ID inválido: ${discordId}. Deve ter entre 17-19 dígitos.` 
-          })
-          return
-        }
-      }
-      
-      // Remover duplicados
-      const uniqueDiscordIds = [...new Set(updateData.discordIds)]
-      
-      // Atualizar estrutura Discord (nova) E campo legado (compatibilidade)
-      updateFields["discord.discordIds"] = uniqueDiscordIds
-      updateFields["discord.lastEditedAt"] = new Date()
-      updateFields["discord.lastEditedBy"] = "admin_edit"
-      updateFields["discordIds"] = uniqueDiscordIds // Compatibilidade
+      const uniqueIds = [...new Set(updateData.discordIds)]
+      updateFields["discord.discordIds"] = uniqueIds
+      updateFields["discordIds"] = uniqueIds
     }
 
-    // ✅ VALIDAÇÃO E ATUALIZAÇÃO DE TURMA
-    if (updateData.classId !== undefined) {
-      if (updateData.classId && updateData.classId.trim() !== '') {
-        const classExists = await Class.findOne({ classId: updateData.classId })
-        if (!classExists) {
-          res.status(400).json({ message: "Turma não encontrada." })
-          return
-        }
-      }
-
-      const s = currentStudent as any;
-      const currentClassId = s.combined?.classId || s.classId
-      if (updateData.classId !== currentClassId) {
-        // Registrar mudança no histórico
-      const historyEntry = new StudentClassHistory({
-          studentId: currentStudent._id,
-          classId: currentClassId || "sem-turma",
-          className: currentClassId ? 
-            (await Class.findOne({ classId: currentClassId }))?.name || 'Turma Anterior' :
-            'Sem Turma',
-          dateMoved: new Date(),
-          reason: 'Alteração via editor de estudantes'
-        })
-        await historyEntry.save()
-
-        // Atualizar na estrutura combinada E campo legado
-        updateFields["combined.classId"] = updateData.classId
-        updateFields["combined.className"] = updateData.classId ? 
-          (await Class.findOne({ classId: updateData.classId }))?.name || `Turma ${updateData.classId}` :
-          null
-        updateFields["classId"] = updateData.classId // Compatibilidade
-      }
-    }
-
-    // ✅ ATUALIZAR METADADOS
     updateFields["metadata.updatedAt"] = new Date()
-    if (!currentStudent.metadata) {
-      updateFields["metadata.createdAt"] = new Date()
-    }
 
-    // ✅ HISTÓRICO DE MUDANÇAS
-    const historyEntries = []
-
-    // Verificar mudança de email
-    if (updateData.email && currentStudent.email !== updateData.email) {
-      try {
-        // Tentar importar UserHistory se existir
-        const UserHistory = require('../models/UserHistory').UserHistory
-        historyEntries.push(UserHistory.create({
-          userId: currentStudent._id,
-          userEmail: updateData.email, // Novo email
-          changeType: 'EMAIL_CHANGE',
-          previousValue: { email: currentStudent.email },
-          newValue: { email: updateData.email },
-          source: 'MANUAL',
-          changedBy: 'admin',
-          reason: 'Alteração manual via editor de estudantes'
-        }))
-      } catch (historyError) {
-        console.warn('⚠️ UserHistory model não encontrado, continuando sem histórico...')
-      }
-    }
-
-    // ✅ CAMPOS LEGADOS (compatibilidade com frontend antigo)
-    if (updateData.status) updateFields.status = updateData.status
-    if (updateData.role) updateFields.role = updateData.role
-    if (updateData.type) updateFields.type = updateData.type
-    if (updateData.estado) updateFields.estado = updateData.estado
-
-    // Atualizar timestamp legado
-    updateFields.updatedAt = new Date()
-
-    // Atualizar estudante
     const updatedStudent = await User.findByIdAndUpdate(
       id, 
       updateFields, 
       { new: true, runValidators: true }
     )
 
-    if (!updatedStudent) {
-      res.status(404).json({ message: "Aluno não encontrado." })
-      return
+    if (updateData.discordIds) {
+      await recalculateCombinedData(id)
     }
 
-    // Salvar histórico se houver mudanças
-    if (historyEntries.length > 0) {
-      try {
-        await Promise.all(historyEntries)
-      } catch (historyError) {
-        console.warn('⚠️ Erro ao salvar histórico:', historyError)
-      }
-    }
-
-    // ✅ RECALCULAR DADOS COMBINADOS (se necessário)
-    if (updateData.discordIds || updateData.classId !== undefined) {
-      try {
-        await recalculateCombinedData(id)
-      } catch (recalcError) {
-        console.warn('⚠️ Erro ao recalcular dados combinados:', recalcError)
-      }
-    }
-
-    // ✅ RETORNAR DADOS COMPLETOS COM NOVA ESTRUTURA
-    const pipeline: PipelineStage[] = [
-      { $match: { _id: new mongoose.Types.ObjectId(id) } },
-      {
-        $lookup: {
-          from: "classes",
-          localField: "classId",
-          foreignField: "classId",
-          as: "classInfo"
-        }
-      },
-      { $unwind: { path: "$classInfo", preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          // ✅ ESTRUTURA COMPLETA SEGREGADA
-          email: 1,
-          name: 1,
-          discord: 1,
-          hotmart: 1,
-          curseduca: 1,
-          combined: 1,
-          metadata: 1,
-          
-          // ✅ CAMPOS DERIVADOS
-          className: { $ifNull: ["$classInfo.name", "$combined.className"] },
-          
-          // ✅ COMPATIBILIDADE COM FRONTEND ANTIGO
-          discordIds: { $ifNull: ["$discord.discordIds", "$discordIds", []] },
-          hotmartUserId: { $ifNull: ["$hotmart.hotmartUserId", "$hotmartUserId"] },
-          curseducaUserId: { $ifNull: ["$curseduca.curseducaUserId", "$curseducaUserId"] },
-          classId: { $ifNull: ["$combined.classId", "$classId"] },
-          status: { $ifNull: ["$combined.status", "$status", "INACTIVE"] },
-          engagement: {
-            $cond: {
-              if: { $ne: ["$hotmart.engagement.engagementLevel", null] },
-              then: "$hotmart.engagement.engagementLevel",
-              else: { $ifNull: ["$curseduca.engagement.engagementLevel", "$engagement", "NONE"] }
-            }
-          },
-          engagementScore: {
-            $cond: {
-              if: { $ne: ["$hotmart.engagement.engagementScore", null] },
-              then: "$hotmart.engagement.engagementScore",
-              else: { $ifNull: ["$curseduca.engagement.alternativeEngagement", "$engagementScore", 0] }
-            }
-          },
-          
-          // ✅ CAMPOS LEGADOS
-          role: 1,
-          purchaseDate: { $ifNull: ["$hotmart.purchaseDate", "$purchaseDate"] },
-          lastAccessDate: { $ifNull: ["$hotmart.progress.lastAccessDate", "$lastAccessDate"] },
-          signupDate: { $ifNull: ["$hotmart.signupDate", "$signupDate"] },
-          firstAccessDate: { $ifNull: ["$hotmart.firstAccessDate", "$firstAccessDate"] },
-          locale: 1,
-          plusAccess: { $ifNull: ["$hotmart.plusAccess", "$plusAccess"] },
-          accessCount: {
-            $cond: {
-              if: { $ne: ["$hotmart.engagement.accessCount", null] },
-              then: "$hotmart.engagement.accessCount",
-              else: { $ifNull: ["$accessCount", 0] }
-            }
-          },
-          type: 1,
-          acceptedTerms: 1,
-          estado: 1,
-          timer: 1,
-          createdAt: { $ifNull: ["$metadata.createdAt", "$createdAt"] },
-          updatedAt: { $ifNull: ["$metadata.updatedAt", "$updatedAt"] },
-          
-          // ✅ PROGRESSO ESTRUTURADO
-          progress: {
-            $cond: {
-              if: { $ne: ["$hotmart.progress", null] },
-              then: {
-                completedPercentage: { $ifNull: ["$hotmart.progress.completedPercentage", 0] },
-                total: { $ifNull: ["$hotmart.progress.totalLessons", 0] },
-                completed: { $ifNull: ["$hotmart.progress.completedLessons", 0] },
-                totalTimeMinutes: { $ifNull: ["$hotmart.progress.totalTimeMinutes", 0] }
-              },
-              else: {
-                $cond: {
-                  if: { $ne: ["$curseduca.progress", null] },
-                  then: {
-                    completedPercentage: { $ifNull: ["$curseduca.progress.estimatedProgress", 0] },
-                    total: 1,
-                    completed: 0,
-                    totalTimeMinutes: 0
-                  },
-                  else: { $ifNull: ["$progress", { completedPercentage: 0, total: 0, completed: 0 }] }
-                }
-              }
-            }
-          },
-          
-          // ✅ DADOS ESPECÍFICOS DAS PLATAFORMAS (para frontend novo)
-          platformProgress: {
-            hotmart: "$hotmart.progress",
-            curseduca: "$curseduca.progress"
-          },
-          platformMetrics: {
-            hotmart: "$hotmart.engagement",
-            curseduca: "$curseduca.engagement"
-          }
-        }
-      }
-    ]
-
-    const studentWithDetails = await User.aggregate(pipeline)
-    res.status(200).json(studentWithDetails[0] || updatedStudent)
+    res.status(200).json(updatedStudent)
 
   } catch (error: any) {
-    if (error.name === 'ValidationError') {
-      res.status(400).json({ 
-        message: "Dados inválidos.", 
-        details: Object.values(error.errors).map((err: any) => err.message) 
-      })
-      return
-    }
-    
-    res.status(500).json({ 
-      message: "Erro ao atualizar aluno.", 
-      details: error.message 
-    })
+    res.status(500).json({ message: "Erro ao atualizar aluno", details: error.message })
   }
 }
 // 📊 ESTATÍSTICAS DO ALUNO
@@ -2099,26 +1670,24 @@ export const syncSpecificStudent = async (req: Request, res: Response): Promise<
 }
 
 
-// 🗑️ ELIMINAR ALUNO
+/**
+ * DELETE /api/users/:id
+ * Eliminar aluno (mantido)
+ */
 export const deleteStudent = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params
   const { permanent = false } = req.query
 
   try {
     if (permanent === 'true') {
-      // Eliminação permanente
       const deleted = await User.findByIdAndDelete(id)
       if (!deleted) {
-        res.status(404).json({ message: "Aluno não encontrado." })
+        res.status(404).json({ message: "Aluno não encontrado" })
         return
       }
-
-      // Remover histórico relacionado
       await StudentClassHistory.deleteMany({ studentId: id })
-
-      res.status(200).json({ message: "Aluno eliminado permanentemente." })
+      res.status(200).json({ message: "Aluno eliminado permanentemente" })
     } else {
-      // Soft delete - marcar como inativo
       const updated = await User.findByIdAndUpdate(
         id,
         { 
@@ -2128,24 +1697,17 @@ export const deleteStudent = async (req: Request, res: Response): Promise<void> 
         },
         { new: true }
       )
-
       if (!updated) {
-        res.status(404).json({ message: "Aluno não encontrado." })
+        res.status(404).json({ message: "Aluno não encontrado" })
         return
       }
-
-      res.status(200).json({ 
-        message: "Aluno marcado como inativo.",
-        student: updated
-      })
+      res.status(200).json({ message: "Aluno marcado como inativo", student: updated })
     }
   } catch (error: any) {
-    res.status(500).json({ 
-      message: "Erro ao eliminar aluno.", 
-      details: error.message 
-    })
+    res.status(500).json({ message: "Erro ao eliminar aluno", details: error.message })
   }
 }
+
 
 // 🔧 GESTÃO DE IDS DIFERENTES
 export const getIdsDiferentes = async (req: Request, res: Response): Promise<void> => {
@@ -2397,87 +1959,36 @@ export const bulkDeleteUnmatchedUsers = async (req: Request, res: Response): Pro
 }
 // src/controllers/users.controller.ts - PARTE 3/3 (final)
 
-// 📂 SINCRONIZAÇÃO CSV
+/**
+ * POST /api/users/sync-csv
+ * Sincronizar CSV Discord + Hotmart (mantido)
+ */
 export const syncDiscordAndHotmart = async (req: Request, res: Response): Promise<void> => {
   if (!req.file) {
-    res.status(400).json({ message: "Nenhum ficheiro foi carregado." })
+    res.status(400).json({ message: "Nenhum ficheiro carregado" })
     return
   }
 
   const syncRecord = new SyncHistory({
     type: "csv",
     user: req.body.user || "system",
-    metadata: {
-      fileName: req.file.originalname,
-      fileSize: req.file.size,
-      requestId: `csv-${Date.now()}`
-    },
+    metadata: { fileName: req.file.originalname },
     status: "running"
   })
-
   await syncRecord.save()
+
   const filePath = path.resolve(req.file.path)
 
   try {
-    console.log(`📦 [${syncRecord._id}] Vai usar estrutura SEGREGADA (discord.discordIds)`)
-    
-    // ✅ ETAPA 0: MIGRAÇÃO AUTOMÁTICA (discordIds root → discord.discordIds)
-    console.log(`🔄 [${syncRecord._id}] Migrando estrutura antiga → nova...`)
-    let migratedCount = 0
-    
-    try {
-      const usersToMigrate = await User.find({
-        discordIds: { $exists: true, $not: { $size: 0 } },
-        $or: [
-          { 'discord.discordIds': { $exists: false } },
-          { 'discord.discordIds': { $size: 0 } }
-        ]
-      }).limit(5000) // Limitar para não sobrecarregar
-
-      for (const user of usersToMigrate) {
-        const u = user as any
-        const oldIds = Array.isArray(u.discordIds) ? u.discordIds : []
-        
-        if (oldIds.length > 0) {
-          await User.updateOne(
-            { _id: user._id },
-            { 
-              $set: { 
-                'discord.discordIds': oldIds,
-                'discord.updatedAt': new Date()
-              }
-            }
-          )
-          migratedCount++
-        }
-      }
-      
-      console.log(`✅ [${syncRecord._id}] ${migratedCount} IDs migrados para nova estrutura`)
-    } catch (migrationError: any) {
-      console.warn(`⚠️ [${syncRecord._id}] Aviso na migração (continuando): ${migrationError.message}`)
-    }
-
-    // ✅ ETAPA 1: PROCESSAR CSV
     const workbook = XLSX.readFile(filePath)
-    const sheetName = workbook.SheetNames[0]
-    const data = XLSX.utils.sheet_to_json<ImportedUserRecord>(workbook.Sheets[sheetName], {
-      raw: false,
-      defval: ""
-    })
+    const data = XLSX.utils.sheet_to_json<ImportedUserRecord>(workbook.Sheets[workbook.SheetNames[0]])
 
-    let added = 0, unmatched = 0, idsDiferentesCount = 0, errors = 0, updated = 0
-    const errorDetails: string[] = []
+    let added = 0, unmatched = 0, errors = 0
 
-    console.log(`🚀 [${syncRecord._id}] Processando ${data.length} registos do CSV...`)
-
-    for (let i = 0; i < data.length; i++) {
-      const record = data[i]
-      
+    for (const record of data) {
       try {
-        const discordId = String(record["User ID"] || record["UserID"] || "").trim()
-        const email = String(record["Qual o e-mail com que te inscreveste no curso?"] || record["Email"] || "").trim().toLowerCase()
-        const username = String(record["Username"] || "").trim()
-        const name = String(record["Qual o nome com que te inscreveste no curso?"] || "").trim()
+        const discordId = String(record["User ID"] || "").trim()
+        const email = String(record["Qual o e-mail com que te inscreveste no curso?"] || "").trim().toLowerCase()
 
         if (!email || !discordId) {
           unmatched++
@@ -2485,97 +1996,46 @@ export const syncDiscordAndHotmart = async (req: Request, res: Response): Promis
         }
 
         const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, "i") } })
-
         if (!user) {
           unmatched++
-          await UnmatchedUser.create({ discordId, username, email, name })
+          await UnmatchedUser.create({ discordId, email })
           continue
         }
 
-        // ✅ USAR ESTRUTURA NOVA (discord.discordIds)
         const u = user as any
         const currentIds = u.discord?.discordIds || []
-        const uniqueIds = [...new Set(currentIds)]
-
-        if (!uniqueIds.includes(discordId)) {
-          // Detectar conflitos
-          if (uniqueIds.length >= 1) {
-            const already = await IdsDiferentes.findOne({ email, newDiscordId: discordId })
-            if (!already) {
-              await IdsDiferentes.create({ email, previousDiscordIds: uniqueIds, newDiscordId: discordId })
-              idsDiferentesCount++
-            }
-          }
-
-          // ✅ ATUALIZAR ESTRUTURA NOVA
+        
+        if (!currentIds.includes(discordId)) {
           await User.updateOne(
             { _id: user._id },
             { 
               $set: {
-                'discord.discordIds': [...new Set([...uniqueIds, discordId])],
-                'discord.username': username || u.discord?.username,
-                'discord.updatedAt': new Date(),
-                email: email
+                'discord.discordIds': [...currentIds, discordId],
+                'discord.updatedAt': new Date()
               }
             }
           )
-          
-          if (uniqueIds.length === 0) {
-            added++
-          } else {
-            updated++
-          }
-        }
-
-        if (i % 50 === 0) {
-          await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-            stats: {
-              total: data.length,
-              added,
-              updated,
-              conflicts: idsDiferentesCount,
-              errors
-            }
-          })
+          added++
         }
 
       } catch (recordError: any) {
         errors++
-        errorDetails.push(`Registo ${i + 1}: ${recordError.message}`)
-        console.error(`❌ [${syncRecord._id}] Erro no registo ${i + 1}:`, recordError.message)
+        console.error(`Erro no registo:`, recordError.message)
       }
     }
 
     await SyncHistory.findByIdAndUpdate(syncRecord._id, {
       status: "completed",
       completedAt: new Date(),
-      stats: {
-        total: data.length,
-        added,
-        updated,
-        conflicts: idsDiferentesCount,
-        errors,
-        migrated: migratedCount
-      },
-      errorDetails: errorDetails.length > 0 ? errorDetails : undefined
+      stats: { total: data.length, added, errors }
     })
 
     fs.unlinkSync(filePath)
 
-    console.log(`✅ [${syncRecord._id}] Sincronização CSV concluída!`)
-    console.log(`📊 Resultados: ${added} novos | ${updated} atualizados | ${migratedCount} migrados | ${unmatched} não correspondidos | ${idsDiferentesCount} conflitos | ${errors} erros`)
-
     res.json({ 
       message: "Sincronização concluída",
       syncId: syncRecord._id,
-      stats: {
-        addedDiscordIds: added,
-        updatedDiscordIds: updated,
-        migratedIds: migratedCount,
-        unmatched, 
-        idsDiferentes: idsDiferentesCount,
-        errors
-      }
+      stats: { added, unmatched, errors }
     })
 
   } catch (error: any) {
@@ -2585,16 +2045,9 @@ export const syncDiscordAndHotmart = async (req: Request, res: Response): Promis
       errorDetails: [error.message]
     })
 
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath)
-    }
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
 
-    console.error(`❌ [${syncRecord._id}] Erro na sincronização CSV:`, error.message)
-    res.status(500).json({ 
-      message: "Erro na sincronização CSV", 
-      syncId: syncRecord._id,
-      details: error.message 
-    })
+    res.status(500).json({ message: "Erro na sincronização", details: error.message })
   }
 }
     
@@ -3219,48 +2672,30 @@ export const getProductStats = async (req: Request, res: Response): Promise<void
 // ===== MIDDLEWARE: Recalcular Dados Combinados =====
 
 /**
- * ✅ FUNÇÃO HELPER: Recalcular dados combinados após update
- * Combina dados de todas as plataformas (Discord, Hotmart, CursEduca) numa estrutura unificada
+ * Recalcular dados combinados após update
  */
 const recalculateCombinedData = async (userId: string): Promise<void> => {
   try {
     const user = await User.findById(userId)
-    if (!user) {
-      console.warn(`⚠️ Utilizador ${userId} não encontrado para recálculo`)
-      return
-    }
+    if (!user) return
 
-    // Type assertion para aceder às propriedades
-    const u = user as any;
-
-    // ✅ IDENTIFICAR FONTES DISPONÍVEIS
+    const u = user as any
     const sourcesAvailable = []
     if (u.discord?.discordIds?.length || u.discordIds?.length) sourcesAvailable.push('discord')
     if (u.hotmart?.hotmartUserId || u.hotmartUserId) sourcesAvailable.push('hotmart')
     if (u.curseduca?.curseducaUserId || u.curseducaUserId) sourcesAvailable.push('curseduca')
 
-    // ✅ STATUS COMBINADO (prioridade: Discord > Hotmart > CursEduca)
     let status = 'ACTIVE'
-    if (u.discord?.isDeleted) {
-      status = 'INACTIVE'
-    } else if (u.curseduca?.memberStatus === 'INACTIVE') {
-      status = 'INACTIVE'
-    } else if (u.status === 'BLOCKED' || u.estado === 'inativo') {
-      status = 'INACTIVE'
-    }
+    if (u.discord?.isDeleted) status = 'INACTIVE'
+    else if (u.curseduca?.memberStatus === 'INACTIVE') status = 'INACTIVE'
+    else if (u.status === 'BLOCKED' || u.estado === 'inativo') status = 'INACTIVE'
 
-    // ✅ PROGRESSO COMBINADO
     let totalProgress = 0
-    let totalTimeMinutes = 0
-    let totalLessons = 0
     let combinedEngagement = 0
     let bestEngagementSource = 'estimated'
 
-    // Prioridade: Hotmart (dados reais) > CursEduca (estimados)
     if (u.hotmart?.progress) {
-      totalTimeMinutes = u.hotmart.progress.totalTimeMinutes || 0
-      totalLessons = u.hotmart.progress.completedLessons || 0
-      // Calcular progresso baseado no tempo (assumindo 20h = 100%)
+      const totalTimeMinutes = u.hotmart.progress.totalTimeMinutes || 0
       totalProgress = Math.min((totalTimeMinutes / (20 * 60)) * 100, 100)
       combinedEngagement = u.hotmart.engagement?.engagementScore || 0
       bestEngagementSource = 'hotmart'
@@ -3268,85 +2703,30 @@ const recalculateCombinedData = async (userId: string): Promise<void> => {
       totalProgress = u.curseduca.progress.estimatedProgress || 0
       combinedEngagement = u.curseduca.engagement?.alternativeEngagement || 0
       bestEngagementSource = 'curseduca'
-    } else if (u.progress?.completedPercentage) {
-      // Fallback para dados legados
-      totalProgress = u.progress.completedPercentage
-      totalLessons = u.progress.completed || 0
-      combinedEngagement = u.engagementScore || 0
-      bestEngagementSource = 'legacy'
     }
 
-    // ✅ TURMA (prioridade: CursEduca > Hotmart > Legacy)
-    let classId = null
-    let className = null
-    if (u.curseduca?.groupId) {
-      classId = u.curseduca.groupId
-      className = u.curseduca.groupName
-    } else if (u.combined?.classId) {
-      classId = u.combined.classId
-      className = u.combined.className
-    } else if (u.classId) {
-      // Compatibilidade com estrutura legada
-      classId = u.classId
-      className = 'Turma Hotmart'
-    }
-
-    // ✅ QUALIDADE DOS DADOS
-    let dataQuality = 'LIMITED'
-    if (sourcesAvailable.length >= 2) {
-      dataQuality = 'COMPLETE'
-    } else if (sourcesAvailable.length === 1) {
-      dataQuality = 'PARTIAL'
-    }
-
-    // ✅ ÚLTIMA ATIVIDADE
-    const lastActivityDates = [
-      u.hotmart?.progress?.lastAccessDate,
-      u.lastAccessDate,
-      u.metadata?.updatedAt,
-      u.updatedAt
-    ].filter(Boolean)
-
-    const lastActivity = lastActivityDates.length > 0 
-      ? new Date(Math.max(...lastActivityDates.map(d => new Date(d).getTime())))
-      : new Date()
-
-    // ✅ DADOS COMBINADOS FINAIS
     const combinedData = {
       status,
-      totalProgress: Math.round(totalProgress * 100) / 100, // Arredondar para 2 casas decimais
-      totalTimeMinutes,
-      totalLessons,
+      totalProgress: Math.round(totalProgress * 100) / 100,
       combinedEngagement: Math.round(combinedEngagement * 100) / 100,
       bestEngagementSource,
-      classId,
-      className,
       sourcesAvailable,
-      dataQuality,
-      lastActivity,
       calculatedAt: new Date()
     }
 
-    // ✅ ATUALIZAR UTILIZADOR
     await User.findByIdAndUpdate(userId, { 
       combined: combinedData,
       "metadata.updatedAt": new Date()
     })
 
-    console.log(`✅ Dados combinados recalculados para utilizador ${userId}:`, {
-      sources: sourcesAvailable,
-      status,
-      progress: `${totalProgress.toFixed(1)}%`,
-      engagement: `${combinedEngagement.toFixed(1)}`,
-      bestSource: bestEngagementSource,
-      dataQuality
-    })
-
   } catch (error: any) {
     console.error(`❌ Erro ao recalcular dados combinados para ${userId}:`, error.message)
-    throw error
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📋 LISTAGEM DE UTILIZADORES (V2 - COM USERPRODUCTS)
+// ═
 
 // 🆕 ENDPOINT: Obter todas as turmas de um utilizador (Hotmart + Curseduca)
 export const getUserAllClasses = async (req: Request, res: Response): Promise<void> => {
@@ -3435,3 +2815,417 @@ export const getUserAllClasses = async (req: Request, res: Response): Promise<vo
     })
   }
 }
+
+
+/**
+ * GET /api/users/v2
+ * ✅ NOVO: Lista users com seus UserProducts
+ * Suporta filtros avançados: platform, productId, status, search, progress, engagement
+ */
+export const getUsers = async (req: Request, res: Response) => {
+  try {
+    const { 
+      platform, 
+      productId, 
+      status,
+      search,
+      progressLevel,
+      engagementLevel,
+      maxEngagement,        // ✅ Para "Em Risco" (<=30)
+      topPercentage,        // ✅ Para "Top 10%"
+      lastAccessBefore,     // ✅ Para "Inativos 30d"
+      enrolledAfter,        // ✅ Para "Novos 7d"
+      page = '1',
+      limit = '50'
+    } = req.query
+
+    console.log('🔍 [V2] getUsers chamado com filtros:', { 
+      platform, productId, status, search, progressLevel, engagementLevel,
+      maxEngagement, topPercentage, lastAccessBefore, enrolledAfter
+    })
+
+    // ✅ STRATEGY 1: Se filtrar por produto específico
+if (productId) {
+  const usersWithProduct = await getUsersForProduct(productId as string)
+  return res.json({
+    success: true,
+    data: usersWithProduct,
+    pagination: { total: usersWithProduct.length },
+    filters: { productId }
+  })
+}
+
+let userQuery: any = {
+  $and: [
+    {
+      $or: [
+        { isDeleted: { $exists: false } },
+        { isDeleted: false }
+      ]
+    }
+  ]
+}
+
+if (search) {
+  const searchRegex = new RegExp(search as string, 'i')
+  userQuery.$and.push({
+    $or: [{ name: searchRegex }, { email: searchRegex }]
+  })
+}
+
+if (enrolledAfter) {
+  userQuery.$and.push({ createdAt: { $gte: new Date(enrolledAfter as string) } })
+}
+
+if (status === 'ACTIVE') {
+  userQuery.$and.push({ 'combined.status': 'ACTIVE' })
+}
+
+    // Buscar users base
+    const users = await User.find(userQuery)
+      .select('_id name email combined.status')
+      .lean()
+
+    console.log(`📊 [V2] ${users.length} users encontrados`)
+
+    // ✅ STRATEGY 3: Enriquecer com UserProducts + Filtros
+    let enrichedUsers = await Promise.all(
+      users.map(async (user) => {
+        // Buscar UserProducts do user
+        let userProducts = await UserProduct.find({ userId: user._id })
+          .populate('productId', 'name code platform')
+          .lean()
+
+        // Aplicar filtros aos products
+        if (platform) {
+          userProducts = userProducts.filter((up: any) => 
+            up.platform?.toLowerCase() === (platform as string).toLowerCase()
+          )
+        }
+
+        if (status) {
+          userProducts = userProducts.filter((up: any) => up.status === status)
+        }
+
+        // ✅ FILTRO: Em Risco (maxEngagement <= 30)
+        if (maxEngagement) {
+          const max = parseInt(maxEngagement as string)
+          userProducts = userProducts.filter((up: any) => 
+            (up.engagement?.engagementScore || 0) <= max
+          )
+        }
+
+        // ✅ FILTRO: Top % (topPercentage)
+        if (topPercentage) {
+          const threshold = 77 // Placeholder, deveria vir do dashboard stats
+          userProducts = userProducts.filter((up: any) => 
+            (up.engagement?.engagementScore || 0) >= threshold
+          )
+        }
+
+        // ✅ FILTRO: Inativos 30d (lastAccessBefore)
+        if (lastAccessBefore) {
+          const cutoff = new Date(lastAccessBefore as string)
+          userProducts = userProducts.filter((up: any) => {
+            const lastAction = up.engagement?.lastAction
+            return !lastAction || new Date(lastAction) < cutoff
+          })
+        }
+
+        // ✅ FILTRO: Progresso por nível
+        if (progressLevel) {
+          const ranges: any = {
+            'MUITO_BAIXO': { min: 0, max: 25 },
+            'BAIXO': { min: 25, max: 40 },
+            'MEDIO': { min: 40, max: 60 },
+            'ALTO': { min: 60, max: 80 },
+            'MUITO_ALTO': { min: 80, max: 100 }
+          }
+          const range = ranges[progressLevel as string]
+          if (range) {
+            userProducts = userProducts.filter((up: any) => {
+              const prog = up.progress?.percentage || 0
+              return prog >= range.min && prog < range.max
+            })
+          }
+        }
+
+        // ✅ FILTRO: Engagement por nível
+        if (engagementLevel) {
+          const levels = (engagementLevel as string).split(',')
+          userProducts = userProducts.filter((up: any) => {
+            const level = up.engagement?.engagementLevel || ''
+            return levels.includes(level)
+          })
+        }
+
+        // Mapear para formato do frontend
+        const products = userProducts.map((up: any) => ({
+          _id: up._id,
+          product: up.productId,
+          platform: up.platform,
+          status: up.status,
+          enrolledAt: up.enrolledAt,
+          isPrimary: up.isPrimary,
+          progress: {
+            percentage: up.progress?.percentage || 0,
+            lastActivity: up.progress?.lastActivity
+          },
+          engagement: {
+            score: up.engagement?.engagementScore || 0,
+            level: up.engagement?.engagementLevel || 'NONE',
+            lastAction: up.engagement?.lastAction
+          }
+        }))
+
+        return {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          status: (user as any).combined?.status || 'ACTIVE',
+          products
+        }
+      })
+    )
+
+    // Filtrar users sem produtos (se houver filtros aplicados)
+    const hasFilters = platform || status || progressLevel || engagementLevel || 
+                      maxEngagement || topPercentage || lastAccessBefore
+    
+    if (hasFilters) {
+      enrichedUsers = enrichedUsers.filter(u => u.products.length > 0)
+    }
+
+    console.log(`📊 [V2] ${enrichedUsers.length} users após filtros`)
+
+    // Paginação
+    const pageNum = parseInt(page as string)
+    const limitNum = parseInt(limit as string)
+    const total = enrichedUsers.length
+    const startIndex = (pageNum - 1) * limitNum
+    const paginatedUsers = enrichedUsers.slice(startIndex, startIndex + limitNum)
+
+    res.json({ 
+      success: true, 
+      data: paginatedUsers,
+      pagination: {
+        total,
+        totalPages: Math.ceil(total / limitNum),
+        page: pageNum,
+        limit: limitNum
+      },
+      filters: { 
+        platform, productId, status, search, progressLevel, engagementLevel,
+        maxEngagement, topPercentage, lastAccessBefore, enrolledAfter
+      }
+    })
+
+  } catch (error: any) {
+    console.error('❌ [V2] Erro em getUsers:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+/**
+ * GET /api/users/v2/:id
+ * ✅ NOVO: Busca user com todos os UserProducts
+ */
+export const getUserById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params
+    
+    const user = await getUserWithProducts(id)
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+    
+    res.json({ success: true, data: user })
+  } catch (error: any) {
+    console.error('❌ Erro em getUserById:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+/**
+ * GET /api/users/v2/by-email/:email
+ * ✅ NOVO: Busca user por email com UserProducts
+ */
+export const getUserByEmail = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.params
+    
+    const user = await User.findOne({ email }).lean()
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+    
+    const enriched = await getUserWithProducts(user._id.toString())
+    res.json({ success: true, data: enriched })
+  } catch (error: any) {
+    console.error('❌ Erro em getUserByEmail:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+/**
+ * GET /api/users/v2/:userId/products
+ * ✅ NOVO: Lista UserProducts de um user
+ */
+export const getUserProducts = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params
+    
+    const user = await User.findById(userId).lean()
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+    
+    const userProducts = await UserProduct.find({ userId })
+      .populate('productId', 'name code platform')
+      .lean()
+    
+    res.json({ success: true, data: userProducts, count: userProducts.length })
+  } catch (error: any) {
+    console.error('❌ Erro em getUserProducts:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📊 ESTATÍSTICAS (CONSOLIDADO)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/users/v2/stats
+ * ✅ CONSOLIDADO: Merge de getUserStats + getUsersStats
+ */
+export const getStats = async (req: Request, res: Response) => {
+  try {
+    console.log('📊 Calculando estatísticas...')
+    
+    const baseQuery = { isDeleted: { $ne: true } }
+    
+    // Total de users
+    const totalUsers = await User.countDocuments(baseQuery)
+    
+    // Users ativos
+    const activeUsers = await User.countDocuments({
+      ...baseQuery,
+      $or: [
+        { 'combined.status': 'ACTIVE' },
+        { status: 'ACTIVE' }
+      ]
+    })
+    
+    // ✅ Estatísticas por plataforma (via UserProducts)
+    const byPlatform = await getUserCountsByPlatform()
+    const byProduct = await getUserCountsByProduct()
+    
+    // ✅ Engagement via agregação
+    const engagementAgg = await User.aggregate([
+      { $match: baseQuery },
+      {
+        $project: {
+          score: {
+            $ifNull: [
+              '$combined.combinedEngagement',
+              { $ifNull: ['$hotmart.engagement.engagementScore', 0] }
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          avgScore: { $avg: '$score' },
+          topPerformers: { $sum: { $cond: [{ $gte: ['$score', 50] }, 1, 0] } },
+          needsAttention: { $sum: { $cond: [{ $lt: ['$score', 30] }, 1, 0] } }
+        }
+      }
+    ])
+    
+    const engStats = engagementAgg[0] || {
+      avgScore: 0,
+      topPerformers: 0,
+      needsAttention: 0
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        totalUsers,
+        activeUsers,
+        inactiveUsers: totalUsers - activeUsers,
+        averageEngagement: Math.round(engStats.avgScore * 100) / 100,
+        topPerformersCount: engStats.topPerformers,
+        needsAttentionCount: engStats.needsAttention,
+        byPlatform,
+        byProduct
+      }
+    })
+    
+  } catch (error: any) {
+    console.error('❌ Erro em getStats:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+export const getUsersStats = async (req: Request, res: Response) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    
+    // Contar users por plataforma (usando agregação V2)
+    const usersByPlatform = await getUserCountsByPlatform();
+    
+    // Contar users por produto
+    const usersByProduct = await getUserCountsByProduct();
+    
+    res.json({ 
+      success: true, 
+      data: {
+        totalUsers,
+        byPlatform: usersByPlatform,
+        byProduct: usersByProduct
+      },
+      _v2Enabled: true 
+    });
+  } catch (error: any) {
+    console.error('Error in getUsersStats:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+
+/**
+ * POST /api/users/v2
+ * Cria novo user (básico, sem produtos ainda)
+ */
+export const createUser = async (req: Request, res: Response) => {
+  try {
+    const { email, name } = req.body;
+    
+    // Verificar se já existe
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'User already exists' 
+      });
+    }
+    
+    // Criar user básico
+    const user = await User.create({ email, name });
+    
+    // Retornar com estrutura V2 (products vazio)
+    const enrichedUser = await getUserWithProducts(user._id.toString());
+    
+    res.status(201).json({ 
+      success: true, 
+      data: enrichedUser,
+      _v2Enabled: true 
+    });
+  } catch (error: any) {
+    console.error('Error in createUser:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
