@@ -201,9 +201,9 @@ async function setupProductionCronJobs() {
     },
     
     syncConfig: {
-      fullSync: false,
-      includeProgress: false,
-      includeTags: false,
+      fullSync: true,
+      includeProgress: true,
+      includeTags: true,
       batchSize: 0
     },
     

@@ -318,8 +318,8 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
       status: 'running',
       startedAt: new Date(),
       metadata: {
-        includeProgress: false,
-        includeLessons: false,
+        includeProgress: true,
+        includeLessons: true,
         includeEngagement: true,
         syncType: 'complete_with_progress_classes_engagement'
       }
