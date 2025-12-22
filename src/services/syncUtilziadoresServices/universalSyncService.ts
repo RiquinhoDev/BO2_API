@@ -915,46 +915,83 @@ if (item.platformData?.isPrimary !== undefined) {
   }
 
       
-    } else {
-      // ✅ CRIAR UserProduct novo
-      const enrolledAt = toDateOrNull(item.enrolledAt) || 
-                        toDateOrNull(item.purchaseDate) ||
-                        toDateOrNull(item.joinedDate) ||
-                        new Date()
+} else {
+  // ✅ CRIAR UserProduct novo
+  const enrolledAt = toDateOrNull(item.enrolledAt) || 
+                    toDateOrNull(item.purchaseDate) ||
+                    toDateOrNull(item.joinedDate) ||
+                    new Date()
+  
+  // ═══════════════════════════════════════════════════════════
+  // 🛡️ DEFESA EM PROFUNDIDADE - isPrimary
+  // ═══════════════════════════════════════════════════════════
+  // Se adapter já definiu isPrimary, usar esse valor
+  // Se não, aplicar lógica de fallback
+  
+  let isPrimaryValue = item.platformData?.isPrimary ?? true
+  
+  // 🔒 PROTEÇÃO EXTRA: Para CursEDuca, verificar se user já tem PRIMARY
+  if (config.syncType === 'curseduca' && isPrimaryValue === true) {
+    const existingPrimary = await UserProduct.findOne({
+      userId: userIdStr,
+      platform: 'curseduca',
+      productId: { $ne: productId },
+      isPrimary: true
+    })
+    
+    if (existingPrimary) {
+      // User já tem um produto PRIMARY
+      console.log(`   🛡️ [Proteção] User ${item.email} já tem produto PRIMARY`)
       
-      const newUserProduct: any = {
-        userId: userIdStr,
-        productId: productId,
-        platform: config.syncType,
-        platformUserId: item.curseducaUserId || item.hotmartUserId || item.discordUserId || userIdStr,
-        status: 'ACTIVE',
-        source: 'PURCHASE',
-        enrolledAt: enrolledAt,
-
-        // ✅ ADICIONAR isPrimary
-isPrimary: (() => {
-  const value = item.platformData?.isPrimary
-  if (value !== undefined) {
-    console.log(`   📌 isPrimary RECEBIDO: ${value} para ${item.email}`)
-    return value
-  }
-  console.log(`   ⚠️  isPrimary UNDEFINED para ${item.email}, usando TRUE como fallback`)
-  return true
-})(),
-        // ✅ PROGRESS com dados reais
-        progress: {
-          percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
-          lastActivity: toDateOrNull(item.lastAccessDate) || new Date()
-        },
+      // Comparar datas de enrollment
+      const existingDate = existingPrimary.enrolledAt ? new Date(existingPrimary.enrolledAt).getTime() : 0
+      const newDate = enrolledAt.getTime()
+      
+      if (newDate > existingDate) {
+        // Novo produto é mais recente → marcar como PRIMARY
+        console.log(`      ✅ Novo produto mais recente (${enrolledAt.toISOString()}) → PRIMARY`)
+        console.log(`      🔻 Desmarcando produto antigo (${existingPrimary.enrolledAt})`)
         
-        // ✅ ENGAGEMENT com dados reais
-        engagement: {
-          engagementScore: item.engagement?.engagementScore 
-            ? toNumber(item.engagement.engagementScore, 0) 
-            : toNumber(item.accessCount, 0),  // Fallback para accessCount
-          lastAction: toDateOrNull(item.lastAccessDate) || new Date()
-        }
+        await UserProduct.updateOne(
+          { _id: existingPrimary._id },
+          { $set: { isPrimary: false } }
+        )
+        // isPrimaryValue já é true
+      } else {
+        // Produto existente é mais recente → novo será SECONDARY
+        console.log(`      ⚠️  Produto existente mais recente (${existingPrimary.enrolledAt})`)
+        console.log(`      🔻 Novo produto (${enrolledAt.toISOString()}) → SECONDARY`)
+        isPrimaryValue = false
       }
+    } else {
+      console.log(`   ✅ Primeiro produto do user → PRIMARY`)
+    }
+  }
+  
+  const newUserProduct: any = {
+    userId: userIdStr,
+    productId: productId,
+    platform: config.syncType,
+    platformUserId: item.curseducaUserId || item.hotmartUserId || item.discordUserId || userIdStr,
+    status: 'ACTIVE',
+    source: 'PURCHASE',
+    enrolledAt: enrolledAt,
+    
+    // ✅ isPrimary com proteção aplicada
+    isPrimary: isPrimaryValue,
+    
+    progress: {
+      percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
+      lastActivity: toDateOrNull(item.lastAccessDate) || new Date()
+    },
+    
+    engagement: {
+      engagementScore: item.engagement?.engagementScore 
+        ? toNumber(item.engagement.engagementScore, 0) 
+        : toNumber(item.accessCount, 0),
+      lastAction: toDateOrNull(item.lastAccessDate) || new Date()
+    }
+  }
 
       // Dados específicos da plataforma
       if (config.syncType === 'hotmart') {
