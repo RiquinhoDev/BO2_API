@@ -1,307 +1,341 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// 🏗️ SERVICE: Dashboard Stats Builder - VERSÃO FINAL 100%
+// 🏗️ SERVICE: Dashboard Stats Builder - VERSÃO FINAL 100% CORRIGIDA
 // ═══════════════════════════════════════════════════════════════════════════
-// ✅ CORRIGIDO: Conta apenas isPrimary=true para CursEDuca
+// ✅ CORRIGIDO: Conta USERS ÚNICOS (não UserProducts)
+// ✅ CORRIGIDO: Filtra isPrimary=true para CursEDuca
 // ✅ CORRIGIDO: At Risk < 30
 // ✅ CORRIGIDO: Top 10% dinâmico
 // ✅ CORRIGIDO: Inativos 30d com lógica AND
 // ✅ CORRIGIDO: Plataformas normalizadas
-// ✅ CORRIGIDO: Users únicos com Set
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { DashboardStats } from '../models/DashboardStats';
-import { getAllUsersUnified } from './dualReadService';
+import { DashboardStats } from '../models/DashboardStats'
+import { getAllUsersUnified } from './dualReadService'
 
 /**
  * 🏗️ Construir e guardar stats do dashboard
  */
 export async function buildDashboardStats(): Promise<void> {
-  console.log('\n🏗️ ========================================');
-  console.log('🏗️ CONSTRUINDO DASHBOARD STATS (Materialized View)');
-  console.log('🏗️ ========================================\n');
+  console.log('\n🏗️ ========================================')
+  console.log('🏗️ CONSTRUINDO DASHBOARD STATS (Materialized View)')
+  console.log('🏗️ ========================================\n')
   
-  const startTime = Date.now();
+  const startTime = Date.now()
   
   try {
-    // 1. Buscar dados unificados
-    console.log('📊 Buscando UserProducts unificados...');
-    const allUserProducts = await getAllUsersUnified();
-    console.log(`   ✅ ${allUserProducts.length} UserProducts carregados`);
+    // ═══════════════════════════════════════════════════════════
+    // STEP 1: FETCH USERPRODUCTS (FILTRAR isPrimary)
+    // ═══════════════════════════════════════════════════════════
     
-    // ✅ FILTRAR APENAS isPrimary=true (para evitar duplicados)
+    console.log('📊 Buscando UserProducts unificados...')
+    const allUserProducts = await getAllUsersUnified()
+    
+    console.log(`   ✅ ${allUserProducts.length} UserProducts total`)
+    
+    // ✅ CRITICAL: Filtrar apenas isPrimary=true para CursEDuca
     const userProducts = allUserProducts.filter(up => {
-      // Para CursEDuca: só conta se isPrimary=true
       if (up.platform?.toLowerCase() === 'curseduca') {
-        return up.isPrimary === true;
+        return up.isPrimary === true
       }
-      // Para outras plataformas: conta tudo
-      return true;
-    });
+      return true
+    })
     
-    console.log(`   📦 ${userProducts.length} UserProducts após filtrar isPrimary`);
-    console.log(`   🔁 ${allUserProducts.length - userProducts.length} produtos secundários removidos`);
+    console.log(`   📦 ${userProducts.length} UserProducts após filtrar isPrimary`)
+    console.log(`   🔁 ${allUserProducts.length - userProducts.length} produtos secundários removidos`)
     
-    // 2. Agrupar por userId
-    console.log('🔄 Agrupando por userId...');
-    const userMetrics = new Map<string, {
-      engagements: number[];
-      progresses: number[];
-      isActive: boolean;
-      enrolledAt: Date | null;
-      platforms: Set<string>;
-      lastActivity: Date | null;
-    }>();
+    // ═══════════════════════════════════════════════════════════
+    // STEP 2: AGRUPAR POR USERID (USERS ÚNICOS!)
+    // ═══════════════════════════════════════════════════════════
     
-    userProducts.forEach(up => {
-      const userId = typeof up.userId === 'object' && up.userId._id 
-        ? up.userId._id.toString() 
-        : up.userId.toString();
+    console.log('🔄 Agrupando por userId...')
+    
+    const byUserId = new Map<string, {
+      products: any[]
+      engagements: number[]
+      progresses: number[]
+      isActive: boolean
+      enrolledAt: Date | null
+      platforms: Set<string>
+      lastActivity: Date | null
+    }>()
+    
+    for (const up of userProducts) {
+      const userId = typeof up.userId === 'object' && (up.userId as any)._id 
+        ? (up.userId as any)._id.toString() 
+        : up.userId.toString()
       
-      if (!userMetrics.has(userId)) {
-        userMetrics.set(userId, {
+      if (!byUserId.has(userId)) {
+        byUserId.set(userId, {
+          products: [],
           engagements: [],
           progresses: [],
           isActive: false,
           enrolledAt: null,
           platforms: new Set(),
           lastActivity: null
-        });
+        })
       }
       
-      const metrics = userMetrics.get(userId)!;
+      const user = byUserId.get(userId)!
+      user.products.push(up)
       
       // Engagement
       if (up.engagement?.engagementScore !== undefined && up.engagement.engagementScore > 0) {
-        metrics.engagements.push(up.engagement.engagementScore);
+        user.engagements.push(up.engagement.engagementScore)
       }
       
       // Progress
       if (up.progress?.percentage !== undefined && up.progress.percentage >= 0) {
-        metrics.progresses.push(up.progress.percentage);
+        user.progresses.push(up.progress.percentage)
       }
       
       // Status
       if (up.status === 'ACTIVE') {
-        metrics.isActive = true;
+        user.isActive = true
       }
       
-      // Enrollment date
+      // Enrollment date (mais antigo)
       if (up.enrolledAt) {
-        const enrollDate = new Date(up.enrolledAt);
-        if (!metrics.enrolledAt || enrollDate < metrics.enrolledAt) {
-          metrics.enrolledAt = enrollDate;
+        const enrollDate = new Date(up.enrolledAt)
+        if (!user.enrolledAt || enrollDate < user.enrolledAt) {
+          user.enrolledAt = enrollDate
         }
       }
       
-      // Last Activity
+      // Last Activity (mais recente)
       if (up.engagement?.lastAction) {
-        const lastActionDate = new Date(up.engagement.lastAction);
-        if (!metrics.lastActivity || lastActionDate > metrics.lastActivity) {
-          metrics.lastActivity = lastActionDate;
+        const lastActionDate = new Date(up.engagement.lastAction)
+        if (!user.lastActivity || lastActionDate > user.lastActivity) {
+          user.lastActivity = lastActionDate
         }
       }
       
       // Plataforma normalizada
       if (up.platform) {
-        const normalizedPlatform = up.platform.toLowerCase();
-        metrics.platforms.add(normalizedPlatform);
+        user.platforms.add(up.platform.toLowerCase())
       }
-    });
+    }
     
-    console.log(`   ✅ ${userMetrics.size} alunos únicos agrupados`);
+    const uniqueStudents = byUserId.size
     
-    // 3. Calcular métricas agregadas
-    console.log('📊 Calculando métricas...');
+    console.log(`   ✅ ${uniqueStudents} alunos únicos agrupados`)
     
-    const userEngagementScores: Array<{ userId: string; score: number }> = [];
+    // ═══════════════════════════════════════════════════════════
+    // STEP 3: CALCULAR MÉTRICAS (POR USER)
+    // ═══════════════════════════════════════════════════════════
     
-    let totalEngagement = 0;
-    let totalProgress = 0;
-    let activeUsers = 0;
-    let atRiskUsers = 0;
-    let newUsers7d = 0;
-    let inactiveUsers30d = 0;
+    console.log('📊 Calculando métricas...')
     
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const userScores: Array<{ userId: string; score: number }> = []
     
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    let totalEngagement = 0
+    let totalProgress = 0
+    let activeCount = 0
+    let atRiskCount = 0
+    let newUsers7d = 0
+    let inactiveUsers30d = 0
     
-    userMetrics.forEach((metrics, userId) => {
-      // Engagement médio do user
-      const userAvgEngagement = metrics.engagements.length > 0
-        ? metrics.engagements.reduce((a, b) => a + b, 0) / metrics.engagements.length
-        : 0;
-      totalEngagement += userAvgEngagement;
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    
+    for (const [userId, user] of byUserId.entries()) {
+      // Engagement médio do user (média de todos os produtos)
+      const userEngagement = user.engagements.length > 0
+        ? user.engagements.reduce((sum, e) => sum + e, 0) / user.engagements.length
+        : 0
       
-      userEngagementScores.push({ userId, score: userAvgEngagement });
+      totalEngagement += userEngagement
+      userScores.push({ userId, score: userEngagement })
       
       // Progress médio do user
-      const userAvgProgress = metrics.progresses.length > 0
-        ? metrics.progresses.reduce((a, b) => a + b, 0) / metrics.progresses.length
-        : 0;
-      totalProgress += userAvgProgress;
+      const userProgress = user.progresses.length > 0
+        ? user.progresses.reduce((sum, p) => sum + p, 0) / user.progresses.length
+        : 0
       
-      // Status
-      if (metrics.isActive) {
-        activeUsers++;
+      totalProgress += userProgress
+      
+      // ✅ ATIVO: tem status ACTIVE
+      if (user.isActive) {
+        activeCount++
       }
       
-      // ✅ At Risk (score < 30)
-      if (userAvgEngagement === 0 || userAvgEngagement < 30) {
-        atRiskUsers++;
+      // ✅ EM RISCO: score < 30
+      if (userEngagement < 30) {
+        atRiskCount++
       }
       
-      // New users (últimos 7 dias)
-      if (metrics.enrolledAt && metrics.enrolledAt >= sevenDaysAgo) {
-        newUsers7d++;
+      // Novos últimos 7 dias
+      if (user.enrolledAt && user.enrolledAt >= sevenDaysAgo) {
+        newUsers7d++
       }
       
-      // ✅ Inativos 30d (lógica AND)
-      const hasNoRecentActivity = !metrics.lastActivity || metrics.lastActivity < thirtyDaysAgo;
-      const hasLowEngagement = userAvgEngagement < 20;
+      // ✅ INATIVOS 30d: (não ativo E sem atividade recente) OU (engagement baixo E sem atividade)
+      const hasNoRecentActivity = !user.lastActivity || user.lastActivity < thirtyDaysAgo
+      const hasLowEngagement = userEngagement < 20
       
-      if ((!metrics.isActive && hasNoRecentActivity) || (hasLowEngagement && hasNoRecentActivity)) {
-        inactiveUsers30d++;
+      if ((!user.isActive && hasNoRecentActivity) || (hasLowEngagement && hasNoRecentActivity)) {
+        inactiveUsers30d++
       }
-    });
-    
-    // ✅ Top 10% dinâmico
-    console.log('🏆 Calculando Top 10%...');
-    
-    userEngagementScores.sort((a, b) => b.score - a.score);
-    const top10Count = Math.ceil(userEngagementScores.length * 0.10);
-    const topPerformers = top10Count;
-    const top10Threshold = top10Count > 0 ? userEngagementScores[top10Count - 1]?.score || 0 : 0;
-    
-    console.log(`   ✅ Top 10%: ${topPerformers} alunos (threshold: ${top10Threshold.toFixed(1)})`);
+    }
     
     // Médias
-    const totalUsers = userMetrics.size;
-    const avgEngagement = totalUsers > 0 ? Math.round(totalEngagement / totalUsers) : 0;
-    const avgProgress = totalUsers > 0 ? Math.round(totalProgress / totalUsers) : 0;
-    const activeRate = totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
-    const atRiskRate = totalUsers > 0 ? Math.round((atRiskUsers / totalUsers) * 100) : 0;
+    const avgEngagement = uniqueStudents > 0 
+      ? Math.round(totalEngagement / uniqueStudents) 
+      : 0
     
-    // 4. Calcular distribuição por plataforma (USERS ÚNICOS)
-    console.log('🌐 Calculando distribuição por plataforma...');
+    const avgProgress = uniqueStudents > 0 
+      ? Math.round(totalProgress / uniqueStudents) 
+      : 0
     
-    const platformCounts = new Map<string, Set<string>>();
-    const platformProductCounts = new Map<string, number>();
+    const activeRate = uniqueStudents > 0 
+      ? Math.round((activeCount / uniqueStudents) * 100) 
+      : 0
     
-    userProducts.forEach(up => {
-      if (!up.platform) return;
+    const atRiskRate = uniqueStudents > 0 
+      ? Math.round((atRiskCount / uniqueStudents) * 100) 
+      : 0
+    
+    // ═══════════════════════════════════════════════════════════
+    // STEP 4: CALCULAR TOP 10% (DINÂMICO)
+    // ═══════════════════════════════════════════════════════════
+    
+    console.log('🏆 Calculando Top 10%...')
+    
+    userScores.sort((a, b) => b.score - a.score)
+    
+    const top10Count = Math.ceil(uniqueStudents * 0.10)
+    const top10Threshold = top10Count > 0 ? userScores[top10Count - 1]?.score || 0 : 0
+    const topPerformers = userScores.filter(u => u.score >= top10Threshold).length
+    
+    console.log(`   ✅ Top 10%: ${topPerformers} alunos (threshold: ${top10Threshold.toFixed(1)})`)
+    
+    // ═══════════════════════════════════════════════════════════
+    // STEP 5: DISTRIBUIÇÃO POR PLATAFORMA (USERS ÚNICOS)
+    // ═══════════════════════════════════════════════════════════
+    
+    console.log('🌐 Calculando distribuição por plataforma...')
+    
+    const platformUsers = new Map<string, Set<string>>()
+    const platformProducts = new Map<string, number>()
+    
+    for (const up of userProducts) {
+      if (!up.platform) continue
       
-      const userId = typeof up.userId === 'object' && up.userId._id 
-        ? up.userId._id.toString() 
-        : up.userId.toString();
+      const userId = typeof up.userId === 'object' && (up.userId as any)._id 
+        ? (up.userId as any)._id.toString() 
+        : up.userId.toString()
       
-      const platformNormalized = up.platform.toLowerCase();
+      const platform = up.platform.toLowerCase()
+      
+      // Users únicos por plataforma
+      if (!platformUsers.has(platform)) {
+        platformUsers.set(platform, new Set())
+      }
+      platformUsers.get(platform)!.add(userId)
       
       // Contar UserProducts (debug)
-      platformProductCounts.set(
-        platformNormalized,
-        (platformProductCounts.get(platformNormalized) || 0) + 1
-      );
-      
-      // Adicionar user ao Set (garante unicidade)
-      if (!platformCounts.has(platformNormalized)) {
-        platformCounts.set(platformNormalized, new Set());
-      }
-      
-      platformCounts.get(platformNormalized)!.add(userId);
-    });
+      platformProducts.set(platform, (platformProducts.get(platform) || 0) + 1)
+    }
     
     const platformIcons: Record<string, string> = {
-      'hotmart': '🛒',
-      'curseduca': '🎓',
+      'hotmart': '🔥',
+      'curseduca': '📚',
       'discord': '💬'
-    };
+    }
     
     const platformNames: Record<string, string> = {
       'hotmart': 'Hotmart',
-      'curseduca': 'CursEduca',
+      'curseduca': 'CursEDuca',
       'discord': 'Discord'
-    };
+    }
     
-    const byPlatform = Array.from(platformCounts.entries()).map(([platform, userIds]) => {
-      const uniqueUsers = userIds.size;
-      const totalUserProducts = platformProductCounts.get(platform) || 0;
-      
-      return {
-        name: platformNames[platform] || platform.charAt(0).toUpperCase() + platform.slice(1),
-        icon: platformIcons[platform] || '📦',
-        count: uniqueUsers,
-        percentage: Math.round((uniqueUsers / totalUsers) * 100),
-        _debug: {
-          userProducts: totalUserProducts,
-          ratio: (totalUserProducts / uniqueUsers).toFixed(2)
+    const byPlatform = Array.from(platformUsers.entries())
+      .map(([platform, userIds]) => {
+        const uniqueUsers = userIds.size
+        const totalProducts = platformProducts.get(platform) || 0
+        
+        return {
+          name: platformNames[platform] || platform.charAt(0).toUpperCase() + platform.slice(1),
+          icon: platformIcons[platform] || '📦',
+          count: uniqueUsers,
+          percentage: Math.round((uniqueUsers / uniqueStudents) * 100),
+          _debug: {
+            userProducts: totalProducts,
+            ratio: (totalProducts / uniqueUsers).toFixed(2)
+          }
         }
-      };
-    }).sort((a, b) => b.count - a.count);
+      })
+      .sort((a, b) => b.count - a.count)
+    
+    console.log('   ✅ Distribuição (USERS ÚNICOS):')
+    byPlatform.forEach(p => {
+      console.log(`   - ${p.name}: ${p.count} users (${p.percentage}%) | ${p._debug.userProducts} UserProducts`)
+    })
     
     const platformDistribution = byPlatform.map(p => ({
       name: p.name,
       value: p.count,
       percentage: p.percentage
-    }));
+    }))
     
-    console.log('   ✅ Distribuição (USERS ÚNICOS):');
-    byPlatform.forEach(p => {
-      console.log(`   - ${p.name}: ${p.count} users (${p.percentage}%) | ${p._debug.userProducts} UserProducts`);
-    });
+    // ═══════════════════════════════════════════════════════════
+    // STEP 6: CALCULAR HEALTH SCORE
+    // ═══════════════════════════════════════════════════════════
     
-    // 5. Calcular Health Score
-    console.log('💊 Calculando Health Score...');
+    console.log('💊 Calculando Health Score...')
     
-    const retention = Math.min(100, Math.round((activeUsers / totalUsers) * 100));
-    const growth = Math.min(100, Math.round((newUsers7d / totalUsers) * 1000));
+    const retention = Math.min(100, Math.round((activeCount / uniqueStudents) * 100))
+    const growth = Math.min(100, Math.round((newUsers7d / uniqueStudents) * 1000))
     
     const healthScore = Math.round(
       (avgEngagement * 0.4) + 
       (retention * 0.3) + 
       (growth * 0.2) + 
       (avgProgress * 0.1)
-    );
+    )
     
     const healthLevel = 
       healthScore >= 85 ? 'EXCELENTE' :
       healthScore >= 75 ? 'BOM' :
-      healthScore >= 60 ? 'RAZOÁVEL' : 'CRÍTICO';
+      healthScore >= 60 ? 'RAZOÁVEL' : 'CRÍTICO'
     
     const healthBreakdown = {
       engagement: avgEngagement,
       retention: retention,
       growth: growth,
       progress: avgProgress
-    };
+    }
     
-    console.log(`   ✅ Health Score: ${healthScore} (${healthLevel})`);
+    console.log(`   ✅ Health Score: ${healthScore} (${healthLevel})`)
     
-    // 6. Calcular próxima atualização (6 horas)
-    const nextUpdate = new Date();
-    nextUpdate.setHours(nextUpdate.getHours() + 6);
+    // ═══════════════════════════════════════════════════════════
+    // STEP 7: GUARDAR NA BD
+    // ═══════════════════════════════════════════════════════════
     
-    const calculationDuration = Date.now() - startTime;
+    const nextUpdate = new Date()
+    nextUpdate.setHours(nextUpdate.getHours() + 6)
     
-    // 7. Guardar na BD
-    console.log('💾 Guardando stats na BD...');
+    const calculationDuration = Date.now() - startTime
     
-    await DashboardStats.deleteMany({ version: 'v3' });
+    console.log('💾 Guardando stats na BD...')
+    
+    await DashboardStats.deleteMany({ version: 'v3' })
     
     await DashboardStats.create({
       version: 'v3',
       calculatedAt: new Date(),
       overview: {
-        totalStudents: totalUsers,
+        totalStudents: uniqueStudents,
         avgEngagement,
         avgProgress,
-        activeCount: activeUsers,
+        activeCount,
         activeRate,
-        atRiskCount: atRiskUsers,
+        atRiskCount,
         atRiskRate,
-        activeProducts: platformCounts.size,
+        activeProducts: platformUsers.size,
         healthScore,
         healthLevel,
         healthBreakdown
@@ -310,7 +344,7 @@ export async function buildDashboardStats(): Promise<void> {
       quickFilters: {
         newStudents: newUsers7d,
         new7d: newUsers7d,
-        atRisk: atRiskUsers,
+        atRisk: atRiskCount,
         topPerformers,
         inactive30d: inactiveUsers30d
       },
@@ -322,26 +356,26 @@ export async function buildDashboardStats(): Promise<void> {
         totalUserProducts: allUserProducts.length,
         primaryUserProducts: userProducts.length,
         secondaryUserProducts: allUserProducts.length - userProducts.length,
-        uniqueUsers: totalUsers
+        uniqueUsers: uniqueStudents
       }
-    });
+    })
     
-    console.log('\n✅ ========================================');
-    console.log(`✅ Dashboard Stats construídos em ${Math.round(calculationDuration/1000)}s`);
-    console.log(`✅ ${totalUsers} alunos únicos processados`);
-    console.log(`✅ Quick Filters:`);
-    console.log(`   🚨 Em Risco: ${atRiskUsers} (score < 30)`);
-    console.log(`   🏆 Top 10%: ${topPerformers} (threshold: ${top10Threshold.toFixed(1)})`);
-    console.log(`   😴 Inativos 30d: ${inactiveUsers30d}`);
-    console.log(`   📅 Novos 7d: ${newUsers7d}`);
-    console.log(`✅ Próxima atualização: ${nextUpdate.toLocaleString('pt-PT')}`);
-    console.log('✅ ========================================\n');
+    console.log('\n✅ ========================================')
+    console.log(`✅ Dashboard Stats construídos em ${Math.round(calculationDuration/1000)}s`)
+    console.log(`✅ ${uniqueStudents} alunos únicos processados`)
+    console.log(`✅ Quick Filters:`)
+    console.log(`   🚨 Em Risco: ${atRiskCount} (score < 30)`)
+    console.log(`   🏆 Top 10%: ${topPerformers} (threshold: ${top10Threshold.toFixed(1)})`)
+    console.log(`   😴 Inativos 30d: ${inactiveUsers30d}`)
+    console.log(`   📅 Novos 7d: ${newUsers7d}`)
+    console.log(`✅ Próxima atualização: ${nextUpdate.toLocaleString('pt-PT')}`)
+    console.log('✅ ========================================\n')
     
   } catch (error) {
-    console.error('\n❌ ========================================');
-    console.error('❌ ERRO ao construir Dashboard Stats:', error);
-    console.error('❌ ========================================\n');
-    throw error;
+    console.error('\n❌ ========================================')
+    console.error('❌ ERRO ao construir Dashboard Stats:', error)
+    console.error('❌ ========================================\n')
+    throw error
   }
 }
 
@@ -349,27 +383,27 @@ export async function buildDashboardStats(): Promise<void> {
  * 📖 Ler stats do dashboard (RÁPIDO - 50ms)
  */
 export async function getDashboardStats(): Promise<any> {
-  console.log('📖 [GETTER] Lendo Dashboard Stats da BD...');
+  console.log('📖 [GETTER] Lendo Dashboard Stats da BD...')
   
-  const stats = await DashboardStats.findOne({ version: 'v3' }).lean();
+  const stats = await DashboardStats.findOne({ version: 'v3' }).lean()
   
   if (!stats) {
-    console.warn('⚠️  Dashboard Stats não encontrados! Construindo...');
-    await buildDashboardStats();
-    return await DashboardStats.findOne({ version: 'v3' }).lean();
+    console.warn('⚠️  Dashboard Stats não encontrados! Construindo...')
+    await buildDashboardStats()
+    return await DashboardStats.findOne({ version: 'v3' }).lean()
   }
   
   // Verificar freshness
-  const age = Date.now() - new Date(stats.calculatedAt).getTime();
-  const ageHours = age / (1000 * 60 * 60);
+  const age = Date.now() - new Date(stats.calculatedAt).getTime()
+  const ageHours = age / (1000 * 60 * 60)
   
   if (ageHours > 24) {
-    stats.meta.dataFreshness = 'VERY_STALE';
+    stats.meta.dataFreshness = 'VERY_STALE'
   } else if (ageHours > 12) {
-    stats.meta.dataFreshness = 'STALE';
+    stats.meta.dataFreshness = 'STALE'
   } else {
-    stats.meta.dataFreshness = 'FRESH';
+    stats.meta.dataFreshness = 'FRESH'
   }
   
-  return stats;
+  return stats
 }
