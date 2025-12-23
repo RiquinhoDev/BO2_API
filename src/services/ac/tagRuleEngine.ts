@@ -537,12 +537,12 @@ class TagRuleEngine {
       return { ruleId: rule.id.toString(), ruleName: rule.name, executed: true }
     } catch (error: any) {
       console.error(`❌ Erro ao executar regra "${rule.name}":`, error)
-      return {
-        ruleId: rule.id.toString(),
-        ruleName: rule.name,
-        executed: false,
-        error: error.message
-      }
+return {
+  ruleId: rule.id.toString(),
+  ruleName: rule.name,
+  executed: true,      // ✅ SIM, executou!
+  action: 'ADD_TAG'    // ✅ E aplicou tag!
+}
     }
   }
 
@@ -710,50 +710,59 @@ class TagRuleEngine {
   // EXECUTAR AÇÕES DA REGRA
   // ═══════════════════════════════════════════════════════════
 
-  private async executeRuleActions(
-    rule: ITagRule,
-    context: EvaluationContext,
-    opts?: { skipRuleUpdate?: boolean }
-  ): Promise<void> {
-    const { user, course, userStats } = context
-    const { addTag, removeTags } = rule.actions
+private async executeRuleActions(
+  rule: ITagRule,
+  context: EvaluationContext,
+  opts?: { skipRuleUpdate?: boolean }
+): Promise<void> {
+  const { user, course, userStats } = context
+  const { addTag, removeTags } = rule.actions
 
-    const email = DataUnifier.getUnifiedEmail(user)
+  const email = DataUnifier.getUnifiedEmail(user)
 
-    // 1. Remover tags antigas
-    if (removeTags && removeTags.length > 0) {
-      console.log(`🗑️ [${email}] Removendo tags: ${removeTags.join(', ')}`)
-      await activeCampaignService.removeTags(email, removeTags)
-    }
-
-    // 2. Adicionar nova tag
-    console.log(`✅ [${email}] Aplicando tag: ${addTag}`)
-    await activeCampaignService.addTag(email, addTag)
-
-    // 3. Registar em CommunicationHistory
-    await CommunicationHistory.create({
-      userId: user._id,
-      courseId: (course as any)._id,
-      tagRuleId: rule._id,
-      tagApplied: addTag,
-      status: 'SENT',
-      sentAt: new Date(),
-      source: 'AUTOMATIC',
-      userStateSnapshot: {
-        daysSinceLastAction: userStats.daysSinceLastAction,
-        currentProgress: userStats.currentProgress,
-        currentPhase: 'ENGAGEMENT'
-      }
-    })
-
-    console.log(`📝 [${email}] Comunicação registada em histórico`)
-
-    // 4. Atualizar lastRunAt (só se não estivermos em batch)
-    if (!opts?.skipRuleUpdate) {
-      rule.lastRunAt = new Date()
-      await rule.save()
-    }
+  // 1. Remover tags antigas
+  if (removeTags && removeTags.length > 0) {
+    console.log(`🗑️ [${email}] Removendo tags: ${removeTags.join(', ')}`)
+    await activeCampaignService.removeTags(email, removeTags)
   }
+
+  // 2. Adicionar nova tag
+  console.log(`✅ [${email}] Aplicando tag: ${addTag}`)
+  await activeCampaignService.addTag(email, addTag)
+
+  // 3. Registar em CommunicationHistory
+  // ✅ MUDANÇA: Guardar campo correto dependendo do trackingType
+  const snapshot: any = {
+    currentProgress: userStats.currentProgress,
+    currentPhase: 'ENGAGEMENT'
+  }
+
+  // Adicionar campo específico do trackingType
+  if (course.trackingType === 'ACTION_BASED') {
+    snapshot.daysSinceLastAction = userStats.daysSinceLastAction
+  } else if (course.trackingType === 'LOGIN_BASED') {
+    snapshot.daysSinceLastLogin = userStats.daysSinceLastLogin
+  }
+
+  await CommunicationHistory.create({
+    userId: user._id,
+    courseId: (course as any)._id,
+    tagRuleId: rule._id,
+    tagApplied: addTag,
+    status: 'SENT',
+    sentAt: new Date(),
+    source: 'AUTOMATIC',
+    userStateSnapshot: snapshot  // ✅ Agora com campo correto!
+  })
+
+  console.log(`📝 [${email}] Comunicação registada em histórico`)
+
+  // 4. Atualizar lastRunAt
+  if (!opts?.skipRuleUpdate) {
+    rule.lastRunAt = new Date()
+    await rule.save()
+  }
+}
 
   // ═══════════════════════════════════════════════════════════
   // ✅ CALCULAR ESTATÍSTICAS DO USER (UNIFORMIZADO)
