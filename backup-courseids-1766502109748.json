@@ -1,0 +1,26 @@
+[
+  {
+    "productId": "692f5c2a904878080a9f4ee8",
+    "productName": "Clareza - Anual",
+    "productCode": "CLAREZA_ANUAL",
+    "oldCourseId": "673d0e5f0000000000000001",
+    "newCourseId": "694aa73e1b767c7a3ca075cb",
+    "newCourseName": "Clareza"
+  },
+  {
+    "productId": "692f5c2a904878080a9f4ee6",
+    "productName": "Clareza - Mensal",
+    "productCode": "CLAREZA_MENSAL",
+    "oldCourseId": "673d0e5f0000000000000001",
+    "newCourseId": "694aa73e1b767c7a3ca075cb",
+    "newCourseName": "Clareza"
+  },
+  {
+    "productId": "692332b16d33488c462bafb9",
+    "productName": "OGI V1",
+    "productCode": "OGI_V1",
+    "oldCourseId": "673d0e5f0000000000000002",
+    "newCourseId": "694aa73e1b767c7a3ca075ce",
+    "newCourseName": "O Grande Investimento"
+  }
+]

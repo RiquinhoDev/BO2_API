@@ -223,7 +223,7 @@ const UserProductSchema = new Schema<IUserProduct>({
       type: Number,
       default: 0,
       min: 0,
-      max: 100
+      max: 1000
     },
     
     // LOGIN_BASED (OGI)

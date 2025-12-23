@@ -36,7 +36,7 @@ router.use("/sync", syncRoutes)            // Histórico de sincronizações
 
 
 router.use("/v2/sync", syncV2Routes)
-
+router.use("/ac", acReaderRoutes) 
 
 // 📚 GESTÃO DE TURMAS E CONTEÚDOS
 router.use("/classes", classesRoutes)

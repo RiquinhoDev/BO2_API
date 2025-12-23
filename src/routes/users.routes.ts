@@ -844,77 +844,51 @@ router.get('/v2/engagement/heatmap', async (req, res) => {
 })
 
 // ✅ ROTAS EXISTENTES (mantidas para compatibilidade)
+router.get('/unified', getAllUsersUnified)
+router.get('/dashboard-stats', getDashboardStats)
+router.get('/infinite', getUsersInfinite)
+router.get('/infiniteStats', getUsersInfiniteStats)
+router.get('/getProductStats', getProductStats)
+router.get('/stats', getUserStats)
+router.get('/stats/overview', getUsersStats)
+router.get('/search', searchStudent)
+
 router.get("/listUsers", listUsers)
+router.get("/listUsersSimple", listUsersSimple)
 router.get("/idsDiferentes", getIdsDiferentes)
+router.get("/unmatchedUsers", getUnmatchedUsers)
+router.get("/getUserStats", getUserStats)
+router.get('/users/listUsers', listUsers)
+
+// 2️⃣ ROTAS COM PARÂMETROS + PATH - VÊM ANTES DE /:id
+router.get('/:userId/products', getUserProducts)  // 🎯 MOVER PARA AQUI!
+router.get('/:userId/all-classes', getUserAllClasses)
+router.get('/:id/stats', getStudentStats)
+router.get('/:id/history', getStudentHistory)
+router.get('/by-email/:email', getUserByEmail)
+router.get("/student/:id/stats", getStudentStats)
+router.get("/student/:id/history", getStudentHistory)
+
+// 3️⃣ ROTAS GENÉRICAS COM APENAS PARÂMETRO - NO FINAL
+router.get('/', getUsers)
+router.get('/:id', getUserById)  // 🚨 ÚLTIMA ROTA GET!
+
+// 4️⃣ ROTAS POST/PUT/DELETE - Podem ficar em qualquer posição (não conflitam com GET)
 router.post("/syncDiscordAndHotmart", upload.single("file"), syncDiscordAndHotmart)
 router.post("/mergeDiscordId", mergeDiscordId)
-router.get("/unmatchedUsers", getUnmatchedUsers)
-router.delete("/unmatchedUsers/:id", deleteUnmatchedUser)
-router.delete("/idsDiferentes/:id", deleteIdsDiferentes)
-router.get("/getUserStats", getUserStats)
-// Alias para compatibilidade com o frontend novo
-router.get('/stats', getUserStats)
-router.get("/listUsersSimple", listUsersSimple)
-
-// ✅ ADICIONAR: Nova rota para listar todos os users unificados
-router.get('/unified', getAllUsersUnified)
-
-// ✅ ADICIONAR: Nova rota para dashboard stats com Curseduca
-router.get('/dashboard-stats', getDashboardStats)
-
-// 🔄 AÇÕES EM LOTE
 router.post("/bulkMerge", bulkMergeIds)
 router.post("/bulkDelete", bulkDeleteIds)
 router.post("/bulkDeleteUnmatched", bulkDeleteUnmatchedUsers)
 router.post("/manualMatch", manualMatch)
-
-// 🎓 ROTAS ESPECÍFICAS PARA EDITOR DE ALUNOS E COMPATIBILIDADE COM FRONTEND
-
-// 🔍 Pesquisar alunos - Compatível com ambos os formatos
-router.get("/search", searchStudent) // Rota nova padrão
-
-
-// ✏️ Editar aluno - Compatível com ambos os formatos
-router.put("/:id", editStudent) // Rota nova padrão RESTful
-router.put("/editStudent/:id", editStudent) // Compatibilidade com API antiga
-
-// 📊 Estatísticas detalhadas do aluno
-router.get("/:id/stats", getStudentStats)
-router.get("/student/:id/stats", getStudentStats) // Alias alternativo
-
-// 📋 Histórico de alterações do aluno
-router.get("/:id/history", getStudentHistory)
-router.get("/student/:id/history", getStudentHistory) // Alias alternativo
-
-// 🔄 Sincronizar aluno específico com Hotmart
 router.post("/:id/sync", syncSpecificStudent)
-router.post("/student/:id/sync", syncSpecificStudent) // Alias alternativo
+router.post("/student/:id/sync", syncSpecificStudent)
 
-// 🗑️ Eliminar aluno
+router.put("/:id", editStudent)
+router.put("/editStudent/:id", editStudent)
+
+router.delete("/unmatchedUsers/:id", deleteUnmatchedUser)
+router.delete("/idsDiferentes/:id", deleteIdsDiferentes)
 router.delete("/:id", deleteStudent)
-router.delete("/student/:id", deleteStudent) // Alias alternativo
-
-
-router.get('/infinite', getUsersInfinite)
-router.get('/infiniteStats', getUsersInfiniteStats)
-router.get('/getProductStats', getProductStats)
-
-// 🆕 ROTA: Obter todas as turmas de um utilizador (Hotmart + Curseduca)
-router.get('/:userId/all-classes', getUserAllClasses)
-
-router.get('/users/listUsers', listUsers)
-
-
-// Stats (deve vir antes de :id para evitar conflito)
-router.get('/stats/overview', getUsersStats);
-
-// By filters
-router.get('/by-email/:email', getUserByEmail);
-
-// CRUD
-router.get('/', getUsers);
-router.get('/:id', getUserById);
-
-
+router.delete("/student/:id", deleteStudent)
 
 export default router
