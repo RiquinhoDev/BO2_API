@@ -3095,26 +3095,31 @@ export const getUserByEmail = async (req: Request, res: Response) => {
  * GET /api/users/v2/:userId/products
  * ✅ NOVO: Lista UserProducts de um user
  */
-export const getUserProducts = async (req: Request, res: Response) => {
+export const getUserProducts: RequestHandler = async (req, res) => {
   try {
     const { userId } = req.params
     
-    const user = await User.findById(userId).lean()
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' })
-    }
+    console.log(`🔍 [getUserProducts] Buscando UserProducts para userId: ${userId}`)
     
+    // ✅ BUSCAR DIRETAMENTE (sem verificar se User existe)
     const userProducts = await UserProduct.find({ userId })
       .populate('productId', 'name code platform')
+      .populate('userId', 'name email')  // Popula user info se existir
       .lean()
     
-    res.json({ success: true, data: userProducts, count: userProducts.length })
+    console.log(`✅ [getUserProducts] ${userProducts.length} UserProducts encontrados`)
+    
+    // ✅ Retornar sempre 200 (mesmo se array vazio)
+    res.json({ 
+      success: true, 
+      data: userProducts, 
+      count: userProducts.length 
+    })
   } catch (error: any) {
     console.error('❌ Erro em getUserProducts:', error)
     res.status(500).json({ success: false, error: error.message })
   }
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 📊 ESTATÍSTICAS (CONSOLIDADO)
 // ═══════════════════════════════════════════════════════════════════════════
