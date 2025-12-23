@@ -358,11 +358,17 @@ export const getAllTagRules: RequestHandler = async (_req, res) => {
   try {
     console.log('🏷️ Buscando tag rules...')
 
-    const rules = await TagRule.find().populate('courseId', 'name').sort({ priority: -1 })
+    const rules = await TagRule.find()
+      .populate('courseId', 'name code')  // ✅ Adicionar "code"
+      .sort({ priority: -1 })
 
     console.log(`✅ ${rules.length} regras encontradas`)
 
-    res.json({ success: true, rules })
+    res.json({ 
+      success: true, 
+      count: rules.length,
+      data: rules  // ✅ MUDAR DE "rules" PARA "data"
+    })
     return
   } catch (error: any) {
     console.error('❌ Erro ao buscar tag rules:', error)
@@ -373,7 +379,6 @@ export const getAllTagRules: RequestHandler = async (_req, res) => {
     return
   }
 }
-
 /**
  * POST /api/tag-rules
  */
