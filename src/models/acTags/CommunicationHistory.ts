@@ -21,7 +21,8 @@ export type CommunicationStatus =
 export type CommunicationSource = 'AUTOMATIC' | 'MANUAL'
 
 export interface IUserStateSnapshot {
-  daysSinceLastAction: number
+  daysSinceLastAction?: number     // ✅ Opcional (ACTION_BASED)
+  daysSinceLastLogin?: number      // ✅ ADICIONAR (LOGIN_BASED)
   currentProgress: number
   currentPhase: string
 }
@@ -92,7 +93,8 @@ export interface ICommunicationHistory extends Document {
 // ─────────────────────────────────────────────────────────────
 
 const UserStateSnapshotSchema = new Schema<IUserStateSnapshot>({
-  daysSinceLastAction: { type: Number, required: true },
+  daysSinceLastAction: { type: Number },     // ✅ Opcional (Clareza)
+  daysSinceLastLogin: { type: Number },      // ✅ ADICIONAR (OGI)
   currentProgress: { type: Number, required: true },
   currentPhase: { type: String, required: true }
 }, { _id: false })
