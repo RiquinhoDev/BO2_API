@@ -566,7 +566,8 @@ export const getCommunicationHistory: RequestHandler = async (req, res) => {
       endDate,
       limit = '50',
       page = '1',
-      tagName
+      tagName,
+      email
     } = req.query
 
     // ═══════════════════════════════════════════════════════════
@@ -574,33 +575,49 @@ export const getCommunicationHistory: RequestHandler = async (req, res) => {
     // ═══════════════════════════════════════════════════════════
     const filter: any = {}
     
+    // ✅ Se veio email, buscar userId primeiro
+    if (email) {
+      const user = await User.findOne({ email: (email as string).toLowerCase() })
+      if (user) {
+        filter.userId = user._id
+        console.log(`🔍 Email "${email}" → userId: ${user._id}`)
+      } else {
+        console.log(`⚠️  Email "${email}" não encontrado`)
+        res.json({
+          success: true,
+          history: [],
+          pagination: { total: 0, page: 1, limit: parseInt(limit as string), pages: 0 }
+        })
+        return
+      }
+    }
+    
     if (userId) filter.userId = userId
     if (courseId) filter.courseId = courseId
-    if (action) filter.action = action
     if (source) filter.source = source
-    if (tagName) filter.tagName = { $regex: tagName, $options: 'i' }
+    if (tagName) filter.tagApplied = { $regex: tagName, $options: 'i' }
     
     if (startDate || endDate) {
-      filter.timestamp = {}
-      if (startDate) filter.timestamp.$gte = new Date(startDate as string)
-      if (endDate) filter.timestamp.$lte = new Date(endDate as string)
+      filter.createdAt = {}
+      if (startDate) filter.createdAt.$gte = new Date(startDate as string)
+      if (endDate) filter.createdAt.$lte = new Date(endDate as string)
     }
 
     console.log('🔍 Filtros aplicados:', filter)
 
     // ═══════════════════════════════════════════════════════════
-    // BUSCAR COM PAGINAÇÃO
+    // BUSCAR COM PAGINAÇÃO E POPULATE
     // ═══════════════════════════════════════════════════════════
     const limitNum = parseInt(limit as string)
     const pageNum = parseInt(page as string)
     const skip = (pageNum - 1) * limitNum
 
-    const [history, total] = await Promise.all([
+    const [rawHistory, total] = await Promise.all([
       CommunicationHistory.find(filter)
         .populate('userId', 'name email')
         .populate('courseId', 'name code')
         .populate('tagRuleId', 'name category')
-        .sort({ timestamp: -1 })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
         .lean(),
@@ -608,39 +625,58 @@ export const getCommunicationHistory: RequestHandler = async (req, res) => {
       CommunicationHistory.countDocuments(filter)
     ])
 
-    console.log(`✅ ${history.length} registos encontrados (total: ${total})`)
+    console.log(`✅ ${rawHistory.length} registos encontrados (total: ${total})`)
 
     // ═══════════════════════════════════════════════════════════
-    // ESTATÍSTICAS RÁPIDAS
+    // ✅ MAPEAR PARA FORMATO DO FRONTEND!
     // ═══════════════════════════════════════════════════════════
-    const stats = await CommunicationHistory.aggregate([
-      { $match: filter },
-      {
-        $group: {
-          _id: '$action',
-          count: { $sum: 1 }
-        }
+    const history = rawHistory.map((record: any) => {
+      // Extrair dados do populate
+      const user = record.userId as any
+      const course = record.courseId as any
+      const rule = record.tagRuleId as any
+
+      return {
+        _id: record._id.toString(),
+        
+        // ✅ User data (extraído do populate)
+        userId: user?._id?.toString() || record.userId?.toString() || '',
+        userName: user?.name || 'Desconhecido',
+        userEmail: user?.email || 'N/A',
+        
+        // ✅ Course data (extraído do populate)
+        courseId: course?._id?.toString() || record.courseId?.toString() || '',
+        courseName: course?.name || 'Desconhecido',
+        
+        // ✅ Tag data
+        tagApplied: record.tagApplied || 'N/A',
+        tagId: rule?._id?.toString() || record.tagRuleId?.toString() || '',
+        
+        // ✅ Dates (usar sentAt ou createdAt)
+        appliedAt: record.sentAt || record.createdAt,
+        
+        // ✅ Reason (construir a partir dos dados disponíveis)
+        reason: buildReason(record, rule),
+        
+        // ✅ Metadata adicional (útil para futuro)
+        source: record.source,
+        status: record.status,
+        userStateSnapshot: record.userStateSnapshot
       }
-    ])
-
-    const statsMap = stats.reduce((acc: any, s: any) => {
-      acc[s._id] = s.count
-      return acc
-    }, {})
+    })
 
     // ═══════════════════════════════════════════════════════════
     // RESPOSTA
     // ═══════════════════════════════════════════════════════════
     res.json({
       success: true,
-      data: history,
+      history,  // ✅ Array mapeado!
       pagination: {
         total,
         page: pageNum,
         limit: limitNum,
         pages: Math.ceil(total / limitNum)
-      },
-      stats: statsMap
+      }
     })
     return
   } catch (error: any) {
@@ -1109,4 +1145,35 @@ export const syncProductTags: RequestHandler = async (req, res) => {
     res.status(500).json({ success: false, error: error.message })
     return
   }
+}
+function buildReason(record: any, rule: any): string {
+  // Se tiver snapshot, usar para criar reason descritivo
+  const snapshot = record.userStateSnapshot
+  
+  if (!snapshot) {
+    return rule?.name || 'Regra aplicada automaticamente'
+  }
+
+  const parts: string[] = []
+  
+  // Adicionar informação de inatividade
+  if (snapshot.daysSinceLastLogin !== undefined) {
+    parts.push(`${snapshot.daysSinceLastLogin} dias sem login`)
+  } else if (snapshot.daysSinceLastAction !== undefined) {
+    parts.push(`${snapshot.daysSinceLastAction} dias inativo`)
+  }
+  
+  // Adicionar progresso
+  if (snapshot.currentProgress !== undefined) {
+    parts.push(`progresso ${snapshot.currentProgress}%`)
+  }
+  
+  // Se tiver nome da regra, adicionar
+  if (rule?.name) {
+    parts.push(`(${rule.name})`)
+  }
+  
+  return parts.length > 0 
+    ? parts.join(', ') 
+    : 'Regra aplicada automaticamente'
 }
