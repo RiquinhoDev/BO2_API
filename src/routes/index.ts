@@ -1,8 +1,8 @@
-// src/routes/index.ts - VERSÃO CORRIGIDA COM CURSEDUCA + DASHBOARD V2 + V2 ROUTES
+// src/routes/index.ts - VERSÃO CORRIGIDA COM 2 SISTEMAS CRON
 import { Router } from "express"
 import userRoutes from "./users.routes"
 import hotmartRoutes from "./hotmart.routes"
-import curseducaRoutes from './curseduca.routes'  // Sincronização CursEduca
+import curseducaRoutes from './curseduca.routes'
 import syncRoutes from "./sync.routes"
 import classesRoutes from "./classes.routes"
 import classManagementRoutes from "./classManagement.routes"
@@ -14,26 +14,28 @@ import analyticsRoutes from './analytics.routes'
 import userHistoryRoutes from './userHistory.routes'
 import courseRoutes from './course.routes'
 import tagRuleRoutes from './ACroutes/tagRule.routes'
-import dashboardRoutes from './dashboardRoutes'  // Dashboard V1 & V2 (Sprint Correções)
-import productProfileRoutes from './productProfile.routes'  // Re-engagement Profiles
-import reengagementRoutes from './reengagement.routes'  // Re-engagement System
-import discoveryRoutes from './discovery.routes'  // Discovery System
-import acReaderRoutes from './ACroutes/acReader.routes'  // Sprint 5: Contact Tag Reader (OLD)
-
-
+import dashboardRoutes from './dashboardRoutes'
+import productProfileRoutes from './productProfile.routes'
+import reengagementRoutes from './reengagement.routes'
+import discoveryRoutes from './discovery.routes'
+import acReaderRoutes from './ACroutes/acReader.routes'
 import syncV2Routes from './syncV2.routes'
 
-   import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
-   import syncStatsRoutes from './syncUtilizadoresRoutes/syncStats.routes'
-      import syncReports from './syncUtilizadoresRoutes/syncReports.routes'
+// ✅ CRON UTILIZADORES (Sistema Novo)
+import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
+import syncStatsRoutes from './syncUtilizadoresRoutes/syncStats.routes'
+import syncReports from './syncUtilizadoresRoutes/syncReports.routes'
+
+// ✅ CRON TAGS (Sistema das Tags AC)
+import cronManagementRoutes from './cron/cronManagement.routes'
+
 const router = Router()
 
 // 🔄 PRINCIPAIS SERVIÇOS DE SINCRONIZAÇÃO
 router.use("/users", userRoutes)
-router.use("/hotmart", hotmartRoutes)      // Sincronização Hotmart
-router.use("/curseduca", curseducaRoutes)  // Sincronização CursEduca
-router.use("/sync", syncRoutes)            // Histórico de sincronizações
-
+router.use("/hotmart", hotmartRoutes)
+router.use("/curseduca", curseducaRoutes)
+router.use("/sync", syncRoutes)
 
 router.use("/v2/sync", syncV2Routes)
 router.use("/ac", acReaderRoutes) 
@@ -49,7 +51,7 @@ router.use("/engagement", engagementRoutes)
 router.use("/user-history", userHistoryRoutes)
 
 // 📊 ANÁLISES E RELATÓRIOS
-router.use("/dashboard", dashboardRoutes)  // Dashboard V1 & V2 (Sprint Correções)
+router.use("/dashboard", dashboardRoutes)
 router.use("/products", productsRoutes)
 router.use("/analytics", analyticsRoutes)
 
@@ -59,13 +61,15 @@ router.use("/tag-rules", tagRuleRoutes)
 router.use("/product-profiles", productProfileRoutes)
 router.use("/reengagement", reengagementRoutes)
 router.use("/discovery", discoveryRoutes)
-router.use("/ac", acReaderRoutes)  // Sprint 5: Contact Tag Reader (OLD)
 
+// ⏰ CRON SYSTEMS
+// Sistema de CRON para sincronização de utilizadores
+router.use('/cron', cronRoutes)                    // /api/cron/jobs, /api/cron/status
+router.use('/sync', syncStatsRoutes)               // /api/sync/*
+router.use('/sync/reports', syncReports)           // /api/sync/reports/*
 
-   router.use('/cron', cronRoutes)
-router.use('/sync', syncStatsRoutes)
- router.use('/sync/reports', syncReports)     
-
+// ✅ Sistema de CRON para gestão de Tags AC
+router.use('/cron-tags', cronManagementRoutes)     // /api/cron-tags/config, /api/cron-tags/execute
 
 // 🏥 HEALTH CHECK MELHORADO
 router.get("/health", (req, res) => {
@@ -77,7 +81,7 @@ router.get("/health", (req, res) => {
       // Serviços principais
       users: "✅ Disponível",
       hotmart: "✅ Disponível", 
-      curseduca: "✅ Disponível",  // Nova integração
+      curseduca: "✅ Disponível",
       sync: "✅ Disponível",
       
       // Gestão de conteúdo
@@ -91,13 +95,17 @@ router.get("/health", (req, res) => {
       userHistory: "✅ Disponível",
       
       // Análises
-      dashboard: "✅ Disponível (V1 & V2)",  // Sprint Correções
+      dashboard: "✅ Disponível (V1 & V2)",
       products: "✅ Disponível",
       analytics: "✅ Disponível",
       
       // Active Campaign
       courses: "✅ Disponível",
-      tagRules: "✅ Disponível"
+      tagRules: "✅ Disponível",
+      
+      // CRON Systems
+      cronUtilizadores: "✅ Disponível",
+      cronTags: "✅ Disponível"
     },
     integrations: {
       hotmart: "✅ Configurado",
@@ -123,19 +131,26 @@ router.get("/info", (req, res) => {
       "Histórico de alterações",
       "Análises e relatórios",
       "Active Campaign Integration",
-      "Tag Rules Engine"
+      "Tag Rules Engine",
+      "CRON Utilizadores",
+      "CRON Tags AC"
     ],
     endpoints: {
+      // Principais
       hotmart: "/api/hotmart",
       curseduca: "/api/curseduca",
       users: "/api/users",
       sync: "/api/sync",
       classes: "/api/classes",
-      dashboard: "/api/dashboard",      // Sprint Correções
-      dashboardV2: "/api/dashboard/stats/v2",  // Sprint Correções
+      dashboard: "/api/dashboard",
+      dashboardV2: "/api/dashboard/stats/v2",
       analytics: "/api/analytics",
       courses: "/api/courses",
-      tagRules: "/api/tag-rules"
+      tagRules: "/api/tag-rules",
+      
+      // CRON Systems
+      cronUtilizadores: "/api/cron/*",         // Sistema de jobs de utilizadores
+      cronTags: "/api/cron-tags/*"             // Sistema de tags AC
     }
   })
 })
