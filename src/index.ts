@@ -18,7 +18,7 @@ import './jobs/evaluateRules.job'
 import activecampaignRoutes from './routes/ACroutes/activecampaign.routes'
 import webhooksRoutes from './routes/webhooks.routes'
 import healthRoutes from './routes/health.routes'
-import cronManagementRoutes from './routes/cronManagement.routes'
+
 import cronManagementService from './services/cronManagement.service'
 
 // 🆕 SYNC UTILIZADORES FASE 1: Importar NOVO scheduler (nome diferente!)
@@ -26,7 +26,7 @@ import syncSchedulerService from './services/syncUtilziadoresServices/scheduler'
 
 // 🔥 WARM-UP: Importar função de pré-aquecimento do cache
 import { warmUpCache } from './services/dualReadService'
-
+import cronManagementRoutes from './routes/cron/cronManagement.routes'
 // 📊 DASHBOARD STATS: Importar CRON job de rebuild
 import { startRebuildDashboardStatsJob } from './jobs/rebuildDashboardStats.job'
 import { buildDashboardStats } from './services/dashboardStatsBuilder.service'
@@ -187,10 +187,7 @@ app.delete('/api/tag-rules/:id', deleteTagRule)
 
 // Communication History
 app.get('/api/communication-history', getCommunicationHistory)
-
-// CRON Management routes
-app.use('/api/cron-old', cronManagementRoutes) // Sistema antigo
-
+app.use('/cron-tags', cronManagementRoutes)
 // 🆕 SYNC UTILIZADORES FASE 1: As rotas são adicionadas no router principal
 // Ver src/routes/index.ts onde estão:
 // router.use('/cron', cronRoutes)
