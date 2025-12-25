@@ -5,7 +5,8 @@
 // ================================================================
 
 import { Router } from 'express'
-import cronManagementController from '../controllers/cronManagement.controller'
+import cronManagementController from '../../controllers/cron/cronManagement.controller'
+
 
 const router = Router()
 
@@ -26,6 +27,13 @@ router.get('/history', cronManagementController.getHistory)
 
 // GET /api/cron/statistics - Estatísticas (últimos X dias)
 router.get('/statistics', cronManagementController.getStatistics)
+// GET /api/cron/jobs/:id/history - Histórico de execuções de um job
+router.get('/jobs/:id/history', cronManagementController.getJobHistory)
 
+// POST /api/cron/validate - Validar cron expression
+router.post('/validate', cronManagementController.validateCronExpression)
+
+// GET /api/cron/status - Status geral do sistema
+router.get('/status', cronManagementController.getCronStatus)
 export default router
 
