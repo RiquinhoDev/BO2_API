@@ -111,6 +111,7 @@ export const getAvailableTagRules = async (req: Request, res: Response) => {
   try {
     const { syncType } = req.query
 
+    // Validar syncType
     if (!syncType || !['hotmart', 'curseduca', 'discord', 'all'].includes(syncType as string)) {
       return res.status(400).json({
         success: false,
@@ -122,68 +123,107 @@ export const getAvailableTagRules = async (req: Request, res: Response) => {
 
     // Importar modelos
     const TagRule = (await import('../../models/acTags/TagRule')).default
+    const Course = (await import('../../models/Course')).default
     const Product = (await import('../../models/Product')).default
 
-    // Construir query base
-    let query: any = { isActive: true }
+    // ─────────────────────────────────────────────────────────
+    // PASSO 1: Buscar courseIds com base na plataforma
+    // ─────────────────────────────────────────────────────────
+    
+    let courseIds: any[] = []
 
-    // Filtrar por plataforma se não for 'all'
-    if (syncType !== 'all') {
+    if (syncType === 'all') {
+      // Buscar todos os courses ativos
+      const courses = await Course.find({ isActive: true }).select('_id')
+      courseIds = courses.map(c => c._id)
+    } else {
+      // Buscar produtos da plataforma
       const products = await Product.find({ 
-        platform: syncType 
-      }).select('_id')
+        platform: syncType,
+        isActive: true 
+      }).select('courseId')
 
-      const productIds = products.map(p => p._id)
-      query.product = { $in: productIds }
+      // Filtrar apenas produtos que têm courseId
+      const productCourseIds = products
+        .map(p => p.courseId)
+        .filter(id => id != null)
+
+      // Remover duplicados
+      courseIds = [...new Set(productCourseIds.map(id => id.toString()))]
+        .map(id => new (require('mongoose')).Types.ObjectId(id))
     }
 
-    // Buscar regras com populate
-    const rules = await TagRule.find(query)
-      .populate({
-        path: 'product',
-        select: 'name code platform',
-        populate: {
-          path: 'course',
-          select: 'name'
+    console.log(`[CRON] 📚 Encontrados ${courseIds.length} courses para plataforma ${syncType}`)
+
+    if (courseIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'Nenhum course encontrado para esta plataforma',
+        data: {
+          rules: [],
+          groupedByCourse: [],
+          totalRules: 0,
+          totalCourses: 0
         }
       })
-      .sort({ createdAt: -1 })
-      .lean()
+    }
 
-    // Filtrar regras válidas
-    const validRules = rules.filter(rule => rule.product)
+    // ─────────────────────────────────────────────────────────
+    // PASSO 2: Buscar regras ativas desses courses
+    // ─────────────────────────────────────────────────────────
 
-    // Agrupar por curso
-    const groupedByCourse = validRules.reduce((acc: any[], rule: any) => {
-      const courseName = rule.product?.course?.name || 'Sem Curso'
-      const courseId = rule.product?.course?._id?.toString() || 'no-course'
-      const platform = rule.product?.platform || 'unknown'
+    const rules = await TagRule.find({
+      courseId: { $in: courseIds },
+      isActive: true
+    })
+    .populate('courseId', 'name code trackingType')
+    .sort({ priority: -1, createdAt: -1 })
+    .lean()
 
+    console.log(`[CRON] ⚙️  Encontradas ${rules.length} regras ativas`)
+
+    // ─────────────────────────────────────────────────────────
+    // PASSO 3: Agrupar por course
+    // ─────────────────────────────────────────────────────────
+
+    const groupedByCourse = rules.reduce((acc: any[], rule: any) => {
+      if (!rule.courseId) return acc
+
+      const course = rule.courseId
+      const courseName = course.name || 'Sem Nome'
+      const courseId = course._id.toString()
+      const courseCode = course.code || 'UNKNOWN'
+
+      // Buscar ou criar grupo
       let group = acc.find(g => g.courseId === courseId)
 
       if (!group) {
         group = {
           courseName,
           courseId,
-          platform,
+          courseCode,
+          platform: syncType === 'all' ? 'all' : syncType,
           rules: [],
           totalRules: 0
         }
         acc.push(group)
       }
 
+      // Adicionar regra ao grupo
       group.rules.push({
         _id: rule._id,
         name: rule.name,
-        tagName: rule.tagName,
+        tagName: rule.actions?.addTag || 'N/A',
         description: rule.description || '',
-        product: {
-          _id: rule.product._id,
-          name: rule.product.name,
-          platform: rule.product.platform
+        category: rule.category,
+        priority: rule.priority,
+        course: {
+          _id: course._id,
+          name: course.name,
+          code: course.code
         },
         conditions: rule.conditions || [],
-        estimatedStudents: 0,
+        estimatedStudents: 0, // Pode calcular se necessário
         isActive: rule.isActive
       })
 
@@ -192,27 +232,36 @@ export const getAvailableTagRules = async (req: Request, res: Response) => {
       return acc
     }, [])
 
-    console.log(`[CRON] ✅ ${validRules.length} Tag Rules encontradas`)
+    // Ordenar grupos por nome do course
+    groupedByCourse.sort((a, b) => a.courseName.localeCompare(b.courseName))
+
+    console.log(`[CRON] ✅ ${rules.length} regras agrupadas em ${groupedByCourse.length} courses`)
+
+    // ─────────────────────────────────────────────────────────
+    // PASSO 4: Retornar resposta
+    // ─────────────────────────────────────────────────────────
 
     return res.status(200).json({
       success: true,
-      message: `${validRules.length} Tag Rules encontradas`,
+      message: `${rules.length} Tag Rules encontradas`,
       data: {
-        rules: validRules.map((rule: any) => ({
+        rules: rules.map((rule: any) => ({
           _id: rule._id,
           name: rule.name,
-          tagName: rule.tagName,
+          tagName: rule.actions?.addTag || 'N/A',
           description: rule.description || '',
-          product: {
-            _id: rule.product._id,
-            name: rule.product.name,
-            platform: rule.product.platform
-          },
+          category: rule.category,
+          priority: rule.priority,
+          course: rule.courseId ? {
+            _id: rule.courseId._id,
+            name: rule.courseId.name,
+            code: rule.courseId.code
+          } : null,
           conditions: rule.conditions || [],
           isActive: rule.isActive
         })),
         groupedByCourse,
-        totalRules: validRules.length,
+        totalRules: rules.length,
         totalCourses: groupedByCourse.length
       }
     })
@@ -226,6 +275,9 @@ export const getAvailableTagRules = async (req: Request, res: Response) => {
     })
   }
 }
+
+
+
 
 /**
  * Helper: Agrupar regras por curso
