@@ -28,6 +28,7 @@ import syncReports from './syncUtilizadoresRoutes/syncReports.routes'
 
 // ✅ CRON TAGS (Sistema das Tags AC)
 import cronManagementRoutes from './cron/cronManagement.routes'
+import { estimateAffectedUsers, getAvailableFields, previewAffectedUsers } from "../controllers/acTags/tagRuleEstimate.controller"
 
 const router = Router()
 
@@ -57,7 +58,11 @@ router.use("/analytics", analyticsRoutes)
 
 // 📧 ACTIVE CAMPAIGN & RE-ENGAGEMENT
 router.use("/courses", courseRoutes)
+router.post('/tag-rules/estimate', estimateAffectedUsers)
+router.post('/tag-rules/preview', previewAffectedUsers)
+router.get('/tag-rules/fields', getAvailableFields)
 router.use("/tag-rules", tagRuleRoutes)
+
 router.use("/product-profiles", productProfileRoutes)
 router.use("/reengagement", reengagementRoutes)
 router.use("/discovery", discoveryRoutes)
