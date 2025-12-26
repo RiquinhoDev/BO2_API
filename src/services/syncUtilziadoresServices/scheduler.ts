@@ -14,6 +14,7 @@ import CronJobConfig, {
 import universalSyncService from './universalSyncService'
 import curseducaAdapter from './curseducaServices/curseduca.adapter'
 import hotmartAdapter from './hotmartServices/hotmart.adapter'
+import CronExecution from '../../models/CronExecution'
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -275,6 +276,42 @@ export class CronManagementService {
   }
 
   // ═══════════════════════════════════════════════════════════
+  // SAVE EXECUTION HISTORY
+  // ═══════════════════════════════════════════════════════════
+
+  private async saveExecutionHistory(
+    job: ICronJobConfig,
+    stats: ILastRunStats,
+    status: 'success' | 'error',
+    duration: number,
+    triggeredBy: 'CRON' | 'MANUAL',
+    errorMessage?: string
+  ): Promise<void> {
+    try {
+      const startedAt = new Date(Date.now() - duration * 1000)
+      const completedAt = new Date()
+
+      await CronExecution.create({
+        cronName: job.name,
+        executionType: triggeredBy === 'MANUAL' ? 'manual' : 'automatic',
+        status: status === 'success' ? 'success' : 'error',
+        startTime: startedAt,
+        endTime: completedAt,
+        duration: duration * 1000, // Converter para ms
+        tagsApplied: 0, // CRON jobs não aplicam tags diretamente
+        emailsSynced: 0,
+        studentsProcessed: stats.total,
+        errorMessage
+      })
+
+      console.log(`💾 Histórico salvo: ${job.name} (${status})`)
+    } catch (error: any) {
+      console.error(`⚠️ Erro ao salvar histórico para ${job.name}:`, error.message)
+      // Não lançar erro para não quebrar execução do job
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // EXECUTE MANUALLY
   // ═══════════════════════════════════════════════════════════
 
@@ -297,10 +334,20 @@ export class CronManagementService {
 
       const duration = Math.round((Date.now() - startTime) / 1000)
 
-      // Registrar execução
+      // Registrar execução no job
       await job.recordExecution(
         result.stats,
         result.success ? 'success' : 'failed',
+        duration,
+        'MANUAL',
+        result.errorMessage
+      )
+
+      // ✅ NOVO: Salvar no histórico
+      await this.saveExecutionHistory(
+        job,
+        result.stats,
+        result.success ? 'success' : 'error',
         duration,
         'MANUAL',
         result.errorMessage
@@ -338,6 +385,16 @@ export class CronManagementService {
       await job.recordExecution(
         stats,
         'failed',
+        duration,
+        'MANUAL',
+        error.message
+      )
+
+      // ✅ NOVO: Salvar erro no histórico
+      await this.saveExecutionHistory(
+        job,
+        stats,
+        'error',
         duration,
         'MANUAL',
         error.message
@@ -395,16 +452,27 @@ export class CronManagementService {
       const scheduledJob = schedule.scheduleJob(
         job.schedule.cronExpression,
         async () => {
-          console.log(`⏰ Executando job agendado: ${job.name}`)
+          console.log(`🕐 CRON trigger: ${job.name}`)
+          
           const startTime = Date.now()
 
           try {
             const result = await this.executeSyncJob(job)
+
             const duration = Math.round((Date.now() - startTime) / 1000)
 
             await job.recordExecution(
               result.stats,
               result.success ? 'success' : 'failed',
+              duration,
+              'CRON'
+            )
+
+            // ✅ NOVO: Salvar no histórico
+            await this.saveExecutionHistory(
+              job,
+              result.stats,
+              result.success ? 'success' : 'error',
               duration,
               'CRON'
             )
@@ -420,6 +488,16 @@ export class CronManagementService {
             await job.recordExecution(
               { total: 0, inserted: 0, updated: 0, errors: 1, skipped: 0 },
               'failed',
+              duration,
+              'CRON',
+              error.message
+            )
+
+            // ✅ NOVO: Salvar erro no histórico
+            await this.saveExecutionHistory(
+              job,
+              { total: 0, inserted: 0, updated: 0, errors: 1, skipped: 0 },
+              'error',
               duration,
               'CRON',
               error.message
@@ -508,87 +586,87 @@ export class CronManagementService {
     }
   }
 
-private async executeHotmartSync(job: ICronJobConfig): Promise<any> {
-  console.log('🔥 [CRON] Executando Hotmart sync...')
+  private async executeHotmartSync(job: ICronJobConfig): Promise<any> {
+    console.log('🔥 [CRON] Executando Hotmart sync...')
 
-  try {
-    // 1. Buscar dados via Adapter
-    const hotmartData = await hotmartAdapter.fetchHotmartDataForSync({
-      includeProgress: true,
-      includeLessons: true,
-      progressConcurrency: 5
-    })
+    try {
+      // 1. Buscar dados via Adapter
+      const hotmartData = await hotmartAdapter.fetchHotmartDataForSync({
+        includeProgress: true,
+        includeLessons: true,
+        progressConcurrency: 5
+      })
 
-    console.log(`✅ [CRON] ${hotmartData.length} users Hotmart preparados`)
+      console.log(`✅ [CRON] ${hotmartData.length} users Hotmart preparados`)
 
-    // 2. Executar via Universal Sync
-    const result = await universalSyncService.executeUniversalSync({
-      syncType: 'hotmart',
-      jobName: job.name,
-      jobId: job._id.toString(),
-      triggeredBy: 'CRON',
-      
-      fullSync: true,
-      includeProgress: true,
-      includeTags: false,
-      batchSize: 50,
-      
-      sourceData: hotmartData
-    })
+      // 2. Executar via Universal Sync
+      const result = await universalSyncService.executeUniversalSync({
+        syncType: 'hotmart',
+        jobName: job.name,
+        jobId: job._id.toString(),
+        triggeredBy: 'CRON',
+        
+        fullSync: true,
+        includeProgress: true,
+        includeTags: false,
+        batchSize: 50,
+        
+        sourceData: hotmartData
+      })
 
-    console.log(`✅ [CRON] Hotmart sync completo: ${result.stats.total} users`)
+      console.log(`✅ [CRON] Hotmart sync completo: ${result.stats.total} users`)
 
-    return {
-      success: result.success,
-      stats: result.stats
+      return {
+        success: result.success,
+        stats: result.stats
+      }
+
+    } catch (error: any) {
+      console.error('❌ [CRON] Erro Hotmart sync:', error)
+      throw error
     }
-
-  } catch (error: any) {
-    console.error('❌ [CRON] Erro Hotmart sync:', error)
-    throw error
   }
-}
 
-private async executeCurseducaSync(job: ICronJobConfig): Promise<any> {
-  console.log('📚 [CRON] Executando CursEduca sync...')
+  private async executeCurseducaSync(job: ICronJobConfig): Promise<any> {
+    console.log('📚 [CRON] Executando CursEduca sync...')
 
-  try {
-    // 1. Buscar dados via Adapter
-    const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
-      includeProgress: true,
-      includeGroups: true,
-      progressConcurrency: 5
-    })
+    try {
+      // 1. Buscar dados via Adapter
+      const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
+        includeProgress: true,
+        includeGroups: true,
+        progressConcurrency: 5
+      })
 
-    console.log(`✅ [CRON] ${curseducaData.length} users CursEduca preparados`)
+      console.log(`✅ [CRON] ${curseducaData.length} users CursEduca preparados`)
 
-    // 2. Executar via Universal Sync
-    const result = await universalSyncService.executeUniversalSync({
-      syncType: 'curseduca',
-      jobName: job.name,
-      jobId: job._id.toString(),
-      triggeredBy: 'CRON',
-      
-      fullSync: true,
-      includeProgress: true,
-      includeTags: false,
-      batchSize: 50,
-      
-      sourceData: curseducaData
-    })
+      // 2. Executar via Universal Sync
+      const result = await universalSyncService.executeUniversalSync({
+        syncType: 'curseduca',
+        jobName: job.name,
+        jobId: job._id.toString(),
+        triggeredBy: 'CRON',
+        
+        fullSync: true,
+        includeProgress: true,
+        includeTags: false,
+        batchSize: 50,
+        
+        sourceData: curseducaData
+      })
 
-    console.log(`✅ [CRON] CursEduca sync completo: ${result.stats.total} users`)
+      console.log(`✅ [CRON] CursEduca sync completo: ${result.stats.total} users`)
 
-    return {
-      success: result.success,
-      stats: result.stats
+      return {
+        success: result.success,
+        stats: result.stats
+      }
+
+    } catch (error: any) {
+      console.error('❌ [CRON] Erro CursEduca sync:', error)
+      throw error
     }
-
-  } catch (error: any) {
-    console.error('❌ [CRON] Erro CursEduca sync:', error)
-    throw error
   }
-}
 
   private async executeDiscordSync(job: ICronJobConfig): Promise<any> {
     console.log('💬 Executando Discord sync...')
