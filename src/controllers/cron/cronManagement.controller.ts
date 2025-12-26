@@ -9,6 +9,7 @@ import mongoose from 'mongoose'
 import cronManagementService from '../../services/syncUtilziadoresServices/cronManagement.service'
 import CronJobConfig from '../../models/SyncModels/CronJobConfig'
 import { CronExecution } from '../../models'
+import syncSchedulerService from '../../services/syncUtilziadoresServices/scheduler'
 
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -620,66 +621,84 @@ class CronManagementController {
  * 
  * ✅ VERSÃO CORRIGIDA - SUBSTITUIR O MÉTODO COMPLETO
  */
-async getJobHistory(req: Request, res: Response): Promise<void> {
+ getJobHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
-    const { limit = '20', status } = req.query
+    const limit = parseInt(req.query.limit as string) || 20
 
-    console.log(`📊 Buscando histórico do job: ${id}`)
+    console.log(`📊 Buscando histórico do job: ${id} (limit: ${limit})`)
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({
         success: false,
-        error: 'ID inválido'
+        message: 'ID inválido'
       })
       return
     }
 
-    const filter: any = { jobId: id }
-    if (status) filter.status = status
+    const job = await syncSchedulerService.getJobById(
+      new mongoose.Types.ObjectId(id)
+    )
 
-    const executions = await CronExecution.find(filter)
-      .sort({ startedAt: -1 })
-      .limit(parseInt(limit as string))
-      .lean()
-
-    // ✅ FIX: Verificar tipos corretos do CronExecution
-    // CronExecution usa: 'success' | 'error' | 'running'
-    // CronJobConfig usa: 'success' | 'failed' | 'partial' | 'running'
-    const allExecutions = await CronExecution.find({ jobId: id }).lean()
-    
-    const stats = {
-      total: allExecutions.length,
-      success: allExecutions.filter(e => e.status === 'success').length,
-      error: allExecutions.filter(e => e.status === 'error').length,  // ✅ 'error' não 'failed'
-      running: allExecutions.filter(e => e.status === 'running').length,
-      avgDuration: allExecutions.length > 0
-        ? Math.round(
-            allExecutions.reduce((sum, e) => sum + (e.duration ?? 0), 0) / allExecutions.length  // ✅ Usar ?? 0
-          )
-        : 0,
-      successRate: allExecutions.length > 0
-        ? Math.round(
-            (allExecutions.filter(e => e.status === 'success').length / allExecutions.length) * 100
-          )
-        : 0
+    if (!job) {
+      res.status(404).json({
+        success: false,
+        message: 'Job não encontrado'
+      })
+      return
     }
 
-    console.log(`✅ ${executions.length} execuções encontradas`)
+    // ✅ NOVO: Buscar histórico completo do CronExecution
+    const executions = await CronExecution.find({ cronName: job.name })
+      .sort({ startTime: -1 }) // Mais recentes primeiro
+      .limit(limit)
+      .lean()
 
-    res.json({
+    console.log(`✅ ${executions.length} execuções encontradas para ${job.name}`)
+
+    // Transformar para formato esperado pelo frontend
+    const history = executions.map(exec => ({
+      _id: exec._id,
+      jobId: job._id,
+      jobName: job.name,
+      status: exec.status,
+      startedAt: exec.startTime,
+      completedAt: exec.endTime,
+      duration: exec.duration ? Math.round(exec.duration / 1000) : 0, // Converter ms para segundos
+      stats: {
+        total: exec.studentsProcessed || 0,
+        inserted: 0, // CronExecution não separa inserted/updated
+        updated: exec.studentsProcessed || 0,
+        errors: exec.status === 'error' ? 1 : 0,
+        skipped: 0
+      },
+      triggeredBy: exec.executionType === 'manual' ? 'MANUAL' : 'CRON',
+      errorMessage: exec.errorMessage
+    }))
+
+    res.status(200).json({
       success: true,
-      executions,
-      stats
+      message: 'Histórico recuperado com sucesso',
+      data: {
+        jobId: job._id,
+        jobName: job.name,
+        totalRuns: job.totalRuns,
+        successfulRuns: job.successfulRuns,
+        failedRuns: job.failedRuns,
+        successRate: job.getSuccessRate(),
+        executions: history, // Mudou de "history" para "executions" para clareza
+        count: history.length,
+        limit
+      }
     })
-    return
+
   } catch (error: any) {
     console.error('❌ Erro ao buscar histórico:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao buscar histórico'
+      message: 'Erro ao buscar histórico',
+      error: error.message
     })
-    return
   }
 }
 

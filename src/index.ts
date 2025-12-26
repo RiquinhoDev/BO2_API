@@ -27,9 +27,13 @@ import syncSchedulerService from './services/syncUtilziadoresServices/scheduler'
 // 🔥 WARM-UP: Importar função de pré-aquecimento do cache
 import { warmUpCache } from './services/dualReadService'
 import cronManagementRoutes from './routes/cron/cronManagement.routes'
+
 // 📊 DASHBOARD STATS: Importar CRON job de rebuild
 import { startRebuildDashboardStatsJob } from './jobs/rebuildDashboardStats.job'
 import { buildDashboardStats } from './services/dashboardStatsBuilder.service'
+
+// 🧹 CLEANUP: Importar CRON job de limpeza de histórico
+import './jobs/cronExecutionCleanup.job'  // ✅ SÓ ISTO! Nada mais!
 
 // ✅ ACTIVE CAMPAIGN: Importar controllers para Tag Rules e Communication History
 import {
