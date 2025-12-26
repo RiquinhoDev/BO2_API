@@ -98,6 +98,7 @@ export interface IUser extends Document {
       activityLevel: 'HIGH' | 'MEDIUM' | 'LOW'
       groupEngagement: number
       progressSource: 'estimated'
+      lastActivity?: Date
     }
     
     // Engagement baseado em estimativas

@@ -6,10 +6,11 @@
 
 import syncReportsService from './syncReports.service'
 import SyncHistory from '../../models/SyncModels/SyncHistory'
-import User from '../../models/user'
+import User, { IUser } from '../../models/user'
 import type { SyncType, TriggerType } from '../../models/SyncModels/SyncReport'
 import mongoose from 'mongoose'
 import { Product, UserProduct } from '../../models'
+import { IProduct } from '../../models/Product'
 
 // ═══════════════════════════════════════════════════════════
 // TYPE HELPERS
@@ -639,11 +640,11 @@ const processSyncItem = async (
       needsUpdate = true
     }
     if (firstAccessDate) {
-      updateFields['hotmart.firstAccessDate'] = firstAccessDate  // ✅ ESSENCIAL
+      updateFields['hotmart.firstAccessDate'] = firstAccessDate
       needsUpdate = true
     }
     if (lastAccessDate) {
-      updateFields['hotmart.lastAccessDate'] = lastAccessDate    // ✅ ESSENCIAL
+      updateFields['hotmart.lastAccessDate'] = lastAccessDate
       needsUpdate = true
     }
 
@@ -659,10 +660,7 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
-    // ✅ PROGRESS: Existe duplicação no código atual, mas vou manter AMBOS
-    // porque servem propósitos diferentes!
-    
-    // Progress básico (sempre atualizar se progress exists)
+    // Progress básico
     if (item.progress !== undefined) {
       updateFields['hotmart.progress'] = {
         totalProgress: toNumber(item.progress.percentage, 0),
@@ -672,7 +670,7 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
-    // ✅ Turmas
+    // Turmas
     if (item.classId) {
       updateFields['hotmart.enrolledClasses'] = [
         {
@@ -686,29 +684,29 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
-    // ✅ PROGRESS DETALHADO (com lições) - SOBRESCREVE o anterior se includeProgress
+    // Progress detalhado (sobrescreve se includeProgress)
     if (config.includeProgress && item.progress) {
       updateFields['hotmart.progress'] = {
         totalTimeMinutes: 0,
-        completedLessons: toNumber(item.progress.completed, 0),          // ✅
-        lessonsData: (item.progress.lessons || []).map(l => ({           // ✅
+        completedLessons: toNumber(item.progress.completed, 0),
+        lessonsData: (item.progress.lessons || []).map(l => ({
           lessonId: l.pageId,
           title: l.pageName,
           completed: Boolean(l.isCompleted),
           completedAt: toDateOrNull(l.completedDate),
           timeSpent: 0
         })),
-        lastAccessDate: lastAccessDate || new Date()                     // ✅
+        lastAccessDate: lastAccessDate || new Date()
       }
       needsUpdate = true
     }
 
-    // ✅ ENGAGEMENT (COMPLETO!)
+    // Engagement
     if (item.accessCount !== undefined || item.engagementLevel || item.engagement?.engagementScore) {
       updateFields['hotmart.engagement'] = {
-        accessCount: toNumber(item.accessCount, 0),                      // ✅ ESSENCIAL
+        accessCount: toNumber(item.accessCount, 0),
         engagementLevel: item.engagementLevel || 'NONE',
-        engagementScore: item.engagement?.engagementScore || toNumber(item.accessCount, 0),  // ✅ CALCULAR
+        engagementScore: item.engagement?.engagementScore || toNumber(item.accessCount, 0),
         calculatedAt: new Date()
       }
       needsUpdate = true
@@ -769,7 +767,7 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
-    // ✅ PROGRESS (se disponível da API)
+    // Progress
     if (item.progress?.percentage !== undefined) {
       const progressPercentage = toNumber(item.progress.percentage, 0)
       
@@ -783,7 +781,7 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
-    // ✅ ENGAGEMENT (calcular do progress se disponível)
+    // Engagement
     if (item.progress?.percentage !== undefined || item.engagement?.engagementScore !== undefined) {
       const engagementScore = item.engagement?.engagementScore || 
                              (item.progress?.percentage ? toNumber(item.progress.percentage, 0) * 2 : 0)
@@ -865,134 +863,213 @@ const processSyncItem = async (
       productId: productId
     })
     
-if (existingUP) {
-  const upUpdateFields: Record<string, any> = {}
-  let upNeedsUpdate = false
-  // ✅ ADICIONAR ISTO na secção "if (existingUP)":
-if (item.platformData?.isPrimary !== undefined) {
-  console.log(`   📌 Atualizando isPrimary: ${item.platformData.isPrimary} para ${item.email}`)
-  upUpdateFields['isPrimary'] = item.platformData.isPrimary
-  upNeedsUpdate = true
-} else {
-  console.log(`   ⚠️  platformData.isPrimary UNDEFINED para ${item.email}`)
-}
-  // Progress
-  if (item.progress?.percentage !== undefined) {
-    const newPercentage = toNumber(item.progress.percentage, 0)
-    if (existingUP.progress?.percentage !== newPercentage) {
-      upUpdateFields['progress.percentage'] = newPercentage
-      upUpdateFields['progress.lastActivity'] = toDateOrNull(item.lastAccessDate) || new Date()
-      upNeedsUpdate = true
-    }
-  }
-  
-  // Engagement
-  if (item.engagement?.engagementScore !== undefined) {
-    const newScore = toNumber(item.engagement.engagementScore, 0)
-    if (existingUP.engagement?.engagementScore !== newScore) {
-      upUpdateFields['engagement.engagementScore'] = newScore
-      upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
-      upNeedsUpdate = true
-    }
-  } else if (item.accessCount !== undefined) {
-    const newScore = toNumber(item.accessCount, 0)
-    if (existingUP.engagement?.engagementScore !== newScore) {
-      upUpdateFields['engagement.engagementScore'] = newScore
-      upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
-      upNeedsUpdate = true
-    }
-  }
-  
-  // ✅ ADICIONAR ISTO AQUI:
-  if (item.platformData?.isPrimary !== undefined && existingUP.isPrimary !== item.platformData.isPrimary) {
-    upUpdateFields['isPrimary'] = item.platformData.isPrimary
-    upNeedsUpdate = true
-  }
-  
-  if (upNeedsUpdate) {
-    await UserProduct.findByIdAndUpdate(existingUP._id, { $set: upUpdateFields })
-    console.log(`   📦 UserProduct atualizado: ${user.email}`)
-  }
-
+    // ═══════════════════════════════════════════════════════════
+    // CASO 1: ATUALIZAR USERPRODUCT EXISTENTE
+    // ═══════════════════════════════════════════════════════════
+    if (existingUP) {
+      const upUpdateFields: Record<string, any> = {}
+      let upNeedsUpdate = false
       
-} else {
-  // ✅ CRIAR UserProduct novo
-  const enrolledAt = toDateOrNull(item.enrolledAt) || 
-                    toDateOrNull(item.purchaseDate) ||
-                    toDateOrNull(item.joinedDate) ||
-                    new Date()
-  
-  // ═══════════════════════════════════════════════════════════
-  // 🛡️ DEFESA EM PROFUNDIDADE - isPrimary
-  // ═══════════════════════════════════════════════════════════
-  // Se adapter já definiu isPrimary, usar esse valor
-  // Se não, aplicar lógica de fallback
-  
-  let isPrimaryValue = item.platformData?.isPrimary ?? true
-  
-  // 🔒 PROTEÇÃO EXTRA: Para CursEDuca, verificar se user já tem PRIMARY
-  if (config.syncType === 'curseduca' && isPrimaryValue === true) {
-    const existingPrimary = await UserProduct.findOne({
-      userId: userIdStr,
-      platform: 'curseduca',
-      productId: { $ne: productId },
-      isPrimary: true
-    })
-    
-    if (existingPrimary) {
-      // User já tem um produto PRIMARY
-      console.log(`   🛡️ [Proteção] User ${item.email} já tem produto PRIMARY`)
-      
-      // Comparar datas de enrollment
-      const existingDate = existingPrimary.enrolledAt ? new Date(existingPrimary.enrolledAt).getTime() : 0
-      const newDate = enrolledAt.getTime()
-      
-      if (newDate > existingDate) {
-        // Novo produto é mais recente → marcar como PRIMARY
-        console.log(`      ✅ Novo produto mais recente (${enrolledAt.toISOString()}) → PRIMARY`)
-        console.log(`      🔻 Desmarcando produto antigo (${existingPrimary.enrolledAt})`)
-        
-        await UserProduct.updateOne(
-          { _id: existingPrimary._id },
-          { $set: { isPrimary: false } }
-        )
-        // isPrimaryValue já é true
-      } else {
-        // Produto existente é mais recente → novo será SECONDARY
-        console.log(`      ⚠️  Produto existente mais recente (${existingPrimary.enrolledAt})`)
-        console.log(`      🔻 Novo produto (${enrolledAt.toISOString()}) → SECONDARY`)
-        isPrimaryValue = false
+      // isPrimary
+      if (item.platformData?.isPrimary !== undefined) {
+        console.log(`   📌 Atualizando isPrimary: ${item.platformData.isPrimary} para ${item.email}`)
+        upUpdateFields['isPrimary'] = item.platformData.isPrimary
+        upNeedsUpdate = true
       }
+      
+      // Progress
+      if (item.progress?.percentage !== undefined) {
+        const newPercentage = toNumber(item.progress.percentage, 0)
+        if (existingUP.progress?.percentage !== newPercentage) {
+          upUpdateFields['progress.percentage'] = newPercentage
+          upUpdateFields['progress.lastActivity'] = toDateOrNull(item.lastAccessDate) || new Date()
+          upNeedsUpdate = true
+        }
+      }
+      
+      // Engagement Score
+      if (item.engagement?.engagementScore !== undefined) {
+        const newScore = toNumber(item.engagement.engagementScore, 0)
+        if (existingUP.engagement?.engagementScore !== newScore) {
+          upUpdateFields['engagement.engagementScore'] = newScore
+          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
+          upNeedsUpdate = true
+        }
+      } else if (item.accessCount !== undefined) {
+        const newScore = toNumber(item.accessCount, 0)
+        if (existingUP.engagement?.engagementScore !== newScore) {
+          upUpdateFields['engagement.engagementScore'] = newScore
+          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
+          upNeedsUpdate = true
+        }
+      }
+      
+      // ════════════════════════════════════════════════════════════
+      // 🆕 SPRINT 1.5B: CALCULAR ENGAGEMENT METRICS (ATUALIZAR)
+      // ════════════════════════════════════════════════════════════
+      try {
+        const product = await Product.findById(productId)
+        
+        if (product) {
+          console.log(`   📊 [Sprint 1.5B] Calculando engagement metrics para ${user.email}`)
+          
+          const metrics = calculateEngagementMetricsForUserProduct(user, product)
+          
+          // Engagement fields
+          if (metrics.engagement.daysSinceLastLogin !== null) {
+            upUpdateFields['engagement.daysSinceLastLogin'] = metrics.engagement.daysSinceLastLogin
+            upNeedsUpdate = true
+          }
+          
+          if (metrics.engagement.daysSinceLastAction !== null) {
+            upUpdateFields['engagement.daysSinceLastAction'] = metrics.engagement.daysSinceLastAction
+            upNeedsUpdate = true
+          }
+          
+          if (metrics.engagement.totalLogins !== undefined) {
+            upUpdateFields['engagement.totalLogins'] = metrics.engagement.totalLogins
+            upNeedsUpdate = true
+          }
+          
+          if (metrics.engagement.actionsLastWeek !== undefined) {
+            upUpdateFields['engagement.actionsLastWeek'] = metrics.engagement.actionsLastWeek
+            upNeedsUpdate = true
+          }
+          
+          if (metrics.engagement.actionsLastMonth !== undefined) {
+            upUpdateFields['engagement.actionsLastMonth'] = metrics.engagement.actionsLastMonth
+            upNeedsUpdate = true
+          }
+          
+          // Metadata fields
+          if (metrics.metadata.purchaseDate !== null) {
+            upUpdateFields['metadata.purchaseDate'] = metrics.metadata.purchaseDate
+            upNeedsUpdate = true
+          }
+          
+          if (metrics.metadata.platform) {
+            upUpdateFields['metadata.platform'] = metrics.metadata.platform
+            upNeedsUpdate = true
+          }
+          
+          if (metrics.metadata.purchaseValue !== null) {
+            upUpdateFields['metadata.purchaseValue'] = metrics.metadata.purchaseValue
+            upNeedsUpdate = true
+          }
+          
+          console.log(`   ✅ [Sprint 1.5B] Engagement metrics calculados e adicionados`)
+        }
+      } catch (metricsError: any) {
+        console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, metricsError.message)
+      }
+      
+      // Aplicar updates
+      if (upNeedsUpdate) {
+        await UserProduct.findByIdAndUpdate(existingUP._id, { $set: upUpdateFields })
+        console.log(`   📦 UserProduct atualizado: ${user.email}`)
+      }
+      
+    // ═══════════════════════════════════════════════════════════
+    // CASO 2: CRIAR USERPRODUCT NOVO
+    // ═══════════════════════════════════════════════════════════
     } else {
-      console.log(`   ✅ Primeiro produto do user → PRIMARY`)
-    }
-  }
-  
-  const newUserProduct: any = {
-    userId: userIdStr,
-    productId: productId,
-    platform: config.syncType,
-    platformUserId: item.curseducaUserId || item.hotmartUserId || item.discordUserId || userIdStr,
-    status: 'ACTIVE',
-    source: 'PURCHASE',
-    enrolledAt: enrolledAt,
-    
-    // ✅ isPrimary com proteção aplicada
-    isPrimary: isPrimaryValue,
-    
-    progress: {
-      percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
-      lastActivity: toDateOrNull(item.lastAccessDate) || new Date()
-    },
-    
-    engagement: {
-      engagementScore: item.engagement?.engagementScore 
-        ? toNumber(item.engagement.engagementScore, 0) 
-        : toNumber(item.accessCount, 0),
-      lastAction: toDateOrNull(item.lastAccessDate) || new Date()
-    }
-  }
-
+      const enrolledAt = toDateOrNull(item.enrolledAt) || 
+                        toDateOrNull(item.purchaseDate) ||
+                        toDateOrNull(item.joinedDate) ||
+                        new Date()
+      
+      // isPrimary logic
+      let isPrimaryValue = item.platformData?.isPrimary ?? true
+      
+      if (config.syncType === 'curseduca' && isPrimaryValue === true) {
+        const existingPrimary = await UserProduct.findOne({
+          userId: userIdStr,
+          platform: 'curseduca',
+          productId: { $ne: productId },
+          isPrimary: true
+        })
+        
+        if (existingPrimary) {
+          console.log(`   🛡️ [Proteção] User ${item.email} já tem produto PRIMARY`)
+          
+          const existingDate = existingPrimary.enrolledAt ? new Date(existingPrimary.enrolledAt).getTime() : 0
+          const newDate = enrolledAt.getTime()
+          
+          if (newDate > existingDate) {
+            console.log(`      ✅ Novo produto mais recente → PRIMARY`)
+            await UserProduct.updateOne(
+              { _id: existingPrimary._id },
+              { $set: { isPrimary: false } }
+            )
+          } else {
+            console.log(`      🔻 Novo produto → SECONDARY`)
+            isPrimaryValue = false
+          }
+        }
+      }
+      
+      const newUserProduct: any = {
+        userId: userIdStr,
+        productId: productId,
+        platform: config.syncType,
+        platformUserId: item.curseducaUserId || item.hotmartUserId || item.discordUserId || userIdStr,
+        status: 'ACTIVE',
+        source: 'PURCHASE',
+        enrolledAt: enrolledAt,
+        isPrimary: isPrimaryValue,
+        
+        progress: {
+          percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
+          lastActivity: toDateOrNull(item.lastAccessDate) || new Date()
+        },
+        
+        engagement: {
+          engagementScore: item.engagement?.engagementScore 
+            ? toNumber(item.engagement.engagementScore, 0) 
+            : toNumber(item.accessCount, 0),
+          lastAction: toDateOrNull(item.lastAccessDate) || new Date()
+        }
+      }
+      
+      // ════════════════════════════════════════════════════════════
+      // 🆕 SPRINT 1.5B: CALCULAR ENGAGEMENT METRICS (CRIAR)
+      // ════════════════════════════════════════════════════════════
+      try {
+        const product = await Product.findById(productId)
+        
+        if (product) {
+          console.log(`   📊 [Sprint 1.5B] Calculando engagement metrics para novo UserProduct: ${user.email}`)
+          
+          const metrics = calculateEngagementMetricsForUserProduct(user, product)
+          
+          // Adicionar engagement metrics
+          newUserProduct.engagement = {
+            ...newUserProduct.engagement,
+            daysSinceLastLogin: metrics.engagement.daysSinceLastLogin,
+            daysSinceLastAction: metrics.engagement.daysSinceLastAction,
+            totalLogins: metrics.engagement.totalLogins || 0,
+            actionsLastWeek: metrics.engagement.actionsLastWeek || 0,
+            actionsLastMonth: metrics.engagement.actionsLastMonth || 0
+          }
+          
+          // Adicionar metadata
+          if (!newUserProduct.metadata) {
+            newUserProduct.metadata = {}
+          }
+          
+          newUserProduct.metadata = {
+            ...newUserProduct.metadata,
+            purchaseDate: metrics.metadata.purchaseDate,
+            platform: metrics.metadata.platform,
+            purchaseValue: metrics.metadata.purchaseValue
+          }
+          
+          console.log(`   ✅ [Sprint 1.5B] Engagement metrics adicionados ao novo UserProduct`)
+        }
+      } catch (metricsError: any) {
+        console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, metricsError.message)
+      }
+      
       // Dados específicos da plataforma
       if (config.syncType === 'hotmart') {
         newUserProduct.hotmartData = {
@@ -1022,7 +1099,6 @@ if (item.platformData?.isPrimary !== undefined) {
     
   } catch (upError: any) {
     console.error(`❌ [UniversalSync] Erro ao criar/atualizar UserProduct para ${user.email}:`, upError.message)
-    // Não falhar o sync todo - apenas logar erro
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1033,6 +1109,207 @@ if (item.platformData?.isPrimary !== undefined) {
     action: isNew ? 'inserted' : (needsUpdate ? 'updated' : 'unchanged'), 
     userId: userIdStr 
   }
+}
+
+/**
+ * 📊 CALCULAR ENGAGEMENT METRICS PARA USERPRODUCT
+ * 
+ * Calcula métricas específicas baseadas na plataforma do produto
+ * 
+ * REGRAS:
+ * - Hotmart (OGI) = daysSinceLastLogin (login-based tracking)
+ * - CursEduca (Clareza) = daysSinceLastAction (action-based tracking)
+ * - purchaseValue/purchaseDate vêm da plataforma correspondente
+ * 
+ * USADO POR:
+ * - Tag Rules (conditionEvaluator)
+ * - Dashboard analytics
+ * - CRON re-engagement
+ */
+export function calculateEngagementMetricsForUserProduct(
+  user: IUser,
+  product: IProduct
+): {
+  engagement: {
+    daysSinceLastLogin: number | null
+    daysSinceLastAction: number | null
+    totalLogins?: number
+    actionsLastWeek?: number
+    actionsLastMonth?: number
+  }
+  metadata: {
+    purchaseValue: number | null
+    purchaseDate: Date | null
+    platform: string
+  }
+} {
+  console.log(`📊 [EngagementMetrics] Calculando para produto: ${product.code} (${product.platform})`)
+
+  const platform = product.platform
+  const now = Date.now()
+
+  // ═══════════════════════════════════════════════════════════
+  // ENGAGEMENT POR PLATAFORMA
+  // ═══════════════════════════════════════════════════════════
+
+  let daysSinceLastLogin: number | null = null
+  let daysSinceLastAction: number | null = null
+  let totalLogins = 0
+  let actionsLastWeek = 0
+  let actionsLastMonth = 0
+
+  if (platform === 'hotmart') {
+    // ✅ HOTMART = LOGIN-BASED
+    // ✅ CORRIGIDO: user.hotmart.progress.lastAccessDate (não lastLogin!)
+    const lastLogin = user.hotmart?.progress?.lastAccessDate || user.hotmart?.firstAccessDate
+
+    if (lastLogin) {
+      const lastLoginTime = lastLogin instanceof Date ? lastLogin.getTime() : new Date(lastLogin).getTime()
+      daysSinceLastLogin = Math.floor((now - lastLoginTime) / (1000 * 60 * 60 * 24))
+      console.log(`   ✅ daysSinceLastLogin: ${daysSinceLastLogin} dias`)
+    } else {
+      console.log(`   ⚠️  Hotmart lastAccessDate não disponível`)
+    }
+
+    // ✅ CORRIGIDO: user.hotmart.engagement.accessCount
+    totalLogins = user.hotmart?.engagement?.accessCount || 0
+
+  } else if (platform === 'curseduca') {
+    // ✅ CURSEDUCA = ACTION-BASED
+    // ✅ CORRIGIDO: CursEduca não tem lastActionDate explícito
+    // Usar progress.lastActivity ou joinedDate como fallback
+    const lastAction = user.curseduca?.progress?.lastActivity || user.curseduca?.joinedDate
+
+    if (lastAction) {
+      const lastActionTime = lastAction instanceof Date ? lastAction.getTime() : new Date(lastAction).getTime()
+      daysSinceLastAction = Math.floor((now - lastActionTime) / (1000 * 60 * 60 * 24))
+      console.log(`   ✅ daysSinceLastAction: ${daysSinceLastAction} dias`)
+    } else {
+      console.log(`   ⚠️  CursEduca progress.lastActivity não disponível`)
+    }
+
+    // Ações (não disponível no modelo atual)
+    actionsLastWeek = 0 // TODO: Implementar quando API fornecer
+    actionsLastMonth = 0 // TODO: Implementar quando API fornecer
+
+  } else if (platform === 'discord') {
+    // DISCORD = Não implementado ainda
+    console.log(`   ℹ️  Discord: métricas de engagement não implementadas`)
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PURCHASE VALUE & DATE
+  // ═══════════════════════════════════════════════════════════
+
+  let purchaseValue: number | null = null
+  let purchaseDate: Date | null = null
+
+  if (platform === 'hotmart') {
+    // ✅ CORRIGIDO: purchaseValue NÃO está no modelo User
+    // Será populado diretamente no UserProduct pelo webhook
+    purchaseValue = null // ⚠️ TODO: Adicionar user.hotmart.purchaseValue se necessário
+
+    // ✅ CORRIGIDO: purchaseDate existe no modelo
+    purchaseDate = user.hotmart?.purchaseDate || 
+                  user.hotmart?.firstAccessDate || 
+                  user.metadata?.createdAt || 
+                  null
+
+    if (purchaseDate) {
+      console.log(`   📅 Hotmart purchaseDate: ${purchaseDate.toISOString()}`)
+    }
+
+  } else if (platform === 'curseduca') {
+    // ✅ CORRIGIDO: subscriptionValue NÃO está no modelo User
+    // Será populado diretamente no UserProduct pelo webhook
+    purchaseValue = null // ⚠️ TODO: Adicionar user.curseduca.subscriptionValue se necessário
+
+    // ✅ CORRIGIDO: joinedDate existe no modelo
+    purchaseDate = user.curseduca?.joinedDate || 
+                  user.metadata?.createdAt || 
+                  null
+
+    if (purchaseDate) {
+      console.log(`   📅 CursEduca joinedDate: ${purchaseDate.toISOString()}`)
+    }
+
+  } else if (platform === 'discord') {
+    // Discord geralmente não tem purchase (é community)
+    purchaseValue = null
+    // ✅ CORRIGIDO: user.discord.createdAt
+    purchaseDate = user.discord?.createdAt || user.metadata?.createdAt || null
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // RETORNAR MÉTRICAS
+  // ═══════════════════════════════════════════════════════════
+
+  const metrics = {
+    engagement: {
+      daysSinceLastLogin,
+      daysSinceLastAction,
+      totalLogins,
+      actionsLastWeek,
+      actionsLastMonth
+    },
+    metadata: {
+      purchaseValue,
+      purchaseDate,
+      platform
+    }
+  }
+
+  console.log(`   ✅ Métricas calculadas para ${product.code}`)
+  
+  return metrics
+}
+
+
+/**
+ * 📝 HELPER: Converter Date para timestamp seguro
+ */
+function toTimestamp(date: any): number {
+  if (!date) return Date.now()
+  if (date instanceof Date) return date.getTime()
+  if (typeof date === 'string') return new Date(date).getTime()
+  return Date.now()
+}
+
+/**
+ * 🧪 TESTE RÁPIDO (remover em produção)
+ */
+export function testCalculateEngagementMetrics() {
+  const mockUser: any = {
+    email: 'test@mail.com',
+    hotmart: {
+      lastLogin: new Date('2025-12-10'), // 16 dias atrás
+      purchase: { value: 297 },
+      engagement: { accessCount: 42 }
+    },
+    curseduca: {
+      lastActionDate: new Date('2025-12-24'), // 2 dias atrás
+      subscriptionValue: 147
+    },
+    createdAt: new Date('2025-01-01')
+  }
+
+  const ogiProduct: any = {
+    code: 'OGI_V1',
+    platform: 'hotmart'
+  }
+
+  const clarezaProduct: any = {
+    code: 'CLAREZA_ANUAL',
+    platform: 'curseduca'
+  }
+
+  console.log('\n🧪 TESTE: OGI (Hotmart)')
+  const ogiMetrics = calculateEngagementMetricsForUserProduct(mockUser, ogiProduct)
+  console.log(JSON.stringify(ogiMetrics, null, 2))
+
+  console.log('\n🧪 TESTE: Clareza (CursEduca)')
+  const clarezaMetrics = calculateEngagementMetricsForUserProduct(mockUser, clarezaProduct)
+  console.log(JSON.stringify(clarezaMetrics, null, 2))
 }
 
 // ═══════════════════════════════════════════════════════════
