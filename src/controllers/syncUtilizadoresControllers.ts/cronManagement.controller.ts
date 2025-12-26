@@ -107,101 +107,70 @@ export const getJobById = async (req: Request, res: Response): Promise<void> => 
  * Buscar Tag Rules disponíveis por tipo de sincronização
  * GET /api/cron/tag-rules?syncType=hotmart
  */
-export const getAvailableTagRules = async (req: Request, res: Response) => {
+export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
   try {
-    const { syncType } = req.query
+    const syncType = req.query.syncType as SyncType | undefined
 
-    // Validar syncType
-    if (!syncType || !['hotmart', 'curseduca', 'discord', 'all'].includes(syncType as string)) {
-      return res.status(400).json({
+    if (!syncType || !['hotmart', 'curseduca', 'discord', 'all'].includes(syncType)) {
+      res.status(400).json({
         success: false,
         message: 'syncType inválido. Use: hotmart, curseduca, discord ou all'
       })
+      return
     }
 
     console.log(`[CRON] 🔍 Buscando Tag Rules para syncType: ${syncType}`)
 
-    // Importar modelos
     const TagRule = (await import('../../models/acTags/TagRule')).default
     const Course = (await import('../../models/Course')).default
     const Product = (await import('../../models/Product')).default
 
-    // ─────────────────────────────────────────────────────────
-    // PASSO 1: Buscar courseIds com base na plataforma
-    // ─────────────────────────────────────────────────────────
-    
-    let courseIds: any[] = []
+    let courseIds: mongoose.Types.ObjectId[] = []
 
     if (syncType === 'all') {
-      // Buscar todos os courses ativos
-      const courses = await Course.find({ isActive: true }).select('_id')
-      courseIds = courses.map(c => c._id)
+      const courses = await Course.find({ isActive: true }).select('_id').lean()
+      courseIds = courses.map(c => new mongoose.Types.ObjectId(String(c._id)))
     } else {
-      // Buscar produtos da plataforma
-      const products = await Product.find({ 
+      const products = await Product.find({
         platform: syncType,
-        isActive: true 
-      }).select('courseId')
+        isActive: true
+      }).select('courseId').lean()
 
-      // Filtrar apenas produtos que têm courseId
-      const productCourseIds = products
-        .map(p => p.courseId)
-        .filter(id => id != null)
-
-      // Remover duplicados
-      courseIds = [...new Set(productCourseIds.map(id => id.toString()))]
-        .map(id => new (require('mongoose')).Types.ObjectId(id))
+      const uniqueIds = [...new Set(products.map(p => p.courseId?.toString()).filter(Boolean) as string[])]
+      courseIds = uniqueIds.map(id => new mongoose.Types.ObjectId(id))
     }
 
     console.log(`[CRON] 📚 Encontrados ${courseIds.length} courses para plataforma ${syncType}`)
 
     if (courseIds.length === 0) {
-      return res.status(200).json({
+      res.status(200).json({
         success: true,
         message: 'Nenhum course encontrado para esta plataforma',
-        data: {
-          rules: [],
-          groupedByCourse: [],
-          totalRules: 0,
-          totalCourses: 0
-        }
+        data: { rules: [], groupedByCourse: [], totalRules: 0, totalCourses: 0 }
       })
+      return
     }
-
-    // ─────────────────────────────────────────────────────────
-    // PASSO 2: Buscar regras ativas desses courses
-    // ─────────────────────────────────────────────────────────
 
     const rules = await TagRule.find({
       courseId: { $in: courseIds },
       isActive: true
     })
-    .populate('courseId', 'name code trackingType')
-    .sort({ priority: -1, createdAt: -1 })
-    .lean()
-
-    console.log(`[CRON] ⚙️  Encontradas ${rules.length} regras ativas`)
-
-    // ─────────────────────────────────────────────────────────
-    // PASSO 3: Agrupar por course
-    // ─────────────────────────────────────────────────────────
+      .populate('courseId', 'name code trackingType')
+      .sort({ priority: -1, createdAt: -1 })
+      .lean()
 
     const groupedByCourse = rules.reduce((acc: any[], rule: any) => {
       if (!rule.courseId) return acc
 
       const course = rule.courseId
-      const courseName = course.name || 'Sem Nome'
       const courseId = course._id.toString()
-      const courseCode = course.code || 'UNKNOWN'
 
-      // Buscar ou criar grupo
       let group = acc.find(g => g.courseId === courseId)
-
       if (!group) {
         group = {
-          courseName,
+          courseName: course.name || 'Sem Nome',
           courseId,
-          courseCode,
+          courseCode: course.code || 'UNKNOWN',
           platform: syncType === 'all' ? 'all' : syncType,
           rules: [],
           totalRules: 0
@@ -209,7 +178,6 @@ export const getAvailableTagRules = async (req: Request, res: Response) => {
         acc.push(group)
       }
 
-      // Adicionar regra ao grupo
       group.rules.push({
         _id: rule._id,
         name: rule.name,
@@ -217,31 +185,19 @@ export const getAvailableTagRules = async (req: Request, res: Response) => {
         description: rule.description || '',
         category: rule.category,
         priority: rule.priority,
-        course: {
-          _id: course._id,
-          name: course.name,
-          code: course.code
-        },
+        course: { _id: course._id, name: course.name, code: course.code },
         conditions: rule.conditions || [],
-        estimatedStudents: 0, // Pode calcular se necessário
+        estimatedStudents: 0,
         isActive: rule.isActive
       })
 
       group.totalRules++
-
       return acc
     }, [])
 
-    // Ordenar grupos por nome do course
     groupedByCourse.sort((a, b) => a.courseName.localeCompare(b.courseName))
 
-    console.log(`[CRON] ✅ ${rules.length} regras agrupadas em ${groupedByCourse.length} courses`)
-
-    // ─────────────────────────────────────────────────────────
-    // PASSO 4: Retornar resposta
-    // ─────────────────────────────────────────────────────────
-
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: `${rules.length} Tag Rules encontradas`,
       data: {
@@ -252,11 +208,9 @@ export const getAvailableTagRules = async (req: Request, res: Response) => {
           description: rule.description || '',
           category: rule.category,
           priority: rule.priority,
-          course: rule.courseId ? {
-            _id: rule.courseId._id,
-            name: rule.courseId.name,
-            code: rule.courseId.code
-          } : null,
+          course: rule.courseId
+            ? { _id: rule.courseId._id, name: rule.courseId.name, code: rule.courseId.code }
+            : null,
           conditions: rule.conditions || [],
           isActive: rule.isActive
         })),
@@ -265,17 +219,10 @@ export const getAvailableTagRules = async (req: Request, res: Response) => {
         totalCourses: groupedByCourse.length
       }
     })
-
-  } catch (error: any) {
-    console.error('[CRON] ❌ Erro ao buscar Tag Rules:', error)
-    return res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar Tag Rules',
-      error: error.message
-    })
+  } catch (err) {
+    next(err) // 🔥 importante para Express lidar com o erro corretamente
   }
 }
-
 
 
 
