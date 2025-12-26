@@ -4,10 +4,11 @@
 // Endpoints para gestão de jobs agendados
 // ════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { Request, RequestHandler, Response } from 'express'
 import mongoose from 'mongoose'
 import syncSchedulerService from '../../services/syncUtilziadoresServices/scheduler'
 import { SyncType } from '../../models/SyncModels/CronJobConfig'
+import { CronExecution, Product, TagRule } from '../../models'
 
 
 // ═══════════════════════════════════════════════════════════
@@ -102,6 +103,140 @@ export const getJobById = async (req: Request, res: Response): Promise<void> => 
     })
   }
 }
+/**
+ * Buscar Tag Rules disponíveis por tipo de sincronização
+ * GET /api/cron/tag-rules?syncType=hotmart
+ */
+export const getAvailableTagRules: RequestHandler = async (req, res) => {
+  try {
+    const syncType = req.query.syncType as string | undefined
+
+    if (!syncType || !['hotmart', 'curseduca', 'discord', 'all'].includes(syncType)) {
+      res.status(400).json({
+        success: false,
+        message: 'syncType inválido. Use: hotmart, curseduca, discord ou all'
+      })
+      return
+    }
+
+    console.log(`[CRON] Buscando Tag Rules para syncType: ${syncType}`)
+
+    // Buscar regras ativas
+    const query: any = { isActive: true }
+
+    // Se não for 'all', filtrar por plataforma
+    if (syncType !== 'all') {
+      const Product = (await import('../../models/Product')).default
+
+      const products = await Product.find({ platform: syncType }).select('_id')
+      const productIds = products.map((p: any) => p._id)
+
+      query.product = { $in: productIds }
+    }
+
+    const rules = await TagRule.find(query)
+      .populate({
+        path: 'product',
+        select: 'name code platform',
+        populate: {
+          path: 'course',
+          select: 'name'
+        }
+      })
+      .sort({ createdAt: -1 })
+      .lean()
+
+    const validRules = rules.filter((rule: any) => rule.product)
+
+    const groupedByCourse = validRules.reduce((acc: any[], rule: any) => {
+      const courseName = rule.product?.course?.name || 'Sem Curso'
+      const courseId = rule.product?.course?._id?.toString() || 'no-course'
+      const platform = rule.product?.platform || 'unknown'
+
+      let group = acc.find(g => g.courseId === courseId)
+
+      if (!group) {
+        group = { courseName, courseId, platform, rules: [], totalRules: 0 }
+        acc.push(group)
+      }
+
+      group.rules.push({
+        _id: rule._id,
+        name: rule.name,
+        tagName: rule.tagName,
+        description: rule.description || '',
+        product: {
+          _id: rule.product._id,
+          name: rule.product.name,
+          platform: rule.product.platform
+        },
+        conditions: rule.conditions || [],
+        estimatedStudents: 0,
+        isActive: rule.isActive
+      })
+
+      group.totalRules++
+      return acc
+    }, [])
+
+    console.log(`[CRON] ✅ ${validRules.length} Tag Rules encontradas, agrupadas em ${groupedByCourse.length} cursos`)
+
+    res.status(200).json({
+      success: true,
+      message: `${validRules.length} Tag Rules encontradas`,
+      data: {
+        rules: validRules.map((rule: any) => ({
+          _id: rule._id,
+          name: rule.name,
+          tagName: rule.tagName,
+          description: rule.description || '',
+          product: {
+            _id: rule.product._id,
+            name: rule.product.name,
+            platform: rule.product.platform
+          },
+          conditions: rule.conditions || [],
+          isActive: rule.isActive
+        })),
+        groupedByCourse,
+        totalRules: validRules.length,
+        totalCourses: groupedByCourse.length
+      }
+    })
+    return
+  } catch (error: any) {
+    console.error('[CRON] ❌ Erro ao buscar Tag Rules:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar Tag Rules',
+      error: error.message
+    })
+    return
+  }
+}
+
+/**
+ * Helper: Agrupar regras por curso
+ */
+function groupRulesByCourse(rules: any[]) {
+  const grouped: Record<string, any[]> = {}
+
+  rules.forEach(rule => {
+    const courseName = rule.product?.name || 'Sem Curso'
+    if (!grouped[courseName]) {
+      grouped[courseName] = []
+    }
+    grouped[courseName].push(rule)
+  })
+
+  return Object.entries(grouped).map(([courseName, rules]) => ({
+    courseName,
+    courseId: rules[0]?.product?._id,
+    platform: rules[0]?.product?.platform,
+    rules: rules,
+    totalRules: rules.length
+  }))
+}
 
 // ═══════════════════════════════════════════════════════════
 // CREATE JOB
@@ -118,7 +253,9 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
       timezone,
       syncConfig,
       notifications,
-      retryPolicy
+      retryPolicy,
+      tagRules,              // ✨ NOVO
+      tagRuleOptions         // ✨ NOVO
     } = req.body
 
     // Validações
@@ -128,6 +265,24 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
         message: 'Campos obrigatórios: name, syncType, cronExpression'
       })
       return
+    }
+
+    // ✨ NOVO: Validar Tag Rules se fornecidas
+    if (tagRules && tagRules.length > 0) {
+      const validRules = await TagRule.find({
+        _id: { $in: tagRules },
+        isActive: true
+      })
+
+      if (validRules.length !== tagRules.length) {
+        res.status(400).json({
+          success: false,
+          message: 'Algumas Tag Rules selecionadas não são válidas ou estão inativas'
+        })
+        return
+      }
+
+      console.log(`✅ ${validRules.length} Tag Rules validadas`)
     }
 
     // TODO: Pegar user ID do token JWT
@@ -142,6 +297,8 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
       syncConfig,
       notifications,
       retryPolicy,
+      tagRules,              // ✨ NOVO
+      tagRuleOptions,        // ✨ NOVO
       createdBy
     })
 
@@ -156,7 +313,8 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
       message: 'Job criado com sucesso',
       data: {
         job,
-        nextExecutions
+        nextExecutions,
+        tagRulesCount: job.tagRules?.length || 0  // ✨ NOVO
       }
     })
 
@@ -188,6 +346,24 @@ export const updateJob = async (req: Request, res: Response): Promise<void> => {
       return
     }
 
+    // ✨ NOVO: Validar Tag Rules se fornecidas
+    if (updates.tagRules && updates.tagRules.length > 0) {
+      const validRules = await TagRule.find({
+        _id: { $in: updates.tagRules },
+        isActive: true
+      })
+
+      if (validRules.length !== updates.tagRules.length) {
+        res.status(400).json({
+          success: false,
+          message: 'Algumas Tag Rules selecionadas não são válidas ou estão inativas'
+        })
+        return
+      }
+
+      console.log(`✅ ${validRules.length} Tag Rules validadas`)
+    }
+
     const job = await syncSchedulerService.updateJob(
       new mongoose.Types.ObjectId(id),
       updates
@@ -204,7 +380,8 @@ export const updateJob = async (req: Request, res: Response): Promise<void> => {
       message: 'Job atualizado com sucesso',
       data: {
         job,
-        nextExecutions
+        nextExecutions,
+        tagRulesCount: job.tagRules?.length || 0  // ✨ NOVO
       }
     })
 
@@ -358,6 +535,9 @@ export const triggerJob = async (req: Request, res: Response): Promise<void> => 
 export const getJobHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params
+    const limit = parseInt(req.query.limit as string) || 20
+
+    console.log(`📊 Buscando histórico do job: ${id} (limit: ${limit})`)
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({
@@ -379,9 +559,33 @@ export const getJobHistory = async (req: Request, res: Response): Promise<void> 
       return
     }
 
-    // Por agora, retornamos apenas a última execução
-    // TODO: Implementar histórico completo de execuções em collection separada
-    const history = job.lastRun ? [job.lastRun] : []
+    // ✅ NOVO: Buscar histórico completo do CronExecution
+    const executions = await CronExecution.find({ cronName: job.name })
+      .sort({ startTime: -1 }) // Mais recentes primeiro
+      .limit(limit)
+      .lean()
+
+    console.log(`✅ ${executions.length} execuções encontradas para ${job.name}`)
+
+    // Transformar para formato esperado pelo frontend
+    const history = executions.map(exec => ({
+      _id: exec._id,
+      jobId: job._id,
+      jobName: job.name,
+      status: exec.status,
+      startedAt: exec.startTime,
+      completedAt: exec.endTime,
+      duration: exec.duration ? Math.round(exec.duration / 1000) : 0, // Converter ms para segundos
+      stats: {
+        total: exec.studentsProcessed || 0,
+        inserted: 0, // CronExecution não separa inserted/updated
+        updated: exec.studentsProcessed || 0,
+        errors: exec.status === 'error' ? 1 : 0,
+        skipped: 0
+      },
+      triggeredBy: exec.executionType === 'manual' ? 'MANUAL' : 'CRON',
+      errorMessage: exec.errorMessage
+    }))
 
     res.status(200).json({
       success: true,
@@ -393,7 +597,9 @@ export const getJobHistory = async (req: Request, res: Response): Promise<void> 
         successfulRuns: job.successfulRuns,
         failedRuns: job.failedRuns,
         successRate: job.getSuccessRate(),
-        history
+        executions: history, // ✅ MUDOU: campo "executions" em vez de "history"
+        count: history.length,
+        limit
       }
     })
 
@@ -406,6 +612,8 @@ export const getJobHistory = async (req: Request, res: Response): Promise<void> 
     })
   }
 }
+
+
 
 // ═══════════════════════════════════════════════════════════
 // VALIDATE CRON EXPRESSION

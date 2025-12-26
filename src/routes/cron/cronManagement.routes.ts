@@ -8,6 +8,7 @@ import { Router } from 'express'
 import cronManagementController from '../../controllers/cron/cronManagement.controller'
 
 
+
 const router = Router()
 
 // GET /api/cron/config - Obter configuração atual
@@ -35,5 +36,8 @@ router.post('/validate', cronManagementController.validateCronExpression)
 
 // GET /api/cron/status - Status geral do sistema
 router.get('/status', cronManagementController.getCronStatus)
+
+
+
 export default router
 

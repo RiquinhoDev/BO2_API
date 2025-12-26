@@ -74,7 +74,13 @@ export interface ICronJobConfig extends Document {
   
   // Configuração do sync
   syncConfig: ISyncConfig
-  
+  tagRules: mongoose.Types.ObjectId[]
+  tagRuleOptions: {
+    enabled: boolean
+    executeAllRules: boolean
+    runInParallel: boolean      // ✅ ADICIONAR
+    stopOnError: boolean         // ✅ ADICIONAR
+  }
   // Notificações
   notifications: INotificationConfig
   
@@ -298,6 +304,30 @@ const CronJobConfigSchema = new Schema<ICronJobConfig, ICronJobConfigModel>({
     type: SyncConfigSchema,
     required: true
   },
+   tagRules: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'TagRule'
+    }],
+    
+    // ✨ NOVO: Opções de execução das regras
+    tagRuleOptions: {
+      enabled: {
+        type: Boolean,
+        default: false // Por padrão não executa regras
+      },
+      executeAllRules: {
+        type: Boolean,
+        default: false // false = só regras selecionadas
+      },
+      runInParallel: {
+        type: Boolean,
+        default: false // false = executa sequencialmente
+      },
+      stopOnError: {
+        type: Boolean,
+        default: false // false = continua mesmo se uma regra falhar
+      }
+    },  
   notifications: {
     type: NotificationConfigSchema,
     default: () => ({
