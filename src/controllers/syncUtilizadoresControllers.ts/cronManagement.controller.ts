@@ -107,33 +107,37 @@ export const getJobById = async (req: Request, res: Response): Promise<void> => 
  * Buscar Tag Rules disponíveis por tipo de sincronização
  * GET /api/cron/tag-rules?syncType=hotmart
  */
-export const getAvailableTagRules: RequestHandler = async (req, res) => {
+export const getAvailableTagRules = async (req: Request, res: Response) => {
   try {
-    const syncType = req.query.syncType as string | undefined
+    const { syncType } = req.query
 
-    if (!syncType || !['hotmart', 'curseduca', 'discord', 'all'].includes(syncType)) {
-      res.status(400).json({
+    if (!syncType || !['hotmart', 'curseduca', 'discord', 'all'].includes(syncType as string)) {
+      return res.status(400).json({
         success: false,
         message: 'syncType inválido. Use: hotmart, curseduca, discord ou all'
       })
-      return
     }
 
-    console.log(`[CRON] Buscando Tag Rules para syncType: ${syncType}`)
+    console.log(`[CRON] 🔍 Buscando Tag Rules para syncType: ${syncType}`)
 
-    // Buscar regras ativas
-    const query: any = { isActive: true }
+    // Importar modelos
+    const TagRule = (await import('../../models/acTags/TagRule')).default
+    const Product = (await import('../../models/Product')).default
 
-    // Se não for 'all', filtrar por plataforma
+    // Construir query base
+    let query: any = { isActive: true }
+
+    // Filtrar por plataforma se não for 'all'
     if (syncType !== 'all') {
-      const Product = (await import('../../models/Product')).default
+      const products = await Product.find({ 
+        platform: syncType 
+      }).select('_id')
 
-      const products = await Product.find({ platform: syncType }).select('_id')
-      const productIds = products.map((p: any) => p._id)
-
+      const productIds = products.map(p => p._id)
       query.product = { $in: productIds }
     }
 
+    // Buscar regras com populate
     const rules = await TagRule.find(query)
       .populate({
         path: 'product',
@@ -146,8 +150,10 @@ export const getAvailableTagRules: RequestHandler = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean()
 
-    const validRules = rules.filter((rule: any) => rule.product)
+    // Filtrar regras válidas
+    const validRules = rules.filter(rule => rule.product)
 
+    // Agrupar por curso
     const groupedByCourse = validRules.reduce((acc: any[], rule: any) => {
       const courseName = rule.product?.course?.name || 'Sem Curso'
       const courseId = rule.product?.course?._id?.toString() || 'no-course'
@@ -156,7 +162,13 @@ export const getAvailableTagRules: RequestHandler = async (req, res) => {
       let group = acc.find(g => g.courseId === courseId)
 
       if (!group) {
-        group = { courseName, courseId, platform, rules: [], totalRules: 0 }
+        group = {
+          courseName,
+          courseId,
+          platform,
+          rules: [],
+          totalRules: 0
+        }
         acc.push(group)
       }
 
@@ -176,12 +188,13 @@ export const getAvailableTagRules: RequestHandler = async (req, res) => {
       })
 
       group.totalRules++
+
       return acc
     }, [])
 
-    console.log(`[CRON] ✅ ${validRules.length} Tag Rules encontradas, agrupadas em ${groupedByCourse.length} cursos`)
+    console.log(`[CRON] ✅ ${validRules.length} Tag Rules encontradas`)
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: `${validRules.length} Tag Rules encontradas`,
       data: {
@@ -203,15 +216,14 @@ export const getAvailableTagRules: RequestHandler = async (req, res) => {
         totalCourses: groupedByCourse.length
       }
     })
-    return
+
   } catch (error: any) {
     console.error('[CRON] ❌ Erro ao buscar Tag Rules:', error)
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro ao buscar Tag Rules',
       error: error.message
     })
-    return
   }
 }
 
