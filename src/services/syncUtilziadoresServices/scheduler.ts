@@ -32,6 +32,16 @@ interface CreateJobDTO {
     includeTags?: boolean
     batchSize?: number
   }
+  
+  // ✨ NOVO
+  tagRules?: mongoose.Types.ObjectId[]
+  tagRuleOptions?: {
+    enabled?: boolean
+    executeAllRules?: boolean
+    runInParallel?: boolean
+    stopOnError?: boolean
+  }
+  
   notifications?: {
     enabled?: boolean
     emailOnSuccess?: boolean
@@ -46,7 +56,6 @@ interface CreateJobDTO {
   }
   createdBy: mongoose.Types.ObjectId
 }
-
 interface UpdateJobDTO {
   name?: string
   description?: string
@@ -122,28 +131,38 @@ export class CronManagementService {
     const nextRun = this.calculateNextRun(dto.cronExpression)
 
     // Criar job na BD
-    const job = await CronJobConfig.create({
-      name: dto.name,
-      description: dto.description,
-      syncType: dto.syncType,
-      schedule: {
-        cronExpression: dto.cronExpression,
-        timezone: dto.timezone || 'Europe/Lisbon',
-        enabled: true
-      },
-      syncConfig: {
-        fullSync: dto.syncConfig?.fullSync ?? true,
-        includeProgress: dto.syncConfig?.includeProgress ?? true,
-        includeTags: dto.syncConfig?.includeTags ?? false,
-        batchSize: dto.syncConfig?.batchSize ?? 500
-      },
-      notifications: {
-        enabled: dto.notifications?.enabled ?? false,
-        emailOnSuccess: dto.notifications?.emailOnSuccess ?? false,
-        emailOnFailure: dto.notifications?.emailOnFailure ?? true,
-        recipients: dto.notifications?.recipients ?? [],
-        webhookUrl: dto.notifications?.webhookUrl
-      },
+const job = await CronJobConfig.create({
+  name: dto.name,
+  description: dto.description,
+  syncType: dto.syncType,
+  schedule: {
+    cronExpression: dto.cronExpression,
+    timezone: dto.timezone || 'Europe/Lisbon',
+    enabled: true
+  },
+  syncConfig: {
+    fullSync: dto.syncConfig?.fullSync ?? true,
+    includeProgress: dto.syncConfig?.includeProgress ?? true,
+    includeTags: dto.syncConfig?.includeTags ?? false,
+    batchSize: dto.syncConfig?.batchSize ?? 500
+  },
+  
+  // ✨ NOVO
+  tagRules: dto.tagRules || [],
+  tagRuleOptions: {
+    enabled: dto.tagRuleOptions?.enabled ?? false,
+    executeAllRules: dto.tagRuleOptions?.executeAllRules ?? false,
+    runInParallel: dto.tagRuleOptions?.runInParallel ?? false,
+    stopOnError: dto.tagRuleOptions?.stopOnError ?? false
+  },
+  
+  notifications: {
+    enabled: dto.notifications?.enabled ?? false,
+    emailOnSuccess: dto.notifications?.emailOnSuccess ?? false,
+    emailOnFailure: dto.notifications?.emailOnFailure ?? true,
+    recipients: dto.notifications?.recipients ?? [],
+    webhookUrl: dto.notifications?.webhookUrl
+  },
       retryPolicy: {
         maxRetries: dto.retryPolicy?.maxRetries ?? 3,
         retryDelayMinutes: dto.retryPolicy?.retryDelayMinutes ?? 30,
