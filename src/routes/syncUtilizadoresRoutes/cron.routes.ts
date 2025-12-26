@@ -94,4 +94,6 @@ router.post('/validate', cronController.validateCronExpression)
  */
 router.get('/status', cronController.getSchedulerStatus)
 
+router.get('/tag-rules', cronController.getAvailableTagRules)
+
 export default router

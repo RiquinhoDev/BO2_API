@@ -118,21 +118,21 @@ export class CronManagementService {
     const nextRun = this.calculateNextRun(dto.cronExpression)
 
     // Criar job na BD
-    const job = await CronJobConfig.create({
-      name: dto.name,
-      description: dto.description,
-      syncType: dto.syncType,
-      schedule: {
-        cronExpression: dto.cronExpression,
-        timezone: dto.timezone || 'Europe/Lisbon',
-        enabled: true
-      },
-      syncConfig: {
-        fullSync: dto.syncConfig?.fullSync ?? true,
-        includeProgress: dto.syncConfig?.includeProgress ?? true,
-        includeTags: dto.syncConfig?.includeTags ?? false,
-        batchSize: dto.syncConfig?.batchSize ?? 500
-      },
+  const job = await CronJobConfig.create({
+    name: dto.name,
+    description: dto.description,
+    syncType: dto.syncType,
+    schedule: {
+      cronExpression: dto.cronExpression,
+      timezone: dto.timezone || 'Europe/Lisbon',
+      enabled: true
+    },
+    syncConfig: {
+      fullSync: dto.syncConfig?.fullSync ?? true,
+      includeProgress: dto.syncConfig?.includeProgress ?? true,
+      includeTags: dto.syncConfig?.includeTags ?? false,
+      batchSize: dto.syncConfig?.batchSize ?? 500
+    },
       notifications: {
         enabled: dto.notifications?.enabled ?? false,
         emailOnSuccess: dto.notifications?.emailOnSuccess ?? false,
