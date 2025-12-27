@@ -3,14 +3,14 @@
 
 import { Request, Response } from 'express';
 import User from '../models/user';
-import { Product } from '../models/Product';
-import { UserProduct } from '../models/UserProduct';
+
 import { 
   getUserWithProducts,
   dualWriteUserData
 } from '../services/userProductService';
 import { clearUnifiedCache } from '../services/dualReadService';
 import { rebuildDashboardStatsManual } from '../jobs/rebuildDashboardStats.job';
+import { Product, UserProduct } from '../models';
 
 /**
  * GENERIC SYNC ENDPOINT - ESCALA PARA QUALQUER PLATAFORMA/PRODUTO
@@ -68,14 +68,14 @@ export const syncGeneric = async (req: Request, res: Response) => {
     
     // 3️⃣ DUAL WRITE (V1 + V2)
     await dualWriteUserData(
-      user._id.toString(),
+      user.id.toString(),
       product._id.toString(),
       platform,
       productData
     );
     
     // 4️⃣ RETORNAR USER ENRIQUECIDO COM TODOS OS PRODUTOS
-    const enrichedUser = await getUserWithProducts(user._id.toString());
+    const enrichedUser = await getUserWithProducts(user.id.toString());
     
     // 🗑️ Limpar cache (inicia warm-up em background)
     clearUnifiedCache();
