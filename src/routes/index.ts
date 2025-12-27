@@ -19,7 +19,6 @@ import productProfileRoutes from './productProfile.routes'
 import reengagementRoutes from './reengagement.routes'
 import discoveryRoutes from './discovery.routes'
 import acReaderRoutes from './ACroutes/acReader.routes'
-import syncV2Routes from './syncV2.routes'
 
 // ✅ CRON UTILIZADORES (Sistema Novo)
 import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
@@ -37,8 +36,6 @@ router.use("/users", userRoutes)
 router.use("/hotmart", hotmartRoutes)
 router.use("/curseduca", curseducaRoutes)
 router.use("/sync", syncRoutes)
-
-router.use("/v2/sync", syncV2Routes)
 router.use("/ac", acReaderRoutes) 
 
 // 📚 GESTÃO DE TURMAS E CONTEÚDOS
