@@ -660,6 +660,12 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
+  // ════════════════════════════════════════════════════════════
+    // ❌ FASE 1: COMENTADO - Progress vai para UserProduct
+    // Data: 2025-12-27
+    // Motivo: User não deve ter progress (fonte única = UserProduct)
+    // ════════════════════════════════════════════════════════════
+    /*
     // Progress básico
     if (item.progress !== undefined) {
       updateFields['hotmart.progress'] = {
@@ -669,7 +675,7 @@ const processSyncItem = async (
       }
       needsUpdate = true
     }
-
+    */
     // Turmas
     if (item.classId) {
       updateFields['hotmart.enrolledClasses'] = [
@@ -684,6 +690,12 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
+   // ════════════════════════════════════════════════════════════
+    // ❌ FASE 1: COMENTADO - Progress detalhado vai para UserProduct
+    // Data: 2025-12-27
+    // Motivo: User não deve ter progress (fonte única = UserProduct)
+    // ════════════════════════════════════════════════════════════
+    /*
     // Progress detalhado (sobrescreve se includeProgress)
     if (config.includeProgress && item.progress) {
       updateFields['hotmart.progress'] = {
@@ -700,7 +712,14 @@ const processSyncItem = async (
       }
       needsUpdate = true
     }
+    */
 
+    // ════════════════════════════════════════════════════════════
+    // ❌ FASE 1: COMENTADO - Engagement vai para UserProduct
+    // Data: 2025-12-27
+    // Motivo: User não deve ter engagement (fonte única = UserProduct)
+    // ════════════════════════════════════════════════════════════
+    /*
     // Engagement
     if (item.accessCount !== undefined || item.engagementLevel || item.engagement?.engagementScore) {
       updateFields['hotmart.engagement'] = {
@@ -711,6 +730,7 @@ const processSyncItem = async (
       }
       needsUpdate = true
     }
+    */
 
     // Metadata
     updateFields['hotmart.lastSyncAt'] = new Date()
@@ -767,6 +787,12 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
+ // ════════════════════════════════════════════════════════════
+    // ❌ FASE 1: COMENTADO - Progress vai para UserProduct
+    // Data: 2025-12-27
+    // Motivo: User não deve ter progress (fonte única = UserProduct)
+    // ════════════════════════════════════════════════════════════
+    /*
     // Progress
     if (item.progress?.percentage !== undefined) {
       const progressPercentage = toNumber(item.progress.percentage, 0)
@@ -780,7 +806,14 @@ const processSyncItem = async (
       }
       needsUpdate = true
     }
+    */
 
+    // ════════════════════════════════════════════════════════════
+    // ❌ FASE 1: COMENTADO - Engagement vai para UserProduct
+    // Data: 2025-12-27
+    // Motivo: User não deve ter engagement (fonte única = UserProduct)
+    // ════════════════════════════════════════════════════════════
+    /*
     // Engagement
     if (item.progress?.percentage !== undefined || item.engagement?.engagementScore !== undefined) {
       const engagementScore = item.engagement?.engagementScore || 
@@ -798,6 +831,7 @@ const processSyncItem = async (
       }
       needsUpdate = true
     }
+    */
 
     // Metadata
     updateFields['curseduca.lastSyncAt'] = new Date()
