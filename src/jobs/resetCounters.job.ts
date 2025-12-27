@@ -66,7 +66,7 @@ async function executeJob() {
       } catch (error: any) {
         stats.errors++
         logger.error(`❌ Erro ao resetar contador semanal do user ${user.email}:`, {
-          userId: user._id.toString(),
+          userId: user.id.toString(),
           error: error.message
         })
       }
@@ -97,7 +97,7 @@ async function executeJob() {
         } catch (error: any) {
           stats.errors++
           logger.error(`❌ Erro ao resetar contador mensal do user ${user.email}:`, {
-            userId: user._id.toString(),
+            userId: user.id.toString(),
             error: error.message
           })
         }
