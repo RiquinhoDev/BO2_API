@@ -1,11 +1,299 @@
-// src/controllers/sync.controller.ts
-import { Request, Response } from "express"
-import SyncHistory from "../models/SyncHistory"
-import mongoose from "mongoose"
+// ════════════════════════════════════════════════════════════
+// 📁 src/controllers/sync.controller.ts
+// SYNC CONTROLLER (UNIFICADO)
+// ════════════════════════════════════════════════════════════
+//
+// Unifica sync.controller.ts + syncV2.controller.ts
+// Usa services isolados (hotmartSync, curseducaSync, etc)
+//
+// SECÇÕES:
+// 1. Pipeline & Sync Operations
+// 2. Sync History & Stats
+// 3. System Status
+//
+// ════════════════════════════════════════════════════════════
+
+import { Request, Response } from 'express'
+import mongoose from 'mongoose'
+
+// Models
+import SyncHistory from '../models/SyncHistory'
+import { Product, User, UserProduct } from '../models'
+import { executeDailyPipeline } from '../services/syncUtilziadoresServices/dailyPipeline.service'
+import { syncHotmart, syncHotmartBatch } from '../services/syncUtilziadoresServices/hotmartServices/hotmartSync.service'
+import { syncCursEduca, syncCurseducaBatch } from '../services/syncUtilziadoresServices/curseducaServices/curseducaSync.service'
+import { syncDiscord, syncDiscordBatch, syncDiscordFromCSV } from '../services/syncUtilziadoresServices/discordSync.service.ts/discordSync.service'
+
+// Services
+
 
 type PipelineStage = mongoose.PipelineStage
 
-// 📋 BUSCAR HISTÓRICO DE SINCRONIZAÇÕES
+// ═══════════════════════════════════════════════════════════
+// SECTION 1: PIPELINE & SYNC OPERATIONS
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * POST /api/sync/execute-pipeline
+ * Executar pipeline diário completo (4 steps)
+ */
+export const executePipeline = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await executeDailyPipeline()
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: 'Pipeline executado com sucesso',
+        duration: result.duration,
+        summary: result.summary,
+        steps: result.steps
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Pipeline executado com erros',
+        duration: result.duration,
+        errors: result.errors,
+        steps: result.steps
+      })
+    }
+  } catch (error: any) {
+    console.error('[API] ❌ Erro ao executar pipeline:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Erro fatal ao executar pipeline',
+      error: error.message
+    })
+  }
+}
+
+/**
+ * POST /api/sync/hotmart
+ * Sincronizar user Hotmart individual
+ */
+export const syncHotmartEndpoint = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, subdomain, name, status, progress, lastAccess, classes } = req.body
+    
+    if (!email || !subdomain) {
+      res.status(400).json({
+        success: false,
+        message: 'Missing required fields: email, subdomain'
+      })
+      return
+    }
+    
+    const result = await syncHotmart({
+      email,
+      subdomain,
+      name,
+      status,
+      progress,
+      lastAccess,
+      classes
+    })
+    
+    res.json(result)
+  } catch (error: any) {
+    console.error('[API] ❌ Erro ao sincronizar Hotmart:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+}
+
+/**
+ * POST /api/sync/hotmart/batch
+ * Sincronizar múltiplos users Hotmart
+ */
+export const syncHotmartBatchEndpoint = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { users, subdomain } = req.body
+    
+    if (!Array.isArray(users) || users.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: 'users array is required'
+      })
+      return
+    }
+    
+    const result = await syncHotmartBatch(users, subdomain)
+    
+    res.json(result)
+  } catch (error: any) {
+    console.error('[API] ❌ Erro ao sincronizar Hotmart batch:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+}
+
+/**
+ * POST /api/sync/curseduca
+ * Sincronizar user CursEduca individual
+ */
+export const syncCurseducaEndpoint = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, groupId, name, progress, enrollmentDate, lastAccess } = req.body
+    
+    if (!email || !groupId) {
+      res.status(400).json({
+        success: false,
+        message: 'Missing required fields: email, groupId'
+      })
+      return
+    }
+    
+    const result = await syncCursEduca({
+      email,
+      groupId,
+      name,
+      progress,
+      enrollmentDate,
+      lastAccess
+    })
+    
+    res.json(result)
+  } catch (error: any) {
+    console.error('[API] ❌ Erro ao sincronizar CursEduca:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+}
+
+/**
+ * POST /api/sync/curseduca/batch
+ * Sincronizar múltiplos users CursEduca
+ */
+export const syncCurseducaBatchEndpoint = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { users, groupId } = req.body
+    
+    if (!Array.isArray(users) || users.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: 'users array is required'
+      })
+      return
+    }
+    
+    const result = await syncCurseducaBatch(users, groupId)
+    
+    res.json(result)
+  } catch (error: any) {
+    console.error('[API] ❌ Erro ao sincronizar CursEduca batch:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+}
+
+/**
+ * POST /api/sync/discord
+ * Sincronizar user Discord individual
+ */
+export const syncDiscordEndpoint = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, discordId, username, serverId, roles, lastSeen } = req.body
+    
+    if (!email || !discordId || !serverId) {
+      res.status(400).json({
+        success: false,
+        message: 'Missing required fields: email, discordId, serverId'
+      })
+      return
+    }
+    
+    const result = await syncDiscord({
+      email,
+      discordId,
+      username,
+      serverId,
+      roles,
+      lastSeen
+    })
+    
+    res.json(result)
+  } catch (error: any) {
+    console.error('[API] ❌ Erro ao sincronizar Discord:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+}
+
+/**
+ * POST /api/sync/discord/csv
+ * Processar CSV Dyno (processo manual atual)
+ */
+export const syncDiscordCSVEndpoint = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { csvData, serverId } = req.body
+    
+    if (!Array.isArray(csvData) || !serverId) {
+      res.status(400).json({
+        success: false,
+        message: 'csvData array and serverId are required'
+      })
+      return
+    }
+    
+    const result = await syncDiscordFromCSV(csvData, serverId)
+    
+    res.json(result)
+  } catch (error: any) {
+    console.error('[API] ❌ Erro ao processar CSV Discord:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+}
+
+/**
+ * POST /api/sync/discord/batch
+ * Sincronizar múltiplos users Discord
+ */
+export const syncDiscordBatchEndpoint = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { users, serverId } = req.body
+    
+    if (!Array.isArray(users) || users.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: 'users array is required'
+      })
+      return
+    }
+    
+    const result = await syncDiscordBatch(users, serverId)
+    
+    res.json(result)
+  } catch (error: any) {
+    console.error('[API] ❌ Erro ao sincronizar Discord batch:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 2: SYNC HISTORY & STATS
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * GET /api/sync/history
+ * Buscar histórico de sincronizações
+ */
 export const getSyncHistory = async (req: Request, res: Response): Promise<void> => {
   const { 
     page = 1, 
@@ -107,7 +395,10 @@ export const getSyncHistory = async (req: Request, res: Response): Promise<void>
   }
 }
 
-// 📊 ESTATÍSTICAS DE SINCRONIZAÇÃO
+/**
+ * GET /api/sync/stats
+ * Estatísticas de sincronização
+ */
 export const getSyncStats = async (req: Request, res: Response): Promise<void> => {
   try {
     // Estatísticas gerais
@@ -212,7 +503,10 @@ export const getSyncStats = async (req: Request, res: Response): Promise<void> =
   }
 }
 
-// 🗑️ LIMPAR HISTÓRICO ANTIGO
+/**
+ * DELETE /api/sync/history/clean
+ * Limpar histórico antigo
+ */
 export const cleanOldHistory = async (req: Request, res: Response): Promise<void> => {
   const { days = 90 } = req.query
 
@@ -240,7 +534,10 @@ export const cleanOldHistory = async (req: Request, res: Response): Promise<void
   }
 }
 
-// 🔄 RETRY SINCRONIZAÇÃO FALHADA
+/**
+ * POST /api/sync/history/:syncId/retry
+ * Retry sincronização falhada
+ */
 export const retrySyncOperation = async (req: Request, res: Response): Promise<void> => {
   const { syncId } = req.params
 
@@ -286,11 +583,14 @@ export const retrySyncOperation = async (req: Request, res: Response): Promise<v
   }
 }
 
-// 📝 CRIAR REGISTO DE SINCRONIZAÇÃO
+/**
+ * POST /api/sync/history
+ * Criar registo de sincronização
+ */
 export const createSyncRecord = async (req: Request, res: Response): Promise<void> => {
   const { type, user, metadata } = req.body
 
-  if (!type || !["hotmart", "csv"].includes(type)) {
+  if (!type || !["hotmart", "curseduca", "discord", "csv"].includes(type)) {
     res.status(400).json({ message: "Tipo de sincronização inválido." })
     return
   }
@@ -316,5 +616,54 @@ export const createSyncRecord = async (req: Request, res: Response): Promise<voi
       message: "Erro ao criar registo de sincronização", 
       details: error.message 
     })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTION 3: SYSTEM STATUS
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * GET /api/sync/status
+ * Verificar status do sistema de sync
+ */
+export const getSyncStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const totalUsers = await User.countDocuments()
+    const totalProducts = await Product.countDocuments()
+    const totalUserProducts = await UserProduct.countDocuments()
+    
+    // Contar por plataforma
+    const productsByPlatform = await Product.aggregate([
+      { $group: { _id: '$platform', count: { $sum: 1 } } }
+    ])
+    
+    const userProductsByPlatform = await UserProduct.aggregate([
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'productId',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      { $unwind: '$product' },
+      { $group: { _id: '$product.platform', count: { $sum: 1 } } }
+    ])
+    
+    res.json({ 
+      success: true, 
+      data: {
+        users: totalUsers,
+        products: totalProducts,
+        userProducts: totalUserProducts,
+        productsByPlatform,
+        userProductsByPlatform
+      }
+    })
+    
+  } catch (error: any) {
+    console.error('[SYNC STATUS ERROR]', error)
+    res.status(500).json({ success: false, error: error.message })
   }
 }
