@@ -30,7 +30,7 @@ import { warmUpCache } from './services/dualReadService'
 import cronManagementRoutes from './routes/cron/cronManagement.routes'
 
 // 📊 DASHBOARD STATS: Importar CRON job de rebuild
-import { startRebuildDashboardStatsJob } from './jobs/rebuildDashboardStats.job'
+
 import { buildDashboardStats } from './services/dashboardStatsBuilder.service'
 
 // 🧹 CLEANUP: Importar CRON job de limpeza de histórico
@@ -75,7 +75,7 @@ import "./models"
 
 // Importar inicializador de CRON jobs
 import jobScheduler from "./jobs"
-import { startRebuildProductSalesStatsJob } from "./jobs/rebuildProductSalesStats.job"
+// import { startRebuildProductSalesStatsJob } from "./jobs/rebuildProductSalesStats.job"
 import analyticsCacheService from "./services/analyticsCache.service"
 import cohortAnalyticsRoutes from './routes/cohortAnalytics.routes'
 
@@ -160,11 +160,11 @@ mongoose.connect(process.env.MONGO_URI || "")
     console.log('✅ ============================================\n')
     
     // 📊 DASHBOARD STATS: Iniciar CRON job de rebuild
-    startRebuildDashboardStatsJob()
+    // startRebuildDashboardStatsJob()
 
     // 📊 PRODUCT SALES: Iniciar CRON job se habilitado
     if (process.env.ENABLE_PRODUCT_SALES_CRON !== 'false') {
-      startRebuildProductSalesStatsJob()
+      // startRebuildProductSalesStatsJob()
       console.log('✅ CRON Product Sales Stats iniciado (02:00 diariamente)')
     } else {
       console.log('⏭️  CRON Product Sales Stats desativado (ENABLE_PRODUCT_SALES_CRON=false)')

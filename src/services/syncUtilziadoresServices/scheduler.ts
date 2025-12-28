@@ -15,7 +15,7 @@ import universalSyncService from './universalSyncService'
 import curseducaAdapter from './curseducaServices/curseduca.adapter'
 import hotmartAdapter from './hotmartServices/hotmart.adapter'
 import CronExecution from '../../models/CronExecution'
-
+import { executeDailyPipeline } from './dailyPipeline.service'
 // ─────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────
@@ -600,11 +600,45 @@ const job = await CronJobConfig.create({
         return this.executeDiscordSync(job)
       case 'all':
         return this.executeAllSyncs(job)
+        case 'pipeline':
+    return await this.executePipelineJob(job)
+    
       default:
         throw new Error(`Tipo de sync desconhecido: ${job.syncType}`)
     }
   }
-
+private async executePipelineJob(job: ICronJobConfig): Promise<{
+  success: boolean
+  stats: ILastRunStats
+  errorMessage?: string
+}> {
+  console.log(`🔄 Executando DailyPipeline via job: ${job.name}`)
+  
+  try {
+    const result = await executeDailyPipeline()
+    
+    const stats: ILastRunStats = {
+      total: result.summary.totalUsers + result.summary.totalUserProducts,
+      inserted: 0,
+      updated: result.summary.engagementUpdated,
+      errors: result.errors.length,
+      skipped: 0
+    }
+    
+    return {
+      success: result.success,
+      stats,
+      errorMessage: result.errors.length > 0 ? result.errors.join('; ') : undefined
+    }
+  } catch (error: any) {
+    console.error(`❌ Erro ao executar pipeline: ${error.message}`)
+    return {
+      success: false,
+      stats: { total: 0, inserted: 0, updated: 0, errors: 1, skipped: 0 },
+      errorMessage: error.message
+    }
+  }
+}
   private async executeHotmartSync(job: ICronJobConfig): Promise<any> {
     console.log('🔥 [CRON] Executando Hotmart sync...')
 

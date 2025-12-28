@@ -1,24 +1,31 @@
 // ════════════════════════════════════════════════════════════════════════════
-// 📁 SUBSTITUIR: src/jobs/evaluateRules.job.ts
-// CRON Job CORRIGIDO para avaliação diária automática de regras
+// 📁 src/jobs/evaluateRules.job.ts
+// CRON Job para avaliação diária automática de regras
+// ════════════════════════════════════════════════════════════════════════════
+//
+// ⚠️ SCHEDULE DESATIVADO: Job migrado para wizard CRON
+// Gestão: http://localhost:3000/activecampaign
+//
+// Este job é executado AUTOMATICAMENTE pelo wizard às horas que definiste no BO
+// NÃO precisas executar manualmente - o sistema chama a função sozinho!
+//
 // ════════════════════════════════════════════════════════════════════════════
 
-import cron from 'node-cron'
 import Course from '../models/Course'
 import { Product, UserProduct } from '../models'
 import User from '../models/user'
 import tagRuleEngine from '../services/ac/tagRuleEngine'
-import CronExecutionLog from '../models/CronExecutionLog'
 
-const CRON_SCHEDULE = '0 2 * * *' // Todos os dias às 2h da manhã
+console.log('⚠️ EvaluateRules: DESATIVADO hardcoded (gerido pelo wizard)')
 
-console.log('✅ CRON Job de avaliação diária configurado (todos os dias às 2h)')
-
-cron.schedule(CRON_SCHEDULE, async () => {
+/**
+ * Função executada AUTOMATICAMENTE pelo wizard CRON
+ * Tu apenas defines o horário no BO - o sistema chama isto sozinho!
+ */
+export async function executeEvaluateRules() {
   console.log('🕐 Iniciando avaliação diária automática...')
   
   const startTime = Date.now()
-  const executionId = `EVAL_${Date.now()}`
   
   try {
     // ═══════════════════════════════════════════════════════════
@@ -111,25 +118,9 @@ cron.schedule(CRON_SCHEDULE, async () => {
     }
     
     // ═══════════════════════════════════════════════════════════
-    // 4. REGISTAR EXECUÇÃO
+    // 4. RESULTADO FINAL
     // ═══════════════════════════════════════════════════════════
     const duration = Date.now() - startTime
-    
-    await CronExecutionLog.create({
-      executionId,
-      type: 'daily-evaluation',
-      status: 'success',
-      startedAt: new Date(startTime),
-      finishedAt: new Date(),
-      duration,
-      results: {
-        totalCourses: courses.length,
-        totalStudents,
-        tagsApplied: totalTagsApplied,
-        tagsRemoved: totalTagsRemoved,
-        errors
-      }
-    })
     
     console.log(`\n✅ Avaliação concluída: ${totalTagsApplied} tags aplicadas, ${totalTagsRemoved} removidas`)
     console.log(`⏱️  Duração: ${(duration / 1000).toFixed(2)}s`)
@@ -139,21 +130,29 @@ cron.schedule(CRON_SCHEDULE, async () => {
       console.log(`⚠️  ${errors.length} erro(s) encontrado(s)`)
     }
     
+    // ✅ RETORNAR RESULTADO PARA O WIZARD REGISTAR
+    return {
+      success: true,
+      totalCourses: courses.length,
+      totalStudents,
+      tagsApplied: totalTagsApplied,
+      tagsRemoved: totalTagsRemoved,
+      errors: errors.length,
+      duration: Math.round(duration / 1000)
+    }
+    
   } catch (error: any) {
     console.error('❌ Erro na avaliação diária:', error)
     
-    await CronExecutionLog.create({
-      executionId,
-      type: 'daily-evaluation',
-      status: 'failed',
-      startedAt: new Date(startTime),
-      finishedAt: new Date(),
-      duration: Date.now() - startTime,
-      results: {
-        error: error.message
-      }
-    })
+    // ✅ LANÇAR ERRO PARA O WIZARD REGISTAR COMO FALHA
+    throw new Error(`Erro na avaliação de regras: ${error.message}`)
   }
-})
+}
 
-export default {}
+// ═══════════════════════════════════════════════════════════
+// EXPORT PARA O WIZARD CHAMAR AUTOMATICAMENTE
+// ═══════════════════════════════════════════════════════════
+
+export default {
+  run: executeEvaluateRules  // ← Wizard chama isto às horas que TU definiste no BO!
+}
