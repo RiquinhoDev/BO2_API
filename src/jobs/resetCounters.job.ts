@@ -1,7 +1,13 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/jobs/resetCounters.job.ts
 // Job semanal: Reset de contadores semanais e mensais
-// Horário: 1h da manhã de segunda-feira
+// ════════════════════════════════════════════════════════════
+//
+// ⚠️ SCHEDULE DESATIVADO: Job migrado para wizard CRON
+// Gestão: http://localhost:3000/activecampaign
+//
+// Horário original: 1h da manhã de segunda-feira
+//
 // ════════════════════════════════════════════════════════════
 
 import cron from 'node-cron'
@@ -16,8 +22,7 @@ import logger, { logJobStart, logJobEnd, logJobError } from '../utils/logger'
 const JOB_NAME = 'ResetCounters'
 const CRON_SCHEDULE = '0 1 * * 1' // 1h da manhã, toda segunda-feira
 
-// Para testes: '*/10 * * * *' = a cada 10 minutos
-// Para produção: '0 1 * * 1' = 1h de segunda
+console.log('⚠️ ResetCounters: DESATIVADO hardcoded (gerido pelo wizard)')
 
 // ─────────────────────────────────────────────────────────────
 // FUNÇÃO PRINCIPAL DO JOB
@@ -45,7 +50,6 @@ async function executeJob() {
 
     logger.info('🔄 Resetando contadores semanais...')
 
-    // Nota: Estamos usando Map no schema, então precisamos buscar e atualizar manualmente
     const users = await User.find({
       communicationByCourse: { $exists: true }
     })
@@ -53,8 +57,8 @@ async function executeJob() {
     for (const user of users) {
       try {
         if (user.communicationByCourse) {
-          // Iterar sobre cada curso no Map
-          for (const [courseId, courseData] of user.communicationByCourse.entries()) {
+          // ✅ CORRIGIDO: Object.entries em vez de .entries()
+          for (const [courseId, courseData] of Object.entries(user.communicationByCourse)) {
             if (courseData.courseSpecificData) {
               courseData.courseSpecificData.reportsOpenedLastWeek = 0
             }
@@ -85,7 +89,8 @@ async function executeJob() {
       for (const user of users) {
         try {
           if (user.communicationByCourse) {
-            for (const [courseId, courseData] of user.communicationByCourse.entries()) {
+            // ✅ CORRIGIDO: Object.entries em vez de .entries()
+            for (const [courseId, courseData] of Object.entries(user.communicationByCourse)) {
               if (courseData.courseSpecificData) {
                 courseData.courseSpecificData.reportsOpenedLastMonth = 0
               }
@@ -135,36 +140,30 @@ async function executeJob() {
       durationSeconds
     })
 
+    // ✅ RETORNAR RESULTADO
+    return {
+      success: true,
+      ...stats,
+      actionsDeleted: deletedActions.deletedCount,
+      duration: durationSeconds
+    }
+
   } catch (error: any) {
     stats.errors++
     logJobError(JOB_NAME, error)
-    throw error
+    
+    // ✅ LANÇAR ERRO PARA CRON CAPTURAR
+    throw new Error(`Erro no reset de contadores: ${error.message}`)
   }
 }
 
 // ─────────────────────────────────────────────────────────────
-// SCHEDULER
+// EXECUÇÃO AUTOMÁTICA PELO WIZARD
 // ─────────────────────────────────────────────────────────────
 
-export function startResetCountersJob() {
-  logger.info(`📅 Agendando job: ${JOB_NAME}`)
-  logger.info(`⏰ Horário: ${CRON_SCHEDULE} (1h de segunda-feira)`)
-
-  cron.schedule(CRON_SCHEDULE, async () => {
-    logger.info('⏰ Trigger: Job ResetCounters iniciado pelo CRON')
-    await executeJob()
-  })
-
-  logger.info(`✅ Job ${JOB_NAME} agendado com sucesso`)
-}
-
-// ─────────────────────────────────────────────────────────────
-// EXECUÇÃO MANUAL (para testes)
-// ─────────────────────────────────────────────────────────────
-
-export async function runResetCountersNow() {
-  logger.info('🚀 Execução manual do job ResetCounters')
-  await executeJob()
+export async function executeResetCounters() {
+  logger.info('🚀 Executando reset de contadores (via wizard)')
+  return await executeJob()
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -172,7 +171,5 @@ export async function runResetCountersNow() {
 // ─────────────────────────────────────────────────────────────
 
 export default {
-  start: startResetCountersJob,
-  runNow: runResetCountersNow
+  run: executeResetCounters  // ← Wizard chama isto automaticamente!
 }
-

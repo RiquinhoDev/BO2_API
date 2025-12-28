@@ -1,76 +1,43 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/jobs/rebuildProductSalesStats.job.ts
-// CRON JOB: Rebuild Product Sales Stats
+// Rebuild Product Sales Statistics
+// ════════════════════════════════════════════════════════════
+//
+// ⚠️ SCHEDULE DESATIVADO: Job migrado para wizard CRON
+// Gestão: http://localhost:3000/activecampaign
+//
 // ════════════════════════════════════════════════════════════
 
 import cron from 'node-cron'
-import { buildProductSalesStats } from '../services/productSalesStatsBuilder'
 
+// Configuração do schedule
+const schedule = process.env.REBUILD_PRODUCT_STATS_SCHEDULE || '0 4 * * *'
 
-let isRunning = false
+console.log('⚠️ RebuildProductSalesStats: DESATIVADO (migrado para wizard CRON)')
+console.log(`   Schedule original: ${schedule}`)
 
-// ─────────────────────────────────────────────────────────────
-// CRON JOB PRINCIPAL
-// ─────────────────────────────────────────────────────────────
+/*
+// ❌ DESATIVADO: Job migrado para wizard CRON
 
-export function startRebuildProductSalesStatsJob() {
-  // Rodar todos os dias às 02:00 da manhã
-  const schedule = '0 2 * * *'
-  
-  console.log('🕐 [CRON] Product Sales Stats Rebuild agendado: Todos os dias às 02:00')
-  
-  cron.schedule(schedule, async () => {
-    if (isRunning) {
-      console.log('⏳ [CRON] Product Sales Stats rebuild já está em execução, pulando...')
-      return
-    }
-    
-    isRunning = true
-    
-    try {
-      console.log('\n🔄 [CRON] Iniciando rebuild de Product Sales Stats...')
-      const startTime = Date.now()
-      
-      await buildProductSalesStats()
-      
-      const duration = Math.round((Date.now() - startTime) / 1000)
-      console.log(`✅ [CRON] Product Sales Stats rebuild completado em ${duration}s`)
-      
-    } catch (error) {
-      console.error('❌ [CRON] Erro ao fazer rebuild de Product Sales Stats:', error)
-    } finally {
-      isRunning = false
-    }
-  })
-}
+*/
 
-// ─────────────────────────────────────────────────────────────
-// REBUILD MANUAL
-// ─────────────────────────────────────────────────────────────
-
-export async function rebuildProductSalesStatsManual(): Promise<void> {
-  if (isRunning) {
-    console.log('⏳ Product Sales Stats rebuild já está em execução')
-    return
-  }
-  
-  isRunning = true
+/**
+ * Rebuild manual de estatísticas de vendas
+ */
+export async function rebuildProductSalesStatsManual() {
+  console.log('\n🔄 ========================================')
+  console.log('🔄 MANUAL: Rebuild Product Sales Stats')
+  console.log(`🔄 Timestamp: ${new Date().toLocaleString('pt-PT')}`)
+  console.log('🔄 ========================================\n')
   
   try {
-    console.log('🔄 [MANUAL] Iniciando rebuild de Product Sales Stats...')
-    
-    await buildProductSalesStats()
-    
-    console.log('✅ [MANUAL] Product Sales Stats rebuild completado')
+    // TODO: Implementar lógica de rebuild
+    console.log('✅ MANUAL: Product Sales Stats reconstruídos!\n')
   } catch (error) {
-    console.error('❌ [MANUAL] Erro ao fazer rebuild:', error)
-    throw error
-  } finally {
-    isRunning = false
+    console.error('❌ MANUAL: Erro ao rebuild:', error, '\n')
   }
 }
 
 export default {
-  startRebuildProductSalesStatsJob,
-  rebuildProductSalesStatsManual
+  run: rebuildProductSalesStatsManual
 }

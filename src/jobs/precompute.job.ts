@@ -1,20 +1,22 @@
+// ════════════════════════════════════════════════════════════
+// 📁 src/jobs/precompute.job.ts
+// Precompute User Metrics Job
+// ════════════════════════════════════════════════════════════
+//
+// ⚠️ SCHEDULE DESATIVADO: Job migrado para wizard CRON
+// Gestão: http://localhost:3000/activecampaign
+//
+// ════════════════════════════════════════════════════════════
+
 import cron from 'node-cron'
-import  User  from '../models/user'
+import User from '../models/user'
 import { cacheService } from '../services/cache.service'
 
 class PrecomputeJob {
-  start() {
-    // Executar a cada 30 minutos
-    cron.schedule('*/30 * * * *', async () => {
-      console.log('🔄 Starting precompute job...')
-      await this.precomputeUserMetrics()
-    })
+  /*
+  // ❌ DESATIVADO: Job migrado para wizard CRON
 
-    // Executar uma vez no startup após 10 segundos
-    setTimeout(() => {
-      this.precomputeUserMetrics()
-    }, 10000)
-  }
+  */
 
   async precomputeUserMetrics() {
     try {
@@ -123,3 +125,9 @@ class PrecomputeJob {
 }
 
 export const precomputeJob = new PrecomputeJob()
+
+console.log('⚠️ PrecomputeJob: DESATIVADO (migrado para wizard CRON)')
+
+export default {
+  run: () => precomputeJob.precomputeUserMetrics()
+}

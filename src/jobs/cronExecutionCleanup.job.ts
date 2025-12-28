@@ -1,8 +1,13 @@
 // ════════════════════════════════════════════════════════════
 // 🧹 CRON EXECUTION CLEANUP JOB
 // ════════════════════════════════════════════════════════════
+//
+// ⚠️ SCHEDULE DESATIVADO: Job migrado para wizard CRON
+// Gestão: http://localhost:3000/activecampaign
+//
 // Limpa registos de execuções antigas (>90 dias) para manter BD limpa
-// Executa: Todos os domingos às 03:00
+// Schedule original: Todos os domingos às 03:00
+//
 // ════════════════════════════════════════════════════════════
 
 import schedule from 'node-schedule'
@@ -15,6 +20,11 @@ import CronExecution from '../models/CronExecution'
 const RETENTION_DAYS = 90 // Manter últimos 90 dias
 const CRON_SCHEDULE = '0 3 * * 0' // Domingos às 03:00
 const MIN_RECORDS_TO_KEEP = 100 // Sempre manter pelo menos 100 registos
+
+console.log(`⚠️ CronExecutionCleanup: DESATIVADO (migrado para wizard CRON)`)
+console.log(`   Schedule original: ${CRON_SCHEDULE} (Domingos às 03:00)`)
+console.log(`   Retenção: ${RETENTION_DAYS} dias`)
+console.log(`   Mínimo a manter: ${MIN_RECORDS_TO_KEEP} registos`)
 
 // ─────────────────────────────────────────────────────────────
 // FUNÇÃO DE LIMPEZA
@@ -54,7 +64,6 @@ async function cleanupOldExecutions(): Promise<{
 
     // ✅ PROTEÇÃO: Sempre manter pelo menos MIN_RECORDS_TO_KEEP
     if (totalBefore - toDelete < MIN_RECORDS_TO_KEEP) {
-      const keepCount = Math.max(MIN_RECORDS_TO_KEEP, totalBefore - toDelete)
       console.log(`⚠️  PROTEÇÃO ATIVADA: Manter pelo menos ${MIN_RECORDS_TO_KEEP} registos`)
       console.log(`   Nenhum registo será removido nesta execução`)
       
@@ -111,20 +120,6 @@ async function cleanupOldExecutions(): Promise<{
 }
 
 // ─────────────────────────────────────────────────────────────
-// AGENDAR JOB AUTOMÁTICO
-// ─────────────────────────────────────────────────────────────
-
-const cleanupJob = schedule.scheduleJob(CRON_SCHEDULE, async () => {
-  console.log(`🕐 [CRON] Cleanup automático disparado: ${new Date().toISOString()}`)
-  await cleanupOldExecutions()
-})
-
-console.log(`✅ CRON Job de limpeza configurado`)
-console.log(`   Schedule: ${CRON_SCHEDULE} (Domingos às 03:00)`)
-console.log(`   Retenção: ${RETENTION_DAYS} dias`)
-console.log(`   Mínimo a manter: ${MIN_RECORDS_TO_KEEP} registos`)
-
-// ─────────────────────────────────────────────────────────────
 // EXPORTAR FUNÇÃO PARA EXECUÇÃO MANUAL
 // ─────────────────────────────────────────────────────────────
 
@@ -156,4 +151,6 @@ export async function runCleanupManually(dryRun: boolean = false): Promise<any> 
   return await cleanupOldExecutions()
 }
 
-export default cleanupJob
+export default {
+  run: runCleanupManually
+}
