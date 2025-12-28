@@ -249,7 +249,7 @@ async function determineProductId(
       }).select('_id code').lean() as LeanProduct | null
       
       if (product) {
-        console.log(`✅ [ProductMapping] Produto encontrado por groupId ${groupId}: ${product.code}`)
+        debugLog(`✅ [ProductMapping] Produto encontrado por groupId ${groupId}: ${product.code}`)
         return product._id
       }
     }
@@ -263,7 +263,7 @@ async function determineProductId(
       }).select('_id code').lean() as LeanProduct | null
       
       if (product) {
-        console.log(`✅ [ProductMapping] Produto encontrado por subscriptionType ${item.subscriptionType}: ${product.code}`)
+        debugLog(`✅ [ProductMapping] Produto encontrado por subscriptionType ${item.subscriptionType}: ${product.code}`)
         return product._id
       }
     }
@@ -885,7 +885,7 @@ const processSyncItem = async (
   // ═══════════════════════════════════════════════════════════
   if (needsUpdate) {
     await User.findByIdAndUpdate(userIdStr, { $set: updateFields })
-    console.log(`🔄 [UniversalSync] User atualizado: ${user.email}`)
+    debugLog(`🔄 [UniversalSync] User atualizado: ${user.email}`)
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -919,7 +919,7 @@ const processSyncItem = async (
       
       // isPrimary
       if (item.platformData?.isPrimary !== undefined) {
-        console.log(`   📌 Atualizando isPrimary: ${item.platformData.isPrimary} para ${item.email}`)
+        debugLog(`   📌 Atualizando isPrimary: ${item.platformData.isPrimary} para ${item.email}`)
         upUpdateFields['isPrimary'] = item.platformData.isPrimary
         upNeedsUpdate = true
       }
@@ -1013,7 +1013,7 @@ const processSyncItem = async (
       // Aplicar updates
       if (upNeedsUpdate) {
         await UserProduct.findByIdAndUpdate(existingUP._id, { $set: upUpdateFields })
-        console.log(`   📦 UserProduct atualizado: ${user.email}`)
+        debugLog(`   📦 UserProduct atualizado: ${user.email}`)
       }
       
     // ═══════════════════════════════════════════════════════════
@@ -1141,7 +1141,7 @@ const processSyncItem = async (
       }
       
       await UserProduct.create(newUserProduct)
-      console.log(`   ✨ UserProduct CRIADO: ${user.email} → ${config.syncType}`)
+      debugLog(`   ✨ UserProduct CRIADO: ${user.email} → ${config.syncType}`)
     }
     
   } catch (upError: any) {
@@ -1230,9 +1230,9 @@ export function calculateEngagementMetricsForUserProduct(
     if (lastAction) {
       const lastActionTime = lastAction instanceof Date ? lastAction.getTime() : new Date(lastAction).getTime()
       daysSinceLastAction = Math.floor((now - lastActionTime) / (1000 * 60 * 60 * 24))
-      console.log(`   ✅ daysSinceLastAction: ${daysSinceLastAction} dias`)
+      debugLog(`   ✅ daysSinceLastAction: ${daysSinceLastAction} dias`)
     } else {
-      console.log(`   ⚠️  CursEduca progress.lastActivity não disponível`)
+      debugLog(`   ⚠️  CursEduca progress.lastActivity não disponível`)
     }
 
     // Ações (não disponível no modelo atual)
@@ -1241,7 +1241,7 @@ export function calculateEngagementMetricsForUserProduct(
 
   } else if (platform === 'discord') {
     // DISCORD = Não implementado ainda
-    console.log(`   ℹ️  Discord: métricas de engagement não implementadas`)
+    debugLog(`   ℹ️  Discord: métricas de engagement não implementadas`)
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1277,7 +1277,7 @@ export function calculateEngagementMetricsForUserProduct(
                   null
 
     if (purchaseDate) {
-      console.log(`   📅 CursEduca joinedDate: ${purchaseDate.toISOString()}`)
+      debugLog(`   📅 CursEduca joinedDate: ${purchaseDate.toISOString()}`)
     }
 
   } else if (platform === 'discord') {
@@ -1306,7 +1306,7 @@ export function calculateEngagementMetricsForUserProduct(
     }
   }
 
-  console.log(`   ✅ Métricas calculadas para ${product.code}`)
+  debugLog(`   ✅ Métricas calculadas para ${product.code}`)
   
   return metrics
 }
