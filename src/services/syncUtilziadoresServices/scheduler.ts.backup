@@ -583,171 +583,30 @@ const job = await CronJobConfig.create({
   // EXECUTION LOGIC
   // ═══════════════════════════════════════════════════════════
 
-private async executeSyncJob(job: ICronJobConfig): Promise<{
-  success: boolean
-  stats: ILastRunStats
-  errorMessage?: string
-}> {
-  console.log(`🔄 Executando job: ${job.name}`)
+  private async executeSyncJob(job: ICronJobConfig): Promise<{
+    success: boolean
+    stats: ILastRunStats
+    errorMessage?: string
+  }> {
+    console.log(`🔄 Executando sync: ${job.syncType}`)
 
-  // ═══════════════════════════════════════════════════════════
-  // ✅ NOVO: VERIFICAR SE JOB TEM FICHEIRO ESPECÍFICO
-  // ═══════════════════════════════════════════════════════════
-  
-  // Jobs que TÊM ficheiro .job.ts específico
-  const jobsWithSpecificLogic = [
-    'EvaluateRules',
-    'ResetCounters',
-    'RebuildDashboardStats',
-    'CronExecutionCleanup'
-  ]
-  
-  // Verificar se job atual tem lógica específica
-  const hasSpecificLogic = jobsWithSpecificLogic.some(name => 
-    job.name.includes(name)
-  )
-  
-  if (hasSpecificLogic) {
-    console.log(`🎯 Job com lógica específica detectado: ${job.name}`)
-    return await this.executeSpecificJob(job)
-  }
-  
-  // ═══════════════════════════════════════════════════════════
-  // ✅ FALLBACK: LÓGICA NORMAL DE SYNC
-  // ═══════════════════════════════════════════════════════════
-  
-  console.log(`🔄 Executando sync padrão: ${job.syncType}`)
-
-  switch (job.syncType) {
-    case 'hotmart':
-      return this.executeHotmartSync(job)
-    case 'curseduca':
-      return this.executeCurseducaSync(job)
-    case 'discord':
-      return this.executeDiscordSync(job)
-    case 'all':
-      return this.executeAllSyncs(job)
-case 'pipeline':
-  return this.executePipelineJob(job)
-    default:
-      throw new Error(`Tipo de sync desconhecido: ${job.syncType}`)
-  }
-}
-// ═══════════════════════════════════════════════════════════
-// ✅ MÉTODO NOVO PARA ADICIONAR EM scheduler.ts
-// Adicionar LOGO APÓS o método executeSyncJob()
-// ═══════════════════════════════════════════════════════════
-
-/**
- * ✅ NOVO: Executar jobs com lógica específica
- * 
- * Jobs que NÃO fazem sync, apenas executam lógica específica:
- * - EvaluateRules → Avaliar tag rules
- * - ResetCounters → Resetar contadores
- * - RebuildDashboardStats → Rebuild stats
- * - CronExecutionCleanup → Limpar histórico
- */
-private async executeSpecificJob(job: ICronJobConfig): Promise<{
-  success: boolean
-  stats: ILastRunStats
-  errorMessage?: string
-}> {
-  const startTime = Date.now()
-  
-  try {
-    let result: any
+    // TODO: Integrar com os controllers reais
+    switch (job.syncType) {
+      case 'hotmart':
+        return this.executeHotmartSync(job)
+      case 'curseduca':
+        return this.executeCurseducaSync(job)
+      case 'discord':
+        return this.executeDiscordSync(job)
+      case 'all':
+        return this.executeAllSyncs(job)
+        case 'pipeline':
+    return await this.executePipelineJob(job)
     
-    // ═══════════════════════════════════════════════════════════
-    // EXECUTAR LÓGICA ESPECÍFICA - VERSÃO SIMPLIFICADA
-    // Todos os jobs usam: default.run()
-    // ═══════════════════════════════════════════════════════════
-    
-    if (job.name.includes('EvaluateRules')) {
-      console.log('🏷️  Executando: EvaluateRules (tag rules)')
-      const jobModule = await import('../../jobs/evaluateRules.job')
-      result = await jobModule.default.run()
-      
-    } else if (job.name.includes('ResetCounters')) {
-      console.log('🔄 Executando: ResetCounters (contadores)')
-      const jobModule = await import('../../jobs/resetCounters.job')
-      result = await jobModule.default.run()
-      
-    } else if (job.name.includes('RebuildDashboardStats')) {
-      console.log('📊 Executando: RebuildDashboardStats (stats)')
-      
-      // RebuildDashboardStats pode não ter job file, então usar serviço direto
-      try {
-        const jobModule = await import('../../jobs/rebuildDashboardStats.job')
-        if (jobModule.default?.run) {
-          result = await jobModule.default.run()
-        } else if (jobModule.rebuildDashboardStatsManual) {
-          await jobModule.rebuildDashboardStatsManual()
-          result = { success: true }
-        } else {
-          throw new Error('Método não encontrado')
-        }
-      } catch (importError) {
-        // Fallback: Chamar serviço diretamente
-        console.log('   ℹ️  Usando serviço diretamente')
-        const statsBuilder = await import('../../services/dashboardStatsBuilder.service')
-        await statsBuilder.buildDashboardStats()
-        result = { success: true, total: 0 }
-      }
-      
-    } else if (job.name.includes('CronExecutionCleanup')) {
-      console.log('🗑️  Executando: CronExecutionCleanup (cleanup)')
-      const jobModule = await import('../../jobs/cronExecutionCleanup.job')
-      result = await jobModule.default.run()
-      
-    } else {
-      throw new Error(`Job específico não encontrado: ${job.name}`)
-    }
-    
-    // ═══════════════════════════════════════════════════════════
-    // NORMALIZAR RESULTADO
-    // ═══════════════════════════════════════════════════════════
-    
-    const duration = Math.round((Date.now() - startTime) / 1000)
-    
-    console.log(`✅ Job específico completado em ${duration}s`)
-    
-    // Normalizar stats para formato esperado pelo scheduler
-    const stats: ILastRunStats = {
-      total: result?.total || result?.usersUpdated || result?.deleted || result?.totalStudents || 0,
-      inserted: result?.inserted || 0,
-      updated: result?.updated || result?.usersUpdated || result?.tagsApplied || 0,
-      errors: result?.errors || 0,
-      skipped: result?.skipped || 0
-    }
-    
-    // Determinar sucesso
-    const success = result?.success !== false && stats.errors === 0
-    
-    return {
-      success,
-      stats,
-      errorMessage: result?.error || result?.errorMessage
-    }
-    
-  } catch (error: any) {
-    const duration = Math.round((Date.now() - startTime) / 1000)
-    
-    console.error(`❌ Erro ao executar job específico:`, error.message)
-    
-    return {
-      success: false,
-      stats: {
-        total: 0,
-        inserted: 0,
-        updated: 0,
-        errors: 1,
-        skipped: 0
-      },
-      errorMessage: error.message
+      default:
+        throw new Error(`Tipo de sync desconhecido: ${job.syncType}`)
     }
   }
-}
-
 private async executePipelineJob(job: ICronJobConfig): Promise<{
   success: boolean
   stats: ILastRunStats
@@ -779,8 +638,7 @@ private async executePipelineJob(job: ICronJobConfig): Promise<{
       errorMessage: error.message
     }
   }
-  }
-  
+}
   private async executeHotmartSync(job: ICronJobConfig): Promise<any> {
     console.log('🔥 [CRON] Executando Hotmart sync...')
 
