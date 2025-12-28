@@ -1,7 +1,8 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/services/tagRuleEngine.ts (CORRIGIDO)
+// 📁 src/services/ac/tagRuleEngine.ts
 // Motor de avaliação e execução de regras de tags
-// ✅ SUPORTE UNIFICADO: Hotmart + CursEDuca
+// ✅ SUPORTE UNIFICADO: Hotmart + CursEduca
+// ✅ COOLDOWN: 2 dias (sem spam)
 // ════════════════════════════════════════════════════════════
 
 import mongoose from 'mongoose'
@@ -234,25 +235,14 @@ class TagRuleEngine {
               continue
             }
 
-            // 1) condições
-            const conditionsMet = await this.evaluateConditions(rule.conditions, context)
-            if (!conditionsMet) continue
-
-            // 2) cooldown por tag no CommunicationHistory
-            const canExecute = await this.checkCooldown(
-              context.user._id,
-              (context.course as any)._id as mongoose.Types.ObjectId,
-              rule.actions.addTag
-            )
-            if (!canExecute) continue
-
-            // 3) executar ações
-            await this.executeRuleActions(rule, context, { skipRuleUpdate: true })
-
-            executions++
-            executedRuleIds.add(rule.id.toString())
-
-            console.log(`✅ [TagRuleEngine] Regra "${rule.name}" executada para ${email}`)
+            // Avaliar e executar regra (cooldown está dentro do executeRuleActions)
+            const result = await this.evaluateAndExecuteRule(rule, context, { skipRuleUpdate: true })
+            
+            if (result.executed) {
+              executions++
+              executedRuleIds.add(rule.id.toString())
+              console.log(`✅ [TagRuleEngine] Regra "${rule.name}" executada para ${email}`)
+            }
           } catch (error: any) {
             console.error(`❌ [TagRuleEngine] Erro ao executar regra "${rule.name}" para ${email}:`, error)
             errors.push({
@@ -468,20 +458,12 @@ class TagRuleEngine {
     // Verificar se todas as condições usam campos permitidos
     for (const condition of rule.conditions) {
       if (condition.type === 'SIMPLE') {
-        // ✅ Guard: verificar se field existe antes de usar includes()
         if (!condition.field || !allowedFields.includes(condition.field)) {
-          console.warn(
-            `⚠️ Regra "${rule.name}" usa campo "${condition.field || 'undefined'}" incompatível com ${trackingType}`
-          )
           return false
         }
       } else if (condition.type === 'COMPOUND' && condition.subConditions) {
         for (const sub of condition.subConditions) {
-          // ✅ Guard: verificar se field existe antes de usar includes()
           if (!sub.field || !allowedFields.includes(sub.field)) {
-            console.warn(
-              `⚠️ Regra "${rule.name}" usa campo "${sub.field || 'undefined'}" incompatível com ${trackingType}`
-            )
             return false
           }
         }
@@ -493,6 +475,7 @@ class TagRuleEngine {
 
   // ═══════════════════════════════════════════════════════════
   // AVALIAR E EXECUTAR UMA REGRA
+  // ✅ COOLDOWN CHECK REMOVIDO DAQUI (está no executeRuleActions)
   // ═══════════════════════════════════════════════════════════
 
   private async evaluateAndExecuteRule(
@@ -514,35 +497,24 @@ class TagRuleEngine {
         }
       }
 
-      // 2. Cooldown por tag
-      const canExecute = await this.checkCooldown(
-        context.user._id,
-        (context.course as any)._id as mongoose.Types.ObjectId,
-        rule.actions.addTag
-      )
-
-      if (!canExecute) {
-        return {
-          ruleId: rule.id.toString(),
-          ruleName: rule.name,
-          executed: false,
-          reason: 'Email já enviado recentemente (cooldown)'
-        }
-      }
-
-      // 3. Executar ações
+      // 2. Executar ações (cooldown check está DENTRO do executeRuleActions!)
       await this.executeRuleActions(rule, context, opts)
 
       console.log(`✅ Regra "${rule.name}" executada para ${email}`)
-      return { ruleId: rule.id.toString(), ruleName: rule.name, executed: true }
+      return { 
+        ruleId: rule.id.toString(), 
+        ruleName: rule.name, 
+        executed: true,
+        action: 'ADD_TAG'
+      }
     } catch (error: any) {
       console.error(`❌ Erro ao executar regra "${rule.name}":`, error)
-return {
-  ruleId: rule.id.toString(),
-  ruleName: rule.name,
-  executed: true,      // ✅ SIM, executou!
-  action: 'ADD_TAG'    // ✅ E aplicou tag!
-}
+      return {
+        ruleId: rule.id.toString(),
+        ruleName: rule.name,
+        executed: false,
+        error: error.message
+      }
     }
   }
 
@@ -707,62 +679,86 @@ return {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // EXECUTAR AÇÕES DA REGRA
+  // ✅ EXECUTAR AÇÕES DA REGRA (COM COOLDOWN DE 2 DIAS)
   // ═══════════════════════════════════════════════════════════
 
-private async executeRuleActions(
-  rule: ITagRule,
-  context: EvaluationContext,
-  opts?: { skipRuleUpdate?: boolean }
-): Promise<void> {
-  const { user, course, userStats } = context
-  const { addTag, removeTags } = rule.actions
+  private async executeRuleActions(
+    rule: ITagRule,
+    context: EvaluationContext,
+    opts?: { skipRuleUpdate?: boolean }
+  ): Promise<void> {
+    const { user, course, userStats } = context
+    const { addTag, removeTags } = rule.actions
 
-  const email = DataUnifier.getUnifiedEmail(user)
+    const email = DataUnifier.getUnifiedEmail(user)
 
-  // 1. Remover tags antigas
-  if (removeTags && removeTags.length > 0) {
-    console.log(`🗑️ [${email}] Removendo tags: ${removeTags.join(', ')}`)
-    await activeCampaignService.removeTags(email, removeTags)
+    // ═══════════════════════════════════════════════════════════
+    // ✅ COOLDOWN CHECK (2 DIAS - 48 HORAS)
+    // Usa sistema existente do CommunicationHistory
+    // ═══════════════════════════════════════════════════════════
+    
+    const COOLDOWN_DAYS = 2  // ← 2 DIAS = 48 HORAS
+    
+    const canExecute = await this.checkCooldown(
+      user._id,
+      (course as any)._id,
+      addTag,
+      COOLDOWN_DAYS  // ← Passa 2 dias em vez do default 30
+    )
+
+    if (!canExecute) {
+      // Sistema já logou o motivo no checkCooldown
+      // Adicionar log adicional para clareza
+      console.log(`⏭️  [${email}] Tag "${addTag}" em cooldown (${COOLDOWN_DAYS} dias) - SKIP`)
+      return  // ← SKIP! Não aplica tag nem remove nada
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // SE NÃO ESTÁ EM COOLDOWN, PROCEDER NORMALMENTE
+    // ═══════════════════════════════════════════════════════════
+
+    // 1. Remover tags antigas
+    if (removeTags && removeTags.length > 0) {
+      console.log(`🗑️ [${email}] Removendo tags: ${removeTags.join(', ')}`)
+      await activeCampaignService.removeTags(email, removeTags)
+    }
+
+    // 2. Adicionar nova tag
+    console.log(`✅ [${email}] Aplicando tag: ${addTag}`)
+    await activeCampaignService.addTag(email, addTag)
+
+    // 3. Registar em CommunicationHistory
+    const snapshot: any = {
+      currentProgress: userStats.currentProgress,
+      currentPhase: 'ENGAGEMENT'
+    }
+
+    // Adicionar campo específico do trackingType
+    if (course.trackingType === 'ACTION_BASED') {
+      snapshot.daysSinceLastAction = userStats.daysSinceLastAction
+    } else if (course.trackingType === 'LOGIN_BASED') {
+      snapshot.daysSinceLastLogin = userStats.daysSinceLastLogin
+    }
+
+    await CommunicationHistory.create({
+      userId: user._id,
+      courseId: (course as any)._id,
+      tagRuleId: rule._id,
+      tagApplied: addTag,
+      status: 'SENT',
+      sentAt: new Date(),
+      source: 'AUTOMATIC',
+      userStateSnapshot: snapshot
+    })
+
+    console.log(`📝 [${email}] Comunicação registada em histórico`)
+
+    // 4. Atualizar lastRunAt
+    if (!opts?.skipRuleUpdate) {
+      rule.lastRunAt = new Date()
+      await rule.save()
+    }
   }
-
-  // 2. Adicionar nova tag
-  console.log(`✅ [${email}] Aplicando tag: ${addTag}`)
-  await activeCampaignService.addTag(email, addTag)
-
-  // 3. Registar em CommunicationHistory
-  // ✅ MUDANÇA: Guardar campo correto dependendo do trackingType
-  const snapshot: any = {
-    currentProgress: userStats.currentProgress,
-    currentPhase: 'ENGAGEMENT'
-  }
-
-  // Adicionar campo específico do trackingType
-  if (course.trackingType === 'ACTION_BASED') {
-    snapshot.daysSinceLastAction = userStats.daysSinceLastAction
-  } else if (course.trackingType === 'LOGIN_BASED') {
-    snapshot.daysSinceLastLogin = userStats.daysSinceLastLogin
-  }
-
-  await CommunicationHistory.create({
-    userId: user._id,
-    courseId: (course as any)._id,
-    tagRuleId: rule._id,
-    tagApplied: addTag,
-    status: 'SENT',
-    sentAt: new Date(),
-    source: 'AUTOMATIC',
-    userStateSnapshot: snapshot  // ✅ Agora com campo correto!
-  })
-
-  console.log(`📝 [${email}] Comunicação registada em histórico`)
-
-  // 4. Atualizar lastRunAt
-  if (!opts?.skipRuleUpdate) {
-    rule.lastRunAt = new Date()
-    await rule.save()
-  }
-}
 
   // ═══════════════════════════════════════════════════════════
   // ✅ CALCULAR ESTATÍSTICAS DO USER (UNIFORMIZADO)
