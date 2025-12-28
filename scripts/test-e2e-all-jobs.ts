@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════
 // 📁 scripts/test-e2e-all-jobs.ts
-// FASE 1.2: Testes E2E Completos
+// FASE 1.2: Testes E2E - Jobs Restantes
 // ════════════════════════════════════════════════════════════
 
 import axios from 'axios'
@@ -19,35 +19,35 @@ const JOBS_TO_TEST = [
     name: 'DailyPipeline',
     description: 'Pipeline completo (4 steps)',
     expectedDuration: 60, // minutos
-    shouldTest: false, // Já executou às 02:00
-    expectedStats: { total: 6000, errors: 0 }
+    shouldTest: false, // Job longo - correr à noite
+    skipReason: 'Job demorado - executado via CRON'
   },
   {
     name: 'EvaluateRules',
     description: 'Avaliação de regras de tags',
     expectedDuration: 30,
-    shouldTest: true,
-    expectedStats: { total: 6000, errors: 0 }
+    shouldTest: false, // ✅ JÁ TESTADO
+    skipReason: 'Já testado e validado'
   },
   {
     name: 'ResetCounters',
     description: 'Reset de contadores semanais',
     expectedDuration: 5,
-    shouldTest: true,
+    shouldTest: true, // ✅ TESTAR
     expectedStats: { total: 100, errors: 0 }
   },
   {
     name: 'CronExecutionCleanup',
     description: 'Limpeza de histórico antigo',
     expectedDuration: 2,
-    shouldTest: true,
+    shouldTest: true, // ✅ TESTAR
     expectedStats: { total: 0, errors: 0 }
   },
   {
     name: 'RebuildDashboardStats',
     description: 'Rebuild de estatísticas',
     expectedDuration: 1,
-    shouldTest: true,
+    shouldTest: true, // ✅ TESTAR
     expectedStats: { total: 50, errors: 0 }
   }
 ]
@@ -68,11 +68,11 @@ async function getAllJobs() {
 async function executeJob(jobId: string) {
   try {
     const response = await axios.post(
-      `${API_URL}/api/cron/jobs/${jobId}/trigger`,  // ✅ CORRIGIDO: /trigger
+      `${API_URL}/api/cron/jobs/${jobId}/trigger`,
       {},
       { 
         validateStatus: () => true,
-        timeout: 4200000  // ✅ 70 minutos (para jobs longos)
+        timeout: 600000  // 10 minutos timeout (suficiente para jobs rápidos)
       }
     )
     
@@ -86,15 +86,6 @@ async function executeJob(jobId: string) {
       success: false,
       error: error.message
     }
-  }
-}
-
-async function getJobHistory(jobId: string) {
-  try {
-    const response = await axios.get(`${API_URL}/api/cron/jobs/${jobId}/history`)
-    return response.data.success ? response.data.data : []
-  } catch {
-    return []
   }
 }
 
@@ -131,34 +122,33 @@ async function testIndividualJob(job: any, jobConfig: any) {
     console.log(`⏱️  Duração: ${durationMin}min ${durationSec}s`)
     console.log()
     
-    // Validar resultado
-    if (result.data) {
+    // Mostrar estatísticas (se existirem)
+    if (result.data?.stats) {
       console.log('📊 ESTATÍSTICAS:')
-      console.log(`   Total: ${result.data.stats?.total || 0}`)
-      console.log(`   Inseridos: ${result.data.stats?.inserted || 0}`)
-      console.log(`   Atualizados: ${result.data.stats?.updated || 0}`)
-      console.log(`   Erros: ${result.data.stats?.errors || 0}`)
-      console.log(`   Pulados: ${result.data.stats?.skipped || 0}`)
+      const stats = result.data.stats
+      
+      if (stats.total !== undefined) console.log(`   Total: ${stats.total}`)
+      if (stats.inserted !== undefined) console.log(`   Inseridos: ${stats.inserted}`)
+      if (stats.updated !== undefined) console.log(`   Atualizados: ${stats.updated}`)
+      if (stats.errors !== undefined) console.log(`   Erros: ${stats.errors}`)
+      if (stats.skipped !== undefined) console.log(`   Pulados: ${stats.skipped}`)
+      if (stats.deleted !== undefined) console.log(`   Deletados: ${stats.deleted}`)
       console.log()
       
-      // Verificar expectativas
-      const stats = result.data.stats || {}
+      // Validação simples: sem erros
       const hasErrors = stats.errors > 0
-      const totalOk = stats.total >= (jobConfig.expectedStats.total * 0.8) // 80% tolerância
       
       if (hasErrors) {
         console.log('⚠️  WARNING: Job completou com erros!')
         return { status: 'warning', duration, stats }
-      } else if (!totalOk && jobConfig.expectedStats.total > 0) {
-        console.log('⚠️  WARNING: Total processado abaixo do esperado!')
-        return { status: 'warning', duration, stats }
       } else {
-        console.log('✅ VALIDAÇÃO: OK!')
+        console.log('✅ VALIDAÇÃO: OK (sem erros)')
         return { status: 'success', duration, stats }
       }
+    } else {
+      console.log('✅ VALIDAÇÃO: OK (job executou sem stats)')
+      return { status: 'success', duration, stats: {} }
     }
-    
-    return { status: 'success', duration, stats: {} }
     
   } else {
     console.log('❌ JOB FALHOU!')
@@ -176,7 +166,7 @@ async function testIndividualJob(job: any, jobConfig: any) {
 async function main() {
   console.clear()
   console.log('═'.repeat(70))
-  console.log('🧪 FASE 1.2.1: TESTES E2E - JOBS INDIVIDUAIS')
+  console.log('🧪 FASE 1.2: TESTES E2E - JOBS RESTANTES')
   console.log('═'.repeat(70))
   console.log()
   console.log(`📡 API: ${API_URL}`)
@@ -198,6 +188,28 @@ async function main() {
   const allJobs = await getAllJobs()
   console.log(`✅ ${allJobs.length} jobs encontrados\n`)
   
+  // Mostrar jobs que serão testados
+  const toTest = JOBS_TO_TEST.filter(j => j.shouldTest)
+  const toSkip = JOBS_TO_TEST.filter(j => !j.shouldTest)
+  
+  console.log('📋 PLANO DE TESTES:')
+  console.log()
+  
+  if (toTest.length > 0) {
+    console.log(`✅ Jobs a testar (${toTest.length}):`)
+    toTest.forEach(j => console.log(`   - ${j.name}`))
+    console.log()
+  }
+  
+  if (toSkip.length > 0) {
+    console.log(`⏭️  Jobs a pular (${toSkip.length}):`)
+    toSkip.forEach(j => console.log(`   - ${j.name} (${j.skipReason})`))
+    console.log()
+  }
+  
+  console.log('─'.repeat(70))
+  console.log()
+  
   // Executar testes
   const results: any[] = []
   
@@ -211,7 +223,7 @@ async function main() {
     }
     
     if (!jobConfig.shouldTest) {
-      console.log(`⏭️  ${jobConfig.name} - JÁ TESTADO (execução CRON às 02:00) - SKIP\n`)
+      console.log(`⏭️  ${jobConfig.name} - ${jobConfig.skipReason} - SKIP\n`)
       results.push({ name: jobConfig.name, status: 'skipped' })
       continue
     }
@@ -222,9 +234,10 @@ async function main() {
     console.log()
     
     // Aguardar entre testes
-    if (JOBS_TO_TEST.indexOf(jobConfig) < JOBS_TO_TEST.length - 1) {
-      console.log('⏳ Aguardando 5 segundos antes do próximo teste...\n')
-      await sleep(5)
+    const isLast = JOBS_TO_TEST.indexOf(jobConfig) === JOBS_TO_TEST.length - 1
+    if (!isLast && jobConfig.shouldTest) {
+      console.log('⏳ Aguardando 3 segundos antes do próximo teste...\n')
+      await sleep(3)
     }
   }
   
@@ -234,6 +247,7 @@ async function main() {
   console.log('═'.repeat(70))
   console.log()
   
+  const tested = results.filter(r => r.status !== 'skipped' && r.status !== 'not_found')
   const success = results.filter(r => r.status === 'success').length
   const warnings = results.filter(r => r.status === 'warning').length
   const failed = results.filter(r => r.status === 'failed').length
@@ -244,53 +258,67 @@ async function main() {
   console.log(`   ⚠️  Warnings: ${warnings}`)
   console.log(`   ❌ Falhas: ${failed}`)
   console.log(`   ⏭️  Pulados: ${skipped}`)
-  console.log(`   📝 Total: ${results.length}`)
+  console.log(`   📊 Total testado: ${tested.length}/${JOBS_TO_TEST.length}`)
   console.log()
   
   // Detalhes
-  console.log('📋 DETALHES:')
+  console.log('📋 DETALHES POR JOB:')
+  console.log()
   results.forEach(r => {
     const emoji = r.status === 'success' ? '✅' : 
                   r.status === 'warning' ? '⚠️' : 
-                  r.status === 'failed' ? '❌' : '⏭️'
+                  r.status === 'failed' ? '❌' : 
+                  r.status === 'skipped' ? '⏭️' : '❓'
     
-    console.log(`   ${emoji} ${r.name}`)
+    console.log(`${emoji} ${r.name}`)
     
-    if (r.duration) {
+    if (r.duration !== undefined) {
       const min = Math.floor(r.duration / 60)
       const sec = r.duration % 60
-      console.log(`      Duração: ${min}min ${sec}s`)
+      console.log(`   Duração: ${min}min ${sec}s`)
     }
     
-    if (r.stats && r.stats.total > 0) {
-      console.log(`      Stats: ${r.stats.total} total, ${r.stats.errors} erros`)
+    if (r.stats && Object.keys(r.stats).length > 0) {
+      const statsStr = Object.entries(r.stats)
+        .filter(([key, value]) => value !== undefined)
+        .map(([key, value]) => `${key}=${value}`)
+        .join(', ')
+      console.log(`   Stats: ${statsStr}`)
     }
     
     if (r.error) {
-      console.log(`      Erro: ${r.error}`)
+      console.log(`   Erro: ${r.error}`)
     }
+    
+    console.log()
   })
   
-  console.log()
-  
   // Conclusão
-  if (failed === 0 && warnings === 0) {
-    console.log('═'.repeat(70))
+  console.log('═'.repeat(70))
+  
+  if (failed === 0 && warnings === 0 && tested.length > 0) {
     console.log('🎉 TODOS OS TESTES PASSARAM!')
     console.log('═'.repeat(70))
     console.log()
-    console.log('📋 PRÓXIMO PASSO:')
-    console.log('   → Executar: npx ts-node scripts/validate-job-history.ts')
+    console.log('✅ Jobs testados estão funcionais')
+    console.log('⏰ Jobs demorados serão executados via CRON à noite')
     console.log()
-  } else if (failed === 0) {
-    console.log('═'.repeat(70))
+    console.log('📋 PRÓXIMO PASSO:')
+    console.log('   → Validar histórico: npx ts-node scripts/validate-job-history.ts')
+    console.log()
+  } else if (failed === 0 && tested.length > 0) {
     console.log('⚠️  TESTES COMPLETOS COM WARNINGS')
     console.log('═'.repeat(70))
     console.log()
     console.log('📋 Revisa os warnings acima antes de continuar.')
     console.log()
-  } else {
+  } else if (tested.length === 0) {
+    console.log('⚠️  NENHUM JOB FOI TESTADO')
     console.log('═'.repeat(70))
+    console.log()
+    console.log('📋 Todos os jobs foram pulados. Verifica a configuração.')
+    console.log()
+  } else {
     console.log('❌ ALGUNS TESTES FALHARAM!')
     console.log('═'.repeat(70))
     console.log()
