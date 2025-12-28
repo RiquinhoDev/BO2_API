@@ -20,6 +20,19 @@ type LeanProduct = {
   _id: mongoose.Types.ObjectId
   code: string
 }
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info'
+
+function debugLog(...args: any[]) {
+  if (LOG_LEVEL === 'debug') {
+    console.log(...args)
+  }
+}
+
+function infoLog(...args: any[]) {
+  if (LOG_LEVEL === 'debug' || LOG_LEVEL === 'info') {
+    console.log(...args)
+  }
+}
 
 // ═══════════════════════════════════════════════════════════
 // TYPES
@@ -945,7 +958,7 @@ const processSyncItem = async (
         const product = await Product.findById(productId)
         
         if (product) {
-          console.log(`   📊 [Sprint 1.5B] Calculando engagement metrics para ${user.email}`)
+          debugLog(`   📊 [Sprint 1.5B] Calculando engagement metrics para ${user.email}`)
           
           const metrics = calculateEngagementMetricsForUserProduct(user, product)
           
@@ -991,7 +1004,7 @@ const processSyncItem = async (
             upNeedsUpdate = true
           }
           
-          console.log(`   ✅ [Sprint 1.5B] Engagement metrics calculados e adicionados`)
+          debugLog(`   ✅ [Sprint 1.5B] Engagement metrics calculados e adicionados`)
         }
       } catch (metricsError: any) {
         console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, metricsError.message)
@@ -1177,7 +1190,7 @@ export function calculateEngagementMetricsForUserProduct(
     platform: string
   }
 } {
-  console.log(`📊 [EngagementMetrics] Calculando para produto: ${product.code} (${product.platform})`)
+  debugLog(`📊 [EngagementMetrics] Calculando para produto: ${product.code}`)
 
   const platform = product.platform
   const now = Date.now()
@@ -1200,7 +1213,7 @@ export function calculateEngagementMetricsForUserProduct(
     if (lastLogin) {
       const lastLoginTime = lastLogin instanceof Date ? lastLogin.getTime() : new Date(lastLogin).getTime()
       daysSinceLastLogin = Math.floor((now - lastLoginTime) / (1000 * 60 * 60 * 24))
-      console.log(`   ✅ daysSinceLastLogin: ${daysSinceLastLogin} dias`)
+      debugLog(`   ✅ daysSinceLastLogin: ${daysSinceLastLogin} dias`)
     } else {
       console.log(`   ⚠️  Hotmart lastAccessDate não disponível`)
     }
