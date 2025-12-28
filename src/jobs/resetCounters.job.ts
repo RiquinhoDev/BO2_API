@@ -57,10 +57,13 @@ async function executeJob() {
     for (const user of users) {
       try {
         if (user.communicationByCourse) {
-          // ✅ CORRIGIDO: Object.entries em vez de .entries()
-          for (const [courseId, courseData] of Object.entries(user.communicationByCourse)) {
-            if (courseData.courseSpecificData) {
-              courseData.courseSpecificData.reportsOpenedLastWeek = 0
+          // ✅ SOLUÇÃO: Object.entries com cast para tipo correto
+          const commByCoursePath = user.communicationByCourse as any
+          
+          for (const [courseId, courseData] of Object.entries(commByCoursePath)) {
+            const data = courseData as any
+            if (data?.courseSpecificData) {
+              data.courseSpecificData.reportsOpenedLastWeek = 0
             }
           }
           
@@ -89,10 +92,13 @@ async function executeJob() {
       for (const user of users) {
         try {
           if (user.communicationByCourse) {
-            // ✅ CORRIGIDO: Object.entries em vez de .entries()
-            for (const [courseId, courseData] of Object.entries(user.communicationByCourse)) {
-              if (courseData.courseSpecificData) {
-                courseData.courseSpecificData.reportsOpenedLastMonth = 0
+            // ✅ SOLUÇÃO: Object.entries com cast para tipo correto
+            const commByCoursePath = user.communicationByCourse as any
+            
+            for (const [courseId, courseData] of Object.entries(commByCoursePath)) {
+              const data = courseData as any
+              if (data?.courseSpecificData) {
+                data.courseSpecificData.reportsOpenedLastMonth = 0
               }
             }
             
