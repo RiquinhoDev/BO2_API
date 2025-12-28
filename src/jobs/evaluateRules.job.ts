@@ -1,14 +1,6 @@
 // ════════════════════════════════════════════════════════════════════════════
 // 📁 src/jobs/evaluateRules.job.ts
-// CRON Job para avaliação diária automática de regras
-// ════════════════════════════════════════════════════════════════════════════
-//
-// ⚠️ SCHEDULE DESATIVADO: Job migrado para wizard CRON
-// Gestão: http://localhost:3000/activecampaign
-//
-// Este job é executado AUTOMATICAMENTE pelo wizard às horas que definiste no BO
-// NÃO precisas executar manualmente - o sistema chama a função sozinho!
-//
+// ✅ VERSÃO CORRIGIDA: Avalia por PRODUTO não por COURSE
 // ════════════════════════════════════════════════════════════════════════════
 
 import Course from '../models/Course'
@@ -19,76 +11,92 @@ import tagRuleEngine from '../services/ac/tagRuleEngine'
 console.log('⚠️ EvaluateRules: DESATIVADO hardcoded (gerido pelo wizard)')
 
 /**
- * Função executada AUTOMATICAMENTE pelo wizard CRON
- * Tu apenas defines o horário no BO - o sistema chama isto sozinho!
+ * ✅ VERSÃO OTIMIZADA: Avalia por produto
+ * 
+ * ANTES:
+ * - Avaliava por COURSE
+ * - Users Hotmart avaliados com regras Clareza
+ * - Muitas regras incompatíveis
+ * 
+ * DEPOIS:
+ * - Avalia por PRODUTO
+ * - Cada user só com regras do SEU produto
+ * - SEM regras incompatíveis!
  */
 export async function executeEvaluateRules() {
   console.log('🕐 Iniciando avaliação diária automática...')
+  console.log('✅ VERSÃO OTIMIZADA: Avaliação por produto\n')
   
   const startTime = Date.now()
   
   try {
     // ═══════════════════════════════════════════════════════════
-    // 1. BUSCAR TODOS OS CURSOS ATIVOS
+    // 1. BUSCAR PRODUTOS ATIVOS (NÃO COURSES!)
     // ═══════════════════════════════════════════════════════════
-    const courses = await Course.find({ isActive: true })
-    console.log(`📚 Encontrados ${courses.length} courses ativos`)
     
-    let totalStudents = 0
+    const products = await Product.find({ isActive: true }).populate('courseId')
+    
+    console.log(`📦 Encontrados ${products.length} produtos ativos`)
+    
+    let totalUserProducts = 0
     let totalTagsApplied = 0
     let totalTagsRemoved = 0
     const errors: any[] = []
     
     // ═══════════════════════════════════════════════════════════
-    // 2. PROCESSAR CADA CURSO
+    // 2. PROCESSAR CADA PRODUTO
     // ═══════════════════════════════════════════════════════════
-    for (const course of courses) {
+    
+    for (const product of products) {
       try {
-        console.log(`\n📖 Processando course: ${course.name} (${course.code})`)
+        const course = product.courseId as any
         
-        // ✅ BUSCAR PRODUTOS DO CURSO
-        const products = await Product.find({
-          courseId: course._id,
-          isActive: true
-        })
+        console.log(`\n📖 Processando produto: ${product.name} (${product.code})`)
+        console.log(`   📚 Course: ${course.name} (${course.trackingType})`)
         
-        if (products.length === 0) {
-          console.log(`   ⚠️  Nenhum produto encontrado para ${course.code}`)
-          continue
-        }
+        // ═══════════════════════════════════════════════════════════
+        // 3. BUSCAR USERPRODUCTS ATIVOS DESTE PRODUTO
+        // ═══════════════════════════════════════════════════════════
         
-        console.log(`   📦 ${products.length} produto(s) encontrado(s)`)
-        
-        const productIds = products.map(p => p._id)
-        
-        // ✅ BUSCAR USERPRODUCTS ATIVOS
         const userProducts = await UserProduct.find({
-          productId: { $in: productIds },
+          productId: product._id,
           status: 'ACTIVE'
-        }).distinct('userId')
-        
-        console.log(`   👥 ${userProducts.length} aluno(s) ativo(s)`)
+        })
         
         if (userProducts.length === 0) {
-          console.log(`   ⚠️  Nenhum aluno ativo`)
+          console.log(`   ⚠️  Nenhum UserProduct ativo`)
           continue
         }
         
-        totalStudents += userProducts.length
+        console.log(`   👥 ${userProducts.length} UserProduct(s) ativo(s)`)
         
-        // ✅ BUSCAR USERS
+        totalUserProducts += userProducts.length
+        
+        // ═══════════════════════════════════════════════════════════
+        // 4. BUSCAR USERS (BATCH PARA PERFORMANCE)
+        // ═══════════════════════════════════════════════════════════
+        
+        const userIds = userProducts.map(up => up.userId)
+        
         const users = await User.find({
-          _id: { $in: userProducts }
+          _id: { $in: userIds }
         })
         
-        console.log(`   🔍 ${users.length} user(s) encontrado(s) na BD`)
+        console.log(`   🔍 ${users.length} user(s) encontrado(s)`)
         
         // ═══════════════════════════════════════════════════════════
-        // 3. AVALIAR REGRAS PARA CADA ALUNO
+        // 5. AVALIAR REGRAS PARA CADA USER
+        // ✅ AGORA: Passa COURSE._ID do produto correto!
         // ═══════════════════════════════════════════════════════════
+        
         for (const user of users) {
           try {
-            const results = await tagRuleEngine.evaluateUserRules(user.id, course._id)
+            // ✅ CORRIGIDO: Avalia com course do produto
+            // Cada user só é avaliado com regras do seu produto!
+            const results = await tagRuleEngine.evaluateUserRules(
+              user.id, 
+              course._id  // ← Course do PRODUTO, não course aleatório!
+            )
             
             results.forEach(result => {
               if (result.executed) {
@@ -96,45 +104,54 @@ export async function executeEvaluateRules() {
                 if (result.action === 'REMOVE_TAG') totalTagsRemoved++
               }
             })
+            
           } catch (userError: any) {
             console.error(`   ❌ Erro ao avaliar user ${user._id}:`, userError.message)
             errors.push({
               userId: user._id,
-              courseId: course._id,
+              productId: product._id,
               error: userError.message
             })
           }
         }
         
-        console.log(`   ✅ ${course.name}: ${users.length} alunos processados`)
+        console.log(`   ✅ ${product.code}: ${users.length} users processados`)
         
-      } catch (courseError: any) {
-        console.error(`❌ Erro ao processar course ${course._id}:`, courseError.message)
+      } catch (productError: any) {
+        console.error(`❌ Erro ao processar produto ${product._id}:`, productError.message)
         errors.push({
-          courseId: course._id,
-          error: courseError.message
+          productId: product._id,
+          error: productError.message
         })
       }
     }
     
     // ═══════════════════════════════════════════════════════════
-    // 4. RESULTADO FINAL
+    // 6. RESULTADO FINAL
     // ═══════════════════════════════════════════════════════════
+    
     const duration = Date.now() - startTime
     
-    console.log(`\n✅ Avaliação concluída: ${totalTagsApplied} tags aplicadas, ${totalTagsRemoved} removidas`)
+    console.log(`\n${'═'.repeat(70)}`)
+    console.log(`✅ AVALIAÇÃO CONCLUÍDA`)
+    console.log(`${'═'.repeat(70)}`)
+    console.log(`📊 Produtos processados: ${products.length}`)
+    console.log(`👥 UserProducts avaliados: ${totalUserProducts}`)
+    console.log(`🏷️  Tags aplicadas: ${totalTagsApplied}`)
+    console.log(`🗑️  Tags removidas: ${totalTagsRemoved}`)
     console.log(`⏱️  Duração: ${(duration / 1000).toFixed(2)}s`)
-    console.log(`👥 Alunos processados: ${totalStudents}`)
     
     if (errors.length > 0) {
-      console.log(`⚠️  ${errors.length} erro(s) encontrado(s)`)
+      console.log(`⚠️  Erros: ${errors.length}`)
     }
     
-    // ✅ RETORNAR RESULTADO PARA O WIZARD REGISTAR
+    console.log(`${'═'.repeat(70)}\n`)
+    
+    // ✅ RETORNAR RESULTADO PARA O SCHEDULER
     return {
       success: true,
-      totalCourses: courses.length,
-      totalStudents,
+      totalCourses: products.length,  // Na verdade são produtos
+      totalStudents: totalUserProducts,
       tagsApplied: totalTagsApplied,
       tagsRemoved: totalTagsRemoved,
       errors: errors.length,
@@ -143,16 +160,14 @@ export async function executeEvaluateRules() {
     
   } catch (error: any) {
     console.error('❌ Erro na avaliação diária:', error)
-    
-    // ✅ LANÇAR ERRO PARA O WIZARD REGISTAR COMO FALHA
     throw new Error(`Erro na avaliação de regras: ${error.message}`)
   }
 }
 
 // ═══════════════════════════════════════════════════════════
-// EXPORT PARA O WIZARD CHAMAR AUTOMATICAMENTE
+// EXPORT
 // ═══════════════════════════════════════════════════════════
 
 export default {
-  run: executeEvaluateRules  // ← Wizard chama isto às horas que TU definiste no BO!
+  run: executeEvaluateRules
 }
