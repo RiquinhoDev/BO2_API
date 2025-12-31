@@ -31,8 +31,9 @@ export interface IProduct extends Document {
   
   courseId: mongoose.Types.ObjectId
   platform: PlatformType
-  
+  courseCode?: string
   hotmartProductId?: string
+   subdomain?: string      
   curseducaGroupId?: string
   curseducaGroupUuid?: string
   discordRoleId?: string
@@ -74,6 +75,14 @@ const ProductSchema = new Schema<IProduct>({
     index: true
     // Ex: "O Grande Investimento V1", "Clareza Básico"
   },
+  courseCode: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    index: true
+    // Ex: "OGI", "CLAREZA", "OUTRO"
+    // Mapeia para Course.code (permite múltiplos products por course)
+  },
   description: {
     type: String,
     trim: true
@@ -107,7 +116,12 @@ const ProductSchema = new Schema<IProduct>({
     index: true
     // ID do produto no Hotmart (ex: "123456")
   },
-  
+   subdomain: {                     // ✅ ADICIONAR
+   type: String,
+   sparse: true,
+   index: true,
+   description: 'Hotmart subdomain for API calls'
+ },
   curseducaGroupId: {
     type: String,
     sparse: true,

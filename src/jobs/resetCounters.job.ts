@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/jobs/resetCounters.job.ts
+// 📁 src/jobs/resetCounters.job.ts (CORRIGIDO)
 // Job semanal: Reset de contadores semanais e mensais
 // ════════════════════════════════════════════════════════════
 //
@@ -7,6 +7,8 @@
 // Gestão: http://localhost:3000/activecampaign
 //
 // Horário original: 1h da manhã de segunda-feira
+//
+// ✅ CORREÇÃO: Query compatível com Mongoose Maps
 //
 // ════════════════════════════════════════════════════════════
 
@@ -50,24 +52,40 @@ async function executeJob() {
 
     logger.info('🔄 Resetando contadores semanais...')
 
+    // ✅ CORREÇÃO: Query compatível com Mongoose Maps
     const users = await User.find({
-      communicationByCourse: { $exists: true }
+      $or: [
+        { 'communicationByCourse.OGI': { $exists: true } },
+        { 'communicationByCourse.CLAREZA': { $exists: true } },
+        { 'communicationByCourse.OUTRO': { $exists: true } }
+      ]
     })
+
+    logger.info(`📊 Users encontrados: ${users.length}`)
 
     for (const user of users) {
       try {
         if (user.communicationByCourse) {
-          // ✅ SOLUÇÃO: Object.entries com cast para tipo correto
-          const commByCoursePath = user.communicationByCourse as any
+          // ✅ Lidar com Map ou Object
+          let coursesData: any
           
-          for (const [courseId, courseData] of Object.entries(commByCoursePath)) {
+          if (user.communicationByCourse instanceof Map) {
+            // É Map - usar Map methods
+            coursesData = Array.from(user.communicationByCourse.entries())
+          } else {
+            // É Object - usar Object.entries
+            coursesData = Object.entries(user.communicationByCourse)
+          }
+          
+          for (const [courseId, courseData] of coursesData) {
             const data = courseData as any
             if (data?.courseSpecificData) {
               data.courseSpecificData.reportsOpenedLastWeek = 0
             }
           }
           
-          await user.save()
+          // Salvar sem validação (por segurança durante migração)
+          await user.save({ validateBeforeSave: false })
           stats.weeklyCountersReset++
         }
       } catch (error: any) {
@@ -92,17 +110,24 @@ async function executeJob() {
       for (const user of users) {
         try {
           if (user.communicationByCourse) {
-            // ✅ SOLUÇÃO: Object.entries com cast para tipo correto
-            const commByCoursePath = user.communicationByCourse as any
+            // ✅ Lidar com Map ou Object
+            let coursesData: any
             
-            for (const [courseId, courseData] of Object.entries(commByCoursePath)) {
+            if (user.communicationByCourse instanceof Map) {
+              coursesData = Array.from(user.communicationByCourse.entries())
+            } else {
+              coursesData = Object.entries(user.communicationByCourse)
+            }
+            
+            for (const [courseId, courseData] of coursesData) {
               const data = courseData as any
               if (data?.courseSpecificData) {
                 data.courseSpecificData.reportsOpenedLastMonth = 0
               }
             }
             
-            await user.save()
+            // Salvar sem validação (por segurança durante migração)
+            await user.save({ validateBeforeSave: false })
             stats.monthlyCountersReset++
           }
         } catch (error: any) {

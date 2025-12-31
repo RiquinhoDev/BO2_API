@@ -82,7 +82,7 @@ export async function syncHotmart(data: HotmartSyncData): Promise<SyncResult> {
     
     const product = await Product.findOne({
       platform: 'hotmart',
-      'subdomain': data.subdomain
+      'platformData.subdomain': data.subdomain
     })
     
     if (!product) {
