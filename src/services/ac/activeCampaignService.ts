@@ -239,41 +239,74 @@ async findOrCreateContact(email: string, name?: string): Promise<ACContactApi> {
 async removeTag(email: string, tagName: string): Promise<boolean> {
   await this.checkRateLimit()
 
+  console.log(`[AC Service] 🗑️  removeTag() INICIADO`)
+  console.log(`   email: ${email}`)
+  console.log(`   tagName: ${tagName}`)
+
   try {
-    // 1. Buscar contacto
+    // ═══════════════════════════════════════════════════════════
+    // 1. BUSCAR CONTACTO
+    // ═══════════════════════════════════════════════════════════
+    console.log(`[AC Service] 📡 PASSO 1/4: Buscando contacto...`)
     const contact = await this.getContactByEmail(email)
+    
     if (!contact) {
-      console.warn(`⚠️ Contacto ${email} não existe.`)
-      return false  // ← RETORNAR false EM VEZ DE void!
+      console.warn(`[AC Service] ⚠️  PASSO 1/4 FALHOU: Contacto ${email} não existe.`)
+      return false
     }
+    
+    console.log(`[AC Service] ✅ PASSO 1/4: Contacto encontrado (ID: ${contact.contact.id})`)
 
-    // 2. Buscar tag
+    // ═══════════════════════════════════════════════════════════
+    // 2. BUSCAR TAG
+    // ═══════════════════════════════════════════════════════════
+    console.log(`[AC Service] 📡 PASSO 2/4: Buscando tag "${tagName}"...`)
     const tagId = await this.findTagByName(tagName)
+    
     if (!tagId) {
-      console.warn(`⚠️ Tag "${tagName}" não existe.`)
-      return false  // ← RETORNAR false!
+      console.warn(`[AC Service] ⚠️  PASSO 2/4 FALHOU: Tag "${tagName}" não existe no AC.`)
+      console.warn(`[AC Service] 💡 Isto significa que a tag nunca foi criada no Active Campaign!`)
+      return false
     }
+    
+    console.log(`[AC Service] ✅ PASSO 2/4: Tag encontrada (ID: ${tagId})`)
 
-    // 3. Buscar associação contactTag
+    // ═══════════════════════════════════════════════════════════
+    // 3. BUSCAR ASSOCIAÇÃO CONTACTTAG
+    // ═══════════════════════════════════════════════════════════
+    console.log(`[AC Service] 📡 PASSO 3/4: Buscando associação contactTag...`)
     const contactTagId = await this.findContactTag(contact.contact.id, tagId)
+    
     if (!contactTagId) {
-      console.warn(`⚠️ Contacto ${email} não tem tag "${tagName}".`)
-      return false  // ← RETORNAR false!
+      console.warn(`[AC Service] ⚠️  PASSO 3/4 FALHOU: Contacto ${email} não tem tag "${tagName}".`)
+      console.warn(`[AC Service] 💡 A tag existe no AC mas NÃO está aplicada a este contacto!`)
+      return false
     }
+    
+    console.log(`[AC Service] ✅ PASSO 3/4: Associação encontrada (contactTagId: ${contactTagId})`)
 
-    // 4. Remover associação
+    // ═══════════════════════════════════════════════════════════
+    // 4. REMOVER ASSOCIAÇÃO (PEDIDO DELETE À API)
+    // ═══════════════════════════════════════════════════════════
+    console.log(`[AC Service] 📡 PASSO 4/4: Removendo associação (DELETE /api/3/contactTags/${contactTagId})...`)
+    
     await this.retryRequest(async () => {
       await this.client.delete(`/api/3/contactTags/${contactTagId}`)
     })
 
-    console.log(`✅ Tag "${tagName}" removida de ${email}`)
-    return true  // ← RETORNAR true SE REMOVEU!
+    console.log(`[AC Service] ✅ PASSO 4/4: DELETE executado com sucesso!`)
+    console.log(`[AC Service] ✅ Tag "${tagName}" removida de ${email} NO ACTIVE CAMPAIGN!`)
+    return true
 
   } catch (error) {
-    console.error(`❌ Erro ao remover tag "${tagName}" de ${email}:`, this.formatError(error))
-    return false  // ← RETORNAR false EM ERRO!
+    console.error(`[AC Service] ❌ ERRO FATAL ao remover tag "${tagName}" de ${email}:`)
+    console.error(`[AC Service] ❌ ${this.formatError(error)}`)
+    console.error(error)
+    return false
   }
 }
+
+
   /**
    * Remover múltiplas tags de um contacto
    */

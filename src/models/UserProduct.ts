@@ -1,6 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/models/UserProduct.ts
 // NOVO MODELO: Tabela JOIN entre User e Product
+// 🆕 ATUALIZADO: daysSinceEnrollment e enrolledAt no engagement
 // ════════════════════════════════════════════════════════════
 
 import mongoose, { Schema, Document } from 'mongoose'
@@ -44,6 +45,10 @@ export interface IEngagement {
   totalActions?: number
   actionsLastWeek?: number
   actionsLastMonth?: number
+  
+  // 🆕 NOVO: ENROLLMENT TRACKING (Clareza)
+  daysSinceEnrollment?: number
+  enrolledAt?: Date
   
   // Comum
   consistency?: number
@@ -92,17 +97,15 @@ export interface IUserProduct extends Document {
   
   activeCampaignData?: IActiveCampaignData
   communications?: ICommunications
-  isPrimary: {
-  type: Boolean,
-  default: true,
-  index: true
-},
+  isPrimary: boolean
+  
   metadata?: {
     purchaseValue?: number
     purchaseDate?: Date
     refunded?: boolean
     refundedAt?: Date
     notes?: string
+    platform?: string
   }
   
   createdAt: Date
@@ -239,6 +242,10 @@ const UserProductSchema = new Schema<IUserProduct>({
     actionsLastWeek: Number,
     actionsLastMonth: Number,
     
+    // 🆕 NOVO: ENROLLMENT TRACKING (Clareza - "Novo Aluno" tag)
+    daysSinceEnrollment: Number,
+    enrolledAt: Date,
+    
     // Comum
     consistency: Number
   },
@@ -294,6 +301,16 @@ const UserProductSchema = new Schema<IUserProduct>({
   },
   
   // ═══════════════════════════════════════════════════════════
+  // isPrimary
+  // ═══════════════════════════════════════════════════════════
+  
+  isPrimary: {
+    type: Boolean,
+    default: true,
+    index: true
+  },
+  
+  // ═══════════════════════════════════════════════════════════
   // METADATA
   // ═══════════════════════════════════════════════════════════
   
@@ -305,7 +322,8 @@ const UserProductSchema = new Schema<IUserProduct>({
       default: false
     },
     refundedAt: Date,
-    notes: String
+    notes: String,
+    platform: String
   }
 }, {
   timestamps: true,
@@ -373,4 +391,3 @@ UserProductSchema.methods.getDaysSinceEnrollment = function(): number {
 const UserProduct = mongoose.models.UserProduct || mongoose.model<IUserProduct>('UserProduct', UserProductSchema)
 
 export default UserProduct
-
