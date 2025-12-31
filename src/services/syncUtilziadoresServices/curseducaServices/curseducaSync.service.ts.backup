@@ -1,10 +1,10 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/services/sync/hotmartSync.service.ts (CORRIGIDO)
-// HOTMART SYNC SERVICE
+// 📁 src/services/sync/curseducaSync.service.ts (CORRIGIDO)
+// CURSEDUCA SYNC SERVICE
 // ════════════════════════════════════════════════════════════
 //
-// ✅ CORREÇÃO: Integrado com hotmart.adapter.ts
-// ✅ USA DADOS REAIS da API Hotmart
+// ✅ CORREÇÃO: Integrado com curseduca.adapter.ts
+// ✅ USA DADOS REAIS da API CursEduca
 // ✅ Remove MOCK vazio
 //
 // ════════════════════════════════════════════════════════════
@@ -12,21 +12,19 @@
 import { Product, User } from "../../../models"
 import logger from "../../../utils/logger"
 import { dualWriteUserData } from "../../userProductService"
-import hotmartAdapter from "./hotmart.adapter"
-
+import curseducaAdapter from "./curseduca.adapter"
 
 // ═══════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════
 
-interface HotmartSyncData {
+interface CurseducaSyncData {
   email: string
-  subdomain: string
+  groupId: string
   name?: string
-  status?: string
   progress?: number
+  enrollmentDate?: string | Date
   lastAccess?: string | Date
-  classes?: any[]
 }
 
 interface SyncResult {
@@ -41,21 +39,34 @@ interface SyncResult {
 }
 
 // ═══════════════════════════════════════════════════════════
+// ✅ FIX (eslint/ts): Date() só aceita string | number | Date
+// ═══════════════════════════════════════════════════════════
+
+function safeDate(value: unknown): Date {
+  if (value instanceof Date) return value
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value)
+    return Number.isNaN(d.getTime()) ? new Date() : d
+  }
+  return new Date()
+}
+
+// ═══════════════════════════════════════════════════════════
 // MAIN SYNC FUNCTION
 // ═══════════════════════════════════════════════════════════
 
 /**
- * Sincronizar dados Hotmart
- * 
+ * Sincronizar dados CursEduca
+ *
  * IMPORTANTE: Esta função faz sync de UM user por vez
- * Para batch sync, usar syncHotmartBatch()
- * 
- * @param data - Dados do user Hotmart
+ * Para batch sync, usar syncCurseducaBatch()
+ *
+ * @param data - Dados do user CursEduca
  * @returns Resultado da sincronização
  */
-export async function syncHotmart(data: HotmartSyncData): Promise<SyncResult> {
-  logger.info('[HotmartSync] Iniciando sync', { email: data.email, subdomain: data.subdomain })
-  
+export async function syncCursEduca(data: CurseducaSyncData): Promise<SyncResult> {
+  logger.info("[CurseducaSync] Iniciando sync", { email: data.email, groupId: data.groupId })
+
   const result: SyncResult = {
     success: false,
     stats: {
@@ -66,114 +77,102 @@ export async function syncHotmart(data: HotmartSyncData): Promise<SyncResult> {
     },
     errors: []
   }
-  
+
   try {
     // ═══════════════════════════════════════════════════════════
     // STEP 1: VALIDAÇÃO
     // ═══════════════════════════════════════════════════════════
-    
-    if (!data.email || !data.subdomain) {
-      throw new Error('Missing required fields: email, subdomain')
+
+    if (!data.email || !data.groupId) {
+      throw new Error("Missing required fields: email, groupId")
     }
-    
+
     // ═══════════════════════════════════════════════════════════
     // STEP 2: IDENTIFICAR PRODUTO
     // ═══════════════════════════════════════════════════════════
-    
+
     const product = await Product.findOne({
-      platform: 'hotmart',
-      'subdomain': data.subdomain
+      platform: "curseduca",
+      "platformData.groupId": data.groupId
     })
-    
+
     if (!product) {
-      throw new Error(`Produto Hotmart não encontrado para subdomain: ${data.subdomain}`)
+      throw new Error(`Produto CursEduca não encontrado para groupId: ${data.groupId}`)
     }
-    
-    logger.info('[HotmartSync] Produto encontrado', {
+
+    logger.info("[CurseducaSync] Produto encontrado", {
       productId: product._id,
       productName: product.name
     })
-    
+
     // ═══════════════════════════════════════════════════════════
     // STEP 3: BUSCAR OU CRIAR USER
     // ═══════════════════════════════════════════════════════════
-    
+
     let user = await User.findOne({ email: data.email })
     let wasInserted = false
-    
+
     if (!user) {
-      logger.info('[HotmartSync] Criando novo user', { email: data.email })
-      
+      logger.info("[CurseducaSync] Criando novo user", { email: data.email })
+
       user = await User.create({
         email: data.email,
-        name: data.name || 'Unnamed User'
+        name: data.name || "Unnamed User"
       })
-      
+
       wasInserted = true
       result.stats.inserted++
     } else {
-      logger.info('[HotmartSync] User existente encontrado', { userId: user._id })
+      logger.info("[CurseducaSync] User existente encontrado", { userId: user._id })
       result.stats.updated++
     }
-    
+
     // ═══════════════════════════════════════════════════════════
     // STEP 4: DUAL WRITE (V1 + V2)
     // ═══════════════════════════════════════════════════════════
-    
-    // Validar status (garantir que é um dos valores aceites)
-    const validStatuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'CANCELLED']
-    const status = validStatuses.includes(data.status || '') 
-      ? (data.status as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CANCELLED')
-      : 'ACTIVE' as const
-    
+
     const productData = {
-      status,
       progress: {
         percentage: data.progress || 0,
-        classes: data.classes || []
+        enrollmentDate: data.enrollmentDate ? safeDate(data.enrollmentDate) : new Date()
       },
       engagement: {
-        lastActivityAt: data.lastAccess ? new Date(data.lastAccess) : new Date()
+        lastActivityAt: data.lastAccess ? safeDate(data.lastAccess) : new Date()
       }
     }
-    
-    await dualWriteUserData(
-      user.id,
-      product.code,
-      productData
-    )
-    
-    logger.info('[HotmartSync] Dual write completo', {
+
+    await dualWriteUserData(user.id, product.code, productData)
+
+    logger.info("[CurseducaSync] Dual write completo", {
       userId: user._id,
       productId: product._id,
       wasInserted
     })
-    
+
     // ═══════════════════════════════════════════════════════════
     // STEP 5: SUCCESS
     // ═══════════════════════════════════════════════════════════
-    
+
     result.success = true
-    
-    logger.info('[HotmartSync] ✅ Sync completo', {
+
+    logger.info("[CurseducaSync] ✅ Sync completo", {
       email: data.email,
       wasInserted,
       stats: result.stats
     })
-    
+
     return result
-    
   } catch (error: any) {
     result.success = false
     result.stats.errors++
     result.errors = [error.message]
-    
-    logger.error('[HotmartSync] ❌ Erro no sync', {
+
+    logger.error("[CurseducaSync] ❌ Erro no sync", {
       email: data.email,
       error: error.message,
       stack: error.stack
     })
-    
+
     return result
   }
 }
@@ -183,18 +182,15 @@ export async function syncHotmart(data: HotmartSyncData): Promise<SyncResult> {
 // ═══════════════════════════════════════════════════════════
 
 /**
- * Sincronizar múltiplos users Hotmart de uma vez
- * 
+ * Sincronizar múltiplos users CursEduca de uma vez
+ *
  * @param users - Array de dados de users
- * @param subdomain - Subdomain comum (ou passar em cada user)
+ * @param groupId - GroupId comum (ou passar em cada user)
  * @returns Resultado agregado
  */
-export async function syncHotmartBatch(
-  users: HotmartSyncData[],
-  subdomain?: string
-): Promise<SyncResult> {
-  logger.info('[HotmartSync] Iniciando batch sync', { total: users.length })
-  
+export async function syncCurseducaBatch(users: CurseducaSyncData[], groupId?: string): Promise<SyncResult> {
+  logger.info("[CurseducaSync] Iniciando batch sync", { total: users.length })
+
   const result: SyncResult = {
     success: true,
     stats: {
@@ -205,44 +201,41 @@ export async function syncHotmartBatch(
     },
     errors: []
   }
-  
+
   for (const userData of users) {
-    // Se subdomain comum foi passado, usar ele
-    const data: HotmartSyncData = subdomain
-      ? { ...userData, subdomain }
-      : userData
-    
+    // Se groupId comum foi passado, usar ele
+    const data: CurseducaSyncData = groupId ? { ...userData, groupId } : userData
+
     try {
-      const userResult = await syncHotmart(data)
-      
+      const userResult = await syncCursEduca(data)
+
       result.stats.inserted += userResult.stats.inserted
       result.stats.updated += userResult.stats.updated
       result.stats.errors += userResult.stats.errors
-      
+
       if (!userResult.success) {
         result.success = false
         if (userResult.errors) {
           result.errors?.push(...userResult.errors)
         }
       }
-      
     } catch (error: any) {
       result.success = false
       result.stats.errors++
       result.errors?.push(`${userData.email}: ${error.message}`)
-      
-      logger.error('[HotmartSync] Erro no batch', {
+
+      logger.error("[CurseducaSync] Erro no batch", {
         email: userData.email,
         error: error.message
       })
     }
   }
-  
-  logger.info('[HotmartSync] ✅ Batch sync completo', {
+
+  logger.info("[CurseducaSync] ✅ Batch sync completo", {
     stats: result.stats,
-    successRate: `${((result.stats.total - result.stats.errors) / result.stats.total * 100).toFixed(1)}%`
+    successRate: `${(((result.stats.total - result.stats.errors) / result.stats.total) * 100).toFixed(1)}%`
   })
-  
+
   return result
 }
 
@@ -251,18 +244,16 @@ export async function syncHotmartBatch(
 // ═══════════════════════════════════════════════════════════
 
 /**
- * Sincronizar TODOS os users de um produto Hotmart
- * 
- * ✅ CORRIGIDO: Usa hotmart.adapter.ts para buscar dados reais
- * 
- * @param subdomain - Subdomain do produto (opcional - usa env se não fornecido)
+ * Sincronizar TODOS os users de um produto CursEduca
+ *
+ * ✅ CORRIGIDO: Usa curseduca.adapter.ts para buscar dados reais
+ *
+ * @param groupId - GroupId do produto (opcional - busca todos os grupos Clareza se não fornecido)
  * @returns Resultado agregado
  */
-export async function syncHotmartFull(subdomain?: string): Promise<SyncResult> {
-  const actualSubdomain = subdomain || process.env.subdomain || 'ograndeinvestimento-bomrmk'
-  
-  logger.info('[HotmartSync] Iniciando full sync', { subdomain: actualSubdomain })
-  
+export async function syncCurseducaFull(groupId?: string): Promise<SyncResult> {
+  logger.info("[CurseducaSync] Iniciando full sync", { groupId: groupId || "TODOS" })
+
   const result: SyncResult = {
     success: false,
     stats: {
@@ -273,90 +264,78 @@ export async function syncHotmartFull(subdomain?: string): Promise<SyncResult> {
     },
     errors: []
   }
-  
+
   try {
     // ═══════════════════════════════════════════════════════════
     // ✅ USAR ADAPTER REAL (NÃO MOCK!)
     // ═══════════════════════════════════════════════════════════
-    
-    logger.info('[HotmartSync] 🚀 Buscando dados via hotmart.adapter...')
-    
-    const adapterData = await hotmartAdapter.fetchHotmartDataForSync({
+
+    logger.info("[CurseducaSync] 🚀 Buscando dados via curseduca.adapter...")
+
+    const adapterData = await curseducaAdapter.fetchCurseducaDataForSync({
       includeProgress: true,
-      includeLessons: true,
-      progressConcurrency: 5
+      includeGroups: true,
+      groupId: groupId // Se undefined, busca todos os grupos Clareza
     })
-    
+
     if (adapterData.length === 0) {
-      logger.warn('[HotmartSync] ⚠️ Adapter retornou 0 users')
+      logger.warn("[CurseducaSync] ⚠️ Adapter retornou 0 users")
       result.success = true
       return result
     }
-    
-    logger.info('[HotmartSync] ✅ Adapter retornou ${adapterData.length} users')
-    
+
+    logger.info(`[CurseducaSync] ✅ Adapter retornou ${adapterData.length} users`)
+
     // ═══════════════════════════════════════════════════════════
     // CONVERTER DADOS DO ADAPTER PARA FORMATO DO SYNC
     // ═══════════════════════════════════════════════════════════
-    
-    const usersToSync: HotmartSyncData[] = adapterData.map((user) => ({
+
+    const usersToSync: CurseducaSyncData[] = adapterData.map((user) => ({
       email: user.email,
-      subdomain: actualSubdomain,
+      groupId: user.groupId?.toString() || "", // Converter para string
       name: user.name,
-      status: "ACTIVE", // Adapter não retorna status, assumir ACTIVE
       progress: user.progress?.percentage || 0,
-      lastAccess: safeDate((user as any).lastAccessDate),
-      classes: user.className
-        ? [
-            {
-              classId: user.classId || "",
-              className: user.className
-            }
-          ]
-        : []
+      enrollmentDate: user.enrolledAt
+        ? safeDate((user as any).enrolledAt)
+        : user.joinedDate
+          ? safeDate((user as any).joinedDate)
+          : new Date(),
+      lastAccess: new Date() // CursEduca não fornece lastAccess específico
     }))
-    
-    logger.info('[HotmartSync] 📦 Convertidos ${usersToSync.length} users para sync')
-    
+
+    logger.info(`[CurseducaSync] 📦 Convertidos ${usersToSync.length} users para sync`)
+
     // ═══════════════════════════════════════════════════════════
     // PROCESSAR BATCH
     // ═══════════════════════════════════════════════════════════
-    
-    const batchResult = await syncHotmartBatch(usersToSync, actualSubdomain)
-    
-    logger.info('[HotmartSync] ✅ Full sync completo', {
+
+    const batchResult = await syncCurseducaBatch(usersToSync)
+
+    logger.info("[CurseducaSync] ✅ Full sync completo", {
       stats: batchResult.stats
     })
-    
+
     return batchResult
-    
   } catch (error: any) {
     result.success = false
     result.errors = [error.message]
-    
-    logger.error('[HotmartSync] ❌ Erro no full sync', {
-      subdomain: actualSubdomain,
+
+    logger.error("[CurseducaSync] ❌ Erro no full sync", {
+      groupId,
       error: error.message,
       stack: error.stack
     })
-    
+
     return result
   }
 }
-function safeDate(value: unknown): Date {
-  if (value instanceof Date) return value
-  if (typeof value === "string" || typeof value === "number") {
-    const d = new Date(value)
-    return Number.isNaN(d.getTime()) ? new Date() : d
-  }
-  return new Date()
-}
+
 // ═══════════════════════════════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════════════════════════════
 
 export default {
-  syncHotmart,
-  syncHotmartBatch,
-  syncHotmartFull
+  syncCursEduca,
+  syncCurseducaBatch,
+  syncCurseducaFull
 }

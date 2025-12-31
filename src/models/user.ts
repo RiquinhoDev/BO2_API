@@ -27,7 +27,7 @@ export interface IUser extends Document {
     signupDate: Date
     plusAccess: 'WITH_PLUS_ACCESS' | 'WITHOUT_PLUS_ACCESS'
     firstAccessDate?: Date
-    
+    lastAccessDate: Date,
     // 🆕 NOVO: Turmas da Hotmart
     enrolledClasses?: Array<{
       classId: string
@@ -91,7 +91,7 @@ export interface IUser extends Document {
     memberStatus: 'ACTIVE' | 'INACTIVE'
     neverLogged: boolean
     joinedDate: Date
-    
+    lastAccess: Date  
     // Progresso específico da CursedEuca (estimado)
     progress: {
       estimatedProgress: number
@@ -277,7 +277,7 @@ const UserSchema: Schema = new Schema({
       default: 'WITHOUT_PLUS_ACCESS'
     },
     firstAccessDate: Date,
-    
+      lastAccessDate: Date,
     // 🆕 NOVO: Turmas da Hotmart
     enrolledClasses: [{
       classId: { type: String },
@@ -373,7 +373,7 @@ const UserSchema: Schema = new Schema({
     },
     neverLogged: { type: Boolean, default: false },
     joinedDate: Date,
-    
+     lastAccess: Date,
     progress: {
       estimatedProgress: { type: Number, default: 0 },
       activityLevel: { 

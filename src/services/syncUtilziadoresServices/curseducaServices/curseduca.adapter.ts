@@ -24,6 +24,7 @@ interface CursEducaMember {
   uuid: string
   name: string
   email: string
+    lastAccess?: string
   expiresAt?: string | null
   enrollmentsCount?: number
   progress?: number
@@ -48,6 +49,7 @@ export type UniversalSyncUserData = Omit<UniversalSourceItem, 'email' | 'name' |
   groupId?: string
   groupName?: string
   subscriptionType?: 'MONTHLY' | 'ANNUAL'
+  lastAccess?: string | Date
   progress?: UniversalSourceItem['progress'] & {
     estimatedProgress?: number
     activityLevel?: 'HIGH' | 'MEDIUM' | 'LOW'
@@ -134,6 +136,7 @@ function normalizeCurseducaMember(member: CursEducaMemberWithMetadata): Universa
     groupId: member.groupId.toString(),
     groupName: member.groupName,
     subscriptionType: member.subscriptionType,
+    lastAccess: member.lastAccess,  // ✅ ADICIONAR ESTA LINHA!
     progress: {
       percentage: member.progress || 0,
       completed: 0,

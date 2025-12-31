@@ -53,7 +53,7 @@ export const getHotmartProductBySubdomain = async (req: Request, res: Response) 
 
     const product = await Product.findOne({
       platform: 'hotmart',
-      'platformData.subdomain': subdomain
+      'subdomain': subdomain
     })
       .lean<LeanHotmartProduct>()
       .exec()
@@ -89,7 +89,7 @@ export const getHotmartProductUsers = async (req: Request, res: Response) => {
 
     const product = await Product.findOne({
       platform: 'hotmart',
-      'platformData.subdomain': subdomain
+      'subdomain': subdomain
     })
 
     if (!product) {

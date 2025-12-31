@@ -340,7 +340,7 @@ export const updateUserClasses = async (req: Request, res: Response): Promise<vo
 export const getCurseducaProducts = async (req: Request, res: Response) => {
   try {
     const products = await Product.find({ platform: 'curseduca' })
-      .select('name code platformData isActive')
+      .select('name code curseducaGroupId curseducaGroupUuid isActive')
       .lean()
 
     res.json({
@@ -365,9 +365,9 @@ export const getCurseducaProductByGroupId = async (req: Request, res: Response):
     const product = await Product.findOne({
       platform: 'curseduca',
       $or: [
-        { 'platformData.groupId': groupId },
-        { 'platformData.curseducaGroupId': groupId },
-        { 'platformData.groupCurseducaUuid': groupId }
+        { 'curseducaGroupId': groupId },
+        { curseducaGroupId: groupId },
+        { curseducaGroupUuid: groupId }
       ]
     }).lean()
 
@@ -402,9 +402,9 @@ export const getCurseducaProductUsers = async (req: Request, res: Response): Pro
     const product = await Product.findOne({
       platform: 'curseduca',
       $or: [
-        { 'platformData.groupId': groupId },
-        { 'platformData.curseducaGroupId': groupId },
-        { 'platformData.groupCurseducaUuid': groupId }
+        { 'curseducaGroupId': groupId },
+{ curseducaGroupId: groupId },
+{ curseducaGroupUuid: groupId }
       ]
     })
 
@@ -477,9 +477,8 @@ export const getCurseducaStats = async (req: Request, res: Response) => {
           productId: product._id,
           productName: product.name,
           groupId:
-            product.platformData?.groupId ||
-            product.platformData?.curseducaGroupId ||
-            product.platformData?.groupCurseducaUuid,
+            product.curseducaGroupId ||
+          product.curseducaGroupUuid,
           totalUsers: users.length,
           averageProgress: Math.round(avgProgress)
         }

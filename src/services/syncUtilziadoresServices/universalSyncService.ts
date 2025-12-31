@@ -244,7 +244,6 @@ async function determineProductId(
       // 1ª tentativa: Buscar por curseducaGroupId exato
       const product = await Product.findOne({
         platform: 'curseduca',
-        'platformData.curseducaGroupId': groupId,
         isActive: true
       }).select('_id code').lean() as LeanProduct | null
       
@@ -256,15 +255,26 @@ async function determineProductId(
     
     // 2ª tentativa: Buscar por subscriptionType (MONTHLY/ANNUAL)
     if (item.subscriptionType) {
-      const product = await Product.findOne({
-        platform: 'curseduca',
-        'platformData.subscriptionType': item.subscriptionType,
-        isActive: true
-      }).select('_id code').lean() as LeanProduct | null
-      
-      if (product) {
-        debugLog(`✅ [ProductMapping] Produto encontrado por subscriptionType ${item.subscriptionType}: ${product.code}`)
-        return product._id
+      // Mapear subscriptionType → código do produto
+      const productCode = 
+        item.subscriptionType === 'MONTHLY' ? 'CLAREZA_MENSAL' :
+        item.subscriptionType === 'ANNUAL' ? 'CLAREZA_ANUAL' :
+        null
+
+      if (productCode) {  // ✅ ADICIONAR ESTA VALIDAÇÃO!
+        const product = await Product.findOne({
+          platform: 'curseduca',
+          code: productCode,
+          isActive: true
+        }).select('_id code').lean() as LeanProduct | null  // ✅ Adicionar .select().lean()
+
+        if (product) {
+          debugLog(`✅ [ProductMapping] Produto encontrado por subscriptionType ${item.subscriptionType}: ${product.code}`)
+          return product._id
+        }
+        
+        // ✅ ADICIONAR WARNING se não encontrar
+        console.warn(`⚠️ [ProductMapping] Produto não encontrado para subscriptionType: ${item.subscriptionType} (${productCode})`)
       }
     }
     
@@ -672,7 +682,10 @@ const processSyncItem = async (
       updateFields['hotmart.currentModule'] = toNumber(item.currentModule, 0)
       needsUpdate = true
     }
-
+if (lastAccessDate) {
+  updateFields['hotmart.lastAccessDate'] = lastAccessDate
+  needsUpdate = true
+}
   // ════════════════════════════════════════════════════════════
     // ❌ FASE 1: COMENTADO - Progress vai para UserProduct
     // Data: 2025-12-27
@@ -794,11 +807,11 @@ const processSyncItem = async (
     needsUpdate = true
 
     // Datas
-    const joinedDate = toDateOrNull(item.joinedDate) || toDateOrNull(item.enrolledAt)
-    if (joinedDate) {
-      updateFields['curseduca.joinedDate'] = joinedDate
-      needsUpdate = true
-    }
+const lastAccess = toDateOrNull(item.lastAccess)
+if (lastAccess) {
+  updateFields['curseduca.lastAccess'] = lastAccess
+  needsUpdate = true
+}
 
  // ════════════════════════════════════════════════════════════
     // ❌ FASE 1: COMENTADO - Progress vai para UserProduct
@@ -1225,7 +1238,7 @@ export function calculateEngagementMetricsForUserProduct(
     // ✅ CURSEDUCA = ACTION-BASED
     // ✅ CORRIGIDO: CursEduca não tem lastActionDate explícito
     // Usar progress.lastActivity ou joinedDate como fallback
-    const lastAction = user.curseduca?.progress?.lastActivity || user.curseduca?.joinedDate
+    const lastAction = user.curseduca?.lastAccess || user.curseduca?.joinedDate
 
     if (lastAction) {
       const lastActionTime = lastAction instanceof Date ? lastAction.getTime() : new Date(lastAction).getTime()

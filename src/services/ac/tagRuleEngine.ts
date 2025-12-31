@@ -9,9 +9,9 @@ import mongoose from 'mongoose'
 import Course, { ICourse } from '../../models/Course'
 import TagRule, { ITagRule, ICondition } from '../../models/acTags/TagRule'
 import User from '../../models/user'
-import UserAction from '../../models/UserAction'
 import CommunicationHistory from '../../models/acTags/CommunicationHistory'
 import activeCampaignService from './activeCampaignService'
+import { UserProduct } from '../../models'
 
 // ─────────────────────────────────────────────────────────────
 // INTERFACES
@@ -764,94 +764,41 @@ class TagRuleEngine {
   // ✅ CALCULAR ESTATÍSTICAS DO USER (UNIFORMIZADO)
   // ═══════════════════════════════════════════════════════════
 
-  private async calculateUserStats(user: any, course: ICourse): Promise<any> {
-    const now = new Date()
-    const platform = DataUnifier.detectPlatform(user)
-    const email = DataUnifier.getUnifiedEmail(user)
+private async calculateUserStats(user: any, course: ICourse): Promise<any> {
+  const userProduct = await UserProduct.findOne({ userId: user._id }).lean()
 
-    console.log(`📊 [${email}] Calculando stats (${platform}, ${course.trackingType})`)
-
-    const stats: any = {
-      currentProgress: DataUnifier.getUnifiedProgress(user, course),
-      currentModule: DataUnifier.getUnifiedCurrentModule(user, course)
+  if (!userProduct) {
+    console.warn(`⚠️  [${user.email}] UserProduct não encontrado!`)
+    return {
+      daysSinceLastAction: 999,
+      daysSinceLastLogin: 999,
+      reportsOpenedLastWeek: 0,
+      reportsOpenedLastMonth: 0,
+      totalReportsOpened: 0,
+      currentProgress: 0,
+      currentModule: 0
     }
-
-    // ─────────────────────────────────────────────────────────
-    // ACTION_BASED (Clareza)
-    // ─────────────────────────────────────────────────────────
-    if (course.trackingType === 'ACTION_BASED') {
-      const actionType = course.trackingConfig?.actionType || 'REPORT_OPENED'
-
-      const lastAction = await UserAction.findOne({
-        userId: user._id,
-        courseId: (course as any)._id,
-        actionType
-      }).sort({ timestamp: -1 })
-
-      if (lastAction) {
-        const diffTime = now.getTime() - lastAction.timestamp.getTime()
-        stats.daysSinceLastAction = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-      } else {
-        stats.daysSinceLastAction = 999
-      }
-
-      // Reportes abertos (última semana)
-      const lastWeekDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-      stats.reportsOpenedLastWeek = await UserAction.countDocuments({
-        userId: user._id,
-        courseId: (course as any)._id,
-        actionType: 'REPORT_OPENED',
-        timestamp: { $gte: lastWeekDate }
-      })
-
-      // Reportes abertos (último mês)
-      const lastMonthDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-      stats.reportsOpenedLastMonth = await UserAction.countDocuments({
-        userId: user._id,
-        courseId: (course as any)._id,
-        actionType: 'REPORT_OPENED',
-        timestamp: { $gte: lastMonthDate }
-      })
-
-      // Total de reportes abertos
-      stats.totalReportsOpened = await UserAction.countDocuments({
-        userId: user._id,
-        courseId: (course as any)._id,
-        actionType: 'REPORT_OPENED'
-      })
-
-      console.log(`📊 [${email}] ACTION_BASED: ${stats.daysSinceLastAction}d, ${stats.totalReportsOpened} reports`)
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // LOGIN_BASED (OGI)
-    // ─────────────────────────────────────────────────────────
-    if (course.trackingType === 'LOGIN_BASED') {
-      const lastLoginAction = await UserAction.findOne({
-        userId: user._id,
-        courseId: (course as any)._id,
-        actionType: 'LOGIN'
-      }).sort({ timestamp: -1 })
-
-      if (lastLoginAction) {
-        const lastLogin = new Date(lastLoginAction.timestamp || lastLoginAction.actionDate)
-        stats.lastLogin = lastLogin
-        stats.daysSinceLastLogin = Math.floor(
-          (now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24)
-        )
-      } else {
-        // Fallback: usar data de criação do user
-        const userCreated = DataUnifier.getUnifiedCreatedAt(user)
-        stats.daysSinceLastLogin = Math.floor(
-          (now.getTime() - userCreated.getTime()) / (1000 * 60 * 60 * 24)
-        )
-      }
-
-      console.log(`📊 [${email}] LOGIN_BASED: ${stats.daysSinceLastLogin}d desde último login`)
-    }
-
-    return stats
   }
+
+  const engagement = (userProduct as any).engagement || {}
+  const progress = (userProduct as any).progress || {}
+
+  return {
+    // ACTION_BASED (Clareza)
+    daysSinceLastAction: engagement.daysSinceLastAction ?? 999,
+    reportsOpenedLastWeek: engagement.actionsLastWeek ?? 0,
+    reportsOpenedLastMonth: engagement.actionsLastMonth ?? 0,
+    totalReportsOpened: engagement.totalActions ?? 0,
+    
+    // LOGIN_BASED (OGI)
+    daysSinceLastLogin: engagement.daysSinceLastLogin ?? 999,
+    totalLogins: engagement.totalLogins ?? 0,
+    
+    // COMUM
+    currentProgress: progress.percentage ?? 0,
+    currentModule: progress.currentModule ?? 0
+  }
+}
 
   // ═══════════════════════════════════════════════════════════
   // RULE-LEVEL COOLDOWN

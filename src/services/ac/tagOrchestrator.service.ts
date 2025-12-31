@@ -56,71 +56,104 @@ class TagOrchestratorV2 {
   /**
    * Orquestrar tags para um UserProduct específico
    */
-  async orchestrateUserProduct(userId: string, productId: string): Promise<OrchestrationResult> {
-    console.log(`[TagOrchestrator V2] Orquestrando userId=${userId}, productId=${productId}`)
+async orchestrateUserProduct(userId: string, productId: string): Promise<OrchestrationResult> {
+  console.log(`[TagOrchestrator V2] Orquestrando userId=${userId}, productId=${productId}`)
 
-    const result: OrchestrationResult = {
-      userId,
-      productId,
-      productCode: '',
-      tagsApplied: [],
-      tagsRemoved: [],
-      communicationsTriggered: 0,
-      success: false
-    }
-
-    try {
-      // 1) Contexto
-      const userProduct = await UserProduct.findOne({ userId, productId })
-      const user = await User.findById(userId)
-      const product = await Product.findById(productId)
-
-      if (!userProduct || !user || !product) {
-        throw new Error('UserProduct, User ou Product não encontrado')
-      }
-
-      const productCode = String(product.code || '').toUpperCase()
-      result.productCode = productCode
-
-      const lastActivity = this.getUserLastActivity(user, productCode)
-      const daysInactive = this.calculateDaysInactive(lastActivity)
-
-      const ctx: OrchestrationContext = { user, product, lastActivity, daysInactive }
-
-      // 2) Decisões
-      const decisions = await decisionEngine.evaluateUserProduct(userId, productId)
-
-      // 3) Aplicar tags
-      for (const tag of decisions.tagsToApply || []) {
-        const applied = await this.applyTag(userId, productId, tag, ctx)
-        if (applied.ok) result.tagsApplied.push(applied.fullTag)
-      }
-
-      // 4) Remover tags
-      for (const tag of decisions.tagsToRemove || []) {
-        const removed = await this.removeTag(userId, productId, tag, ctx)
-        if (removed.ok) result.tagsRemoved.push(removed.fullTag)
-      }
-
-      // 5) Histórico de comunicações (1 registo por orquestração)
-      if (result.tagsApplied.length > 0 || result.tagsRemoved.length > 0) {
-        await this.logCommunication(userId, productId, result, ctx)
-        result.communicationsTriggered = 1
-      }
-
-      result.success = true
-      console.log(
-        `[TagOrchestrator V2] ✅ Orquestração completa: ${result.tagsApplied.length} aplicadas, ${result.tagsRemoved.length} removidas`
-      )
-    } catch (error: any) {
-      result.success = false
-      result.error = error.message
-      console.error(`[TagOrchestrator V2] ❌ Erro:`, error.message)
-    }
-
-    return result
+  const result: OrchestrationResult = {
+    userId,
+    productId,
+    productCode: '',
+    tagsApplied: [],
+    tagsRemoved: [],
+    communicationsTriggered: 0,
+    success: false
   }
 
+  try {
+    // 1) Contexto
+    const userProduct = await UserProduct.findOne({ userId, productId })
+    const user = await User.findById(userId)
+    const product = await Product.findById(productId)
+
+    if (!userProduct || !user || !product) {
+      throw new Error('UserProduct, User ou Product não encontrado')
+    }
+
+    const productCode = String(product.code || '').toUpperCase()
+    result.productCode = productCode
+
+    const lastActivity = this.getUserLastActivity(user, productCode)
+    const daysInactive = this.calculateDaysInactive(lastActivity)
+
+    const ctx: OrchestrationContext = { user, product, lastActivity, daysInactive }
+
+    // 2) Decisões
+    const decisions = await decisionEngine.evaluateUserProduct(userId, productId)
+
+    // ═══════════════════════════════════════════════════════════
+    // ✅ NOVO: DIFF INTELIGENTE (SÓ REMOVE/ADICIONA O NECESSÁRIO)
+    // ═══════════════════════════════════════════════════════════
+
+    // Prefixos das tags geridas pelo BO
+    const BO_TAG_PREFIXES = ['CLAREZA_MENSAL', 'CLAREZA_ANUAL', 'OGI_V1', 'DISCORD_COMMUNITY']
+
+    // Tags atuais do BO
+    const currentTags = userProduct.activeCampaignData?.tags || []
+    const currentBOTags = currentTags.filter((tag: string) =>
+      BO_TAG_PREFIXES.some(prefix => tag.toUpperCase().startsWith(prefix))
+    )
+
+    // Tags novas (do decision engine)
+    const newBOTags = (decisions.tagsToApply || []).map((tag: string) => {
+      const { fullTag } = this.normalizeTagForProduct(tag, productCode)
+      return fullTag
+    })
+
+    // ✅ DIFF: O que remover e o que adicionar
+    const tagsToRemove = currentBOTags.filter((tag: string) => !newBOTags.includes(tag))
+    const tagsToAdd = newBOTags.filter((tag: string) => !currentBOTags.includes(tag))
+
+    console.log(`[TagOrchestrator V2] Diff calculado:`)
+    console.log(`   Atual: [${currentBOTags.join(', ')}]`)
+    console.log(`   Novo: [${newBOTags.join(', ')}]`)
+    console.log(`   Remover: [${tagsToRemove.join(', ')}]`)
+    console.log(`   Adicionar: [${tagsToAdd.join(', ')}]`)
+
+    // 3) Remover tags desatualizadas
+    for (const tag of tagsToRemove) {
+      const removed = await this.removeTag(userId, productId, tag, ctx)
+      if (removed.ok) result.tagsRemoved.push(removed.fullTag)
+    }
+
+    // 4) Aplicar tags novas
+    for (const tag of tagsToAdd) {
+      const applied = await this.applyTag(userId, productId, tag, ctx)
+      if (applied.ok) result.tagsApplied.push(applied.fullTag)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 5) Histórico de comunicações
+    // ═══════════════════════════════════════════════════════════
+
+    if (result.tagsApplied.length > 0 || result.tagsRemoved.length > 0) {
+      await this.logCommunication(userId, productId, result, ctx)
+      result.communicationsTriggered = 1
+    } else {
+      console.log(`[TagOrchestrator V2] ⏭️ Sem alterações (tags já estão corretas)`)
+    }
+
+    result.success = true
+    console.log(
+      `[TagOrchestrator V2] ✅ Orquestração completa: ${result.tagsApplied.length} aplicadas, ${result.tagsRemoved.length} removidas`
+    )
+  } catch (error: any) {
+    result.success = false
+    result.error = error.message
+    console.error(`[TagOrchestrator V2] ❌ Erro:`, error.message)
+  }
+
+  return result
+}
   // ─────────────────────────────────────────────────────────────
   // APPLY / REMOVE (com normalização + sync StudentEngagementState)
   // ─────────────────────────────────────────────────────────────
@@ -192,6 +225,7 @@ class TagOrchestratorV2 {
       await CommunicationHistory.create({
         userId,
         productId,
+         tagApplied: result.tagsApplied[0] || 'UNKNOWN', 
         type: 'TAG_AUTOMATION',
         channel: 'ACTIVE_CAMPAIGN',
         subject: `Tags atualizadas: ${result.productCode}`,
@@ -371,16 +405,16 @@ class TagOrchestratorV2 {
    * - input pode vir raw ("INATIVO_14D") ou full ("OGI_INATIVO_14D")
    * - ActiveCampaignService.applyTagToUserProduct/removeTagFromUserProduct EXPECTA raw (porque ele prefixa)
    */
-  private normalizeTagForProduct(tag: string, productCode: string): { rawTag: string; fullTag: string } {
-    const code = productCode.toUpperCase()
-    const prefix = `${code}_`
-
-    if (tag.toUpperCase().startsWith(prefix)) {
-      return { rawTag: tag.slice(prefix.length), fullTag: tag }
-    }
-
-    return { rawTag: tag, fullTag: `${code}_${tag}` }
+private normalizeTagForProduct(tag: string, productCode: string): { rawTag: string; fullTag: string } {
+  // ✅ As tags JÁ vêm com o prefixo correto do adapter (ex: "OGI_V1 - Inativo 7d")
+  // O activeCampaignService NÃO adiciona mais prefixo
+  // Então simplesmente retornamos a tag como está
+  
+  return {
+    rawTag: tag,    // Tag completa para ActiveCampaign
+    fullTag: tag    // Tag completa para logging
   }
+}
 
   // ─────────────────────────────────────────────────────────────
   // MÉTODOS PÚBLICOS (extras do V1)

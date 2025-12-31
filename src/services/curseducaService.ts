@@ -16,22 +16,17 @@ interface CursEducaGroup {
 }
 
 interface CursEducaMember {
-  id: number;
-  uuid: string;
-  name: string;
-  email: string;
-  expiresAt?: string | null;
-  enrollmentsCount?: number;
-  progress?: number;
-  groups?: Array<{
-    id: number;
-    uuid: string;
-    name: string;
-  }>;
-  enteredAt?: string;
-  tenants?: Array<{
-    tenantId: number;
-  }>;
+  id: number
+  uuid: string
+  name: string
+  email: string
+  lastAccess?: string  // ✅ NOVO!
+  expiresAt?: string | null
+  enrollmentsCount?: number
+  progress?: number
+  groups?: Array<{ id: number; uuid: string; name: string }>
+  enteredAt?: string
+  tenants?: Array<{ tenantId: number }>
 }
 
 /**
@@ -39,10 +34,8 @@ interface CursEducaMember {
  */
 function mapCursEducaGroupToProduct(groupId: string, groupName: string): string | null {
   const mapping: Record<string, string> = {
-    '6': 'CLAREZA',      // Clareza - Mensal = groupId 6
-    '7': 'CLAREZA',      // Clareza - Anual = groupId 7
-    '5': 'OGI_V1',       // OGI = groupId 5 (se existir)
-    // Adicionar mais mapeamentos conforme necessário
+    '6': 'CLAREZA_MENSAL',  // ✅ CORRETO!
+    '7': 'CLAREZA_ANUAL',   // ✅ CORRETO!
   };
   
   const course = mapping[groupId];
@@ -246,103 +239,145 @@ export const syncCursEducaStudents = async () => {
               
               totalCreated++;
               console.log(`      ✅ User criado: ${user._id}`);
-            } else {
-              console.log(`      🔄 ATUALIZAR user existente: ${user._id}`);
-              
-              if (!user.curseduca) {
-                user.curseduca = {} as any;
-              }
-              
-              // Atualizar dados CursEduca
-              user.curseduca.curseducaUserId = member.id.toString();
-              user.curseduca.curseducaUuid = member.uuid;
-              user.curseduca.groupId = group.id.toString();
-              user.curseduca.groupUuid = group.uuid;
-              user.curseduca.groupName = group.name;
-              user.curseduca.groupCurseducaId = group.id;
-              user.curseduca.groupCurseducaUuid = group.uuid;
-              
-              if (member.enteredAt) {
-                user.curseduca.enrollmentDate = new Date(member.enteredAt);
-              }
-              
-              if (member.expiresAt) {
-                user.curseduca.expiresAt = new Date(member.expiresAt);
-              }
-              
-              // Adicionar classe se não existir
-              if (!user.curseduca.enrolledClasses) {
-                user.curseduca.enrolledClasses = [];
-              }
-              
-              const classExists = user.curseduca.enrolledClasses.some(
-                c => c.classId === (group.uuid || group.id.toString())
-              );
-              
-              if (!classExists) {
-                user.curseduca.enrolledClasses.push({
-                  classId: group.uuid || group.id.toString(),
-                  className: group.name,
-                  curseducaId: group.id.toString(),
-                  curseducaUuid: group.uuid || group.id.toString(),
-                  enteredAt: member.enteredAt ? new Date(member.enteredAt) : new Date(),
-                  expiresAt: member.expiresAt ? new Date(member.expiresAt) : undefined,
-                  isActive: true,
-                  role: 'student' as const
-                });
-              }
-              
-              // Atualizar progresso
-              if (!user.curseduca.progress) {
-                user.curseduca.progress = {
-                  estimatedProgress: 0,
-                  activityLevel: 'LOW',
-                  groupEngagement: 0,
-                  progressSource: 'estimated'
-                } as any;
-              }
-              user.curseduca.progress.estimatedProgress = member.progress || 0;
-              user.curseduca.progress.progressSource = 'estimated';
-              
-              // Atualizar engagement
-              if (!user.curseduca.engagement) {
-                user.curseduca.engagement = {
-                  alternativeEngagement: 0,
-                  activityLevel: 'LOW',
-                  engagementLevel: 'NONE',
-                  calculatedAt: new Date()
-                } as any;
-              }
-              
-              // Atualizar status
-              user.curseduca.memberStatus = 'ACTIVE';
-              user.curseduca.neverLogged = false;
-              user.curseduca.lastSyncAt = new Date();
-              
-              await user.save();
-              totalUpdated++;
-              console.log(`      ✅ User atualizado`);
-            }
-            
+           } else {
+  console.log(`      🔄 ATUALIZAR user existente: ${user._id}`);
+  
+  // ✅ CRIAR OBJETO SE NÃO EXISTIR
+  if (!user.curseduca) {
+    user.curseduca = {
+      curseducaUserId: member.id.toString(),
+      curseducaUuid: member.uuid,
+      groupId: group.id.toString(),
+      groupName: group.name,
+      memberStatus: 'ACTIVE',
+      neverLogged: false,
+      joinedDate: member.enteredAt ? new Date(member.enteredAt) : new Date(),
+      lastAccess: member.lastAccess ? new Date(member.lastAccess) : undefined, // ✅ NOVO!
+      enrolledClasses: [],
+      progress: {
+        estimatedProgress: member.progress || 0,
+        activityLevel: 'LOW',
+        groupEngagement: 0,
+        progressSource: 'estimated'
+      },
+      engagement: {
+        alternativeEngagement: 0,
+        activityLevel: 'LOW',
+        engagementLevel: 'NONE',
+        calculatedAt: new Date()
+      },
+      lastSyncAt: new Date(),
+      syncVersion: '3.0'
+    } as any;
+  }
+  
+  // ✅ AGORA TYPESCRIPT SABE QUE curseduca EXISTE
+  const curseduca = user.curseduca!; // Non-null assertion
+  
+  // Atualizar dados CursEduca
+  curseduca.curseducaUserId = member.id.toString();
+  curseduca.curseducaUuid = member.uuid;
+  curseduca.groupId = group.id.toString();
+  curseduca.groupName = group.name;
+  curseduca.groupCurseducaId = group.id.toString();
+  curseduca.groupCurseducaUuid = group.uuid;
+  
+  // ✅ ATUALIZAR lastAccess
+  if (member.lastAccess) {
+    curseduca.lastAccess = new Date(member.lastAccess);
+  }
+  
+  if (member.enteredAt) {
+    curseduca.joinedDate = new Date(member.enteredAt);
+  }
+  
+  
+  // Adicionar classe se não existir
+  if (!curseduca.enrolledClasses) {
+    curseduca.enrolledClasses = [];
+  }
+  
+  const classExists = curseduca.enrolledClasses.some(
+    c => c.classId === (group.uuid || group.id.toString())
+  );
+  
+  if (!classExists) {
+    curseduca.enrolledClasses.push({
+      classId: group.uuid || group.id.toString(),
+      className: group.name,
+      curseducaId: group.id.toString(),
+      curseducaUuid: group.uuid || group.id.toString(),
+      enteredAt: member.enteredAt ? new Date(member.enteredAt) : new Date(),
+      expiresAt: member.expiresAt ? new Date(member.expiresAt) : undefined,
+      isActive: true,
+      role: 'student' as const
+    });
+  }
+  
+  // Atualizar progresso
+  if (!curseduca.progress) {
+    curseduca.progress = {
+      estimatedProgress: 0,
+      activityLevel: 'LOW',
+      groupEngagement: 0,
+      progressSource: 'estimated'
+    } as any;
+  }
+  curseduca.progress.estimatedProgress = member.progress || 0;
+  curseduca.progress.progressSource = 'estimated';
+  
+  // Atualizar engagement
+  if (!curseduca.engagement) {
+    curseduca.engagement = {
+      alternativeEngagement: 0,
+      activityLevel: 'LOW',
+      engagementLevel: 'NONE',
+      calculatedAt: new Date()
+    } as any;
+  }
+  
+  // Atualizar status
+  curseduca.memberStatus = 'ACTIVE';
+  curseduca.neverLogged = false;
+  curseduca.lastSyncAt = new Date();
+  
+  await user.save();
+  totalUpdated++;
+  console.log(`      ✅ User atualizado`);
+}
             // ─────────────────────────────────────────────────────────────
             // 3.2: CRIAR/ATUALIZAR PRODUCT
             // ─────────────────────────────────────────────────────────────
-            let product = await Product.findOne({ code: course });
             
-            if (!product) {
-              product = await Product.create({
-                code: course,
-                name: group.name,
-                platform: 'curseduca',
-                platformData: {
-                  groupId: group.id.toString(),
-                  groupUuid: group.uuid,
-                  groupName: group.name
-                },
-                isActive: true
-              });
-              console.log(`      ✅ Produto criado: ${product._id}`);
-            }
+let product = await Product.findOne({ code: course });
+
+if (!product) {
+  throw new Error(`Produto ${course} não encontrado! Execute update-curseduca-products.ts primeiro.`);
+}
+
+console.log(`      ✅ Produto encontrado: ${product._id}`);
+
+if (!product) {
+  // ✅ Produtos CursEduca já devem existir!
+  // Se não existir, precisamos criar mas SEM courseId
+  console.log(`      ⚠️  Produto ${course} não encontrado, criando...`);
+  
+  product = await Product.create({
+    code: course,
+    name: group.name,
+    platform: 'curseduca',
+    platformData: {
+      groupId: group.id.toString(),
+      groupUuid: group.uuid,
+      groupName: group.name
+    },
+    isActive: true
+    // ❌ NÃO incluir courseId aqui!
+  });
+  
+  console.log(`      ✅ Produto criado: ${product._id}`);
+}
+
             
             // ─────────────────────────────────────────────────────────────
             // 3.3: CRIAR/ATUALIZAR USERPRODUCT (V2)

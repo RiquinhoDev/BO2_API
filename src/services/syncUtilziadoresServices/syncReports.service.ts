@@ -79,7 +79,9 @@ export const createSyncReport = async (
     const beforeSnapshot = await createSnapshot()
     
     const report = await SyncReport.create({
-      jobId: options.jobId ? new Types.ObjectId(options.jobId) : undefined,
+      jobId: options.jobId && Types.ObjectId.isValid(options.jobId) 
+  ? new Types.ObjectId(options.jobId) 
+  : undefined,
       jobName: options.jobName,
       syncType: options.syncType,
       triggeredBy: options.triggeredBy,

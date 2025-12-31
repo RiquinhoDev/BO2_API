@@ -82,8 +82,9 @@ export async function syncDiscord(data: DiscordSyncData): Promise<SyncResult> {
     // ═══════════════════════════════════════════════════════════
     
     const product = await Product.findOne({
+      code: 'DISCORD_COMMUNITY',  // ✅ Código fixo
       platform: 'discord',
-      'platformData.serverId': data.serverId
+      isActive: true
     })
     
     if (!product) {
