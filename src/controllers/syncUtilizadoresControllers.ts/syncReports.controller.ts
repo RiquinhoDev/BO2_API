@@ -7,6 +7,7 @@ import { Request, Response } from 'express'
 import syncReportsService from '../../services/syncUtilziadoresServices/syncReports.service'
 
 
+
 // ═══════════════════════════════════════════════════════════
 // GET ALL REPORTS
 // GET /api/sync/reports

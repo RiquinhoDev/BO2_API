@@ -876,9 +876,6 @@ export const getHistoryStats: RequestHandler = async (req, res) => {
     return
   }
 }
-/**
- * POST /api/activecampaign/v2/tag/apply
- */
 export const applyTagToUserProduct: RequestHandler = async (req, res) => {
   try {
     const { userId, productId, tagName } = req.body
@@ -914,7 +911,10 @@ export const applyTagToUserProduct: RequestHandler = async (req, res) => {
     }
 
     const acContact = await activeCampaignService.findOrCreateContact(user.email)
-    await activeCampaignService.addTag(acContact.id, tagName)
+    
+    // ✅ USAR TAG DIRETAMENTE (sem adicionar prefixo!)
+    // Tag já vem formatada: "OGI_V1 - Inativo 7d"
+    await activeCampaignService.addTag(user.email, tagName)  // ← SEM PREFIXO!
 
     if (!userProduct.activeCampaignData) {
       userProduct.activeCampaignData = {
@@ -924,7 +924,7 @@ export const applyTagToUserProduct: RequestHandler = async (req, res) => {
     }
 
     if (!userProduct.activeCampaignData.tags.includes(tagName)) {
-      userProduct.activeCampaignData.tags.push(tagName)
+      userProduct.activeCampaignData.tags.push(tagName)  // ← SEM PREFIXO!
     }
 
     userProduct.activeCampaignData.lastSyncAt = new Date()
@@ -949,9 +949,7 @@ export const applyTagToUserProduct: RequestHandler = async (req, res) => {
   }
 }
 
-/**
- * POST /api/activecampaign/v2/tag/remove
- */
+
 export const removeTagFromUserProduct: RequestHandler = async (req, res) => {
   try {
     const { userId, productId, tagName } = req.body
@@ -981,10 +979,12 @@ export const removeTagFromUserProduct: RequestHandler = async (req, res) => {
     }
 
     const acContact = await activeCampaignService.findOrCreateContact(user.email)
-    await activeCampaignService.removeTag(acContact.id, tagName)
+    
+    // ✅ REMOVER TAG DIRETAMENTE (sem adicionar prefixo!)
+    await activeCampaignService.removeTag(user.email, tagName)  // ← SEM PREFIXO!
 
     userProduct.activeCampaignData.tags = (userProduct.activeCampaignData.tags || []).filter(
-      (t: string) => t !== tagName
+      (t: string) => t !== tagName  // ← SEM PREFIXO!
     )
 
     userProduct.activeCampaignData.lastSyncAt = new Date()

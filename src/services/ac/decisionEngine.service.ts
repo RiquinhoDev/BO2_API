@@ -1,5 +1,5 @@
 // =====================================================
-// 📁 src/services/ac/decisionEngine.ts
+// 📁 src/services/ac/decisionEngine.service.ts
 // ✅ UNIFICADO: Decision Engine por UserProduct (1 única fonte)
 // - Usa TagRules por produto
 // - Faz escalonamento (níveis) a partir das regras
@@ -13,6 +13,8 @@ import User from '../../models/user'
 import TagRule from '../../models/acTags/TagRule'
 import UserAction from '../../models/UserAction'
 import activeCampaignService from './activeCampaignService'
+import Course from '../../models/Course'  // ✅ IMPORT DIRETO (não destructured)
+import { adaptTagRuleForDecisionEngine } from './tagRuleAdapter'
 
 // ─────────────────────────────────────────────────────────────
 // TIPOS
@@ -287,6 +289,9 @@ class DecisionEngine {
 
       const { levelRules, regularRules } = splitRulesIntoLevelAndRegular(context.rules)
 
+console.log(`[DEBUG] levelRules: ${levelRules.length}`)
+console.log(`[DEBUG] regularRules: ${regularRules.length}`)
+levelRules.forEach(lr => console.log(`   Level ${lr.level}: ${lr.tagName} (>=${lr.daysInactive}d)`))
       // ===== métricas base (preferência: UserProduct.engagement)
       const metrics = await this.getMetrics(context)
       const daysInactive = metrics.daysSinceLastLogin
@@ -317,8 +322,6 @@ class DecisionEngine {
           daysSinceLastAction: metrics.daysSinceLastAction
         }
       )
-
-
 
       // ===== níveis (escalonamento)
       const currentLevel = inferCurrentLevel(context.userProduct, levelRules)
@@ -404,10 +407,16 @@ class DecisionEngine {
         // (opcional — por omissão só removemos com progresso/ativo)
       }
 
-      // ===== regras “normais” (não-nível)
+      // ===== regras "normais" (não-nível)
       for (const rule of regularRules) {
         const decision = await this.evaluateRule(rule, context, metrics)
         result.decisions.push(decision)
+
+  // ✅ ADICIONAR LOG AQUI:
+  console.log(`[DEBUG] Regra: ${rule.name}`)
+  console.log(`[DEBUG]   Condição: ${rule.condition}`)
+  console.log(`[DEBUG]   shouldExecute: ${decision.shouldExecute}`)
+  console.log(`[DEBUG]   tagName: ${decision.tagName}`)
 
         if (decision.shouldExecute && decision.tagName) {
           if (decision.action === 'APPLY_TAG') result.tagsToApply.push(decision.tagName)
@@ -464,13 +473,48 @@ class DecisionEngine {
     if (!userProduct || !user || !product) {
       throw new Error('UserProduct, User ou Product não encontrado')
     }
+  // ✅ ADICIONAR LOGS AQUI:
+  console.log('[DEBUG] product.code:', product.code)
+  console.log('[DEBUG] product.courseCode:', (product as any).courseCode)
+  console.log('[DEBUG] Buscando Course com code:', (product as any).courseCode || product.code)
 
-    const rules = await TagRule.find({
-      productId,
-      isActive: true
-    }).sort({ priority: -1, name: 1 })
+  const course = await Course.findOne({ 
+    code: (product as any).courseCode || product.code 
+  })
+  
+  // ✅ ADICIONAR LOG AQUI:
+  console.log('[DEBUG] Course encontrado?', course ? 'SIM' : 'NÃO')
+  if (!course) {
+    console.log('[DEBUG] Tentando buscar TODOS os courses...')
+    const allCourses = await Course.find().limit(5)
+    console.log('[DEBUG] Courses na BD:', allCourses.map(c => c.code))
+  }
+  
 
-    return { userId, productId, userProduct, user, product, rules }
+    if (!course) {
+      throw new Error(`Course não encontrado para product ${product.code}`)
+    }
+    
+    // ✅ BUSCAR REGRAS VIA courseId
+const rules = await TagRule.find({
+  courseId: course._id,
+  isActive: true
+}).sort({ priority: -1, name: 1 })
+
+// ✅ ADAPTAR REGRAS PARA FORMATO DO DECISIONENGINE
+const adaptedRules = rules.map(r => adaptTagRuleForDecisionEngine(r))
+
+console.log('[DEBUG] TagRules adaptadas:', adaptedRules.length)
+if (adaptedRules.length > 0) {
+  console.log('[DEBUG] Primeira regra adaptada:', {
+    name: adaptedRules[0].name,
+    tagName: adaptedRules[0].tagName,
+    action: adaptedRules[0].action,
+    condition: adaptedRules[0].condition
+  })
+}
+
+    return { userId, productId, userProduct, user, product, rules: adaptedRules }
   }
 
   private async getMetrics(context: DecisionContext): Promise<{
@@ -566,90 +610,238 @@ class DecisionEngine {
    * Avaliação simples (mantém o teu estilo atual)
    * Se quiseres, trocamos depois por evaluator seguro (expr-eval / jexl, etc).
    */
-  private async evaluateCondition(condition: string, context: DecisionContext, metrics: any): Promise<boolean> {
-    if (!condition) return false
+private async evaluateCondition(condition: string, context: DecisionContext, metrics: any): Promise<boolean> {
+  if (!condition) return false
 
-    const daysSinceLastLogin = metrics.daysSinceLastLogin
-    const daysSinceLastAction = metrics.daysSinceLastAction
-    const engagementScore = metrics.engagementScore
-    const totalLogins = metrics.totalLogins
-    const totalActions = metrics.totalActions
+  const daysSinceLastLogin = metrics.daysSinceLastLogin
+  const daysSinceLastAction = metrics.daysSinceLastAction
+  const engagementScore = metrics.engagementScore
+  const totalLogins = metrics.totalLogins
+  const totalActions = metrics.totalActions
 
-    // suportar "daysInactive" como alias de daysSinceLastLogin
-    if (/daysInactive\s*>=/i.test(condition)) {
-      const threshold = extractDaysThreshold(condition) ?? 0
-      return daysSinceLastLogin >= threshold
-    }
-
-    if (/daysSinceLastLogin\s*>=/i.test(condition)) {
-      const threshold = extractDaysThreshold(condition) ?? 0
-      return daysSinceLastLogin >= threshold
-    }
-
-    if (/daysSinceLastAction\s*>=/i.test(condition)) {
-      const m = condition.match(/(\d+)/)
-      const threshold = Number(m?.[1] || 0)
-      return daysSinceLastAction >= threshold
-    }
-
-    if (/engagementScore\s*</i.test(condition)) {
-      const m = condition.match(/(\d+)/)
-      const threshold = Number(m?.[1] || 0)
-      return engagementScore < threshold
-    }
-
-    if (/totalLogins\s*>=/i.test(condition)) {
-      const m = condition.match(/(\d+)/)
-      const threshold = Number(m?.[1] || 0)
-      return totalLogins >= threshold
-    }
-
-    if (/totalActions\s*>=/i.test(condition)) {
-      const m = condition.match(/(\d+)/)
-      const threshold = Number(m?.[1] || 0)
-      return totalActions >= threshold
-    }
-
-    // condição não reconhecida
-    console.warn(`[DecisionEngine] Condição não reconhecida: ${condition}`)
-    return false
+  // ═══════════════════════════════════════════════════════════
+  // PRIORIDADE 1: CONDIÇÕES COMPOSTAS (AND) - PROCESSAR PRIMEIRO!
+  // ═══════════════════════════════════════════════════════════
+  if (/\sAND\s/i.test(condition)) {
+    const parts = condition.split(/\sAND\s/i).map(p => p.trim().replace(/[()]/g, ''))
+    
+    const results = parts.map(part => {
+      // daysSinceLastLogin >= X
+      if (/daysSinceLastLogin\s*>=\s*(\d+)/i.test(part)) {
+        const m = part.match(/(\d+)/)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastLogin >= threshold
+        console.log(`   [EVAL] daysSinceLastLogin >= ${threshold}: ${daysSinceLastLogin} >= ${threshold} = ${result}`)
+        return result
+      }
+      // daysSinceLastLogin < X
+      if (/daysSinceLastLogin\s*<\s*(\d+)/i.test(part)) {
+        const m = part.match(/(\d+)/)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastLogin < threshold
+        console.log(`   [EVAL] daysSinceLastLogin < ${threshold}: ${daysSinceLastLogin} < ${threshold} = ${result}`)
+        return result
+      }
+      // currentProgress >= X
+      if (/currentProgress\s*>=\s*(\d+)/i.test(part)) {
+        const m = part.match(/(\d+)/)
+        const threshold = Number(m?.[1] || 0)
+        const current = context.userProduct?.progress?.percentage || 0
+        const result = current >= threshold
+        console.log(`   [EVAL] currentProgress >= ${threshold}: ${current} >= ${threshold} = ${result}`)
+        return result
+      }
+      // currentProgress > X
+      if (/currentProgress\s*>\s*(\d+)/i.test(part)) {
+        const m = part.match(/(\d+)/)
+        const threshold = Number(m?.[1] || 0)
+        const current = context.userProduct?.progress?.percentage || 0
+        const result = current > threshold
+        console.log(`   [EVAL] currentProgress > ${threshold}: ${current} > ${threshold} = ${result}`)
+        return result
+      }
+      // currentProgress < X
+      if (/currentProgress\s*<\s*(\d+)/i.test(part)) {
+        const m = part.match(/(\d+)/)
+        const threshold = Number(m?.[1] || 0)
+        const current = context.userProduct?.progress?.percentage || 0
+        const result = current < threshold
+        console.log(`   [EVAL] currentProgress < ${threshold}: ${current} < ${threshold} = ${result}`)
+        return result
+      }
+      console.log(`   [EVAL] Part não reconhecida: ${part}`)
+      return false
+    })
+    
+    const finalResult = results.every(r => r === true)
+    console.log(`   [EVAL AND] Resultado final: ${finalResult} (${results.filter(r => r).length}/${results.length} condições true)`)
+    return finalResult
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // PRIORIDADE 2: CONDIÇÕES SIMPLES
+  // ═══════════════════════════════════════════════════════════
+
+  // daysInactive (alias de daysSinceLastLogin)
+  if (/daysInactive\s*>=/i.test(condition)) {
+    const threshold = extractDaysThreshold(condition) ?? 0
+    const result = daysSinceLastLogin >= threshold
+    console.log(`   [EVAL] daysInactive >= ${threshold}: ${daysSinceLastLogin} >= ${threshold} = ${result}`)
+    return result
+  }
+
+  // daysSinceLastLogin >=
+  if (/daysSinceLastLogin\s*>=/i.test(condition)) {
+    const threshold = extractDaysThreshold(condition) ?? 0
+    const result = daysSinceLastLogin >= threshold
+    console.log(`   [EVAL] daysSinceLastLogin >= ${threshold}: ${daysSinceLastLogin} >= ${threshold} = ${result}`)
+    return result
+  }
+
+  // daysSinceLastLogin 
+  if (/daysSinceLastLogin\s*</i.test(condition)) {
+    const m = condition.match(/daysSinceLastLogin\s*<\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastLogin < threshold
+    console.log(`   [EVAL] daysSinceLastLogin < ${threshold}: ${daysSinceLastLogin} < ${threshold} = ${result}`)
+    return result
+  }
+
+  // daysSinceLastAction >=
+  if (/daysSinceLastAction\s*>=/i.test(condition)) {
+    const m = condition.match(/(\d+)/)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastAction >= threshold
+    console.log(`   [EVAL] daysSinceLastAction >= ${threshold}: ${daysSinceLastAction} >= ${threshold} = ${result}`)
+    return result
+  }
+
+  // engagementScore 
+  if (/engagementScore\s*</i.test(condition)) {
+    const m = condition.match(/(\d+)/)
+    const threshold = Number(m?.[1] || 0)
+    const result = engagementScore < threshold
+    console.log(`   [EVAL] engagementScore < ${threshold}: ${engagementScore} < ${threshold} = ${result}`)
+    return result
+  }
+
+  // totalLogins >=
+  if (/totalLogins\s*>=/i.test(condition)) {
+    const m = condition.match(/(\d+)/)
+    const threshold = Number(m?.[1] || 0)
+    const result = totalLogins >= threshold
+    console.log(`   [EVAL] totalLogins >= ${threshold}: ${totalLogins} >= ${threshold} = ${result}`)
+    return result
+  }
+
+  // totalActions >=
+  if (/totalActions\s*>=/i.test(condition)) {
+    const m = condition.match(/(\d+)/)
+    const threshold = Number(m?.[1] || 0)
+    const result = totalActions >= threshold
+    console.log(`   [EVAL] totalActions >= ${threshold}: ${totalActions} >= ${threshold} = ${result}`)
+    return result
+  }
+
+  // currentProgress ===
+  if (/currentProgress\s*===\s*(\d+)/i.test(condition)) {
+    const m = condition.match(/currentProgress\s*===\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const current = context.userProduct?.progress?.percentage || 0
+    const result = current === threshold
+    console.log(`   [EVAL] currentProgress === ${threshold}: ${current} === ${threshold} = ${result}`)
+    return result
+  }
+
+  // currentProgress >=
+  if (/currentProgress\s*>=\s*(\d+)/i.test(condition)) {
+    const m = condition.match(/currentProgress\s*>=\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const current = context.userProduct?.progress?.percentage || 0
+    const result = current >= threshold
+    console.log(`   [EVAL] currentProgress >= ${threshold}: ${current} >= ${threshold} = ${result}`)
+    return result
+  }
+
+  // currentProgress >
+  if (/currentProgress\s*>\s*(\d+)/i.test(condition)) {
+    const m = condition.match(/currentProgress\s*>\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const current = context.userProduct?.progress?.percentage || 0
+    const result = current > threshold
+    console.log(`   [EVAL] currentProgress > ${threshold}: ${current} > ${threshold} = ${result}`)
+    return result
+  }
+
+  // currentProgress 
+  if (/currentProgress\s*</i.test(condition)) {
+    const m = condition.match(/currentProgress\s*<\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const current = context.userProduct?.progress?.percentage || 0
+    const result = current < threshold
+    console.log(`   [EVAL] currentProgress < ${threshold}: ${current} < ${threshold} = ${result}`)
+    return result
+  }
+
+  // currentModule ===
+  if (/currentModule\s*===\s*(\d+)/i.test(condition)) {
+    const m = condition.match(/currentModule\s*===\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const current = context.userProduct?.progress?.currentModule || 0
+    const result = current === threshold
+    console.log(`   [EVAL] currentModule === ${threshold}: ${current} === ${threshold} = ${result}`)
+    return result
+  }
+
+  // currentModule >=
+  if (/currentModule\s*>=\s*(\d+)/i.test(condition)) {
+    const m = condition.match(/currentModule\s*>=\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const current = context.userProduct?.progress?.currentModule || 0
+    const result = current >= threshold
+    console.log(`   [EVAL] currentModule >= ${threshold}: ${current} >= ${threshold} = ${result}`)
+    return result
+  }
+
+  // Condição não reconhecida
+  console.warn(`[DecisionEngine] ⚠️ Condição não reconhecida: ${condition}`)
+  return false
+}
 
   // ───────────────────────────────────────────────────────────
   // PROGRESS
   // ───────────────────────────────────────────────────────────
 
-private async checkRecentProgress(
-  userId: string,
-  productCode: string,
-  metrics: { daysSinceLastLogin: number; daysSinceLastAction: number }
-): Promise<{ type: string; value: number } | null> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
+  private async checkRecentProgress(
+    userId: string,
+    productCode: string,
+    metrics: { daysSinceLastLogin: number; daysSinceLastAction: number }
+  ): Promise<{ type: string; value: number } | null> {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
-  // ✅ Shortcut: se “dias desde login” é 0, então houve atividade recente
-  if (metrics.daysSinceLastLogin === 0) {
-    return { type: 'recent_login_metric', value: 1 }
+    // ✅ Shortcut: se "dias desde login" é 0, então houve atividade recente
+    if (metrics.daysSinceLastLogin === 0) {
+      return { type: 'recent_login_metric', value: 1 }
+    }
+
+    // ✅ Shortcut opcional: se "dias desde ação" é 0
+    if (metrics.daysSinceLastAction === 0) {
+      return { type: 'recent_action_metric', value: 1 }
+    }
+
+    // ✅ Fonte forte: ações nas últimas 24h
+    const actions = await UserAction.find({
+      userId,
+      productCode: productCode.toUpperCase(),
+      createdAt: { $gte: since }
+    }).select('_id') // reduz payload
+
+    if (actions.length > 0) {
+      return { type: 'user_action', value: actions.length }
+    }
+
+    return null
   }
-
-  // ✅ Shortcut opcional: se “dias desde ação” é 0
-  if (metrics.daysSinceLastAction === 0) {
-    return { type: 'recent_action_metric', value: 1 }
-  }
-
-  // ✅ Fonte forte: ações nas últimas 24h
-  const actions = await UserAction.find({
-    userId,
-    productCode: productCode.toUpperCase(),
-    createdAt: { $gte: since }
-  }).select('_id') // reduz payload
-
-  if (actions.length > 0) {
-    return { type: 'user_action', value: actions.length }
-  }
-
-  return null
-}
-
 
   // ───────────────────────────────────────────────────────────
   // CONFLICTS + EXECUTION
