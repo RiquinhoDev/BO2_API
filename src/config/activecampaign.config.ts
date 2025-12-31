@@ -5,8 +5,8 @@
 
 export const activeCampaignConfig = {
   // ⚠️ PREENCHER com dados reais depois
-  apiUrl: process.env.AC_API_URL || 'https://YOURACCOUN.api-us1.com',
-  apiKey: process.env.AC_API_KEY || '',
+  apiUrl: process.env.AC_API_URL || 'https://serriquinho71518.api-us1.com',
+  apiKey: process.env.AC_API_KEY || '001fca1fbd99ae7cddc45db8a0fafa83875697938e53eb9a95be40c083f1a6892098b6a7',
   
   // Configurações de sync
   syncInterval: 24 * 60 * 60 * 1000, // 24 horas

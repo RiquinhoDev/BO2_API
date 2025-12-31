@@ -268,7 +268,7 @@ class DecisionEngine {
   // PUBLIC API
   // ───────────────────────────────────────────────────────────
 
-  async evaluateUserProduct(userId: string, productId: string): Promise<DecisionResult> {
+async evaluateUserProduct(userId: string, productId: string,): Promise<DecisionResult> {
     const result: DecisionResult = {
       userId,
       productId,
@@ -289,305 +289,311 @@ class DecisionEngine {
 
       const { levelRules, regularRules } = splitRulesIntoLevelAndRegular(context.rules)
 
-console.log(`[DEBUG] levelRules: ${levelRules.length}`)
-console.log(`[DEBUG] regularRules: ${regularRules.length}`)
-levelRules.forEach(lr => console.log(`   Level ${lr.level}: ${lr.tagName} (>=${lr.daysInactive}d)`))
-      // ===== métricas base (preferência: UserProduct.engagement)
-      const metrics = await this.getMetrics(context)
-      const daysInactive = metrics.daysSinceLastLogin
+  console.log(`[DEBUG] levelRules: ${levelRules.length}`)
+  console.log(`[DEBUG] regularRules: ${regularRules.length}`)
+  levelRules.forEach(lr => console.log(`   Level ${lr.level}: ${lr.tagName} (>=${lr.daysInactive}d)`))
+        // ===== métricas base (preferência: UserProduct.engagement)
+        const metrics = await this.getMetrics(context)
+        const daysInactive = metrics.daysSinceLastLogin
 
-      // ===== cooldown
-      const cooldownUntil = getCooldownUntil(context.userProduct)
-      if (cooldownUntil && nowUTC() < cooldownUntil) {
-        result.inCooldown = true
-        result.cooldownUntil = cooldownUntil
-        result.nextEvaluationDate = cooldownUntil
-        result.decisions.push({
-          source: 'SYSTEM',
-          ruleName: 'Cooldown',
-          action: 'NO_ACTION',
-          shouldExecute: false,
-          reason: `Em cooldown até ${cooldownUntil.toISOString()}`,
-          confidence: 100
-        })
-        return result
-      }
-
-      // ===== progresso recente (se houver)
-      const recentProgress = await this.checkRecentProgress(
-        userId,
-        context.product.code,
-        {
-          daysSinceLastLogin: metrics.daysSinceLastLogin,
-          daysSinceLastAction: metrics.daysSinceLastAction
+        // ===== cooldown
+        const cooldownUntil = getCooldownUntil(context.userProduct)
+        if (cooldownUntil && nowUTC() < cooldownUntil) {
+          result.inCooldown = true
+          result.cooldownUntil = cooldownUntil
+          result.nextEvaluationDate = cooldownUntil
+          result.decisions.push({
+            source: 'SYSTEM',
+            ruleName: 'Cooldown',
+            action: 'NO_ACTION',
+            shouldExecute: false,
+            reason: `Em cooldown até ${cooldownUntil.toISOString()}`,
+            confidence: 100
+          })
+          return result
         }
-      )
 
-      // ===== níveis (escalonamento)
-      const currentLevel = inferCurrentLevel(context.userProduct, levelRules)
-      const appropriateLevel = determineAppropriateLevel(daysInactive, levelRules)
+        // ===== progresso recente (se houver)
+        const recentProgress = await this.checkRecentProgress(
+          userId,
+          context.product.code,
+          {
+            daysSinceLastLogin: metrics.daysSinceLastLogin,
+            daysSinceLastAction: metrics.daysSinceLastAction
+          }
+        )
 
-      result.currentLevel = currentLevel
-      result.appropriateLevel = appropriateLevel
+        // ===== níveis (escalonamento)
+        const currentLevel = inferCurrentLevel(context.userProduct, levelRules)
+        const appropriateLevel = determineAppropriateLevel(daysInactive, levelRules)
 
-      // 1) Se teve progresso recente e está em nível -> desescalar (remover tags de nível)
-      if (recentProgress && currentLevel > 0) {
-        const levelTags = levelRules.map(lr => lr.tagName)
-        result.tagsToRemove.push(...levelTags)
+        result.currentLevel = currentLevel
+        result.appropriateLevel = appropriateLevel
 
-        result.decisions.push({
-          source: 'LEVEL',
-          ruleName: 'Recent Progress',
-          action: 'DESESCALATE',
-          shouldExecute: true,
-          reason: `Progresso recente detectado: ${recentProgress.type} (${recentProgress.value})`,
-          confidence: 95
-        })
-
-        // aplica cooldown curto após retorno/progresso
-        const until = addDays(nowUTC(), 1)
-        await setCooldown(context.userProduct._id.toString(), until)
-        result.nextEvaluationDate = until
-      } else {
-        // 2) Se voltou a ativo (0 dias) e tem nível -> remover tags
-        if (daysInactive === 0 && currentLevel > 0) {
+        // 1) Se teve progresso recente e está em nível -> desescalar (remover tags de nível)
+        if (recentProgress && currentLevel > 0) {
           const levelTags = levelRules.map(lr => lr.tagName)
           result.tagsToRemove.push(...levelTags)
 
           result.decisions.push({
             source: 'LEVEL',
-            ruleName: 'Back Active',
-            action: 'REMOVE_TAG',
+            ruleName: 'Recent Progress',
+            action: 'DESESCALATE',
             shouldExecute: true,
-            reason: 'Aluno voltou a ser ativo (0 dias inativo)',
-            confidence: 100
+            reason: `Progresso recente detectado: ${recentProgress.type} (${recentProgress.value})`,
+            confidence: 95
           })
 
+          // aplica cooldown curto após retorno/progresso
           const until = addDays(nowUTC(), 1)
           await setCooldown(context.userProduct._id.toString(), until)
           result.nextEvaluationDate = until
-        }
-
-        // 3) Se apropriado > atual -> aplicar/escalar para tag do nível apropriado
-  if (appropriateLevel > currentLevel && levelRules.length > 0) {
-          const target = levelRules.find(lr => lr.level === appropriateLevel)
-
-          if (target) {
-            // remover outros níveis antes (evita tags conflitantes)
-            const otherLevelTags = levelRules
-              .filter(lr => lr.tagName !== target.tagName)
-              .map(lr => lr.tagName)
-
-            result.tagsToRemove.push(...otherLevelTags)
-            result.tagsToApply.push(target.tagName)
-
-            const action: DecisionAction = currentLevel === 0 ? 'APPLY_TAG' : 'ESCALATE'
+        } else {
+          // 2) Se voltou a ativo (0 dias) e tem nível -> remover tags
+          if (daysInactive === 0 && currentLevel > 0) {
+            const levelTags = levelRules.map(lr => lr.tagName)
+            result.tagsToRemove.push(...levelTags)
 
             result.decisions.push({
               source: 'LEVEL',
-              ruleId: target.rule?._id?.toString?.(),
-              ruleName: `Level ${target.level}`,
-              condition: target.rule?.condition,
-              action,
-              tagName: target.tagName,
+              ruleName: 'Back Active',
+              action: 'REMOVE_TAG',
               shouldExecute: true,
-              reason: `${daysInactive} dias inativo → ${action === 'APPLY_TAG' ? 'aplicar' : 'escalar'} para nível ${target.level}`,
-              confidence: confidenceForLevel(daysInactive, target)
+              reason: 'Aluno voltou a ser ativo (0 dias inativo)',
+              confidence: 100
             })
 
-            // cooldown após escalonamento
-            const cdDays = target.cooldownDays ?? DEFAULT_COOLDOWN_DAYS
-            const until = addDays(nowUTC(), cdDays)
+            const until = addDays(nowUTC(), 1)
             await setCooldown(context.userProduct._id.toString(), until)
             result.nextEvaluationDate = until
           }
+
+          // 3) Se apropriado > atual -> aplicar/escalar para tag do nível apropriado
+    if (appropriateLevel > currentLevel && levelRules.length > 0) {
+            const target = levelRules.find(lr => lr.level === appropriateLevel)
+
+            if (target) {
+              // remover outros níveis antes (evita tags conflitantes)
+              const otherLevelTags = levelRules
+                .filter(lr => lr.tagName !== target.tagName)
+                .map(lr => lr.tagName)
+
+              result.tagsToRemove.push(...otherLevelTags)
+              result.tagsToApply.push(target.tagName)
+
+              const action: DecisionAction = currentLevel === 0 ? 'APPLY_TAG' : 'ESCALATE'
+
+              result.decisions.push({
+                source: 'LEVEL',
+                ruleId: target.rule?._id?.toString?.(),
+                ruleName: `Level ${target.level}`,
+                condition: target.rule?.condition,
+                action,
+                tagName: target.tagName,
+                shouldExecute: true,
+                reason: `${daysInactive} dias inativo → ${action === 'APPLY_TAG' ? 'aplicar' : 'escalar'} para nível ${target.level}`,
+                confidence: confidenceForLevel(daysInactive, target)
+              })
+
+              // cooldown após escalonamento
+              const cdDays = target.cooldownDays ?? DEFAULT_COOLDOWN_DAYS
+              const until = addDays(nowUTC(), cdDays)
+              await setCooldown(context.userProduct._id.toString(), until)
+              result.nextEvaluationDate = until
+            }
+          }
+
+  // ✅ ADICIONAR ESTE BLOCO LOGO APÓS O BLOCO ACIMA:
+
+          // 3.5) Se apropriado == atual e apropriado > 0 → MANTER tag atual
+          else if (appropriateLevel === currentLevel && appropriateLevel > 0) {
+            const target = levelRules.find(lr => lr.level === currentLevel)
+            
+            if (target) {
+              // IMPORTANTE: Adicionar a tag atual a tagsToApply para evitar remoção
+              result.tagsToApply.push(target.tagName)
+              
+              // Remover outras tags de nível (caso existam por engano)
+              const otherLevelTags = levelRules
+                .filter(lr => lr.tagName !== target.tagName)
+                .map(lr => lr.tagName)
+              
+              if (otherLevelTags.length > 0) {
+                result.tagsToRemove.push(...otherLevelTags)
+              }
+
+              result.decisions.push({
+                source: 'LEVEL',
+                ruleId: target.rule?._id?.toString?.(),
+                ruleName: `Maintain Level ${currentLevel}`,
+                condition: target.rule?.condition,
+                action: 'NO_ACTION',
+                tagName: target.tagName,
+                shouldExecute: false,
+                reason: `User mantém nível ${currentLevel} (${daysInactive} dias inativo)`,
+                confidence: 100
+              })
+            }
+          }
+          // 4) Se apropriado < atual (e queres permitir) -> desescalar
+          // (opcional — por omissão só removemos com progresso/ativo)
         }
 
-// ✅ ADICIONAR ESTE BLOCO LOGO APÓS O BLOCO ACIMA:
+        // ===== regras "normais" (não-nível)
+        for (const rule of regularRules) {
+          const decision = await this.evaluateRule(rule, context, metrics)
+          result.decisions.push(decision)
 
-        // 3.5) Se apropriado == atual e apropriado > 0 → MANTER tag atual
-        else if (appropriateLevel === currentLevel && appropriateLevel > 0) {
-          const target = levelRules.find(lr => lr.level === currentLevel)
-          
-          if (target) {
-            // IMPORTANTE: Adicionar a tag atual a tagsToApply para evitar remoção
-            result.tagsToApply.push(target.tagName)
-            
-            // Remover outras tags de nível (caso existam por engano)
-            const otherLevelTags = levelRules
-              .filter(lr => lr.tagName !== target.tagName)
-              .map(lr => lr.tagName)
-            
-            if (otherLevelTags.length > 0) {
-              result.tagsToRemove.push(...otherLevelTags)
-            }
+    // ✅ ADICIONAR LOG AQUI:
+    console.log(`[DEBUG] Regra: ${rule.name}`)
+    console.log(`[DEBUG]   Condição: ${rule.condition}`)
+    console.log(`[DEBUG]   shouldExecute: ${decision.shouldExecute}`)
+    console.log(`[DEBUG]   tagName: ${decision.tagName}`)
 
-            result.decisions.push({
-              source: 'LEVEL',
-              ruleId: target.rule?._id?.toString?.(),
-              ruleName: `Maintain Level ${currentLevel}`,
-              condition: target.rule?.condition,
-              action: 'NO_ACTION',
-              tagName: target.tagName,
-              shouldExecute: false,
-              reason: `User mantém nível ${currentLevel} (${daysInactive} dias inativo)`,
-              confidence: 100
-            })
+          if (decision.shouldExecute && decision.tagName) {
+            if (decision.action === 'APPLY_TAG') result.tagsToApply.push(decision.tagName)
+            if (decision.action === 'REMOVE_TAG') result.tagsToRemove.push(decision.tagName)
           }
         }
-        // 4) Se apropriado < atual (e queres permitir) -> desescalar
-        // (opcional — por omissão só removemos com progresso/ativo)
+
+        // ===== resolver conflitos (remove > apply)
+        const resolved = this.resolveConflicts(result.tagsToApply, result.tagsToRemove)
+        result.tagsToApply = resolved.tagsToApply
+        result.tagsToRemove = resolved.tagsToRemove
+
+        // ===== executar
+        await this.executeDecisions(result)
+
+        return result
+      } catch (error: any) {
+        result.errors.push(error?.message || 'Erro desconhecido')
+        return result
+      }
+    }
+
+    async evaluateAllUserProducts(userId: string): Promise<DecisionResult[]> {
+      const userProducts = await UserProduct.find({ userId })
+      const out: DecisionResult[] = []
+
+      for (const up of userProducts) {
+        out.push(await this.evaluateUserProduct(userId, up.productId.toString()))
       }
 
-      // ===== regras "normais" (não-nível)
-      for (const rule of regularRules) {
-        const decision = await this.evaluateRule(rule, context, metrics)
-        result.decisions.push(decision)
+      return out
+    }
 
-  // ✅ ADICIONAR LOG AQUI:
-  console.log(`[DEBUG] Regra: ${rule.name}`)
-  console.log(`[DEBUG]   Condição: ${rule.condition}`)
-  console.log(`[DEBUG]   shouldExecute: ${decision.shouldExecute}`)
-  console.log(`[DEBUG]   tagName: ${decision.tagName}`)
+    async evaluateAllUsersOfProduct(productId: string): Promise<DecisionResult[]> {
+      const userProducts = await UserProduct.find({ productId })
+      const out: DecisionResult[] = []
 
-        if (decision.shouldExecute && decision.tagName) {
-          if (decision.action === 'APPLY_TAG') result.tagsToApply.push(decision.tagName)
-          if (decision.action === 'REMOVE_TAG') result.tagsToRemove.push(decision.tagName)
-        }
+      for (const up of userProducts) {
+        out.push(await this.evaluateUserProduct(up.userId.toString(), productId))
       }
 
-      // ===== resolver conflitos (remove > apply)
-      const resolved = this.resolveConflicts(result.tagsToApply, result.tagsToRemove)
-      result.tagsToApply = resolved.tagsToApply
-      result.tagsToRemove = resolved.tagsToRemove
-
-      // ===== executar
-      await this.executeDecisions(result)
-
-      return result
-    } catch (error: any) {
-      result.errors.push(error?.message || 'Erro desconhecido')
-      return result
-    }
-  }
-
-  async evaluateAllUserProducts(userId: string): Promise<DecisionResult[]> {
-    const userProducts = await UserProduct.find({ userId })
-    const out: DecisionResult[] = []
-
-    for (const up of userProducts) {
-      out.push(await this.evaluateUserProduct(userId, up.productId.toString()))
+      return out
     }
 
-    return out
-  }
+    // ───────────────────────────────────────────────────────────
+    // CONTEXT / METRICS
+    // ───────────────────────────────────────────────────────────
 
-  async evaluateAllUsersOfProduct(productId: string): Promise<DecisionResult[]> {
-    const userProducts = await UserProduct.find({ productId })
-    const out: DecisionResult[] = []
+    private async getContext(userId: string, productId: string): Promise<DecisionContext> {
+      const userProduct = await UserProduct.findOne({ userId, productId })
+      const user = await User.findById(userId)
+      const product = await Product.findById(productId)
 
-    for (const up of userProducts) {
-      out.push(await this.evaluateUserProduct(up.userId.toString(), productId))
-    }
+      if (!userProduct || !user || !product) {
+        throw new Error('UserProduct, User ou Product não encontrado')
+      }
+    // ✅ ADICIONAR LOGS AQUI:
+    console.log('[DEBUG] product.code:', product.code)
+    console.log('[DEBUG] product.courseCode:', (product as any).courseCode)
+    console.log('[DEBUG] Buscando Course com code:', (product as any).courseCode || product.code)
 
-    return out
-  }
-
-  // ───────────────────────────────────────────────────────────
-  // CONTEXT / METRICS
-  // ───────────────────────────────────────────────────────────
-
-  private async getContext(userId: string, productId: string): Promise<DecisionContext> {
-    const userProduct = await UserProduct.findOne({ userId, productId })
-    const user = await User.findById(userId)
-    const product = await Product.findById(productId)
-
-    if (!userProduct || !user || !product) {
-      throw new Error('UserProduct, User ou Product não encontrado')
-    }
-  // ✅ ADICIONAR LOGS AQUI:
-  console.log('[DEBUG] product.code:', product.code)
-  console.log('[DEBUG] product.courseCode:', (product as any).courseCode)
-  console.log('[DEBUG] Buscando Course com code:', (product as any).courseCode || product.code)
-
-  const course = await Course.findOne({ 
-    code: (product as any).courseCode || product.code 
-  })
-  
-  // ✅ ADICIONAR LOG AQUI:
-  console.log('[DEBUG] Course encontrado?', course ? 'SIM' : 'NÃO')
-  if (!course) {
-    console.log('[DEBUG] Tentando buscar TODOS os courses...')
-    const allCourses = await Course.find().limit(5)
-    console.log('[DEBUG] Courses na BD:', allCourses.map(c => c.code))
-  }
-  
-
+    const course = await Course.findOne({ 
+      code: (product as any).courseCode || product.code 
+    })
+    
+    // ✅ ADICIONAR LOG AQUI:
+    console.log('[DEBUG] Course encontrado?', course ? 'SIM' : 'NÃO')
     if (!course) {
-      throw new Error(`Course não encontrado para product ${product.code}`)
+      console.log('[DEBUG] Tentando buscar TODOS os courses...')
+      const allCourses = await Course.find().limit(5)
+      console.log('[DEBUG] Courses na BD:', allCourses.map(c => c.code))
     }
     
-    // ✅ BUSCAR REGRAS VIA courseId
-const rules = await TagRule.find({
-  courseId: course._id,
-  isActive: true
-}).sort({ priority: -1, name: 1 })
 
-// ✅ ADAPTAR REGRAS PARA FORMATO DO DECISIONENGINE
-const adaptedRules = rules.map(r => adaptTagRuleForDecisionEngine(r))
+      if (!course) {
+        throw new Error(`Course não encontrado para product ${product.code}`)
+      }
+      
+      // ✅ BUSCAR REGRAS VIA courseId
+  const rules = await TagRule.find({
+    courseId: course._id,
+    isActive: true
+  }).sort({ priority: -1, name: 1 })
 
-console.log('[DEBUG] TagRules adaptadas:', adaptedRules.length)
-if (adaptedRules.length > 0) {
-  console.log('[DEBUG] Primeira regra adaptada:', {
-    name: adaptedRules[0].name,
-    tagName: adaptedRules[0].tagName,
-    action: adaptedRules[0].action,
-    condition: adaptedRules[0].condition
-  })
-}
+  // ✅ ADAPTAR REGRAS PARA FORMATO DO DECISIONENGINE
+  const adaptedRules = rules.map(r => adaptTagRuleForDecisionEngine(r))
+
+  console.log('[DEBUG] TagRules adaptadas:', adaptedRules.length)
+  if (adaptedRules.length > 0) {
+    console.log('[DEBUG] Primeira regra adaptada:', {
+      name: adaptedRules[0].name,
+      tagName: adaptedRules[0].tagName,
+      action: adaptedRules[0].action,
+      condition: adaptedRules[0].condition
+    })
+  }
 
     return { userId, productId, userProduct, user, product, rules: adaptedRules }
   }
 
-  private async getMetrics(context: DecisionContext): Promise<{
-    daysSinceLastLogin: number
-    daysSinceLastAction: number
-    engagementScore: number
-    totalLogins: number
-    totalActions: number
-  }> {
-    const up = context.userProduct
+private async getMetrics(context: DecisionContext): Promise<{
+  daysSinceLastLogin: number
+  daysSinceLastAction: number
+  daysSinceEnrollment: number  // 🆕 ADICIONADO!
+  engagementScore: number
+  totalLogins: number
+  totalActions: number
+}> {
+  const up = context.userProduct
 
-    // Preferir métricas já calculadas no UserProduct
-    const fallback = {
-      daysSinceLastLogin: 999,
-      daysSinceLastAction: 999,
-      engagementScore: 0,
-      totalLogins: 0,
-      totalActions: 0
-    }
+  // Preferir métricas já calculadas no UserProduct.engagement
+  const fallback = {
+    daysSinceLastLogin: 999,
+    daysSinceLastAction: 999,
+    daysSinceEnrollment: 999,  // 🆕 ADICIONADO!
+    engagementScore: 0,
+    totalLogins: 0,
+    totalActions: 0
+  }
 
-    const m = up?.engagement
-    if (m) {
-      return {
-        daysSinceLastLogin: m.daysSinceLastLogin ?? fallback.daysSinceLastLogin,
-        daysSinceLastAction: m.daysSinceLastAction ?? fallback.daysSinceLastAction,
-        engagementScore: m.engagementScore ?? fallback.engagementScore,
-        totalLogins: m.totalLogins ?? fallback.totalLogins,
-        totalActions: m.totalActions ?? fallback.totalActions
-      }
-    }
-
-    // Fallback: tentar inferir via User (última atividade)
-    const last = this.getLastActivityDate(context.user, context.product.code)
-    const days = this.calculateDaysInactive(last)
-
+  const m = up?.engagement
+  
+  // 🔧 FIX: LER DIRETAMENTE DO ENGAGEMENT (SEMPRE!)
+  if (m) {
     return {
-      ...fallback,
-      daysSinceLastLogin: days,
-      daysSinceLastAction: days
+      daysSinceLastLogin: m.daysSinceLastLogin ?? fallback.daysSinceLastLogin,
+      daysSinceLastAction: m.daysSinceLastAction ?? fallback.daysSinceLastAction,
+      daysSinceEnrollment: m.daysSinceEnrollment ?? fallback.daysSinceEnrollment,  // 🆕 NOVA LINHA!
+      engagementScore: m.engagementScore ?? fallback.engagementScore,
+      totalLogins: m.totalLogins ?? fallback.totalLogins,
+      totalActions: m.totalActions ?? fallback.totalActions
     }
   }
+
+  // Fallback: tentar inferir via User (última atividade)
+  const last = this.getLastActivityDate(context.user, context.product.code)
+  const days = this.calculateDaysInactive(last)
+
+  return {
+    ...fallback,
+    daysSinceLastLogin: days,
+    daysSinceLastAction: days
+    // daysSinceEnrollment mantém fallback 999 se não houver engagement
+  }
+}
 
   private getLastActivityDate(user: any, productCode: string): Date {
     const courseData = user.communicationByCourse?.get?.(productCode)
@@ -643,6 +649,8 @@ if (adaptedRules.length > 0) {
    * Se quiseres, trocamos depois por evaluator seguro (expr-eval / jexl, etc).
    */
 /**
+ * 
+ * 
  * ═══════════════════════════════════════════════════════════════════════════
  * 🛡️ EVALUATECONDITION - VERSÃO COMPLETA E À PROVA DE BALA
  * ═══════════════════════════════════════════════════════════════════════════
@@ -669,10 +677,11 @@ private async evaluateCondition(
   if (!condition) return false
 
   // ───────────────────────────────────────────────────────────
-  // EXTRAIR MÉTRICAS
+  // EXTRAIR MÉTRICAS (✅ INCLUINDO daysSinceEnrollment)
   // ───────────────────────────────────────────────────────────
   const daysSinceLastLogin = metrics.daysSinceLastLogin ?? 999
   const daysSinceLastAction = metrics.daysSinceLastAction ?? 999
+  const daysSinceEnrollment = metrics.daysSinceEnrollment ?? 999  // 🆕 NOVO!
   const engagementScore = metrics.engagementScore ?? 0
   const totalLogins = metrics.totalLogins ?? 0
   const totalActions = metrics.totalActions ?? 0
@@ -690,7 +699,6 @@ private async evaluateCondition(
       // BLOCO 1: daysSinceLastLogin (OGI)
       // ─────────────────────────────────────────────────────────
       
-      // daysSinceLastLogin >= X
       if (/daysSinceLastLogin\s*>=\s*(\d+)/i.test(part)) {
         const m = part.match(/daysSinceLastLogin\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -699,7 +707,6 @@ private async evaluateCondition(
         return result
       }
       
-      // daysSinceLastLogin > X
       if (/daysSinceLastLogin\s*>\s*(\d+)/i.test(part)) {
         const m = part.match(/daysSinceLastLogin\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -708,7 +715,6 @@ private async evaluateCondition(
         return result
       }
       
-      // daysSinceLastLogin < X
       if (/daysSinceLastLogin\s*<\s*(\d+)/i.test(part)) {
         const m = part.match(/daysSinceLastLogin\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -717,7 +723,6 @@ private async evaluateCondition(
         return result
       }
       
-      // daysSinceLastLogin === X
       if (/daysSinceLastLogin\s*===\s*(\d+)/i.test(part)) {
         const m = part.match(/daysSinceLastLogin\s*===\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -730,7 +735,6 @@ private async evaluateCondition(
       // BLOCO 2: lastAccessDate (CLAREZA - mapeia para daysSinceLastAction)
       // ─────────────────────────────────────────────────────────
       
-      // lastAccessDate >= X
       if (/lastAccessDate\s*>=\s*(\d+)/i.test(part)) {
         const m = part.match(/lastAccessDate\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -739,7 +743,6 @@ private async evaluateCondition(
         return result
       }
       
-      // lastAccessDate > X
       if (/lastAccessDate\s*>\s*(\d+)/i.test(part)) {
         const m = part.match(/lastAccessDate\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -748,7 +751,6 @@ private async evaluateCondition(
         return result
       }
       
-      // lastAccessDate < X
       if (/lastAccessDate\s*<\s*(\d+)/i.test(part)) {
         const m = part.match(/lastAccessDate\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -757,7 +759,6 @@ private async evaluateCondition(
         return result
       }
       
-      // lastAccessDate === X
       if (/lastAccessDate\s*===\s*(\d+)/i.test(part)) {
         const m = part.match(/lastAccessDate\s*===\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -770,7 +771,6 @@ private async evaluateCondition(
       // BLOCO 3: daysSinceLastAction (CLAREZA)
       // ─────────────────────────────────────────────────────────
       
-      // daysSinceLastAction >= X
       if (/daysSinceLastAction\s*>=\s*(\d+)/i.test(part)) {
         const m = part.match(/daysSinceLastAction\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -779,7 +779,6 @@ private async evaluateCondition(
         return result
       }
       
-      // daysSinceLastAction > X
       if (/daysSinceLastAction\s*>\s*(\d+)/i.test(part)) {
         const m = part.match(/daysSinceLastAction\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -788,7 +787,6 @@ private async evaluateCondition(
         return result
       }
       
-      // daysSinceLastAction < X
       if (/daysSinceLastAction\s*<\s*(\d+)/i.test(part)) {
         const m = part.match(/daysSinceLastAction\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -797,7 +795,6 @@ private async evaluateCondition(
         return result
       }
       
-      // daysSinceLastAction === X
       if (/daysSinceLastAction\s*===\s*(\d+)/i.test(part)) {
         const m = part.match(/daysSinceLastAction\s*===\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -807,10 +804,45 @@ private async evaluateCondition(
       }
 
       // ─────────────────────────────────────────────────────────
-      // BLOCO 4: currentProgress (OGI + CLAREZA)
+      // 🆕 BLOCO 4: daysSinceEnrollment (CLAREZA - NOVO!)
       // ─────────────────────────────────────────────────────────
       
-      // currentProgress >= X
+      if (/daysSinceEnrollment\s*>=\s*(\d+)/i.test(part)) {
+        const m = part.match(/daysSinceEnrollment\s*>=\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceEnrollment >= threshold
+        console.log(`   [EVAL] daysSinceEnrollment >= ${threshold}: ${daysSinceEnrollment} >= ${threshold} = ${result}`)
+        return result
+      }
+      
+      if (/daysSinceEnrollment\s*>\s*(\d+)/i.test(part)) {
+        const m = part.match(/daysSinceEnrollment\s*>\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceEnrollment > threshold
+        console.log(`   [EVAL] daysSinceEnrollment > ${threshold}: ${daysSinceEnrollment} > ${threshold} = ${result}`)
+        return result
+      }
+      
+      if (/daysSinceEnrollment\s*<\s*(\d+)/i.test(part)) {
+        const m = part.match(/daysSinceEnrollment\s*<\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceEnrollment < threshold
+        console.log(`   [EVAL] daysSinceEnrollment < ${threshold}: ${daysSinceEnrollment} < ${threshold} = ${result}`)
+        return result
+      }
+      
+      if (/daysSinceEnrollment\s*===\s*(\d+)/i.test(part)) {
+        const m = part.match(/daysSinceEnrollment\s*===\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceEnrollment === threshold
+        console.log(`   [EVAL] daysSinceEnrollment === ${threshold}: ${daysSinceEnrollment} === ${threshold} = ${result}`)
+        return result
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // BLOCO 5: currentProgress (OGI + CLAREZA)
+      // ─────────────────────────────────────────────────────────
+      
       if (/currentProgress\s*>=\s*(\d+)/i.test(part)) {
         const m = part.match(/currentProgress\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -819,7 +851,6 @@ private async evaluateCondition(
         return result
       }
       
-      // currentProgress > X
       if (/currentProgress\s*>\s*(\d+)/i.test(part)) {
         const m = part.match(/currentProgress\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -828,7 +859,6 @@ private async evaluateCondition(
         return result
       }
       
-      // currentProgress < X
       if (/currentProgress\s*<\s*(\d+)/i.test(part)) {
         const m = part.match(/currentProgress\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -837,7 +867,6 @@ private async evaluateCondition(
         return result
       }
       
-      // currentProgress === X
       if (/currentProgress\s*===\s*(\d+)/i.test(part)) {
         const m = part.match(/currentProgress\s*===\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -847,10 +876,9 @@ private async evaluateCondition(
       }
 
       // ─────────────────────────────────────────────────────────
-      // BLOCO 5: currentModule (OGI)
+      // BLOCO 6: currentModule (OGI)
       // ─────────────────────────────────────────────────────────
       
-      // currentModule >= X
       if (/currentModule\s*>=\s*(\d+)/i.test(part)) {
         const m = part.match(/currentModule\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -859,7 +887,6 @@ private async evaluateCondition(
         return result
       }
       
-      // currentModule > X
       if (/currentModule\s*>\s*(\d+)/i.test(part)) {
         const m = part.match(/currentModule\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -868,7 +895,6 @@ private async evaluateCondition(
         return result
       }
       
-      // currentModule < X
       if (/currentModule\s*<\s*(\d+)/i.test(part)) {
         const m = part.match(/currentModule\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -877,7 +903,6 @@ private async evaluateCondition(
         return result
       }
       
-      // currentModule === X
       if (/currentModule\s*===\s*(\d+)/i.test(part)) {
         const m = part.match(/currentModule\s*===\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
@@ -906,7 +931,6 @@ private async evaluateCondition(
   // BLOCO 1: daysInactive (alias de daysSinceLastLogin)
   // ─────────────────────────────────────────────────────────
   
-  // daysInactive >=
   if (/^daysInactive\s*>=\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysInactive\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -915,7 +939,6 @@ private async evaluateCondition(
     return result
   }
   
-  // daysInactive >
   if (/^daysInactive\s*>\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysInactive\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -924,7 +947,6 @@ private async evaluateCondition(
     return result
   }
   
-  // daysInactive <
   if (/^daysInactive\s*<\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysInactive\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -937,7 +959,6 @@ private async evaluateCondition(
   // BLOCO 2: daysSinceLastLogin (OGI)
   // ─────────────────────────────────────────────────────────
   
-  // daysSinceLastLogin >=
   if (/^daysSinceLastLogin\s*>=\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysSinceLastLogin\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -946,7 +967,6 @@ private async evaluateCondition(
     return result
   }
   
-  // daysSinceLastLogin >
   if (/^daysSinceLastLogin\s*>\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysSinceLastLogin\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -955,7 +975,6 @@ private async evaluateCondition(
     return result
   }
   
-  // daysSinceLastLogin <
   if (/^daysSinceLastLogin\s*<\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysSinceLastLogin\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -964,7 +983,6 @@ private async evaluateCondition(
     return result
   }
   
-  // daysSinceLastLogin ===
   if (/^daysSinceLastLogin\s*===\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysSinceLastLogin\s*===\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -977,7 +995,6 @@ private async evaluateCondition(
   // BLOCO 3: lastAccessDate (CLAREZA)
   // ─────────────────────────────────────────────────────────
   
-  // lastAccessDate >=
   if (/^lastAccessDate\s*>=\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/lastAccessDate\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -986,7 +1003,6 @@ private async evaluateCondition(
     return result
   }
   
-  // lastAccessDate >
   if (/^lastAccessDate\s*>\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/lastAccessDate\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -995,7 +1011,6 @@ private async evaluateCondition(
     return result
   }
   
-  // lastAccessDate <
   if (/^lastAccessDate\s*<\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/lastAccessDate\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1004,7 +1019,6 @@ private async evaluateCondition(
     return result
   }
   
-  // lastAccessDate ===
   if (/^lastAccessDate\s*===\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/lastAccessDate\s*===\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1017,7 +1031,6 @@ private async evaluateCondition(
   // BLOCO 4: daysSinceLastAction (CLAREZA)
   // ─────────────────────────────────────────────────────────
   
-  // daysSinceLastAction >=
   if (/^daysSinceLastAction\s*>=\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysSinceLastAction\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1026,7 +1039,6 @@ private async evaluateCondition(
     return result
   }
   
-  // daysSinceLastAction >
   if (/^daysSinceLastAction\s*>\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysSinceLastAction\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1035,7 +1047,6 @@ private async evaluateCondition(
     return result
   }
   
-  // daysSinceLastAction <
   if (/^daysSinceLastAction\s*<\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysSinceLastAction\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1044,7 +1055,6 @@ private async evaluateCondition(
     return result
   }
   
-  // daysSinceLastAction ===
   if (/^daysSinceLastAction\s*===\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysSinceLastAction\s*===\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1054,10 +1064,45 @@ private async evaluateCondition(
   }
 
   // ─────────────────────────────────────────────────────────
-  // BLOCO 5: currentProgress
+  // 🆕 BLOCO 5: daysSinceEnrollment (CLAREZA - NOVO!)
   // ─────────────────────────────────────────────────────────
   
-  // currentProgress ===
+  if (/^daysSinceEnrollment\s*>=\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysSinceEnrollment\s*>=\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceEnrollment >= threshold
+    console.log(`   [EVAL] daysSinceEnrollment >= ${threshold}: ${daysSinceEnrollment} >= ${threshold} = ${result}`)
+    return result
+  }
+  
+  if (/^daysSinceEnrollment\s*>\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysSinceEnrollment\s*>\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceEnrollment > threshold
+    console.log(`   [EVAL] daysSinceEnrollment > ${threshold}: ${daysSinceEnrollment} > ${threshold} = ${result}`)
+    return result
+  }
+  
+  if (/^daysSinceEnrollment\s*<\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysSinceEnrollment\s*<\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceEnrollment < threshold
+    console.log(`   [EVAL] daysSinceEnrollment < ${threshold}: ${daysSinceEnrollment} < ${threshold} = ${result}`)
+    return result
+  }
+  
+  if (/^daysSinceEnrollment\s*===\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysSinceEnrollment\s*===\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceEnrollment === threshold
+    console.log(`   [EVAL] daysSinceEnrollment === ${threshold}: ${daysSinceEnrollment} === ${threshold} = ${result}`)
+    return result
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // BLOCO 6: currentProgress
+  // ─────────────────────────────────────────────────────────
+  
   if (/^currentProgress\s*===\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/currentProgress\s*===\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1066,7 +1111,6 @@ private async evaluateCondition(
     return result
   }
   
-  // currentProgress >=
   if (/^currentProgress\s*>=\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/currentProgress\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1075,7 +1119,6 @@ private async evaluateCondition(
     return result
   }
   
-  // currentProgress >
   if (/^currentProgress\s*>\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/currentProgress\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1084,7 +1127,6 @@ private async evaluateCondition(
     return result
   }
   
-  // currentProgress <
   if (/^currentProgress\s*<\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/currentProgress\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1094,10 +1136,9 @@ private async evaluateCondition(
   }
 
   // ─────────────────────────────────────────────────────────
-  // BLOCO 6: currentModule
+  // BLOCO 7: currentModule
   // ─────────────────────────────────────────────────────────
   
-  // currentModule ===
   if (/^currentModule\s*===\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/currentModule\s*===\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1106,7 +1147,6 @@ private async evaluateCondition(
     return result
   }
   
-  // currentModule >=
   if (/^currentModule\s*>=\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/currentModule\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1115,7 +1155,6 @@ private async evaluateCondition(
     return result
   }
   
-  // currentModule >
   if (/^currentModule\s*>\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/currentModule\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1124,7 +1163,6 @@ private async evaluateCondition(
     return result
   }
   
-  // currentModule <
   if (/^currentModule\s*<\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/currentModule\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1134,10 +1172,9 @@ private async evaluateCondition(
   }
 
   // ─────────────────────────────────────────────────────────
-  // BLOCO 7: engagementScore
+  // BLOCO 8: engagementScore
   // ─────────────────────────────────────────────────────────
   
-  // engagementScore <
   if (/^engagementScore\s*<\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/engagementScore\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1146,7 +1183,6 @@ private async evaluateCondition(
     return result
   }
   
-  // engagementScore >=
   if (/^engagementScore\s*>=\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/engagementScore\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1156,10 +1192,9 @@ private async evaluateCondition(
   }
 
   // ─────────────────────────────────────────────────────────
-  // BLOCO 8: totalLogins
+  // BLOCO 9: totalLogins
   // ─────────────────────────────────────────────────────────
   
-  // totalLogins >=
   if (/^totalLogins\s*>=\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/totalLogins\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
@@ -1169,10 +1204,9 @@ private async evaluateCondition(
   }
 
   // ─────────────────────────────────────────────────────────
-  // BLOCO 9: totalActions
+  // BLOCO 10: totalActions
   // ─────────────────────────────────────────────────────────
   
-  // totalActions >=
   if (/^totalActions\s*>=\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/totalActions\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)

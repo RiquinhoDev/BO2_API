@@ -70,7 +70,10 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
   }
 
   try {
-    // 1) Contexto
+    // ═══════════════════════════════════════════════════════════
+    // 1) CONTEXTO - BUSCAR FRESH DATA DA BD
+    // ═══════════════════════════════════════════════════════════
+    
     const userProduct = await UserProduct.findOne({ userId, productId })
     const user = await User.findById(userId)
     const product = await Product.findById(productId)
@@ -81,21 +84,43 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
 
     const productCode = String(product.code || '').toUpperCase()
     result.productCode = productCode
+    
+    console.log(`[DEBUG] product.code: ${product.code}`)
+    console.log(`[DEBUG] product.courseCode: ${product.courseCode}`)
+
+    // 🔍 DEBUG: Verificar engagement metrics ANTES de chamar DecisionEngine
+    if (productCode.includes('CLAREZA')) {
+      console.log(`[DEBUG] UserProduct.engagement (ANTES DecisionEngine):`)
+      console.log(`   daysSinceEnrollment: ${(userProduct.engagement as any)?.daysSinceEnrollment ?? 'undefined'}`)
+      console.log(`   enrolledAt: ${(userProduct.engagement as any)?.enrolledAt ?? 'undefined'}`)
+      console.log(`   daysSinceLastAction: ${(userProduct.engagement as any)?.daysSinceLastAction ?? 'undefined'}`)
+    }
 
     const lastActivity = this.getUserLastActivity(user, productCode)
     const daysInactive = this.calculateDaysInactive(lastActivity)
 
     const ctx: OrchestrationContext = { user, product, lastActivity, daysInactive }
 
-    // 2) Decisões
+    // ═══════════════════════════════════════════════════════════
+    // 2) DECISÕES - CHAMAR DECISION ENGINE
+    // ═══════════════════════════════════════════════════════════
+    
     const decisions = await decisionEngine.evaluateUserProduct(userId, productId)
 
     // ═══════════════════════════════════════════════════════════
-    // ✅ NOVO: DIFF INTELIGENTE (SÓ REMOVE/ADICIONA O NECESSÁRIO)
+    // 3) DIFF INTELIGENTE (SÓ REMOVE/ADICIONA O NECESSÁRIO)
     // ═══════════════════════════════════════════════════════════
 
     // Prefixos das tags geridas pelo BO
-    const BO_TAG_PREFIXES = ['CLAREZA_MENSAL', 'CLAREZA_ANUAL', 'OGI_V1', 'DISCORD_COMMUNITY']
+    const BO_TAG_PREFIXES = [
+  'CLAREZA_MENSAL',   // Tags antigas (formato errado)
+  'CLAREZA_ANUAL',    // Tags antigas (formato errado)
+  'CLAREZA -',        // Tags novas (formato correto) 👈 ADICIONAR!
+  'CLAREZA-',         // Variação sem espaço
+  'OGI_V1',           // Tags OGI
+  'OGI -',            // Tags OGI (se houver sem V1)
+  'DISCORD_COMMUNITY'
+]
 
     // Tags atuais do BO
     const currentTags = userProduct.activeCampaignData?.tags || []
@@ -119,20 +144,26 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
     console.log(`   Remover: [${tagsToRemove.join(', ')}]`)
     console.log(`   Adicionar: [${tagsToAdd.join(', ')}]`)
 
-    // 3) Remover tags desatualizadas
+    // ═══════════════════════════════════════════════════════════
+    // 4) REMOVER TAGS DESATUALIZADAS
+    // ═══════════════════════════════════════════════════════════
+    
     for (const tag of tagsToRemove) {
       const removed = await this.removeTag(userId, productId, tag, ctx)
       if (removed.ok) result.tagsRemoved.push(removed.fullTag)
     }
 
-    // 4) Aplicar tags novas
+    // ═══════════════════════════════════════════════════════════
+    // 5) APLICAR TAGS NOVAS
+    // ═══════════════════════════════════════════════════════════
+    
     for (const tag of tagsToAdd) {
       const applied = await this.applyTag(userId, productId, tag, ctx)
       if (applied.ok) result.tagsApplied.push(applied.fullTag)
     }
 
     // ═══════════════════════════════════════════════════════════
-    // 5) Histórico de comunicações
+    // 6) HISTÓRICO DE COMUNICAÇÕES
     // ═══════════════════════════════════════════════════════════
 
     if (result.tagsApplied.length > 0 || result.tagsRemoved.length > 0) {
@@ -146,6 +177,7 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
     console.log(
       `[TagOrchestrator V2] ✅ Orquestração completa: ${result.tagsApplied.length} aplicadas, ${result.tagsRemoved.length} removidas`
     )
+    
   } catch (error: any) {
     result.success = false
     result.error = error.message
@@ -192,7 +224,12 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
   ): Promise<{ ok: boolean; fullTag: string }> {
     const productCode = String(ctx.product.code || '').toUpperCase()
     const { rawTag, fullTag } = this.normalizeTagForProduct(tag, productCode)
-
+    console.log(`[TagOrchestrator V2] 🗑️  Tentando remover tag:`)
+    console.log(`   userId: ${userId}`)
+    console.log(`   productId: ${productId}`)
+    console.log(`   tag original: ${tag}`)
+    console.log(`   rawTag: ${rawTag}`)
+    console.log(`   fullTag: ${fullTag}`)
     try {
       const ok = await activeCampaignService.removeTagFromUserProduct(userId, productId, rawTag)
       if (!ok) return { ok: false, fullTag }

@@ -177,6 +177,30 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
               needsUpdate = true
             }
           }
+          // 🆕 NOVO: daysSinceEnrollment
+          if (metrics.engagement.daysSinceEnrollment !== null) {
+            const currentValue = (up as any).engagement?.daysSinceEnrollment
+            
+            if (currentValue !== metrics.engagement.daysSinceEnrollment) {
+              updateFields['engagement.daysSinceEnrollment'] = metrics.engagement.daysSinceEnrollment
+              needsUpdate = true
+            }
+          }
+          
+          // 🆕 NOVO: enrolledAt
+          if (metrics.engagement.enrolledAt !== null) {
+            const currentValue = (up as any).engagement?.enrolledAt
+            const newValue = metrics.engagement.enrolledAt
+            
+            // Comparar timestamps para evitar updates desnecessários
+            const currentTime = currentValue ? new Date(currentValue).getTime() : 0
+            const newTime = newValue.getTime()
+            
+            if (currentTime !== newTime) {
+              updateFields['engagement.enrolledAt'] = newValue
+              needsUpdate = true
+            }
+          }
           
           // actionsLastWeek
           if (metrics.engagement.actionsLastWeek !== undefined) {
