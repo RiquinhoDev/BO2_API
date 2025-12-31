@@ -369,7 +369,7 @@ levelRules.forEach(lr => console.log(`   Level ${lr.level}: ${lr.tagName} (>=${l
         }
 
         // 3) Se apropriado > atual -> aplicar/escalar para tag do nível apropriado
-        if (appropriateLevel > currentLevel && levelRules.length > 0) {
+  if (appropriateLevel > currentLevel && levelRules.length > 0) {
           const target = levelRules.find(lr => lr.level === appropriateLevel)
 
           if (target) {
@@ -403,6 +403,38 @@ levelRules.forEach(lr => console.log(`   Level ${lr.level}: ${lr.tagName} (>=${l
           }
         }
 
+// ✅ ADICIONAR ESTE BLOCO LOGO APÓS O BLOCO ACIMA:
+
+        // 3.5) Se apropriado == atual e apropriado > 0 → MANTER tag atual
+        else if (appropriateLevel === currentLevel && appropriateLevel > 0) {
+          const target = levelRules.find(lr => lr.level === currentLevel)
+          
+          if (target) {
+            // IMPORTANTE: Adicionar a tag atual a tagsToApply para evitar remoção
+            result.tagsToApply.push(target.tagName)
+            
+            // Remover outras tags de nível (caso existam por engano)
+            const otherLevelTags = levelRules
+              .filter(lr => lr.tagName !== target.tagName)
+              .map(lr => lr.tagName)
+            
+            if (otherLevelTags.length > 0) {
+              result.tagsToRemove.push(...otherLevelTags)
+            }
+
+            result.decisions.push({
+              source: 'LEVEL',
+              ruleId: target.rule?._id?.toString?.(),
+              ruleName: `Maintain Level ${currentLevel}`,
+              condition: target.rule?.condition,
+              action: 'NO_ACTION',
+              tagName: target.tagName,
+              shouldExecute: false,
+              reason: `User mantém nível ${currentLevel} (${daysInactive} dias inativo)`,
+              confidence: 100
+            })
+          }
+        }
         // 4) Se apropriado < atual (e queres permitir) -> desescalar
         // (opcional — por omissão só removemos com progresso/ativo)
       }
@@ -610,66 +642,254 @@ if (adaptedRules.length > 0) {
    * Avaliação simples (mantém o teu estilo atual)
    * Se quiseres, trocamos depois por evaluator seguro (expr-eval / jexl, etc).
    */
-private async evaluateCondition(condition: string, context: DecisionContext, metrics: any): Promise<boolean> {
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 🛡️ EVALUATECONDITION - VERSÃO COMPLETA E À PROVA DE BALA
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * SUPORTA:
+ * - OGI (LOGIN_BASED): daysSinceLastLogin, currentProgress, currentModule
+ * - CLAREZA (ACTION_BASED): lastAccessDate, daysSinceLastAction
+ * - Condições compostas (AND)
+ * - Condições simples
+ * - Todos os operadores: >=, >, <, ===
+ * 
+ * ORDEM DE PROCESSAMENTO:
+ * 1. CONDIÇÕES COMPOSTAS (AND) - Tem prioridade!
+ * 2. CONDIÇÕES SIMPLES
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+private async evaluateCondition(
+  condition: string, 
+  context: DecisionContext, 
+  metrics: any
+): Promise<boolean> {
   if (!condition) return false
 
-  const daysSinceLastLogin = metrics.daysSinceLastLogin
-  const daysSinceLastAction = metrics.daysSinceLastAction
-  const engagementScore = metrics.engagementScore
-  const totalLogins = metrics.totalLogins
-  const totalActions = metrics.totalActions
+  // ───────────────────────────────────────────────────────────
+  // EXTRAIR MÉTRICAS
+  // ───────────────────────────────────────────────────────────
+  const daysSinceLastLogin = metrics.daysSinceLastLogin ?? 999
+  const daysSinceLastAction = metrics.daysSinceLastAction ?? 999
+  const engagementScore = metrics.engagementScore ?? 0
+  const totalLogins = metrics.totalLogins ?? 0
+  const totalActions = metrics.totalActions ?? 0
+  const currentProgress = context.userProduct?.progress?.percentage ?? 0
+  const currentModule = context.userProduct?.progress?.currentModule ?? 0
 
   // ═══════════════════════════════════════════════════════════
-  // PRIORIDADE 1: CONDIÇÕES COMPOSTAS (AND) - PROCESSAR PRIMEIRO!
+  // PRIORIDADE 1: CONDIÇÕES COMPOSTAS (AND)
   // ═══════════════════════════════════════════════════════════
   if (/\sAND\s/i.test(condition)) {
     const parts = condition.split(/\sAND\s/i).map(p => p.trim().replace(/[()]/g, ''))
     
     const results = parts.map(part => {
+      // ─────────────────────────────────────────────────────────
+      // BLOCO 1: daysSinceLastLogin (OGI)
+      // ─────────────────────────────────────────────────────────
+      
       // daysSinceLastLogin >= X
       if (/daysSinceLastLogin\s*>=\s*(\d+)/i.test(part)) {
-        const m = part.match(/(\d+)/)
+        const m = part.match(/daysSinceLastLogin\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastLogin >= threshold
         console.log(`   [EVAL] daysSinceLastLogin >= ${threshold}: ${daysSinceLastLogin} >= ${threshold} = ${result}`)
         return result
       }
+      
+      // daysSinceLastLogin > X
+      if (/daysSinceLastLogin\s*>\s*(\d+)/i.test(part)) {
+        const m = part.match(/daysSinceLastLogin\s*>\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastLogin > threshold
+        console.log(`   [EVAL] daysSinceLastLogin > ${threshold}: ${daysSinceLastLogin} > ${threshold} = ${result}`)
+        return result
+      }
+      
       // daysSinceLastLogin < X
       if (/daysSinceLastLogin\s*<\s*(\d+)/i.test(part)) {
-        const m = part.match(/(\d+)/)
+        const m = part.match(/daysSinceLastLogin\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastLogin < threshold
         console.log(`   [EVAL] daysSinceLastLogin < ${threshold}: ${daysSinceLastLogin} < ${threshold} = ${result}`)
         return result
       }
+      
+      // daysSinceLastLogin === X
+      if (/daysSinceLastLogin\s*===\s*(\d+)/i.test(part)) {
+        const m = part.match(/daysSinceLastLogin\s*===\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastLogin === threshold
+        console.log(`   [EVAL] daysSinceLastLogin === ${threshold}: ${daysSinceLastLogin} === ${threshold} = ${result}`)
+        return result
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // BLOCO 2: lastAccessDate (CLAREZA - mapeia para daysSinceLastAction)
+      // ─────────────────────────────────────────────────────────
+      
+      // lastAccessDate >= X
+      if (/lastAccessDate\s*>=\s*(\d+)/i.test(part)) {
+        const m = part.match(/lastAccessDate\s*>=\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastAction >= threshold
+        console.log(`   [EVAL] lastAccessDate >= ${threshold}: ${daysSinceLastAction} >= ${threshold} = ${result}`)
+        return result
+      }
+      
+      // lastAccessDate > X
+      if (/lastAccessDate\s*>\s*(\d+)/i.test(part)) {
+        const m = part.match(/lastAccessDate\s*>\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastAction > threshold
+        console.log(`   [EVAL] lastAccessDate > ${threshold}: ${daysSinceLastAction} > ${threshold} = ${result}`)
+        return result
+      }
+      
+      // lastAccessDate < X
+      if (/lastAccessDate\s*<\s*(\d+)/i.test(part)) {
+        const m = part.match(/lastAccessDate\s*<\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastAction < threshold
+        console.log(`   [EVAL] lastAccessDate < ${threshold}: ${daysSinceLastAction} < ${threshold} = ${result}`)
+        return result
+      }
+      
+      // lastAccessDate === X
+      if (/lastAccessDate\s*===\s*(\d+)/i.test(part)) {
+        const m = part.match(/lastAccessDate\s*===\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastAction === threshold
+        console.log(`   [EVAL] lastAccessDate === ${threshold}: ${daysSinceLastAction} === ${threshold} = ${result}`)
+        return result
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // BLOCO 3: daysSinceLastAction (CLAREZA)
+      // ─────────────────────────────────────────────────────────
+      
+      // daysSinceLastAction >= X
+      if (/daysSinceLastAction\s*>=\s*(\d+)/i.test(part)) {
+        const m = part.match(/daysSinceLastAction\s*>=\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastAction >= threshold
+        console.log(`   [EVAL] daysSinceLastAction >= ${threshold}: ${daysSinceLastAction} >= ${threshold} = ${result}`)
+        return result
+      }
+      
+      // daysSinceLastAction > X
+      if (/daysSinceLastAction\s*>\s*(\d+)/i.test(part)) {
+        const m = part.match(/daysSinceLastAction\s*>\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastAction > threshold
+        console.log(`   [EVAL] daysSinceLastAction > ${threshold}: ${daysSinceLastAction} > ${threshold} = ${result}`)
+        return result
+      }
+      
+      // daysSinceLastAction < X
+      if (/daysSinceLastAction\s*<\s*(\d+)/i.test(part)) {
+        const m = part.match(/daysSinceLastAction\s*<\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastAction < threshold
+        console.log(`   [EVAL] daysSinceLastAction < ${threshold}: ${daysSinceLastAction} < ${threshold} = ${result}`)
+        return result
+      }
+      
+      // daysSinceLastAction === X
+      if (/daysSinceLastAction\s*===\s*(\d+)/i.test(part)) {
+        const m = part.match(/daysSinceLastAction\s*===\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = daysSinceLastAction === threshold
+        console.log(`   [EVAL] daysSinceLastAction === ${threshold}: ${daysSinceLastAction} === ${threshold} = ${result}`)
+        return result
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // BLOCO 4: currentProgress (OGI + CLAREZA)
+      // ─────────────────────────────────────────────────────────
+      
       // currentProgress >= X
       if (/currentProgress\s*>=\s*(\d+)/i.test(part)) {
-        const m = part.match(/(\d+)/)
+        const m = part.match(/currentProgress\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
-        const current = context.userProduct?.progress?.percentage || 0
-        const result = current >= threshold
-        console.log(`   [EVAL] currentProgress >= ${threshold}: ${current} >= ${threshold} = ${result}`)
+        const result = currentProgress >= threshold
+        console.log(`   [EVAL] currentProgress >= ${threshold}: ${currentProgress} >= ${threshold} = ${result}`)
         return result
       }
+      
       // currentProgress > X
       if (/currentProgress\s*>\s*(\d+)/i.test(part)) {
-        const m = part.match(/(\d+)/)
+        const m = part.match(/currentProgress\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
-        const current = context.userProduct?.progress?.percentage || 0
-        const result = current > threshold
-        console.log(`   [EVAL] currentProgress > ${threshold}: ${current} > ${threshold} = ${result}`)
+        const result = currentProgress > threshold
+        console.log(`   [EVAL] currentProgress > ${threshold}: ${currentProgress} > ${threshold} = ${result}`)
         return result
       }
+      
       // currentProgress < X
       if (/currentProgress\s*<\s*(\d+)/i.test(part)) {
-        const m = part.match(/(\d+)/)
+        const m = part.match(/currentProgress\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
-        const current = context.userProduct?.progress?.percentage || 0
-        const result = current < threshold
-        console.log(`   [EVAL] currentProgress < ${threshold}: ${current} < ${threshold} = ${result}`)
+        const result = currentProgress < threshold
+        console.log(`   [EVAL] currentProgress < ${threshold}: ${currentProgress} < ${threshold} = ${result}`)
         return result
       }
-      console.log(`   [EVAL] Part não reconhecida: ${part}`)
+      
+      // currentProgress === X
+      if (/currentProgress\s*===\s*(\d+)/i.test(part)) {
+        const m = part.match(/currentProgress\s*===\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = currentProgress === threshold
+        console.log(`   [EVAL] currentProgress === ${threshold}: ${currentProgress} === ${threshold} = ${result}`)
+        return result
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // BLOCO 5: currentModule (OGI)
+      // ─────────────────────────────────────────────────────────
+      
+      // currentModule >= X
+      if (/currentModule\s*>=\s*(\d+)/i.test(part)) {
+        const m = part.match(/currentModule\s*>=\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = currentModule >= threshold
+        console.log(`   [EVAL] currentModule >= ${threshold}: ${currentModule} >= ${threshold} = ${result}`)
+        return result
+      }
+      
+      // currentModule > X
+      if (/currentModule\s*>\s*(\d+)/i.test(part)) {
+        const m = part.match(/currentModule\s*>\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = currentModule > threshold
+        console.log(`   [EVAL] currentModule > ${threshold}: ${currentModule} > ${threshold} = ${result}`)
+        return result
+      }
+      
+      // currentModule < X
+      if (/currentModule\s*<\s*(\d+)/i.test(part)) {
+        const m = part.match(/currentModule\s*<\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = currentModule < threshold
+        console.log(`   [EVAL] currentModule < ${threshold}: ${currentModule} < ${threshold} = ${result}`)
+        return result
+      }
+      
+      // currentModule === X
+      if (/currentModule\s*===\s*(\d+)/i.test(part)) {
+        const m = part.match(/currentModule\s*===\s*(\d+)/i)
+        const threshold = Number(m?.[1] || 0)
+        const result = currentModule === threshold
+        console.log(`   [EVAL] currentModule === ${threshold}: ${currentModule} === ${threshold} = ${result}`)
+        return result
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // FALLBACK: Part não reconhecida
+      // ─────────────────────────────────────────────────────────
+      console.warn(`   [EVAL] Part não reconhecida: ${part}`)
       return false
     })
     
@@ -682,129 +902,289 @@ private async evaluateCondition(condition: string, context: DecisionContext, met
   // PRIORIDADE 2: CONDIÇÕES SIMPLES
   // ═══════════════════════════════════════════════════════════
 
-  // daysInactive (alias de daysSinceLastLogin)
-  if (/daysInactive\s*>=/i.test(condition)) {
-    const threshold = extractDaysThreshold(condition) ?? 0
+  // ─────────────────────────────────────────────────────────
+  // BLOCO 1: daysInactive (alias de daysSinceLastLogin)
+  // ─────────────────────────────────────────────────────────
+  
+  // daysInactive >=
+  if (/^daysInactive\s*>=\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysInactive\s*>=\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastLogin >= threshold
     console.log(`   [EVAL] daysInactive >= ${threshold}: ${daysSinceLastLogin} >= ${threshold} = ${result}`)
     return result
   }
+  
+  // daysInactive >
+  if (/^daysInactive\s*>\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysInactive\s*>\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastLogin > threshold
+    console.log(`   [EVAL] daysInactive > ${threshold}: ${daysSinceLastLogin} > ${threshold} = ${result}`)
+    return result
+  }
+  
+  // daysInactive <
+  if (/^daysInactive\s*<\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysInactive\s*<\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastLogin < threshold
+    console.log(`   [EVAL] daysInactive < ${threshold}: ${daysSinceLastLogin} < ${threshold} = ${result}`)
+    return result
+  }
 
+  // ─────────────────────────────────────────────────────────
+  // BLOCO 2: daysSinceLastLogin (OGI)
+  // ─────────────────────────────────────────────────────────
+  
   // daysSinceLastLogin >=
-  if (/daysSinceLastLogin\s*>=/i.test(condition)) {
-    const threshold = extractDaysThreshold(condition) ?? 0
+  if (/^daysSinceLastLogin\s*>=\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysSinceLastLogin\s*>=\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastLogin >= threshold
     console.log(`   [EVAL] daysSinceLastLogin >= ${threshold}: ${daysSinceLastLogin} >= ${threshold} = ${result}`)
     return result
   }
-
-  // daysSinceLastLogin 
-  if (/daysSinceLastLogin\s*</i.test(condition)) {
+  
+  // daysSinceLastLogin >
+  if (/^daysSinceLastLogin\s*>\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysSinceLastLogin\s*>\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastLogin > threshold
+    console.log(`   [EVAL] daysSinceLastLogin > ${threshold}: ${daysSinceLastLogin} > ${threshold} = ${result}`)
+    return result
+  }
+  
+  // daysSinceLastLogin <
+  if (/^daysSinceLastLogin\s*<\s*\d+$/i.test(condition.trim())) {
     const m = condition.match(/daysSinceLastLogin\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastLogin < threshold
     console.log(`   [EVAL] daysSinceLastLogin < ${threshold}: ${daysSinceLastLogin} < ${threshold} = ${result}`)
     return result
   }
+  
+  // daysSinceLastLogin ===
+  if (/^daysSinceLastLogin\s*===\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysSinceLastLogin\s*===\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastLogin === threshold
+    console.log(`   [EVAL] daysSinceLastLogin === ${threshold}: ${daysSinceLastLogin} === ${threshold} = ${result}`)
+    return result
+  }
 
+  // ─────────────────────────────────────────────────────────
+  // BLOCO 3: lastAccessDate (CLAREZA)
+  // ─────────────────────────────────────────────────────────
+  
+  // lastAccessDate >=
+  if (/^lastAccessDate\s*>=\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/lastAccessDate\s*>=\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastAction >= threshold
+    console.log(`   [EVAL] lastAccessDate >= ${threshold}: ${daysSinceLastAction} >= ${threshold} = ${result}`)
+    return result
+  }
+  
+  // lastAccessDate >
+  if (/^lastAccessDate\s*>\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/lastAccessDate\s*>\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastAction > threshold
+    console.log(`   [EVAL] lastAccessDate > ${threshold}: ${daysSinceLastAction} > ${threshold} = ${result}`)
+    return result
+  }
+  
+  // lastAccessDate <
+  if (/^lastAccessDate\s*<\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/lastAccessDate\s*<\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastAction < threshold
+    console.log(`   [EVAL] lastAccessDate < ${threshold}: ${daysSinceLastAction} < ${threshold} = ${result}`)
+    return result
+  }
+  
+  // lastAccessDate ===
+  if (/^lastAccessDate\s*===\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/lastAccessDate\s*===\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastAction === threshold
+    console.log(`   [EVAL] lastAccessDate === ${threshold}: ${daysSinceLastAction} === ${threshold} = ${result}`)
+    return result
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // BLOCO 4: daysSinceLastAction (CLAREZA)
+  // ─────────────────────────────────────────────────────────
+  
   // daysSinceLastAction >=
-  if (/daysSinceLastAction\s*>=/i.test(condition)) {
-    const m = condition.match(/(\d+)/)
+  if (/^daysSinceLastAction\s*>=\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysSinceLastAction\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastAction >= threshold
     console.log(`   [EVAL] daysSinceLastAction >= ${threshold}: ${daysSinceLastAction} >= ${threshold} = ${result}`)
     return result
   }
+  
+  // daysSinceLastAction >
+  if (/^daysSinceLastAction\s*>\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysSinceLastAction\s*>\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastAction > threshold
+    console.log(`   [EVAL] daysSinceLastAction > ${threshold}: ${daysSinceLastAction} > ${threshold} = ${result}`)
+    return result
+  }
+  
+  // daysSinceLastAction <
+  if (/^daysSinceLastAction\s*<\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysSinceLastAction\s*<\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastAction < threshold
+    console.log(`   [EVAL] daysSinceLastAction < ${threshold}: ${daysSinceLastAction} < ${threshold} = ${result}`)
+    return result
+  }
+  
+  // daysSinceLastAction ===
+  if (/^daysSinceLastAction\s*===\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/daysSinceLastAction\s*===\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = daysSinceLastAction === threshold
+    console.log(`   [EVAL] daysSinceLastAction === ${threshold}: ${daysSinceLastAction} === ${threshold} = ${result}`)
+    return result
+  }
 
-  // engagementScore 
-  if (/engagementScore\s*</i.test(condition)) {
-    const m = condition.match(/(\d+)/)
+  // ─────────────────────────────────────────────────────────
+  // BLOCO 5: currentProgress
+  // ─────────────────────────────────────────────────────────
+  
+  // currentProgress ===
+  if (/^currentProgress\s*===\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/currentProgress\s*===\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = currentProgress === threshold
+    console.log(`   [EVAL] currentProgress === ${threshold}: ${currentProgress} === ${threshold} = ${result}`)
+    return result
+  }
+  
+  // currentProgress >=
+  if (/^currentProgress\s*>=\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/currentProgress\s*>=\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = currentProgress >= threshold
+    console.log(`   [EVAL] currentProgress >= ${threshold}: ${currentProgress} >= ${threshold} = ${result}`)
+    return result
+  }
+  
+  // currentProgress >
+  if (/^currentProgress\s*>\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/currentProgress\s*>\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = currentProgress > threshold
+    console.log(`   [EVAL] currentProgress > ${threshold}: ${currentProgress} > ${threshold} = ${result}`)
+    return result
+  }
+  
+  // currentProgress <
+  if (/^currentProgress\s*<\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/currentProgress\s*<\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = currentProgress < threshold
+    console.log(`   [EVAL] currentProgress < ${threshold}: ${currentProgress} < ${threshold} = ${result}`)
+    return result
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // BLOCO 6: currentModule
+  // ─────────────────────────────────────────────────────────
+  
+  // currentModule ===
+  if (/^currentModule\s*===\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/currentModule\s*===\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = currentModule === threshold
+    console.log(`   [EVAL] currentModule === ${threshold}: ${currentModule} === ${threshold} = ${result}`)
+    return result
+  }
+  
+  // currentModule >=
+  if (/^currentModule\s*>=\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/currentModule\s*>=\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = currentModule >= threshold
+    console.log(`   [EVAL] currentModule >= ${threshold}: ${currentModule} >= ${threshold} = ${result}`)
+    return result
+  }
+  
+  // currentModule >
+  if (/^currentModule\s*>\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/currentModule\s*>\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = currentModule > threshold
+    console.log(`   [EVAL] currentModule > ${threshold}: ${currentModule} > ${threshold} = ${result}`)
+    return result
+  }
+  
+  // currentModule <
+  if (/^currentModule\s*<\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/currentModule\s*<\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = currentModule < threshold
+    console.log(`   [EVAL] currentModule < ${threshold}: ${currentModule} < ${threshold} = ${result}`)
+    return result
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // BLOCO 7: engagementScore
+  // ─────────────────────────────────────────────────────────
+  
+  // engagementScore <
+  if (/^engagementScore\s*<\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/engagementScore\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = engagementScore < threshold
     console.log(`   [EVAL] engagementScore < ${threshold}: ${engagementScore} < ${threshold} = ${result}`)
     return result
   }
+  
+  // engagementScore >=
+  if (/^engagementScore\s*>=\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/engagementScore\s*>=\s*(\d+)/i)
+    const threshold = Number(m?.[1] || 0)
+    const result = engagementScore >= threshold
+    console.log(`   [EVAL] engagementScore >= ${threshold}: ${engagementScore} >= ${threshold} = ${result}`)
+    return result
+  }
 
+  // ─────────────────────────────────────────────────────────
+  // BLOCO 8: totalLogins
+  // ─────────────────────────────────────────────────────────
+  
   // totalLogins >=
-  if (/totalLogins\s*>=/i.test(condition)) {
-    const m = condition.match(/(\d+)/)
+  if (/^totalLogins\s*>=\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/totalLogins\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = totalLogins >= threshold
     console.log(`   [EVAL] totalLogins >= ${threshold}: ${totalLogins} >= ${threshold} = ${result}`)
     return result
   }
 
+  // ─────────────────────────────────────────────────────────
+  // BLOCO 9: totalActions
+  // ─────────────────────────────────────────────────────────
+  
   // totalActions >=
-  if (/totalActions\s*>=/i.test(condition)) {
-    const m = condition.match(/(\d+)/)
+  if (/^totalActions\s*>=\s*\d+$/i.test(condition.trim())) {
+    const m = condition.match(/totalActions\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = totalActions >= threshold
     console.log(`   [EVAL] totalActions >= ${threshold}: ${totalActions} >= ${threshold} = ${result}`)
     return result
   }
 
-  // currentProgress ===
-  if (/currentProgress\s*===\s*(\d+)/i.test(condition)) {
-    const m = condition.match(/currentProgress\s*===\s*(\d+)/i)
-    const threshold = Number(m?.[1] || 0)
-    const current = context.userProduct?.progress?.percentage || 0
-    const result = current === threshold
-    console.log(`   [EVAL] currentProgress === ${threshold}: ${current} === ${threshold} = ${result}`)
-    return result
-  }
-
-  // currentProgress >=
-  if (/currentProgress\s*>=\s*(\d+)/i.test(condition)) {
-    const m = condition.match(/currentProgress\s*>=\s*(\d+)/i)
-    const threshold = Number(m?.[1] || 0)
-    const current = context.userProduct?.progress?.percentage || 0
-    const result = current >= threshold
-    console.log(`   [EVAL] currentProgress >= ${threshold}: ${current} >= ${threshold} = ${result}`)
-    return result
-  }
-
-  // currentProgress >
-  if (/currentProgress\s*>\s*(\d+)/i.test(condition)) {
-    const m = condition.match(/currentProgress\s*>\s*(\d+)/i)
-    const threshold = Number(m?.[1] || 0)
-    const current = context.userProduct?.progress?.percentage || 0
-    const result = current > threshold
-    console.log(`   [EVAL] currentProgress > ${threshold}: ${current} > ${threshold} = ${result}`)
-    return result
-  }
-
-  // currentProgress 
-  if (/currentProgress\s*</i.test(condition)) {
-    const m = condition.match(/currentProgress\s*<\s*(\d+)/i)
-    const threshold = Number(m?.[1] || 0)
-    const current = context.userProduct?.progress?.percentage || 0
-    const result = current < threshold
-    console.log(`   [EVAL] currentProgress < ${threshold}: ${current} < ${threshold} = ${result}`)
-    return result
-  }
-
-  // currentModule ===
-  if (/currentModule\s*===\s*(\d+)/i.test(condition)) {
-    const m = condition.match(/currentModule\s*===\s*(\d+)/i)
-    const threshold = Number(m?.[1] || 0)
-    const current = context.userProduct?.progress?.currentModule || 0
-    const result = current === threshold
-    console.log(`   [EVAL] currentModule === ${threshold}: ${current} === ${threshold} = ${result}`)
-    return result
-  }
-
-  // currentModule >=
-  if (/currentModule\s*>=\s*(\d+)/i.test(condition)) {
-    const m = condition.match(/currentModule\s*>=\s*(\d+)/i)
-    const threshold = Number(m?.[1] || 0)
-    const current = context.userProduct?.progress?.currentModule || 0
-    const result = current >= threshold
-    console.log(`   [EVAL] currentModule >= ${threshold}: ${current} >= ${threshold} = ${result}`)
-    return result
-  }
-
-  // Condição não reconhecida
-  console.warn(`[DecisionEngine] ⚠️ Condição não reconhecida: ${condition}`)
+  // ═══════════════════════════════════════════════════════════
+  // FALLBACK: Condição não reconhecida
+  // ═══════════════════════════════════════════════════════════
+  console.warn(`[DecisionEngine] ⚠️ Condição não reconhecida: "${condition}"`)
   return false
 }
 
