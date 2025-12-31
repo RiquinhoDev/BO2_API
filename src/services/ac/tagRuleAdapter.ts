@@ -8,26 +8,24 @@ import { ITagRule } from '../../models/acTags/TagRule'
 /**
  * Converte uma TagRule do MongoDB para o formato esperado pelo DecisionEngine
  */
-export function adaptTagRuleForDecisionEngine(tagRule: ITagRule): any {
-  // Converter conditions array para string simples (para evaluateCondition)
-  const conditionStr = convertConditionsToString(tagRule.conditions)
+// src/services/ac/tagRuleAdapter.ts
 
-  // ✅ Tags já vêm no formato correto da BD (ex: "OGI_V1 - Ativo")
-  // NÃO remover prefixo! O orchestrator já trata disso.
+export function adaptTagRuleForDecisionEngine(tagRule: ITagRule): any {
+  // 🔧 FIX: Priorizar condition (string) sobre conditions (array)
+  const conditionStr = tagRule.condition || convertConditionsToString(tagRule.conditions)
+
   const tagName = tagRule.actions.addTag
 
   return {
     _id: tagRule._id,
     name: tagRule.name,
-    tagName: tagName,  // ✅ Tag como está na BD
+    tagName: tagName,
     action: 'APPLY_TAG',
     condition: conditionStr,
     priority: tagRule.priority || 0,
     
-    // Tentar extrair daysInactive da condição
     daysInactive: extractDaysInactiveFromConditions(tagRule.conditions),
     
-    // Metadata original
     _original: tagRule
   }
 }

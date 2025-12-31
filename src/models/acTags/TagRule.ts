@@ -45,6 +45,7 @@ export interface ITagRule extends Document {
   category: RuleCategory
   priority: number
   conditions: ICondition[]
+    condition?: string 
   actions: ITagActions
   emailPreview?: string
   isActive: boolean
@@ -93,6 +94,7 @@ const ConditionSchema = new Schema<ICondition>({
     type: String,
     enum: ['AND', 'OR']
   },
+  
   subConditions: [SubConditionSchema]
 }, { _id: false })
 
@@ -132,6 +134,10 @@ const TagRuleSchema = new Schema<ITagRule>({
     max: 10
   },
   conditions: [ConditionSchema],
+    condition: {           // 🆕 ADICIONAR TODO ESTE BLOCO
+    type: String,
+    required: false
+  },
   actions: {
     type: TagActionsSchema,
     required: true

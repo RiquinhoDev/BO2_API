@@ -1193,6 +1193,8 @@ export function calculateEngagementMetricsForUserProduct(
   engagement: {
     daysSinceLastLogin: number | null
     daysSinceLastAction: number | null
+    daysSinceEnrollment: number | null    // 🆕 ADICIONAR ESTA LINHA
+    enrolledAt: Date | null               // 🆕 ADICIONAR ESTA LINHA
     totalLogins?: number
     actionsLastWeek?: number
     actionsLastMonth?: number
@@ -1214,6 +1216,8 @@ export function calculateEngagementMetricsForUserProduct(
 
   let daysSinceLastLogin: number | null = null
   let daysSinceLastAction: number | null = null
+  let daysSinceEnrollment: number | null = null  // 🆕 ADICIONAR ESTA LINHA
+  let enrolledAt: Date | null = null             // 🆕 ADICIONAR ESTA LINHA
   let totalLogins = 0
   let actionsLastWeek = 0
   let actionsLastMonth = 0
@@ -1234,7 +1238,7 @@ export function calculateEngagementMetricsForUserProduct(
     // ✅ CORRIGIDO: user.hotmart.engagement.accessCount
     totalLogins = user.hotmart?.engagement?.accessCount || 0
 
-  } else if (platform === 'curseduca') {
+} else if (platform === 'curseduca') {
     // ✅ CURSEDUCA = ACTION-BASED
     // ✅ CORRIGIDO: CursEduca não tem lastActionDate explícito
     // Usar progress.lastActivity ou joinedDate como fallback
@@ -1251,6 +1255,19 @@ export function calculateEngagementMetricsForUserProduct(
     // Ações (não disponível no modelo atual)
     actionsLastWeek = 0 // TODO: Implementar quando API fornecer
     actionsLastMonth = 0 // TODO: Implementar quando API fornecer
+
+    // 🆕 NOVO: Calcular daysSinceEnrollment
+    // Prioridade: enrolledClasses[0].enteredAt > joinedDate > createdAt
+    const enrollmentDate = user.curseduca?.enrolledClasses?.[0]?.enteredAt || 
+                          user.curseduca?.joinedDate || 
+                          user.metadata?.createdAt
+
+    if (enrollmentDate) {
+      enrolledAt = enrollmentDate instanceof Date ? enrollmentDate : new Date(enrollmentDate)
+      const enrollmentTime = enrolledAt.getTime()
+      daysSinceEnrollment = Math.floor((now - enrollmentTime) / (1000 * 60 * 60 * 24))
+      debugLog(`   ✅ daysSinceEnrollment: ${daysSinceEnrollment} dias (enrolled: ${enrolledAt.toISOString()})`)
+    }
 
   } else if (platform === 'discord') {
     // DISCORD = Não implementado ainda
@@ -1304,10 +1321,12 @@ export function calculateEngagementMetricsForUserProduct(
   // RETORNAR MÉTRICAS
   // ═══════════════════════════════════════════════════════════
 
-  const metrics = {
+const metrics = {
     engagement: {
       daysSinceLastLogin,
       daysSinceLastAction,
+      daysSinceEnrollment,    // 🆕 ADICIONAR ESTA LINHA
+      enrolledAt,             // 🆕 ADICIONAR ESTA LINHA
       totalLogins,
       actionsLastWeek,
       actionsLastMonth

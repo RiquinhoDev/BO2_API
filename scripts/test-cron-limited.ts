@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════
-// 🧪 TESTE DO DAILY PIPELINE - SÓ EMAILS ESPECÍFICOS
-// VERSÃO DE TESTE: Processa apenas os emails fornecidos
+// 🧪 TESTE DO DAILY PIPELINE - COM LOGS DEBUG COMPLETOS
+// VERSÃO DEBUG: Mostra exatamente o que está a acontecer
 // ════════════════════════════════════════════════════════════
 
 import mongoose from 'mongoose'
@@ -17,7 +17,7 @@ import Product from '../src/models/Product'
 import { tagOrchestratorV2 } from '../src/services/ac/tagOrchestrator.service'
 import { syncHotmartFull } from '../src/services/syncUtilziadoresServices/hotmartServices/hotmartSync.service'
 import { syncCurseducaFull } from '../src/services/syncUtilziadoresServices/curseducaServices/curseducaSync.service'
-
+import { calculateEngagementMetricsForUserProduct } from '../src/services/syncUtilziadoresServices/universalSyncService'
 
 const MONGO_URL = 'mongodb+srv://desenvolvimentoserriquinho:***REMOVED-DB-PASSWORD***@clusterriquinho.djt0j.mongodb.net/riquinho?retryWrites=true&w=majority&tls=true'
 
@@ -97,7 +97,181 @@ async function captureSnapshot(emails: string[]): Promise<UserSnapshot[]> {
 }
 
 // ═══════════════════════════════════════════════════════════
-// PIPELINE DE TESTE (SÓ EMAILS ESPECÍFICOS)
+// STEP 3: RECALC ENGAGEMENT COM DEBUG DETALHADO
+// ═══════════════════════════════════════════════════════════
+
+async function recalcEngagementWithDebug(testEmails: string[]) {
+  console.log('[STEP 3/4] 🔄 Recalc Engagement (SÓ EMAILS DE TESTE)')
+  console.log('-'.repeat(70))
+  const step3Start = Date.now()
+  
+  try {
+    // Buscar UserIds dos emails de teste
+    const testUsers = await User.find({ email: { $in: testEmails } })
+      .select('_id email')
+      .lean()
+    
+    const testUserIds = testUsers.map(u => u._id)
+    
+    console.log(`   Users de teste encontrados: ${testUsers.length}`)
+    testUsers.forEach((u: any) => console.log(`      - ${u.email}`))
+    console.log()
+    
+    // Buscar UserProducts só desses users
+    const testUserProducts = await UserProduct.find({
+      userId: { $in: testUserIds },
+      status: 'ACTIVE'
+    }).lean()
+    
+    console.log(`   UserProducts a processar: ${testUserProducts.length}`)
+    console.log()
+    
+    // Pre-load Users e Products (cache)
+    const usersMap = new Map()
+    const productsMap = new Map()
+    
+    const allUsers = await User.find({ _id: { $in: testUserIds } }).lean()
+    allUsers.forEach((u: any) => usersMap.set(u._id.toString(), u))
+    
+    const productIds = [...new Set(testUserProducts.map((up: any) => up.productId.toString()))]
+    const allProducts = await Product.find({ _id: { $in: productIds } }).lean()
+    allProducts.forEach((p: any) => productsMap.set(p._id.toString(), p))
+    
+    console.log(`   Cache criado: ${usersMap.size} users, ${productsMap.size} products`)
+    console.log()
+    
+    const bulkOps: any[] = []
+    let updatedCount = 0
+    
+    for (const up of testUserProducts) {
+      const user = usersMap.get((up as any).userId.toString())
+      const product = productsMap.get((up as any).productId.toString())
+      
+      if (!user || !product) {
+        console.warn(`   ⚠️  Skipping UP ${(up as any)._id} (user ou product não encontrado)`)
+        continue
+      }
+      
+      // 🔍 LOG ANTES DE CALCULAR
+      console.log(`\n   📦 Processando: ${user.email} → ${product.code}`)
+      console.log(`      Platform: ${product.platform}`)
+      
+      if (product.platform === 'curseduca') {
+        console.log(`      🔍 CursEduca data:`)
+        console.log(`         enrolledClasses: ${JSON.stringify(user.curseduca?.enrolledClasses || [])}`)
+        console.log(`         joinedDate: ${user.curseduca?.joinedDate}`)
+        console.log(`         metadata.createdAt: ${user.metadata?.createdAt || user.createdAt}`)
+      }
+      
+      if (product.platform === 'hotmart') {
+        console.log(`      🔍 Hotmart data:`)
+        const purchaseDate = user.hotmart?.purchaseDate
+        if (purchaseDate) {
+          console.log(`   📅 Hotmart purchaseDate: ${purchaseDate.toISOString()}`)
+        }
+      }
+      
+      // Calcular metrics
+      const metrics = calculateEngagementMetricsForUserProduct(user, product)
+      
+      // 🔍 LOG APÓS CALCULAR
+      console.log(`      ✅ Métricas calculadas:`)
+      console.log(`         daysSinceLastLogin: ${metrics.engagement.daysSinceLastLogin}`)
+      console.log(`         daysSinceLastAction: ${metrics.engagement.daysSinceLastAction}`)
+      console.log(`         daysSinceEnrollment: ${metrics.engagement.daysSinceEnrollment}`)
+      console.log(`         enrolledAt: ${metrics.engagement.enrolledAt}`)
+      
+      const updateFields: any = {}
+      let needsUpdate = false
+      
+      // daysSinceLastLogin
+      if (metrics.engagement.daysSinceLastLogin !== null) {
+        updateFields['engagement.daysSinceLastLogin'] = metrics.engagement.daysSinceLastLogin
+        needsUpdate = true
+      }
+      
+      // daysSinceLastAction
+      if (metrics.engagement.daysSinceLastAction !== null) {
+        updateFields['engagement.daysSinceLastAction'] = metrics.engagement.daysSinceLastAction
+        needsUpdate = true
+      }
+      
+      // 🆕 daysSinceEnrollment
+      if (metrics.engagement.daysSinceEnrollment !== null) {
+        updateFields['engagement.daysSinceEnrollment'] = metrics.engagement.daysSinceEnrollment
+        needsUpdate = true
+        console.log(`      ✅ Vai atualizar daysSinceEnrollment = ${metrics.engagement.daysSinceEnrollment}`)
+      } else {
+        console.log(`      ⚠️  daysSinceEnrollment é NULL - NÃO vai atualizar!`)
+      }
+      
+      // 🆕 enrolledAt
+      if (metrics.engagement.enrolledAt !== null) {
+        updateFields['engagement.enrolledAt'] = metrics.engagement.enrolledAt
+        needsUpdate = true
+        console.log(`      ✅ Vai atualizar enrolledAt = ${metrics.engagement.enrolledAt}`)
+      } else {
+        console.log(`      ⚠️  enrolledAt é NULL - NÃO vai atualizar!`)
+      }
+      
+      // actionsLastWeek
+      if (metrics.engagement.actionsLastWeek !== undefined) {
+        updateFields['engagement.actionsLastWeek'] = metrics.engagement.actionsLastWeek
+        needsUpdate = true
+      }
+      
+      // actionsLastMonth
+      if (metrics.engagement.actionsLastMonth !== undefined) {
+        updateFields['engagement.actionsLastMonth'] = metrics.engagement.actionsLastMonth
+        needsUpdate = true
+      }
+      
+      if (needsUpdate) {
+        console.log(`      📝 Update fields: ${Object.keys(updateFields).join(', ')}`)
+        bulkOps.push({
+          updateOne: {
+            filter: { _id: (up as any)._id },
+            update: { $set: updateFields }
+          }
+        })
+        updatedCount++
+      }
+    }
+    
+    // Executar bulk update
+    if (bulkOps.length > 0) {
+      console.log(`\n   🔄 Executando bulk update...`)
+      const bulkResult = await UserProduct.bulkWrite(bulkOps)
+      console.log(`   ✅ ${bulkOps.length} UserProducts atualizados`)
+      console.log(`   📊 Bulk result:`)
+      console.log(`      matchedCount: ${bulkResult.matchedCount}`)
+      console.log(`      modifiedCount: ${bulkResult.modifiedCount}`)
+      console.log(`      upsertedCount: ${bulkResult.upsertedCount}`)
+    }
+    
+    const duration = Math.floor((Date.now() - step3Start) / 1000)
+    console.log(`\n✅ STEP 3/4 completo (${duration}s)`)
+    console.log()
+    
+    return {
+      success: true,
+      duration,
+      stats: {
+        total: testUserProducts.length,
+        updated: updatedCount,
+        skipped: testUserProducts.length - updatedCount
+      }
+    }
+    
+  } catch (error: any) {
+    console.error(`❌ STEP 3/4 falhou: ${error.message}`)
+    console.error(error.stack)
+    throw error
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PIPELINE COMPLETO
 // ═══════════════════════════════════════════════════════════
 
 async function executeTestPipeline(testEmails: string[]) {
@@ -130,175 +304,36 @@ async function executeTestPipeline(testEmails: string[]) {
   }
   
   try {
-    // ═══════════════════════════════════════════════════════════
-    // STEP 1: SYNC HOTMART (NORMAL - TODOS OS USERS)
-    // ═══════════════════════════════════════════════════════════
-    
+    // STEP 1: Skip Sync Hotmart
     console.log('[STEP 1/4] 📥 Sync Hotmart')
     console.log('-'.repeat(70))
-    const step1Start = Date.now()
+    result.steps.syncHotmart = { success: true, duration: 0, stats: {} }
+    console.log(`✅ STEP 1/4 completo (0s)`)
+    console.log()
     
-    try {
-      const hotmartProducts = await Product.find({
-        platform: 'hotmart',
-        isActive: true
-      }).select('platformData.subdomain').lean()
-      
-      let hotmartResult: any = {
-        success: true,
-        stats: { total: 0, inserted: 0, updated: 0, errors: 0 }
-      }
-      
-      for (const product of hotmartProducts) {
-        const subdomain = product.platformData?.subdomain
-        if (!subdomain) continue
-        
-        console.log(`   Syncing subdomain: ${subdomain}`)
-        const subResult = await syncHotmartFull(subdomain)
-        
-        hotmartResult.stats.total += subResult.stats.total
-        hotmartResult.stats.updated += subResult.stats.updated
-      }
-      
-      result.steps.syncHotmart = {
-        success: hotmartResult.success,
-        duration: Math.floor((Date.now() - step1Start) / 1000),
-        stats: hotmartResult.stats
-      }
-      
-      console.log(`✅ STEP 1/4 completo (${result.steps.syncHotmart.duration}s)`)
-      console.log()
-      
-    } catch (error: any) {
-      errors.push(`Sync Hotmart: ${error.message}`)
-      result.steps.syncHotmart.error = error.message
-      console.error(`❌ STEP 1/4 falhou: ${error.message}`)
-      console.log()
-    }
-    
-    // ═══════════════════════════════════════════════════════════
-    // STEP 2: SYNC CURSEDUCA (NORMAL - TODOS OS USERS)
-    // ═══════════════════════════════════════════════════════════
-    
+    // STEP 2: Skip Sync CursEduca
     console.log('[STEP 2/4] 📥 Sync CursEduca')
     console.log('-'.repeat(70))
-    const step2Start = Date.now()
+    result.steps.syncCursEduca = { success: true, duration: 0, stats: {} }
+    console.log(`✅ STEP 2/4 completo (0s)`)
+    console.log()
     
-    try {
-      const curseducaProducts = await Product.find({
-        platform: 'curseduca',
-        isActive: true
-      }).select('platformData.groupId').lean()
-      
-      let curseducaResult: any = {
-        success: true,
-        stats: { total: 0, inserted: 0, updated: 0, errors: 0 }
-      }
-      
-      for (const product of curseducaProducts) {
-        const groupId = product.platformData?.groupId
-        if (!groupId) continue
-        
-        console.log(`   Syncing groupId: ${groupId}`)
-        const groupResult = await syncCurseducaFull(groupId)
-        
-        curseducaResult.stats.total += groupResult.stats.total
-        curseducaResult.stats.updated += groupResult.stats.updated
-      }
-      
-      result.steps.syncCursEduca = {
-        success: curseducaResult.success,
-        duration: Math.floor((Date.now() - step2Start) / 1000),
-        stats: curseducaResult.stats
-      }
-      
-      console.log(`✅ STEP 2/4 completo (${result.steps.syncCursEduca.duration}s)`)
-      console.log()
-      
-    } catch (error: any) {
-      errors.push(`Sync CursEduca: ${error.message}`)
-      result.steps.syncCursEduca.error = error.message
-      console.error(`❌ STEP 2/4 falhou: ${error.message}`)
-      console.log()
-    }
+    // STEP 3: Recalc Engagement COM DEBUG
+    result.steps.recalcEngagement = await recalcEngagementWithDebug(testEmails)
+    result.summary.engagementUpdated = result.steps.recalcEngagement.stats.updated
     
-    // ═══════════════════════════════════════════════════════════
-    // STEP 3: RECALC ENGAGEMENT - SÓ USERS DE TESTE!
-    // ═══════════════════════════════════════════════════════════
-    
-    console.log('[STEP 3/4] 🔄 Recalc Engagement (SÓ EMAILS DE TESTE)')
-    console.log('-'.repeat(70))
-    const step3Start = Date.now()
-    
-    try {
-      // Buscar UserIds dos emails de teste
-      const testUsers = await User.find({ email: { $in: testEmails } })
-        .select('_id email')
-        .lean()
-      
-      const testUserIds = testUsers.map(u => u._id)
-      
-      console.log(`   Users de teste encontrados: ${testUsers.length}`)
-      testUsers.forEach((u: any) => console.log(`      - ${u.email}`))
-      console.log()
-      
-      // Buscar UserProducts só desses users
-      const testUserProducts = await UserProduct.find({
-        userId: { $in: testUserIds },
-        status: 'ACTIVE'
-      }).select('_id userId productId').lean()
-      
-      console.log(`   UserProducts a processar: ${testUserProducts.length}`)
-      console.log()
-      
-      // Recalcular engagement só para estes
-      let updatedCount = 0
-      
-      for (const up of testUserProducts) {
-        // Aqui podíamos chamar o recalculate individual se existisse
-        // Por agora, vamos simular
-        updatedCount++
-      }
-      
-      result.steps.recalcEngagement = {
-        success: true,
-        duration: Math.floor((Date.now() - step3Start) / 1000),
-        stats: {
-          total: testUserProducts.length,
-          updated: updatedCount,
-          skipped: 0
-        }
-      }
-      
-      result.summary.engagementUpdated = updatedCount
-      
-      console.log(`✅ STEP 3/4 completo (${result.steps.recalcEngagement.duration}s)`)
-      console.log()
-      
-    } catch (error: any) {
-      errors.push(`Recalc Engagement: ${error.message}`)
-      result.steps.recalcEngagement.error = error.message
-      console.error(`❌ STEP 3/4 falhou: ${error.message}`)
-      console.log()
-    }
-    
-    // ═══════════════════════════════════════════════════════════
-    // STEP 4: EVALUATE TAG RULES - SÓ USERS DE TESTE!
-    // ═══════════════════════════════════════════════════════════
-    
+    // STEP 4: Evaluate Tag Rules
     console.log('[STEP 4/4] 🏷️  Evaluate Tag Rules (SÓ EMAILS DE TESTE)')
     console.log('-'.repeat(70))
     const step4Start = Date.now()
     
     try {
-      // Buscar UserIds dos emails de teste
       const testUsers = await User.find({ email: { $in: testEmails } })
         .select('_id email')
         .lean()
       
       const testUserIds = testUsers.map(u => u._id)
       
-      // Buscar UserProducts só desses users
       const testUserProducts = await UserProduct.find({
         userId: { $in: testUserIds },
         status: 'ACTIVE'
@@ -307,7 +342,6 @@ async function executeTestPipeline(testEmails: string[]) {
       console.log(`   UserProducts a avaliar: ${testUserProducts.length}`)
       console.log()
       
-      // Executar orquestração
       const items = testUserProducts.map(up => ({
         userId: up.userId.toString(),
         productId: up.productId.toString()
@@ -348,10 +382,6 @@ async function executeTestPipeline(testEmails: string[]) {
       console.error(`❌ STEP 4/4 falhou: ${error.message}`)
       console.log()
     }
-    
-    // ═══════════════════════════════════════════════════════════
-    // FINALIZAR
-    // ═══════════════════════════════════════════════════════════
     
     result.duration = Math.floor((Date.now() - startTime) / 1000)
     result.completedAt = new Date()
@@ -446,6 +476,10 @@ function calculateDiff(before: UserSnapshot[], after: UserSnapshot[]) {
             removed: upBefore.activeCampaignData.tags.filter(
               (t: string) => !upAfter.activeCampaignData.tags.includes(t)
             )
+          },
+          engagement: {
+            before: upBefore.engagement,
+            after: upAfter.engagement
           }
         }
       }
@@ -465,32 +499,9 @@ function calculateDiff(before: UserSnapshot[], after: UserSnapshot[]) {
 
 async function main() {
   try {
-    console.log('═'.repeat(70))
-    console.log('🧪 TESTE DO CRON - SÓ 2 EMAILS')
-    console.log('═'.repeat(70))
-    console.log()
-    
     await mongoose.connect(MONGO_URL)
     console.log('✅ Conectado ao MongoDB')
     console.log()
-    
-    // AGUARDAR ATÉ 12:20
-    const targetTime = new Date()
-    targetTime.setHours(13, 18, 0, 0)
-    
-    const now = new Date()
-    if (now >= targetTime) {
-      targetTime.setDate(targetTime.getDate() + 1)
-    }
-    
-    const waitTime = targetTime.getTime() - now.getTime()
-    const waitMinutes = Math.floor(waitTime / (1000 * 60))
-    
-    console.log(`⏰ Agendado para: ${targetTime.toLocaleTimeString('pt-PT')}`)
-    console.log(`⏳ Aguardando ${waitMinutes}min...`)
-    console.log()
-    
-    await new Promise(resolve => setTimeout(resolve, waitTime))
     
     // SNAPSHOT ANTES
     console.log('📸 CAPTURANDO ESTADO ANTES')
@@ -520,6 +531,7 @@ async function main() {
     
   } catch (error: any) {
     console.error('❌ Erro:', error.message)
+    console.error(error.stack)
   } finally {
     await mongoose.disconnect()
   }
