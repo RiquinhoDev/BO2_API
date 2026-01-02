@@ -108,25 +108,30 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
     const decisions = await decisionEngine.evaluateUserProduct(userId, productId)
 
     // ═══════════════════════════════════════════════════════════
-    // 3) DIFF INTELIGENTE (SÓ REMOVE/ADICIONA O NECESSÁRIO)
+    // 3) ✅ DIFF INTELIGENTE COM SYNC DO ACTIVE CAMPAIGN
+    //    🔧 CORREÇÃO: SÓ VER TAGS DO PRODUTO ATUAL!
     // ═══════════════════════════════════════════════════════════
 
-    // Prefixos das tags geridas pelo BO
-    const BO_TAG_PREFIXES = [
-  'CLAREZA_MENSAL',   // Tags antigas (formato errado)
-  'CLAREZA_ANUAL',    // Tags antigas (formato errado)
-  'CLAREZA -',        // Tags novas (formato correto) 👈 ADICIONAR!
-  'CLAREZA-',         // Variação sem espaço
-  'OGI_V1',           // Tags OGI
-  'OGI -',            // Tags OGI (se houver sem V1)
-  'DISCORD_COMMUNITY'
-]
+    // ✅ Buscar tags REAIS do Active Campaign
+    console.log(`[TagOrchestrator V2] 🔍 Sincronizando com Active Campaign...`)
+    const acTags = await activeCampaignService.getContactTagsByEmail(user.email)
+    
+    console.log(`[TagOrchestrator V2] 📊 Total tags no AC: ${acTags.length}`)
+    
+    // ✅ CORREÇÃO: Determinar prefixos ESPECÍFICOS deste produto
+    const productTagPrefixes = this.getProductTagPrefixes(productCode)
+    
+    console.log(`[TagOrchestrator V2] 🔍 Prefixos deste produto (${productCode}): ${productTagPrefixes.join(', ')}`)
 
-    // Tags atuais do BO
-    const currentTags = userProduct.activeCampaignData?.tags || []
-    const currentBOTags = currentTags.filter((tag: string) =>
-      BO_TAG_PREFIXES.some(prefix => tag.toUpperCase().startsWith(prefix))
+    // ✅ CORREÇÃO: Filtrar SÓ tags DESTE PRODUTO no AC
+    const currentProductTagsInAC = acTags.filter((tag: string) =>
+      productTagPrefixes.some(prefix => tag.toUpperCase().startsWith(prefix))
     )
+    
+    console.log(`[TagOrchestrator V2] 📊 Tags deste produto no AC: ${currentProductTagsInAC.length}`)
+    if (currentProductTagsInAC.length > 0 && currentProductTagsInAC.length <= 15) {
+      console.log(`[TagOrchestrator V2] Tags: ${currentProductTagsInAC.join(', ')}`)
+    }
 
     // Tags novas (do decision engine)
     const newBOTags = (decisions.tagsToApply || []).map((tag: string) => {
@@ -134,18 +139,18 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
       return fullTag
     })
 
-    // ✅ DIFF: O que remover e o que adicionar
-    const tagsToRemove = currentBOTags.filter((tag: string) => !newBOTags.includes(tag))
-    const tagsToAdd = newBOTags.filter((tag: string) => !currentBOTags.includes(tag))
+    // ✅ DIFF: Comparar tags DESTE PRODUTO no AC com esperadas
+    const tagsToRemove = currentProductTagsInAC.filter((tag: string) => !newBOTags.includes(tag))
+    const tagsToAdd = newBOTags.filter((tag: string) => !currentProductTagsInAC.includes(tag))
 
-    console.log(`[TagOrchestrator V2] Diff calculado:`)
-    console.log(`   Atual: [${currentBOTags.join(', ')}]`)
-    console.log(`   Novo: [${newBOTags.join(', ')}]`)
-    console.log(`   Remover: [${tagsToRemove.join(', ')}]`)
-    console.log(`   Adicionar: [${tagsToAdd.join(', ')}]`)
+    console.log(`[TagOrchestrator V2] Diff calculado (SÓ TAGS DESTE PRODUTO):`)
+    console.log(`   Tags deste produto no AC: [${currentProductTagsInAC.join(', ')}]`)
+    console.log(`   Tags esperadas (Decision Engine): [${newBOTags.join(', ')}]`)
+    console.log(`   Remover (órfãs + antigas): [${tagsToRemove.join(', ')}]`)
+    console.log(`   Adicionar (novas): [${tagsToAdd.join(', ')}]`)
 
     // ═══════════════════════════════════════════════════════════
-    // 4) REMOVER TAGS DESATUALIZADAS
+    // 4) REMOVER TAGS DESATUALIZADAS (só deste produto!)
     // ═══════════════════════════════════════════════════════════
     
     for (const tag of tagsToRemove) {
@@ -170,7 +175,7 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
       await this.logCommunication(userId, productId, result, ctx)
       result.communicationsTriggered = 1
     } else {
-      console.log(`[TagOrchestrator V2] ⏭️ Sem alterações (tags já estão corretas)`)
+      console.log(`[TagOrchestrator V2] ⏭️ Sem alterações (tags deste produto já estão corretas)`)
     }
 
     result.success = true
@@ -186,6 +191,37 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
 
   return result
 }
+
+private getProductTagPrefixes(productCode: string): string[] {
+  const code = productCode.toUpperCase()
+  
+  // ✅ CLAREZA: Produtos CLAREZA têm vários formatos devido a migrações
+  if (code.includes('CLAREZA')) {
+    return [
+      'CLAREZA -',        // Formato novo correto
+      'CLAREZA-',         // Variação sem espaço
+      'CLAREZA_MENSAL',   // Formato antigo (tags órfãs)
+      'CLAREZA_ANUAL'     // Formato antigo (tags órfãs)
+    ]
+  }
+  
+  // ✅ OGI: Produtos OGI
+  if (code.includes('OGI')) {
+    return [
+      'OGI_V1',           // Formato atual
+      'OGI -'             // Se houver variação
+    ]
+  }
+  
+  // ✅ DISCORD
+  if (code.includes('DISCORD')) {
+    return ['DISCORD_COMMUNITY']
+  }
+  
+  // ✅ Default: Usar o código do produto como está
+  return [code]
+}
+
   // ─────────────────────────────────────────────────────────────
   // APPLY / REMOVE (com normalização + sync StudentEngagementState)
   // ─────────────────────────────────────────────────────────────
