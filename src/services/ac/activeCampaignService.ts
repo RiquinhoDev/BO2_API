@@ -232,6 +232,64 @@ async findOrCreateContact(email: string, name?: string): Promise<ACContactApi> {
       throw error
     }
   }
+/**
+ * ✅ Buscar tags de um contacto pelo EMAIL (wrapper do método existente)
+ * 
+ * Este método é um wrapper do getContactTags(contactId) existente
+ * que aceita email em vez de contactId. Útil para o tagOrchestrator
+ * que só tem acesso ao email do user.
+ * 
+ * @param email Email do contacto
+ * @returns Array de nomes de tags (strings simples: ["tag1", "tag2"])
+ */
+async getContactTagsByEmail(email: string): Promise<string[]> {
+  try {
+    console.log(`[AC Service] 🔍 Buscando tags pelo email: ${email}`)
+    
+    // ═══════════════════════════════════════════════════════════
+    // 1. BUSCAR CONTACTO PELO EMAIL
+    // ═══════════════════════════════════════════════════════════
+    const contact = await this.getContactByEmail(email)
+    
+    if (!contact) {
+      console.warn(`[AC Service] ⚠️  Contacto ${email} não existe no AC`)
+      return []
+    }
+    
+    const contactId = contact.contact.id
+    console.log(`[AC Service] ✅ Contacto encontrado (ID: ${contactId})`)
+    
+    // ═══════════════════════════════════════════════════════════
+    // 2. BUSCAR TAGS USANDO MÉTODO EXISTENTE getContactTags(contactId)
+    // ═══════════════════════════════════════════════════════════
+    const contactTagsObjects = await this.getContactTags(contactId)
+    
+    // ═══════════════════════════════════════════════════════════
+    // 3. EXTRAIR SÓ OS NOMES DAS TAGS (strings)
+    // ═══════════════════════════════════════════════════════════
+    const tagNames = contactTagsObjects
+      .map((ct: any) => ct.tag)
+      .filter(Boolean) // Remove null/undefined
+    
+    console.log(`[AC Service] ✅ ${tagNames.length} tags encontradas`)
+    
+    // Log das tags (limitado a 10 para não poluir)
+    if (tagNames.length > 0 && tagNames.length <= 10) {
+      console.log(`[AC Service] Tags: ${tagNames.join(', ')}`)
+    } else if (tagNames.length > 10) {
+      console.log(`[AC Service] Tags (primeiras 10): ${tagNames.slice(0, 10).join(', ')}...`)
+    }
+    
+    return tagNames
+    
+  } catch (error: any) {
+    console.error(`[AC Service] ❌ Erro ao buscar tags do contacto:`)
+    console.error(`[AC Service] ${this.formatError(error)}`)
+    
+    // Retornar array vazio em caso de erro (não bloquear orquestração)
+    return []
+  }
+}
 
   /**
    * Remover tag de um contacto
