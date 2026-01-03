@@ -4,7 +4,8 @@
 // ✅ VERSÃO COMPLETA: Retorna TODOS os campos necessários
 // ════════════════════════════════════════════════════════════
 
-import { UniversalSourceItem } from '../universalSyncService'
+
+import { UniversalSourceItem } from '../../../types/universalSync.types'
 import hotmartHelpers from './hotmart.helpers'
 import type { ProgressData } from './hotmart.helpers'
 

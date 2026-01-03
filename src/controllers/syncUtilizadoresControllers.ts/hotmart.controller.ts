@@ -5,11 +5,12 @@ import { Request, Response } from 'express'
 import axios from 'axios'
 import type { Types } from 'mongoose'
 import { Class, Product, SyncHistory, User } from '../../models'
-import { getUserCountForProduct, getUsersByProduct } from '../../services/userProductService'
+import { getUserCountForProduct, getUsersByProduct } from '../../services/userProducts/userProductService'
 import { ensureUserHistoryModel } from '../../models/UserHistory'
 import { calculateCombinedEngagement } from '../../utils/engagementCalculator'
 import hotmartAdapter from '../../services/syncUtilziadoresServices/hotmartServices/hotmart.adapter'
-import universalSyncService, { SyncError, SyncProgress, SyncWarning } from '../../services/syncUtilziadoresServices/universalSyncService'
+import universalSyncService from '../../services/syncUtilziadoresServices/universalSyncService'
+import { SyncError, SyncProgress, SyncWarning } from '../../types/universalSync.types'
 
 
 // ─────────────────────────────────────────────────────────────

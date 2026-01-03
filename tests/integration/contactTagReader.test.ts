@@ -8,7 +8,7 @@ import mongoose from 'mongoose'
 import contactTagReaderService from '../../src/services/ac/contactTagReader.service'
 import activeCampaignService from '../../src/services/ac/activeCampaignService'
 import User from '../../src/models/user'
-import Product from '../../src/models/Product'
+import Product from '../../src/models/product/Product'
 import UserProduct from '../../src/models/UserProduct'
 import Course from '../../src/models/Course'
 

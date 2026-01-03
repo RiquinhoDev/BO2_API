@@ -7,9 +7,10 @@
 import { Request, Response } from 'express'
 import mongoose from 'mongoose'
 import SyncHistory from '../../models/SyncModels/SyncHistory'
-import conflictDetectionService from '../../services/syncUtilziadoresServices/conflictDetection.service'
-import { ConflictSeverity, ConflictType, ResolutionAction } from '../../models/SyncModels/SyncConflict'
+
+import { ConflictSeverity, ConflictType, ResolutionAction, ISyncConflict } from '../../models/SyncModels/SyncConflict'
 import activitySnapshotService from '../../services/syncUtilziadoresServices/activitySnapshot.service'
+import  conflictDetectionService   from '../../services/syncUtilziadoresServices/conflictDetection.service'
 
 
 // ═══════════════════════════════════════════════════════════
@@ -160,21 +161,21 @@ export const getSyncById = async (req: Request, res: Response): Promise<void> =>
       new mongoose.Types.ObjectId(id)
     )
 
-    res.status(200).json({
-      success: true,
-      message: 'Sync recuperado com sucesso',
-      data: {
-        sync,
-        conflicts: conflicts.map(c => ({
-          id: c._id,
-          type: c.conflictType,
-          severity: c.severity,
-          title: c.title,
-          status: c.status,
-          detectedAt: c.detectedAt
-        }))
-      }
-    })
+res.status(200).json({
+  success: true,
+  message: 'Sync recuperado com sucesso',
+  data: {
+    sync,
+    conflicts: conflicts.map((c: ISyncConflict) => ({
+      id: c._id,
+      type: c.conflictType,
+      severity: c.severity,
+      title: c.title,
+      status: c.status,
+      detectedAt: c.detectedAt
+    }))
+  }
+})
 
   } catch (error: any) {
     console.error('❌ Erro ao buscar sync:', error)

@@ -1,6 +1,6 @@
 // src/controllers/analytics.controller.ts - VERSÃO COMPLETA FINAL MELHORADA
 import { Request, Response } from 'express'
-import { analyticsService } from '../services/analyticsService'
+import { analyticsService } from '../services/analytics/analyticsService'
 import User from '../models/user'
 import { calculateCombinedEngagement } from '../utils/engagementCalculator'
 

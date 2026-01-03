@@ -73,8 +73,7 @@ router.get('/inactivationLists', classesController.getInactivationLists)
 // POST /api/classes/inactivationLists/revert/:id - Reverte inativação
 router.post('/inactivationLists/revert/:id', classesController.revertInactivation)
 
-// ✅ NOVO: POST /api/classes/bulk-inactivate - Inativa alunos em massa em todas as plataformas
-router.post('/bulk-inactivate', bulkInactivateStudents)
+
 
 // ===== PESQUISA DE ESTUDANTES =====
 

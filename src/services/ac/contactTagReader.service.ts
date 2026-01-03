@@ -2,7 +2,7 @@
 // Objetivo: Ler tags do Active Campaign e sincronizar com Backoffice
 
 import UserProduct from '../../models/UserProduct'
-import Product from '../../models/Product'
+import Product from '../../models/product/Product'
 import User from '../../models/user'
 import type { ACContactResponse } from '../../types/activecampaign.types'
 import activeCampaignService from './activeCampaignService'

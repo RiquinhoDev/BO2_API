@@ -1,19 +1,15 @@
 // src/services/engagementService.ts
-import User from '../models/user'
+import User, { IUser } from '../models/user'
 
-// ✅ ATUALIZAR: Função para calcular engagement considerando ambas as plataformas
-export const calculateCombinedEngagement = (user: any): number => {
-  // Prioridade: Hotmart > Curseduca > Legacy
+// (opcional mas recomendado) tipar em vez de any
+export const calculateCombinedEngagement = (user: Pick<IUser, 'hotmart' | 'curseduca'> & any): number => {
   const hotmartEng = user.hotmart?.engagement?.engagementScore
-  const curseducaEng = user.curseduca?.engagement?.engagementScore
+  const curseducaEng = user.curseduca?.engagement?.alternativeEngagement
   const legacyEng = user.engagement
 
-  // ⚠️ IMPORTANTE: NÃO fazer média com Curseduca porque é limitado
-  // Usar Hotmart se disponível, senão Curseduca, senão legacy
   return hotmartEng || curseducaEng || legacyEng || 0
 }
 
-// ✅ NOVO: Obter stats de engagement por plataforma
 export const getEngagementStatsByPlatform = async () => {
   const users = await User.find({ isDeleted: { $ne: true } }).lean()
 
@@ -24,21 +20,19 @@ export const getEngagementStatsByPlatform = async () => {
   }
 
   users.forEach(user => {
-    // Hotmart
     const hotmartEng = user.hotmart?.engagement?.engagementScore
     if (hotmartEng) {
       stats.hotmart.total++
       stats.hotmart.sum += hotmartEng
     }
 
-    // Curseduca
-    const curseducaEng = user.curseduca?.engagement?.engagementScore
+    // ✅ AQUI: alternativeEngagement
+    const curseducaEng = user.curseduca?.engagement?.alternativeEngagement
     if (curseducaEng) {
       stats.curseduca.total++
       stats.curseduca.sum += curseducaEng
     }
 
-    // Combined (prioriza Hotmart)
     const finalEng = calculateCombinedEngagement(user)
     if (finalEng > 0) {
       stats.combined.total++

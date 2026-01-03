@@ -11,9 +11,9 @@ import './Class'
 import './ClassAnalytics'
 import './acTags/CommunicationHistory'
 import './Course'
-import './CronConfig'
-import './CronExecution'
-import './CronExecutionLog'
+import './cron/CronConfig'
+import './cron/CronExecution'
+import './cron/CronExecutionLog'
 import './HotmartWebhook'
 import './IdsDiferentes'
 import './InactivationList'
@@ -24,13 +24,13 @@ import './Testimonial'
 import './UnmatchedUser'
 import './UserAction'
 import './UserHistory'
-import ProductSalesStats from './ProductSalesStats'
+import ProductSalesStats from './product/ProductSalesStats'
 // ===== NOVOS MODELS: RE-ENGAGEMENT SYSTEM =====
-import './ProductProfile'
+import './product/ProductProfile'
 import './StudentEngagementState'
 
 // ===== NOVOS MODELS: ARCHITECTURE V2 =====
-import './Product'
+import './product/Product'
 import './UserProduct'
 
 // ===== SPRINT 5: CONTACT TAG READER =====
@@ -48,9 +48,9 @@ export { Testimonial } from './Testimonial'
 
 export { default as CommunicationHistory } from './acTags/CommunicationHistory'
 export { default as Course } from './Course'
-export { default as CronConfig } from './CronConfig'
-export { default as CronExecution } from './CronExecution'
-export { default as CronExecutionLog } from './CronExecutionLog'
+export { default as CronConfig } from './cron/CronConfig'
+export { default as CronExecution } from './cron/CronExecution'
+export { default as CronExecutionLog } from './cron/CronExecutionLog'
 export { default as HotmartWebhook } from './HotmartWebhook'
 export { default as IdsDiferentes } from './IdsDiferentes'
 export { default as InactivationList } from './InactivationList'
@@ -61,11 +61,11 @@ export { default as UnmatchedUser } from './UnmatchedUser'
 export { default as UserAction } from './UserAction'
 
 // ===== NOVOS EXPORTS: RE-ENGAGEMENT SYSTEM =====
-export { default as ProductProfile } from './ProductProfile'
+export { default as ProductProfile } from './product/ProductProfile'
 export { default as StudentEngagementState } from './StudentEngagementState'
 
 // ===== NOVOS EXPORTS: ARCHITECTURE V2 =====
-export { default as Product } from './Product'
+export { default as Product } from './product/Product'
 export { default as UserProduct } from './UserProduct'
 
 // ===== SPRINT 5: CONTACT TAG READER =====

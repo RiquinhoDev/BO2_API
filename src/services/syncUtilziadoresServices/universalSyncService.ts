@@ -10,7 +10,8 @@ import User, { IUser } from '../../models/user'
 import type { SyncType, TriggerType } from '../../models/SyncModels/SyncReport'
 import mongoose from 'mongoose'
 import { Product, UserProduct } from '../../models'
-import { IProduct } from '../../models/Product'
+import { IProduct } from '../../models/product/Product'
+import { ProcessItemResult, SyncError, SyncWarning, UniversalSourceItem, UniversalSyncConfig, UniversalSyncResult } from '../../types/universalSync.types'
 
 // ═══════════════════════════════════════════════════════════
 // TYPE HELPERS
@@ -28,145 +29,6 @@ function debugLog(...args: any[]) {
   }
 }
 
-function infoLog(...args: any[]) {
-  if (LOG_LEVEL === 'debug' || LOG_LEVEL === 'info') {
-    console.log(...args)
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// TYPES
-// ═══════════════════════════════════════════════════════════
-
-export interface UniversalSourceItem {
-  // Base
-  email?: string
-  name?: string
-
-  // IDs genéricos
-  id?: string
-  userId?: string
-
-  // HOTMART
-  hotmartUserId?: string
-  purchaseDate?: Date | string | null
-  signupDate?: Date | string | null
-  firstAccessDate?: Date | string | null
-  lastAccessDate?: Date | string | null
-  plusAccess?: string
-  classId?: string
-  className?: string
-  productCode?: string // ✅ ADICIONADO
-  currentModule?: number // ✅ ADICIONADO
-    platformData?: {
-    isPrimary?: boolean
-    [key: string]: unknown
-  }
-  // ✅ CORRIGIDO: Estrutura de progresso unificada
-  progress?: {
-    percentage?: number // Para todas as plataformas
-    completed?: number  // Hotmart específico
-    lessons?: Array<{
-      pageId?: string
-      pageName?: string
-      isCompleted?: boolean
-      completedDate?: Date | string | null
-    }>
-  }
-  
-  accessCount?: number | string
-  engagementLevel?: string
-  
-  // ✅ CORRIGIDO: Engagement unificado
-  engagement?: {
-    engagementScore?: number
-  }
-
-  // CURSEDUCA
-  curseducaUserId?: string
-  curseducaUuid?: string
-  groupId?: string | number
-  groupName?: string
-  subscriptionType?: 'MONTHLY' | 'ANNUAL'
-  enrolledAt?: Date | string | null
-  joinedDate?: Date | string | null
-
-  // DISCORD
-  discordUserId?: string
-  username?: string
-  roles?: string[]
-
-  // Extra
-  [key: string]: unknown
-}
-
-export interface UniversalSyncConfig {
-  // Identificação
-  syncType: SyncType
-  jobName: string
-  jobId?: string
-
-  // Trigger
-  triggeredBy: TriggerType
-  triggeredByUser?: string
-
-  // Configurações
-  fullSync: boolean
-  includeProgress: boolean
-  includeTags: boolean
-  batchSize: number
-
-  // Dados da fonte
-  sourceData: UniversalSourceItem | UniversalSourceItem[]
-
-  // Callbacks opcionais
-  onProgress?: (progress: SyncProgress) => void
-  onError?: (error: SyncError) => void
-  onWarning?: (warning: SyncWarning) => void
-}
-
-export interface SyncProgress {
-  current: number
-  total: number
-  percentage: number
-  message: string
-}
-
-export interface SyncError {
-  message: string
-  userId?: string
-  userEmail?: string
-  stack?: string
-  code?: string
-}
-
-export interface SyncWarning {
-  message: string
-  userId?: string
-  context?: string
-}
-
-interface ProcessItemResult {
-  action: 'inserted' | 'updated' | 'unchanged' | 'skipped'
-  userId?: string
-}
-
-export interface UniversalSyncResult {
-  success: boolean
-  reportId: string
-  syncHistoryId: string
-  stats: {
-    total: number
-    inserted: number
-    updated: number
-    errors: number
-    skipped: number
-    unchanged: number
-  }
-  duration: number
-  errors: SyncError[]
-  warnings: SyncWarning[]
-}
 
 // ═══════════════════════════════════════════════════════════
 // HELPERS
@@ -686,22 +548,6 @@ if (lastAccessDate) {
   updateFields['hotmart.lastAccessDate'] = lastAccessDate
   needsUpdate = true
 }
-  // ════════════════════════════════════════════════════════════
-    // ❌ FASE 1: COMENTADO - Progress vai para UserProduct
-    // Data: 2025-12-27
-    // Motivo: User não deve ter progress (fonte única = UserProduct)
-    // ════════════════════════════════════════════════════════════
-    /*
-    // Progress básico
-    if (item.progress !== undefined) {
-      updateFields['hotmart.progress'] = {
-        totalProgress: toNumber(item.progress.percentage, 0),
-        currentModule: toNumber(item.currentModule, 0),
-        lastUpdatedAt: new Date()
-      }
-      needsUpdate = true
-    }
-    */
     // Turmas
     if (item.classId) {
       updateFields['hotmart.enrolledClasses'] = [
@@ -716,48 +562,6 @@ if (lastAccessDate) {
       needsUpdate = true
     }
 
-   // ════════════════════════════════════════════════════════════
-    // ❌ FASE 1: COMENTADO - Progress detalhado vai para UserProduct
-    // Data: 2025-12-27
-    // Motivo: User não deve ter progress (fonte única = UserProduct)
-    // ════════════════════════════════════════════════════════════
-    /*
-    // Progress detalhado (sobrescreve se includeProgress)
-    if (config.includeProgress && item.progress) {
-      updateFields['hotmart.progress'] = {
-        totalTimeMinutes: 0,
-        completedLessons: toNumber(item.progress.completed, 0),
-        lessonsData: (item.progress.lessons || []).map(l => ({
-          lessonId: l.pageId,
-          title: l.pageName,
-          completed: Boolean(l.isCompleted),
-          completedAt: toDateOrNull(l.completedDate),
-          timeSpent: 0
-        })),
-        lastAccessDate: lastAccessDate || new Date()
-      }
-      needsUpdate = true
-    }
-    */
-
-    // ════════════════════════════════════════════════════════════
-    // ❌ FASE 1: COMENTADO - Engagement vai para UserProduct
-    // Data: 2025-12-27
-    // Motivo: User não deve ter engagement (fonte única = UserProduct)
-    // ════════════════════════════════════════════════════════════
-    /*
-    // Engagement
-    if (item.accessCount !== undefined || item.engagementLevel || item.engagement?.engagementScore) {
-      updateFields['hotmart.engagement'] = {
-        accessCount: toNumber(item.accessCount, 0),
-        engagementLevel: item.engagementLevel || 'NONE',
-        engagementScore: item.engagement?.engagementScore || toNumber(item.accessCount, 0),
-        calculatedAt: new Date()
-      }
-      needsUpdate = true
-    }
-    */
-
     // Metadata
     updateFields['hotmart.lastSyncAt'] = new Date()
     updateFields['hotmart.syncVersion'] = '3.0'
@@ -767,11 +571,13 @@ if (lastAccessDate) {
     needsUpdate = true
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // ✅ CURSEDUCA - VERSÃO COMPLETA
-  // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// ✅ CURSEDUCA - VERSÃO COMPLETA COM TODOS OS CAMPOS NOVOS
+// ═══════════════════════════════════════════════════════════
   if (config.syncType === 'curseduca') {
+    // ═══════════════════════════════════════════════════════════
     // IDs
+    // ═══════════════════════════════════════════════════════════
     if (item.curseducaUserId && item.curseducaUserId !== (user as any).curseduca?.curseducaUserId) {
       updateFields['curseduca.curseducaUserId'] = item.curseducaUserId
       needsUpdate = true
@@ -782,89 +588,90 @@ if (lastAccessDate) {
       needsUpdate = true
     }
 
-    // Grupos
-    if (item.groupId) {
-      updateFields['curseduca.groupId'] = String(item.groupId)
-      updateFields['curseduca.groupName'] = item.groupName
-      updateFields['curseduca.groups'] = [
-        {
-          groupId: item.groupId,
-          groupName: item.groupName,
-          joinedAt: new Date()
-        }
-      ]
+    // ═══════════════════════════════════════════════════════════
+    // 🆕 NOVO: enrollmentsCount (quantos produtos o user tem)
+    // ═══════════════════════════════════════════════════════════
+    if (item.platformData?.enrollmentsCount !== undefined) {
+      updateFields['curseduca.enrollmentsCount'] = item.platformData.enrollmentsCount
       needsUpdate = true
     }
 
-    // Subscription Type
+    // ═══════════════════════════════════════════════════════════
+    // GRUPOS
+    // ═══════════════════════════════════════════════════════════
+    if (item.groupId) {
+      updateFields['curseduca.groupId'] = String(item.groupId)
+      needsUpdate = true
+    }
+
+    if (item.groupName) {
+      updateFields['curseduca.groupName'] = item.groupName
+      needsUpdate = true
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // SUBSCRIPTION TYPE
+    // ═══════════════════════════════════════════════════════════
     if (item.subscriptionType) {
       updateFields['curseduca.subscriptionType'] = item.subscriptionType
       needsUpdate = true
     }
 
-    // Member Status
+    // ═══════════════════════════════════════════════════════════
+    // 🆕 NOVO: Situation (ACTIVE/INACTIVE/SUSPENDED)
+    // ═══════════════════════════════════════════════════════════
+    if (item.platformData?.situation) {
+      updateFields['curseduca.situation'] = item.platformData.situation
+      needsUpdate = true
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // MEMBER STATUS (retrocompatibilidade)
+    // ═══════════════════════════════════════════════════════════
     updateFields['curseduca.memberStatus'] = 'ACTIVE'
     needsUpdate = true
 
-    // Datas
-const lastAccess = toDateOrNull(item.lastAccess)
-if (lastAccess) {
-  updateFields['curseduca.lastAccess'] = lastAccess
-  needsUpdate = true
-}
+    // ═══════════════════════════════════════════════════════════
+    // DATAS
+    // ═══════════════════════════════════════════════════════════
+    
+    // lastAccess (retrocompatibilidade)
+    const lastAccess = toDateOrNull(item.lastAccess)
+    if (lastAccess) {
+      updateFields['curseduca.lastAccess'] = lastAccess
+      needsUpdate = true
+    }
 
- // ════════════════════════════════════════════════════════════
-    // ❌ FASE 1: COMENTADO - Progress vai para UserProduct
-    // Data: 2025-12-27
-    // Motivo: User não deve ter progress (fonte única = UserProduct)
-    // ════════════════════════════════════════════════════════════
-    /*
-    // Progress
+    // 🆕 NOVO: lastLogin (do endpoint /members/{id})
+    const lastLogin = toDateOrNull(item.lastLogin)
+    if (lastLogin) {
+      updateFields['curseduca.lastLogin'] = lastLogin
+      needsUpdate = true
+    }
+
+    // 🆕 NOVO: enrolledAt → joinedDate
+    const enrolledAt = toDateOrNull(item.enrolledAt)
+    if (enrolledAt) {
+      updateFields['curseduca.joinedDate'] = enrolledAt
+      needsUpdate = true
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // PROGRESSO
+    // ═══════════════════════════════════════════════════════════
     if (item.progress?.percentage !== undefined) {
-      const progressPercentage = toNumber(item.progress.percentage, 0)
-      
-      updateFields['curseduca.progress'] = {
-        estimatedProgress: progressPercentage,
-        activityLevel: progressPercentage > 50 ? 'HIGH' : 
-                      progressPercentage > 20 ? 'MEDIUM' : 'LOW',
-        groupEngagement: 0,
-        progressSource: 'estimated'
-      }
+      updateFields['curseduca.progress.estimatedProgress'] = toNumber(item.progress.percentage, 0)
       needsUpdate = true
     }
-    */
 
-    // ════════════════════════════════════════════════════════════
-    // ❌ FASE 1: COMENTADO - Engagement vai para UserProduct
-    // Data: 2025-12-27
-    // Motivo: User não deve ter engagement (fonte única = UserProduct)
-    // ════════════════════════════════════════════════════════════
-    /*
-    // Engagement
-    if (item.progress?.percentage !== undefined || item.engagement?.engagementScore !== undefined) {
-      const engagementScore = item.engagement?.engagementScore || 
-                             (item.progress?.percentage ? toNumber(item.progress.percentage, 0) * 2 : 0)
-      
-      updateFields['curseduca.engagement'] = {
-        alternativeEngagement: Math.min(100, engagementScore),
-        activityLevel: engagementScore > 50 ? 'HIGH' : 
-                      engagementScore > 20 ? 'MEDIUM' : 'LOW',
-        engagementLevel: engagementScore > 75 ? 'MUITO_ALTO' :
-                        engagementScore > 50 ? 'ALTO' :
-                        engagementScore > 25 ? 'MEDIO' :
-                        engagementScore > 10 ? 'BAIXO' : 'MUITO_BAIXO',
-        calculatedAt: new Date()
-      }
-      needsUpdate = true
-    }
-    */
-
-    // Metadata
+    // ═══════════════════════════════════════════════════════════
+    // METADATA DE SYNC
+    // ═══════════════════════════════════════════════════════════
     updateFields['curseduca.lastSyncAt'] = new Date()
-    updateFields['curseduca.syncVersion'] = '2.0'
+    updateFields['curseduca.syncVersion'] = '3.1'  // ✅ Versão atualizada
     updateFields['metadata.updatedAt'] = new Date()
     updateFields['metadata.sources.curseduca.lastSync'] = new Date()
-    updateFields['metadata.sources.curseduca.version'] = '2.0'
+    updateFields['metadata.sources.curseduca.version'] = '3.1'
     needsUpdate = true
   }
 
@@ -1341,54 +1148,6 @@ const metrics = {
   debugLog(`   ✅ Métricas calculadas para ${product.code}`)
   
   return metrics
-}
-
-
-/**
- * 📝 HELPER: Converter Date para timestamp seguro
- */
-function toTimestamp(date: any): number {
-  if (!date) return Date.now()
-  if (date instanceof Date) return date.getTime()
-  if (typeof date === 'string') return new Date(date).getTime()
-  return Date.now()
-}
-
-/**
- * 🧪 TESTE RÁPIDO (remover em produção)
- */
-export function testCalculateEngagementMetrics() {
-  const mockUser: any = {
-    email: 'test@mail.com',
-    hotmart: {
-      lastLogin: new Date('2025-12-10'), // 16 dias atrás
-      purchase: { value: 297 },
-      engagement: { accessCount: 42 }
-    },
-    curseduca: {
-      lastActionDate: new Date('2025-12-24'), // 2 dias atrás
-      subscriptionValue: 147
-    },
-    createdAt: new Date('2025-01-01')
-  }
-
-  const ogiProduct: any = {
-    code: 'OGI_V1',
-    platform: 'hotmart'
-  }
-
-  const clarezaProduct: any = {
-    code: 'CLAREZA_ANUAL',
-    platform: 'curseduca'
-  }
-
-  console.log('\n🧪 TESTE: OGI (Hotmart)')
-  const ogiMetrics = calculateEngagementMetricsForUserProduct(mockUser, ogiProduct)
-  console.log(JSON.stringify(ogiMetrics, null, 2))
-
-  console.log('\n🧪 TESTE: Clareza (CursEduca)')
-  const clarezaMetrics = calculateEngagementMetricsForUserProduct(mockUser, clarezaProduct)
-  console.log(JSON.stringify(clarezaMetrics, null, 2))
 }
 
 // ═══════════════════════════════════════════════════════════

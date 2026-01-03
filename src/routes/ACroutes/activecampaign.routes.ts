@@ -37,7 +37,6 @@ getHistoryStats,
   getACStats,
   syncProductTags
 } from '../../controllers/acTags/activecampaign.controller'
-import { testSingleUserForce } from '../../controllers/testes/testSingleUser-controller'
 
 
 const router = Router()
@@ -102,7 +101,6 @@ router.delete('/tag-rules/:id', deleteTagRule)
 // GET /api/activecampaign/communication-history
 router.get('/communication-history', getCommunicationHistory)
 router.get('/history/stats', getHistoryStats)
-router.post('/test-single-user', testSingleUserForce)
 // ─────────────────────────────────────────────────────────────
 // V2 - TAGS POR PRODUTO
 // ─────────────────────────────────────────────────────────────

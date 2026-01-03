@@ -9,9 +9,9 @@ import {
   ACContact, 
   ACContactApi, 
   ACContactResponse, 
-  ACTag, 
   ACTagResponse 
 } from '../../types/activecampaign.types'
+import { User, UserProduct } from '../../models'
 
 // ─────────────────────────────────────────────────────────────
 // CLASSE PRINCIPAL
@@ -199,7 +199,27 @@ async findOrCreateContact(email: string, name?: string): Promise<ACContactApi> {
    */
   async addTag(email: string, tagName: string): Promise<ACTagResponse> {
     await this.checkRateLimit()
-
+  console.log('\n🔍 ═'.repeat(40))
+  console.log('🔍 [MONITOR] addTag() CHAMADO!')
+  console.log(`🔍 [MONITOR] Email: ${email}`)
+  console.log(`🔍 [MONITOR] Tag: "${tagName}"`)
+  console.log(`🔍 [MONITOR] Timestamp: ${new Date().toISOString()}`)
+  console.log('🔍 [MONITOR] Stack trace:')
+  
+  const stack = new Error().stack
+  if (stack) {
+    const lines = stack.split('\n')
+    const relevantLines = lines
+      .filter(line => !line.includes('node_modules'))
+      .slice(0, 10)
+    
+    relevantLines.forEach(line => {
+      console.log(`🔍 [MONITOR]    ${line.trim()}`)
+    })
+  }
+  
+  console.log('🔍 ═'.repeat(40))
+  console.log()
     try {
       // 1. Garantir que contacto existe
       let contact = await this.getContactByEmail(email)
@@ -291,91 +311,230 @@ async getContactTagsByEmail(email: string): Promise<string[]> {
   }
 }
 
-  /**
-   * Remover tag de um contacto
-   */
-async removeTag(email: string, tagName: string): Promise<boolean> {
+/**
+ * ✅ FIX: Remover tag de um contacto (COM VERIFICAÇÃO!)
+ * 
+ * ANTES: Sempre retornava TRUE (mesmo se falhou)
+ * DEPOIS: Verifica se tag foi REALMENTE removida
+ * 
+ * @param email Email do contacto
+ * @param tagName Nome da tag a remover
+ * @param maxRetries Número máximo de tentativas (default: 3)
+ * @returns TRUE se removida, FALSE se falhou
+ */
+async removeTag(
+  email: string, 
+  tagName: string,
+  maxRetries: number = 3
+): Promise<boolean> {
   await this.checkRateLimit()
 
   console.log(`[AC Service] 🗑️  removeTag() INICIADO`)
   console.log(`   email: ${email}`)
   console.log(`   tagName: ${tagName}`)
+  console.log(`   maxRetries: ${maxRetries}`)
 
+  // ═══════════════════════════════════════════════════════════
+  // PASSO 1: BUSCAR CONTACTO
+  // ═══════════════════════════════════════════════════════════
+  
   try {
-    // ═══════════════════════════════════════════════════════════
-    // 1. BUSCAR CONTACTO
-    // ═══════════════════════════════════════════════════════════
-    console.log(`[AC Service] 📡 PASSO 1/4: Buscando contacto...`)
+    console.log(`[AC Service] 📡 PASSO 1/5: Buscando contacto...`)
     const contact = await this.getContactByEmail(email)
     
     if (!contact) {
-      console.warn(`[AC Service] ⚠️  PASSO 1/4 FALHOU: Contacto ${email} não existe.`)
+      console.warn(`[AC Service] ⚠️  PASSO 1/5 FALHOU: Contacto ${email} não existe.`)
       return false
     }
     
-    console.log(`[AC Service] ✅ PASSO 1/4: Contacto encontrado (ID: ${contact.contact.id})`)
+    console.log(`[AC Service] ✅ PASSO 1/5: Contacto encontrado (ID: ${contact.contact.id})`)
 
     // ═══════════════════════════════════════════════════════════
-    // 2. BUSCAR TAG
+    // PASSO 2: BUSCAR TAG
     // ═══════════════════════════════════════════════════════════
-    console.log(`[AC Service] 📡 PASSO 2/4: Buscando tag "${tagName}"...`)
+    
+    console.log(`[AC Service] 📡 PASSO 2/5: Buscando tag "${tagName}"...`)
     const tagId = await this.findTagByName(tagName)
     
     if (!tagId) {
-      console.warn(`[AC Service] ⚠️  PASSO 2/4 FALHOU: Tag "${tagName}" não existe no AC.`)
-      console.warn(`[AC Service] 💡 Isto significa que a tag nunca foi criada no Active Campaign!`)
-      return false
+      console.warn(`[AC Service] ⚠️  PASSO 2/5: Tag "${tagName}" não existe no AC.`)
+      console.warn(`[AC Service] ℹ️  Tag nunca foi criada, considerando como removida.`)
+      return true  // Tag não existe = já está "removida"
     }
     
-    console.log(`[AC Service] ✅ PASSO 2/4: Tag encontrada (ID: ${tagId})`)
+    console.log(`[AC Service] ✅ PASSO 2/5: Tag encontrada (ID: ${tagId})`)
 
     // ═══════════════════════════════════════════════════════════
-    // 3. BUSCAR ASSOCIAÇÃO CONTACTTAG
+    // PASSO 3: BUSCAR ASSOCIAÇÃO CONTACTTAG
     // ═══════════════════════════════════════════════════════════
-    console.log(`[AC Service] 📡 PASSO 3/4: Buscando associação contactTag...`)
+    
+    console.log(`[AC Service] 📡 PASSO 3/5: Buscando associação contactTag...`)
     const contactTagId = await this.findContactTag(contact.contact.id, tagId)
     
     if (!contactTagId) {
-      console.warn(`[AC Service] ⚠️  PASSO 3/4 FALHOU: Contacto ${email} não tem tag "${tagName}".`)
-      console.warn(`[AC Service] 💡 A tag existe no AC mas NÃO está aplicada a este contacto!`)
+      console.warn(`[AC Service] ⚠️  PASSO 3/5: Contacto não tem tag "${tagName}".`)
+      console.warn(`[AC Service] ℹ️  Tag já não está aplicada, considerando como removida.`)
+      return true  // Tag não está aplicada = já está removida
+    }
+    
+    console.log(`[AC Service] ✅ PASSO 3/5: Associação encontrada (contactTagId: ${contactTagId})`)
+
+    // ═══════════════════════════════════════════════════════════
+    // PASSO 4: TENTAR REMOVER (COM RETRY)
+    // ═══════════════════════════════════════════════════════════
+    
+    console.log(`[AC Service] 📡 PASSO 4/5: Removendo associação...`)
+    
+    let attempt = 0
+    let deleted = false
+    
+    while (attempt < maxRetries && !deleted) {
+      attempt++
+      console.log(`[AC Service]    Tentativa ${attempt}/${maxRetries}...`)
+      
+      try {
+        // DELETE request
+        await this.retryRequest(async () => {
+          await this.client.delete(`/api/3/contactTags/${contactTagId}`)
+        })
+        
+        console.log(`[AC Service]    ✅ DELETE executado (HTTP 200 OK)`)
+        
+        // Aguardar 2 segundos para AC processar
+        console.log(`[AC Service]    ⏱️  Aguardando 2s para AC processar...`)
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        // ✅ NOVO: VERIFICAR se tag foi REALMENTE removida
+        console.log(`[AC Service]    🔍 Verificando se tag foi removida...`)
+        const tagsAfter = await this.getContactTagsByEmail(email)
+        
+        if (tagsAfter.includes(tagName)) {
+          console.warn(`[AC Service]    ❌ Tag "${tagName}" AINDA PRESENTE após DELETE!`)
+          
+          if (attempt < maxRetries) {
+            console.log(`[AC Service]    🔄 Aguardando 3s antes de retry...`)
+            await new Promise(resolve => setTimeout(resolve, 3000))
+          }
+        } else {
+          console.log(`[AC Service]    ✅ Verificação OK: Tag realmente removida!`)
+          deleted = true
+        }
+        
+      } catch (error: any) {
+        console.error(`[AC Service]    ❌ Erro no DELETE:`, error.message)
+        
+        if (attempt < maxRetries) {
+          console.log(`[AC Service]    🔄 Aguardando 3s antes de retry...`)
+          await new Promise(resolve => setTimeout(resolve, 3000))
+        }
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // PASSO 5: RESULTADO FINAL
+    // ═══════════════════════════════════════════════════════════
+    
+    if (deleted) {
+      console.log(`[AC Service] ✅ PASSO 4/5: Tag removida com sucesso!`)
+      console.log(`[AC Service] ═`.repeat(40))
+      console.log(`[AC Service] ✅ Tag "${tagName}" VERIFICADA: REMOVIDA DO AC!`)
+      console.log(`[AC Service] ═`.repeat(40))
+      return true
+    } else {
+      console.error(`[AC Service] ❌ PASSO 4/5: FALHA após ${maxRetries} tentativas!`)
+      console.error(`[AC Service] ═`.repeat(40))
+      console.error(`[AC Service] 🚨 Tag "${tagName}" NÃO foi removida do AC!`)
+      console.error(`[AC Service] ═`.repeat(40))
       return false
     }
     
-    console.log(`[AC Service] ✅ PASSO 3/4: Associação encontrada (contactTagId: ${contactTagId})`)
-
-    // ═══════════════════════════════════════════════════════════
-    // 4. REMOVER ASSOCIAÇÃO (PEDIDO DELETE À API)
-    // ═══════════════════════════════════════════════════════════
-    console.log(`[AC Service] 📡 PASSO 4/4: Removendo associação (DELETE /api/3/contactTags/${contactTagId})...`)
-    
-    await this.retryRequest(async () => {
-      await this.client.delete(`/api/3/contactTags/${contactTagId}`)
-    })
-
-    console.log(`[AC Service] ✅ PASSO 4/4: DELETE executado com sucesso!`)
-    console.log(`[AC Service] ✅ Tag "${tagName}" removida de ${email} NO ACTIVE CAMPAIGN!`)
-    return true
-
-  } catch (error) {
-    console.error(`[AC Service] ❌ ERRO FATAL ao remover tag "${tagName}" de ${email}:`)
-    console.error(`[AC Service] ❌ ${this.formatError(error)}`)
-    console.error(error)
+  } catch (error: any) {
+    console.error(`[AC Service] ❌ ERRO FATAL em removeTag():`)
+    console.error(`[AC Service] ❌ ${error.message}`)
+    console.error(error.stack)
     return false
   }
 }
+async removeTagBatch(
+  email: string,
+  tagNames: string[],
+  batchSize: number = 3
+): Promise<{
+  success: string[]
+  failed: string[]
+  total: number
+}> {
+  console.log(`[AC Service] 🗑️  removeTagBatch() INICIADO`)
+  console.log(`   email: ${email}`)
+  console.log(`   tags: ${tagNames.length}`)
+  console.log(`   batchSize: ${batchSize}`)
 
+  const result = {
+    success: [] as string[],
+    failed: [] as string[],
+    total: tagNames.length
+  }
 
-  /**
-   * Remover múltiplas tags de um contacto
-   */
+  // Processar em batches
+  for (let i = 0; i < tagNames.length; i += batchSize) {
+    const batch = tagNames.slice(i, i + batchSize)
+    
+    console.log(`[AC Service] 📦 Processando batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(tagNames.length / batchSize)}`)
+    console.log(`[AC Service]    Tags: ${batch.join(', ')}`)
+    
+    // Processar batch em paralelo
+    const promises = batch.map(tag => this.removeTag(email, tag))
+    const results = await Promise.all(promises)
+    
+    // Categorizar resultados
+    batch.forEach((tag, idx) => {
+      if (results[idx]) {
+        result.success.push(tag)
+      } else {
+        result.failed.push(tag)
+      }
+    })
+    
+    // Rate limit entre batches
+    if (i + batchSize < tagNames.length) {
+      console.log(`[AC Service] ⏱️  Aguardando 2s antes do próximo batch...`)
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    }
+  }
+
+  console.log(`[AC Service] ═`.repeat(40))
+  console.log(`[AC Service] 📊 RESULTADO removeTagBatch():`)
+  console.log(`[AC Service]    ✅ Sucesso: ${result.success.length}/${result.total}`)
+  console.log(`[AC Service]    ❌ Falha: ${result.failed.length}/${result.total}`)
+  
+  if (result.failed.length > 0) {
+    console.log(`[AC Service]    Tags que falharam:`)
+    result.failed.forEach(tag => console.log(`[AC Service]       - ${tag}`))
+  }
+  
+  console.log(`[AC Service] ═`.repeat(40))
+
+  return result
+}
+
+// ═══════════════════════════════════════════════════════════
+// ATUALIZAR MÉTODO removeTags() PARA USAR removeTagBatch()
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * ✅ ATUALIZADO: Remover múltiplas tags (usa removeTagBatch)
+ */
 async removeTags(email: string, tagNames: string[]): Promise<void> {
   console.log(`[removeTags] 🗑️  Removendo ${tagNames.length} tags de ${email}`)
   
-  for (const tagName of tagNames) {
-    await this.removeTag(email, tagName)
+  const result = await this.removeTagBatch(email, tagNames)
+  
+  if (result.failed.length > 0) {
+    console.warn(`[removeTags] ⚠️  ${result.failed.length} tags falharam:`)
+    result.failed.forEach(tag => console.warn(`[removeTags]    - ${tag}`))
   }
   
-  console.log(`[removeTags] ✅ ${tagNames.length} tags processadas`)
+  console.log(`[removeTags] ✅ ${result.success.length} tags removidas com sucesso`)
 }
 
   // ═══════════════════════════════════════════════════════════
@@ -545,7 +704,7 @@ async applyTagToUserProduct(
 
     // 1. Buscar User e Product
     const User = (await import('../../models/user')).default
-    const Product = (await import('../../models/Product')).default
+    const Product = (await import('../../models/product/Product')).default
     const UserProduct = (await import('../../models/UserProduct')).default
 
     const user = await User.findById(userId)
@@ -598,47 +757,106 @@ async removeTagFromUserProduct(
   productId: string,
   tagName: string
 ): Promise<boolean> {
+  console.log('[AC Service] 🔍 removeTagFromUserProduct() INICIADO')
+  console.log('[AC Service] ═'.repeat(40))
+  console.log(`[AC Service]    userId: ${userId}`)
+  console.log(`[AC Service]    productId: ${productId}`)
+  console.log(`[AC Service]    tagName: "${tagName}"`)
+  console.log('[AC Service] ═'.repeat(40))
+
   try {
-    console.log(`[AC Service] Removing tag "${tagName}" from userId=${userId}, productId=${productId}`)
-
-    // 1. Buscar User e Product
-    const User = (await import('../../models/user')).default
-    const Product = (await import('../../models/Product')).default
-    const UserProduct = (await import('../../models/UserProduct')).default
-
-    const user = await User.findById(userId)
-    const product = await Product.findById(productId)
-
-    if (!user || !product) {
-      console.error('[AC Service] User or Product not found')
-      return false
-    }
-
-    // 2. ✅ REMOVER TAG DIRETAMENTE (sem adicionar prefixo!)
-    await this.removeTag(user.email, tagName)  // ← SEM PREFIXO!
-
-    // 3. Atualizar UserProduct.activeCampaignData.tags
+    // 1. Buscar UserProduct
+    console.log('[AC Service] 📡 PASSO 1/4: Buscando UserProduct...')
+    
     const userProduct = await UserProduct.findOne({ userId, productId })
     
-    if (userProduct) {
-      await UserProduct.findByIdAndUpdate(userProduct._id, {
-        $pull: {
-          'activeCampaignData.tags': tagName  // ← SEM PREFIXO!
-        },
-        $set: {
-          'activeCampaignData.lastSyncAt': new Date()
-        }
-      })
-
-      console.log(`[AC Service] ✅ Tag "${tagName}" removed from UserProduct`)
+    if (!userProduct) {
+      console.log('[AC Service] ❌ PASSO 1/4: UserProduct NÃO encontrado!')
+      return false
     }
-
+    
+    console.log('[AC Service] ✅ PASSO 1/4: UserProduct encontrado')
+    console.log(`[AC Service]    _id: ${userProduct._id}`)
+    
+    // 2. Buscar User (para email)
+    console.log('[AC Service] 📡 PASSO 2/4: Buscando User...')
+    
+    const user = await User.findById(userId)
+    
+    if (!user?.email) {
+      console.log('[AC Service] ❌ PASSO 2/4: User NÃO encontrado ou sem email!')
+      return false
+    }
+    
+    console.log('[AC Service] ✅ PASSO 2/4: User encontrado')
+    console.log(`[AC Service]    email: ${user.email}`)
+    
+    // 3. REMOVER do Active Campaign
+    console.log('[AC Service] 📡 PASSO 3/4: Removendo tag do AC...')
+    console.log(`[AC Service]    Chamando: removeTag("${user.email}", "${tagName}")`)
+    
+    const removedFromAC = await this.removeTag(user.email, tagName)
+    
+    if (!removedFromAC) {
+      console.log('[AC Service] ⚠️  PASSO 3/4: removeTag() retornou FALSE!')
+      console.log('[AC Service] ⚠️  Tag NÃO foi removida do Active Campaign!')
+      // Continuar mesmo assim para remover da BD
+    } else {
+      console.log('[AC Service] ✅ PASSO 3/4: Tag removida do AC com sucesso!')
+    }
+    
+    // 4. REMOVER da BD (UserProduct.activeCampaignData.tags)
+    console.log('[AC Service] 📡 PASSO 4/4: Removendo tag da BD...')
+    
+    const currentTags = userProduct.activeCampaignData?.tags || []
+    console.log(`[AC Service]    Tags ANTES: ${currentTags.length}`)
+    currentTags.forEach((tag: string, i: number) => {
+      console.log(`[AC Service]       ${i + 1}. "${tag}"`)
+    })
+    
+    const tagExists = currentTags.includes(tagName)
+    console.log(`[AC Service]    Tag "${tagName}" existe na BD? ${tagExists ? 'SIM' : 'NÃO'}`)
+    
+    if (!tagExists) {
+      console.log('[AC Service] ⚠️  PASSO 4/4: Tag NÃO estava na BD!')
+      console.log('[AC Service] ℹ️  Possível inconsistência: tag no AC mas não na BD')
+    }
+    
+    // Filtrar tag
+    const updatedTags = currentTags.filter((t: string) => t !== tagName)
+    console.log(`[AC Service]    Tags DEPOIS: ${updatedTags.length}`)
+    
+    if (updatedTags.length === currentTags.length) {
+      console.log('[AC Service] ⚠️  NENHUMA tag foi removida da lista!')
+    } else {
+      console.log(`[AC Service] ✅ Tag "${tagName}" removida da lista`)
+    }
+    
+    // Atualizar BD
+    if (!userProduct.activeCampaignData) {
+      userProduct.activeCampaignData = { tags: [] }
+    }
+    
+    userProduct.activeCampaignData.tags = updatedTags
+    userProduct.activeCampaignData.lastSyncAt = new Date()
+    
+    await userProduct.save()
+    
+    console.log('[AC Service] ✅ PASSO 4/4: BD atualizada!')
+    console.log('[AC Service] ═'.repeat(40))
+    console.log(`[AC Service] ✅ Tag "${tagName}" removed from UserProduct`)
+    console.log('[AC Service] ═'.repeat(40))
+    
     return true
+    
   } catch (error: any) {
-    console.error(`[AC Service] Error removing tag from UserProduct: ${this.formatError(error)}`)
+    console.error('[AC Service] ❌ ERRO FATAL em removeTagFromUserProduct:')
+    console.error(`[AC Service] ❌ ${error.message}`)
+    console.error(error.stack)
     return false
   }
 }
+
 
   /**
    * Sincronizar contacto no AC baseado em um produto específico
@@ -649,7 +867,7 @@ async removeTagFromUserProduct(
   async syncContactByProduct(userId: string, productId: string): Promise<any> {
     try {
       const User = (await import('../../models/user')).default
-      const Product = (await import('../../models/Product')).default
+      const Product = (await import('../../models/product/Product')).default
       const UserProduct = (await import('../../models/UserProduct')).default
 
       const user = await User.findById(userId)
@@ -693,7 +911,7 @@ async removeTagFromUserProduct(
   async removeAllProductTags(userId: string, productId: string): Promise<boolean> {
     try {
       const User = (await import('../../models/user')).default
-      const Product = (await import('../../models/Product')).default
+      const Product = (await import('../../models/product/Product')).default
       const UserProduct = (await import('../../models/UserProduct')).default
 
       const user = await User.findById(userId)

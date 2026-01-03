@@ -2,12 +2,12 @@
 // 📊 COHORT ANALYTICS SERVICE
 // ════════════════════════════════════════════════════════════
 
-import UserProduct from '../models/UserProduct'
+import UserProduct from '../../models/UserProduct'
 import { 
   CohortRetentionData, 
   CohortMetrics, 
   CohortAnalysisFilters 
-} from '../types/cohortTypes'
+} from '../../types/cohortTypes'
 import moment from 'moment'
 
 class CohortAnalyticsService {

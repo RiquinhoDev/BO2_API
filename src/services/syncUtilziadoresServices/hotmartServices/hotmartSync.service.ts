@@ -11,7 +11,7 @@
 
 import { Product, User } from "../../../models"
 import logger from "../../../utils/logger"
-import { dualWriteUserData } from "../../userProductService"
+import { dualWriteUserData } from "../../userProducts/userProductService"
 import hotmartAdapter from "./hotmart.adapter"
 
 

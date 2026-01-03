@@ -13,9 +13,9 @@ import SyncHistory from "../models/SyncHistory"
 import StudentClassHistory from "../models/StudentClassHistory"
 import { Class } from "../models/Class"
 import { cacheService } from "../services/cache.service"
-import { getUserCountsByPlatform, getUserCountsByProduct, getUserWithProducts } from "../services/userProductService"
+import { getUserCountsByPlatform, getUserCountsByProduct, getUsersForProduct, getUserWithProducts } from "../services/userProducts/userProductService"
 import { UserProduct } from "../models"
-import { getUsersForProduct } from "../services/productUsers.service"
+
 
 
 type PipelineStage = mongoose.PipelineStage

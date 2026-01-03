@@ -127,7 +127,9 @@ class TagApplicationService {
         }
       }
     }
-
+    console.log('⚠️ tagApplicationService.applyTagsForAllProducts() DESATIVADO')
+    console.log('⚠️ Teste para verificar se é este serviço que re-aplica tags órfãs')
+  
     return {
       executions: totalExecutions,
       users: totalUsers,
