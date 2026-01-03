@@ -10,7 +10,7 @@
 
 import cron from 'node-cron'
 import CommunicationHistory from '../models/acTags/CommunicationHistory'
-import CronExecutionLog from '../models/CronExecutionLog'
+import CronExecutionLog from '../models/cron/CronExecutionLog'
 
 // Configuração: quantos dias manter (180 = 6 meses)
 const DAYS_TO_KEEP = parseInt(process.env.HISTORY_RETENTION_DAYS || '180')

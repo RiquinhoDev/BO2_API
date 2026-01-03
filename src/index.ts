@@ -1,4 +1,3 @@
-// ⚠️ CRITICAL: dotenv.config() MUST be the first thing executed!
 import dotenv from "dotenv"
 dotenv.config()
 
@@ -7,36 +6,23 @@ import cors from "cors"
 import mongoose from "mongoose"
 import router from "./routes"
 
-// ✅ SPRINT 7: Importar sistema de monitorização
 import metricsMiddleware from "./middleware/metrics.middleware"
 import metricsRoutes from "./routes/metrics.routes"
 import systemMonitor from "./services/systemMonitor.service"
 import productSalesStatsRoutes from './routes/productSalesStats.routes'
-
-// ✅ ACTIVE CAMPAIGN: Importar CRON job e rotas
 import './jobs/evaluateRules.job'
 import activecampaignRoutes from './routes/ACroutes/activecampaign.routes'
 import webhooksRoutes from './routes/webhooks.routes'
 import healthRoutes from './routes/health.routes'
-
-// ⚠️ DESATIVADO 27/12/2025: Sistema V1 substituído por DailyPipeline
-// import cronManagementService from './services/cronManagement.service'
-
-// 🆕 SYNC UTILIZADORES FASE 1: Importar NOVO scheduler (nome diferente!)
 import syncSchedulerService from './services/syncUtilziadoresServices/scheduler'
-
-// 🔥 WARM-UP: Importar função de pré-aquecimento do cache
-import { warmUpCache } from './services/dualReadService'
+import { warmUpCache } from './services/syncUtilziadoresServices/dualReadService'
 import cronManagementRoutes from './routes/cron/cronManagement.routes'
 
-// 📊 DASHBOARD STATS: Importar CRON job de rebuild
 
 import { buildDashboardStats } from './services/dashboardStatsBuilder.service'
 
-// 🧹 CLEANUP: Importar CRON job de limpeza de histórico
 import './jobs/cronExecutionCleanup.job'  // ✅ SÓ ISTO! Nada mais!
 
-// ✅ ACTIVE CAMPAIGN: Importar controllers para Tag Rules e Communication History
 import {
   getAllTagRules,
   createTagRule,
@@ -61,8 +47,8 @@ import "./models/Course"
 import "./models/acTags/TagRule"
 import "./models/UserAction"
 import "./models/acTags/CommunicationHistory"
-import "./models/CronConfig"
-import "./models/CronExecution"
+import "./models/cron/CronConfig"
+import "./models/cron/CronExecution"
 import "./models/DashboardStats"
 
 // 🆕 SYNC UTILIZADORES FASE 1: Importar novos modelos
@@ -75,8 +61,7 @@ import "./models"
 
 // Importar inicializador de CRON jobs
 import jobScheduler from "./jobs"
-// import { startRebuildProductSalesStatsJob } from "./jobs/rebuildProductSalesStats.job"
-import analyticsCacheService from "./services/analyticsCache.service"
+import analyticsCacheService from "./services/analytics/analyticsCache.service"
 import cohortAnalyticsRoutes from './routes/cohortAnalytics.routes'
 
 const app = express()
@@ -94,29 +79,7 @@ mongoose.connect(process.env.MONGO_URI || "")
       console.error("⚠️ Erro ao inicializar jobs (continuando sem jobs):", error)
     }
 
- // ════════════════════════════════════════════════════════════
-    // ⚠️ SISTEMA ANTIGO DESATIVADO (27/12/2025)
-    // ════════════════════════════════════════════════════════════
-    // Motivo: TAG_RULES_SYNC duplicava STEP 4 do DailyPipeline
-    // 
-    // O DailyPipeline (src/jobs/dailyPipeline.job.ts) já executa:
-    //   - STEP 1: Sync Hotmart
-    //   - STEP 2: Sync CursEduca  
-    //   - STEP 3: Recalc Engagement
-    //   - STEP 4: Tag Rules ← JÁ COBERTO!
-    //
-    // Se precisares executar manualmente:
-    //   POST http://localhost:3001/api/cron/execute-legacy
-    // ════════════════════════════════════════════════════════════
-  /*
-    // ✅ CRON MANAGEMENT: Inicializar CRON jobs de gestão (sistema antigo)
-    // try {
-    //   await cronManagementService.initializeCronJobs()
-    //   console.log("✅ CRON Management (antigo) iniciado com sucesso")
-    // } catch (error) {
-    //   console.error("⚠️ Erro ao inicializar CRON Management:", error)
-    // }
-    */
+
     console.log("⏭️ CRON Management (antigo) desativado - usando DailyPipeline às 02:00")
 
     // 🆕 SYNC UTILIZADORES FASE 1: Inicializar NOVO scheduler
@@ -159,8 +122,6 @@ mongoose.connect(process.env.MONGO_URI || "")
     console.log('✅ Servidor 100% PRONTO!')
     console.log('✅ ============================================\n')
     
-    // 📊 DASHBOARD STATS: Iniciar CRON job de rebuild
-    // startRebuildDashboardStatsJob()
 
     // 📊 PRODUCT SALES: Iniciar CRON job se habilitado
     if (process.env.ENABLE_PRODUCT_SALES_CRON !== 'false') {
@@ -210,10 +171,6 @@ app.delete('/api/tag-rules/:id', deleteTagRule)
 // Communication History
 app.get('/api/communication-history', getCommunicationHistory)
 app.use('/cron-tags', cronManagementRoutes)
-// 🆕 SYNC UTILIZADORES FASE 1: As rotas são adicionadas no router principal
-// Ver src/routes/index.ts onde estão:
-// router.use('/cron', cronRoutes)
-// router.use('/sync', syncStatsRoutes)
 
 // Logs de confirmação
 console.log('✅ Routes: /api/analytics/cohort')

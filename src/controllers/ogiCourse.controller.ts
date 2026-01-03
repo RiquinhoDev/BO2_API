@@ -70,14 +70,14 @@ export const getOGIStudents = async (req: Request, res: Response) => {
 
       // Preparar dados do aluno
       studentsData.push({
-        _id: user._id.toString(),
+        _id: user.id.toString(),
         email: user.email,
         name: user.name || user.email.split('@')[0],
         daysSinceLastLogin,
-        lastLogin: lastLoginAction?.actionDate || user.createdAt,
+        lastLogin: lastLoginAction?.actionDate || user.metadata.createdAt,
         currentProgress: progress,
         currentTags: ogiData?.currentTags || [],
-        activeCampaignId: user.activeCampaignId
+        activeCampaignId: user.metadata.activeCampaignId
       })
     }
 
@@ -146,7 +146,7 @@ export const evaluateOGIRules = async (req: Request, res: Response) => {
 
     for (const user of users) {
       try {
-        const results = await tagRuleEngine.evaluateUserRules(user._id, ogiCourse._id)
+        const results = await tagRuleEngine.evaluateUserRules(user.id, ogiCourse._id)
         
         for (const result of results) {
           if (result.executed) {
@@ -156,7 +156,7 @@ export const evaluateOGIRules = async (req: Request, res: Response) => {
         }
       } catch (error: any) {
         errors.push({
-          userId: user._id.toString(),
+          userId: user.id.toString(),
           email: user.email,
           error: error.message
         })

@@ -13,10 +13,6 @@ import User from '../models/user'
 import { cacheService } from '../services/cache.service'
 
 class PrecomputeJob {
-  /*
-  // ❌ DESATIVADO: Job migrado para wizard CRON
-
-  */
 
   async precomputeUserMetrics() {
     try {

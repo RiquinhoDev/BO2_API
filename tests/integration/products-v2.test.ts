@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import request from 'supertest';
 import mongoose from 'mongoose';
-import Product from '../../src/models/Product';
+import Product from '../../src/models/product/Product';
 import UserProduct from '../../src/models/UserProduct';
 import User from '../../src/models/User';
 

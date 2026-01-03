@@ -6,7 +6,7 @@
 import mongoose from 'mongoose'
 import { expect } from 'chai'
 import User from '../../src/models/user'
-import Product from '../../src/models/Product'
+import Product from '../../src/models/product/Product'
 import UserProduct from '../../src/models/UserProduct'
 import Course from '../../src/models/Course'
 import { Class } from '../../src/models/Class'

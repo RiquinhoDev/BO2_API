@@ -5,9 +5,9 @@
 // Responsável por processar dados brutos e gerar insights
 // ════════════════════════════════════════════════════════════════════
 
-import UserProduct from '../models/UserProduct'
-import User from '../models/user'
-import Product from '../models/Product'
+import UserProduct from '../../models/UserProduct'
+import User from '../../models/user'
+import Product from '../../models/product/Product'
 import { Types } from 'mongoose'
 
 // ═══════════════════════════════════════════════════════════════════

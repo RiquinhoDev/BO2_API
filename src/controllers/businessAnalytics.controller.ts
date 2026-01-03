@@ -6,9 +6,9 @@
 // ════════════════════════════════════════════════════════════════════
 
 import { Request, Response } from 'express'
-import analyticsCacheService from '../services/analyticsCache.service'
-import analyticsCalculatorService from '../services/analyticsCalculator.service'
-import Product from '../models/Product'
+import analyticsCacheService from '../services/analytics/analyticsCache.service'
+import analyticsCalculatorService from '../services/analytics/analyticsCalculator.service'
+import Product from '../models/product/Product'
 import UserProduct from '../models/UserProduct'
 
 // ═══════════════════════════════════════════════════════════════════

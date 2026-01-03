@@ -8,7 +8,7 @@
 // =====================================================
 
 import UserProduct from '../../models/UserProduct'
-import Product from '../../models/Product'
+import Product from '../../models/product/Product'
 import User from '../../models/user'
 import TagRule from '../../models/acTags/TagRule'
 import UserAction from '../../models/UserAction'

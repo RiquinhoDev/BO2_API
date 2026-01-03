@@ -1,6 +1,5 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/services/syncUtilizadoresServices/syncReports.service.ts
-// Service: Sync Reports Management
+// 📁 syncReports.service.ts - VERSÃO CORRIGIDA
 // ════════════════════════════════════════════════════════════
 
 import SyncReport, { 
@@ -23,16 +22,17 @@ export const createSnapshot = async (): Promise<ISyncReportSnapshot> => {
     const totalUsers = await User.countDocuments()
     const activeUsers = await User.countDocuments({ isActive: true })
     
+    // ✅ CORRIGIDO: Schema novo (hotmart.*, curseduca.*, discord.*)
     const hotmartCount = await User.countDocuments({ 
-      'platforms.hotmart.hotmartUserId': { $exists: true, $ne: null } 
+      'hotmart.hotmartUserId': { $exists: true, $ne: null } 
     })
     
     const curseducaCount = await User.countDocuments({ 
-      'platforms.curseduca.curseducaUserId': { $exists: true, $ne: null } 
+      'curseduca.curseducaUserId': { $exists: true, $ne: null } 
     })
     
     const discordCount = await User.countDocuments({ 
-      'platforms.discord.discordUserId': { $exists: true, $ne: null } 
+      'discord.discordUserId': { $exists: true, $ne: null } 
     })
     
     return {
@@ -45,14 +45,18 @@ export const createSnapshot = async (): Promise<ISyncReportSnapshot> => {
         discord: discordCount
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Erro ao criar snapshot:', error)
+    
+    // ✅ MELHOR: Retornar com flag de erro
     return {
       timestamp: new Date(),
       totalUsers: 0,
       activeUsers: 0,
-      platformStats: {}
-    }
+      platformStats: {},
+      hasError: true,
+      errorMessage: error.message
+    } as ISyncReportSnapshot
   }
 }
 
@@ -78,16 +82,32 @@ export const createSyncReport = async (
     // Criar snapshot inicial
     const beforeSnapshot = await createSnapshot()
     
+    // ✅ MELHOR: Validar jobId explicitamente
+    let jobIdObj: Types.ObjectId | undefined = undefined
+    if (options.jobId) {
+      if (Types.ObjectId.isValid(options.jobId)) {
+        jobIdObj = new Types.ObjectId(options.jobId)
+      } else {
+        console.warn(`⚠️ [SyncReports] jobId inválido (ignorado): ${options.jobId}`)
+      }
+    }
+    
+    // ✅ MELHOR: Validar triggeredByUser explicitamente
+    let triggeredByUserObj: Types.ObjectId | undefined = undefined
+    if (options.triggeredByUser) {
+      if (Types.ObjectId.isValid(options.triggeredByUser)) {
+        triggeredByUserObj = new Types.ObjectId(options.triggeredByUser)
+      } else {
+        console.warn(`⚠️ [SyncReports] triggeredByUser inválido (ignorado): ${options.triggeredByUser}`)
+      }
+    }
+    
     const report = await SyncReport.create({
-      jobId: options.jobId && Types.ObjectId.isValid(options.jobId) 
-  ? new Types.ObjectId(options.jobId) 
-  : undefined,
+      jobId: jobIdObj,
       jobName: options.jobName,
       syncType: options.syncType,
       triggeredBy: options.triggeredBy,
-      triggeredByUser: options.triggeredByUser 
-        ? new Types.ObjectId(options.triggeredByUser) 
-        : undefined,
+      triggeredByUser: triggeredByUserObj,
       status: 'running',
       startedAt: new Date(),
       stats: {
@@ -108,7 +128,7 @@ export const createSyncReport = async (
       syncConfig: options.syncConfig,
       metadata: {
         environment: process.env.NODE_ENV || 'development',
-        apiVersion: '2.0',
+        apiVersion: '3.0',  // ✅ Atualizado
         serverVersion: process.env.npm_package_version
       }
     })
@@ -166,23 +186,23 @@ export const completeReport = async (
       return null
     }
     
+    // ✅ CORRIGIDO: Adicionar log ANTES de marcar completo
+    await report.addLog('info', `Finalizando sync com status: ${status}`, {
+      totalProcessed: report.stats.total,
+      errors: report.stats.errors
+    })
+    
     // Criar snapshot final
     const afterSnapshot = await createSnapshot()
     report.snapshots.after = afterSnapshot
     
-    // Marcar como completo
+    // Marcar como completo (última operação)
     await report.markAsComplete(status)
-    
-    // Log final
-    await report.addLog('info', `Sync finalizado com status: ${status}`, {
-      duration: report.duration,
-      totalProcessed: report.stats.total,
-      successRate: report.getSuccessRate()
-    })
     
     console.log(`✅ [SyncReports] Report finalizado: ${reportId}`)
     console.log(`   📊 Stats: ${report.stats.total} processados, ${report.stats.errors} erros`)
     console.log(`   ⏱️ Duração: ${report.duration}s`)
+    console.log(`   ✅ Success rate: ${report.getSuccessRate()}%`)
     
     return report
     
@@ -205,7 +225,10 @@ export const addReportError = async (
 ): Promise<void> => {
   try {
     const report = await SyncReport.findById(reportId)
-    if (!report) return
+    if (!report) {
+      console.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar erro: ${reportId}`)
+      return
+    }
     
     await report.addError({
       message,
@@ -231,7 +254,10 @@ export const addReportWarning = async (
 ): Promise<void> => {
   try {
     const report = await SyncReport.findById(reportId)
-    if (!report) return
+    if (!report) {
+      console.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar warning: ${reportId}`)
+      return
+    }
     
     await report.addWarning({
       message,
@@ -256,7 +282,10 @@ export const addReportLog = async (
 ): Promise<void> => {
   try {
     const report = await SyncReport.findById(reportId)
-    if (!report) return
+    if (!report) {
+      console.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar log: ${reportId}`)
+      return
+    }
     
     await report.addLog(level, message, meta)
     

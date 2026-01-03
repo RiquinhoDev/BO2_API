@@ -1,13 +1,12 @@
 // src/controllers/classes.controller.ts - CORRIGIDO para evitar erros TypeScript
 import { Request, Response } from 'express'
 import { classesService, studentService } from '../services/classesService'
-// Removido imports incorretos - serão implementados conforme necessário
-import User from '../models/User' // 🔧 ADICIONADO: Importação estática do User
 import SyncHistory from '../models/SyncHistory'
-import { UserHistory } from '../models/UserHistory' // ✅ NOVO: Para histórico multi-plataforma
+
 import axios from 'axios'
 import { Class } from '../models/Class'
 import StudentClassHistory from '../models/StudentClassHistory'
+import { User } from '../models'
 
 
 interface ClassSyncResult {
@@ -866,7 +865,7 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
       // 2. Buscar mudanças de dados dos alunos da turma (UserHistory)
       if (!type || type === 'changes') {
         try {
-          const { UserHistory } = await import('../models/UserHistory')
+          const  UserHistory  = await import('../models/UserHistory')
           
           // Buscar alunos da turma (suportar Hotmart e CursEduca)
           const classDataTyped = classData as any

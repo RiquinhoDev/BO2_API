@@ -65,54 +65,77 @@ export interface IUser extends Document {
   }
   
   // 🎓 DADOS DA CURSEDUCA (apenas CursedEuca pode alterar)
-  curseduca?: {
-    // 🆕 IDs do Membro (ID + UUID)
-    curseducaUserId: string      // ID numérico do membro
-    curseducaUuid?: string        // UUID do membro
-    
-    // 🆕 NOVO: Array para múltiplas turmas
-    enrolledClasses?: Array<{
-      classId: string        // UUID da turma
-      className: string      
-      curseducaId: string    // ID numérico
-      curseducaUuid: string  // UUID
-      enteredAt?: Date       // Data de entrada
-      expiresAt?: Date       // Data de expiração
-      isActive: boolean      
-      role: 'student' | 'assistant' | 'teacher'
-    }>
+curseduca?: {
+  // ═══════════════════════════════════════════════════════════
+  // IDs DO MEMBRO
+  // ═══════════════════════════════════════════════════════════
+  curseducaUserId: string      // ID numérico do membro
+  curseducaUuid?: string       // UUID do membro
+  enrollmentsCount?: number    // 🆕 Quantos produtos tem
+  
+  // ═══════════════════════════════════════════════════════════
+  // TURMAS (Array para múltiplas turmas)
+  // ═══════════════════════════════════════════════════════════
+  enrolledClasses?: Array<{
+    classId: string        // UUID da turma
+    className: string      
+    curseducaId: string    // ID numérico
+    curseducaUuid: string  // UUID
+    enteredAt?: Date       // Data de entrada
+    expiresAt?: Date       // Data de expiração
+    isActive: boolean      
+    role: 'student' | 'assistant' | 'teacher'
+  }>
 
-    // 🆕 IDs do Grupo (ID + UUID)
-    groupId: string               // UUID do grupo (identificador principal)
-    groupName: string
-    groupCurseducaId?: string     // ID numérico do grupo
-    groupCurseducaUuid?: string   // UUID do grupo (mesmo que groupId)
-    
-    memberStatus: 'ACTIVE' | 'INACTIVE'
-    neverLogged: boolean
-    joinedDate: Date
-    lastAccess: Date  
-    // Progresso específico da CursedEuca (estimado)
-    progress: {
-      estimatedProgress: number
-      activityLevel: 'HIGH' | 'MEDIUM' | 'LOW'
-      groupEngagement: number
-      progressSource: 'estimated'
-      lastActivity?: Date
-    }
-    
-    // Engagement baseado em estimativas
-    engagement: {
-      alternativeEngagement: number
-      activityLevel: 'HIGH' | 'MEDIUM' | 'LOW'
-      engagementLevel: 'MUITO_ALTO' | 'ALTO' | 'MEDIO' | 'BAIXO' | 'MUITO_BAIXO' | 'NONE'
-      calculatedAt: Date
-    }
-    
-    // Metadados da sincronização
-    lastSyncAt: Date
-    syncVersion: string
+  // ═══════════════════════════════════════════════════════════
+  // IDs DO GRUPO
+  // ═══════════════════════════════════════════════════════════
+  groupId: string               // UUID do grupo (identificador principal)
+  groupName: string
+  groupCurseducaId?: string     // ID numérico do grupo
+  groupCurseducaUuid?: string   // UUID do grupo (mesmo que groupId)
+  
+  // ═══════════════════════════════════════════════════════════
+  // STATUS
+  // ═══════════════════════════════════════════════════════════
+  memberStatus: 'ACTIVE' | 'INACTIVE'
+  neverLogged: boolean
+  situation?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'  // 🆕 Status detalhado
+  
+  // ═══════════════════════════════════════════════════════════
+  // DATAS
+  // ═══════════════════════════════════════════════════════════
+  joinedDate: Date
+  lastAccess: Date      // ✅ Mantido (retrocompatibilidade)
+  lastLogin?: Date      // 🆕 Último login real (do /members/{id})
+  
+  // ═══════════════════════════════════════════════════════════
+  // PROGRESSO
+  // ═══════════════════════════════════════════════════════════
+  progress: {
+    estimatedProgress: number
+    activityLevel: 'HIGH' | 'MEDIUM' | 'LOW'
+    groupEngagement: number
+    progressSource: 'estimated'
+    lastActivity?: Date
   }
+  
+  // ═══════════════════════════════════════════════════════════
+  // ENGAGEMENT
+  // ═══════════════════════════════════════════════════════════
+  engagement: {
+    alternativeEngagement: number
+    activityLevel: 'HIGH' | 'MEDIUM' | 'LOW'
+    engagementLevel: 'MUITO_ALTO' | 'ALTO' | 'MEDIO' | 'BAIXO' | 'MUITO_BAIXO' | 'NONE'
+    calculatedAt: Date
+  }
+  
+  // ═══════════════════════════════════════════════════════════
+  // METADADOS DA SINCRONIZAÇÃO
+  // ═══════════════════════════════════════════════════════════
+  lastSyncAt: Date
+  syncVersion: string
+}
   
   // 📊 DADOS COMBINADOS (calculados automaticamente)
   combined?: {
@@ -170,7 +193,8 @@ export interface IUser extends Document {
   metadata: {
     createdAt: Date
     updatedAt: Date
-     firstSystemEntry?:  Date
+    firstSystemEntry?: Date
+      activeCampaignId?: string
     sources: {
       discord?: { lastSync: Date, version: string }
       hotmart?: { lastSync: Date, version: string }
@@ -181,33 +205,29 @@ export interface IUser extends Document {
   // ════════════════════════════════════════════════════════════
   // 🔧 ACTIVE CAMPAIGN - Comunicação por curso
   // ════════════════════════════════════════════════════════════
-  communicationByCourse?: {
-    [courseId: string]: {
-      currentPhase: 'ENGAGEMENT' | 'REENGAGEMENT' | 'COMPLETION' | 'POST_COMPLETION'
-      currentTags: string[]
-      lastTagAppliedAt?: Date
-      lastEmailSentAt?: Date
-      
-      emailStats: {
-        totalSent: number
-        totalOpened: number
-        totalClicked: number
-        engagementRate: number
-      }
-      
-      courseSpecificData: {
-        // Para Clareza
-        lastReportOpenedAt?: Date
-        reportsOpenedLastWeek?: number
-        reportsOpenedLastMonth?: number
-        totalReportsOpened?: number
-        
-        // Para OGI
-        lastModuleCompletedAt?: Date
-        currentModule?: number
-      }
-    }
+communicationByCourse?: Map<string, {
+  currentPhase: 'ENGAGEMENT' | 'REENGAGEMENT' | 'COMPLETION' | 'POST_COMPLETION'
+  currentTags: string[]
+  lastTagAppliedAt?: Date
+  lastEmailSentAt?: Date
+
+  emailStats: {
+    totalSent: number
+    totalOpened: number
+    totalClicked: number
+    engagementRate: number
   }
+
+  courseSpecificData: {
+    lastReportOpenedAt?: Date
+    reportsOpenedLastWeek?: number
+    reportsOpenedLastMonth?: number
+    totalReportsOpened?: number
+    lastModuleCompletedAt?: Date
+    currentModule?: number
+  }
+}>
+
   
   // Métodos de instância
   calculateCombinedData(): void
@@ -316,97 +336,135 @@ const UserSchema: Schema = new Schema({
   },
   
   // 🎓 Dados da CursedEuca - ATUALIZADOS
-  curseduca: {
-    // 🆕 IDs do Membro
-    curseducaUserId: { 
-      type: String, 
-      trim: true
-      // Índice definido em UserSchema.index() abaixo (linha ~866)
-    },
-    curseducaUuid: { 
-      type: String, 
-      trim: true,
-      sparse: true  // 🆕 UUID do membro
-      // Índice definido em UserSchema.index() abaixo (linha ~867)
-    },
-    
-    // 🆕 NOVO: Array para múltiplas turmas
-    enrolledClasses: [{
-      classId: { type: String, trim: true },        // UUID da turma
-      className: { type: String },      
-      curseducaId: { type: String },    // ID numérico
-      curseducaUuid: { type: String },  // UUID
-      enteredAt: { type: Date },        // Data de entrada
-      expiresAt: { type: Date },        // Data de expiração
-      isActive: { type: Boolean, default: true },      
-      role: {
-        type: String,
-        enum: ['student', 'assistant', 'teacher'],
-        default: 'student'
-      }
-    }],
-    
-    // 🆕 IDs do Grupo (ID + UUID)
-    groupId: { 
-      type: String, 
-      trim: true
-      // UUID do grupo (principal) - índice não necessário aqui
-    },
-    groupName: String,
-    groupCurseducaId: { 
-      type: String, 
-      trim: true,
-      sparse: true  // 🆕 ID numérico do grupo
-      // Índice definido em UserSchema.index() abaixo (linha 869)
-    },
-    groupCurseducaUuid: { 
-      type: String, 
-      trim: true,
-      sparse: true  // 🆕 UUID do grupo
-      // Índice definido em UserSchema.index() abaixo (linha 868)
-    },
-    
-    memberStatus: { 
-      type: String, 
-      enum: ['ACTIVE', 'INACTIVE'], 
-      default: 'ACTIVE' 
-    },
-    neverLogged: { type: Boolean, default: false },
-    joinedDate: Date,
-     lastAccess: Date,
-    progress: {
-      estimatedProgress: { type: Number, default: 0 },
-      activityLevel: { 
-        type: String, 
-        enum: ['HIGH', 'MEDIUM', 'LOW'], 
-        default: 'LOW' 
-      },
-      groupEngagement: { type: Number, default: 0 },
-      progressSource: { 
-        type: String, 
-        enum: ['estimated'], 
-        default: 'estimated' 
-      }
-    },
-    
-    engagement: {
-      alternativeEngagement: { type: Number, default: 0 },
-      activityLevel: { 
-        type: String, 
-        enum: ['HIGH', 'MEDIUM', 'LOW'], 
-        default: 'LOW' 
-      },
-      engagementLevel: { 
-        type: String, 
-        enum: ['MUITO_ALTO', 'ALTO', 'MEDIO', 'BAIXO', 'MUITO_BAIXO', 'NONE'],
-        default: 'NONE'
-      },
-      calculatedAt: { type: Date, default: Date.now }
-    },
-    
-    lastSyncAt: { type: Date, default: Date.now },
-    syncVersion: { type: String, default: '3.0' }
+// 🎓 Dados da CursedEuca - CORRIGIDOS
+curseduca: {
+  // ═══════════════════════════════════════════════════════════
+  // IDs DO MEMBRO
+  // ═══════════════════════════════════════════════════════════
+  curseducaUserId: { 
+    type: String, 
+    trim: true
+    // Índice definido em UserSchema.index() na linha ~866
   },
+  curseducaUuid: { 
+    type: String, 
+    trim: true,
+    sparse: true
+    // Índice definido em UserSchema.index() na linha ~867
+  },
+  enrollmentsCount: { 
+    type: Number, 
+    default: 0 
+  },  // 🆕 Quantos produtos tem
+  
+  // ═══════════════════════════════════════════════════════════
+  // TURMAS (Array para múltiplas turmas)
+  // ═══════════════════════════════════════════════════════════
+  enrolledClasses: [{
+    classId: { type: String, trim: true },
+    className: { type: String },      
+    curseducaId: { type: String },
+    curseducaUuid: { type: String },
+    enteredAt: { type: Date },
+    expiresAt: { type: Date },
+    isActive: { type: Boolean, default: true },      
+    role: {
+      type: String,
+      enum: ['student', 'assistant', 'teacher'],
+      default: 'student'
+    }
+  }],
+  
+  // ═══════════════════════════════════════════════════════════
+  // IDs DO GRUPO
+  // ═══════════════════════════════════════════════════════════
+  groupId: { 
+    type: String, 
+    trim: true
+  },
+  groupName: String,
+  groupCurseducaId: { 
+    type: String, 
+    trim: true,
+    sparse: true
+    // Índice definido em UserSchema.index() na linha ~869
+  },
+  groupCurseducaUuid: { 
+    type: String, 
+    trim: true,
+    sparse: true
+    // Índice definido em UserSchema.index() na linha ~868
+  },
+  
+  // ═══════════════════════════════════════════════════════════
+  // STATUS
+  // ═══════════════════════════════════════════════════════════
+  memberStatus: { 
+    type: String, 
+    enum: ['ACTIVE', 'INACTIVE'], 
+    default: 'ACTIVE' 
+  },
+  neverLogged: { 
+    type: Boolean, 
+    default: false 
+  },
+  situation: {  // 🆕 Status detalhado
+    type: String,
+    enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'],
+    default: 'ACTIVE'
+  },
+  
+  // ═══════════════════════════════════════════════════════════
+  // DATAS
+  // ═══════════════════════════════════════════════════════════
+  joinedDate: Date,
+  lastAccess: Date,      // ✅ Mantido (retrocompatibilidade)
+  lastLogin: Date,       // 🆕 Último login real
+  
+  // ═══════════════════════════════════════════════════════════
+  // PROGRESSO
+  // ═══════════════════════════════════════════════════════════
+  progress: {
+    estimatedProgress: { type: Number, default: 0 },
+    activityLevel: { 
+      type: String, 
+      enum: ['HIGH', 'MEDIUM', 'LOW'], 
+      default: 'LOW' 
+    },
+    groupEngagement: { type: Number, default: 0 },
+    progressSource: { 
+      type: String, 
+      enum: ['estimated'], 
+      default: 'estimated' 
+    },
+    lastActivity: Date
+  },
+  
+  // ═══════════════════════════════════════════════════════════
+  // ENGAGEMENT
+  // ═══════════════════════════════════════════════════════════
+  engagement: {
+    alternativeEngagement: { type: Number, default: 0 },
+    activityLevel: { 
+      type: String, 
+      enum: ['HIGH', 'MEDIUM', 'LOW'], 
+      default: 'LOW' 
+    },
+    engagementLevel: { 
+      type: String, 
+      enum: ['MUITO_ALTO', 'ALTO', 'MEDIO', 'BAIXO', 'MUITO_BAIXO', 'NONE'],
+      default: 'NONE'
+    },
+    calculatedAt: { type: Date, default: Date.now }
+  },
+  
+  // ═══════════════════════════════════════════════════════════
+  // METADADOS DA SINCRONIZAÇÃO
+  // ═══════════════════════════════════════════════════════════
+  lastSyncAt: { type: Date, default: Date.now },
+  syncVersion: { type: String, default: '3.0' }
+},
+
   
   // Dados combinados (calculados automaticamente)
   combined: {
@@ -488,7 +546,8 @@ const UserSchema: Schema = new Schema({
     firstSystemEntry: { 
     type: Date,
     description: 'Data da primeira entrada do user no sistema (calculada automaticamente)'
-  },
+    },
+    activeCampaignId: { type: String },
     sources: {
       discord: {
         lastSync: Date,

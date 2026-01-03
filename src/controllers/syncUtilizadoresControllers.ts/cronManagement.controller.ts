@@ -123,7 +123,7 @@ export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
 
     const TagRule = (await import('../../models/acTags/TagRule')).default
     const Course = (await import('../../models/Course')).default
-    const Product = (await import('../../models/Product')).default
+    const Product = (await import('../../models/product/Product')).default
 
     let courseIds: mongoose.Types.ObjectId[] = []
 
