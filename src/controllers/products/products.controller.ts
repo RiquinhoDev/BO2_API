@@ -1,6 +1,6 @@
 // src/controllers/products.controller.ts
 import { Request, Response } from 'express'
-import { getAllProductsStats, getProductStats, KNOWN_PRODUCTS } from '../../services/productService'
+import { getAllProductsStats, getProductStats, KNOWN_PRODUCTS } from '../../services/userProducts/productService'
 import { getEngagementStatsByPlatform } from '../../services/engagementService'
 import UserModel from '../../models/user'
 

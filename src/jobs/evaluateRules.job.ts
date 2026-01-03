@@ -10,19 +10,6 @@ import tagRuleEngine from '../services/ac/tagRuleEngine'
 
 console.log('⚠️ EvaluateRules: DESATIVADO hardcoded (gerido pelo wizard)')
 
-/**
- * ✅ VERSÃO OTIMIZADA: Avalia por produto
- * 
- * ANTES:
- * - Avaliava por COURSE
- * - Users Hotmart avaliados com regras Clareza
- * - Muitas regras incompatíveis
- * 
- * DEPOIS:
- * - Avalia por PRODUTO
- * - Cada user só com regras do SEU produto
- * - SEM regras incompatíveis!
- */
 export async function executeEvaluateRules() {
   console.log('🕐 Iniciando avaliação diária automática...')
   console.log('✅ VERSÃO OTIMIZADA: Avaliação por produto\n')

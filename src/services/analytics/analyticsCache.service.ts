@@ -6,7 +6,7 @@
 // ════════════════════════════════════════════════════════════════════
 
 
-import AnalyticsCache, { ICacheMetrics } from '../models/AnalyticsCache'
+import AnalyticsCache, { ICacheMetrics } from '../../models/AnalyticsCache'
 import { analyticsCalculatorService } from './analyticsCalculator.service'
 
 // ═══════════════════════════════════════════════════════════════════

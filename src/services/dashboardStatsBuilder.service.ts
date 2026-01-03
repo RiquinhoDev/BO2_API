@@ -1,16 +1,5 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// 🏗️ SERVICE: Dashboard Stats Builder - VERSÃO FINAL 100% CORRIGIDA
-// ═══════════════════════════════════════════════════════════════════════════
-// ✅ CORRIGIDO: Conta USERS ÚNICOS (não UserProducts)
-// ✅ CORRIGIDO: Filtra isPrimary=true para CursEDuca
-// ✅ CORRIGIDO: At Risk < 30
-// ✅ CORRIGIDO: Top 10% dinâmico
-// ✅ CORRIGIDO: Inativos 30d com lógica AND
-// ✅ CORRIGIDO: Plataformas normalizadas
-// ═══════════════════════════════════════════════════════════════════════════
-
 import { DashboardStats } from '../models/DashboardStats'
-import { getAllUsersUnified } from './dualReadService'
+import { getAllUsersUnified } from './syncUtilziadoresServices/dualReadService'
 
 /**
  * 🏗️ Construir e guardar stats do dashboard

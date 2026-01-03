@@ -3,7 +3,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Request, Response } from 'express'
-import cohortAnalyticsService from '../services/cohortAnalytics.service'
+import cohortAnalyticsService from '../services/analytics/cohortAnalytics.service'
 import { CohortAnalysisFilters } from '../types/cohortTypes'
 
 class CohortAnalyticsController {

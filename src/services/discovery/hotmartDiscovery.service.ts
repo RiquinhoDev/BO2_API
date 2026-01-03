@@ -2,7 +2,7 @@
  * 🔥 HOTMART DISCOVERY SERVICE - Versão Simplificada
  */
 
-import Product from '../../models/Product';
+import Product from '../../models/product/Product';
 import { 
   DiscoveredProduct, 
   ProductCategory,

@@ -13,9 +13,9 @@
 // - ✅ Adiciona produto novo → Funciona imediatamente
 // ═══════════════════════════════════════════════════════════════════════════
 
-import User from '../models/user';
-import UserProduct from '../models/UserProduct';
-import Product from '../models/Product';
+import User from '../../models/user';
+import UserProduct from '../../models/UserProduct';
+import Product from '../../models/product/Product';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔥 CACHE COM WARM-UP E BACKGROUND REFRESH

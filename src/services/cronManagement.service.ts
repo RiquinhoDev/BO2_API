@@ -4,12 +4,12 @@
 // Serviço para gestão de jobs CRON (agendamento, execução, histórico)
 // ================================================================
 
-import CronConfig from '../models/CronConfig'
-import CronExecution from '../models/CronExecution'
+import CronConfig from '../models/cron/CronConfig'
+import CronExecution from '../models/cron/CronExecution'
 import Course from '../models/Course'
 import User from '../models/user'
 import tagRuleEngine from './ac/tagRuleEngine'
-import ProductProfile from '../models/ProductProfile'
+import ProductProfile from '../models/product/ProductProfile'
 import decisionEngine from './ac/decisionEngine.service'
 import tagOrchestrator from './ac/tagOrchestrator.service'
 import schedule from 'node-schedule'

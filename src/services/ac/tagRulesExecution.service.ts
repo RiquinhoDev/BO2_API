@@ -7,7 +7,7 @@
 import mongoose from 'mongoose'
 import TagRule from '../../models/acTags/TagRule'
 import { ICronJobConfig } from '../../models/SyncModels/CronJobConfig'
-import Product from '../../models/Product'
+import Product from '../../models/product/Product'
 import UserProduct from '../../models/UserProduct'
 import UserAction from '../../models/UserAction'
 import activeCampaignService from '../ac/activeCampaignService'

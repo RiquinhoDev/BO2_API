@@ -8,9 +8,9 @@ import ProductSalesStats, {
   IYearlySales,
   IDateSourceBreakdown,
   DateSourceType
-} from '../models/ProductSalesStats'
+} from '../models/product/ProductSalesStats'
 import UserProduct from '../models/UserProduct'
-import Product from '../models/Product'
+import Product from '../models/product/Product'
 import User from '../models/user'
 import mongoose from 'mongoose'
 

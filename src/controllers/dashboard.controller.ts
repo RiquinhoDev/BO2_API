@@ -1,10 +1,9 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import Product from '../models/Product';
+import Product from '../models/product/Product';
 import UserProduct from '../models/UserProduct';
 import User from '../models/user';
-// 🔄 DUAL READ SERVICE - Combina V1 + V2
-import { getAllUsersUnified, getUniqueUsersFromUnified } from '../services/dualReadService';
+import { getAllUsersUnified } from '../services/syncUtilziadoresServices/dualReadService';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 📊 ENDPOINT 1: GET /api/dashboard/stats
@@ -190,55 +189,6 @@ export const getProductsBreakdown = async (req: Request, res: Response) => {
     })).sort((a, b) => b.totalStudents - a.totalStudents);
 
     console.log(`   ✅ ${breakdown.length} produtos analisados`);
-
-    /* OLD AGGREGATION CODE - REMOVED
-    const breakdown = await UserProduct.aggregate([
-      { $match: matchStage },
-      {
-        $group: {
-          _id: '$productId',
-          totalStudents: { $addToSet: '$userId' },
-          avgEngagement: { $avg: '$engagement.engagementScore' },
-          avgProgress: { $avg: '$progress.progressPercentage' },
-          activeStudents: {
-            $sum: { $cond: [{ $eq: ['$status', 'ACTIVE'] }, 1, 0] }
-          }
-        }
-      },
-      {
-        $lookup: {
-          from: 'products',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'product'
-        }
-      },
-      { $unwind: '$product' },
-      {
-        $project: {
-          productId: '$_id',
-          productName: '$product.name',
-          platform: '$product.platform',
-          totalStudents: { $size: '$totalStudents' },
-          avgEngagement: { $ifNull: ['$avgEngagement', 0] },
-          avgProgress: { $ifNull: ['$avgProgress', 0] },
-          activeStudents: 1,
-          engagementRate: {
-            $multiply: [
-              {
-                $divide: [
-                  { $ifNull: ['$avgEngagement', 0] },
-                  100
-                ]
-              },
-              100
-            ]
-          }
-        }
-      },
-      { $sort: { totalStudents: -1 } }
-    ]);
-    */
 
     res.json({
       success: true,

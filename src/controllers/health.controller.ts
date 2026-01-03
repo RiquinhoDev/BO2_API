@@ -5,7 +5,7 @@
 
 import { Request, Response } from 'express'
 import mongoose from 'mongoose'
-import CronExecutionLog from '../models/CronExecutionLog'
+import CronExecutionLog from '../models/cron/CronExecutionLog'
 
 /**
  * GET /api/health

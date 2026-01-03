@@ -11,7 +11,7 @@
 // ════════════════════════════════════════════════════════════
 
 import schedule from 'node-schedule'
-import CronExecution from '../models/CronExecution'
+import CronExecution from '../models/cron/CronExecution'
 
 // ─────────────────────────────────────────────────────────────
 // CONFIGURAÇÕES

@@ -3,8 +3,8 @@
  */
 
 import { Request, Response } from 'express';
-import Product from '../models/Product';
-import ProductProfile from '../models/ProductProfile';
+import Product from '../models/product/Product';
+import ProductProfile from '../models/product/ProductProfile';
 import Course from '../models/Course';
 
 import hotmartDiscoveryService from '../services/discovery/hotmartDiscovery.service';

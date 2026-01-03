@@ -4,7 +4,7 @@
 // ================================================================
 
 import { Request, Response } from 'express'
-import ProductProfile from '../../models/ProductProfile'
+import ProductProfile, { IReengagementLevel } from '../../models/product/ProductProfile'
 import StudentEngagementState from '../../models/StudentEngagementState'
 import CommunicationHistory from '../../models/acTags/CommunicationHistory'
 
@@ -307,29 +307,29 @@ export const getProductProfileStats = async (req: Request, res: Response): Promi
     })
 
     // Calcular métricas por nível
-    const levelMetrics = await Promise.all(
-      profile.reengagementLevels.map(async (level) => {
-        const comms = await CommunicationHistory.find({
-          productCode: code.toUpperCase(),
-          level: level.level
-        })
+const levelMetrics = await Promise.all(
+  profile.reengagementLevels.map(async (level: IReengagementLevel) => {
+    const comms = await CommunicationHistory.find({
+      productCode: code.toUpperCase(),
+      level: level.level
+    })
 
-        const totalSent = comms.length
-        const opened = comms.filter(c => c.openedAt).length
-        const clicked = comms.filter(c => c.clickedAt).length
-        const returned = comms.filter(c => c.outcome === 'SUCCESS').length
+    const totalSent = comms.length
+    const opened = comms.filter(c => c.openedAt).length
+    const clicked = comms.filter(c => c.clickedAt).length
+    const returned = comms.filter(c => c.outcome === 'SUCCESS').length
 
-        return {
-          level: level.level,
-          name: level.name,
-          tag: level.tagAC,
-          totalSent,
-          openRate: totalSent > 0 ? ((opened / totalSent) * 100).toFixed(1) : '0',
-          clickRate: totalSent > 0 ? ((clicked / totalSent) * 100).toFixed(1) : '0',
-          returnRate: totalSent > 0 ? ((returned / totalSent) * 100).toFixed(1) : '0'
-        }
-      })
-    )
+    return {
+      level: level.level,
+      name: level.name,
+      tag: level.tagAC,
+      totalSent,
+      openRate: totalSent > 0 ? ((opened / totalSent) * 100).toFixed(1) : '0',
+      clickRate: totalSent > 0 ? ((clicked / totalSent) * 100).toFixed(1) : '0',
+      returnRate: totalSent > 0 ? ((returned / totalSent) * 100).toFixed(1) : '0'
+    }
+  })
+)
 
     const commStats = communicationStats[0] || {
       totalSent: 0,

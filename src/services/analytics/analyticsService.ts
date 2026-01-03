@@ -1,7 +1,7 @@
 // src/services/analyticsService.ts - Serviço Completo de Analytics com Cache - VERSÃO CORRIGIDA
-import User from '../models/user'
-import { Class } from '../models/Class'
-import { calculateCombinedEngagement } from '../utils/engagementCalculator'
+import User from '../../models/user'
+import { Class } from '../../models/Class'
+import { calculateCombinedEngagement } from '../../utils/engagementCalculator'
 
 // Definir interface aqui para evitar dependências circulares
 interface IClassAnalytics {

@@ -5,7 +5,7 @@
 
 import { Request, Response } from 'express'
 
-import ProductSalesStats from '../../models/ProductSalesStats'
+import ProductSalesStats from '../../models/product/ProductSalesStats'
 import { buildProductSalesStats, getProductSalesStats } from '../../services/productSalesStatsBuilder'
 // ─────────────────────────────────────────────────────────────
 // GET ALL STATS
@@ -87,7 +87,7 @@ export async function getProductSalesByPeriod(req: Request, res: Response) {
     // Filtrar por período
     const filtered = stats.map(stat => ({
       ...stat,
-      salesByMonth: stat.salesByMonth.filter(sale => {
+   salesByMonth: stat.salesByMonth.filter((sale: { year: number; month: number }) => {
         const saleDate = new Date(sale.year, sale.month - 1, 1)
         return saleDate >= start && saleDate <= end
       })

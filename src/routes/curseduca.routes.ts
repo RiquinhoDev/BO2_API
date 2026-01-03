@@ -3,9 +3,6 @@
 import { Router } from 'express'
 import {
   // V1
-  testConnection,
-  syncCurseducaUsers,
-  syncProgressOnly,
   getDashboardStats,
   getGroups,
   getMembers,
@@ -26,7 +23,6 @@ import {
   getCurseducaProductUsers,
   getCurseducaStats,
   compareSyncMethods,
-  syncProgressOnlyUniversal,
   syncCurseducaUsersUniversal
 } from '../controllers/syncUtilizadoresControllers.ts/curseduca.controller'
 
@@ -35,13 +31,6 @@ const router = Router()
 // ─────────────────────────────
 // V1 (base: /api/curseduca)
 // ─────────────────────────────
-
-// 🧪 DIAGNÓSTICOS E TESTES
-router.get('/test', testConnection)
-
-// 🔄 SINCRONIZAÇÃO
-router.get('/syncCurseducaUsers', syncCurseducaUsers)
-router.post('/syncProgressOnly', syncProgressOnly)
 
 // 📊 ESTATÍSTICAS E DASHBOARD
 router.get('/dashboard', getDashboardStats)
@@ -82,7 +71,6 @@ router.use('/v2', v2)
 // UNIVERSAL SYNC (novos endpoints)
 // ─────────────────────────────────────────────────────────────
 router.get('/sync/universal', syncCurseducaUsersUniversal)
-router.post('/sync/universal/progress', syncProgressOnlyUniversal)
 router.get('/sync/compare', compareSyncMethods)
 
 

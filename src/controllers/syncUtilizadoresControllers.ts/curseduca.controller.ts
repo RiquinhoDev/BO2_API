@@ -1,38 +1,81 @@
-// src/controllers/curseduca.controller.ts - CONTROLLER UNIFICADO (v1 + v2) COM TIPOS CORRIGIDOS
-// ✅ Limpo (sem double-response) + Universal Sync + compatível com o novo adapter (platformData.isPrimary/isDuplicate)
-
+// src/controllers/curseduca.controller.ts 
 import { Request, Response } from 'express'
 import User from '../../models/user'
-import Product from '../../models/Product'
-import {
-  testCurseducaConnection,
-  syncCurseducaMembers,
-  syncCurseducaProgress,
-  getCurseducaDashboardStats
-} from '../../services/curseducaService'
+import Product from '../../models/product/Product'
 import {
   getUsersByProduct as getUsersByProductService,
   getUserCountForProduct
-} from '../../services/userProductService'
-import { SyncHistory } from '../../models'
-import universalSyncService, {
-  SyncError,
-  SyncProgress,
-  SyncWarning
-} from '../../services/syncUtilziadoresServices/universalSyncService'
+} from '../../services/userProducts/userProductService'
+import { SyncHistory, UserProduct } from '../../models'
+import universalSyncService from '../../services/syncUtilziadoresServices/universalSyncService'
+import fs from 'fs';
+import path from 'path'
 import curseducaAdapter from '../../services/syncUtilziadoresServices/curseducaServices/curseduca.adapter'
+
 
 // ─────────────────────────────────────────────────────────────
 // Tipos auxiliares (para calar TS sem mexer nos services)
 // ─────────────────────────────────────────────────────────────
+class SyncLogger {
+  private logFile: string
+  private startTime: number
 
-type ServiceResult<TStats = unknown> = {
-  success: boolean
-  message?: string
-  details?: unknown
-  stats?: TStats
+  constructor() {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    this.logFile = path.join(process.cwd(), 'logs', `curseduca-sync-${timestamp}.log`)
+    this.startTime = Date.now()
+    
+    // Criar diretório de logs se não existir
+    const logDir = path.dirname(this.logFile)
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true })
+    }
+    
+    this.log('═'.repeat(80))
+    this.log('🚀 CURSEDUCA UNIVERSAL SYNC - DEBUG LOG')
+    this.log('═'.repeat(80))
+    this.log(`📅 Início: ${new Date().toLocaleString('pt-PT')}`)
+    this.log(`📁 Log File: ${this.logFile}`)
+    this.log('═'.repeat(80))
+    this.log('')
+  }
+
+  log(message: string) {
+    const timestamp = new Date().toISOString()
+    const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(2)
+    const line = `[${timestamp}] [+${elapsed}s] ${message}`
+    
+    console.log(message)
+    fs.appendFileSync(this.logFile, line + '\n')
+  }
+
+  section(title: string) {
+    this.log('')
+    this.log('─'.repeat(80))
+    this.log(`📍 ${title}`)
+    this.log('─'.repeat(80))
+  }
+
+  success(message: string) {
+    this.log(`✅ ${message}`)
+  }
+
+  error(message: string) {
+    this.log(`❌ ${message}`)
+  }
+
+  warn(message: string) {
+    this.log(`⚠️  ${message}`)
+  }
+
+  info(message: string) {
+    this.log(`ℹ️  ${message}`)
+  }
+
+  getLogPath() {
+    return this.logFile
+  }
 }
-
 type DashboardRawStats = {
   totalUsers: number
   activeUsers: number
@@ -45,143 +88,13 @@ function isServiceResult(val: unknown): val is { success: boolean; message?: str
 }
 
 // ─────────────────────────────────────────────────────────────
-// 🧪 TESTE DE CONEXÃO
-// ─────────────────────────────────────────────────────────────
-
-export const testConnection = async (req: Request, res: Response): Promise<void> => {
-  try {
-    console.log('🧪 === TESTE DE CONEXÃO CURSEDUCA ===')
-    const result = (await testCurseducaConnection()) as ServiceResult
-
-    console.log(`${result.success ? '✅' : '❌'} Resultado:`, result.message)
-
-    res.status(result.success ? 200 : 500).json({
-      success: result.success,
-      message: result.message,
-      details: result.details,
-      timestamp: new Date().toISOString()
-    })
-  } catch (error: any) {
-    console.error('❌ Erro no teste de conexão:', error)
-    res.status(500).json({
-      success: false,
-      message: `Erro interno: ${error.message}`,
-      timestamp: new Date().toISOString()
-    })
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// 🔄 SINCRONIZAÇÃO COMPLETA (LEGACY)
-// ─────────────────────────────────────────────────────────────
-
-export const syncCurseducaUsers = async (req: Request, res: Response): Promise<void> => {
-  try {
-    console.log('🚀 === CONTROLLER: SINCRONIZAÇÃO CURSEDUCA (LEGACY) ===')
-
-    type SyncMembersStats = {
-      groupsProcessed?: number
-      created: number
-      updated: number
-      skipped: number
-      errors: number
-    }
-
-    const result = (await syncCurseducaMembers()) as ServiceResult<SyncMembersStats>
-
-    const message =
-      result.message ??
-      (result.success ? 'Sincronização concluída com sucesso' : 'Falha na sincronização')
-
-    console.log(`${result.success ? '✅' : '❌'} Resultado:`, message)
-    console.log('📊 Estatísticas:', result.stats)
-
-    res.status(result.success ? 200 : 500).json({
-      success: result.success,
-      message,
-      ...(result.success ? {} : { error: message }),
-      stats:
-        result.stats || ({
-          groupsProcessed: 0,
-          created: 0,
-          updated: 0,
-          skipped: 0,
-          errors: 1
-        } as SyncMembersStats)
-    })
-  } catch (error: any) {
-    console.error('❌ Erro na sincronização:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro crítico na sincronização com CursEduca',
-      error: error.message,
-      details: error.stack
-    })
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// 📈 SINCRONIZAÇÃO APENAS PROGRESSO (LEGACY)
-// ─────────────────────────────────────────────────────────────
-
-export const syncProgressOnly = async (req: Request, res: Response): Promise<void> => {
-  try {
-    console.log('📈 === CONTROLLER: SINCRONIZAÇÃO PROGRESSO CURSEDUCA (LEGACY) ===')
-
-    const result = (await syncCurseducaProgress()) as ServiceResult<{
-      total: number
-      withProgress: number
-      errors: number
-    }>
-
-    res.status(result.success ? 200 : 500).json({
-      success: result.success,
-      message: result.message,
-      ...(result.success ? {} : { error: result.message }),
-      stats:
-        result.stats || {
-          total: 0,
-          withProgress: 0,
-          errors: 1
-        }
-    })
-  } catch (error: any) {
-    console.error('❌ Erro na sincronização de progresso:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro na sincronização de progresso CursEduca',
-      error: error.message
-    })
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
 // 📊 DASHBOARD STATS
 // ─────────────────────────────────────────────────────────────
 
 export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    console.log('📊 === CONTROLLER: DASHBOARD CURSEDUCA ===')
-
-    const raw = (await getCurseducaDashboardStats()) as unknown
-
-    // Caso o service já devolva { success, message, ... }
-    if (isServiceResult(raw)) {
-      const result = raw as { success: boolean; message?: string }
-      if (result.success) {
-        res.status(200).json(raw)
-      } else {
-        res.status(500).json({
-          success: false,
-          message: result.message || 'Erro ao buscar dashboard',
-          timestamp: new Date().toISOString()
-        })
-      }
-      return
-    }
-
-    // Caso o service devolva só stats (sem success/message)
-    const stats = raw as DashboardRawStats
+    const stats = await getCurseducaDashboardStats()
+    
     res.status(200).json({
       success: true,
       message: 'Dashboard carregado com sucesso',
@@ -189,7 +102,6 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       timestamp: new Date().toISOString()
     })
   } catch (error: any) {
-    console.error('❌ Erro ao buscar dashboard:', error)
     res.status(500).json({
       success: false,
       message: `Erro interno: ${error.message}`,
@@ -198,6 +110,43 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
   }
 }
 
+/**
+ * Obter estatísticas do dashboard CursEduca
+ */
+export const getCurseducaDashboardStats = async () => {
+  try {
+    console.log('📊 [DASHBOARD] Calculando estatísticas CursEduca...')
+    
+    const curseducaProducts = await Product.find({
+      platform: 'curseduca',
+      isActive: true
+    })
+    
+    const totalUsers = await User.countDocuments({
+      'curseduca.email': { $exists: true }
+    })
+    
+    const activeUsers = await User.countDocuments({
+      'curseduca.memberStatus': 'ACTIVE'
+    })
+    
+    const totalUserProducts = await UserProduct.countDocuments({
+      productId: { $in: curseducaProducts.map(p => p._id) }
+    })
+    
+    console.log('✅ Estatísticas calculadas')
+    
+    return {
+      totalUsers,
+      activeUsers,
+      totalUserProducts,
+      products: curseducaProducts.length
+    }
+  } catch (error: any) {
+    console.error('❌ Erro ao calcular estatísticas:', error.message)
+    throw error
+  }
+}
 // ─────────────────────────────────────────────────────────────
 // 🔍 ENDPOINTS DE COMPATIBILIDADE (ainda 501)
 // ─────────────────────────────────────────────────────────────
@@ -328,10 +277,6 @@ export const updateUserClasses = async (req: Request, res: Response): Promise<vo
     res.status(500).json({ success: false, message: error.message })
   }
 }
-
-// ===============================
-// 🎯 V2 - CURSEDUCA (SPRINT 5.2)
-// ===============================
 
 /**
  * GET /api/curseduca/v2/products
@@ -502,9 +447,6 @@ export const getCurseducaStats = async (req: Request, res: Response) => {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// ✅ UNIVERSAL SYNC ENDPOINTS (NOVOS)
-// ─────────────────────────────────────────────────────────────
 
 /**
  * GET /api/curseduca/sync/universal
@@ -512,12 +454,24 @@ export const getCurseducaStats = async (req: Request, res: Response) => {
  * ✅ Adapter com deduplicação e platformData.isPrimary/isDuplicate
  */
 export const syncCurseducaUsersUniversal = async (req: Request, res: Response): Promise<void> => {
-  console.log('🚀 [CurseducaUniversal] Iniciando sync via Universal Service...')
-
+  const logger = new SyncLogger()
+  
   try {
-    console.log('📡 [CurseducaUniversal] Buscando dados via Adapter...')
-
+    logger.section('STEP 1: BUSCAR DADOS VIA ADAPTER')
+    if (!process.env.CURSEDUCA_API_URL || !process.env.CURSEDUCA_AccessToken || !process.env.CURSEDUCA_API_KEY) {
+      res.status(400).json({
+        success: false,
+        message: 'Credenciais CursEduca não configuradas (.env)',
+        missingVars: [
+          !process.env.CURSEDUCA_API_URL && 'CURSEDUCA_API_URL',
+          !process.env.CURSEDUCA_AccessToken && 'CURSEDUCA_AccessToken',
+          !process.env.CURSEDUCA_API_KEY && 'CURSEDUCA_API_KEY'
+        ].filter(Boolean)
+      })
+      return
+    }
     const { groupId } = req.query
+    logger.info(`GroupId filter: ${groupId || 'TODOS'}`)
 
     const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
       includeProgress: true,
@@ -526,24 +480,41 @@ export const syncCurseducaUsersUniversal = async (req: Request, res: Response): 
       progressConcurrency: 5
     })
 
-    console.log(`✅ [CurseducaUniversal] ${curseducaData.length} membros preparados`)
+    logger.success(`${curseducaData.length} membros preparados`)
 
     if (curseducaData.length === 0) {
+      logger.warn('Nenhum membro encontrado!')
       res.status(200).json({
         success: false,
         message: 'Nenhum membro encontrado na CursEduca',
-        data: { stats: { total: 0, inserted: 0, updated: 0, errors: 0 } },
-        _universalSync: true,
-        _version: '3.0'
+        logFile: logger.getLogPath(),
+        data: { stats: { total: 0, inserted: 0, updated: 0, errors: 0 } }
       })
       return
     }
 
-    console.log('⚡ [CurseducaUniversal] Executando Universal Sync...')
+    // Debug: Mostrar sample dos dados
+    logger.log('')
+    logger.log('📋 SAMPLE DE DADOS DO ADAPTER (primeiros 3):')
+    curseducaData.slice(0, 3).forEach((member, i) => {
+      logger.log(`   ${i + 1}. ${member.email}`)
+      logger.log(`      curseducaUserId: ${member.curseducaUserId}`)
+      logger.log(`      groupId: ${member.groupId || 'N/A'}`)
+      logger.log(`      groupName: ${member.groupName || 'N/A'}`)
+      logger.log(`      subscriptionType: ${member.subscriptionType || 'N/A'}`)
+      logger.log(`      isPrimary: ${member.platformData?.isPrimary}`)
+      logger.log('')
+    })
+
+    // ═══════════════════════════════════════════════════════════
+    // STEP 2: EXECUTAR UNIVERSAL SYNC
+    // ═══════════════════════════════════════════════════════════
+    
+    logger.section('STEP 2: EXECUTAR UNIVERSAL SYNC')
 
     const result = await universalSyncService.executeUniversalSync({
       syncType: 'curseduca',
-      jobName: 'CursEduca Universal Sync (Manual)',
+      jobName: 'CursEduca Universal Sync (Manual via API)',
       triggeredBy: 'MANUAL',
       triggeredByUser: (req as any).user?._id?.toString(),
 
@@ -554,48 +525,78 @@ export const syncCurseducaUsersUniversal = async (req: Request, res: Response): 
 
       sourceData: curseducaData,
 
-      onProgress: (progress: SyncProgress) => {
+      onProgress: (progress: any) => {
         if (progress.current % 50 === 0 || progress.percentage === 100) {
-          console.log(
-            `📊 [CurseducaUniversal] ${progress.percentage.toFixed(1)}% (${progress.current}/${progress.total})`
-          )
+          logger.info(`Progresso: ${progress.percentage.toFixed(1)}% (${progress.current}/${progress.total})`)
         }
       },
 
-      onError: (error: SyncError) => {
-        console.error(`❌ [CurseducaUniversal] Erro: ${error.message}`)
+      onError: (error: any) => {
+        logger.error(`Erro: ${error.message}`)
       },
 
-      onWarning: (warning: SyncWarning) => {
-        console.warn(`⚠️ [CurseducaUniversal] Aviso: ${warning.message}`)
+      onWarning: (warning: any) => {
+        logger.warn(`Aviso: ${warning.message}`)
       }
     })
 
-    console.log('✅ [CurseducaUniversal] Sync concluída!')
-    console.log(`   ⏱️ Duração: ${result.duration}s`)
-    console.log(`   ✅ Inseridos: ${result.stats.inserted}`)
-    console.log(`   🔄 Atualizados: ${result.stats.updated}`)
-    console.log(`   ❌ Erros: ${result.stats.errors}`)
+    logger.success('Sync concluído!')
+    logger.log('')
+    logger.log('📊 ESTATÍSTICAS:')
+    logger.log(`   ⏱️  Duração: ${result.duration}s`)
+    logger.log(`   ✅ Inseridos: ${result.stats.inserted}`)
+    logger.log(`   🔄 Atualizados: ${result.stats.updated}`)
+    logger.log(`   ⚠️  Inalterados: ${result.stats.unchanged || 0}`)
+    logger.log(`   ❌ Erros: ${result.stats.errors}`)
+    logger.log(`   📦 Total: ${result.stats.total}`)
 
-    // ✅ PATCH: Invalidar cache e rebuild stats (sem rebentar se não existir no projeto)
+    // ═══════════════════════════════════════════════════════════
+    // STEP 3: VALIDAR USERPRODUCTS CRIADOS
+    // ═══════════════════════════════════════════════════════════
+    
+    await validateUserProductsCreated(logger, 5)
+
+    // ═══════════════════════════════════════════════════════════
+    // STEP 4: REBUILD STATS
+    // ═══════════════════════════════════════════════════════════
+    
+    logger.section('STEP 4: REBUILD DASHBOARD STATS')
+    
     try {
-      console.log('🔄 [CurseducaUniversal] Invalidando cache e reconstruindo stats...')
-      const dualRead = await import('../../services/dualReadService').catch(() => null as any)
-      if (dualRead?.clearUnifiedCache) dualRead.clearUnifiedCache()
+      const dualRead = await import('../../services/syncUtilziadoresServices/dualReadService').catch(() => null as any)
+      if (dualRead?.clearUnifiedCache) {
+        dualRead.clearUnifiedCache()
+        logger.success('Cache invalidado')
+      }
 
       const builder = await import('../../services/dashboardStatsBuilder.service').catch(() => null as any)
-      if (builder?.buildDashboardStats) await builder.buildDashboardStats()
-
-      console.log('✅ [CurseducaUniversal] Stats atualizados!')
+      if (builder?.buildDashboardStats) {
+        await builder.buildDashboardStats()
+        logger.success('Stats reconstruídos')
+      }
     } catch (e: any) {
-      console.warn('⚠️ [CurseducaUniversal] Falha ao rebuild stats (ignorado):', e?.message)
+      logger.warn(`Falha ao rebuild stats (ignorado): ${e?.message}`)
     }
+
+    // ═══════════════════════════════════════════════════════════
+    // FINAL: SUMÁRIO
+    // ═══════════════════════════════════════════════════════════
+    
+    logger.section('SUMÁRIO FINAL')
+    logger.log(`📁 Log completo: ${logger.getLogPath()}`)
+    logger.log(`📊 ReportId: ${result.reportId}`)
+    logger.log(`📊 SyncHistoryId: ${result.syncHistoryId}`)
+    logger.log('')
+    logger.log('═'.repeat(80))
+    logger.success('SYNC COMPLETO!')
+    logger.log('═'.repeat(80))
 
     res.status(200).json({
       success: result.success,
       message: result.success
         ? 'Sincronização via Universal Service concluída com sucesso!'
         : 'Sincronização concluída com erros',
+      logFile: logger.getLogPath(),
       data: {
         reportId: result.reportId,
         syncHistoryId: result.syncHistoryId,
@@ -610,94 +611,136 @@ export const syncCurseducaUsersUniversal = async (req: Request, res: Response): 
       _version: '3.0'
     })
   } catch (error: any) {
-    console.error('❌ [CurseducaUniversal] Erro fatal:', error)
+    logger.error(`Erro fatal: ${error.message}`)
+    logger.log(error.stack || '')
+    
     res.status(500).json({
       success: false,
       message: 'Erro ao executar sincronização via Universal Service',
       error: error.message,
+      logFile: logger.getLogPath(),
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
 }
+async function validateUserProductsCreated(logger: SyncLogger, sampleSize = 5) {
+  logger.section('VALIDAÇÃO DE USERPRODUCTS')
 
-/**
- * POST /api/curseduca/sync/universal/progress
- * Sincronizar apenas progresso usando Universal Sync
- */
-export const syncProgressOnlyUniversal = async (req: Request, res: Response): Promise<void> => {
-  console.log('📊 [CurseducaProgress] Iniciando sync de progresso via Universal...')
-
+  
+  
   try {
-    const existingUsers = await User.find({
-      $or: [
-        { 'curseduca.curseducaUserId': { $exists: true, $nin: [null, ''] } },
-        { 'curseduca.curseducaUuid': { $exists: true, $nin: [null, ''] } }
-      ]
+
+    
+    // Buscar produtos CursEduca
+    const curseducaProducts = await Product.find({
+      platform: 'curseduca',
+      isActive: true
+    }).select('_id code name')
+
+    logger.info(`Produtos CursEduca encontrados: ${curseducaProducts.length}`)
+    curseducaProducts.forEach(p => {
+      logger.log(`   - ${p.code}: ${p.name} (${p._id})`)
     })
-      .select('curseduca.curseducaUserId curseduca.curseducaUuid email name')
-      .lean()
 
-    console.log(`📊 [CurseducaProgress] ${existingUsers.length} utilizadores com CursEduca ID`)
-
-    if (existingUsers.length === 0) {
-      res.status(200).json({
-        success: true,
-        message: 'Nenhum utilizador com CursEduca ID encontrado',
-        data: { stats: { total: 0 } },
-        _universalSync: true,
-        _progressOnly: true
-      })
+    if (curseducaProducts.length === 0) {
+      logger.error('NENHUM produto CursEduca encontrado na BD!')
       return
     }
 
-    // CursEduca: progresso vem da API principal (não tem endpoint dedicado)
-    console.log('⚠️ [CurseducaProgress] CursEduca não tem endpoint dedicado para progresso')
-    console.info('   💡 Executando sync completo filtrado por users existentes')
+    // Buscar UserProducts CursEduca
+    const productIds = curseducaProducts.map(p => p._id)
+    const userProducts = await UserProduct.find({
+      productId: { $in: productIds }
+    }).populate('userId', 'email name').populate('productId', 'code name')
 
-    const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
-      includeProgress: true,
-      includeGroups: false, // não precisamos reescrever grupos
-      progressConcurrency: 5
+    logger.success(`UserProducts CursEduca: ${userProducts.length}`) 
+const primaryCount = await UserProduct.countDocuments({
+  productId: { $in: productIds },
+  isPrimary: true
+})
+
+const secondaryCount = await UserProduct.countDocuments({
+  productId: { $in: productIds },
+  isPrimary: false
+})
+
+logger.log('')
+logger.log('📊 DISTRIBUIÇÃO PRIMARY/SECONDARY:')
+logger.log(`   ✅ Primary: ${primaryCount}`)
+logger.log(`   🔻 Secondary: ${secondaryCount}`)
+
+// Verificar duplicados sem isPrimary definido
+const withoutFlag = await UserProduct.countDocuments({
+  productId: { $in: productIds },
+  isPrimary: { $exists: false }
+})
+
+if (withoutFlag > 0) {
+  logger.warn(`⚠️ ${withoutFlag} UserProducts SEM flag isPrimary!`)
+}
+    // Mostrar sample
+    logger.log('')
+    logger.log('📦 SAMPLE DE USERPRODUCTS CRIADOS:')
+    const sample = userProducts.slice(0, sampleSize)
+    
+    for (const up of sample) {
+      const user = up.userId as any
+      const product = up.productId as any
+      
+      logger.log(`   ${user?.email || 'N/A'}`)
+      logger.log(`      → Produto: ${product?.code || 'N/A'}`)
+      logger.log(`      → Status: ${up.status}`)
+      logger.log(`      → Criado: ${up.createdAt}`)
+      logger.log('')
+    }
+
+    // Estatísticas por produto
+    logger.log('📊 ESTATÍSTICAS POR PRODUTO:')
+    for (const product of curseducaProducts) {
+      const count = await UserProduct.countDocuments({ productId: product._id })
+      logger.log(`   ${product.code}: ${count} UserProducts`)
+    }
+
+    // Verificar users com dados CursEduca mas SEM UserProduct
+    logger.log('')
+    logger.log('🔍 VERIFICAÇÃO DE INCONSISTÊNCIAS:')
+    
+    const usersWithCurseduca = await User.countDocuments({
+      'curseduca.curseducaUserId': { $exists: true, $ne: null }
     })
+    
+    logger.info(`Users com dados CursEduca: ${usersWithCurseduca}`)
+    logger.info(`UserProducts CursEduca: ${userProducts.length}`)
+    
+    if (usersWithCurseduca > userProducts.length) {
+      const missing = usersWithCurseduca - userProducts.length
+      logger.warn(`${missing} users com dados CursEduca MAS sem UserProduct!`)
+      
+      // Mostrar alguns exemplos
+      const usersWithoutUP = await User.find({
+        'curseduca.curseducaUserId': { $exists: true, $ne: null }
+      }).select('email curseduca').limit(5)
+      
+      logger.log('')
+      logger.log('📋 EXEMPLOS DE USERS SEM USERPRODUCT:')
+      for (const user of usersWithoutUP) {
+        const hasUP = await UserProduct.exists({ userId: user._id, productId: { $in: productIds } })
+        if (!hasUP) {
+          logger.log(`   ${user.email}`)
+          logger.log(`      curseducaUserId: ${(user as any).curseduca?.curseducaUserId}`)
+          logger.log(`      groupId: ${(user as any).curseduca?.groupId || 'N/A'}`)
+          logger.log('')
+        }
+      }
+    } else {
+      logger.success('✅ Todos os users com dados CursEduca têm UserProducts!')
+    }
 
-    // Filtrar apenas users existentes (por email)
-    const existingEmails = new Set(existingUsers.map((u: any) => String(u.email).toLowerCase().trim()))
-    const filteredData = curseducaData.filter((item: any) =>
-      existingEmails.has(String(item.email).toLowerCase().trim())
-    )
-
-    console.log(`📊 [CurseducaProgress] ${filteredData.length} users para atualizar progresso`)
-
-    const result = await universalSyncService.executeUniversalSync({
-      syncType: 'curseduca',
-      jobName: 'CursEduca Progress Sync (Universal)',
-      triggeredBy: 'MANUAL',
-      triggeredByUser: (req as any).user?._id?.toString(),
-
-      fullSync: false,
-      includeProgress: true,
-      includeTags: false,
-      batchSize: 100,
-
-      sourceData: filteredData
-    })
-
-    res.status(200).json({
-      success: result.success,
-      message: 'Progresso sincronizado via Universal Service!',
-      data: {
-        reportId: result.reportId,
-        stats: result.stats,
-        duration: result.duration
-      },
-      _universalSync: true,
-      _progressOnly: true
-    })
   } catch (error: any) {
-    console.error('❌ [CurseducaProgress] Erro:', error)
-    res.status(500).json({ success: false, message: error.message })
+    logger.error(`Erro na validação: ${error.message}`)
   }
 }
+
 
 /**
  * GET /api/curseduca/sync/compare
