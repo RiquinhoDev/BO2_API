@@ -1,0 +1,388 @@
+{
+  "meta": {
+    "generatedAt": "2026-01-04T02:22:07.835Z",
+    "platform": "curseduca",
+    "email": "rui.santos@serriquinho.com",
+    "jobName": "Comparison Test"
+  },
+  "legacy": {
+    "user": {
+      "email": "rui.santos@serriquinho.com",
+      "name": "Rui Santos",
+      "discord": {
+        "discordIds": [],
+        "acceptedTerms": false,
+        "isDeletable": true,
+        "isDeleted": false,
+        "role": "STUDENT",
+        "priority": "MEDIUM",
+        "locale": "pt_BR"
+      },
+      "hotmart": {
+        "progress": {
+          "totalTimeMinutes": 0,
+          "completedLessons": 0,
+          "lessonsData": []
+        },
+        "engagement": {
+          "accessCount": 0,
+          "engagementScore": 0,
+          "engagementLevel": "NONE",
+          "calculatedAt": "2026-01-04T02:22:04.608Z"
+        },
+        "plusAccess": "WITHOUT_PLUS_ACCESS",
+        "enrolledClasses": []
+      },
+      "curseduca": {
+        "progress": {},
+        "engagement": {},
+        "enrollmentsCount": 1,
+        "memberStatus": "ACTIVE",
+        "neverLogged": false,
+        "situation": "ACTIVE",
+        "enrolledClasses": [],
+        "curseducaUserId": "305",
+        "curseducaUuid": "6d42565a-bfc7-11f0-9b32-12eeaa0e8335",
+        "groupId": "6",
+        "joinedDate": "2025-11-12T09:59:30.000Z",
+        "lastAccess": "2025-12-26T09:44:44.000Z",
+        "lastLogin": "2025-12-26T09:44:44.000Z"
+      },
+      "combined": {
+        "status": "ACTIVE",
+        "totalProgress": 0,
+        "totalTimeMinutes": 0,
+        "totalLessons": 0,
+        "combinedEngagement": 0,
+        "bestEngagementSource": "estimated",
+        "engagement": {
+          "score": 0,
+          "level": "MUITO_BAIXO",
+          "sources": {
+            "hotmart": 0,
+            "curseduca": 0
+          }
+        },
+        "allClasses": [],
+        "lastActivity": "2026-01-04T02:22:04.608Z",
+        "sourcesAvailable": [
+          "discord",
+          "hotmart",
+          "curseduca"
+        ],
+        "dataQuality": "EXCELLENT",
+        "calculatedAt": "2026-01-04T02:22:04.615Z"
+      },
+      "metadata": {
+        "createdAt": "2026-01-04T02:22:04.608Z",
+        "sources": {
+          "curseduca": {
+            "lastSync": "2026-01-04T02:22:04.701Z",
+            "version": "3.1"
+          }
+        }
+      },
+      "communicationByCourse": {}
+    },
+    "userProduct": {
+      "userId": "6959cecc8c84e192eeb63893",
+      "productId": "692f5c2a904878080a9f4ee6",
+      "activeCampaignData": {
+        "lists": [],
+        "tags": []
+      },
+      "classes": [],
+      "communications": {
+        "emailsOpened": 0,
+        "emailsSent": 0,
+        "unsubscribed": false
+      },
+      "engagement": {
+        "lastLogin": "2025-12-26T09:44:44.000Z"
+      },
+      "isPrimary": true,
+      "metadata": {
+        "refunded": false
+      },
+      "progress": {
+        "percentage": 2
+      },
+      "source": "PURCHASE",
+      "status": "ACTIVE"
+    }
+  },
+  "universal": {
+    "user": {
+      "email": "rui.santos@serriquinho.com",
+      "name": "Rui Santos",
+      "discord": {
+        "discordIds": [],
+        "acceptedTerms": false,
+        "isDeletable": true,
+        "isDeleted": false,
+        "role": "STUDENT",
+        "priority": "MEDIUM",
+        "locale": "pt_BR"
+      },
+      "hotmart": {
+        "progress": {
+          "totalTimeMinutes": 0,
+          "completedLessons": 0,
+          "lessonsData": []
+        },
+        "engagement": {
+          "accessCount": 0,
+          "engagementScore": 0,
+          "engagementLevel": "NONE",
+          "calculatedAt": "2026-01-04T02:22:06.368Z"
+        },
+        "plusAccess": "WITHOUT_PLUS_ACCESS",
+        "enrolledClasses": []
+      },
+      "curseduca": {
+        "progress": {
+          "estimatedProgress": 2,
+          "activityLevel": "LOW",
+          "groupEngagement": 0,
+          "progressSource": "estimated"
+        },
+        "engagement": {
+          "alternativeEngagement": 0,
+          "activityLevel": "LOW",
+          "engagementLevel": "NONE",
+          "calculatedAt": "2026-01-04T02:22:06.368Z"
+        },
+        "enrollmentsCount": 1,
+        "memberStatus": "ACTIVE",
+        "neverLogged": false,
+        "situation": "ACTIVE",
+        "enrolledClasses": [],
+        "curseducaUserId": "305",
+        "curseducaUuid": "6d42565a-bfc7-11f0-9b32-12eeaa0e8335",
+        "groupId": "6",
+        "groupName": "Clareza - Mensal",
+        "joinedDate": "2025-11-12T09:59:30.000Z",
+        "lastAccess": "2025-12-26T09:44:44.000Z",
+        "lastLogin": "2025-12-26T09:44:44.000Z"
+      },
+      "combined": {
+        "status": "ACTIVE",
+        "totalProgress": 0,
+        "totalTimeMinutes": 0,
+        "totalLessons": 0,
+        "combinedEngagement": 0,
+        "bestEngagementSource": "estimated",
+        "engagement": {
+          "score": 0,
+          "level": "MUITO_BAIXO",
+          "sources": {
+            "hotmart": 0,
+            "curseduca": 0
+          }
+        },
+        "allClasses": [],
+        "lastActivity": "2026-01-04T02:22:06.368Z",
+        "sourcesAvailable": [
+          "discord",
+          "hotmart",
+          "curseduca"
+        ],
+        "dataQuality": "EXCELLENT",
+        "calculatedAt": "2026-01-04T02:22:06.371Z"
+      },
+      "metadata": {
+        "createdAt": "2026-01-04T02:22:06.368Z",
+        "sources": {
+          "curseduca": {
+            "lastSync": "2026-01-04T02:22:06.453Z",
+            "version": "3.1"
+          }
+        }
+      },
+      "communicationByCourse": {}
+    },
+    "userProduct": {
+      "userId": "6959cece8c84e192eeb638af",
+      "productId": "692f5c2a904878080a9f4ee6",
+      "platform": "curseduca",
+      "platformUserId": "305",
+      "enrolledAt": "2025-11-12T09:59:30.000Z",
+      "status": "ACTIVE",
+      "source": "PURCHASE",
+      "progress": {
+        "percentage": 2,
+        "lastActivity": "2026-01-04T02:22:06.723Z",
+        "modulesCompleted": [],
+        "lessonsCompleted": []
+      },
+      "engagement": {
+        "engagementScore": 4,
+        "daysSinceLastLogin": null,
+        "totalLogins": 0,
+        "lastAction": "2026-01-04T02:22:06.723Z",
+        "daysSinceLastAction": null,
+        "actionsLastWeek": 0,
+        "actionsLastMonth": 0
+      },
+      "activeCampaignData": {
+        "tags": [],
+        "lists": []
+      },
+      "communications": {
+        "emailsSent": 0,
+        "emailsOpened": 0,
+        "unsubscribed": false
+      },
+      "isPrimary": true,
+      "metadata": {
+        "purchaseValue": null,
+        "purchaseDate": "2026-01-04T02:22:06.368Z",
+        "platform": "curseduca",
+        "refunded": false
+      },
+      "classes": []
+    }
+  },
+  "comparison": {
+    "userEqual": false,
+    "userProductEqual": false,
+    "userDiff": [
+      {
+        "key": "hotmart.engagement.calculatedAt",
+        "a": "2026-01-04T02:22:04.608Z",
+        "b": "2026-01-04T02:22:06.368Z"
+      },
+      {
+        "key": "curseduca.progress.estimatedProgress",
+        "b": 2
+      },
+      {
+        "key": "curseduca.progress.activityLevel",
+        "b": "LOW"
+      },
+      {
+        "key": "curseduca.progress.groupEngagement",
+        "b": 0
+      },
+      {
+        "key": "curseduca.progress.progressSource",
+        "b": "estimated"
+      },
+      {
+        "key": "curseduca.engagement.alternativeEngagement",
+        "b": 0
+      },
+      {
+        "key": "curseduca.engagement.activityLevel",
+        "b": "LOW"
+      },
+      {
+        "key": "curseduca.engagement.engagementLevel",
+        "b": "NONE"
+      },
+      {
+        "key": "curseduca.engagement.calculatedAt",
+        "b": "2026-01-04T02:22:06.368Z"
+      },
+      {
+        "key": "curseduca.groupName",
+        "b": "Clareza - Mensal"
+      },
+      {
+        "key": "combined.lastActivity",
+        "a": "2026-01-04T02:22:04.608Z",
+        "b": "2026-01-04T02:22:06.368Z"
+      },
+      {
+        "key": "combined.calculatedAt",
+        "a": "2026-01-04T02:22:04.615Z",
+        "b": "2026-01-04T02:22:06.371Z"
+      },
+      {
+        "key": "metadata.createdAt",
+        "a": "2026-01-04T02:22:04.608Z",
+        "b": "2026-01-04T02:22:06.368Z"
+      },
+      {
+        "key": "metadata.sources.curseduca.lastSync",
+        "a": "2026-01-04T02:22:04.701Z",
+        "b": "2026-01-04T02:22:06.453Z"
+      }
+    ],
+    "userProductDiff": [
+      {
+        "key": "userId",
+        "a": "6959cecc8c84e192eeb63893",
+        "b": "6959cece8c84e192eeb638af"
+      },
+      {
+        "key": "engagement.lastLogin",
+        "a": "2025-12-26T09:44:44.000Z"
+      },
+      {
+        "key": "engagement.engagementScore",
+        "b": 4
+      },
+      {
+        "key": "engagement.daysSinceLastLogin",
+        "b": null
+      },
+      {
+        "key": "engagement.totalLogins",
+        "b": 0
+      },
+      {
+        "key": "engagement.lastAction",
+        "b": "2026-01-04T02:22:06.723Z"
+      },
+      {
+        "key": "engagement.daysSinceLastAction",
+        "b": null
+      },
+      {
+        "key": "engagement.actionsLastWeek",
+        "b": 0
+      },
+      {
+        "key": "engagement.actionsLastMonth",
+        "b": 0
+      },
+      {
+        "key": "metadata.purchaseValue",
+        "b": null
+      },
+      {
+        "key": "metadata.purchaseDate",
+        "b": "2026-01-04T02:22:06.368Z"
+      },
+      {
+        "key": "metadata.platform",
+        "b": "curseduca"
+      },
+      {
+        "key": "progress.lastActivity",
+        "b": "2026-01-04T02:22:06.723Z"
+      },
+      {
+        "key": "progress.modulesCompleted",
+        "b": []
+      },
+      {
+        "key": "progress.lessonsCompleted",
+        "b": []
+      },
+      {
+        "key": "platform",
+        "b": "curseduca"
+      },
+      {
+        "key": "platformUserId",
+        "b": "305"
+      },
+      {
+        "key": "enrolledAt",
+        "b": "2025-11-12T09:59:30.000Z"
+      }
+    ]
+  }
+}

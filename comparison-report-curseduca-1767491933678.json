@@ -1,0 +1,235 @@
+{
+  "timestamp": "2026-01-04T01:58:53.664Z",
+  "platform": "curseduca",
+  "totalTests": 10,
+  "passed": 0,
+  "failed": 10,
+  "results": [
+    {
+      "email": "vaniasscmendes@gmail.com",
+      "platform": "curseduca",
+      "legacySync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "universalSync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "differences": {
+        "user": [],
+        "userProduct": [],
+        "critical": [
+          "FATAL: Adapter falhou: ❌ Credenciais CursEduca não configuradas no .env:\n   Faltam: CURSEDUCA_API_URL, CURSEDUCA_AccessToken, CURSEDUCA_API_KEY\n   Por favor, adicione no ficheiro .env"
+        ]
+      },
+      "isIdentical": false
+    },
+    {
+      "email": "ludy.k.dias@outlook.com",
+      "platform": "curseduca",
+      "legacySync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "universalSync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "differences": {
+        "user": [],
+        "userProduct": [],
+        "critical": [
+          "FATAL: Adapter falhou: ❌ Credenciais CursEduca não configuradas no .env:\n   Faltam: CURSEDUCA_API_URL, CURSEDUCA_AccessToken, CURSEDUCA_API_KEY\n   Por favor, adicione no ficheiro .env"
+        ]
+      },
+      "isIdentical": false
+    },
+    {
+      "email": "alexandre.alcantara.melo@gmail.com",
+      "platform": "curseduca",
+      "legacySync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "universalSync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "differences": {
+        "user": [],
+        "userProduct": [],
+        "critical": [
+          "FATAL: Adapter falhou: ❌ Credenciais CursEduca não configuradas no .env:\n   Faltam: CURSEDUCA_API_URL, CURSEDUCA_AccessToken, CURSEDUCA_API_KEY\n   Por favor, adicione no ficheiro .env"
+        ]
+      },
+      "isIdentical": false
+    },
+    {
+      "email": "aldacsilva@gmail.com",
+      "platform": "curseduca",
+      "legacySync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "universalSync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "differences": {
+        "user": [],
+        "userProduct": [],
+        "critical": [
+          "FATAL: Adapter falhou: ❌ Credenciais CursEduca não configuradas no .env:\n   Faltam: CURSEDUCA_API_URL, CURSEDUCA_AccessToken, CURSEDUCA_API_KEY\n   Por favor, adicione no ficheiro .env"
+        ]
+      },
+      "isIdentical": false
+    },
+    {
+      "email": "jorgemesquita3@gmail.com",
+      "platform": "curseduca",
+      "legacySync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "universalSync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "differences": {
+        "user": [],
+        "userProduct": [],
+        "critical": [
+          "FATAL: Adapter falhou: ❌ Credenciais CursEduca não configuradas no .env:\n   Faltam: CURSEDUCA_API_URL, CURSEDUCA_AccessToken, CURSEDUCA_API_KEY\n   Por favor, adicione no ficheiro .env"
+        ]
+      },
+      "isIdentical": false
+    },
+    {
+      "email": "hugo_7_alves@hotmail.com",
+      "platform": "curseduca",
+      "legacySync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "universalSync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "differences": {
+        "user": [],
+        "userProduct": [],
+        "critical": [
+          "FATAL: Adapter falhou: ❌ Credenciais CursEduca não configuradas no .env:\n   Faltam: CURSEDUCA_API_URL, CURSEDUCA_AccessToken, CURSEDUCA_API_KEY\n   Por favor, adicione no ficheiro .env"
+        ]
+      },
+      "isIdentical": false
+    },
+    {
+      "email": "lilianasantos@ligestconsulting.com",
+      "platform": "curseduca",
+      "legacySync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "universalSync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "differences": {
+        "user": [],
+        "userProduct": [],
+        "critical": [
+          "FATAL: Adapter falhou: ❌ Credenciais CursEduca não configuradas no .env:\n   Faltam: CURSEDUCA_API_URL, CURSEDUCA_AccessToken, CURSEDUCA_API_KEY\n   Por favor, adicione no ficheiro .env"
+        ]
+      },
+      "isIdentical": false
+    },
+    {
+      "email": "carina.ranchoddas@gmail.com",
+      "platform": "curseduca",
+      "legacySync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "universalSync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "differences": {
+        "user": [],
+        "userProduct": [],
+        "critical": [
+          "FATAL: Adapter falhou: ❌ Credenciais CursEduca não configuradas no .env:\n   Faltam: CURSEDUCA_API_URL, CURSEDUCA_AccessToken, CURSEDUCA_API_KEY\n   Por favor, adicione no ficheiro .env"
+        ]
+      },
+      "isIdentical": false
+    },
+    {
+      "email": "de.oliveira.moreira@gmail.com",
+      "platform": "curseduca",
+      "legacySync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "universalSync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "differences": {
+        "user": [],
+        "userProduct": [],
+        "critical": [
+          "FATAL: Adapter falhou: ❌ Credenciais CursEduca não configuradas no .env:\n   Faltam: CURSEDUCA_API_URL, CURSEDUCA_AccessToken, CURSEDUCA_API_KEY\n   Por favor, adicione no ficheiro .env"
+        ]
+      },
+      "isIdentical": false
+    },
+    {
+      "email": "fabiopereirajobs@gmail.com",
+      "platform": "curseduca",
+      "legacySync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "universalSync": {
+        "success": false,
+        "user": null,
+        "userProduct": null
+      },
+      "differences": {
+        "user": [],
+        "userProduct": [],
+        "critical": [
+          "FATAL: Adapter falhou: ❌ Credenciais CursEduca não configuradas no .env:\n   Faltam: CURSEDUCA_API_URL, CURSEDUCA_AccessToken, CURSEDUCA_API_KEY\n   Por favor, adicione no ficheiro .env"
+        ]
+      },
+      "isIdentical": false
+    }
+  ],
+  "summary": {
+    "identicalCount": 0,
+    "differenceCount": 0,
+    "criticalDifferences": 10,
+    "successRate": "0.0%"
+  }
+}

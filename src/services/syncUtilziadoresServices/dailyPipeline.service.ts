@@ -1,18 +1,6 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/services/sync/dailyPipeline.service.ts
-// DAILY PIPELINE ORCHESTRATOR
-// ════════════════════════════════════════════════════════════
-//
-// Coordena execução sequencial de todo o pipeline diário:
-// 1. Sync Hotmart (colhe dados OGI)
-// 2. Sync CursEduca (colhe dados CLAREZA)
-// 3. Recalc Engagement (processa metrics com dados frescos)
-// 4. Evaluate Tag Rules (aplica tags com dados completos)
-//
-// EXECUTADO:
-// - CRON diário (02:00)
-// - Manual via API: POST /api/cron/execute-pipeline
-//
+// 📁 src/services/syncUtilizadoresServices/dailyPipeline.service.ts
+// DAILY PIPELINE ORCHESTRATOR (100% UNIVERSAL SYNC)
 // ════════════════════════════════════════════════════════════
 
 import { Product, UserProduct } from '../../models'
@@ -20,9 +8,11 @@ import logger from '../../utils/logger'
 
 import { recalculateAllEngagementMetrics } from '../ac/recalculate-engagement-metrics'
 import { tagOrchestratorV2 } from '../ac/tagOrchestrator.service'
-import { syncCurseducaFull } from './curseducaServices/curseducaSync.service'
-import { syncHotmartFull } from './hotmartServices/hotmartSync.service'
 
+// ✅ Adapters + Universal Sync
+import universalSyncService from './universalSyncService'
+import curseducaAdapter from './curseducaServices/curseduca.adapter'
+import hotmartAdapter from './hotmartServices/hotmart.adapter'
 
 // ═══════════════════════════════════════════════════════════
 // TYPES
@@ -59,45 +49,25 @@ interface PipelineResult {
 // ═══════════════════════════════════════════════════════════
 
 /**
- * Obter configuração dos produtos para sync
- * 
- * IMPORTANTE: Adicionar/remover produtos aqui conforme necessário
- * Ou buscar dinamicamente da BD
+ * Obter configuração dos produtos para sync (DINÂMICO DA BD)
  */
 async function getProductsConfig() {
-  // OPÇÃO 1: Hard-coded (mais rápido, menos flexível)
-  /*
-  return {
-    hotmart: {
-      subdomain: 'ogi' // OGI_V1
-    },
-    curseduca: {
-      groupIds: ['clareza-mensal', 'clareza-anual'] // CLAREZA_MENSAL + CLAREZA_ANUAL
-    }
-  }
-  */
-  
-  // OPÇÃO 2: Dinâmico da BD (mais flexível, recomendado)
   const hotmartProducts = await Product.find({ 
     platform: 'hotmart', 
     isActive: true 
-  }).select('platformData.subdomain').lean()
+  }).select('code platformData').lean()
   
   const curseducaProducts = await Product.find({ 
     platform: 'curseduca', 
     isActive: true 
-  }).select('platformData.groupId').lean()
+  }).select('code platformData').lean()
   
   return {
     hotmart: {
-      subdomains: hotmartProducts
-        .map(p => p.platformData?.subdomain)
-        .filter(Boolean)
+      products: hotmartProducts
     },
     curseduca: {
-      groupIds: curseducaProducts
-        .map(p => p.platformData?.groupId)
-        .filter(Boolean)
+      products: curseducaProducts
     }
   }
 }
@@ -107,26 +77,14 @@ async function getProductsConfig() {
 // ═══════════════════════════════════════════════════════════
 
 /**
- * Executa pipeline diário completo de forma sequencial
- * 
- * ORDEM:
- * 1. Sync Hotmart → Colhe dados OGI
- * 2. Sync CursEduca → Colhe dados CLAREZA
- * 3. Recalc Engagement → Processa metrics com dados frescos
- * 4. Evaluate Tag Rules → Aplica tags com dados completos
- * 
- * GARANTIAS:
- * - Execução sequencial (cada step espera anterior)
- * - Dados sempre frescos (recalc usa dados do sync)
- * - Logging completo (rastreabilidade)
- * - Error handling robusto (continua mesmo com erros)
+ * Executa pipeline diário completo usando Universal Sync
  */
 export async function executeDailyPipeline(): Promise<PipelineResult> {
   const startTime = Date.now()
   const errors: string[] = []
   
   logger.info('═'.repeat(60))
-  logger.info('[PIPELINE] 🚀 INICIANDO PIPELINE DIÁRIO COMPLETO')
+  logger.info('[PIPELINE] 🚀 INICIANDO PIPELINE DIÁRIO (UNIVERSAL SYNC)')
   logger.info('═'.repeat(60))
   
   const result: PipelineResult = {
@@ -149,56 +107,68 @@ export async function executeDailyPipeline(): Promise<PipelineResult> {
   }
   
   try {
-    // Obter configuração de produtos
     const config = await getProductsConfig()
     
     // ═══════════════════════════════════════════════════════════
-    // STEP 1/4: SYNC HOTMART
+    // STEP 1/4: SYNC HOTMART (UNIVERSAL SYNC)
     // ═══════════════════════════════════════════════════════════
     
     logger.info('')
-    logger.info('[PIPELINE] 📥 STEP 1/4: Sync Hotmart')
+    logger.info('[PIPELINE] 📥 STEP 1/4: Sync Hotmart (Universal)')
     logger.info('-'.repeat(60))
     const step1Start = Date.now()
     
     try {
-      let hotmartResult: any = {
-        success: true,
-        stats: { total: 0, inserted: 0, updated: 0, errors: 0 }
-      }
+      let totalStats = { total: 0, inserted: 0, updated: 0, errors: 0 }
       
-      // Sync cada subdomain Hotmart
-      if (config.hotmart.subdomains && config.hotmart.subdomains.length > 0) {
-        for (const subdomain of config.hotmart.subdomains) {
-          logger.info(`[PIPELINE] Syncing Hotmart subdomain: ${subdomain}`)
-          const subResult = await syncHotmartFull(subdomain)
+      if (config.hotmart.products.length > 0) {
+        // Sync cada produto Hotmart
+        for (const product of config.hotmart.products) {
+          const subdomain = product.platformData?.subdomain || product.code
           
-          // Agregar resultados
-          hotmartResult.stats.total += subResult.stats.total
-          hotmartResult.stats.inserted += subResult.stats.inserted
-          hotmartResult.stats.updated += subResult.stats.updated
-          hotmartResult.stats.errors += subResult.stats.errors
+          logger.info(`[PIPELINE] Syncing Hotmart: ${product.code} (${subdomain})`)
           
-          if (!subResult.success) {
-            hotmartResult.success = false
+          // 1. Buscar dados via adapter
+          const hotmartData = await hotmartAdapter.fetchHotmartDataForSync()
+          
+          if (hotmartData.length === 0) {
+            logger.warn(`[PIPELINE] ⚠️ Nenhum user encontrado para ${product.code}`)
+            continue
           }
+          
+          // 2. Executar Universal Sync
+          const syncResult = await universalSyncService.executeUniversalSync({
+            syncType: 'hotmart',
+            jobName: `Daily Pipeline - Hotmart ${product.code}`,
+            triggeredBy: 'CRON',
+            fullSync: true,
+            includeProgress: true,
+            includeTags: false,
+            batchSize: 50,
+            sourceData: hotmartData
+          })
+          
+          // Agregar stats
+          totalStats.total += syncResult.stats.total
+          totalStats.inserted += syncResult.stats.inserted
+          totalStats.updated += syncResult.stats.updated
+          totalStats.errors += syncResult.stats.errors
+          
+          logger.info(`[PIPELINE]    ✅ ${syncResult.stats.total} users processados`)
         }
       } else {
-        logger.warn('[PIPELINE] ⚠️ Nenhum produto Hotmart ativo encontrado')
+        logger.warn('[PIPELINE] ⚠️ Nenhum produto Hotmart ativo')
       }
       
       result.steps.syncHotmart = {
-        success: hotmartResult.success,
+        success: totalStats.errors === 0,
         duration: Math.floor((Date.now() - step1Start) / 1000),
-        stats: hotmartResult.stats
+        stats: totalStats
       }
       
-      result.summary.totalUsers += hotmartResult.stats.total || 0
+      result.summary.totalUsers += totalStats.total
       
-      logger.info(`[PIPELINE] ✅ STEP 1/4 completo em ${result.steps.syncHotmart.duration}s`, {
-        users: hotmartResult.stats.total,
-        updated: hotmartResult.stats.updated
-      })
+      logger.info(`[PIPELINE] ✅ STEP 1/4 completo em ${result.steps.syncHotmart.duration}s`)
       
     } catch (error: any) {
       const errorMsg = `Sync Hotmart: ${error.message}`
@@ -206,59 +176,64 @@ export async function executeDailyPipeline(): Promise<PipelineResult> {
       result.success = false
       result.steps.syncHotmart.error = error.message
       
-      logger.error('[PIPELINE] ❌ STEP 1/4 falhou', {
-        error: error.message,
-        stack: error.stack
-      })
+      logger.error('[PIPELINE] ❌ STEP 1/4 falhou:', error.message)
     }
     
     // ═══════════════════════════════════════════════════════════
-    // STEP 2/4: SYNC CURSEDUCA
+    // STEP 2/4: SYNC CURSEDUCA (UNIVERSAL SYNC)
     // ═══════════════════════════════════════════════════════════
     
     logger.info('')
-    logger.info('[PIPELINE] 📥 STEP 2/4: Sync CursEduca')
+    logger.info('[PIPELINE] 📥 STEP 2/4: Sync CursEduca (Universal)')
     logger.info('-'.repeat(60))
     const step2Start = Date.now()
     
     try {
-      let curseducaResult: any = {
-        success: true,
-        stats: { total: 0, inserted: 0, updated: 0, errors: 0 }
-      }
+      let totalStats = { total: 0, inserted: 0, updated: 0, errors: 0 }
       
-      // Sync cada groupId CursEduca
-      if (config.curseduca.groupIds && config.curseduca.groupIds.length > 0) {
-        for (const groupId of config.curseduca.groupIds) {
-          logger.info(`[PIPELINE] Syncing CursEduca groupId: ${groupId}`)
-          const groupResult = await syncCurseducaFull(groupId)
+      if (config.curseduca.products.length > 0) {
+        // Buscar TODOS os dados CursEduca de uma vez (adapter já filtra por grupos)
+        logger.info(`[PIPELINE] Syncing CursEduca (todos os grupos)`)
+        
+        // 1. Buscar dados via adapter (sem groupId = TODOS os grupos)
+        const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
+          includeProgress: true,
+          includeGroups: true,
+          enrichWithDetails: true
+        })
+        
+        if (curseducaData.length === 0) {
+          logger.warn(`[PIPELINE] ⚠️ Nenhum user encontrado na CursEduca`)
+        } else {
+          // 2. Executar Universal Sync
+          const syncResult = await universalSyncService.executeUniversalSync({
+            syncType: 'curseduca',
+            jobName: `Daily Pipeline - CursEduca`,
+            triggeredBy: 'CRON',
+            fullSync: true,
+            includeProgress: true,
+            includeTags: false,
+            batchSize: 50,
+            sourceData: curseducaData
+          })
           
-          // Agregar resultados
-          curseducaResult.stats.total += groupResult.stats.total
-          curseducaResult.stats.inserted += groupResult.stats.inserted
-          curseducaResult.stats.updated += groupResult.stats.updated
-          curseducaResult.stats.errors += groupResult.stats.errors
+          totalStats = syncResult.stats
           
-          if (!groupResult.success) {
-            curseducaResult.success = false
-          }
+          logger.info(`[PIPELINE]    ✅ ${syncResult.stats.total} users processados`)
         }
       } else {
-        logger.warn('[PIPELINE] ⚠️ Nenhum produto CursEduca ativo encontrado')
+        logger.warn('[PIPELINE] ⚠️ Nenhum produto CursEduca ativo')
       }
       
       result.steps.syncCursEduca = {
-        success: curseducaResult.success,
+        success: totalStats.errors === 0,
         duration: Math.floor((Date.now() - step2Start) / 1000),
-        stats: curseducaResult.stats
+        stats: totalStats
       }
       
-      result.summary.totalUsers += curseducaResult.stats.total || 0
+      result.summary.totalUsers += totalStats.total
       
-      logger.info(`[PIPELINE] ✅ STEP 2/4 completo em ${result.steps.syncCursEduca.duration}s`, {
-        users: curseducaResult.stats.total,
-        updated: curseducaResult.stats.updated
-      })
+      logger.info(`[PIPELINE] ✅ STEP 2/4 completo em ${result.steps.syncCursEduca.duration}s`)
       
     } catch (error: any) {
       const errorMsg = `Sync CursEduca: ${error.message}`
@@ -266,14 +241,11 @@ export async function executeDailyPipeline(): Promise<PipelineResult> {
       result.success = false
       result.steps.syncCursEduca.error = error.message
       
-      logger.error('[PIPELINE] ❌ STEP 2/4 falhou', {
-        error: error.message,
-        stack: error.stack
-      })
+      logger.error('[PIPELINE] ❌ STEP 2/4 falhou:', error.message)
     }
     
     // ═══════════════════════════════════════════════════════════
-    // STEP 3/4: RECALC ENGAGEMENT (USA DADOS FRESCOS DO SYNC!)
+    // STEP 3/4: RECALC ENGAGEMENT
     // ═══════════════════════════════════════════════════════════
     
     logger.info('')
@@ -293,11 +265,7 @@ export async function executeDailyPipeline(): Promise<PipelineResult> {
       result.summary.totalUserProducts = recalcResult.stats.total || 0
       result.summary.engagementUpdated = recalcResult.stats.updated || 0
       
-      logger.info(`[PIPELINE] ✅ STEP 3/4 completo em ${result.steps.recalcEngagement.duration}s`, {
-        total: recalcResult.stats.total,
-        updated: recalcResult.stats.updated,
-        skipped: recalcResult.stats.skipped
-      })
+      logger.info(`[PIPELINE] ✅ STEP 3/4 completo em ${result.steps.recalcEngagement.duration}s`)
       
     } catch (error: any) {
       const errorMsg = `Recalc Engagement: ${error.message}`
@@ -305,14 +273,11 @@ export async function executeDailyPipeline(): Promise<PipelineResult> {
       result.success = false
       result.steps.recalcEngagement.error = error.message
       
-      logger.error('[PIPELINE] ❌ STEP 3/4 falhou', {
-        error: error.message,
-        stack: error.stack
-      })
+      logger.error('[PIPELINE] ❌ STEP 3/4 falhou:', error.message)
     }
     
     // ═══════════════════════════════════════════════════════════
-    // STEP 4/4: EVALUATE TAG RULES (USA ENGAGEMENT FRESCO!)
+    // STEP 4/4: EVALUATE TAG RULES
     // ═══════════════════════════════════════════════════════════
     
     logger.info('')
@@ -321,14 +286,12 @@ export async function executeDailyPipeline(): Promise<PipelineResult> {
     const step4Start = Date.now()
     
     try {
-      // Buscar TODOS os UserProducts ativos
       const userProducts = await UserProduct.find({ status: 'ACTIVE' })
         .select('userId productId')
         .lean()
       
       logger.info(`[PIPELINE] Processando ${userProducts.length} UserProducts`)
       
-      // Executar orquestração para cada UserProduct
       const items = userProducts.map(up => ({
         userId: up.userId.toString(),
         productId: up.productId.toString()
@@ -336,7 +299,6 @@ export async function executeDailyPipeline(): Promise<PipelineResult> {
       
       const orchestrationResults = await tagOrchestratorV2.orchestrateMultipleUserProducts(items)
       
-      // Agregar estatísticas
       const stats = tagOrchestratorV2.getExecutionStats(orchestrationResults)
       
       const tagsApplied = orchestrationResults.reduce(
@@ -361,11 +323,7 @@ export async function executeDailyPipeline(): Promise<PipelineResult> {
       
       result.summary.tagsApplied = tagsApplied
       
-      logger.info(`[PIPELINE] ✅ STEP 4/4 completo em ${result.steps.evaluateTagRules.duration}s`, {
-        userProducts: stats.total,
-        successful: stats.successful,
-        tagsApplied
-      })
+      logger.info(`[PIPELINE] ✅ STEP 4/4 completo em ${result.steps.evaluateTagRules.duration}s`)
       
     } catch (error: any) {
       const errorMsg = `Tag Rules: ${error.message}`
@@ -373,10 +331,7 @@ export async function executeDailyPipeline(): Promise<PipelineResult> {
       result.success = false
       result.steps.evaluateTagRules.error = error.message
       
-      logger.error('[PIPELINE] ❌ STEP 4/4 falhou', {
-        error: error.message,
-        stack: error.stack
-      })
+      logger.error('[PIPELINE] ❌ STEP 4/4 falhou:', error.message)
     }
     
     // ═══════════════════════════════════════════════════════════
@@ -398,13 +353,7 @@ export async function executeDailyPipeline(): Promise<PipelineResult> {
     
     logger.info('═'.repeat(60))
     logger.info('[PIPELINE] 📊 RESUMO:', {
-      duration: `${result.duration}s (${Math.floor(result.duration / 60)}min ${result.duration % 60}s)`,
-      steps: {
-        hotmart: `${result.steps.syncHotmart.duration}s`,
-        curseduca: `${result.steps.syncCursEduca.duration}s`,
-        engagement: `${result.steps.recalcEngagement.duration}s`,
-        tagRules: `${result.steps.evaluateTagRules.duration}s`
-      },
+      duration: `${result.duration}s`,
       summary: result.summary,
       errors: errors.length
     })
@@ -426,18 +375,11 @@ export async function executeDailyPipeline(): Promise<PipelineResult> {
     logger.error('═'.repeat(60))
     logger.error('[PIPELINE] ❌ PIPELINE FALHOU COMPLETAMENTE')
     logger.error('═'.repeat(60))
-    logger.error('[PIPELINE] Erro:', {
-      message: error.message,
-      stack: error.stack
-    })
+    logger.error('[PIPELINE] Erro:', error.message)
     
     return result
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// EXPORT
-// ═══════════════════════════════════════════════════════════
 
 export default {
   executeDailyPipeline
