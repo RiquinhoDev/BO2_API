@@ -6,9 +6,6 @@
 // ════════════════════════════════════════════════════════════════════
 
 import UserProduct from '../../models/UserProduct'
-import User from '../../models/user'
-import Product from '../../models/product/Product'
-import { Types } from 'mongoose'
 
 // ═══════════════════════════════════════════════════════════════════
 // INTERFACES

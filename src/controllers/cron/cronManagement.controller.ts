@@ -6,10 +6,11 @@
 
 import { Request, Response, RequestHandler } from 'express'
 import mongoose from 'mongoose'
-import cronManagementService from '../../services/syncUtilziadoresServices/cronManagement.service'
+import cronManagementService from '../../services/cron/cronManagement.service'
 import CronJobConfig from '../../models/SyncModels/CronJobConfig'
 import { CronExecution } from '../../models'
-import syncSchedulerService from '../../services/syncUtilziadoresServices/scheduler'
+import syncSchedulerService from '../../services/cron/scheduler'
+
 
 
 // ════════════════════════════════════════════════════════════════════════════

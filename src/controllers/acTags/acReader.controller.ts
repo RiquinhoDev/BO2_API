@@ -9,7 +9,7 @@ import User from '../../models/user'
 import contactTagReaderService, {
   ContactTagInfo,
   SyncResult
-} from '../../services/ac/contactTagReader.service'
+} from '../../services/activeCampaign/contactTagReader.service'
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS

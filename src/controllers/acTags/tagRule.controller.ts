@@ -5,7 +5,7 @@
 
 import type { RequestHandler } from 'express'
 import { Course, TagRule } from '../../models'
-import tagRuleEngine from '../../services/ac/tagRuleEngine'
+import tagRuleEngine from '../../services/activeCampaign/tagRuleEngine'
 
 // ─────────────────────────────────────────────────────────────
 // LISTAR TODAS AS REGRAS (com filtros)

@@ -13,7 +13,7 @@
 // ESCALÁVEL: Adicionar nova plataforma = adicionar função de normalização
 // ═══════════════════════════════════════════════════════════════════════════
 
-import UserProduct from '../models/UserProduct'
+import UserProduct from '../../../models/UserProduct'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TIPOS

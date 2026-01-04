@@ -4,8 +4,8 @@
 // ================================================================
 
 import { Request, Response } from 'express'
-import decisionEngine from '../services/ac/decisionEngine.service'
-import tagOrchestrator from '../services/ac/tagOrchestrator.service'
+import decisionEngine from '../services/activeCampaign/decisionEngine.service'
+import tagOrchestrator from '../services/activeCampaign/tagOrchestrator.service'
 import StudentEngagementState from '../models/StudentEngagementState'
 import ProductProfile from '../models/product/ProductProfile'
 import User from '../models/user'

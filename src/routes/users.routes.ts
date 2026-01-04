@@ -38,7 +38,7 @@ import {
   searchStudent,
 } from "../controllers/users.controller"
 
-import { calculateBatchAverageEngagement } from "../services/engagementCalculator.service"
+import { calculateBatchAverageEngagement } from "../services/syncUtilziadoresServices/engagement/engagementCalculator.service"
 import { getUserByEmail } from "../controllers/syncUtilizadoresControllers.ts/curseduca.controller"
 
 const router = Router()
@@ -589,7 +589,7 @@ router.get('/v2/engagement/comparison', async (req, res) => {
     console.log('\n📊 [Engagement Comparison] Calculando...')
 
     const UserProduct = require('../models/UserProduct').default
-    const Product = require('../models/Product').default
+    const Product = require('../models/product/Product').default
 
     const products: any[] = await Product.find({}).lean()
     console.log(`   📦 ${products.length} produtos encontrados`)

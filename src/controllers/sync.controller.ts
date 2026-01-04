@@ -11,7 +11,7 @@ import SyncHistory from '../models/SyncHistory'
 import { Product, User, UserProduct } from '../models'
 
 // Services
-import { executeDailyPipeline } from '../services/syncUtilziadoresServices/dailyPipeline.service'
+import { executeDailyPipeline } from '../services/cron/dailyPipeline.service'
 import universalSyncService from '../services/syncUtilziadoresServices/universalSyncService'
 import hotmartAdapter from '../services/syncUtilziadoresServices/hotmartServices/hotmart.adapter'
 import curseducaAdapter from '../services/syncUtilziadoresServices/curseducaServices/curseduca.adapter'

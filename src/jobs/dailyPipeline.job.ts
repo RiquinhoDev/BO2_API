@@ -16,7 +16,7 @@
 
 import cron from 'node-cron'
 import logger from '../utils/logger'
-import { executeDailyPipeline } from '../services/syncUtilziadoresServices/dailyPipeline.service'
+import { executeDailyPipeline } from '../services/cron/dailyPipeline.service'
 
 // ═══════════════════════════════════════════════════════════
 // EXECUTAR PIPELINE MANUALMENTE
