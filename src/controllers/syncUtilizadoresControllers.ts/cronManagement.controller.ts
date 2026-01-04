@@ -6,9 +6,10 @@
 
 import { Request, RequestHandler, Response } from 'express'
 import mongoose from 'mongoose'
-import syncSchedulerService from '../../services/syncUtilziadoresServices/scheduler'
+
 import { SyncType } from '../../models/SyncModels/CronJobConfig'
 import { CronExecution, Product, TagRule } from '../../models'
+import syncSchedulerService from '../../services/cron/scheduler'
 
 
 // ═══════════════════════════════════════════════════════════

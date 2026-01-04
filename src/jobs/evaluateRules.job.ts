@@ -6,7 +6,7 @@
 import Course from '../models/Course'
 import { Product, UserProduct } from '../models'
 import User from '../models/user'
-import tagRuleEngine from '../services/ac/tagRuleEngine'
+import tagRuleEngine from '../services/activeCampaign/tagRuleEngine'
 
 console.log('⚠️ EvaluateRules: DESATIVADO hardcoded (gerido pelo wizard)')
 

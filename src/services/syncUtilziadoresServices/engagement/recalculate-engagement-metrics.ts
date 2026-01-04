@@ -18,9 +18,9 @@
 //
 // ════════════════════════════════════════════════════════════
 
-import { Product, User, UserProduct } from "../../models"
-import logger from "../../utils/logger"
-import { calculateEngagementMetricsForUserProduct } from "../syncUtilziadoresServices/universalSyncService"
+import { Product, User, UserProduct } from "../../../models"
+import logger from "../../../utils/logger"
+import { calculateEngagementMetricsForUserProduct } from "../universalSyncService"
 
 
 // ═══════════════════════════════════════════════════════════

@@ -1,5 +1,5 @@
 // src/services/engagementService.ts
-import User, { IUser } from '../models/user'
+import User, { IUser } from '../../../models/user'
 
 // (opcional mas recomendado) tipar em vez de any
 export const calculateCombinedEngagement = (user: Pick<IUser, 'hotmart' | 'curseduca'> & any): number => {

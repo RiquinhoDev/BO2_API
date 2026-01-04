@@ -6,13 +6,13 @@
 import { Product, UserProduct } from '../../models'
 import logger from '../../utils/logger'
 
-import { recalculateAllEngagementMetrics } from '../ac/recalculate-engagement-metrics'
-import { tagOrchestratorV2 } from '../ac/tagOrchestrator.service'
+import { recalculateAllEngagementMetrics } from '../syncUtilziadoresServices/engagement/recalculate-engagement-metrics'
+import { tagOrchestratorV2 } from '../activeCampaign/tagOrchestrator.service'
 
 // ✅ Adapters + Universal Sync
-import universalSyncService from './universalSyncService'
-import curseducaAdapter from './curseducaServices/curseduca.adapter'
-import hotmartAdapter from './hotmartServices/hotmart.adapter'
+import universalSyncService from '../syncUtilziadoresServices/universalSyncService'
+import curseducaAdapter from '../syncUtilziadoresServices/curseducaServices/curseduca.adapter'
+import hotmartAdapter from '../syncUtilziadoresServices/hotmartServices/hotmart.adapter'
 
 // ═══════════════════════════════════════════════════════════
 // TYPES

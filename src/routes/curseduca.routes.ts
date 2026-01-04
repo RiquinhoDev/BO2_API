@@ -10,7 +10,6 @@ import {
   getAccessReports,
   getCurseducaUsers,
   debugCurseducaAPI,
-  syncCurseducaUsersIntelligent,
   getSyncReport,
   getUserByEmail,
   cleanupDuplicates,
@@ -47,7 +46,6 @@ router.get('/users', getCurseducaUsers)
 router.get('/debug', debugCurseducaAPI)
 
 // 🚀 FUTURO
-router.post('/syncIntelligent', syncCurseducaUsersIntelligent)
 router.get('/report', getSyncReport)
 router.get('/user', getUserByEmail)
 router.post('/cleanup', cleanupDuplicates)

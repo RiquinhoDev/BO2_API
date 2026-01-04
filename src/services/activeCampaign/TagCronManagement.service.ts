@@ -4,14 +4,14 @@
 // Serviço para gestão de jobs CRON (agendamento, execução, histórico)
 // ================================================================
 
-import CronConfig from '../models/cron/CronConfig'
-import CronExecution from '../models/cron/CronExecution'
-import Course from '../models/Course'
-import User from '../models/user'
-import tagRuleEngine from './ac/tagRuleEngine'
-import ProductProfile from '../models/product/ProductProfile'
-import decisionEngine from './ac/decisionEngine.service'
-import tagOrchestrator from './ac/tagOrchestrator.service'
+import CronConfig from '../../models/cron/CronConfig'
+import CronExecution from '../../models/cron/CronExecution'
+import Course from '../../models/Course'
+import User from '../../models/user'
+import tagRuleEngine from './tagRuleEngine'
+import ProductProfile from '../../models/product/ProductProfile'
+import decisionEngine from './decisionEngine.service'
+import tagOrchestrator from './tagOrchestrator.service'
 import schedule from 'node-schedule'
 
 type CronConfigLike = {
@@ -56,7 +56,7 @@ const normalizeNextRunDate = (v: unknown): Date | null => {
   return null
 }
 
-class CronManagementService {
+class TagCronManagement {
   private scheduledJobs: Map<string, schedule.Job> = new Map()
 
   /**
@@ -521,4 +521,4 @@ class CronManagementService {
   }
 }
 
-export default new CronManagementService()
+export default new TagCronManagement()

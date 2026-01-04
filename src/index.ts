@@ -14,7 +14,7 @@ import './jobs/evaluateRules.job'
 import activecampaignRoutes from './routes/ACroutes/activecampaign.routes'
 import webhooksRoutes from './routes/webhooks.routes'
 import healthRoutes from './routes/health.routes'
-import syncSchedulerService from './services/syncUtilziadoresServices/scheduler'
+
 import { warmUpCache } from './services/syncUtilziadoresServices/dualReadService'
 import cronManagementRoutes from './routes/cron/cronManagement.routes'
 
@@ -63,6 +63,7 @@ import "./models"
 import jobScheduler from "./jobs"
 import analyticsCacheService from "./services/analytics/analyticsCache.service"
 import cohortAnalyticsRoutes from './routes/cohortAnalytics.routes'
+import syncSchedulerService from "./services/cron/scheduler"
 
 const app = express()
 const PORT = process.env.PORT || 3001

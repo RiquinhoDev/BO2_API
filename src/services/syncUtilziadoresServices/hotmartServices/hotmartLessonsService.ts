@@ -1,6 +1,6 @@
 // src/services/hotmartLessonsService.ts
 import axios from 'axios'
-import { HotmartLessonsResponse, HotmartLesson, LessonProgress, UserLessonsData, LessonStats } from '../types/lesson.types'
+import { HotmartLessonsResponse, HotmartLesson, LessonProgress, UserLessonsData, LessonStats } from '../../../types/lesson.types'
 
 class HotmartLessonsService {
   private baseURL = 'https://developers.hotmart.com/club/api/v1' // ✅ CORRIGIDO: URL correta
