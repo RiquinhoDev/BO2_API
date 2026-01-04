@@ -1,0 +1,302 @@
+{
+  "timestamp": "2026-01-04T01:56:48.076Z",
+  "platform": "hotmart",
+  "totalTests": 1,
+  "passed": 0,
+  "failed": 2,
+  "results": [
+    {
+      "email": "joaomcf37@gmail.com",
+      "platform": "hotmart",
+      "legacySync": {
+        "success": true,
+        "user": {
+          "_id": "6959c8ddd4798238b1de9c3b",
+          "email": "joaomcf37@gmail.com",
+          "name": "João Ferreira",
+          "discord": {
+            "discordIds": [],
+            "acceptedTerms": false,
+            "isDeletable": true,
+            "isDeleted": false,
+            "role": "STUDENT",
+            "priority": "MEDIUM",
+            "locale": "pt_BR"
+          },
+          "hotmart": {
+            "progress": {},
+            "engagement": {},
+            "plusAccess": "WITHOUT_PLUS_ACCESS",
+            "enrolledClasses": []
+          },
+          "curseduca": {
+            "progress": {
+              "estimatedProgress": 0,
+              "activityLevel": "LOW",
+              "groupEngagement": 0,
+              "progressSource": "estimated"
+            },
+            "engagement": {
+              "alternativeEngagement": 0,
+              "activityLevel": "LOW",
+              "engagementLevel": "NONE",
+              "calculatedAt": "2026-01-04T01:56:45.069Z"
+            },
+            "enrollmentsCount": 0,
+            "memberStatus": "ACTIVE",
+            "neverLogged": false,
+            "situation": "ACTIVE",
+            "enrolledClasses": []
+          },
+          "combined": {
+            "status": "ACTIVE",
+            "totalProgress": 0,
+            "totalTimeMinutes": 0,
+            "totalLessons": 0,
+            "combinedEngagement": 0,
+            "bestEngagementSource": "estimated",
+            "engagement": {
+              "score": 0,
+              "level": "MUITO_BAIXO",
+              "sources": {
+                "hotmart": 0,
+                "curseduca": 0
+              }
+            },
+            "allClasses": [],
+            "lastActivity": "2026-01-04T01:56:45.069Z",
+            "sourcesAvailable": [
+              "discord",
+              "hotmart",
+              "curseduca"
+            ],
+            "dataQuality": "EXCELLENT",
+            "calculatedAt": "2026-01-04T01:56:45.076Z"
+          },
+          "metadata": {
+            "createdAt": "2026-01-04T01:56:45.069Z"
+          },
+          "communicationByCourse": {}
+        },
+        "userProduct": {
+          "_id": "6959c8de2bf73fc9bf464728",
+          "userId": "6959c8ddd4798238b1de9c3b",
+          "productId": "692332b16d33488c462bafb9",
+          "activeCampaignData": {
+            "lists": [],
+            "tags": []
+          },
+          "classes": [],
+          "communications": {
+            "emailsOpened": 0,
+            "emailsSent": 0,
+            "unsubscribed": false
+          },
+          "engagement": {},
+          "isPrimary": true,
+          "metadata": {
+            "refunded": false
+          },
+          "progress": {
+            "percentage": 0
+          },
+          "source": "PURCHASE",
+          "status": "ACTIVE"
+        }
+      },
+      "universalSync": {
+        "success": true,
+        "user": {
+          "_id": "6959c8ded4798238b1de9c56",
+          "email": "joaomcf37@gmail.com",
+          "name": "João Ferreira",
+          "discord": {
+            "discordIds": [],
+            "acceptedTerms": false,
+            "isDeletable": true,
+            "isDeleted": false,
+            "role": "STUDENT",
+            "priority": "MEDIUM",
+            "locale": "pt_BR"
+          },
+          "hotmart": {
+            "progress": {
+              "totalTimeMinutes": 0,
+              "completedLessons": 0,
+              "lessonsData": []
+            },
+            "engagement": {
+              "accessCount": 0,
+              "engagementScore": 0,
+              "engagementLevel": "NONE",
+              "calculatedAt": "2026-01-04T01:56:46.744Z"
+            },
+            "plusAccess": "WITHOUT_PLUS_ACCESS",
+            "enrolledClasses": [
+              {
+                "classId": "DPeAy2x3eW",
+                "className": "Turma DPeAy2x3eW",
+                "source": "hotmart",
+                "isActive": true,
+                "enrolledAt": "2023-02-13T08:15:27.000Z",
+                "_id": "6959c8ded4798238b1de9c58"
+              }
+            ],
+            "firstAccessDate": "2023-02-13T08:25:43.000Z",
+            "hotmartUserId": "k45qo6VN4l",
+            "lastAccessDate": "2025-12-23T12:54:19.000Z",
+            "purchaseDate": "2023-02-13T08:15:27.000Z",
+            "signupDate": "2026-01-04T01:56:44.914Z"
+          },
+          "curseduca": {
+            "progress": {
+              "estimatedProgress": 0,
+              "activityLevel": "LOW",
+              "groupEngagement": 0,
+              "progressSource": "estimated"
+            },
+            "engagement": {
+              "alternativeEngagement": 0,
+              "activityLevel": "LOW",
+              "engagementLevel": "NONE",
+              "calculatedAt": "2026-01-04T01:56:46.744Z"
+            },
+            "enrollmentsCount": 0,
+            "memberStatus": "ACTIVE",
+            "neverLogged": false,
+            "situation": "ACTIVE",
+            "enrolledClasses": []
+          },
+          "combined": {
+            "status": "ACTIVE",
+            "totalProgress": 0,
+            "totalTimeMinutes": 0,
+            "totalLessons": 0,
+            "combinedEngagement": 0,
+            "bestEngagementSource": "estimated",
+            "engagement": {
+              "score": 0,
+              "level": "MUITO_BAIXO",
+              "sources": {
+                "hotmart": 0,
+                "curseduca": 0
+              }
+            },
+            "allClasses": [],
+            "lastActivity": "2026-01-04T01:56:46.744Z",
+            "sourcesAvailable": [
+              "discord",
+              "hotmart",
+              "curseduca"
+            ],
+            "dataQuality": "EXCELLENT",
+            "calculatedAt": "2026-01-04T01:56:46.746Z"
+          },
+          "metadata": {
+            "createdAt": "2026-01-04T01:56:46.744Z",
+            "sources": {
+              "hotmart": {
+                "lastSync": "2026-01-04T01:56:46.823Z",
+                "version": "3.0"
+              }
+            }
+          },
+          "communicationByCourse": {}
+        },
+        "userProduct": {
+          "_id": "6959c8dfd4798238b1de9c5d",
+          "userId": "6959c8ded4798238b1de9c56",
+          "productId": "692332b16d33488c462bafb9",
+          "platform": "hotmart",
+          "platformUserId": "k45qo6VN4l",
+          "enrolledAt": "2023-02-13T08:15:27.000Z",
+          "status": "ACTIVE",
+          "source": "PURCHASE",
+          "progress": {
+            "percentage": 0,
+            "lastActivity": "2025-12-23T12:54:19.000Z",
+            "modulesCompleted": [],
+            "lessonsCompleted": []
+          },
+          "engagement": {
+            "engagementScore": 708,
+            "daysSinceLastLogin": null,
+            "totalLogins": 0,
+            "lastAction": "2025-12-23T12:54:19.000Z",
+            "daysSinceLastAction": null,
+            "actionsLastWeek": 0,
+            "actionsLastMonth": 0
+          },
+          "activeCampaignData": {
+            "tags": [],
+            "lists": []
+          },
+          "communications": {
+            "emailsSent": 0,
+            "emailsOpened": 0,
+            "unsubscribed": false
+          },
+          "isPrimary": true,
+          "metadata": {
+            "purchaseValue": null,
+            "purchaseDate": "2026-01-04T01:56:46.744Z",
+            "platform": "hotmart",
+            "refunded": false
+          },
+          "classes": []
+        }
+      },
+      "differences": {
+        "user": [
+          "User._id: \"6959c8ddd4798238b1de9c3b\" !== \"6959c8ded4798238b1de9c56\"",
+          "User.hotmart.progress.totalTimeMinutes: missing in obj1",
+          "User.hotmart.progress.completedLessons: missing in obj1",
+          "User.hotmart.progress.lessonsData: missing in obj1",
+          "User.hotmart.engagement.accessCount: missing in obj1",
+          "User.hotmart.engagement.engagementScore: missing in obj1",
+          "User.hotmart.engagement.engagementLevel: missing in obj1",
+          "User.hotmart.enrolledClasses.0: missing in obj1",
+          "User.hotmart.firstAccessDate: missing in obj1",
+          "User.hotmart.hotmartUserId: missing in obj1",
+          "User.hotmart.lastAccessDate: missing in obj1",
+          "User.hotmart.purchaseDate: missing in obj1",
+          "User.hotmart.signupDate: missing in obj1",
+          "User.combined.lastActivity: \"2026-01-04T01:56:45.069Z\" !== \"2026-01-04T01:56:46.744Z\"",
+          "User.metadata.sources: missing in obj1"
+        ],
+        "userProduct": [
+          "UserProduct._id: \"6959c8de2bf73fc9bf464728\" !== \"6959c8dfd4798238b1de9c5d\"",
+          "UserProduct.userId: \"6959c8ddd4798238b1de9c3b\" !== \"6959c8ded4798238b1de9c56\"",
+          "UserProduct.engagement.engagementScore: missing in obj1",
+          "UserProduct.engagement.daysSinceLastLogin: missing in obj1",
+          "UserProduct.engagement.totalLogins: missing in obj1",
+          "UserProduct.engagement.lastAction: missing in obj1",
+          "UserProduct.engagement.daysSinceLastAction: missing in obj1",
+          "UserProduct.engagement.actionsLastWeek: missing in obj1",
+          "UserProduct.engagement.actionsLastMonth: missing in obj1",
+          "UserProduct.metadata.purchaseValue: missing in obj1",
+          "UserProduct.metadata.purchaseDate: missing in obj1",
+          "UserProduct.metadata.platform: missing in obj1",
+          "UserProduct.progress.lastActivity: missing in obj1",
+          "UserProduct.progress.modulesCompleted: missing in obj1",
+          "UserProduct.progress.lessonsCompleted: missing in obj1",
+          "UserProduct.platform: missing in obj1",
+          "UserProduct.platformUserId: missing in obj1",
+          "UserProduct.enrolledAt: missing in obj1"
+        ],
+        "critical": [
+          "UserProduct.userId: \"6959c8ddd4798238b1de9c3b\" !== \"6959c8ded4798238b1de9c56\"",
+          "UserProduct.engagement.daysSinceLastLogin: missing in obj1",
+          "UserProduct.engagement.daysSinceLastAction: missing in obj1"
+        ]
+      },
+      "isIdentical": false
+    }
+  ],
+  "summary": {
+    "identicalCount": 0,
+    "differenceCount": 1,
+    "criticalDifferences": 1,
+    "successRate": "0.0%"
+  }
+}

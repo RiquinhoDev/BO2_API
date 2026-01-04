@@ -1,21 +1,25 @@
-// src/controllers/curseduca.controller.ts 
+// ════════════════════════════════════════════════════════════
+// 📁 src/controllers/curseduca.controller.ts
+// Controller CursEduca - VERSÃO FINAL (100% Universal Sync)
+// ════════════════════════════════════════════════════════════
+
 import { Request, Response } from 'express'
+import fs from 'fs'
+import path from 'path'
 import User from '../../models/user'
 import Product from '../../models/product/Product'
+import { SyncHistory, UserProduct } from '../../models'
 import {
   getUsersByProduct as getUsersByProductService,
   getUserCountForProduct
 } from '../../services/userProducts/userProductService'
-import { SyncHistory, UserProduct } from '../../models'
 import universalSyncService from '../../services/syncUtilziadoresServices/universalSyncService'
-import fs from 'fs';
-import path from 'path'
 import curseducaAdapter from '../../services/syncUtilziadoresServices/curseducaServices/curseduca.adapter'
 
+// ═══════════════════════════════════════════════════════════
+// SYNC LOGGER
+// ═══════════════════════════════════════════════════════════
 
-// ─────────────────────────────────────────────────────────────
-// Tipos auxiliares (para calar TS sem mexer nos services)
-// ─────────────────────────────────────────────────────────────
 class SyncLogger {
   private logFile: string
   private startTime: number
@@ -25,7 +29,6 @@ class SyncLogger {
     this.logFile = path.join(process.cwd(), 'logs', `curseduca-sync-${timestamp}.log`)
     this.startTime = Date.now()
     
-    // Criar diretório de logs se não existir
     const logDir = path.dirname(this.logFile)
     if (!fs.existsSync(logDir)) {
       fs.mkdirSync(logDir, { recursive: true })
@@ -76,20 +79,10 @@ class SyncLogger {
     return this.logFile
   }
 }
-type DashboardRawStats = {
-  totalUsers: number
-  activeUsers: number
-  totalUserProducts: number
-  products: number
-}
 
-function isServiceResult(val: unknown): val is { success: boolean; message?: string } {
-  return !!val && typeof val === 'object' && 'success' in val
-}
-
-// ─────────────────────────────────────────────────────────────
-// 📊 DASHBOARD STATS
-// ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD STATS
+// ═══════════════════════════════════════════════════════════
 
 export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -123,7 +116,7 @@ export const getCurseducaDashboardStats = async () => {
     })
     
     const totalUsers = await User.countDocuments({
-      'curseduca.email': { $exists: true }
+      'curseduca.curseducaUserId': { $exists: true, $ne: null }
     })
     
     const activeUsers = await User.countDocuments({
@@ -147,318 +140,28 @@ export const getCurseducaDashboardStats = async () => {
     throw error
   }
 }
-// ─────────────────────────────────────────────────────────────
-// 🔍 ENDPOINTS DE COMPATIBILIDADE (ainda 501)
-// ─────────────────────────────────────────────────────────────
 
-export const getGroups = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint de grupos não implementado ainda',
-    note: 'Use /syncCurseducaUsers para sincronização completa'
-  })
-}
-
-export const getMembers = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint de membros não implementado ainda',
-    note: 'Use /syncCurseducaUsers para sincronização completa'
-  })
-}
-
-export const getMemberByEmail = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Busca por email não implementada ainda',
-    note: 'Use User.findOne({email}) na base de dados local'
-  })
-}
-
-export const getAccessReports = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Relatórios de acesso não implementados ainda',
-    note: 'Use /dashboard para estatísticas gerais'
-  })
-}
-
-export const getCurseducaUsers = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Listagem de utilizadores não implementada ainda',
-    note: 'Use GET /api/users?source=CURSEDUCA'
-  })
-}
-
-export const debugCurseducaAPI = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Debug da API não implementado ainda',
-    note: 'Use /test para testar conexão básica'
-  })
-}
-
-export const syncCurseducaUsersIntelligent = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Sincronização inteligente não implementada ainda',
-    note: 'Esta funcionalidade será implementada em versão futura'
-  })
-}
-
-export const getSyncReport = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Relatório de sincronização não implementado ainda',
-    note: 'Use /dashboard para estatísticas atuais'
-  })
-}
-
-export const getUserByEmail = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Busca por email não implementada ainda',
-    note: 'Use GET /api/users/{id} ou consulte diretamente a BD'
-  })
-}
-
-export const cleanupDuplicates = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Limpeza de duplicados não implementada ainda',
-    note: 'Esta funcionalidade será implementada quando necessária'
-  })
-}
-
-// ─────────────────────────────────────────────────────────────
-// ✅ UTILITÁRIOS: Turmas
-// ─────────────────────────────────────────────────────────────
-
-export const getUsersWithClasses = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const users = await User.find({
-      'curseduca.curseducaUserId': { $exists: true }
-    })
-      .select('name email curseduca.enrolledClasses curseduca.groupName')
-      .lean()
-
-    const stats = {
-      total: users.length,
-      withSingleClass: users.filter((u: any) => u.curseduca?.enrolledClasses?.length === 1).length,
-      withMultipleClasses: users.filter((u: any) => u.curseduca?.enrolledClasses?.length > 1).length,
-      withoutClasses: users.filter((u: any) => !u.curseduca?.enrolledClasses?.length).length
-    }
-
-    res.json({ success: true, users, stats })
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message })
-  }
-}
-
-export const updateUserClasses = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { userId } = req.params
-    const { enrolledClasses } = req.body
-
-    const user = await User.findByIdAndUpdate(
-      userId,
-      {
-        $set: {
-          'curseduca.enrolledClasses': enrolledClasses,
-          'metadata.updatedAt': new Date()
-        }
-      },
-      { new: true }
-    )
-
-    res.json({ success: true, user })
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message })
-  }
-}
+// ═══════════════════════════════════════════════════════════
+// SYNC PRINCIPAL (UNIVERSAL)
+// ═══════════════════════════════════════════════════════════
 
 /**
- * GET /api/curseduca/v2/products
- * Lista todos os produtos CursEduca
- */
-export const getCurseducaProducts = async (req: Request, res: Response) => {
-  try {
-    const products = await Product.find({ platform: 'curseduca' })
-      .select('name code curseducaGroupId curseducaGroupUuid isActive')
-      .lean()
-
-    res.json({
-      success: true,
-      data: products,
-      count: products.length,
-      _v2Enabled: true
-    })
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-}
-
-/**
- * GET /api/curseduca/v2/products/:groupId
- * Procura produto por groupId (compatível com diferentes nomes em platformData)
- */
-export const getCurseducaProductByGroupId = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { groupId } = req.params
-
-    const product = await Product.findOne({
-      platform: 'curseduca',
-      $or: [
-        { 'curseducaGroupId': groupId },
-        { curseducaGroupId: groupId },
-        { curseducaGroupUuid: groupId }
-      ]
-    }).lean()
-
-    if (!product) {
-      res.status(404).json({
-        success: false,
-        message: `Produto CursEduca não encontrado para groupId: ${groupId}`
-      })
-      return
-    }
-
-    const userCount = await getUserCountForProduct(String((product as any)._id))
-
-    res.json({
-      success: true,
-      data: { ...product, userCount },
-      _v2Enabled: true
-    })
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-}
-
-/**
- * GET /api/curseduca/v2/products/:groupId/users?minProgress=XX
- */
-export const getCurseducaProductUsers = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { groupId } = req.params
-    const { minProgress } = req.query
-
-    const product = await Product.findOne({
-      platform: 'curseduca',
-      $or: [
-        { 'curseducaGroupId': groupId },
-{ curseducaGroupId: groupId },
-{ curseducaGroupUuid: groupId }
-      ]
-    })
-
-    if (!product) {
-      res.status(404).json({
-        success: false,
-        message: `Produto CursEduca não encontrado para groupId: ${groupId}`
-      })
-      return
-    }
-
-    let users = await getUsersByProductService(String(product._id))
-
-    // Robustez: aceitar progressPercentage antigo e percentage novo
-    if (minProgress) {
-      const minProg = parseInt(minProgress as string, 10)
-      users = users.filter((u: any) =>
-        u.products?.some((p: any) => {
-          const sameProduct = String(p.product?._id) === String(product._id)
-          const prog =
-            p.progress?.percentage ??
-            p.progress?.progressPercentage ??
-            p.progress?.estimatedProgress ??
-            0
-          return sameProduct && prog >= minProg
-        })
-      )
-    }
-
-    res.json({
-      success: true,
-      data: users,
-      count: users.length,
-      filters: { minProgress },
-      _v2Enabled: true
-    })
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-}
-
-/**
- * GET /api/curseduca/v2/stats
- * Estatísticas gerais dos produtos CursEduca
- */
-export const getCurseducaStats = async (req: Request, res: Response) => {
-  try {
-    const products = await Product.find({ platform: 'curseduca' }).lean()
-
-    const stats = await Promise.all(
-      products.map(async (product: any) => {
-        const users = await getUsersByProductService(String(product._id))
-
-        const avgProgress =
-          users.length > 0
-            ? users.reduce((sum: number, u: any) => {
-                const productData = u.products?.find(
-                  (p: any) => String(p.product?._id) === String(product._id)
-                )
-                const prog =
-                  productData?.progress?.percentage ??
-                  productData?.progress?.progressPercentage ??
-                  productData?.progress?.estimatedProgress ??
-                  0
-                return sum + prog
-              }, 0) / users.length
-            : 0
-
-        return {
-          productId: product._id,
-          productName: product.name,
-          groupId:
-            product.curseducaGroupId ||
-          product.curseducaGroupUuid,
-          totalUsers: users.length,
-          averageProgress: Math.round(avgProgress)
-        }
-      })
-    )
-
-    res.json({
-      success: true,
-      data: stats,
-      summary: {
-        totalProducts: products.length,
-        totalUsers: stats.reduce((sum, s) => sum + s.totalUsers, 0),
-        overallAvgProgress: Math.round(
-          stats.reduce((sum, s) => sum + s.averageProgress, 0) / (stats.length || 1)
-        )
-      },
-      _v2Enabled: true
-    })
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
-  }
-}
-
-
-/**
- * GET /api/curseduca/sync/universal
+ * POST /api/curseduca/sync
  * Sincronização CursEduca usando Universal Sync Service
- * ✅ Adapter com deduplicação e platformData.isPrimary/isDuplicate
  */
-export const syncCurseducaUsersUniversal = async (req: Request, res: Response): Promise<void> => {
+export const syncCurseducaUsers = async (req: Request, res: Response): Promise<void> => {
   const logger = new SyncLogger()
   
   try {
-    logger.section('STEP 1: BUSCAR DADOS VIA ADAPTER')
+    // ═══════════════════════════════════════════════════════════
+    // STEP 0: VALIDAR CREDENCIAIS
+    // ═══════════════════════════════════════════════════════════
+    
+    logger.section('STEP 0: VALIDAR CREDENCIAIS')
+    
     if (!process.env.CURSEDUCA_API_URL || !process.env.CURSEDUCA_AccessToken || !process.env.CURSEDUCA_API_KEY) {
+      logger.error('Credenciais não configuradas!')
+      
       res.status(400).json({
         success: false,
         message: 'Credenciais CursEduca não configuradas (.env)',
@@ -470,13 +173,24 @@ export const syncCurseducaUsersUniversal = async (req: Request, res: Response): 
       })
       return
     }
-    const { groupId } = req.query
+    
+    logger.success('Credenciais validadas')
+
+    // ═══════════════════════════════════════════════════════════
+    // STEP 1: BUSCAR DADOS VIA ADAPTER
+    // ═══════════════════════════════════════════════════════════
+    
+    logger.section('STEP 1: BUSCAR DADOS VIA ADAPTER')
+    
+    const { groupId, enrichWithDetails } = req.query
     logger.info(`GroupId filter: ${groupId || 'TODOS'}`)
+    logger.info(`Enrich with details: ${enrichWithDetails !== 'false'}`)
 
     const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
       includeProgress: true,
       includeGroups: true,
       groupId: groupId as string | undefined,
+      enrichWithDetails: enrichWithDetails !== 'false', // Default true
       progressConcurrency: 5
     })
 
@@ -502,6 +216,8 @@ export const syncCurseducaUsersUniversal = async (req: Request, res: Response): 
       logger.log(`      groupId: ${member.groupId || 'N/A'}`)
       logger.log(`      groupName: ${member.groupName || 'N/A'}`)
       logger.log(`      subscriptionType: ${member.subscriptionType || 'N/A'}`)
+      logger.log(`      lastLogin: ${member.lastLogin || 'N/A'}`)
+      logger.log(`      situation: ${member.platformData?.situation || 'N/A'}`)
       logger.log(`      isPrimary: ${member.platformData?.isPrimary}`)
       logger.log('')
     })
@@ -514,7 +230,7 @@ export const syncCurseducaUsersUniversal = async (req: Request, res: Response): 
 
     const result = await universalSyncService.executeUniversalSync({
       syncType: 'curseduca',
-      jobName: 'CursEduca Universal Sync (Manual via API)',
+      jobName: 'CursEduca Sync (API)',
       triggeredBy: 'MANUAL',
       triggeredByUser: (req as any).user?._id?.toString(),
 
@@ -594,7 +310,7 @@ export const syncCurseducaUsersUniversal = async (req: Request, res: Response): 
     res.status(200).json({
       success: result.success,
       message: result.success
-        ? 'Sincronização via Universal Service concluída com sucesso!'
+        ? 'Sincronização concluída com sucesso!'
         : 'Sincronização concluída com erros',
       logFile: logger.getLogPath(),
       data: {
@@ -608,7 +324,7 @@ export const syncCurseducaUsersUniversal = async (req: Request, res: Response): 
         syncHistoryUrl: `/api/sync/history/${result.syncHistoryId}`
       },
       _universalSync: true,
-      _version: '3.0'
+      _version: '3.1'
     })
   } catch (error: any) {
     logger.error(`Erro fatal: ${error.message}`)
@@ -616,21 +332,99 @@ export const syncCurseducaUsersUniversal = async (req: Request, res: Response): 
     
     res.status(500).json({
       success: false,
-      message: 'Erro ao executar sincronização via Universal Service',
+      message: 'Erro ao executar sincronização',
       error: error.message,
       logFile: logger.getLogPath(),
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
 }
-async function validateUserProductsCreated(logger: SyncLogger, sampleSize = 5) {
-  logger.section('VALIDAÇÃO DE USERPRODUCTS')
 
-  
+// ═══════════════════════════════════════════════════════════
+// SYNC POR EMAIL
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * POST /api/curseduca/sync/email/:email
+ * Sincronizar user específico por email
+ */
+export const syncCurseducaByEmail = async (req: Request, res: Response): Promise<void> => {
+  const logger = new SyncLogger()
   
   try {
-
+    const { email } = req.params
     
+    logger.section('SYNC POR EMAIL')
+    logger.info(`Email: ${email}`)
+
+    // Buscar dados via adapter
+    const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
+      includeProgress: true,
+      includeGroups: true,
+      enrichWithDetails: true
+    })
+
+    // Filtrar por email
+    const userData = curseducaData.find(u => u.email?.toLowerCase() === email.toLowerCase())
+
+    if (!userData) {
+      logger.warn('User não encontrado na API CursEduca')
+      
+      res.status(404).json({
+        success: false,
+        message: 'User não encontrado na API CursEduca',
+        logFile: logger.getLogPath()
+      })
+      return
+    }
+
+    logger.success('User encontrado!')
+    logger.log(`   curseducaUserId: ${userData.curseducaUserId}`)
+    logger.log(`   groupId: ${userData.groupId}`)
+
+    // Executar sync
+    const result = await universalSyncService.executeUniversalSync({
+      syncType: 'curseduca',
+      jobName: `CursEduca Sync - ${email}`,
+      triggeredBy: 'MANUAL',
+      triggeredByUser: (req as any).user?._id?.toString(),
+      fullSync: false,
+      includeProgress: true,
+      includeTags: false,
+      batchSize: 1,
+      sourceData: [userData]
+    })
+
+    logger.success('Sync concluído!')
+
+    res.status(200).json({
+      success: result.success,
+      message: result.success ? 'User sincronizado com sucesso!' : 'Sync concluído com erros',
+      logFile: logger.getLogPath(),
+      data: {
+        stats: result.stats,
+        reportId: result.reportId
+      }
+    })
+  } catch (error: any) {
+    logger.error(`Erro: ${error.message}`)
+    
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      logFile: logger.getLogPath()
+    })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPER: VALIDAR USERPRODUCTS
+// ═══════════════════════════════════════════════════════════
+
+async function validateUserProductsCreated(logger: SyncLogger, sampleSize = 5) {
+  logger.section('VALIDAÇÃO DE USERPRODUCTS')
+  
+  try {
     // Buscar produtos CursEduca
     const curseducaProducts = await Product.find({
       platform: 'curseduca',
@@ -653,31 +447,34 @@ async function validateUserProductsCreated(logger: SyncLogger, sampleSize = 5) {
       productId: { $in: productIds }
     }).populate('userId', 'email name').populate('productId', 'code name')
 
-    logger.success(`UserProducts CursEduca: ${userProducts.length}`) 
-const primaryCount = await UserProduct.countDocuments({
-  productId: { $in: productIds },
-  isPrimary: true
-})
+    logger.success(`UserProducts CursEduca: ${userProducts.length}`)
 
-const secondaryCount = await UserProduct.countDocuments({
-  productId: { $in: productIds },
-  isPrimary: false
-})
+    // Distribuição Primary/Secondary
+    const primaryCount = await UserProduct.countDocuments({
+      productId: { $in: productIds },
+      isPrimary: true
+    })
 
-logger.log('')
-logger.log('📊 DISTRIBUIÇÃO PRIMARY/SECONDARY:')
-logger.log(`   ✅ Primary: ${primaryCount}`)
-logger.log(`   🔻 Secondary: ${secondaryCount}`)
+    const secondaryCount = await UserProduct.countDocuments({
+      productId: { $in: productIds },
+      isPrimary: false
+    })
 
-// Verificar duplicados sem isPrimary definido
-const withoutFlag = await UserProduct.countDocuments({
-  productId: { $in: productIds },
-  isPrimary: { $exists: false }
-})
+    logger.log('')
+    logger.log('📊 DISTRIBUIÇÃO PRIMARY/SECONDARY:')
+    logger.log(`   ✅ Primary: ${primaryCount}`)
+    logger.log(`   🔻 Secondary: ${secondaryCount}`)
 
-if (withoutFlag > 0) {
-  logger.warn(`⚠️ ${withoutFlag} UserProducts SEM flag isPrimary!`)
-}
+    // Verificar UserProducts sem isPrimary
+    const withoutFlag = await UserProduct.countDocuments({
+      productId: { $in: productIds },
+      isPrimary: { $exists: false }
+    })
+
+    if (withoutFlag > 0) {
+      logger.warn(`⚠️ ${withoutFlag} UserProducts SEM flag isPrimary!`)
+    }
+
     // Mostrar sample
     logger.log('')
     logger.log('📦 SAMPLE DE USERPRODUCTS CRIADOS:')
@@ -690,6 +487,7 @@ if (withoutFlag > 0) {
       logger.log(`   ${user?.email || 'N/A'}`)
       logger.log(`      → Produto: ${product?.code || 'N/A'}`)
       logger.log(`      → Status: ${up.status}`)
+      logger.log(`      → isPrimary: ${up.isPrimary}`)
       logger.log(`      → Criado: ${up.createdAt}`)
       logger.log('')
     }
@@ -701,7 +499,7 @@ if (withoutFlag > 0) {
       logger.log(`   ${product.code}: ${count} UserProducts`)
     }
 
-    // Verificar users com dados CursEduca mas SEM UserProduct
+    // Verificar inconsistências
     logger.log('')
     logger.log('🔍 VERIFICAÇÃO DE INCONSISTÊNCIAS:')
     
@@ -715,23 +513,6 @@ if (withoutFlag > 0) {
     if (usersWithCurseduca > userProducts.length) {
       const missing = usersWithCurseduca - userProducts.length
       logger.warn(`${missing} users com dados CursEduca MAS sem UserProduct!`)
-      
-      // Mostrar alguns exemplos
-      const usersWithoutUP = await User.find({
-        'curseduca.curseducaUserId': { $exists: true, $ne: null }
-      }).select('email curseduca').limit(5)
-      
-      logger.log('')
-      logger.log('📋 EXEMPLOS DE USERS SEM USERPRODUCT:')
-      for (const user of usersWithoutUP) {
-        const hasUP = await UserProduct.exists({ userId: user._id, productId: { $in: productIds } })
-        if (!hasUP) {
-          logger.log(`   ${user.email}`)
-          logger.log(`      curseducaUserId: ${(user as any).curseduca?.curseducaUserId}`)
-          logger.log(`      groupId: ${(user as any).curseduca?.groupId || 'N/A'}`)
-          logger.log('')
-        }
-      }
     } else {
       logger.success('✅ Todos os users com dados CursEduca têm UserProducts!')
     }
@@ -741,21 +522,235 @@ if (withoutFlag > 0) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// V2 ENDPOINTS - PRODUTOS
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * GET /api/curseduca/v2/products
+ * Lista todos os produtos CursEduca
+ */
+export const getCurseducaProducts = async (req: Request, res: Response) => {
+  try {
+    const products = await Product.find({ platform: 'curseduca' })
+      .select('name code curseducaGroupId curseducaGroupUuid isActive')
+      .lean()
+
+    res.json({
+      success: true,
+      data: products,
+      count: products.length,
+      _v2Enabled: true
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+/**
+ * GET /api/curseduca/v2/products/:groupId
+ * Buscar produto por groupId
+ */
+export const getCurseducaProductByGroupId = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { groupId } = req.params
+
+    const product = await Product.findOne({
+      platform: 'curseduca',
+      $or: [
+        { curseducaGroupId: groupId },
+        { curseducaGroupUuid: groupId }
+      ]
+    }).lean()
+
+    if (!product) {
+      res.status(404).json({
+        success: false,
+        message: `Produto CursEduca não encontrado para groupId: ${groupId}`
+      })
+      return
+    }
+
+    const userCount = await getUserCountForProduct(String((product as any)._id))
+
+    res.json({
+      success: true,
+      data: { ...product, userCount },
+      _v2Enabled: true
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+/**
+ * GET /api/curseduca/v2/products/:groupId/users?minProgress=XX
+ * Buscar users de um produto com filtro de progresso
+ */
+export const getCurseducaProductUsers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { groupId } = req.params
+    const { minProgress } = req.query
+
+    const product = await Product.findOne({
+      platform: 'curseduca',
+      $or: [
+        { curseducaGroupId: groupId },
+        { curseducaGroupUuid: groupId }
+      ]
+    })
+
+    if (!product) {
+      res.status(404).json({
+        success: false,
+        message: `Produto CursEduca não encontrado para groupId: ${groupId}`
+      })
+      return
+    }
+
+    let users = await getUsersByProductService(String(product._id))
+
+    if (minProgress) {
+      const minProg = parseInt(minProgress as string, 10)
+      users = users.filter((u: any) =>
+        u.products?.some((p: any) => {
+          const sameProduct = String(p.product?._id) === String(product._id)
+          const prog = p.progress?.percentage || 0
+          return sameProduct && prog >= minProg
+        })
+      )
+    }
+
+    res.json({
+      success: true,
+      data: users,
+      count: users.length,
+      filters: { minProgress },
+      _v2Enabled: true
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+/**
+ * GET /api/curseduca/v2/stats
+ * Estatísticas gerais dos produtos CursEduca
+ */
+export const getCurseducaStats = async (req: Request, res: Response) => {
+  try {
+    const products = await Product.find({ platform: 'curseduca' }).lean()
+
+    const stats = await Promise.all(
+      products.map(async (product: any) => {
+        const users = await getUsersByProductService(String(product._id))
+
+        const avgProgress =
+          users.length > 0
+            ? users.reduce((sum: number, u: any) => {
+                const productData = u.products?.find(
+                  (p: any) => String(p.product?._id) === String(product._id)
+                )
+                const prog = productData?.progress?.percentage || 0
+                return sum + prog
+              }, 0) / users.length
+            : 0
+
+        return {
+          productId: product._id,
+          productName: product.name,
+          groupId: product.curseducaGroupId || product.curseducaGroupUuid,
+          totalUsers: users.length,
+          averageProgress: Math.round(avgProgress)
+        }
+      })
+    )
+
+    res.json({
+      success: true,
+      data: stats,
+      summary: {
+        totalProducts: products.length,
+        totalUsers: stats.reduce((sum, s) => sum + s.totalUsers, 0),
+        overallAvgProgress: Math.round(
+          stats.reduce((sum, s) => sum + s.averageProgress, 0) / (stats.length || 1)
+        )
+      },
+      _v2Enabled: true
+    })
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// UTILITÁRIOS
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * GET /api/curseduca/users/classes
+ * Buscar users com turmas
+ */
+export const getUsersWithClasses = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const users = await User.find({
+      'curseduca.curseducaUserId': { $exists: true }
+    })
+      .select('name email curseduca.enrolledClasses curseduca.groupName')
+      .lean()
+
+    const stats = {
+      total: users.length,
+      withSingleClass: users.filter((u: any) => u.curseduca?.enrolledClasses?.length === 1).length,
+      withMultipleClasses: users.filter((u: any) => u.curseduca?.enrolledClasses?.length > 1).length,
+      withoutClasses: users.filter((u: any) => !u.curseduca?.enrolledClasses?.length).length
+    }
+
+    res.json({ success: true, users, stats })
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+/**
+ * PATCH /api/curseduca/users/:userId/classes
+ * Atualizar turmas de um user
+ */
+export const updateUserClasses = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params
+    const { enrolledClasses } = req.body
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          'curseduca.enrolledClasses': enrolledClasses,
+          'metadata.updatedAt': new Date()
+        }
+      },
+      { new: true }
+    )
+
+    res.json({ success: true, user })
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
 
 /**
  * GET /api/curseduca/sync/compare
- * Comparar resultados: Legacy vs Universal
+ * Comparar sync history
  */
 export const compareSyncMethods = async (req: Request, res: Response): Promise<void> => {
   try {
     const SyncReport = (await import('../../models/SyncModels/SyncReport')).default as any
 
-    // ✅ Query flexível para encontrar qualquer formato
     const legacyHistory = await SyncHistory.find({
       $or: [
-        { type: 'curseduca' }, // Universal
-        { syncType: 'CURSEDUCA' }, // Legacy uppercase
-        { type: 'CURSEDUCA' } // Mixed
+        { type: 'curseduca' },
+        { syncType: 'CURSEDUCA' },
+        { type: 'CURSEDUCA' }
       ]
     })
       .sort({ startedAt: -1 })
@@ -802,3 +797,90 @@ export const compareSyncMethods = async (req: Request, res: Response): Promise<v
     res.status(500).json({ success: false, message: error.message })
   }
 }
+
+// ═══════════════════════════════════════════════════════════
+// ENDPOINTS DEPRECADOS (501)
+// ═══════════════════════════════════════════════════════════
+
+export const getGroups = async (req: Request, res: Response): Promise<void> => {
+  res.status(501).json({
+    success: false,
+    message: 'Endpoint deprecado',
+    note: 'Use POST /api/curseduca/sync'
+  })
+}
+
+export const getMembers = async (req: Request, res: Response): Promise<void> => {
+  res.status(501).json({
+    success: false,
+    message: 'Endpoint deprecado',
+    note: 'Use POST /api/curseduca/sync'
+  })
+}
+
+export const getMemberByEmail = async (req: Request, res: Response): Promise<void> => {
+  res.status(501).json({
+    success: false,
+    message: 'Endpoint deprecado',
+    note: 'Use POST /api/curseduca/sync/email/:email'
+  })
+}
+
+export const getAccessReports = async (req: Request, res: Response): Promise<void> => {
+  res.status(501).json({
+    success: false,
+    message: 'Endpoint deprecado',
+    note: 'Use GET /api/curseduca/dashboard'
+  })
+}
+
+export const getCurseducaUsers = async (req: Request, res: Response): Promise<void> => {
+  res.status(501).json({
+    success: false,
+    message: 'Endpoint deprecado',
+    note: 'Use GET /api/users?source=CURSEDUCA'
+  })
+}
+
+export const debugCurseducaAPI = async (req: Request, res: Response): Promise<void> => {
+  res.status(501).json({
+    success: false,
+    message: 'Endpoint deprecado',
+    note: 'Use GET /api/curseduca/health (se disponível)'
+  })
+}
+
+export const syncCurseducaUsersIntelligent = async (req: Request, res: Response): Promise<void> => {
+  res.status(501).json({
+    success: false,
+    message: 'Endpoint deprecado',
+    note: 'Use POST /api/curseduca/sync'
+  })
+}
+
+export const getSyncReport = async (req: Request, res: Response): Promise<void> => {
+  res.status(501).json({
+    success: false,
+    message: 'Endpoint deprecado',
+    note: 'Use GET /api/sync/reports/:reportId'
+  })
+}
+
+export const getUserByEmail = async (req: Request, res: Response): Promise<void> => {
+  res.status(501).json({
+    success: false,
+    message: 'Endpoint deprecado',
+    note: 'Use GET /api/users?email=:email'
+  })
+}
+
+export const cleanupDuplicates = async (req: Request, res: Response): Promise<void> => {
+  res.status(501).json({
+    success: false,
+    message: 'Funcionalidade não implementada',
+    note: 'Deduplicação é feita automaticamente no sync'
+  })
+}
+
+// ✅ Alias para compatibilidade
+export const syncCurseducaUsersUniversal = syncCurseducaUsers
