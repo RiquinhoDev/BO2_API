@@ -11,55 +11,7 @@ import CronJobConfig, {
   ILastRunStats,
   SyncType
 } from '../../models/SyncModels/CronJobConfig'
-
-// ─────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────
-
-interface CreateJobDTO {
-  name: string
-  description: string
-  syncType: SyncType
-  cronExpression: string
-  timezone?: string
-  syncConfig?: {
-    fullSync?: boolean
-    includeProgress?: boolean
-    includeTags?: boolean
-    batchSize?: number
-  }
-  notifications?: {
-    enabled?: boolean
-    emailOnSuccess?: boolean
-    emailOnFailure?: boolean
-    recipients?: string[]
-    webhookUrl?: string
-  }
-  retryPolicy?: {
-    maxRetries?: number
-    retryDelayMinutes?: number
-    exponentialBackoff?: boolean
-  }
-  createdBy: mongoose.Types.ObjectId
-}
-
-interface UpdateJobDTO {
-  name?: string
-  description?: string
-  cronExpression?: string
-  timezone?: string
-  enabled?: boolean
-  syncConfig?: Partial<CreateJobDTO['syncConfig']>
-  notifications?: Partial<CreateJobDTO['notifications']>
-  retryPolicy?: Partial<CreateJobDTO['retryPolicy']>
-}
-
-interface ExecutionResult {
-  success: boolean
-  duration: number
-  stats: ILastRunStats
-  errorMessage?: string
-}
+import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../types/cron.types'
 
 // ─────────────────────────────────────────────────────────────
 // IN-MEMORY SCHEDULER REGISTRY
@@ -108,7 +60,7 @@ export class CronManagementService {
   // CREATE
   // ═══════════════════════════════════════════════════════════
 
-  async createJob(dto: CreateJobDTO): Promise<ICronJobConfig> {
+  async createJob(dto: CreateCronJobDTO): Promise<ICronJobConfig> {
     console.log(`📝 Criando job: ${dto.name}`)
 
     // Validar cron expression
@@ -167,7 +119,7 @@ export class CronManagementService {
 
   async updateJob(
     jobId: mongoose.Types.ObjectId,
-    dto: UpdateJobDTO
+    dto: UpdateCronJobDTO
   ): Promise<ICronJobConfig> {
     console.log(`📝 Atualizando job: ${jobId}`)
 
@@ -275,7 +227,7 @@ export class CronManagementService {
   // EXECUTE MANUALLY
   // ═══════════════════════════════════════════════════════════
 
-  async executeJobManually(jobId: mongoose.Types.ObjectId): Promise<ExecutionResult> {
+  async executeJobManually(jobId: mongoose.Types.ObjectId): Promise<CronExecutionResult> {
     console.log(`▶️ Executando job manualmente: ${jobId}`)
 
     const job = await CronJobConfig.findById(jobId)

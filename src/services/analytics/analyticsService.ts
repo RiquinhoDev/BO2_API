@@ -1,63 +1,10 @@
 // src/services/analyticsService.ts - Serviço Completo de Analytics com Cache - VERSÃO CORRIGIDA
-import User from '../../models/user'
+import User, { IUser } from '../../models/user'
 import { Class } from '../../models/Class'
 import { calculateCombinedEngagement } from '../../utils/engagementCalculator'
+import { IClassAnalytics } from '../../types/analytics.types'
 
-// Definir interface aqui para evitar dependências circulares
-interface IClassAnalytics {
-  classId: string
-  className: string
-  totalStudents: number
-  activeStudents: number
-  inactiveStudents: number
-  averageEngagement: number
-  engagementDistribution: {
-    muito_alto: number
-    alto: number
-    medio: number
-    baixo: number
-    muito_baixo: number
-  }
-  averageProgress: number
-  progressDistribution: {
-    completed: number
-    advanced: number
-    intermediate: number
-    beginner: number
-    minimal: number
-  }
-  averageAccessCount: number
-  activityDistribution: {
-    very_active: number
-    active: number
-    moderate: number
-    low: number
-    inactive: number
-  }
-  lastAccess: {
-    today: number
-    week: number
-    month: number
-    older: number
-  }
-  healthScore: number
-  healthFactors: {
-    engagement: number
-    activity: number
-    progress: number
-    retention: number
-  }
-  alerts: Array<{
-    type: 'warning' | 'info' | 'success'
-    message: string
-    priority: 'high' | 'medium' | 'low'
-    category: string
-  }>
-  lastCalculatedAt: Date
-  calculationDuration: number
-  studentsProcessed: number
-  dataVersion: string
-}
+
 
 export class AnalyticsService {
   
@@ -95,10 +42,10 @@ export class AnalyticsService {
     console.log(`🔢 Calculando métricas para turma ${classId}...`)
     
     // 1. Buscar todos os alunos da turma
-    const students = await User.find({ 
-      classId: classId,
-      isDeleted: { $ne: true }
-    }).lean()
+const students = await User.find({
+  classId,
+  isDeleted: { $ne: true }
+}).lean<IUser[]>()
     
     console.log(`👥 Encontrados ${students.length} alunos na turma`)
     
@@ -108,7 +55,7 @@ export class AnalyticsService {
     
     // 2. Calcular métricas básicas
     const totalStudents = students.length
-    const activeStudents = students.filter(s => s.status === 'ACTIVE').length
+    const activeStudents = students.filter(s => (s as any).status === 'ACTIVE').length
     const inactiveStudents = totalStudents - activeStudents
     
     // 3. Calcular engagement scores e estatísticas

@@ -1,7 +1,6 @@
 // ════════════════════════════════════════════════════════════
 // 📊 COHORT ANALYTICS SERVICE
 // ════════════════════════════════════════════════════════════
-
 import UserProduct from '../../models/UserProduct'
 import { 
   CohortRetentionData, 
