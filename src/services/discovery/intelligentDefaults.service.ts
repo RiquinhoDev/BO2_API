@@ -6,7 +6,7 @@ import {
   ProductConfigurationData, 
   DiscoveredProduct,
   REENGAGEMENT_TEMPLATES 
-} from './discoveryTypes';
+} from '../../types/discovery.types';
 
 export class IntelligentDefaultsService {
 
