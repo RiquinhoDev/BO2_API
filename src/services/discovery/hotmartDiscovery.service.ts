@@ -8,7 +8,7 @@ import {
   ProductCategory,
   ProductConfidence,
   CATEGORY_PATTERNS 
-} from './discoveryTypes';
+} from '../../types/discovery.types';
 
 export class HotmartDiscoveryService {
   

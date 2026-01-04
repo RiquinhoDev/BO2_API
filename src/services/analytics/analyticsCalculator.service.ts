@@ -6,31 +6,8 @@
 // ════════════════════════════════════════════════════════════════════
 
 import UserProduct from '../../models/UserProduct'
+import { CalculateMetricsOptions, KPIMetric } from '../../types/analytics.types'
 
-// ═══════════════════════════════════════════════════════════════════
-// INTERFACES
-// ═══════════════════════════════════════════════════════════════════
-
-interface DateRange {
-  start: Date
-  end: Date
-}
-
-interface CalculateMetricsOptions {
-  productId?: string | null
-  platform?: 'hotmart' | 'curseduca' | 'discord' | null
-  startDate: Date
-  endDate: Date
-  compareWithPrevious?: boolean
-}
-
-interface KPIMetric {
-  value: number
-  change: number
-  changePercent: number
-  trend: 'up' | 'down' | 'stable'
-  previousValue?: number
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // ANALYTICS CALCULATOR SERVICE

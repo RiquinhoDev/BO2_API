@@ -9,7 +9,7 @@ import Course from '../models/Course';
 
 import hotmartDiscoveryService from '../services/discovery/hotmartDiscovery.service';
 import intelligentDefaultsService from '../services/discovery/intelligentDefaults.service';
-import { validateConfigurationData } from '../services/discovery/discoveryTypes';
+import { validateConfigurationData } from '../types/discovery.types';
 
 /**
  * POST /api/discovery/run

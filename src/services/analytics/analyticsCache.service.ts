@@ -4,30 +4,10 @@
 // Serviço para gerenciar cache de métricas calculadas
 // Implementa estratégia de cache inteligente com refresh assíncrono
 // ════════════════════════════════════════════════════════════════════
-
-
 import AnalyticsCache, { ICacheMetrics } from '../../models/AnalyticsCache'
+import { CacheConfig, CacheOptions } from '../../types/analytics.types'
 import { analyticsCalculatorService } from './analyticsCalculator.service'
 
-// ═══════════════════════════════════════════════════════════════════
-// INTERFACES
-// ═══════════════════════════════════════════════════════════════════
-
-interface CacheOptions {
-  productId?: string | null
-  platform?: 'hotmart' | 'curseduca' | 'discord' | null
-  period: 'daily' | 'weekly' | 'monthly' | 'yearly'
-  startDate: Date
-  endDate: Date
-  forceRefresh?: boolean
-}
-
-interface CacheConfig {
-  daily: number      // TTL em horas
-  weekly: number
-  monthly: number
-  yearly: number
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // ANALYTICS CACHE SERVICE
@@ -172,10 +152,12 @@ class AnalyticsCacheService {
       endDate
     } = options
     
-    // Resultado bruto do calculator (KPIMetric por métrica)
-    const rawMetrics: any = await analyticsCalculatorService.calculateMetrics({
+    const normalizedPlatform =
+      platform && platform !== 'all' ? platform : undefined
+
+    const rawMetrics = await analyticsCalculatorService.calculateMetrics({
       productId: productId || undefined,
-      platform: platform || undefined,
+      platform: normalizedPlatform,
       startDate,
       endDate,
       compareWithPrevious: true
