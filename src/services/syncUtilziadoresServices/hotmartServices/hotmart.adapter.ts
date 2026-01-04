@@ -14,7 +14,6 @@ import type { ProgressData } from './hotmart.helpers'
 // ═══════════════════════════════════════════════════════════
 
 export interface HotmartSyncOptions {
-    subdomain?: string 
   includeProgress: boolean
   includeLessons: boolean
   progressConcurrency?: number

@@ -7,11 +7,11 @@
 import type { RequestHandler } from 'express'
 import Course from '../../models/Course'
 import User from '../../models/user'
-import tagRuleEngine from '../../services/ac/tagRuleEngine'
+import tagRuleEngine from '../../services/activeCampaign/tagRuleEngine'
 import CronExecutionLog from '../../models/cron/CronExecutionLog'
 import TagRule from '../../models/acTags/TagRule'
 import { CommunicationHistory, Product, UserProduct } from '../../models'
-import activeCampaignService from '../../services/ac/activeCampaignService'
+import activeCampaignService from '../../services/activeCampaign/activeCampaignService'
 
 /**
  * POST /api/activecampaign/test-cron

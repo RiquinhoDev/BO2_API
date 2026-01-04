@@ -850,13 +850,6 @@ export const debugCurseducaAPI = async (req: Request, res: Response): Promise<vo
   })
 }
 
-export const syncCurseducaUsersIntelligent = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint deprecado',
-    note: 'Use POST /api/curseduca/sync'
-  })
-}
 
 export const getSyncReport = async (req: Request, res: Response): Promise<void> => {
   res.status(501).json({

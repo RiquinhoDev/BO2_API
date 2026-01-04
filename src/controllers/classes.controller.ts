@@ -1,6 +1,6 @@
 // src/controllers/classes.controller.ts - CORRIGIDO para evitar erros TypeScript
 import { Request, Response } from 'express'
-import { classesService, studentService } from '../services/classesService'
+import { classesService, studentService } from '../services/syncUtilziadoresServices/hotmartServices/classesService'
 import SyncHistory from '../models/SyncHistory'
 
 import axios from 'axios'

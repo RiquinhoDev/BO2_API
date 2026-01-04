@@ -11,11 +11,12 @@ import CronJobConfig, {
   ILastRunStats,
   SyncType
 } from '../../models/SyncModels/CronJobConfig'
-import universalSyncService from './universalSyncService'
-import curseducaAdapter from './curseducaServices/curseduca.adapter'
-import hotmartAdapter from './hotmartServices/hotmart.adapter'
-import CronExecution from '../../models/cron/CronExecution'
+import { CronExecution } from '../../models'
 import { executeDailyPipeline } from './dailyPipeline.service'
+import hotmartAdapter from '../syncUtilziadoresServices/hotmartServices/hotmart.adapter'
+import universalSyncService from '../syncUtilziadoresServices/universalSyncService'
+import curseducaAdapter from '../syncUtilziadoresServices/curseducaServices/curseduca.adapter'
+
 // ─────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────
