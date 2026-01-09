@@ -4,7 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
-import { createRule, deleteRule, executeRules, getAllRules, getRuleById, testRule, updateRule } from '../../controllers/acTags/tagRule.controller'
+import { createRule, deleteRule, getAllRules, getRuleById, testRule, updateRule } from '../../controllers/acTags/tagRule.controller'
 
 
 const router = Router()
@@ -63,11 +63,10 @@ router.post('/:id/test', testRule)
 
 /**
  * @route   POST /api/tag-rules/execute
- * @desc    Executar regras manualmente
- * @body    { courseId: "xxx" }
- * @access  Admin
+ * @desc    ✅ REMOVIDO - Use POST /api/activecampaign/test-cron
+ * @deprecated Use o endpoint de teste de cron para execução manual
  */
-router.post('/execute', executeRules)
+// router.post('/execute', executeRules)  // ❌ REMOVIDO
 
 export default router
 

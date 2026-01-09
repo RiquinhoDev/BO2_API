@@ -102,6 +102,7 @@ export interface DailyPipelineResult {
   steps: {
     syncHotmart: PipelineStepResult
     syncCursEduca: PipelineStepResult
+    preCreateTags: PipelineStepResult
     recalcEngagement: PipelineStepResult
     evaluateTagRules: PipelineStepResult
   }
