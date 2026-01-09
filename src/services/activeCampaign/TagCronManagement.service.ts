@@ -6,9 +6,7 @@
 
 import CronConfig from '../../models/cron/CronConfig'
 import CronExecution from '../../models/cron/CronExecution'
-import Course from '../../models/Course'
 import User from '../../models/user'
-import tagRuleEngine from './tagRuleEngine'
 import ProductProfile from '../../models/product/ProductProfile'
 import decisionEngine from './decisionEngine.service'
 import tagOrchestrator from './tagOrchestrator.service'
@@ -106,7 +104,7 @@ class TagCronManagement {
     // Cria novo job
     const job = schedule.scheduleJob(cronExpression, async () => {
       console.log(`🕐 CRON automático disparado: ${new Date().toISOString()}`)
-      await this.executeTagRulesSync('automatic')
+      await this.executeIntelligentTagSync('automatic')
     })
 
     this.scheduledJobs.set(name, job)
@@ -315,127 +313,8 @@ class TagCronManagement {
     return summary
   }
 
-  /**
-   * ⚠️ LEGADO: Executa sincronização de tags (automático ou manual)
-   * @deprecated Use executeIntelligentTagSync() para o novo sistema
-   */
-  async executeTagRulesSync(type: 'automatic' | 'manual', userId?: string): Promise<any> {
-    console.log(`🚀 Iniciando sincronização (${type})...`)
-    const startTime = Date.now()
-
-    const execution = await CronExecution.create({
-      cronName: 'TAG_RULES_SYNC',
-      executionType: type,
-      status: 'running',
-      startTime: new Date(),
-      executedBy: userId,
-    })
-
-    try {
-      // Buscar cursos ativos
-      const courses = await Course.find({ isActive: true })
-      console.log(`📚 Processando ${courses.length} cursos ativos`)
-
-      let totalTagsApplied = 0
-      let totalStudentsProcessed = 0
-      const processedUserIds = new Set<string>()
-
-      // Para cada curso
-      for (const course of courses) {
-        console.log(`🎓 Processando curso: ${course.name} (${course.code})`)
-
-        // Buscar users que têm dados deste curso
-        const users = await User.find({
-          [`communicationByCourse.${course.code}`]: { $exists: true },
-        })
-
-        console.log(`   👥 ${users.length} alunos encontrados`)
-
-        // Avaliar regras para cada user
-        for (const user of users) {
-          try {
-            const results = await tagRuleEngine.evaluateUserRules(user.id, course._id)
-
-            // Contar tags aplicadas
-            const executedRules = results.filter((r: any) => r.executed)
-            totalTagsApplied += executedRules.length
-
-            // Adicionar user ao set (para contar únicos)
-            processedUserIds.add(user.id.toString())
-          } catch (userError: unknown) {
-            const e = userError as { message?: unknown }
-            const msg = typeof e.message === 'string' ? e.message : 'Erro desconhecido'
-            console.error(`   ❌ Erro ao processar ${user.email}:`, msg)
-          }
-        }
-      }
-
-      totalStudentsProcessed = processedUserIds.size
-
-      const endTime = Date.now()
-      const duration = endTime - startTime
-
-      // Atualiza execução com sucesso
-      execution.status = 'success'
-      execution.endTime = new Date()
-      execution.duration = duration
-      execution.tagsApplied = totalTagsApplied
-      execution.studentsProcessed = totalStudentsProcessed
-      execution.emailsSynced = totalStudentsProcessed
-      await execution.save()
-
-      // Atualiza config com última execução e duração média
-      const config = await CronConfig.findOne({ name: 'TAG_RULES_SYNC' })
-      if (config) {
-        // Calcular média móvel da duração
-        const newAvg = config.averageDuration
-          ? Math.round(config.averageDuration * 0.7 + duration * 0.3)
-          : duration
-
-        await CronConfig.findOneAndUpdate(
-          { name: 'TAG_RULES_SYNC' },
-          {
-            lastRun: new Date(),
-            averageDuration: newAvg,
-          }
-        )
-      }
-
-      console.log(`✅ Sincronização concluída (${(duration / 1000).toFixed(2)}s):`)
-      console.log(`   • ${totalTagsApplied} tags aplicadas`)
-      console.log(`   • ${totalStudentsProcessed} alunos processados`)
-      console.log(`   • ${courses.length} cursos verificados`)
-
-      return {
-        success: true,
-        execution: execution.toObject(),
-        result: {
-          tagsApplied: totalTagsApplied,
-          studentsSynced: totalStudentsProcessed,
-          coursesProcessed: courses.length,
-          duration,
-        },
-      }
-    } catch (error: unknown) {
-      console.error('❌ Erro na sincronização:', error)
-
-      const e = error as { message?: unknown }
-      const msg = typeof e.message === 'string' ? e.message : 'Erro desconhecido'
-
-      // Atualiza execução com erro
-      execution.status = 'error'
-      execution.endTime = new Date()
-      execution.duration = Date.now() - startTime
-      execution.errorMessage = msg
-      await execution.save()
-
-      return {
-        success: false,
-        execution: execution.toObject(),
-        error: msg,
-      }
-    }
-  }
+  // ✅ MÉTODO LEGADO REMOVIDO
+  // Use executeIntelligentTagSync() para nova arquitetura
 
   /**
    * Atualiza configuração de cron

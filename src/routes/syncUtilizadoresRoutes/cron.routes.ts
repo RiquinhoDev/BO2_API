@@ -96,4 +96,12 @@ router.get('/status', cronController.getSchedulerStatus)
 
 router.get('/tag-rules', cronController.getAvailableTagRules)
 
+/**
+ * @route   POST /api/cron/tag-rules-only
+ * @desc    Executar APENAS os steps de tags (sem sync Hotmart/CursEduca)
+ *          Steps: Pre-create Tags → Recalc Engagement → Evaluate Tag Rules
+ * @access  Private (Admin)
+ */
+router.post('/tag-rules-only', cronController.triggerTagRulesOnly)
+
 export default router

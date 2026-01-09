@@ -115,12 +115,13 @@ class ContactTagReaderService {
       .select('code name')
       .lean<ProductProfileLite[]>()
 
-    for (const profile of productProfiles) {
-      const prefix = `${profile.code}_`
+for (const profile of productProfiles) {
+  const code = profile.code.toUpperCase()
 
-      // Filtrar tags que começam com o código do produto
-      const productTags = tags.filter((t) => typeof t.tag === 'string' && t.tag.startsWith(prefix))
-
+  const productTags = tags.filter(t => {
+    const tag = String(t.tag || '').toUpperCase()
+    return tag.startsWith(`${code} -`) || tag.startsWith(`${code}_`) || tag.startsWith(code)
+  })
       if (productTags.length > 0) {
         const detectedFromTags = productTags.map((t) => t.tag)
         const currentLevel = this.getCurrentLevel(detectedFromTags)
@@ -143,16 +144,25 @@ class ContactTagReaderService {
    * 📊 Determinar nível atual baseado nas tags
    * (ex: "OGI_INATIVO_14D" -> 14)
    */
-  private getCurrentLevel(tagNames: string[]): number {
-    const levels = tagNames
-      .map((name) => {
-        const match = name.match(/_(\d+)D/)
-        return match ? Number.parseInt(match[1], 10) : 0
-      })
-      .filter((n) => n > 0)
+private getCurrentLevel(tagNames: string[]): number {
+  const levels = tagNames
+    .map((name) => {
+      const n = String(name)
 
-    return levels.length > 0 ? Math.max(...levels) : 0
-  }
+      // "Inativo 7d" / "INATIVO 14D"
+      const m1 = n.match(/(\d+)\s*d\b/i)
+      if (m1?.[1]) return parseInt(m1[1], 10)
+
+      // fallback antigo "_14D"
+      const m2 = n.match(/_(\d+)D\b/i)
+      if (m2?.[1]) return parseInt(m2[1], 10)
+
+      return 0
+    })
+    .filter((n) => n > 0)
+
+  return levels.length ? Math.max(...levels) : 0
+}
 
   /**
    * 🔄 Sincronizar tags AC → BO para um utilizador específico

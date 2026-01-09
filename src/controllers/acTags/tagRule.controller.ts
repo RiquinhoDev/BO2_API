@@ -3,9 +3,8 @@
 // Controller CRUD para TagRules
 // ════════════════════════════════════════════════════════════
 
-import type { RequestHandler } from 'express'
+import type { RequestHandler} from 'express'
 import { Course, TagRule } from '../../models'
-import tagRuleEngine from '../../services/activeCampaign/tagRuleEngine'
 
 // ─────────────────────────────────────────────────────────────
 // LISTAR TODAS AS REGRAS (com filtros)
@@ -222,40 +221,6 @@ export const testRule: RequestHandler = async (req, res) => {
 }
 
 // ─────────────────────────────────────────────────────────────
-// EXECUTAR REGRAS MANUALMENTE
+// ✅ EXECUTAR REGRAS REMOVIDO
+// Use DecisionEngine via /api/activecampaign/test-cron
 // ─────────────────────────────────────────────────────────────
-
-export const executeRules: RequestHandler = async (req, res) => {
-  try {
-    const { courseId } = req.body as { courseId?: string }
-
-    const course = await Course.findById(courseId)
-    if (!course) {
-      res.status(404).json({
-        success: false,
-        error: 'Curso não encontrado'
-      })
-      return
-    }
-
-    console.log(`🚀 Executando regras para curso ${course.name}...`)
-
-    // Executar em background
-    tagRuleEngine
-      .evaluateAllUsersInCourse(course._id)
-      .catch(err => console.error('❌ Erro na execução:', err))
-
-    res.json({
-      success: true,
-      message: 'Execução iniciada em background'
-    })
-    return
-  } catch (error: any) {
-    console.error('❌ Erro ao executar regras:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
-    return
-  }
-}

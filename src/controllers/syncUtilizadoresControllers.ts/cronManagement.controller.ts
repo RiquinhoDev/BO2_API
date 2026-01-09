@@ -691,7 +691,7 @@ export const validateCronExpression = async (req: Request, res: Response): Promi
 export const getSchedulerStatus = async (req: Request, res: Response): Promise<void> => {
   try {
     const activeJobs = await syncSchedulerService.getActiveJobs()
-    
+
     const stats = {
       totalActiveJobs: activeJobs.length,
       enabledJobs: activeJobs.filter(j => j.schedule.enabled).length,
@@ -726,6 +726,69 @@ export const getSchedulerStatus = async (req: Request, res: Response): Promise<v
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar status',
+      error: error.message
+    })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// TRIGGER TAG RULES ONLY (sem sync)
+// POST /api/cron/tag-rules-only
+// ═══════════════════════════════════════════════════════════
+
+export const triggerTagRulesOnly = async (req: Request, res: Response): Promise<void> => {
+  console.log('━'.repeat(60))
+  console.log('🏷️  [TAG-RULES-ONLY] Endpoint chamado!')
+  console.log('🏷️  [TAG-RULES-ONLY] Timestamp:', new Date().toISOString())
+  console.log('━'.repeat(60))
+
+  try {
+    console.log('🏷️  [TAG-RULES-ONLY] A importar dailyPipeline.service...')
+
+    // Import dinâmico para evitar circular dependencies
+    const { executeTagRulesOnly } = await import('../../services/cron/dailyPipeline.service')
+    console.log('🏷️  [TAG-RULES-ONLY] Import OK, a chamar executeTagRulesOnly()...')
+
+    const result = await executeTagRulesOnly()
+    console.log('🏷️  [TAG-RULES-ONLY] executeTagRulesOnly() retornou!')
+
+    res.status(200).json({
+      success: result.success,
+      message: result.success
+        ? 'Tag Rules Only executado com sucesso'
+        : 'Tag Rules Only executado com erros',
+      data: {
+        duration: result.duration,
+        completedAt: result.completedAt,
+        steps: {
+          preCreateTags: {
+            success: result.steps.preCreateTags.success,
+            duration: result.steps.preCreateTags.duration,
+            totalTags: result.steps.preCreateTags.stats?.totalTags || 0
+          },
+          recalcEngagement: {
+            success: result.steps.recalcEngagement.success,
+            duration: result.steps.recalcEngagement.duration,
+            updated: result.steps.recalcEngagement.stats?.updated || 0
+          },
+          evaluateTagRules: {
+            success: result.steps.evaluateTagRules.success,
+            duration: result.steps.evaluateTagRules.duration,
+            total: result.steps.evaluateTagRules.stats?.total || 0,
+            tagsApplied: result.steps.evaluateTagRules.stats?.tagsApplied || 0,
+            tagsRemoved: result.steps.evaluateTagRules.stats?.tagsRemoved || 0
+          }
+        },
+        summary: result.summary,
+        errors: result.errors
+      }
+    })
+
+  } catch (error: any) {
+    console.error('❌ Erro ao executar Tag Rules Only:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao executar Tag Rules Only',
       error: error.message
     })
   }

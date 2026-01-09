@@ -13,8 +13,7 @@ import User from '../../models/user'
 import TagRule from '../../models/acTags/TagRule'
 import UserAction from '../../models/UserAction'
 import activeCampaignService from './activeCampaignService'
-import Course from '../../models/Course'  // ✅ IMPORT DIRETO (não destructured)
-import { adaptTagRuleForDecisionEngine } from './tagRuleAdapter'
+import { Course } from '../../models'
 
 // ─────────────────────────────────────────────────────────────
 // TIPOS
@@ -289,9 +288,6 @@ async evaluateUserProduct(userId: string, productId: string,): Promise<DecisionR
 
       const { levelRules, regularRules } = splitRulesIntoLevelAndRegular(context.rules)
 
-  console.log(`[DEBUG] levelRules: ${levelRules.length}`)
-  console.log(`[DEBUG] regularRules: ${regularRules.length}`)
-  levelRules.forEach(lr => console.log(`   Level ${lr.level}: ${lr.tagName} (>=${lr.daysInactive}d)`))
         // ===== métricas base (preferência: UserProduct.engagement)
         const metrics = await this.getMetrics(context)
         const daysInactive = metrics.daysSinceLastLogin
@@ -444,12 +440,6 @@ async evaluateUserProduct(userId: string, productId: string,): Promise<DecisionR
           const decision = await this.evaluateRule(rule, context, metrics)
           result.decisions.push(decision)
 
-    // ✅ ADICIONAR LOG AQUI:
-    console.log(`[DEBUG] Regra: ${rule.name}`)
-    console.log(`[DEBUG]   Condição: ${rule.condition}`)
-    console.log(`[DEBUG]   shouldExecute: ${decision.shouldExecute}`)
-    console.log(`[DEBUG]   tagName: ${decision.tagName}`)
-
           if (decision.shouldExecute && decision.tagName) {
             if (decision.action === 'APPLY_TAG') result.tagsToApply.push(decision.tagName)
             if (decision.action === 'REMOVE_TAG') result.tagsToRemove.push(decision.tagName)
@@ -505,23 +495,10 @@ async evaluateUserProduct(userId: string, productId: string,): Promise<DecisionR
       if (!userProduct || !user || !product) {
         throw new Error('UserProduct, User ou Product não encontrado')
       }
-    // ✅ ADICIONAR LOGS AQUI:
-    console.log('[DEBUG] product.code:', product.code)
-    console.log('[DEBUG] product.courseCode:', (product as any).courseCode)
-    console.log('[DEBUG] Buscando Course com code:', (product as any).courseCode || product.code)
 
-    const course = await Course.findOne({ 
-      code: (product as any).courseCode || product.code 
+    const course = await Course.findOne({
+      code: (product as any).courseCode || product.code
     })
-    
-    // ✅ ADICIONAR LOG AQUI:
-    console.log('[DEBUG] Course encontrado?', course ? 'SIM' : 'NÃO')
-    if (!course) {
-      console.log('[DEBUG] Tentando buscar TODOS os courses...')
-      const allCourses = await Course.find().limit(5)
-      console.log('[DEBUG] Courses na BD:', allCourses.map(c => c.code))
-    }
-    
 
       if (!course) {
         throw new Error(`Course não encontrado para product ${product.code}`)
@@ -533,18 +510,79 @@ async evaluateUserProduct(userId: string, productId: string,): Promise<DecisionR
     isActive: true
   }).sort({ priority: -1, name: 1 })
 
-  // ✅ ADAPTAR REGRAS PARA FORMATO DO DECISIONENGINE
-  const adaptedRules = rules.map(r => adaptTagRuleForDecisionEngine(r))
+  // ✅ CONVERTER TagRules para formato interno (sem adapter externo)
+  const adaptedRules = rules.map((tagRule: any) => {
+    // Converter conditions para string (se necessário)
+    let conditionStr = tagRule.condition
 
-  console.log('[DEBUG] TagRules adaptadas:', adaptedRules.length)
-  if (adaptedRules.length > 0) {
-    console.log('[DEBUG] Primeira regra adaptada:', {
-      name: adaptedRules[0].name,
-      tagName: adaptedRules[0].tagName,
-      action: adaptedRules[0].action,
-      condition: adaptedRules[0].condition
-    })
-  }
+    if (!conditionStr && tagRule.conditions && Array.isArray(tagRule.conditions)) {
+      // Converter array de conditions para string simples
+      const opMap: Record<string, string> = {
+        'greaterThan': '>=',
+        'lessThan': '<',
+        'equals': '===',
+        'olderThan': '>=',
+        'newerThan': '<'
+      }
+
+      const parts = tagRule.conditions.map((cond: any) => {
+        if (cond.type === 'SIMPLE') {
+          const op = opMap[cond.operator] || cond.operator
+          return `${cond.field} ${op} ${cond.value}`
+        } else if (cond.type === 'COMPOUND' && cond.subConditions && Array.isArray(cond.subConditions)) {
+          // Processar subConditions e combiná-las com logic (AND/OR)
+          const subParts = cond.subConditions.map((sub: any) => {
+            const op = opMap[sub.operator] || sub.operator
+            return `${sub.field} ${op} ${sub.value}`
+          }).filter(Boolean)
+
+          if (subParts.length > 0) {
+            const logicOp = cond.logic === 'OR' ? '||' : '&&'
+            return subParts.length === 1 ? subParts[0] : `(${subParts.join(` ${logicOp} `)})`
+          }
+        }
+        return ''
+      }).filter(Boolean)
+
+      conditionStr = parts.join(' AND ')
+    }
+
+    const tagName = tagRule.actions?.addTag || ''
+
+    // Extrair daysInactive das conditions (se houver)
+    let daysInactive: number | undefined
+    if (tagRule.conditions && Array.isArray(tagRule.conditions)) {
+      for (const cond of tagRule.conditions) {
+        if (cond.type === 'SIMPLE' &&
+            (cond.field === 'daysSinceLastLogin' || cond.field === 'daysInactive') &&
+            cond.operator === 'greaterThan') {
+          daysInactive = cond.value
+          break
+        } else if (cond.type === 'COMPOUND' && cond.subConditions) {
+          // Procurar em subConditions
+          for (const sub of cond.subConditions) {
+            if ((sub.field === 'daysSinceLastLogin' || sub.field === 'daysInactive') &&
+                sub.operator === 'greaterThan') {
+              daysInactive = sub.value
+              break
+            }
+          }
+          if (daysInactive) break
+        }
+      }
+    }
+
+    return {
+      _id: tagRule._id,
+      name: tagRule.name,
+      tagName,
+      action: 'APPLY_TAG',
+      condition: conditionStr,
+      priority: tagRule.priority || 0,
+      daysInactive,
+      _original: tagRule
+    }
+  })
 
     return { userId, productId, userProduct, user, product, rules: adaptedRules }
   }
@@ -670,8 +708,8 @@ private async getMetrics(context: DecisionContext): Promise<{
  */
 
 private async evaluateCondition(
-  condition: string, 
-  context: DecisionContext, 
+  condition: string,
+  context: DecisionContext,
   metrics: any
 ): Promise<boolean> {
   if (!condition) return false
@@ -689,7 +727,31 @@ private async evaluateCondition(
   const currentModule = context.userProduct?.progress?.currentModule ?? 0
 
   // ═══════════════════════════════════════════════════════════
-  // PRIORIDADE 1: CONDIÇÕES COMPOSTAS (AND)
+  // 🆕 PRIORIDADE 0: CONDIÇÕES COMPOUND COM && E || (OPERADORES LÓGICOS)
+  // ═══════════════════════════════════════════════════════════
+  // Remover parênteses externos para facilitar o parsing
+  const trimmedCondition = condition.trim().replace(/^\(|\)$/g, '')
+
+  // Suporte para && (AND lógico)
+  if (trimmedCondition.includes('&&')) {
+    const parts = trimmedCondition.split('&&').map(p => p.trim())
+    const results = await Promise.all(
+      parts.map(part => this.evaluateCondition(part, context, metrics))
+    )
+    return results.every(r => r === true)
+  }
+
+  // Suporte para || (OR lógico)
+  if (trimmedCondition.includes('||')) {
+    const parts = trimmedCondition.split('||').map(p => p.trim())
+    const results = await Promise.all(
+      parts.map(part => this.evaluateCondition(part, context, metrics))
+    )
+    return results.some(r => r === true)
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // PRIORIDADE 1: CONDIÇÕES COMPOSTAS (AND) - Mantém compatibilidade
   // ═══════════════════════════════════════════════════════════
   if (/\sAND\s/i.test(condition)) {
     const parts = condition.split(/\sAND\s/i).map(p => p.trim().replace(/[()]/g, ''))
@@ -703,7 +765,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceLastLogin\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastLogin >= threshold
-        console.log(`   [EVAL] daysSinceLastLogin >= ${threshold}: ${daysSinceLastLogin} >= ${threshold} = ${result}`)
         return result
       }
       
@@ -711,7 +772,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceLastLogin\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastLogin > threshold
-        console.log(`   [EVAL] daysSinceLastLogin > ${threshold}: ${daysSinceLastLogin} > ${threshold} = ${result}`)
         return result
       }
       
@@ -719,7 +779,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceLastLogin\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastLogin < threshold
-        console.log(`   [EVAL] daysSinceLastLogin < ${threshold}: ${daysSinceLastLogin} < ${threshold} = ${result}`)
         return result
       }
       
@@ -727,7 +786,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceLastLogin\s*===\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastLogin === threshold
-        console.log(`   [EVAL] daysSinceLastLogin === ${threshold}: ${daysSinceLastLogin} === ${threshold} = ${result}`)
         return result
       }
 
@@ -739,7 +797,6 @@ private async evaluateCondition(
         const m = part.match(/lastAccessDate\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastAction >= threshold
-        console.log(`   [EVAL] lastAccessDate >= ${threshold}: ${daysSinceLastAction} >= ${threshold} = ${result}`)
         return result
       }
       
@@ -747,7 +804,6 @@ private async evaluateCondition(
         const m = part.match(/lastAccessDate\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastAction > threshold
-        console.log(`   [EVAL] lastAccessDate > ${threshold}: ${daysSinceLastAction} > ${threshold} = ${result}`)
         return result
       }
       
@@ -755,7 +811,6 @@ private async evaluateCondition(
         const m = part.match(/lastAccessDate\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastAction < threshold
-        console.log(`   [EVAL] lastAccessDate < ${threshold}: ${daysSinceLastAction} < ${threshold} = ${result}`)
         return result
       }
       
@@ -763,7 +818,6 @@ private async evaluateCondition(
         const m = part.match(/lastAccessDate\s*===\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastAction === threshold
-        console.log(`   [EVAL] lastAccessDate === ${threshold}: ${daysSinceLastAction} === ${threshold} = ${result}`)
         return result
       }
 
@@ -775,7 +829,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceLastAction\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastAction >= threshold
-        console.log(`   [EVAL] daysSinceLastAction >= ${threshold}: ${daysSinceLastAction} >= ${threshold} = ${result}`)
         return result
       }
       
@@ -783,7 +836,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceLastAction\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastAction > threshold
-        console.log(`   [EVAL] daysSinceLastAction > ${threshold}: ${daysSinceLastAction} > ${threshold} = ${result}`)
         return result
       }
       
@@ -791,7 +843,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceLastAction\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastAction < threshold
-        console.log(`   [EVAL] daysSinceLastAction < ${threshold}: ${daysSinceLastAction} < ${threshold} = ${result}`)
         return result
       }
       
@@ -799,7 +850,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceLastAction\s*===\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceLastAction === threshold
-        console.log(`   [EVAL] daysSinceLastAction === ${threshold}: ${daysSinceLastAction} === ${threshold} = ${result}`)
         return result
       }
 
@@ -811,7 +861,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceEnrollment\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceEnrollment >= threshold
-        console.log(`   [EVAL] daysSinceEnrollment >= ${threshold}: ${daysSinceEnrollment} >= ${threshold} = ${result}`)
         return result
       }
       
@@ -819,7 +868,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceEnrollment\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceEnrollment > threshold
-        console.log(`   [EVAL] daysSinceEnrollment > ${threshold}: ${daysSinceEnrollment} > ${threshold} = ${result}`)
         return result
       }
       
@@ -827,7 +875,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceEnrollment\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceEnrollment < threshold
-        console.log(`   [EVAL] daysSinceEnrollment < ${threshold}: ${daysSinceEnrollment} < ${threshold} = ${result}`)
         return result
       }
       
@@ -835,7 +882,6 @@ private async evaluateCondition(
         const m = part.match(/daysSinceEnrollment\s*===\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = daysSinceEnrollment === threshold
-        console.log(`   [EVAL] daysSinceEnrollment === ${threshold}: ${daysSinceEnrollment} === ${threshold} = ${result}`)
         return result
       }
 
@@ -847,7 +893,6 @@ private async evaluateCondition(
         const m = part.match(/currentProgress\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = currentProgress >= threshold
-        console.log(`   [EVAL] currentProgress >= ${threshold}: ${currentProgress} >= ${threshold} = ${result}`)
         return result
       }
       
@@ -855,7 +900,6 @@ private async evaluateCondition(
         const m = part.match(/currentProgress\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = currentProgress > threshold
-        console.log(`   [EVAL] currentProgress > ${threshold}: ${currentProgress} > ${threshold} = ${result}`)
         return result
       }
       
@@ -863,7 +907,6 @@ private async evaluateCondition(
         const m = part.match(/currentProgress\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = currentProgress < threshold
-        console.log(`   [EVAL] currentProgress < ${threshold}: ${currentProgress} < ${threshold} = ${result}`)
         return result
       }
       
@@ -871,7 +914,6 @@ private async evaluateCondition(
         const m = part.match(/currentProgress\s*===\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = currentProgress === threshold
-        console.log(`   [EVAL] currentProgress === ${threshold}: ${currentProgress} === ${threshold} = ${result}`)
         return result
       }
 
@@ -883,7 +925,6 @@ private async evaluateCondition(
         const m = part.match(/currentModule\s*>=\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = currentModule >= threshold
-        console.log(`   [EVAL] currentModule >= ${threshold}: ${currentModule} >= ${threshold} = ${result}`)
         return result
       }
       
@@ -891,7 +932,6 @@ private async evaluateCondition(
         const m = part.match(/currentModule\s*>\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = currentModule > threshold
-        console.log(`   [EVAL] currentModule > ${threshold}: ${currentModule} > ${threshold} = ${result}`)
         return result
       }
       
@@ -899,7 +939,6 @@ private async evaluateCondition(
         const m = part.match(/currentModule\s*<\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = currentModule < threshold
-        console.log(`   [EVAL] currentModule < ${threshold}: ${currentModule} < ${threshold} = ${result}`)
         return result
       }
       
@@ -907,20 +946,16 @@ private async evaluateCondition(
         const m = part.match(/currentModule\s*===\s*(\d+)/i)
         const threshold = Number(m?.[1] || 0)
         const result = currentModule === threshold
-        console.log(`   [EVAL] currentModule === ${threshold}: ${currentModule} === ${threshold} = ${result}`)
         return result
       }
 
       // ─────────────────────────────────────────────────────────
       // FALLBACK: Part não reconhecida
       // ─────────────────────────────────────────────────────────
-      console.warn(`   [EVAL] Part não reconhecida: ${part}`)
       return false
     })
     
-    const finalResult = results.every(r => r === true)
-    console.log(`   [EVAL AND] Resultado final: ${finalResult} (${results.filter(r => r).length}/${results.length} condições true)`)
-    return finalResult
+    return results.every(r => r === true)
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -935,7 +970,6 @@ private async evaluateCondition(
     const m = condition.match(/daysInactive\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastLogin >= threshold
-    console.log(`   [EVAL] daysInactive >= ${threshold}: ${daysSinceLastLogin} >= ${threshold} = ${result}`)
     return result
   }
   
@@ -943,7 +977,6 @@ private async evaluateCondition(
     const m = condition.match(/daysInactive\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastLogin > threshold
-    console.log(`   [EVAL] daysInactive > ${threshold}: ${daysSinceLastLogin} > ${threshold} = ${result}`)
     return result
   }
   
@@ -951,7 +984,6 @@ private async evaluateCondition(
     const m = condition.match(/daysInactive\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastLogin < threshold
-    console.log(`   [EVAL] daysInactive < ${threshold}: ${daysSinceLastLogin} < ${threshold} = ${result}`)
     return result
   }
 
@@ -963,7 +995,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceLastLogin\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastLogin >= threshold
-    console.log(`   [EVAL] daysSinceLastLogin >= ${threshold}: ${daysSinceLastLogin} >= ${threshold} = ${result}`)
     return result
   }
   
@@ -971,7 +1002,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceLastLogin\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastLogin > threshold
-    console.log(`   [EVAL] daysSinceLastLogin > ${threshold}: ${daysSinceLastLogin} > ${threshold} = ${result}`)
     return result
   }
   
@@ -979,7 +1009,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceLastLogin\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastLogin < threshold
-    console.log(`   [EVAL] daysSinceLastLogin < ${threshold}: ${daysSinceLastLogin} < ${threshold} = ${result}`)
     return result
   }
   
@@ -987,7 +1016,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceLastLogin\s*===\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastLogin === threshold
-    console.log(`   [EVAL] daysSinceLastLogin === ${threshold}: ${daysSinceLastLogin} === ${threshold} = ${result}`)
     return result
   }
 
@@ -999,7 +1027,6 @@ private async evaluateCondition(
     const m = condition.match(/lastAccessDate\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastAction >= threshold
-    console.log(`   [EVAL] lastAccessDate >= ${threshold}: ${daysSinceLastAction} >= ${threshold} = ${result}`)
     return result
   }
   
@@ -1007,7 +1034,6 @@ private async evaluateCondition(
     const m = condition.match(/lastAccessDate\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastAction > threshold
-    console.log(`   [EVAL] lastAccessDate > ${threshold}: ${daysSinceLastAction} > ${threshold} = ${result}`)
     return result
   }
   
@@ -1015,7 +1041,6 @@ private async evaluateCondition(
     const m = condition.match(/lastAccessDate\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastAction < threshold
-    console.log(`   [EVAL] lastAccessDate < ${threshold}: ${daysSinceLastAction} < ${threshold} = ${result}`)
     return result
   }
   
@@ -1023,7 +1048,6 @@ private async evaluateCondition(
     const m = condition.match(/lastAccessDate\s*===\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastAction === threshold
-    console.log(`   [EVAL] lastAccessDate === ${threshold}: ${daysSinceLastAction} === ${threshold} = ${result}`)
     return result
   }
 
@@ -1035,7 +1059,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceLastAction\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastAction >= threshold
-    console.log(`   [EVAL] daysSinceLastAction >= ${threshold}: ${daysSinceLastAction} >= ${threshold} = ${result}`)
     return result
   }
   
@@ -1043,7 +1066,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceLastAction\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastAction > threshold
-    console.log(`   [EVAL] daysSinceLastAction > ${threshold}: ${daysSinceLastAction} > ${threshold} = ${result}`)
     return result
   }
   
@@ -1051,7 +1073,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceLastAction\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastAction < threshold
-    console.log(`   [EVAL] daysSinceLastAction < ${threshold}: ${daysSinceLastAction} < ${threshold} = ${result}`)
     return result
   }
   
@@ -1059,7 +1080,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceLastAction\s*===\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceLastAction === threshold
-    console.log(`   [EVAL] daysSinceLastAction === ${threshold}: ${daysSinceLastAction} === ${threshold} = ${result}`)
     return result
   }
 
@@ -1071,7 +1091,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceEnrollment\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceEnrollment >= threshold
-    console.log(`   [EVAL] daysSinceEnrollment >= ${threshold}: ${daysSinceEnrollment} >= ${threshold} = ${result}`)
     return result
   }
   
@@ -1079,7 +1098,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceEnrollment\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceEnrollment > threshold
-    console.log(`   [EVAL] daysSinceEnrollment > ${threshold}: ${daysSinceEnrollment} > ${threshold} = ${result}`)
     return result
   }
   
@@ -1087,7 +1105,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceEnrollment\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceEnrollment < threshold
-    console.log(`   [EVAL] daysSinceEnrollment < ${threshold}: ${daysSinceEnrollment} < ${threshold} = ${result}`)
     return result
   }
   
@@ -1095,7 +1112,6 @@ private async evaluateCondition(
     const m = condition.match(/daysSinceEnrollment\s*===\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = daysSinceEnrollment === threshold
-    console.log(`   [EVAL] daysSinceEnrollment === ${threshold}: ${daysSinceEnrollment} === ${threshold} = ${result}`)
     return result
   }
 
@@ -1107,7 +1123,6 @@ private async evaluateCondition(
     const m = condition.match(/currentProgress\s*===\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = currentProgress === threshold
-    console.log(`   [EVAL] currentProgress === ${threshold}: ${currentProgress} === ${threshold} = ${result}`)
     return result
   }
   
@@ -1115,7 +1130,6 @@ private async evaluateCondition(
     const m = condition.match(/currentProgress\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = currentProgress >= threshold
-    console.log(`   [EVAL] currentProgress >= ${threshold}: ${currentProgress} >= ${threshold} = ${result}`)
     return result
   }
   
@@ -1123,7 +1137,6 @@ private async evaluateCondition(
     const m = condition.match(/currentProgress\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = currentProgress > threshold
-    console.log(`   [EVAL] currentProgress > ${threshold}: ${currentProgress} > ${threshold} = ${result}`)
     return result
   }
   
@@ -1131,7 +1144,6 @@ private async evaluateCondition(
     const m = condition.match(/currentProgress\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = currentProgress < threshold
-    console.log(`   [EVAL] currentProgress < ${threshold}: ${currentProgress} < ${threshold} = ${result}`)
     return result
   }
 
@@ -1143,7 +1155,6 @@ private async evaluateCondition(
     const m = condition.match(/currentModule\s*===\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = currentModule === threshold
-    console.log(`   [EVAL] currentModule === ${threshold}: ${currentModule} === ${threshold} = ${result}`)
     return result
   }
   
@@ -1151,7 +1162,6 @@ private async evaluateCondition(
     const m = condition.match(/currentModule\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = currentModule >= threshold
-    console.log(`   [EVAL] currentModule >= ${threshold}: ${currentModule} >= ${threshold} = ${result}`)
     return result
   }
   
@@ -1159,7 +1169,6 @@ private async evaluateCondition(
     const m = condition.match(/currentModule\s*>\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = currentModule > threshold
-    console.log(`   [EVAL] currentModule > ${threshold}: ${currentModule} > ${threshold} = ${result}`)
     return result
   }
   
@@ -1167,7 +1176,6 @@ private async evaluateCondition(
     const m = condition.match(/currentModule\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = currentModule < threshold
-    console.log(`   [EVAL] currentModule < ${threshold}: ${currentModule} < ${threshold} = ${result}`)
     return result
   }
 
@@ -1179,7 +1187,6 @@ private async evaluateCondition(
     const m = condition.match(/engagementScore\s*<\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = engagementScore < threshold
-    console.log(`   [EVAL] engagementScore < ${threshold}: ${engagementScore} < ${threshold} = ${result}`)
     return result
   }
   
@@ -1187,7 +1194,6 @@ private async evaluateCondition(
     const m = condition.match(/engagementScore\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = engagementScore >= threshold
-    console.log(`   [EVAL] engagementScore >= ${threshold}: ${engagementScore} >= ${threshold} = ${result}`)
     return result
   }
 
@@ -1199,7 +1205,6 @@ private async evaluateCondition(
     const m = condition.match(/totalLogins\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = totalLogins >= threshold
-    console.log(`   [EVAL] totalLogins >= ${threshold}: ${totalLogins} >= ${threshold} = ${result}`)
     return result
   }
 
@@ -1211,7 +1216,6 @@ private async evaluateCondition(
     const m = condition.match(/totalActions\s*>=\s*(\d+)/i)
     const threshold = Number(m?.[1] || 0)
     const result = totalActions >= threshold
-    console.log(`   [EVAL] totalActions >= ${threshold}: ${totalActions} >= ${threshold} = ${result}`)
     return result
   }
 

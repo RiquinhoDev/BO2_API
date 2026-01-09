@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run test:single-user:complete:*)",
+      "Bash(npm run seed:clareza-products:*)",
+      "Bash(npm run sync:single-user-curseduca)",
+      "Bash(npm run sync:ac-to-bd:*)",
+      "Bash(npm run sync:ac-tags-to-bd:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsx:*)",
+      "Bash(tee:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(move:*)",
+      "Bash(powershell -Command \"$content = Get-Content ''src/services/activeCampaign/decisionEngine.service.ts'' -Raw; $content = $content -replace ''\\(?m\\)^\\\\s+console\\\\.log\\\\\\(.+\\\\[EVAL\\\\].+\\\\n'', ''''; $content | Set-Content ''src/services/activeCampaign/decisionEngine.service.ts'' -NoNewline\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File scripts/clean-logs.ps1)",
+      "Bash(del \"C:\\\\Users\\\\User\\\\Documents\\\\GitHub\\\\Riquinho\\\\api\\\\Front\\\\BO2_API\\\\scripts\\\\clean-logs.ps1\")"
+    ]
+  }
+}

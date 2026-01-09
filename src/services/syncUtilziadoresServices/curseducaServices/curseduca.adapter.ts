@@ -29,9 +29,9 @@ import {
 // CREDENCIAIS (PROCESS.ENV)
 // ═══════════════════════════════════════════════════════════
 
-const CURSEDUCA_API_URL = process.env.CURSEDUCA_API_URL
-const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_AccessToken
-const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY
+const CURSEDUCA_API_URL="https://prof.curseduca.pro"
+const CURSEDUCA_API_KEY="ce9ef2a4afef727919473d38acafe10109c4faa8"
+const CURSEDUCA_ACCESS_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjozLCJ1dWlkIjoiYmZiNmExNjQtNmE5MC00MGFhLTg3OWYtYzEwNGIyZTZiNWVmIiwibmFtZSI6IlBlZHJvIE1pZ3VlbCBQZXJlaXJhIFNpbcO1ZXMgU2FudG9zIiwiZW1haWwiOiJjb250YWN0b3NAc2VycmlxdWluaG8uY29tIiwiaW1hZ2UiOiIvYXBwbGljYXRpb24vaW1hZ2VzL3VwbG9hZHMvMy8iLCJyb2xlcyI6WyJBRE1JTiJdLCJ0ZW5hbnRzIjpbXX0sImlhdCI6MTc1ODE5MDgwMH0.vI_Y9l7oZVIV4OT9XG7LWDIma-E7fcRkVYM7FOCxTds"
 
 // ═══════════════════════════════════════════════════════════
 // HELPER: VALIDAR CREDENCIAIS
@@ -545,6 +545,178 @@ export const fetchCurseducaDataForSync = async (
 }
 
 // ═══════════════════════════════════════════════════════════
+// 🆕 SYNC INDIVIDUAL - ESTRATÉGIA OTIMIZADA (2 CHAMADAS)
+// ═══════════════════════════════════════════════════════════
+
+export const fetchSingleUserData = async (
+  curseducaUserId: number
+): Promise<UniversalSourceItem[]> => {
+  console.log(`🔍 [CurseducaAdapter] Buscando dados do user ${curseducaUserId}...`)
+
+  try {
+    validateCredentials()
+
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN!}`,
+      'api_key': CURSEDUCA_API_KEY!,
+      'Content-Type': 'application/json'
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // STEP 1: GET /members/{id} - Dados completos do user
+    // ═══════════════════════════════════════════════════════════
+
+    console.log(`   📡 Buscando dados básicos...`)
+    const memberResponse = await axios.get(
+      `${CURSEDUCA_API_URL}/members/${curseducaUserId}`,
+      { headers, timeout: 15000 }
+    )
+
+    const memberData = memberResponse.data as CursEducaMemberDetails
+    console.log(`   ✅ User: ${memberData.email}`)
+    console.log(`   📊 Groups: ${memberData.groups.length}`)
+
+    // ═══════════════════════════════════════════════════════════
+    // STEP 2: GET /api/reports/enrollments?memberId={id}
+    // ═══════════════════════════════════════════════════════════
+
+    console.log(`   📡 Buscando enrollments...`)
+
+    let enrollments: any[] = []
+
+    try {
+      const enrollmentsResponse = await axios.get(
+        `${CURSEDUCA_API_URL}/api/reports/enrollments`,
+        {
+          params: { memberId: curseducaUserId, limit: 100 },
+          headers,
+          timeout: 15000
+        }
+      )
+
+      enrollments = enrollmentsResponse.data?.data || []
+      console.log(`   ✅ Enrollments: ${enrollments.length}`)
+
+    } catch (enrollmentError: any) {
+      if (enrollmentError.response?.status === 404) {
+        console.log(`   ⚠️  Nenhum enrollment encontrado (404)`)
+        console.log(`   ℹ️  Usando apenas dados dos groups (user pode ser admin)`)
+        enrollments = []
+      } else {
+        throw enrollmentError
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // STEP 3: MAPEAR ENROLLMENTS → UNIVERSAL SOURCE ITEMS
+    // ═══════════════════════════════════════════════════════════
+
+    const results: UniversalSourceItem[] = []
+
+    if (enrollments.length > 0) {
+      // CASO A: Tem enrollments - usar dados do enrollment
+      for (const enrollment of enrollments) {
+        // Encontrar grupo correspondente
+        const group = memberData.groups.find(
+          g => g.group.id === enrollment.content?.id
+        )
+
+        if (!group) {
+          console.warn(`   ⚠️ Grupo ${enrollment.content?.id} não encontrado para enrollment`)
+          continue
+        }
+
+        const subscriptionType = detectSubscriptionType(group.group.name)
+
+        const item: UniversalSourceItem = {
+          email: memberData.email,
+          name: memberData.name || memberData.email,
+          curseducaUserId: memberData.id.toString(),
+          curseducaUuid: memberData.uuid,
+          groupId: group.group.id.toString(),
+          groupName: group.group.name,
+          subscriptionType: subscriptionType || 'MONTHLY',
+          lastLogin: memberData.lastLogin,
+          lastAccess: memberData.lastLogin,
+          enrolledAt: group.createdAt || enrollment.startedAt,
+          joinedDate: group.createdAt ? new Date(group.createdAt) : undefined,
+          expiresAt: group.group.expiresAt ? new Date(group.group.expiresAt) : undefined,
+          progress: {
+            percentage: enrollment.progress || 0,
+            completed: enrollment.finishedAt ? 100 : enrollment.progress || 0,
+            lessons: []
+          },
+          engagement: {
+            engagementScore: enrollment.progress ? Math.min(100, enrollment.progress * 2) : 0
+          },
+          platformData: {
+            isPrimary: true,
+            isDuplicate: false,
+            enrollmentsCount: enrollments.length,
+            situation: memberData.situation || 'ACTIVE'
+          }
+        }
+
+        results.push(item)
+      }
+
+    } else {
+      // CASO B: Sem enrollments - criar items baseados apenas nos groups
+      console.log(`   📦 Criando items baseados em ${memberData.groups.length} group(s)...`)
+
+      for (const groupData of memberData.groups) {
+        const subscriptionType = detectSubscriptionType(groupData.group.name)
+
+        const item: UniversalSourceItem = {
+          email: memberData.email,
+          name: memberData.name || memberData.email,
+          curseducaUserId: memberData.id.toString(),
+          curseducaUuid: memberData.uuid,
+          groupId: groupData.group.id.toString(),
+          groupName: groupData.group.name,
+          subscriptionType: subscriptionType || 'MONTHLY',
+          lastLogin: memberData.lastLogin,
+          lastAccess: memberData.lastLogin,
+          enrolledAt: groupData.createdAt,
+          joinedDate: groupData.createdAt ? new Date(groupData.createdAt) : undefined,
+          expiresAt: groupData.group.expiresAt ? new Date(groupData.group.expiresAt) : undefined,
+          progress: {
+            percentage: 0, // Sem enrollment = sem progress
+            completed: 0,
+            lessons: []
+          },
+          engagement: {
+            engagementScore: 0
+          },
+          platformData: {
+            isPrimary: true,
+            isDuplicate: false,
+            enrollmentsCount: 0,
+            situation: memberData.situation || 'ACTIVE'
+          }
+        }
+
+        results.push(item)
+      }
+    }
+
+    console.log(`✅ [CurseducaAdapter] ${results.length} items criados para user ${curseducaUserId}`)
+
+    return results
+
+  } catch (error: any) {
+    console.error(`❌ [CurseducaAdapter] Erro ao buscar user ${curseducaUserId}:`, error.message)
+
+    if (error.response?.status === 404) {
+      console.error(`   User ${curseducaUserId} não encontrado no CursEduca`)
+      return []
+    }
+
+    throw new Error(`Erro ao buscar dados do user ${curseducaUserId}: ${error.message}`)
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 // PLACEHOLDER
 // ═══════════════════════════════════════════════════════════
 
@@ -553,7 +725,7 @@ export const fetchProgressForExistingUsers = async (
 ): Promise<Map<string, { estimatedProgress: number }>> => {
   console.log(`📊 [CurseducaAdapter] Progresso para ${userIds.length} utilizadores...`)
   console.warn('⚠️ CursEduca não tem endpoint dedicado de progresso')
-  console.info('   💡 Use fetchCurseducaDataForSync completo')
+  console.info('   💡 Use fetchCurseducaDataForSync completo ou fetchSingleUserData')
   return new Map()
 }
 
@@ -563,5 +735,6 @@ export const fetchProgressForExistingUsers = async (
 
 export default {
   fetchCurseducaDataForSync,
+  fetchSingleUserData,
   fetchProgressForExistingUsers
 }

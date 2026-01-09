@@ -20,6 +20,10 @@ import { ProcessItemResult, SyncError, SyncWarning, UniversalSourceItem, Univers
 type LeanProduct = {
   _id: mongoose.Types.ObjectId
   code: string
+  platform: string
+  curseducaGroupId?: string
+  platformData?: any
+  name?: string
 }
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info'
 
@@ -67,124 +71,224 @@ const toNumber = (value: unknown, fallback = 0): number => {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ✅ NOVO: MAPEAMENTO DINÂMICO DE PRODUTOS (SEM HARDCODE!)
+// ✅ CACHE GLOBAL DE PRODUTOS (OTIMIZAÇÃO FASE 1)
+// ═══════════════════════════════════════════════════════════
+
+let PRODUCTS_CACHE: Map<string, LeanProduct> | null = null
+let PRODUCTS_CACHE_TIMESTAMP: number = 0
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutos
+
+/**
+ * Pre-load produtos no cache (chamado no início do sync)
+ */
+async function preloadProductsCache(): Promise<void> {
+  const now = Date.now()
+
+  // Se cache válido, reutilizar
+  if (PRODUCTS_CACHE && (now - PRODUCTS_CACHE_TIMESTAMP) < CACHE_TTL) {
+    debugLog(`✅ [ProductCache] Cache válido (${Math.floor((now - PRODUCTS_CACHE_TIMESTAMP) / 1000)}s)`)
+    return
+  }
+
+  debugLog(`📦 [ProductCache] Carregando produtos...`)
+  const start = Date.now()
+
+  const products = await Product.find({ isActive: true })
+    .select('_id code platform curseducaGroupId platformData name')
+    .lean() as unknown as LeanProduct[]
+
+  PRODUCTS_CACHE = new Map()
+
+  for (const p of products) {
+    // Key: code
+    PRODUCTS_CACHE.set(p.code, p)
+
+    // Key: platform:code
+    PRODUCTS_CACHE.set(`${p.platform}:${p.code}`, p)
+
+    // Key (CursEduca): group_{groupId}
+    if (p.platform === 'curseduca' && (p as any).curseducaGroupId) {
+      PRODUCTS_CACHE.set(`group_${(p as any).curseducaGroupId}`, p)
+    }
+  }
+
+  PRODUCTS_CACHE_TIMESTAMP = now
+
+  debugLog(`✅ [ProductCache] ${products.length} produtos carregados em ${Date.now() - start}ms`)
+}
+
+/**
+ * Limpar cache (útil para testes)
+ */
+export function clearProductsCache(): void {
+  PRODUCTS_CACHE = null
+  PRODUCTS_CACHE_TIMESTAMP = 0
+}
+
+// ═══════════════════════════════════════════════════════════
+// ✅ NOVO: MAPEAMENTO DINÂMICO DE PRODUTOS (COM CACHE!)
 // ═══════════════════════════════════════════════════════════
 
 /**
  * Determina o produto correto baseado nos dados do item e na plataforma
- * ✅ Totalmente escalável - busca produtos dinamicamente na BD
+ * ✅ OTIMIZADO: Usa cache quando disponível
  */
 async function determineProductId(
   item: UniversalSourceItem,
   syncType: SyncType
 ): Promise<mongoose.Types.ObjectId | null> {
-  
+
+  // ✅ Usar cache se disponível
+  const useCache = PRODUCTS_CACHE !== null
+
   if (syncType === 'hotmart') {
-    // Hotmart: usar productCode se fornecido, senão buscar produto default
     const productCode = item.productCode || 'OGI_V1'
-    
-    const product = await Product.findOne({ 
+
+    // Cache lookup
+    if (useCache) {
+      const cached = PRODUCTS_CACHE!.get(`hotmart:${productCode}`) || PRODUCTS_CACHE!.get(productCode)
+      if (cached) {
+        debugLog(`✅ [ProductMapping] Produto Hotmart do cache: ${productCode}`)
+        return cached._id
+      }
+    }
+
+    // Fallback: query BD
+    const product = await Product.findOne({
       code: productCode,
       platform: 'hotmart',
       isActive: true
     }).select('_id').lean() as LeanProduct | null
-    
+
     if (!product) {
       console.warn(`⚠️ [ProductMapping] Produto Hotmart não encontrado: ${productCode}`)
     }
-    
+
     return product?._id || null
   }
-  
+
   if (syncType === 'curseduca') {
-    // ✅ ESTRATÉGIA ESCALÁVEL: Buscar produto por curseducaGroupId
-    // Isto permite adicionar novos grupos sem mudar código!
-    
-    const groupId = String(item.groupId || '') // Normalizar para string
-    
+    const groupId = String(item.groupId || '')
+
     if (groupId) {
-      // 1ª tentativa: Buscar por curseducaGroupId exato
+      // Cache lookup por groupId
+      if (useCache) {
+        const cached = PRODUCTS_CACHE!.get(`group_${groupId}`)
+        if (cached) {
+          debugLog(`✅ [ProductMapping] Produto CursEduca do cache (groupId ${groupId}): ${cached.code}`)
+          return cached._id
+        }
+      }
+
+      // Fallback: query BD
       const product = await Product.findOne({
         platform: 'curseduca',
+        curseducaGroupId: groupId,
         isActive: true
       }).select('_id code').lean() as LeanProduct | null
-      
+
       if (product) {
         debugLog(`✅ [ProductMapping] Produto encontrado por groupId ${groupId}: ${product.code}`)
         return product._id
       }
     }
-    
-    // 2ª tentativa: Buscar por subscriptionType (MONTHLY/ANNUAL)
+
+    // 2ª tentativa: subscriptionType
     if (item.subscriptionType) {
-      // Mapear subscriptionType → código do produto
-      const productCode = 
+      const productCode =
         item.subscriptionType === 'MONTHLY' ? 'CLAREZA_MENSAL' :
         item.subscriptionType === 'ANNUAL' ? 'CLAREZA_ANUAL' :
         null
 
-      if (productCode) {  // ✅ ADICIONAR ESTA VALIDAÇÃO!
+      if (productCode) {
+        // Cache lookup
+        if (useCache) {
+          const cached = PRODUCTS_CACHE!.get(productCode)
+          if (cached) {
+            debugLog(`✅ [ProductMapping] Produto do cache (subscriptionType): ${productCode}`)
+            return cached._id
+          }
+        }
+
+        // Fallback: query BD
         const product = await Product.findOne({
           platform: 'curseduca',
           code: productCode,
           isActive: true
-        }).select('_id code').lean() as LeanProduct | null  // ✅ Adicionar .select().lean()
+        }).select('_id code').lean() as LeanProduct | null
 
         if (product) {
           debugLog(`✅ [ProductMapping] Produto encontrado por subscriptionType ${item.subscriptionType}: ${product.code}`)
           return product._id
         }
-        
-        // ✅ ADICIONAR WARNING se não encontrar
+
         console.warn(`⚠️ [ProductMapping] Produto não encontrado para subscriptionType: ${item.subscriptionType} (${productCode})`)
       }
     }
-    
-    // 3ª tentativa: Buscar por groupName (case-insensitive)
+
+    // 3ª tentativa: groupName (não usa cache - query dinâmica)
     if (item.groupName) {
       const product = await Product.findOne({
         platform: 'curseduca',
         name: { $regex: new RegExp(item.groupName, 'i') },
         isActive: true
       }).select('_id code').lean() as LeanProduct | null
-      
+
       if (product) {
         console.log(`✅ [ProductMapping] Produto encontrado por groupName "${item.groupName}": ${product.code}`)
         return product._id
       }
     }
-    
-    // 4ª tentativa: Produto default da plataforma (primeiro ativo)
+
+    // 4ª tentativa: default
+    if (useCache) {
+      const allCurseduca = Array.from(PRODUCTS_CACHE!.values()).find(p => p.platform === 'curseduca')
+      if (allCurseduca) {
+        console.warn(`⚠️ [ProductMapping] Usando produto default CursEDuca: ${allCurseduca.code} (groupId: ${groupId})`)
+        return allCurseduca._id
+      }
+    }
+
     const defaultProduct = await Product.findOne({
       platform: 'curseduca',
       isActive: true
     }).select('_id code').lean() as LeanProduct | null
-    
+
     if (defaultProduct) {
       console.warn(`⚠️ [ProductMapping] Usando produto default CursEDuca: ${defaultProduct.code} (groupId: ${groupId})`)
       return defaultProduct._id
     }
-    
+
     console.error(`❌ [ProductMapping] Nenhum produto CursEDuca ativo encontrado!`)
     return null
   }
-  
+
   if (syncType === 'discord') {
-    // Discord: buscar produto por code ou primeiro ativo
+    // Cache lookup
+    if (useCache) {
+      const cached = PRODUCTS_CACHE!.get('DISCORD_COMMUNITY') ||
+                     Array.from(PRODUCTS_CACHE!.values()).find(p => p.platform === 'discord')
+      if (cached) {
+        debugLog(`✅ [ProductMapping] Produto Discord do cache: ${cached.code}`)
+        return cached._id
+      }
+    }
+
+    // Fallback: query BD
     const product = await Product.findOne({
       $or: [
         { code: 'DISCORD_COMMUNITY' },
         { platform: 'discord', isActive: true }
       ]
     }).select('_id code').lean() as LeanProduct | null
-    
+
     if (!product) {
       console.warn(`⚠️ [ProductMapping] Produto Discord não encontrado`)
     }
-    
+
     return product?._id || null
   }
-  
+
   return null
 }
 
@@ -221,6 +325,8 @@ export const executeUniversalSync = async (
   let hid = ''
 
   try {
+    // ✅ OTIMIZAÇÃO FASE 1: Pre-load cache de produtos
+    await preloadProductsCache()
     // ═══════════════════════════════════════════════════════════
     // STEP 1: CRIAR SYNCREPORT
     // ═══════════════════════════════════════════════════════════
@@ -1031,21 +1137,23 @@ export function calculateEngagementMetricsForUserProduct(
 
   if (platform === 'hotmart') {
     // ✅ HOTMART = LOGIN-BASED
-    // ✅ CORRIGIDO: user.hotmart.progress.lastAccessDate (não lastLogin!)
-    const lastLogin = user.hotmart?.progress?.lastAccessDate || user.hotmart?.firstAccessDate
+    // ✅ FIX: Múltiplos fallbacks para lastAccessDate
+    const lastLogin =
+      user.hotmart?.lastAccessDate ||
+      user.hotmart?.progress?.lastAccessDate ||
+      user.hotmart?.firstAccessDate
 
     if (lastLogin) {
       const lastLoginTime = lastLogin instanceof Date ? lastLogin.getTime() : new Date(lastLogin).getTime()
       daysSinceLastLogin = Math.floor((now - lastLoginTime) / (1000 * 60 * 60 * 24))
       debugLog(`   ✅ daysSinceLastLogin: ${daysSinceLastLogin} dias`)
-    } else {
-      console.log(`   ⚠️  Hotmart lastAccessDate não disponível`)
     }
+    // Silenciar aviso (normal para alunos novos sem histórico)
 
     // ✅ CORRIGIDO: user.hotmart.engagement.accessCount
     totalLogins = user.hotmart?.engagement?.accessCount || 0
 
-} else if (platform === 'curseduca') {
+  } else if (platform === 'curseduca') {
     // ✅ CURSEDUCA = ACTION-BASED
     // ✅ CORRIGIDO: CursEduca não tem lastActionDate explícito
     // Usar progress.lastActivity ou joinedDate como fallback
@@ -1099,9 +1207,7 @@ export function calculateEngagementMetricsForUserProduct(
                   user.metadata?.createdAt || 
                   null
 
-    if (purchaseDate) {
-      console.log(`   📅 Hotmart purchaseDate: ${purchaseDate.toISOString()}`)
-    }
+
 
   } else if (platform === 'curseduca') {
     // ✅ CORRIGIDO: subscriptionValue NÃO está no modelo User
@@ -1128,12 +1234,12 @@ export function calculateEngagementMetricsForUserProduct(
   // RETORNAR MÉTRICAS
   // ═══════════════════════════════════════════════════════════
 
-const metrics = {
+  const metrics = {
     engagement: {
       daysSinceLastLogin,
       daysSinceLastAction,
-      daysSinceEnrollment,    // 🆕 ADICIONAR ESTA LINHA
-      enrolledAt,             // 🆕 ADICIONAR ESTA LINHA
+      daysSinceEnrollment,
+      enrolledAt,
       totalLogins,
       actionsLastWeek,
       actionsLastMonth
@@ -1146,7 +1252,7 @@ const metrics = {
   }
 
   debugLog(`   ✅ Métricas calculadas para ${product.code}`)
-  
+
   return metrics
 }
 
