@@ -19,6 +19,19 @@ import StudentEngagementState from '../../models/StudentEngagementState'
 import decisionEngine from './decisionEngine.service'
 
 // ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Verifica se uma tag é uma tag BO (padrão: CODIGO - Descrição)
+ * ✅ CRÍTICO: Apenas tags BO podem ser removidas!
+ * Tags nativas do AC NÃO devem ser tocadas pelo nosso sistema.
+ */
+function isBOTag(tagName: string): boolean {
+  return /^[A-Z_0-9]+ - .+$/.test(tagName)
+}
+
+// ═══════════════════════════════════════════════════════════
 // INTERFACES
 // ═══════════════════════════════════════════════════════════
 
@@ -57,8 +70,6 @@ class TagOrchestratorV2 {
    * Orquestrar tags para um UserProduct específico
    */
 async orchestrateUserProduct(userId: string, productId: string): Promise<OrchestrationResult> {
-  console.log(`[TagOrchestrator V2] Orquestrando userId=${userId}, productId=${productId}`)
-
   const result: OrchestrationResult = {
     userId,
     productId,
@@ -70,10 +81,6 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
   }
 
   try {
-    // ═══════════════════════════════════════════════════════════
-    // 1) CONTEXTO - BUSCAR FRESH DATA DA BD
-    // ═══════════════════════════════════════════════════════════
-    
     const userProduct = await UserProduct.findOne({ userId, productId })
     const user = await User.findById(userId)
     const product = await Product.findById(productId)
@@ -84,17 +91,6 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
 
     const productCode = String(product.code || '').toUpperCase()
     result.productCode = productCode
-    
-    console.log(`[DEBUG] product.code: ${product.code}`)
-    console.log(`[DEBUG] product.courseCode: ${product.courseCode}`)
-
-    // 🔍 DEBUG: Verificar engagement metrics ANTES de chamar DecisionEngine
-    if (productCode.includes('CLAREZA')) {
-      console.log(`[DEBUG] UserProduct.engagement (ANTES DecisionEngine):`)
-      console.log(`   daysSinceEnrollment: ${(userProduct.engagement as any)?.daysSinceEnrollment ?? 'undefined'}`)
-      console.log(`   enrolledAt: ${(userProduct.engagement as any)?.enrolledAt ?? 'undefined'}`)
-      console.log(`   daysSinceLastAction: ${(userProduct.engagement as any)?.daysSinceLastAction ?? 'undefined'}`)
-    }
 
     const lastActivity = this.getUserLastActivity(user, productCode)
     const daysInactive = this.calculateDaysInactive(lastActivity)
@@ -112,26 +108,16 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
     //    🔧 CORREÇÃO: SÓ VER TAGS DO PRODUTO ATUAL!
     // ═══════════════════════════════════════════════════════════
 
-    // ✅ Buscar tags REAIS do Active Campaign
-    console.log(`[TagOrchestrator V2] 🔍 Sincronizando com Active Campaign...`)
+    // Buscar tags REAIS do Active Campaign
     const acTags = await activeCampaignService.getContactTagsByEmail(user.email)
-    
-    console.log(`[TagOrchestrator V2] 📊 Total tags no AC: ${acTags.length}`)
-    
-    // ✅ CORREÇÃO: Determinar prefixos ESPECÍFICOS deste produto
-    const productTagPrefixes = this.getProductTagPrefixes(productCode)
-    
-    console.log(`[TagOrchestrator V2] 🔍 Prefixos deste produto (${productCode}): ${productTagPrefixes.join(', ')}`)
 
-    // ✅ CORREÇÃO: Filtrar SÓ tags DESTE PRODUTO no AC
+    // Determinar prefixos ESPECÍFICOS deste produto
+    const productTagPrefixes = this.getProductTagPrefixes(productCode)
+
+    // Filtrar SÓ tags DESTE PRODUTO no AC
     const currentProductTagsInAC = acTags.filter((tag: string) =>
       productTagPrefixes.some(prefix => tag.toUpperCase().startsWith(prefix))
     )
-    
-    console.log(`[TagOrchestrator V2] 📊 Tags deste produto no AC: ${currentProductTagsInAC.length}`)
-    if (currentProductTagsInAC.length > 0 && currentProductTagsInAC.length <= 15) {
-      console.log(`[TagOrchestrator V2] Tags: ${currentProductTagsInAC.join(', ')}`)
-    }
 
     // Tags novas (do decision engine)
     const newBOTags = (decisions.tagsToApply || []).map((tag: string) => {
@@ -139,15 +125,12 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
       return fullTag
     })
 
-    // ✅ DIFF: Comparar tags DESTE PRODUTO no AC com esperadas
-    const tagsToRemove = currentProductTagsInAC.filter((tag: string) => !newBOTags.includes(tag))
+    // DIFF: Comparar tags DESTE PRODUTO no AC com esperadas
+    // FILTRO CRÍTICO: Apenas tags BO podem ser removidas! (protege tags nativas)
+    const tagsToRemove = currentProductTagsInAC
+      .filter((tag: string) => isBOTag(tag))
+      .filter((tag: string) => !newBOTags.includes(tag))
     const tagsToAdd = newBOTags.filter((tag: string) => !currentProductTagsInAC.includes(tag))
-
-    console.log(`[TagOrchestrator V2] Diff calculado (SÓ TAGS DESTE PRODUTO):`)
-    console.log(`   Tags deste produto no AC: [${currentProductTagsInAC.join(', ')}]`)
-    console.log(`   Tags esperadas (Decision Engine): [${newBOTags.join(', ')}]`)
-    console.log(`   Remover (órfãs + antigas): [${tagsToRemove.join(', ')}]`)
-    console.log(`   Adicionar (novas): [${tagsToAdd.join(', ')}]`)
 
     // ═══════════════════════════════════════════════════════════
     // 4) REMOVER TAGS DESATUALIZADAS (só deste produto!)
@@ -174,19 +157,14 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
     if (result.tagsApplied.length > 0 || result.tagsRemoved.length > 0) {
       await this.logCommunication(userId, productId, result, ctx)
       result.communicationsTriggered = 1
-    } else {
-      console.log(`[TagOrchestrator V2] ⏭️ Sem alterações (tags deste produto já estão corretas)`)
     }
 
     result.success = true
-    console.log(
-      `[TagOrchestrator V2] ✅ Orquestração completa: ${result.tagsApplied.length} aplicadas, ${result.tagsRemoved.length} removidas`
-    )
-    
+
   } catch (error: any) {
     result.success = false
     result.error = error.message
-    console.error(`[TagOrchestrator V2] ❌ Erro:`, error.message)
+    console.error(`❌ [Orchestrator] Erro ${result.productCode || 'unknown'}:`, error.message)
   }
 
   return result
@@ -241,13 +219,12 @@ private getProductTagPrefixes(productCode: string): string[] {
 
       const level = this.inferLevelFromTag(fullTag)
 
-      // Sync opcional do StudentEngagementState (trazido do V1)
+      // Sync opcional do StudentEngagementState
       await this.syncStudentStateOnApply(userId, productCode, fullTag, level, ctx)
 
-      console.log(`[TagOrchestrator V2] ✅ Tag aplicada: ${fullTag}`)
       return { ok: true, fullTag }
     } catch (error: any) {
-      console.error(`[TagOrchestrator V2] ❌ Erro ao aplicar tag ${fullTag}:`, error.message)
+      console.error(`❌ [Orchestrator] Erro ao aplicar ${fullTag}:`, error.message)
       return { ok: false, fullTag }
     }
   }
@@ -260,26 +237,20 @@ private getProductTagPrefixes(productCode: string): string[] {
   ): Promise<{ ok: boolean; fullTag: string }> {
     const productCode = String(ctx.product.code || '').toUpperCase()
     const { rawTag, fullTag } = this.normalizeTagForProduct(tag, productCode)
-    console.log(`[TagOrchestrator V2] 🗑️  Tentando remover tag:`)
-    console.log(`   userId: ${userId}`)
-    console.log(`   productId: ${productId}`)
-    console.log(`   tag original: ${tag}`)
-    console.log(`   rawTag: ${rawTag}`)
-    console.log(`   fullTag: ${fullTag}`)
+
     try {
       const ok = await activeCampaignService.removeTagFromUserProduct(userId, productId, rawTag)
       if (!ok) return { ok: false, fullTag }
 
-      // Sync opcional do StudentEngagementState (trazido do V1)
+      // Sync opcional do StudentEngagementState
       await this.syncStudentStateOnRemove(userId, productCode, fullTag, ctx)
 
-      // Atualizar última comunicação como “returned/success” (tolerante)
+      // Atualizar última comunicação como "returned/success"
       await this.markLastCommunicationAsReturned(userId, productId, fullTag)
 
-      console.log(`[TagOrchestrator V2] ✅ Tag removida: ${fullTag}`)
       return { ok: true, fullTag }
     } catch (error: any) {
-      console.error(`[TagOrchestrator V2] ❌ Erro ao remover tag ${fullTag}:`, error.message)
+      console.error(`❌ [Orchestrator] Erro ao remover ${fullTag}:`, error.message)
       return { ok: false, fullTag }
     }
   }
@@ -298,7 +269,7 @@ private getProductTagPrefixes(productCode: string): string[] {
       await CommunicationHistory.create({
         userId,
         productId,
-         tagApplied: result.tagsApplied[0] || 'UNKNOWN', 
+         tagApplied: result.tagsApplied[0] || 'UNKNOWN',
         type: 'TAG_AUTOMATION',
         channel: 'ACTIVE_CAMPAIGN',
         subject: `Tags atualizadas: ${result.productCode}`,
@@ -310,15 +281,12 @@ private getProductTagPrefixes(productCode: string): string[] {
           tagsApplied: result.tagsApplied,
           tagsRemoved: result.tagsRemoved,
           orchestratorVersion: 'V2',
-          // extras do V1:
           lastActivity: ctx.lastActivity,
           daysInactive: ctx.daysInactive
         }
       })
-
-      console.log(`[TagOrchestrator V2] 📝 Comunicação registada`)
     } catch (error: any) {
-      console.error(`[TagOrchestrator V2] ⚠️ Erro ao registar comunicação:`, error.message)
+      // Silent fail - não bloquear orquestração
     }
   }
 
@@ -554,8 +522,6 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
    * Orquestrar TODOS os UserProducts de um user
    */
   async orchestrateAllUserProducts(userId: string): Promise<OrchestrationResult[]> {
-    console.log(`[TagOrchestrator V2] Orquestrando todos os produtos do user ${userId}`)
-
     const userProducts = await UserProduct.find({ userId })
     const results: OrchestrationResult[] = []
 
@@ -564,9 +530,6 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
       results.push(r)
     }
 
-    const totalSuccess = results.filter(r => r.success).length
-    console.log(`[TagOrchestrator V2] ✅ Orquestração completa: ${totalSuccess}/${results.length} sucesso`)
-
     return results
   }
 
@@ -574,8 +537,6 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
    * Orquestrar TODOS os users de um produto
    */
   async orchestrateAllUsersOfProduct(productId: string): Promise<OrchestrationResult[]> {
-    console.log(`[TagOrchestrator V2] Orquestrando todos os users do produto ${productId}`)
-
     const userProducts = await UserProduct.find({ productId })
     const results: OrchestrationResult[] = []
 
@@ -584,9 +545,6 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
       results.push(r)
     }
 
-    const totalSuccess = results.filter(r => r.success).length
-    console.log(`[TagOrchestrator V2] ✅ Orquestração completa: ${totalSuccess}/${results.length} sucesso`)
-
     return results
   }
 
@@ -594,8 +552,6 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
    * Executar operação em batch (com rate limiting)
    */
   async executeBatchOperation(operations: TagOperation[], rateLimit: number = 5): Promise<number> {
-    console.log(`[TagOrchestrator V2] Executando ${operations.length} operações em batch`)
-
     let successCount = 0
     let currentBatch: TagOperation[] = []
 
@@ -632,7 +588,6 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
       }
     }
 
-    console.log(`[TagOrchestrator V2] ✅ Batch completo: ${successCount}/${operations.length} sucesso`)
     return successCount
   }
 
@@ -640,8 +595,6 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
    * Cleanup: Remover tags órfãs (não mais válidas)
    */
   async cleanupOrphanTags(userId: string, productId: string): Promise<string[]> {
-    console.log(`[TagOrchestrator V2] Limpando tags órfãs para userId=${userId}, productId=${productId}`)
-
     const userProduct = await UserProduct.findOne({ userId, productId })
     const user = await User.findById(userId)
     const product = await Product.findById(productId)
@@ -653,7 +606,8 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
     const tagsToRemove: string[] = []
 
     for (const t of currentTags) {
-      if (!String(t).toUpperCase().startsWith(productCode + '_')) {
+      // 🔒 FILTRO CRÍTICO: Apenas remover se for tag BO!
+      if (isBOTag(t) && !String(t).toUpperCase().startsWith(productCode + '_')) {
         tagsToRemove.push(t)
       }
     }
@@ -669,7 +623,6 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
       await this.removeTag(userId, productId, t, ctx)
     }
 
-    console.log(`[TagOrchestrator V2] ✅ ${tagsToRemove.length} tags órfãs removidas`)
     return tagsToRemove
   }
 }

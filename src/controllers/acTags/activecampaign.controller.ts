@@ -5,114 +5,90 @@
 // =====================================================
 
 import type { RequestHandler } from 'express'
-import Course from '../../models/Course'
+
 import User from '../../models/user'
-import tagRuleEngine from '../../services/activeCampaign/tagRuleEngine'
 import CronExecutionLog from '../../models/cron/CronExecutionLog'
 import TagRule from '../../models/acTags/TagRule'
-import { CommunicationHistory, Product, UserProduct } from '../../models'
+import { CommunicationHistory, Course, Product, UserProduct } from '../../models'
 import activeCampaignService from '../../services/activeCampaign/activeCampaignService'
+import decisionEngine from '../../services/activeCampaign/decisionEngine.service'
 
 /**
  * POST /api/activecampaign/test-cron
- * Executa avaliação manual das regras (não espera pelo CRON)
- */
-/**
- * POST /api/activecampaign/test-cron
- * Executa avaliação manual das regras (não espera pelo CRON)
+ * ✅ NOVO: Executa avaliação manual usando DecisionEngine por produto
  */
 export const testCron: RequestHandler = async (_req, res) => {
   const startTime = Date.now()
   const executionId = `MANUAL_${Date.now()}`
 
   try {
-    console.log('🧪 Iniciando avaliação manual...')
+    console.log('🧪 Iniciando avaliação manual (novo sistema)...')
 
     // ═══════════════════════════════════════════════════════════
-    // 1. BUSCAR COURSES ATIVOS
+    // 1. BUSCAR PRODUTOS ATIVOS
     // ═══════════════════════════════════════════════════════════
-    const courses = await Course.find({ isActive: true })
-    console.log(`📚 Encontrados ${courses.length} courses ativos`)
+    const products = await Product.find({ isActive: true }).populate('courseId')
+    console.log(`📦 Encontrados ${products.length} produtos ativos`)
 
-    let totalStudents = 0
-    let totalTagsApplied = 0
-    let totalTagsRemoved = 0
+    let totalUserProducts = 0
+    let totalDecisions = 0
+    let totalExecutions = 0
     const errors: any[] = []
 
     // ═══════════════════════════════════════════════════════════
-    // 2. PROCESSAR CADA CURSO
+    // 2. PROCESSAR CADA PRODUTO
     // ═══════════════════════════════════════════════════════════
-    for (const course of courses) {
+    for (const product of products) {
       try {
-        console.log(`\n📖 Processando course: ${course.name} (${course.code})`)
-        
-        // ✅ BUSCAR PRODUTOS DO CURSO
-        const products = await Product.find({
-          courseId: course._id,
-          isActive: true
-        })
-        
-        if (products.length === 0) {
-          console.log(`   ⚠️  Nenhum produto encontrado`)
-          continue
-        }
-        
-        console.log(`   📦 ${products.length} produto(s)`)
-        
-        const productIds = products.map(p => p._id)
-        
-        // ✅ BUSCAR USERPRODUCTS ATIVOS
-        const userProducts = await UserProduct.find({
-          productId: { $in: productIds },
-          status: 'ACTIVE'
-        }).distinct('userId')
-        
-        console.log(`   👥 ${userProducts.length} aluno(s) ativo(s)`)
-        
-        if (userProducts.length === 0) {
-          console.log(`   ⚠️  Nenhum aluno ativo`)
-          continue
-        }
-        
-        totalStudents += userProducts.length
-        
-        // ✅ BUSCAR USERS
-        const users = await User.find({
-          _id: { $in: userProducts }
-        })
-        
-        console.log(`   🔍 ${users.length} user(s) encontrado(s)`)
-        
-        // ═══════════════════════════════════════════════════════════
-        // 3. AVALIAR REGRAS
-        // ═══════════════════════════════════════════════════════════
-        for (const user of users) {
-          try {
-            const results = await tagRuleEngine.evaluateUserRules(user.id, course._id)
+        console.log(`\n📦 Processando produto: ${product.name} (${product.code})`)
 
-            results.forEach(result => {
-              if (result.executed) {
-                if (result.action === 'ADD_TAG') totalTagsApplied++
-                if (result.action === 'REMOVE_TAG') totalTagsRemoved++
-              }
-            })
+        // ✅ BUSCAR USERPRODUCTS ATIVOS DESTE PRODUTO
+        const userProducts = await UserProduct.find({
+          productId: product._id,
+          status: 'ACTIVE'
+        })
+
+        if (userProducts.length === 0) {
+          console.log(`   ⚠️  Nenhum UserProduct ativo`)
+          continue
+        }
+
+        console.log(`   👥 ${userProducts.length} UserProduct(s) ativo(s)`)
+        totalUserProducts += userProducts.length
+
+        // ═══════════════════════════════════════════════════════════
+        // 3. AVALIAR CADA USERPRODUCT COM DECISIONENGINE
+        // ═══════════════════════════════════════════════════════════
+        for (const up of userProducts) {
+          try {
+            const result = await decisionEngine.evaluateUserProduct(
+              up.userId.toString(),
+              product._id.toString()
+            )
+
+            totalDecisions++
+            totalExecutions += result.actionsExecuted || 0
+
+            if (result.errors && result.errors.length > 0) {
+              console.error(`   ⚠️  Erros:`, result.errors)
+            }
           } catch (userError: any) {
-            console.error(`   ❌ Erro user ${user._id}:`, userError.message)
+            console.error(`   ❌ Erro UserProduct ${up._id}:`, userError.message)
             errors.push({
-              userId: user._id,
-              courseId: course._id,
+              userProductId: up._id,
+              productId: product._id,
               error: userError.message
             })
           }
         }
 
-        console.log(`   ✅ ${users.length} alunos processados`)
-        
-      } catch (courseError: any) {
-        console.error(`❌ Erro course ${course._id}:`, courseError.message)
+        console.log(`   ✅ ${userProducts.length} UserProducts avaliados`)
+
+      } catch (productError: any) {
+        console.error(`❌ Erro produto ${product._id}:`, productError.message)
         errors.push({
-          courseId: course._id,
-          error: courseError.message
+          productId: product._id,
+          error: productError.message
         })
       }
     }
@@ -130,19 +106,20 @@ export const testCron: RequestHandler = async (_req, res) => {
       finishedAt: new Date(),
       duration,
       results: {
-        totalCourses: courses.length,
-        totalStudents,
-        tagsApplied: totalTagsApplied,
-        tagsRemoved: totalTagsRemoved,
+        totalProducts: products.length,
+        totalUserProducts,
+        decisionsEvaluated: totalDecisions,
+        actionsExecuted: totalExecutions,
         errors
       }
     })
 
-    console.log(`\n✅ Avaliação manual concluída`)
+    console.log(`\n✅ Avaliação manual concluída (novo sistema)`)
     console.log(`⏱️  Duração: ${(duration / 1000).toFixed(2)}s`)
-    console.log(`👥 Alunos: ${totalStudents}`)
-    console.log(`🏷️  Tags aplicadas: ${totalTagsApplied}`)
-    console.log(`🏷️  Tags removidas: ${totalTagsRemoved}`)
+    console.log(`📦 Produtos: ${products.length}`)
+    console.log(`👥 UserProducts: ${totalUserProducts}`)
+    console.log(`🎯 Decisões: ${totalDecisions}`)
+    console.log(`⚡ Ações executadas: ${totalExecutions}`)
 
     // ═══════════════════════════════════════════════════════════
     // 5. RESPOSTA
@@ -152,10 +129,10 @@ export const testCron: RequestHandler = async (_req, res) => {
       executionId,
       duration: `${(duration / 1000).toFixed(2)}s`,
       results: {
-        totalCourses: courses.length,
-        totalStudents,
-        tagsApplied: totalTagsApplied,
-        tagsRemoved: totalTagsRemoved,
+        totalProducts: products.length,
+        totalUserProducts,
+        decisionsEvaluated: totalDecisions,
+        actionsExecuted: totalExecutions,
         errors: errors.length
       }
     })

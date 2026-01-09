@@ -7,7 +7,6 @@ import { Request, Response } from 'express'
 import Course from '../models/Course'
 import User from '../models/user'
 import UserAction from '../models/UserAction'
-import tagRuleEngine from '../services/activeCampaign/tagRuleEngine'
 
 /**
  * GET /api/courses/ogi/students
@@ -116,72 +115,12 @@ export const getOGIStudents = async (req: Request, res: Response) => {
 
 /**
  * POST /api/courses/ogi/evaluate
- * Força avaliação manual de todas as regras OGI
+ * ✅ MIGRADO: Use /api/activecampaign/test-cron para avaliação com DecisionEngine
  */
 export const evaluateOGIRules = async (req: Request, res: Response) => {
-  try {
-    console.log('🔄 Iniciando avaliação manual de regras OGI...')
-
-    // 1. Buscar curso OGI
-    const ogiCourse = await Course.findOne({ code: 'OGI' })
-    
-    if (!ogiCourse) {
-      return res.status(404).json({
-        success: false,
-        message: 'Curso OGI não encontrado'
-      })
-    }
-
-    // 2. Buscar todos os alunos OGI
-    const users = await User.find({
-      'communicationByCourse.OGI': { $exists: true }
-    })
-
-    console.log(`📊 Encontrados ${users.length} alunos OGI para avaliar`)
-
-    // 3. Avaliar regras para cada aluno
-    let tagsApplied = 0
-    let tagsRemoved = 0
-    const errors = []
-
-    for (const user of users) {
-      try {
-        const results = await tagRuleEngine.evaluateUserRules(user.id, ogiCourse._id)
-        
-        for (const result of results) {
-          if (result.executed) {
-            if (result.action === 'ADD_TAG') tagsApplied++
-            if (result.action === 'REMOVE_TAG') tagsRemoved++
-          }
-        }
-      } catch (error: any) {
-        errors.push({
-          userId: user.id.toString(),
-          email: user.email,
-          error: error.message
-        })
-      }
-    }
-
-    // 4. Retornar resultados
-    console.log(`✅ Avaliação completa: ${tagsApplied} tags aplicadas, ${tagsRemoved} removidas`)
-
-    res.json({
-      success: true,
-      message: 'Regras OGI avaliadas com sucesso',
-      results: {
-        studentsEvaluated: users.length,
-        tagsApplied,
-        tagsRemoved,
-        errors: errors.length > 0 ? errors : undefined
-      }
-    })
-  } catch (error: any) {
-    console.error('❌ Erro ao avaliar regras OGI:', error)
-    res.status(500).json({ 
-      success: false, 
-      message: error.message 
-    })
-  }
+  res.status(410).json({
+    success: false,
+    message: 'Endpoint descontinuado. Use POST /api/activecampaign/test-cron para avaliação por produto'
+  })
 }
 

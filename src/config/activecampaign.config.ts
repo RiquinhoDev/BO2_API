@@ -12,9 +12,9 @@ export const activeCampaignConfig = {
   syncInterval: 24 * 60 * 60 * 1000, // 24 horas
   batchSize: 100,
   
-  // Rate limiting
-  maxRequestsPerMinute: 120,
-  requestDelay: 500,
+  // Rate limiting (AC limit: 5 req/s)
+  maxRequestsPerMinute: 280, // ~4.7 req/s (margem de segurança)
+  requestDelay: 200, // 200ms = 5 req/s (limite do AC)
   
   // Timeouts
   requestTimeout: 30000,
