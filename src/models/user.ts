@@ -228,7 +228,19 @@ communicationByCourse?: Map<string, {
   }
 }>
 
-  
+  // 🆕 INATIVAÇÃO MANUAL (para detetar renovações)
+  inactivation?: {
+    isManuallyInactivated: boolean    // Flag se foi inativado manualmente
+    inactivatedAt?: Date              // Data da inativação
+    inactivatedBy?: string            // Quem inativou (userId ou 'Sistema')
+    reason?: string                   // Motivo da inativação
+    platforms?: string[]              // Plataformas afetadas ['hotmart', 'curseduca', 'discord', 'all']
+    classId?: string                  // Turma que causou a inativação (se aplicável)
+    reactivatedAt?: Date              // Data da reativação (se aplicável)
+    reactivatedBy?: string            // Quem reativou
+    reactivationReason?: string       // Motivo ('manual', 'renewal_detected', 'sync')
+  }
+
   // Métodos de instância
   calculateCombinedData(): void
   getDisplayProgress(): number
@@ -596,8 +608,21 @@ curseduca: {
       }
     },
     default: {}
+  },
+
+  // 🆕 INATIVAÇÃO MANUAL (para detetar renovações)
+  inactivation: {
+    isManuallyInactivated: { type: Boolean, default: false },
+    inactivatedAt: { type: Date },
+    inactivatedBy: { type: String },
+    reason: { type: String },
+    platforms: [{ type: String, enum: ['hotmart', 'curseduca', 'discord', 'all'] }],
+    classId: { type: String },
+    reactivatedAt: { type: Date },
+    reactivatedBy: { type: String },
+    reactivationReason: { type: String, enum: ['manual', 'renewal_detected', 'sync'] }
   }
-  
+
 }, {
   timestamps: false,
   collection: 'users'

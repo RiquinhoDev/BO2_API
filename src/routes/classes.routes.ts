@@ -22,6 +22,9 @@ router.post('/syncHotmartClasses', classesController.syncHotmartClasses)
 // GET /api/classes/fetchClassData - Busca dados das turmas
 router.get('/fetchClassData', classesController.fetchClassData)
 
+// POST /api/classes/fetchClassData - Busca dados das turmas (body com classIds array)
+router.post('/fetchClassData', classesController.fetchClassDataPost)
+
 // GET /api/classes/stats - Estatísticas das turmas
 router.get('/stats', classesController.getClassStats)
 

@@ -10,6 +10,7 @@ import User, { IUser } from '../../models/user'
 import type { SyncType, TriggerType } from '../../models/SyncModels/SyncReport'
 import mongoose from 'mongoose'
 import { Product, UserProduct } from '../../models'
+import { Class } from '../../models/Class'
 import { IProduct } from '../../models/product/Product'
 import { ProcessItemResult, SyncError, SyncWarning, UniversalSourceItem, UniversalSyncConfig, UniversalSyncResult } from '../../types/universalSync.types'
 
@@ -327,6 +328,12 @@ export const executeUniversalSync = async (
   try {
     // ✅ OTIMIZAÇÃO FASE 1: Pre-load cache de produtos
     await preloadProductsCache()
+
+    // 🆕 Limpar lista de expirados (para sync Hotmart)
+    if (config.syncType === 'hotmart') {
+      clearExpiredList()
+    }
+
     // ═══════════════════════════════════════════════════════════
     // STEP 1: CRIAR SYNCREPORT
     // ═══════════════════════════════════════════════════════════
@@ -473,6 +480,30 @@ export const executeUniversalSync = async (
     await syncReportsService.updateReportStats(rid, stats)
 
     // ═══════════════════════════════════════════════════════════
+    // 🆕 STEP 4.5: PROCESSAR ALUNOS EXPIRADOS (só para Hotmart)
+    // ═══════════════════════════════════════════════════════════
+
+    let expirationResult = null
+    if (config.syncType === 'hotmart') {
+      await syncReportsService.addReportLog(rid, 'info', 'Verificando alunos com compra expirada (> 380 dias)...')
+
+      expirationResult = await processExpiredStudentsInactivation()
+
+      if (expirationResult.totalInactivated > 0) {
+        await syncReportsService.addReportLog(
+          rid,
+          'info',
+          `Expiração automática: ${expirationResult.totalInactivated} alunos inativados, ${expirationResult.classesAffected.length} turmas afetadas`,
+          {
+            totalProcessed: expirationResult.totalProcessed,
+            totalInactivated: expirationResult.totalInactivated,
+            classesAffected: expirationResult.classesAffected
+          }
+        )
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // STEP 5: FINALIZAR REPORT
     // ═══════════════════════════════════════════════════════════
 
@@ -557,6 +588,438 @@ export const executeUniversalSync = async (
     }
 
     throw err
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🆕 NOVO: DETETAR RENOVAÇÕES DE UTILIZADORES INATIVADOS
+// ═══════════════════════════════════════════════════════════
+
+interface RenewalDetectionResult {
+  wasInactivated: boolean
+  shouldReactivate: boolean
+  reactivationReason?: string
+  inactivatedAt?: Date
+  purchaseDate?: Date
+}
+
+/**
+ * Deteta se um utilizador foi inativado manualmente e se renovou a subscrição
+ * Compara a data de compra com a data de inativação
+ */
+async function detectRenewal(
+  user: IUser,
+  purchaseDate: Date | null,
+  config: UniversalSyncConfig
+): Promise<RenewalDetectionResult> {
+  const result: RenewalDetectionResult = {
+    wasInactivated: false,
+    shouldReactivate: false
+  }
+
+  // Verificar se o user foi inativado manualmente
+  const inactivation = (user as any).inactivation
+  if (!inactivation?.isManuallyInactivated || !inactivation?.inactivatedAt) {
+    return result
+  }
+
+  result.wasInactivated = true
+  result.inactivatedAt = new Date(inactivation.inactivatedAt)
+
+  // Só verificar renovações para Hotmart (onde temos purchaseDate)
+  if (config.syncType !== 'hotmart' || !purchaseDate) {
+    return result
+  }
+
+  result.purchaseDate = purchaseDate
+
+  // Se a data de compra é MAIS RECENTE que a data de inativação → RENOVAÇÃO!
+  if (purchaseDate > result.inactivatedAt) {
+    result.shouldReactivate = true
+    result.reactivationReason = 'renewal_detected'
+    console.log(`🔄 [RenewalDetection] RENOVAÇÃO DETETADA!`)
+    console.log(`   📧 User: ${user.email}`)
+    console.log(`   📅 Inativado em: ${result.inactivatedAt.toISOString()}`)
+    console.log(`   💳 Nova compra em: ${purchaseDate.toISOString()}`)
+  }
+
+  return result
+}
+
+/**
+ * Aplica a reativação automática de um utilizador que renovou
+ */
+async function applyAutoReactivation(
+  userId: string,
+  userEmail: string,
+  renewalResult: RenewalDetectionResult
+): Promise<void> {
+  console.log(`✅ [AutoReactivation] Reativando ${userEmail}...`)
+
+  // 1. Atualizar User
+  await User.findByIdAndUpdate(userId, {
+    $set: {
+      'combined.status': 'ACTIVE',
+      status: 'ACTIVE',
+      'hotmart.status': 'ACTIVE',
+      'curseduca.memberStatus': 'ACTIVE',
+      'discord.isActive': true,
+      // Atualizar dados de inativação
+      'inactivation.isManuallyInactivated': false,
+      'inactivation.reactivatedAt': new Date(),
+      'inactivation.reactivatedBy': 'Sistema - Sync Automático',
+      'inactivation.reactivationReason': renewalResult.reactivationReason
+    }
+  })
+
+  // 2. Atualizar UserProduct
+  await UserProduct.updateMany(
+    { userId },
+    { $set: { status: 'ACTIVE' } }
+  )
+
+  // 3. Notificar Discord Bot para reativar (adicionar roles)
+  if (process.env.DISCORD_BOT_URL) {
+    try {
+      const user = await User.findById(userId).lean() as any
+      const discordId = user?.discord?.discordIds?.[0]
+
+      if (discordId) {
+        await fetch(`${process.env.DISCORD_BOT_URL}/add-roles`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: discordId,
+            reason: `Renovação detetada automaticamente - Compra: ${renewalResult.purchaseDate?.toISOString()}`
+          })
+        })
+        console.log(`   🎮 Discord: Roles restaurados para ${userEmail}`)
+      }
+    } catch (discordError: any) {
+      console.warn(`   ⚠️ Discord: Erro ao restaurar roles para ${userEmail}:`, discordError.message)
+    }
+  }
+
+  console.log(`✅ [AutoReactivation] ${userEmail} reativado com sucesso!`)
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🆕 NOVO: DETETAR E INATIVAR ALUNOS COM COMPRA > 380 DIAS
+// ═══════════════════════════════════════════════════════════
+
+const EXPIRATION_DAYS = 380 // Dias após compra para considerar expirado
+
+interface ExpiredStudent {
+  userId: string
+  email: string
+  name: string
+  classId?: string
+  className?: string
+  purchaseDate: Date
+  daysSincePurchase: number
+}
+
+// Lista global para coletar alunos expirados durante o sync
+let expiredStudentsList: ExpiredStudent[] = []
+
+/**
+ * Verifica se um aluno expirou (compra há mais de 380 dias)
+ * Retorna os dados do aluno expirado ou null se ainda válido
+ */
+function checkStudentExpiration(
+  userId: string,
+  email: string,
+  name: string,
+  purchaseDate: Date | null,
+  classId?: string,
+  className?: string
+): ExpiredStudent | null {
+  if (!purchaseDate) return null
+
+  const now = new Date()
+  const diffTime = now.getTime() - purchaseDate.getTime()
+  const daysSincePurchase = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+  if (daysSincePurchase > EXPIRATION_DAYS) {
+    return {
+      userId,
+      email,
+      name,
+      classId,
+      className,
+      purchaseDate,
+      daysSincePurchase
+    }
+  }
+
+  return null
+}
+
+/**
+ * Adiciona um aluno à lista de expirados (chamado durante processamento)
+ */
+function addToExpiredList(student: ExpiredStudent): void {
+  // Evitar duplicados
+  if (!expiredStudentsList.find(s => s.userId === student.userId)) {
+    expiredStudentsList.push(student)
+  }
+}
+
+/**
+ * Limpa a lista de alunos expirados (chamado no início do sync)
+ */
+function clearExpiredList(): void {
+  expiredStudentsList = []
+}
+
+/**
+ * Retorna a lista atual de alunos expirados
+ */
+function getExpiredList(): ExpiredStudent[] {
+  return [...expiredStudentsList]
+}
+
+/**
+ * Processa a inativação em lote de todos os alunos expirados
+ * Chamado no final do sync Hotmart
+ */
+async function processExpiredStudentsInactivation(): Promise<{
+  totalProcessed: number
+  totalInactivated: number
+  classesAffected: string[]
+  errors: string[]
+}> {
+  const result = {
+    totalProcessed: 0,
+    totalInactivated: 0,
+    classesAffected: [] as string[],
+    errors: [] as string[]
+  }
+
+  const expiredList = getExpiredList()
+
+  if (expiredList.length === 0) {
+    console.log(`✅ [ExpirationCheck] Nenhum aluno expirado encontrado`)
+    return result
+  }
+
+  console.log(`\n🔄 [ExpirationCheck] Processando ${expiredList.length} alunos expirados (compra > ${EXPIRATION_DAYS} dias)...`)
+
+  // Agrupar por turma para depois atualizar
+  const classesWithExpiredStudents = new Map<string, number>()
+
+  for (const student of expiredList) {
+    result.totalProcessed++
+
+    try {
+      // Verificar se já está inativo
+      const user = await User.findById(student.userId).lean() as any
+
+      if (!user) {
+        result.errors.push(`User não encontrado: ${student.email}`)
+        continue
+      }
+
+      // Se já está inativo, pular
+      if (user.combined?.status === 'INACTIVE' || user.inactivation?.isManuallyInactivated) {
+        debugLog(`   ⏭️ ${student.email} já está inativo, pulando...`)
+        continue
+      }
+
+      // Aplicar inativação
+      await User.findByIdAndUpdate(student.userId, {
+        $set: {
+          'combined.status': 'INACTIVE',
+          status: 'INACTIVE',
+          'hotmart.status': 'INACTIVE',
+          // Guardar dados de inativação
+          'inactivation.isManuallyInactivated': true,
+          'inactivation.inactivatedAt': new Date(),
+          'inactivation.inactivatedBy': 'Sistema - Expiração Automática',
+          'inactivation.reason': `Compra expirada: ${student.daysSincePurchase} dias (limite: ${EXPIRATION_DAYS})`,
+          'inactivation.platforms': ['hotmart'],
+          'inactivation.classId': student.classId
+        }
+      })
+
+      // Atualizar UserProduct
+      await UserProduct.updateMany(
+        { userId: student.userId },
+        { $set: { status: 'INACTIVE' } }
+      )
+
+      // 🆕 REGISTRAR NO USERHISTORY
+      try {
+        const UserHistory = (await import('../../models/UserHistory')).default
+        await UserHistory.create({
+          userId: student.userId,
+          userEmail: student.email,
+          changeType: 'INACTIVATION',
+          previousValue: { status: 'ACTIVE' },
+          newValue: {
+            status: 'INACTIVE',
+            reason: `Compra expirada: ${student.daysSincePurchase} dias (limite: ${EXPIRATION_DAYS})`,
+            daysSincePurchase: student.daysSincePurchase,
+            purchaseDate: student.purchaseDate,
+            classId: student.classId,
+            className: student.className
+          },
+          platform: 'hotmart',
+          action: 'update',
+          changeDate: new Date(),
+          source: 'SYSTEM',
+          changedBy: 'Sistema - Expiração Automática',
+          reason: `Expiração automática: compra há ${student.daysSincePurchase} dias`,
+          metadata: {
+            expirationType: 'automatic',
+            daysSincePurchase: student.daysSincePurchase,
+            expirationLimit: EXPIRATION_DAYS,
+            purchaseDate: student.purchaseDate
+          }
+        })
+      } catch (error: any) {
+        console.warn(`   ⚠️ Erro ao registrar histórico de expiração para ${student.email}:`, error.message)
+      }
+
+      result.totalInactivated++
+
+      // Rastrear turma afetada
+      if (student.classId) {
+        const count = classesWithExpiredStudents.get(student.classId) || 0
+        classesWithExpiredStudents.set(student.classId, count + 1)
+      }
+
+      console.log(`   ✅ ${student.email} inativado (${student.daysSincePurchase} dias desde compra)`)
+
+    } catch (error: any) {
+      result.errors.push(`Erro ao inativar ${student.email}: ${error.message}`)
+      console.error(`   ❌ Erro ao inativar ${student.email}:`, error.message)
+    }
+  }
+
+  // Atualizar turmas que ficaram sem alunos ativos
+  for (const [classId, expiredCount] of classesWithExpiredStudents) {
+    try {
+      // Contar quantos alunos ativos restam na turma
+      const activeCount = await User.countDocuments({
+        $or: [
+          { classId, 'combined.status': 'ACTIVE' },
+          { 'hotmart.enrolledClasses.classId': classId, 'combined.status': 'ACTIVE' }
+        ]
+      })
+
+      result.classesAffected.push(classId)
+
+      // Se não há mais alunos ativos, inativar a turma
+      if (activeCount === 0) {
+        await Class.findOneAndUpdate(
+          { classId },
+          {
+            $set: {
+              isActive: false,
+              estado: 'inativo',
+              description: `Inativada automaticamente em ${new Date().toISOString()} - Todos os alunos expiraram`
+            }
+          }
+        )
+        console.log(`   📦 Turma ${classId} marcada como inativa (0 alunos ativos)`)
+      } else {
+        // Atualizar contagem de alunos
+        await Class.findOneAndUpdate(
+          { classId },
+          { $set: { studentCount: activeCount } }
+        )
+        debugLog(`   📊 Turma ${classId}: ${activeCount} alunos ativos restantes`)
+      }
+    } catch (error: any) {
+      result.errors.push(`Erro ao atualizar turma ${classId}: ${error.message}`)
+    }
+  }
+
+  console.log(`\n✅ [ExpirationCheck] Processamento concluído:`)
+  console.log(`   📊 Total processados: ${result.totalProcessed}`)
+  console.log(`   ✅ Total inativados: ${result.totalInactivated}`)
+  console.log(`   📦 Turmas afetadas: ${result.classesAffected.length}`)
+  if (result.errors.length > 0) {
+    console.log(`   ❌ Erros: ${result.errors.length}`)
+  }
+
+  return result
+}
+
+// ═══════════════════════════════════════════════════════════
+// ✅ NOVO: GARANTIR QUE TURMA EXISTE NA TABELA CLASS
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Cria ou atualiza uma turma na tabela Class
+ * Chamado durante o sync para garantir que todas as turmas são registadas
+ */
+async function ensureClassExists(
+  classId: string,
+  className: string | undefined,
+  source: 'hotmart' | 'curseduca',
+  curseducaId?: string,
+  curseducaUuid?: string
+): Promise<void> {
+  if (!classId) return
+
+  try {
+    const existingClass = await Class.findOne({ classId })
+
+    if (!existingClass) {
+      // Criar nova turma
+      const displayName = className || `Turma ${classId}`
+
+      await Class.create({
+        classId,
+        name: displayName,
+        curseducaId: source === 'curseduca' ? curseducaId : undefined,
+        curseducaUuid: source === 'curseduca' ? curseducaUuid : undefined,
+        source: source === 'hotmart' ? 'hotmart_sync' : 'curseduca_sync',
+        isActive: true,
+        estado: 'ativo',
+        studentCount: 1,
+        lastSyncAt: new Date()
+      })
+
+      console.log(`   ✅ [Class] Nova turma criada: ${classId} - "${displayName}"`)
+
+    } else {
+      // Atualizar turma existente
+      const updates: any = {
+        lastSyncAt: new Date(),
+        $inc: { studentCount: 0 } // Não incrementar aqui, será recalculado
+      }
+
+      // Atualizar nome se:
+      // 1. Nome atual é genérico ("Turma X") e temos nome real
+      // 2. Nome vem vazio e agora temos um nome real
+      const isGenericName = existingClass.name.match(/^Turma [a-zA-Z0-9]+$/)
+      const hasNewName = className && className !== existingClass.name && !className.match(/^Turma [a-zA-Z0-9]+$/)
+
+      if (isGenericName && hasNewName) {
+        updates.name = className
+        console.log(`   📝 [Class] Nome atualizado: ${classId} - "${existingClass.name}" → "${className}"`)
+      }
+
+      // Atualizar campos CursEduca se necessário
+      if (source === 'curseduca') {
+        if (curseducaId && !existingClass.curseducaId) {
+          updates.curseducaId = curseducaId
+        }
+        if (curseducaUuid && !existingClass.curseducaUuid) {
+          updates.curseducaUuid = curseducaUuid
+        }
+      }
+
+      await Class.findByIdAndUpdate(existingClass._id, updates)
+    }
+  } catch (error: any) {
+    // Ignorar erros de duplicação (race condition)
+    if (error.code !== 11000) {
+      console.error(`   ⚠️ [Class] Erro ao criar/atualizar turma ${classId}:`, error.message)
+    }
   }
 }
 
@@ -656,6 +1119,11 @@ if (lastAccessDate) {
 }
     // Turmas
     if (item.classId) {
+      // 🆕 DETECTAR MUDANÇA DE TURMA (CRÍTICO!)
+      const oldClassId = (user as any).hotmart?.enrolledClasses?.[0]?.classId
+      const oldClassName = (user as any).hotmart?.enrolledClasses?.[0]?.className
+      const hasClassChanged = oldClassId && oldClassId !== item.classId
+
       updateFields['hotmart.enrolledClasses'] = [
         {
           classId: item.classId,
@@ -666,6 +1134,47 @@ if (lastAccessDate) {
         }
       ]
       needsUpdate = true
+
+      // ✅ NOVO: Garantir que turma existe na tabela Class
+      await ensureClassExists(item.classId, item.className, 'hotmart')
+
+      // 🆕 REGISTRAR MUDANÇA DE TURMA OU PRIMEIRA INSCRIÇÃO
+      if (hasClassChanged) {
+        // Mudança de turma
+        try {
+          const StudentClassHistory = (await import('../../models/StudentClassHistory')).default
+          await StudentClassHistory.create({
+            studentId: user._id,
+            classId: item.classId,
+            className: item.className || `Turma ${item.classId}`,
+            previousClassId: oldClassId,
+            previousClassName: oldClassName,
+            dateMoved: new Date(),
+            reason: 'Mudança detectada no sync Hotmart',
+            movedBy: 'Sistema - Sync Automático'
+          })
+          console.log(`   📝 [ClassChange] ${user.email}: "${oldClassName}" → "${item.className || item.classId}"`)
+        } catch (error: any) {
+          console.warn(`   ⚠️ Erro ao registrar mudança de turma para ${user.email}:`, error.message)
+        }
+      } else if (!oldClassId && !isNew) {
+        // Primeira atribuição de turma (user já existia mas não tinha turma)
+        // Usar purchaseDate como data de inscrição
+        try {
+          const StudentClassHistory = (await import('../../models/StudentClassHistory')).default
+          await StudentClassHistory.create({
+            studentId: user._id,
+            classId: item.classId,
+            className: item.className || `Turma ${item.classId}`,
+            dateMoved: purchaseDate || new Date(),
+            reason: 'Primeira inscrição na turma (data de compra)',
+            movedBy: 'Sistema - Sync Automático'
+          })
+          console.log(`   ✨ [FirstEnrollment] ${user.email} inscrito em "${item.className || item.classId}" (${purchaseDate ? purchaseDate.toISOString().split('T')[0] : 'hoje'})`)
+        } catch (error: any) {
+          console.warn(`   ⚠️ Erro ao registrar primeira inscrição para ${user.email}:`, error.message)
+        }
+      }
     }
 
     // Metadata
@@ -708,6 +1217,17 @@ if (lastAccessDate) {
     if (item.groupId) {
       updateFields['curseduca.groupId'] = String(item.groupId)
       needsUpdate = true
+
+      // ✅ NOVO: Garantir que grupo existe na tabela Class
+      // Usar UUID como classId para CursEduca
+      const classIdForCurseduca = item.curseducaUuid || String(item.groupId)
+      await ensureClassExists(
+        classIdForCurseduca,
+        item.groupName,
+        'curseduca',
+        String(item.groupId),
+        item.curseducaUuid
+      )
     }
 
     if (item.groupName) {
@@ -804,6 +1324,37 @@ if (lastAccessDate) {
     updateFields['metadata.updatedAt'] = new Date()
     updateFields['metadata.sources.discord.lastSync'] = new Date()
     needsUpdate = true
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 🆕 DETETAR RENOVAÇÕES (antes de aplicar updates)
+  // ═══════════════════════════════════════════════════════════
+  const purchaseDate = toDateOrNull(item.purchaseDate)
+  const renewalResult = await detectRenewal(user, purchaseDate, config)
+
+  if (renewalResult.shouldReactivate) {
+    // Utilizador renovou! Aplicar reativação automática
+    await applyAutoReactivation(userIdStr, user.email, renewalResult)
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 🆕 VERIFICAR EXPIRAÇÃO (compra > 380 dias) - só para Hotmart
+  // ═══════════════════════════════════════════════════════════
+  if (config.syncType === 'hotmart' && purchaseDate && !renewalResult.shouldReactivate) {
+    const expiredStudent = checkStudentExpiration(
+      userIdStr,
+      user.email,
+      user.name,
+      purchaseDate,
+      item.classId,
+      item.className
+    )
+
+    if (expiredStudent) {
+      // Adicionar à lista para processar no final do sync
+      addToExpiredList(expiredStudent)
+      debugLog(`   ⏰ [Expiration] ${user.email} marcado para inativação (${expiredStudent.daysSincePurchase} dias)`)
+    }
   }
 
   // ═══════════════════════════════════════════════════════════

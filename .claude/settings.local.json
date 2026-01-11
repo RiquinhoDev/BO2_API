@@ -14,7 +14,8 @@
       "Bash(move:*)",
       "Bash(powershell -Command \"$content = Get-Content ''src/services/activeCampaign/decisionEngine.service.ts'' -Raw; $content = $content -replace ''\\(?m\\)^\\\\s+console\\\\.log\\\\\\(.+\\\\[EVAL\\\\].+\\\\n'', ''''; $content | Set-Content ''src/services/activeCampaign/decisionEngine.service.ts'' -NoNewline\")",
       "Bash(powershell -ExecutionPolicy Bypass -File scripts/clean-logs.ps1)",
-      "Bash(del \"C:\\\\Users\\\\User\\\\Documents\\\\GitHub\\\\Riquinho\\\\api\\\\Front\\\\BO2_API\\\\scripts\\\\clean-logs.ps1\")"
+      "Bash(del \"C:\\\\Users\\\\User\\\\Documents\\\\GitHub\\\\Riquinho\\\\api\\\\Front\\\\BO2_API\\\\scripts\\\\clean-logs.ps1\")",
+      "Bash(powershell -Command:*)"
     ]
   }
 }
