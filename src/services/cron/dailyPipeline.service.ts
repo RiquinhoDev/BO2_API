@@ -308,24 +308,44 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
       const ogiProduct = await Product.findOne({ code: 'OGI_V1' }).select('_id').lean() as { _id: any } | null
       const ogiProductId = ogiProduct?._id?.toString()
 
+      // Produtos a IGNORAR (não têm regras de tags)
+      const PRODUCTS_TO_SKIP = ['DISCORD_COMMUNITY', 'DISCORD']
+      const productsToSkip = await Product.find({
+        code: { $in: PRODUCTS_TO_SKIP }
+      }).select('_id').lean()
+      const productIdsToSkip = new Set(productsToSkip.map((p: any) => p._id.toString()))
+      logger.info(`   🚫 Produtos a ignorar: ${PRODUCTS_TO_SKIP.join(', ')}`)
+
       // Buscar TODOS os UserProducts ativos
       const userProducts = await UserProduct.find({ status: 'ACTIVE' })
         .select('userId productId metadata engagement')
         .populate({ path: 'userId', select: 'hotmart.lastAccessDate hotmart.firstAccessDate hotmart.progress.lastAccessDate metadata.purchaseDate email' })
+        .populate({ path: 'productId', select: 'code' })
         .lean<any[]>()
 
       logger.info(`   📊 Total UserProducts ativos: ${userProducts.length}`)
 
+      // Filtrar produtos sem regras de tags (DISCORD_COMMUNITY, etc)
+      const userProductsWithTags = userProducts.filter((up) => {
+        const productIdStr = up.productId?._id?.toString() || up.productId?.toString()
+        if (productIdsToSkip.has(productIdStr)) return false
+        return true
+      })
+      const skippedCount = userProducts.length - userProductsWithTags.length
+      if (skippedCount > 0) {
+        logger.info(`   🚫 ${skippedCount} UserProducts de produtos sem tags ignorados`)
+      }
+
       // Filtrar UserProducts órfãos (userId null)
-      const validUserProducts = userProducts.filter((up) => up.userId && up.userId._id)
-      const orphanCount = userProducts.length - validUserProducts.length
+      const validUserProducts = userProductsWithTags.filter((up) => up.userId && up.userId._id)
+      const orphanCount = userProductsWithTags.length - validUserProducts.length
       if (orphanCount > 0) {
         logger.warn(`   ⚠️  ${orphanCount} UserProducts órfãos ignorados`)
       }
 
       // Filtrar OGI_V1 inativos
       const filteredUserProducts = validUserProducts.filter((up) => {
-        const productId = up.productId?.toString()
+        const productId = up.productId?._id?.toString() || up.productId?.toString()
 
         // Se não é OGI_V1, incluir sempre
         if (!ogiProductId || productId !== ogiProductId) {
@@ -367,7 +387,7 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
         .filter(up => up.userId && up.userId._id)
         .map((up) => ({
           userId: up.userId._id?.toString() || up.userId.toString(),
-          productId: up.productId.toString()
+          productId: up.productId?._id?.toString() || up.productId?.toString()
         }))
 
       // Processamento sequencial (evita race conditions no rate limiting)
@@ -694,22 +714,42 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
       const ogiProduct = await Product.findOne({ code: 'OGI_V1' }).select('_id').lean() as { _id: any } | null
       const ogiProductId = ogiProduct?._id?.toString()
 
+      // Produtos a IGNORAR (não têm regras de tags)
+      const PRODUCTS_TO_SKIP = ['DISCORD_COMMUNITY', 'DISCORD']
+      const productsToSkip = await Product.find({
+        code: { $in: PRODUCTS_TO_SKIP }
+      }).select('_id').lean()
+      const productIdsToSkip = new Set(productsToSkip.map((p: any) => p._id.toString()))
+      console.log(`[TAG-RULES] 🚫 Produtos a ignorar: ${PRODUCTS_TO_SKIP.join(', ')}`)
+
       console.log('[TAG-RULES] ▶️ A buscar UserProducts ativos...')
       const userProducts = await UserProduct.find({ status: 'ACTIVE' })
         .select('userId productId metadata engagement')
         .populate({ path: 'userId', select: 'hotmart.lastAccessDate hotmart.firstAccessDate hotmart.progress.lastAccessDate metadata.purchaseDate email' })
+        .populate({ path: 'productId', select: 'code' })
         .lean<any[]>()
 
       console.log(`[TAG-RULES] 📊 Total UserProducts ativos: ${userProducts.length}`)
 
-      const validUserProducts = userProducts.filter((up) => up.userId && up.userId._id)
-      const orphanCount = userProducts.length - validUserProducts.length
+      // Filtrar produtos sem regras de tags (DISCORD_COMMUNITY, etc)
+      const userProductsWithTags = userProducts.filter((up) => {
+        const productIdStr = up.productId?._id?.toString() || up.productId?.toString()
+        if (productIdsToSkip.has(productIdStr)) return false
+        return true
+      })
+      const skippedCount = userProducts.length - userProductsWithTags.length
+      if (skippedCount > 0) {
+        console.log(`[TAG-RULES] 🚫 ${skippedCount} UserProducts de produtos sem tags ignorados`)
+      }
+
+      const validUserProducts = userProductsWithTags.filter((up) => up.userId && up.userId._id)
+      const orphanCount = userProductsWithTags.length - validUserProducts.length
       if (orphanCount > 0) {
         console.log(`[TAG-RULES] ⚠️ ${orphanCount} UserProducts órfãos ignorados`)
       }
 
       const filteredUserProducts = validUserProducts.filter((up) => {
-        const productId = up.productId?.toString()
+        const productId = up.productId?._id?.toString() || up.productId?.toString()
         if (!ogiProductId || productId !== ogiProductId) return true
 
         const user = up.userId
@@ -733,7 +773,7 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         .filter(up => up.userId && up.userId._id)
         .map((up) => ({
           userId: up.userId._id?.toString() || up.userId.toString(),
-          productId: up.productId.toString()
+          productId: up.productId?._id?.toString() || up.productId?.toString()
         }))
 
       const orchestrationResults: any[] = []
