@@ -6,7 +6,8 @@ import SyncHistory from '../models/SyncHistory'
 import axios from 'axios'
 import { Class } from '../models/Class'
 import StudentClassHistory from '../models/StudentClassHistory'
-import { User } from '../models'
+import { User, UserProduct } from '../models'
+import UserHistory from '../models/UserHistory'
 
 
 interface ClassSyncResult {
@@ -122,7 +123,7 @@ class ClassesController {
   
       res.json({
         success: true,
-        data: result.classes,
+        classes: result.classes, // Frontend espera "classes" não "data"
         total: result.total,
         filters,
         timestamp: new Date().toISOString()
@@ -624,6 +625,46 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
     }
   }
 
+  // 🆕 POST version - Aceita classIds no body (para InactivationWizard)
+  fetchClassDataPost = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { classIds } = req.body
+
+      if (!classIds || !Array.isArray(classIds)) {
+        res.status(400).json({
+          success: false,
+          message: 'classIds é obrigatório e deve ser um array'
+        })
+        return
+      }
+
+      const result = await classesService.fetchMultipleClassData(classIds, {
+        includeStudents: true,
+        includeStats: false
+      })
+
+      // Transformar para o formato esperado pelo Frontend:
+      // [{ className: string, students: [...] }]
+      const formattedResult = result.map((classData: any) => ({
+        className: classData.name || classData.classId,
+        students: (classData.students || []).map((student: any) => ({
+          name: student.name || '',
+          email: student.email || '',
+          discordIds: student.discordIds || student.discord?.discordIds || []
+        }))
+      }))
+
+      res.json(formattedResult) // Array direto com formato específico
+    } catch (error) {
+      console.error('❌ Erro ao buscar dados das turmas (POST):', error)
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao buscar dados das turmas',
+        error: (error as Error).message
+      })
+    }
+  }
+
   getClassStats = async (req: Request, res: Response): Promise<void> => {
     try {
       const { dateFrom, dateTo, classIds } = req.query
@@ -636,9 +677,20 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
       const stats = await classesService.getClassStats(filters)
 
+      // Buscar estatísticas de inativação (Frontend espera este campo)
+      const { InactivationList } = await import('../models/Class')
+      const [pendingLists, completedLists] = await Promise.all([
+        InactivationList.countDocuments({ status: { $in: ['PENDING', 'EXECUTING'] } }),
+        InactivationList.countDocuments({ status: 'COMPLETED' })
+      ])
+
       res.json({
         success: true,
         ...stats,
+        inactivationStats: {
+          pendingLists,
+          completedLists
+        },
         timestamp: new Date().toISOString()
       })
     } catch (error) {
@@ -1121,7 +1173,14 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
             // 3.1. Atualizar status no BD
             const updates: any = {
               'combined.status': 'INACTIVE',
-              status: 'INACTIVE'
+              status: 'INACTIVE',
+              // 🆕 Guardar dados de inativação para detetar renovações
+              'inactivation.isManuallyInactivated': true,
+              'inactivation.inactivatedAt': new Date(),
+              'inactivation.inactivatedBy': userId || 'Sistema',
+              'inactivation.reason': description || `Inativação por turma: ${classData.name}`,
+              'inactivation.platforms': platforms,
+              'inactivation.classId': classId
             }
 
             if (platforms.includes('hotmart') || platforms.includes('all')) {
@@ -1135,6 +1194,12 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
             }
 
             await User.findByIdAndUpdate(student._id, { $set: updates })
+
+            // 3.1.1 Atualizar UserProduct status (fonte única de verdade)
+            await UserProduct.updateMany(
+              { userId: student._id },
+              { $set: { status: 'INACTIVE' } }
+            )
 
             // 3.2. Registrar no histórico
             await (UserHistory as any).createInactivationHistory(
@@ -1375,6 +1440,12 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
       await User.findByIdAndUpdate(inactivation.userId, { $set: updates })
 
+      // Reativar UserProduct (fonte única de verdade)
+      await UserProduct.updateMany(
+        { userId: inactivation.userId },
+        { $set: { status: 'ACTIVE' } }
+      )
+
       // Criar histórico de reativação
       await UserHistory.create({
         userId: inactivation.userId,
@@ -1386,6 +1457,46 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         changedBy: userId || 'Sistema',
         reason: reason || 'Reversão de inativação'
       })
+
+      // 🎮 NOVO: Restaurar papéis no Discord Bot
+      if (platforms.includes('discord') || platforms.includes('all')) {
+        try {
+          const user = await User.findById(inactivation.userId).lean()
+          const discordIds = user?.discord?.discordIds || []
+
+          if (discordIds.length > 0 && process.env.DISCORD_BOT_URL) {
+            // Chamar API Riquinho (Discord Bot) para cada Discord ID
+            const discordPromises = discordIds.map(async (discordId: string) => {
+              try {
+                const response = await fetch(`${process.env.DISCORD_BOT_URL}/add-roles`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    userId: discordId,
+                    reason: reason || 'Reversão manual de inativação'
+                  })
+                })
+
+                if (!response.ok) {
+                  console.warn(`⚠️ Discord: Falha ao restaurar roles para ${discordId}`)
+                } else {
+                  console.log(`✅ Discord: Papéis restaurados para ${user?.email || discordId}`)
+                }
+              } catch (discordError) {
+                console.warn(`⚠️ Discord: Erro ao processar ${discordId}:`, (discordError as Error).message)
+              }
+            })
+
+            // Aguardar todas as chamadas ao Discord (mas não bloquear response se falhar)
+            await Promise.allSettled(discordPromises)
+          } else if (discordIds.length === 0) {
+            console.log(`ℹ️ Discord: Usuário ${inactivation.userEmail} não possui Discord IDs`)
+          }
+        } catch (discordError) {
+          // Não bloquear a reversão se Discord falhar
+          console.warn('⚠️ Discord: Erro ao restaurar papéis:', (discordError as Error).message)
+        }
+      }
 
       const result = { success: true }
 

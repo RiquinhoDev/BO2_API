@@ -16,7 +16,7 @@ import { activeCampaignConfig, validateConfig } from '../src/config/activecampai
 import fs from 'fs'
 import path from 'path'
 
-const RUI_EMAIL = 'ruifilipespteixeira@gmail.com'
+const RUI_EMAIL = 'marco_vidigal@hotmail.com'
 
 async function main() {
   console.log('════════════════════════════════════════════════════════════')
