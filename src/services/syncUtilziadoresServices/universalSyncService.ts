@@ -1218,15 +1218,15 @@ if (lastAccessDate) {
       updateFields['curseduca.groupId'] = String(item.groupId)
       needsUpdate = true
 
-      // ✅ NOVO: Garantir que grupo existe na tabela Class
-      // Usar UUID como classId para CursEduca
-      const classIdForCurseduca = item.curseducaUuid || String(item.groupId)
+      // ✅ CORRIGIDO: Usar SEMPRE groupId como classId, não curseducaUuid (que é do aluno!)
+      // groupId identifica o grupo/turma, curseducaUuid identifica o aluno
+      const classIdForCurseduca = String(item.groupId)
       await ensureClassExists(
         classIdForCurseduca,
         item.groupName,
         'curseduca',
         String(item.groupId),
-        item.curseducaUuid
+        undefined // Não passar curseducaUuid aqui (é do aluno, não do grupo)
       )
     }
 
