@@ -123,7 +123,8 @@ class ClassesController {
   
       res.json({
         success: true,
-        classes: result.classes, // Frontend espera "classes" não "data"
+        data: result.classes, // ✅ CORRIGIDO: Frontend espera "data"
+        classes: result.classes, // Manter por compatibilidade
         total: result.total,
         filters,
         timestamp: new Date().toISOString()
@@ -483,7 +484,8 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
               );
 
               if (localUser) {
-                const currentClassId = localUser.classId || null;
+                // ✅ CORRIGIDO: classId não existe diretamente no documento, está em combined
+                const currentClassId = (localUser as any).combined?.classId || (localUser as any).classId || null;
                 const newClassId = hotmartUser.class_id || null;
 
                 if (currentClassId !== newClassId) {
@@ -917,12 +919,14 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
       // 2. Buscar mudanças de dados dos alunos da turma (UserHistory)
       if (!type || type === 'changes') {
         try {
-          const  UserHistory  = await import('../models/UserHistory')
-          
+          // ✅ CORRIGIDO: Import correto do modelo default
+          const UserHistoryModule = await import('../models/UserHistory')
+          const UserHistoryModel = UserHistoryModule.default
+
           // Buscar alunos da turma (suportar Hotmart e CursEduca)
           const classDataTyped = classData as any
           let students: any[] = []
-          
+
           if (classDataTyped.source === 'curseduca_sync' && classDataTyped.curseducaUuid) {
             students = await User.find({ 'curseduca.groupCurseducaUuid': classDataTyped.curseducaUuid })
               .select('_id email')
@@ -932,11 +936,12 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
               .select('_id email')
               .lean()
           }
-          
+
           const studentIds = students.map(s => s._id)
-          
+
           if (studentIds.length > 0) {
-            const userChanges = await UserHistory.find({
+            // ✅ CORRIGIDO: Usar o modelo correto
+            const userChanges = await UserHistoryModel.find({
               userId: { $in: studentIds },
               changeType: { $in: ['EMAIL_CHANGE', 'PLATFORM_UPDATE', 'STATUS_CHANGE', 'INACTIVATION'] }
             })
@@ -1026,6 +1031,7 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
     }
   }
 
+  // ✅ CORRIGIDO: Implementação direta sem historyService
   getClassHistory = async (req: Request, res: Response): Promise<void> => {
     try {
       const {
@@ -1046,12 +1052,38 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         offset: Number(offset)
       }
 
-      const result = await historyService.getClassHistory(filters)
+      // ✅ Buscar histórico diretamente do StudentClassHistory
+      const query: any = {}
+
+      if (classId) {
+        query.$or = [
+          { classId: classId },
+          { previousClassId: classId }
+        ]
+      }
+
+      if (studentId) {
+        query.studentId = studentId
+      }
+
+      if (dateFrom || dateTo) {
+        query.dateMoved = {}
+        if (dateFrom) query.dateMoved.$gte = new Date(dateFrom as string)
+        if (dateTo) query.dateMoved.$lte = new Date(dateTo as string)
+      }
+
+      const total = await StudentClassHistory.countDocuments(query)
+      const history = await StudentClassHistory.find(query)
+        .populate('studentId', 'name email')
+        .sort({ dateMoved: -1 })
+        .limit(Number(limit))
+        .skip(Number(offset))
+        .lean()
 
       res.json({
         success: true,
-        history: result.history,
-        total: result.total,
+        history,
+        total,
         filters,
         timestamp: new Date().toISOString()
       })
@@ -1065,20 +1097,40 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
     }
   }
 
+  // ✅ CORRIGIDO: Implementação direta sem historyService
   getStudentHistoryByDiscord = async (req: Request, res: Response): Promise<void> => {
     try {
       const { discordId } = req.params
       const { limit = 50, offset = 0 } = req.query
 
-      const result = await historyService.getStudentHistoryByDiscord(
-        discordId,
-        Number(limit),
-        Number(offset)
-      )
+      // Buscar usuário pelo Discord ID
+      const user = await User.findOne({ 'discord.discordIds': discordId }).lean()
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          message: 'Usuário não encontrado com esse Discord ID'
+        })
+        return
+      }
+
+      // Buscar histórico do estudante
+      const total = await StudentClassHistory.countDocuments({ studentId: user._id })
+      const history = await StudentClassHistory.find({ studentId: user._id })
+        .sort({ dateMoved: -1 })
+        .limit(Number(limit))
+        .skip(Number(offset))
+        .lean()
 
       res.json({
         success: true,
-        ...result,
+        student: {
+          _id: user._id,
+          name: user.name,
+          email: user.email
+        },
+        history,
+        total,
         timestamp: new Date().toISOString()
       })
     } catch (error) {
@@ -1091,20 +1143,40 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
     }
   }
 
+  // ✅ CORRIGIDO: Implementação direta sem historyService
   getStudentHistoryByEmail = async (req: Request, res: Response): Promise<void> => {
     try {
       const { email } = req.params
       const { limit = 50, offset = 0 } = req.query
 
-      const result = await historyService.getStudentHistoryByEmail(
-        email,
-        Number(limit),
-        Number(offset)
-      )
+      // Buscar usuário pelo email
+      const user = await User.findOne({ email: email.toLowerCase() }).lean()
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          message: 'Usuário não encontrado com esse email'
+        })
+        return
+      }
+
+      // Buscar histórico do estudante
+      const total = await StudentClassHistory.countDocuments({ studentId: user._id })
+      const history = await StudentClassHistory.find({ studentId: user._id })
+        .sort({ dateMoved: -1 })
+        .limit(Number(limit))
+        .skip(Number(offset))
+        .lean()
 
       res.json({
         success: true,
-        ...result,
+        student: {
+          _id: user._id,
+          name: user.name,
+          email: user.email
+        },
+        history,
+        total,
         timestamp: new Date().toISOString()
       })
     } catch (error) {
@@ -1122,7 +1194,7 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
   // ✅ CORRIGIDO: Criar lista de inativação por turmas + Discord + Histórico
   createInactivationList = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name, classIds, description, criteria, scheduledDate, userId, platforms = ['all'] } = req.body
+      const { classIds } = req.body
 
       if (!classIds || !Array.isArray(classIds) || classIds.length === 0) {
         res.status(400).json({
@@ -1132,196 +1204,43 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         return
       }
 
-      console.log(`\n🚀 Iniciando inativação de ${classIds.length} turma(s)...`)
-      
-      const results: any[] = []
-      let totalInactivated = 0
-      let totalDiscordUpdates = 0
+      console.log(`\n🚀 Delegando inativação de ${classIds.length} turma(s) para API antiga...`)
 
-      for (const classId of classIds) {
-        // 1. Buscar turma
-        const classData = await Class.findOne({ classId }).lean()
-        if (!classData) {
-          console.warn(`⚠️ Turma ${classId} não encontrada`)
-          results.push({ classId, success: false, error: 'Turma não encontrada' })
-          continue
-        }
+      // DELEGAR para a API antiga que já funciona (tem Discord bot integrado)
+      const oldApiUrl = process.env.OLD_API_URL || 'https://api.serriquinho.com'
 
-        console.log(`\n📚 Processando turma: ${classData.name}`)
-
-        // 2. Buscar alunos da turma (suportar Hotmart e CursEduca)
-        let students: any[] = []
-        const classDataTyped = classData as any
-        
-        if (classDataTyped.source === 'curseduca_sync' && classDataTyped.curseducaUuid) {
-          students = await User.find({ 
-            'curseduca.groupCurseducaUuid': classDataTyped.curseducaUuid,
-            'combined.status': { $ne: 'INACTIVE' }
-          }).lean()
-        } else {
-          students = await User.find({ 
-            classId,
-            status: { $ne: 'INACTIVE' }
-          }).lean()
-        }
-
-        console.log(`   👥 Encontrados ${students.length} alunos ativos`)
-
-        // 3. Inativar cada aluno
-        for (const student of students) {
-          try {
-            // 3.1. Atualizar status no BD
-            const updates: any = {
-              'combined.status': 'INACTIVE',
-              status: 'INACTIVE',
-              // 🆕 Guardar dados de inativação para detetar renovações
-              'inactivation.isManuallyInactivated': true,
-              'inactivation.inactivatedAt': new Date(),
-              'inactivation.inactivatedBy': userId || 'Sistema',
-              'inactivation.reason': description || `Inativação por turma: ${classData.name}`,
-              'inactivation.platforms': platforms,
-              'inactivation.classId': classId
+      try {
+        const response = await axios.post(
+          `${oldApiUrl}/classes/inactivationLists/create`,
+          { classIds },
+          {
+            timeout: 60000,
+            headers: {
+              'Content-Type': 'application/json'
             }
-
-            if (platforms.includes('hotmart') || platforms.includes('all')) {
-              updates['hotmart.status'] = 'INACTIVE'
-            }
-            if (platforms.includes('curseduca') || platforms.includes('all')) {
-              updates['curseduca.memberStatus'] = 'INACTIVE'
-            }
-            if (platforms.includes('discord') || platforms.includes('all')) {
-              updates['discord.isActive'] = false
-            }
-
-            await User.findByIdAndUpdate(student._id, { $set: updates })
-
-            // 3.1.1 Atualizar UserProduct status (fonte única de verdade)
-            await UserProduct.updateMany(
-              { userId: student._id },
-              { $set: { status: 'INACTIVE' } }
-            )
-
-            // 3.2. Registrar no histórico
-            await (UserHistory as any).createInactivationHistory(
-              student._id,
-              student.email || 'Email desconhecido',
-              platforms,
-              description || `Inativação por turma: ${classData.name}`,
-              userId || 'Sistema'
-            )
-
-            // 3.3. Atualizar Discord (remover roles)
-            if ((platforms.includes('discord') || platforms.includes('all')) && 
-                student.discord?.discordIds?.length > 0) {
-              try {
-                const discordId = student.discord.discordIds[0]
-                
-                // Enviar comando para remover roles do Discord
-                if (process.env.DISCORD_BOT_URL) {
-                  await axios.post(`${process.env.DISCORD_BOT_URL}/remove-roles`, {
-                    userId: discordId,
-                    reason: `Inativado por turma: ${classData.name}`
-                  }, { timeout: 5000 })
-                  
-                  totalDiscordUpdates++
-                  console.log(`   ✅ Discord atualizado para ${student.email}`)
-                } else {
-                  console.warn(`   ⚠️ DISCORD_BOT_URL não configurado`)
-                }
-              } catch (discordError: any) {
-                console.warn(`   ⚠️ Erro ao atualizar Discord para ${student.email}:`, discordError.message)
-              }
-            }
-
-            totalInactivated++
-            results.push({
-              studentId: student._id,
-              email: student.email,
-              name: student.name,
-              status: 'success',
-              classId: classId,
-              className: classData.name
-            })
-
-          } catch (studentError: any) {
-            console.error(`   ❌ Erro ao inativar ${student.email}:`, studentError.message)
-            results.push({
-              studentId: student._id,
-              email: student.email,
-              name: student.name,
-              status: 'error',
-              error: studentError.message,
-              classId: classId
-            })
           }
-        }
+        )
+
+        console.log(`✅ API antiga processou com sucesso!`)
+        console.log(`   Alunos processados: ${response.data.list?.students?.length || 0}`)
+
+        res.status(200).json({
+          success: true,
+          message: response.data.message,
+          list: response.data.list
+        })
+        return
+
+      } catch (oldApiError: any) {
+        console.error('❌ Erro ao chamar API antiga:', oldApiError.message)
+        res.status(500).json({
+          success: false,
+          message: 'Erro ao processar inativação na API antiga',
+          error: oldApiError.message
+        })
+        return
       }
 
-      console.log(`\n✅ Inativação concluída:`)
-      console.log(`   📊 Total de alunos inativados: ${totalInactivated}`)
-      console.log(`   💬 Discord roles atualizados: ${totalDiscordUpdates}`)
-
-      // Fake object para compatibilidade com código existente
-      const inactivationList = {
-        _id: new Date().getTime().toString(),
-        name: name || `Inativação ${new Date().toLocaleDateString('pt-PT')}`,
-        classIds,
-        totalInactivated,
-        totalDiscordUpdates,
-        createdAt: new Date()
-      }
-
-      // ✅ CORRIGIDO: Marcar turmas como inativas usando busca direta
-      const classUpdatePromises = classIds.map(async (classId: string) => {
-        try {
-          // ✅ Buscar turma diretamente do modelo Class
-          const existingClass = await Class.findOne({ classId }).lean();
-          
-          if (!existingClass) {
-            return { classId, success: false, error: 'Turma não encontrada' }
-          }
-
-          const result = await classesService.addOrEditClass({
-            classId,
-            name: existingClass.name || classId,
-            description: existingClass.description || '',
-            isActive: false,
-            estado: 'inativo',
-            source: (existingClass as any).source || 'manual'
-          })
-
-          console.log(`✅ Turma ${classId} marcada como inativa`)
-          return { classId, success: true, result }
-        } catch (error) {
-          console.error(`❌ Erro ao inativar turma ${classId}:`, error)
-          return { classId, success: false, error: (error as Error).message }
-        }
-      })
-
-      const classUpdateResults = await Promise.allSettled(classUpdatePromises)
-
-      const successfulUpdates = classUpdateResults.filter(
-        (result): result is PromiseFulfilledResult<{ classId: string; success: true; result: any }> => 
-          result.status === 'fulfilled' && result.value.success
-      )
-      const failedUpdates = classUpdateResults.filter(
-        (result): result is PromiseRejectedResult | PromiseFulfilledResult<{ classId: string; success: false; error: string }> => 
-          result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success)
-      )
-
-      console.log(`📊 Turmas inativadas: ${successfulUpdates.length}/${classIds.length}`)
-
-      res.json({
-        success: true,
-        message: 'Lista de inativação criada e turmas atualizadas',
-        list: inactivationList,
-        classUpdates: {
-          successful: successfulUpdates.length,
-          failed: failedUpdates.length,
-          total: classIds.length
-        },
-        timestamp: new Date().toISOString()
-      })
     } catch (error) {
       console.error('❌ Erro ao criar lista de inativação:', error)
       res.status(500).json({
@@ -1332,8 +1251,6 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
     }
   }
 
-
-  // ✅ CORRIGIDO: Implementação direta sem service
   getInactivationLists = async (req: Request, res: Response): Promise<void> => {
     try {
       const { status, limit = 50, offset = 0 } = req.query
@@ -1361,10 +1278,10 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
       for (const inact of inactivations) {
         // Buscar user para pegar classId
         const user = await User.findById(inact.userId).select('classId').lean()
-        
+
         if (user) {
-          const classData = await Class.findOne({ classId: (user as any).classId }).lean()
-          
+          const classData = await Class.findOne({ classId: (user as any).classId }).lean() as any
+
           lists.push({
             _id: inact._id,
             name: `Inativação ${new Date(inact.changeDate).toLocaleDateString('pt-PT')}`,
@@ -1543,10 +1460,11 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
       // Funcionalidade: Se desativando a turma, inativar todos os estudantes
       let affectedStudents = 0
-      if (!isActive && existingClass.isActive) {
+      const existingClassTyped = existingClass as any
+      if (!isActive && existingClassTyped.isActive) {
         console.log(`🔄 Desativando turma ${classId} - Inativando estudantes...`)
-        
-        const studentsInClass = await User.find({ 
+
+        const studentsInClass = await User.find({
           classId: classId,
           estado: { $ne: 'inativo' }
         })
@@ -1554,7 +1472,7 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         if (studentsInClass.length > 0) {
           const updateResult = await User.updateMany(
             { classId: classId, estado: { $ne: 'inativo' } },
-            { 
+            {
               estado: 'inativo',
               status: 'INACTIVE',
               updatedAt: new Date(),
@@ -1562,16 +1480,16 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
               lastEditedBy: `class_deactivation_${userId || 'system'}`
             }
           )
-          
+
           affectedStudents = updateResult.modifiedCount
           console.log(`✅ ${affectedStudents} estudantes marcados como inativos na turma ${classId}`)
 
           const historyEntries = studentsInClass.map(student => ({
             studentId: student._id,
             classId: classId,
-            className: existingClass.name || classId,
+            className: existingClassTyped.name || classId,
             previousClassId: classId,
-            previousClassName: existingClass.name || classId,
+            previousClassName: existingClassTyped.name || classId,
             dateMoved: new Date(),
             reason: reason || 'Turma desativada',
             movedBy: userId || 'system'
@@ -1586,10 +1504,10 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
       // Funcionalidade: Se reativando a turma, reativar estudantes
       let reactivatedStudents = 0
-      if (isActive && !existingClass.isActive) {
+      if (isActive && !existingClassTyped.isActive) {
         console.log(`🔄 Reativando turma ${classId} - Reativando estudantes...`)
-        
-        const studentsToReactivate = await User.find({ 
+
+        const studentsToReactivate = await User.find({
           classId: classId,
           estado: 'inativo',
           lastEditedBy: { $regex: /^class_deactivation/ }
@@ -1597,12 +1515,12 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
         if (studentsToReactivate.length > 0) {
           const updateResult = await User.updateMany(
-            { 
+            {
               classId: classId,
               estado: 'inativo',
               lastEditedBy: { $regex: /^class_deactivation/ }
             },
-            { 
+            {
               estado: 'ativo',
               status: 'ACTIVE',
               updatedAt: new Date(),
@@ -1610,16 +1528,16 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
               lastEditedBy: `class_reactivation_${userId || 'system'}`
             }
           )
-          
+
           reactivatedStudents = updateResult.modifiedCount
           console.log(`✅ ${reactivatedStudents} estudantes reativados na turma ${classId}`)
 
           const historyEntries = studentsToReactivate.map(student => ({
             studentId: student._id,
             classId: classId,
-            className: existingClass.name || classId,
+            className: existingClassTyped.name || classId,
             previousClassId: classId,
-            previousClassName: existingClass.name || classId,
+            previousClassName: existingClassTyped.name || classId,
             dateMoved: new Date(),
             reason: reason || 'Turma reativada',
             movedBy: userId || 'system'
@@ -1938,12 +1856,13 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         });
 
         try {
-          const response = await axios.get(
+          const response: any = await axios.get(
             url + (nextPageToken ? `&page_token=${encodeURIComponent(nextPageToken)}` : ''),
             { headers: { Authorization: `Bearer ${accessToken}` } }
           );
 
-          const { items, page_info } = response.data;
+          const items: any[] = response.data.items || [];
+          const page_info: any = response.data.page_info || {};
           
           // Processar cada utilizador da página
           for (const hotmartUser of items) {
@@ -1958,18 +1877,22 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
             }
 
             const localUser = localUserMap.get(hotmartUser.email);
-            
+
             if (localUser) {
               // ✨ VERIFICAR MUDANÇAS NO UTILIZADOR EXISTENTE
               let userNeedsUpdate = false;
               const userUpdates: any = {};
 
+              // ✅ CORRIGIDO: Acessar classId corretamente (está em combined ou pode estar em nível raiz)
+              const currentClassId = (localUser as any).combined?.classId || (localUser as any).classId || null;
+
               // Verificar mudança de turma
-              if (localUser.classId !== hotmartUser.class_id) {
+              if (currentClassId !== hotmartUser.class_id) {
                 console.log(`🔄 [${syncRecord._id}] Mudança de turma detectada: ${localUser.email}`);
-                console.log(`   Anterior: ${localUser.classId || 'Nenhuma'} → Nova: ${hotmartUser.class_id || 'Nenhuma'}`);
-                
-                userUpdates.classId = hotmartUser.class_id;
+                console.log(`   Anterior: ${currentClassId || 'Nenhuma'} → Nova: ${hotmartUser.class_id || 'Nenhuma'}`);
+
+                // Atualizar no lugar correto (combined)
+                userUpdates['combined.classId'] = hotmartUser.class_id;
                 userNeedsUpdate = true;
                 classChangesDetected++;
 
@@ -1980,19 +1903,18 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
                   const newClassName = newClassData?.name || `Turma ${hotmartUser.class_id || 'Indefinida'}`;
 
                   // Buscar nome da turma anterior
-                  const oldClassData = localUser.classId ? await Class.findOne({ classId: localUser.classId }) : null;
-                  const oldClassName = oldClassData?.name || `Turma ${localUser.classId || 'Indefinida'}`;
+                  const oldClassData = currentClassId ? await Class.findOne({ classId: currentClassId }) : null;
+                  const oldClassName = oldClassData?.name || `Turma ${currentClassId || 'Indefinida'}`;
 
                   await StudentClassHistory.create({
                     studentId: localUser._id,
                     classId: hotmartUser.class_id,
                     className: newClassName,
-                    previousClassId: localUser.classId,
+                    previousClassId: currentClassId,
                     previousClassName: oldClassName,
                     dateMoved: new Date(),
-                    changeReason: 'Mudança detectada via sincronização completa Hotmart',
-                    changeSource: 'complete_sync',
-                    userId: null // Sistema automático
+                    reason: 'Mudança detectada via sincronização completa Hotmart',
+                    movedBy: 'complete_sync'
                   });
                 } catch (historyError: any) {
                   errors.push(`Erro ao criar histórico para ${hotmartUser.email}: ${historyError.message}`);
@@ -2000,21 +1922,26 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
                 }
               }
 
-              // Verificar outras mudanças
-              if (localUser.hotmartUserId !== hotmartUser.user_id) {
-                userUpdates.hotmartUserId = hotmartUser.user_id;
+              // ✅ CORRIGIDO: Acessar campos de Hotmart corretamente
+              const currentHotmartId = (localUser as any).hotmart?.hotmartUserId;
+              const currentStatus = (localUser as any).status || (localUser as any).combined?.status;
+
+              if (currentHotmartId !== hotmartUser.user_id) {
+                userUpdates['hotmart.hotmartUserId'] = hotmartUser.user_id;
                 userNeedsUpdate = true;
               }
 
-              if (localUser.status !== (hotmartUser.status || 'INACTIVE')) {
-                userUpdates.status = hotmartUser.status || 'INACTIVE';
+              if (currentStatus !== (hotmartUser.status || 'INACTIVE')) {
+                userUpdates['status'] = hotmartUser.status || 'INACTIVE';
+                userUpdates['combined.status'] = hotmartUser.status || 'INACTIVE';
                 userNeedsUpdate = true;
               }
 
               // Data de compra
+              const currentPurchaseDate = (localUser as any).hotmart?.purchaseDate;
               const purchaseDate = hotmartUser.purchase_date ? new Date(hotmartUser.purchase_date * 1000) : null;
-              if (localUser.purchaseDate?.getTime() !== purchaseDate?.getTime()) {
-                userUpdates.purchaseDate = purchaseDate;
+              if (currentPurchaseDate?.getTime() !== purchaseDate?.getTime()) {
+                userUpdates['hotmart.purchaseDate'] = purchaseDate;
                 userNeedsUpdate = true;
               }
 
