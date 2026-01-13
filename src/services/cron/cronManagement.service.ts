@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/services/syncUtilziadoresServices/cronManagement.service.ts
+// 📁 src/services/syncUtilizadoresServices/cronManagement.service.ts
 // Service: CRON Job Management (VERSÃO COMPLETA AJUSTADA)
 // Gestão completa de jobs agendados (criar, executar, monitorar)
 // ════════════════════════════════════════════════════════════

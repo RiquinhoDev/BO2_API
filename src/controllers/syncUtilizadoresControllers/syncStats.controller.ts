@@ -9,8 +9,8 @@ import mongoose from 'mongoose'
 import SyncHistory from '../../models/SyncModels/SyncHistory'
 
 import { ConflictSeverity, ConflictType, ResolutionAction, ISyncConflict } from '../../models/SyncModels/SyncConflict'
-import activitySnapshotService from '../../services/syncUtilziadoresServices/activitySnapshot.service'
-import  conflictDetectionService   from '../../services/syncUtilziadoresServices/conflictDetection.service'
+import activitySnapshotService from '../../services/syncUtilizadoresServices/activitySnapshot.service'
+import  conflictDetectionService   from '../../services/syncUtilizadoresServices/conflictDetection.service'
 
 
 // ═══════════════════════════════════════════════════════════

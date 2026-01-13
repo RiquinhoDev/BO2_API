@@ -1,6 +1,6 @@
 // src/controllers/lessons.controller.ts
 import { Request, Response } from 'express'
-import { hotmartLessonsService } from '../services/syncUtilziadoresServices/hotmartServices/hotmartLessonsService'
+import { hotmartLessonsService } from '../services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService'
 
 class LessonsController {
   // 📚 Buscar lições de um utilizador específico

@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/services/syncUtilziadoresServices/hotmartServices/hotmart.adapter.ts
+// 📁 src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts
 // Hotmart Adapter - Ponte para Universal Sync
 // ✅ VERSÃO COMPLETA: Retorna TODOS os campos necessários
 // ════════════════════════════════════════════════════════════

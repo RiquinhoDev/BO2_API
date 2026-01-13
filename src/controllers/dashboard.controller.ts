@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import Product from '../models/product/Product';
 import UserProduct from '../models/UserProduct';
 import User from '../models/user';
-import { getAllUsersUnified } from '../services/syncUtilziadoresServices/dualReadService';
+import { getAllUsersUnified } from '../services/syncUtilizadoresServices/dualReadService';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 📊 ENDPOINT 1: GET /api/dashboard/stats
