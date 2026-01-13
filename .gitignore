@@ -35,6 +35,8 @@ test-output/
 test-results/
 __snapshots__/
 *.spec.ts.snap
+tmpclaude-*
+nul
 
 # ========================
 # 🔒 Variáveis de ambiente
