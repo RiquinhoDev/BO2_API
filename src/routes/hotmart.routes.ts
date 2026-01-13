@@ -17,7 +17,7 @@ import {
   syncHotmartUsersUniversal,
   syncProgressOnlyUniversal,
   compareSyncMethods
-} from '../../src/controllers/syncUtilizadoresControllers.ts/hotmart.controller'
+} from '../../src/controllers/syncUtilizadoresControllers/hotmart.controller'
 
 
 const router = Router()

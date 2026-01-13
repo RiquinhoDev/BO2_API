@@ -23,7 +23,7 @@ import {
   getCurseducaStats,
   compareSyncMethods,
   syncCurseducaUsersUniversal
-} from '../controllers/syncUtilizadoresControllers.ts/curseduca.controller'
+} from '../controllers/syncUtilizadoresControllers/curseduca.controller'
 
 const router = Router()
 
