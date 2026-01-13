@@ -1,6 +1,6 @@
 // Script para testar o fluxo completo de inativação incluindo chamada ao Discord
 import mongoose from 'mongoose'
-import User from '../models/User'
+import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import axios from 'axios'
 import dotenv from 'dotenv'

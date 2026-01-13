@@ -1,6 +1,6 @@
 // Script para adicionar Discord ID a um aluno
 import mongoose from 'mongoose'
-import User from '../models/User'
+import User from '../models/user'
 import dotenv from 'dotenv'
 
 dotenv.config()
