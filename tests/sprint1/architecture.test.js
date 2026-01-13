@@ -10,7 +10,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importDefault(require("mongoose"));
 const chai_1 = require("chai");
 const user_1 = __importDefault(require("../../src/models/user"));
-const Product_1 = __importDefault(require("../../src/models/Product"));
+const Product_1 = __importDefault(require("../../src/models/product/Product"));
 const UserProduct_1 = __importDefault(require("../../src/models/UserProduct"));
 const Course_1 = __importDefault(require("../../src/models/Course"));
 const Class_1 = require("../../src/models/Class");
