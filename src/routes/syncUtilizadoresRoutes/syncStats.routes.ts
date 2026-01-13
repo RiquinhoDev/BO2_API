@@ -5,7 +5,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
-import * as syncStatsController from '../../controllers/syncUtilizadoresControllers.ts/syncStats.controller'
+import * as syncStatsController from '../../controllers/syncUtilizadoresControllers/syncStats.controller'
 
 const router = Router()
 

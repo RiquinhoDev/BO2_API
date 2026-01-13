@@ -4,7 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
-import syncReportsController from '../../controllers/syncUtilizadoresControllers.ts/syncReports.controller'
+import syncReportsController from '../../controllers/syncUtilizadoresControllers/syncReports.controller'
 
 const router = Router()
 

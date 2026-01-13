@@ -39,7 +39,7 @@ import {
 } from "../controllers/users.controller"
 
 import { calculateBatchAverageEngagement } from "../services/syncUtilziadoresServices/engagement/engagementCalculator.service"
-import { getUserByEmail } from "../controllers/syncUtilizadoresControllers.ts/curseduca.controller"
+import { getUserByEmail } from "../controllers/syncUtilizadoresControllers/curseduca.controller"
 
 const router = Router()
 const upload = multer({ dest: "uploads/" })
