@@ -17,46 +17,40 @@ export type PlatformType = 'hotmart' | 'curseduca' | 'discord'
 export interface IProgress {
   percentage: number
   currentModule?: number
-  modulesCompleted?: number[]
-  lessonsCompleted?: number[]
+  modulesCompleted?: string[]  // Array de nomes de módulos (Hotmart)
+  lessonsCompleted?: string[]  // Array de pageIds (Hotmart)
   lastActivity?: Date
-  
-  // Clareza specific
-  reportsGenerated?: number
-  lastReportOpen?: Date
-  
-  // OGI specific
-  videosWatched?: number
-  quizzesCompleted?: number
+
+  // 🔴 REMOVIDOS - Não disponíveis nos APIs:
+  // reportsGenerated, lastReportOpen (Curseduca não fornece)
+  // videosWatched, quizzesCompleted (Hotmart não fornece)
 }
 
 export interface IEngagement {
   engagementScore: number
-  
-  // LOGIN_BASED (OGI)
+
+  // LOGIN_BASED (OGI/Hotmart)
   lastLogin?: Date
-  daysSinceLastLogin?: number
-  totalLogins?: number
-  loginStreak?: number
-  
-  // ACTION_BASED (Clareza)
+  daysSinceLastLogin?: number  // Calculado no Sprint 1.5B
+  totalLogins?: number  // = accessCount (Hotmart)
+
+  // ACTION_BASED (Clareza/Curseduca)
   lastAction?: Date
-  daysSinceLastAction?: number
-  totalActions?: number
-  actionsLastWeek?: number
-  actionsLastMonth?: number
-  
-  // 🆕 NOVO: ENROLLMENT TRACKING (Clareza)
-  daysSinceEnrollment?: number
+  daysSinceLastAction?: number  // Calculado no Sprint 1.5B
+
+  // 🆕 ENROLLMENT TRACKING (ambas plataformas)
+  daysSinceEnrollment?: number  // Calculado
   enrolledAt?: Date
-  
-  // Comum
-  consistency?: number
+
+  // 🔴 REMOVIDOS - Não disponíveis nos APIs:
+  // loginStreak (precisa cálculo complexo)
+  // totalActions, actionsLastWeek, actionsLastMonth (Curseduca não fornece)
+  // consistency (precisa cálculo complexo)
 }
 
 export interface IClassEnrollment {
   classId: string
-  className?: string
+  className?: string  // ⚠️ DEPRECATED - Não guardado no sync! Use lookup na tabela Class
   joinedAt: Date
   leftAt?: Date
 }
@@ -203,18 +197,12 @@ const UserProductSchema = new Schema<IUserProduct>({
       min: 0,
       max: 100
     },
-    currentModule: Number,
-    modulesCompleted: [Number],
-    lessonsCompleted: [Number],
-    lastActivity: Date,
-    
-    // Clareza specific
-    reportsGenerated: Number,
-    lastReportOpen: Date,
-    
-    // OGI specific
-    videosWatched: Number,
-    quizzesCompleted: Number
+    currentModule: Number,  // Hotmart apenas
+    modulesCompleted: [String],  // Array de nomes de módulos (Hotmart)
+    lessonsCompleted: [String],  // Array de pageIds (Hotmart)
+    lastActivity: Date
+
+    // 🔴 REMOVIDOS campos não disponíveis nos APIs
   },
   
   // ═══════════════════════════════════════════════════════════
@@ -228,26 +216,22 @@ const UserProductSchema = new Schema<IUserProduct>({
       min: 0,
       max: 1000
     },
-    
-    // LOGIN_BASED (OGI)
+
+    // LOGIN_BASED (OGI/Hotmart)
     lastLogin: Date,
-    daysSinceLastLogin: Number,
-    totalLogins: Number,
-    loginStreak: Number,
-    
-    // ACTION_BASED (Clareza)
+    daysSinceLastLogin: Number,  // Calculado
+    totalLogins: Number,  // = accessCount (Hotmart)
+
+    // ACTION_BASED (Clareza/Curseduca)
     lastAction: Date,
-    daysSinceLastAction: Number,
-    totalActions: Number,
-    actionsLastWeek: Number,
-    actionsLastMonth: Number,
-    
-    // 🆕 NOVO: ENROLLMENT TRACKING (Clareza - "Novo Aluno" tag)
-    daysSinceEnrollment: Number,
-    enrolledAt: Date,
-    
-    // Comum
-    consistency: Number
+    daysSinceLastAction: Number,  // Calculado
+
+    // ENROLLMENT TRACKING
+    daysSinceEnrollment: Number,  // Calculado
+    enrolledAt: Date
+
+    // 🔴 REMOVIDOS campos não disponíveis:
+    // loginStreak, totalActions, actionsLastWeek, actionsLastMonth, consistency
   },
   
   // ═══════════════════════════════════════════════════════════

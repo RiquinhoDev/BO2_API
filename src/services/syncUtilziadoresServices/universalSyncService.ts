@@ -1401,33 +1401,127 @@ if (lastAccessDate) {
         upNeedsUpdate = true
       }
       
-      // Progress
+      // ═══════════════════════════════════════════════════════════
+      // PROGRESS - Atualizar todos os campos disponíveis por plataforma
+      // ═══════════════════════════════════════════════════════════
       if (item.progress?.percentage !== undefined) {
         const newPercentage = toNumber(item.progress.percentage, 0)
         if (existingUP.progress?.percentage !== newPercentage) {
           upUpdateFields['progress.percentage'] = newPercentage
-          upUpdateFields['progress.lastActivity'] = toDateOrNull(item.lastAccessDate) || new Date()
+          upUpdateFields['progress.lastActivity'] = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
           upNeedsUpdate = true
         }
       }
+
+      // 🔥 HOTMART - Campos específicos de progresso
+      if (config.syncType === 'hotmart') {
+        // currentModule
+        if (item.currentModule !== undefined) {
+          upUpdateFields['progress.currentModule'] = toNumber(item.currentModule, 0)
+          upNeedsUpdate = true
+        }
+
+        // lessonsCompleted - array de pageIds das aulas completadas
+        if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
+          const completedLessons = item.progress.lessons
+            .filter((l: any) => l.isCompleted)
+            .map((l: any) => l.pageId)
+
+          if (completedLessons.length > 0) {
+            upUpdateFields['progress.lessonsCompleted'] = completedLessons
+            upNeedsUpdate = true
+          }
+        }
+
+        // modulesCompleted - extrair módulos únicos das aulas completadas
+        if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
+          const completedModules = [...new Set(
+            item.progress.lessons
+              .filter((l: any) => l.isCompleted && l.moduleName)
+              .map((l: any) => l.moduleName)
+          )]
+
+          if (completedModules.length > 0) {
+            upUpdateFields['progress.modulesCompleted'] = completedModules
+            upNeedsUpdate = true
+          }
+        }
+      }
       
-      // Engagement Score
+      // ═══════════════════════════════════════════════════════════
+      // ENGAGEMENT - Score e campos básicos
+      // ═══════════════════════════════════════════════════════════
       if (item.engagement?.engagementScore !== undefined) {
         const newScore = toNumber(item.engagement.engagementScore, 0)
         if (existingUP.engagement?.engagementScore !== newScore) {
           upUpdateFields['engagement.engagementScore'] = newScore
-          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
+          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
           upNeedsUpdate = true
         }
       } else if (item.accessCount !== undefined) {
         const newScore = toNumber(item.accessCount, 0)
         if (existingUP.engagement?.engagementScore !== newScore) {
           upUpdateFields['engagement.engagementScore'] = newScore
-          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate) || new Date()
+          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
           upNeedsUpdate = true
         }
       }
-      
+
+      // 🔥 HOTMART - Engagement baseado em logins
+      if (config.syncType === 'hotmart') {
+        if (item.accessCount !== undefined) {
+          upUpdateFields['engagement.totalLogins'] = toNumber(item.accessCount, 0)
+          upNeedsUpdate = true
+        }
+
+        if (item.lastAccessDate) {
+          upUpdateFields['engagement.lastLogin'] = toDateOrNull(item.lastAccessDate)
+          upNeedsUpdate = true
+        }
+      }
+
+      // 🎓 CURSEDUCA - Engagement baseado em ações
+      if (config.syncType === 'curseduca') {
+        if (item.lastLogin) {
+          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastLogin)
+          upNeedsUpdate = true
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // 🚨 CRÍTICO: CLASSES - Popular array de turmas
+      // ═══════════════════════════════════════════════════════════
+      const classId = config.syncType === 'hotmart'
+        ? item.classId
+        : config.syncType === 'curseduca'
+          ? String(item.groupId)
+          : null
+
+      if (classId) {
+        const enrollmentDate = toDateOrNull(item.enrolledAt) ||
+                              toDateOrNull(item.purchaseDate) ||
+                              toDateOrNull(item.joinedDate) ||
+                              new Date()
+
+        // Verificar se a turma já existe no array
+        const existingClassIndex = existingUP.classes?.findIndex((c: any) => c.classId === classId) ?? -1
+
+        if (existingClassIndex === -1) {
+          // Adicionar nova turma ao array (SEM className - virá da tabela Class)
+          upUpdateFields['classes'] = [
+            ...(existingUP.classes || []),
+            {
+              classId,
+              joinedAt: enrollmentDate,
+              leftAt: null
+            }
+          ]
+          upNeedsUpdate = true
+          console.log(`   📚 [Classes] Adicionada turma ${classId} para ${user.email}`)
+        }
+        // Não atualizamos className porque ele vem da tabela Class, não do sync
+      }
+
       // ════════════════════════════════════════════════════════════
       // 🆕 SPRINT 1.5B: CALCULAR ENGAGEMENT METRICS (ATUALIZAR)
       // ════════════════════════════════════════════════════════════
@@ -1532,27 +1626,97 @@ if (lastAccessDate) {
         }
       }
       
+      // ═══════════════════════════════════════════════════════════
+      // 🚨 CRÍTICO: Preparar array de classes
+      // ═══════════════════════════════════════════════════════════
+      const classId = config.syncType === 'hotmart'
+        ? item.classId
+        : config.syncType === 'curseduca'
+          ? String(item.groupId)
+          : null
+
+      // Não guardamos className no UserProduct - ele vem da tabela Class via lookup
+      const classesArray = classId ? [{
+        classId,
+        joinedAt: enrolledAt,
+        leftAt: null
+      }] : []
+
+      // ═══════════════════════════════════════════════════════════
+      // Construir objeto progress por plataforma
+      // ═══════════════════════════════════════════════════════════
+      const progressObj: any = {
+        percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
+        lastActivity: toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
+      }
+
+      // 🔥 HOTMART - Adicionar campos específicos
+      if (config.syncType === 'hotmart') {
+        if (item.currentModule !== undefined) {
+          progressObj.currentModule = toNumber(item.currentModule, 0)
+        }
+
+        // lessonsCompleted - array de pageIds
+        if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
+          progressObj.lessonsCompleted = item.progress.lessons
+            .filter((l: any) => l.isCompleted)
+            .map((l: any) => l.pageId)
+        }
+
+        // modulesCompleted - array de módulos únicos
+        if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
+          progressObj.modulesCompleted = [...new Set(
+            item.progress.lessons
+              .filter((l: any) => l.isCompleted && l.moduleName)
+              .map((l: any) => l.moduleName)
+          )]
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // Construir objeto engagement por plataforma
+      // ═══════════════════════════════════════════════════════════
+      const engagementObj: any = {
+        engagementScore: item.engagement?.engagementScore
+          ? toNumber(item.engagement.engagementScore, 0)
+          : toNumber(item.accessCount, 0),
+        lastAction: toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
+      }
+
+      // 🔥 HOTMART - Engagement baseado em logins
+      if (config.syncType === 'hotmart') {
+        if (item.accessCount !== undefined) {
+          engagementObj.totalLogins = toNumber(item.accessCount, 0)
+        }
+        if (item.lastAccessDate) {
+          engagementObj.lastLogin = toDateOrNull(item.lastAccessDate)
+        }
+      }
+
+      // 🎓 CURSEDUCA - Engagement baseado em ações
+      if (config.syncType === 'curseduca') {
+        if (item.lastLogin) {
+          engagementObj.lastAction = toDateOrNull(item.lastLogin)
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // Criar novo UserProduct com TODOS os campos
+      // ═══════════════════════════════════════════════════════════
       const newUserProduct: any = {
         userId: userIdStr,
         productId: productId,
         platform: config.syncType,
         platformUserId: item.curseducaUserId || item.hotmartUserId || item.discordUserId || userIdStr,
+        platformUserUuid: item.curseducaUuid,  // Só Curseduca
         status: 'ACTIVE',
         source: 'PURCHASE',
         enrolledAt: enrolledAt,
         isPrimary: isPrimaryValue,
-        
-        progress: {
-          percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
-          lastActivity: toDateOrNull(item.lastAccessDate) || new Date()
-        },
-        
-        engagement: {
-          engagementScore: item.engagement?.engagementScore 
-            ? toNumber(item.engagement.engagementScore, 0) 
-            : toNumber(item.accessCount, 0),
-          lastAction: toDateOrNull(item.lastAccessDate) || new Date()
-        }
+
+        progress: progressObj,
+        engagement: engagementObj,
+        classes: classesArray  // 🚨 CRÍTICO - Array de turmas
       }
       
       // ════════════════════════════════════════════════════════════

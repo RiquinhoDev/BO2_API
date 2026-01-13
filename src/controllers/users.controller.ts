@@ -15,6 +15,7 @@ import { Class } from "../models/Class"
 import { cacheService } from "../services/cache.service"
 import { getUserCountsByPlatform, getUserCountsByProduct, getUsersForProduct, getUserWithProducts } from "../services/userProducts/userProductService"
 import { UserProduct } from "../models"
+import Product from "../models/product/Product"
 
 
 
@@ -3257,6 +3258,157 @@ export const createUser = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: error.message });
   }
 };
+
+/**
+ * Transforma dados segregados do modelo User para formato retrocompatível com o frontend
+ */
+function transformUserForFrontend(user: any, userProductsMap?: Map<string, any[]>): any {
+  if (!user) return null
+
+  // Campos base sempre presentes
+  const transformed: any = {
+    _id: user._id,
+    email: user.email,
+    name: user.name,
+
+    // Mapear discord.discordIds -> discordIds (retrocompatibilidade)
+    discordIds: user.discord?.discordIds || [],
+
+    // Mapear combined.status -> status (retrocompatibilidade)
+    status: user.combined?.status || user.discord?.isDeleted ? 'INACTIVE' : 'ACTIVE',
+
+    // Mapear discord.role -> role (retrocompatibilidade)
+    role: user.discord?.role || 'STUDENT',
+
+    // Campos opcionais do Discord
+    acceptedTerms: user.discord?.acceptedTerms || false,
+    isDeletable: user.discord?.isDeletable !== false,
+    priority: user.discord?.priority || 'MEDIUM',
+    locale: user.discord?.locale || 'pt_BR',
+
+    // Campos da Hotmart
+    hotmartUserId: user.hotmart?.hotmartUserId,
+    purchaseDate: user.hotmart?.purchaseDate,
+    signupDate: user.hotmart?.signupDate,
+    plusAccess: user.hotmart?.plusAccess,
+    firstAccessDate: user.hotmart?.firstAccessDate,
+    lastAccessDate: user.hotmart?.lastAccessDate || user.hotmart?.progress?.lastAccessDate || user.curseduca?.lastLogin || user.curseduca?.lastAccess,
+
+    // Campos da Curseduca
+    curseducaUserId: user.curseduca?.curseducaUserId,
+
+    // Progresso combinado
+    progress: user.combined ? {
+      completedPercentage: user.combined.totalProgress || 0,
+      total: user.combined.totalLessons || 0,
+      completed: Math.round((user.combined.totalProgress / 100) * (user.combined.totalLessons || 0)),
+      lastUpdated: user.hotmart?.lastAccessDate || user.hotmart?.progress?.lastAccessDate || user.curseduca?.lastLogin || user.curseduca?.lastAccess
+    } : undefined,
+
+    // Engagement combinado
+    engagement: user.combined?.engagement?.level || 'NONE',
+    engagementScore: user.combined?.engagement?.score || 0,
+    engagementLevel: user.combined?.engagement?.level,
+    engagementCalculatedAt: user.combined?.calculatedAt,
+
+    // Turma (retrocompatibilidade)
+    classId: user.combined?.classId,
+    className: user.combined?.className,
+
+    // Turmas combinadas (novo) - agregar de UserProducts
+    combined: (() => {
+      const baseCombined = {
+        ...user.combined,
+        allClasses: [...(user.combined?.allClasses || [])],
+        primaryClass: user.combined?.primaryClass
+      }
+
+      // Se temos UserProducts, agregar turmas adicionais
+      if (userProductsMap) {
+        const userId = user._id.toString()
+        const userProducts = userProductsMap.get(userId) || []
+
+        // Adicionar cada UserProduct como uma "turma" virtual baseada no produto
+        userProducts.forEach((up: any) => {
+          const productCode = up.productId?.code || 'UNKNOWN'
+          const productName = up.productId?.name || 'Produto Desconhecido'
+
+          // Verificar se já existe uma classe com este produto
+          const existingClass = baseCombined.allClasses.find(
+            (c: any) => c.classId === productCode || c.className?.includes(productName)
+          )
+
+          if (!existingClass) {
+            baseCombined.allClasses.push({
+              classId: productCode,
+              className: productName,
+              source: up.platform,
+              isActive: up.status === 'ACTIVE',
+              enrolledAt: up.enrolledAt,
+              role: 'student'
+            })
+          }
+        })
+      }
+
+      return baseCombined
+    })(),
+
+    // Performance metrics
+    performanceMetrics: user.hotmart?.engagement ? {
+      dailyAccess: 0, // TODO: calcular se necessário
+      weeklyAccess: 0,
+      monthlyAccess: 0
+    } : undefined,
+
+    accessCount: user.hotmart?.engagement?.accessCount || 0,
+
+    // Metadados
+    lastActivityAt: user.combined?.lastActivity,
+    lastEditedAt: user.discord?.lastEditedAt,
+    lastEditedBy: user.discord?.lastEditedBy,
+    createdAt: user.metadata?.createdAt || user.discord?.createdAt,
+    updatedAt: user.metadata?.updatedAt,
+
+    // Campos adicionais que podem existir
+    username: user.username,
+    estado: user.combined?.status === 'ACTIVE' ? 'ativo' : 'inativo',
+    timer: user.combined?.totalTimeMinutes || 0,
+    isDeleted: user.discord?.isDeleted || false,
+    deletedAt: user.deletedAt,
+    deletedBy: user.deletedBy,
+    tags: user.tags,
+    notes: user.notes,
+    source: user.source,
+    type: user.type,
+
+    // Tags do ActiveCampaign por produto (de UserProduct)
+    acTagsByProduct: (() => {
+      if (!userProductsMap) return {}
+
+      const userId = user._id.toString()
+      const userProducts = userProductsMap.get(userId) || []
+
+      return userProducts.reduce((acc: any, up: any) => {
+        if (up.activeCampaignData?.tags && up.activeCampaignData.tags.length > 0) {
+          const productCode = up.productId?.code || up.productId?._id?.toString() || 'UNKNOWN'
+          const productName = up.productId?.name || 'Produto Desconhecido'
+
+          acc[productCode] = {
+            productCode,
+            productName,
+            tags: up.activeCampaignData.tags,
+            lastSyncAt: up.activeCampaignData.lastSyncAt
+          }
+        }
+        return acc
+      }, {})
+    })(),
+  }
+
+  return transformed
+}
+
 /**
  * GET /api/users/search
  * Pesquisar aluno por email, nome, discordId, hotmartUserId ou curseducaUserId
@@ -3306,7 +3458,7 @@ export const searchStudent = async (req: Request, res: Response): Promise<void> 
     }
 
     const students = await User.find(matchConditions)
-      .select('email name hotmart curseduca discord combined status')
+      .select('email name hotmart curseduca discord combined status metadata username tags notes source type deletedAt deletedBy')
       .lean()
 
     if (!students.length) {
@@ -3314,16 +3466,38 @@ export const searchStudent = async (req: Request, res: Response): Promise<void> 
       return
     }
 
-    if (students.length > 1) {
+    // Buscar TODOS os UserProducts para agregar turmas e tags
+    const userIds = students.map(s => s._id)
+    const allUserProducts = await UserProduct.find({
+      userId: { $in: userIds }
+    })
+      .populate('productId', 'code name')
+      .select('userId productId platform status classes enrolledAt isPrimary activeCampaignData')
+      .lean()
+
+    // Criar map de userId -> UserProducts para passar ao transformer
+    const userProductsMap = new Map<string, any[]>()
+    allUserProducts.forEach(up => {
+      const userId = up.userId.toString()
+      if (!userProductsMap.has(userId)) {
+        userProductsMap.set(userId, [])
+      }
+      userProductsMap.get(userId)!.push(up)
+    })
+
+    // Transformar dados para formato retrocompatível
+    const transformedStudents = students.map(s => transformUserForFrontend(s, userProductsMap))
+
+    if (transformedStudents.length > 1) {
       res.status(200).json({
-        message: `Encontrados ${students.length} alunos`,
-        students,
+        message: `Encontrados ${transformedStudents.length} alunos`,
+        students: transformedStudents,
         multiple: true
       })
       return
     }
 
-    res.status(200).json(students[0])
+    res.status(200).json(transformedStudents[0])
   } catch (error: any) {
     res.status(500).json({ 
       message: "Erro ao buscar aluno.", 

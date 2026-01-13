@@ -287,41 +287,76 @@ async function fetchMemberDetails(
 // ═══════════════════════════════════════════════════════════
 // ENRICH: COMBINAR DADOS DOS 2 ENDPOINTS
 // ═══════════════════════════════════════════════════════════
+// 🔥 MODIFICADO: Agora retorna ARRAY para suportar users com múltiplos grupos
 
 async function enrichMemberWithDetails(
   member: CursEducaMemberFromReports,
   groupId: number,
   groupName: string,
   headers: Record<string, string>
-): Promise<CursEducaMemberWithMetadata> {
-  
-  const baseMember: CursEducaMemberWithMetadata = {
-    id: member.id,
-    uuid: member.uuid,
-    name: member.name,
-    email: member.email,
-    progress: member.progress,
-    enrollmentsCount: member.enrollmentsCount,
-    groupId,
-    groupName,
-    subscriptionType: detectSubscriptionType(groupName) || 'MONTHLY',
-    enrolledAt: new Date().toISOString(),
-    expiresAt: member.expiresAt,
-    situation: 'ACTIVE',
-    lastLogin: undefined
-  }
-  
+): Promise<CursEducaMemberWithMetadata[]> {
+
+  // Buscar detalhes completos do user (inclui TODOS os grupos)
   const details = await fetchMemberDetails(member.id, headers)
-  
-  if (details) {
-    const groupInDetails = details.groups.find(g => g.group.id === groupId)
-    
-    baseMember.situation = details.situation
-    baseMember.lastLogin = details.lastLogin
-    baseMember.enrolledAt = groupInDetails?.createdAt || details.createdAt
+
+  if (!details) {
+    // Se falhou, retornar apenas o grupo atual
+    return [{
+      id: member.id,
+      uuid: member.uuid,
+      name: member.name,
+      email: member.email,
+      progress: member.progress,
+      enrollmentsCount: member.enrollmentsCount,
+      groupId,
+      groupName,
+      subscriptionType: detectSubscriptionType(groupName) || 'MONTHLY',
+      enrolledAt: new Date().toISOString(),
+      expiresAt: member.expiresAt,
+      situation: 'ACTIVE',
+      lastLogin: undefined
+    }]
   }
-  
-  return baseMember
+
+  // 🔥 NOVO: Identificar TODOS os grupos Clareza que o user pertence
+  const CLAREZA_GROUP_IDS = [6, 7] // IDs dos grupos Clareza (Mensal e Anual)
+
+  const clarezaGroups = details.groups.filter(g =>
+    CLAREZA_GROUP_IDS.includes(g.group.id)
+  )
+
+  console.log(`   👤 ${member.name} (${member.email}): ${clarezaGroups.length} grupo(s) Clareza`)
+
+  // Se não tem grupos Clareza, retornar vazio
+  if (clarezaGroups.length === 0) {
+    console.log(`   ⚠️  ${member.email} não tem grupos Clareza, pulando...`)
+    return []
+  }
+
+  // 🔥 CRIAR UM ITEM PARA CADA GRUPO CLAREZA
+  const result: CursEducaMemberWithMetadata[] = []
+
+  for (const userGroup of clarezaGroups) {
+    const item: CursEducaMemberWithMetadata = {
+      id: member.id,
+      uuid: member.uuid,
+      name: member.name,
+      email: member.email,
+      progress: member.progress,
+      enrollmentsCount: member.enrollmentsCount,
+      groupId: userGroup.group.id,
+      groupName: userGroup.group.name,
+      subscriptionType: detectSubscriptionType(userGroup.group.name) || 'MONTHLY',
+      enrolledAt: userGroup.createdAt || details.createdAt,
+      expiresAt: userGroup.group.expiresAt,
+      situation: details.situation,
+      lastLogin: details.lastLogin
+    }
+
+    result.push(item)
+  }
+
+  return result
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -395,50 +430,114 @@ export const fetchCurseducaDataForSync = async (
     }
 
     // ═══════════════════════════════════════════════════════════
-    // STEP 2: BUSCAR LISTA DE MEMBROS
+    // STEP 2: BUSCAR LISTA DE MEMBROS (ESTRATÉGIA HÍBRIDA)
     // ═══════════════════════════════════════════════════════════
-    
-    console.log('👥 [CurseducaAdapter] Step 2/5: Buscando lista de membros (com progresso)...')
-    
+
+    console.log('👥 [CurseducaAdapter] Step 2/6: Buscando lista de membros (HÍBRIDO)...')
+    console.log('   💡 Usando 2 endpoints para capturar TODOS os users:')
+    console.log('   1️⃣  /reports/group/members (users com enrollments)')
+    console.log('   2️⃣  /groups/{groupId}/members (TODOS, incluindo admins)')
+
     const allMembersWithMetadata: CursEducaMemberWithMetadata[] = []
     const errors: string[] = []
 
     for (const group of allGroups) {
       try {
         console.log(`   📚 Processando grupo: ${group.name} (ID: ${group.id})`)
-        
+
+        // 🔥 NOVO: Buscar TODOS os members do grupo (incluindo admins)
+        console.log(`   📡 Buscando via /groups/${group.id}/members (inclui admins)...`)
+        let allGroupMembers: any[] = []
+
+        try {
+          const groupMembersResponse = await axios.get(
+            `${CURSEDUCA_API_URL}/groups/${group.id}/members`,
+            {
+              headers,
+              params: { limit: 1000 }, // 🔥 ADICIONADO: Limit para buscar TODOS os members
+              timeout: 30000
+            }
+          )
+
+          allGroupMembers = Array.isArray(groupMembersResponse.data)
+            ? groupMembersResponse.data
+            : groupMembersResponse.data?.data || groupMembersResponse.data?.members || []
+
+          console.log(`   ✅ Encontrados ${allGroupMembers.length} members via /groups/{id}/members (com limit: 1000)`)
+        } catch (err: any) {
+          console.warn(`   ⚠️  Endpoint /groups/${group.id}/members falhou: ${err.message}`)
+          console.log(`   📡 Fallback: usando apenas /reports/group/members...`)
+        }
+
+        // 📊 Buscar members com progresso (pode não incluir admins)
         const membersList = await fetchGroupMembersList(group.id, headers)
-        
-        console.log(`   ℹ️  Encontrados ${membersList.length} membros neste grupo`)
+
+        console.log(`   ℹ️  ${membersList.length} members com progresso`)
+
+        // 🔥 MERGE: Combinar membros de ambos endpoints
+        console.log(`   🔄 Mesclando dados de ambos endpoints...`)
+
+        // Criar map de members com progresso (por ID)
+        const membersWithProgressMap = new Map<number, CursEducaMemberFromReports>()
+        membersList.forEach(m => membersWithProgressMap.set(m.id, m))
+
+        // Identificar members que só aparecem em /groups/{id}/members
+        const membersOnlyInGroup = allGroupMembers.filter(gm =>
+          !membersWithProgressMap.has(gm.id)
+        )
+
+        console.log(`   📊 Members com progresso: ${membersList.length}`)
+        console.log(`   👥 Members SÓ em /groups (admins): ${membersOnlyInGroup.length}`)
+
+        // Criar lista unificada
+        const unifiedMembersList = [...membersList]
+
+        // Adicionar members que só aparecem em /groups/{id}/members
+        for (const groupMember of membersOnlyInGroup) {
+          unifiedMembersList.push({
+            id: groupMember.id,
+            uuid: groupMember.uuid,
+            name: groupMember.name,
+            email: groupMember.email,
+            progress: 0, // Admins não têm progresso formal
+            enrollmentsCount: 0,
+            expiresAt: undefined,
+            groups: [] // 🔥 ADICIONADO: Campo obrigatório
+          })
+        }
+
+        console.log(`   ✅ Total unificado: ${unifiedMembersList.length} members`)
 
         // ═══════════════════════════════════════════════════════════
         // STEP 3: ENRIQUECER COM DETALHES
         // ═══════════════════════════════════════════════════════════
-        
+
         if (options.enrichWithDetails) {
           console.log(`   🔄 Buscando detalhes (lastLogin, situation)...`)
-          
+
           const concurrency = options.progressConcurrency || 5
           const enrichedMembers: CursEducaMemberWithMetadata[] = []
-          
-          for (let i = 0; i < membersList.length; i += concurrency) {
-            const batch = membersList.slice(i, i + concurrency)
-            
-            const batchPromises = batch.map(member => 
+
+          for (let i = 0; i < unifiedMembersList.length; i += concurrency) {
+            const batch = unifiedMembersList.slice(i, i + concurrency)
+
+            const batchPromises = batch.map(member =>
               enrichMemberWithDetails(member, group.id, group.name, headers)
             )
-            
+
             const batchResults = await Promise.all(batchPromises)
-            enrichedMembers.push(...batchResults)
-            
-            if (i + concurrency < membersList.length) {
+            // 🔥 MODIFICADO: Flatten porque enrichMemberWithDetails agora retorna array
+            const flatResults = batchResults.flat()
+            enrichedMembers.push(...flatResults)
+
+            if (i + concurrency < unifiedMembersList.length) {
               await new Promise(resolve => setTimeout(resolve, 500))
             }
-            
-            const processed = Math.min(i + concurrency, membersList.length)
-            console.log(`      Processados ${processed}/${membersList.length}`)
+
+            const processed = Math.min(i + concurrency, unifiedMembersList.length)
+            console.log(`      Processados ${processed}/${unifiedMembersList.length}`)
           }
-          
+
           for (const enrichedMember of enrichedMembers) {
             try {
               validateCurseducaMemberExtended(enrichedMember)
@@ -450,18 +549,18 @@ export const fetchCurseducaDataForSync = async (
           
         } else {
           console.log(`   ℹ️  Modo simples (sem fetch de detalhes)`)
-          
-          for (const member of membersList) {
+
+          for (const member of unifiedMembersList) {
             try {
               validateCurseducaMember(member)
-              
+
               allMembersWithMetadata.push({
                 id: member.id,
                 uuid: member.uuid,
                 name: member.name,
                 email: member.email,
-                progress: member.progress,
-                enrollmentsCount: member.enrollmentsCount,
+                progress: member.progress || 0,
+                enrollmentsCount: member.enrollmentsCount || 0,
                 groupId: group.id,
                 groupName: group.name,
                 subscriptionType: detectSubscriptionType(group.name) || 'MONTHLY',
@@ -470,7 +569,7 @@ export const fetchCurseducaDataForSync = async (
                 situation: 'ACTIVE',
                 lastLogin: undefined
               })
-              
+
             } catch (error: any) {
               errors.push(`${member.email || 'unknown'}: ${error.message}`)
             }
