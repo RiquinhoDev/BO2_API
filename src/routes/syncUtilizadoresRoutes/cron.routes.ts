@@ -5,7 +5,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
-import * as cronController from '../../controllers/syncUtilizadoresControllers.ts/cronManagement.controller'
+import * as cronController from '../../controllers/syncUtilizadoresControllers/cronManagement.controller'
 
 const router = Router()
 
