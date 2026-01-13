@@ -1,6 +1,6 @@
 // Script final para testar inativação do João Ferreira
 import mongoose from 'mongoose'
-import User from '../models/User'
+import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import axios from 'axios'
 import dotenv from 'dotenv'

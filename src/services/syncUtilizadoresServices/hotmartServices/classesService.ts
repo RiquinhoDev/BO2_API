@@ -1,7 +1,7 @@
 // src/services/classesService.ts
 import { Class, ClassHistory, IClass, ClassFilters, ClassStats } from '../../../models/Class'
 import { validateClassId, normalizeClassName } from '../../../models/Class'
-import User from '../../../models/User' // 🔧 CORRIGIDO: Usar modelo User em vez de Student
+import User from '../../../models/user' // 🔧 CORRIGIDO: Usar modelo User em vez de Student (lowercase!)
 
 class ClassesService {
     async listClasses(filters: ClassFilters) {

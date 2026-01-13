@@ -1,6 +1,6 @@
 // Script para sincronizar status da tabela userProducts (fonte única) para User
 import mongoose from 'mongoose'
-import User from '../models/User'
+import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import dotenv from 'dotenv'
 
