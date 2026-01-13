@@ -1,5 +1,5 @@
 import { DashboardStats } from '../models/DashboardStats'
-import { getAllUsersUnified } from './syncUtilziadoresServices/dualReadService'
+import { getAllUsersUnified } from './syncUtilizadoresServices/dualReadService'
 
 /**
  * 🏗️ Construir e guardar stats do dashboard

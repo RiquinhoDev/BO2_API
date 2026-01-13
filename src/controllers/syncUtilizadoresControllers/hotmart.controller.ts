@@ -8,8 +8,8 @@ import { Class, Product, SyncHistory, User } from '../../models'
 import { getUserCountForProduct, getUsersByProduct } from '../../services/userProducts/userProductService'
 import { ensureUserHistoryModel } from '../../models/UserHistory'
 import { calculateCombinedEngagement } from '../../utils/engagementCalculator'
-import hotmartAdapter from '../../services/syncUtilziadoresServices/hotmartServices/hotmart.adapter'
-import universalSyncService from '../../services/syncUtilziadoresServices/universalSyncService'
+import hotmartAdapter from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
+import universalSyncService from '../../services/syncUtilizadoresServices/universalSyncService'
 import { SyncError, SyncProgress, SyncWarning } from '../../types/universalSync.types'
 
 

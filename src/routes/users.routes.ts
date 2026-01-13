@@ -38,7 +38,7 @@ import {
   searchStudent,
 } from "../controllers/users.controller"
 
-import { calculateBatchAverageEngagement } from "../services/syncUtilziadoresServices/engagement/engagementCalculator.service"
+import { calculateBatchAverageEngagement } from "../services/syncUtilizadoresServices/engagement/engagementCalculator.service"
 import { getUserByEmail } from "../controllers/syncUtilizadoresControllers/curseduca.controller"
 
 const router = Router()

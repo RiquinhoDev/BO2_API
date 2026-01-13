@@ -15,7 +15,7 @@ import activecampaignRoutes from './routes/ACroutes/activecampaign.routes'
 import webhooksRoutes from './routes/webhooks.routes'
 import healthRoutes from './routes/health.routes'
 
-import { warmUpCache } from './services/syncUtilziadoresServices/dualReadService'
+import { warmUpCache } from './services/syncUtilizadoresServices/dualReadService'
 import cronManagementRoutes from './routes/cron/cronManagement.routes'
 
 

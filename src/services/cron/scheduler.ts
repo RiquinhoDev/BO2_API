@@ -13,9 +13,9 @@ import CronJobConfig, {
 } from '../../models/SyncModels/CronJobConfig'
 import { CronExecution } from '../../models'
 import { executeDailyPipeline } from './dailyPipeline.service'
-import hotmartAdapter from '../syncUtilziadoresServices/hotmartServices/hotmart.adapter'
-import universalSyncService from '../syncUtilziadoresServices/universalSyncService'
-import curseducaAdapter from '../syncUtilziadoresServices/curseducaServices/curseduca.adapter'
+import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
+import universalSyncService from '../syncUtilizadoresServices/universalSyncService'
+import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../types/cron.types'
 
 // ─────────────────────────────────────────────────────────────

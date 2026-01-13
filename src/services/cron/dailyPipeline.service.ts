@@ -6,14 +6,14 @@
 import { Product, UserProduct, PipelineExecution } from '../../models'
 import logger from '../../utils/logger'
 
-import { recalculateAllEngagementMetrics } from '../syncUtilziadoresServices/engagement/recalculate-engagement-metrics'
+import { recalculateAllEngagementMetrics } from '../syncUtilizadoresServices/engagement/recalculate-engagement-metrics'
 
 import tagPreCreationService from '../activeCampaign/tagPreCreation.service'
 
 // ✅ Adapters + Universal Sync
-import universalSyncService from '../syncUtilziadoresServices/universalSyncService'
-import curseducaAdapter from '../syncUtilziadoresServices/curseducaServices/curseduca.adapter'
-import hotmartAdapter from '../syncUtilziadoresServices/hotmartServices/hotmart.adapter'
+import universalSyncService from '../syncUtilizadoresServices/universalSyncService'
+import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
+import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import { DailyPipelineResult, PipelineStepResult } from '../../types/cron.types'
 import tagOrchestratorV2 from '../activeCampaign/tagOrchestrator.service'
 
