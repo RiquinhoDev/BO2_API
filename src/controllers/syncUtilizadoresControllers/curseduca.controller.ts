@@ -13,8 +13,8 @@ import {
   getUsersByProduct as getUsersByProductService,
   getUserCountForProduct
 } from '../../services/userProducts/userProductService'
-import universalSyncService from '../../services/syncUtilziadoresServices/universalSyncService'
-import curseducaAdapter from '../../services/syncUtilziadoresServices/curseducaServices/curseduca.adapter'
+import universalSyncService from '../../services/syncUtilizadoresServices/universalSyncService'
+import curseducaAdapter from '../../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 
 // ═══════════════════════════════════════════════════════════
 // SYNC LOGGER
@@ -279,7 +279,7 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
     logger.section('STEP 4: REBUILD DASHBOARD STATS')
     
     try {
-      const dualRead = await import('../../services/syncUtilziadoresServices/dualReadService').catch(() => null as any)
+      const dualRead = await import('../../services/syncUtilizadoresServices/dualReadService').catch(() => null as any)
       if (dualRead?.clearUnifiedCache) {
         dualRead.clearUnifiedCache()
         logger.success('Cache invalidado')

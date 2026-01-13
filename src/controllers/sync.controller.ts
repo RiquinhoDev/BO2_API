@@ -12,9 +12,9 @@ import { Product, User, UserProduct } from '../models'
 
 // Services
 import { executeDailyPipeline } from '../services/cron/dailyPipeline.service'
-import universalSyncService from '../services/syncUtilziadoresServices/universalSyncService'
-import hotmartAdapter from '../services/syncUtilziadoresServices/hotmartServices/hotmart.adapter'
-import curseducaAdapter from '../services/syncUtilziadoresServices/curseducaServices/curseduca.adapter'
+import universalSyncService from '../services/syncUtilizadoresServices/universalSyncService'
+import hotmartAdapter from '../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
+import curseducaAdapter from '../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 
 type PipelineStage = mongoose.PipelineStage
 

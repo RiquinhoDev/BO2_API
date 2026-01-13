@@ -4,7 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Request, Response } from 'express'
-import syncReportsService from '../../services/syncUtilziadoresServices/syncReports.service'
+import syncReportsService from '../../services/syncUtilizadoresServices/syncReports.service'
 
 
 
