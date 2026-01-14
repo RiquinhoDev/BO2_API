@@ -1,5 +1,6 @@
 // src/routes/index.ts - VERSÃO CORRIGIDA COM 2 SISTEMAS CRON
 import { Router } from "express"
+import authRoutes from "./auth.routes"
 import userRoutes from "./users.routes"
 import hotmartRoutes from "./hotmart.routes"
 import curseducaRoutes from './curseduca.routes'
@@ -7,7 +8,7 @@ import syncRoutes from "./sync.routes"
 import classesRoutes from "./classes.routes"
 import classManagementRoutes from "./classManagement.routes"
 import testimonialRoutes from "./testimonials.routes"
-import lessonsRoutes from "./lessons.routes" 
+import lessonsRoutes from "./lessons.routes"
 import engagementRoutes from './engagement.routes'
 import productsRoutes from './products.routes'
 import analyticsRoutes from './analytics.routes'
@@ -30,6 +31,9 @@ import cronManagementRoutes from './cron/cronManagement.routes'
 import { estimateAffectedUsers, getAvailableFields, previewAffectedUsers } from "../controllers/acTags/tagRuleEstimate.controller"
 
 const router = Router()
+
+// 🔐 AUTENTICAÇÃO
+router.use("/auth", authRoutes)
 
 // 🔄 PRINCIPAIS SERVIÇOS DE SINCRONIZAÇÃO
 router.use("/users", userRoutes)
