@@ -75,24 +75,25 @@ export interface IUserProduct extends Document {
   _id: mongoose.Types.ObjectId
   userId: mongoose.Types.ObjectId
   productId: mongoose.Types.ObjectId
-  
+
   platform: PlatformType
   platformUserId: string
   platformUserUuid?: string
-  
+
   enrolledAt: Date
   status: EnrollmentStatus
   source: EnrollmentSource
-  
+
   progress?: IProgress
   engagement?: IEngagement
-  
+
   classes: IClassEnrollment[]
-  
+
   activeCampaignData?: IActiveCampaignData
   communications?: ICommunications
   isPrimary: boolean
-  
+  isAdmin?: boolean  // 🔑 Admin flag - bypassa validações de inativação
+
   metadata?: {
     purchaseValue?: number
     purchaseDate?: Date
@@ -101,10 +102,10 @@ export interface IUserProduct extends Document {
     notes?: string
     platform?: string
   }
-  
+
   createdAt: Date
   updatedAt: Date
-  
+
   // Métodos
   isActive(): boolean
   getCurrentClass(): IClassEnrollment | undefined
@@ -287,13 +288,23 @@ const UserProductSchema = new Schema<IUserProduct>({
   // ═══════════════════════════════════════════════════════════
   // isPrimary
   // ═══════════════════════════════════════════════════════════
-  
+
   isPrimary: {
     type: Boolean,
     default: true,
     index: true
   },
-  
+
+  // ═══════════════════════════════════════════════════════════
+  // isAdmin - Flag para bypass de validações
+  // ═══════════════════════════════════════════════════════════
+
+  isAdmin: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+
   // ═══════════════════════════════════════════════════════════
   // METADATA
   // ═══════════════════════════════════════════════════════════
