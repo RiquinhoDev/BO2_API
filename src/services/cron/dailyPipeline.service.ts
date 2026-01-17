@@ -9,6 +9,7 @@ import logger from '../../utils/logger'
 import { recalculateAllEngagementMetrics } from '../syncUtilizadoresServices/engagement/recalculate-engagement-metrics'
 
 import tagPreCreationService from '../activeCampaign/tagPreCreation.service'
+import testimonialTagSyncService from '../activeCampaign/testimonialTagSync.service'
 
 // ✅ Adapters + Universal Sync
 import universalSyncService from '../syncUtilizadoresServices/universalSyncService'
@@ -56,12 +57,12 @@ function logStep(stepNum: number, stepName: string, status: 'START' | 'DONE' | '
   const timestamp = new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
 
   if (status === 'START') {
-    logger.info(`[${timestamp}] STEP ${stepNum}/5: ${stepName}...`)
+    logger.info(`[${timestamp}] STEP ${stepNum}/6: ${stepName}...`)
   } else if (status === 'DONE') {
     const statsStr = stats ? ` (${stats})` : ''
-    logger.info(`[${timestamp}] STEP ${stepNum}/5: ${stepName} ✓${statsStr}`)
+    logger.info(`[${timestamp}] STEP ${stepNum}/6: ${stepName} ✓${statsStr}`)
   } else {
-    logger.error(`[${timestamp}] STEP ${stepNum}/5: ${stepName} ✗ ${stats}`)
+    logger.error(`[${timestamp}] STEP ${stepNum}/6: ${stepName} ✗ ${stats}`)
   }
 }
 
@@ -89,7 +90,8 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
       syncCursEduca: { success: false, duration: 0, stats: {} },
       preCreateTags: { success: false, duration: 0, stats: {} },
       recalcEngagement: { success: false, duration: 0, stats: {} },
-      evaluateTagRules: { success: false, duration: 0, stats: {} }
+      evaluateTagRules: { success: false, duration: 0, stats: {} },
+      syncTestimonialTags: { success: false, duration: 0, stats: {} }
     },
     errors: [],
     summary: {
@@ -489,6 +491,35 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
       logStep(5, 'Tag Rules', 'ERROR', message)
     }
 
+    // STEP 6/6: SYNC TESTIMONIAL TAGS
+    logger.info('   ➡️  Transição Step 5 → Step 6...')
+    const step6Start = Date.now()
+    logStep(6, 'Sync Testimonial Tags', 'START')
+
+    try {
+      const syncResult = await testimonialTagSyncService.syncTestimonialTags()
+
+      result.steps.syncTestimonialTags = {
+        success: syncResult.success,
+        duration: Math.floor((Date.now() - step6Start) / 1000),
+        stats: syncResult.stats
+      }
+
+      logStep(6, 'Sync Testimonial Tags', 'DONE', `${syncResult.stats.synced} tags sincronizadas, ${result.steps.syncTestimonialTags.duration}s`)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      errors.push(`Sync Testimonial Tags: ${message}`)
+
+      result.success = false
+      result.steps.syncTestimonialTags = {
+        ...(result.steps.syncTestimonialTags as PipelineStepResult),
+        success: false,
+        error: message
+      }
+
+      logStep(6, 'Sync Testimonial Tags', 'ERROR', message)
+    }
+
     // FINALIZAR
     result.duration = Math.floor((Date.now() - startTime) / 1000)
     result.completedAt = new Date()
@@ -512,11 +543,12 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
     logger.info(`Fim: ${endTimestamp} | Duração: ${durationMin}min ${durationSec}s`)
     logger.info('')
     logger.info('📊 RESUMO:')
-    logger.info(`   STEP 1 - Hotmart:      ${result.steps.syncHotmart.duration}s | ${result.steps.syncHotmart.stats?.total || 0} users`)
-    logger.info(`   STEP 2 - CursEduca:    ${result.steps.syncCursEduca.duration}s | ${result.steps.syncCursEduca.stats?.total || 0} users`)
-    logger.info(`   STEP 3 - Pre-create:   ${result.steps.preCreateTags.duration}s | ${result.steps.preCreateTags.stats?.totalTags || 0} tags`)
-    logger.info(`   STEP 4 - Engagement:   ${result.steps.recalcEngagement.duration}s | ${result.steps.recalcEngagement.stats?.updated || 0} atualizados`)
-    logger.info(`   STEP 5 - Tag Rules:    ${result.steps.evaluateTagRules.duration}s | +${result.steps.evaluateTagRules.stats?.tagsApplied || 0}/-${result.steps.evaluateTagRules.stats?.tagsRemoved || 0} tags`)
+    logger.info(`   STEP 1 - Hotmart:           ${result.steps.syncHotmart.duration}s | ${result.steps.syncHotmart.stats?.total || 0} users`)
+    logger.info(`   STEP 2 - CursEduca:         ${result.steps.syncCursEduca.duration}s | ${result.steps.syncCursEduca.stats?.total || 0} users`)
+    logger.info(`   STEP 3 - Pre-create:        ${result.steps.preCreateTags.duration}s | ${result.steps.preCreateTags.stats?.totalTags || 0} tags`)
+    logger.info(`   STEP 4 - Engagement:        ${result.steps.recalcEngagement.duration}s | ${result.steps.recalcEngagement.stats?.updated || 0} atualizados`)
+    logger.info(`   STEP 5 - Tag Rules:         ${result.steps.evaluateTagRules.duration}s | +${result.steps.evaluateTagRules.stats?.tagsApplied || 0}/-${result.steps.evaluateTagRules.stats?.tagsRemoved || 0} tags`)
+    logger.info(`   STEP 6 - Testimonial Tags:  ${result.steps.syncTestimonialTags.duration}s | ${result.steps.syncTestimonialTags.stats?.synced || 0} sincronizadas`)
     logger.info('')
     logger.info(`📈 Total: ${result.summary.totalUsers} users | ${result.summary.totalUserProducts} UserProducts | ${result.summary.tagsApplied} tags aplicadas`)
 

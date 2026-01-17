@@ -105,6 +105,7 @@ export interface DailyPipelineResult {
     preCreateTags: PipelineStepResult
     recalcEngagement: PipelineStepResult
     evaluateTagRules: PipelineStepResult
+    syncTestimonialTags: PipelineStepResult
   }
   errors: string[]
   summary: {
