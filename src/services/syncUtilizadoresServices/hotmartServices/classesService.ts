@@ -362,13 +362,21 @@ class ClassesService {
       const [
         totalClasses,
         activeClasses,
+        inactiveClasses,
         totalStudents,
         recentMovements,
         sourceBreakdown,
         studentDistribution
       ] = await Promise.all([
         Class.countDocuments(classQuery),
-        Class.countDocuments({ ...classQuery, isActive: true }),
+        Class.countDocuments({ ...classQuery, isActive: true, estado: 'ativo' }),
+        Class.countDocuments({
+          ...classQuery,
+          $or: [
+            { isActive: false },
+            { estado: 'inativo' }
+          ]
+        }),
         User.countDocuments(classIds ? { classId: { $in: classIds } } : {}),
         ClassHistory.countDocuments({
           ...dateQuery,
@@ -382,7 +390,7 @@ class ClassesService {
         totalClasses,
         totalStudents,
         activeClasses,
-        inactiveClasses: totalClasses - activeClasses,
+        inactiveClasses,
         recentMovements,
         sourceBreakdown,
         studentDistribution
