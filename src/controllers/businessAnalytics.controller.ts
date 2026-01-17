@@ -126,7 +126,10 @@ class BusinessAnalyticsController {
           
           return {
             productId: product._id.toString(),
+            productCode: product.code,
+            code: product.code,
             productName: product.name,
+            name: product.name,
             platform: product.platform,
             totalStudents: uniqueUsers.size,
             activeStudents: uniqueActiveUsers.size,
@@ -156,10 +159,13 @@ class BusinessAnalyticsController {
         p.revenueShare = totalRevenue > 0 ? (p.totalRevenue / totalRevenue) * 100 : 0
       })
       
-      // Breakdown por plataforma
+      // Breakdown por plataforma (usar totalStudents em vez de totalRevenue)
       const platformBreakdown = [
         {
           name: 'Hotmart',
+          totalStudents: productBreakdown
+            .filter(p => p.platform === 'hotmart')
+            .reduce((sum, p) => sum + p.totalStudents, 0),
           value: productBreakdown
             .filter(p => p.platform === 'hotmart')
             .reduce((sum, p) => sum + p.totalRevenue, 0),
@@ -168,6 +174,9 @@ class BusinessAnalyticsController {
         },
         {
           name: 'CursEduca',
+          totalStudents: productBreakdown
+            .filter(p => p.platform === 'curseduca')
+            .reduce((sum, p) => sum + p.totalStudents, 0),
           value: productBreakdown
             .filter(p => p.platform === 'curseduca')
             .reduce((sum, p) => sum + p.totalRevenue, 0),
@@ -176,6 +185,9 @@ class BusinessAnalyticsController {
         },
         {
           name: 'Discord',
+          totalStudents: productBreakdown
+            .filter(p => p.platform === 'discord')
+            .reduce((sum, p) => sum + p.totalStudents, 0),
           value: productBreakdown
             .filter(p => p.platform === 'discord')
             .reduce((sum, p) => sum + p.totalRevenue, 0),
@@ -183,10 +195,11 @@ class BusinessAnalyticsController {
           color: '#5865F2'
         }
       ]
-      
-      // Calcular percentagens
+
+      // Calcular percentagens (baseado em totalStudents)
+      const totalPlatformStudents = platformBreakdown.reduce((sum, p) => sum + p.totalStudents, 0)
       platformBreakdown.forEach(p => {
-        p.percentage = totalRevenue > 0 ? (p.value / totalRevenue) * 100 : 0
+        p.percentage = totalPlatformStudents > 0 ? (p.totalStudents / totalPlatformStudents) * 100 : 0
       })
       
       const duration = Date.now() - startTime
