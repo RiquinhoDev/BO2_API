@@ -1550,6 +1550,10 @@ if (lastAccessDate) {
           upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastLogin)
           upNeedsUpdate = true
         }
+        if (item.accessCount !== undefined) {
+          upUpdateFields['engagement.totalLogins'] = toNumber(item.accessCount, 0)
+          upNeedsUpdate = true
+        }
       }
 
       // ═══════════════════════════════════════════════════════════
@@ -1761,6 +1765,9 @@ if (lastAccessDate) {
       if (config.syncType === 'curseduca') {
         if (item.lastLogin) {
           engagementObj.lastAction = toDateOrNull(item.lastLogin)
+        }
+        if (item.accessCount !== undefined) {
+          engagementObj.totalLogins = toNumber(item.accessCount, 0)
         }
       }
 
