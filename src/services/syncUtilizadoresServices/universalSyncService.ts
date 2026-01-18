@@ -1236,6 +1236,70 @@ if (lastAccessDate) {
     }
 
     // ═══════════════════════════════════════════════════════════
+    // 🔥 CRITICAL FIX: POPULATE enrolledClasses ARRAY
+    // ═══════════════════════════════════════════════════════════
+    // This is the ROOT CAUSE of the bug - we were saving groupId but NOT enrolledClasses!
+    // Now we populate the enrolledClasses array from allCurseducaGroups
+
+    // ✅ FIX: Processar TODOS os grupos do array allCurseducaGroups
+    const allCurseducaGroups = (item as any).allCurseducaGroups
+
+    if (allCurseducaGroups && Array.isArray(allCurseducaGroups) && allCurseducaGroups.length > 0) {
+      // Processar TODOS os grupos de uma vez
+      const newEnrolledClasses: any[] = []
+
+      for (const group of allCurseducaGroups) {
+        const enrolledAtDate = toDateOrNull(group.enrolledAt) || new Date()
+        const expiresAtDate = toDateOrNull(group.expiresAt) || null
+
+        const enrolledClass = {
+          classId: String(group.groupId),
+          className: group.groupName || `Grupo ${group.groupId}`,
+          curseducaId: String(group.groupId),
+          curseducaUuid: String(group.groupId), // Use groupId como UUID
+          enteredAt: enrolledAtDate,
+          expiresAt: expiresAtDate,
+          isActive: true,
+          role: group.role || 'student'
+        }
+
+        newEnrolledClasses.push(enrolledClass)
+      }
+
+      // Substituir TODO o array enrolledClasses de uma vez
+      // Isto garante que não há duplicações e que todos os grupos são salvos
+      updateFields['curseduca.enrolledClasses'] = newEnrolledClasses
+      needsUpdate = true
+
+      console.log(`   📚 [EnrolledClasses] Guardados ${newEnrolledClasses.length} grupos para ${user.email}:`)
+      newEnrolledClasses.forEach(ec => {
+        console.log(`      - ${ec.className} (ID: ${ec.curseducaId})`)
+      })
+
+    } else if (item.groupId) {
+      // ⚠️ FALLBACK: Se não há allCurseducaGroups, usar groupId (modo antigo)
+      // Isto só acontece se o adapter não foi atualizado ainda
+      const enrolledAtDate = toDateOrNull(item.enrolledAt) || new Date()
+      const expiresAtDate = toDateOrNull(item.expiresAt) || null
+
+      const singleClass = {
+        classId: String(item.groupId),
+        className: item.groupName || `Grupo ${item.groupId}`,
+        curseducaId: String(item.groupId),
+        curseducaUuid: String(item.groupId),
+        enteredAt: enrolledAtDate,
+        expiresAt: expiresAtDate,
+        isActive: true,
+        role: 'student'
+      }
+
+      updateFields['curseduca.enrolledClasses'] = [singleClass]
+      needsUpdate = true
+
+      console.log(`   ⚠️  [EnrolledClasses] FALLBACK: Guardado 1 grupo para ${user.email}`)
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // SUBSCRIPTION TYPE
     // ═══════════════════════════════════════════════════════════
     if (item.subscriptionType) {
