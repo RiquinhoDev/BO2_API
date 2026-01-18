@@ -20,6 +20,7 @@ import productProfileRoutes from './productProfile.routes'
 import reengagementRoutes from './reengagement.routes'
 import discoveryRoutes from './discovery.routes'
 import acReaderRoutes from './ACroutes/acReader.routes'
+import studentsRoutes from './students'
 
 // ✅ CRON UTILIZADORES (Sistema Novo)
 import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
@@ -51,6 +52,7 @@ router.use("/lessons", lessonsRoutes)
 router.use("/testimonials", testimonialRoutes)
 router.use("/engagement", engagementRoutes)
 router.use("/user-history", userHistoryRoutes)
+router.use("/students", studentsRoutes)
 
 // 📊 ANÁLISES E RELATÓRIOS
 router.use("/dashboard", dashboardRoutes)

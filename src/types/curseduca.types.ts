@@ -94,6 +94,8 @@ export interface CursEducaMemberWithMetadata {
   enrollmentsCount: number
   situation?: string
   lastLogin?: string
+  lastAccess?: string
+  accessCount?: number
   groupId: number
   groupName: string
   subscriptionType: 'MONTHLY' | 'ANNUAL'
@@ -118,6 +120,7 @@ export interface CurseducaSyncData {
   lastAccess?: string | Date
   lastLogin?: string | Date
   situation?: string
+  accessCount?: number
   enrollmentsCount?: number
   subscriptionType?: 'MONTHLY' | 'ANNUAL'
   isPrimary?: boolean
