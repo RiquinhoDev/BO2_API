@@ -1615,19 +1615,33 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
       // ✅ CORRIGIDO: Suportar turmas CursEduca e Hotmart
       const classDataTyped = classData as any
       let filter: any
-      
-      if (classDataTyped.source === 'curseduca_sync' && classDataTyped.curseducaUuid) {
-        // Para turmas CursEduca, buscar por groupCurseducaUuid
-        filter = { 'curseduca.groupCurseducaUuid': classDataTyped.curseducaUuid }
-        
+
+      if (classDataTyped.source === 'curseduca_sync') {
+        // ✅ USAR enrolledClasses array (fonte correta de dados)
+        // Buscar users que têm esta turma no array enrolledClasses
+        filter = {
+          'curseduca.enrolledClasses': {
+            $elemMatch: {
+              curseducaId: { $in: [classId, String(classId), Number(classId)] },
+              isActive: true
+            }
+          }
+        }
+
         // Por padrão, só mostrar estudantes ativos
         if (includeInactive !== 'true') {
-          filter['combined.status'] = { $ne: 'INACTIVE' }
+          filter['curseduca.memberStatus'] = 'ACTIVE'
         }
+
+        // 🔄 FALLBACK: Se não há enrolledClasses, tentar por groupId (dados antigos)
+        // Isso será removido depois que todos os users tiverem enrolledClasses populado
       } else {
         // Para turmas Hotmart e outras, buscar por classId
-        filter = { classId }
-        
+        filter = {
+          classId,
+          'inactivation.isManuallyInactivated': { $ne: true }
+        }
+
         // Por padrão, só mostrar estudantes ativos
         if (includeInactive !== 'true') {
           filter.estado = { $ne: 'inativo' }

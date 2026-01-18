@@ -119,24 +119,41 @@ ClassSchema.index({ productId: 1, source: 1 })
 // Métodos do modelo
 ClassSchema.methods.updateStudentCount = async function() {
   const User = mongoose.model('User')
-  
+  const UserProduct = mongoose.model('UserProduct')
+
   // 🆕 Contar baseado na fonte da turma
   let count = 0
-  
-  if (this.source === 'curseduca_sync' && this.curseducaUuid) {
-    // Para turmas Curseduca, contar por groupCurseducaUuid
-    count = await User.countDocuments({ 
-      'curseduca.groupCurseducaUuid': this.curseducaUuid,
-      'combined.status': 'ACTIVE' 
+
+  if (this.source === 'curseduca_sync') {
+    // ✅ CORRETO: Usar UserProduct com isPrimary=true para evitar duplicação
+    // Isto garante que users com múltiplos produtos (Mensal + Anual) só contam 1x
+    count = await UserProduct.countDocuments({
+      platform: 'curseduca',
+      isPrimary: true,
+      status: 'ACTIVE',
+      'classes': {
+        $elemMatch: {
+          classId: { $in: [this.classId, String(this.classId), Number(this.classId)] }
+        }
+      }
     })
+
+    // 🔄 FALLBACK: Se não há UserProducts, tentar por User.curseduca (dados antigos)
+    if (count === 0 && this.classId) {
+      count = await User.countDocuments({
+        'curseduca.groupId': this.classId,
+        'curseduca.memberStatus': 'ACTIVE'
+      })
+    }
   } else {
-    // Para outras turmas, usar classId
-    count = await User.countDocuments({ 
-      classId: this.classId, 
-      status: 'ACTIVE' 
+    // Para outras turmas, usar classId (excluindo inativados manualmente)
+    count = await User.countDocuments({
+      classId: this.classId,
+      status: 'ACTIVE',
+      'inactivation.isManuallyInactivated': { $ne: true }
     })
   }
-  
+
   this.studentCount = count
   await this.save()
   return count
@@ -144,19 +161,40 @@ ClassSchema.methods.updateStudentCount = async function() {
 
 ClassSchema.methods.getStats = async function() {
   const User = mongoose.model('User')
-  
-  let totalQuery: any = { classId: this.classId }
-  let activeQuery: any = { classId: this.classId, status: 'ACTIVE' }
-  
+
+  let totalQuery: any = {
+    classId: this.classId,
+    'inactivation.isManuallyInactivated': { $ne: true }
+  }
+  let activeQuery: any = {
+    classId: this.classId,
+    status: 'ACTIVE',
+    'inactivation.isManuallyInactivated': { $ne: true }
+  }
+
   // 🆕 Ajustar queries para turmas Curseduca
-  if (this.source === 'curseduca_sync' && this.curseducaUuid) {
-    totalQuery = { 'curseduca.groupCurseducaUuid': this.curseducaUuid }
-    activeQuery = { 
-      'curseduca.groupCurseducaUuid': this.curseducaUuid,
-      'combined.status': 'ACTIVE' 
+  if (this.source === 'curseduca_sync') {
+    // Tentar por UUID primeiro
+    if (this.curseducaUuid) {
+      totalQuery = {
+        'curseduca.groupCurseducaUuid': this.curseducaUuid
+      }
+      activeQuery = {
+        'curseduca.groupCurseducaUuid': this.curseducaUuid,
+        'curseduca.memberStatus': 'ACTIVE'
+      }
+    } else if (this.classId) {
+      // Fallback para groupId
+      totalQuery = {
+        'curseduca.groupId': this.classId
+      }
+      activeQuery = {
+        'curseduca.groupId': this.classId,
+        'curseduca.memberStatus': 'ACTIVE'
+      }
     }
   }
-  
+
   const [totalStudents, activeStudents] = await Promise.all([
     User.countDocuments(totalQuery),
     User.countDocuments(activeQuery)
