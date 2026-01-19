@@ -5,6 +5,7 @@ import User from '../models/user'
 import { Class } from '../models/Class'
 import UserProduct from '../models/UserProduct'
 import Product from '../models/Product'
+import activeCampaignService from '../services/activeCampaign/activeCampaignService'
 import mongoose, { PipelineStage } from 'mongoose'
 
 // Função para verificar se o modelo Testimonial está disponível
@@ -214,6 +215,43 @@ async function updateTestimonialTagsOnCompletion(userId: mongoose.Types.ObjectId
   }
 }
 
+// Helper to clear testimonial tags when a request is declined or cancelled
+async function removeTestimonialTagsFromUser(
+  userId: mongoose.Types.ObjectId
+): Promise<{ email: string | null; tags: string[] }> {
+  try {
+    const user = await User.findById(userId)
+    if (!user) {
+      console.error(`Error: user ${userId} not found when trying to remove tags`)
+      return { email: null, tags: [] }
+    }
+
+    if (!user.communicationByCourse) {
+      return { email: user.email || null, tags: [] }
+    }
+
+    const testimonialCourseKey = 'TESTIMONIALS'
+    const courseComm = user.communicationByCourse.get(testimonialCourseKey)
+
+    if (!courseComm || !courseComm.currentTags || courseComm.currentTags.length === 0) {
+      return { email: user.email || null, tags: [] }
+    }
+
+    const tagsToRemove = [...courseComm.currentTags]
+    courseComm.currentTags = []
+    courseComm.lastTagAppliedAt = new Date()
+
+    user.communicationByCourse.set(testimonialCourseKey, courseComm)
+    user.markModified('communicationByCourse')
+    await user.save()
+
+    return { email: user.email || null, tags: tagsToRemove }
+  } catch (error: any) {
+    console.error('Error removing testimonial tags from user:', error.message)
+    return { email: null, tags: [] }
+  }
+}
+
 // 📊 ESTATÍSTICAS DOS TESTEMUNHOS
 export const getTestimonialStats = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -420,8 +458,10 @@ export const createTestimonial = async (req: Request, res: Response): Promise<vo
     }
 
     // Verificar se já existe um testemunho para este estudante
+    const studentObjectId = new mongoose.Types.ObjectId(studentId)
+
     const existingTestimonial = await Testimonial.findOne({
-      studentId: new mongoose.Types.ObjectId(studentId),
+      studentId: studentObjectId,
       status: { $nin: ['CANCELLED', 'DECLINED'] }
     })
 
@@ -435,7 +475,7 @@ export const createTestimonial = async (req: Request, res: Response): Promise<vo
 
     // Criar novo testemunho
     const testimonial = new Testimonial({
-      studentId: new mongoose.Types.ObjectId(studentId),
+      studentId: studentObjectId,
       studentEmail,
       studentName,
       classId,
@@ -450,6 +490,19 @@ export const createTestimonial = async (req: Request, res: Response): Promise<vo
     })
 
     await testimonial.save()
+
+    // Add testimonial tags to user (same as batch request)
+    try {
+      const tags = await getTestimonialTags(studentObjectId)
+      if (tags.length > 0) {
+        await addTestimonialTagsToUser(studentObjectId, tags)
+        console.log(`Tags added to user ${studentEmail}: ${tags.join(', ')}`)
+      } else {
+        console.log(`No testimonial tags determined for user ${studentEmail}`)
+      }
+    } catch (tagError: any) {
+      console.error(`Error adding tags to user ${studentEmail}:`, tagError.message)
+    }
 
     res.status(201).json({
       success: true,
@@ -610,6 +663,25 @@ export const updateTestimonialStatus = async (req: Request, res: Response): Prom
         } catch (tagError: any) {
           console.error(`❌ Error updating tags for testimonial ${testimonial._id}:`, tagError.message)
           // Não falhar a atualização se as tags falharem
+        }
+      }
+      if (status === 'DECLINED' || status === 'CANCELLED') {
+        try {
+          const { email, tags } = await removeTestimonialTagsFromUser(
+            testimonial.studentId as mongoose.Types.ObjectId
+          )
+
+          if (email && tags.length > 0) {
+            for (const tag of tags) {
+              try {
+                await activeCampaignService.removeTag(email, tag)
+              } catch (removeError: any) {
+                console.warn(`Error removing tag "${tag}" from ${email}:`, removeError.message)
+              }
+            }
+          }
+        } catch (tagError: any) {
+          console.error(`Error removing tags for testimonial ${testimonial._id}:`, tagError.message)
         }
       }
     }

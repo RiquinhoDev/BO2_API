@@ -2826,6 +2826,7 @@ export const getUserAllClasses = async (req: Request, res: Response): Promise<vo
  */
 
 export const getUsers: RequestHandler = async (req, res) => {
+  console.log("⚡ [V2] === FUNÇÃO getUsers INICIADA ===")
   try {
     const {
       platform,
@@ -2868,13 +2869,129 @@ export const getUsers: RequestHandler = async (req, res) => {
       return
     }
 
-    // Base query
+    // ✅ OPTIMIZED: Build UserProduct query first to filter at DB level
+    const userProductQuery: any = {}
+
+    if (platform) {
+      userProductQuery.platform = platform.toLowerCase()
+    }
+
+    if (status) {
+      userProductQuery.status = status
+    }
+
+    if (maxEngagement) {
+      const max = parseInt(maxEngagement, 10)
+      if (!Number.isNaN(max)) {
+        userProductQuery["engagement.engagementScore"] = { $lte: max }
+      }
+    }
+
+    if (topPercentage) {
+      const threshold = 77
+      userProductQuery["engagement.engagementScore"] = { $gte: threshold }
+    }
+
+    if (lastAccessBefore) {
+      const cutoff = new Date(lastAccessBefore)
+      userProductQuery.$or = [
+        { "engagement.lastAction": { $exists: false } },
+        { "engagement.lastAction": null },
+        { "engagement.lastAction": { $lt: cutoff } },
+      ]
+    }
+
+    if (progressLevel) {
+      const ranges: Record<string, { min: number; max: number }> = {
+        MUITO_BAIXO: { min: 0, max: 25 },
+        BAIXO: { min: 25, max: 40 },
+        MEDIO: { min: 40, max: 60 },
+        ALTO: { min: 60, max: 80 },
+        MUITO_ALTO: { min: 80, max: 100 },
+      }
+
+      const range = ranges[progressLevel.toUpperCase()]
+      if (range) {
+        userProductQuery["progress.percentage"] = { $gte: range.min, $lt: range.max }
+      }
+    }
+
+    if (engagementLevel) {
+      const levels = engagementLevel.split(",").map((x) => x.trim())
+      userProductQuery["engagement.engagementLevel"] = { $in: levels }
+    }
+
+    // Paginação BEFORE queries (crucial!)
+    const pageNum = Math.max(1, parseInt(page, 10) || 1)
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50))
+
+    // ✅ OPTIMIZED: Get distinct userIds from UserProduct collection first
+    const hasProductFilters = Object.keys(userProductQuery).length > 0
+    let userIds: any[] = []
+    let totalCount = 0
+
+    if (hasProductFilters) {
+      console.log("🔍 [V2] Aplicando filtros de UserProduct na DB:", userProductQuery)
+      const startTime = Date.now()
+
+      // ✅ CRITICAL FIX: Use aggregation to get UNIQUE userIds with pagination
+      const aggregation = await UserProduct.aggregate([
+        { $match: userProductQuery },
+        { $group: { _id: "$userId" } },
+        { $facet: {
+          total: [{ $count: "count" }],
+          data: [
+            { $skip: (pageNum - 1) * limitNum },
+            { $limit: limitNum }
+          ]
+        }}
+      ])
+
+      const queryTime = Date.now() - startTime
+      totalCount = aggregation[0].total[0]?.count || 0
+      userIds = aggregation[0].data.map((item: any) => item._id)
+
+      console.log(`⚡ [V2] ${userIds.length} userIds (de ${totalCount} total) em ${queryTime}ms - página ${pageNum}`)
+
+      if (userIds.length === 0) {
+        // No users match the product filters
+        return res.json({
+          success: true,
+          data: [],
+          pagination: {
+            total: 0,
+            totalPages: 0,
+            page: 1,
+            limit: parseInt(limit, 10) || 50,
+          },
+          filters: {
+            platform,
+            productId,
+            status,
+            search,
+            progressLevel,
+            engagementLevel,
+            maxEngagement,
+            topPercentage,
+            lastAccessBefore,
+            enrolledAfter,
+          },
+        })
+      }
+    }
+
+    // Base user query
     const userQuery: any = {
       $and: [
         {
           $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
         },
       ],
+    }
+
+    // Add userIds filter if we have product filters
+    if (hasProductFilters && userIds.length > 0) {
+      userQuery.$and.push({ _id: { $in: userIds } })
     }
 
     if (search) {
@@ -2890,95 +3007,130 @@ export const getUsers: RequestHandler = async (req, res) => {
       userQuery.$and.push({ "combined.status": "ACTIVE" })
     }
 
-    // Buscar users base
-    const users = await User.find(userQuery).select("_id name email combined.status").lean()
+    // ✅ OPTIMIZED: Apply pagination at DB level for non-product-filter queries too
+    let users: any[] = []
 
-    console.log(`📊 [V2] ${users.length} users encontrados`)
+    if (!hasProductFilters) {
+      // Sem filtros de produto: paginar direto nos Users
+      const [usersData, usersTotalCount] = await Promise.all([
+        User.find(userQuery)
+          .select("_id name email combined.status")
+          .skip((pageNum - 1) * limitNum)
+          .limit(limitNum)
+          .lean(),
+        User.countDocuments(userQuery)
+      ])
+      users = usersData
+      totalCount = usersTotalCount
+      console.log(`📊 [V2] ${users.length} users (de ${totalCount} total) sem filtros de produto - página ${pageNum}`)
+    } else {
+      // Com filtros de produto: buscar apenas os users dos userIds paginados
+      users = await User.find(userQuery).select("_id name email combined.status").lean()
+      console.log(`📊 [V2] ${users.length} users encontrados com filtros de produto`)
+    }
 
-    // Enriquecer com UserProducts + filtros
-    let enrichedUsers = await Promise.all(
-      users.map(async (user: any) => {
-        let userProducts = await UserProduct.find({ userId: user._id })
-          .populate("productId", "name code platform")
-          .lean()
+    // ✅ OPTIMIZED: Buscar TODOS os UserProducts de uma vez (não N queries!)
+    const userIdsToEnrich = users.map((u: any) => u._id)
+    const upQuery: any = {
+      userId: { $in: userIdsToEnrich },
+      ...userProductQuery
+    }
 
-        // Filtro: Plataforma
-        if (platform) {
-          userProducts = userProducts.filter(
-            (up: any) => up.platform?.toLowerCase() === platform.toLowerCase()
-          )
-        }
+    console.log(`📊 [V2] Buscando UserProducts para ${userIdsToEnrich.length} users`)
+    const startUpTime = Date.now()
 
-        // Filtro: Status
-        if (status) {
-          userProducts = userProducts.filter((up: any) => up.status === status)
-        }
+    const allUserProducts = await UserProduct.find(upQuery).lean()
 
-        // Filtro: Em Risco (maxEngagement <= 30)
-        if (maxEngagement) {
-          const max = parseInt(maxEngagement, 10)
-          if (!Number.isNaN(max)) {
-            userProducts = userProducts.filter(
-              (up: any) => (up.engagement?.engagementScore || 0) <= max
-            )
-          }
-        }
+    const upTime = Date.now() - startUpTime
+    console.log(`📊 [V2] ${allUserProducts.length} UserProducts encontrados em ${upTime}ms`)
 
-        // Filtro: Top % (placeholder)
-        if (topPercentage) {
-          const threshold = 77 // TODO: calcular dinamicamente
-          userProducts = userProducts.filter(
-            (up: any) => (up.engagement?.engagementScore || 0) >= threshold
-          )
-        }
+    // Buscar produtos únicos (sem populate - mais rápido!)
+    const uniqueProductIds = [...new Set(allUserProducts.map((up: any) => up.productId?.toString()).filter(Boolean))]
+    console.log(`📦 [V2] Buscando ${uniqueProductIds.length} produtos únicos`)
 
-        // Filtro: Inativos 30d (lastAccessBefore)
-        if (lastAccessBefore) {
-          const cutoff = new Date(lastAccessBefore)
-          userProducts = userProducts.filter((up: any) => {
-            const lastAction = up.engagement?.lastAction
-            return !lastAction || new Date(lastAction) < cutoff
-          })
-        }
+    const startProdTime = Date.now()
+    const products = await Product.find({ _id: { $in: uniqueProductIds } })
+      .select("_id name code platform")
+      .lean()
+    const prodTime = Date.now() - startProdTime
+    console.log(`📦 [V2] ${products.length} produtos carregados em ${prodTime}ms`)
 
-        // Filtro: Progresso por nível
-        if (progressLevel) {
-          const ranges: Record<string, { min: number; max: number }> = {
-            MUITO_BAIXO: { min: 0, max: 25 },
-            BAIXO: { min: 25, max: 40 },
-            MEDIO: { min: 40, max: 60 },
-            ALTO: { min: 60, max: 80 },
-            MUITO_ALTO: { min: 80, max: 100 },
-          }
+    // Criar map de produtos
+    const productMap = new Map(products.map((p: any) => [p._id.toString(), p]))
 
-          const range = ranges[progressLevel.toUpperCase()]
-          if (range) {
-            userProducts = userProducts.filter((up: any) => {
-              const prog = up.progress?.percentage || 0
-              return prog >= range.min && prog < range.max
-            })
-          }
-        }
+    // Agrupar UserProducts por userId
+    const userProductsMap = new Map<string, any[]>()
+    for (const up of allUserProducts) {
+      const userId = (up.userId as any).toString()
+      if (!userProductsMap.has(userId)) {
+        userProductsMap.set(userId, [])
+      }
+      userProductsMap.get(userId)!.push(up)
+    }
 
-        // Filtro: Engagement por nível (CSV)
-        if (engagementLevel) {
-          const levels = engagementLevel.split(",").map((x) => x.trim())
-          userProducts = userProducts.filter((up: any) => {
-            const level = up.engagement?.engagementLevel || ""
-            return levels.includes(level)
-          })
-        }
+    // ✅ Calculate average engagement per user
+    const userEngagementMap = new Map<string, { averageScore: number; level: string }>()
 
-        // Mapear para frontend
-        const products = userProducts.map((up: any) => ({
+    for (const user of users) {
+      const userId = user._id.toString()
+      const userProducts = userProductsMap.get(userId) || []
+
+      if (userProducts.length > 0) {
+        const totalScore = userProducts.reduce((sum: number, up: any) => {
+          return sum + (up.engagement?.engagementScore || 0)
+        }, 0)
+        const averageScore = Math.round(totalScore / userProducts.length)
+
+        // Calculate engagement level based on average score
+        let level = "NONE"
+        if (averageScore >= 80) level = "MUITO_ALTO"
+        else if (averageScore >= 60) level = "ALTO"
+        else if (averageScore >= 40) level = "MEDIO"
+        else if (averageScore >= 20) level = "BAIXO"
+        else if (averageScore > 0) level = "MUITO_BAIXO"
+
+        userEngagementMap.set(userId, { averageScore, level })
+      }
+    }
+
+    // ✅ CRITICAL FIX: Transform data to match frontend expectations
+    // Frontend expects array of UserProducts, not array of Users with products
+    const userProductsFlattened: any[] = []
+
+    for (const user of users) {
+      const userId = user._id.toString()
+      const userProducts = userProductsMap.get(userId) || []
+
+      // Se há filtros de produto e o user não tem produtos, pular
+      if (hasProductFilters && userProducts.length === 0) {
+        continue
+      }
+
+      // Get average engagement for this user
+      const userEngagement = userEngagementMap.get(userId)
+
+      // Para cada UserProduct do user, criar um objeto compatível com o frontend
+      for (const up of userProducts) {
+        const productId = up.productId?.toString()
+        const product = productId ? productMap.get(productId) : null
+
+        userProductsFlattened.push({
           _id: up._id,
-          product: up.productId,
+          userId: {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            averageEngagement: userEngagement?.averageScore || 0,
+            averageEngagementLevel: userEngagement?.level || "NONE",
+          },
+          productId: product || up.productId,
           platform: up.platform,
           status: up.status,
           enrolledAt: up.enrolledAt,
           isPrimary: up.isPrimary,
           progress: {
             percentage: up.progress?.percentage || 0,
+            progressPercentage: up.progress?.percentage || 0,
             lastActivity: up.progress?.lastActivity,
           },
           engagement: {
@@ -2986,48 +3138,24 @@ export const getUsers: RequestHandler = async (req, res) => {
             level: up.engagement?.engagementLevel || "NONE",
             lastAction: up.engagement?.lastAction,
           },
-        }))
-
-        return {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          status: user.combined?.status || "ACTIVE",
-          products,
-        }
-      })
-    )
-
-    // Se há filtros, remover users sem produtos
-    const hasFilters =
-      !!platform ||
-      !!status ||
-      !!progressLevel ||
-      !!engagementLevel ||
-      !!maxEngagement ||
-      !!topPercentage ||
-      !!lastAccessBefore
-
-    if (hasFilters) {
-      enrichedUsers = enrichedUsers.filter((u: any) => u.products.length > 0)
+          // Also add at root level for compatibility
+          averageEngagement: userEngagement?.averageScore || 0,
+          averageEngagementLevel: userEngagement?.level || "NONE",
+        })
+      }
     }
 
-    console.log(`📊 [V2] ${enrichedUsers.length} users após filtros`)
+    console.log(`📊 [V2] ${userProductsFlattened.length} UserProducts após transformação`)
 
-    // Paginação
-    const pageNum = Math.max(1, parseInt(page, 10) || 1)
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50))
-
-    const total = enrichedUsers.length
-    const startIndex = (pageNum - 1) * limitNum
-    const paginatedUsers = enrichedUsers.slice(startIndex, startIndex + limitNum)
+    // ✅ OPTIMIZED: Pagination já foi feita na query, não precisamos fatiar
+    const paginatedUsers = userProductsFlattened // Já vem paginado!
 
     res.json({
       success: true,
       data: paginatedUsers,
       pagination: {
-        total,
-        totalPages: Math.ceil(total / limitNum),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limitNum),
         page: pageNum,
         limit: limitNum,
       },
@@ -3384,12 +3512,10 @@ function transformUserForFrontend(user: any, userProductsMap?: Map<string, any[]
 
     // Tags do ActiveCampaign por produto (de UserProduct)
     acTagsByProduct: (() => {
-      if (!userProductsMap) return {}
-
       const userId = user._id.toString()
-      const userProducts = userProductsMap.get(userId) || []
+      const userProducts = userProductsMap ? (userProductsMap.get(userId) || []) : []
 
-      return userProducts.reduce((acc: any, up: any) => {
+      const acc = userProducts.reduce((acc: any, up: any) => {
         if (up.activeCampaignData?.tags && up.activeCampaignData.tags.length > 0) {
           const productCode = up.productId?.code || up.productId?._id?.toString() || 'UNKNOWN'
           const productName = up.productId?.name || 'Produto Desconhecido'
@@ -3403,6 +3529,22 @@ function transformUserForFrontend(user: any, userProductsMap?: Map<string, any[]
         }
         return acc
       }, {})
+
+      const testimonialData =
+        (user.communicationByCourse as any)?.get?.('TESTIMONIALS') ||
+        (user.communicationByCourse as any)?.TESTIMONIALS
+      const testimonialTags = testimonialData?.currentTags || []
+
+      if (testimonialTags.length > 0) {
+        acc.TESTIMONIALS = {
+          productCode: 'TESTIMONIALS',
+          productName: 'Testemunhos',
+          tags: testimonialTags,
+          lastSyncAt: testimonialData?.lastSyncedAt
+        }
+      }
+
+      return acc
     })(),
   }
 
@@ -3458,7 +3600,7 @@ export const searchStudent = async (req: Request, res: Response): Promise<void> 
     }
 
     const students = await User.find(matchConditions)
-      .select('email name hotmart curseduca discord combined status metadata username tags notes source type deletedAt deletedBy')
+      .select('email name hotmart curseduca discord combined status metadata username tags notes source type deletedAt deletedBy communicationByCourse')
       .lean()
 
     if (!students.length) {

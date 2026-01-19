@@ -774,6 +774,7 @@ private async executePipelineJob(job: ICronJobConfig): Promise<{
       const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
         includeProgress: true,
         includeGroups: true,
+        enrichWithDetails: true,  // ✅ CRÍTICO: Valida se user pertence ao grupo
         progressConcurrency: 5
       })
 

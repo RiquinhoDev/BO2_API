@@ -13,6 +13,7 @@ import { Product, UserProduct } from '../../models'
 import { Class } from '../../models/Class'
 import { IProduct } from '../../models/product/Product'
 import { ProcessItemResult, SyncError, SyncWarning, UniversalSourceItem, UniversalSyncConfig, UniversalSyncResult } from '../../types/universalSync.types'
+import { snapshotAndCompare } from '../snapshotServices/userSnapshot.service'
 
 // ═══════════════════════════════════════════════════════════
 // TYPE HELPERS
@@ -1102,6 +1103,24 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
+    if (item.accessCount !== undefined) {
+      const accessCount = toNumber(item.accessCount, 0)
+      updateFields['hotmart.engagement.accessCount'] = accessCount
+      updateFields['hotmart.engagement.engagementScore'] = toNumber(
+        item.engagement?.engagementScore ?? accessCount,
+        0
+      )
+      updateFields['hotmart.engagement.calculatedAt'] = new Date()
+      updateFields['accessCount'] = accessCount
+      needsUpdate = true
+    }
+
+    if (item.engagementLevel) {
+      updateFields['hotmart.engagement.engagementLevel'] = item.engagementLevel
+      updateFields['hotmart.engagement.calculatedAt'] = new Date()
+      needsUpdate = true
+    }
+
     // Status
     if (item.plusAccess) {
       updateFields['hotmart.plusAccess'] = item.plusAccess
@@ -1485,6 +1504,16 @@ if (lastAccessDate) {
           upNeedsUpdate = true
         }
 
+        // ✅ CONTADORES DE LIÇÕES (completed/total)
+        if (item.progress?.completed !== undefined) {
+          upUpdateFields['progress.completed'] = toNumber(item.progress.completed, 0)
+          upNeedsUpdate = true
+        }
+        if (item.progress?.total !== undefined) {
+          upUpdateFields['progress.total'] = toNumber(item.progress.total, 0)
+          upNeedsUpdate = true
+        }
+
         // lessonsCompleted - array de pageIds das aulas completadas
         if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
           const completedLessons = item.progress.lessons
@@ -1554,6 +1583,11 @@ if (lastAccessDate) {
           upUpdateFields['engagement.totalLogins'] = toNumber(item.accessCount, 0)
           upNeedsUpdate = true
         }
+      }
+
+      if (item.platformData) {
+        upUpdateFields['platformData'] = item.platformData
+        upNeedsUpdate = true
       }
 
       // ═══════════════════════════════════════════════════════════
@@ -1724,6 +1758,14 @@ if (lastAccessDate) {
           progressObj.currentModule = toNumber(item.currentModule, 0)
         }
 
+        // ✅ CONTADORES DE LIÇÕES (completed/total)
+        if (item.progress?.completed !== undefined) {
+          progressObj.completed = toNumber(item.progress.completed, 0)
+        }
+        if (item.progress?.total !== undefined) {
+          progressObj.total = toNumber(item.progress.total, 0)
+        }
+
         // lessonsCompleted - array de pageIds
         if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
           progressObj.lessonsCompleted = item.progress.lessons
@@ -1787,6 +1829,7 @@ if (lastAccessDate) {
 
         progress: progressObj,
         engagement: engagementObj,
+        platformData: item.platformData,
         classes: classesArray  // 🚨 CRÍTICO - Array de turmas
       }
       
@@ -1861,12 +1904,41 @@ if (lastAccessDate) {
   }
 
   // ═══════════════════════════════════════════════════════════
+  // 📸 SNAPSHOT E HISTÓRICO
+  // ═══════════════════════════════════════════════════════════
+
+  try {
+    // Buscar todos os produtos do user APÓS atualização
+    const userProducts = await UserProduct.find({ userId: user._id })
+      .populate('productId', 'name code platform')
+      .lean()
+
+    // Criar snapshot, comparar com anterior e registar histórico
+    const { comparison } = await snapshotAndCompare(
+      user,
+      userProducts as any[],
+      config.syncType,
+      config.syncId ? new mongoose.Types.ObjectId(config.syncId) : undefined
+    )
+
+    if (comparison.hasChanges && comparison.summary.totalChanges > 1) {
+      debugLog(`   📸 [Snapshot] ${comparison.summary.totalChanges} alterações registadas para ${user.email}`)
+      debugLog(`      - HIGH: ${comparison.summary.highPriorityChanges}`)
+      debugLog(`      - MEDIUM: ${comparison.summary.mediumPriorityChanges}`)
+      debugLog(`      - LOW: ${comparison.summary.lowPriorityChanges}`)
+    }
+  } catch (snapshotError: any) {
+    console.error(`⚠️  [Snapshot] Erro ao criar snapshot para ${user.email}:`, snapshotError.message)
+    // Não falhar o sync por erro no snapshot
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // RETORNAR RESULTADO
   // ═══════════════════════════════════════════════════════════
-  
-  return { 
-    action: isNew ? 'inserted' : (needsUpdate ? 'updated' : 'unchanged'), 
-    userId: userIdStr 
+
+  return {
+    action: isNew ? 'inserted' : (needsUpdate ? 'updated' : 'unchanged'),
+    userId: userIdStr
   }
 }
 

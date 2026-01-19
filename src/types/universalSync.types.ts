@@ -45,6 +45,12 @@ export interface UniversalSourceItem {
   className?: string
   productCode?: string
   currentModule?: number
+  // ✅ NOVOS CAMPOS DA API HOTMART
+  status?: string | null          // ACTIVE, INACTIVE, etc
+  role?: string | null
+  type?: string | null
+  locale?: string | null
+  isDeletable?: boolean | null
   
   // ═══════════════════════════════════════════════════════════
   // PLATFORM DATA (COMUM A TODAS AS PLATAFORMAS)
@@ -62,7 +68,8 @@ export interface UniversalSourceItem {
   // ═══════════════════════════════════════════════════════════
   progress?: {
     percentage?: number             // Todas as plataformas
-    completed?: number              // Hotmart específico
+    completed?: number              // Hotmart específico - lições completadas
+    total?: number                  // ✅ Hotmart específico - total de lições
     lessons?: Array<{
       pageId?: string
       pageName?: string
