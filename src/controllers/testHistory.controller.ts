@@ -70,18 +70,26 @@ export const makeTestChanges = async (req: Request, res: Response) => {
     const changes: string[] = []
 
     // Alteração 1: Nome
+    const oldName = user.name
     const newName = user.name.includes('(TESTE)') ? user.name : user.name + ' (TESTE)'
-    console.log(`1️⃣ [TEST] Nome: "${user.name}" → "${newName}"`)
-    changes.push(`Nome alterado de "${user.name}" para "${newName}"`)
-    user.name = newName
-    await user.save()
+    console.log(`1️⃣ [TEST] Nome: "${oldName}" → "${newName}"`)
+    changes.push(`Nome alterado de "${oldName}" para "${newName}"`)
+
+    // Atualizar apenas o nome, sem validação do modelo completo
+    await User.findByIdAndUpdate(user._id, {
+      $set: { name: newName }
+    })
 
     // Alteração 2: Engagement médio
-    const newEngagement = (user.averageEngagement || 50) + 10
-    console.log(`2️⃣ [TEST] Engagement: ${user.averageEngagement} → ${newEngagement}`)
-    changes.push(`Engagement alterado de ${user.averageEngagement} para ${newEngagement}`)
-    user.averageEngagement = newEngagement
-    await user.save()
+    const oldEngagement = user.averageEngagement || 50
+    const newEngagement = Math.min(oldEngagement + 10, 100)
+    console.log(`2️⃣ [TEST] Engagement: ${oldEngagement} → ${newEngagement}`)
+    changes.push(`Engagement alterado de ${oldEngagement} para ${newEngagement}`)
+
+    // Atualizar apenas o campo averageEngagement, sem validação do modelo completo
+    await User.findByIdAndUpdate(user._id, {
+      $set: { averageEngagement: newEngagement }
+    })
 
     // Alteração 3-5: No primeiro produto
     if (products.length > 0) {
