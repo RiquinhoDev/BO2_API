@@ -63,6 +63,7 @@ import "./models"
 import jobScheduler from "./jobs"
 import analyticsCacheService from "./services/analytics/analyticsCache.service"
 import cohortAnalyticsRoutes from './routes/cohortAnalytics.routes'
+import testHistoryRoutes from './routes/testHistory.routes'
 import syncSchedulerService from "./services/cron/scheduler"
 
 const app = express()
@@ -178,6 +179,9 @@ app.delete('/api/tag-rules/:id', deleteTagRule)
 // Communication History
 app.get('/api/communication-history', getCommunicationHistory)
 app.use('/cron-tags', cronManagementRoutes)
+
+// ⚠️ TEST ROUTES - APENAS DESENVOLVIMENTO
+app.use('/api/test/history', testHistoryRoutes)
 
 // Logs de confirmação
 console.log('✅ Routes: /api/analytics/cohort')

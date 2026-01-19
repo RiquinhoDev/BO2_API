@@ -1,14 +1,16 @@
 import express from 'express';
 // ✅ DASHBOARD V2 CONTROLLERS - Consolidado + Sprint 1 & 2
-import { 
+import {
   getDashboardStats,
-  getProductsBreakdown, 
-  getEngagementDistribution, 
+  getProductsBreakdown,
+  getEngagementDistribution,
   compareProducts,
   getDashboardStatsV3,  // Sprint 1 (AGORA COM MATERIALIZED VIEW!)
   searchDashboard        // Sprint 2
 } from '../controllers/dashboard.controller';
 import { rebuildDashboardStatsManual } from '../jobs/rebuildDashboardStats.job';
+// 🚀 QUICK ENDPOINTS (otimizados com dados agregados)
+import * as quickController from '../controllers/dashboardQuick.controller';
 
 const router = express.Router();
 
@@ -93,6 +95,28 @@ router.post('/stats/v3/rebuild', async (req, res) => {
  * Pesquisa global por nome, email ou tags
  */
 router.get('/search', searchDashboard);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⚡ QUICK ENDPOINTS - Dados agregados (RÁPIDOS!)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/dashboard/quick/product-comparison
+ * Comparação rápida de produtos (usa DashboardStats agregado)
+ */
+router.get('/quick/product-comparison', quickController.getProductComparison);
+
+/**
+ * GET /api/dashboard/quick/engagement-heatmap
+ * Heatmap de engagement (mock data por agora)
+ */
+router.get('/quick/engagement-heatmap', quickController.getEngagementHeatmap);
+
+/**
+ * GET /api/dashboard/quick/products-breakdown
+ * Breakdown rápido por produto
+ */
+router.get('/quick/products-breakdown', quickController.getProductsBreakdown);
 
 export default router;
 
