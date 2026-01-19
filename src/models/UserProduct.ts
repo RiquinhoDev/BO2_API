@@ -20,6 +20,9 @@ export interface IProgress {
   modulesCompleted?: string[]  // Array de nomes de módulos (Hotmart)
   lessonsCompleted?: string[]  // Array de pageIds (Hotmart)
   lastActivity?: Date
+  // ✅ HOTMART: Contadores de lições
+  completed?: number  // Número de lições completadas
+  total?: number      // Total de lições disponíveis
 
   // 🔴 REMOVIDOS - Não disponíveis nos APIs:
   // reportsGenerated, lastReportOpen (Curseduca não fornece)
@@ -102,6 +105,8 @@ export interface IUserProduct extends Document {
     notes?: string
     platform?: string
   }
+
+  platformData?: Record<string, unknown>
 
   createdAt: Date
   updatedAt: Date
@@ -319,7 +324,9 @@ const UserProductSchema = new Schema<IUserProduct>({
     refundedAt: Date,
     notes: String,
     platform: String
-  }
+  },
+
+  platformData: Schema.Types.Mixed
 }, {
   timestamps: true,
   collection: 'userproducts'

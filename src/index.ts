@@ -103,25 +103,31 @@ mongoose.connect(process.env.MONGO_URI || "")
       systemMonitor.start()
     }
 
-    // 🔥 WARM-UP: Pré-aquecer cache ao iniciar servidor
+    // 🔥 WARM-UP: Pré-aquecer cache em BACKGROUND (não bloquear servidor!)
     console.log('\n🔥 ============================================')
-    console.log('🔥 Iniciando warm-up do cache...')
+    console.log('🔥 Iniciando warm-up do cache em background...')
     console.log('🔥 ============================================\n')
-    await warmUpCache()
-    console.log('\n✅ ============================================')
-    console.log('✅ Cache pré-aquecido! Servidor pronto.')
-    console.log('✅ ============================================\n')
-    
-    // 📊 DASHBOARD STATS: Construir stats iniciais (DEPOIS do warm-up!)
-    console.log('\n📊 ============================================')
-    console.log('📊 Construindo Dashboard Stats iniciais...')
-    console.log('📊 (Usando cache já aquecido)')
-    console.log('📊 ============================================\n')
-    await buildDashboardStats()
-    console.log('\n✅ ============================================')
-    console.log('✅ Dashboard Stats iniciais construídos!')
-    console.log('✅ Servidor 100% PRONTO!')
-    console.log('✅ ============================================\n')
+    warmUpCache()
+      .then(() => {
+        console.log('\n✅ ============================================')
+        console.log('✅ Cache pré-aquecido! Servidor 100% PRONTO.')
+        console.log('✅ ============================================\n')
+
+        // 📊 DASHBOARD STATS: Construir stats iniciais (DEPOIS do warm-up!)
+        console.log('\n📊 ============================================')
+        console.log('📊 Construindo Dashboard Stats iniciais...')
+        console.log('📊 (Usando cache já aquecido)')
+        console.log('📊 ============================================\n')
+        return buildDashboardStats()
+      })
+      .then(() => {
+        console.log('\n✅ ============================================')
+        console.log('✅ Dashboard Stats iniciais construídos!')
+        console.log('✅ ============================================\n')
+      })
+      .catch((err) => {
+        console.error('❌ Erro no warm-up:', err)
+      })
     
 
     // 📊 PRODUCT SALES: Iniciar CRON job se habilitado

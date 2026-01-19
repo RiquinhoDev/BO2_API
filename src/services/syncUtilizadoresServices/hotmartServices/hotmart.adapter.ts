@@ -134,15 +134,37 @@ if (!hotmartId) {
       engagementScore: normalized.accessCount || 0
     },
 
+    // ✅ NOVOS CAMPOS DA API HOTMART
+    status: normalized.status,
+    role: normalized.role,
+    type: normalized.type,
+    locale: normalized.locale,
+    isDeletable: normalized.isDeletable,
+
+    platformData: {
+      raw: rawUser,
+      progress: progressData || null,
+      // ✅ Guardar todos os campos adicionais no platformData
+      hotmart: {
+        status: normalized.status,
+        role: normalized.role,
+        type: normalized.type,
+        locale: normalized.locale,
+        isDeletable: normalized.isDeletable,
+      }
+    },
+
     progress: progressData
       ? {
           percentage: progressData.completedPercentage || 0,
           completed: progressData.completed || 0,
+          total: progressData.total || 0,  // ✅ Adicionar total
           lessons: progressData.lessons || []
         }
       : {
           percentage: 0,
           completed: 0,
+          total: 0,
           lessons: []
         }
   })
