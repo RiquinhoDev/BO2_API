@@ -34,6 +34,12 @@ export interface HotmartUser {
   plus_access?: string
   access_count?: number
   engagement?: string
+  // ✅ NOVOS CAMPOS DA API HOTMART
+  status?: string  // ACTIVE, INACTIVE, etc
+  role?: string
+  type?: string
+  locale?: string
+  is_deletable?: boolean
 }
 
 export interface ProgressData {
@@ -362,24 +368,31 @@ export const normalizeHotmartUser = (
     email: hotmartUser.email.toLowerCase().trim(),
     name: hotmartUser.name.trim(),
     hotmartUserId: hotmartId,
-    
+
     // Datas
     purchaseDate: convertUnixTimestamp(hotmartUser.purchase_date),
-    signupDate: convertUnixTimestamp(hotmartUser.signup_date) || new Date(),
+    signupDate: convertUnixTimestamp(hotmartUser.signup_date) || null,  // ✅ null se não vier da API
     firstAccessDate: convertUnixTimestamp(hotmartUser.first_access_date),
     lastAccessDate: convertUnixTimestamp(hotmartUser.last_access_date),
-    
+
     // Status
     plusAccess: hotmartUser.plus_access || 'WITHOUT_PLUS_ACCESS',
-    
+
     // Turmas
     classId: hotmartUser.class_id,
     className: hotmartUser.class_name || (hotmartUser.class_id ? `Turma ${hotmartUser.class_id}` : undefined),
-    
+
     // Engagement
     accessCount: Number(hotmartUser.access_count) || 0,
     engagementLevel: hotmartUser.engagement || 'NONE',
-    
+
+    // ✅ NOVOS CAMPOS DA API HOTMART
+    status: hotmartUser.status || null,
+    role: hotmartUser.role || null,
+    type: hotmartUser.type || null,
+    locale: hotmartUser.locale || null,
+    isDeletable: hotmartUser.is_deletable !== undefined ? hotmartUser.is_deletable : null,
+
     // Progresso (se disponível)
     progress: progressData ? {
       completedPercentage: progressData.completedPercentage,
