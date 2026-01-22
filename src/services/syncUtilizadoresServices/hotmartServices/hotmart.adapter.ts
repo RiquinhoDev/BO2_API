@@ -158,14 +158,23 @@ if (!hotmartId) {
       ? {
           percentage: progressData.completedPercentage || 0,
           completed: progressData.completed || 0,
-          total: progressData.total || 0,  // ✅ Adicionar total
-          lessons: progressData.lessons || []
+          total: progressData.total || 0,
+          lessons: progressData.lessons || [],
+          // ✅ MÓDULOS - Adicionar campos de módulos
+          modulesList: progressData.modulesList || [],
+          totalModules: progressData.totalModules || 0,
+          modulesCompleted: progressData.modulesCompleted || [],
+          currentModule: progressData.currentModule
         }
       : {
           percentage: 0,
           completed: 0,
           total: 0,
-          lessons: []
+          lessons: [],
+          modulesList: [],
+          totalModules: 0,
+          modulesCompleted: [],
+          currentModule: undefined
         }
   })
       } catch (error: any) {

@@ -25,6 +25,21 @@ export interface HotmartProductProgress {
       completedAt: Date
       timeSpent: number
     }>
+    // ✅ MÓDULOS
+    modulesList?: Array<{
+      moduleId: string
+      name: string
+      sequence: number
+      totalPages: number
+      completedPages: number
+      isCompleted: boolean
+      isExtra: boolean
+      progressPercentage: number
+      lastCompletedDate?: number
+    }>
+    totalModules?: number
+    modulesCompleted?: string[]
+    currentModule?: number
   }
 }
 
