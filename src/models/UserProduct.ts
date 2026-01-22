@@ -24,6 +24,20 @@ export interface IProgress {
   completed?: number  // Número de lições completadas
   total?: number      // Total de lições disponíveis
 
+  // ✅ HOTMART: Detalhes completos dos módulos
+  modulesList?: Array<{
+    moduleId: string
+    name: string
+    sequence: number
+    totalPages: number
+    completedPages: number
+    isCompleted: boolean
+    isExtra: boolean
+    progressPercentage: number
+    lastCompletedDate?: number
+  }>
+  totalModules?: number  // Total de módulos do curso
+
   // 🔴 REMOVIDOS - Não disponíveis nos APIs:
   // reportsGenerated, lastReportOpen (Curseduca não fornece)
   // videosWatched, quizzesCompleted (Hotmart não fornece)
@@ -206,7 +220,23 @@ const UserProductSchema = new Schema<IUserProduct>({
     currentModule: Number,  // Hotmart apenas
     modulesCompleted: [String],  // Array de nomes de módulos (Hotmart)
     lessonsCompleted: [String],  // Array de pageIds (Hotmart)
-    lastActivity: Date
+    lastActivity: Date,
+    completed: Number,  // Número de lições completadas (Hotmart)
+    total: Number,      // Total de lições (Hotmart)
+
+    // ✅ HOTMART: Detalhes completos dos módulos
+    modulesList: [{
+      moduleId: String,
+      name: String,
+      sequence: Number,
+      totalPages: Number,
+      completedPages: Number,
+      isCompleted: Boolean,
+      isExtra: Boolean,
+      progressPercentage: Number,
+      lastCompletedDate: Number
+    }],
+    totalModules: Number  // Total de módulos do curso
 
     // 🔴 REMOVIDOS campos não disponíveis nos APIs
   },
