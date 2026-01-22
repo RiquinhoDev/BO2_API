@@ -46,3 +46,30 @@ export interface HotmartLesson {
       progressPercentage: number
     }[]
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // MÓDULOS DO HOTMART CLUB
+  // ═══════════════════════════════════════════════════════════
+
+  export interface HotmartModule {
+    module_id: string
+    name: string
+    sequence: number
+    is_extra: boolean
+    is_extra_paid: boolean
+    is_public: boolean
+    classes: string[]
+    total_pages: number
+  }
+
+  export interface HotmartModuleProgress {
+    moduleId: string
+    name: string
+    sequence: number
+    totalPages: number
+    completedPages: number
+    isCompleted: boolean
+    isExtra: boolean
+    progressPercentage: number
+    lastCompletedDate?: number  // timestamp
+  }

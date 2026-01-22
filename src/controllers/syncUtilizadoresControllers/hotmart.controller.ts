@@ -678,7 +678,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
 // ✅ PATCH: Invalidar cache e rebuild stats
 console.log('🔄 [HotmartUniversal] Invalidando cache e reconstruindo stats...')
 
-const { clearUnifiedCache } = require('../../services/dualReadService')
+const { clearUnifiedCache } = require('../../services/syncUtilizadoresServices/dualReadService')
 clearUnifiedCache()
 
 const { buildDashboardStats } = require('../../services/dashboardStatsBuilder.service')

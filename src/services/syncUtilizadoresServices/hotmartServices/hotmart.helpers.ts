@@ -4,6 +4,45 @@
 // ════════════════════════════════════════════════════════════
 
 import axios from 'axios'
+import { HotmartModule, HotmartModuleProgress } from '../../../types/lesson.types'
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+const getRetryDelayMs = (error: any, attempt: number, baseDelayMs: number) => {
+  const retryAfterHeader = error?.response?.headers?.['retry-after']
+  const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : NaN
+  if (!Number.isNaN(retryAfter) && retryAfter > 0) {
+    return retryAfter * 1000
+  }
+
+  const jitter = Math.floor(Math.random() * 250)
+  return Math.min(baseDelayMs * Math.pow(2, attempt) + jitter, 10000)
+}
+
+async function requestWithRetry<T>(
+  fn: () => Promise<T>,
+  options: { maxRetries: number; baseDelayMs: number }
+): Promise<T> {
+  let attempt = 0
+
+  while (true) {
+    try {
+      return await fn()
+    } catch (error: any) {
+      const status = error?.response?.status
+      if (status !== 429 || attempt >= options.maxRetries) {
+        throw error
+      }
+
+      const delay = getRetryDelayMs(error, attempt, options.baseDelayMs)
+      console.warn(
+        `[HotmartFetch] Rate limited (429). Retry in ${delay}ms (attempt ${attempt + 1}/${options.maxRetries})`
+      )
+      await sleep(delay)
+      attempt += 1
+    }
+  }
+}
 
 // ═══════════════════════════════════════════════════════════
 // TYPES
@@ -54,6 +93,23 @@ export interface ProgressData {
     isCompleted: boolean
     completedDate?: Date
   }[]
+
+  // ✅ MÓDULOS
+  modulesList?: Array<{
+    moduleId: string
+    name: string
+    sequence: number
+    totalPages: number
+    completedPages: number
+    isCompleted: boolean
+    isExtra: boolean
+    progressPercentage: number
+    lastCompletedDate?: number
+  }>
+  totalModules?: number
+  modulesCompleted?: string[]
+  currentModule?: number
+
   lastUpdated: Date
 }
 
@@ -131,13 +187,17 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
 
       console.log(`📄 [HotmartFetch] Página ${pageCount}: ${requestUrl}`)
 
-      const response = await axios.get(requestUrl, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 30000 // ✅ 30s timeout por request
-      })
+      const response = await requestWithRetry(
+        () =>
+          axios.get(requestUrl, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 30000 // ?o. 30s timeout por request
+          }),
+        { maxRetries: 5, baseDelayMs: 1000 }
+      )
 
       // Normalizar resposta (diferentes formatos possíveis)
       const users = response.data.users || response.data.items || response.data.data || []
@@ -155,7 +215,7 @@ console.log(`   nextPageToken: ${nextPageToken ? 'exists' : 'null'}`)
 
 // Rate limiting (só se houver próxima página)
 if (nextPageToken) {
-  await new Promise(resolve => setTimeout(resolve, 200))
+  await sleep(500)
 }
     } while (nextPageToken)
 
@@ -181,15 +241,19 @@ export const fetchUserLessons = async (
   try {
     const subdomain = process.env.subdomain || 'ograndeinvestimento-bomrmk'
 
-const response = await axios.get(
-  `https://developers.hotmart.com/club/api/v1/users/${userId}/lessons?subdomain=${subdomain}`,
-  {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    },
-    timeout: 10000 // ✅ 10s timeout por request
-  }
+const response = await requestWithRetry(
+  () =>
+    axios.get(
+      `https://developers.hotmart.com/club/api/v1/users/${userId}/lessons?subdomain=${subdomain}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000 // ?o. 10s timeout por request
+      }
+    ),
+  { maxRetries: 3, baseDelayMs: 500 }
 )
 
     return response.data.lessons || []
@@ -279,10 +343,13 @@ export const fetchBatchUserProgress = async (
 
 /**
  * Calcular progresso baseado nas lições
+ * (Extrai módulos diretamente das lições - sem endpoint /modules)
  * @param {HotmartLesson[]} lessons - Lista de lições
  * @returns {ProgressData} Dados de progresso calculados
  */
-export const calculateProgress = (lessons: HotmartLesson[]): ProgressData => {
+export const calculateProgress = (
+  lessons: HotmartLesson[]
+): ProgressData => {
   if (lessons.length === 0) {
     return {
       completedPercentage: 0,
@@ -297,6 +364,15 @@ export const calculateProgress = (lessons: HotmartLesson[]): ProgressData => {
   const total = lessons.length
   const completedPercentage = Math.round((completed / total) * 100)
 
+  // ✅ NOVO: Calcular módulos DIRETAMENTE DAS LIÇÕES (sem endpoint /modules)
+  const modulesList = calculateModuleProgress(lessons)
+  const totalModules = modulesList.length
+  const modulesCompleted = modulesList.filter(m => m.isCompleted).map(m => m.moduleId)
+
+  // Encontrar primeiro módulo incompleto (ou último se todos completos)
+  const firstIncomplete = modulesList.find(m => !m.isCompleted)
+  const currentModule = firstIncomplete?.sequence || modulesList[modulesList.length - 1]?.sequence
+
   return {
     completedPercentage,
     total,
@@ -309,6 +385,10 @@ export const calculateProgress = (lessons: HotmartLesson[]): ProgressData => {
       isCompleted: lesson.is_completed,
       completedDate: lesson.completed_date ? new Date(lesson.completed_date) : undefined
     })),
+    modulesList,
+    totalModules,
+    modulesCompleted,
+    currentModule,
     lastUpdated: new Date()
   }
 }
@@ -399,6 +479,10 @@ export const normalizeHotmartUser = (
       total: progressData.total,
       completed: progressData.completed,
       lessons: progressData.lessons,
+      modulesList: progressData.modulesList,
+      totalModules: progressData.totalModules,
+      modulesCompleted: progressData.modulesCompleted,
+      currentModule: progressData.currentModule,
       lastUpdated: progressData.lastUpdated
     } : undefined
   }
@@ -428,20 +512,144 @@ export const validateHotmartUser = (user: HotmartUser): boolean => {
 }
 
 // ═══════════════════════════════════════════════════════════
+// MÓDULOS DO HOTMART CLUB
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Buscar módulos de um curso
+ * @param {string} accessToken - Token de autenticação
+ * @param {string} subdomain - Subdomínio do curso (ex: 'ogi-v1')
+ * @returns {Promise<HotmartModule[]>} Lista de módulos do curso
+ */
+export const fetchCourseModules = async (
+  accessToken: string,
+  subdomain: string = 'ogi-v1'
+): Promise<HotmartModule[]> => {
+  try {
+    const response = await axios.get(
+      'https://developers.hotmart.com/club/api/v1/modules',
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          subdomain,
+          is_extra: false
+        }
+      }
+    )
+
+    const modules: HotmartModule[] = Array.isArray(response.data) ? response.data : []
+
+    // Ordenar por sequência
+    modules.sort((a, b) => a.sequence - b.sequence)
+
+    console.log(`✅ [HotmartModules] ${modules.length} módulos encontrados para ${subdomain}`)
+    return modules
+  } catch (error: any) {
+    const status = error.response?.status
+    const errorMsg = error.response?.data?.message || error.message
+
+    if (status === 401) {
+      console.warn(`⚠️ [HotmartModules] Endpoint /modules requer permissões adicionais (401)`)
+      console.warn(`⚠️ [HotmartModules] Sync continuará SEM dados de módulos`)
+    } else if (status === 429) {
+      console.warn(`⚠️ [HotmartModules] Rate limit atingido (429) - tente novamente mais tarde`)
+    } else {
+      console.error(`❌ [HotmartModules] Erro ao buscar módulos de ${subdomain}:`, errorMsg)
+    }
+
+    return []
+  }
+}
+
+/**
+ * Calcular progresso por módulo A PARTIR DAS LIÇÕES
+ * (não precisa do endpoint /modules - extrai módulos das lições)
+ * @param {HotmartLesson[]} lessons - Lições do utilizador
+ * @returns {HotmartModuleProgress[]} Progresso de cada módulo
+ */
+export const calculateModuleProgress = (
+  lessons: HotmartLesson[]
+): HotmartModuleProgress[] => {
+
+  if (lessons.length === 0) {
+    return []
+  }
+
+  // Agrupar lições por nome de módulo
+  const moduleMap = new Map<string, {
+    name: string
+    isExtra: boolean
+    lessons: HotmartLesson[]
+    firstIndex: number
+  }>()
+
+  for (let i = 0; i < lessons.length; i++) {
+    const lesson = lessons[i]
+    const moduleName = lesson.module_name.trim()
+
+    if (!moduleMap.has(moduleName)) {
+      moduleMap.set(moduleName, {
+        name: moduleName,
+        isExtra: lesson.is_module_extra,
+        lessons: [],
+        firstIndex: i
+      })
+    }
+
+    moduleMap.get(moduleName)!.lessons.push(lesson)
+  }
+
+  // Converter Map para array e calcular progresso
+  const moduleProgressList: HotmartModuleProgress[] = []
+
+  for (const [moduleName, moduleData] of moduleMap.entries()) {
+    const totalPages = moduleData.lessons.length
+    const completedPages = moduleData.lessons.filter(l => l.is_completed).length
+    const isCompleted = totalPages > 0 && completedPages === totalPages
+
+    // Encontrar timestamp da última lição completada
+    const completedLessons = moduleData.lessons.filter(l => l.is_completed && l.completed_date)
+    const lastCompletedDate = completedLessons.length > 0
+      ? Math.max(...completedLessons.map(l => l.completed_date || 0))
+      : undefined
+
+    moduleProgressList.push({
+      moduleId: moduleName.toLowerCase().replace(/\s+/g, '-'), // Gerar ID a partir do nome
+      name: moduleData.name,
+      sequence: moduleData.firstIndex + 1, // Sequência baseada na primeira aparição
+      totalPages,
+      completedPages,
+      isCompleted,
+      isExtra: moduleData.isExtra,
+      progressPercentage: totalPages > 0 ? Math.round((completedPages / totalPages) * 100) : 0,
+      lastCompletedDate
+    })
+  }
+
+  // Ordenar pela primeira aparição (mantém ordem natural do curso)
+  return moduleProgressList.sort((a, b) => a.sequence - b.sequence)
+}
+
+// ═══════════════════════════════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════════════════════════════
 
 export default {
   // Auth
   getHotmartAccessToken,
-  
+
   // Fetch
   fetchAllHotmartUsers,
   fetchUserLessons,
   fetchBatchUserProgress,
-  
+  fetchCourseModules,  // ✅ NOVO
+
   // Process
   calculateProgress,
+  calculateModuleProgress,  // ✅ NOVO
   convertUnixTimestamp,
   normalizeHotmartUser,
   validateHotmartUser

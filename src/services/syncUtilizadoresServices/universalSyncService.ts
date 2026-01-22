@@ -1539,6 +1539,18 @@ if (lastAccessDate) {
             upNeedsUpdate = true
           }
         }
+
+        // ✅ MÓDULOS - Lista completa com detalhes
+        if (item.progress?.modulesList && Array.isArray(item.progress.modulesList)) {
+          upUpdateFields['progress.modulesList'] = item.progress.modulesList
+          upNeedsUpdate = true
+        }
+
+        // ✅ MÓDULOS - Total de módulos
+        if (item.progress?.totalModules !== undefined) {
+          upUpdateFields['progress.totalModules'] = toNumber(item.progress.totalModules, 0)
+          upNeedsUpdate = true
+        }
       }
       
       // ═══════════════════════════════════════════════════════════

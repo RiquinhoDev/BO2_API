@@ -154,6 +154,16 @@ function calculateHotmartProgressFromProduct(
     (product.engagement?.lastLogin as any) ||
     null
 
+  // ✅ MÓDULOS - Extrair dados da BD
+  const modulesList = Array.isArray(product.progress?.modulesList)
+    ? product.progress.modulesList
+    : undefined
+  const totalModules = product.progress?.totalModules
+  const modulesCompleted = Array.isArray(product.progress?.modulesCompleted)
+    ? product.progress.modulesCompleted
+    : undefined
+  const currentModule = product.progress?.currentModule
+
   return {
     productCode,
     productName,
@@ -165,6 +175,11 @@ function calculateHotmartProgressFromProduct(
       totalTimeMinutes,
       lastAccessDate,
       recentLessons,
+      // ✅ MÓDULOS
+      modulesList,
+      totalModules,
+      modulesCompleted,
+      currentModule,
     },
   }
 }
