@@ -21,6 +21,7 @@ import reengagementRoutes from './reengagement.routes'
 import discoveryRoutes from './discovery.routes'
 import acReaderRoutes from './ACroutes/acReader.routes'
 import studentsRoutes from './students'
+import tagMonitoringRoutes from './tagMonitoring.routes'
 
 // ✅ CRON UTILIZADORES (Sistema Novo)
 import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
@@ -79,6 +80,9 @@ router.use('/sync/reports', syncReports)           // /api/sync/reports/*
 // ✅ Sistema de CRON para gestão de Tags AC
 router.use('/cron-tags', cronManagementRoutes)     // /api/cron-tags/config, /api/cron-tags/execute
 
+// 🏷️ TAG MONITORING SYSTEM (Monitorização Semanal de Tags Nativas)
+router.use('/tag-monitoring', tagMonitoringRoutes) // /api/tag-monitoring/*
+
 // 🏥 HEALTH CHECK MELHORADO
 router.get("/health", (req, res) => {
   res.status(200).json({
@@ -113,7 +117,8 @@ router.get("/health", (req, res) => {
       
       // CRON Systems
       cronUtilizadores: "✅ Disponível",
-      cronTags: "✅ Disponível"
+      cronTags: "✅ Disponível",
+      tagMonitoring: "✅ Disponível"
     },
     integrations: {
       hotmart: "✅ Configurado",
@@ -141,7 +146,8 @@ router.get("/info", (req, res) => {
       "Active Campaign Integration",
       "Tag Rules Engine",
       "CRON Utilizadores",
-      "CRON Tags AC"
+      "CRON Tags AC",
+      "Tag Monitoring System"
     ],
     endpoints: {
       // Principais
@@ -158,7 +164,8 @@ router.get("/info", (req, res) => {
       
       // CRON Systems
       cronUtilizadores: "/api/cron/*",         // Sistema de jobs de utilizadores
-      cronTags: "/api/cron-tags/*"             // Sistema de tags AC
+      cronTags: "/api/cron-tags/*",            // Sistema de tags AC
+      tagMonitoring: "/api/tag-monitoring/*"   // Monitorização de tags nativas
     }
   })
 })
