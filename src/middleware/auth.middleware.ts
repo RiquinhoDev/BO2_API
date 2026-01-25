@@ -27,7 +27,11 @@ export const authenticate = async (
     // Get token from header
     const authHeader = req.headers.authorization
 
+    console.log('🔐 Auth Middleware - URL:', req.method, req.originalUrl)
+    console.log('🔐 Auth Header:', authHeader ? `${authHeader.substring(0, 30)}...` : 'NENHUM')
+
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.warn('⚠️ Token não fornecido ou formato incorreto')
       return res.status(401).json({
         success: false,
         message: "Token não fornecido"
@@ -35,6 +39,7 @@ export const authenticate = async (
     }
 
     const token = authHeader.substring(7) // Remove "Bearer "
+    console.log('🔑 Token extraído:', `${token.substring(0, 20)}...`)
 
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET) as {
@@ -44,12 +49,15 @@ export const authenticate = async (
       permissions: string[]
     }
 
+    console.log('✅ Token válido para user:', decoded.email)
+
     // Attach user to request
     req.user = decoded
 
     next()
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
+      console.error('❌ Token inválido:', error.message)
       return res.status(401).json({
         success: false,
         message: "Token inválido"
@@ -57,13 +65,14 @@ export const authenticate = async (
     }
 
     if (error instanceof jwt.TokenExpiredError) {
+      console.error('❌ Token expirado:', error.message)
       return res.status(401).json({
         success: false,
         message: "Token expirado"
       })
     }
 
-    console.error("Auth middleware error:", error)
+    console.error("❌ Auth middleware error:", error)
     res.status(500).json({
       success: false,
       message: "Erro na autenticação"
