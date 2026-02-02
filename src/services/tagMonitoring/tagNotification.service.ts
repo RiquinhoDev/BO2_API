@@ -1,9 +1,11 @@
 import {
   TagChangeNotification,
   TagChangeDetail,
+  CriticalTag,
   ITagChangeNotification,
   ITagChangeDetail,
 } from '../../models/tagMonitoring'
+import { TagPriority } from '../../models/tagMonitoring/CriticalTag'
 import logger from '../../utils/logger'
 
 export interface StudentChange {
@@ -52,6 +54,10 @@ class TagNotificationService {
         return existing
       }
 
+      // Buscar prioridade da tag
+      const criticalTag = await CriticalTag.findOne({ tagName, isActive: true })
+      const priority: TagPriority = criticalTag?.priority || 'LOW'
+
       // Criar detalhes individuais
       const detailsPromises = students.map((student) =>
         TagChangeDetail.create({
@@ -70,6 +76,7 @@ class TagNotificationService {
       // Criar notificação agrupada
       const notification = await TagChangeNotification.create({
         tagName,
+        priority,
         changeType,
         affectedCount: students.length,
         weekNumber,
@@ -99,6 +106,7 @@ class TagNotificationService {
 
   /**
    * Lista notificações com filtros opcionais
+   * Ordena por prioridade (CRITICAL > MEDIUM > LOW) e depois por data
    */
   async getNotifications(filters: NotificationFilters = {}): Promise<ITagChangeNotification[]> {
     try {
@@ -117,12 +125,18 @@ class TagNotificationService {
       if (year !== undefined) query.year = year
       if (tagName) query.tagName = tagName
 
-      const notifications = await TagChangeNotification.find(query)
-        .sort({ createdAt: -1 })
-        .limit(limit)
-        .skip(skip)
+      const notifications = await TagChangeNotification.find(query).lean()
 
-      return notifications
+      // Ordenar por prioridade e data
+      const priorityOrder: Record<string, number> = { CRITICAL: 1, MEDIUM: 2, LOW: 3 }
+      notifications.sort((a: any, b: any) => {
+        const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
+        if (priorityDiff !== 0) return priorityDiff
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+
+      // Aplicar skip e limit após ordenar
+      return notifications.slice(skip, skip + limit) as any[]
     } catch (error) {
       logger.error('Erro ao listar notificações', { filters, error })
       throw error

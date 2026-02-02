@@ -543,7 +543,8 @@ private async executeSyncJob(job: ICronJobConfig): Promise<{
     'EvaluateRules',
     'ResetCounters',
     'RebuildDashboardStats',
-    'CronExecutionCleanup'
+    'CronExecutionCleanup',
+    'WeeklyTagSnapshot'
   ]
   
   // Verificar se job atual tem lógica específica
@@ -642,7 +643,12 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
       console.log('🗑️  Executando: CronExecutionCleanup (cleanup)')
       const jobModule = await import('../../jobs/cronExecutionCleanup.job')
       result = await jobModule.default.run()
-      
+
+    } else if (job.name.includes('WeeklyTagSnapshot')) {
+      console.log('🏷️  Executando: WeeklyTagSnapshot (tags nativas)')
+      const jobModule = await import('../../jobs/weeklyTagSnapshot.job')
+      result = await jobModule.default.run()
+
     } else {
       throw new Error(`Job específico não encontrado: ${job.name}`)
     }

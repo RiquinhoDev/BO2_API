@@ -59,6 +59,11 @@ export interface IEngagement {
   daysSinceEnrollment?: number  // Calculado
   enrolledAt?: Date
 
+  // 🆕 TAG SYSTEM V2 - Campos necessários para novo sistema de tags
+  daysInactive?: number  // Dias desde último acesso (usa daysSinceLastLogin ou daysSinceLastAction)
+  loginsLast30Days?: number  // Logins nos últimos 30 dias (para consistência)
+  weeksActiveLast30Days?: number  // Semanas com pelo menos 1 acesso nos últimos 30 dias
+
   // 🔴 REMOVIDOS - Não disponíveis nos APIs:
   // loginStreak (precisa cálculo complexo)
   // totalActions, actionsLastWeek, actionsLastMonth (Curseduca não fornece)

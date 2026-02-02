@@ -251,9 +251,51 @@ export const getClarezaStudents: RequestHandler = async (_req, res) => {
       ]
     })
       .select('name email hotmart curseduca activeCampaignId')
-      .limit(200)
+      .sort({ email: 1 })
 
     console.log(`✅ [Clareza] ${students.length} alunos encontrados`)
+
+    // ✅ BUSCAR PRODUTO CLAREZA
+    const clarezaProduct = await Product.findOne({ name: 'Clareza' }).select('_id').lean()
+    const clarezaProductId = clarezaProduct?._id
+
+    // ✅ BUSCAR TAGS DA BD (UserProduct.activeCampaignData.tags) - FONTE DA VERDADE
+    const userIds = students.map(s => s._id)
+    const userProducts = await UserProduct.find({
+      userId: { $in: userIds },
+      productId: clarezaProductId
+    }).select('userId activeCampaignData').lean()
+
+    const emailToBDTagsMap = new Map<string, string[]>()
+    userProducts.forEach((up: any) => {
+      const user = students.find(s => s._id.toString() === up.userId.toString())
+      if (user?.email && up.activeCampaignData?.tags) {
+        const clarezaTags = up.activeCampaignData.tags.filter((t: string) => /CLAREZA/i.test(t))
+        if (clarezaTags.length > 0) {
+          emailToBDTagsMap.set(user.email, clarezaTags)
+        }
+      }
+    })
+
+    // ✅ BUSCAR TAGS DO AC (ac_contact_states) - PARA COMPARAÇÃO
+    const ACContactState = (await import('../../models/acTags/ACContactState')).default
+    const acStates = await ACContactState.find({
+      email: { $in: students.map(s => s.email).filter(Boolean) }
+    }).lean()
+
+    const emailToACTagsMap = new Map<string, string[]>()
+    acStates.forEach(state => {
+      if (state.email && state.tags && Array.isArray(state.tags)) {
+        const clarezaTags = state.tags
+          .filter((t: any) => t.name && /CLAREZA/i.test(t.name))
+          .map((t: any) => t.name)
+        if (clarezaTags.length > 0) {
+          emailToACTagsMap.set(state.email, clarezaTags)
+        }
+      }
+    })
+
+    console.log(`✅ [Clareza] Tags na BD: ${emailToBDTagsMap.size} | Tags no AC: ${emailToACTagsMap.size}`)
 
     const activeLogins = Math.floor(students.length * 0.7)
     const inactive14d = Math.floor(students.length * 0.2)
@@ -268,20 +310,28 @@ export const getClarezaStudents: RequestHandler = async (_req, res) => {
         inactivePercentage:
           students.length > 0 ? ((inactive14d + inactive21d) / students.length) * 100 : 0
       },
-      students: students.map(s => ({
-        _id: s._id,
-        name: s.name || s.email?.split('@')[0] || 'Sem nome',
-        email: s.email,
-        lastReportOpen: null,
-        daysInactive: Math.floor(Math.random() * 30),
-        appliedTags: [],
-        isConsistent: Math.random() > 0.5,
-        platform: s.hotmart?.hotmartUserId
-          ? 'Hotmart'
-          : s.curseduca?.curseducaUserId
-            ? 'Curseduca'
-            : 'N/A'
-      }))
+      students: students.map(s => {
+        const bdTags = s.email ? (emailToBDTagsMap.get(s.email) || []) : []
+        const acTags = s.email ? (emailToACTagsMap.get(s.email) || []) : []
+        const isSynced = JSON.stringify(bdTags.sort()) === JSON.stringify(acTags.sort())
+
+        return {
+          _id: s._id,
+          name: s.name || s.email?.split('@')[0] || 'Sem nome',
+          email: s.email,
+          lastReportOpen: null,
+          daysInactive: Math.floor(Math.random() * 30),
+          appliedTags: bdTags, // ✅ Mostrar tags da BD (fonte da verdade)
+          appliedTagsAC: acTags, // ✅ Mostrar tags do AC (para comparação)
+          tagsSynced: isSynced, // ✅ Se estão sincronizadas
+          isConsistent: Math.random() > 0.5,
+          platform: s.hotmart?.hotmartUserId
+            ? 'Hotmart'
+            : s.curseduca?.curseducaUserId
+              ? 'Curseduca'
+              : 'N/A'
+        }
+      })
     })
     return
   } catch (error: any) {
@@ -351,9 +401,51 @@ export const getOGIStudents: RequestHandler = async (_req, res) => {
       ]
     })
       .select('name email hotmart curseduca activeCampaignId')
-      .limit(200)
+      .sort({ email: 1 })
 
     console.log(`✅ [OGI] ${students.length} alunos encontrados`)
+
+    // ✅ BUSCAR PRODUTO OGI
+    const ogiProduct = await Product.findOne({ code: 'OGI_V1' }).select('_id').lean()
+    const ogiProductId = ogiProduct?._id
+
+    // ✅ BUSCAR TAGS DA BD (UserProduct.activeCampaignData.tags) - FONTE DA VERDADE
+    const userIds = students.map(s => s._id)
+    const userProducts = await UserProduct.find({
+      userId: { $in: userIds },
+      productId: ogiProductId
+    }).select('userId activeCampaignData').lean()
+
+    const emailToBDTagsMap = new Map<string, string[]>()
+    userProducts.forEach((up: any) => {
+      const user = students.find(s => s._id.toString() === up.userId.toString())
+      if (user?.email && up.activeCampaignData?.tags) {
+        const ogiTags = up.activeCampaignData.tags.filter((t: string) => /^OGI_/i.test(t))
+        if (ogiTags.length > 0) {
+          emailToBDTagsMap.set(user.email, ogiTags)
+        }
+      }
+    })
+
+    // ✅ BUSCAR TAGS DO AC (ac_contact_states) - PARA COMPARAÇÃO
+    const ACContactState = (await import('../../models/acTags/ACContactState')).default
+    const acStates = await ACContactState.find({
+      email: { $in: students.map(s => s.email).filter(Boolean) }
+    }).lean()
+
+    const emailToACTagsMap = new Map<string, string[]>()
+    acStates.forEach(state => {
+      if (state.email && state.tags && Array.isArray(state.tags)) {
+        const ogiTags = state.tags
+          .filter((t: any) => t.name && /^OGI_/i.test(t.name))
+          .map((t: any) => t.name)
+        if (ogiTags.length > 0) {
+          emailToACTagsMap.set(state.email, ogiTags)
+        }
+      }
+    })
+
+    console.log(`✅ [OGI] Tags na BD: ${emailToBDTagsMap.size} | Tags no AC: ${emailToACTagsMap.size}`)
 
     const activeLogins = Math.floor(students.length * 0.6)
     const inactive10d = Math.floor(students.length * 0.25)
@@ -368,20 +460,28 @@ export const getOGIStudents: RequestHandler = async (_req, res) => {
         inactivePercentage:
           students.length > 0 ? ((inactive10d + inactive21d) / students.length) * 100 : 0
       },
-      students: students.map(s => ({
-        _id: s._id,
-        name: s.name || s.email?.split('@')[0] || 'Sem nome',
-        email: s.email,
-        lastLogin: null,
-        daysInactive: Math.floor(Math.random() * 30),
-        appliedTags: [],
-        moduleProgress: Math.floor(Math.random() * 100),
-        platform: s.hotmart?.hotmartUserId
-          ? 'Hotmart'
-          : s.curseduca?.curseducaUserId
-            ? 'Curseduca'
-            : 'N/A'
-      }))
+      students: students.map(s => {
+        const bdTags = s.email ? (emailToBDTagsMap.get(s.email) || []) : []
+        const acTags = s.email ? (emailToACTagsMap.get(s.email) || []) : []
+        const isSynced = JSON.stringify(bdTags.sort()) === JSON.stringify(acTags.sort())
+
+        return {
+          _id: s._id,
+          name: s.name || s.email?.split('@')[0] || 'Sem nome',
+          email: s.email,
+          lastLogin: null,
+          daysInactive: Math.floor(Math.random() * 30),
+          appliedTags: bdTags, // ✅ Mostrar tags da BD (fonte da verdade)
+          appliedTagsAC: acTags, // ✅ Mostrar tags do AC (para comparação)
+          tagsSynced: isSynced, // ✅ Se estão sincronizadas
+          moduleProgress: Math.floor(Math.random() * 100),
+          platform: s.hotmart?.hotmartUserId
+            ? 'Hotmart'
+            : s.curseduca?.curseducaUserId
+              ? 'Curseduca'
+              : 'N/A'
+        }
+      })
     })
     return
   } catch (error: any) {

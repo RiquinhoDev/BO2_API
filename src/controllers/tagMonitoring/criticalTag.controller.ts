@@ -32,7 +32,7 @@ export const getCriticalTags = async (req: Request, res: Response) => {
  */
 export const addCriticalTag = async (req: Request, res: Response) => {
   try {
-    const { tagName, description } = req.body
+    const { tagName, description, priority } = req.body
     const userId = req.user?.id
 
     if (!tagName) {
@@ -49,7 +49,21 @@ export const addCriticalTag = async (req: Request, res: Response) => {
       })
     }
 
-    const tag = await criticalTagManagementService.addCriticalTag(tagName, userId, description)
+    // Validar priority
+    const validPriorities = ['CRITICAL', 'MEDIUM', 'LOW']
+    if (priority && !validPriorities.includes(priority)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Prioridade inválida. Use: CRITICAL, MEDIUM ou LOW',
+      })
+    }
+
+    const tag = await criticalTagManagementService.addCriticalTag(
+      tagName,
+      userId,
+      description,
+      priority
+    )
 
     res.status(201).json({
       success: true,
@@ -187,6 +201,55 @@ export const toggleCriticalTag = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Erro ao alternar tag crítica',
+      error: error.message,
+    })
+  }
+}
+
+/**
+ * PATCH /api/tag-monitoring/critical-tags/:id/priority
+ * Atualiza a prioridade de uma tag crítica
+ */
+export const updateCriticalTagPriority = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params
+    const { priority } = req.body
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'ID da tag é obrigatório',
+      })
+    }
+
+    const validPriorities = ['CRITICAL', 'MEDIUM', 'LOW']
+    if (!priority || !validPriorities.includes(priority)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Prioridade inválida. Use: CRITICAL, MEDIUM ou LOW',
+      })
+    }
+
+    const tag = await criticalTagManagementService.updatePriority(id, priority)
+
+    res.json({
+      success: true,
+      message: `Prioridade atualizada para ${priority}`,
+      data: tag,
+    })
+  } catch (error: any) {
+    logger.error('Erro ao atualizar prioridade:', error)
+
+    if (error.message.includes('não encontrada')) {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      })
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar prioridade',
       error: error.message,
     })
   }

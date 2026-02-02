@@ -316,3 +316,44 @@ export const toggleMonitoring = async (req: Request, res: Response) => {
     })
   }
 }
+
+/**
+ * GET /api/tag-monitoring/students-by-priority
+ * Busca alunos que possuem tags de determinadas prioridades
+ */
+export const getStudentsByPriority = async (req: Request, res: Response) => {
+  try {
+    const { priorities, tagName, limit, skip } = req.query
+
+    // Parse priorities[] array
+    let prioritiesArray: ('CRITICAL' | 'MEDIUM' | 'LOW')[] | undefined
+    if (priorities) {
+      if (Array.isArray(priorities)) {
+        prioritiesArray = priorities as ('CRITICAL' | 'MEDIUM' | 'LOW')[]
+      } else {
+        prioritiesArray = [priorities as 'CRITICAL' | 'MEDIUM' | 'LOW']
+      }
+    }
+
+    const params = {
+      priorities: prioritiesArray,
+      tagName: tagName as string | undefined,
+      limit: limit ? parseInt(limit as string) : 20,
+      skip: skip ? parseInt(skip as string) : 0,
+    }
+
+    const result = await weeklyTagMonitoringService.getStudentsByPriority(params)
+
+    res.json({
+      success: true,
+      data: result,
+    })
+  } catch (error: any) {
+    logger.error('Erro ao buscar alunos por prioridade:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao buscar alunos por prioridade',
+      error: error.message,
+    })
+  }
+}

@@ -27,6 +27,9 @@ router.delete('/critical-tags/:id/permanent', authenticate, criticalTagControlle
 // Alterna estado ativo/inativo
 router.patch('/critical-tags/:id/toggle', authenticate, criticalTagController.toggleCriticalTag)
 
+// Atualiza prioridade
+router.patch('/critical-tags/:id/priority', authenticate, criticalTagController.updateCriticalTagPriority)
+
 // Descobre tags nativas disponíveis
 router.get(
   '/critical-tags/available-native-tags',
@@ -79,6 +82,13 @@ router.patch(
 
 // Estatísticas de notificações
 router.get('/notifications/stats', authenticate, tagNotificationController.getNotificationStats)
+
+// ═══════════════════════════════════════════════════════════
+// 👥 STUDENTS ROUTES
+// ═══════════════════════════════════════════════════════════
+
+// Busca alunos por prioridade de tags
+router.get('/students-by-priority', authenticate, tagMonitoringController.getStudentsByPriority)
 
 // ═══════════════════════════════════════════════════════════
 // 📸 SNAPSHOTS ROUTES

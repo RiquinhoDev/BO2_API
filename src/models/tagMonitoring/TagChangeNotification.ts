@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose'
+import { TagPriority } from './CriticalTag'
 
 /**
  * Interface para Notificações de Mudanças em Tags Críticas
@@ -6,6 +7,7 @@ import mongoose, { Document, Schema } from 'mongoose'
  */
 export interface ITagChangeNotification extends Document {
   tagName: string
+  priority: TagPriority
   changeType: 'ADDED' | 'REMOVED'
   affectedCount: number
   weekNumber: number
@@ -21,6 +23,13 @@ const TagChangeNotificationSchema = new Schema<ITagChangeNotification>(
       type: String,
       required: true,
       trim: true,
+      index: true,
+    },
+    priority: {
+      type: String,
+      enum: ['CRITICAL', 'MEDIUM', 'LOW'],
+      default: 'LOW',
+      required: true,
       index: true,
     },
     changeType: {
@@ -86,16 +95,37 @@ TagChangeNotificationSchema.methods.markAsUnread = async function () {
 }
 
 // Métodos estáticos
-TagChangeNotificationSchema.statics.findUnread = function (limit: number = 50) {
-  return this.find({ isRead: false }).sort({ createdAt: -1 }).limit(limit)
+TagChangeNotificationSchema.statics.findUnread = async function (limit: number = 50) {
+  // Buscar notificações não lidas e ordenar por prioridade
+  const notifications = await this.find({ isRead: false }).lean()
+
+  // Ordenar: CRITICAL > MEDIUM > LOW, depois por data
+  const priorityOrder: Record<string, number> = { CRITICAL: 1, MEDIUM: 2, LOW: 3 }
+  notifications.sort((a: any, b: any) => {
+    const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
+    if (priorityDiff !== 0) return priorityDiff
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  })
+
+  return notifications.slice(0, limit)
 }
 
 TagChangeNotificationSchema.statics.getUnreadCount = async function (): Promise<number> {
   return this.countDocuments({ isRead: false })
 }
 
-TagChangeNotificationSchema.statics.findByWeek = function (weekNumber: number, year: number) {
-  return this.find({ weekNumber, year }).sort({ createdAt: -1 })
+TagChangeNotificationSchema.statics.findByWeek = async function (weekNumber: number, year: number) {
+  const notifications = await this.find({ weekNumber, year }).lean()
+
+  // Ordenar por prioridade e data
+  const priorityOrder: Record<string, number> = { CRITICAL: 1, MEDIUM: 2, LOW: 3 }
+  notifications.sort((a: any, b: any) => {
+    const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
+    if (priorityDiff !== 0) return priorityDiff
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  })
+
+  return notifications
 }
 
 TagChangeNotificationSchema.statics.findByTag = function (tagName: string) {
