@@ -1,0 +1,100 @@
+// ════════════════════════════════════════════════════════════
+// 📁 src/jobs/dailyPipeline/tagEvaluation/progressTags.ts
+// Avaliação de Tags de Progresso
+// ════════════════════════════════════════════════════════════
+
+import { IUserProductForEvaluation, ProductName } from './types'
+import { formatBOTag } from './tagFormatter'
+
+/**
+ * Avalia e retorna tags de progresso baseado na percentagem de conclusão
+ *
+ * Regras (mutuamente exclusivas):
+ * - 0% → "Não Iniciou"
+ * - 1-10% → "Início Abandonado"
+ * - 11-25% → "Progresso Baixo"
+ * - 26-50% → "Progresso Médio-Baixo"
+ * - 51-75% → "Progresso Médio"
+ * - 76-90% → "Progresso Alto"
+ * - 91-99% → "Quase Completo"
+ * - 100% → "Curso Concluído" (aplicado em COMPLETION, não aqui)
+ *
+ * @param userProduct - UserProduct com dados de progress
+ * @param productName - Nome do produto (OGI_V1, CLAREZA_ANUAL, etc.)
+ * @returns Array com 0 ou 1 tag de progresso
+ */
+export function evaluateProgressTags(
+  userProduct: IUserProductForEvaluation,
+  productName: ProductName
+): string[] {
+  const tags: string[] = []
+
+  // Obter percentagem de progresso
+  const progress = userProduct.progress?.percentage ?? 0
+
+  // ─────────────────────────────────────────────────────────────
+  // AVALIAÇÃO BASEADA NA PERCENTAGEM
+  // ─────────────────────────────────────────────────────────────
+
+  if (progress === 0) {
+    tags.push(formatBOTag(productName, 'Não Iniciou'))
+  } else if (progress > 0 && progress <= 10) {
+    tags.push(formatBOTag(productName, 'Início Abandonado'))
+  } else if (progress > 10 && progress <= 25) {
+    tags.push(formatBOTag(productName, 'Progresso Baixo'))
+  } else if (progress > 25 && progress <= 50) {
+    tags.push(formatBOTag(productName, 'Progresso Médio-Baixo'))
+  } else if (progress > 50 && progress <= 75) {
+    tags.push(formatBOTag(productName, 'Progresso Médio'))
+  } else if (progress > 75 && progress <= 90) {
+    tags.push(formatBOTag(productName, 'Progresso Alto'))
+  } else if (progress > 90 && progress < 100) {
+    tags.push(formatBOTag(productName, 'Quase Completo'))
+  }
+  // Se progress === 100, não aplica tag aqui (é aplicada em COMPLETION)
+
+  return tags
+}
+
+/**
+ * Retorna a tag de progresso com informação de debug
+ */
+export function evaluateProgressTagsWithDebug(
+  userProduct: IUserProductForEvaluation,
+  productName: ProductName
+): {
+  tags: string[]
+  reason: string
+  progress: number
+  modulesInfo?: {
+    total: number
+    completed: number
+  }
+} {
+  const progress = userProduct.progress?.percentage ?? 0
+  const tags = evaluateProgressTags(userProduct, productName)
+
+  let reason = ''
+  if (progress === 0) {
+    reason = 'Curso não iniciado (0%)'
+  } else if (progress === 100) {
+    reason = 'Curso concluído (100%) - tag aplicada em COMPLETION'
+  } else {
+    reason = `Progresso atual: ${progress}%`
+  }
+
+  // Informação adicional sobre módulos (se disponível)
+  const modulesInfo = userProduct.progress?.modulesList
+    ? {
+        total: userProduct.progress.totalModules ?? userProduct.progress.modulesList.length,
+        completed: userProduct.progress.modulesCompleted ??
+          userProduct.progress.modulesList.filter(m => m.completed).length
+      }
+    : undefined
+
+  if (modulesInfo) {
+    reason += ` (${modulesInfo.completed}/${modulesInfo.total} módulos)`
+  }
+
+  return { tags, reason, progress, modulesInfo }
+}

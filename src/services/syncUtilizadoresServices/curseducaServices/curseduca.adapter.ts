@@ -285,8 +285,26 @@ type CurseducaProgressReportItem = {
   enrollment?: { progress?: number | string }
 }
 
+// ═══════════════════════════════════════════════════════════
+// HELPER: Mapear grupo para content slug
+// ═══════════════════════════════════════════════════════════
+function getContentSlugFromGroup(groupName: string): string | null {
+  const normalized = groupName.toLowerCase().trim()
+
+  if (normalized.includes('clareza')) {
+    return 'clareza'
+  }
+  if (normalized.includes('ogi') || normalized.includes('o grande investimento')) {
+    return 'ogi'
+  }
+
+  // Fallback: tentar extrair primeira palavra
+  return null
+}
+
 async function fetchProgressReport(
   groupId: number,
+  groupName: string,
   headers: Record<string, string>
 ): Promise<Map<number, { progress: number; lastActivity?: string }>> {
   const progressMap = new Map<number, { progress: number; lastActivity?: string }>()
@@ -296,7 +314,14 @@ async function fetchProgressReport(
   let pageCount = 0
   const maxPages = 20
 
-  console.log(`   Buscando progresso detalhado do grupo ${groupId}...`)
+  // Mapear grupo para content
+  const contentSlug = getContentSlugFromGroup(groupName)
+  if (!contentSlug) {
+    console.log(`   ⚠️  Não consegui mapear grupo "${groupName}" para content, saltando...`)
+    return progressMap
+  }
+
+  console.log(`   Buscando progresso detalhado do grupo ${groupId} (content: ${contentSlug})...`)
 
   while (hasMore && offset < 2000 && pageCount < maxPages) {
     pageCount++
@@ -305,7 +330,7 @@ async function fetchProgressReport(
       const response = await axios.get(
         `${CURSEDUCA_CONTENTS_API_URL || CURSEDUCA_API_URL}/reports/progress`,
         {
-          params: { group: groupId, groupId, limit, offset },
+          params: { content: contentSlug, limit, offset },
           headers,
           timeout: 30000
         }
@@ -723,7 +748,7 @@ export const fetchCurseducaDataForSync = async (
 
         console.log(`   ✅ Dados mesclados: ${unifiedMembersList.length} members com progresso`)
 
-        const progressReport = await fetchProgressReport(group.id, headers)
+        const progressReport = await fetchProgressReport(group.id, group.name, headers)
         if (progressReport.size > 0) {
           let updatedCount = 0
           for (const member of unifiedMembersList) {

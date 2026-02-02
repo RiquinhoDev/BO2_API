@@ -1560,14 +1560,24 @@ if (lastAccessDate) {
         const newScore = toNumber(item.engagement.engagementScore, 0)
         if (existingUP.engagement?.engagementScore !== newScore) {
           upUpdateFields['engagement.engagementScore'] = newScore
-          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
+          const lastActionDate = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
+          upUpdateFields['engagement.lastAction'] = lastActionDate
+          // Calcular daysInactive
+          const now = new Date()
+          const daysInactive = Math.floor((now.getTime() - lastActionDate.getTime()) / (1000 * 60 * 60 * 24))
+          upUpdateFields['engagement.daysInactive'] = Math.max(0, daysInactive)
           upNeedsUpdate = true
         }
       } else if (item.accessCount !== undefined) {
         const newScore = toNumber(item.accessCount, 0)
         if (existingUP.engagement?.engagementScore !== newScore) {
           upUpdateFields['engagement.engagementScore'] = newScore
-          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
+          const lastActionDate = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
+          upUpdateFields['engagement.lastAction'] = lastActionDate
+          // Calcular daysInactive
+          const now = new Date()
+          const daysInactive = Math.floor((now.getTime() - lastActionDate.getTime()) / (1000 * 60 * 60 * 24))
+          upUpdateFields['engagement.daysInactive'] = Math.max(0, daysInactive)
           upNeedsUpdate = true
         }
       }
@@ -1588,7 +1598,14 @@ if (lastAccessDate) {
       // 🎓 CURSEDUCA - Engagement baseado em ações
       if (config.syncType === 'curseduca') {
         if (item.lastLogin) {
-          upUpdateFields['engagement.lastAction'] = toDateOrNull(item.lastLogin)
+          const lastActionDate = toDateOrNull(item.lastLogin)
+          upUpdateFields['engagement.lastAction'] = lastActionDate
+          // Calcular daysInactive
+          if (lastActionDate) {
+            const now = new Date()
+            const daysInactive = Math.floor((now.getTime() - lastActionDate.getTime()) / (1000 * 60 * 60 * 24))
+            upUpdateFields['engagement.daysInactive'] = Math.max(0, daysInactive)
+          }
           upNeedsUpdate = true
         }
         if (item.accessCount !== undefined) {
@@ -1798,11 +1815,16 @@ if (lastAccessDate) {
       // ═══════════════════════════════════════════════════════════
       // Construir objeto engagement por plataforma
       // ═══════════════════════════════════════════════════════════
+      const lastActionDate = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
+      const now = new Date()
+      const daysInactive = Math.floor((now.getTime() - lastActionDate.getTime()) / (1000 * 60 * 60 * 24))
+
       const engagementObj: any = {
         engagementScore: item.engagement?.engagementScore
           ? toNumber(item.engagement.engagementScore, 0)
           : toNumber(item.accessCount, 0),
-        lastAction: toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
+        lastAction: lastActionDate,
+        daysInactive: Math.max(0, daysInactive)
       }
 
       // 🔥 HOTMART - Engagement baseado em logins
@@ -1818,7 +1840,12 @@ if (lastAccessDate) {
       // 🎓 CURSEDUCA - Engagement baseado em ações
       if (config.syncType === 'curseduca') {
         if (item.lastLogin) {
-          engagementObj.lastAction = toDateOrNull(item.lastLogin)
+          const curseducaLastAction = toDateOrNull(item.lastLogin)
+          engagementObj.lastAction = curseducaLastAction
+          if (curseducaLastAction) {
+            const curseducaDaysInactive = Math.floor((now.getTime() - curseducaLastAction.getTime()) / (1000 * 60 * 60 * 24))
+            engagementObj.daysInactive = Math.max(0, curseducaDaysInactive)
+          }
         }
         if (item.accessCount !== undefined) {
           engagementObj.totalLogins = toNumber(item.accessCount, 0)
@@ -1981,6 +2008,10 @@ export function calculateEngagementMetricsForUserProduct(
     totalLogins?: number
     actionsLastWeek?: number
     actionsLastMonth?: number
+    // 🆕 TAG SYSTEM V2 - Novos campos
+    daysInactive?: number  // Dias desde último acesso
+    loginsLast30Days?: number  // Logins nos últimos 30 dias
+    weeksActiveLast30Days?: number  // Semanas ativas nos últimos 30 dias
   }
   metadata: {
     purchaseValue: number | null
@@ -2101,6 +2132,59 @@ export function calculateEngagementMetricsForUserProduct(
   }
 
   // ═══════════════════════════════════════════════════════════
+  // 🆕 TAG SYSTEM V2 - CALCULAR NOVOS CAMPOS
+  // ═══════════════════════════════════════════════════════════
+
+  // 1. daysInactive: Usa daysSinceLastLogin (Hotmart) ou daysSinceLastAction (CursEduca)
+  let daysInactive: number | undefined = undefined
+  if (platform === 'hotmart' && daysSinceLastLogin !== null) {
+    daysInactive = daysSinceLastLogin
+  } else if (platform === 'curseduca' && daysSinceLastAction !== null) {
+    daysInactive = daysSinceLastAction
+  }
+
+  // 2. loginsLast30Days: Estimativa baseada em totalLogins (Hotmart) ou 0 (CursEduca)
+  // TODO: Implementar cálculo preciso quando tivermos histórico de logins
+  let loginsLast30Days: number | undefined = undefined
+  if (platform === 'hotmart') {
+    // Estimativa: Se ativo recentemente, assume logins regulares
+    if (daysSinceLastLogin !== null && daysSinceLastLogin < 30) {
+      // Heurística: ~1 login a cada 3 dias se ativo
+      loginsLast30Days = Math.max(1, Math.floor((30 - daysSinceLastLogin) / 3))
+    } else {
+      loginsLast30Days = 0 // Inativo há mais de 30 dias
+    }
+  } else if (platform === 'curseduca') {
+    // CursEduca: Estimativa baseada em atividade
+    if (daysSinceLastAction !== null && daysSinceLastAction < 30) {
+      loginsLast30Days = Math.max(1, Math.floor((30 - daysSinceLastAction) / 5))
+    } else {
+      loginsLast30Days = 0
+    }
+  }
+
+  // 3. weeksActiveLast30Days: Estimativa baseada em daysInactive
+  // TODO: Implementar cálculo preciso quando tivermos histórico granular
+  let weeksActiveLast30Days: number | undefined = undefined
+  if (daysInactive !== undefined) {
+    if (daysInactive === 0) {
+      weeksActiveLast30Days = 4 // Ativo hoje = assume 4 semanas ativas
+    } else if (daysInactive < 7) {
+      weeksActiveLast30Days = 4 // Ativo esta semana = 4 semanas
+    } else if (daysInactive < 14) {
+      weeksActiveLast30Days = 3 // Ativo há 1-2 semanas = 3 semanas
+    } else if (daysInactive < 21) {
+      weeksActiveLast30Days = 2 // Ativo há 2-3 semanas = 2 semanas
+    } else if (daysInactive < 30) {
+      weeksActiveLast30Days = 1 // Ativo há 3-4 semanas = 1 semana
+    } else {
+      weeksActiveLast30Days = 0 // Inativo há mais de 30 dias
+    }
+  }
+
+  debugLog(`   🆕 TAG METRICS: daysInactive=${daysInactive}, loginsLast30Days=${loginsLast30Days}, weeksActive=${weeksActiveLast30Days}`)
+
+  // ═══════════════════════════════════════════════════════════
   // RETORNAR MÉTRICAS
   // ═══════════════════════════════════════════════════════════
 
@@ -2112,7 +2196,11 @@ export function calculateEngagementMetricsForUserProduct(
       enrolledAt,
       totalLogins,
       actionsLastWeek,
-      actionsLastMonth
+      actionsLastMonth,
+      // 🆕 Novos campos para Tag System V2
+      daysInactive,
+      loginsLast30Days,
+      weeksActiveLast30Days
     },
     metadata: {
       purchaseValue,

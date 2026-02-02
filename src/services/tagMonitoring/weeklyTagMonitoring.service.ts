@@ -110,11 +110,14 @@ class WeeklyTagMonitoringService {
 
   /**
    * Busca emails para processar baseado no modo configurado
+   * IMPORTANTE: STUDENTS_ONLY agora inclui TODOS os alunos (ACTIVE e INACTIVE)
+   * para ter histórico completo de tags nativas
    */
   private async getEmailsToProcess(mode: 'STUDENTS_ONLY' | 'ALL_CONTACTS'): Promise<string[]> {
     if (mode === 'STUDENTS_ONLY') {
-      // Buscar apenas utilizadores com produtos
-      const userProducts = await UserProduct.find({ status: 'ACTIVE' })
+      // Buscar TODOS os utilizadores com produtos (ACTIVE ou INACTIVE)
+      // Alteração: removido filtro { status: 'ACTIVE' }
+      const userProducts = await UserProduct.find()
         .select('userId')
         .lean()
 
@@ -124,11 +127,13 @@ class WeeklyTagMonitoringService {
         .select('email')
         .lean()
 
+      logger.info(`📊 STUDENTS_ONLY: ${users.length} alunos encontrados (ACTIVE + INACTIVE)`)
       return users.map((u) => u.email).filter(Boolean)
     } else {
       // ALL_CONTACTS: Buscar todos os contactos da ActiveCampaign
       try {
         const allContacts = await activeCampaignService.getAllContacts()
+        logger.info(`📊 ALL_CONTACTS: ${allContacts.length} contactos da AC`)
         return allContacts.map((c: any) => c.email).filter(Boolean)
       } catch (error) {
         logger.error('Erro ao buscar contactos da AC, fallback para STUDENTS_ONLY', error)
@@ -483,6 +488,139 @@ class WeeklyTagMonitoringService {
       duration: '0s',
       errors: 0,
       mode,
+    }
+  }
+
+  /**
+   * Busca alunos que possuem tags de determinadas prioridades
+   * GET /api/tag-monitoring/students-by-priority
+   */
+  async getStudentsByPriority(params: {
+    priorities?: ('CRITICAL' | 'MEDIUM' | 'LOW')[]
+    tagName?: string
+    limit?: number
+    skip?: number
+  }): Promise<{
+    students: Array<{
+      _id: string
+      name: string
+      email: string
+      tags: Array<{ name: string; priority: 'CRITICAL' | 'MEDIUM' | 'LOW' }>
+      products: string[]
+    }>
+    total: number
+    page: number
+    totalPages: number
+  }> {
+    try {
+      const { priorities = ['CRITICAL'], tagName, limit = 20, skip = 0 } = params
+
+      // 1. Buscar tags críticas ativas filtradas por prioridade
+      const query: any = { isActive: true }
+      if (priorities.length > 0) {
+        query.priority = { $in: priorities }
+      }
+      if (tagName) {
+        query.tagName = tagName
+      }
+
+      const criticalTags = await CriticalTag.find(query).lean()
+
+      if (criticalTags.length === 0) {
+        return {
+          students: [],
+          total: 0,
+          page: 1,
+          totalPages: 0,
+        }
+      }
+
+      const tagNames = criticalTags.map((t) => t.tagName)
+
+      // 2. Buscar snapshots mais recentes (última semana) que contenham essas tags
+      const currentDate = new Date()
+      const weekNumber = this.getWeekNumber(currentDate)
+      const year = currentDate.getFullYear()
+
+      const snapshots = await WeeklyNativeTagSnapshot.find({
+        weekNumber,
+        year,
+        nativeTags: { $in: tagNames },
+      })
+        .select('email nativeTags userId')
+        .lean()
+
+      // 3. Extrair emails únicos
+      const emailsSet = new Set(snapshots.map((s) => s.email))
+      const uniqueEmails = Array.from(emailsSet)
+
+      if (uniqueEmails.length === 0) {
+        return {
+          students: [],
+          total: 0,
+          page: 1,
+          totalPages: 0,
+        }
+      }
+
+      // 4. Buscar informações completas dos alunos (com paginação)
+      const users = await User.find({ email: { $in: uniqueEmails } })
+        .select('_id name email')
+        .skip(skip)
+        .limit(limit)
+        .lean()
+
+      // 5. Enriquecer com produtos e tags
+      const enrichedStudents = await Promise.all(
+        users.map(async (user) => {
+          // Buscar produtos do aluno
+          const userProducts = await UserProduct.find({ userId: user._id })
+            .populate('productId')
+            .lean()
+
+          const products = userProducts
+            .map((up: any) => up.productId?.name)
+            .filter(Boolean)
+
+          // Buscar snapshot do aluno para obter suas tags
+          const userSnapshot = snapshots.find((s) => s.email === user.email)
+          const userTags = userSnapshot?.nativeTags || []
+
+          // Mapear tags com suas prioridades
+          const tagsWithPriority = criticalTags
+            .filter((ct) => userTags.includes(ct.tagName))
+            .map((ct) => ({
+              name: ct.tagName,
+              priority: ct.priority as 'CRITICAL' | 'MEDIUM' | 'LOW',
+            }))
+
+          return {
+            _id: user._id.toString(),
+            name: user.name || user.email,
+            email: user.email,
+            tags: tagsWithPriority,
+            products: products as string[],
+          }
+        })
+      )
+
+      // 6. Filtrar alunos que têm pelo menos uma tag
+      const studentsWithTags = enrichedStudents.filter((s) => s.tags.length > 0)
+
+      // 7. Calcular total e paginação
+      const total = uniqueEmails.length
+      const totalPages = Math.ceil(total / limit)
+      const page = Math.floor(skip / limit) + 1
+
+      return {
+        students: studentsWithTags,
+        total,
+        page,
+        totalPages,
+      }
+    } catch (error) {
+      logger.error('Erro ao buscar alunos por prioridade:', error)
+      throw error
     }
   }
 }
