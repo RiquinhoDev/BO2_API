@@ -1,5 +1,5 @@
 import { CriticalTag, WeeklyNativeTagSnapshot } from '../../models/tagMonitoring'
-import { ICriticalTag } from '../../models/tagMonitoring/CriticalTag'
+import { ICriticalTag, TagPriority } from '../../models/tagMonitoring/CriticalTag'
 import logger from '../../utils/logger'
 
 /**
@@ -10,7 +10,12 @@ class CriticalTagManagementService {
   /**
    * Adiciona uma tag à lista de tags críticas
    */
-  async addCriticalTag(tagName: string, userId: string, description?: string): Promise<ICriticalTag> {
+  async addCriticalTag(
+    tagName: string,
+    userId: string,
+    description?: string,
+    priority: TagPriority = 'LOW'
+  ): Promise<ICriticalTag> {
     try {
       // Verificar se já existe
       const existing = await CriticalTag.findOne({ tagName })
@@ -21,22 +26,24 @@ class CriticalTagManagementService {
         // Se existir mas estiver inativa, reativar
         existing.isActive = true
         existing.createdBy = userId as any
+        existing.priority = priority
         if (description) existing.description = description
         await existing.save()
 
-        logger.info(`Tag crítica reativada: ${tagName}`)
+        logger.info(`Tag crítica reativada: ${tagName} com prioridade ${priority}`)
         return existing
       }
 
       // Criar nova tag crítica
       const criticalTag = await CriticalTag.create({
         tagName: tagName.trim(),
+        priority,
         isActive: true,
         createdBy: userId,
         description: description?.trim(),
       })
 
-      logger.info(`Tag crítica adicionada: ${tagName} por ${userId}`)
+      logger.info(`Tag crítica adicionada: ${tagName} (${priority}) por ${userId}`)
       return criticalTag
     } catch (error) {
       logger.error('Erro ao adicionar tag crítica', { tagName, error })
@@ -166,6 +173,27 @@ class CriticalTagManagementService {
       return await CriticalTag.findOne({ tagName })
     } catch (error) {
       logger.error('Erro ao buscar tag crítica por nome', { tagName, error })
+      throw error
+    }
+  }
+
+  /**
+   * Atualiza a prioridade de uma tag crítica
+   */
+  async updatePriority(tagId: string, priority: TagPriority): Promise<ICriticalTag> {
+    try {
+      const tag = await CriticalTag.findById(tagId)
+      if (!tag) {
+        throw new Error('Tag crítica não encontrada')
+      }
+
+      tag.priority = priority
+      await tag.save()
+
+      logger.info(`Prioridade da tag "${tag.tagName}" atualizada para ${priority}`)
+      return tag
+    } catch (error) {
+      logger.error('Erro ao atualizar prioridade', { tagId, priority, error })
       throw error
     }
   }

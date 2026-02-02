@@ -18,6 +18,9 @@ import ProductProfile, { IProductProfile, IReengagementLevel } from '../../model
 import StudentEngagementState from '../../models/StudentEngagementState'
 import decisionEngine from './decisionEngine.service'
 
+// 🛡️ SISTEMA DE PROTEÇÃO DE TAGS NATIVAS
+import nativeTagProtection from './nativeTagProtection.service'
+
 // ═══════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════
@@ -28,7 +31,7 @@ import decisionEngine from './decisionEngine.service'
  * Tags nativas do AC NÃO devem ser tocadas pelo nosso sistema.
  */
 function isBOTag(tagName: string): boolean {
-  return /^[A-Z_0-9]+ - .+$/.test(tagName)
+  return nativeTagProtection.isBOTag(tagName)
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -98,9 +101,24 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
     const ctx: OrchestrationContext = { user, product, lastActivity, daysInactive }
 
     // ═══════════════════════════════════════════════════════════
+    // 1) 🛡️ CAPTURAR TAGS NATIVAS (PROTEÇÃO)
+    // ═══════════════════════════════════════════════════════════
+
+    if (user.email) {
+      try {
+        await nativeTagProtection.captureNativeTags(
+          user.email,
+          `TAG_ORCHESTRATOR_${productCode}`
+        )
+      } catch (error: any) {
+        console.error(`[Orchestrator] ⚠️  Erro ao capturar tags nativas para ${user.email}:`, error.message)
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // 2) DECISÕES - CHAMAR DECISION ENGINE
     // ═══════════════════════════════════════════════════════════
-    
+
     const decisions = await decisionEngine.evaluateUserProduct(userId, productId)
 
     // ═══════════════════════════════════════════════════════════
@@ -127,27 +145,72 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
 
     // DIFF: Comparar tags DESTE PRODUTO no AC com esperadas
     // FILTRO CRÍTICO: Apenas tags BO podem ser removidas! (protege tags nativas)
-    const tagsToRemove = currentProductTagsInAC
+    const tagsToRemoveCandidates = currentProductTagsInAC
       .filter((tag: string) => isBOTag(tag))
       .filter((tag: string) => !newBOTags.includes(tag))
     const tagsToAdd = newBOTags.filter((tag: string) => !currentProductTagsInAC.includes(tag))
 
     // ═══════════════════════════════════════════════════════════
+    // 🛡️ PROTEÇÃO TRIPLA: Filtrar tags seguras para remover
+    // ═══════════════════════════════════════════════════════════
+
+    let tagsToRemove: string[] = []
+
+    if (user.email && tagsToRemoveCandidates.length > 0) {
+      const filtered = await nativeTagProtection.filterSafeTagsToRemove(
+        user.email,
+        tagsToRemoveCandidates
+      )
+
+      tagsToRemove = filtered.safeTags
+
+      if (filtered.blockedTags.length > 0) {
+        console.error(`[Orchestrator] 🚨 BLOQUEADAS ${filtered.blockedTags.length} tags nativas para ${user.email}:`, filtered.blockedTags)
+        console.error(`[Orchestrator] Motivos:`, filtered.reasons)
+      }
+    } else {
+      tagsToRemove = tagsToRemoveCandidates
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // 4) REMOVER TAGS DESATUALIZADAS (só deste produto!)
     // ═══════════════════════════════════════════════════════════
-    
+
+    let removeFailed = false
     for (const tag of tagsToRemove) {
       const removed = await this.removeTag(userId, productId, tag, ctx)
-      if (removed.ok) result.tagsRemoved.push(removed.fullTag)
+      if (removed.ok) {
+        result.tagsRemoved.push(removed.fullTag)
+      } else {
+        removeFailed = true
+      }
     }
 
     // ═══════════════════════════════════════════════════════════
     // 5) APLICAR TAGS NOVAS
     // ═══════════════════════════════════════════════════════════
     
+    let applyFailed = false
     for (const tag of tagsToAdd) {
       const applied = await this.applyTag(userId, productId, tag, ctx)
-      if (applied.ok) result.tagsApplied.push(applied.fullTag)
+      if (applied.ok) {
+        result.tagsApplied.push(applied.fullTag)
+      } else {
+        applyFailed = true
+      }
+    }
+
+    const desiredTags = Array.from(new Set(newBOTags))
+    const hasDecisionErrors = Array.isArray(decisions.errors) && decisions.errors.length > 0
+    const canPersistTags = !hasDecisionErrors && !applyFailed && !removeFailed
+
+    if (canPersistTags) {
+      await UserProduct.findByIdAndUpdate(userProduct._id, {
+        $set: {
+          'activeCampaignData.tags': desiredTags,
+          'activeCampaignData.lastSyncAt': new Date()
+        }
+      })
     }
 
     // ═══════════════════════════════════════════════════════════

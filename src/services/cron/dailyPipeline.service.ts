@@ -10,6 +10,7 @@ import { recalculateAllEngagementMetrics } from '../syncUtilizadoresServices/eng
 
 import tagPreCreationService from '../activeCampaign/tagPreCreation.service'
 import testimonialTagSyncService from '../activeCampaign/testimonialTagSync.service'
+import pipelineSnapshotService from '../activeCampaign/pipelineSnapshot.service'
 
 // ✅ Adapters + Universal Sync
 import universalSyncService from '../syncUtilizadoresServices/universalSyncService'
@@ -288,8 +289,23 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
       logStep(4, 'Recalc Engagement', 'ERROR', message)
     }
 
-    // STEP 5/5: EVALUATE TAG RULES
+    // ═══════════════════════════════════════════════════════════
+    // 📸 SNAPSHOT PRE (antes de aplicar tags)
+    // ═══════════════════════════════════════════════════════════
+
     logger.info('   ➡️  Transição Step 4 → Step 5...')
+    logger.info('   📸 Capturando snapshot PRE (antes de tags)...')
+
+    let preSnapshot: any = null
+    try {
+      preSnapshot = await pipelineSnapshotService.captureSnapshot('PRE')
+      await pipelineSnapshotService.saveSnapshot(preSnapshot, 'snapshot_PRE_latest.json')
+      logger.info(`   ✅ Snapshot PRE: ${preSnapshot.stats.totalTags} tags, ${preSnapshot.stats.totalUsers} users`)
+    } catch (err: any) {
+      logger.warn(`   ⚠️  Erro ao capturar snapshot PRE: ${err.message}`)
+    }
+
+    // STEP 5/5: EVALUATE TAG RULES
     const step5Start = Date.now()
     logStep(5, 'Tag Rules', 'START')
 
@@ -489,6 +505,40 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
       }
 
       logStep(5, 'Tag Rules', 'ERROR', message)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 📸 SNAPSHOT POST (depois de aplicar tags)
+    // ═══════════════════════════════════════════════════════════
+
+    logger.info('   📸 Capturando snapshot POST (depois de tags)...')
+
+    let postSnapshot: any = null
+    let comparison: any = null
+
+    try {
+      postSnapshot = await pipelineSnapshotService.captureSnapshot('POST')
+      await pipelineSnapshotService.saveSnapshot(postSnapshot, 'snapshot_POST_latest.json')
+      logger.info(`   ✅ Snapshot POST: ${postSnapshot.stats.totalTags} tags, ${postSnapshot.stats.totalUsers} users`)
+
+      // Comparar snapshots se ambos existirem
+      if (preSnapshot && postSnapshot) {
+        logger.info('   🔍 Comparando snapshots PRE vs POST...')
+        comparison = pipelineSnapshotService.compareSnapshots(preSnapshot, postSnapshot)
+
+        await pipelineSnapshotService.saveComparison(comparison, 'comparison_latest.json')
+        await pipelineSnapshotService.saveMarkdownReport(comparison, 'report_latest.md')
+
+        logger.info('   ✅ Comparação concluída:', {
+          tagsAdded: comparison.diff.summary.totalTagsAdded,
+          tagsRemoved: comparison.diff.summary.totalTagsRemoved,
+          usersAffected: comparison.diff.summary.usersAffected
+        })
+
+        logger.info('   📂 Snapshots e relatório salvos em: ./snapshots/')
+      }
+    } catch (err: any) {
+      logger.warn(`   ⚠️  Erro ao capturar snapshot POST: ${err.message}`)
     }
 
     // STEP 6/6: SYNC TESTIMONIAL TAGS
@@ -732,6 +782,20 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
       console.log(`[TAG-RULES] ❌ STEP 2/3 ERROR: ${message}`)
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // 📸 SNAPSHOT PRE (antes de aplicar tags)
+    // ═══════════════════════════════════════════════════════════
+
+    console.log('[TAG-RULES] 📸 Capturando snapshot PRE...')
+    let preSnapshot: any = null
+    try {
+      preSnapshot = await pipelineSnapshotService.captureSnapshot('PRE')
+      await pipelineSnapshotService.saveSnapshot(preSnapshot, 'snapshot_PRE_tagrules.json')
+      console.log(`[TAG-RULES] ✅ Snapshot PRE: ${preSnapshot.stats.totalTags} tags, ${preSnapshot.stats.totalUsers} users`)
+    } catch (err: any) {
+      console.log(`[TAG-RULES] ⚠️ Erro ao capturar snapshot PRE: ${err.message}`)
+    }
+
     // STEP 3/3: EVALUATE TAG RULES
     console.log('[TAG-RULES] ▶️ STEP 3/3: Tag Rules - INÍCIO')
     const step3Start = Date.now()
@@ -894,6 +958,39 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         error: message
       }
       console.log(`[TAG-RULES] ❌ STEP 3/3 ERROR: ${message}`)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 📸 SNAPSHOT POST (depois de aplicar tags)
+    // ═══════════════════════════════════════════════════════════
+
+    console.log('[TAG-RULES] 📸 Capturando snapshot POST...')
+    let postSnapshot: any = null
+    let comparison: any = null
+
+    try {
+      postSnapshot = await pipelineSnapshotService.captureSnapshot('POST')
+      await pipelineSnapshotService.saveSnapshot(postSnapshot, 'snapshot_POST_tagrules.json')
+      console.log(`[TAG-RULES] ✅ Snapshot POST: ${postSnapshot.stats.totalTags} tags, ${postSnapshot.stats.totalUsers} users`)
+
+      // Comparar snapshots se ambos existirem
+      if (preSnapshot && postSnapshot) {
+        console.log('[TAG-RULES] 🔍 Comparando snapshots PRE vs POST...')
+        comparison = pipelineSnapshotService.compareSnapshots(preSnapshot, postSnapshot)
+
+        await pipelineSnapshotService.saveComparison(comparison, 'comparison_tagrules.json')
+        await pipelineSnapshotService.saveMarkdownReport(comparison, 'report_tagrules.md')
+
+        console.log('[TAG-RULES] ✅ Comparação:', {
+          tagsAdded: comparison.diff.summary.totalTagsAdded,
+          tagsRemoved: comparison.diff.summary.totalTagsRemoved,
+          usersAffected: comparison.diff.summary.usersAffected
+        })
+
+        console.log('[TAG-RULES] 📂 Ficheiros salvos em: ./snapshots/')
+      }
+    } catch (err: any) {
+      console.log(`[TAG-RULES] ⚠️ Erro ao capturar snapshot POST: ${err.message}`)
     }
 
     // FINALIZAR

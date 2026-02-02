@@ -120,4 +120,77 @@ router.get('/v2/stats', getACStats)
 // POST /api/activecampaign/v2/sync/:productId
 router.post('/v2/sync/:productId', syncProductTags)
 
+// ─────────────────────────────────────────────────────────────
+// DEBUG - TEMPORARY
+// ─────────────────────────────────────────────────────────────
+
+// GET /api/activecampaign/debug/curseduca-data
+router.get('/debug/curseduca-data', async (req, res) => {
+  try {
+    const UserProduct = (await import('../../models/UserProduct')).default
+    const Product = (await import('../../models/product/Product')).default
+
+    // 1. Buscar produtos CursEduca
+    const curseducaProducts = await Product.find({ platform: 'curseduca' }).select('name code').lean()
+
+    const productIds = curseducaProducts.map(p => p._id)
+
+    // 2. Buscar alguns UserProducts
+    const userProducts = await UserProduct.find({
+      productId: { $in: productIds }
+    })
+      .populate('userId', 'name email')
+      .populate('productId', 'name code')
+      .limit(5)
+      .lean()
+
+    // 3. Stats gerais
+    const totalUserProducts = await UserProduct.countDocuments({
+      productId: { $in: productIds }
+    })
+
+    const withProgress = await UserProduct.countDocuments({
+      productId: { $in: productIds },
+      'progress.percentage': { $exists: true, $gt: 0 }
+    })
+
+    const withEngagement = await UserProduct.countDocuments({
+      productId: { $in: productIds },
+      'engagement.daysInactive': { $exists: true }
+    })
+
+    res.json({
+      success: true,
+      data: {
+        products: curseducaProducts,
+        examples: userProducts.map(up => ({
+          user: {
+            name: up.userId?.name,
+            email: up.userId?.email
+          },
+          product: {
+            name: up.productId?.name,
+            code: up.productId?.code
+          },
+          status: up.status,
+          progress: up.progress || null,
+          engagement: up.engagement || null
+        })),
+        stats: {
+          total: totalUserProducts,
+          withProgress,
+          withProgressPercent: Math.round(withProgress/totalUserProducts*100),
+          withEngagement,
+          withEngagementPercent: Math.round(withEngagement/totalUserProducts*100)
+        }
+      }
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
 export default router
