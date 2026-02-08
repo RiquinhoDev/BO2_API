@@ -404,6 +404,10 @@ export const deleteSnapshot = async (req: Request, res: Response) => {
 /**
  * Calcular churn usando snapshots (muito mais preciso!)
  * GET /guru/snapshots/churn
+ *
+ * CORRIGIDO: Usa o churn.rate já calculado em cada snapshot
+ * (calculado corretamente como: canceladosNoMês / ativasNoInícioDOMês)
+ * Em vez de tentar recalcular comparando snapshots consecutivos
  */
 export const getChurnFromSnapshots = async (req: Request, res: Response) => {
   try {
@@ -412,44 +416,36 @@ export const getChurnFromSnapshots = async (req: Request, res: Response) => {
       .sort({ year: 1, month: 1 })
       .lean()
 
-    if (snapshots.length < 2) {
+    if (snapshots.length === 0) {
       return res.json({
         success: true,
-        message: 'Insuficientes snapshots para calcular churn (mínimo 2)',
-        snapshots: snapshots.length
+        message: 'Nenhum snapshot encontrado. Crie snapshots primeiro.',
+        snapshots: 0
       })
     }
 
-    // Calcular churn mês a mês comparando snapshots consecutivos
-    const monthlyChurn = []
+    // Usar o churn já calculado em cada snapshot (dados corretos!)
+    const monthlyChurn = snapshots.map((snapshot: any) => ({
+      year: snapshot.year,
+      month: snapshot.month,
+      monthName: new Date(snapshot.year, snapshot.month - 1).toLocaleDateString('pt-PT', {
+        month: 'short',
+        year: 'numeric'
+      }),
+      baseAtStart: snapshot.churn.baseAtStart,
+      lostSubscriptions: snapshot.churn.lostSubscriptions,
+      churnRate: snapshot.churn.rate,
+      retentionRate: snapshot.churn.retention,
+      // Dados adicionais úteis
+      activeAtEnd: snapshot.totals.active,
+      newSubscriptions: snapshot.movements?.newSubscriptions || 0
+    }))
 
-    for (let i = 1; i < snapshots.length; i++) {
-      const prevSnapshot = snapshots[i - 1]
-      const currSnapshot = snapshots[i]
-
-      const baseAtStart = prevSnapshot.totals.active + prevSnapshot.totals.pastdue
-      const lostSubscriptions = prevSnapshot.totals.active - currSnapshot.totals.active +
-                                 currSnapshot.movements.cancellations +
-                                 currSnapshot.movements.expirations
-
-      const churnRate = baseAtStart > 0 ? (lostSubscriptions / baseAtStart) * 100 : 0
-
-      monthlyChurn.push({
-        year: currSnapshot.year,
-        month: currSnapshot.month,
-        monthName: new Date(currSnapshot.year, currSnapshot.month - 1).toLocaleDateString('pt-PT', {
-          month: 'short',
-          year: 'numeric'
-        }),
-        baseAtStart,
-        lostSubscriptions,
-        churnRate: parseFloat(churnRate.toFixed(2)),
-        retentionRate: parseFloat((100 - churnRate).toFixed(2))
-      })
-    }
-
-    // Calcular churn médio
-    const avgChurnRate = monthlyChurn.reduce((sum, m) => sum + m.churnRate, 0) / monthlyChurn.length
+    // Calcular churn médio (excluir meses com base 0 para não distorcer)
+    const validMonths = monthlyChurn.filter(m => m.baseAtStart > 0)
+    const avgChurnRate = validMonths.length > 0
+      ? validMonths.reduce((sum, m) => sum + m.churnRate, 0) / validMonths.length
+      : 0
 
     return res.json({
       success: true,
