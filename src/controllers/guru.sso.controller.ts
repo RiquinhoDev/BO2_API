@@ -109,7 +109,8 @@ export const ssoMyOrders = async (req: Request, res: Response) => {
       }
     )
 
-    const ssoUrl = ssoResponse.data?.url
+    // A API Guru retorna 'redirect_url' (não 'url')
+    const ssoUrl = ssoResponse.data?.redirect_url || ssoResponse.data?.url
 
     if (!ssoUrl) {
       console.error('❌ [GURU SSO] URL não retornada pela API:', ssoResponse.data)
@@ -118,6 +119,8 @@ export const ssoMyOrders = async (req: Request, res: Response) => {
         message: 'Erro ao gerar link SSO'
       })
     }
+
+    console.log(`✅ [GURU SSO] URL obtida: ${ssoUrl}`)
 
     // ═══════════════════════════════════════════════════════════
     // 6. REDIRECIONAR
