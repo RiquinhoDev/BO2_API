@@ -136,7 +136,31 @@ curseduca?: {
   lastSyncAt: Date
   syncVersion: string
 }
-  
+
+  // 💰 DADOS DA GURU (apenas Guru pode alterar)
+  guru?: {
+    // Identificadores
+    guruContactId: string
+    subscriptionCode: string
+
+    // Status e datas
+    status: 'active' | 'pastdue' | 'canceled' | 'expired' | 'pending' | 'refunded' | 'suspended'
+    updatedAt: Date
+    nextCycleAt?: Date
+
+    // Produto/Oferta
+    offerId?: string
+    productId?: string
+
+    // Pagamento
+    paymentUrl?: string
+
+    // Metadados
+    lastSyncAt: Date
+    syncVersion: string
+    lastWebhookAt?: Date
+  }
+
   // 📊 DADOS COMBINADOS (calculados automaticamente)
   combined?: {
     // Status geral (prioridade: Discord > Hotmart > CursedEuca)
@@ -254,8 +278,10 @@ interface IUserModel extends Model<IUser> {
   findByEmail(email: string): Promise<IUser | null>
   findByHotmartId(hotmartUserId: string): Promise<IUser | null>
   findByCurseducaId(curseducaUserId: string): Promise<IUser | null>
-  findByCurseducaUuid(curseducaUuid: string): Promise<IUser | null>  // 🆕
+  findByCurseducaUuid(curseducaUuid: string): Promise<IUser | null>
   findByDiscordId(discordId: string): Promise<IUser | null>
+  findByGuruContactId(guruContactId: string): Promise<IUser | null>  // 💰
+  findByGuruSubscriptionCode(subscriptionCode: string): Promise<IUser | null>  // 💰
   getDataSourceStats(): Promise<any>
   getEnhancedUsersList(filters?: any): Promise<any[]>
   getSourceStatistics(): Promise<any[]>
@@ -477,7 +503,34 @@ curseduca: {
   syncVersion: { type: String, default: '3.0' }
 },
 
-  
+  // 💰 Dados da Guru
+  guru: {
+    // Identificadores
+    guruContactId: { type: String, sparse: true },
+    subscriptionCode: { type: String, sparse: true },
+
+    // Status e datas
+    status: {
+      type: String,
+      enum: ['active', 'pastdue', 'canceled', 'expired', 'pending', 'refunded', 'suspended'],
+      default: 'pending'
+    },
+    updatedAt: { type: Date },
+    nextCycleAt: { type: Date },
+
+    // Produto/Oferta
+    offerId: { type: String },
+    productId: { type: String },
+
+    // Pagamento
+    paymentUrl: { type: String },
+
+    // Metadados
+    lastSyncAt: { type: Date, default: Date.now },
+    syncVersion: { type: String, default: '1.0' },
+    lastWebhookAt: { type: Date }
+  },
+
   // Dados combinados (calculados automaticamente)
   combined: {
     status: { 
@@ -539,9 +592,9 @@ curseduca: {
     className: String,
     
     lastActivity: Date,
-    sourcesAvailable: [{ 
-      type: String, 
-      enum: ['discord', 'hotmart', 'curseduca'] 
+    sourcesAvailable: [{
+      type: String,
+      enum: ['discord', 'hotmart', 'curseduca', 'guru']
     }],
     dataQuality: { 
       type: String, 
@@ -570,6 +623,10 @@ curseduca: {
         version: String
       },
       curseduca: {
+        lastSync: Date,
+        version: String
+      },
+      guru: {
         lastSync: Date,
         version: String
       }
@@ -651,11 +708,12 @@ UserSchema.pre<IUser>('save', function(next) {
 
 // 📊 MÉTODO PARA CALCULAR DADOS COMBINADOS
 UserSchema.methods.calculateCombinedData = function(this: IUser) {
-  const sourcesAvailable: ('discord' | 'hotmart' | 'curseduca')[] = []
-  
+  const sourcesAvailable: ('discord' | 'hotmart' | 'curseduca' | 'guru')[] = []
+
   if (this.discord) sourcesAvailable.push('discord')
   if (this.hotmart) sourcesAvailable.push('hotmart')
   if (this.curseduca) sourcesAvailable.push('curseduca')
+  if (this.guru) sourcesAvailable.push('guru')
   
   let status: 'ACTIVE' | 'INACTIVE' = 'ACTIVE'
   if (this.discord?.isDeleted) status = 'INACTIVE'
@@ -869,6 +927,15 @@ UserSchema.statics.findByDiscordId = function(discordId: string) {
   return this.findOne({ 'discord.discordIds': discordId })
 }
 
+// 💰 NOVO MÉTODO: Buscar por ID do Guru
+UserSchema.statics.findByGuruContactId = function(guruContactId: string) {
+  return this.findOne({ 'guru.guruContactId': guruContactId })
+}
+
+UserSchema.statics.findByGuruSubscriptionCode = function(subscriptionCode: string) {
+  return this.findOne({ 'guru.subscriptionCode': subscriptionCode })
+}
+
 // 📊 MÉTODOS DE ESTATÍSTICAS
 UserSchema.statics.getSourceStatistics = async function() {
   return this.aggregate([
@@ -960,6 +1027,9 @@ UserSchema.index({ 'curseduca.groupCurseducaId': 1 })  // 🆕 ID numérico do g
 UserSchema.index({ 'combined.dataQuality': 1 })
 UserSchema.index({ 'combined.combinedEngagement': -1 })
 UserSchema.index({ 'metadata.updatedAt': -1 })
+// 💰 Índices para Guru
+UserSchema.index({ 'guru.guruContactId': 1 })
+UserSchema.index({ 'guru.subscriptionCode': 1 })
 
 // 🔧 VERIFICAR SE MODELO JÁ EXISTE ANTES DE CRIAR
 let UserModel: IUserModel

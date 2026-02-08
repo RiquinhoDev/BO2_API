@@ -50,7 +50,7 @@ export function evaluateAccountStatusTags(
   }
 
   // Inativado Manualmente (apenas OGI)
-  if (productName === 'OGI_V1' && user?.inactivation?.isManuallyInactivated === true) {
+  if (productName.includes('OGI') && user?.inactivation?.isManuallyInactivated === true) {
     tags.push(formatBOTag(productName, 'Inativado Manualmente'))
   }
 
@@ -64,7 +64,7 @@ export function evaluateAccountStatusTags(
   }
 
   // Inativo Curseduca (apenas CLAREZA)
-  const isClarezaProduct = productName === 'CLAREZA_ANUAL' || productName === 'CLAREZA_MENSAL'
+  const isClarezaProduct = productName.includes('CLAREZA')
   if (isClarezaProduct && userProduct.curseduca?.memberStatus === 'INACTIVE') {
     tags.push(formatBOTag(productName, 'Inativo Curseduca'))
   }
