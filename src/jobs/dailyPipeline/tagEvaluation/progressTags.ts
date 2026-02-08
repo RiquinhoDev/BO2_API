@@ -9,13 +9,11 @@ import { formatBOTag } from './tagFormatter'
 /**
  * Avalia e retorna tags de progresso baseado na percentagem de conclusão
  *
- * Regras (mutuamente exclusivas):
+ * Regras SIMPLIFICADAS (mutuamente exclusivas - 5 níveis):
  * - 0% → "Não Iniciou"
- * - 1-10% → "Início Abandonado"
- * - 11-25% → "Progresso Baixo"
- * - 26-50% → "Progresso Médio-Baixo"
- * - 51-75% → "Progresso Médio"
- * - 76-90% → "Progresso Alto"
+ * - 1-20% → "Início Abandonado"
+ * - 21-50% → "Progresso Baixo"
+ * - 51-90% → "Progresso Alto"
  * - 91-99% → "Quase Completo"
  * - 100% → "Curso Concluído" (aplicado em COMPLETION, não aqui)
  *
@@ -33,20 +31,16 @@ export function evaluateProgressTags(
   const progress = userProduct.progress?.percentage ?? 0
 
   // ─────────────────────────────────────────────────────────────
-  // AVALIAÇÃO BASEADA NA PERCENTAGEM
+  // AVALIAÇÃO BASEADA NA PERCENTAGEM (5 NÍVEIS SIMPLIFICADOS)
   // ─────────────────────────────────────────────────────────────
 
   if (progress === 0) {
     tags.push(formatBOTag(productName, 'Não Iniciou'))
-  } else if (progress > 0 && progress <= 10) {
+  } else if (progress > 0 && progress <= 20) {
     tags.push(formatBOTag(productName, 'Início Abandonado'))
-  } else if (progress > 10 && progress <= 25) {
+  } else if (progress > 20 && progress <= 50) {
     tags.push(formatBOTag(productName, 'Progresso Baixo'))
-  } else if (progress > 25 && progress <= 50) {
-    tags.push(formatBOTag(productName, 'Progresso Médio-Baixo'))
-  } else if (progress > 50 && progress <= 75) {
-    tags.push(formatBOTag(productName, 'Progresso Médio'))
-  } else if (progress > 75 && progress <= 90) {
+  } else if (progress > 50 && progress <= 90) {
     tags.push(formatBOTag(productName, 'Progresso Alto'))
   } else if (progress > 90 && progress < 100) {
     tags.push(formatBOTag(productName, 'Quase Completo'))
@@ -87,8 +81,12 @@ export function evaluateProgressTagsWithDebug(
   const modulesInfo = userProduct.progress?.modulesList
     ? {
         total: userProduct.progress.totalModules ?? userProduct.progress.modulesList.length,
-        completed: userProduct.progress.modulesCompleted ??
-          userProduct.progress.modulesList.filter(m => m.completed).length
+        completed:
+          typeof userProduct.progress.modulesCompleted === 'number'
+            ? userProduct.progress.modulesCompleted
+            : Array.isArray(userProduct.progress.modulesCompleted)
+            ? userProduct.progress.modulesCompleted.length
+            : userProduct.progress.modulesList.filter(m => m.completed || m.isCompleted).length
       }
     : undefined
 

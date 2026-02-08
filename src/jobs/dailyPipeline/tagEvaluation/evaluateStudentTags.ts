@@ -18,6 +18,8 @@ import { evaluateInactivityTags } from './inactivityTags'
 import { evaluateEngagementTags } from './engagementTags'
 import { evaluateProgressTags } from './progressTags'
 import { evaluateCompletionTags } from './completionTags'
+import { evaluatePositiveTags } from './positiveTags'
+import { evaluateModuleStuckTags } from './moduleStuckTags'
 import { calculateEngagementScore } from './engagementScore'
 
 /**
@@ -75,6 +77,8 @@ function isSystemTag(tag: string): boolean {
  * 3. INACTIVITY (terceira prioridade)
  * 4. PROGRESS (quarta prioridade)
  * 5. ENGAGEMENT (quinta prioridade)
+ * 6. POSITIVE (sexta prioridade - Ativo, Super Utilizador)
+ * 7. MODULE_STUCK (sétima prioridade - Parou após M1, OGI apenas)
  *
  * @param user - Dados do utilizador
  * @param userProducts - Array de UserProducts do utilizador
@@ -215,6 +219,40 @@ export async function evaluateStudentTags(
 
       if (verbose) {
         console.log(`    ✅ ENGAGEMENT: ${engagementTags.join(', ')} (score: ${score})`)
+      }
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 6️⃣ POSITIVE (sexta prioridade - Ativo, Super Utilizador)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const positiveTags = evaluatePositiveTags(userProduct, productName)
+    if (positiveTags.length > 0) {
+      allTags.push(...positiveTags)
+      appliedTagsDetails.push({
+        category: 'POSITIVE' as TagCategory,
+        tags: positiveTags,
+        reason: `Tags positivas: ${positiveTags.join(', ')}`
+      })
+
+      if (verbose) {
+        console.log(`    ✅ POSITIVE: ${positiveTags.join(', ')}`)
+      }
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 7️⃣ MODULE_STUCK (sétima prioridade - Parou após M1, OGI apenas)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const moduleStuckTags = evaluateModuleStuckTags(userProduct, productName)
+    if (moduleStuckTags.length > 0) {
+      allTags.push(...moduleStuckTags)
+      appliedTagsDetails.push({
+        category: 'MODULE_STUCK' as TagCategory,
+        tags: moduleStuckTags,
+        reason: `Parou após módulo: ${moduleStuckTags.join(', ')}`
+      })
+
+      if (verbose) {
+        console.log(`    ✅ MODULE_STUCK: ${moduleStuckTags.join(', ')}`)
       }
     }
   }

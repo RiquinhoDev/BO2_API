@@ -5,7 +5,7 @@
 
 import mongoose from 'mongoose'
 
-export type TagCategory = 'INACTIVITY' | 'ENGAGEMENT' | 'PROGRESS' | 'COMPLETION' | 'ACCOUNT_STATUS'
+export type TagCategory = 'INACTIVITY' | 'ENGAGEMENT' | 'PROGRESS' | 'COMPLETION' | 'ACCOUNT_STATUS' | 'POSITIVE' | 'MODULE_STUCK'
 export type ProductName = 'OGI_V1' | 'CLAREZA_ANUAL' | 'CLAREZA_MENSAL' | string
 
 export interface IEngagementMetrics {
@@ -14,17 +14,28 @@ export interface IEngagementMetrics {
   daysInactive?: number
   loginsLast30Days?: number
   weeksActiveLast30Days?: number
+  // Platform-specific fields
+  daysSinceLastLogin?: number  // OGI/Hotmart
+  daysSinceLastAction?: number // CLAREZA/CursEduca
 }
 
 export interface IProgressMetrics {
   percentage?: number
   modulesList?: Array<{
     moduleId: string
-    completed: boolean
+    name?: string
+    sequence?: number
+    totalPages?: number
+    completedPages?: number
+    isCompleted?: boolean
+    completed?: boolean  // Alternative field name
+    isExtra?: boolean
+    progressPercentage?: number
+    lastCompletedDate?: number  // timestamp
     completedAt?: Date
   }>
   totalModules?: number
-  modulesCompleted?: number
+  modulesCompleted?: number | string[]
 }
 
 export interface IUserProductForEvaluation {

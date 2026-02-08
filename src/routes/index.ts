@@ -22,6 +22,8 @@ import discoveryRoutes from './discovery.routes'
 import acReaderRoutes from './ACroutes/acReader.routes'
 import studentsRoutes from './students'
 import tagMonitoringRoutes from './tagMonitoring.routes'
+import tagEvaluationRoutes from './tagEvaluation.routes'
+import guruRoutes from './guru.routes'
 
 // ✅ CRON UTILIZADORES (Sistema Novo)
 import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
@@ -41,6 +43,7 @@ router.use("/auth", authRoutes)
 router.use("/users", userRoutes)
 router.use("/hotmart", hotmartRoutes)
 router.use("/curseduca", curseducaRoutes)
+router.use("/guru", guruRoutes)  // 💰 Integração Guru
 router.use("/sync", syncRoutes)
 router.use("/ac", acReaderRoutes) 
 
@@ -83,6 +86,9 @@ router.use('/cron-tags', cronManagementRoutes)     // /api/cron-tags/config, /ap
 // 🏷️ TAG MONITORING SYSTEM (Monitorização Semanal de Tags Nativas)
 router.use('/tag-monitoring', tagMonitoringRoutes) // /api/tag-monitoring/*
 
+// 🧪 TAG EVALUATION SYSTEM (Sistema de Teste de Tags V2)
+router.use('/tags', tagEvaluationRoutes) // /api/tags/evaluate, /api/tags/evaluate-batch
+
 // 🏥 HEALTH CHECK MELHORADO
 router.get("/health", (req, res) => {
   res.status(200).json({
@@ -92,8 +98,9 @@ router.get("/health", (req, res) => {
     services: {
       // Serviços principais
       users: "✅ Disponível",
-      hotmart: "✅ Disponível", 
+      hotmart: "✅ Disponível",
       curseduca: "✅ Disponível",
+      guru: "✅ Disponível",
       sync: "✅ Disponível",
       
       // Gestão de conteúdo
@@ -123,6 +130,7 @@ router.get("/health", (req, res) => {
     integrations: {
       hotmart: "✅ Configurado",
       curseduca: "✅ Configurado",
+      guru: "✅ Configurado",
       activecampaign: "✅ Configurado",
       mongodb: "✅ Conectado"
     }

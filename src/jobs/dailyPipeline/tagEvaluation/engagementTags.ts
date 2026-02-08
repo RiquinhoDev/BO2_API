@@ -10,11 +10,10 @@ import { formatBOTag } from './tagFormatter'
 /**
  * Avalia e retorna tags de engagement baseado no engagement score
  *
- * Regras (mutuamente exclusivas):
+ * Regras SIMPLIFICADAS (mutuamente exclusivas - 5 categorias):
  * - < 15 → "Engajamento Crítico"
- * - 15-29 → "Baixo Engajamento"
- * - 30-49 → "Médio-Baixo Engajamento"
- * - 50-69 → "Médio Engajamento"
+ * - 15-39 → "Baixo Engajamento"
+ * - 40-69 → "Médio Engajamento"
  * - 70-84 → "Alto Engajamento"
  * - >= 85 → "Engajamento Excepcional"
  *
@@ -32,15 +31,13 @@ export function evaluateEngagementTags(
   const score = calculateEngagementScore(userProduct, productName)
 
   // ─────────────────────────────────────────────────────────────
-  // AVALIAÇÃO BASEADA NO SCORE
+  // AVALIAÇÃO BASEADA NO SCORE (5 CATEGORIAS SIMPLIFICADAS)
   // ─────────────────────────────────────────────────────────────
 
   if (score < 15) {
     tags.push(formatBOTag(productName, 'Engajamento Crítico'))
-  } else if (score < 30) {
+  } else if (score < 40) {
     tags.push(formatBOTag(productName, 'Baixo Engajamento'))
-  } else if (score < 50) {
-    tags.push(formatBOTag(productName, 'Médio-Baixo Engajamento'))
   } else if (score < 70) {
     tags.push(formatBOTag(productName, 'Médio Engajamento'))
   } else if (score < 85) {

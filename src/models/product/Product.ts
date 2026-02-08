@@ -37,7 +37,11 @@ export interface IProduct extends Document {
   curseducaGroupId?: string
   curseducaGroupUuid?: string
   discordRoleId?: string
-  
+
+  // 💰 GURU
+  guruProductId?: string
+  guruOfferId?: string
+
   activeCampaignConfig?: IActiveCampaignProductConfig
   
   isActive: boolean
@@ -142,7 +146,25 @@ const ProductSchema = new Schema<IProduct>({
     index: true
     // ID do role no Discord
   },
-  
+
+  // ═══════════════════════════════════════════════════════════
+  // 💰 GURU
+  // ═══════════════════════════════════════════════════════════
+
+  guruProductId: {
+    type: String,
+    sparse: true,
+    index: true
+    // ID do produto na Guru (ex: "9fa25a47-34d8-41ef-b684-0285e1c33aa4")
+  },
+
+  guruOfferId: {
+    type: String,
+    sparse: true,
+    index: true
+    // ID da oferta na Guru (ex: "a0e39582-1c07-4548-816a-e85aa693e1f2")
+  },
+
   // ═══════════════════════════════════════════════════════════
   // ACTIVE CAMPAIGN
   // ═══════════════════════════════════════════════════════════
@@ -211,6 +233,9 @@ ProductSchema.index({ courseId: 1, platform: 1 })
 ProductSchema.index({ platform: 1, isActive: 1 })
 ProductSchema.index({ code: 1, isActive: 1 })
 ProductSchema.index({ isActive: 1, launchDate: -1 })
+// 💰 Guru indexes
+ProductSchema.index({ guruProductId: 1 })
+ProductSchema.index({ guruOfferId: 1 })
 
 // ─────────────────────────────────────────────────────────────
 // MÉTODOS

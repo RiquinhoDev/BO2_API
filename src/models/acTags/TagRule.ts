@@ -9,7 +9,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 // INTERFACES
 // ─────────────────────────────────────────────────────────────
 
-export type RuleCategory = 'INACTIVITY' | 'ENGAGEMENT' | 'PROGRESS' | 'COMPLETION'
+export type RuleCategory = 'INACTIVITY' | 'ENGAGEMENT' | 'PROGRESS' | 'COMPLETION' | 'ACCOUNT_STATUS' | 'POSITIVE' | 'MODULE_STUCK'
 export type ConditionType = 'SIMPLE' | 'COMPOUND'
 export type OperatorType = 'olderThan' | 'newerThan' | 'equals' | 'greaterThan' | 'lessThan'
 export type UnitType = 'days' | 'weeks' | 'reports' | 'percentage'
@@ -122,7 +122,7 @@ const TagRuleSchema = new Schema<ITagRule>({
   },
   category: {
     type: String,
-    enum: ['INACTIVITY', 'ENGAGEMENT', 'PROGRESS', 'COMPLETION'],
+    enum: ['INACTIVITY', 'ENGAGEMENT', 'PROGRESS', 'COMPLETION', 'ACCOUNT_STATUS', 'POSITIVE', 'MODULE_STUCK'],
     required: true,
     index: true
   },
