@@ -5,7 +5,9 @@ import User from '../models/user'
 import { GURU_SSO_ALLOWED_STATUSES } from '../types/guru.types'
 
 // Configuração da API Guru
-const GURU_API_URL = process.env.GURU_API_URL || 'https://digitalmanager.guru/api/v1'
+// NOTA: A API v2 é a atual, v1 foi descontinuada
+// Endpoint SSO MyOrders: POST /api/v2/myorders/auth/sso/{email}
+const GURU_API_BASE = 'https://digitalmanager.guru/api/v2'
 const GURU_USER_TOKEN = process.env.GURU_USER_TOKEN
 
 // ═══════════════════════════════════════════════════════════
@@ -91,10 +93,12 @@ export const ssoMyOrders = async (req: Request, res: Response) => {
     // ═══════════════════════════════════════════════════════════
     // 5. CHAMAR API GURU PARA SSO
     // ═══════════════════════════════════════════════════════════
-    console.log(`📡 [GURU SSO] Chamando API Guru para: ${normalizedEmail}`)
+    // Endpoint correto (v2): POST /api/v2/myorders/auth/sso/{email}
+    const ssoEndpoint = `${GURU_API_BASE}/myorders/auth/sso/${encodeURIComponent(normalizedEmail)}`
+    console.log(`📡 [GURU SSO] Chamando API Guru: ${ssoEndpoint}`)
 
     const ssoResponse = await axios.post(
-      `${GURU_API_URL}/auth/sso/${encodeURIComponent(normalizedEmail)}`,
+      ssoEndpoint,
       {},
       {
         headers: {
