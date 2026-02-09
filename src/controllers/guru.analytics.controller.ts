@@ -204,8 +204,10 @@ export const getMRRMetrics = async (req: Request, res: Response) => {
 // ═══════════════════════════════════════════════════════════
 
 /**
- * Comparar cancelamentos entre Guru e Clareza (UserProducts)
+ * Comparar cancelamentos entre Guru e Clareza (CursEduca)
  * GET /guru/analytics/compare
+ *
+ * CORRIGIDO: Agora verifica tanto UserProduct quanto user.curseduca
  *
  * Identifica discrepâncias entre as duas plataformas:
  * - Cancelado na Guru mas ativo no Clareza
@@ -222,7 +224,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
     const usersWithGuru = await User.find({
       guru: { $exists: true },
       'guru.status': { $exists: true }
-    }).select('email name guru').lean()
+    }).select('email name guru curseduca').lean()
 
     console.log(`   📌 Users com dados Guru: ${usersWithGuru.length}`)
 
@@ -235,7 +237,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
 
     console.log(`   📌 UserProducts Clareza: ${clarezaProducts.length}`)
 
-    // Criar mapa de Clareza por email
+    // Criar mapa de Clareza por email (de UserProduct)
     const clarezaByEmail = new Map<string, any>()
     for (const up of clarezaProducts) {
       const user = up.userId as any
@@ -247,13 +249,43 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
           clarezaByEmail.set(email, {
             ...up,
             userEmail: email,
-            userName: user.name
+            userName: user.name,
+            source: 'userproduct'
           })
         }
       }
     }
 
-    console.log(`   📌 Emails únicos no Clareza: ${clarezaByEmail.size}`)
+    // ─────────────────────────────────────────────────────────
+    // 2b. TAMBÉM VERIFICAR user.curseduca (dados diretos)
+    // ─────────────────────────────────────────────────────────
+    const usersWithCurseduca = await User.find({
+      curseduca: { $exists: true },
+      'curseduca.curseducaUserId': { $exists: true }
+    }).select('email name curseduca').lean()
+
+    console.log(`   📌 Users com dados CursEduca direto: ${usersWithCurseduca.length}`)
+
+    // Adicionar ao mapa os que têm user.curseduca mas não estão no UserProduct
+    for (const user of usersWithCurseduca) {
+      const email = user.email?.toLowerCase().trim()
+      if (email && !clarezaByEmail.has(email)) {
+        // Determinar status baseado em memberStatus ou enrolledClasses
+        const hasActiveClass = user.curseduca?.enrolledClasses?.some((c: any) => c.isActive) || false
+        const memberStatus = user.curseduca?.memberStatus || (hasActiveClass ? 'ACTIVE' : 'INACTIVE')
+
+        clarezaByEmail.set(email, {
+          userEmail: email,
+          userName: user.name,
+          status: memberStatus,
+          curseducaUserId: user.curseduca?.curseducaUserId,
+          enrolledClasses: user.curseduca?.enrolledClasses,
+          source: 'user.curseduca'
+        })
+      }
+    }
+
+    console.log(`   📌 Emails únicos no Clareza (total): ${clarezaByEmail.size}`)
 
     // ─────────────────────────────────────────────────────────
     // 3. COMPARAR STATUS ENTRE AS PLATAFORMAS
@@ -280,7 +312,23 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
       const guruIsCanceled = guruCanceledStatuses.includes(guruStatus)
       const guruIsActive = guruActiveStatuses.includes(guruStatus)
 
-      const clarezaData = clarezaByEmail.get(email)
+      // Primeiro verificar se o user tem dados CursEduca direto (user.curseduca)
+      let clarezaData = clarezaByEmail.get(email)
+
+      // Se não encontrou no mapa, verificar user.curseduca diretamente
+      if (!clarezaData && (user as any).curseduca?.curseducaUserId) {
+        const hasActiveClass = (user as any).curseduca?.enrolledClasses?.some((c: any) => c.isActive) || false
+        const memberStatus = (user as any).curseduca?.memberStatus || (hasActiveClass ? 'ACTIVE' : 'INACTIVE')
+
+        clarezaData = {
+          userEmail: email,
+          userName: user.name,
+          status: memberStatus,
+          curseducaUserId: (user as any).curseduca?.curseducaUserId,
+          enrolledClasses: (user as any).curseduca?.enrolledClasses,
+          source: 'user.curseduca (direct)'
+        }
+      }
 
       if (!clarezaData) {
         // User só existe na Guru, não tem Clareza
@@ -305,7 +353,8 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
         guruUpdatedAt: user.guru?.updatedAt,
         clarezaStatus,
         clarezaUpdatedAt: clarezaData.updatedAt,
-        clarezaEnrolledAt: clarezaData.enrolledAt
+        clarezaEnrolledAt: clarezaData.enrolledAt,
+        clarezaSource: clarezaData.source || 'userproduct'
       }
 
       // Classificar
