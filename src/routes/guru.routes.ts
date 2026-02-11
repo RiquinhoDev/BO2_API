@@ -34,6 +34,14 @@ import {
   getChurnFromSnapshots,
   createHistoricalSnapshots
 } from '../controllers/guru.snapshot.controller'
+import {
+  listPendingInactivation,
+  inactivateSingle,
+  inactivateBulk,
+  revertInactivationMark,
+  getInactivationStats,
+  markDiscrepanciesForInactivation
+} from '../controllers/guru.inactivation.controller'
 
 const router = Router()
 
@@ -225,5 +233,49 @@ router.put('/snapshots/:year/:month', asyncRoute(updateSnapshot))
  * Apagar snapshot
  */
 router.delete('/snapshots/:year/:month', asyncRoute(deleteSnapshot))
+
+// ═══════════════════════════════════════════════════════════
+// INATIVAÇÃO CURSEDUCA
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * GET /guru/inactivation/pending
+ * Listar UserProducts marcados como PARA_INATIVAR
+ */
+router.get('/inactivation/pending', asyncRoute(listPendingInactivation))
+
+/**
+ * GET /guru/inactivation/stats
+ * Estatísticas de inativação
+ */
+router.get('/inactivation/stats', asyncRoute(getInactivationStats))
+
+/**
+ * POST /guru/inactivation/single
+ * Inativar um único membro no CursEduca
+ * Body: { userProductId: string } ou { curseducaUserId: string }
+ */
+router.post('/inactivation/single', asyncRoute(inactivateSingle))
+
+/**
+ * POST /guru/inactivation/bulk
+ * Inativar múltiplos membros no CursEduca
+ * Body: { userProductIds: string[] } ou { all: true }
+ */
+router.post('/inactivation/bulk', asyncRoute(inactivateBulk))
+
+/**
+ * POST /guru/inactivation/revert
+ * Reverter a marcação de PARA_INATIVAR para ACTIVE
+ * Body: { userProductId: string }
+ */
+router.post('/inactivation/revert', asyncRoute(revertInactivationMark))
+
+/**
+ * POST /guru/inactivation/mark-discrepancies
+ * Marcar discrepâncias (Guru cancelado, Clareza ativo) para inativação
+ * Body: { emails?: string[] } - se vazio, marca todas as discrepâncias
+ */
+router.post('/inactivation/mark-discrepancies', asyncRoute(markDiscrepanciesForInactivation))
 
 export default router

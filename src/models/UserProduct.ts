@@ -10,7 +10,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 // INTERFACES
 // ─────────────────────────────────────────────────────────────
 
-export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CANCELLED'
+export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CANCELLED' | 'PARA_INATIVAR'
 export type EnrollmentSource = 'PURCHASE' | 'MANUAL' | 'MIGRATION' | 'TRIAL'
 export type PlatformType = 'hotmart' | 'curseduca' | 'discord'
 
@@ -197,7 +197,7 @@ const UserProductSchema = new Schema<IUserProduct>({
   
   status: {
     type: String,
-    enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'CANCELLED'],
+    enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'CANCELLED', 'PARA_INATIVAR'],
     default: 'ACTIVE',
     required: true,
     index: true

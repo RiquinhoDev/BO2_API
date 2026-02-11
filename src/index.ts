@@ -149,8 +149,37 @@ mongoose.connect(process.env.MONGO_URI || "")
     process.exit(1)
   })
 
-// Middleware
-app.use(cors())
+// Middleware - CORS configurado para permitir frontend
+const allowedOrigins = [
+  'https://www.backoffice.serriquinho.com',
+  'https://backoffice.serriquinho.com',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173'
+]
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permitir requests sem origin (ex: curl, Postman, mobile apps)
+    if (!origin) return callback(null, true)
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      console.warn(`⚠️ CORS: Origem bloqueada: ${origin}`)
+      // Em produção, bloquear. Em dev, permitir com warning
+      if (process.env.NODE_ENV === 'production') {
+        callback(new Error(`Origin ${origin} not allowed by CORS`))
+      } else {
+        callback(null, true) // Dev: permitir tudo
+      }
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'api_key', 'x-api-key']
+}))
 app.use(express.json())
 app.use(metricsMiddleware)
 

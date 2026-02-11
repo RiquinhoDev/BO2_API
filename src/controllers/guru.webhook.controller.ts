@@ -2,7 +2,11 @@
 import { Request, Response } from 'express'
 import User from '../models/user'
 import GuruWebhook from '../models/GuruWebhook'
+import UserProduct from '../models/UserProduct'
 import { GuruWebhookPayload, GuruSubscriptionStatus } from '../types/guru.types'
+
+// Status da Guru que indicam cancelamento
+const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
 
 // Token para validar webhooks (guardado em env vars)
 const GURU_ACCOUNT_TOKEN = process.env.GURU_ACCOUNT_TOKEN
@@ -164,7 +168,43 @@ export const handleGuruWebhook = async (req: Request, res: Response) => {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // 6. MARCAR WEBHOOK COMO PROCESSADO
+    // 6. VERIFICAR SE DEVE MARCAR USERPRODUCT PARA INATIVAR
+    // ═══════════════════════════════════════════════════════════
+    let markedForInactivation = false
+
+    if (GURU_CANCELED_STATUSES.includes(payload.status)) {
+      // Buscar UserProducts do CursEduca (Clareza) que estejam ACTIVE
+      const userProductsToMark = await UserProduct.find({
+        userId: user._id,
+        platform: 'curseduca',
+        status: 'ACTIVE'
+      })
+
+      if (userProductsToMark.length > 0) {
+        // Marcar como PARA_INATIVAR
+        await UserProduct.updateMany(
+          {
+            userId: user._id,
+            platform: 'curseduca',
+            status: 'ACTIVE'
+          },
+          {
+            $set: {
+              status: 'PARA_INATIVAR',
+              'metadata.markedForInactivationAt': new Date(),
+              'metadata.markedForInactivationReason': `Guru status: ${payload.status}`,
+              'metadata.guruWebhookId': requestId
+            }
+          }
+        )
+
+        markedForInactivation = true
+        console.log(`⚠️ [GURU] ${userProductsToMark.length} UserProduct(s) marcado(s) PARA_INATIVAR: ${email}`)
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 7. MARCAR WEBHOOK COMO PROCESSADO
     // ═══════════════════════════════════════════════════════════
     await GuruWebhook.findByIdAndUpdate(webhookDoc._id, {
       processed: true,
@@ -181,6 +221,7 @@ export const handleGuruWebhook = async (req: Request, res: Response) => {
       email,
       event: payload.event,
       status: payload.status,
+      markedForInactivation,
       duration
     })
 

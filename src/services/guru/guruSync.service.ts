@@ -1,6 +1,10 @@
 // src/services/guru/guruSync.service.ts - Serviço para sincronizar dados da Guru (APENAS LEITURA)
 import axios from 'axios'
 import User from '../../models/user'
+import UserProduct from '../../models/UserProduct'
+
+// Status da Guru que indicam cancelamento (para marcar PARA_INATIVAR)
+const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
 
 // ═══════════════════════════════════════════════════════════
 // CONFIGURAÇÃO
@@ -91,10 +95,12 @@ interface SyncResult {
   updated: number
   skipped: number
   errors: number
+  markedForInactivation: number
   details: Array<{
     email: string
     action: 'created' | 'updated' | 'skipped' | 'error'
     error?: string
+    markedForInactivation?: number
   }>
 }
 
@@ -336,10 +342,12 @@ function mapGuruStatus(guruStatus: string): 'active' | 'pastdue' | 'canceled' | 
 
 /**
  * Guardar subscrição na nossa BD
+ * NOTA: Também marca UserProducts como PARA_INATIVAR se status for cancelado
  */
 export async function saveSubscriptionToDb(subscription: GuruSubscription): Promise<{
   action: 'created' | 'updated' | 'skipped'
   email: string
+  markedForInactivation?: number
 }> {
   // Tentar encontrar o email em diferentes locais da estrutura
   const email = (
@@ -382,6 +390,8 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
   const existingUser = await User.findOne({ email }).select('_id')
   let action: 'created' | 'updated'
 
+  let userId: any
+
   if (existingUser) {
     // Atualizar apenas campos da Guru (evita validar Hotmart/Curseduca)
     await User.updateOne(
@@ -395,10 +405,11 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
       },
       { runValidators: false }
     )
+    userId = existingUser._id
     action = 'updated'
   } else {
     // Criar user apenas com campos essenciais + Guru
-    await User.create({
+    const newUser = await User.create({
       email,
       name: subscriberName,
       guru: guruData,
@@ -410,10 +421,41 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
         }
       }
     })
+    userId = newUser._id
     action = 'created'
   }
 
-  return { action, email }
+  // ═══════════════════════════════════════════════════════════
+  // MARCAR USERPRODUCTS PARA INATIVAR SE STATUS FOR CANCELADO
+  // ═══════════════════════════════════════════════════════════
+  let markedForInactivation = 0
+
+  if (GURU_CANCELED_STATUSES.includes(guruData.status)) {
+    // Buscar UserProducts do CursEduca que estejam ACTIVE
+    const result = await UserProduct.updateMany(
+      {
+        userId,
+        platform: 'curseduca',
+        status: 'ACTIVE'
+      },
+      {
+        $set: {
+          status: 'PARA_INATIVAR',
+          'metadata.markedForInactivationAt': new Date(),
+          'metadata.markedForInactivationReason': `Sync Guru: status ${guruData.status}`,
+          'metadata.guruSyncMarked': true
+        }
+      }
+    )
+
+    markedForInactivation = result.modifiedCount || 0
+
+    if (markedForInactivation > 0) {
+      console.log(`  ⚠️ PARA_INATIVAR: ${email} (${markedForInactivation} UserProduct(s))`)
+    }
+  }
+
+  return { action, email, markedForInactivation }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -439,6 +481,7 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
     updated: 0,
     skipped: 0,
     errors: 0,
+    markedForInactivation: 0,
     details: []
   }
 
@@ -454,7 +497,7 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
       const sub = subscriptions[i]
 
       try {
-        const { action, email } = await saveSubscriptionToDb(sub)
+        const { action, email, markedForInactivation } = await saveSubscriptionToDb(sub)
 
         if (action === 'created') {
           result.created++
@@ -466,11 +509,16 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
           result.skipped++
         }
 
-        result.details.push({ email, action })
+        // Acumular total de marcados para inativação
+        if (markedForInactivation && markedForInactivation > 0) {
+          result.markedForInactivation += markedForInactivation
+        }
+
+        result.details.push({ email, action, markedForInactivation })
 
         // Log de progresso a cada 25
         if ((i + 1) % 25 === 0) {
-          console.log(`\n📈 [GURU SYNC] Progresso: ${i + 1}/${subscriptions.length} (✨${result.created} novos, 🔄${result.updated} atualizados, ⏭️${result.skipped} ignorados)\n`)
+          console.log(`\n📈 [GURU SYNC] Progresso: ${i + 1}/${subscriptions.length} (✨${result.created} novos, 🔄${result.updated} atualizados, ⏭️${result.skipped} ignorados, 🔴${result.markedForInactivation} p/inativar)\n`)
         }
 
       } catch (error: any) {
@@ -491,6 +539,7 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
     console.log(`🔄 Atualizados: ${result.updated}`)
     console.log(`⏭️ Ignorados (sem email): ${result.skipped}`)
     console.log(`❌ Erros: ${result.errors}`)
+    console.log(`🔴 Marcados PARA_INATIVAR: ${result.markedForInactivation}`)
 
     // Mostrar alguns exemplos
     const createdEmails = result.details.filter(d => d.action === 'created').slice(0, 5)
