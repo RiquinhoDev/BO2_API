@@ -2,6 +2,7 @@
 import { Request, Response } from 'express'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
+import { fetchAllSubscriptionsComplete } from '../services/guru/guruSync.service'
 
 // ═══════════════════════════════════════════════════════════
 // CHURN METRICS
@@ -410,9 +411,83 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
     console.log(`      - Ambos cancelados: ${stats.bothCanceled}`)
     console.log(`      - Ambos ativos: ${stats.bothActive}`)
 
+    // ─────────────────────────────────────────────────────────
+    // 5. AUTO-CLEANUP: LIMPAR PARA_INATIVAR MAL IDENTIFICADOS
+    // ─────────────────────────────────────────────────────────
+    console.log(`   🧹 Executando auto-cleanup de PARA_INATIVAR...`)
+
+    const pendingList = await UserProduct.find({
+      platform: 'curseduca',
+      status: 'PARA_INATIVAR'
+    }).populate('userId', 'email name curseduca guru')
+
+    let cleanedActiveCount = 0
+    let cleanedInactiveCount = 0
+
+    for (const userProduct of pendingList) {
+      try {
+        const user = userProduct.userId as any
+        if (!user) continue
+
+        const guruStatus = user?.guru?.status || null
+        const curseducaStatus = user?.curseduca?.memberStatus || 'ACTIVE'
+
+        // CASO 1: Já está INACTIVE no CursEduca
+        if (curseducaStatus === 'INACTIVE' || curseducaStatus === 'SUSPENDED') {
+          await UserProduct.findByIdAndUpdate(userProduct._id, {
+            $set: {
+              status: 'INACTIVE',
+              'metadata.inactivatedAt': new Date(),
+              'metadata.inactivatedBy': 'comparison_auto_cleanup',
+              'metadata.inactivatedReason': 'Já estava INACTIVE no CursEduca (detectado na comparação)'
+            },
+            $unset: {
+              'metadata.markedForInactivationAt': 1,
+              'metadata.markedForInactivationReason': 1
+            }
+          })
+          cleanedInactiveCount++
+          console.log(`      ✅ ${user.email}: PARA_INATIVAR → INACTIVE (CursEduca já INACTIVE)`)
+          continue
+        }
+
+        // CASO 2: Guru está ACTIVE, PENDING ou PASTDUE (não deveria estar para inativar)
+        if (guruStatus === 'active' || guruStatus === 'pastdue' || guruStatus === 'pending') {
+          await UserProduct.findByIdAndUpdate(userProduct._id, {
+            $set: {
+              status: 'ACTIVE',
+              'metadata.cleanedAt': new Date(),
+              'metadata.cleanedBy': 'comparison_auto_cleanup',
+              'metadata.cleanedReason': `Guru ${guruStatus} não justifica inativação`
+            },
+            $unset: {
+              'metadata.markedForInactivationAt': 1,
+              'metadata.markedForInactivationReason': 1,
+              'metadata.markedFromComparison': 1
+            }
+          })
+          cleanedActiveCount++
+          console.log(`      ✅ ${user.email}: PARA_INATIVAR → ACTIVE (Guru ${guruStatus})`)
+        }
+      } catch (err: any) {
+        console.error(`      ⚠️ Erro ao limpar ${(userProduct.userId as any)?.email}:`, err.message)
+      }
+    }
+
+    console.log(`   ✅ Auto-cleanup concluído:`)
+    console.log(`      - Marcados como ACTIVE: ${cleanedActiveCount}`)
+    console.log(`      - Marcados como INACTIVE: ${cleanedInactiveCount}`)
+    console.log(`      - Total limpo: ${cleanedActiveCount + cleanedInactiveCount}`)
+
     return res.json({
       success: true,
       stats,
+      cleanup: {
+        executed: true,
+        cleanedToActive: cleanedActiveCount,
+        cleanedToInactive: cleanedInactiveCount,
+        totalCleaned: cleanedActiveCount + cleanedInactiveCount
+      },
       discrepancies: {
         // Problemas (precisam de atenção)
         guruCanceledClarezaActive: discrepancies.guruCanceledClarezaActive,
@@ -428,6 +503,191 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error('❌ [COMPARE] Erro ao comparar:', error.message)
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DIAGNÓSTICO: DETECTAR USERS COM MÚLTIPLAS SUBSCRIÇÕES
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Diagnosticar e corrigir users cujo guru.status está errado
+ * porque tinham múltiplas subscrições e o sync guardou a pior
+ *
+ * GET /guru/analytics/fix-multi-subscriptions
+ * ?fix=true para corrigir automaticamente
+ */
+export const fixMultiSubscriptions = async (req: Request, res: Response) => {
+  try {
+    const shouldFix = req.query.fix === 'true'
+
+    console.log(`\n🔍 [MULTI-SUB] ${shouldFix ? 'CORRIGINDO' : 'DIAGNOSTICANDO'} users com múltiplas subscrições...`)
+
+    // 1. Buscar TODAS as subscrições da Guru
+    const allSubscriptions = await fetchAllSubscriptionsComplete()
+    console.log(`   📊 Total subscrições na Guru: ${allSubscriptions.length}`)
+
+    // 2. Agrupar por email
+    const subsByEmail = new Map<string, Array<{ code: string; status: string; startedAt: string; sub: any }>>()
+
+    for (const sub of allSubscriptions) {
+      const email = (
+        sub.subscriber?.email ||
+        (sub as any).contact?.email
+      )?.toLowerCase().trim()
+
+      if (!email) continue
+
+      const statusMap: Record<string, string> = {
+        'active': 'active', 'paid': 'active', 'trialing': 'active',
+        'past_due': 'pastdue', 'pastdue': 'pastdue', 'unpaid': 'pastdue',
+        'canceled': 'canceled', 'cancelled': 'canceled',
+        'expired': 'expired', 'pending': 'pending',
+        'refunded': 'refunded', 'suspended': 'suspended'
+      }
+      const mappedStatus = statusMap[(sub as any).last_status?.toLowerCase()] || 'pending'
+
+      if (!subsByEmail.has(email)) {
+        subsByEmail.set(email, [])
+      }
+      subsByEmail.get(email)!.push({
+        code: sub.subscription_code || sub.id,
+        status: mappedStatus,
+        startedAt: (sub as any).dates?.started_at || '',
+        sub
+      })
+    }
+
+    // 3. Encontrar emails com múltiplas subscrições onde pelo menos uma é active
+    const statusPriority: Record<string, number> = {
+      'active': 1, 'pastdue': 2, 'pending': 3, 'suspended': 4,
+      'canceled': 5, 'expired': 6, 'refunded': 7
+    }
+
+    const multiSubUsers: any[] = []
+    const problemUsers: any[] = []
+    let fixed = 0
+
+    for (const [email, subs] of subsByEmail) {
+      if (subs.length <= 1) continue
+
+      // Encontrar a MELHOR subscrição
+      const bestSub = subs.reduce((best, curr) => {
+        const bestPrio = statusPriority[best.status] ?? 99
+        const currPrio = statusPriority[curr.status] ?? 99
+        return currPrio < bestPrio ? curr : best
+      })
+
+      multiSubUsers.push({
+        email,
+        subscriptions: subs.map(s => ({
+          code: s.code,
+          status: s.status,
+          startedAt: s.startedAt
+        })),
+        bestStatus: bestSub.status,
+        bestCode: bestSub.code
+      })
+
+      // Verificar se nosso user tem status errado
+      const user = await User.findOne({ email }).select('guru').lean()
+
+      if (user && (user as any).guru?.status) {
+        const ourStatus = (user as any).guru.status
+        const ourPrio = statusPriority[ourStatus] ?? 99
+        const bestPrio = statusPriority[bestSub.status] ?? 99
+
+        if (bestPrio < ourPrio) {
+          // Nosso status é PIOR que a melhor subscrição - PROBLEMA!
+          problemUsers.push({
+            email,
+            currentStatus: ourStatus,
+            shouldBe: bestSub.status,
+            bestSubscriptionCode: bestSub.code,
+            allSubscriptions: subs.map(s => `${s.code}: ${s.status}`)
+          })
+
+          // Corrigir se pedido
+          if (shouldFix) {
+            // Extrair dados da melhor subscrição
+            const bestSubData = bestSub.sub as any
+
+            await User.updateOne(
+              { email },
+              {
+                $set: {
+                  'guru.status': bestSub.status,
+                  'guru.subscriptionCode': bestSub.code,
+                  'guru.updatedAt': bestSubData.dates?.last_status_at ? new Date(bestSubData.dates.last_status_at) : new Date(),
+                  'guru.nextCycleAt': bestSubData.dates?.next_cycle_at ? new Date(bestSubData.dates.next_cycle_at) : undefined,
+                  'guru.lastSyncAt': new Date(),
+                  'guru.syncVersion': '2.1-fix',
+                  'metadata.updatedAt': new Date()
+                }
+              },
+              { runValidators: false }
+            )
+
+            // Se estava canceled e agora é active, reverter PARA_INATIVAR
+            if (['canceled', 'expired', 'refunded'].includes(ourStatus) &&
+                !['canceled', 'expired', 'refunded'].includes(bestSub.status)) {
+              const revert = await UserProduct.updateMany(
+                {
+                  userId: (user as any)._id,
+                  platform: 'curseduca',
+                  status: 'PARA_INATIVAR'
+                },
+                {
+                  $set: {
+                    status: 'ACTIVE',
+                    'metadata.revertedAt': new Date(),
+                    'metadata.revertedBy': 'multi_sub_fix',
+                    'metadata.revertReason': `Encontrada subscrição ${bestSub.status} (${bestSub.code})`
+                  },
+                  $unset: {
+                    'metadata.markedForInactivationAt': 1,
+                    'metadata.markedForInactivationReason': 1,
+                    'metadata.guruSyncMarked': 1
+                  }
+                }
+              )
+              if (revert.modifiedCount > 0) {
+                console.log(`   ✅ CORRIGIDO: ${email} → ${bestSub.status} + revertido ${revert.modifiedCount} UserProduct(s)`)
+              }
+            }
+
+            fixed++
+            console.log(`   ✅ CORRIGIDO: ${email}: ${ourStatus} → ${bestSub.status}`)
+          }
+        }
+      }
+    }
+
+    console.log(`\n🔍 [MULTI-SUB] Resultado:`)
+    console.log(`   - Users com múltiplas subs: ${multiSubUsers.length}`)
+    console.log(`   - Users com status ERRADO: ${problemUsers.length}`)
+    if (shouldFix) {
+      console.log(`   - Corrigidos: ${fixed}`)
+    }
+
+    return res.json({
+      success: true,
+      totalSubscriptions: allSubscriptions.length,
+      uniqueEmails: subsByEmail.size,
+      multiSubscriptionUsers: multiSubUsers.length,
+      problemUsers: problemUsers.length,
+      fixed: shouldFix ? fixed : 0,
+      mode: shouldFix ? 'FIX' : 'DIAGNÓSTICO (adicionar ?fix=true para corrigir)',
+      problems: problemUsers,
+      multiSubDetails: multiSubUsers.slice(0, 50)
+    })
+
+  } catch (error: any) {
+    console.error('❌ [MULTI-SUB] Erro:', error.message)
     return res.status(500).json({
       success: false,
       message: error.message

@@ -22,6 +22,9 @@ export interface IGuruWebhook extends Document {
   processed: boolean
   processedAt?: Date
 
+  // Origem do webhook
+  source: 'guru' | 'manual'
+
   // Payload completo
   rawData: object
 
@@ -110,6 +113,14 @@ const guruWebhookSchema = new Schema<IGuruWebhook>({
   },
   processedAt: {
     type: Date
+  },
+
+  // Origem do webhook (Guru ou teste manual)
+  source: {
+    type: String,
+    enum: ['guru', 'manual'],
+    default: 'manual',
+    index: true
   },
 
   // Payload completo para auditoria

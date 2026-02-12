@@ -3,8 +3,11 @@ import { Router, RequestHandler } from 'express'
 import {
   handleGuruWebhook,
   listGuruWebhooks,
+  listWebhooksGroupedByMonth,
   getGuruStats,
-  reprocessWebhook
+  reprocessWebhook,
+  debugToken,
+  migrateWebhookSource
 } from '../controllers/guru.webhook.controller'
 import {
   ssoMyOrders,
@@ -22,7 +25,8 @@ import {
 import {
   getChurnMetrics,
   getMRRMetrics,
-  compareGuruVsClareza
+  compareGuruVsClareza,
+  fixMultiSubscriptions
 } from '../controllers/guru.analytics.controller'
 import {
   createSnapshot,
@@ -40,7 +44,9 @@ import {
   inactivateBulk,
   revertInactivationMark,
   getInactivationStats,
-  markDiscrepanciesForInactivation
+  markDiscrepanciesForInactivation,
+  cleanupInactivationList,
+  fixUsersToActive
 } from '../controllers/guru.inactivation.controller'
 
 const router = Router()
@@ -67,6 +73,12 @@ const asyncRoute = (fn: any): RequestHandler => {
  */
 router.post('/webhook', asyncRoute(handleGuruWebhook))
 
+/**
+ * GET /guru/debug/token
+ * Endpoint de debug para verificar configuração do token
+ */
+router.get('/debug/token', asyncRoute(debugToken))
+
 // ═══════════════════════════════════════════════════════════
 // SSO
 // ═══════════════════════════════════════════════════════════
@@ -91,9 +103,16 @@ router.get('/status', asyncRoute(getSubscriptionStatus))
 // ═══════════════════════════════════════════════════════════
 
 /**
+ * GET /guru/webhooks/grouped-by-month
+ * Listar webhooks agrupados por mês/ano e origem
+ * Query params: source (opcional: 'guru' ou 'manual')
+ */
+router.get('/webhooks/grouped-by-month', asyncRoute(listWebhooksGroupedByMonth))
+
+/**
  * GET /guru/webhooks
  * Listar webhooks recebidos (para dashboard)
- * Query params: page, limit, email, processed, status, event
+ * Query params: page, limit, email, processed, status, event, source, year, month
  */
 router.get('/webhooks', asyncRoute(listGuruWebhooks))
 
@@ -121,6 +140,12 @@ router.get('/diagnose', asyncRoute(diagnosSubscription))
  * Reprocessar um webhook falhado
  */
 router.post('/webhooks/:id/reprocess', asyncRoute(reprocessWebhook))
+
+/**
+ * POST /guru/webhooks/migrate-source
+ * Migrar webhooks antigos para terem o campo 'source'
+ */
+router.post('/webhooks/migrate-source', asyncRoute(migrateWebhookSource))
 
 // ═══════════════════════════════════════════════════════════
 // SYNC (APENAS LEITURA DA GURU - GUARDA NA NOSSA BD)
@@ -178,6 +203,13 @@ router.get('/analytics/mrr', asyncRoute(getMRRMetrics))
  * Comparar cancelamentos Guru vs Clareza (UserProducts)
  */
 router.get('/analytics/compare', asyncRoute(compareGuruVsClareza))
+
+/**
+ * GET /guru/analytics/fix-multi-subscriptions
+ * Diagnosticar users com múltiplas subscrições e status errado
+ * ?fix=true para corrigir automaticamente
+ */
+router.get('/analytics/fix-multi-subscriptions', asyncRoute(fixMultiSubscriptions))
 
 // ═══════════════════════════════════════════════════════════
 // SNAPSHOTS (HISTÓRICO MENSAL)
@@ -277,5 +309,18 @@ router.post('/inactivation/revert', asyncRoute(revertInactivationMark))
  * Body: { emails?: string[] } - se vazio, marca todas as discrepâncias
  */
 router.post('/inactivation/mark-discrepancies', asyncRoute(markDiscrepanciesForInactivation))
+
+/**
+ * POST /guru/inactivation/cleanup
+ * Limpar lista "Para Inativar" - remover users que já estão INACTIVE no CursEduca
+ */
+router.post('/inactivation/cleanup', asyncRoute(cleanupInactivationList))
+
+/**
+ * POST /guru/inactivation/fix-to-active
+ * Corrigir utilizadores específicos - marcar como ACTIVE
+ * Body: { emails: ['email1@exemplo.com', 'email2@exemplo.com'] }
+ */
+router.post('/inactivation/fix-to-active', asyncRoute(fixUsersToActive))
 
 export default router
