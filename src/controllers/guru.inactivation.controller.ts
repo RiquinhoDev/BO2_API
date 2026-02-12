@@ -16,10 +16,15 @@ const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_ACCESS_TOKEN || '***REMOVED
 /**
  * Listar UserProducts marcados como PARA_INATIVAR
  * GET /guru/inactivation/pending
+ *
+ * IMPORTANTE: Filtra apenas users com Guru canceled/expired/refunded
  */
 export const listPendingInactivation = async (req: Request, res: Response) => {
   try {
     console.log('📋 [INATIVAÇÃO] Listando users para inativar...')
+
+    // Status Guru que são considerados "cancelados"
+    const guruCanceledStatuses = ['canceled', 'expired', 'refunded']
 
     // Buscar UserProducts com status PARA_INATIVAR
     const userProducts = await UserProduct.find({
@@ -30,31 +35,46 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
       .sort({ 'metadata.markedForInactivationAt': -1 })
       .lean()
 
-    // Formatar resposta
-    const pendingList = userProducts.map(up => {
-      const user = up.userId as any
-      return {
-        userProductId: up._id,
-        userId: user?._id,
-        email: user?.email,
-        name: user?.name,
-        curseducaUserId: up.platformUserId || user?.curseduca?.curseducaUserId,
-        guruStatus: user?.guru?.status,
-        markedAt: up.metadata?.markedForInactivationAt,
-        reason: up.metadata?.markedForInactivationReason,
-        classes: up.classes?.map(c => ({
-          classId: c.classId,
-          className: c.className,
-          joinedAt: c.joinedAt
-        }))
-      }
-    })
+    console.log(`   📌 Total UserProducts PARA_INATIVAR: ${userProducts.length}`)
 
-    console.log(`📋 [INATIVAÇÃO] ${pendingList.length} users para inativar`)
+    // Filtrar apenas os que têm Guru canceled/expired/refunded
+    const pendingList = userProducts
+      .filter(up => {
+        const user = up.userId as any
+        const guruStatus = user?.guru?.status
+
+        // Se não tem Guru status, manter (pode ser user só Clareza)
+        if (!guruStatus) return true
+
+        // Se tem Guru status, só manter se for canceled/expired/refunded
+        return guruCanceledStatuses.includes(guruStatus)
+      })
+      .map(up => {
+        const user = up.userId as any
+        return {
+          userProductId: up._id,
+          userId: user?._id,
+          email: user?.email,
+          name: user?.name,
+          curseducaUserId: up.platformUserId || user?.curseduca?.curseducaUserId,
+          guruStatus: user?.guru?.status,
+          markedAt: up.metadata?.markedForInactivationAt,
+          reason: up.metadata?.markedForInactivationReason,
+          classes: up.classes?.map(c => ({
+            classId: c.classId,
+            className: c.className,
+            joinedAt: c.joinedAt
+          }))
+        }
+      })
+
+    console.log(`📋 [INATIVAÇÃO] ${pendingList.length} users legítimos para inativar (filtrado de ${userProducts.length})`)
 
     return res.json({
       success: true,
       count: pendingList.length,
+      total: userProducts.length,
+      filtered: userProducts.length - pendingList.length,
       pendingList
     })
 
@@ -465,76 +485,378 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
 
     const userIds = usersWithGuruCanceled.map(u => u._id)
 
-    // 2. Buscar UserProducts ACTIVE desses users
-    const userProductsToMark = await UserProduct.find({
+    // 2. Buscar TODOS os UserProducts CursEduca desses users
+    const existingUserProducts = await UserProduct.find({
       userId: { $in: userIds },
-      platform: 'curseduca',
-      status: 'ACTIVE'
-    }).populate('userId', 'email name guru').lean()
+      platform: 'curseduca'
+    }).lean()
 
-    console.log(`   📌 UserProducts ACTIVE para marcar: ${userProductsToMark.length}`)
+    const existingUserProductsMap = new Map(
+      existingUserProducts.map(up => [up.userId.toString(), up])
+    )
 
-    // 3. Marcar todos como PARA_INATIVAR
-    let marked = 0
-    let alreadyMarked = 0
-    let noUserProduct = 0
-    const markedDetails: any[] = []
+    console.log(`   📌 UserProducts CursEduca existentes: ${existingUserProducts.length}`)
 
-    for (const up of userProductsToMark) {
-      const user = up.userId as any
+    // 3. Buscar produto CursEduca default
+    const Product = (await import('../models/product/Product')).default
+    const curseducaProduct = await Product.findOne({ platform: 'curseduca', isActive: true }).lean()
 
-      const result = await UserProduct.findByIdAndUpdate(
-        up._id,
-        {
-          $set: {
-            status: 'PARA_INATIVAR',
-            'metadata.markedForInactivationAt': new Date(),
-            'metadata.markedForInactivationReason': `Discrepância: Guru ${user?.guru?.status}, Clareza ACTIVE`,
-            'metadata.markedFromComparison': true
-          }
-        },
-        { new: true }
-      )
-
-      if (result) {
-        marked++
-        markedDetails.push({
-          email: user?.email,
-          name: user?.name,
-          guruStatus: user?.guru?.status,
-          userProductId: up._id
-        })
-        console.log(`   ✅ Marcado: ${user?.email}`)
-      }
+    if (!curseducaProduct) {
+      console.error('❌ [INATIVAÇÃO] Produto CursEduca não encontrado!')
+      return res.status(500).json({
+        success: false,
+        message: 'Produto CursEduca não encontrado'
+      })
     }
 
-    // Contar users que já estavam marcados
-    const alreadyMarkedCount = await UserProduct.countDocuments({
-      userId: { $in: userIds },
-      platform: 'curseduca',
-      status: 'PARA_INATIVAR'
-    })
+    // 4. Marcar ou criar UserProducts
+    let marked = 0
+    let created = 0
+    let alreadyMarked = 0
+    let skipped = 0
+    const markedDetails: any[] = []
 
-    // Users sem UserProduct do Clareza
-    const usersWithUserProduct = new Set(userProductsToMark.map(up => (up.userId as any)?._id?.toString()))
-    noUserProduct = usersWithGuruCanceled.filter(u => !usersWithUserProduct.has(u._id.toString())).length
+    for (const user of usersWithGuruCanceled) {
+      const userId = user._id.toString()
+      let userProduct = existingUserProductsMap.get(userId)
+
+      // Se não tem UserProduct mas tem dados curseduca, criar
+      if (!userProduct && user.curseduca?.curseducaUserId) {
+        console.log(`   🆕 Criando UserProduct para ${user.email}`)
+
+        userProduct = await UserProduct.create({
+          userId: user._id,
+          productId: curseducaProduct._id,
+          platform: 'curseduca',
+          platformUserId: user.curseduca.curseducaUserId,
+          status: 'PARA_INATIVAR',
+          enrolledAt: user.curseduca.joinedDate || new Date(),
+          metadata: {
+            markedForInactivationAt: new Date(),
+            markedForInactivationReason: `Discrepância: Guru ${user.guru?.status}, Clareza ACTIVE`,
+            markedFromComparison: true
+          }
+        })
+
+        created++
+        markedDetails.push({
+          email: user.email,
+          name: user.name,
+          guruStatus: user.guru?.status,
+          userProductId: userProduct._id,
+          action: 'created'
+        })
+        console.log(`   ✅ Criado e marcado: ${user.email}`)
+        continue
+      }
+
+      // Se não tem UserProduct e não tem dados curseduca, skip
+      if (!userProduct) {
+        skipped++
+        console.log(`   ⚠️ Sem dados CursEduca: ${user.email}`)
+        continue
+      }
+
+      // Se já está PARA_INATIVAR, contar
+      if (userProduct.status === 'PARA_INATIVAR') {
+        alreadyMarked++
+        console.log(`   📌 Já marcado: ${user.email}`)
+        continue
+      }
+
+      // Se está INACTIVE, skip (já foi processado)
+      if (userProduct.status === 'INACTIVE') {
+        skipped++
+        console.log(`   ⏭️ Já INACTIVE: ${user.email}`)
+        continue
+      }
+
+      // Marcar como PARA_INATIVAR
+      await UserProduct.findByIdAndUpdate(userProduct._id, {
+        $set: {
+          status: 'PARA_INATIVAR',
+          'metadata.markedForInactivationAt': new Date(),
+          'metadata.markedForInactivationReason': `Discrepância: Guru ${user.guru?.status}, Clareza ACTIVE`,
+          'metadata.markedFromComparison': true
+        }
+      })
+
+      marked++
+      markedDetails.push({
+        email: user.email,
+        name: user.name,
+        guruStatus: user.guru?.status,
+        userProductId: userProduct._id,
+        action: 'marked'
+      })
+      console.log(`   ✅ Marcado: ${user.email}`)
+    }
+
+    const noUserProduct = skipped
 
     console.log(`\n🔴 [INATIVAÇÃO] Resultado:`)
-    console.log(`   - Marcados agora: ${marked}`)
-    console.log(`   - Já estavam marcados: ${alreadyMarkedCount - marked}`)
-    console.log(`   - Sem UserProduct Clareza: ${noUserProduct}`)
+    console.log(`   - Marcados: ${marked}`)
+    console.log(`   - Criados e marcados: ${created}`)
+    console.log(`   - Já estavam marcados: ${alreadyMarked}`)
+    console.log(`   - Pulados (INACTIVE ou sem dados): ${skipped}`)
 
     return res.json({
       success: true,
-      message: `${marked} UserProduct(s) marcado(s) para inativação`,
+      message: `${marked + created} UserProduct(s) marcado(s) para inativação (${marked} marcados, ${created} criados)`,
       marked,
-      alreadyMarked: alreadyMarkedCount - marked,
-      noUserProduct,
+      created,
+      alreadyMarked,
+      skipped,
+      total: marked + created,
       details: markedDetails.slice(0, 50) // Limitar detalhes a 50
     })
 
   } catch (error: any) {
     console.error('❌ [INATIVAÇÃO] Erro ao marcar discrepâncias:', error.message)
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// LIMPAR LISTA "PARA_INATIVAR" (users já INACTIVE)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Limpar lista "Para Inativar" - remover users que já estão INACTIVE no CursEduca
+ * POST /guru/inactivation/cleanup
+ */
+export const cleanupInactivationList = async (req: Request, res: Response) => {
+  try {
+    console.log('🧹 [CLEANUP] Iniciando limpeza da lista PARA_INATIVAR...')
+
+    // Buscar todos os UserProducts marcados como PARA_INATIVAR
+    const pendingList = await UserProduct.find({
+      platform: 'curseduca',
+      status: 'PARA_INATIVAR'
+    }).populate('userId', 'email name curseduca guru')
+
+    console.log(`   📋 Encontrados ${pendingList.length} UserProducts PARA_INATIVAR`)
+
+    let cleanedInactive = 0
+    let cleanedGuruActive = 0
+    let kept = 0
+    const cleanedDetails: any[] = []
+
+    for (const userProduct of pendingList) {
+      const user = userProduct.userId as any
+
+      if (!user) {
+        console.log(`   ⚠️ UserProduct ${userProduct._id} sem user associado`)
+        continue
+      }
+
+      const curseducaStatus = user.curseduca?.memberStatus || user.curseduca?.situation
+      const guruStatus = user.guru?.status
+
+      // ═══════════════════════════════════════════════════════════
+      // CASO 1: Já está INACTIVE no CursEduca
+      // ═══════════════════════════════════════════════════════════
+      if (curseducaStatus === 'INACTIVE' || curseducaStatus === 'SUSPENDED') {
+        await UserProduct.findByIdAndUpdate(userProduct._id, {
+          $set: {
+            status: 'INACTIVE',
+            'metadata.inactivatedAt': new Date(),
+            'metadata.inactivatedBy': 'cleanup_auto',
+            'metadata.inactivatedReason': 'Já estava INACTIVE no CursEduca'
+          },
+          $unset: {
+            'metadata.markedForInactivationAt': 1,
+            'metadata.markedForInactivationReason': 1
+          }
+        })
+
+        cleanedInactive++
+        cleanedDetails.push({
+          email: user.email,
+          name: user.name,
+          reason: 'CursEduca INACTIVE',
+          curseducaStatus,
+          guruStatus
+        })
+
+        console.log(`   ✅ Limpo (CursEduca INACTIVE): ${user.email}`)
+        continue
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // CASO 2: Guru está ACTIVE, PENDING ou PASTDUE
+      // ═══════════════════════════════════════════════════════════
+      if (guruStatus === 'active' || guruStatus === 'pastdue' || guruStatus === 'pending') {
+        await UserProduct.findByIdAndUpdate(userProduct._id, {
+          $set: {
+            status: 'ACTIVE',
+            'metadata.revertedAt': new Date(),
+            'metadata.revertedBy': 'cleanup_auto',
+            'metadata.revertReason': `Guru está ${guruStatus} - não deve ser inativado`
+          },
+          $unset: {
+            'metadata.markedForInactivationAt': 1,
+            'metadata.markedForInactivationReason': 1
+          }
+        })
+
+        cleanedGuruActive++
+        cleanedDetails.push({
+          email: user.email,
+          name: user.name,
+          reason: `Guru ${guruStatus}`,
+          curseducaStatus: curseducaStatus || 'ACTIVE',
+          guruStatus
+        })
+
+        console.log(`   ✅ Limpo (Guru ${guruStatus}): ${user.email}`)
+        continue
+      }
+
+      // ═══════════════════════════════════════════════════════════
+      // CASO 3: Manter (Guru canceled/expired e CursEduca ACTIVE)
+      // ═══════════════════════════════════════════════════════════
+      kept++
+      console.log(`   📌 Mantido: ${user.email} (Guru: ${guruStatus || 'N/A'}, CursEduca: ${curseducaStatus || 'ACTIVE'})`)
+    }
+
+    const totalCleaned = cleanedInactive + cleanedGuruActive
+
+    console.log(`\n🧹 [CLEANUP] Resultado:`)
+    console.log(`   - Limpos (CursEduca INACTIVE): ${cleanedInactive}`)
+    console.log(`   - Limpos (Guru ACTIVE/PENDING): ${cleanedGuruActive}`)
+    console.log(`   - Total limpos: ${totalCleaned}`)
+    console.log(`   - Mantidos (legítimos): ${kept}`)
+
+    return res.json({
+      success: true,
+      message: `Limpeza concluída: ${totalCleaned} removidos (${cleanedInactive} CursEduca INACTIVE, ${cleanedGuruActive} Guru ACTIVE), ${kept} mantidos`,
+      cleaned: {
+        total: totalCleaned,
+        curseducaInactive: cleanedInactive,
+        guruActive: cleanedGuruActive
+      },
+      kept,
+      total: pendingList.length,
+      cleanedDetails: cleanedDetails.slice(0, 50) // Aumentar limite para ver mais detalhes
+    })
+
+  } catch (error: any) {
+    console.error('❌ [CLEANUP] Erro:', error.message)
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// FUNÇÃO AUXILIAR: CHAMAR API CURSEDUCA
+// ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// CORRIGIR USERS ESPECÍFICOS PARA ACTIVE
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Corrigir utilizadores específicos - marcar como ACTIVE
+ * POST /guru/inactivation/fix-to-active
+ * Body: { emails: ['email1@exemplo.com', 'email2@exemplo.com'] }
+ */
+export const fixUsersToActive = async (req: Request, res: Response) => {
+  try {
+    const { emails } = req.body
+
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Campo "emails" obrigatório (array de strings)'
+      })
+    }
+
+    console.log(`🔧 [FIX TO ACTIVE] Corrigindo ${emails.length} utilizadores...`)
+
+    const results: any[] = []
+    let updatedUserProducts = 0
+    let updatedUsers = 0
+
+    for (const email of emails) {
+      console.log(`\n   📧 Processando: ${email}`)
+
+      // 1. Buscar user
+      const user = await User.findOne({ email }).lean()
+
+      if (!user) {
+        console.log(`   ⚠️ User não encontrado: ${email}`)
+        results.push({
+          email,
+          success: false,
+          reason: 'User não encontrado'
+        })
+        continue
+      }
+
+      // 2. Atualizar user.curseduca.memberStatus para ACTIVE
+      await User.findByIdAndUpdate(user._id, {
+        $set: {
+          'curseduca.memberStatus': 'ACTIVE'
+        }
+      })
+      updatedUsers++
+      console.log(`   ✅ User.curseduca.memberStatus → ACTIVE`)
+
+      // 3. Atualizar UserProduct para ACTIVE
+      const userProduct = await UserProduct.findOne({
+        userId: user._id,
+        platform: 'curseduca'
+      })
+
+      if (userProduct) {
+        await UserProduct.findByIdAndUpdate(userProduct._id, {
+          $set: {
+            status: 'ACTIVE',
+            'metadata.fixedToActiveAt': new Date(),
+            'metadata.fixedToActiveReason': 'Correção manual: Guru e Clareza confirmados como ACTIVE'
+          },
+          $unset: {
+            'metadata.markedForInactivationAt': 1,
+            'metadata.markedForInactivationReason': 1,
+            'metadata.inactivatedAt': 1,
+            'metadata.inactivatedBy': 1,
+            'metadata.inactivatedReason': 1
+          }
+        })
+        updatedUserProducts++
+        console.log(`   ✅ UserProduct.status → ACTIVE`)
+      } else {
+        console.log(`   ⚠️ UserProduct não encontrado`)
+      }
+
+      results.push({
+        email,
+        success: true,
+        userUpdated: true,
+        userProductUpdated: !!userProduct
+      })
+    }
+
+    console.log(`\n🔧 [FIX TO ACTIVE] Concluído:`)
+    console.log(`   - Users atualizados: ${updatedUsers}`)
+    console.log(`   - UserProducts atualizados: ${updatedUserProducts}`)
+
+    return res.json({
+      success: true,
+      message: `${updatedUsers} utilizador(es) corrigido(s) para ACTIVE`,
+      updatedUsers,
+      updatedUserProducts,
+      results
+    })
+
+  } catch (error: any) {
+    console.error('❌ [FIX TO ACTIVE] Erro:', error.message)
     return res.status(500).json({
       success: false,
       message: error.message

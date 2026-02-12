@@ -21,12 +21,53 @@ const GURU_ACCOUNT_TOKEN = process.env.GURU_ACCOUNT_TOKEN
  */
 export const handleGuruWebhook = async (req: Request, res: Response) => {
   const startTime = Date.now()
-  const requestId = (req.headers['x-request-id'] as string) || `guru_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const requestId = (req.headers['x-request-id'] as string) || req.body.request_id || `guru_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
   console.log(`\n💰 [GURU WEBHOOK] Recebido - RequestID: ${requestId}`)
 
   try {
-    const payload = req.body as GuruWebhookPayload
+    // ═══════════════════════════════════════════════════════════
+    // NORMALIZAR PAYLOAD (aceitar formato real da Guru OU formato simples)
+    // ═══════════════════════════════════════════════════════════
+    let rawPayload = req.body
+
+    // Se o webhook veio da Guru (com estrutura payload), extrair os dados
+    if (req.body.payload) {
+      const p = req.body.payload
+
+      // Mapear last_status para evento válido
+      const statusToEvent: Record<string, string> = {
+        'active': 'subscription.activated',
+        'canceled': 'subscription.canceled',
+        'expired': 'subscription.expired',
+        'pastdue': 'subscription.pastdue',
+        'refunded': 'subscription.refunded',
+        'suspended': 'subscription.suspended',
+        'pending': 'subscription.created'
+      }
+
+      const event = statusToEvent[p.last_status] || 'subscription.updated'
+
+      rawPayload = {
+        api_token: p.api_token,
+        email: p.subscriber?.email || p.last_transaction?.contact?.email,
+        name: p.subscriber?.name || p.last_transaction?.contact?.name,
+        subscription_code: p.subscription_code || p.id,
+        guru_contact_id: p.subscriber?.id || p.last_transaction?.contact?.id,
+        status: p.last_status,
+        event,
+        product_id: p.product?.id,
+        offer_id: p.product?.offer?.id,
+        updated_at: p.dates?.last_status_at,
+        next_cycle_at: p.dates?.next_cycle_at,
+        value: p.product?.offer?.value || p.next_cycle_value,
+        currency: p.payment?.currency || 'EUR',
+        phone: p.subscriber?.phone_number || p.last_transaction?.contact?.phone_number,
+        payment_url: p.last_transaction?.checkout_url
+      }
+    }
+
+    const payload = rawPayload as GuruWebhookPayload
 
     // ═══════════════════════════════════════════════════════════
     // 1. VALIDAR API TOKEN
@@ -64,6 +105,9 @@ export const handleGuruWebhook = async (req: Request, res: Response) => {
     // ═══════════════════════════════════════════════════════════
     // 3. GUARDAR WEBHOOK RAW
     // ═══════════════════════════════════════════════════════════
+    // Detectar origem: se veio com estrutura 'payload', é da Guru; caso contrário, é manual
+    const webhookSource = req.body.payload ? 'guru' : 'manual'
+
     const webhookDoc = await GuruWebhook.create({
       requestId,
       subscriptionCode: payload.subscription_code,
@@ -71,6 +115,7 @@ export const handleGuruWebhook = async (req: Request, res: Response) => {
       guruContactId: payload.guru_contact_id,
       event: payload.event,
       status: payload.status,
+      source: webhookSource,
       rawData: payload,
       processed: false
     })
@@ -267,7 +312,10 @@ export const listGuruWebhooks = async (req: Request, res: Response) => {
       email,
       processed,
       status,
-      event
+      event,
+      source,
+      year,
+      month
     } = req.query
 
     const query: any = {}
@@ -284,6 +332,20 @@ export const listGuruWebhooks = async (req: Request, res: Response) => {
     }
     if (event) {
       query.event = event
+    }
+    if (source) {
+      query.source = source
+    }
+
+    // Filtro por ano/mês
+    if (year && month) {
+      const startDate = new Date(Number(year), Number(month) - 1, 1)
+      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59, 999)
+      query.receivedAt = { $gte: startDate, $lte: endDate }
+    } else if (year) {
+      const startDate = new Date(Number(year), 0, 1)
+      const endDate = new Date(Number(year), 11, 31, 23, 59, 59, 999)
+      query.receivedAt = { $gte: startDate, $lte: endDate }
     }
 
     const [webhooks, total] = await Promise.all([
@@ -309,6 +371,78 @@ export const listGuruWebhooks = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error('❌ [GURU] Erro ao listar webhooks:', error.message)
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
+
+/**
+ * Listar webhooks agrupados por mês
+ * GET /guru/webhooks/grouped-by-month
+ */
+export const listWebhooksGroupedByMonth = async (req: Request, res: Response) => {
+  try {
+    const { source } = req.query
+
+    const matchQuery: any = {}
+    if (source) {
+      matchQuery.source = source
+    }
+
+    // Agrupar por ano e mês
+    const grouped = await GuruWebhook.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$receivedAt' },
+            month: { $month: '$receivedAt' },
+            source: '$source'
+          },
+          count: { $sum: 1 },
+          processed: {
+            $sum: { $cond: [{ $eq: ['$processed', true] }, 1, 0] }
+          },
+          failed: {
+            $sum: { $cond: [{ $ne: ['$error', null] }, 1, 0] }
+          }
+        }
+      },
+      { $sort: { '_id.year': -1, '_id.month': -1 } }
+    ])
+
+    // Reorganizar dados por ano > mês > origem
+    const byYear: Record<number, any> = {}
+
+    grouped.forEach((item: any) => {
+      const year = item._id.year
+      const month = item._id.month
+      const source = item._id.source
+
+      if (!byYear[year]) {
+        byYear[year] = {}
+      }
+      if (!byYear[year][month]) {
+        byYear[year][month] = { guru: null, manual: null, total: 0 }
+      }
+
+      byYear[year][month][source] = {
+        count: item.count,
+        processed: item.processed,
+        failed: item.failed
+      }
+      byYear[year][month].total += item.count
+    })
+
+    return res.json({
+      success: true,
+      groupedByMonth: byYear
+    })
+
+  } catch (error: any) {
+    console.error('❌ [GURU] Erro ao agrupar webhooks:', error.message)
     return res.status(500).json({
       success: false,
       message: error.message
@@ -398,6 +532,42 @@ export const getGuruStats = async (req: Request, res: Response) => {
 }
 
 // ═══════════════════════════════════════════════════════════
+// DEBUG (VERIFICAR TOKEN)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Endpoint de debug para verificar configuração do token
+ * GET /guru/debug/token
+ */
+export const debugToken = async (req: Request, res: Response) => {
+  try {
+    const tokenFromEnv = GURU_ACCOUNT_TOKEN
+    const tokenLength = tokenFromEnv ? tokenFromEnv.length : 0
+    const hasQuotes = tokenFromEnv ? tokenFromEnv.startsWith('"') || tokenFromEnv.startsWith("'") : false
+
+    return res.json({
+      success: true,
+      debug: {
+        hasToken: !!tokenFromEnv,
+        tokenLength,
+        hasQuotes,
+        firstChar: tokenFromEnv ? tokenFromEnv[0] : null,
+        lastChar: tokenFromEnv ? tokenFromEnv[tokenFromEnv.length - 1] : null,
+        // Mostrar apenas primeiros e últimos 4 caracteres (segurança)
+        preview: tokenFromEnv
+          ? `${tokenFromEnv.substring(0, 4)}...${tokenFromEnv.substring(tokenFromEnv.length - 4)}`
+          : null
+      }
+    })
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 // REPROCESSAR WEBHOOK (ADMIN)
 // ═══════════════════════════════════════════════════════════
 
@@ -427,6 +597,68 @@ export const reprocessWebhook = async (req: Request, res: Response) => {
     await handleGuruWebhook(mockReq, res)
 
   } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MIGRAÇÃO DE WEBHOOKS ANTIGOS
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Migrar webhooks antigos sem campo 'source' para 'manual'
+ * POST /guru/webhooks/migrate-source
+ */
+export const migrateWebhookSource = async (req: Request, res: Response) => {
+  try {
+    console.log('🔄 [GURU] Iniciando migração de webhooks antigos...')
+
+    // Buscar todos os webhooks que não têm o campo 'source' definido
+    // ou que têm source como null/undefined
+    const webhooksToMigrate = await GuruWebhook.find({
+      $or: [
+        { source: { $exists: false } },
+        { source: null }
+      ]
+    })
+
+    console.log(`   📊 Webhooks encontrados para migração: ${webhooksToMigrate.length}`)
+
+    if (webhooksToMigrate.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Nenhum webhook precisa de migração',
+        migrated: 0
+      })
+    }
+
+    // Atualizar todos para source: 'manual'
+    const result = await GuruWebhook.updateMany(
+      {
+        $or: [
+          { source: { $exists: false } },
+          { source: null }
+        ]
+      },
+      {
+        $set: { source: 'manual' }
+      }
+    )
+
+    console.log(`   ✅ Webhooks migrados: ${result.modifiedCount}`)
+
+    return res.json({
+      success: true,
+      message: `${result.modifiedCount} webhooks migrados para source: 'manual'`,
+      migrated: result.modifiedCount,
+      matched: result.matchedCount
+    })
+
+  } catch (error: any) {
+    console.error('❌ [GURU] Erro ao migrar webhooks:', error.message)
     return res.status(500).json({
       success: false,
       message: error.message

@@ -1335,10 +1335,44 @@ if (lastAccessDate) {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // MEMBER STATUS (retrocompatibilidade)
+    // MEMBER STATUS (baseado em situation)
     // ═══════════════════════════════════════════════════════════
-    updateFields['curseduca.memberStatus'] = 'ACTIVE'
+    const situation = item.platformData?.situation || 'ACTIVE'
+    updateFields['curseduca.memberStatus'] = (situation === 'INACTIVE' || situation === 'SUSPENDED') ? 'INACTIVE' : 'ACTIVE'
     needsUpdate = true
+
+    // ═══════════════════════════════════════════════════════════
+    // 🆕 LIMPAR "PARA_INATIVAR" SE JÁ ESTÁ INACTIVE NO CURSEDUCA
+    // ═══════════════════════════════════════════════════════════
+    if (situation === 'INACTIVE' || situation === 'SUSPENDED') {
+      try {
+        // Buscar UserProduct CursEduca deste user que esteja marcado PARA_INATIVAR
+        const userProductToUpdate = await UserProduct.findOne({
+          userId: userIdStr,
+          platform: 'curseduca',
+          status: 'PARA_INATIVAR'
+        })
+
+        if (userProductToUpdate) {
+          // User já está inativo no CursEduca! Atualizar status
+          await UserProduct.findByIdAndUpdate(userProductToUpdate._id, {
+            $set: {
+              status: 'INACTIVE',
+              'metadata.inactivatedAt': new Date(),
+              'metadata.inactivatedBy': 'curseduca_sync_auto',
+              'metadata.inactivatedReason': 'Já estava INACTIVE no CursEduca durante sync'
+            },
+            $unset: {
+              'metadata.markedForInactivationAt': 1,
+              'metadata.markedForInactivationReason': 1
+            }
+          })
+          debugLog(`   ✅ [CursEduca Sync] Removido de PARA_INATIVAR (já INACTIVE): ${user.email}`)
+        }
+      } catch (err: any) {
+        console.error(`⚠️ [CursEduca Sync] Erro ao atualizar UserProduct para ${user.email}:`, err.message)
+      }
+    }
 
     // ═══════════════════════════════════════════════════════════
     // DATAS

@@ -691,7 +691,7 @@ UserSchema.pre<IUser>('save', function(next) {
   if (this.email) {
     this.email = this.email.toLowerCase().trim()
   }
-  
+
   if (this.metadata) {
     this.metadata.updatedAt = new Date()
   } else {
@@ -701,8 +701,13 @@ UserSchema.pre<IUser>('save', function(next) {
       sources: {}
     }
   }
-  
-  this.calculateCombinedData()
+
+  // ✅ SÓ CALCULAR DADOS COMBINADOS SE TIVER HOTMART OU CURSEDUCA
+  // (Não calcular para users que só têm Guru/Discord)
+  if (this.hotmart || this.curseduca) {
+    this.calculateCombinedData()
+  }
+
   next()
 })
 

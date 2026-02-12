@@ -6,6 +6,27 @@ import UserProduct from '../../models/UserProduct'
 // Status da Guru que indicam cancelamento (para marcar PARA_INATIVAR)
 const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
 
+// Prioridade de status: menor número = melhor (mais prioritário)
+const STATUS_PRIORITY: Record<string, number> = {
+  'active': 1,
+  'pastdue': 2,
+  'pending': 3,
+  'suspended': 4,
+  'canceled': 5,
+  'expired': 6,
+  'refunded': 7
+}
+
+/**
+ * Verificar se um status é "melhor" (mais prioritário) que outro
+ * Retorna true se newStatus tem prioridade MAIOR ou IGUAL ao currentStatus
+ */
+function isStatusBetterOrEqual(newStatus: string, currentStatus: string): boolean {
+  const newPriority = STATUS_PRIORITY[newStatus] ?? 99
+  const currentPriority = STATUS_PRIORITY[currentStatus] ?? 99
+  return newPriority <= currentPriority
+}
+
 // ═══════════════════════════════════════════════════════════
 // CONFIGURAÇÃO
 // ═══════════════════════════════════════════════════════════
@@ -387,13 +408,26 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
   // Nome do subscriber
   const subscriberName = sub.subscriber?.name || sub.contact?.name || sub.name || email.split('@')[0]
 
-  const existingUser = await User.findOne({ email }).select('_id')
-  let action: 'created' | 'updated'
+  const existingUser = await User.findOne({ email }).select('_id guru')
+  let action: 'created' | 'updated' | 'skipped'
 
   let userId: any
 
   if (existingUser) {
-    // Atualizar apenas campos da Guru (evita validar Hotmart/Curseduca)
+    const currentGuruStatus = (existingUser as any).guru?.status || null
+
+    // ═══════════════════════════════════════════════════════════
+    // PRIORIDADE DE SUBSCRIÇÕES: Só atualizar se nova for MELHOR
+    // Isto resolve o problema de múltiplas subscrições por email
+    // Ex: sub_A (active) + sub_B (canceled) → guardar active!
+    // ═══════════════════════════════════════════════════════════
+    if (currentGuruStatus && !isStatusBetterOrEqual(guruData.status, currentGuruStatus)) {
+      // Nova subscrição é PIOR que a existente - não sobrescrever
+      console.log(`  ⏭️ SKIP: ${email} - manter ${currentGuruStatus} (ignorar ${guruData.status} de sub ${guruData.subscriptionCode})`)
+      return { action: 'skipped', email, markedForInactivation: 0 }
+    }
+
+    // Nova subscrição é melhor ou igual - atualizar
     await User.updateOne(
       { _id: existingUser._id },
       {
@@ -407,6 +441,35 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
     )
     userId = existingUser._id
     action = 'updated'
+
+    // Se estamos a MELHORAR o status (ex: canceled → active),
+    // reverter PARA_INATIVAR que possa ter sido marcado por subscrição anterior
+    if (currentGuruStatus && GURU_CANCELED_STATUSES.includes(currentGuruStatus) && !GURU_CANCELED_STATUSES.includes(guruData.status)) {
+      const revertResult = await UserProduct.updateMany(
+        {
+          userId,
+          platform: 'curseduca',
+          status: 'PARA_INATIVAR',
+          'metadata.guruSyncMarked': true
+        },
+        {
+          $set: {
+            status: 'ACTIVE',
+            'metadata.revertedAt': new Date(),
+            'metadata.revertedBy': 'guru_sync_priority',
+            'metadata.revertReason': `Encontrada subscrição ${guruData.status} (${guruData.subscriptionCode})`
+          },
+          $unset: {
+            'metadata.markedForInactivationAt': 1,
+            'metadata.markedForInactivationReason': 1,
+            'metadata.guruSyncMarked': 1
+          }
+        }
+      )
+      if (revertResult.modifiedCount > 0) {
+        console.log(`  ✅ REVERTIDO: ${email} - ${revertResult.modifiedCount} UserProduct(s) voltaram a ACTIVE (encontrada sub ${guruData.status})`)
+      }
+    }
   } else {
     // Criar user apenas com campos essenciais + Guru
     const newUser = await User.create({
@@ -427,6 +490,8 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
 
   // ═══════════════════════════════════════════════════════════
   // MARCAR USERPRODUCTS PARA INATIVAR SE STATUS FOR CANCELADO
+  // (Só marca se o status guardado é realmente canceled -
+  //  ou seja, não há nenhuma subscrição active para este email)
   // ═══════════════════════════════════════════════════════════
   let markedForInactivation = 0
 
