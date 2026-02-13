@@ -46,7 +46,9 @@ import {
   getInactivationStats,
   markDiscrepanciesForInactivation,
   cleanupInactivationList,
-  fixUsersToActive
+  fixUsersToActive,
+  diagnoseUsers,
+  listInactivated
 } from '../controllers/guru.inactivation.controller'
 
 const router = Router()
@@ -283,6 +285,13 @@ router.get('/inactivation/pending', asyncRoute(listPendingInactivation))
 router.get('/inactivation/stats', asyncRoute(getInactivationStats))
 
 /**
+ * GET /guru/inactivation/inactive
+ * Listar UserProducts já inativados (consulta histórica)
+ * Query: ?page=1&limit=50&email=xxx
+ */
+router.get('/inactivation/inactive', asyncRoute(listInactivated))
+
+/**
  * POST /guru/inactivation/single
  * Inativar um único membro no CursEduca
  * Body: { userProductId: string } ou { curseducaUserId: string }
@@ -322,5 +331,12 @@ router.post('/inactivation/cleanup', asyncRoute(cleanupInactivationList))
  * Body: { emails: ['email1@exemplo.com', 'email2@exemplo.com'] }
  */
 router.post('/inactivation/fix-to-active', asyncRoute(fixUsersToActive))
+
+/**
+ * POST /guru/inactivation/diagnose
+ * Diagnosticar utilizadores - verificar estado na BD e na API CursEduca
+ * Body: { emails: ['email1@exemplo.com'] }
+ */
+router.post('/inactivation/diagnose', asyncRoute(diagnoseUsers))
 
 export default router

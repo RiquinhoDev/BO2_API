@@ -717,8 +717,62 @@ export const cleanupInactivationList = async (req: Request, res: Response) => {
       }
 
       // ═══════════════════════════════════════════════════════════
-      // CASO 3: Manter (Guru canceled/expired e CursEduca ACTIVE)
+      // CASO 3: BD diz CursEduca ACTIVE - verificar API real
       // ═══════════════════════════════════════════════════════════
+      const memberId = userProduct.platformUserId || user.curseduca?.curseducaUserId
+      if (memberId && CURSEDUCA_ACCESS_TOKEN && CURSEDUCA_API_KEY) {
+        try {
+          const apiResp = await axios.get(
+            `${CURSEDUCA_API_URL}/members/${memberId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
+                'api_key': CURSEDUCA_API_KEY
+              },
+              timeout: 10000
+            }
+          )
+          const realSituation = apiResp.data?.situation || apiResp.data?.data?.situation
+          if (realSituation === 'INACTIVE' || realSituation === 'SUSPENDED') {
+            // BD desatualizada! User já está inativo no CursEduca real
+            await UserProduct.findByIdAndUpdate(userProduct._id, {
+              $set: {
+                status: 'INACTIVE',
+                'metadata.inactivatedAt': new Date(),
+                'metadata.inactivatedBy': 'cleanup_api_check',
+                'metadata.inactivatedReason': `Já estava ${realSituation} na API CursEduca (BD desatualizada)`
+              },
+              $unset: {
+                'metadata.markedForInactivationAt': 1,
+                'metadata.markedForInactivationReason': 1
+              }
+            })
+
+            // Atualizar também o memberStatus na BD
+            await User.findByIdAndUpdate(user._id, {
+              $set: {
+                'curseduca.memberStatus': realSituation,
+                'curseduca.situation': realSituation
+              }
+            })
+
+            cleanedInactive++
+            cleanedDetails.push({
+              email: user.email,
+              name: user.name,
+              reason: `API CursEduca: ${realSituation} (BD dizia ACTIVE)`,
+              curseducaStatus: realSituation,
+              guruStatus
+            })
+
+            console.log(`   ✅ Limpo (API CursEduca ${realSituation}, BD desatualizada): ${user.email}`)
+            continue
+          }
+        } catch (err: any) {
+          console.log(`   ⚠️ Erro API CursEduca para ${user.email}: ${err.response?.status || err.message}`)
+        }
+      }
+
       kept++
       console.log(`   📌 Mantido: ${user.email} (Guru: ${guruStatus || 'N/A'}, CursEduca: ${curseducaStatus || 'ACTIVE'})`)
     }
@@ -861,6 +915,178 @@ export const fixUsersToActive = async (req: Request, res: Response) => {
       success: false,
       message: error.message
     })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// LISTAR USERS JÁ INATIVADOS (CONSULTA)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Listar UserProducts com status INACTIVE (já inativados)
+ * GET /guru/inactivation/inactive
+ * Query: ?page=1&limit=50&email=xxx
+ */
+export const listInactivated = async (req: Request, res: Response) => {
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1)
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50))
+    const emailFilter = (req.query.email as string)?.toLowerCase().trim()
+
+    const userProducts = await UserProduct.find({
+      platform: 'curseduca',
+      status: 'INACTIVE'
+    })
+      .populate('userId', 'email name guru curseduca')
+      .sort({ 'metadata.inactivatedAt': -1 })
+      .lean()
+
+    let list = userProducts
+      .filter(up => (up.userId as any)?.email)
+      .map(up => {
+        const user = up.userId as any
+        return {
+          userProductId: up._id,
+          email: user.email,
+          name: user.name,
+          curseducaUserId: up.platformUserId || user.curseduca?.curseducaUserId,
+          guruStatus: user.guru?.status || null,
+          curseducaStatus: user.curseduca?.memberStatus || null,
+          inactivatedAt: up.metadata?.inactivatedAt || null,
+          inactivatedBy: up.metadata?.inactivatedBy || null,
+          inactivatedReason: up.metadata?.inactivatedReason || null
+        }
+      })
+
+    // Filtro por email
+    if (emailFilter) {
+      list = list.filter(item =>
+        item.email?.toLowerCase().includes(emailFilter) ||
+        item.name?.toLowerCase().includes(emailFilter)
+      )
+    }
+
+    const total = list.length
+    const paginated = list.slice((page - 1) * limit, page * limit)
+
+    return res.json({
+      success: true,
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+      inactivatedList: paginated
+    })
+
+  } catch (error: any) {
+    console.error('❌ [INATIVAÇÃO] Erro ao listar inativados:', error.message)
+    return res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DIAGNÓSTICO DE USERS ESPECÍFICOS
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Diagnosticar users específicos - ver estado completo na BD e CursEduca API
+ * POST /guru/inactivation/diagnose
+ * Body: { emails: ['email1', 'email2'] }
+ */
+export const diagnoseUsers = async (req: Request, res: Response) => {
+  try {
+    const { emails } = req.body
+
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Campo "emails" obrigatório (array de strings)'
+      })
+    }
+
+    console.log(`🔍 [DIAGNOSE] Diagnosticando ${emails.length} utilizadores...`)
+
+    const results: any[] = []
+
+    for (const email of emails) {
+      console.log(`\n   📧 ${email}:`)
+
+      // 1. Dados do User na BD
+      const user = await User.findOne({ email }).select('email name guru curseduca').lean()
+
+      if (!user) {
+        results.push({ email, found: false, reason: 'User não encontrado na BD' })
+        continue
+      }
+
+      // 2. UserProduct na BD
+      const userProduct = await UserProduct.findOne({
+        userId: user._id,
+        platform: 'curseduca'
+      }).lean()
+
+      // 3. Chamar API CursEduca para ver estado real
+      let curseducaApiStatus: any = null
+      const memberId = userProduct?.platformUserId || (user as any).curseduca?.curseducaUserId
+      if (memberId && CURSEDUCA_API_KEY && CURSEDUCA_ACCESS_TOKEN) {
+        try {
+          const apiResponse = await axios.get(
+            `${CURSEDUCA_API_URL}/members/${memberId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
+                'api_key': CURSEDUCA_API_KEY
+              },
+              timeout: 10000
+            }
+          )
+          curseducaApiStatus = {
+            status: apiResponse.status,
+            situation: apiResponse.data?.situation || apiResponse.data?.data?.situation,
+            name: apiResponse.data?.name || apiResponse.data?.data?.name,
+            raw: apiResponse.data?.data || apiResponse.data
+          }
+          console.log(`   📡 CursEduca API: situation=${curseducaApiStatus.situation}`)
+        } catch (err: any) {
+          curseducaApiStatus = {
+            error: err.response?.status || err.message,
+            data: err.response?.data
+          }
+          console.log(`   ⚠️ CursEduca API erro: ${err.response?.status || err.message}`)
+        }
+      }
+
+      const result = {
+        email,
+        found: true,
+        name: (user as any).name,
+        db: {
+          guruStatus: (user as any).guru?.status || null,
+          guruSubscriptionCode: (user as any).guru?.subscriptionCode || null,
+          curseducaMemberStatus: (user as any).curseduca?.memberStatus || null,
+          curseducaUserId: (user as any).curseduca?.curseducaUserId || null,
+          curseducaSituation: (user as any).curseduca?.situation || null
+        },
+        userProduct: userProduct ? {
+          status: userProduct.status,
+          platformUserId: userProduct.platformUserId,
+          metadata: userProduct.metadata,
+          classes: (userProduct as any).classes?.length || 0
+        } : null,
+        curseducaApi: curseducaApiStatus
+      }
+
+      console.log(`   BD: guru=${result.db.guruStatus}, curseduca.memberStatus=${result.db.curseducaMemberStatus}`)
+      console.log(`   UserProduct: status=${result.userProduct?.status || 'N/A'}`)
+
+      results.push(result)
+    }
+
+    return res.json({ success: true, results })
+
+  } catch (error: any) {
+    console.error('❌ [DIAGNOSE] Erro:', error.message)
+    return res.status(500).json({ success: false, message: error.message })
   }
 }
 
