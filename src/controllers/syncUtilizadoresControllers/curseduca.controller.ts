@@ -273,6 +273,33 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
     await validateUserProductsCreated(logger, 5)
 
     // ═══════════════════════════════════════════════════════════
+    // STEP 3.5: CROSS-REFERENCE GURU VS CURSEDUCA
+    // ═══════════════════════════════════════════════════════════
+
+    logger.section('STEP 3.5: CROSS-REFERENCE GURU VS CURSEDUCA')
+
+    let crossRefResult: any = null
+    try {
+      const { runCrossReferenceAfterCurseducaSync } = await import(
+        '../../services/guru/crossReference.service'
+      )
+
+      const syncedEmails = curseducaData
+        .map((m: any) => m.email?.toLowerCase().trim())
+        .filter(Boolean)
+
+      crossRefResult = await runCrossReferenceAfterCurseducaSync(syncedEmails)
+
+      logger.success(`Cross-reference concluído:`)
+      logger.log(`   🔴 Marcados PARA_INATIVAR: ${crossRefResult.markedParaInativar}`)
+      logger.log(`   🟢 Revertidos a ACTIVE: ${crossRefResult.revertedToActive}`)
+      logger.log(`   ⚫ Confirmados INACTIVE: ${crossRefResult.confirmedInactive}`)
+      logger.log(`   ⏭️ Ignorados: ${crossRefResult.skipped}`)
+    } catch (e: any) {
+      logger.warn(`Cross-reference falhou (não-fatal): ${e?.message}`)
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // STEP 4: REBUILD STATS
     // ═══════════════════════════════════════════════════════════
     
@@ -321,7 +348,16 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
         errorsCount: result.errors.length,
         warningsCount: result.warnings.length,
         reportUrl: `/api/sync/reports/${result.reportId}`,
-        syncHistoryUrl: `/api/sync/history/${result.syncHistoryId}`
+        syncHistoryUrl: `/api/sync/history/${result.syncHistoryId}`,
+        crossReference: crossRefResult ? {
+          processed: crossRefResult.processed,
+          markedParaInativar: crossRefResult.markedParaInativar,
+          revertedToActive: crossRefResult.revertedToActive,
+          confirmedInactive: crossRefResult.confirmedInactive,
+          skipped: crossRefResult.skipped,
+          errors: crossRefResult.errors,
+          duration: crossRefResult.duration
+        } : null
       },
       _universalSync: true,
       _version: '3.1'

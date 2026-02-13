@@ -44,7 +44,10 @@ export const syncAllFromGuru = async (req: Request, res: Response) => {
           updated: result.updated,
           skipped: result.skipped,
           errors: result.errors,
-          markedForInactivation: result.markedForInactivation
+          markedForInactivation: result.markedForInactivation,
+          uniqueEmails: result.uniqueEmails,
+          multiSubEmails: result.multiSubEmails,
+          crossReference: result.crossReference || null
         }
       })
 

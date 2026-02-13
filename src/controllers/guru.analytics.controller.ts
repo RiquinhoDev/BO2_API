@@ -1,8 +1,14 @@
 // src/controllers/guru.analytics.controller.ts - Controller para analytics e métricas Guru
 import { Request, Response } from 'express'
+import axios from 'axios'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import { fetchAllSubscriptionsComplete } from '../services/guru/guruSync.service'
+
+// Configuração da API CursEduca (para verificação de status real)
+const CURSEDUCA_API_URL = process.env.CURSEDUCA_API_URL || 'https://prof.curseduca.pro'
+const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY || 'ce9ef2a4afef727919473d38acafe10109c4faa8'
+const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_ACCESS_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjozLCJ1dWlkIjoiYmZiNmExNjQtNmE5MC00MGFhLTg3OWYtYzEwNGIyZTZiNWVmIiwibmFtZSI6IlBlZHJvIE1pZ3VlbCBQZXJlaXJhIFNpbcO1ZXMgU2FudG9zIiwiZW1haWwiOiJjb250YWN0b3NAc2VycmlxdWluaG8uY29tIiwiaW1hZ2UiOiIvYXBwbGljYXRpb24vaW1hZ2VzL3VwbG9hZHMvMy8iLCJyb2xlcyI6WyJBRE1JTiJdLCJ0ZW5hbnRzIjpbXX0sImlhdCI6MTc1ODE5MDgwMH0.vI_Y9l7oZVIV4OT9XG7LWDIma-E7fcRkVYM7FOCxTds'
 
 // ═══════════════════════════════════════════════════════════
 // CHURN METRICS
@@ -468,6 +474,50 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
           })
           cleanedActiveCount++
           console.log(`      ✅ ${user.email}: PARA_INATIVAR → ACTIVE (Guru ${guruStatus})`)
+          continue
+        }
+
+        // CASO 3: BD diz CursEduca ACTIVE mas verificar API real
+        const memberId = userProduct.platformUserId || user?.curseduca?.curseducaUserId
+        if (memberId && CURSEDUCA_ACCESS_TOKEN && CURSEDUCA_API_KEY) {
+          try {
+            const apiResp = await axios.get(
+              `${CURSEDUCA_API_URL}/members/${memberId}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
+                  'api_key': CURSEDUCA_API_KEY
+                },
+                timeout: 10000
+              }
+            )
+            const realSituation = apiResp.data?.situation || apiResp.data?.data?.situation
+            if (realSituation === 'INACTIVE' || realSituation === 'SUSPENDED') {
+              await UserProduct.findByIdAndUpdate(userProduct._id, {
+                $set: {
+                  status: 'INACTIVE',
+                  'metadata.inactivatedAt': new Date(),
+                  'metadata.inactivatedBy': 'comparison_api_check',
+                  'metadata.inactivatedReason': `Já estava ${realSituation} na API CursEduca (BD desatualizada)`
+                },
+                $unset: {
+                  'metadata.markedForInactivationAt': 1,
+                  'metadata.markedForInactivationReason': 1
+                }
+              })
+              await User.findByIdAndUpdate(user._id, {
+                $set: {
+                  'curseduca.memberStatus': realSituation,
+                  'curseduca.situation': realSituation
+                }
+              })
+              cleanedInactiveCount++
+              console.log(`      ✅ ${user.email}: PARA_INATIVAR → INACTIVE (API CursEduca: ${realSituation}, BD stale)`)
+              continue
+            }
+          } catch (apiErr: any) {
+            console.log(`      ⚠️ Erro API CursEduca ${user.email}: ${apiErr.response?.status || apiErr.message}`)
+          }
         }
       } catch (err: any) {
         console.error(`      ⚠️ Erro ao limpar ${(userProduct.userId as any)?.email}:`, err.message)
