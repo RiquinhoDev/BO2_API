@@ -117,6 +117,9 @@ interface SyncResult {
   skipped: number
   errors: number
   markedForInactivation: number
+  uniqueEmails: number
+  multiSubEmails: number
+  crossReference?: any
   details: Array<{
     email: string
     action: 'created' | 'updated' | 'skipped' | 'error'
@@ -547,6 +550,8 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
     skipped: 0,
     errors: 0,
     markedForInactivation: 0,
+    uniqueEmails: 0,
+    multiSubEmails: 0,
     details: []
   }
 
@@ -555,43 +560,208 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
     const subscriptions = await fetchAllSubscriptionsPaginated()
     result.total = subscriptions.length
 
-    console.log(`\n📊 [GURU SYNC] Processando ${subscriptions.length} subscrições...\n`)
+    console.log(`\n📊 [GURU SYNC] Total subscrições: ${subscriptions.length}`)
 
-    // 2. Processar cada subscrição
-    for (let i = 0; i < subscriptions.length; i++) {
-      const sub = subscriptions[i]
+    // ═══════════════════════════════════════════════════════════
+    // 2. PRÉ-AGRUPAR POR EMAIL
+    // Garante que o melhor status de TODAS as subs é usado
+    // Elimina problemas de ordem de processamento
+    // ═══════════════════════════════════════════════════════════
+
+    const subsByEmail = new Map<string, any[]>()
+
+    for (const sub of subscriptions) {
+      const email = (
+        (sub as any).subscriber?.email ||
+        (sub as any).contact?.email ||
+        (sub as any).email ||
+        (sub as any).customer?.email
+      )?.toLowerCase().trim()
+
+      if (!email) {
+        result.skipped++
+        continue
+      }
+
+      if (!subsByEmail.has(email)) {
+        subsByEmail.set(email, [])
+      }
+      subsByEmail.get(email)!.push(sub)
+    }
+
+    result.uniqueEmails = subsByEmail.size
+    result.multiSubEmails = Array.from(subsByEmail.values()).filter(subs => subs.length > 1).length
+
+    console.log(`📧 [GURU SYNC] ${subsByEmail.size} emails únicos (${result.multiSubEmails} com múltiplas subs)`)
+    console.log(`📊 [GURU SYNC] Processando email a email...\n`)
+
+    // ═══════════════════════════════════════════════════════════
+    // 3. PROCESSAR CADA EMAIL COM A MELHOR SUBSCRIÇÃO
+    // ═══════════════════════════════════════════════════════════
+
+    let processedCount = 0
+
+    for (const [email, subs] of subsByEmail) {
+      processedCount++
 
       try {
-        const { action, email, markedForInactivation } = await saveSubscriptionToDb(sub)
+        // Encontrar a MELHOR subscrição para este email
+        const bestSub = subs.reduce((best, curr) => {
+          const bestStatus = mapGuruStatus((best as any).last_status || (best as any).status || '')
+          const currStatus = mapGuruStatus((curr as any).last_status || (curr as any).status || '')
+          const bestPrio = STATUS_PRIORITY[bestStatus] ?? 99
+          const currPrio = STATUS_PRIORITY[currStatus] ?? 99
+          return currPrio < bestPrio ? curr : best
+        })
+
+        const bestStatus = mapGuruStatus((bestSub as any).last_status || (bestSub as any).status || '')
+
+        // Guardar dados da melhor subscrição
+        const guruData = {
+          guruContactId: (bestSub as any).subscriber?.id || (bestSub as any).contact?.id,
+          subscriptionCode: (bestSub as any).subscription_code || (bestSub as any).code || (bestSub as any).id,
+          status: bestStatus,
+          updatedAt: (bestSub as any).dates?.last_status_at ? new Date((bestSub as any).dates.last_status_at) : new Date(),
+          nextCycleAt: (bestSub as any).dates?.next_cycle_at ? new Date((bestSub as any).dates.next_cycle_at) : undefined,
+          offerId: (bestSub as any).product?.offer?.id || (bestSub as any).offer?.id,
+          productId: (bestSub as any).product?.id || (bestSub as any).product_id,
+          paymentUrl: (bestSub as any).current_invoice?.payment_url,
+          lastSyncAt: new Date(),
+          syncVersion: '3.0',
+          totalSubscriptions: subs.length,
+          lastWebhookAt: undefined
+        }
+
+        const subscriberName = (bestSub as any).subscriber?.name || (bestSub as any).contact?.name || (bestSub as any).name || email.split('@')[0]
+
+        // Buscar user existente
+        const existingUser = await User.findOne({ email }).select('_id guru')
+        let userId: any
+        let action: 'created' | 'updated' | 'skipped'
+
+        if (existingUser) {
+          const currentGuruStatus = (existingUser as any).guru?.status || null
+
+          // Atualizar user com dados da melhor subscrição
+          await User.updateOne(
+            { _id: existingUser._id },
+            {
+              $set: {
+                guru: guruData,
+                'metadata.updatedAt': new Date(),
+                'metadata.sources.guru': { lastSync: new Date(), version: '3.0' }
+              }
+            },
+            { runValidators: false }
+          )
+          userId = existingUser._id
+          action = 'updated'
+
+          // Se melhorou de canceled → active, reverter PARA_INATIVAR
+          if (currentGuruStatus && GURU_CANCELED_STATUSES.includes(currentGuruStatus) && !GURU_CANCELED_STATUSES.includes(bestStatus)) {
+            const revertResult = await UserProduct.updateMany(
+              {
+                userId,
+                platform: 'curseduca',
+                status: 'PARA_INATIVAR',
+                'metadata.guruSyncMarked': true
+              },
+              {
+                $set: {
+                  status: 'ACTIVE',
+                  'metadata.revertedAt': new Date(),
+                  'metadata.revertedBy': 'guru_sync_v3',
+                  'metadata.revertReason': `Subscrição ${bestStatus} encontrada (${guruData.subscriptionCode})`
+                },
+                $unset: {
+                  'metadata.markedForInactivationAt': 1,
+                  'metadata.markedForInactivationReason': 1,
+                  'metadata.guruSyncMarked': 1
+                }
+              }
+            )
+            if (revertResult.modifiedCount > 0) {
+              console.log(`  🟢 REVERTIDO: ${email} - ${revertResult.modifiedCount} UserProduct(s) → ACTIVE (sub ${bestStatus})`)
+            }
+          }
+        } else {
+          // Criar novo user
+          const newUser = await User.create({
+            email,
+            name: subscriberName,
+            guru: guruData,
+            metadata: {
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              sources: {
+                guru: { lastSync: new Date(), version: '3.0' }
+              }
+            }
+          })
+          userId = newUser._id
+          action = 'created'
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // MARCAR PARA_INATIVAR SÓ SE TODAS AS SUBS SÃO CANCELADAS
+        // Se o bestStatus é canceled → significa que NENHUMA sub é ativa
+        // ═══════════════════════════════════════════════════════════
+        let markedForInactivation = 0
+
+        if (GURU_CANCELED_STATUSES.includes(bestStatus)) {
+          const markResult = await UserProduct.updateMany(
+            {
+              userId,
+              platform: 'curseduca',
+              status: 'ACTIVE'
+            },
+            {
+              $set: {
+                status: 'PARA_INATIVAR',
+                'metadata.markedForInactivationAt': new Date(),
+                'metadata.markedForInactivationReason': `Guru sync v3: todas as ${subs.length} sub(s) canceladas (melhor: ${bestStatus})`,
+                'metadata.guruSyncMarked': true
+              }
+            }
+          )
+          markedForInactivation = markResult.modifiedCount || 0
+        }
 
         if (action === 'created') {
           result.created++
-          console.log(`  ✨ CRIADO: ${email}`)
-        } else if (action === 'updated') {
-          result.updated++
-          console.log(`  🔄 ATUALIZADO: ${email}`)
+          console.log(`  ✨ CRIADO: ${email} (${bestStatus}, ${subs.length} sub(s))`)
         } else {
-          result.skipped++
+          result.updated++
         }
 
-        // Acumular total de marcados para inativação
-        if (markedForInactivation && markedForInactivation > 0) {
+        if (markedForInactivation > 0) {
           result.markedForInactivation += markedForInactivation
+          console.log(`  🔴 PARA_INATIVAR: ${email} (${markedForInactivation} UserProduct(s), ${subs.length} sub(s) todas ${bestStatus})`)
         }
 
         result.details.push({ email, action, markedForInactivation })
 
-        // Log de progresso a cada 25
-        if ((i + 1) % 25 === 0) {
-          console.log(`\n📈 [GURU SYNC] Progresso: ${i + 1}/${subscriptions.length} (✨${result.created} novos, 🔄${result.updated} atualizados, ⏭️${result.skipped} ignorados, 🔴${result.markedForInactivation} p/inativar)\n`)
+        // Log de progresso a cada 50 emails
+        if (processedCount % 50 === 0) {
+          console.log(`\n📈 [GURU SYNC] Progresso: ${processedCount}/${subsByEmail.size} emails (✨${result.created} novos, 🔄${result.updated} atualizados, 🔴${result.markedForInactivation} p/inativar)\n`)
         }
 
       } catch (error: any) {
         result.errors++
-        const errorEmail = (sub as any).subscriber?.email || (sub as any).contact?.email || 'sem-email'
-        result.details.push({ email: errorEmail, action: 'error', error: error.message })
-        console.error(`❌ [GURU SYNC] Erro ao processar ${errorEmail}:`, error.message)
+        result.details.push({ email, action: 'error', error: error.message })
+        console.error(`❌ [GURU SYNC] Erro ${email}:`, error.message)
       }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 4. POST-SYNC: CROSS-REFERENCE COM CURSEDUCA
+    // ═══════════════════════════════════════════════════════════
+    try {
+      const { runCrossReferenceAfterGuruSync } = await import('./crossReference.service')
+      const crossRefResult = await runCrossReferenceAfterGuruSync()
+      result.crossReference = crossRefResult
+    } catch (crossRefError: any) {
+      console.error('⚠️ [GURU SYNC] Cross-reference falhou (não-fatal):', crossRefError.message)
     }
 
     const duration = Date.now() - startTime
@@ -599,26 +769,16 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
     console.log('\n════════════════════════════════════════════════════════')
     console.log('✅ [GURU SYNC] SINCRONIZAÇÃO COMPLETA!')
     console.log('════════════════════════════════════════════════════════')
-    console.log(`📊 Total processado: ${result.total}`)
+    console.log(`📊 Total subscrições: ${result.total}`)
+    console.log(`📧 Emails únicos: ${result.uniqueEmails} (${result.multiSubEmails} com múltiplas subs)`)
     console.log(`✨ Novos criados: ${result.created}`)
     console.log(`🔄 Atualizados: ${result.updated}`)
     console.log(`⏭️ Ignorados (sem email): ${result.skipped}`)
     console.log(`❌ Erros: ${result.errors}`)
     console.log(`🔴 Marcados PARA_INATIVAR: ${result.markedForInactivation}`)
-
-    // Mostrar alguns exemplos
-    const createdEmails = result.details.filter(d => d.action === 'created').slice(0, 5)
-    const updatedEmails = result.details.filter(d => d.action === 'updated').slice(0, 5)
-
-    if (createdEmails.length > 0) {
-      console.log(`\n📧 Exemplos de emails criados:`)
-      createdEmails.forEach(d => console.log(`   - ${d.email}`))
+    if (result.crossReference) {
+      console.log(`🔄 Cross-reference: ${result.crossReference.confirmedInactive} confirmados INACTIVE, ${result.crossReference.revertedToActive} revertidos`)
     }
-    if (updatedEmails.length > 0) {
-      console.log(`\n📧 Exemplos de emails atualizados:`)
-      updatedEmails.forEach(d => console.log(`   - ${d.email}`))
-    }
-
     console.log(`\n⏱️ Duração: ${(duration / 1000).toFixed(2)}s`)
     console.log('════════════════════════════════════════════════════════\n')
 
