@@ -176,39 +176,33 @@ export const handleGuruWebhook = async (req: Request, res: Response) => {
       await user.save()
       console.log(`✅ [GURU] Novo user criado: ${email}`)
     } else {
-      // Atualizar user existente
-      user.guru = {
-        guruContactId: payload.guru_contact_id,
-        subscriptionCode: payload.subscription_code,
-        status: payload.status as GuruSubscriptionStatus,
-        updatedAt: payload.updated_at ? new Date(payload.updated_at) : new Date(),
-        nextCycleAt: payload.next_cycle_at ? new Date(payload.next_cycle_at) : undefined,
-        offerId: payload.offer_id,
-        productId: payload.product_id,
-        paymentUrl: payload.payment_url,
-        lastSyncAt: new Date(),
-        syncVersion: '1.0',
-        lastWebhookAt: new Date()
+      // Atualizar user existente — usar updateOne para não tocar em campos de outras plataformas
+      const updateFields: Record<string, any> = {
+        'guru.guruContactId': payload.guru_contact_id,
+        'guru.subscriptionCode': payload.subscription_code,
+        'guru.status': payload.status,
+        'guru.updatedAt': payload.updated_at ? new Date(payload.updated_at) : new Date(),
+        'guru.nextCycleAt': payload.next_cycle_at ? new Date(payload.next_cycle_at) : undefined,
+        'guru.offerId': payload.offer_id,
+        'guru.productId': payload.product_id,
+        'guru.paymentUrl': payload.payment_url,
+        'guru.lastSyncAt': new Date(),
+        'guru.syncVersion': '1.0',
+        'guru.lastWebhookAt': new Date(),
+        'metadata.sources.guru': { lastSync: new Date(), version: '1.0' },
+        'metadata.updatedAt': new Date()
       }
 
-      // Atualizar metadata
-      if (!user.metadata) {
-        user.metadata = {
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          sources: {}
-        }
-      }
-      user.metadata.sources = user.metadata.sources || {}
-      user.metadata.sources.guru = { lastSync: new Date(), version: '1.0' }
-      user.metadata.updatedAt = new Date()
-
-      // Atualizar nome se fornecido e user não tinha nome
+      // Atualizar nome só se user não tinha nome próprio
       if (payload.name && (!user.name || user.name === email.split('@')[0])) {
-        user.name = payload.name
+        updateFields['name'] = payload.name
       }
 
-      await user.save()
+      await User.updateOne(
+        { _id: user._id },
+        { $set: updateFields },
+        { runValidators: false } // Não validar campos de outras plataformas (Hotmart, etc.)
+      )
       console.log(`✅ [GURU] User atualizado: ${email}`)
     }
 
