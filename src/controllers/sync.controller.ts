@@ -701,3 +701,185 @@ export const getSyncStatus = async (req: Request, res: Response): Promise<void> 
     res.status(500).json({ success: false, error: error.message })
   }
 }
+
+// ═══════════════════════════════════════════════════════════
+// SECTION: REPAIR COMBINED FIELDS (ONE-OFF MIGRATION - INTERNAL USE)
+// Executado uma vez em 01/03/2026 para corrigir 4423 users.
+// O bug foi corrigido no universalSyncService.ts - future syncs
+// atualizam combined corretamente sem precisar deste endpoint.
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * POST /api/sync/repair-combined
+ * Recalcula combined.allClasses, combined.primaryClass, combined.classId e
+ * combined.className para TODOS os utilizadores que têm hotmart.enrolledClasses
+ * ou curseduca.enrolledClasses, sem depender do middleware pre('save').
+ *
+ * Necessário porque findByIdAndUpdate não dispara o middleware Mongoose,
+ * logo o campo combined nunca era atualizado nos syncs automáticos.
+ */
+export const repairCombined = async (req: Request, res: Response): Promise<void> => {
+  const startTime = Date.now()
+  console.log('🔧 [RepairCombined] Iniciando reparação dos campos combined...')
+
+  const stats = {
+    total: 0,
+    repaired: 0,
+    alreadyCorrect: 0,
+    noEnrollments: 0,
+    errors: 0,
+    classChanges: [] as Array<{ email: string; old: string; new: string }>
+  }
+
+  try {
+    // Buscar todos os users com pelo menos uma plataforma de enrollment
+    const users = await User.find({
+      $or: [
+        { 'hotmart.enrolledClasses.0': { $exists: true } },
+        { 'curseduca.enrolledClasses.0': { $exists: true } }
+      ]
+    }).select('email hotmart.enrolledClasses curseduca.enrolledClasses combined').lean()
+
+    stats.total = users.length
+    console.log(`📊 [RepairCombined] ${users.total} utilizadores a processar`)
+
+    const BATCH_SIZE = 200
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+      const batch = users.slice(i, i + BATCH_SIZE)
+      const bulkOps: any[] = []
+
+      for (const user of batch) {
+        try {
+          const allClasses: Array<{
+            classId: string
+            className: string
+            source: string
+            isActive: boolean
+            enrolledAt?: Date
+            role?: string
+          }> = []
+
+          // Turmas Hotmart
+          const hotmartClasses = (user as any).hotmart?.enrolledClasses
+          if (hotmartClasses && Array.isArray(hotmartClasses)) {
+            hotmartClasses.forEach((cls: any) => {
+              if (cls.classId) {
+                allClasses.push({
+                  classId: cls.classId,
+                  className: cls.className || `Turma ${cls.classId}`,
+                  source: 'hotmart',
+                  isActive: cls.isActive ?? true,
+                  enrolledAt: cls.enrolledAt
+                })
+              }
+            })
+          }
+
+          // Turmas CursEduca
+          const ceClasses = (user as any).curseduca?.enrolledClasses
+          if (ceClasses && Array.isArray(ceClasses)) {
+            ceClasses.forEach((cls: any) => {
+              if (cls.classId) {
+                allClasses.push({
+                  classId: cls.classId,
+                  className: cls.className || `Grupo ${cls.classId}`,
+                  source: 'curseduca',
+                  isActive: cls.isActive ?? true,
+                  enrolledAt: cls.enteredAt || cls.enrolledAt,
+                  role: cls.role
+                })
+              }
+            })
+          }
+
+          if (allClasses.length === 0) {
+            stats.noEnrollments++
+            continue
+          }
+
+          // Calcular turma principal: prioridade Hotmart ativa > CursEduca ativa
+          const hotmartActive = allClasses.find(c => c.source === 'hotmart' && c.isActive)
+          const curseducaActive = allClasses.find(c => c.source === 'curseduca' && c.isActive)
+          const primary = hotmartActive || curseducaActive
+
+          // Verificar se já está correto
+          const existingPrimaryId = (user as any).combined?.primaryClass?.classId
+          const newPrimaryId = primary?.classId
+
+          if (existingPrimaryId === newPrimaryId &&
+              JSON.stringify((user as any).combined?.allClasses) === JSON.stringify(allClasses)) {
+            stats.alreadyCorrect++
+            continue
+          }
+
+          // Registar mudanças para log
+          if (existingPrimaryId && newPrimaryId && existingPrimaryId !== newPrimaryId) {
+            stats.classChanges.push({
+              email: (user as any).email,
+              old: existingPrimaryId,
+              new: newPrimaryId
+            })
+          }
+
+          const updateDoc: any = {
+            'combined.allClasses': allClasses
+          }
+
+          if (primary) {
+            updateDoc['combined.primaryClass'] = {
+              classId: primary.classId,
+              className: primary.className,
+              source: primary.source
+            }
+            updateDoc['combined.classId'] = primary.classId
+            updateDoc['combined.className'] = primary.className
+          }
+
+          bulkOps.push({
+            updateOne: {
+              filter: { _id: (user as any)._id },
+              update: { $set: updateDoc }
+            }
+          })
+
+          stats.repaired++
+        } catch (err: any) {
+          stats.errors++
+          console.error(`❌ [RepairCombined] Erro no user ${(user as any).email}:`, err.message)
+        }
+      }
+
+      // Executar bulk update para este batch
+      if (bulkOps.length > 0) {
+        await User.bulkWrite(bulkOps)
+        console.log(`   ✅ [RepairCombined] Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${bulkOps.length} atualizados`)
+      }
+    }
+
+    const duration = Math.floor((Date.now() - startTime) / 1000)
+
+    console.log('✅ [RepairCombined] Concluído!')
+    console.log(`   ⏱️  Duração: ${duration}s`)
+    console.log(`   📊 Total: ${stats.total}`)
+    console.log(`   🔧 Reparados: ${stats.repaired}`)
+    console.log(`   ✅ Já corretos: ${stats.alreadyCorrect}`)
+    console.log(`   ⚪ Sem enrollments: ${stats.noEnrollments}`)
+    console.log(`   ❌ Erros: ${stats.errors}`)
+
+    if (stats.classChanges.length > 0) {
+      console.log(`   🔄 Turmas corrigidas (${stats.classChanges.length}):`)
+      stats.classChanges.forEach(c => console.log(`      ${c.email}: ${c.old} → ${c.new}`))
+    }
+
+    res.json({
+      success: true,
+      duration,
+      stats,
+      message: `${stats.repaired} utilizadores reparados em ${duration}s`
+    })
+
+  } catch (error: any) {
+    console.error('❌ [RepairCombined] Erro fatal:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+}

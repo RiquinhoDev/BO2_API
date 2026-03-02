@@ -618,30 +618,31 @@ async function detectRenewal(
     shouldReactivate: false
   }
 
-  // Verificar se o user foi inativado manualmente
-  const inactivation = (user as any).inactivation
-  if (!inactivation?.isManuallyInactivated || !inactivation?.inactivatedAt) {
-    return result
-  }
-
-  result.wasInactivated = true
-  result.inactivatedAt = new Date(inactivation.inactivatedAt)
-
-  // Só verificar renovações para Hotmart (onde temos purchaseDate)
+  // Só para Hotmart (única plataforma com purchaseDate fiável)
   if (config.syncType !== 'hotmart' || !purchaseDate) {
     return result
   }
 
+  // Lógica simples: a data de compra é a única fonte de verdade.
+  // Se purchaseDate < 380 dias → deve estar ATIVO (compra válida ou renovação recente)
+  // Se purchaseDate ≥ 380 dias → expirado
+  const daysSincePurchase = Math.floor((Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24))
+  const isExpired = daysSincePurchase >= EXPIRATION_DAYS
+
+  const userStatus = (user as any).status
+  const combinedStatus = (user as any).combined?.status
+  const isInactiveInDB = userStatus === 'INACTIVE' || combinedStatus === 'INACTIVE'
+
   result.purchaseDate = purchaseDate
 
-  // Se a data de compra é MAIS RECENTE que a data de inativação → RENOVAÇÃO!
-  if (purchaseDate > result.inactivatedAt) {
+  if (isInactiveInDB && !isExpired) {
+    // Está inativo na BD mas a compra ainda é válida → renovou ou foi inativado indevidamente
+    result.wasInactivated = true
     result.shouldReactivate = true
-    result.reactivationReason = 'renewal_detected'
-    console.log(`🔄 [RenewalDetection] RENOVAÇÃO DETETADA!`)
+    result.reactivationReason = 'purchase_date_valid'
+    console.log(`🔄 [RenewalDetection] REATIVAÇÃO AUTOMÁTICA!`)
     console.log(`   📧 User: ${user.email}`)
-    console.log(`   📅 Inativado em: ${result.inactivatedAt.toISOString()}`)
-    console.log(`   💳 Nova compra em: ${purchaseDate.toISOString()}`)
+    console.log(`   💳 Purchase: ${purchaseDate.toISOString().split('T')[0]} (${daysSincePurchase} dias, limite ${EXPIRATION_DAYS})`)
   }
 
   return result
@@ -662,6 +663,7 @@ async function applyAutoReactivation(
     $set: {
       'combined.status': 'ACTIVE',
       status: 'ACTIVE',
+      estado: 'ativo',           // campo legacy também tem de ser reposto
       'hotmart.status': 'ACTIVE',
       'curseduca.memberStatus': 'ACTIVE',
       'discord.isActive': true,
@@ -956,20 +958,20 @@ async function processExpiredStudentsInactivation(): Promise<{
  * Cria ou atualiza uma turma na tabela Class
  * Chamado durante o sync para garantir que todas as turmas são registadas
  */
+// Devolve o nome real da turma (da BD) após criar/actualizar
 async function ensureClassExists(
   classId: string,
   className: string | undefined,
   source: 'hotmart' | 'curseduca',
   curseducaId?: string,
   curseducaUuid?: string
-): Promise<void> {
-  if (!classId) return
+): Promise<string> {
+  if (!classId) return className || `Turma ${classId}`
 
   try {
     const existingClass = await Class.findOne({ classId })
 
     if (!existingClass) {
-      // Criar nova turma
       const displayName = className || `Turma ${classId}`
 
       await Class.create({
@@ -985,17 +987,14 @@ async function ensureClassExists(
       })
 
       console.log(`   ✅ [Class] Nova turma criada: ${classId} - "${displayName}"`)
+      return displayName
 
     } else {
-      // Atualizar turma existente
       const updates: any = {
         lastSyncAt: new Date(),
-        $inc: { studentCount: 0 } // Não incrementar aqui, será recalculado
+        $inc: { studentCount: 0 }
       }
 
-      // Atualizar nome se:
-      // 1. Nome atual é genérico ("Turma X") e temos nome real
-      // 2. Nome vem vazio e agora temos um nome real
       const isGenericName = existingClass.name.match(/^Turma [a-zA-Z0-9]+$/)
       const hasNewName = className && className !== existingClass.name && !className.match(/^Turma [a-zA-Z0-9]+$/)
 
@@ -1004,23 +1003,20 @@ async function ensureClassExists(
         console.log(`   📝 [Class] Nome atualizado: ${classId} - "${existingClass.name}" → "${className}"`)
       }
 
-      // Atualizar campos CursEduca se necessário
       if (source === 'curseduca') {
-        if (curseducaId && !existingClass.curseducaId) {
-          updates.curseducaId = curseducaId
-        }
-        if (curseducaUuid && !existingClass.curseducaUuid) {
-          updates.curseducaUuid = curseducaUuid
-        }
+        if (curseducaId && !existingClass.curseducaId) updates.curseducaId = curseducaId
+        if (curseducaUuid && !existingClass.curseducaUuid) updates.curseducaUuid = curseducaUuid
       }
 
       await Class.findByIdAndUpdate(existingClass._id, updates)
+      // Devolver o nome real da BD (que pode ter sido editado manualmente)
+      return (isGenericName && hasNewName ? className : existingClass.name) || `Turma ${classId}`
     }
   } catch (error: any) {
-    // Ignorar erros de duplicação (race condition)
     if (error.code !== 11000) {
       console.error(`   ⚠️ [Class] Erro ao criar/atualizar turma ${classId}:`, error.message)
     }
+    return className || `Turma ${classId}`
   }
 }
 
@@ -1143,19 +1139,22 @@ if (lastAccessDate) {
       const oldClassName = (user as any).hotmart?.enrolledClasses?.[0]?.className
       const hasClassChanged = oldClassId && oldClassId !== item.classId
 
+      // Buscar o nome real da BD (pode ter sido editado manualmente)
+      const realClassName = await ensureClassExists(item.classId, item.className, 'hotmart')
+
       updateFields['hotmart.enrolledClasses'] = [
         {
           classId: item.classId,
-          className: item.className || `Turma ${item.classId}`,
+          className: realClassName,
           source: 'hotmart',
           isActive: true,
           enrolledAt: purchaseDate || new Date()
         }
       ]
+      // Manter root classId sempre em sync com a Hotmart (campo usado por updateClassStatus)
+      updateFields['classId'] = item.classId
+      updateFields['className'] = realClassName
       needsUpdate = true
-
-      // ✅ NOVO: Garantir que turma existe na tabela Class
-      await ensureClassExists(item.classId, item.className, 'hotmart')
 
       // 🆕 REGISTRAR MUDANÇA DE TURMA OU PRIMEIRA INSCRIÇÃO
       if (hasClassChanged) {
@@ -1193,6 +1192,81 @@ if (lastAccessDate) {
         } catch (error: any) {
           console.warn(`   ⚠️ Erro ao registrar primeira inscrição para ${user.email}:`, error.message)
         }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 🔥 FIX: Atualizar combined.allClasses e combined.primaryClass
+    // findByIdAndUpdate NÃO dispara pre('save'), por isso temos de
+    // recalcular combined manualmente aqui.
+    // ═══════════════════════════════════════════════════════════
+    const allClasses: Array<{
+      classId: string
+      className: string
+      source: string
+      isActive: boolean
+      enrolledAt?: Date
+      role?: string
+    }> = []
+
+    // Turmas Hotmart: usar os dados que vamos guardar (podem ter mudado)
+    const hotmartEnrolled = updateFields['hotmart.enrolledClasses'] as any[] | undefined
+    if (hotmartEnrolled && Array.isArray(hotmartEnrolled)) {
+      hotmartEnrolled.forEach((cls: any) => {
+        allClasses.push({
+          classId: cls.classId,
+          className: cls.className,
+          source: 'hotmart',
+          isActive: cls.isActive ?? true,
+          enrolledAt: cls.enrolledAt
+        })
+      })
+    } else if ((user as any).hotmart?.enrolledClasses) {
+      // Sem alteração neste sync – manter as turmas existentes
+      ;((user as any).hotmart.enrolledClasses as any[]).forEach((cls: any) => {
+        allClasses.push({
+          classId: cls.classId,
+          className: cls.className,
+          source: 'hotmart',
+          isActive: cls.isActive ?? true,
+          enrolledAt: cls.enrolledAt
+        })
+      })
+    }
+
+    // Turmas CursEduca: manter as existentes (este é um sync Hotmart)
+    if ((user as any).curseduca?.enrolledClasses && Array.isArray((user as any).curseduca.enrolledClasses)) {
+      ;((user as any).curseduca.enrolledClasses as any[]).forEach((cls: any) => {
+        allClasses.push({
+          classId: cls.classId,
+          className: cls.className,
+          source: 'curseduca',
+          isActive: cls.isActive ?? true,
+          enrolledAt: cls.enteredAt || cls.enrolledAt,
+          role: cls.role
+        })
+      })
+    }
+
+    updateFields['combined.allClasses'] = allClasses
+
+    // Turma principal: prioridade Hotmart ativa > CursEduca ativa
+    const hotmartActive = allClasses.find(c => c.source === 'hotmart' && c.isActive)
+    const curseducaActive = allClasses.find(c => c.source === 'curseduca' && c.isActive)
+    const primary = hotmartActive || curseducaActive
+
+    if (primary) {
+      updateFields['combined.primaryClass'] = {
+        classId: primary.classId,
+        className: primary.className,
+        source: primary.source
+      }
+      updateFields['combined.classId'] = primary.classId
+      updateFields['combined.className'] = primary.className
+      // Manter root classId sempre em sync (usado por updateClassStatus e Re-verificação)
+      if (primary.source === 'hotmart') {
+        updateFields['classId'] = primary.classId
+        updateFields['className'] = primary.className
       }
     }
 
@@ -1408,6 +1482,82 @@ if (lastAccessDate) {
     }
 
     // ═══════════════════════════════════════════════════════════
+    // 🔥 FIX: Atualizar combined.allClasses e combined.primaryClass
+    // findByIdAndUpdate NÃO dispara pre('save'), por isso temos de
+    // recalcular combined manualmente aqui.
+    // ═══════════════════════════════════════════════════════════
+    const allClassesCE: Array<{
+      classId: string
+      className: string
+      source: string
+      isActive: boolean
+      enrolledAt?: Date
+      role?: string
+    }> = []
+
+    // Turmas Hotmart: manter as existentes (este é um sync CursEduca)
+    if ((user as any).hotmart?.enrolledClasses && Array.isArray((user as any).hotmart.enrolledClasses)) {
+      ;((user as any).hotmart.enrolledClasses as any[]).forEach((cls: any) => {
+        allClassesCE.push({
+          classId: cls.classId,
+          className: cls.className,
+          source: 'hotmart',
+          isActive: cls.isActive ?? true,
+          enrolledAt: cls.enrolledAt
+        })
+      })
+    }
+
+    // Turmas CursEduca: usar os dados que vamos guardar (podem ter mudado)
+    const ceEnrolled = updateFields['curseduca.enrolledClasses'] as any[] | undefined
+    if (ceEnrolled && Array.isArray(ceEnrolled)) {
+      ceEnrolled.forEach((cls: any) => {
+        allClassesCE.push({
+          classId: cls.classId,
+          className: cls.className,
+          source: 'curseduca',
+          isActive: cls.isActive ?? true,
+          enrolledAt: cls.enteredAt || cls.enrolledAt,
+          role: cls.role
+        })
+      })
+    } else if ((user as any).curseduca?.enrolledClasses && Array.isArray((user as any).curseduca.enrolledClasses)) {
+      ;((user as any).curseduca.enrolledClasses as any[]).forEach((cls: any) => {
+        allClassesCE.push({
+          classId: cls.classId,
+          className: cls.className,
+          source: 'curseduca',
+          isActive: cls.isActive ?? true,
+          enrolledAt: cls.enteredAt || cls.enrolledAt,
+          role: cls.role
+        })
+      })
+    }
+
+    updateFields['combined.allClasses'] = allClassesCE
+
+    // Turma principal: prioridade Hotmart ativa > CursEduca ativa
+    const hotmartActiveCE = allClassesCE.find(c => c.source === 'hotmart' && c.isActive)
+    const curseducaActiveCE = allClassesCE.find(c => c.source === 'curseduca' && c.isActive)
+    const primaryCE = hotmartActiveCE || curseducaActiveCE
+
+    if (primaryCE) {
+      updateFields['combined.primaryClass'] = {
+        classId: primaryCE.classId,
+        className: primaryCE.className,
+        source: primaryCE.source
+      }
+      updateFields['combined.classId'] = primaryCE.classId
+      updateFields['combined.className'] = primaryCE.className
+      // Só actualizar root classId se a turma principal vier da Hotmart
+      // (CursEduca não deve sobrescrever o root classId que é fonte da Hotmart)
+      if (primaryCE.source === 'hotmart') {
+        updateFields['classId'] = primaryCE.classId
+        updateFields['className'] = primaryCE.className
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════
     // METADATA DE SYNC
     // ═══════════════════════════════════════════════════════════
     updateFields['curseduca.lastSyncAt'] = new Date()
@@ -1452,6 +1602,43 @@ if (lastAccessDate) {
   if (renewalResult.shouldReactivate) {
     // Utilizador renovou! Aplicar reativação automática
     await applyAutoReactivation(userIdStr, user.email, renewalResult)
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 🔥 FIX: Reativar se compra recente mas status = INACTIVE
+  // detectRenewal só corre quando isManuallyInactivated=true.
+  // Se isManuallyInactivated=false mas status ainda está INACTIVE
+  // (e a compra não está expirada), reativar User + UserProduct.
+  // ═══════════════════════════════════════════════════════════
+  if (
+    config.syncType === 'hotmart' &&
+    !renewalResult.shouldReactivate &&
+    purchaseDate
+  ) {
+    const userStatus = (user as any).status
+    const combinedStatus = (user as any).combined?.status
+    const isInactiveInDB = userStatus === 'INACTIVE' || combinedStatus === 'INACTIVE'
+
+    const daysSincePurchase = Math.floor((Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24))
+    const isNotExpired = daysSincePurchase < EXPIRATION_DAYS
+
+    if (isInactiveInDB && isNotExpired) {
+      console.log(`   🔄 [AutoFix] ${user.email} está INACTIVE mas compra recente (${daysSincePurchase}d) → reativando`)
+      updateFields['status'] = 'ACTIVE'
+      updateFields['estado'] = 'ativo'
+      updateFields['combined.status'] = 'ACTIVE'
+      updateFields['hotmart.status'] = 'ACTIVE'
+      updateFields['inactivation.isManuallyInactivated'] = false
+      updateFields['inactivation.reactivatedAt'] = new Date()
+      updateFields['inactivation.reactivatedBy'] = 'Sistema - Sync Automático (compra recente)'
+      needsUpdate = true
+
+      // Também reativar UserProduct
+      await UserProduct.updateMany(
+        { userId: userIdStr, status: { $in: ['INACTIVE', 'PARA_INATIVAR'] } },
+        { $set: { status: 'ACTIVE' } }
+      )
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
