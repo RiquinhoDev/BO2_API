@@ -3403,7 +3403,7 @@ function transformUserForFrontend(user: any, userProductsMap?: Map<string, any[]
     discordIds: user.discord?.discordIds || [],
 
     // Mapear combined.status -> status (retrocompatibilidade)
-    status: user.combined?.status || user.discord?.isDeleted ? 'INACTIVE' : 'ACTIVE',
+    status: (user.combined?.status === 'INACTIVE' || user.discord?.isDeleted) ? 'INACTIVE' : 'ACTIVE',
 
     // Mapear discord.role -> role (retrocompatibilidade)
     role: user.discord?.role || 'STUDENT',
