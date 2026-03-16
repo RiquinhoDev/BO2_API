@@ -1335,6 +1335,34 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         }
       }
 
+      // 4. Re-verificar Discord para alunos já inativos na BD (apanhar os que escaparam)
+      if (process.env.DISCORD_BOT_URL) {
+        for (const classId of classIds) {
+          const inactiveStudents = await User.find({
+            classId,
+            estado: 'inativo'
+          }).lean()
+
+          for (const student of inactiveStudents) {
+            const alreadyProcessed = results.some((r: any) => r.email === student.email && r.status === 'success')
+            if (alreadyProcessed) continue
+
+            if (student.discord?.discordIds?.length > 0) {
+              try {
+                await axios.post(`${process.env.DISCORD_BOT_URL}/remove-roles`, {
+                  userId: student.discord.discordIds[0],
+                  reason: `Re-verificação: turma ${classId} inativa`
+                }, { timeout: 10000 })
+                totalDiscordUpdates++
+                console.log(`   ✅ Discord (re-check): roles removidos para ${student.email}`)
+              } catch (discordError: any) {
+                console.warn(`   ⚠️ Discord (re-check): erro para ${student.email}:`, discordError.message)
+              }
+            }
+          }
+        }
+      }
+
       console.log(`\n✅ Inativação concluída:`)
       console.log(`   📊 Total de alunos inativados: ${totalInactivated}`)
       console.log(`   💬 Discord roles atualizados: ${totalDiscordUpdates}`)
@@ -1611,16 +1639,18 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
       // Funcionalidade: Se desativando a turma, inativar todos os estudantes
       let affectedStudents = 0
+      let discordUpdates = 0
       const existingClassTyped = existingClass as any
-      if (!isActive && existingClassTyped.isActive) {
+      if (!isActive) {
         console.log(`🔄 Desativando turma ${classId} - Inativando estudantes...`)
 
-        const studentsInClass = await User.find({
+        // Buscar alunos que ainda não estão inativos (primeira inativação)
+        const activeStudents = await User.find({
           classId: classId,
           estado: { $ne: 'inativo' }
         })
 
-        if (studentsInClass.length > 0) {
+        if (activeStudents.length > 0) {
           const updateResult = await User.updateMany(
             { classId: classId, estado: { $ne: 'inativo' } },
             {
@@ -1636,31 +1666,13 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
           console.log(`✅ ${affectedStudents} estudantes marcados como inativos na turma ${classId}`)
 
           // Atualizar UserProduct status
-          const studentIds = studentsInClass.map(s => s._id)
+          const studentIds = activeStudents.map(s => s._id)
           await UserProduct.updateMany(
             { userId: { $in: studentIds } },
             { $set: { status: 'INACTIVE' } }
           )
 
-          // Remover roles no Discord para cada aluno com Discord ID
-          if (process.env.DISCORD_BOT_URL) {
-            for (const student of studentsInClass) {
-              const discordIds = (student as any).discord?.discordIds || []
-              if (discordIds.length > 0) {
-                try {
-                  await axios.post(`${process.env.DISCORD_BOT_URL}/remove-roles`, {
-                    userId: discordIds[0],
-                    reason: reason || `Turma ${classId} desativada`
-                  }, { timeout: 10000 })
-                  console.log(`   ✅ Discord: roles removidos para ${student.email}`)
-                } catch (discordError: any) {
-                  console.warn(`   ⚠️ Discord: erro ao remover roles para ${student.email}:`, discordError.message)
-                }
-              }
-            }
-          }
-
-          const historyEntries = studentsInClass.map(student => ({
+          const historyEntries = activeStudents.map(student => ({
             studentId: student._id,
             classId: classId,
             className: existingClassTyped.name || classId,
@@ -1675,6 +1687,28 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
             await StudentClassHistory.insertMany(historyEntries)
             console.log(`📝 Histórico registrado para ${historyEntries.length} estudantes`)
           }
+        }
+
+        // Remover roles no Discord para TODOS os alunos da turma (incluindo já inativos na BD)
+        // Isto garante que re-verificações apanham alunos que ficaram sem Discord atualizado
+        if (process.env.DISCORD_BOT_URL) {
+          const allStudentsInClass = await User.find({ classId: classId })
+          for (const student of allStudentsInClass) {
+            const discordIds = (student as any).discord?.discordIds || []
+            if (discordIds.length > 0) {
+              try {
+                await axios.post(`${process.env.DISCORD_BOT_URL}/remove-roles`, {
+                  userId: discordIds[0],
+                  reason: reason || `Turma ${classId} desativada`
+                }, { timeout: 10000 })
+                discordUpdates++
+                console.log(`   ✅ Discord: roles removidos para ${student.email}`)
+              } catch (discordError: any) {
+                console.warn(`   ⚠️ Discord: erro ao remover roles para ${student.email}:`, discordError.message)
+              }
+            }
+          }
+          console.log(`   💬 Discord: ${discordUpdates} alunos atualizados`)
         }
       }
 
