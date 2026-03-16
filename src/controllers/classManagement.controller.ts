@@ -167,11 +167,27 @@ export const createInactivationList = async (req: Request, res: Response) => {
 
           await User.findByIdAndUpdate(student._id, { $set: updates })
 
-          // 3.1.1 Atualizar UserProduct status
-          await UserProduct.updateMany(
-            { userId: student._id },
-            { $set: { status: 'INACTIVE' } }
-          )
+          // 3.1.1 Atualizar UserProduct status (filtrado por plataforma)
+          const upPlatforms: string[] = []
+          if (platforms.includes('hotmart') || platforms.includes('all')) upPlatforms.push('hotmart')
+          if (platforms.includes('curseduca') || platforms.includes('all')) upPlatforms.push('curseduca')
+          if (platforms.includes('discord') || platforms.includes('all')) upPlatforms.push('discord')
+
+          // GURU MANDA: Se user tem Guru ativo, proteger UserProduct CursEduca
+          if (upPlatforms.includes('curseduca')) {
+            const guruStatus = (student as any).guru?.status
+            if (guruStatus && ['active', 'pastdue'].includes(guruStatus)) {
+              upPlatforms.splice(upPlatforms.indexOf('curseduca'), 1)
+              console.log(`   🛡️ Protegido: ${student.email} tem Guru ${guruStatus} - CursEduca UserProduct mantido ACTIVE`)
+            }
+          }
+
+          if (upPlatforms.length > 0) {
+            await UserProduct.updateMany(
+              { userId: student._id, platform: { $in: upPlatforms } },
+              { $set: { status: 'INACTIVE' } }
+            )
+          }
 
           // 3.2. Registrar no histórico
           try {

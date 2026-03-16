@@ -4,11 +4,18 @@ import axios from 'axios'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import { fetchAllSubscriptionsComplete } from '../services/guru/guruSync.service'
-
-// Configuração da API CursEduca (para verificação de status real)
-const CURSEDUCA_API_URL = process.env.CURSEDUCA_API_URL || 'https://prof.curseduca.pro'
-const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY || 'ce9ef2a4afef727919473d38acafe10109c4faa8'
-const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_ACCESS_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjozLCJ1dWlkIjoiYmZiNmExNjQtNmE5MC00MGFhLTg3OWYtYzEwNGIyZTZiNWVmIiwibmFtZSI6IlBlZHJvIE1pZ3VlbCBQZXJlaXJhIFNpbcO1ZXMgU2FudG9zIiwiZW1haWwiOiJjb250YWN0b3NAc2VycmlxdWluaG8uY29tIiwiaW1hZ2UiOiIvYXBwbGljYXRpb24vaW1hZ2VzL3VwbG9hZHMvMy8iLCJyb2xlcyI6WyJBRE1JTiJdLCJ0ZW5hbnRzIjpbXX0sImlhdCI6MTc1ODE5MDgwMH0.vI_Y9l7oZVIV4OT9XG7LWDIma-E7fcRkVYM7FOCxTds'
+import {
+  GURU_CANCELED_STATUSES,
+  CURSEDUCA_CANCELED_STATUSES,
+  CURSEDUCA_ACTIVE_STATUSES,
+  getEffectiveStatus,
+  getStatusPriority,
+  verifyCurseducaMemberStatus,
+  CURSEDUCA_API_URL,
+  CURSEDUCA_API_KEY,
+  CURSEDUCA_ACCESS_TOKEN,
+  type GuruDateInfo
+} from '../services/guru/guru.constants'
 
 // ═══════════════════════════════════════════════════════════
 // CHURN METRICS
@@ -265,10 +272,14 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
 
     // ─────────────────────────────────────────────────────────
     // 2b. TAMBÉM VERIFICAR user.curseduca (dados diretos)
+    // FIX: Agora também apanha users com memberStatus mas sem curseducaUserId
     // ─────────────────────────────────────────────────────────
     const usersWithCurseduca = await User.find({
       curseduca: { $exists: true },
-      'curseduca.curseducaUserId': { $exists: true }
+      $or: [
+        { 'curseduca.curseducaUserId': { $exists: true, $ne: null } },
+        { 'curseduca.memberStatus': { $exists: true, $ne: null } }
+      ]
     }).select('email name curseduca').lean()
 
     console.log(`   📌 Users com dados CursEduca direto: ${usersWithCurseduca.length}`)
@@ -277,7 +288,6 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
     for (const user of usersWithCurseduca) {
       const email = user.email?.toLowerCase().trim()
       if (email && !clarezaByEmail.has(email)) {
-        // Determinar status baseado em memberStatus ou enrolledClasses
         const hasActiveClass = user.curseduca?.enrolledClasses?.some((c: any) => c.isActive) || false
         const memberStatus = user.curseduca?.memberStatus || (hasActiveClass ? 'ACTIVE' : 'INACTIVE')
 
@@ -285,7 +295,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
           userEmail: email,
           userName: user.name,
           status: memberStatus,
-          curseducaUserId: user.curseduca?.curseducaUserId,
+          curseducaUserId: user.curseduca?.curseducaUserId || null,
           enrolledClasses: user.curseduca?.enrolledClasses,
           source: 'user.curseduca'
         })
@@ -296,86 +306,136 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
 
     // ─────────────────────────────────────────────────────────
     // 3. COMPARAR STATUS ENTRE AS PLATAFORMAS
+    // FIX: Usa getEffectiveStatus para classificar pending correctamente
+    // FIX: ?verify=true verifica discrepâncias contra API real do CursEduca
     // ─────────────────────────────────────────────────────────
-    const discrepancies = {
-      guruCanceledClarezaActive: [] as any[],  // Problema: Guru diz cancelado, Clareza diz ativo
-      guruActiveClarezaCanceled: [] as any[],  // Problema: Guru diz ativo, Clareza diz cancelado
-      bothCanceled: [] as any[],               // OK: Ambos cancelados
-      bothActive: [] as any[],                 // OK: Ambos ativos
-      guruOnlyNoClareza: [] as any[],          // Só na Guru, não tem Clareza
-      clarezaOnlyNoGuru: [] as any[]           // Só no Clareza, não tem Guru
-    }
+    const shouldVerify = req.query.verify === 'true'
+    const MAX_VERIFY_CALLS = 50
+    let verifyCallsUsed = 0
 
-    // Status que consideramos "cancelado" em cada plataforma
-    const guruCanceledStatuses = ['canceled', 'expired', 'refunded']
-    const guruActiveStatuses = ['active', 'pastdue']
-    const clarezaCanceledStatuses = ['CANCELLED', 'INACTIVE', 'SUSPENDED']
-    const clarezaActiveStatuses = ['ACTIVE']
+    const discrepancies = {
+      guruCanceledClarezaActive: [] as any[],
+      guruActiveClarezaCanceled: [] as any[],
+      bothCanceled: [] as any[],
+      bothActive: [] as any[],
+      guruOnlyNoClareza: [] as any[],
+      clarezaOnlyNoGuru: [] as any[]
+    }
 
     // Processar users com Guru
     for (const user of usersWithGuru) {
       const email = user.email.toLowerCase().trim()
       const guruStatus = user.guru?.status
-      const guruIsCanceled = guruCanceledStatuses.includes(guruStatus)
-      const guruIsActive = guruActiveStatuses.includes(guruStatus)
+
+      // FIX: Usar getEffectiveStatus - resolve pending invisível
+      const guruDates: GuruDateInfo = {
+        updatedAt: user.guru?.updatedAt,
+        nextCycleAt: user.guru?.nextCycleAt
+      }
+      const effective = getEffectiveStatus(guruStatus, guruDates)
+      const guruIsCanceled = effective.isCanceled
+      const guruIsActive = effective.isActive
 
       // Primeiro verificar se o user tem dados CursEduca direto (user.curseduca)
       let clarezaData = clarezaByEmail.get(email)
 
-      // Se não encontrou no mapa, verificar user.curseduca diretamente
-      if (!clarezaData && (user as any).curseduca?.curseducaUserId) {
-        const hasActiveClass = (user as any).curseduca?.enrolledClasses?.some((c: any) => c.isActive) || false
-        const memberStatus = (user as any).curseduca?.memberStatus || (hasActiveClass ? 'ACTIVE' : 'INACTIVE')
+      // FIX: Verificar user.curseduca mesmo SEM curseducaUserId (tem memberStatus)
+      if (!clarezaData && (user as any).curseduca) {
+        const curseduca = (user as any).curseduca
+        if (curseduca.curseducaUserId || curseduca.memberStatus) {
+          const hasActiveClass = curseduca.enrolledClasses?.some((c: any) => c.isActive) || false
+          const memberStatus = curseduca.memberStatus || (hasActiveClass ? 'ACTIVE' : 'INACTIVE')
 
-        clarezaData = {
-          userEmail: email,
-          userName: user.name,
-          status: memberStatus,
-          curseducaUserId: (user as any).curseduca?.curseducaUserId,
-          enrolledClasses: (user as any).curseduca?.enrolledClasses,
-          source: 'user.curseduca (direct)'
+          clarezaData = {
+            userEmail: email,
+            userName: user.name,
+            status: memberStatus,
+            curseducaUserId: curseduca.curseducaUserId || null,
+            enrolledClasses: curseduca.enrolledClasses,
+            source: curseduca.curseducaUserId ? 'user.curseduca (direct)' : 'user.curseduca (sem ID)'
+          }
         }
       }
 
       if (!clarezaData) {
-        // User só existe na Guru, não tem Clareza
         discrepancies.guruOnlyNoClareza.push({
           email,
           name: user.name,
-          guruStatus,
+          guruStatus: effective.isPendingStale ? `${guruStatus} (stale)` : guruStatus,
           guruUpdatedAt: user.guru?.updatedAt,
           clarezaStatus: null
         })
         continue
       }
 
-      const clarezaStatus = clarezaData.status
-      const clarezaIsCanceled = clarezaCanceledStatuses.includes(clarezaStatus)
-      const clarezaIsActive = clarezaActiveStatuses.includes(clarezaStatus)
+      let clarezaStatus = clarezaData.status
+      const clarezaIsCanceled = CURSEDUCA_CANCELED_STATUSES.includes(clarezaStatus)
+      let clarezaIsActive = CURSEDUCA_ACTIVE_STATUSES.includes(clarezaStatus)
+
+      // ─────────────────────────────────────────────────────────
+      // FIX: Verificação API real para discrepâncias (se ?verify=true)
+      // Resolve o problema de BD stale (90% falsos positivos)
+      // ─────────────────────────────────────────────────────────
+      let verified = false
+      if (shouldVerify && verifyCallsUsed < MAX_VERIFY_CALLS) {
+        const isDiscrepancy = (guruIsCanceled && clarezaIsActive) || (guruIsActive && clarezaIsCanceled)
+        if (isDiscrepancy) {
+          const memberId = clarezaData.curseducaUserId || clarezaData.platformUserId
+          if (memberId) {
+            const apiResult = await verifyCurseducaMemberStatus(memberId)
+            verifyCallsUsed++
+            if (apiResult) {
+              const realSituation = apiResult.situation
+              clarezaStatus = realSituation
+              clarezaIsActive = CURSEDUCA_ACTIVE_STATUSES.includes(realSituation)
+              verified = true
+
+              // Atualizar BD com dados frescos
+              await User.findOne({ email }).then(async (u) => {
+                if (u) {
+                  await User.findByIdAndUpdate(u._id, {
+                    $set: {
+                      'curseduca.memberStatus': CURSEDUCA_CANCELED_STATUSES.includes(realSituation) ? 'INACTIVE' : 'ACTIVE',
+                      'curseduca.situation': realSituation
+                    }
+                  })
+                }
+              })
+            }
+            await new Promise(resolve => setTimeout(resolve, 200))
+          }
+        }
+      }
 
       const record = {
         email,
         name: user.name || clarezaData.userName,
-        guruStatus,
+        guruStatus: effective.isPendingStale ? `${guruStatus} (stale)` : guruStatus,
+        guruEffective: effective.effectiveStatus,
         guruUpdatedAt: user.guru?.updatedAt,
         clarezaStatus,
         clarezaUpdatedAt: clarezaData.updatedAt,
         clarezaEnrolledAt: clarezaData.enrolledAt,
-        clarezaSource: clarezaData.source || 'userproduct'
+        clarezaSource: clarezaData.source || 'userproduct',
+        verified
       }
 
-      // Classificar
-      if (guruIsCanceled && clarezaIsActive) {
+      // Re-classificar com dados possivelmente atualizados
+      const finalClarezaCanceled = CURSEDUCA_CANCELED_STATUSES.includes(clarezaStatus)
+      const finalClarezaActive = CURSEDUCA_ACTIVE_STATUSES.includes(clarezaStatus)
+
+      if (guruIsCanceled && finalClarezaActive) {
         discrepancies.guruCanceledClarezaActive.push(record)
-      } else if (guruIsActive && clarezaIsCanceled) {
+      } else if (guruIsActive && finalClarezaCanceled) {
         discrepancies.guruActiveClarezaCanceled.push(record)
-      } else if (guruIsCanceled && clarezaIsCanceled) {
+      } else if (guruIsCanceled && finalClarezaCanceled) {
         discrepancies.bothCanceled.push(record)
-      } else if (guruIsActive && clarezaIsActive) {
+      } else if (guruIsActive && finalClarezaActive) {
         discrepancies.bothActive.push(record)
       }
+      // NOTA: Se nem active nem canceled (edge case raro), fica fora das categorias
+      // mas agora pending stale é classified como canceled, eliminando o buraco
 
-      // Remover do mapa para depois identificar os que só estão no Clareza
       clarezaByEmail.delete(email)
     }
 
@@ -407,7 +467,9 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
       bothCanceled: discrepancies.bothCanceled.length,
       bothActive: discrepancies.bothActive.length,
       guruOnlyNoClareza: discrepancies.guruOnlyNoClareza.length,
-      clarezaOnlyNoGuru: discrepancies.clarezaOnlyNoGuru.length
+      clarezaOnlyNoGuru: discrepancies.clarezaOnlyNoGuru.length,
+      verified: shouldVerify,
+      verifyApiCallsUsed: verifyCallsUsed
     }
 
     console.log(`   ✅ Comparação concluída:`)
@@ -457,8 +519,13 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
           continue
         }
 
-        // CASO 2: Guru está ACTIVE, PENDING ou PASTDUE (não deveria estar para inativar)
-        if (guruStatus === 'active' || guruStatus === 'pastdue' || guruStatus === 'pending') {
+        // CASO 2: Guru está legitimamente ativo (não deveria estar para inativar)
+        // FIX: pending stale NÃO é tratado como ativo - só pending fresh
+        const cleanupEffective = getEffectiveStatus(guruStatus, {
+          updatedAt: user?.guru?.updatedAt,
+          nextCycleAt: user?.guru?.nextCycleAt
+        })
+        if (cleanupEffective.isActive) {
           await UserProduct.findByIdAndUpdate(userProduct._id, {
             $set: {
               status: 'ACTIVE',
@@ -613,11 +680,7 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
     }
 
     // 3. Encontrar emails com múltiplas subscrições onde pelo menos uma é active
-    const statusPriority: Record<string, number> = {
-      'active': 1, 'pastdue': 2, 'pending': 3, 'suspended': 4,
-      'canceled': 5, 'expired': 6, 'refunded': 7
-    }
-
+    // FIX: Usar getStatusPriority centralizado (pending stale recebe prioridade 8)
     const multiSubUsers: any[] = []
     const problemUsers: any[] = []
     let fixed = 0
@@ -625,10 +688,12 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
     for (const [email, subs] of subsByEmail) {
       if (subs.length <= 1) continue
 
-      // Encontrar a MELHOR subscrição
+      // Encontrar a MELHOR subscrição (com pending stale handling)
       const bestSub = subs.reduce((best, curr) => {
-        const bestPrio = statusPriority[best.status] ?? 99
-        const currPrio = statusPriority[curr.status] ?? 99
+        const bestDates: GuruDateInfo = { startedAt: best.startedAt }
+        const currDates: GuruDateInfo = { startedAt: curr.startedAt }
+        const bestPrio = getStatusPriority(best.status, bestDates)
+        const currPrio = getStatusPriority(curr.status, currDates)
         return currPrio < bestPrio ? curr : best
       })
 
@@ -648,8 +713,10 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
 
       if (user && (user as any).guru?.status) {
         const ourStatus = (user as any).guru.status
-        const ourPrio = statusPriority[ourStatus] ?? 99
-        const bestPrio = statusPriority[bestSub.status] ?? 99
+        const ourDates: GuruDateInfo = { updatedAt: (user as any).guru?.updatedAt, nextCycleAt: (user as any).guru?.nextCycleAt }
+        const ourPrio = getStatusPriority(ourStatus, ourDates)
+        const bestDatesForFix: GuruDateInfo = { startedAt: bestSub.startedAt }
+        const bestPrio = getStatusPriority(bestSub.status, bestDatesForFix)
 
         if (bestPrio < ourPrio) {
           // Nosso status é PIOR que a melhor subscrição - PROBLEMA!
@@ -683,8 +750,8 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
             )
 
             // Se estava canceled e agora é active, reverter PARA_INATIVAR
-            if (['canceled', 'expired', 'refunded'].includes(ourStatus) &&
-                !['canceled', 'expired', 'refunded'].includes(bestSub.status)) {
+            if (GURU_CANCELED_STATUSES.includes(ourStatus) &&
+                !GURU_CANCELED_STATUSES.includes(bestSub.status)) {
               const revert = await UserProduct.updateMany(
                 {
                   userId: (user as any)._id,

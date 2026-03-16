@@ -3,11 +3,16 @@ import { Request, Response } from 'express'
 import axios from 'axios'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
-
-// Configuração da API CursEduca (mesmas credenciais do curseduca.adapter.ts)
-const CURSEDUCA_API_URL = process.env.CURSEDUCA_API_URL || 'https://prof.curseduca.pro'
-const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY || 'ce9ef2a4afef727919473d38acafe10109c4faa8'
-const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_ACCESS_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjozLCJ1dWlkIjoiYmZiNmExNjQtNmE5MC00MGFhLTg3OWYtYzEwNGIyZTZiNWVmIiwibmFtZSI6IlBlZHJvIE1pZ3VlbCBQZXJlaXJhIFNpbcO1ZXMgU2FudG9zIiwiZW1haWwiOiJjb250YWN0b3NAc2VycmlxdWluaG8uY29tIiwiaW1hZ2UiOiIvYXBwbGljYXRpb24vaW1hZ2VzL3VwbG9hZHMvMy8iLCJyb2xlcyI6WyJBRE1JTiJdLCJ0ZW5hbnRzIjpbXX0sImlhdCI6MTc1ODE5MDgwMH0.vI_Y9l7oZVIV4OT9XG7LWDIma-E7fcRkVYM7FOCxTds'
+import {
+  GURU_CANCELED_STATUSES,
+  getEffectiveStatus,
+  lookupCurseducaUserIdByEmail,
+  verifyCurseducaMemberStatus,
+  CURSEDUCA_API_URL,
+  CURSEDUCA_API_KEY,
+  CURSEDUCA_ACCESS_TOKEN,
+  type GuruDateInfo
+} from '../services/guru/guru.constants'
 
 // ═══════════════════════════════════════════════════════════
 // LISTAR USERS PARA INATIVAR
@@ -23,9 +28,6 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
   try {
     console.log('📋 [INATIVAÇÃO] Listando users para inativar...')
 
-    // Status Guru que são considerados "cancelados"
-    const guruCanceledStatuses = ['canceled', 'expired', 'refunded']
-
     // Buscar UserProducts com status PARA_INATIVAR
     const userProducts = await UserProduct.find({
       platform: 'curseduca',
@@ -37,7 +39,7 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
 
     console.log(`   📌 Total UserProducts PARA_INATIVAR: ${userProducts.length}`)
 
-    // Filtrar apenas os que têm Guru canceled/expired/refunded
+    // Filtrar apenas os que têm Guru efetivamente cancelado (inclui pending stale)
     const pendingList = userProducts
       .filter(up => {
         const user = up.userId as any
@@ -46,8 +48,12 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
         // Se não tem Guru status, manter (pode ser user só Clareza)
         if (!guruStatus) return true
 
-        // Se tem Guru status, só manter se for canceled/expired/refunded
-        return guruCanceledStatuses.includes(guruStatus)
+        // FIX: Usar getEffectiveStatus - pending stale é tratado como canceled
+        const effective = getEffectiveStatus(guruStatus, {
+          updatedAt: user?.guru?.updatedAt,
+          nextCycleAt: user?.guru?.nextCycleAt
+        })
+        return effective.isCanceled
       })
       .map(up => {
         const user = up.userId as any
@@ -461,15 +467,21 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
 
     console.log('🔍 [INATIVAÇÃO] Marcando discrepâncias para inativação...')
 
-    // Status que consideramos "cancelado" na Guru
-    const guruCanceledStatuses = ['canceled', 'expired', 'refunded']
-
-    // 1. Buscar users com Guru cancelado
-    const usersWithGuruCanceled = await User.find({
+    // 1. Buscar users com Guru cancelado (inclui pending stale via filtro post-query)
+    const usersWithGuruData = await User.find({
       guru: { $exists: true },
-      'guru.status': { $in: guruCanceledStatuses },
+      'guru.status': { $exists: true },
       ...(emails && emails.length > 0 ? { email: { $in: emails.map((e: string) => e.toLowerCase().trim()) } } : {})
     }).select('_id email name guru curseduca').lean()
+
+    // FIX: Filtrar usando getEffectiveStatus para apanhar pending stale
+    const usersWithGuruCanceled = usersWithGuruData.filter(u => {
+      const effective = getEffectiveStatus(u.guru?.status, {
+        updatedAt: u.guru?.updatedAt,
+        nextCycleAt: u.guru?.nextCycleAt
+      })
+      return effective.isCanceled
+    })
 
     console.log(`   📌 Users com Guru cancelado: ${usersWithGuruCanceled.length}`)
 
@@ -518,19 +530,35 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
 
     for (const user of usersWithGuruCanceled) {
       const userId = user._id.toString()
-      let userProduct = existingUserProductsMap.get(userId)
+      let userProduct: any = existingUserProductsMap.get(userId)
 
       // Se não tem UserProduct mas tem dados curseduca, criar
-      if (!userProduct && user.curseduca?.curseducaUserId) {
+      let curseducaUserId = user.curseduca?.curseducaUserId
+
+      // FIX: Se não tem curseducaUserId, tentar procurar na API CursEduca por email
+      if (!userProduct && !curseducaUserId) {
+        console.log(`   🔍 Procurando curseducaUserId para ${user.email} via API...`)
+        const lookupResult = await lookupCurseducaUserIdByEmail(user.email)
+        if (lookupResult) {
+          curseducaUserId = lookupResult.curseducaUserId
+          // Guardar o ID encontrado na BD para futuras consultas
+          await User.findByIdAndUpdate(user._id, {
+            $set: { 'curseduca.curseducaUserId': curseducaUserId }
+          })
+          console.log(`   ✅ Encontrado via API: ${user.email} → curseducaUserId=${curseducaUserId}`)
+        }
+      }
+
+      if (!userProduct && curseducaUserId) {
         console.log(`   🆕 Criando UserProduct para ${user.email}`)
 
         userProduct = await UserProduct.create({
           userId: user._id,
           productId: curseducaProduct._id,
           platform: 'curseduca',
-          platformUserId: user.curseduca.curseducaUserId,
+          platformUserId: curseducaUserId,
           status: 'PARA_INATIVAR',
-          enrolledAt: user.curseduca.joinedDate || new Date(),
+          enrolledAt: user.curseduca?.joinedDate || new Date(),
           metadata: {
             markedForInactivationAt: new Date(),
             markedForInactivationReason: `Discrepância: Guru ${user.guru?.status}, Clareza ACTIVE`,
@@ -550,10 +578,10 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
         continue
       }
 
-      // Se não tem UserProduct e não tem dados curseduca, skip
+      // Se não tem UserProduct e não conseguiu encontrar curseducaUserId, skip
       if (!userProduct) {
         skipped++
-        console.log(`   ⚠️ Sem dados CursEduca: ${user.email}`)
+        console.log(`   ⚠️ Sem dados CursEduca (email lookup falhou): ${user.email}`)
         continue
       }
 
@@ -687,9 +715,13 @@ export const cleanupInactivationList = async (req: Request, res: Response) => {
       }
 
       // ═══════════════════════════════════════════════════════════
-      // CASO 2: Guru está ACTIVE, PENDING ou PASTDUE
+      // CASO 2: Guru está legitimamente ativo (pending stale NÃO conta)
       // ═══════════════════════════════════════════════════════════
-      if (guruStatus === 'active' || guruStatus === 'pastdue' || guruStatus === 'pending') {
+      const cleanupEffective = getEffectiveStatus(guruStatus, {
+        updatedAt: user.guru?.updatedAt,
+        nextCycleAt: user.guru?.nextCycleAt
+      })
+      if (cleanupEffective.isActive) {
         await UserProduct.findByIdAndUpdate(userProduct._id, {
           $set: {
             status: 'ACTIVE',

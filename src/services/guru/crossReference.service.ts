@@ -5,17 +5,13 @@
 import axios from 'axios'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
-
-// ═══════════════════════════════════════════════════════════
-// CONSTANTES
-// ═══════════════════════════════════════════════════════════
-
-const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
-const GURU_ACTIVE_STATUSES = ['active', 'pastdue', 'pending']
-
-const CURSEDUCA_API_URL = process.env.CURSEDUCA_API_URL || 'https://prof.curseduca.pro'
-const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY || 'ce9ef2a4afef727919473d38acafe10109c4faa8'
-const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_ACCESS_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjozLCJ1dWlkIjoiYmZiNmExNjQtNmE5MC00MGFhLTg3OWYtYzEwNGIyZTZiNWVmIiwibmFtZSI6IlBlZHJvIE1pZ3VlbCBQZXJlaXJhIFNpbcO1ZXMgU2FudG9zIiwiZW1haWwiOiJjb250YWN0b3NAc2VycmlxdWluaG8uY29tIiwiaW1hZ2UiOiIvYXBwbGljYXRpb24vaW1hZ2VzL3VwbG9hZHMvMy8iLCJyb2xlcyI6WyJBRE1JTiJdLCJ0ZW5hbnRzIjpbXX0sImlhdCI6MTc1ODE5MDgwMH0.vI_Y9l7oZVIV4OT9XG7LWDIma-E7fcRkVYM7FOCxTds'
+import {
+  getEffectiveStatus,
+  CURSEDUCA_API_URL,
+  CURSEDUCA_API_KEY,
+  CURSEDUCA_ACCESS_TOKEN,
+  type GuruDateInfo
+} from './guru.constants'
 
 // ═══════════════════════════════════════════════════════════
 // TIPOS
@@ -45,7 +41,8 @@ export function determineCrossReferenceAction(
   guruStatus: string | null | undefined,
   curseducaMemberStatus: string | null | undefined,
   curseducaSituation: string | null | undefined,
-  userProductStatus: string | null | undefined
+  userProductStatus: string | null | undefined,
+  guruDates?: GuruDateInfo | null
 ): CrossReferenceAction {
   // Sem dados guru → skip
   if (!guruStatus) {
@@ -57,8 +54,12 @@ export function determineCrossReferenceAction(
     return { action: 'skip', reason: 'Já INACTIVE' }
   }
 
-  const guruIsCanceled = GURU_CANCELED_STATUSES.includes(guruStatus)
-  const guruIsActive = GURU_ACTIVE_STATUSES.includes(guruStatus)
+  // Usar classificação centralizada (resolve pending stale vs fresh)
+  const effective = getEffectiveStatus(guruStatus, guruDates)
+  const guruIsCanceled = effective.isCanceled
+  const guruIsActive = effective.isActive
+  const statusLabel = effective.isPendingStale ? `${guruStatus} (stale)` : guruStatus
+
   const curseducaIsInactive =
     curseducaMemberStatus === 'INACTIVE' ||
     curseducaSituation === 'INACTIVE' ||
@@ -68,7 +69,7 @@ export function determineCrossReferenceAction(
   if (guruIsActive && userProductStatus === 'PARA_INATIVAR') {
     return {
       action: 'revert_to_active',
-      reason: `Guru ${guruStatus} - não justifica inativação`
+      reason: `Guru ${statusLabel} - não justifica inativação`
     }
   }
 
@@ -76,7 +77,7 @@ export function determineCrossReferenceAction(
   if (guruIsCanceled && curseducaIsInactive && userProductStatus === 'PARA_INATIVAR') {
     return {
       action: 'confirm_inactive',
-      reason: `Guru ${guruStatus} + CursEduca INACTIVE (confirmado)`
+      reason: `Guru ${statusLabel} + CursEduca INACTIVE (confirmado)`
     }
   }
 
@@ -84,7 +85,7 @@ export function determineCrossReferenceAction(
   if (guruIsCanceled && curseducaIsInactive && userProductStatus === 'ACTIVE') {
     return {
       action: 'confirm_inactive',
-      reason: `Guru ${guruStatus} + CursEduca INACTIVE (API confirma)`
+      reason: `Guru ${statusLabel} + CursEduca INACTIVE (API confirma)`
     }
   }
 
@@ -92,7 +93,7 @@ export function determineCrossReferenceAction(
   if (guruIsCanceled && userProductStatus === 'ACTIVE') {
     return {
       action: 'mark_para_inativar',
-      reason: `Discrepância: Guru ${guruStatus}, CursEduca ACTIVE`
+      reason: `Discrepância: Guru ${statusLabel}, CursEduca ACTIVE`
     }
   }
 
@@ -194,7 +195,7 @@ export async function runCrossReferenceAfterCurseducaSync(
   }
 
   const users = await User.find(query)
-    .select('_id email guru.status curseduca.memberStatus curseduca.situation')
+    .select('_id email guru.status guru.updatedAt guru.nextCycleAt curseduca.memberStatus curseduca.situation')
     .lean()
 
   console.log(`   📋 ${users.length} users com dados Guru + CursEduca`)
@@ -227,11 +228,13 @@ export async function runCrossReferenceAfterCurseducaSync(
     result.processed++
 
     try {
+      const guruData = (user as any).guru
       const action = determineCrossReferenceAction(
-        (user as any).guru?.status,
+        guruData?.status,
         (user as any).curseduca?.memberStatus,
         (user as any).curseduca?.situation,
-        up.status
+        up.status,
+        { updatedAt: guruData?.updatedAt, nextCycleAt: guruData?.nextCycleAt }
       )
 
       if (action.action === 'skip') {
@@ -294,7 +297,7 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
     status: 'PARA_INATIVAR',
     'metadata.guruSyncMarked': true
   })
-    .populate('userId', 'email curseduca.memberStatus curseduca.situation curseduca.curseducaUserId guru.status')
+    .populate('userId', 'email curseduca.memberStatus curseduca.situation curseduca.curseducaUserId guru.status guru.updatedAt guru.nextCycleAt')
     .lean()
 
   console.log(`   📋 ${userProducts.length} UserProducts PARA_INATIVAR para verificar`)
@@ -362,7 +365,8 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
         user.guru?.status,
         curseducaStatus,
         curseducaSituation,
-        up.status
+        up.status,
+        { updatedAt: user.guru?.updatedAt, nextCycleAt: user.guru?.nextCycleAt }
       )
 
       if (action.action === 'skip') {
