@@ -232,6 +232,34 @@ export const createInactivationList = async (req: Request, res: Response) => {
       }
     }
 
+    // 4. Re-verificar Discord para alunos já inativos na BD (apanhar os que escaparam)
+    if (process.env.DISCORD_BOT_URL) {
+      for (const classId of classIds) {
+        const inactiveStudents = await User.find({
+          classId,
+          estado: 'inativo'
+        }).lean()
+
+        for (const student of inactiveStudents) {
+          const alreadyProcessed = results.some((r: any) => r.email === student.email && r.status === 'success')
+          if (alreadyProcessed) continue
+
+          if (student.discord?.discordIds?.length > 0) {
+            try {
+              await axios.post(`${process.env.DISCORD_BOT_URL}/remove-roles`, {
+                userId: student.discord.discordIds[0],
+                reason: `Re-verificação: turma ${classId} inativa`
+              }, { timeout: 10000 })
+              totalDiscordUpdates++
+              console.log(`   ✅ Discord (re-check): roles removidos para ${student.email}`)
+            } catch (discordError: any) {
+              console.warn(`   ⚠️ Discord (re-check): erro para ${student.email}:`, discordError.message)
+            }
+          }
+        }
+      }
+    }
+
     console.log(`\n✅ Inativação concluída:`)
     console.log(`   📊 Total de alunos inativados: ${totalInactivated}`)
     console.log(`   💬 Discord roles atualizados: ${totalDiscordUpdates}`)
