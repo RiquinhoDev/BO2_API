@@ -186,28 +186,6 @@ export const createInactivationList = async (req: Request, res: Response) => {
             console.warn(`   ⚠️ Erro ao registrar histórico para ${student.email}:`, historyError.message)
           }
 
-          // 3.3. Atualizar Discord (remover roles)
-          if ((platforms.includes('discord') || platforms.includes('all')) &&
-              student.discord?.discordIds?.length > 0) {
-            try {
-              const discordId = student.discord.discordIds[0]
-
-              if (process.env.DISCORD_BOT_URL) {
-                await axios.post(`${process.env.DISCORD_BOT_URL}/remove-roles`, {
-                  userId: discordId,
-                  reason: `Inativado por turma: ${classData.name}`
-                }, { timeout: 10000 })
-
-                totalDiscordUpdates++
-                console.log(`   ✅ Discord atualizado para ${student.email}`)
-              } else {
-                console.warn(`   ⚠️ DISCORD_BOT_URL não configurado`)
-              }
-            } catch (discordError: any) {
-              console.warn(`   ⚠️ Erro ao atualizar Discord para ${student.email}:`, discordError.message)
-            }
-          }
-
           totalInactivated++
           results.push({
             studentId: student._id,
@@ -232,32 +210,19 @@ export const createInactivationList = async (req: Request, res: Response) => {
       }
     }
 
-    // 4. Re-verificar Discord para alunos já inativos na BD (apanhar os que escaparam)
-    if (process.env.DISCORD_BOT_URL) {
-      for (const classId of classIds) {
-        const inactiveStudents = await User.find({
-          classId,
-          estado: 'inativo'
-        }).lean()
-
-        for (const student of inactiveStudents) {
-          const alreadyProcessed = results.some((r: any) => r.email === student.email && r.status === 'success')
-          if (alreadyProcessed) continue
-
-          if (student.discord?.discordIds?.length > 0) {
-            try {
-              await axios.post(`${process.env.DISCORD_BOT_URL}/remove-roles`, {
-                userId: student.discord.discordIds[0],
-                reason: `Re-verificação: turma ${classId} inativa`
-              }, { timeout: 10000 })
-              totalDiscordUpdates++
-              console.log(`   ✅ Discord (re-check): roles removidos para ${student.email}`)
-            } catch (discordError: any) {
-              console.warn(`   ⚠️ Discord (re-check): erro para ${student.email}:`, discordError.message)
-            }
-          }
-        }
-      }
+    // 4. Delegar remoção de Discord roles para API antiga (tem discord.js integrado)
+    const oldApiUrl = process.env.OLD_API_URL || 'https://api.serriquinho.com'
+    try {
+      console.log(`\n🎮 Delegando remoção de Discord roles para API antiga...`)
+      const discordResponse = await axios.post(
+        `${oldApiUrl}/classes/inactivationLists/create`,
+        { classIds, platforms: ['discord'] },
+        { timeout: 120000, headers: { 'Content-Type': 'application/json' } }
+      )
+      totalDiscordUpdates = discordResponse.data?.list?.totalDiscordUpdates || discordResponse.data?.discordUpdates || 0
+      console.log(`✅ Discord: API antiga processou - ${totalDiscordUpdates} roles removidos`)
+    } catch (discordError: any) {
+      console.warn(`⚠️ Discord: Erro ao delegar para API antiga:`, discordError.response?.data?.message || discordError.message)
     }
 
     console.log(`\n✅ Inativação concluída:`)
