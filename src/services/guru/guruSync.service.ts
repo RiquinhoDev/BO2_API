@@ -2,30 +2,13 @@
 import axios from 'axios'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
-
-// Status da Guru que indicam cancelamento (para marcar PARA_INATIVAR)
-const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
-
-// Prioridade de status: menor número = melhor (mais prioritário)
-const STATUS_PRIORITY: Record<string, number> = {
-  'active': 1,
-  'pastdue': 2,
-  'pending': 3,
-  'suspended': 4,
-  'canceled': 5,
-  'expired': 6,
-  'refunded': 7
-}
-
-/**
- * Verificar se um status é "melhor" (mais prioritário) que outro
- * Retorna true se newStatus tem prioridade MAIOR ou IGUAL ao currentStatus
- */
-function isStatusBetterOrEqual(newStatus: string, currentStatus: string): boolean {
-  const newPriority = STATUS_PRIORITY[newStatus] ?? 99
-  const currentPriority = STATUS_PRIORITY[currentStatus] ?? 99
-  return newPriority <= currentPriority
-}
+import {
+  GURU_CANCELED_STATUSES,
+  getStatusPriority,
+  isStatusBetterOrEqual as sharedIsStatusBetterOrEqual,
+  getEffectiveStatus,
+  type GuruDateInfo
+} from './guru.constants'
 
 // ═══════════════════════════════════════════════════════════
 // CONFIGURAÇÃO
@@ -398,7 +381,10 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
     guruContactId: sub.subscriber?.id || sub.contact?.id,
     subscriptionCode: sub.subscription_code || sub.code || sub.id,
     status: mapGuruStatus(sub.last_status || sub.status),
-    updatedAt: sub.dates?.last_status_at ? new Date(sub.dates.last_status_at) : new Date(),
+    updatedAt: sub.dates?.last_status_at ? new Date(sub.dates.last_status_at)
+      : sub.dates?.started_at ? new Date(sub.dates.started_at)
+      : sub.dates?.created_at ? new Date(sub.dates.created_at)
+      : undefined,
     nextCycleAt: sub.dates?.next_cycle_at ? new Date(sub.dates.next_cycle_at) : undefined,
     offerId: sub.product?.offer?.id || sub.offer?.id,
     productId: sub.product?.id || sub.product_id,
@@ -423,9 +409,17 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
     // PRIORIDADE DE SUBSCRIÇÕES: Só atualizar se nova for MELHOR
     // Isto resolve o problema de múltiplas subscrições por email
     // Ex: sub_A (active) + sub_B (canceled) → guardar active!
+    // NOTA: pending stale (>7 dias sem pagar) tem prioridade PIOR que canceled
     // ═══════════════════════════════════════════════════════════
-    if (currentGuruStatus && !isStatusBetterOrEqual(guruData.status, currentGuruStatus)) {
-      // Nova subscrição é PIOR que a existente - não sobrescrever
+    const newDates: GuruDateInfo = {
+      updatedAt: guruData.updatedAt,
+      nextCycleAt: guruData.nextCycleAt
+    }
+    const currentDates: GuruDateInfo = {
+      updatedAt: (existingUser as any).guru?.updatedAt,
+      nextCycleAt: (existingUser as any).guru?.nextCycleAt
+    }
+    if (currentGuruStatus && !sharedIsStatusBetterOrEqual(guruData.status, currentGuruStatus, newDates, currentDates)) {
       console.log(`  ⏭️ SKIP: ${email} - manter ${currentGuruStatus} (ignorar ${guruData.status} de sub ${guruData.subscriptionCode})`)
       return { action: 'skipped', email, markedForInactivation: 0 }
     }
@@ -447,7 +441,9 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
 
     // Se estamos a MELHORAR o status (ex: canceled → active),
     // reverter PARA_INATIVAR que possa ter sido marcado por subscrição anterior
-    if (currentGuruStatus && GURU_CANCELED_STATUSES.includes(currentGuruStatus) && !GURU_CANCELED_STATUSES.includes(guruData.status)) {
+    const currentEffective = getEffectiveStatus(currentGuruStatus, currentDates)
+    const newEffective = getEffectiveStatus(guruData.status, newDates)
+    if (currentGuruStatus && currentEffective.isCanceled && !newEffective.isCanceled) {
       const revertResult = await UserProduct.updateMany(
         {
           userId,
@@ -606,22 +602,43 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
 
       try {
         // Encontrar a MELHOR subscrição para este email
+        // NOTA: pending stale (>7 dias sem pagar) recebe prioridade 8 (pior que refunded)
         const bestSub = subs.reduce((best, curr) => {
           const bestStatus = mapGuruStatus((best as any).last_status || (best as any).status || '')
           const currStatus = mapGuruStatus((curr as any).last_status || (curr as any).status || '')
-          const bestPrio = STATUS_PRIORITY[bestStatus] ?? 99
-          const currPrio = STATUS_PRIORITY[currStatus] ?? 99
+          const bestDates: GuruDateInfo = {
+            updatedAt: (best as any).dates?.last_status_at,
+            nextCycleAt: (best as any).dates?.next_cycle_at,
+            startedAt: (best as any).dates?.started_at
+          }
+          const currDates: GuruDateInfo = {
+            updatedAt: (curr as any).dates?.last_status_at,
+            nextCycleAt: (curr as any).dates?.next_cycle_at,
+            startedAt: (curr as any).dates?.started_at
+          }
+          const bestPrio = getStatusPriority(bestStatus, bestDates)
+          const currPrio = getStatusPriority(currStatus, currDates)
           return currPrio < bestPrio ? curr : best
         })
 
         const bestStatus = mapGuruStatus((bestSub as any).last_status || (bestSub as any).status || '')
+
+        // Datas da melhor subscrição (para classificação de pending stale)
+        const bestDatesForCheck: GuruDateInfo = {
+          updatedAt: (bestSub as any).dates?.last_status_at,
+          nextCycleAt: (bestSub as any).dates?.next_cycle_at,
+          startedAt: (bestSub as any).dates?.started_at
+        }
 
         // Guardar dados da melhor subscrição
         const guruData = {
           guruContactId: (bestSub as any).subscriber?.id || (bestSub as any).contact?.id,
           subscriptionCode: (bestSub as any).subscription_code || (bestSub as any).code || (bestSub as any).id,
           status: bestStatus,
-          updatedAt: (bestSub as any).dates?.last_status_at ? new Date((bestSub as any).dates.last_status_at) : new Date(),
+          updatedAt: (bestSub as any).dates?.last_status_at ? new Date((bestSub as any).dates.last_status_at)
+            : (bestSub as any).dates?.started_at ? new Date((bestSub as any).dates.started_at)
+            : (bestSub as any).dates?.created_at ? new Date((bestSub as any).dates.created_at)
+            : undefined,
           nextCycleAt: (bestSub as any).dates?.next_cycle_at ? new Date((bestSub as any).dates.next_cycle_at) : undefined,
           offerId: (bestSub as any).product?.offer?.id || (bestSub as any).offer?.id,
           productId: (bestSub as any).product?.id || (bestSub as any).product_id,
@@ -658,7 +675,13 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
           action = 'updated'
 
           // Se melhorou de canceled → active, reverter PARA_INATIVAR
-          if (currentGuruStatus && GURU_CANCELED_STATUSES.includes(currentGuruStatus) && !GURU_CANCELED_STATUSES.includes(bestStatus)) {
+          // NOTA: pending stale é tratado como canceled
+          const prevEffective = getEffectiveStatus(currentGuruStatus, {
+            updatedAt: (existingUser as any).guru?.updatedAt,
+            nextCycleAt: (existingUser as any).guru?.nextCycleAt
+          })
+          const newEffectiveSync = getEffectiveStatus(bestStatus, bestDatesForCheck)
+          if (currentGuruStatus && prevEffective.isCanceled && !newEffectiveSync.isCanceled) {
             const revertResult = await UserProduct.updateMany(
               {
                 userId,
@@ -704,11 +727,12 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
 
         // ═══════════════════════════════════════════════════════════
         // MARCAR PARA_INATIVAR SÓ SE TODAS AS SUBS SÃO CANCELADAS
-        // Se o bestStatus é canceled → significa que NENHUMA sub é ativa
+        // Se o bestStatus é canceled (ou pending stale) → NENHUMA sub é ativa
         // ═══════════════════════════════════════════════════════════
         let markedForInactivation = 0
+        const bestEffective = getEffectiveStatus(bestStatus, bestDatesForCheck)
 
-        if (GURU_CANCELED_STATUSES.includes(bestStatus)) {
+        if (bestEffective.isCanceled) {
           const markResult = await UserProduct.updateMany(
             {
               userId,
