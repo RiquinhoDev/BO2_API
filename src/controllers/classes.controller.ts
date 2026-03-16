@@ -1630,10 +1630,10 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
           affectedStudents = updateResult.modifiedCount
           console.log(`✅ ${affectedStudents} estudantes marcados como inativos na turma ${classId}`)
 
-          // Atualizar UserProduct status
+          // Atualizar UserProduct status (apenas hotmart - CursEduca é gerido pelo Guru)
           const studentIds = activeStudents.map(s => s._id)
           await UserProduct.updateMany(
-            { userId: { $in: studentIds } },
+            { userId: { $in: studentIds }, platform: 'hotmart' },
             { $set: { status: 'INACTIVE' } }
           )
 
@@ -1699,6 +1699,13 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
           reactivatedStudents = updateResult.modifiedCount
           console.log(`✅ ${reactivatedStudents} estudantes reativados na turma ${classId}`)
+
+          // Reativar UserProducts hotmart dos estudantes reativados
+          const reactivateIds = studentsToReactivate.map(s => s._id)
+          await UserProduct.updateMany(
+            { userId: { $in: reactivateIds }, platform: 'hotmart', status: 'INACTIVE' },
+            { $set: { status: 'ACTIVE' } }
+          )
 
           const historyEntries = studentsToReactivate.map(student => ({
             studentId: student._id,

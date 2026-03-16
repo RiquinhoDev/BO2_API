@@ -845,9 +845,9 @@ async function processExpiredStudentsInactivation(): Promise<{
         }
       })
 
-      // Atualizar UserProduct
+      // Atualizar UserProduct (apenas Hotmart - expiração é de produto Hotmart)
       await UserProduct.updateMany(
-        { userId: student.userId },
+        { userId: student.userId, platform: 'hotmart' },
         { $set: { status: 'INACTIVE' } }
       )
 
@@ -1633,9 +1633,9 @@ if (lastAccessDate) {
       updateFields['inactivation.reactivatedBy'] = 'Sistema - Sync Automático (compra recente)'
       needsUpdate = true
 
-      // Também reativar UserProduct
+      // Também reativar UserProduct (apenas Hotmart - CursEduca é gerido pelo Guru)
       await UserProduct.updateMany(
-        { userId: userIdStr, status: { $in: ['INACTIVE', 'PARA_INATIVAR'] } },
+        { userId: userIdStr, platform: 'hotmart', status: { $in: ['INACTIVE', 'PARA_INATIVAR'] } },
         { $set: { status: 'ACTIVE' } }
       )
     }
