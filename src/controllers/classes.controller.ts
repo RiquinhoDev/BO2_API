@@ -1191,10 +1191,10 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
   // ===== LISTAS DE INATIVAÇÃO =====
 
-  // ✅ CORRIGIDO: Criar lista de inativação por turmas + Discord + Histórico
+  // ✅ Criar lista de inativação por turmas + Discord + Histórico
   createInactivationList = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { classIds } = req.body
+      const { name, classIds, description, userId, platforms = ['all'] } = req.body
 
       if (!classIds || !Array.isArray(classIds) || classIds.length === 0) {
         res.status(400).json({
@@ -1204,43 +1204,194 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         return
       }
 
-      console.log(`\n🚀 Delegando inativação de ${classIds.length} turma(s) para API antiga...`)
+      console.log(`\n🚀 Iniciando inativação de ${classIds.length} turma(s)...`)
 
-      // DELEGAR para a API antiga que já funciona (tem Discord bot integrado)
-      const oldApiUrl = process.env.OLD_API_URL || 'https://api.serriquinho.com'
+      const results: any[] = []
+      let totalInactivated = 0
+      let totalDiscordUpdates = 0
 
-      try {
-        const response = await axios.post(
-          `${oldApiUrl}/classes/inactivationLists/create`,
-          { classIds },
-          {
-            timeout: 60000,
-            headers: {
-              'Content-Type': 'application/json'
+      for (const classId of classIds) {
+        // 1. Buscar turma
+        const classData = await (Class as any).findOne({ classId }).lean()
+        if (!classData) {
+          console.warn(`⚠️ Turma ${classId} não encontrada`)
+          results.push({ classId, success: false, error: 'Turma não encontrada' })
+          continue
+        }
+
+        console.log(`\n📚 Processando turma: ${classData.name}`)
+
+        // 2. Buscar alunos da turma (suportar Hotmart e CursEduca)
+        let students: any[] = []
+        const classDataTyped = classData as any
+
+        if (classDataTyped.source === 'curseduca_sync' && classDataTyped.curseducaUuid) {
+          students = await User.find({
+            'curseduca.groupCurseducaUuid': classDataTyped.curseducaUuid,
+            'combined.status': { $ne: 'INACTIVE' }
+          }).lean()
+        } else {
+          students = await User.find({
+            classId,
+            estado: { $ne: 'inativo' }
+          }).lean()
+        }
+
+        console.log(`   👥 Encontrados ${students.length} alunos ativos`)
+
+        // 3. Inativar cada aluno
+        for (const student of students) {
+          try {
+            // 3.1. Atualizar status no BD
+            const updates: any = {
+              'combined.status': 'INACTIVE',
+              status: 'INACTIVE',
+              estado: 'inativo',
+              'inactivation.isManuallyInactivated': true,
+              'inactivation.inactivatedAt': new Date(),
+              'inactivation.inactivatedBy': userId || 'Sistema',
+              'inactivation.reason': description || `Inativação por turma: ${classData.name}`,
+              'inactivation.platforms': platforms,
+              'inactivation.classId': classId,
+              updatedAt: new Date(),
+              lastEditedAt: new Date(),
+              lastEditedBy: `class_deactivation_${userId || 'system'}`
             }
+
+            if (platforms.includes('hotmart') || platforms.includes('all')) {
+              updates['hotmart.status'] = 'INACTIVE'
+            }
+            if (platforms.includes('curseduca') || platforms.includes('all')) {
+              updates['curseduca.memberStatus'] = 'INACTIVE'
+            }
+            if (platforms.includes('discord') || platforms.includes('all')) {
+              updates['discord.isActive'] = false
+            }
+
+            await User.findByIdAndUpdate(student._id, { $set: updates })
+
+            // 3.1.1 Atualizar UserProduct status
+            await UserProduct.updateMany(
+              { userId: student._id },
+              { $set: { status: 'INACTIVE' } }
+            )
+
+            // 3.2. Registrar no histórico
+            try {
+              await (UserHistory as any).createInactivationHistory(
+                student._id,
+                student.email || 'Email desconhecido',
+                platforms,
+                description || `Inativação por turma: ${classData.name}`,
+                userId || 'Sistema'
+              )
+            } catch (historyError: any) {
+              console.warn(`   ⚠️ Erro ao registrar histórico para ${student.email}:`, historyError.message)
+            }
+
+            // 3.3. Atualizar Discord (remover roles)
+            if ((platforms.includes('discord') || platforms.includes('all')) &&
+                student.discord?.discordIds?.length > 0) {
+              try {
+                const discordId = student.discord.discordIds[0]
+
+                if (process.env.DISCORD_BOT_URL) {
+                  await axios.post(`${process.env.DISCORD_BOT_URL}/remove-roles`, {
+                    userId: discordId,
+                    reason: `Inativado por turma: ${classData.name}`
+                  }, { timeout: 10000 })
+
+                  totalDiscordUpdates++
+                  console.log(`   ✅ Discord atualizado para ${student.email}`)
+                } else {
+                  console.warn(`   ⚠️ DISCORD_BOT_URL não configurado`)
+                }
+              } catch (discordError: any) {
+                console.warn(`   ⚠️ Erro ao atualizar Discord para ${student.email}:`, discordError.message)
+              }
+            }
+
+            totalInactivated++
+            results.push({
+              studentId: student._id,
+              email: student.email,
+              name: student.name,
+              status: 'success',
+              classId: classId,
+              className: classData.name
+            })
+
+          } catch (studentError: any) {
+            console.error(`   ❌ Erro ao inativar ${student.email}:`, studentError.message)
+            results.push({
+              studentId: student._id,
+              email: student.email,
+              name: student.name,
+              status: 'error',
+              error: studentError.message,
+              classId: classId
+            })
           }
-        )
-
-        console.log(`✅ API antiga processou com sucesso!`)
-        console.log(`   Alunos processados: ${response.data.list?.students?.length || 0}`)
-
-        res.status(200).json({
-          success: true,
-          message: response.data.message,
-          list: response.data.list
-        })
-        return
-
-      } catch (oldApiError: any) {
-        console.error('❌ Erro ao chamar API antiga:', oldApiError.message)
-        res.status(500).json({
-          success: false,
-          message: 'Erro ao processar inativação na API antiga',
-          error: oldApiError.message
-        })
-        return
+        }
       }
 
+      console.log(`\n✅ Inativação concluída:`)
+      console.log(`   📊 Total de alunos inativados: ${totalInactivated}`)
+      console.log(`   💬 Discord roles atualizados: ${totalDiscordUpdates}`)
+
+      const inactivationList = {
+        _id: new Date().getTime().toString(),
+        name: name || `Inativação ${new Date().toLocaleDateString('pt-PT')}`,
+        classIds,
+        totalInactivated,
+        totalDiscordUpdates,
+        students: results,
+        createdAt: new Date()
+      }
+
+      // Marcar turmas como inativas
+      const classUpdatePromises = classIds.map(async (cId: string) => {
+        try {
+          const existingClass = await (Class as any).findOne({ classId: cId }).lean()
+          if (!existingClass) {
+            return { classId: cId, success: false, error: 'Turma não encontrada' }
+          }
+
+          const result = await classesService.addOrEditClass({
+            classId: cId,
+            name: existingClass.name || cId,
+            description: existingClass.description || '',
+            isActive: false,
+            estado: 'inativo',
+            source: (existingClass as any).source || 'manual'
+          })
+
+          console.log(`✅ Turma ${cId} marcada como inativa`)
+          return { classId: cId, success: true, result }
+        } catch (error) {
+          console.error(`❌ Erro ao inativar turma ${cId}:`, error)
+          return { classId: cId, success: false, error: (error as Error).message }
+        }
+      })
+
+      const classUpdateResults = await Promise.allSettled(classUpdatePromises)
+      const successfulUpdates = classUpdateResults.filter(
+        (r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value.success
+      )
+
+      console.log(`📊 Turmas inativadas: ${successfulUpdates.length}/${classIds.length}`)
+
+      res.json({
+        success: true,
+        message: 'Lista de inativação criada e turmas atualizadas',
+        list: inactivationList,
+        classUpdates: {
+          successful: successfulUpdates.length,
+          failed: classIds.length - successfulUpdates.length,
+          total: classIds.length
+        },
+        timestamp: new Date().toISOString()
+      })
     } catch (error) {
       console.error('❌ Erro ao criar lista de inativação:', error)
       res.status(500).json({
@@ -1483,6 +1634,31 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
           affectedStudents = updateResult.modifiedCount
           console.log(`✅ ${affectedStudents} estudantes marcados como inativos na turma ${classId}`)
+
+          // Atualizar UserProduct status
+          const studentIds = studentsInClass.map(s => s._id)
+          await UserProduct.updateMany(
+            { userId: { $in: studentIds } },
+            { $set: { status: 'INACTIVE' } }
+          )
+
+          // Remover roles no Discord para cada aluno com Discord ID
+          if (process.env.DISCORD_BOT_URL) {
+            for (const student of studentsInClass) {
+              const discordIds = (student as any).discord?.discordIds || []
+              if (discordIds.length > 0) {
+                try {
+                  await axios.post(`${process.env.DISCORD_BOT_URL}/remove-roles`, {
+                    userId: discordIds[0],
+                    reason: reason || `Turma ${classId} desativada`
+                  }, { timeout: 10000 })
+                  console.log(`   ✅ Discord: roles removidos para ${student.email}`)
+                } catch (discordError: any) {
+                  console.warn(`   ⚠️ Discord: erro ao remover roles para ${student.email}:`, discordError.message)
+                }
+              }
+            }
+          }
 
           const historyEntries = studentsInClass.map(student => ({
             studentId: student._id,
