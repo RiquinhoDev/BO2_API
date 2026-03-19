@@ -128,9 +128,14 @@ export const createInactivationList = async (req: Request, res: Response) => {
           'combined.status': { $ne: 'INACTIVE' }
         }).lean()
       } else {
+        // Usa hotmart.enrolledClasses como fonte de verdade da turma atual.
+        // O root classId (legacy) pode estar desatualizado se o aluno mudou de turma —
+        // o que causaria inativação errada de alunos já movidos para outra turma.
         students = await User.find({
-          classId,
-          estado: { $ne: 'inativo' }
+          'hotmart.enrolledClasses': {
+            $elemMatch: { classId, isActive: true }
+          },
+          'combined.status': { $ne: 'INACTIVE' }
         }).lean()
       }
 
