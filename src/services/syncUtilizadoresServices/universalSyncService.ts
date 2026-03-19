@@ -1133,6 +1133,17 @@ if (lastAccessDate) {
   needsUpdate = true
 }
     // Turmas
+    // Se a Hotmart não devolveu class_id mas o user já tem uma turma ativa registada,
+    // garantir que o root classId está em sync com hotmart.enrolledClasses
+    if (!item.classId) {
+      const existingActiveClass = (user as any).hotmart?.enrolledClasses?.find((c: any) => c.isActive)
+      if (existingActiveClass && (user as any).classId !== existingActiveClass.classId) {
+        updateFields['classId'] = existingActiveClass.classId
+        updateFields['className'] = existingActiveClass.className
+        needsUpdate = true
+      }
+    }
+
     if (item.classId) {
       // 🆕 DETECTAR MUDANÇA DE TURMA (CRÍTICO!)
       const oldClassId = (user as any).hotmart?.enrolledClasses?.[0]?.classId
