@@ -292,6 +292,9 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
         const hasActiveClass = user.curseduca?.enrolledClasses?.some((c: any) => c.isActive) || false
         const memberStatus = user.curseduca?.memberStatus || (hasActiveClass ? 'ACTIVE' : 'INACTIVE')
 
+        // Só adicionar ao mapa se estiver ativo — INACTIVE não deve contar como "Só no Clareza"
+        if (memberStatus === 'INACTIVE') continue
+
         clarezaByEmail.set(email, {
           userEmail: email,
           userName: user.name,
