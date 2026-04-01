@@ -246,7 +246,8 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
     // 2. BUSCAR USERPRODUCTS DO CLAREZA (platform = curseduca)
     // ─────────────────────────────────────────────────────────
     const clarezaProducts = await UserProduct.find({
-      platform: 'curseduca'
+      platform: 'curseduca',
+      status: { $in: ['ACTIVE', 'PARA_INATIVAR'] }
     }).populate('userId', 'email name').lean()
 
     console.log(`   📌 UserProducts Clareza: ${clarezaProducts.length}`)
