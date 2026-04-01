@@ -15,6 +15,7 @@ export interface IAdmin extends Document {
   failedAttempts?: number
   isLocked?: boolean
   lastFailedAttempt?: Date
+  lockUntil?: Date
   comparePassword(candidate: string): Promise<boolean>
 }
 
@@ -30,7 +31,8 @@ const adminSchema = new Schema<IAdmin>({
   lastLogin: { type: Date },
   failedAttempts: { type: Number, default: 0 },
   isLocked: { type: Boolean, default: false },
-  lastFailedAttempt: { type: Date }
+  lastFailedAttempt: { type: Date },
+  lockUntil: { type: Date }
 })
 
 // Hooks

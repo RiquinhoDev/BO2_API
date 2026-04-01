@@ -37,10 +37,18 @@ export const login = async (req: Request, res: Response) => {
 
     // Check if account is locked
     if (admin.isLocked) {
-      return res.status(403).json({
-        success: false,
-        message: "Conta bloqueada. Contacte o administrador."
-      })
+      // Auto-unlock if lockUntil has passed
+      if (admin.lockUntil && admin.lockUntil < new Date()) {
+        admin.isLocked = false
+        admin.failedAttempts = 0
+        admin.lockUntil = undefined
+        await admin.save()
+      } else {
+        return res.status(403).json({
+          success: false,
+          message: "Conta bloqueada. Contacte o administrador."
+        })
+      }
     }
 
     // Verify password
@@ -48,12 +56,13 @@ export const login = async (req: Request, res: Response) => {
 
     if (!isPasswordValid) {
       // Update failed attempt
-      admin.failedLoginAttempts = (admin.failedLoginAttempts || 0) + 1
+      admin.failedAttempts = (admin.failedAttempts || 0) + 1
       admin.lastFailedAttempt = new Date()
 
       // Lock account after 5 failed attempts
-      if (admin.failedLoginAttempts >= 5) {
+      if (admin.failedAttempts >= 5) {
         admin.isLocked = true
+        admin.lockUntil = new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
       }
 
       await admin.save()
@@ -65,7 +74,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // Reset failed attempts on successful login
-    admin.failedLoginAttempts = 0
+    admin.failedAttempts = 0
     admin.lastLogin = new Date()
     await admin.save()
 
@@ -148,4 +157,105 @@ export const logout = async (req: Request, res: Response) => {
     success: true,
     message: "Logout realizado com sucesso"
   })
+}
+
+export const unlockAccount = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email é obrigatório"
+      })
+    }
+
+    const admin = await Admin.findOne({ email })
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilizador não encontrado"
+      })
+    }
+
+    // Unlock the account
+    admin.isLocked = false
+    admin.failedAttempts = 0
+    admin.lastFailedAttempt = undefined
+    admin.lockUntil = undefined
+    await admin.save()
+
+    res.json({
+      success: true,
+      message: `Conta de ${admin.email} desbloqueada com sucesso`,
+      data: {
+        email: admin.email,
+        name: admin.name,
+        isLocked: admin.isLocked,
+        failedAttempts: admin.failedAttempts
+      }
+    })
+  } catch (error) {
+    console.error("Error in unlockAccount:", error)
+    res.status(500).json({
+      success: false,
+      message: "Erro ao desbloquear conta"
+    })
+  }
+}
+
+export const changePassword = async (req: Request, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    const adminId = req.user.id
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Password atual e nova password são obrigatórias"
+      })
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Nova password deve ter pelo menos 8 caracteres"
+      })
+    }
+
+    const admin = await Admin.findById(adminId)
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Utilizador não encontrado"
+      })
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await admin.comparePassword(currentPassword)
+
+    if (!isCurrentPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Password atual está incorreta"
+      })
+    }
+
+    // Update password (schema pre-hook will hash it)
+    admin.password = newPassword
+    await admin.save()
+
+    res.json({
+      success: true,
+      message: "Password alterada com sucesso"
+    })
+  } catch (error) {
+    console.error("Error in changePassword:", error)
+    res.status(500).json({
+      success: false,
+      message: "Erro ao alterar password"
+    })
+  }
 }
