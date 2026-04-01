@@ -5,6 +5,7 @@ import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import {
   GURU_CANCELED_STATUSES,
+  GURU_ACTIVE_STATUSES,
   getEffectiveStatus,
   lookupCurseducaUserIdByEmail,
   verifyCurseducaMemberStatus,
@@ -13,6 +14,7 @@ import {
   CURSEDUCA_ACCESS_TOKEN,
   type GuruDateInfo
 } from '../services/guru/guru.constants'
+import { fetchContactByEmail, fetchContactSubscriptions } from '../services/guru/guruSync.service'
 
 // ═══════════════════════════════════════════════════════════
 // LISTAR USERS PARA INATIVAR
@@ -647,6 +649,45 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
         skipped++
         console.log(`   ⏭️ Já INACTIVE: ${user.email}`)
         continue
+      }
+
+      // ─────────────────────────────────────────────────────────
+      // PROTEÇÃO: verificar na Guru se tem outra sub ativa
+      // Evita marcar users que cancelaram Mensal mas têm Anual ativa
+      // ─────────────────────────────────────────────────────────
+      try {
+        const contact = await fetchContactByEmail(user.email)
+        if (contact?.id) {
+          const guruSubs = await fetchContactSubscriptions(String(contact.id))
+          const hasActiveSub = guruSubs.some(sub => {
+            const status = (sub.last_status || (sub as any).status || '').toLowerCase()
+            return GURU_ACTIVE_STATUSES.includes(status) || status === 'active' || status === 'paid' || status === 'trialing'
+          })
+
+          if (hasActiveSub) {
+            skipped++
+            console.log(`   🛡️ PROTEGIDO: ${user.email} tem sub ativa na Guru (ex: mudança Mensal→Anual)`)
+
+            // Se estava incorretamente PARA_INATIVAR, reverter para ACTIVE
+            if (userProduct.status === 'PARA_INATIVAR') {
+              await UserProduct.findByIdAndUpdate(userProduct._id, {
+                $set: {
+                  status: 'ACTIVE',
+                  'metadata.protectedAt': new Date(),
+                  'metadata.protectedReason': 'Sub ativa encontrada na Guru — possível mudança de plano'
+                },
+                $unset: {
+                  'metadata.markedForInactivationAt': 1,
+                  'metadata.markedForInactivationReason': 1
+                }
+              })
+              console.log(`   ↩️ Revertido PARA_INATIVAR → ACTIVE: ${user.email}`)
+            }
+            continue
+          }
+        }
+      } catch (guruErr: any) {
+        console.log(`   ⚠️ Erro ao verificar Guru para ${user.email}: ${guruErr.message} — prosseguindo com marcação`)
       }
 
       // Marcar como PARA_INATIVAR
