@@ -10,7 +10,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 // INTERFACES
 // ─────────────────────────────────────────────────────────────
 
-export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CANCELLED' | 'PARA_INATIVAR'
+export type EnrollmentStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CANCELLED' | 'PARA_INATIVAR' | 'QUARENTENA'
 export type EnrollmentSource = 'PURCHASE' | 'MANUAL' | 'MIGRATION' | 'TRIAL'
 export type PlatformType = 'hotmart' | 'curseduca' | 'discord'
 
