@@ -346,6 +346,56 @@ export const inactivateBulk = async (req: Request, res: Response) => {
 }
 
 // ═══════════════════════════════════════════════════════════
+// QUARENTENA (DUPLICADOS - REVISÃO MANUAL)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Mover todos os UserProducts de um email de PARA_INATIVAR → QUARENTENA
+ * POST /guru/inactivation/quarantine
+ * Body: { email: string }
+ */
+export const quarantineUser = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email é obrigatório' })
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() }).select('_id email name')
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Utilizador não encontrado' })
+    }
+
+    const result = await UserProduct.updateMany(
+      { userId: user._id, platform: 'curseduca', status: 'PARA_INATIVAR' },
+      {
+        $set: {
+          status: 'QUARENTENA',
+          'metadata.quarantinedAt': new Date(),
+          'metadata.quarantineReason': 'Duplicado — marcado para revisão manual'
+        },
+        $unset: {
+          'metadata.markedForInactivationAt': 1,
+          'metadata.markedForInactivationReason': 1
+        }
+      }
+    )
+
+    console.log(`🟡 [QUARENTENA] ${user.email}: ${result.modifiedCount} UserProduct(s) → QUARENTENA`)
+
+    return res.json({
+      success: true,
+      message: `${result.modifiedCount} produto(s) de ${email} movidos para QUARENTENA`,
+      modifiedCount: result.modifiedCount
+    })
+  } catch (error: any) {
+    console.error('❌ [QUARENTENA] Erro:', error.message)
+    return res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 // REVERTER MARCAÇÃO (REMOVER PARA_INATIVAR)
 // ═══════════════════════════════════════════════════════════
 

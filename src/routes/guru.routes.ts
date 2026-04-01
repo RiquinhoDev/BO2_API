@@ -48,7 +48,8 @@ import {
   cleanupInactivationList,
   fixUsersToActive,
   diagnoseUsers,
-  listInactivated
+  listInactivated,
+  quarantineUser
 } from '../controllers/guru.inactivation.controller'
 
 const router = Router()
@@ -338,5 +339,12 @@ router.post('/inactivation/fix-to-active', asyncRoute(fixUsersToActive))
  * Body: { emails: ['email1@exemplo.com'] }
  */
 router.post('/inactivation/diagnose', asyncRoute(diagnoseUsers))
+
+/**
+ * POST /guru/inactivation/quarantine
+ * Mover utilizador duplicado de PARA_INATIVAR → QUARENTENA (revisão manual)
+ * Body: { email: string }
+ */
+router.post('/inactivation/quarantine', asyncRoute(quarantineUser))
 
 export default router
