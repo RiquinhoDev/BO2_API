@@ -52,12 +52,8 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
         // Se não tem Guru status, manter (pode ser user só Clareza)
         if (!guruStatus) return true
 
-        // FIX: Usar getEffectiveStatus - pending stale é tratado como canceled
-        const effective = getEffectiveStatus(guruStatus, {
-          updatedAt: user?.guru?.updatedAt,
-          nextCycleAt: user?.guru?.nextCycleAt
-        })
-        return effective.isCanceled
+        // Só inativar por cancelamento explícito — pending (stale) não conta
+        return GURU_CANCELED_STATUSES.includes(guruStatus)
       })
       .map(up => {
         const user = up.userId as any
@@ -566,14 +562,10 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
       ...(emails && emails.length > 0 ? { email: { $in: emails.map((e: string) => e.toLowerCase().trim()) } } : {})
     }).select('_id email name guru curseduca').lean()
 
-    // FIX: Filtrar usando getEffectiveStatus para apanhar pending stale
-    const usersWithGuruCanceled = usersWithGuruData.filter(u => {
-      const effective = getEffectiveStatus(u.guru?.status, {
-        updatedAt: u.guru?.updatedAt,
-        nextCycleAt: u.guru?.nextCycleAt
-      })
-      return effective.isCanceled
-    })
+    // Só cancelamentos explícitos — pending (stale) não justifica inativação
+    const usersWithGuruCanceled = usersWithGuruData.filter(u =>
+      GURU_CANCELED_STATUSES.includes(u.guru?.status)
+    )
 
     console.log(`   📌 Users com Guru cancelado: ${usersWithGuruCanceled.length}`)
 
