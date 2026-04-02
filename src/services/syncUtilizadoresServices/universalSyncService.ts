@@ -1944,6 +1944,16 @@ if (lastAccessDate) {
         console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, metricsError.message)
       }
       
+      // Proteção: se estava PARA_INATIVAR mas voltou a aparecer no sync do CursEduca
+      // (membro está ACTIVE no CursEduca) → reverter para ACTIVE
+      if (existingUP.status === 'PARA_INATIVAR' && config.syncType === 'curseduca') {
+        upUpdateFields['status'] = 'ACTIVE'
+        upUpdateFields['metadata.revertedAt'] = new Date()
+        upUpdateFields['metadata.revertedReason'] = 'Membro ativo no CursEduca — revertido pelo sync'
+        upNeedsUpdate = true
+        console.log(`   ↩️ [Proteção] ${user.email}: PARA_INATIVAR → ACTIVE (apareceu no sync CursEduca)`)
+      }
+
       // Aplicar updates
       if (upNeedsUpdate) {
         await UserProduct.findByIdAndUpdate(existingUP._id, { $set: upUpdateFields })
@@ -1977,13 +1987,23 @@ if (lastAccessDate) {
           const newDate = enrolledAt.getTime()
           
           if (newDate > existingDate) {
-            console.log(`      ✅ Novo produto mais recente → PRIMARY`)
+            console.log(`      ✅ Novo produto mais recente → PRIMARY, antigo → INACTIVE`)
             await UserProduct.updateOne(
               { _id: existingPrimary._id },
-              { $set: { isPrimary: false } }
+              {
+                $set: {
+                  isPrimary: false,
+                  // Só inativar se ainda estiver ACTIVE ou PARA_INATIVAR — não tocar em já INACTIVE
+                  ...((['ACTIVE', 'PARA_INATIVAR'].includes(existingPrimary.status)) && {
+                    status: 'INACTIVE',
+                    'metadata.inactivatedAt': new Date(),
+                    'metadata.inactivatedReason': 'Substituído por novo plano no sync (mudança de plano)'
+                  })
+                }
+              }
             )
           } else {
-            console.log(`      🔻 Novo produto → SECONDARY`)
+            console.log(`      🔻 Novo produto mais antigo → SECONDARY (antigo mantém-se PRIMARY)`)
             isPrimaryValue = false
           }
         }
