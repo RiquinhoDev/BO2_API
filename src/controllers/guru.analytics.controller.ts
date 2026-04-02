@@ -331,13 +331,13 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
       const email = user.email.toLowerCase().trim()
       const guruStatus = user.guru?.status
 
-      // FIX: Usar getEffectiveStatus - resolve pending invisível
+      // Só cancelamentos explícitos são discrepâncias — pending (stale) não conta
       const guruDates: GuruDateInfo = {
         updatedAt: user.guru?.updatedAt,
         nextCycleAt: user.guru?.nextCycleAt
       }
       const effective = getEffectiveStatus(guruStatus, guruDates)
-      const guruIsCanceled = effective.isCanceled
+      const guruIsCanceled = GURU_CANCELED_STATUSES.includes((guruStatus || '').toLowerCase())
       const guruIsActive = effective.isActive
 
       // Primeiro verificar se o user tem dados CursEduca direto (user.curseduca)

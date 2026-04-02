@@ -55,11 +55,12 @@ export function determineCrossReferenceAction(
     return { action: 'skip', reason: 'Já INACTIVE' }
   }
 
-  // Usar classificação centralizada (resolve pending stale vs fresh)
+  // Só cancelamentos explícitos justificam inativação — pending (stale) não conta
+  const STRICT_CANCELED = ['canceled', 'expired', 'refunded']
+  const guruIsCanceled = STRICT_CANCELED.includes((guruStatus || '').toLowerCase())
   const effective = getEffectiveStatus(guruStatus, guruDates)
-  const guruIsCanceled = effective.isCanceled
   const guruIsActive = effective.isActive
-  const statusLabel = effective.isPendingStale ? `${guruStatus} (stale)` : guruStatus
+  const statusLabel = guruStatus
 
   const curseducaIsInactive =
     curseducaMemberStatus === 'INACTIVE' ||
