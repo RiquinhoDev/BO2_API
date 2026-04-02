@@ -50,7 +50,8 @@ import {
   diagnoseUsers,
   listInactivated,
   quarantineUser,
-  cleanupDuplicateUserProducts
+  cleanupDuplicateUserProducts,
+  restoreUserProducts
 } from '../controllers/guru.inactivation.controller'
 
 const router = Router()
@@ -354,5 +355,12 @@ router.post('/inactivation/quarantine', asyncRoute(quarantineUser))
  * Body: { userProductIds: ['id1', 'id2'] }
  */
 router.post('/inactivation/cleanup-duplicates', asyncRoute(cleanupDuplicateUserProducts))
+
+/**
+ * POST /guru/inactivation/restore
+ * Restaurar UserProducts acidentalmente INACTIVE para PARA_INATIVAR + isPrimary:true
+ * Body: { userProductIds: ['id1', 'id2'] }
+ */
+router.post('/inactivation/restore', asyncRoute(restoreUserProducts))
 
 export default router
