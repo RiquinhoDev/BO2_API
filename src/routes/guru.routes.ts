@@ -49,7 +49,8 @@ import {
   fixUsersToActive,
   diagnoseUsers,
   listInactivated,
-  quarantineUser
+  quarantineUser,
+  cleanupDuplicateUserProducts
 } from '../controllers/guru.inactivation.controller'
 
 const router = Router()
@@ -346,5 +347,12 @@ router.post('/inactivation/diagnose', asyncRoute(diagnoseUsers))
  * Body: { email: string }
  */
 router.post('/inactivation/quarantine', asyncRoute(quarantineUser))
+
+/**
+ * POST /guru/inactivation/cleanup-duplicates
+ * Marcar UserProducts duplicados como INACTIVE na BD (sem chamar CursEduca)
+ * Body: { userProductIds: ['id1', 'id2'] }
+ */
+router.post('/inactivation/cleanup-duplicates', asyncRoute(cleanupDuplicateUserProducts))
 
 export default router

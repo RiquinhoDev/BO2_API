@@ -31,6 +31,8 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
     console.log('📋 [INATIVAÇÃO] Listando users para inativar...')
 
     // Buscar UserProducts com status PARA_INATIVAR
+    // Deduplicar por platformUserId: se o mesmo CursEduca ID aparecer várias vezes,
+    // só mostrar 1 (o mais recente). Isto evita duplicados quando user mudou de plano.
     const userProducts = await UserProduct.find({
       platform: 'curseduca',
       status: 'PARA_INATIVAR'
@@ -76,14 +78,26 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
         }
       })
 
-    console.log(`📋 [INATIVAÇÃO] ${pendingList.length} users legítimos para inativar (filtrado de ${userProducts.length})`)
+    // Deduplicar por curseducaUserId: mesmo membro com múltiplos UserProducts (mudança de plano)
+    // Manter apenas 1 registo por CursEduca ID (o mais recente = maior _id)
+    const seenCurseducaIds = new Set<string>()
+    const dedupedList = pendingList.filter(item => {
+      const cid = item.curseducaUserId
+      if (!cid) return true // sem ID → manter (será detetado como erro na inativação)
+      if (seenCurseducaIds.has(String(cid))) return false
+      seenCurseducaIds.add(String(cid))
+      return true
+    })
+
+    console.log(`📋 [INATIVAÇÃO] ${dedupedList.length} users únicos para inativar (${pendingList.length} antes de dedup, ${userProducts.length} total PARA_INATIVAR)`)
 
     return res.json({
       success: true,
-      count: pendingList.length,
+      count: dedupedList.length,
       total: userProducts.length,
       filtered: userProducts.length - pendingList.length,
-      pendingList
+      deduplicated: pendingList.length - dedupedList.length,
+      pendingList: dedupedList
     })
 
   } catch (error: any) {
@@ -937,6 +951,56 @@ export const cleanupInactivationList = async (req: Request, res: Response) => {
 // ═══════════════════════════════════════════════════════════
 // CORRIGIR USERS ESPECÍFICOS PARA ACTIVE
 // ═══════════════════════════════════════════════════════════
+
+/**
+ * Marcar UserProducts duplicados como INACTIVE na nossa BD (sem chamar CursEduca)
+ * POST /guru/inactivation/cleanup-duplicates
+ * Body: { userProductIds: ['id1', 'id2', ...] }
+ */
+export const cleanupDuplicateUserProducts = async (req: Request, res: Response) => {
+  try {
+    const { userProductIds } = req.body
+
+    if (!userProductIds || !Array.isArray(userProductIds) || userProductIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Campo "userProductIds" obrigatório (array de strings)' })
+    }
+
+    console.log(`🧹 [CLEANUP DUPLICATES] Marcando ${userProductIds.length} UserProducts como INACTIVE (sem chamar CursEduca)...`)
+
+    const result = await UserProduct.updateMany(
+      {
+        _id: { $in: userProductIds },
+        platform: 'curseduca',
+        status: 'PARA_INATIVAR'
+      },
+      {
+        $set: {
+          status: 'INACTIVE',
+          isPrimary: false,
+          'metadata.inactivatedAt': new Date(),
+          'metadata.inactivatedBy': 'cleanup_duplicates',
+          'metadata.inactivatedReason': 'Duplicado — plano substituído por novo plano (limpeza manual)'
+        },
+        $unset: {
+          'metadata.markedForInactivationAt': 1,
+          'metadata.markedForInactivationReason': 1
+        }
+      }
+    )
+
+    console.log(`✅ [CLEANUP DUPLICATES] ${result.modifiedCount} UserProducts marcados como INACTIVE`)
+
+    return res.json({
+      success: true,
+      message: `${result.modifiedCount} UserProduct(s) marcados como INACTIVE (BD apenas, CursEduca não foi tocado)`,
+      modifiedCount: result.modifiedCount,
+      requestedCount: userProductIds.length
+    })
+  } catch (error: any) {
+    console.error('❌ [CLEANUP DUPLICATES] Erro:', error.message)
+    return res.status(500).json({ success: false, message: error.message })
+  }
+}
 
 /**
  * Corrigir utilizadores específicos - marcar como ACTIVE
