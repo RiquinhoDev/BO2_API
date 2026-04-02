@@ -51,7 +51,8 @@ import {
   listInactivated,
   quarantineUser,
   cleanupDuplicateUserProducts,
-  restoreUserProducts
+  restoreUserProducts,
+  markStaleInactive
 } from '../controllers/guru.inactivation.controller'
 
 const router = Router()
@@ -362,5 +363,12 @@ router.post('/inactivation/cleanup-duplicates', asyncRoute(cleanupDuplicateUserP
  * Body: { userProductIds: ['id1', 'id2'] }
  */
 router.post('/inactivation/restore', asyncRoute(restoreUserProducts))
+
+/**
+ * POST /guru/inactivation/mark-stale-inactive
+ * Marcar UserProducts ACTIVE como INACTIVE (BD apenas) para emails que saíram do CursEduca
+ * Body: { emails: ['email1@x.com', ...] }
+ */
+router.post('/inactivation/mark-stale-inactive', asyncRoute(markStaleInactive))
 
 export default router

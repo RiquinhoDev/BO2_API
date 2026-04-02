@@ -1046,6 +1046,77 @@ export const cleanupDuplicateUserProducts = async (req: Request, res: Response) 
 }
 
 /**
+ * Marcar UserProducts ACTIVE como INACTIVE na BD por lista de emails
+ * (sem chamar CursEduca — para limpar registos fantasma)
+ * POST /guru/inactivation/mark-stale-inactive
+ * Body: { emails: ['email1@x.com', ...] }
+ */
+export const markStaleInactive = async (req: Request, res: Response) => {
+  try {
+    const { emails } = req.body
+
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({ success: false, message: 'Campo "emails" obrigatório (array de strings)' })
+    }
+
+    const normalizedEmails = emails.map((e: string) => e.trim().toLowerCase())
+
+    console.log(`🧹 [MARK STALE] Marcando ${normalizedEmails.length} emails como INACTIVE (BD apenas)...`)
+
+    // Buscar Users pelos emails
+    const users = await User.find({ email: { $in: normalizedEmails } }).select('_id email').lean()
+    const userIds = users.map(u => u._id)
+
+    if (userIds.length === 0) {
+      return res.json({ success: true, message: 'Nenhum user encontrado', modifiedCount: 0 })
+    }
+
+    // 1. Marcar UserProducts ACTIVE como INACTIVE (BD apenas)
+    const upResult = await UserProduct.updateMany(
+      {
+        userId: { $in: userIds },
+        platform: 'curseduca',
+        status: 'ACTIVE'
+      },
+      {
+        $set: {
+          status: 'INACTIVE',
+          isPrimary: false,
+          'metadata.inactivatedAt': new Date(),
+          'metadata.inactivatedBy': 'mark_stale_inactive',
+          'metadata.inactivatedReason': 'Não encontrado no sync CursEduca — saiu do grupo ou acesso revogado'
+        }
+      }
+    )
+
+    // 2. Actualizar user.curseduca.memberStatus → INACTIVE (o analytics lê este campo)
+    const userResult = await User.updateMany(
+      { _id: { $in: userIds } },
+      {
+        $set: {
+          'curseduca.memberStatus': 'INACTIVE',
+          'curseduca.situation': 'INACTIVE'
+        }
+      }
+    )
+
+    console.log(`✅ [MARK STALE] ${upResult.modifiedCount} UserProducts + ${userResult.modifiedCount} User.curseduca marcados INACTIVE`)
+
+    return res.json({
+      success: true,
+      message: `${upResult.modifiedCount} UserProduct(s) e ${userResult.modifiedCount} User.curseduca marcados INACTIVE (BD apenas, CursEduca não foi tocado)`,
+      emailsRequested: normalizedEmails.length,
+      usersFound: userIds.length,
+      userProductsModified: upResult.modifiedCount,
+      usersModified: userResult.modifiedCount
+    })
+  } catch (error: any) {
+    console.error('❌ [MARK STALE] Erro:', error.message)
+    return res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+/**
  * Restaurar UserProducts acidentalmente INACTIVE para PARA_INATIVAR + isPrimary:true
  * POST /guru/inactivation/restore
  * Body: { userProductIds: ['id1', 'id2', ...] }
