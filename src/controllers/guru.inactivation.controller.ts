@@ -259,7 +259,33 @@ export const inactivateBulk = async (req: Request, res: Response) => {
       })
     }
 
-    console.log(`🔴 [INATIVAÇÃO BULK] Iniciando inativação de ${userProducts.length} membros...`)
+    // Deduplicar por platformUserId — mesmo membro com múltiplos UserProducts
+    // só processa 1 chamada ao CursEduca, marca todos os outros como INACTIVE direto
+    const seenMemberIds = new Set<string>()
+    const uniqueUserProducts: typeof userProducts = []
+    const dupUserProductIds: string[] = []
+
+    for (const up of userProducts) {
+      const user = up.userId as any
+      const memberId = up.platformUserId || user?.curseduca?.curseducaUserId
+      if (!memberId || !seenMemberIds.has(String(memberId))) {
+        if (memberId) seenMemberIds.add(String(memberId))
+        uniqueUserProducts.push(up)
+      } else {
+        dupUserProductIds.push(String(up._id))
+      }
+    }
+
+    // Marcar duplicados como INACTIVE sem chamar CursEduca
+    if (dupUserProductIds.length > 0) {
+      await UserProduct.updateMany(
+        { _id: { $in: dupUserProductIds } },
+        { $set: { status: 'INACTIVE', 'metadata.inactivatedAt': new Date(), 'metadata.inactivatedBy': 'bulk_dedup' } }
+      )
+      console.log(`♻️  [INATIVAÇÃO BULK] ${dupUserProductIds.length} duplicados marcados INACTIVE sem chamar CursEduca`)
+    }
+
+    console.log(`🔴 [INATIVAÇÃO BULK] Iniciando inativação de ${uniqueUserProducts.length} membros únicos (${userProducts.length} total, ${dupUserProductIds.length} dedup)...`)
 
     const results = {
       processed: 0,
@@ -269,7 +295,7 @@ export const inactivateBulk = async (req: Request, res: Response) => {
     }
 
     // Processar um a um (com delay para não sobrecarregar a API)
-    for (const userProduct of userProducts) {
+    for (const userProduct of uniqueUserProducts) {
       const user = userProduct.userId as any
       const memberId = userProduct.platformUserId || user?.curseduca?.curseducaUserId
 
@@ -344,7 +370,7 @@ export const inactivateBulk = async (req: Request, res: Response) => {
       }
     }
 
-    console.log(`🔴 [INATIVAÇÃO BULK] Concluído: ${results.succeeded} sucesso, ${results.failed} falhas`)
+    console.log(`🔴 [INATIVAÇÃO BULK] Concluído: ${results.succeeded} sucesso, ${results.failed} falhas, ${dupUserProductIds.length} dedup`)
 
     return res.json({
       success: true,
@@ -959,12 +985,29 @@ export const cleanupInactivationList = async (req: Request, res: Response) => {
  */
 export const cleanupDuplicateUserProducts = async (req: Request, res: Response) => {
   try {
-    const { userProductIds } = req.body
+    const { userProductIds, setIsPrimary } = req.body
 
     if (!userProductIds || !Array.isArray(userProductIds) || userProductIds.length === 0) {
       return res.status(400).json({ success: false, message: 'Campo "userProductIds" obrigatório (array de strings)' })
     }
 
+    // Modo setIsPrimary: apenas marcar isPrimary:true sem alterar status
+    if (setIsPrimary === true) {
+      console.log(`🔑 [CLEANUP DUPLICATES] Marcando ${userProductIds.length} UserProducts como isPrimary:true...`)
+      const result = await UserProduct.updateMany(
+        { _id: { $in: userProductIds }, platform: 'curseduca' },
+        { $set: { isPrimary: true } }
+      )
+      console.log(`✅ [CLEANUP DUPLICATES] ${result.modifiedCount} UserProducts com isPrimary:true`)
+      return res.json({
+        success: true,
+        message: `${result.modifiedCount} UserProduct(s) marcados como isPrimary:true`,
+        modifiedCount: result.modifiedCount,
+        requestedCount: userProductIds.length
+      })
+    }
+
+    // Modo padrão: marcar como INACTIVE (duplicados de planos antigos)
     console.log(`🧹 [CLEANUP DUPLICATES] Marcando ${userProductIds.length} UserProducts como INACTIVE (sem chamar CursEduca)...`)
 
     const result = await UserProduct.updateMany(
@@ -998,6 +1041,52 @@ export const cleanupDuplicateUserProducts = async (req: Request, res: Response) 
     })
   } catch (error: any) {
     console.error('❌ [CLEANUP DUPLICATES] Erro:', error.message)
+    return res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+/**
+ * Restaurar UserProducts acidentalmente INACTIVE para PARA_INATIVAR + isPrimary:true
+ * POST /guru/inactivation/restore
+ * Body: { userProductIds: ['id1', 'id2', ...] }
+ */
+export const restoreUserProducts = async (req: Request, res: Response) => {
+  try {
+    const { userProductIds } = req.body
+
+    if (!userProductIds || !Array.isArray(userProductIds) || userProductIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Campo "userProductIds" obrigatório (array de strings)' })
+    }
+
+    console.log(`♻️ [RESTORE] Restaurando ${userProductIds.length} UserProducts para PARA_INATIVAR + isPrimary:true...`)
+
+    const result = await UserProduct.updateMany(
+      { _id: { $in: userProductIds }, platform: 'curseduca' },
+      {
+        $set: {
+          status: 'PARA_INATIVAR',
+          isPrimary: true,
+          'metadata.restoredAt': new Date(),
+          'metadata.restoredReason': 'Restaurado manualmente — acidentalmente marcado como INACTIVE'
+        },
+        $unset: {
+          'metadata.inactivatedAt': 1,
+          'metadata.inactivatedBy': 1,
+          'metadata.inactivatedReason': 1
+        }
+      }
+    )
+
+    console.log(`✅ [RESTORE] ${result.modifiedCount} UserProducts restaurados`)
+
+    return res.json({
+      success: true,
+      message: `${result.modifiedCount} UserProduct(s) restaurados para PARA_INATIVAR com isPrimary:true`,
+      modifiedCount: result.modifiedCount,
+      requestedCount: userProductIds.length
+    })
+  } catch (error: any) {
+    console.error('❌ [RESTORE] Erro:', error.message)
     return res.status(500).json({ success: false, message: error.message })
   }
 }

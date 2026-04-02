@@ -1944,15 +1944,9 @@ if (lastAccessDate) {
         console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, metricsError.message)
       }
       
-      // Proteção: se estava PARA_INATIVAR mas voltou a aparecer no sync do CursEduca
-      // (membro está ACTIVE no CursEduca) → reverter para ACTIVE
-      if (existingUP.status === 'PARA_INATIVAR' && config.syncType === 'curseduca') {
-        upUpdateFields['status'] = 'ACTIVE'
-        upUpdateFields['metadata.revertedAt'] = new Date()
-        upUpdateFields['metadata.revertedReason'] = 'Membro ativo no CursEduca — revertido pelo sync'
-        upNeedsUpdate = true
-        console.log(`   ↩️ [Proteção] ${user.email}: PARA_INATIVAR → ACTIVE (apareceu no sync CursEduca)`)
-      }
+      // Nota: PARA_INATIVAR não é revertido pelo sync.
+      // É uma decisão de admin (via markDiscrepanciesForInactivation, que já valida a Guru API).
+      // Apenas revertInactivationMark o pode desfazer manualmente.
 
       // Aplicar updates
       if (upNeedsUpdate) {
