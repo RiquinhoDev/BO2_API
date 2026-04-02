@@ -288,7 +288,12 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
         .map((m: any) => m.email?.toLowerCase().trim())
         .filter(Boolean)
 
-      crossRefResult = await runCrossReferenceAfterCurseducaSync(syncedEmails)
+      // Reconciliação só no sync completo (sem filtro de grupo) e com volume mínimo seguro
+      const isFullSync = !groupId
+      crossRefResult = await runCrossReferenceAfterCurseducaSync(syncedEmails, {
+        reconcileStale: isFullSync,
+        minSyncSize: 400
+      })
 
       logger.success(`Cross-reference concluído:`)
       logger.log(`   🔴 Marcados PARA_INATIVAR: ${crossRefResult.markedParaInativar}`)
@@ -354,6 +359,7 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
           markedParaInativar: crossRefResult.markedParaInativar,
           revertedToActive: crossRefResult.revertedToActive,
           confirmedInactive: crossRefResult.confirmedInactive,
+          reconciledStale: crossRefResult.reconciledStale,
           skipped: crossRefResult.skipped,
           errors: crossRefResult.errors,
           duration: crossRefResult.duration

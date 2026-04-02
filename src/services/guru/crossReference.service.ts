@@ -3,7 +3,7 @@
 // Chamada automaticamente após cada sync para manter consistência
 
 import axios from 'axios'
-import User from '../../models/user'
+import User, { IUser } from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import {
   getEffectiveStatus,
@@ -24,6 +24,7 @@ export interface CrossReferenceResult {
   confirmedInactive: number
   skipped: number
   errors: number
+  reconciledStale: number
   details: Array<{ email: string; action: string; reason: string }>
   duration: number
 }
@@ -169,7 +170,8 @@ async function applyAction(
 // ═══════════════════════════════════════════════════════════
 
 export async function runCrossReferenceAfterCurseducaSync(
-  syncedEmails?: string[]
+  syncedEmails?: string[],
+  options?: { reconcileStale?: boolean; minSyncSize?: number }
 ): Promise<CrossReferenceResult> {
   const startTime = Date.now()
   console.log('\n🔄 [CROSS-REF] Post-CursEduca sync cross-reference...')
@@ -181,6 +183,7 @@ export async function runCrossReferenceAfterCurseducaSync(
     confirmedInactive: 0,
     skipped: 0,
     errors: 0,
+    reconciledStale: 0,
     details: [],
     duration: 0
   }
@@ -261,12 +264,72 @@ export async function runCrossReferenceAfterCurseducaSync(
     }
   }
 
+  // ─────────────────────────────────────────────────────────
+  // RECONCILIAÇÃO: marcar INACTIVE na BD os UserProducts ACTIVE
+  // de utilizadores que JÁ NÃO estão no CursEduca (só se sync completo)
+  // NÃO faz chamadas ao CursEduca — apenas BD
+  // ─────────────────────────────────────────────────────────
+  const minSize = options?.minSyncSize ?? 400
+  if (options?.reconcileStale === true && syncedEmails && syncedEmails.length >= minSize) {
+    console.log(`\n🧹 [CROSS-REF] Reconciliação de stale records (${syncedEmails.length} emails no sync)...`)
+
+    const syncedSet = new Set(syncedEmails)
+
+    const activeUPs = await UserProduct.find({
+      platform: 'curseduca',
+      status: 'ACTIVE'
+    }).populate('userId', 'email').lean()
+
+    const staleIds = activeUPs
+      .filter(up => {
+        const email = ((up.userId as any)?.email || '').toLowerCase().trim()
+        return email && !syncedSet.has(email)
+      })
+      .map(up => up._id)
+
+    if (staleIds.length > 0) {
+      // Marcar UserProducts stale como INACTIVE (BD apenas)
+      await UserProduct.updateMany(
+        { _id: { $in: staleIds } },
+        {
+          $set: {
+            status: 'INACTIVE',
+            isPrimary: false,
+            'metadata.inactivatedAt': new Date(),
+            'metadata.inactivatedBy': 'reconciliation_sync',
+            'metadata.inactivatedReason': 'Não encontrado no sync CursEduca — saiu do grupo ou acesso revogado'
+          }
+        }
+      )
+      // Actualizar também user.curseduca.memberStatus (lido pelo analytics compare)
+      const staleUserIds = activeUPs
+        .filter(up => {
+          const email = ((up.userId as any)?.email || '').toLowerCase().trim()
+          return email && !syncedSet.has(email)
+        })
+        .map(up => (up.userId as any)?._id)
+        .filter(Boolean)
+
+      if (staleUserIds.length > 0) {
+        await User.updateMany(
+          { _id: { $in: staleUserIds } },
+          { $set: { 'curseduca.memberStatus': 'INACTIVE', 'curseduca.situation': 'INACTIVE' } }
+        )
+      }
+      result.reconciledStale = staleIds.length
+      console.log(`   🧹 ${staleIds.length} UserProducts stale marcados INACTIVE (BD apenas)`)
+    } else {
+      console.log(`   ✅ Nenhum stale encontrado`)
+    }
+  }
+
   result.duration = Math.floor((Date.now() - startTime) / 1000)
 
   console.log(`\n✅ [CROSS-REF] Post-CursEduca concluído em ${result.duration}s:`)
   console.log(`   🔴 Marcados PARA_INATIVAR: ${result.markedParaInativar}`)
   console.log(`   🟢 Revertidos a ACTIVE: ${result.revertedToActive}`)
   console.log(`   ⚫ Confirmados INACTIVE: ${result.confirmedInactive}`)
+  console.log(`   🧹 Stale reconciliados: ${result.reconciledStale}`)
   console.log(`   ⏭️ Ignorados: ${result.skipped}`)
 
   return result
