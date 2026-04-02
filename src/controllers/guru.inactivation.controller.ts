@@ -503,11 +503,16 @@ export const revertInactivationMark = async (req: Request, res: Response) => {
 export const getInactivationStats = async (req: Request, res: Response) => {
   try {
     const [
-      paraInativar,
+      paraInativarUPs,
       inativadosHoje,
       totalInativados
     ] = await Promise.all([
-      UserProduct.countDocuments({ platform: 'curseduca', status: 'PARA_INATIVAR' }),
+      // Deduplicar por platformUserId (mesmo CursEduca ID = 1 inativação)
+      // Filtrar apenas com Guru efetivamente cancelado (mesma lógica do pending list)
+      UserProduct.find({ platform: 'curseduca', status: 'PARA_INATIVAR' })
+        .select('platformUserId userId')
+        .populate('userId', 'email guru.status curseduca.curseducaUserId')
+        .lean(),
       UserProduct.countDocuments({
         platform: 'curseduca',
         status: 'INACTIVE',
@@ -522,10 +527,24 @@ export const getInactivationStats = async (req: Request, res: Response) => {
       })
     ])
 
+    // Filtrar por Guru canceled e deduplicar por CursEduca ID
+    const filteredUPs = paraInativarUPs.filter(up => {
+      const guruStatus = (up.userId as any)?.guru?.status
+      if (!guruStatus) return true // sem Guru → manter
+      return GURU_CANCELED_STATUSES.includes(guruStatus)
+    })
+    const seenIds = new Set<string>()
+    for (const up of filteredUPs) {
+      const cid = up.platformUserId || (up.userId as any)?.curseduca?.curseducaUserId
+      if (cid) seenIds.add(String(cid))
+      else seenIds.add(String(up._id))
+    }
+
     return res.json({
       success: true,
       stats: {
-        pendingInactivation: paraInativar,
+        pendingInactivation: seenIds.size,
+        pendingInactivationTotal: paraInativarUPs.length,
         inactivatedToday: inativadosHoje,
         totalInactivatedByGuru: totalInativados
       }
