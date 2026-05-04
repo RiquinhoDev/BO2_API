@@ -544,7 +544,8 @@ private async executeSyncJob(job: ICronJobConfig): Promise<{
     'ResetCounters',
     'RebuildDashboardStats',
     'CronExecutionCleanup',
-    'WeeklyTagSnapshot'
+    'WeeklyTagSnapshot',
+    'ClarezaRefresh'
   ]
   
   // Verificar se job atual tem lógica específica
@@ -647,6 +648,11 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
     } else if (job.name.includes('WeeklyTagSnapshot')) {
       console.log('🏷️  Executando: WeeklyTagSnapshot (tags nativas)')
       const jobModule = await import('../../jobs/weeklyTagSnapshot.job')
+      result = await jobModule.default.run()
+
+    } else if (job.name.includes('ClarezaRefresh')) {
+      console.log('📈 Executando: ClarezaRefresh (tremómetro de ações)')
+      const jobModule = await import('../../jobs/clareza.job')
       result = await jobModule.default.run()
 
     } else {

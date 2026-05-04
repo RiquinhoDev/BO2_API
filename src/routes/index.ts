@@ -24,6 +24,7 @@ import studentsRoutes from './students'
 import tagMonitoringRoutes from './tagMonitoring.routes'
 import tagEvaluationRoutes from './tagEvaluation.routes'
 import guruRoutes from './guru.routes'
+import clarezaRoutes from './clareza.routes'
 
 // ✅ CRON UTILIZADORES (Sistema Novo)
 import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
@@ -73,6 +74,9 @@ router.use("/tag-rules", tagRuleRoutes)
 router.use("/product-profiles", productProfileRoutes)
 router.use("/reengagement", reengagementRoutes)
 router.use("/discovery", discoveryRoutes)
+
+// 📈 CLAREZA — Tremómetro de Ações
+router.use('/clareza', clarezaRoutes)  // GET /api/clareza/data, POST /api/clareza/refresh
 
 // ⏰ CRON SYSTEMS
 // Sistema de CRON para sincronização de utilizadores
