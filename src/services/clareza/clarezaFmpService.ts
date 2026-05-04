@@ -1,0 +1,364 @@
+import axios from 'axios'
+import PQueue from 'p-queue'
+import { cacheService } from '../cache.service'
+import ClarezaMarketData from '../../models/ClarezaMarketData'
+
+const FMP_BASE = 'https://financialmodelingprep.com/stable'
+export const CLAREZA_CACHE_KEY = 'clareza:stock-data'
+const CACHE_TTL = 28800 // 8 horas
+
+// ─────────────────────────────────────────────────────────────
+// UNIVERSO DE AÇÕES
+// ─────────────────────────────────────────────────────────────
+
+const UNIVERSE = [
+  // GROWTH
+  { ticker: 'NVDA',  name: 'Nvidia',                 type: 'growth', sector: 'Technology' },
+  { ticker: 'AAPL',  name: 'Apple',                  type: 'growth', sector: 'Technology' },
+  { ticker: 'GOOGL', name: 'Alphabet',               type: 'growth', sector: 'Technology' },
+  { ticker: 'MSFT',  name: 'Microsoft',              type: 'growth', sector: 'Technology' },
+  { ticker: 'AMZN',  name: 'Amazon',                 type: 'growth', sector: 'Technology' },
+  { ticker: 'AVGO',  name: 'Broadcom',               type: 'growth', sector: 'Technology' },
+  { ticker: 'META',  name: 'Meta',                   type: 'growth', sector: 'Technology' },
+  { ticker: 'TSLA',  name: 'Tesla',                  type: 'growth', sector: 'Consumer' },
+  { ticker: 'AMD',   name: 'AMD',                    type: 'growth', sector: 'Technology' },
+  { ticker: 'NFLX',  name: 'Netflix',                type: 'growth', sector: 'Technology' },
+  { ticker: 'PLTR',  name: 'Palantir',               type: 'growth', sector: 'Technology' },
+  { ticker: 'CRM',   name: 'Salesforce',             type: 'growth', sector: 'Technology' },
+  { ticker: 'ADBE',  name: 'Adobe',                  type: 'growth', sector: 'Technology' },
+  { ticker: 'ORCL',  name: 'Oracle',                 type: 'growth', sector: 'Technology' },
+  { ticker: 'LRCX',  name: 'Lam Research',           type: 'growth', sector: 'Technology' },
+  { ticker: 'AMAT',  name: 'Applied Materials',      type: 'growth', sector: 'Technology' },
+  { ticker: 'KLAC',  name: 'KLA Corporation',        type: 'growth', sector: 'Technology' },
+  { ticker: 'ANET',  name: 'Arista Networks',        type: 'growth', sector: 'Technology' },
+  { ticker: 'ISRG',  name: 'Intuitive Surgical',     type: 'growth', sector: 'Healthcare' },
+  { ticker: 'NOW',   name: 'ServiceNow',             type: 'growth', sector: 'Technology' },
+  { ticker: 'PANW',  name: 'Palo Alto Networks',     type: 'growth', sector: 'Technology' },
+  { ticker: 'MRVL',  name: 'Marvell Technology',     type: 'growth', sector: 'Technology' },
+  { ticker: 'MU',    name: 'Micron Technology',      type: 'growth', sector: 'Technology' },
+  { ticker: 'UBER',  name: 'Uber',                   type: 'growth', sector: 'Technology' },
+  { ticker: 'LLY',   name: 'Eli Lilly',              type: 'growth', sector: 'Healthcare' },
+  { ticker: 'COST',  name: 'Costco',                 type: 'growth', sector: 'Consumer' },
+  { ticker: 'TMUS',  name: 'T-Mobile',               type: 'growth', sector: 'Telecom' },
+  { ticker: 'GEV',   name: 'GE Vernova',             type: 'growth', sector: 'Industrials' },
+  { ticker: 'GE',    name: 'GE Aerospace',           type: 'growth', sector: 'Industrials' },
+  { ticker: 'APP',   name: 'AppLovin',               type: 'growth', sector: 'Technology' },
+  { ticker: 'CRWD',  name: 'CrowdStrike',            type: 'growth', sector: 'Technology' },
+  { ticker: 'INTU',  name: 'Intuit',                 type: 'growth', sector: 'Technology' },
+  { ticker: 'ADSK',  name: 'Autodesk',               type: 'growth', sector: 'Technology' },
+  { ticker: 'WDAY',  name: 'Workday',                type: 'growth', sector: 'Technology' },
+  { ticker: 'DDOG',  name: 'Datadog',                type: 'growth', sector: 'Technology' },
+  { ticker: 'TTD',   name: 'The Trade Desk',         type: 'growth', sector: 'Technology' },
+  { ticker: 'VRTX',  name: 'Vertex Pharmaceuticals', type: 'growth', sector: 'Healthcare' },
+  { ticker: 'REGN',  name: 'Regeneron',              type: 'growth', sector: 'Healthcare' },
+  { ticker: 'BSX',   name: 'Boston Scientific',      type: 'growth', sector: 'Healthcare' },
+  { ticker: 'HCA',   name: 'HCA Healthcare',         type: 'growth', sector: 'Healthcare' },
+  { ticker: 'SYK',   name: 'Stryker',                type: 'growth', sector: 'Healthcare' },
+  { ticker: 'CEG',   name: 'Constellation Energy',   type: 'growth', sector: 'Utilities' },
+  { ticker: 'DELL',  name: 'Dell Technologies',      type: 'growth', sector: 'Technology' },
+  { ticker: 'APH',   name: 'Amphenol',               type: 'growth', sector: 'Technology' },
+  { ticker: 'ADI',   name: 'Analog Devices',         type: 'growth', sector: 'Technology' },
+  { ticker: 'QCOM',  name: 'Qualcomm',               type: 'growth', sector: 'Technology' },
+  { ticker: 'SPGI',  name: 'S&P Global',             type: 'growth', sector: 'Finance' },
+  { ticker: 'CME',   name: 'CME Group',              type: 'growth', sector: 'Finance' },
+  { ticker: 'MCO',   name: "Moody's",                type: 'growth', sector: 'Finance' },
+  { ticker: 'BLK',   name: 'BlackRock',              type: 'growth', sector: 'Finance' },
+  { ticker: 'BKNG',  name: 'Booking Holdings',       type: 'growth', sector: 'Consumer' },
+  { ticker: 'SBUX',  name: 'Starbucks',              type: 'growth', sector: 'Consumer' },
+  { ticker: 'NKE',   name: 'Nike',                   type: 'growth', sector: 'Consumer' },
+  { ticker: 'LULU',  name: 'Lululemon',              type: 'growth', sector: 'Consumer' },
+  { ticker: 'ELV',   name: 'Elevance Health',        type: 'growth', sector: 'Healthcare' },
+  { ticker: 'FICO',  name: 'Fair Isaac (FICO)',       type: 'growth', sector: 'Technology' },
+  { ticker: 'HWM',   name: 'Howmet Aerospace',       type: 'growth', sector: 'Industrials' },
+  // VALUE
+  { ticker: 'BRK-B', name: 'Berkshire Hathaway',     type: 'value',  sector: 'Finance' },
+  { ticker: 'JPM',   name: 'JPMorgan Chase',         type: 'value',  sector: 'Finance' },
+  { ticker: 'BAC',   name: 'Bank of America',        type: 'value',  sector: 'Finance' },
+  { ticker: 'WFC',   name: 'Wells Fargo',            type: 'value',  sector: 'Finance' },
+  { ticker: 'GS',    name: 'Goldman Sachs',          type: 'value',  sector: 'Finance' },
+  { ticker: 'MS',    name: 'Morgan Stanley',         type: 'value',  sector: 'Finance' },
+  { ticker: 'C',     name: 'Citigroup',              type: 'value',  sector: 'Finance' },
+  { ticker: 'AXP',   name: 'American Express',       type: 'value',  sector: 'Finance' },
+  { ticker: 'SCHW',  name: 'Charles Schwab',         type: 'value',  sector: 'Finance' },
+  { ticker: 'COF',   name: 'Capital One',            type: 'value',  sector: 'Finance' },
+  { ticker: 'USB',   name: 'US Bancorp',             type: 'value',  sector: 'Finance' },
+  { ticker: 'PNC',   name: 'PNC Financial',          type: 'value',  sector: 'Finance' },
+  { ticker: 'CB',    name: 'Chubb',                  type: 'value',  sector: 'Finance' },
+  { ticker: 'PGR',   name: 'Progressive',            type: 'value',  sector: 'Finance' },
+  { ticker: 'MET',   name: 'MetLife',                type: 'value',  sector: 'Finance' },
+  { ticker: 'AFL',   name: 'Aflac',                  type: 'value',  sector: 'Finance' },
+  { ticker: 'V',     name: 'Visa',                   type: 'value',  sector: 'Finance' },
+  { ticker: 'MA',    name: 'Mastercard',             type: 'value',  sector: 'Finance' },
+  { ticker: 'XOM',   name: 'Exxon Mobil',            type: 'value',  sector: 'Energy' },
+  { ticker: 'CVX',   name: 'Chevron',                type: 'value',  sector: 'Energy' },
+  { ticker: 'COP',   name: 'ConocoPhillips',         type: 'value',  sector: 'Energy' },
+  { ticker: 'EOG',   name: 'EOG Resources',          type: 'value',  sector: 'Energy' },
+  { ticker: 'SLB',   name: 'SLB',                    type: 'value',  sector: 'Energy' },
+  { ticker: 'MPC',   name: 'Marathon Petroleum',     type: 'value',  sector: 'Energy' },
+  { ticker: 'OXY',   name: 'Occidental Petroleum',   type: 'value',  sector: 'Energy' },
+  { ticker: 'CAT',   name: 'Caterpillar',            type: 'value',  sector: 'Industrials' },
+  { ticker: 'RTX',   name: 'RTX Corporation',        type: 'value',  sector: 'Industrials' },
+  { ticker: 'HON',   name: 'Honeywell',              type: 'value',  sector: 'Industrials' },
+  { ticker: 'LMT',   name: 'Lockheed Martin',        type: 'value',  sector: 'Industrials' },
+  { ticker: 'NOC',   name: 'Northrop Grumman',       type: 'value',  sector: 'Industrials' },
+  { ticker: 'GD',    name: 'General Dynamics',       type: 'value',  sector: 'Industrials' },
+  { ticker: 'BA',    name: 'Boeing',                 type: 'value',  sector: 'Industrials' },
+  { ticker: 'UPS',   name: 'UPS',                    type: 'value',  sector: 'Industrials' },
+  { ticker: 'UNP',   name: 'Union Pacific',          type: 'value',  sector: 'Industrials' },
+  { ticker: 'DE',    name: 'John Deere',             type: 'value',  sector: 'Industrials' },
+  { ticker: 'ETN',   name: 'Eaton Corporation',      type: 'value',  sector: 'Industrials' },
+  { ticker: 'ITW',   name: 'Illinois Tool Works',    type: 'value',  sector: 'Industrials' },
+  { ticker: 'EMR',   name: 'Emerson Electric',       type: 'value',  sector: 'Industrials' },
+  { ticker: 'WM',    name: 'Waste Management',       type: 'value',  sector: 'Industrials' },
+  { ticker: 'IBM',   name: 'IBM',                    type: 'value',  sector: 'Technology' },
+  { ticker: 'INTC',  name: 'Intel',                  type: 'value',  sector: 'Technology' },
+  { ticker: 'CSCO',  name: 'Cisco',                  type: 'value',  sector: 'Technology' },
+  { ticker: 'TXN',   name: 'Texas Instruments',      type: 'value',  sector: 'Technology' },
+  { ticker: 'ACN',   name: 'Accenture',              type: 'value',  sector: 'Technology' },
+  { ticker: 'WMT',   name: 'Walmart',                type: 'value',  sector: 'Consumer' },
+  { ticker: 'HD',    name: 'Home Depot',             type: 'value',  sector: 'Consumer' },
+  { ticker: 'LOW',   name: "Lowe's",                 type: 'value',  sector: 'Consumer' },
+  { ticker: 'MCD',   name: "McDonald's",             type: 'value',  sector: 'Consumer' },
+  { ticker: 'DIS',   name: 'Walt Disney',            type: 'value',  sector: 'Consumer' },
+  { ticker: 'CMCSA', name: 'Comcast',                type: 'value',  sector: 'Consumer' },
+  { ticker: 'TGT',   name: 'Target',                 type: 'value',  sector: 'Consumer' },
+  { ticker: 'PG',    name: 'Procter & Gamble',       type: 'value',  sector: 'Consumer' },
+  { ticker: 'KO',    name: 'Coca-Cola',              type: 'value',  sector: 'Consumer' },
+  { ticker: 'PEP',   name: 'PepsiCo',                type: 'value',  sector: 'Consumer' },
+  { ticker: 'PM',    name: 'Philip Morris',          type: 'value',  sector: 'Consumer' },
+  { ticker: 'MO',    name: 'Altria',                 type: 'value',  sector: 'Consumer' },
+  { ticker: 'CL',    name: 'Colgate-Palmolive',      type: 'value',  sector: 'Consumer' },
+  { ticker: 'KMB',   name: 'Kimberly-Clark',         type: 'value',  sector: 'Consumer' },
+  { ticker: 'GIS',   name: 'General Mills',          type: 'value',  sector: 'Consumer' },
+  { ticker: 'JNJ',   name: 'Johnson & Johnson',      type: 'value',  sector: 'Healthcare' },
+  { ticker: 'MRK',   name: 'Merck',                  type: 'value',  sector: 'Healthcare' },
+  { ticker: 'ABT',   name: 'Abbott Laboratories',    type: 'value',  sector: 'Healthcare' },
+  { ticker: 'AMGN',  name: 'Amgen',                  type: 'value',  sector: 'Healthcare' },
+  { ticker: 'TMO',   name: 'Thermo Fisher',          type: 'value',  sector: 'Healthcare' },
+  { ticker: 'DHR',   name: 'Danaher',                type: 'value',  sector: 'Healthcare' },
+  { ticker: 'UNH',   name: 'UnitedHealth',           type: 'value',  sector: 'Healthcare' },
+  { ticker: 'ABBV',  name: 'AbbVie',                 type: 'value',  sector: 'Healthcare' },
+  { ticker: 'BMY',   name: 'Bristol-Myers Squibb',   type: 'value',  sector: 'Healthcare' },
+  { ticker: 'PFE',   name: 'Pfizer',                 type: 'value',  sector: 'Healthcare' },
+  { ticker: 'GILD',  name: 'Gilead Sciences',        type: 'value',  sector: 'Healthcare' },
+  { ticker: 'MDT',   name: 'Medtronic',              type: 'value',  sector: 'Healthcare' },
+  { ticker: 'NVO',   name: 'Novo Nordisk',           type: 'value',  sector: 'Healthcare' },
+  { ticker: 'NEE',   name: 'NextEra Energy',         type: 'value',  sector: 'Utilities' },
+  { ticker: 'DUK',   name: 'Duke Energy',            type: 'value',  sector: 'Utilities' },
+  { ticker: 'SO',    name: 'Southern Company',       type: 'value',  sector: 'Utilities' },
+  { ticker: 'D',     name: 'Dominion Energy',        type: 'value',  sector: 'Utilities' },
+  { ticker: 'AEP',   name: 'American Electric Power',type: 'value',  sector: 'Utilities' },
+  { ticker: 'EXC',   name: 'Exelon',                 type: 'value',  sector: 'Utilities' },
+  { ticker: 'VZ',    name: 'Verizon',                type: 'value',  sector: 'Telecom' },
+  { ticker: 'T',     name: 'AT&T',                   type: 'value',  sector: 'Telecom' },
+  { ticker: 'LIN',   name: 'Linde',                  type: 'value',  sector: 'Materials' },
+  { ticker: 'SHW',   name: 'Sherwin-Williams',       type: 'value',  sector: 'Materials' },
+  { ticker: 'NEM',   name: 'Newmont',                type: 'value',  sector: 'Materials' },
+  { ticker: 'FCX',   name: 'Freeport-McMoRan',       type: 'value',  sector: 'Materials' },
+  // REIT
+  { ticker: 'O',     name: 'Realty Income',          type: 'reit',   sector: 'REIT' },
+  { ticker: 'VICI',  name: 'VICI Properties',        type: 'reit',   sector: 'REIT' },
+  { ticker: 'PLD',   name: 'Prologis',               type: 'reit',   sector: 'REIT' },
+  { ticker: 'PSA',   name: 'Public Storage',         type: 'reit',   sector: 'REIT' },
+  { ticker: 'DLR',   name: 'Digital Realty',         type: 'reit',   sector: 'REIT' },
+  { ticker: 'EQIX',  name: 'Equinix',                type: 'reit',   sector: 'REIT' },
+  { ticker: 'AMT',   name: 'American Tower',         type: 'reit',   sector: 'REIT' },
+  { ticker: 'CCI',   name: 'Crown Castle',           type: 'reit',   sector: 'REIT' },
+  { ticker: 'SPG',   name: 'Simon Property Group',   type: 'reit',   sector: 'REIT' },
+  { ticker: 'AVB',   name: 'AvalonBay Communities',  type: 'reit',   sector: 'REIT' },
+  { ticker: 'EQR',   name: 'Equity Residential',     type: 'reit',   sector: 'REIT' },
+  { ticker: 'WPC',   name: 'W. P. Carey',            type: 'reit',   sector: 'REIT' },
+  { ticker: 'IRM',   name: 'Iron Mountain',          type: 'reit',   sector: 'REIT' },
+  { ticker: 'ARE',   name: 'Alexandria Real Estate',  type: 'reit',   sector: 'REIT' },
+  { ticker: 'WELL',  name: 'Welltower',              type: 'reit',   sector: 'REIT' },
+  { ticker: 'VTR',   name: 'Ventas',                 type: 'reit',   sector: 'REIT' },
+  { ticker: 'NNN',   name: 'NNN REIT',               type: 'reit',   sector: 'REIT' },
+  { ticker: 'EXR',   name: 'Extra Space Storage',    type: 'reit',   sector: 'REIT' },
+  { ticker: 'ESS',   name: 'Essex Property Trust',   type: 'reit',   sector: 'REIT' },
+  { ticker: 'MAA',   name: 'Mid-America Apartment',  type: 'reit',   sector: 'REIT' },
+  { ticker: 'UDR',   name: 'UDR Inc.',               type: 'reit',   sector: 'REIT' },
+  { ticker: 'CPT',   name: 'Camden Property Trust',  type: 'reit',   sector: 'REIT' },
+  { ticker: 'KIM',   name: 'Kimco Realty',           type: 'reit',   sector: 'REIT' },
+  { ticker: 'REG',   name: 'Regency Centers',        type: 'reit',   sector: 'REIT' },
+  { ticker: 'FRT',   name: 'Federal Realty',         type: 'reit',   sector: 'REIT' },
+  { ticker: 'BXP',   name: 'Boston Properties',      type: 'reit',   sector: 'REIT' },
+]
+
+// ─────────────────────────────────────────────────────────────
+// FMP API HELPER
+// ─────────────────────────────────────────────────────────────
+
+async function fmpGet<T = any>(path: string, params: Record<string, string> = {}): Promise<T | null> {
+  try {
+    const { data } = await axios.get(`${FMP_BASE}${path}`, {
+      params: { apikey: process.env.FMP_API_KEY, ...params },
+      timeout: 15000
+    })
+    if (!data) return null
+    if (Array.isArray(data)) return (data[0] ?? null) as T
+    return data as T
+  } catch {
+    return null
+  }
+}
+
+function safe(val: any, mult = 1): number | null {
+  if (val === null || val === undefined || isNaN(Number(val))) return null
+  return Math.round(Number(val) * mult * 10000) / 10000
+}
+
+// ─────────────────────────────────────────────────────────────
+// FETCH POR AÇÃO
+// ─────────────────────────────────────────────────────────────
+
+async function fetchStock(ticker: string, isReit: boolean) {
+  const [p, r, m] = await Promise.all([
+    fmpGet('/profile', { symbol: ticker }),
+    fmpGet('/ratios-ttm', { symbol: ticker }),
+    fmpGet('/key-metrics-ttm', { symbol: ticker })
+  ])
+
+  const price  = p?.price            ?? null
+  const change = p?.changePercentage ?? null
+
+  let perf12m: number | null = null
+  if (p?.range && price) {
+    const low52 = parseFloat(String(p.range).split('-')[0])
+    if (low52 > 0) perf12m = Math.round(((price - low52) / low52) * 10000) / 100
+  }
+
+  let pFfo: number | null = null
+  let ffoYield: number | null = null
+  let ffoPayoutRatio: number | null = null
+
+  if (isReit) {
+    const [is, cf] = await Promise.all([
+      fmpGet('/income-statement', { symbol: ticker, period: 'annual', limit: '1' }),
+      fmpGet('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '1' })
+    ])
+
+    const netIncome = is?.netIncome ?? null
+    const da        = is?.depreciationAndAmortization ?? cf?.depreciationAndAmortization ?? null
+    const shares    = is?.weightedAverageShsOut ?? null
+    const divsPaid  = cf?.netDividendsPaid != null ? Math.abs(cf.netDividendsPaid) : null
+
+    if (netIncome !== null && da !== null) {
+      const ffo = netIncome + da
+      if (shares && shares > 0 && price) {
+        const ffoPs = ffo / shares
+        if (ffoPs > 0) {
+          pFfo     = Math.round((price / ffoPs) * 100) / 100
+          ffoYield = Math.round((ffoPs / price) * 10000) / 100
+        }
+      }
+      if (divsPaid !== null && ffo > 0) {
+        ffoPayoutRatio = Math.round((divsPaid / ffo) * 10000) / 100
+      }
+    }
+  }
+
+  return {
+    price,
+    change,
+    perf12m,
+    pe:             r?.priceToEarningsRatioTTM                                         ?? null,
+    peg:            r?.forwardPriceToEarningsGrowthRatioTTM ?? r?.priceToEarningsGrowthRatioTTM ?? null,
+    ps:             r?.priceToSalesRatioTTM                                             ?? null,
+    pb:             r?.priceToBookRatioTTM                                              ?? null,
+    evEbitda:       m?.evToEBITDATTM                                                   ?? null,
+    fcfYield:       safe(m?.freeCashFlowYieldTTM,   100),
+    roe:            safe(m?.returnOnEquityTTM,       100),
+    netMargin:      safe(r?.netProfitMarginTTM,      100),
+    grossMarginTTM: safe(r?.grossProfitMarginTTM,    100),
+    dividendYield:  safe(r?.dividendYieldTTM,        100),
+    payoutRatio:    safe(r?.dividendPayoutRatioTTM,  100),
+    debtEquity:     r?.debtToEquityRatioTTM                                            ?? null,
+    debtEbitda:     m?.netDebtToEBITDATTM                                              ?? null,
+    revenueGrowth:  null,
+    perf3m:         null,
+    pFfo,
+    ffoYield,
+    ffoPayoutRatio,
+    updated: new Date().toISOString()
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// REFRESH COMPLETO (chamado pelo cron e pelo endpoint manual)
+// ─────────────────────────────────────────────────────────────
+
+export async function refreshClarezaData(): Promise<{ total: number; errors: number }> {
+  console.log(`📈 [Clareza] Iniciando refresh de ${UNIVERSE.length} ações...`)
+
+  const queue = new PQueue({ concurrency: 5 })
+  let errors = 0
+
+  const results = await Promise.all(
+    UNIVERSE.map(stock =>
+      queue.add(async () => {
+        try {
+          const data = await fetchStock(stock.ticker, stock.type === 'reit')
+          return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data }
+        } catch (err: any) {
+          errors++
+          console.error(`❌ [Clareza] Erro em ${stock.ticker}:`, err.message)
+          return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data: null }
+        }
+      })
+    )
+  )
+
+  // Guardar em Redis
+  await cacheService.set(CLAREZA_CACHE_KEY, results, CACHE_TTL)
+
+  // Guardar em MongoDB (persistência durável — mesmo se Redis reiniciar)
+  try {
+    await ClarezaMarketData.create({
+      fetchedAt:  new Date(),
+      stockCount: UNIVERSE.length - errors,
+      errors,
+      stocks: results
+    })
+    // Manter apenas os últimos 5 snapshots
+    const all = await ClarezaMarketData.find({}, '_id fetchedAt').sort({ fetchedAt: -1 }).lean()
+    if (all.length > 5) {
+      const toDelete = all.slice(5).map((d: any) => d._id)
+      await ClarezaMarketData.deleteMany({ _id: { $in: toDelete } })
+    }
+    console.log(`💾 [Clareza] Snapshot guardado na BD`)
+  } catch (err: any) {
+    console.error('⚠️ [Clareza] Erro ao guardar snapshot na BD:', err.message)
+  }
+
+  console.log(`✅ [Clareza] Refresh completo — ${UNIVERSE.length - errors} ok, ${errors} erros`)
+
+  return { total: UNIVERSE.length, errors }
+}
+
+// ─────────────────────────────────────────────────────────────
+// GET COM CACHE (Redis → MongoDB → FMP API)
+// ─────────────────────────────────────────────────────────────
+
+export async function getClarezaData(): Promise<any[] | null> {
+  // 1. Tentar Redis
+  const cached = await cacheService.get<any[]>(CLAREZA_CACHE_KEY)
+  if (cached) return cached
+
+  // 2. Redis miss → tentar MongoDB (dados persistidos do último refresh)
+  try {
+    const latest = await ClarezaMarketData.findOne().sort({ fetchedAt: -1 }).lean()
+    if (latest?.stocks?.length) {
+      console.log(`📦 [Clareza] Cache Redis vazio — a servir snapshot da BD (${latest.fetchedAt})`)
+      // Repor em Redis para as próximas chamadas
+      await cacheService.set(CLAREZA_CACHE_KEY, latest.stocks, CACHE_TTL)
+      return latest.stocks as any[]
+    }
+  } catch (err: any) {
+    console.error('⚠️ [Clareza] Erro ao ler snapshot da BD:', err.message)
+  }
+
+  // 3. Nenhum dado disponível → fetch fresco da FMP API
+  console.log(`🔄 [Clareza] Sem dados em cache — a fazer fetch inicial da API FMP...`)
+  await refreshClarezaData()
+  return cacheService.get<any[]>(CLAREZA_CACHE_KEY)
+}

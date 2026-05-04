@@ -10,7 +10,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose'
 // INTERFACES
 // ─────────────────────────────────────────────────────────────
 
-export type SyncType = 'hotmart' | 'curseduca' | 'discord' | 'all' | 'pipeline'
+export type SyncType = 'hotmart' | 'curseduca' | 'discord' | 'all' | 'pipeline' | 'clareza'
 export type JobStatus = 'success' | 'failed' | 'partial' | 'running'
 export type TriggerType = 'MANUAL' | 'CRON' | 'WEBHOOK'
 
