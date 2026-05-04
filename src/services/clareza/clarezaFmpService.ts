@@ -204,6 +204,8 @@ const UNIVERSE = [
 // FMP API HELPER
 // ─────────────────────────────────────────────────────────────
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+
 async function fmpGet<T = any>(path: string, params: Record<string, string> = {}): Promise<T | null> {
   try {
     const { data } = await axios.get(`${FMP_BASE}${path}`, {
@@ -228,11 +230,10 @@ function safe(val: any, mult = 1): number | null {
 // ─────────────────────────────────────────────────────────────
 
 async function fetchStock(ticker: string, isReit: boolean) {
-  const [p, r, m] = await Promise.all([
-    fmpGet('/profile', { symbol: ticker }),
-    fmpGet('/ratios-ttm', { symbol: ticker }),
-    fmpGet('/key-metrics-ttm', { symbol: ticker })
-  ])
+  // Sequencial com delay para respeitar rate limits da FMP API
+  const p = await fmpGet('/profile', { symbol: ticker }); await sleep(200)
+  const r = await fmpGet('/ratios-ttm', { symbol: ticker }); await sleep(200)
+  const m = await fmpGet('/key-metrics-ttm', { symbol: ticker }); await sleep(200)
 
   const price  = p?.price            ?? null
   const change = p?.changePercentage ?? null
@@ -248,10 +249,8 @@ async function fetchStock(ticker: string, isReit: boolean) {
   let ffoPayoutRatio: number | null = null
 
   if (isReit) {
-    const [is, cf] = await Promise.all([
-      fmpGet('/income-statement', { symbol: ticker, period: 'annual', limit: '1' }),
-      fmpGet('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '1' })
-    ])
+    const is = await fmpGet('/income-statement', { symbol: ticker, period: 'annual', limit: '1' }); await sleep(200)
+    const cf = await fmpGet('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '1' }); await sleep(200)
 
     const netIncome = is?.netIncome ?? null
     const da        = is?.depreciationAndAmortization ?? cf?.depreciationAndAmortization ?? null
@@ -319,7 +318,7 @@ export async function refreshClarezaData(): Promise<{ total: number; errors: num
         return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data: null }
       }
     }),
-    5
+    2  // 2 stocks em simultâneo × 200ms por chamada ≈ 5 req/s — dentro dos limites FMP
   )
 
   // Guardar em Redis
