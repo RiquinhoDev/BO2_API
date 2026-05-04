@@ -103,6 +103,7 @@ mongoose.connect(process.env.MONGO_URI || "")
     // 📈 CLAREZA: Criar cron job 3×/dia se ainda não existir
     try {
       const CronJobConfig = (await import('./models/SyncModels/CronJobConfig')).default
+      const systemCronAdminId = new mongoose.Types.ObjectId('000000000000000000000001')
       const existingClarezaJob = await CronJobConfig.findOne({ name: 'ClarezaRefresh' })
       if (!existingClarezaJob) {
         await CronJobConfig.create({
@@ -120,6 +121,7 @@ mongoose.connect(process.env.MONGO_URI || "")
           notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: false, recipients: [] },
           retryPolicy: { maxRetries: 2, retryDelayMinutes: 30, exponentialBackoff: false },
           nextRun: new Date(),
+          createdBy: systemCronAdminId,
           isActive: true,
           totalRuns: 0,
           successfulRuns: 0,
@@ -129,6 +131,11 @@ mongoose.connect(process.env.MONGO_URI || "")
         // Reinicializar para carregar o novo job
         await syncSchedulerService.initializeScheduler()
       } else {
+        if (!(existingClarezaJob as any).createdBy) {
+          existingClarezaJob.set('createdBy', systemCronAdminId)
+          await existingClarezaJob.save()
+          console.log('📈 [Clareza] Backfill aplicado: createdBy adicionado ao job existente')
+        }
         console.log('📈 [Clareza] Cron job ClarezaRefresh já existe — a ignorar seed')
       }
     } catch (error) {
