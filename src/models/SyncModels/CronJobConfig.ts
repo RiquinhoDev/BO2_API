@@ -292,7 +292,7 @@ const CronJobConfigSchema = new Schema<ICronJobConfig, ICronJobConfigModel>({
   },
   syncType: {
     type: String,
-      enum: ['hotmart', 'curseduca', 'discord', 'all', 'pipeline'],
+      enum: ['hotmart', 'curseduca', 'discord', 'all', 'pipeline', 'clareza'],
     required: true,
     index: true
   },
