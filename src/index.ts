@@ -55,6 +55,7 @@ import "./models/DashboardStats"
 import "./models/SyncModels/CronJobConfig"
 import "./models/SyncModels/ActivitySnapshot"
 import "./models/SyncModels/SyncConflict"
+import "./models/ClarezaMarketData"
 
 import businessAnalyticsRoutes from './routes/businessAnalytics.routes'
 import "./models"
@@ -89,14 +90,49 @@ mongoose.connect(process.env.MONGO_URI || "")
       console.log('\n🆕 ============================================')
       console.log('🆕 Inicializando Sync Utilizadores FASE 1...')
       console.log('🆕 ============================================\n')
-      
+
       await syncSchedulerService.initializeScheduler()
-      
+
       console.log('\n✅ ============================================')
       console.log('✅ Sync Utilizadores FASE 1 inicializado!')
       console.log('✅ ============================================\n')
     } catch (error) {
       console.error("⚠️ Erro ao inicializar Sync Utilizadores FASE 1:", error)
+    }
+
+    // 📈 CLAREZA: Criar cron job 3×/dia se ainda não existir
+    try {
+      const CronJobConfig = (await import('./models/SyncModels/CronJobConfig')).default
+      const existingClarezaJob = await CronJobConfig.findOne({ name: 'ClarezaRefresh' })
+      if (!existingClarezaJob) {
+        await CronJobConfig.create({
+          name: 'ClarezaRefresh',
+          description: 'Atualiza dados do Tremómetro Clareza 3×/dia via Financial Modeling Prep API',
+          syncType: 'clareza',
+          schedule: {
+            cronExpression: '0 6,12,18 * * *',
+            timezone: 'Europe/Lisbon',
+            enabled: true
+          },
+          syncConfig: { fullSync: true, includeProgress: false, includeTags: false, batchSize: 200 },
+          tagRules: [],
+          tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
+          notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: false, recipients: [] },
+          retryPolicy: { maxRetries: 2, retryDelayMinutes: 30, exponentialBackoff: false },
+          nextRun: new Date(),
+          isActive: true,
+          totalRuns: 0,
+          successfulRuns: 0,
+          failedRuns: 0
+        })
+        console.log('📈 [Clareza] Cron job ClarezaRefresh criado (6h, 12h, 18h Lisboa)')
+        // Reinicializar para carregar o novo job
+        await syncSchedulerService.initializeScheduler()
+      } else {
+        console.log('📈 [Clareza] Cron job ClarezaRefresh já existe — a ignorar seed')
+      }
+    } catch (error) {
+      console.error('⚠️ [Clareza] Erro ao criar cron job seed:', error)
     }
 
     // ✅ SPRINT 7: Iniciar System Monitor em produção
@@ -153,6 +189,7 @@ mongoose.connect(process.env.MONGO_URI || "")
 const allowedOrigins = [
   'https://www.backoffice.serriquinho.com',
   'https://backoffice.serriquinho.com',
+  'https://lp.serriquinho.com',
   'http://localhost:3000',
   'http://localhost:5173',
   'http://127.0.0.1:3000',
