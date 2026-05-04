@@ -1,7 +1,23 @@
 import axios from 'axios'
-import PQueue from 'p-queue'
 import { cacheService } from '../cache.service'
 import ClarezaMarketData from '../../models/ClarezaMarketData'
+
+// Limita concorrência sem depender de p-queue (ESM-only)
+async function runWithConcurrency<T>(
+  tasks: (() => Promise<T>)[],
+  concurrency: number
+): Promise<T[]> {
+  const results: T[] = []
+  let index = 0
+  async function worker() {
+    while (index < tasks.length) {
+      const i = index++
+      results[i] = await tasks[i]()
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, worker))
+  return results
+}
 
 const FMP_BASE = 'https://financialmodelingprep.com/stable'
 export const CLAREZA_CACHE_KEY = 'clareza:stock-data'
@@ -290,22 +306,20 @@ async function fetchStock(ticker: string, isReit: boolean) {
 export async function refreshClarezaData(): Promise<{ total: number; errors: number }> {
   console.log(`📈 [Clareza] Iniciando refresh de ${UNIVERSE.length} ações...`)
 
-  const queue = new PQueue({ concurrency: 5 })
   let errors = 0
 
-  const results = await Promise.all(
-    UNIVERSE.map(stock =>
-      queue.add(async () => {
-        try {
-          const data = await fetchStock(stock.ticker, stock.type === 'reit')
-          return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data }
-        } catch (err: any) {
-          errors++
-          console.error(`❌ [Clareza] Erro em ${stock.ticker}:`, err.message)
-          return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data: null }
-        }
-      })
-    )
+  const results = await runWithConcurrency(
+    UNIVERSE.map(stock => async () => {
+      try {
+        const data = await fetchStock(stock.ticker, stock.type === 'reit')
+        return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data }
+      } catch (err: any) {
+        errors++
+        console.error(`❌ [Clareza] Erro em ${stock.ticker}:`, err.message)
+        return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data: null }
+      }
+    }),
+    5
   )
 
   // Guardar em Redis

@@ -280,7 +280,7 @@ const job = await CronJobConfig.create({
 
   async executeJobManually(
     jobId: mongoose.Types.ObjectId,
-    triggeredBy: mongoose.Types.ObjectId
+    _triggeredBy: mongoose.Types.ObjectId
   ): Promise<CronExecutionResult> {
     console.log(`▶️ Executando job manualmente: ${jobId}`)
 
@@ -297,14 +297,21 @@ const job = await CronJobConfig.create({
 
       const duration = Math.round((Date.now() - startTime) / 1000)
 
-      // Registrar execução no job
-      await job.recordExecution(
-        result.stats,
-        result.success ? 'success' : 'failed',
-        duration,
-        'MANUAL',
-        result.errorMessage
-      )
+      // Registrar execução no job (não deixar falhar a resposta da API)
+      try {
+        await job.recordExecution(
+          result.stats,
+          result.success ? 'success' : 'failed',
+          duration,
+          'MANUAL',
+          result.errorMessage
+        )
+      } catch (recordError: any) {
+        console.error(
+          `⚠️ Erro ao gravar recordExecution para ${job.name}:`,
+          recordError?.message || recordError
+        )
+      }
 
       // ✅ NOVO: Salvar no histórico
       await this.saveExecutionHistory(
@@ -345,13 +352,20 @@ const job = await CronJobConfig.create({
         skipped: 0
       }
 
-      await job.recordExecution(
-        stats,
-        'failed',
-        duration,
-        'MANUAL',
-        error.message
-      )
+      try {
+        await job.recordExecution(
+          stats,
+          'failed',
+          duration,
+          'MANUAL',
+          error.message
+        )
+      } catch (recordError: any) {
+        console.error(
+          `⚠️ Erro ao gravar recordExecution (erro) para ${job.name}:`,
+          recordError?.message || recordError
+        )
+      }
 
       // ✅ NOVO: Salvar erro no histórico
       await this.saveExecutionHistory(
