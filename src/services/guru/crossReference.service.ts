@@ -266,9 +266,80 @@ export async function runCrossReferenceAfterCurseducaSync(
   }
 
   // ─────────────────────────────────────────────────────────
-  // RECONCILIAÇÃO: marcar INACTIVE na BD os UserProducts ACTIVE
+  // PASSAGEM EXTRA: users com Guru cancelado + UserProduct ACTIVE
+  // que NÃO estavam no sync (removidos do grupo CursEduca)
+  // ─────────────────────────────────────────────────────────
+  if (syncedEmails && syncedEmails.length > 0) {
+    const STRICT_CANCELED = ['canceled', 'expired', 'refunded']
+    const syncedSet = new Set(syncedEmails)
+
+    const missedUsers = await User.find({
+      'guru.status': { $in: STRICT_CANCELED },
+      'curseduca.curseducaUserId': { $exists: true },
+      email: { $nin: syncedEmails }
+    })
+      .select('_id email guru.status guru.updatedAt guru.nextCycleAt curseduca.memberStatus curseduca.situation')
+      .lean()
+
+    if (missedUsers.length > 0) {
+      const missedUserIds = missedUsers.map(u => u._id)
+      const missedUPs = await UserProduct.find({
+        userId: { $in: missedUserIds },
+        platform: 'curseduca',
+        status: 'ACTIVE'
+      }).lean()
+
+      const missedUpByUserId = new Map<string, any>()
+      for (const up of missedUPs) {
+        missedUpByUserId.set(up.userId.toString(), up)
+      }
+
+      for (const user of missedUsers) {
+        const up = missedUpByUserId.get(user._id.toString())
+        if (!up) continue
+
+        result.processed++
+        try {
+          const guruData = (user as any).guru
+          const action = determineCrossReferenceAction(
+            guruData?.status,
+            (user as any).curseduca?.memberStatus,
+            (user as any).curseduca?.situation,
+            up.status,
+            { updatedAt: guruData?.updatedAt, nextCycleAt: guruData?.nextCycleAt }
+          )
+
+          if (action.action === 'skip') {
+            result.skipped++
+            continue
+          }
+
+          await applyAction(up._id.toString(), user._id.toString(), action)
+          if (action.action === 'mark_para_inativar') result.markedParaInativar++
+          if (action.action === 'revert_to_active') result.revertedToActive++
+          if (action.action === 'confirm_inactive') result.confirmedInactive++
+
+          result.details.push({
+            email: (user as any).email,
+            action: action.action,
+            reason: `[fora do sync] ${action.reason}`
+          })
+          console.log(`   🔍 ${(user as any).email}: ${action.action} (fora do sync, Guru ${guruData?.status})`)
+        } catch (err: any) {
+          result.errors++
+          console.error(`   ❌ Erro ${(user as any).email}: ${err.message}`)
+        }
+      }
+
+      console.log(`   🔍 ${missedUsers.length} users com Guru cancelado fora do sync verificados`)
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // RECONCILIAÇÃO: marcar PARA_INATIVAR os UserProducts ACTIVE
   // de utilizadores que JÁ NÃO estão no CursEduca (só se sync completo)
-  // NÃO faz chamadas ao CursEduca — apenas BD
+  // Marca PARA_INATIVAR (não INACTIVE) para que passem pelo pipeline
+  // normal de inativação com chamada API ao CursEduca
   // ─────────────────────────────────────────────────────────
   const minSize = options?.minSyncSize ?? 400
   if (options?.reconcileStale === true && syncedEmails && syncedEmails.length >= minSize) {
@@ -289,36 +360,19 @@ export async function runCrossReferenceAfterCurseducaSync(
       .map(up => up._id)
 
     if (staleIds.length > 0) {
-      // Marcar UserProducts stale como INACTIVE (BD apenas)
       await UserProduct.updateMany(
         { _id: { $in: staleIds } },
         {
           $set: {
-            status: 'INACTIVE',
-            isPrimary: false,
-            'metadata.inactivatedAt': new Date(),
-            'metadata.inactivatedBy': 'reconciliation_sync',
-            'metadata.inactivatedReason': 'Não encontrado no sync CursEduca — saiu do grupo ou acesso revogado'
+            status: 'PARA_INATIVAR',
+            'metadata.markedForInactivationAt': new Date(),
+            'metadata.markedForInactivationReason': 'Não encontrado no sync CursEduca — saiu do grupo ou acesso revogado',
+            'metadata.markedByCrossReference': true
           }
         }
       )
-      // Actualizar também user.curseduca.memberStatus (lido pelo analytics compare)
-      const staleUserIds = activeUPs
-        .filter(up => {
-          const email = ((up.userId as any)?.email || '').toLowerCase().trim()
-          return email && !syncedSet.has(email)
-        })
-        .map(up => (up.userId as any)?._id)
-        .filter(Boolean)
-
-      if (staleUserIds.length > 0) {
-        await User.updateMany(
-          { _id: { $in: staleUserIds } },
-          { $set: { 'curseduca.memberStatus': 'INACTIVE', 'curseduca.situation': 'INACTIVE' } }
-        )
-      }
       result.reconciledStale = staleIds.length
-      console.log(`   🧹 ${staleIds.length} UserProducts stale marcados INACTIVE (BD apenas)`)
+      console.log(`   🔴 ${staleIds.length} UserProducts stale marcados PARA_INATIVAR (pendente chamada API)`)
     } else {
       console.log(`   ✅ Nenhum stale encontrado`)
     }
@@ -351,6 +405,7 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
     confirmedInactive: 0,
     skipped: 0,
     errors: 0,
+    reconciledStale: 0,
     details: [],
     duration: 0
   }
