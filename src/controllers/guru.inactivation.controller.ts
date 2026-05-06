@@ -695,8 +695,30 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
         continue
       }
 
-      // Se está INACTIVE, skip (já foi processado)
+      // Se está INACTIVE mas CursEduca situation ainda é ACTIVE,
+      // a chamada API nunca foi feita — re-marcar PARA_INATIVAR
       if (userProduct.status === 'INACTIVE') {
+        const situation = user.curseduca?.situation
+        if (situation === 'ACTIVE') {
+          await UserProduct.findByIdAndUpdate(userProduct._id, {
+            $set: {
+              status: 'PARA_INATIVAR',
+              'metadata.markedForInactivationAt': new Date(),
+              'metadata.markedForInactivationReason': `Re-detetado: Guru ${user.guru?.status}, CursEduca situation ainda ACTIVE`,
+              'metadata.markedFromComparison': true
+            }
+          })
+          marked++
+          markedDetails.push({
+            email: user.email,
+            name: user.name,
+            guruStatus: user.guru?.status,
+            userProductId: userProduct._id,
+            action: 're-marked (was INACTIVE but CursEduca still ACTIVE)'
+          })
+          console.log(`   🔄 Re-marcado: ${user.email} (INACTIVE na BD mas CursEduca situation ACTIVE)`)
+          continue
+        }
         skipped++
         console.log(`   ⏭️ Já INACTIVE: ${user.email}`)
         continue
