@@ -18,6 +18,13 @@ export const clarezaController = {
 
   async refresh(req: Request, res: Response) {
     try {
+      const expectedToken = process.env.CLAREZA_REFRESH_TOKEN
+      const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
+
+      if (!expectedToken || providedToken !== expectedToken) {
+        return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
+      }
+
       console.log('🔄 [POST /api/clareza/refresh] Refresh manual iniciado')
       const result = await refreshClarezaData()
       return res.json({ success: true, ...result })

@@ -303,6 +303,10 @@ async function fetchStock(ticker: string, isReit: boolean) {
 // ─────────────────────────────────────────────────────────────
 
 export async function refreshClarezaData(): Promise<{ total: number; errors: number }> {
+  if (!process.env.FMP_API_KEY) {
+    throw new Error('FMP_API_KEY nao configurada')
+  }
+
   console.log(`📈 [Clareza] Iniciando refresh de ${UNIVERSE.length} ações...`)
 
   let errors = 0
@@ -370,8 +374,7 @@ export async function getClarezaData(): Promise<any[] | null> {
     console.error('⚠️ [Clareza] Erro ao ler snapshot da BD:', err.message)
   }
 
-  // 3. Nenhum dado disponível → fetch fresco da FMP API
-  console.log(`🔄 [Clareza] Sem dados em cache — a fazer fetch inicial da API FMP...`)
-  await refreshClarezaData()
-  return cacheService.get<any[]>(CLAREZA_CACHE_KEY)
+  // 3. Nenhum dado disponivel. Nao chamar FMP em load publico.
+  console.warn('[Clareza] Sem cache Redis e sem snapshot MongoDB. Aguardar cron ClarezaRefresh.')
+  return null
 }
