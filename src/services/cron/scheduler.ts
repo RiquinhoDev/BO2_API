@@ -18,6 +18,8 @@ import universalSyncService from '../syncUtilizadoresServices/universalSyncServi
 import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../types/cron.types'
 
+const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
+
 // ─────────────────────────────────────────────────────────────
 // IN-MEMORY SCHEDULER REGISTRY
 // ─────────────────────────────────────────────────────────────
@@ -61,6 +63,10 @@ const registry = new SchedulerRegistry()
 // ─────────────────────────────────────────────────────────────
 
 export class CronManagementService {
+  private isProtectedJob(job: ICronJobConfig): boolean {
+    return PROTECTED_JOB_NAMES.has(job.name)
+  }
+
   // ═══════════════════════════════════════════════════════════
   // CREATE
   // ═══════════════════════════════════════════════════════════
@@ -143,6 +149,10 @@ const job = await CronJobConfig.create({
       throw new Error('Job não encontrado')
     }
 
+    if (this.isProtectedJob(job)) {
+      throw new Error('Job protegido: ClarezaRefresh e apenas leitura')
+    }
+
     // Atualizar campos
     if (dto.name) job.name = dto.name
     if (dto.description) job.description = dto.description
@@ -200,6 +210,10 @@ const job = await CronJobConfig.create({
       throw new Error('Job não encontrado')
     }
 
+    if (this.isProtectedJob(job)) {
+      throw new Error('Job protegido: ClarezaRefresh nao pode ser apagado')
+    }
+
     // Cancelar schedule
     registry.unregister(jobId.toString())
 
@@ -222,6 +236,10 @@ const job = await CronJobConfig.create({
     const job = await CronJobConfig.findById(jobId)
     if (!job) {
       throw new Error('Job não encontrado')
+    }
+
+    if (this.isProtectedJob(job)) {
+      throw new Error('Job protegido: ClarezaRefresh nao pode ser pausado')
     }
 
     job.schedule.enabled = enabled
@@ -287,6 +305,10 @@ const job = await CronJobConfig.create({
     const job = await CronJobConfig.findById(jobId)
     if (!job) {
       throw new Error('Job não encontrado')
+    }
+
+    if (this.isProtectedJob(job)) {
+      throw new Error('Job protegido: ClarezaRefresh nao permite execucao manual')
     }
 
     const startTime = Date.now()
