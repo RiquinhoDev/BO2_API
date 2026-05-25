@@ -131,11 +131,33 @@ mongoose.connect(process.env.MONGO_URI || "")
         // Reinicializar para carregar o novo job
         await syncSchedulerService.initializeScheduler()
       } else {
-        if (!(existingClarezaJob as any).createdBy) {
+        const fixedCronExpression = '0 6,12,18 * * *'
+        const fixedTimezone = 'Europe/Lisbon'
+        const needsScheduleRepair =
+          existingClarezaJob.schedule.cronExpression !== fixedCronExpression ||
+          existingClarezaJob.schedule.timezone !== fixedTimezone ||
+          existingClarezaJob.schedule.enabled !== true ||
+          existingClarezaJob.isActive !== true
+        const missingCreatedBy = !(existingClarezaJob as any).createdBy
+
+        if (needsScheduleRepair) {
+          existingClarezaJob.set('schedule.cronExpression', fixedCronExpression)
+          existingClarezaJob.set('schedule.timezone', fixedTimezone)
+          existingClarezaJob.set('schedule.enabled', true)
+          existingClarezaJob.set('isActive', true)
+          console.log('📈 [Clareza] Schedule protegido reparado: 6h, 12h, 18h Lisboa')
+        }
+
+        if (missingCreatedBy) {
           existingClarezaJob.set('createdBy', systemCronAdminId)
-          await existingClarezaJob.save()
           console.log('📈 [Clareza] Backfill aplicado: createdBy adicionado ao job existente')
         }
+
+        if (needsScheduleRepair || missingCreatedBy) {
+          await existingClarezaJob.save()
+          await syncSchedulerService.initializeScheduler()
+        }
+
         console.log('📈 [Clareza] Cron job ClarezaRefresh já existe — a ignorar seed')
       }
     } catch (error) {
