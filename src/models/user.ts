@@ -252,6 +252,25 @@ communicationByCourse?: Map<string, {
   }
 }>
 
+  // 🏆 CONQUISTAS (avaliadas no sync semanal)
+  achievements?: Array<{
+    id: string                      // "primeiro_login", "streak_7_dias", etc.
+    unlockedAt: Date | null         // null = não desbloqueada
+    progress?: {                    // opcional, para badges com progresso parcial
+      current: number
+      target: number
+    }
+  }>
+
+  achievementStats?: {
+    total: number                   // 26
+    unlocked: number                // quantas desbloqueadas
+    percentage: number              // 0-100
+    currentStreak: number           // sequência actual em dias
+    bestStreak: number              // melhor sequência de sempre
+    lastEvaluatedAt: Date           // último cálculo
+  }
+
   // 🆕 INATIVAÇÃO MANUAL (para detetar renovações)
   inactivation?: {
     isManuallyInactivated: boolean    // Flag se foi inativado manualmente
@@ -665,6 +684,25 @@ curseduca: {
       }
     },
     default: {}
+  },
+
+  // 🏆 CONQUISTAS
+  achievements: [{
+    id: { type: String, required: true },
+    unlockedAt: { type: Date, default: null },
+    progress: {
+      current: { type: Number },
+      target: { type: Number }
+    }
+  }],
+
+  achievementStats: {
+    total: { type: Number, default: 26 },
+    unlocked: { type: Number, default: 0 },
+    percentage: { type: Number, default: 0 },
+    currentStreak: { type: Number, default: 0 },
+    bestStreak: { type: Number, default: 0 },
+    lastEvaluatedAt: { type: Date }
   },
 
   // 🆕 INATIVAÇÃO MANUAL (para detetar renovações)

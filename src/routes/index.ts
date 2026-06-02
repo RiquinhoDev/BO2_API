@@ -21,10 +21,13 @@ import reengagementRoutes from './reengagement.routes'
 import discoveryRoutes from './discovery.routes'
 import acReaderRoutes from './ACroutes/acReader.routes'
 import studentsRoutes from './students'
+import studentOgiSummaryRoutes from './studentOgiSummary.routes'
 import tagMonitoringRoutes from './tagMonitoring.routes'
 import tagEvaluationRoutes from './tagEvaluation.routes'
 import guruRoutes from './guru.routes'
 import clarezaRoutes from './clareza.routes'
+import achievementsRoutes from './achievements.routes'
+import eventsRoutes from './events.routes'
 
 // ✅ CRON UTILIZADORES (Sistema Novo)
 import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
@@ -58,6 +61,9 @@ router.use("/testimonials", testimonialRoutes)
 router.use("/engagement", engagementRoutes)
 router.use("/user-history", userHistoryRoutes)
 router.use("/students", studentsRoutes)
+router.use("/student/ogi", studentOgiSummaryRoutes)
+router.use("/achievements", achievementsRoutes)  // 🏆 Sistema de Conquistas
+router.use("/events", eventsRoutes)              // 📅 Calendário de Eventos
 
 // 📊 ANÁLISES E RELATÓRIOS
 router.use("/dashboard", dashboardRoutes)
