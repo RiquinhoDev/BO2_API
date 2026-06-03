@@ -50,11 +50,6 @@ export function determineCrossReferenceAction(
     return { action: 'skip', reason: 'Sem dados Guru' }
   }
 
-  // UserProduct já INACTIVE → skip (já finalizado)
-  if (userProductStatus === 'INACTIVE') {
-    return { action: 'skip', reason: 'Já INACTIVE' }
-  }
-
   // Só cancelamentos explícitos justificam inativação — pending (stale) não conta
   const STRICT_CANCELED = ['canceled', 'expired', 'refunded']
   const guruIsCanceled = STRICT_CANCELED.includes((guruStatus || '').toLowerCase())
@@ -62,10 +57,28 @@ export function determineCrossReferenceAction(
   const guruIsActive = effective.isActive
   const statusLabel = guruStatus
 
+  const curseducaIsActive =
+    curseducaSituation === 'ACTIVE' || curseducaMemberStatus === 'ACTIVE'
+
   const curseducaIsInactive =
     curseducaMemberStatus === 'INACTIVE' ||
     curseducaSituation === 'INACTIVE' ||
     curseducaSituation === 'SUSPENDED'
+
+  // UserProduct INACTIVE na BD:
+  // - Se Guru cancelado MAS CursEduca ainda ACTIVE → discrepância real
+  //   (inativação nunca chegou a ser feita no CursEduca, ou o aluno voltou
+  //   a entrar). Tem de voltar para a lista PARA_INATIVAR.
+  // - Caso contrário → já finalizado, skip.
+  if (userProductStatus === 'INACTIVE') {
+    if (guruIsCanceled && curseducaIsActive) {
+      return {
+        action: 'mark_para_inativar',
+        reason: `Discrepância: Guru ${statusLabel}, CursEduca ACTIVE (re-detetado de INACTIVE)`
+      }
+    }
+    return { action: 'skip', reason: 'Já INACTIVE' }
+  }
 
   // CASO 1: Guru active + UserProduct PARA_INATIVAR → reverter
   if (guruIsActive && userProductStatus === 'PARA_INATIVAR') {
