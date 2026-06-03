@@ -581,7 +581,8 @@ private async executeSyncJob(job: ICronJobConfig): Promise<{
     'RebuildDashboardStats',
     'CronExecutionCleanup',
     'WeeklyTagSnapshot',
-    'ClarezaRefresh'
+    'ClarezaRefresh',
+    'GuruTrialCheck'
   ]
   
   // Verificar se job atual tem lógica específica
@@ -689,6 +690,11 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
     } else if (job.name.includes('ClarezaRefresh')) {
       console.log('📈 Executando: ClarezaRefresh (tremómetro de ações)')
       const jobModule = await import('../../jobs/clareza.job')
+      result = await jobModule.default.run()
+
+    } else if (job.name.includes('GuruTrialCheck')) {
+      console.log('⏳ Executando: GuruTrialCheck (sync + marcar trials expirados)')
+      const jobModule = await import('../../jobs/guruTrialCheck.job')
       result = await jobModule.default.run()
 
     } else {

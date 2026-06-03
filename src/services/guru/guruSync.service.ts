@@ -81,6 +81,10 @@ interface GuruSubscription {
     value: number
     payment_url?: string
   }
+  // Trial
+  trial_days?: number
+  trial_started_at?: string
+  trial_finished_at?: string
 }
 
 interface GuruContact {
@@ -329,11 +333,12 @@ export async function fetchContactSubscriptions(contactId: string): Promise<Guru
 /**
  * Mapear status da Guru para o nosso formato
  */
-function mapGuruStatus(guruStatus: string): 'active' | 'pastdue' | 'canceled' | 'expired' | 'pending' | 'refunded' | 'suspended' {
+function mapGuruStatus(guruStatus: string): 'active' | 'pastdue' | 'canceled' | 'expired' | 'pending' | 'refunded' | 'suspended' | 'trial' {
   const statusMap: Record<string, any> = {
     'active': 'active',
     'paid': 'active',
-    'trialing': 'active',
+    'trialing': 'trial',
+    'trial': 'trial',
     'past_due': 'pastdue',
     'pastdue': 'pastdue',
     'unpaid': 'pastdue',
@@ -377,10 +382,12 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
   // Extrair dados de diferentes estruturas possíveis
   const sub = subscription as any
 
+  const mappedStatus = mapGuruStatus(sub.last_status || sub.status)
+
   const guruData = {
     guruContactId: sub.subscriber?.id || sub.contact?.id,
     subscriptionCode: sub.subscription_code || sub.code || sub.id,
-    status: mapGuruStatus(sub.last_status || sub.status),
+    status: mappedStatus,
     updatedAt: sub.dates?.last_status_at ? new Date(sub.dates.last_status_at)
       : sub.dates?.started_at ? new Date(sub.dates.started_at)
       : sub.dates?.created_at ? new Date(sub.dates.created_at)
@@ -389,6 +396,12 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
     offerId: sub.product?.offer?.id || sub.offer?.id,
     productId: sub.product?.id || sub.product_id,
     paymentUrl: sub.current_invoice?.payment_url,
+    // Trial
+    isTrial: mappedStatus === 'trial',
+    trialStartedAt: sub.trial_started_at ? new Date(sub.trial_started_at) : undefined,
+    trialFinishedAt: sub.trial_finished_at ? new Date(sub.trial_finished_at) : undefined,
+    // Se era trial e agora é active → converteu
+    trialConvertedAt: undefined as Date | undefined,
     lastSyncAt: new Date(),
     syncVersion: '2.0',
     lastWebhookAt: undefined // Não veio de webhook, veio de sync

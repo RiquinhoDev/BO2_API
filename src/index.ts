@@ -164,6 +164,42 @@ mongoose.connect(process.env.MONGO_URI || "")
       console.error('⚠️ [Clareza] Erro ao criar cron job seed:', error)
     }
 
+    // ⏳ GURU TRIALS: Criar cron job diário (sync + marcar expirados) se não existir
+    try {
+      const CronJobConfig = (await import('./models/SyncModels/CronJobConfig')).default
+      const systemCronAdminId = new mongoose.Types.ObjectId('000000000000000000000001')
+      const existingTrialJob = await CronJobConfig.findOne({ name: 'GuruTrialCheck' })
+      if (!existingTrialJob) {
+        await CronJobConfig.create({
+          name: 'GuruTrialCheck',
+          description: 'Sincroniza trials Guru e MARCA os expirados (>7d sem conversão) PARA_INATIVAR. NÃO inativa — inativação é manual.',
+          syncType: 'guru',
+          schedule: {
+            cronExpression: '0 7 * * *',  // 07:00 Lisboa, diário
+            timezone: 'Europe/Lisbon',
+            enabled: true
+          },
+          syncConfig: { fullSync: false, includeProgress: false, includeTags: false, batchSize: 200 },
+          tagRules: [],
+          tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
+          notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: false, recipients: [] },
+          retryPolicy: { maxRetries: 2, retryDelayMinutes: 30, exponentialBackoff: false },
+          nextRun: new Date(),
+          createdBy: systemCronAdminId,
+          isActive: true,
+          totalRuns: 0,
+          successfulRuns: 0,
+          failedRuns: 0
+        })
+        console.log('⏳ [GuruTrials] Cron job GuruTrialCheck criado (07:00 Lisboa, diário)')
+        await syncSchedulerService.initializeScheduler()
+      } else {
+        console.log('⏳ [GuruTrials] Cron job GuruTrialCheck já existe — a ignorar seed')
+      }
+    } catch (error) {
+      console.error('⚠️ [GuruTrials] Erro ao criar cron job seed:', error)
+    }
+
     // ✅ SPRINT 7: Iniciar System Monitor em produção
     if (process.env.NODE_ENV === 'production') {
       systemMonitor.start()
