@@ -22,7 +22,9 @@ import {
   getCurseducaProductUsers,
   getCurseducaStats,
   compareSyncMethods,
-  syncCurseducaUsersUniversal
+  syncCurseducaUsersUniversal,
+  syncCurseducaUsersStart,
+  getCurseducaSyncStatus
 } from '../controllers/syncUtilizadoresControllers/curseduca.controller'
 
 const router = Router()
@@ -70,6 +72,10 @@ router.use('/v2', v2)
 // ─────────────────────────────────────────────────────────────
 router.get('/sync/universal', syncCurseducaUsersUniversal)
 router.get('/sync/compare', compareSyncMethods)
+
+// 🔄 Background (evita timeout/CORS): inicia + status para polling
+router.get('/sync/universal/start', syncCurseducaUsersStart)
+router.get('/sync/status', getCurseducaSyncStatus)
 
 
 export default router
