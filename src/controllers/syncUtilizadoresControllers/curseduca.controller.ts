@@ -919,3 +919,83 @@ export const cleanupDuplicates = async (req: Request, res: Response): Promise<vo
 
 // ✅ Alias para compatibilidade
 export const syncCurseducaUsersUniversal = syncCurseducaUsers
+
+// ═══════════════════════════════════════════════════════════════
+// 🔄 SYNC EM BACKGROUND (evita timeout/CORS no proxy)
+//
+// O sync universal pode demorar minutos (enrich de centenas de
+// membros via /members/{id}). Em vez de bloquear o request HTTP
+// (que estoura o timeout do proxy → CORS), inicia em fundo e
+// devolve 202 imediatamente. O frontend faz polling de /sync/status.
+//
+// Reutiliza 100% o handler existente syncCurseducaUsers via um
+// "res" falso que captura o resultado. O endpoint síncrono
+// /sync/universal continua intacto para cron e outros callers.
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * GET /curseduca/sync/universal/start
+ * Inicia o sync universal em background. Devolve 202 imediatamente.
+ */
+export const syncCurseducaUsersStart = async (req: Request, res: Response): Promise<void> => {
+  const g = global as any
+
+  if (g.__curseducaSyncRunning) {
+    res.status(409).json({
+      success: false,
+      running: true,
+      startedAt: g.__curseducaSyncStartedAt || null,
+      message: 'Já existe um sync CursEduca em curso. Aguarde a conclusão.'
+    })
+    return
+  }
+
+  // Marcar como em execução
+  g.__curseducaSyncRunning = true
+  g.__curseducaSyncStartedAt = new Date()
+  g.__curseducaSyncFinishedAt = null
+  g.__curseducaSyncResult = null
+  g.__curseducaSyncError = null
+
+  // Responder JÁ (não bloquear → sem timeout)
+  res.status(202).json({
+    success: true,
+    started: true,
+    startedAt: g.__curseducaSyncStartedAt,
+    message: 'Sincronização CursEduca iniciada em background. Use /curseduca/sync/status para acompanhar.'
+  })
+
+  // Correr em fundo reutilizando o handler existente com um res falso
+  const fakeRes: any = {
+    statusCode: 200,
+    status(code: number) { this.statusCode = code; return this },
+    json(payload: any) { g.__curseducaSyncResult = { httpStatus: this.statusCode, ...payload }; return this }
+  }
+
+  // fire-and-forget — o processo Railway mantém o event loop vivo
+  Promise.resolve()
+    .then(() => syncCurseducaUsers(req, fakeRes))
+    .catch((e: any) => { g.__curseducaSyncError = e?.message || String(e) })
+    .finally(() => {
+      g.__curseducaSyncRunning = false
+      g.__curseducaSyncFinishedAt = new Date()
+      const dur = Math.round((g.__curseducaSyncFinishedAt - g.__curseducaSyncStartedAt) / 1000)
+      console.log(`✅ [CursEduca BG] Sync background concluído em ${dur}s`)
+    })
+}
+
+/**
+ * GET /curseduca/sync/status
+ * Estado do sync background (para polling do frontend).
+ */
+export const getCurseducaSyncStatus = async (_req: Request, res: Response): Promise<void> => {
+  const g = global as any
+  res.json({
+    success: true,
+    running: Boolean(g.__curseducaSyncRunning),
+    startedAt: g.__curseducaSyncStartedAt || null,
+    finishedAt: g.__curseducaSyncFinishedAt || null,
+    error: g.__curseducaSyncError || null,
+    result: g.__curseducaSyncResult || null
+  })
+}
