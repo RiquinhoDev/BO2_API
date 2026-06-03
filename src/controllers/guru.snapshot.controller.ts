@@ -861,7 +861,8 @@ function mapStatus(status: string): 'active' | 'pastdue' | 'canceled' | 'expired
   const statusMap: Record<string, any> = {
     'active': 'active',
     'paid': 'active',
-    'trialing': 'active',
+    'trialing': 'trial',
+    'trial': 'trial',
     'past_due': 'pastdue',
     'pastdue': 'pastdue',
     'unpaid': 'pastdue',

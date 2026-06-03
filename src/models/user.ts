@@ -144,7 +144,7 @@ curseduca?: {
     subscriptionCode: string
 
     // Status e datas
-    status: 'active' | 'pastdue' | 'canceled' | 'expired' | 'pending' | 'refunded' | 'suspended'
+    status: 'active' | 'pastdue' | 'canceled' | 'expired' | 'pending' | 'refunded' | 'suspended' | 'trial'
     updatedAt: Date
     nextCycleAt?: Date
 
@@ -154,6 +154,12 @@ curseduca?: {
 
     // Pagamento
     paymentUrl?: string
+
+    // Trial
+    isTrial: boolean
+    trialStartedAt?: Date
+    trialFinishedAt?: Date
+    trialConvertedAt?: Date
 
     // Metadados
     lastSyncAt: Date
@@ -531,7 +537,7 @@ curseduca: {
     // Status e datas
     status: {
       type: String,
-      enum: ['active', 'pastdue', 'canceled', 'expired', 'pending', 'refunded', 'suspended'],
+      enum: ['active', 'pastdue', 'canceled', 'expired', 'pending', 'refunded', 'suspended', 'trial'],
       default: 'pending'
     },
     updatedAt: { type: Date },
@@ -543,6 +549,12 @@ curseduca: {
 
     // Pagamento
     paymentUrl: { type: String },
+
+    // Trial
+    isTrial: { type: Boolean, default: false },
+    trialStartedAt: { type: Date },
+    trialFinishedAt: { type: Date },
+    trialConvertedAt: { type: Date },
 
     // Metadados
     lastSyncAt: { type: Date, default: Date.now },

@@ -20,7 +20,10 @@ export const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_ACCESS_TOKEN || '***
 export const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
 
 /** Status que indicam subscrição legitimamente ativa */
-export const GURU_ACTIVE_STATUSES = ['active', 'pastdue']
+export const GURU_ACTIVE_STATUSES = ['active', 'pastdue', 'trial']
+
+/** Status que indicam período de teste */
+export const GURU_TRIAL_STATUSES = ['trial']
 
 /** Threshold em dias para considerar um pending como "fantasma" */
 export const PENDING_STALE_THRESHOLD_DAYS = 7
@@ -39,16 +42,17 @@ export const CURSEDUCA_ACTIVE_STATUSES = ['ACTIVE']
 /** Prioridade base - menor = melhor. Pending é calculado dinamicamente. */
 const BASE_STATUS_PRIORITY: Record<string, number> = {
   'active': 1,
-  'pastdue': 2,
-  'pending': 3,    // Default para pending fresh (< 7 dias)
-  'suspended': 4,
-  'canceled': 5,
-  'expired': 6,
-  'refunded': 7
+  'trial': 2,      // Trial tem acesso, mas prioridade abaixo de active
+  'pastdue': 3,
+  'pending': 4,    // Default para pending fresh (< 7 dias)
+  'suspended': 5,
+  'canceled': 6,
+  'expired': 7,
+  'refunded': 8
 }
 
 /** Prioridade de pending stale - PIOR que refunded */
-const STALE_PENDING_PRIORITY = 8
+const STALE_PENDING_PRIORITY = 9
 
 // ═══════════════════════════════════════════════════════════
 // HELPERS: PENDING STALE DETECTION
@@ -104,6 +108,7 @@ export interface EffectiveStatus {
   isCanceled: boolean
   isPending: boolean
   isPendingStale: boolean
+  isTrial: boolean
   effectiveStatus: string
 }
 
@@ -116,7 +121,7 @@ export function getEffectiveStatus(
   dates?: GuruDateInfo | null
 ): EffectiveStatus {
   if (!guruStatus) {
-    return { isActive: false, isCanceled: false, isPending: false, isPendingStale: false, effectiveStatus: 'unknown' }
+    return { isActive: false, isCanceled: false, isPending: false, isPendingStale: false, isTrial: false, effectiveStatus: 'unknown' }
   }
 
   if (guruStatus === 'pending') {
@@ -126,6 +131,7 @@ export function getEffectiveStatus(
       isCanceled: stale,
       isPending: true,
       isPendingStale: stale,
+      isTrial: false,
       effectiveStatus: stale ? 'pending_stale' : 'pending_fresh'
     }
   }
@@ -135,6 +141,7 @@ export function getEffectiveStatus(
     isCanceled: GURU_CANCELED_STATUSES.includes(guruStatus),
     isPending: false,
     isPendingStale: false,
+    isTrial: GURU_TRIAL_STATUSES.includes(guruStatus),
     effectiveStatus: guruStatus
   }
 }
