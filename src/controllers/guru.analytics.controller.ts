@@ -664,7 +664,7 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
       if (!email) continue
 
       const statusMap: Record<string, string> = {
-        'active': 'active', 'paid': 'active', 'trialing': 'active',
+        'active': 'active', 'paid': 'active', 'trialing': 'trial', 'trial': 'trial',
         'past_due': 'pastdue', 'pastdue': 'pastdue', 'unpaid': 'pastdue',
         'canceled': 'canceled', 'cancelled': 'canceled',
         'expired': 'expired', 'pending': 'pending',
