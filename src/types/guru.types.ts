@@ -16,11 +16,13 @@ export type GuruSubscriptionStatus =
   | 'pending'     // Aguardando confirmação de pagamento
   | 'refunded'    // Reembolsada
   | 'suspended'   // Suspensa temporariamente
+  | 'trial'       // Período de teste (7 dias)
 
-// Estados que permitem SSO (acesso ao MyOrders)
+// Estados que permitem SSO (acesso ao MyOrders/CursEduca)
 export const GURU_SSO_ALLOWED_STATUSES: GuruSubscriptionStatus[] = [
   'active',
-  'pastdue'
+  'pastdue',
+  'trial'         // Trial tem acesso total durante o período de teste
 ]
 
 // ═══════════════════════════════════════════════════════════

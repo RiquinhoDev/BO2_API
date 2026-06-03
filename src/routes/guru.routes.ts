@@ -54,6 +54,13 @@ import {
   restoreUserProducts,
   markStaleInactive
 } from '../controllers/guru.inactivation.controller'
+import {
+  getTrials,
+  getTrialsStats,
+  checkExpired,
+  syncTrials,
+  revertTrialMark,
+} from '../controllers/guru.trials.controller'
 
 const router = Router()
 
@@ -370,5 +377,41 @@ router.post('/inactivation/restore', asyncRoute(restoreUserProducts))
  * Body: { emails: ['email1@x.com', ...] }
  */
 router.post('/inactivation/mark-stale-inactive', asyncRoute(markStaleInactive))
+
+// ═══════════════════════════════════════════════════════════
+// ⏳ TRIALS
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * GET /guru/trials
+ * Listar todos os trials (activos + expirados + convertidos)
+ * Query params: status (all|active|expiring_soon|expired|converted)
+ */
+router.get('/trials', asyncRoute(getTrials))
+
+/**
+ * GET /guru/trials/stats
+ * Estatísticas de trials: activos, expirados, convertidos
+ */
+router.get('/trials/stats', asyncRoute(getTrialsStats))
+
+/**
+ * POST /guru/trials/check-expired
+ * Verificar trials expirados → marcar PARA_INATIVAR se não converteu
+ */
+router.post('/trials/check-expired', asyncRoute(checkExpired))
+
+/**
+ * POST /guru/trials/sync
+ * Sincronizar trials da API Guru → actualizar BD
+ */
+router.post('/trials/sync', asyncRoute(syncTrials))
+
+/**
+ * POST /guru/trials/revert
+ * Reverter trial (manual) → repõe UserProducts ACTIVE + flags trial
+ * Body: { email }
+ */
+router.post('/trials/revert', asyncRoute(revertTrialMark))
 
 export default router

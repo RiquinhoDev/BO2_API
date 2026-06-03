@@ -734,7 +734,7 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
           const guruSubs = await fetchContactSubscriptions(String(contact.id))
           const hasActiveSub = guruSubs.some(sub => {
             const status = (sub.last_status || (sub as any).status || '').toLowerCase()
-            return GURU_ACTIVE_STATUSES.includes(status) || status === 'active' || status === 'paid' || status === 'trialing'
+            return GURU_ACTIVE_STATUSES.includes(status) || status === 'active' || status === 'paid' || status === 'trialing' || status === 'trial'
           })
 
           if (hasActiveSub) {
