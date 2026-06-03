@@ -59,6 +59,7 @@ import {
   getTrialsStats,
   checkExpired,
   syncTrials,
+  revertTrialMark,
 } from '../controllers/guru.trials.controller'
 
 const router = Router()
@@ -405,5 +406,12 @@ router.post('/trials/check-expired', asyncRoute(checkExpired))
  * Sincronizar trials da API Guru → actualizar BD
  */
 router.post('/trials/sync', asyncRoute(syncTrials))
+
+/**
+ * POST /guru/trials/revert
+ * Reverter trial (manual) → repõe UserProducts ACTIVE + flags trial
+ * Body: { email }
+ */
+router.post('/trials/revert', asyncRoute(revertTrialMark))
 
 export default router

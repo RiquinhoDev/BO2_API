@@ -10,7 +10,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose'
 // INTERFACES
 // ─────────────────────────────────────────────────────────────
 
-export type SyncType = 'hotmart' | 'curseduca' | 'discord' | 'all' | 'pipeline' | 'clareza'
+export type SyncType = 'hotmart' | 'curseduca' | 'discord' | 'all' | 'pipeline' | 'clareza' | 'guru'
 export type JobStatus = 'success' | 'failed' | 'partial' | 'running'
 export type TriggerType = 'MANUAL' | 'CRON' | 'WEBHOOK'
 
@@ -292,7 +292,7 @@ const CronJobConfigSchema = new Schema<ICronJobConfig, ICronJobConfigModel>({
   },
   syncType: {
     type: String,
-      enum: ['hotmart', 'curseduca', 'discord', 'all', 'pipeline', 'clareza'],
+      enum: ['hotmart', 'curseduca', 'discord', 'all', 'pipeline', 'clareza', 'guru'],
     required: true,
     index: true
   },

@@ -252,3 +252,57 @@ async function markUserProductsForInactivation(userId: any, email: string): Prom
 
   return result.modifiedCount || 0
 }
+
+// ─────────────────────────────────────────────────────────────
+// REVERTER TRIAL (manual — para o caso de marcação errada)
+// ─────────────────────────────────────────────────────────────
+
+export interface RevertTrialResult {
+  reverted: number          // UserProducts repostos ACTIVE
+  userUpdated: boolean       // flags trial repostos no User
+  email: string
+}
+
+export async function revertTrial(email: string): Promise<RevertTrialResult> {
+  const normalizedEmail = email.toLowerCase().trim()
+
+  const user = await User.findOne({ email: normalizedEmail })
+  if (!user) {
+    throw new Error(`Utilizador ${normalizedEmail} não encontrado`)
+  }
+
+  // 1. Repor UserProducts marcados PARA_INATIVAR (apenas os marcados por trial)
+  const result = await (UserProduct as any).updateMany(
+    {
+      userId: user._id,
+      platform: 'curseduca',
+      status: 'PARA_INATIVAR',
+    },
+    {
+      $set: {
+        status: 'ACTIVE',
+        'metadata.revertedAt': new Date(),
+        'metadata.revertedBy': 'manual_trial',
+      },
+      $unset: {
+        'metadata.markedForInactivationAt': 1,
+        'metadata.markedForInactivationReason': 1,
+        'metadata.guruTrialExpired': 1,
+      },
+    }
+  )
+
+  // 2. Repor flags trial no User (volta a tratar como trial activo)
+  user.set('guru.isTrial', true)
+  user.set('guru.status', 'trial')
+  user.set('guru.trialConvertedAt', undefined)
+  await user.save()
+
+  console.log(`↩️ [GURU TRIALS] Trial revertido para ${normalizedEmail} (${result.modifiedCount || 0} UserProducts)`)
+
+  return {
+    reverted: result.modifiedCount || 0,
+    userUpdated: true,
+    email: normalizedEmail,
+  }
+}
