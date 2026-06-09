@@ -414,7 +414,22 @@ export async function getReitAnalysis(rawTicker: string) {
   const cached = await cacheService.get<any>(cacheKey)
   if (cached) return cached
 
-  const profile = await fmpGet('/profile', { symbol: ticker }); await sleep(150)
+  // Profile com diagnóstico: distingue falha da FMP (key/plano/quota) de ticker inexistente.
+  let profile: any = null
+  try {
+    const { data } = await axios.get(`${FMP_BASE}/profile`, {
+      params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
+      timeout: 15000
+    })
+    profile = Array.isArray(data) ? (data[0] ?? null) : data
+  } catch (e: any) {
+    const status = e?.response?.status
+    const body = typeof e?.response?.data === 'string'
+      ? e.response.data.slice(0, 120)
+      : JSON.stringify(e?.response?.data ?? '').slice(0, 120)
+    throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${e?.message || 'erro de rede'}`}`)
+  }
+  await sleep(150)
   if (!profile || !profile.symbol) throw new Error('Ticker nao encontrado')
 
   const ratios  = await fmpGet('/ratios-ttm', { symbol: ticker }); await sleep(150)
