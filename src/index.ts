@@ -255,6 +255,8 @@ const allowedOrigins = [
   'https://www.backoffice.serriquinho.com',
   'https://backoffice.serriquinho.com',
   'https://lp.serriquinho.com',
+  'https://osriquinhos.serriquinho.com',
+  'https://www.osriquinhos.serriquinho.com',
   'http://localhost:3000',
   'http://localhost:5173',
   'http://127.0.0.1:3000',

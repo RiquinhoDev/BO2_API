@@ -9,6 +9,9 @@ router.get('/data', clarezaController.getData)
 // Refresh manual — protegido por api_key no header (verificado via CORS + allowedHeaders)
 router.post('/refresh', clarezaController.refresh)
 
+// Endpoint público — análise REIT por ticker (live FMP, qualquer REIT)
+router.get('/reit/:ticker', clarezaController.getReit)
+
 // Endpoint público — chamado pelo HTML Top 10 Ações da Equipa
 router.get('/top10', clarezaController.getTop10)
 

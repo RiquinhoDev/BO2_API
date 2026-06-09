@@ -378,3 +378,109 @@ export async function getClarezaData(): Promise<any[] | null> {
   console.warn('[Clareza] Sem cache Redis e sem snapshot MongoDB. Aguardar cron ClarezaRefresh.')
   return null
 }
+
+// ─────────────────────────────────────────────────────────────
+// ANÁLISE REIT POR TICKER (live FMP + cache por ticker)
+// ─────────────────────────────────────────────────────────────
+
+// Variante de fmpGet que devolve o array completo (não só o [0]).
+async function fmpGetArray<T = any>(path: string, params: Record<string, string> = {}): Promise<T[]> {
+  try {
+    const { data } = await axios.get(`${FMP_BASE}${path}`, {
+      params: { apikey: process.env.FMP_API_KEY, ...params },
+      timeout: 15000
+    })
+    if (!data) return []
+    return Array.isArray(data) ? (data as T[]) : [data as T]
+  } catch {
+    return []
+  }
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+const num = (v: any): number | null =>
+  v === null || v === undefined || isNaN(Number(v)) ? null : round2(Number(v))
+
+const REIT_CACHE_PREFIX = 'clareza:reit:'
+const REIT_CACHE_TTL = 28800 // 8 horas
+
+export async function getReitAnalysis(rawTicker: string) {
+  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+
+  const ticker = String(rawTicker || '').trim().toUpperCase()
+  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) throw new Error('Ticker invalido')
+
+  const cacheKey = REIT_CACHE_PREFIX + ticker
+  const cached = await cacheService.get<any>(cacheKey)
+  if (cached) return cached
+
+  const profile = await fmpGet('/profile', { symbol: ticker }); await sleep(150)
+  if (!profile || !profile.symbol) throw new Error('Ticker nao encontrado')
+
+  const ratios  = await fmpGet('/ratios-ttm', { symbol: ticker }); await sleep(150)
+  const metrics = await fmpGet('/key-metrics-ttm', { symbol: ticker }); await sleep(150)
+  const incomes = await fmpGetArray('/income-statement', { symbol: ticker, period: 'annual', limit: '6' }); await sleep(150)
+  const cf      = await fmpGet('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '1' })
+
+  const price = profile.price ?? null
+
+  // FFO ≈ Net Income + Depreciação & Amortização (último exercício anual)
+  const latest  = incomes[0] ?? null
+  const ni0     = latest?.netIncome ?? null
+  const da0     = latest?.depreciationAndAmortization ?? cf?.depreciationAndAmortization ?? null
+  const shares0 = latest?.weightedAverageShsOut ?? null
+
+  const ffo         = ni0 !== null && da0 !== null ? ni0 + da0 : null
+  const ffoPerShare = ffo !== null && shares0 ? ffo / shares0 : null
+  const pFfo        = ffoPerShare && price ? round2(price / ffoPerShare) : null
+  const ffoYield    = ffoPerShare && price ? round2((ffoPerShare / price) * 100) : null
+
+  // FFO 5Y CAGR a partir da série anual disponível (mais recente → mais antigo)
+  let ffoCagr5y: number | null = null
+  const ffoSeries = incomes
+    .map((s: any) =>
+      s?.netIncome != null && s?.depreciationAndAmortization != null
+        ? s.netIncome + s.depreciationAndAmortization
+        : null
+    )
+    .filter((v: number | null): v is number => v !== null && v > 0)
+  if (ffoSeries.length >= 2) {
+    const newest = ffoSeries[0]
+    const oldest = ffoSeries[ffoSeries.length - 1]
+    const years  = ffoSeries.length - 1
+    ffoCagr5y = round2((Math.pow(newest / oldest, 1 / years) - 1) * 100)
+  }
+
+  const divsPaid  = cf?.netDividendsPaid != null ? Math.abs(cf.netDividendsPaid) : null
+  const ffoPayout = divsPaid !== null && ffo && ffo > 0 ? round2((divsPaid / ffo) * 100) : null
+
+  const result = {
+    ticker,
+    name:      profile.companyName ?? ticker,
+    sector:    profile.sector ?? null,
+    industry:  profile.industry ?? null,
+    price,
+    change:    profile.changePercentage ?? null,
+    marketCap: profile.marketCap ?? null,
+    currency:  profile.currency ?? 'USD',
+    metrics: {
+      pFfo,
+      ffoYield,
+      ffoPerShare:     ffoPerShare !== null ? round2(ffoPerShare) : null,
+      ffoCagr5y,
+      ffoPayout,
+      netDebtToEbitda: num(metrics?.netDebtToEBITDATTM),
+      evToEbitda:      num(metrics?.evToEBITDATTM),
+      dividendYield:   safe(ratios?.dividendYieldTTM, 100),
+      payoutRatio:     safe(ratios?.dividendPayoutRatioTTM, 100),
+      interestCoverage: num(
+        ratios?.interestCoverageRatioTTM ?? ratios?.interestCoverageTTM ?? metrics?.interestCoverageTTM
+      ),
+    },
+    ffoYearsUsed: ffoSeries.length,
+    updated: new Date().toISOString()
+  }
+
+  await cacheService.set(cacheKey, result, REIT_CACHE_TTL)
+  return result
+}
