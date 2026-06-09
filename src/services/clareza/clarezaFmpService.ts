@@ -402,7 +402,37 @@ const num = (v: any): number | null =>
   v === null || v === undefined || isNaN(Number(v)) ? null : round2(Number(v))
 
 const REIT_CACHE_PREFIX = 'clareza:reit:'
-const REIT_CACHE_TTL = 28800 // 8 horas
+const REIT_CACHE_TTL = 86400 // 24 horas
+
+// Mapeia uma entrada da cache do cron clareza para o formato da análise REIT.
+// Evita chamadas FMP para os tickers que o cron já atualiza 3×/dia.
+function mapClarezaToReit(entry: any) {
+  const d = entry?.data ?? {}
+  return {
+    ticker:    entry.ticker,
+    name:      entry.name ?? entry.ticker,
+    sector:    entry.sector ?? null,
+    industry:  null,
+    price:     d.price ?? null,
+    change:    d.change ?? null,
+    marketCap: null,
+    currency:  'USD',
+    metrics: {
+      pFfo:             d.pFfo ?? null,
+      ffoYield:         d.ffoYield ?? null,
+      ffoPerShare:      null,            // não calculado no cron → link
+      ffoCagr5y:        null,            // não calculado no cron → link
+      ffoPayout:        d.ffoPayoutRatio ?? null,
+      netDebtToEbitda:  d.debtEbitda ?? null,
+      evToEbitda:       d.evEbitda ?? null,
+      dividendYield:    d.dividendYield ?? null,
+      payoutRatio:      d.payoutRatio ?? null,
+      interestCoverage: null,            // não calculado no cron → link
+    },
+    source:  'clareza-cache',
+    updated: d.updated ?? new Date().toISOString()
+  }
+}
 
 export async function getReitAnalysis(rawTicker: string) {
   if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
@@ -414,20 +444,41 @@ export async function getReitAnalysis(rawTicker: string) {
   const cached = await cacheService.get<any>(cacheKey)
   if (cached) return cached
 
+  // 1. Reutilizar a cache do cron clareza — 0 chamadas FMP para tickers do universo.
+  try {
+    const universe = await getClarezaData()
+    const hit = universe?.find((s: any) => s?.ticker === ticker && s?.data)
+    if (hit) {
+      const cachedResult = mapClarezaToReit(hit)
+      await cacheService.set(cacheKey, cachedResult, REIT_CACHE_TTL)
+      return cachedResult
+    }
+  } catch {
+    /* cache indisponível → segue para fetch live */
+  }
+
+  // 2. Fora do universo → fetch live (com retry a 429) e cache 24h.
   // Profile com diagnóstico: distingue falha da FMP (key/plano/quota) de ticker inexistente.
   let profile: any = null
-  try {
-    const { data } = await axios.get(`${FMP_BASE}/profile`, {
-      params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
-      timeout: 15000
-    })
-    profile = Array.isArray(data) ? (data[0] ?? null) : data
-  } catch (e: any) {
-    const status = e?.response?.status
-    const body = typeof e?.response?.data === 'string'
-      ? e.response.data.slice(0, 120)
-      : JSON.stringify(e?.response?.data ?? '').slice(0, 120)
-    throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${e?.message || 'erro de rede'}`}`)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const { data } = await axios.get(`${FMP_BASE}/profile`, {
+        params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
+        timeout: 15000
+      })
+      profile = Array.isArray(data) ? (data[0] ?? null) : data
+      break
+    } catch (e: any) {
+      const status = e?.response?.status
+      if (status === 429 && attempt === 0) {
+        await sleep(1500) // rate limit momentâneo (refresh do cron) → 1 retry
+        continue
+      }
+      const body = typeof e?.response?.data === 'string'
+        ? e.response.data.slice(0, 120)
+        : JSON.stringify(e?.response?.data ?? '').slice(0, 120)
+      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${e?.message || 'erro de rede'}`}`)
+    }
   }
   await sleep(150)
   if (!profile || !profile.symbol) throw new Error('Ticker nao encontrado')
@@ -493,6 +544,7 @@ export async function getReitAnalysis(rawTicker: string) {
       ),
     },
     ffoYearsUsed: ffoSeries.length,
+    source: 'live',
     updated: new Date().toISOString()
   }
 
