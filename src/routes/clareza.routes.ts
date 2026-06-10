@@ -10,6 +10,7 @@ router.get('/data', clarezaController.getData)
 router.post('/refresh', clarezaController.refresh)
 
 // Endpoint público — análise REIT por ticker (live FMP, qualquer REIT)
+router.get('/reit-valuation/:ticker', clarezaController.getReitValuation)
 router.get('/reit/:ticker', clarezaController.getReit)
 router.get('/stock/:ticker', clarezaController.getStock)
 
