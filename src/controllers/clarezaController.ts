@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { getClarezaData, refreshClarezaData, getReitAnalysis } from '../services/clareza/clarezaFmpService'
+import { getClarezaData, refreshClarezaData, getReitAnalysis, getStockAnalysis } from '../services/clareza/clarezaFmpService'
 import { getClarezaTop10Data, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
 
 export const clarezaController = {
@@ -60,6 +60,19 @@ export const clarezaController = {
       const msg = error.message || 'Erro interno do servidor'
       const status = /invalido|nao encontrado/i.test(msg) ? 400 : 500
       if (status === 500) console.error('❌ [GET /api/clareza/reit/:ticker]', msg)
+      return res.status(status).json({ error: msg })
+    }
+  },
+
+  async getStock(req: Request, res: Response) {
+    try {
+      const data = await getStockAnalysis(String(req.params.ticker || ''))
+      res.setHeader('Cache-Control', 'public, max-age=3600')
+      return res.json(data)
+    } catch (error: any) {
+      const msg = error.message || 'Erro interno do servidor'
+      const status = /invalido|nao encontrado/i.test(msg) ? 400 : 500
+      if (status === 500) console.error('❌ [GET /api/clareza/stock/:ticker]', msg)
       return res.status(status).json({ error: msg })
     }
   },
