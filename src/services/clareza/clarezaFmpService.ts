@@ -712,16 +712,24 @@ export async function getReitValuation(rawTicker: string) {
 
   let peerSymbols: string[] = []
   try {
-    const peerData = await fmpGet<any>('/stock-peers', { symbol: ticker })
-    const rawPeers = Array.isArray(peerData)
-      ? peerData
-      : peerData?.peersList ?? peerData?.peers ?? []
-    peerSymbols = rawPeers
-      .map((peer: any) => String(peer?.symbol ?? peer ?? '').trim().toUpperCase())
-      .filter((peer: string) => /^[A-Z][A-Z0-9.\-]{0,9}$/.test(peer) && peer !== ticker)
+    // /stock-peers devolve um array de objetos de pares; usar fmpGetArray (não fmpGet).
+    const peerArr = await fmpGetArray<any>('/stock-peers', { symbol: ticker })
+    peerSymbols = peerArr
+      .flatMap((peer: any) =>
+        Array.isArray(peer?.peersList) ? peer.peersList : [peer?.symbol ?? peer]
+      )
+      .map((sym: any) => String(sym ?? '').trim().toUpperCase())
+      .filter((sym: string) => /^[A-Z][A-Z0-9.\-]{0,9}$/.test(sym) && sym !== ticker)
       .slice(0, 5)
   } catch {
     peerSymbols = []
+  }
+  // Fallback: se a FMP não der pares, usar REITs do universo do cron.
+  if (peerSymbols.length === 0) {
+    peerSymbols = UNIVERSE
+      .filter((s) => s.type === 'reit' && s.ticker !== ticker)
+      .slice(0, 5)
+      .map((s) => s.ticker)
   }
   await sleep(150)
 
