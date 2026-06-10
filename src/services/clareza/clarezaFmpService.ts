@@ -789,10 +789,12 @@ export async function getReitValuation(rawTicker: string) {
   const currentYear = String(new Date().getUTCFullYear())
   const completeDividends = allDividends.filter((row) => row.year !== currentYear)
   const dividends = completeDividends.length ? completeDividends : allDividends
-  // Dividendo anual: preferir o rate anualizado do profile (lastDividend); senão o último ano completo.
+  // Dividendo anual = último ANO COMPLETO agregado (como o ficheiro Excel);
+  // lastDividend (rate anualizado do profile) só como fallback. NUNCA o ano parcial.
   const lastDivAnnual = num(profile.lastDividend ?? profile.lastDiv)
-  const dividendAnnual = (lastDivAnnual !== null && lastDivAnnual > 0 ? lastDivAnnual : null)
-    ?? dividends[0]?.annual ?? null
+  const dividendAnnual = dividends[0]?.annual
+    ?? (lastDivAnnual !== null && lastDivAnnual > 0 ? lastDivAnnual : null)
+    ?? null
   const dividendCagr = roundOrNull(calcCagr(dividends.map((row) => row.annual)) !== null
     ? (calcCagr(dividends.map((row) => row.annual)) as number) * 100
     : null)
