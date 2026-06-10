@@ -14,6 +14,7 @@ import './jobs/evaluateRules.job'
 import activecampaignRoutes from './routes/ACroutes/activecampaign.routes'
 import webhooksRoutes from './routes/webhooks.routes'
 import healthRoutes from './routes/health.routes'
+import validationLogsRoutes from './routes/validationLogs.routes'
 
 import { warmUpCache } from './services/syncUtilizadoresServices/dualReadService'
 import cronManagementRoutes from './routes/cron/cronManagement.routes'
@@ -302,6 +303,9 @@ app.use('/api', healthRoutes)
 // Active Campaign routes
 app.use('/api/activecampaign', activecampaignRoutes)
 app.use('/api/webhooks', webhooksRoutes)
+
+// Logs de validação (leitura para o backoffice) → /api/form/logs, /api/form/logs/stats
+app.use('/api/form', validationLogsRoutes)
 
 // Tag Rules (inline routes)
 app.get('/api/tag-rules', getAllTagRules)
