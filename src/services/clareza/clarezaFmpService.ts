@@ -402,6 +402,7 @@ const num = (v: any): number | null =>
   v === null || v === undefined || isNaN(Number(v)) ? null : round2(Number(v))
 
 const REIT_CACHE_PREFIX = 'clareza:reit:'
+const STOCK_CACHE_PREFIX = 'clareza:stock:'
 const REIT_CACHE_TTL = 86400 // 24 horas
 
 // Mapeia uma entrada da cache do cron clareza para o formato da análise REIT.
@@ -428,6 +429,48 @@ function mapClarezaToReit(entry: any) {
       dividendYield:    d.dividendYield ?? null,
       payoutRatio:      d.payoutRatio ?? null,
       interestCoverage: null,            // não calculado no cron → link
+    },
+    source:  'clareza-cache',
+    updated: d.updated ?? new Date().toISOString()
+  }
+}
+
+function div(a: number | null, b: number | null): number | null {
+  return a !== null && b !== null && b !== 0 ? a / b : null
+}
+
+function metricNum(v: any): number | null {
+  return v === null || v === undefined || isNaN(Number(v)) ? null : Number(v)
+}
+
+function mapClarezaToStock(entry: any) {
+  const d = entry?.data ?? {}
+  return {
+    ticker:    entry.ticker,
+    name:      entry.name ?? entry.ticker,
+    sector:    entry.sector ?? null,
+    industry:  null,
+    price:     d.price ?? null,
+    change:    d.change ?? null,
+    beta:      null,
+    marketCap: null,
+    currency:  'USD',
+    metrics: {
+      eps:              null,
+      pe:               d.pe ?? null,
+      vpa:              null,
+      pVpa:             d.pb ?? null,
+      cagrEps:          null,
+      peg:              d.peg ?? null,
+      grossMargin:      d.grossMarginTTM ?? null,
+      ebitdaMargin:     null,
+      netMargin:        d.netMargin ?? null,
+      roe:              d.roe ?? null,
+      netDebtToEbitda:  d.debtEbitda ?? null,
+      currentRatio:     null,
+      cashRatio:        null,
+      dividendYield:    d.dividendYield ?? null,
+      payoutRatio:      d.payoutRatio ?? null,
     },
     source:  'clareza-cache',
     updated: d.updated ?? new Date().toISOString()
@@ -544,6 +587,141 @@ export async function getReitAnalysis(rawTicker: string) {
       ),
     },
     ffoYearsUsed: ffoSeries.length,
+    source: 'live',
+    updated: new Date().toISOString()
+  }
+
+  await cacheService.set(cacheKey, result, REIT_CACHE_TTL)
+  return result
+}
+
+export async function getStockAnalysis(rawTicker: string) {
+  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+
+  const ticker = String(rawTicker || '').trim().toUpperCase()
+  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) throw new Error('Ticker invalido')
+
+  const cacheKey = STOCK_CACHE_PREFIX + ticker
+  const cached = await cacheService.get<any>(cacheKey)
+  if (cached) return cached
+
+  try {
+    const universe = await getClarezaData()
+    const hit = universe?.find((s: any) => s?.ticker === ticker && s?.data)
+    if (hit) {
+      const cachedResult = mapClarezaToStock(hit)
+      await cacheService.set(cacheKey, cachedResult, REIT_CACHE_TTL)
+      return cachedResult
+    }
+  } catch {
+    /* cache indisponivel -> segue para fetch live */
+  }
+
+  let profile: any = null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const { data } = await axios.get(`${FMP_BASE}/profile`, {
+        params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
+        timeout: 15000
+      })
+      profile = Array.isArray(data) ? (data[0] ?? null) : data
+      break
+    } catch (e: any) {
+      const status = e?.response?.status
+      if (status === 429 && attempt === 0) {
+        await sleep(1500)
+        continue
+      }
+      const body = typeof e?.response?.data === 'string'
+        ? e.response.data.slice(0, 120)
+        : JSON.stringify(e?.response?.data ?? '').slice(0, 120)
+      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${e?.message || 'erro de rede'}`}`)
+    }
+  }
+  await sleep(150)
+  if (!profile || !profile.symbol) throw new Error('Ticker nao encontrado')
+
+  const incomes = await fmpGetArray('/income-statement', { symbol: ticker, period: 'annual', limit: '2' }); await sleep(150)
+  const balance = await fmpGet('/balance-sheet-statement', { symbol: ticker, period: 'annual', limit: '1' }); await sleep(150)
+  const cashFlow = await fmpGet('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '1' }); await sleep(150)
+  const ratios = await fmpGet('/ratios-ttm', { symbol: ticker }); await sleep(150)
+  const keyMetrics = await fmpGet('/key-metrics-ttm', { symbol: ticker })
+
+  const latest = incomes[0] ?? null
+  const previous = incomes[1] ?? null
+  const price = metricNum(profile.price)
+  const shares = metricNum(latest?.weightedAverageShsOutDil ?? latest?.weightedAverageShsOut)
+  const previousShares = metricNum(previous?.weightedAverageShsOutDil ?? previous?.weightedAverageShsOut)
+  const netIncome = metricNum(latest?.netIncome)
+  const previousNetIncome = metricNum(previous?.netIncome)
+  const revenue = metricNum(latest?.revenue)
+  const grossProfit = metricNum(latest?.grossProfit)
+  const ebitda = metricNum(latest?.ebitda)
+  const equity = metricNum(balance?.totalStockholdersEquity)
+  const currentAssets = metricNum(balance?.totalCurrentAssets)
+  const currentLiabilities = metricNum(balance?.totalCurrentLiabilities)
+  const cash = metricNum(balance?.cashAndShortTermInvestments)
+  const shortTermDebt = metricNum(balance?.shortTermDebt)
+  const longTermDebt = metricNum(balance?.longTermDebt)
+  const derivedDebt = shortTermDebt !== null || longTermDebt !== null
+    ? (shortTermDebt ?? 0) + (longTermDebt ?? 0)
+    : null
+  const totalDebt = metricNum(
+    balance?.totalDebt ??
+    balance?.totalDebtAndCapitalLeaseObligations ??
+    derivedDebt
+  )
+  const netDebt = metricNum(balance?.netDebt) ?? (
+    totalDebt !== null && cash !== null ? totalDebt - cash : null
+  )
+  const dividendsPaidRaw = cashFlow?.dividendsPaid ?? cashFlow?.netDividendsPaid
+  const dividendsPaid = dividendsPaidRaw != null ? Math.abs(Number(dividendsPaidRaw)) : null
+
+  const epsRaw = metricNum(latest?.epsdiluted ?? latest?.eps)
+  const previousEpsRaw = metricNum(previous?.epsdiluted ?? previous?.eps)
+  const epsValue = epsRaw ?? div(netIncome, shares)
+  const previousEps = previousEpsRaw ?? div(previousNetIncome, previousShares)
+  const vpaValue = div(equity, shares)
+  const peValue = div(price, epsValue) ?? metricNum(ratios?.priceToEarningsRatioTTM)
+  const pVpaValue = div(price, vpaValue) ?? metricNum(ratios?.priceToBookRatioTTM)
+  const cagrEpsValue = epsValue !== null && previousEps !== null && previousEps !== 0
+    ? ((epsValue / previousEps) - 1) * 100
+    : null
+  const pegValue = div(peValue, cagrEpsValue) ??
+    metricNum(ratios?.forwardPriceToEarningsGrowthRatioTTM ?? ratios?.priceToEarningsGrowthRatioTTM)
+  const dividendPerShare = div(dividendsPaid, shares)
+
+  const result = {
+    ticker,
+    name:      profile.companyName ?? ticker,
+    sector:    profile.sector ?? null,
+    industry:  profile.industry ?? null,
+    price,
+    change:    profile.changePercentage ?? null,
+    beta:      num(profile.beta),
+    marketCap: profile.marketCap ?? null,
+    currency:  profile.currency ?? 'USD',
+    metrics: {
+      eps:              epsValue !== null ? round2(epsValue) : null,
+      pe:               peValue !== null ? round2(peValue) : null,
+      vpa:              vpaValue !== null ? round2(vpaValue) : null,
+      pVpa:             pVpaValue !== null ? round2(pVpaValue) : null,
+      cagrEps:          cagrEpsValue !== null ? round2(cagrEpsValue) : null,
+      peg:              pegValue !== null ? round2(pegValue) : null,
+      grossMargin:      div(grossProfit, revenue) !== null ? round2((div(grossProfit, revenue) as number) * 100) : safe(ratios?.grossProfitMarginTTM, 100),
+      ebitdaMargin:     div(ebitda, revenue) !== null ? round2((div(ebitda, revenue) as number) * 100) : null,
+      netMargin:        div(netIncome, revenue) !== null ? round2((div(netIncome, revenue) as number) * 100) : safe(ratios?.netProfitMarginTTM, 100),
+      roe:              div(netIncome, equity) !== null ? round2((div(netIncome, equity) as number) * 100) : safe(keyMetrics?.returnOnEquityTTM, 100),
+      netDebtToEbitda:  div(netDebt, ebitda) !== null ? round2(div(netDebt, ebitda) as number) : num(keyMetrics?.netDebtToEBITDATTM),
+      currentRatio:     div(currentAssets, currentLiabilities) !== null ? round2(div(currentAssets, currentLiabilities) as number) : num(ratios?.currentRatioTTM),
+      cashRatio:        div(cash, currentLiabilities) !== null ? round2(div(cash, currentLiabilities) as number) : num(ratios?.cashRatioTTM),
+      dividendYield:    dividendPerShare !== null && price !== null && price !== 0
+        ? round2((dividendPerShare / price) * 100)
+        : safe(ratios?.dividendYieldTTM, 100),
+      payoutRatio:      dividendPerShare !== null && epsValue !== null && epsValue !== 0
+        ? round2((dividendPerShare / epsValue) * 100)
+        : safe(ratios?.dividendPayoutRatioTTM, 100),
+    },
     source: 'live',
     updated: new Date().toISOString()
   }
