@@ -403,6 +403,7 @@ const num = (v: any): number | null =>
 
 const REIT_CACHE_PREFIX = 'clareza:reit:'
 const STOCK_CACHE_PREFIX = 'clareza:stock:v2:'
+const REIT_VALUATION_CACHE_PREFIX = 'clareza:reitval:'
 const REIT_CACHE_TTL = 86400 // 24 horas
 
 // Mapeia uma entrada da cache do cron clareza para o formato da análise REIT.
@@ -441,6 +442,67 @@ function div(a: number | null, b: number | null): number | null {
 
 function metricNum(v: any): number | null {
   return v === null || v === undefined || isNaN(Number(v)) ? null : Number(v)
+}
+
+function roundOrNull(v: number | null): number | null {
+  return v === null || !Number.isFinite(v) ? null : round2(v)
+}
+
+function yearOf(row: any): string | null {
+  return String(row?.calendarYear ?? row?.year ?? row?.date ?? '').slice(0, 4) || null
+}
+
+function average(values: Array<number | null>): number | null {
+  const valid = values.filter((v): v is number => v !== null && Number.isFinite(v))
+  return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : null
+}
+
+function calcCagr(values: number[]): number | null {
+  const valid = values.filter((value) => Number.isFinite(value) && value > 0)
+  if (valid.length < 2) return null
+  const newest = valid[0]
+  const oldest = valid[valid.length - 1]
+  return Math.pow(newest / oldest, 1 / (valid.length - 1)) - 1
+}
+
+function buildFfoRow(income: any, cashFlow?: any) {
+  const shares = metricNum(income?.weightedAverageShsOutDil ?? income?.weightedAverageShsOut)
+  const netIncome = metricNum(income?.netIncome)
+  const depreciation = metricNum(
+    income?.depreciationAndAmortization ?? cashFlow?.depreciationAndAmortization
+  )
+  const capex = metricNum(cashFlow?.capitalExpenditure)
+  const ffo = netIncome !== null && depreciation !== null ? netIncome + depreciation : null
+  const ffoPerShare = div(ffo, shares)
+  const capexPerShare = div(capex, shares)
+  const affo = ffo !== null && capex !== null ? ffo - Math.abs(capex) : null
+  const affoPerShare = div(affo, shares)
+
+  return { shares, ffo, ffoPerShare, capex, capexPerShare, affoPerShare }
+}
+
+function cashFlowByYear(cashFlows: any[]) {
+  const byYear = new Map<string, any>()
+  for (const row of cashFlows) {
+    const year = yearOf(row)
+    if (year) byYear.set(year, row)
+  }
+  return byYear
+}
+
+function aggregateDividends(rows: any[]) {
+  const byYear = new Map<string, number>()
+  for (const row of rows) {
+    const year = yearOf(row)
+    const dividend = metricNum(row?.adjDividend ?? row?.dividend)
+    if (!year || dividend === null) continue
+    byYear.set(year, (byYear.get(year) ?? 0) + dividend)
+  }
+
+  return Array.from(byYear.entries())
+    .map(([year, annual]) => ({ year, annual: round2(annual) }))
+    .sort((a, b) => Number(b.year) - Number(a.year))
+    .slice(0, 6)
 }
 
 function mapClarezaToStock(entry: any) {
@@ -587,6 +649,168 @@ export async function getReitAnalysis(rawTicker: string) {
       ),
     },
     ffoYearsUsed: ffoSeries.length,
+    source: 'live',
+    updated: new Date().toISOString()
+  }
+
+  await cacheService.set(cacheKey, result, REIT_CACHE_TTL)
+  return result
+}
+
+export async function getReitValuation(rawTicker: string) {
+  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+
+  const ticker = String(rawTicker || '').trim().toUpperCase()
+  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) throw new Error('Ticker invalido')
+
+  const cacheKey = REIT_VALUATION_CACHE_PREFIX + ticker
+  const cached = await cacheService.get<any>(cacheKey)
+  if (cached) return cached
+
+  let profile: any = null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const { data } = await axios.get(`${FMP_BASE}/profile`, {
+        params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
+        timeout: 15000
+      })
+      profile = Array.isArray(data) ? (data[0] ?? null) : data
+      break
+    } catch (e: any) {
+      const status = e?.response?.status
+      if (status === 429 && attempt === 0) {
+        await sleep(1500)
+        continue
+      }
+      const body = typeof e?.response?.data === 'string'
+        ? e.response.data.slice(0, 120)
+        : JSON.stringify(e?.response?.data ?? '').slice(0, 120)
+      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${e?.message || 'erro de rede'}`}`)
+    }
+  }
+  await sleep(150)
+  if (!profile || !profile.symbol) throw new Error('Ticker nao encontrado')
+
+  const incomes = await fmpGetArray('/income-statement', { symbol: ticker, period: 'annual', limit: '6' }); await sleep(150)
+  const cashFlows = await fmpGetArray('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '6' }); await sleep(150)
+
+  let enterpriseValues: any[] = []
+  try {
+    enterpriseValues = await fmpGetArray('/enterprise-values', { symbol: ticker, period: 'annual', limit: '6' })
+  } catch {
+    enterpriseValues = []
+  }
+  await sleep(150)
+
+  let dividendsRaw: any[] = []
+  try {
+    dividendsRaw = await fmpGetArray('/dividends', { symbol: ticker, limit: '120' })
+  } catch {
+    dividendsRaw = []
+  }
+  await sleep(150)
+
+  let peerSymbols: string[] = []
+  try {
+    const peerData = await fmpGet<any>('/stock-peers', { symbol: ticker })
+    const rawPeers = Array.isArray(peerData)
+      ? peerData
+      : peerData?.peersList ?? peerData?.peers ?? []
+    peerSymbols = rawPeers
+      .map((peer: any) => String(peer?.symbol ?? peer ?? '').trim().toUpperCase())
+      .filter((peer: string) => /^[A-Z][A-Z0-9.\-]{0,9}$/.test(peer) && peer !== ticker)
+      .slice(0, 5)
+  } catch {
+    peerSymbols = []
+  }
+  await sleep(150)
+
+  const cashByYear = cashFlowByYear(cashFlows)
+  const enterpriseByYear = new Map<string, any>()
+  for (const row of enterpriseValues) {
+    const year = yearOf(row)
+    if (year) enterpriseByYear.set(year, row)
+  }
+
+  const history = incomes
+    .map((income: any) => {
+      const year = yearOf(income)
+      const cashFlow = year ? cashByYear.get(year) : null
+      const enterprise = year ? enterpriseByYear.get(year) : null
+      const ffoRow = buildFfoRow(income, cashFlow)
+      const yearPrice = metricNum(enterprise?.stockPrice ?? enterprise?.price)
+      const pFfo = div(yearPrice, ffoRow.ffoPerShare)
+      return {
+        year,
+        price: roundOrNull(yearPrice),
+        ffoPerShare: roundOrNull(ffoRow.ffoPerShare),
+        pFfo: roundOrNull(pFfo)
+      }
+    })
+    .filter((row) => row.year)
+
+  const latestIncome = incomes[0] ?? null
+  const latestYear = yearOf(latestIncome)
+  const latestCashFlow = latestYear ? cashByYear.get(latestYear) : cashFlows[0]
+  const currentRow = buildFfoRow(latestIncome, latestCashFlow)
+  const profileShares = metricNum(profile.sharesOutstanding ?? profile.sharesOut)
+  const sharesOut = currentRow.shares ?? profileShares
+  const price = metricNum(profile.price)
+  const dividends = aggregateDividends(dividendsRaw)
+  const dividendAnnual = num(profile.lastDiv) ?? dividends[0]?.annual ?? null
+  const dividendCagr = roundOrNull(calcCagr(dividends.map((row) => row.annual)) !== null
+    ? (calcCagr(dividends.map((row) => row.annual)) as number) * 100
+    : null)
+
+  const peerTasks = peerSymbols.map((peerTicker) => async () => {
+    const [peerProfile, peerIncomes, peerCashFlows] = await Promise.all([
+      fmpGet<any>('/profile', { symbol: peerTicker }),
+      fmpGetArray('/income-statement', { symbol: peerTicker, period: 'annual', limit: '1' }),
+      fmpGetArray('/cash-flow-statement', { symbol: peerTicker, period: 'annual', limit: '1' })
+    ])
+    await sleep(150)
+    const peerRow = buildFfoRow(peerIncomes[0], peerCashFlows[0])
+    const peerPrice = metricNum(peerProfile?.price)
+    return {
+      ticker: peerTicker,
+      name: peerProfile?.companyName ?? peerTicker,
+      price: roundOrNull(peerPrice),
+      ffoPerShare: roundOrNull(peerRow.ffoPerShare),
+      capexPerShare: roundOrNull(peerRow.capexPerShare),
+      affoPerShare: roundOrNull(peerRow.affoPerShare),
+      pAffo: roundOrNull(div(peerPrice, peerRow.affoPerShare))
+    }
+  })
+  const peers = peerTasks.length ? await runWithConcurrency(peerTasks, 2) : []
+
+  const pFfoAvg = roundOrNull(average(history.slice(0, 5).map((row) => row.pFfo)))
+  const pAffoAvg = roundOrNull(average(peers.map((peer) => peer.pAffo)))
+  const affoPayout = dividendAnnual !== null && currentRow.affoPerShare
+    ? round2((dividendAnnual / currentRow.affoPerShare) * 100)
+    : null
+
+  const result = {
+    ticker,
+    name: profile.companyName ?? ticker,
+    price: roundOrNull(price),
+    beta: num(profile.beta),
+    sharesOut: sharesOut !== null ? Math.round(sharesOut) : null,
+    currency: profile.currency ?? 'USD',
+    current: {
+      ffo: roundOrNull(currentRow.ffo),
+      ffoPerShare: roundOrNull(currentRow.ffoPerShare),
+      affoPerShare: roundOrNull(currentRow.affoPerShare),
+      dividendAnnual,
+      capex: roundOrNull(currentRow.capex),
+      capexPerShare: roundOrNull(currentRow.capexPerShare)
+    },
+    history,
+    pFfoAvg,
+    dividends,
+    dividendCagr,
+    peers,
+    pAffoAvg,
+    affoPayout,
     source: 'live',
     updated: new Date().toISOString()
   }
