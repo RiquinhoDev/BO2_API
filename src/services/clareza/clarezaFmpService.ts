@@ -402,7 +402,7 @@ const num = (v: any): number | null =>
   v === null || v === undefined || isNaN(Number(v)) ? null : round2(Number(v))
 
 const REIT_CACHE_PREFIX = 'clareza:reit:'
-const STOCK_CACHE_PREFIX = 'clareza:stock:'
+const STOCK_CACHE_PREFIX = 'clareza:stock:v2:'
 const REIT_CACHE_TTL = 86400 // 24 horas
 
 // Mapeia uma entrada da cache do cron clareza para o formato da análise REIT.
@@ -605,18 +605,8 @@ export async function getStockAnalysis(rawTicker: string) {
   const cached = await cacheService.get<any>(cacheKey)
   if (cached) return cached
 
-  try {
-    const universe = await getClarezaData()
-    const hit = universe?.find((s: any) => s?.ticker === ticker && s?.data)
-    if (hit) {
-      const cachedResult = mapClarezaToStock(hit)
-      await cacheService.set(cacheKey, cachedResult, REIT_CACHE_TTL)
-      return cachedResult
-    }
-  } catch {
-    /* cache indisponivel -> segue para fetch live */
-  }
-
+  // Calcula sempre live (16 indicadores das demonstrações). A cache do cron
+  // (parcial) é usada apenas como fallback se a FMP falhar (ver catch abaixo).
   let profile: any = null
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -632,6 +622,16 @@ export async function getStockAnalysis(rawTicker: string) {
         await sleep(1500)
         continue
       }
+      // Live falhou (rate limit / erro) -> fallback parcial da cache do cron.
+      try {
+        const universe = await getClarezaData()
+        const hit = universe?.find((s: any) => s?.ticker === ticker && s?.data)
+        if (hit) {
+          const partial = mapClarezaToStock(hit)
+          await cacheService.set(cacheKey, partial, REIT_CACHE_TTL)
+          return partial
+        }
+      } catch { /* sem cache -> propaga o erro original */ }
       const body = typeof e?.response?.data === 'string'
         ? e.response.data.slice(0, 120)
         : JSON.stringify(e?.response?.data ?? '').slice(0, 120)
