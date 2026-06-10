@@ -15,6 +15,7 @@ import activecampaignRoutes from './routes/ACroutes/activecampaign.routes'
 import webhooksRoutes from './routes/webhooks.routes'
 import healthRoutes from './routes/health.routes'
 import validationLogsRoutes from './routes/validationLogs.routes'
+import courseLessonsRoutes from './routes/courseLessons.routes'
 
 import { warmUpCache } from './services/syncUtilizadoresServices/dualReadService'
 import cronManagementRoutes from './routes/cron/cronManagement.routes'
@@ -51,6 +52,7 @@ import "./models/acTags/CommunicationHistory"
 import "./models/cron/CronConfig"
 import "./models/cron/CronExecution"
 import "./models/DashboardStats"
+import "./models/CourseLesson"
 
 // 🆕 SYNC UTILIZADORES FASE 1: Importar novos modelos
 import "./models/SyncModels/CronJobConfig"
@@ -295,6 +297,7 @@ app.use("/api", router)
 app.use('/api/analytics/cohort', cohortAnalyticsRoutes)
 app.use('/api/analytics/product-sales', productSalesStatsRoutes)
 app.use('/api/business-analytics', businessAnalyticsRoutes)
+app.use('/api/course-lessons', courseLessonsRoutes)
 
 // System routes
 app.use("/api/metrics", metricsRoutes)

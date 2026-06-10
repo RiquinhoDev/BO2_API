@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 import Product from '../models/product/Product'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
+import CourseLesson from '../models/CourseLesson'
 import { evaluateAchievements } from './achievements/achievementEvaluator'
 import { ACHIEVEMENT_DEFINITIONS } from './achievements/achievementDefinitions'
 
@@ -11,6 +12,7 @@ type StudentSummarySource = 'userProduct' | 'legacyHotmart' | 'none'
 
 const ProductReadModel = Product as unknown as MongooseReadModel
 const UserProductReadModel = UserProduct as unknown as MongooseReadModel
+const CourseLessonReadModel = CourseLesson as unknown as MongooseReadModel
 
 interface JwtStudentPayload {
   email?: string
@@ -24,6 +26,16 @@ interface OgiModuleSummary {
   completedLessons: number
   percentage: number
   completed: boolean
+}
+
+type ContinueLessonStatus = 'next' | 'resume' | 'start'
+
+interface OgiContinueLesson {
+  pageId: string
+  pageName: string
+  moduleName: string
+  url: string
+  status: ContinueLessonStatus
 }
 
 export interface StudentOgiSummary {
@@ -44,6 +56,7 @@ export interface StudentOgiSummary {
     totalLessons: number
     currentModule?: OgiModuleSummary
     nextModule?: OgiModuleSummary
+    continueLesson?: OgiContinueLesson
     lastActivity?: Date
     modules: OgiModuleSummary[]
   }
@@ -138,6 +151,15 @@ interface UserProductLean {
   }
 }
 
+interface CourseLessonLean {
+  pageId: string
+  pageName: string
+  moduleName: string
+  moduleSequence: number
+  lessonSequence: number
+  url?: string
+}
+
 export function normalizeStudentEmail(email: string): string {
   return email.trim().toLowerCase()
 }
@@ -212,10 +234,10 @@ async function findOgiUserProduct(
     .exec() as Promise<UserProductLean | null>
 }
 
-function buildStudentOgiSummary(
+async function buildStudentOgiSummary(
   user: StudentLean & { achievements?: any[]; achievementStats?: any },
   userProduct: UserProductLean | null
-): StudentOgiSummary {
+): Promise<StudentOgiSummary> {
   const modules = buildModuleSummaries(userProduct)
   const source = getSummarySource(user, userProduct)
   const totalLessons = getTotalLessons(user, userProduct, modules)
@@ -223,6 +245,7 @@ function buildStudentOgiSummary(
   const percentage = getProgressPercentage(user, userProduct, completedLessons, totalLessons)
   const purchaseDate = userProduct?.metadata?.purchaseDate || user.hotmart?.purchaseDate
   const enrolledAt = userProduct?.enrolledAt || user.hotmart?.signupDate
+  const continueLesson = await buildContinueLesson(userProduct)
 
   // Construir achievements a partir do cache no User doc
   const achievementsData = buildAchievementsResponse(user.achievements, user.achievementStats)
@@ -245,6 +268,7 @@ function buildStudentOgiSummary(
       totalLessons,
       currentModule: findCurrentModule(modules),
       nextModule: findNextModule(modules),
+      continueLesson,
       lastActivity: getLastActivity(user, userProduct),
       modules
     },
@@ -253,6 +277,46 @@ function buildStudentOgiSummary(
       lastSyncAt: userProduct?.updatedAt || user.hotmart?.lastSyncAt
     },
     achievements: achievementsData,
+  }
+}
+
+async function buildContinueLesson(userProduct: UserProductLean | null): Promise<OgiContinueLesson | undefined> {
+  const catalog = await CourseLessonReadModel.find({
+    isActive: true,
+    courseCode: /^OGI/i
+  })
+    .sort({ moduleSequence: 1, lessonSequence: 1 })
+    .select('pageId pageName moduleName moduleSequence lessonSequence url')
+    .lean()
+    .exec() as unknown as CourseLessonLean[]
+
+  if (catalog.length === 0) return undefined
+
+  const completedPageIds = new Set(userProduct?.progress?.lessonsCompleted || [])
+  const hasStarted = completedPageIds.size > 0
+
+  if (!hasStarted) {
+    return toContinueLesson(catalog[0], 'start')
+  }
+
+  const firstIncomplete = catalog.find((lesson) => !completedPageIds.has(lesson.pageId))
+  if (firstIncomplete) {
+    return toContinueLesson(firstIncomplete, 'next')
+  }
+
+  return toContinueLesson(catalog[catalog.length - 1], 'resume')
+}
+
+function toContinueLesson(
+  lesson: CourseLessonLean,
+  status: ContinueLessonStatus
+): OgiContinueLesson {
+  return {
+    pageId: lesson.pageId,
+    pageName: lesson.pageName,
+    moduleName: lesson.moduleName,
+    url: lesson.url || '',
+    status
   }
 }
 
