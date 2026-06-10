@@ -756,8 +756,15 @@ export async function getReitValuation(rawTicker: string) {
   const profileShares = metricNum(profile.sharesOutstanding ?? profile.sharesOut)
   const sharesOut = currentRow.shares ?? profileShares
   const price = metricNum(profile.price)
-  const dividends = aggregateDividends(dividendsRaw)
-  const dividendAnnual = num(profile.lastDiv) ?? dividends[0]?.annual ?? null
+  const allDividends = aggregateDividends(dividendsRaw)
+  // Excluir o ano civil corrente (quase sempre parcial) dos cálculos do DDM.
+  const currentYear = String(new Date().getUTCFullYear())
+  const completeDividends = allDividends.filter((row) => row.year !== currentYear)
+  const dividends = completeDividends.length ? completeDividends : allDividends
+  // Dividendo anual: preferir o rate anualizado do profile (lastDividend); senão o último ano completo.
+  const lastDivAnnual = num(profile.lastDividend ?? profile.lastDiv)
+  const dividendAnnual = (lastDivAnnual !== null && lastDivAnnual > 0 ? lastDivAnnual : null)
+    ?? dividends[0]?.annual ?? null
   const dividendCagr = roundOrNull(calcCagr(dividends.map((row) => row.annual)) !== null
     ? (calcCagr(dividends.map((row) => row.annual)) as number) * 100
     : null)
