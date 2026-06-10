@@ -710,6 +710,26 @@ export async function getReitValuation(rawTicker: string) {
   }
   await sleep(150)
 
+  // Cockpit: balanço (equity, dívida) + price target.
+  let balance: any = null
+  try {
+    balance = await fmpGet('/balance-sheet-statement', { symbol: ticker, period: 'annual', limit: '1' })
+  } catch {
+    balance = null
+  }
+  await sleep(150)
+
+  let priceTarget: number | null = null
+  try {
+    const pt = await fmpGet<any>('/price-target-summary', { symbol: ticker })
+    priceTarget = num(
+      pt?.lastMonthAvgPriceTarget ?? pt?.allTimeAvgPriceTarget ?? pt?.targetConsensus ?? pt?.priceTarget
+    )
+  } catch {
+    priceTarget = null
+  }
+  await sleep(150)
+
   let peerSymbols: string[] = []
   try {
     // /stock-peers devolve um array de objetos de pares; usar fmpGetArray (não fmpGet).
@@ -804,6 +824,45 @@ export async function getReitValuation(rawTicker: string) {
     ? round2((dividendAnnual / currentRow.affoPerShare) * 100)
     : null
 
+  // ── Cockpit (resumo de indicadores, auto-preenchido) ──
+  const cRevenue = metricNum(latestIncome?.revenue)
+  const cNetIncome = metricNum(latestIncome?.netIncome)
+  const cEbitda = metricNum(latestIncome?.ebitda)
+  const cGross = metricNum(latestIncome?.grossProfit)
+  const cOperating = metricNum(latestIncome?.operatingIncome)
+  const cEps = metricNum(latestIncome?.epsdiluted ?? latestIncome?.eps) ?? div(cNetIncome, sharesOut)
+  const cEquity = metricNum(balance?.totalStockholdersEquity)
+  const cCash = metricNum(balance?.cashAndShortTermInvestments)
+  const cTotalDebt = metricNum(
+    balance?.totalDebt ?? ((metricNum(balance?.shortTermDebt) ?? 0) + (metricNum(balance?.longTermDebt) ?? 0))
+  )
+  const cNetDebt = metricNum(balance?.netDebt) ?? (cTotalDebt !== null && cCash !== null ? cTotalDebt - cCash : null)
+  const pct = (n: number | null, d: number | null) => (div(n, d) !== null ? round2((div(n, d) as number) * 100) : null)
+  const histReturn = (idx: number) => {
+    const past = metricNum(history[idx]?.price)
+    return price !== null && past ? round2((price / past - 1) * 100) : null
+  }
+  const cockpit = {
+    revenue: roundOrNull(cRevenue),
+    netIncome: roundOrNull(cNetIncome),
+    ebitda: roundOrNull(cEbitda),
+    equity: roundOrNull(cEquity),
+    netDebt: roundOrNull(cNetDebt),
+    marketCap: num(profile.marketCap),
+    grossMargin: pct(cGross, cRevenue),
+    operatingMargin: pct(cOperating, cRevenue),
+    netMargin: pct(cNetIncome, cRevenue),
+    roe: pct(cNetIncome, cEquity),
+    netDebtToEbitda: div(cNetDebt, cEbitda) !== null ? round2(div(cNetDebt, cEbitda) as number) : null,
+    pFfo: roundOrNull(div(price, currentRow.ffoPerShare)),
+    dividendYield: dividendAnnual !== null && price ? round2((dividendAnnual / price) * 100) : null,
+    payoutEarnings: dividendAnnual !== null && cEps ? round2((dividendAnnual / cEps) * 100) : null,
+    return1y: histReturn(1),
+    return2y: histReturn(2),
+    return5y: histReturn(5),
+    priceTarget
+  }
+
   const result = {
     ticker,
     name: profile.companyName ?? ticker,
@@ -819,6 +878,7 @@ export async function getReitValuation(rawTicker: string) {
       capex: roundOrNull(currentRow.capex),
       capexPerShare: roundOrNull(currentRow.capexPerShare)
     },
+    cockpit,
     history,
     pFfoAvg,
     dividends,
