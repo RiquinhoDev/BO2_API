@@ -6,6 +6,8 @@ import UserProduct from '../models/UserProduct'
 import CourseLesson from '../models/CourseLesson'
 import { evaluateAchievements } from './achievements/achievementEvaluator'
 import { ACHIEVEMENT_DEFINITIONS } from './achievements/achievementDefinitions'
+import { findRenewalOffer } from './renewal/renewalMatcher.service'
+import { parseTurmaName } from './renewal/turmaParser'
 
 type MongooseReadModel = mongoose.Model<mongoose.Document>
 type StudentSummarySource = 'userProduct' | 'legacyHotmart' | 'none'
@@ -49,6 +51,8 @@ export interface StudentOgiSummary {
     enrolledAt?: Date
     purchaseDate?: Date
     expiresAt?: Date
+    renewalUrl?: string | null
+    turmaNumber?: number | null
   }
   progress: {
     percentage: number
@@ -88,6 +92,12 @@ interface LegacyHotmartData {
   purchaseDate?: Date
   signupDate?: Date
   lastAccessDate?: Date
+  enrolledClasses?: Array<{
+    classId?: string
+    className?: string
+    isActive?: boolean
+    enrolledAt?: Date
+  }>
   progress?: {
     completedLessons?: number
     lessonsData?: Array<{
@@ -246,6 +256,16 @@ async function buildStudentOgiSummary(
   const purchaseDate = userProduct?.metadata?.purchaseDate || user.hotmart?.purchaseDate
   const enrolledAt = userProduct?.enrolledAt || user.hotmart?.signupDate
   const continueLesson = await buildContinueLesson(userProduct)
+  const activeClassName = getActiveHotmartClassName(user)
+  const parsedTurma = activeClassName ? parseTurmaName(activeClassName) : null
+  const fallbackExpiresAt = calculateExpirationDate(purchaseDate || enrolledAt)
+  const expiresAt = parsedTurma?.hasExpiry && parsedTurma.accessEndOgi
+    ? parsedTurma.accessEndOgi
+    : fallbackExpiresAt
+  const renewalOffer = await findRenewalOffer({
+    turmaNumber: parsedTurma?.turmaNumber,
+    periodYYMM: parsedTurma?.periodYYMM
+  })
 
   // Construir achievements a partir do cache no User doc
   const achievementsData = buildAchievementsResponse(user.achievements, user.achievementStats)
@@ -260,7 +280,9 @@ async function buildStudentOgiSummary(
       status: userProduct?.status || (user.hotmart ? 'ACTIVE' : 'UNKNOWN'),
       enrolledAt,
       purchaseDate,
-      expiresAt: calculateExpirationDate(purchaseDate || enrolledAt)
+      expiresAt,
+      renewalUrl: renewalOffer?.link || null,
+      turmaNumber: parsedTurma?.turmaNumber ?? null
     },
     progress: {
       percentage,
@@ -372,6 +394,14 @@ function getSummarySource(user: StudentLean, userProduct: UserProductLean | null
   if (userProduct) return 'userProduct'
   if (user.hotmart) return 'legacyHotmart'
   return 'none'
+}
+
+function getActiveHotmartClassName(user: StudentLean): string | undefined {
+  const classes = user.hotmart?.enrolledClasses || []
+  const activeClass = classes.find((classItem) => classItem.className && classItem.isActive !== false)
+    || classes.find((classItem) => classItem.className)
+
+  return activeClass?.className
 }
 
 function getTotalLessons(
