@@ -1,4 +1,5 @@
 import axios from 'axios'
+import Product from '../../models/product/Product'
 import RenewalOffer from '../../models/RenewalOffer'
 import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServices/hotmart.helpers'
 import { parseOfferName } from './turmaParser'
@@ -18,6 +19,12 @@ interface HotmartOfferSnapshot {
   offerName: string
 }
 
+type MongooseReadModel = {
+  findOne: (...args: any[]) => any
+}
+
+const ProductReadModel = Product as unknown as MongooseReadModel
+
 function getValue(obj: any, path: string): any {
   return path.split('.').reduce((acc, key) => acc?.[key], obj)
 }
@@ -26,6 +33,16 @@ function firstString(obj: any, paths: string[]): string | null {
   for (const path of paths) {
     const value = getValue(obj, path)
     if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
+
+function firstScalarString(obj: any, paths: string[]): string | null {
+  for (const path of paths) {
+    const value = getValue(obj, path)
+    if ((typeof value === 'string' || typeof value === 'number') && String(value).trim()) {
+      return String(value).trim()
+    }
   }
   return null
 }
@@ -62,6 +79,26 @@ function extractOfferFromSale(item: any): HotmartOfferSnapshot | null {
   return { offerCode, offerName }
 }
 
+function extractProductIdFromSale(item: any): string | null {
+  return firstScalarString(item, [
+    'purchase.product.id',
+    'purchase.product.product_id',
+    'purchase.product.ucode',
+    'purchase.productId',
+    'purchase.product_id',
+    'product.id',
+    'product.product_id',
+    'product.ucode',
+    'productId',
+    'product_id'
+  ])
+}
+
+function isOgiSale(item: any, ogiHotmartProductId: string): boolean {
+  const productId = extractProductIdFromSale(item)
+  return Boolean(productId && productId === ogiHotmartProductId)
+}
+
 function extractSalesItems(responseData: any): any[] {
   const candidates = [
     responseData?.items,
@@ -88,7 +125,34 @@ function buildCheckoutLink(offerCode: string): string {
   return `${CHECKOUT_BASE_URL}?off=${encodeURIComponent(offerCode)}&checkoutMode=10`
 }
 
-async function fetchHotmartOffers(accessToken: string): Promise<HotmartOfferSnapshot[]> {
+async function resolveOgiHotmartProductId(): Promise<string> {
+  const envProductId = process.env.HOTMART_OGI_PRODUCT_ID?.trim()
+  if (envProductId) return envProductId
+
+  const ogiProduct = await ProductReadModel.findOne({
+    platform: 'hotmart',
+    isActive: true,
+    $or: [
+      { code: /^OGI/i },
+      { courseCode: /^OGI/i },
+      { name: /Grande Investimento/i }
+    ]
+  })
+    .select('hotmartProductId')
+    .lean()
+    .exec() as { hotmartProductId?: string } | null
+
+  if (!ogiProduct?.hotmartProductId) {
+    throw new Error('HOTMART_OGI_PRODUCT_ID não configurado e produto OGI sem hotmartProductId na BD')
+  }
+
+  return ogiProduct.hotmartProductId
+}
+
+async function fetchHotmartOffers(
+  accessToken: string,
+  ogiHotmartProductId: string
+): Promise<HotmartOfferSnapshot[]> {
   const offers = new Map<string, HotmartOfferSnapshot>()
   let pageToken: string | null = null
   let page = 0
@@ -108,6 +172,8 @@ async function fetchHotmartOffers(accessToken: string): Promise<HotmartOfferSnap
     })
 
     for (const item of extractSalesItems(response.data)) {
+      if (!isOgiSale(item, ogiHotmartProductId)) continue
+
       const offer = extractOfferFromSale(item)
       if (!offer) continue
 
@@ -125,46 +191,53 @@ async function fetchHotmartOffers(accessToken: string): Promise<HotmartOfferSnap
 
 export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
   const accessToken = await getHotmartAccessToken()
+  const ogiHotmartProductId = await resolveOgiHotmartProductId()
   const now = new Date()
-  const seenOffers = await fetchHotmartOffers(accessToken)
+  const seenOffers = await fetchHotmartOffers(accessToken, ogiHotmartProductId)
   const unknownNames = new Set<string>()
   let upserted = 0
 
   for (const offer of seenOffers) {
-    let offerName = offer.offerName
+    const existing = await RenewalOffer.findOne({ offerCode: offer.offerCode })
+      .select('offerName isManuallyEdited')
+      .lean()
+      .exec()
 
-    if (!offerName) {
-      const existing = await RenewalOffer.findOne({ offerCode: offer.offerCode })
-        .select('offerName')
-        .lean()
-        .exec()
-
-      offerName = existing?.offerName || ''
-    }
-
-    if (!offerName) {
-      unknownNames.add(offer.offerCode)
-      continue
-    }
-
+    // A API de vendas Hotmart só devolve o offer code, não o nome.
+    // Registamos o código na mesma (offerName='') para aparecer no Backoffice,
+    // onde o staff lhe dá nome/turma/link à mão. Não saltamos códigos sem nome.
+    const offerName = offer.offerName || existing?.offerName || ''
     const parsed = parseOfferName(offerName)
-    if (!parsed.valid) unknownNames.add(offerName)
+
+    // Código por nomear/mapear → entra no relatório para revisão no BO.
+    if (!offerName || !parsed.valid) unknownNames.add(offer.offerCode)
+
+    const update: any = {
+      $set: {
+        lastSeenAt: now,
+        isActive: true
+      },
+      $setOnInsert: {
+        offerCode: offer.offerCode,
+        offerName,
+        link: buildCheckoutLink(offer.offerCode),
+        turmaNumbers: parsed.valid ? parsed.turmaNumbers : [],
+        periodYYMM: parsed.periodYYMM,
+        periodStart: parsed.periodStart,
+        isRenewal: parsed.isRenewal,
+        source: 'hotmart_sync',
+        isManuallyEdited: false
+      }
+    }
+
+    // se já existe sem nome e agora temos um, preenche (sem tocar nos derivados)
+    if (existing && !existing.offerName && offerName) {
+      update.$set.offerName = offerName
+    }
 
     await RenewalOffer.updateOne(
       { offerCode: offer.offerCode },
-      {
-        $set: {
-          offerCode: offer.offerCode,
-          offerName,
-          link: buildCheckoutLink(offer.offerCode),
-          turmaNumbers: parsed.valid ? parsed.turmaNumbers : [],
-          periodYYMM: parsed.periodYYMM,
-          periodStart: parsed.periodStart,
-          isRenewal: parsed.isRenewal,
-          isActive: true,
-          lastSeenAt: now
-        }
-      },
+      update,
       { upsert: true }
     )
 
@@ -175,6 +248,8 @@ export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
   const deactivateResult = await RenewalOffer.updateMany(
     {
       isActive: true,
+      source: { $ne: 'manual' },
+      isManuallyEdited: { $ne: true },
       lastSeenAt: { $lt: cutoff },
       periodStart: { $lte: now }
     },

@@ -49,9 +49,9 @@ function periodFromYYMM(yymm: string): { start: Date; accessEnd: Date } | null {
   const year = 2000 + yy
   // 1º dia do mês do período
   const start = new Date(Date.UTC(year, mm - 1, 1))
-  // último dia do MESMO mês, no ano seguinte (período + 12 meses)
-  // Date.UTC(year+1, mm, 0) → dia 0 do mês seguinte = último dia do mês `mm`
-  const accessEnd = new Date(Date.UTC(year + 1, mm, 0))
+  // último instante do MESMO mês, no ano seguinte (período + 12 meses)
+  // Date.UTC(year+1, mm, 0, 23, 59, 59, 999) → fim do último dia do mês `mm`
+  const accessEnd = new Date(Date.UTC(year + 1, mm, 0, 23, 59, 59, 999))
   return { start, accessEnd }
 }
 
