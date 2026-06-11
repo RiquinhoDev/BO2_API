@@ -18,6 +18,8 @@ export interface IRenewalOffer extends Document {
   salesCount: number
   // turma sugerida a partir das turmas dos compradores (não autoritativo)
   suggestedTurmas: Array<{ turmaNumber: number; count: number }>
+  suggestionConfidence: number // 0..1 = topo / total de compradores analisados
+  suggestionSampleSize: number // nº de compradores OGI activos analisados
   lastSeenAt: Date
   createdAt: Date
   updatedAt: Date
@@ -101,6 +103,14 @@ const RenewalOfferSchema = new Schema<IRenewalOffer>({
       count: { type: Number }
     }],
     default: []
+  },
+  suggestionConfidence: {
+    type: Number,
+    default: 0
+  },
+  suggestionSampleSize: {
+    type: Number,
+    default: 0
   },
   lastSeenAt: {
     type: Date,
