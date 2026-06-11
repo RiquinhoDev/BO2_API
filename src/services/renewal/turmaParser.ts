@@ -22,7 +22,9 @@ export interface ParsedTurma {
   renovLevel: number // 0 = original, 1 = renov, 2 = 2a renov, ...
   periodYYMM: string | null // ex: "2505"
   periodStart: Date | null // 1º dia do mês do período (UTC)
-  accessEndOgi: Date | null // último dia do mês, 12 meses depois (UTC)
+  accessYears: number // 1 por defeito; 2 quando o nome tem "[2 anos]"
+  accessEndOgi: Date | null // último dia do mês, accessYears anos depois (UTC)
+  accessEndYYMM: string | null // YYMM da expiração (p/ matching da renovação)
   hasTurma: boolean // conseguiu extrair ≥1 número de turma (preciso p/ matching)
   hasExpiry: boolean // conseguiu calcular expiração (período válido)
   valid: boolean // hasTurma && hasExpiry
@@ -39,8 +41,11 @@ export interface ParsedOffer {
 
 const MONTH_OK = (mm: number) => mm >= 1 && mm <= 12
 
-/** Converte "YYMM" (ex "2505") em { start, accessEnd }. Assume 20YY. */
-function periodFromYYMM(yymm: string): { start: Date; accessEnd: Date } | null {
+/** Converte "YYMM" (ex "2505") em { start, accessEnd, endYYMM }. Assume 20YY. */
+function periodFromYYMM(
+  yymm: string,
+  accessYears: number = 1
+): { start: Date; accessEnd: Date; endYYMM: string } | null {
   if (!/^\d{4}$/.test(yymm)) return null
   const yy = Number(yymm.slice(0, 2))
   const mm = Number(yymm.slice(2, 4))
@@ -49,10 +54,16 @@ function periodFromYYMM(yymm: string): { start: Date; accessEnd: Date } | null {
   const year = 2000 + yy
   // 1º dia do mês do período
   const start = new Date(Date.UTC(year, mm - 1, 1))
-  // último instante do MESMO mês, no ano seguinte (período + 12 meses)
-  // Date.UTC(year+1, mm, 0, 23, 59, 59, 999) → fim do último dia do mês `mm`
-  const accessEnd = new Date(Date.UTC(year + 1, mm, 0, 23, 59, 59, 999))
-  return { start, accessEnd }
+  // último instante do mesmo mês, accessYears anos depois (12 ou 24 meses)
+  // Date.UTC(year+accessYears, mm, 0, ...) → fim do último dia do mês `mm`
+  const accessEnd = new Date(Date.UTC(year + accessYears, mm, 0, 23, 59, 59, 999))
+  const endYYMM = `${String((yy + accessYears) % 100).padStart(2, '0')}${String(mm).padStart(2, '0')}`
+  return { start, accessEnd, endYYMM }
+}
+
+/** "[2 anos]" / "[2anos]" no nome → 2 anos de acesso; caso contrário 1. */
+function extractAccessYears(name: string): number {
+  return /2\s*anos?/i.test(name) ? 2 : 1
 }
 
 /**
@@ -111,8 +122,9 @@ export function parseTurmaName(className: string): ParsedTurma {
 
   const turmaNumbers = extractTurmaNumbers(raw)
   const renovLevel = extractRenovLevel(raw)
+  const accessYears = extractAccessYears(raw)
   const periodYYMM = extractPeriodYYMM(raw)
-  const period = periodYYMM ? periodFromYYMM(periodYYMM) : null
+  const period = periodYYMM ? periodFromYYMM(periodYYMM, accessYears) : null
 
   const hasTurma = turmaNumbers.length > 0
   const hasExpiry = period !== null
@@ -125,7 +137,9 @@ export function parseTurmaName(className: string): ParsedTurma {
     renovLevel,
     periodYYMM,
     periodStart: period?.start ?? null,
+    accessYears,
     accessEndOgi: period?.accessEnd ?? null,
+    accessEndYYMM: period?.endYYMM ?? null,
     hasTurma,
     hasExpiry,
     valid: hasTurma && hasExpiry,
