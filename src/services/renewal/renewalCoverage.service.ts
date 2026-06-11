@@ -20,16 +20,19 @@ const UserAgg = User as unknown as AggregateModel
 
 export interface TurmaInfo {
   turmaNumber: number
+  className: string | null // nome completo do cohort que renova a seguir
   studentCount: number
-  studentsThisYear: number // alunos cujo cohort expira no ano corrente
+  studentsThisYear: number // alunos cujo cohort renova este ano, mês actual em diante
   renewsThisYear: boolean
-  nextExpiry: string | null // ISO — próxima expiração (ano corrente ou futuro)
+  nextExpiry: string | null // ISO — próxima expiração (do mês actual em diante)
   hasActiveOffer: boolean
 }
 
 export async function getTurmasWithCoverage(): Promise<TurmaInfo[]> {
   const now = new Date()
   const currentYear = now.getUTCFullYear()
+  // 1º dia do mês corrente: ignoramos renovações de meses já passados
+  const cutoff = new Date(Date.UTC(currentYear, now.getUTCMonth(), 1))
 
   // 1. nomes de turma distintos (Hotmart) + nº de alunos
   const rows = (await UserAgg.aggregate([
@@ -42,6 +45,7 @@ export async function getTurmasWithCoverage(): Promise<TurmaInfo[]> {
     studentCount: number
     studentsThisYear: number
     nextExpiry: Date | null
+    nextClassName: string | null
   }
   const tally = new Map<number, Acc>()
 
@@ -49,17 +53,15 @@ export async function getTurmasWithCoverage(): Promise<TurmaInfo[]> {
     const parsed = parseTurmaName(r._id || '')
     if (parsed.turmaNumber === null) continue
 
-    const acc = tally.get(parsed.turmaNumber) || { studentCount: 0, studentsThisYear: 0, nextExpiry: null }
+    const acc = tally.get(parsed.turmaNumber) || { studentCount: 0, studentsThisYear: 0, nextExpiry: null, nextClassName: null }
     acc.studentCount += r.n
 
-    if (parsed.accessEndOgi) {
-      const expYear = parsed.accessEndOgi.getUTCFullYear()
-      if (expYear === currentYear) acc.studentsThisYear += r.n
-      // próxima expiração relevante: a mais cedo que ainda seja deste ano ou futura
-      if (expYear >= currentYear) {
-        if (!acc.nextExpiry || parsed.accessEndOgi < acc.nextExpiry) {
-          acc.nextExpiry = parsed.accessEndOgi
-        }
+    // só contam cohorts cuja renovação ainda não passou (mês corrente em diante)
+    if (parsed.accessEndOgi && parsed.accessEndOgi >= cutoff) {
+      if (parsed.accessEndOgi.getUTCFullYear() === currentYear) acc.studentsThisYear += r.n
+      if (!acc.nextExpiry || parsed.accessEndOgi < acc.nextExpiry) {
+        acc.nextExpiry = parsed.accessEndOgi
+        acc.nextClassName = r._id
       }
     }
 
@@ -85,6 +87,7 @@ export async function getTurmasWithCoverage(): Promise<TurmaInfo[]> {
   return [...tally.entries()]
     .map(([turmaNumber, acc]) => ({
       turmaNumber,
+      className: acc.nextClassName,
       studentCount: acc.studentCount,
       studentsThisYear: acc.studentsThisYear,
       renewsThisYear: acc.studentsThisYear > 0,
