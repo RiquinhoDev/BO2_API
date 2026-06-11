@@ -534,14 +534,23 @@ const job = await CronJobConfig.create({
   // ═══════════════════════════════════════════════════════════
 
   private async ensureRenewalOfferSyncJob(): Promise<void> {
-    const existingJob = await CronJobConfig.findOne({ name: RENEWAL_OFFER_SYNC_JOB_NAME })
-    if (existingJob) return
+    const cronExpression = '0 5 * * *' // diário às 05:00
 
-    const cronExpression = '0 5 * * 1'
+    const existingJob = await CronJobConfig.findOne({ name: RENEWAL_OFFER_SYNC_JOB_NAME })
+    if (existingJob) {
+      // actualizar o agendamento se mudou (ex: era semanal, passou a diário)
+      if (existingJob.schedule?.cronExpression !== cronExpression) {
+        existingJob.schedule.cronExpression = cronExpression
+        existingJob.nextRun = this.calculateNextRun(cronExpression)
+        await existingJob.save()
+        console.log('[RenewalOfferSync] Cron actualizado para diário (05:00 Lisboa)')
+      }
+      return
+    }
 
     await CronJobConfig.create({
       name: RENEWAL_OFFER_SYNC_JOB_NAME,
-      description: 'Sincroniza semanalmente ofertas de renovação OGI a partir da Hotmart',
+      description: 'Sincroniza diariamente ofertas de renovação OGI a partir da Hotmart',
       syncType: 'hotmart',
       schedule: {
         cronExpression,
@@ -580,7 +589,7 @@ const job = await CronJobConfig.create({
       failedRuns: 0
     })
 
-    console.log('[RenewalOfferSync] Cron semanal criado (segunda-feira, 05:00 Lisboa)')
+    console.log('[RenewalOfferSync] Cron diário criado (05:00 Lisboa)')
   }
 
   async initializeScheduler(): Promise<void> {

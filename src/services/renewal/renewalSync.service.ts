@@ -1,8 +1,9 @@
 import axios from 'axios'
 import Product from '../../models/product/Product'
 import RenewalOffer from '../../models/RenewalOffer'
+import User from '../../models/user'
 import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServices/hotmart.helpers'
-import { parseOfferName } from './turmaParser'
+import { parseOfferName, parseTurmaName } from './turmaParser'
 
 const HOTMART_SALES_HISTORY_URL = 'https://developers.hotmart.com/payments/api/v1/sales/history'
 const CHECKOUT_BASE_URL = 'https://pay.hotmart.com/D61245882D'
@@ -14,16 +15,28 @@ export interface RenewalSyncReport {
   unknownNames: string[]
 }
 
+interface SuggestedTurma {
+  turmaNumber: number
+  count: number
+}
+
 interface HotmartOfferSnapshot {
   offerCode: string
   offerName: string
+  paymentModes: Set<string>
+  priceValue: number | null
+  currency: string | null
+  salesCount: number
+  buyerEmails: Set<string>
 }
 
 type MongooseReadModel = {
   findOne: (...args: any[]) => any
+  find?: (...args: any[]) => any
 }
 
 const ProductReadModel = Product as unknown as MongooseReadModel
+const UserReadModel = User as unknown as MongooseReadModel
 
 function getValue(obj: any, path: string): any {
   return path.split('.').reduce((acc, key) => acc?.[key], obj)
@@ -47,7 +60,7 @@ function firstScalarString(obj: any, paths: string[]): string | null {
   return null
 }
 
-function extractOfferFromSale(item: any): HotmartOfferSnapshot | null {
+function extractOfferFromSale(item: any): { offerCode: string; offerName: string } | null {
   const offerCode = firstString(item, [
     'purchase.offer.code',
     'purchase.offer.offer_code',
@@ -97,6 +110,24 @@ function extractProductIdFromSale(item: any): string | null {
 function isOgiSale(item: any, ogiHotmartProductId: string): boolean {
   const productId = extractProductIdFromSale(item)
   return Boolean(productId && productId === ogiHotmartProductId)
+}
+
+function extractPaymentMode(item: any): string | null {
+  return firstString(item, ['purchase.offer.payment_mode', 'offer.payment_mode', 'purchase.payment.type'])
+}
+
+function extractPrice(item: any): { value: number | null; currency: string | null } {
+  const value = getValue(item, 'purchase.price.value') ?? getValue(item, 'price.value')
+  const currency = firstString(item, ['purchase.price.currency_code', 'price.currency_code'])
+  return {
+    value: typeof value === 'number' ? value : null,
+    currency: currency || null
+  }
+}
+
+function extractBuyerEmail(item: any): string | null {
+  const email = firstString(item, ['buyer.email', 'purchase.buyer.email'])
+  return email ? email.toLowerCase() : null
 }
 
 function extractSalesItems(responseData: any): any[] {
@@ -177,16 +208,67 @@ async function fetchHotmartOffers(
       const offer = extractOfferFromSale(item)
       if (!offer) continue
 
-      const previous = offers.get(offer.offerCode)
-      if (!previous || (!previous.offerName && offer.offerName)) {
-        offers.set(offer.offerCode, offer)
+      let snapshot = offers.get(offer.offerCode)
+      if (!snapshot) {
+        snapshot = {
+          offerCode: offer.offerCode,
+          offerName: offer.offerName,
+          paymentModes: new Set<string>(),
+          priceValue: null,
+          currency: null,
+          salesCount: 0,
+          buyerEmails: new Set<string>()
+        }
+        offers.set(offer.offerCode, snapshot)
       }
+
+      if (!snapshot.offerName && offer.offerName) snapshot.offerName = offer.offerName
+      snapshot.salesCount += 1
+
+      const paymentMode = extractPaymentMode(item)
+      if (paymentMode) snapshot.paymentModes.add(paymentMode)
+
+      const price = extractPrice(item)
+      // guarda o preço mais alto observado (o preço-cheio da oferta)
+      if (price.value !== null && (snapshot.priceValue === null || price.value > snapshot.priceValue)) {
+        snapshot.priceValue = price.value
+        snapshot.currency = price.currency
+      }
+
+      const email = extractBuyerEmail(item)
+      if (email) snapshot.buyerEmails.add(email)
     }
 
     pageToken = extractNextPageToken(response.data)
   } while (pageToken)
 
   return [...offers.values()]
+}
+
+/**
+ * Calcula a turma sugerida a partir das turmas actuais dos compradores da oferta.
+ * Sinal real (sem seed): a turma dominante entre quem comprou ≈ turma da oferta.
+ */
+async function computeSuggestedTurmas(buyerEmails: Set<string>): Promise<SuggestedTurma[]> {
+  if (buyerEmails.size === 0) return []
+
+  const users = await UserReadModel.find!({ email: { $in: [...buyerEmails] } })
+    .select('hotmart.enrolledClasses')
+    .lean()
+    .exec() as Array<{ hotmart?: { enrolledClasses?: Array<{ className?: string; isActive?: boolean }> } }>
+
+  const tally = new Map<number, number>()
+  for (const u of users) {
+    const classes = u.hotmart?.enrolledClasses || []
+    const className = classes.find((c) => c.className && c.isActive !== false)?.className
+      || classes.find((c) => c.className)?.className
+    const turmaNumber = className ? parseTurmaName(className).turmaNumber : null
+    if (turmaNumber !== null) tally.set(turmaNumber, (tally.get(turmaNumber) || 0) + 1)
+  }
+
+  return [...tally.entries()]
+    .map(([turmaNumber, count]) => ({ turmaNumber, count }))
+    .sort((a, b) => b.count - a.count)
 }
 
 export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
@@ -212,10 +294,18 @@ export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
     // Código por nomear/mapear → entra no relatório para revisão no BO.
     if (!offerName || !parsed.valid) unknownNames.add(offer.offerCode)
 
+    const suggestedTurmas = await computeSuggestedTurmas(offer.buyerEmails)
+
     const update: any = {
       $set: {
         lastSeenAt: now,
-        isActive: true
+        isActive: true,
+        // observacional (info p/ o BO) — actualiza sempre, mesmo em ofertas editadas
+        priceValue: offer.priceValue,
+        currency: offer.currency,
+        paymentModes: [...offer.paymentModes],
+        salesCount: offer.salesCount,
+        suggestedTurmas
       },
       $setOnInsert: {
         offerCode: offer.offerCode,
