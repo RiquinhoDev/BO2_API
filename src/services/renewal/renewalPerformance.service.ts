@@ -1,20 +1,18 @@
 // ════════════════════════════════════════════════════════════
 // src/services/renewal/renewalPerformance.service.ts
-// Taxa de renovação por turma (tab "Desempenho" do BO).
+// Taxa de renovação por turma (tab "Desempenho" do BO) — só o ÚLTIMO ciclo.
 //
-// Funil: cada turma é uma cadeia de cohorts por nível de renovação
-//   original (0) → [renov] (1) → [2a renov] (2) → ...
+// Cada turma tem cohorts por período (YYMM). O ciclo mais recente compara o
+// cohort NOVO (período mais alto) com o ANTERIOR (período seguinte mais alto):
+//   ex turma 6:  «| 2607» (nova) vs «| 2507» (anterior)
 //
-// Para CADA turma (inclui anteriores):
-//   alunos    = total de alunos da turma (todos os cohorts)
-//   renovados = alunos já num nível de renovação (migração de cohort)
-//   vendas    = salesCount das ofertas de renovação atribuídas à turma
-//               (inclui inactivas; atribuídas por turmaNumbers ou pelo NOME da oferta)
-//   renovacoes = max(renovados, vendas)  ← melhor sinal disponível, evita duplicar
-//   taxa      = renovacoes / alunos   ·   meta 20% (acima = comissão)
+//   base      = anterior + nova       (quem podia renovar neste ciclo)
+//   renovados = nova                  (migração: já mudaram de cohort)
+//   vendas    = salesCount da oferta cujo período = o da nova (double-check via link)
+//   renovacoes = max(renovados, vendas)   ← melhor sinal (migração lenta vs vendas)
+//   taxa      = renovacoes / base    ·   meta 20%
 //
-// Nota: há desvio porque alguns alunos não renovam logo e são movidos mais tarde
-// para um cohort com validade completa — por isso usamos o maior dos dois sinais.
+// Só o último ciclo porque a 1ª renovação foi há anos — não faz sentido somar tudo.
 // ════════════════════════════════════════════════════════════
 
 import RenewalOffer from '../../models/RenewalOffer'
@@ -28,11 +26,12 @@ export const RENEWAL_TARGET = 0.2 // 20% — meta de comissão
 
 export interface RenewalPerformance {
   turmaNumber: number
-  className: string | null // cohort representativo (a renovar agora, ou o mais recente)
-  alunos: number // total de alunos da turma
-  renovados: number // já num nível de renovação (migração)
-  vendas: number // vendas de ofertas de renovação atribuídas (inclui inactivas)
-  taxa: number // max(renovados, vendas) / alunos (0..1)
+  className: string | null // cohort anterior (o que está a renovar)
+  novaClassName: string | null // cohort novo (renovados)
+  alunos: number // base = anterior + nova
+  renovados: number // nova (migração)
+  vendas: number // double-check via link (salesCount da oferta do período novo)
+  taxa: number // max(renovados, vendas) / base
   vsMeta: number
   nextExpiry: string | null
   renewsThisYear: boolean
@@ -44,10 +43,10 @@ export interface RenewalPerformanceResponse {
   totals: { vendas: number; alunos: number; taxaMedia: number; acimaMeta: number }
 }
 
-interface Cohort {
+interface PeriodGroup {
+  period: string // YYMM
+  count: number
   className: string
-  n: number
-  level: number
   expiry: Date | null
 }
 
@@ -56,73 +55,78 @@ export async function getRenewalPerformance(): Promise<RenewalPerformanceRespons
   const currentYear = now.getUTCFullYear()
   const cutoff = new Date(Date.UTC(currentYear, now.getUTCMonth(), 1))
 
-  // 1. cohorts (className) + nº de alunos
+  // 1. cohorts por turma, agrupados por período (YYMM)
   const rows = (await UserAgg.aggregate([
     { $unwind: '$hotmart.enrolledClasses' },
     { $match: { 'hotmart.enrolledClasses.isActive': { $ne: false } } },
     { $group: { _id: '$hotmart.enrolledClasses.className', n: { $sum: 1 } } }
   ])) as Array<{ _id: string; n: number }>
 
-  const byTurma = new Map<number, Cohort[]>()
+  // turma → (período → grupo)
+  const byTurma = new Map<number, Map<string, PeriodGroup>>()
   for (const r of rows) {
     const p = parseTurmaName(r._id || '')
-    if (p.turmaNumber === null) continue
-    const arr = byTurma.get(p.turmaNumber) || []
-    arr.push({ className: r._id, n: r.n, level: p.renovLevel, expiry: p.accessEndOgi })
-    byTurma.set(p.turmaNumber, arr)
+    if (p.turmaNumber === null || !p.periodYYMM) continue
+    const periods = byTurma.get(p.turmaNumber) || new Map<string, PeriodGroup>()
+    const g = periods.get(p.periodYYMM) || { period: p.periodYYMM, count: 0, className: r._id, expiry: p.accessEndOgi }
+    g.count += r.n
+    // mantém o className com mais alunos como representativo do período
+    periods.set(p.periodYYMM, g)
+    byTurma.set(p.turmaNumber, periods)
   }
 
-  // 2. vendas por turma — TODAS as ofertas de renovação (inclui inactivas),
-  //    atribuídas por turmaNumbers se existir, senão pelo NOME da oferta
+  // 2. vendas por (turma, período) — ofertas de renovação, inclui inactivas
   const offers = await RenewalOffer.find({})
-    .select('turmaNumbers offerName salesCount isRenewal')
+    .select('turmaNumbers offerName periodYYMM salesCount isRenewal')
     .lean()
-    .exec() as Array<{ turmaNumbers?: number[]; offerName?: string; salesCount?: number; isRenewal?: boolean }>
+    .exec() as Array<{ turmaNumbers?: number[]; offerName?: string; periodYYMM?: string | null; salesCount?: number; isRenewal?: boolean }>
 
-  const vendasByTurma = new Map<number, number>()
+  const vendasByTurmaPeriod = new Map<string, number>()
   for (const o of offers) {
     const parsed = parseOfferName(o.offerName || '')
     const isRen = o.isRenewal || parsed.isRenewal || /renova/i.test(o.offerName || '')
     if (!isRen) continue
+    const period = o.periodYYMM || parsed.periodYYMM
+    if (!period) continue
     const assigned = (o.turmaNumbers || []).filter((n) => n > 0)
     const turmas = assigned.length > 0 ? assigned : parsed.turmaNumbers
     for (const t of turmas) {
-      vendasByTurma.set(t, (vendasByTurma.get(t) || 0) + (o.salesCount || 0))
+      const key = `${t}_${period}`
+      vendasByTurmaPeriod.set(key, (vendasByTurmaPeriod.get(key) || 0) + (o.salesCount || 0))
     }
   }
 
   const turmas: RenewalPerformance[] = []
-  for (const [turmaNumber, cohorts] of byTurma) {
-    const alunos = cohorts.reduce((s, c) => s + c.n, 0)
-    const renovados = cohorts.filter((c) => c.level >= 1).reduce((s, c) => s + c.n, 0)
-    const vendas = vendasByTurma.get(turmaNumber) || 0
-    const renovacoes = Math.max(renovados, vendas)
-    const taxa = alunos > 0 ? renovacoes / alunos : 0
+  for (const [turmaNumber, periodsMap] of byTurma) {
+    const periods = [...periodsMap.values()].sort((a, b) => b.period.localeCompare(a.period))
+    const nova = periods[0]
+    const anterior = periods[1] // pode não existir (turma só com 1 período)
 
-    // cohort representativo: o que renova agora (mês corrente em diante, este ano);
-    // senão o de expiração mais recente
-    const renewing = cohorts
-      .filter((c) => c.expiry && c.expiry >= cutoff && c.expiry.getUTCFullYear() === currentYear)
-      .sort((a, b) => a.expiry!.getTime() - b.expiry!.getTime())[0]
-    const latest = cohorts
-      .filter((c) => c.expiry)
-      .sort((a, b) => b.expiry!.getTime() - a.expiry!.getTime())[0]
-    const repr = renewing || latest
+    const renovados = anterior ? nova.count : 0 // sem ciclo anterior → ninguém renovou ainda
+    const base = anterior ? nova.count + anterior.count : nova.count
+    const vendas = vendasByTurmaPeriod.get(`${turmaNumber}_${nova.period}`) || 0
+    const renovacoes = Math.max(renovados, vendas)
+    const taxa = base > 0 ? renovacoes / base : 0
+
+    // cohort a renovar = o anterior (o que está a expirar); se só há 1, é o próprio
+    const expiringCohort = anterior || nova
+    const expiry = expiringCohort.expiry
+    const renewsThisYear = Boolean(expiry && expiry >= cutoff && expiry.getUTCFullYear() === currentYear)
 
     turmas.push({
       turmaNumber,
-      className: repr?.className ?? null,
-      alunos,
+      className: expiringCohort.className,
+      novaClassName: anterior ? nova.className : null,
+      alunos: base,
       renovados,
       vendas,
       taxa,
       vsMeta: taxa - RENEWAL_TARGET,
-      nextExpiry: renewing?.expiry ? renewing.expiry.toISOString() : null,
-      renewsThisYear: Boolean(renewing)
+      nextExpiry: expiry ? expiry.toISOString() : null,
+      renewsThisYear
     })
   }
 
-  // a renovar este ano primeiro (por data), depois as restantes por nº de turma
   turmas.sort((a, b) => {
     if (a.renewsThisYear !== b.renewsThisYear) return a.renewsThisYear ? -1 : 1
     if (a.renewsThisYear && b.renewsThisYear) return (a.nextExpiry || '').localeCompare(b.nextExpiry || '')
@@ -130,7 +134,7 @@ export async function getRenewalPerformance(): Promise<RenewalPerformanceRespons
   })
 
   const totalVendas = turmas.reduce((s, t) => s + t.vendas, 0)
-  const totalAlunos = turmas.reduce((s, t) => s + t.alunos, 0)
+  const totalBase = turmas.reduce((s, t) => s + t.alunos, 0)
   const totalRenov = turmas.reduce((s, t) => s + Math.max(t.renovados, t.vendas), 0)
   const acimaMeta = turmas.filter((t) => t.taxa >= RENEWAL_TARGET).length
 
@@ -139,8 +143,8 @@ export async function getRenewalPerformance(): Promise<RenewalPerformanceRespons
     turmas,
     totals: {
       vendas: totalVendas,
-      alunos: totalAlunos,
-      taxaMedia: totalAlunos > 0 ? totalRenov / totalAlunos : 0,
+      alunos: totalBase,
+      taxaMedia: totalBase > 0 ? totalRenov / totalBase : 0,
       acimaMeta
     }
   }
