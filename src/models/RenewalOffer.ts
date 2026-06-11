@@ -9,6 +9,8 @@ export interface IRenewalOffer extends Document {
   periodStart: Date | null
   isRenewal: boolean
   isActive: boolean
+  source: 'hotmart_sync' | 'manual'
+  isManuallyEdited: boolean
   lastSeenAt: Date
   createdAt: Date
   updatedAt: Date
@@ -56,6 +58,17 @@ const RenewalOfferSchema = new Schema<IRenewalOffer>({
   isActive: {
     type: Boolean,
     default: true,
+    index: true
+  },
+  source: {
+    type: String,
+    enum: ['hotmart_sync', 'manual'],
+    default: 'hotmart_sync',
+    index: true
+  },
+  isManuallyEdited: {
+    type: Boolean,
+    default: false,
     index: true
   },
   lastSeenAt: {
