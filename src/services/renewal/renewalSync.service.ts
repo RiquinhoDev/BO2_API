@@ -10,6 +10,7 @@ import { parseOfferName, parseTurmaName } from './turmaParser'
 const HOTMART_SALES_HISTORY_URL = 'https://developers.hotmart.com/payments/api/v1/sales/history'
 const CHECKOUT_BASE_URL = 'https://pay.hotmart.com/D61245882D'
 const DEACTIVATE_AFTER_DAYS = 35
+const RENEWAL_PRICE_CEILING_EUR = 200
 
 export interface RenewalSyncReport {
   upserted: number
@@ -392,7 +393,7 @@ export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
         turmaNumbers: parsed.valid ? parsed.turmaNumbers : [],
         periodYYMM: parsed.periodYYMM,
         periodStart: parsed.periodStart,
-        isRenewal: parsed.isRenewal,
+        isRenewal: offer.priceValue !== null && offer.priceValue <= RENEWAL_PRICE_CEILING_EUR,
         source: 'hotmart_sync',
         isManuallyEdited: false
       }
