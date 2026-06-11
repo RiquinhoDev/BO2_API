@@ -11,6 +11,13 @@ export interface IRenewalOffer extends Document {
   isActive: boolean
   source: 'hotmart_sync' | 'manual'
   isManuallyEdited: boolean
+  // dados observacionais das vendas Hotmart (info para o Backoffice)
+  priceValue: number | null
+  currency: string | null
+  paymentModes: string[]
+  salesCount: number
+  // turma sugerida a partir das turmas dos compradores (não autoritativo)
+  suggestedTurmas: Array<{ turmaNumber: number; count: number }>
   lastSeenAt: Date
   createdAt: Date
   updatedAt: Date
@@ -70,6 +77,30 @@ const RenewalOfferSchema = new Schema<IRenewalOffer>({
     type: Boolean,
     default: false,
     index: true
+  },
+  priceValue: {
+    type: Number,
+    default: null
+  },
+  currency: {
+    type: String,
+    default: null,
+    trim: true
+  },
+  paymentModes: {
+    type: [String],
+    default: []
+  },
+  salesCount: {
+    type: Number,
+    default: 0
+  },
+  suggestedTurmas: {
+    type: [{
+      turmaNumber: { type: Number },
+      count: { type: Number }
+    }],
+    default: []
   },
   lastSeenAt: {
     type: Date,
