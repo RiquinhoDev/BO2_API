@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import RenewalOffer from '../models/RenewalOffer'
 import { syncRenewalOffers } from '../services/renewal/renewalSync.service'
 import { getTurmasWithCoverage } from '../services/renewal/renewalCoverage.service'
+import { getRenewalPerformance } from '../services/renewal/renewalPerformance.service'
 import { parseOfferName } from '../services/renewal/turmaParser'
 
 // GET /api/renewal/offers
@@ -137,6 +138,17 @@ export async function listTurmas(_req: Request, res: Response): Promise<void> {
   }
 }
 
+// GET /api/renewal/performance
+// Taxa de renovação por turma (vendas / base) vs meta de 20%.
+export async function performance(_req: Request, res: Response): Promise<void> {
+  try {
+    const data = await getRenewalPerformance()
+    res.json(data)
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Erro ao calcular desempenho' })
+  }
+}
+
 // POST /api/renewal/sync
 // Dispara a sincronização das ofertas a partir da Hotmart.
 export async function runSync(_req: Request, res: Response): Promise<void> {
@@ -148,4 +160,4 @@ export async function runSync(_req: Request, res: Response): Promise<void> {
   }
 }
 
-export default { listOffers, createOffer, updateOffer, listTurmas, runSync }
+export default { listOffers, createOffer, updateOffer, listTurmas, performance, runSync }
