@@ -140,9 +140,11 @@ export async function listTurmas(_req: Request, res: Response): Promise<void> {
 
 // GET /api/renewal/performance
 // Taxa de renovação por turma (vendas / base) vs meta de 20%.
-export async function performance(_req: Request, res: Response): Promise<void> {
+export async function performance(req: Request, res: Response): Promise<void> {
   try {
-    const data = await getRenewalPerformance()
+    const yearRaw = Number(req.query.year)
+    const year = Number.isInteger(yearRaw) && yearRaw > 2000 ? yearRaw : undefined
+    const data = await getRenewalPerformance(year)
     res.json(data)
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Erro ao calcular desempenho' })
