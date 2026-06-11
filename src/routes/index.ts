@@ -28,6 +28,7 @@ import guruRoutes from './guru.routes'
 import clarezaRoutes from './clareza.routes'
 import achievementsRoutes from './achievements.routes'
 import eventsRoutes from './events.routes'
+import renewalRoutes from './renewal.routes'
 
 // ✅ CRON UTILIZADORES (Sistema Novo)
 import cronRoutes from './syncUtilizadoresRoutes/cron.routes'
@@ -64,6 +65,7 @@ router.use("/students", studentsRoutes)
 router.use("/student/ogi", studentOgiSummaryRoutes)
 router.use("/achievements", achievementsRoutes)  // 🏆 Sistema de Conquistas
 router.use("/events", eventsRoutes)              // 📅 Calendário de Eventos
+router.use("/renewal", renewalRoutes)            // 🔁 Ofertas de renovação OGI
 
 // 📊 ANÁLISES E RELATÓRIOS
 router.use("/dashboard", dashboardRoutes)
