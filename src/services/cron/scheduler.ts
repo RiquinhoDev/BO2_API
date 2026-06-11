@@ -13,12 +13,15 @@ import CronJobConfig, {
 } from '../../models/SyncModels/CronJobConfig'
 import { CronExecution } from '../../models'
 import { executeDailyPipeline } from './dailyPipeline.service'
+import { syncRenewalOffers } from '../renewal/renewalSync.service'
 import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import universalSyncService from '../syncUtilizadoresServices/universalSyncService'
 import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../types/cron.types'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
+const RENEWAL_OFFER_SYNC_JOB_NAME = 'RenewalOfferSync'
+const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('000000000000000000000001')
 
 // ─────────────────────────────────────────────────────────────
 // IN-MEMORY SCHEDULER REGISTRY
@@ -530,11 +533,63 @@ const job = await CronJobConfig.create({
   // SCHEDULER INITIALIZATION
   // ═══════════════════════════════════════════════════════════
 
+  private async ensureRenewalOfferSyncJob(): Promise<void> {
+    const existingJob = await CronJobConfig.findOne({ name: RENEWAL_OFFER_SYNC_JOB_NAME })
+    if (existingJob) return
+
+    const cronExpression = '0 5 * * 1'
+
+    await CronJobConfig.create({
+      name: RENEWAL_OFFER_SYNC_JOB_NAME,
+      description: 'Sincroniza semanalmente ofertas de renovação OGI a partir da Hotmart',
+      syncType: 'hotmart',
+      schedule: {
+        cronExpression,
+        timezone: 'Europe/Lisbon',
+        enabled: true
+      },
+      syncConfig: {
+        fullSync: false,
+        includeProgress: false,
+        includeTags: false,
+        batchSize: 100
+      },
+      tagRules: [],
+      tagRuleOptions: {
+        enabled: false,
+        executeAllRules: false,
+        runInParallel: false,
+        stopOnError: false
+      },
+      notifications: {
+        enabled: false,
+        emailOnSuccess: false,
+        emailOnFailure: true,
+        recipients: []
+      },
+      retryPolicy: {
+        maxRetries: 2,
+        retryDelayMinutes: 30,
+        exponentialBackoff: true
+      },
+      nextRun: this.calculateNextRun(cronExpression),
+      createdBy: SYSTEM_CRON_ADMIN_ID,
+      isActive: true,
+      totalRuns: 0,
+      successfulRuns: 0,
+      failedRuns: 0
+    })
+
+    console.log('[RenewalOfferSync] Cron semanal criado (segunda-feira, 05:00 Lisboa)')
+  }
+
   async initializeScheduler(): Promise<void> {
     console.log('🚀 Inicializando scheduler...')
 
     // Limpar registry
     registry.clear()
+
+    await this.ensureRenewalOfferSyncJob()
 
     // Carregar todos os jobs ativos
     const activeJobs = await CronJobConfig.getActiveJobs()
@@ -582,7 +637,8 @@ private async executeSyncJob(job: ICronJobConfig): Promise<{
     'CronExecutionCleanup',
     'WeeklyTagSnapshot',
     'ClarezaRefresh',
-    'GuruTrialCheck'
+    'GuruTrialCheck',
+    RENEWAL_OFFER_SYNC_JOB_NAME
   ]
   
   // Verificar se job atual tem lógica específica
@@ -696,6 +752,18 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
       console.log('⏳ Executando: GuruTrialCheck (sync + marcar trials expirados)')
       const jobModule = await import('../../jobs/guruTrialCheck.job')
       result = await jobModule.default.run()
+
+    } else if (job.name.includes(RENEWAL_OFFER_SYNC_JOB_NAME)) {
+      console.log('Executando: RenewalOfferSync (ofertas de renovação OGI)')
+      const report = await syncRenewalOffers()
+      result = {
+        success: true,
+        total: report.upserted + report.deactivated,
+        inserted: 0,
+        updated: report.upserted,
+        errors: 0,
+        skipped: report.unknownNames.length
+      }
 
     } else {
       throw new Error(`Job específico não encontrado: ${job.name}`)
