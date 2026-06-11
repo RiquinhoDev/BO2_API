@@ -34,6 +34,7 @@ interface HotmartOfferSnapshot {
   paymentModes: Set<string>
   priceValue: number | null
   currency: string | null
+  eurPriceCounts: Map<number, number> // só EUR: valor → nº de vezes visto
   salesCount: number
   buyerEmails: Set<string>
 }
@@ -225,6 +226,7 @@ async function fetchHotmartOffers(
           paymentModes: new Set<string>(),
           priceValue: null,
           currency: null,
+          eurPriceCounts: new Map<number, number>(),
           salesCount: 0,
           buyerEmails: new Set<string>()
         }
@@ -237,11 +239,10 @@ async function fetchHotmartOffers(
       const paymentMode = extractPaymentMode(item)
       if (paymentMode) snapshot.paymentModes.add(paymentMode)
 
+      // preço SEMPRE em EUR — ignora vendas noutras moedas (ex: USD)
       const price = extractPrice(item)
-      // guarda o preço mais alto observado (o preço-cheio da oferta)
-      if (price.value !== null && (snapshot.priceValue === null || price.value > snapshot.priceValue)) {
-        snapshot.priceValue = price.value
-        snapshot.currency = price.currency
+      if (price.value !== null && price.currency === 'EUR') {
+        snapshot.eurPriceCounts.set(price.value, (snapshot.eurPriceCounts.get(price.value) || 0) + 1)
       }
 
       const email = extractBuyerEmail(item)
@@ -250,6 +251,16 @@ async function fetchHotmartOffers(
 
     pageToken = extractNextPageToken(response.data)
   } while (pageToken)
+
+  // preço final = maior valor EUR observado (= preço-cheio; ofertas a prestações
+  // registam parcelas mais baixas, ficamos com o total)
+  for (const snapshot of offers.values()) {
+    const eurValues = [...snapshot.eurPriceCounts.keys()]
+    if (eurValues.length > 0) {
+      snapshot.priceValue = Math.max(...eurValues)
+      snapshot.currency = 'EUR'
+    }
+  }
 
   return [...offers.values()]
 }
