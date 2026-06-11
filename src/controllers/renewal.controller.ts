@@ -129,7 +129,8 @@ export async function updateOffer(req: Request, res: Response): Promise<void> {
 export async function listTurmas(_req: Request, res: Response): Promise<void> {
   try {
     const turmas = await getTurmasWithCoverage()
-    const uncovered = turmas.filter((t) => t.studentCount > 0 && !t.hasActiveOffer)
+    // alerta: só turmas que renovam ESTE ANO e ainda não têm oferta
+    const uncovered = turmas.filter((t) => t.renewsThisYear && !t.hasActiveOffer)
     res.json({ turmas, uncovered })
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Erro ao listar turmas' })
