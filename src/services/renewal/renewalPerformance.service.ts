@@ -40,7 +40,7 @@ export interface RenewalPerformanceResponse {
   year: number
   availableYears: number[]
   turmas: RenewalPerformance[]
-  totals: { vendas: number; alunos: number; taxaMedia: number; acimaMeta: number }
+  totals: { renovacoes: number; renovados: number; vendas: number; alunos: number; taxaMedia: number; acimaMeta: number }
 }
 
 interface Cohort {
@@ -128,6 +128,7 @@ export async function getRenewalPerformance(year?: number): Promise<RenewalPerfo
   turmas.sort((a, b) => (a.expiry || '').localeCompare(b.expiry || '') || a.turmaNumber - b.turmaNumber)
 
   const totalVendas = turmas.reduce((s, t) => s + t.vendas, 0)
+  const totalRenovados = turmas.reduce((s, t) => s + t.renovados, 0)
   const totalBase = turmas.reduce((s, t) => s + t.alunos, 0)
   const totalRenov = turmas.reduce((s, t) => s + Math.max(t.renovados, t.vendas), 0)
   const acimaMeta = turmas.filter((t) => t.taxa >= RENEWAL_TARGET).length
@@ -138,6 +139,8 @@ export async function getRenewalPerformance(year?: number): Promise<RenewalPerfo
     availableYears,
     turmas,
     totals: {
+      renovacoes: totalRenov, // total renovado (melhor sinal: migração ou vendas)
+      renovados: totalRenovados,
       vendas: totalVendas,
       alunos: totalBase,
       taxaMedia: totalBase > 0 ? totalRenov / totalBase : 0,
