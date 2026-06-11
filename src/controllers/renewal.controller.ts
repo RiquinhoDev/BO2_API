@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import RenewalOffer from '../models/RenewalOffer'
 import { syncRenewalOffers } from '../services/renewal/renewalSync.service'
+import { getTurmasWithCoverage } from '../services/renewal/renewalCoverage.service'
 import { parseOfferName } from '../services/renewal/turmaParser'
 
 // GET /api/renewal/offers
@@ -67,6 +68,19 @@ export async function updateOffer(req: Request, res: Response): Promise<void> {
   }
 }
 
+// GET /api/renewal/turmas
+// Lista de turmas (nº + nº de alunos) com flag de cobertura, para o multi-select
+// do BO e o alerta de turmas sem oferta.
+export async function listTurmas(_req: Request, res: Response): Promise<void> {
+  try {
+    const turmas = await getTurmasWithCoverage()
+    const uncovered = turmas.filter((t) => t.studentCount > 0 && !t.hasActiveOffer)
+    res.json({ turmas, uncovered })
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Erro ao listar turmas' })
+  }
+}
+
 // POST /api/renewal/sync
 // Dispara a sincronização das ofertas a partir da Hotmart.
 export async function runSync(_req: Request, res: Response): Promise<void> {
@@ -78,4 +92,4 @@ export async function runSync(_req: Request, res: Response): Promise<void> {
   }
 }
 
-export default { listOffers, updateOffer, runSync }
+export default { listOffers, updateOffer, listTurmas, runSync }
