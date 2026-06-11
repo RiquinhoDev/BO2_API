@@ -18,6 +18,7 @@ import './cron/PipelineExecution'
 import './HotmartWebhook'
 import './IdsDiferentes'
 import './InactivationList'
+import './RenewalOffer'
 import './StudentClassHistory'
 import './SyncHistory'
 import './acTags/TagRule'
@@ -56,6 +57,7 @@ export { default as PipelineExecution } from './cron/PipelineExecution'
 export { default as HotmartWebhook } from './HotmartWebhook'
 export { default as IdsDiferentes } from './IdsDiferentes'
 export { default as InactivationList } from './InactivationList'
+export { default as RenewalOffer } from './RenewalOffer'
 export { default as StudentClassHistory } from './StudentClassHistory'
 export { default as SyncHistory } from './SyncHistory'
 export { default as TagRule } from './acTags/TagRule'
@@ -98,6 +100,7 @@ const modelsToCheck = [
   'HotmartWebhook',
   'IdsDiferentes',
   'InactivationList',
+  'RenewalOffer',
   'StudentClassHistory',
   'SyncHistory',
   'UnmatchedUser',
