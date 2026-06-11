@@ -1,7 +1,9 @@
 import axios from 'axios'
+import mongoose from 'mongoose'
 import Product from '../../models/product/Product'
 import RenewalOffer from '../../models/RenewalOffer'
 import User from '../../models/user'
+import UserProduct from '../../models/UserProduct'
 import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServices/hotmart.helpers'
 import { parseOfferName, parseTurmaName } from './turmaParser'
 
@@ -18,6 +20,12 @@ export interface RenewalSyncReport {
 interface SuggestedTurma {
   turmaNumber: number
   count: number
+}
+
+interface SuggestionResult {
+  suggestedTurmas: SuggestedTurma[]
+  confidence: number // 0..1 = turma topo / total analisado
+  sampleSize: number // nº de compradores OGI activos analisados
 }
 
 interface HotmartOfferSnapshot {
@@ -37,6 +45,7 @@ type MongooseReadModel = {
 
 const ProductReadModel = Product as unknown as MongooseReadModel
 const UserReadModel = User as unknown as MongooseReadModel
+const UserProductReadModel = UserProduct as unknown as MongooseReadModel
 
 function getValue(obj: any, path: string): any {
   return path.split('.').reduce((acc, key) => acc?.[key], obj)
@@ -246,34 +255,90 @@ async function fetchHotmartOffers(
 }
 
 /**
- * Calcula a turma sugerida a partir das turmas actuais dos compradores da oferta.
+ * Calcula a turma sugerida a partir das turmas dos compradores da oferta.
  * Sinal real (sem seed): a turma dominante entre quem comprou ≈ turma da oferta.
+ *
+ * SEGURANÇA — não confiar 100%:
+ * - valida cada comprador via UserProduct (só conta quem é aluno OGI ACTIVO,
+ *   excluindo reembolsados/cancelados que enviesam);
+ * - devolve confiança (topo/total) e tamanho de amostra para o staff escrutinar;
+ * - é só sugestão: nunca define a turma autoritativa nem chega ao aluno sozinha.
  */
-async function computeSuggestedTurmas(buyerEmails: Set<string>): Promise<SuggestedTurma[]> {
-  if (buyerEmails.size === 0) return []
+async function computeSuggestedTurmas(
+  buyerEmails: Set<string>,
+  ogiProductObjectId: mongoose.Types.ObjectId | null
+): Promise<SuggestionResult> {
+  const empty: SuggestionResult = { suggestedTurmas: [], confidence: 0, sampleSize: 0 }
+  if (buyerEmails.size === 0) return empty
 
   const users = await UserReadModel.find!({ email: { $in: [...buyerEmails] } })
-    .select('hotmart.enrolledClasses')
+    .select('_id hotmart.enrolledClasses')
     .lean()
-    .exec() as Array<{ hotmart?: { enrolledClasses?: Array<{ className?: string; isActive?: boolean }> } }>
+    .exec() as Array<{ _id: mongoose.Types.ObjectId; hotmart?: { enrolledClasses?: Array<{ className?: string; isActive?: boolean }> } }>
+
+  // Validação: quais destes compradores são alunos OGI ACTIVOS (UserProduct)?
+  let activeUserIds: Set<string> | null = null
+  if (ogiProductObjectId && users.length > 0) {
+    const enrollments = await UserProductReadModel.find!({
+      userId: { $in: users.map((u) => u._id) },
+      platform: 'hotmart',
+      productId: ogiProductObjectId,
+      status: 'ACTIVE'
+    })
+      .select('userId')
+      .lean()
+      .exec() as Array<{ userId: mongoose.Types.ObjectId }>
+    activeUserIds = new Set(enrollments.map((e) => String(e.userId)))
+  }
 
   const tally = new Map<number, number>()
+  let counted = 0
   for (const u of users) {
+    // se temos validação OGI, só contamos compradores activos
+    if (activeUserIds && !activeUserIds.has(String(u._id))) continue
     const classes = u.hotmart?.enrolledClasses || []
     const className = classes.find((c) => c.className && c.isActive !== false)?.className
       || classes.find((c) => c.className)?.className
     const turmaNumber = className ? parseTurmaName(className).turmaNumber : null
-    if (turmaNumber !== null) tally.set(turmaNumber, (tally.get(turmaNumber) || 0) + 1)
+    if (turmaNumber !== null) {
+      tally.set(turmaNumber, (tally.get(turmaNumber) || 0) + 1)
+      counted += 1
+    }
   }
 
-  return [...tally.entries()]
+  const suggestedTurmas = [...tally.entries()]
     .map(([turmaNumber, count]) => ({ turmaNumber, count }))
     .sort((a, b) => b.count - a.count)
+
+  const top = suggestedTurmas[0]?.count || 0
+  return {
+    suggestedTurmas,
+    confidence: counted > 0 ? top / counted : 0,
+    sampleSize: counted
+  }
+}
+
+async function resolveOgiProductObjectId(): Promise<mongoose.Types.ObjectId | null> {
+  const ogiProduct = await ProductReadModel.findOne({
+    platform: 'hotmart',
+    isActive: true,
+    $or: [
+      { code: /^OGI/i },
+      { courseCode: /^OGI/i },
+      { name: /Grande Investimento/i }
+    ]
+  })
+    .select('_id')
+    .lean()
+    .exec() as { _id: mongoose.Types.ObjectId } | null
+
+  return ogiProduct?._id || null
 }
 
 export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
   const accessToken = await getHotmartAccessToken()
   const ogiHotmartProductId = await resolveOgiHotmartProductId()
+  const ogiProductObjectId = await resolveOgiProductObjectId()
   const now = new Date()
   const seenOffers = await fetchHotmartOffers(accessToken, ogiHotmartProductId)
   const unknownNames = new Set<string>()
@@ -294,7 +359,7 @@ export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
     // Código por nomear/mapear → entra no relatório para revisão no BO.
     if (!offerName || !parsed.valid) unknownNames.add(offer.offerCode)
 
-    const suggestedTurmas = await computeSuggestedTurmas(offer.buyerEmails)
+    const suggestion = await computeSuggestedTurmas(offer.buyerEmails, ogiProductObjectId)
 
     const update: any = {
       $set: {
@@ -305,7 +370,9 @@ export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
         currency: offer.currency,
         paymentModes: [...offer.paymentModes],
         salesCount: offer.salesCount,
-        suggestedTurmas
+        suggestedTurmas: suggestion.suggestedTurmas,
+        suggestionConfidence: suggestion.confidence,
+        suggestionSampleSize: suggestion.sampleSize
       },
       $setOnInsert: {
         offerCode: offer.offerCode,
