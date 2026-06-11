@@ -264,7 +264,7 @@ async function buildStudentOgiSummary(
     : fallbackExpiresAt
   const renewalOffer = await findRenewalOffer({
     turmaNumber: parsedTurma?.turmaNumber,
-    periodYYMM: parsedTurma?.periodYYMM
+    expiryYYMM: parsedTurma?.accessEndYYMM
   })
 
   // Construir achievements a partir do cache no User doc
