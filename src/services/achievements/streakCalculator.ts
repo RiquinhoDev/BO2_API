@@ -11,6 +11,76 @@ export interface StreakResult {
   bestStreak: number      // melhor sequência de sempre
 }
 
+export interface StreakUpdateResult extends StreakResult {
+  changed: boolean
+  lastActiveDay: string
+}
+
+export function getTrackedStreak(user: any): StreakResult | null {
+  const streak = user?.engagement?.streak
+  if (!streak) return null
+
+  const current = Number(streak.current || 0)
+  const best = Number(streak.best || 0)
+  if (current <= 0 && best <= 0) return null
+
+  return {
+    currentStreak: current,
+    bestStreak: Math.max(best, current)
+  }
+}
+
+export async function recordDailyActivity(user: any, now = new Date()): Promise<StreakUpdateResult> {
+  const today = formatDateKey(now)
+  const yesterday = formatDateKey(new Date(now.getTime() - 86400000))
+  const currentStreak = user?.engagement?.streak || {}
+  const previousDay = currentStreak.lastActiveDay
+  const previousCurrent = Number(currentStreak.current || 0)
+  const previousBest = Number(currentStreak.best || 0)
+
+  let nextCurrent = previousCurrent
+
+  if (previousDay === today) {
+    nextCurrent = Math.max(previousCurrent, 1)
+  } else if (previousDay === yesterday) {
+    nextCurrent = previousCurrent + 1
+  } else {
+    nextCurrent = 1
+  }
+
+  const nextBest = Math.max(previousBest, nextCurrent)
+  const changed = previousDay !== today
+    || previousCurrent !== nextCurrent
+    || previousBest !== nextBest
+
+  if (changed) {
+    user.engagement = {
+      ...(user.engagement || {}),
+      streak: {
+        current: nextCurrent,
+        best: nextBest,
+        lastActiveDay: today,
+        updatedAt: now
+      }
+    }
+
+    if (typeof user.markModified === 'function') {
+      user.markModified('engagement')
+    }
+
+    if (typeof user.save === 'function') {
+      await user.save()
+    }
+  }
+
+  return {
+    currentStreak: nextCurrent,
+    bestStreak: nextBest,
+    changed,
+    lastActiveDay: today
+  }
+}
+
 /**
  * Calcula sequência de dias consecutivos com actividade.
  *
