@@ -14,6 +14,7 @@ import { Class } from '../../models/Class'
 import { IProduct } from '../../models/product/Product'
 import { ProcessItemResult, SyncError, SyncWarning, UniversalSourceItem, UniversalSyncConfig, UniversalSyncResult } from '../../types/universalSync.types'
 import { snapshotAndCompare } from '../snapshotServices/userSnapshot.service'
+import { parseTurmaName } from '../renewal/turmaParser'
 
 // ═══════════════════════════════════════════════════════════
 // TYPE HELPERS
@@ -618,31 +619,37 @@ async function detectRenewal(
     shouldReactivate: false
   }
 
-  // Só para Hotmart (única plataforma com purchaseDate fiável)
-  if (config.syncType !== 'hotmart' || !purchaseDate) {
+  // Só para Hotmart (turma OGI e purchaseDate são dados desta plataforma)
+  if (config.syncType !== 'hotmart') {
     return result
   }
 
-  // Lógica simples: a data de compra é a única fonte de verdade.
-  // Se purchaseDate < 380 dias → deve estar ATIVO (compra válida ou renovação recente)
-  // Se purchaseDate ≥ 380 dias → expirado
-  const daysSincePurchase = Math.floor((Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24))
-  const isExpired = daysSincePurchase >= EXPIRATION_DAYS
+  const activeClass = getActiveHotmartClassForExpiration(user)
+  const expiration = getExpirationEvaluation(purchaseDate, activeClass?.className)
+  if (!expiration.canEvaluate) {
+    return result
+  }
 
   const userStatus = (user as any).status
   const combinedStatus = (user as any).combined?.status
   const isInactiveInDB = userStatus === 'INACTIVE' || combinedStatus === 'INACTIVE'
 
-  result.purchaseDate = purchaseDate
+  if (purchaseDate) {
+    result.purchaseDate = purchaseDate
+  }
 
-  if (isInactiveInDB && !isExpired) {
-    // Está inativo na BD mas a compra ainda é válida → renovou ou foi inativado indevidamente
+  if (isInactiveInDB && !expiration.isExpired) {
+    // Está inativo na BD mas o acesso ainda é válido → renovou ou foi inativado indevidamente
     result.wasInactivated = true
     result.shouldReactivate = true
-    result.reactivationReason = 'purchase_date_valid'
+    result.reactivationReason = 'sync'
     console.log(`🔄 [RenewalDetection] REATIVAÇÃO AUTOMÁTICA!`)
     console.log(`   📧 User: ${user.email}`)
-    console.log(`   💳 Purchase: ${purchaseDate.toISOString().split('T')[0]} (${daysSincePurchase} dias, limite ${EXPIRATION_DAYS})`)
+    if (expiration.accessEndOgi) {
+      console.log(`   📅 Acesso OGI: válido até ${formatDateOnly(expiration.accessEndOgi)} (${activeClass?.className || 'turma sem nome'})`)
+    } else if (purchaseDate) {
+      console.log(`   💳 Purchase: ${purchaseDate.toISOString().split('T')[0]} (${expiration.daysSincePurchase} dias, limite ${EXPIRATION_DAYS})`)
+    }
   }
 
   return result
@@ -712,22 +719,120 @@ async function applyAutoReactivation(
 
 const EXPIRATION_DAYS = 380 // Dias após compra para considerar expirado
 
+interface HotmartClassForExpiration {
+  classId?: string
+  className?: string
+}
+
 interface ExpiredStudent {
   userId: string
   email: string
   name: string
   classId?: string
   className?: string
-  purchaseDate: Date
+  purchaseDate: Date | null
   daysSincePurchase: number
+  accessEndOgi?: Date | null
+  expirationSource: 'turma' | 'purchaseDate'
+  expirationReason: string
 }
 
 // Lista global para coletar alunos expirados durante o sync
 let expiredStudentsList: ExpiredStudent[] = []
 
+function formatDateOnly(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+function getDaysSincePurchase(purchaseDate: Date | null): number {
+  if (!purchaseDate) return 0
+  return Math.floor((Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+function getActiveHotmartClassForExpiration(
+  user: any,
+  pendingHotmartClasses?: any[],
+  fallbackClassId?: string,
+  fallbackClassName?: string
+): HotmartClassForExpiration | null {
+  const candidates = [
+    ...(Array.isArray(pendingHotmartClasses) ? pendingHotmartClasses : []),
+    ...(Array.isArray(user?.hotmart?.enrolledClasses) ? user.hotmart.enrolledClasses : [])
+  ]
+
+  const activeClass = candidates.find((cls: any) => cls?.className && cls.isActive !== false)
+  const anyClass = candidates.find((cls: any) => cls?.className)
+
+  if (activeClass || anyClass) {
+    const cls = activeClass || anyClass
+    return {
+      classId: cls.classId,
+      className: cls.className
+    }
+  }
+
+  if (fallbackClassName) {
+    return {
+      classId: fallbackClassId,
+      className: fallbackClassName
+    }
+  }
+
+  return null
+}
+
+function getExpirationEvaluation(
+  purchaseDate: Date | null,
+  className?: string
+): {
+  canEvaluate: boolean
+  isExpired: boolean
+  daysSincePurchase: number
+  accessEndOgi?: Date | null
+  expirationSource: 'turma' | 'purchaseDate'
+  expirationReason: string
+} {
+  const daysSincePurchase = getDaysSincePurchase(purchaseDate)
+
+  if (className) {
+    const parsed = parseTurmaName(className)
+    if (parsed.hasExpiry && parsed.accessEndOgi) {
+      const isExpired = parsed.accessEndOgi.getTime() < Date.now()
+      return {
+        canEvaluate: true,
+        isExpired,
+        daysSincePurchase,
+        accessEndOgi: parsed.accessEndOgi,
+        expirationSource: 'turma',
+        expirationReason: `Acesso expirado: ${formatDateOnly(parsed.accessEndOgi)}`
+      }
+    }
+  }
+
+  if (!purchaseDate) {
+    return {
+      canEvaluate: false,
+      isExpired: false,
+      daysSincePurchase,
+      accessEndOgi: null,
+      expirationSource: 'purchaseDate',
+      expirationReason: 'Sem data de compra para avaliar expiração'
+    }
+  }
+
+  return {
+    canEvaluate: true,
+    isExpired: daysSincePurchase > EXPIRATION_DAYS,
+    daysSincePurchase,
+    accessEndOgi: null,
+    expirationSource: 'purchaseDate',
+    expirationReason: `Compra expirada: ${daysSincePurchase} dias (limite: ${EXPIRATION_DAYS})`
+  }
+}
+
 /**
- * Verifica se um aluno expirou (compra há mais de 380 dias)
- * Retorna os dados do aluno expirado ou null se ainda válido
+ * Verifica se um aluno expirou. Usa a expiração real da turma quando o nome
+ * tem período YYMM; só cai no purchaseDate + 380 quando a turma não tem período.
  */
 function checkStudentExpiration(
   userId: string,
@@ -737,13 +842,9 @@ function checkStudentExpiration(
   classId?: string,
   className?: string
 ): ExpiredStudent | null {
-  if (!purchaseDate) return null
+  const expiration = getExpirationEvaluation(purchaseDate, className)
 
-  const now = new Date()
-  const diffTime = now.getTime() - purchaseDate.getTime()
-  const daysSincePurchase = Math.floor(diffTime / (1000 * 60 * 60 * 24))
-
-  if (daysSincePurchase > EXPIRATION_DAYS) {
+  if (expiration.canEvaluate && expiration.isExpired) {
     return {
       userId,
       email,
@@ -751,7 +852,10 @@ function checkStudentExpiration(
       classId,
       className,
       purchaseDate,
-      daysSincePurchase
+      daysSincePurchase: expiration.daysSincePurchase,
+      accessEndOgi: expiration.accessEndOgi,
+      expirationSource: expiration.expirationSource,
+      expirationReason: expiration.expirationReason
     }
   }
 
@@ -806,7 +910,7 @@ async function processExpiredStudentsInactivation(): Promise<{
     return result
   }
 
-  console.log(`\n🔄 [ExpirationCheck] Processando ${expiredList.length} alunos expirados (compra > ${EXPIRATION_DAYS} dias)...`)
+  console.log(`\n🔄 [ExpirationCheck] Processando ${expiredList.length} alunos com acesso expirado...`)
 
   // Agrupar por turma para depois atualizar
   const classesWithExpiredStudents = new Map<string, number>()
@@ -839,7 +943,7 @@ async function processExpiredStudentsInactivation(): Promise<{
           'inactivation.isManuallyInactivated': true,
           'inactivation.inactivatedAt': new Date(),
           'inactivation.inactivatedBy': 'Sistema - Expiração Automática',
-          'inactivation.reason': `Compra expirada: ${student.daysSincePurchase} dias (limite: ${EXPIRATION_DAYS})`,
+          'inactivation.reason': student.expirationReason,
           'inactivation.platforms': ['hotmart'],
           'inactivation.classId': student.classId
         }
@@ -861,23 +965,27 @@ async function processExpiredStudentsInactivation(): Promise<{
           previousValue: { status: 'ACTIVE' },
           newValue: {
             status: 'INACTIVE',
-            reason: `Compra expirada: ${student.daysSincePurchase} dias (limite: ${EXPIRATION_DAYS})`,
+            reason: student.expirationReason,
             daysSincePurchase: student.daysSincePurchase,
             purchaseDate: student.purchaseDate,
             classId: student.classId,
-            className: student.className
+            className: student.className,
+            accessEndOgi: student.accessEndOgi,
+            expirationSource: student.expirationSource
           },
           platform: 'hotmart',
           action: 'update',
           changeDate: new Date(),
           source: 'SYSTEM',
           changedBy: 'Sistema - Expiração Automática',
-          reason: `Expiração automática: compra há ${student.daysSincePurchase} dias`,
+          reason: `Expiração automática: ${student.expirationReason}`,
           metadata: {
             expirationType: 'automatic',
+            expirationSource: student.expirationSource,
             daysSincePurchase: student.daysSincePurchase,
             expirationLimit: EXPIRATION_DAYS,
-            purchaseDate: student.purchaseDate
+            purchaseDate: student.purchaseDate,
+            accessEndOgi: student.accessEndOgi
           }
         })
       } catch (error: any) {
@@ -892,7 +1000,7 @@ async function processExpiredStudentsInactivation(): Promise<{
         classesWithExpiredStudents.set(student.classId, count + 1)
       }
 
-      console.log(`   ✅ ${student.email} inativado (${student.daysSincePurchase} dias desde compra)`)
+      console.log(`   ✅ ${student.email} inativado (${student.expirationReason})`)
 
     } catch (error: any) {
       result.errors.push(`Erro ao inativar ${student.email}: ${error.message}`)
@@ -1623,18 +1731,27 @@ if (lastAccessDate) {
   // ═══════════════════════════════════════════════════════════
   if (
     config.syncType === 'hotmart' &&
-    !renewalResult.shouldReactivate &&
-    purchaseDate
+    !renewalResult.shouldReactivate
   ) {
     const userStatus = (user as any).status
     const combinedStatus = (user as any).combined?.status
     const isInactiveInDB = userStatus === 'INACTIVE' || combinedStatus === 'INACTIVE'
+    const activeHotmartClass = getActiveHotmartClassForExpiration(
+      user,
+      updateFields['hotmart.enrolledClasses'] as any[] | undefined,
+      item.classId,
+      item.className
+    )
+    const expiration = getExpirationEvaluation(
+      purchaseDate,
+      activeHotmartClass?.className
+    )
 
-    const daysSincePurchase = Math.floor((Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24))
-    const isNotExpired = daysSincePurchase < EXPIRATION_DAYS
-
-    if (isInactiveInDB && isNotExpired) {
-      console.log(`   🔄 [AutoFix] ${user.email} está INACTIVE mas compra recente (${daysSincePurchase}d) → reativando`)
+    if (isInactiveInDB && expiration.canEvaluate && !expiration.isExpired) {
+      const validUntil = expiration.accessEndOgi
+        ? `acesso válido até ${formatDateOnly(expiration.accessEndOgi)}`
+        : `compra recente (${expiration.daysSincePurchase}d)`
+      console.log(`   🔄 [AutoFix] ${user.email} está INACTIVE mas tem ${validUntil} → reativando`)
       updateFields['status'] = 'ACTIVE'
       updateFields['estado'] = 'ativo'
       updateFields['combined.status'] = 'ACTIVE'
@@ -1653,22 +1770,28 @@ if (lastAccessDate) {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 🆕 VERIFICAR EXPIRAÇÃO (compra > 380 dias) - só para Hotmart
+  // 🆕 VERIFICAR EXPIRAÇÃO REAL DA TURMA - só para Hotmart
   // ═══════════════════════════════════════════════════════════
-  if (config.syncType === 'hotmart' && purchaseDate && !renewalResult.shouldReactivate) {
+  if (config.syncType === 'hotmart' && !renewalResult.shouldReactivate) {
+    const activeHotmartClass = getActiveHotmartClassForExpiration(
+      user,
+      updateFields['hotmart.enrolledClasses'] as any[] | undefined,
+      item.classId,
+      item.className
+    )
     const expiredStudent = checkStudentExpiration(
       userIdStr,
       user.email,
       user.name,
       purchaseDate,
-      item.classId,
-      item.className
+      activeHotmartClass?.classId || item.classId,
+      activeHotmartClass?.className || item.className
     )
 
     if (expiredStudent) {
       // Adicionar à lista para processar no final do sync
       addToExpiredList(expiredStudent)
-      debugLog(`   ⏰ [Expiration] ${user.email} marcado para inativação (${expiredStudent.daysSincePurchase} dias)`)
+      debugLog(`   ⏰ [Expiration] ${user.email} marcado para inativação (${expiredStudent.expirationReason})`)
     }
   }
 
