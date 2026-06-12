@@ -18,6 +18,7 @@ import { Class } from '../../models/Class'
 interface AchievementItem {
   id: string
   unlockedAt: Date | null
+  seenAt?: Date | null
   progress?: {
     current: number
     target: number
@@ -113,10 +114,11 @@ export async function evaluateAchievements(user: UserData): Promise<AchievementR
     const result = evaluateSingle(def.id, user, streak, userProduct, classHistoryCount, engagementState, classNames)
 
     // Se já estava desbloqueado, manter data original
-    if (existing?.unlockedAt && result.unlocked) {
+    if (existing?.unlockedAt) {
       return {
         id: def.id,
         unlockedAt: existing.unlockedAt,
+        seenAt: existing.seenAt ?? null,
         progress: result.progress,
       }
     }
@@ -126,6 +128,7 @@ export async function evaluateAchievements(user: UserData): Promise<AchievementR
       return {
         id: def.id,
         unlockedAt: new Date(),
+        seenAt: null,
         progress: result.progress,
       }
     }
@@ -134,6 +137,7 @@ export async function evaluateAchievements(user: UserData): Promise<AchievementR
     return {
       id: def.id,
       unlockedAt: null,
+      seenAt: existing?.seenAt ?? null,
       progress: result.progress,
     }
   })
@@ -437,4 +441,3 @@ async function getEnrolledClassNames(user: UserData): Promise<string[]> {
 
   return classes.map((c: any) => c.name || '')
 }
-

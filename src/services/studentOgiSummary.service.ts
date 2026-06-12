@@ -4,8 +4,8 @@ import Product from '../models/product/Product'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import CourseLesson from '../models/CourseLesson'
-import { evaluateAchievements } from './achievements/achievementEvaluator'
 import { ACHIEVEMENT_DEFINITIONS } from './achievements/achievementDefinitions'
+import { evaluateAndPersistAchievements } from './achievements/achievementEvaluation.service'
 import { findRenewalOffer } from './renewal/renewalMatcher.service'
 import { parseTurmaName } from './renewal/turmaParser'
 
@@ -76,6 +76,7 @@ export interface StudentOgiSummary {
       category: string
       isUnlocked: boolean
       unlockedAt: string | null
+      isNew: boolean
       progress?: { current: number; target: number }
     }>
     stats: {
@@ -197,16 +198,20 @@ export function isValidSummaryAccessToken(token?: string): boolean {
 export async function getStudentOgiSummary(email: string): Promise<StudentOgiSummary | null> {
   const normalizedEmail = normalizeStudentEmail(email)
   const user = await User.findOne({ email: normalizedEmail })
-    .select('name email hotmart combined achievements achievementStats')
-    .lean()
+    .select('name email hotmart curseduca discord combined inactivation achievements achievementStats')
     .exec() as (StudentLean & { achievements?: any[]; achievementStats?: any }) | null
 
   if (!user) return null
 
+  await evaluateAndPersistAchievements(user, {
+    staleMs: 12 * 60 * 60 * 1000,
+    backfillUnlockedAsSeen: true
+  })
+
   const ogiProduct = await findOgiProduct()
   const userProduct = await findOgiUserProduct(user._id, ogiProduct?._id)
 
-  return buildStudentOgiSummary(user, userProduct)
+  return buildStudentOgiSummary(typeof (user as any).toObject === 'function' ? (user as any).toObject() : user, userProduct)
 }
 
 async function findOgiProduct(): Promise<ProductLean | null> {
@@ -360,6 +365,7 @@ function buildAchievementsResponse(
       category: def?.category || 'marcos',
       isUnlocked: Boolean(a.unlockedAt),
       unlockedAt: a.unlockedAt ? new Date(a.unlockedAt).toISOString() : null,
+      isNew: Boolean(a.unlockedAt && !a.seenAt),
       progress: a.progress || undefined,
     }
   })
