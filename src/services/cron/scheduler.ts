@@ -14,6 +14,7 @@ import CronJobConfig, {
 import { CronExecution } from '../../models'
 import { executeDailyPipeline } from './dailyPipeline.service'
 import { syncRenewalOffers } from '../renewal/renewalSync.service'
+import { evaluateAllAchievements } from '../achievements/achievementEvaluation.service'
 import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import universalSyncService from '../syncUtilizadoresServices/universalSyncService'
 import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
@@ -21,6 +22,7 @@ import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../t
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
 const RENEWAL_OFFER_SYNC_JOB_NAME = 'RenewalOfferSync'
+const ACHIEVEMENT_EVALUATION_JOB_NAME = 'AchievementEvaluation'
 const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('000000000000000000000001')
 
 // ─────────────────────────────────────────────────────────────
@@ -592,6 +594,64 @@ const job = await CronJobConfig.create({
     console.log('[RenewalOfferSync] Cron diário criado (05:00 Lisboa)')
   }
 
+  private async ensureAchievementEvaluationJob(): Promise<void> {
+    const cronExpression = '30 4 * * *' // diário às 04:30
+
+    const existingJob = await CronJobConfig.findOne({ name: ACHIEVEMENT_EVALUATION_JOB_NAME })
+    if (existingJob) {
+      if (existingJob.schedule?.cronExpression !== cronExpression) {
+        existingJob.schedule.cronExpression = cronExpression
+        existingJob.nextRun = this.calculateNextRun(cronExpression)
+        await existingJob.save()
+        console.log('[AchievementEvaluation] Cron atualizado para diário (04:30 Lisboa)')
+      }
+      return
+    }
+
+    await CronJobConfig.create({
+      name: ACHIEVEMENT_EVALUATION_JOB_NAME,
+      description: 'Avalia diariamente conquistas OGI para manter o cache atualizado',
+      syncType: 'hotmart',
+      schedule: {
+        cronExpression,
+        timezone: 'Europe/Lisbon',
+        enabled: true
+      },
+      syncConfig: {
+        fullSync: false,
+        includeProgress: false,
+        includeTags: false,
+        batchSize: 100
+      },
+      tagRules: [],
+      tagRuleOptions: {
+        enabled: false,
+        executeAllRules: false,
+        runInParallel: false,
+        stopOnError: false
+      },
+      notifications: {
+        enabled: false,
+        emailOnSuccess: false,
+        emailOnFailure: true,
+        recipients: []
+      },
+      retryPolicy: {
+        maxRetries: 2,
+        retryDelayMinutes: 30,
+        exponentialBackoff: true
+      },
+      nextRun: this.calculateNextRun(cronExpression),
+      createdBy: SYSTEM_CRON_ADMIN_ID,
+      isActive: true,
+      totalRuns: 0,
+      successfulRuns: 0,
+      failedRuns: 0
+    })
+
+    console.log('[AchievementEvaluation] Cron diário criado (04:30 Lisboa)')
+  }
+
   async initializeScheduler(): Promise<void> {
     console.log('🚀 Inicializando scheduler...')
 
@@ -599,6 +659,7 @@ const job = await CronJobConfig.create({
     registry.clear()
 
     await this.ensureRenewalOfferSyncJob()
+    await this.ensureAchievementEvaluationJob()
 
     // Carregar todos os jobs ativos
     const activeJobs = await CronJobConfig.getActiveJobs()
@@ -647,7 +708,8 @@ private async executeSyncJob(job: ICronJobConfig): Promise<{
     'WeeklyTagSnapshot',
     'ClarezaRefresh',
     'GuruTrialCheck',
-    RENEWAL_OFFER_SYNC_JOB_NAME
+    RENEWAL_OFFER_SYNC_JOB_NAME,
+    ACHIEVEMENT_EVALUATION_JOB_NAME
   ]
   
   // Verificar se job atual tem lógica específica
@@ -772,6 +834,20 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
         updated: report.upserted,
         errors: 0,
         skipped: report.unknownNames.length
+      }
+
+    } else if (job.name.includes(ACHIEVEMENT_EVALUATION_JOB_NAME)) {
+      console.log('Executando: AchievementEvaluation (conquistas OGI)')
+      const report = await evaluateAllAchievements({
+        backfillUnlockedAsSeen: true
+      })
+      result = {
+        success: report.errors === 0,
+        total: report.total,
+        inserted: 0,
+        updated: report.evaluated,
+        errors: report.errors,
+        skipped: Math.max(0, report.total - report.evaluated)
       }
 
     } else {

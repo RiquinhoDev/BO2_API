@@ -1,19 +1,18 @@
-// ════════════════════════════════════════════════════════════
-// 📁 src/routes/achievements.routes.ts
-// Rotas para gestão de conquistas
-// ════════════════════════════════════════════════════════════
-
 import { Router, Request, Response } from 'express'
 import User from '../models/user'
-import { evaluateAchievements } from '../services/achievements/achievementEvaluator'
+import {
+  evaluateAllAchievements,
+  evaluateAndPersistAchievements
+} from '../services/achievements/achievementEvaluation.service'
 import { ACHIEVEMENT_DEFINITIONS, TOTAL_ACHIEVEMENTS } from '../services/achievements/achievementDefinitions'
+import {
+  isValidSummaryAccessToken,
+  normalizeStudentEmail,
+  resolveStudentEmailFromToken
+} from '../services/studentOgiSummary.service'
 
 const router = Router()
 
-// ─────────────────────────────────────────────────────────────
-// GET /api/achievements/definitions
-// Lista todas as definições de conquistas
-// ─────────────────────────────────────────────────────────────
 router.get('/definitions', (_req: Request, res: Response) => {
   res.json({
     total: TOTAL_ACHIEVEMENTS,
@@ -21,10 +20,6 @@ router.get('/definitions', (_req: Request, res: Response) => {
   })
 })
 
-// ─────────────────────────────────────────────────────────────
-// POST /api/achievements/evaluate/:email
-// Avalia conquistas para um utilizador específico (admin/debug)
-// ─────────────────────────────────────────────────────────────
 router.post('/evaluate/:email', async (req: Request, res: Response) => {
   try {
     const email = (req.params.email as string)?.toLowerCase().trim()
@@ -37,12 +32,10 @@ router.post('/evaluate/:email', async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Utilizador não encontrado.' })
     }
 
-    const result = await evaluateAchievements(user.toObject())
-
-    // Guardar no documento do utilizador
-    user.achievements = result.achievements as any
-    user.achievementStats = result.stats as any
-    await user.save()
+    const result = await evaluateAndPersistAchievements(user, {
+      force: true,
+      backfillUnlockedAsSeen: true
+    })
 
     res.json({
       message: `Conquistas avaliadas para ${email}`,
@@ -55,46 +48,23 @@ router.post('/evaluate/:email', async (req: Request, res: Response) => {
   }
 })
 
-// ─────────────────────────────────────────────────────────────
-// POST /api/achievements/evaluate-all
-// Avalia conquistas para TODOS os utilizadores (batch/sync)
-// ─────────────────────────────────────────────────────────────
 router.post('/evaluate-all', async (req: Request, res: Response) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 0  // 0 = todos
-    const query: any = { 'hotmart.purchaseDate': { $exists: true } }  // Só users com Hotmart
-
-    const users = await User.find(query)
-      .select('email name hotmart curseduca discord combined inactivation achievements achievementStats')
-      .limit(limit || 0)
-      .exec()
-
-    let processed = 0
-    let errors = 0
-    const startTime = Date.now()
-
-    for (const user of users) {
-      try {
-        const result = await evaluateAchievements(user.toObject())
-        user.achievements = result.achievements as any
-        user.achievementStats = result.stats as any
-        await user.save()
-        processed++
-      } catch (err: any) {
-        errors++
-        console.error(`Erro avaliação conquistas ${user.email}:`, err.message)
-      }
-    }
-
-    const duration = Date.now() - startTime
+    const limit = parseInt(req.query.limit as string) || 0
+    const result = await evaluateAllAchievements({
+      limit,
+      force: true,
+      backfillUnlockedAsSeen: true
+    })
 
     res.json({
       message: 'Avaliação de conquistas concluída',
-      total: users.length,
-      processed,
-      errors,
-      durationMs: duration,
-      avgPerUser: users.length > 0 ? Math.round(duration / users.length) : 0,
+      total: result.total,
+      processed: result.processed,
+      evaluated: result.evaluated,
+      errors: result.errors,
+      durationMs: result.durationMs,
+      avgPerUser: result.total > 0 ? Math.round(result.durationMs / result.total) : 0,
     })
   } catch (error: any) {
     console.error('Erro na avaliação em massa:', error.message)
@@ -102,10 +72,53 @@ router.post('/evaluate-all', async (req: Request, res: Response) => {
   }
 })
 
-// ─────────────────────────────────────────────────────────────
-// GET /api/achievements/stats
-// Estatísticas globais de conquistas
-// ─────────────────────────────────────────────────────────────
+router.post('/mark-seen', async (req: Request, res: Response) => {
+  try {
+    const email = resolveEmailFromRequest(req)
+    const ids = Array.isArray(req.body?.ids)
+      ? req.body.ids
+          .filter((id: unknown) => typeof id === 'string' && id.trim())
+          .map((id: string) => id.trim())
+      : []
+
+    if (!email) {
+      return res.status(400).json({ message: 'Token ou email obrigatório.' })
+    }
+
+    if (ids.length === 0) {
+      return res.status(400).json({ message: 'Lista de conquistas obrigatória.' })
+    }
+
+    const user = await User.findOne({ email })
+    if (!user) {
+      return res.status(404).json({ message: 'Utilizador não encontrado.' })
+    }
+
+    const now = new Date()
+    let updated = 0
+    const idSet = new Set(ids)
+
+    user.achievements = ((user.achievements || []) as any[]).map((achievement: any) => {
+      if (idSet.has(achievement.id) && achievement.unlockedAt && !achievement.seenAt) {
+        updated++
+        return { ...achievement, seenAt: now }
+      }
+      return achievement
+    }) as any
+
+    user.markModified('achievements')
+    await user.save()
+
+    res.json({
+      message: 'Conquistas marcadas como vistas.',
+      updated
+    })
+  } catch (error: any) {
+    console.error('Erro ao marcar conquistas como vistas:', error.message)
+    res.status(500).json({ message: 'Erro ao marcar conquistas como vistas', details: error.message })
+  }
+})
+
 router.get('/stats', async (_req: Request, res: Response) => {
   try {
     const pipeline = [
@@ -123,18 +136,16 @@ router.get('/stats', async (_req: Request, res: Response) => {
     ]
 
     const [stats] = await User.aggregate(pipeline)
-
-    // Conquistas mais e menos comuns
     const achievementCounts: Record<string, number> = {}
     const usersWithAchievements = await User.find(
       { 'achievements.0': { $exists: true } },
       { achievements: 1 }
     ).lean().exec()
 
-    for (const u of usersWithAchievements) {
-      for (const a of (u as any).achievements || []) {
-        if (a.unlockedAt) {
-          achievementCounts[a.id] = (achievementCounts[a.id] || 0) + 1
+    for (const user of usersWithAchievements) {
+      for (const achievement of (user as any).achievements || []) {
+        if (achievement.unlockedAt) {
+          achievementCounts[achievement.id] = (achievementCounts[achievement.id] || 0) + 1
         }
       }
     }
@@ -153,5 +164,28 @@ router.get('/stats', async (_req: Request, res: Response) => {
     res.status(500).json({ message: 'Erro ao calcular estatísticas', details: error.message })
   }
 })
+
+function resolveEmailFromRequest(req: Request): string | null {
+  if (typeof req.body?.token === 'string' && req.body.token.trim()) {
+    return resolveStudentEmailFromToken(req.body.token.trim())
+  }
+
+  if (typeof req.query?.token === 'string' && req.query.token.trim()) {
+    return resolveStudentEmailFromToken(req.query.token.trim())
+  }
+
+  const email = typeof req.body?.email === 'string'
+    ? req.body.email
+    : typeof req.query?.email === 'string'
+      ? req.query.email
+      : null
+  const summaryToken = req.header('x-student-summary-token')
+
+  if (!email || !isValidSummaryAccessToken(summaryToken)) {
+    return null
+  }
+
+  return normalizeStudentEmail(email)
+}
 
 export default router

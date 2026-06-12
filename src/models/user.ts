@@ -262,6 +262,7 @@ communicationByCourse?: Map<string, {
   achievements?: Array<{
     id: string                      // "primeiro_login", "streak_7_dias", etc.
     unlockedAt: Date | null         // null = não desbloqueada
+    seenAt?: Date | null            // null = desbloqueada mas ainda não mostrada ao aluno
     progress?: {                    // opcional, para badges com progresso parcial
       current: number
       target: number
@@ -702,6 +703,7 @@ curseduca: {
   achievements: [{
     id: { type: String, required: true },
     unlockedAt: { type: Date, default: null },
+    seenAt: { type: Date, default: null },
     progress: {
       current: { type: Number },
       target: { type: Number }
