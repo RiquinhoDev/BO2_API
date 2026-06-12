@@ -431,6 +431,26 @@ export const convertUnixTimestamp = (timestamp: any): Date | null => {
   return date
 }
 
+// ═══════════════════════════════════════════════════════════
+// ENGAGEMENT — normalizar para PT na RECEPÇÃO
+// A Hotmart devolve EN (HIGH/MEDIUM/LOW); o público e todo o sistema é PT.
+// Apanhamos aqui e alimentamos tudo o resto com o enum PT.
+// ═══════════════════════════════════════════════════════════
+const ENGAGEMENT_EN_TO_PT: Record<string, string> = {
+  HIGH: 'ALTO',
+  MEDIUM: 'MEDIO',
+  LOW: 'BAIXO'
+}
+const ENGAGEMENT_PT_VALID = new Set(['MUITO_ALTO', 'ALTO', 'MEDIO', 'BAIXO', 'MUITO_BAIXO', 'NONE'])
+
+/** EN (ou já PT) → enum PT. Idempotente; desconhecido → 'NONE'. */
+export const normalizeEngagementLevel = (raw?: string | null): string => {
+  if (!raw) return 'NONE'
+  const up = String(raw).trim().toUpperCase()
+  if (ENGAGEMENT_PT_VALID.has(up)) return up
+  return ENGAGEMENT_EN_TO_PT[up] || 'NONE'
+}
+
 /**
  * Normalizar dados do utilizador Hotmart para formato Universal
  * @param {HotmartUser} hotmartUser - Dados brutos da API
@@ -464,7 +484,7 @@ export const normalizeHotmartUser = (
 
     // Engagement
     accessCount: Number(hotmartUser.access_count) || 0,
-    engagementLevel: hotmartUser.engagement || 'NONE',
+    engagementLevel: normalizeEngagementLevel(hotmartUser.engagement),
 
     // ✅ NOVOS CAMPOS DA API HOTMART
     status: hotmartUser.status || null,
