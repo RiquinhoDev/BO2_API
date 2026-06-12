@@ -5,7 +5,7 @@
 
 import mongoose from 'mongoose'
 import { ACHIEVEMENT_DEFINITIONS, TOTAL_ACHIEVEMENTS } from './achievementDefinitions'
-import { calculateStreak, StreakResult } from './streakCalculator'
+import { calculateStreak, getTrackedStreak, StreakResult } from './streakCalculator'
 import UserProduct from '../../models/UserProduct'
 import StudentClassHistory from '../../models/StudentClassHistory'
 import StudentEngagementState from '../../models/StudentEngagementState'
@@ -75,6 +75,13 @@ interface UserData {
     }
     dataQuality?: string
   }
+  engagement?: {
+    streak?: {
+      current?: number
+      best?: number
+      lastActiveDay?: string
+    }
+  }
   inactivation?: {
     reactivatedAt?: Date
     reactivationReason?: string
@@ -91,9 +98,11 @@ interface UserData {
 // ─────────────────────────────────────────────────────────────
 
 export async function evaluateAchievements(user: UserData): Promise<AchievementResult> {
+  const trackedStreak = getTrackedStreak(user)
+
   // Carregar dados auxiliares em paralelo
   const [streak, userProduct, classHistoryCount, engagementState, classNames] = await Promise.all([
-    calculateStreak(user._id),
+    trackedStreak ? Promise.resolve(trackedStreak) : calculateStreak(user._id),
     findOgiUserProduct(user._id),
     countClassChanges(user._id),
     findEngagementState(user._id),

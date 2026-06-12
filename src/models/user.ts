@@ -259,6 +259,15 @@ communicationByCourse?: Map<string, {
 }>
 
   // 🏆 CONQUISTAS (avaliadas no sync semanal)
+  engagement?: {
+    streak?: {
+      current: number
+      best: number
+      lastActiveDay?: string
+      updatedAt?: Date
+    }
+  }
+
   achievements?: Array<{
     id: string                      // "primeiro_login", "streak_7_dias", etc.
     unlockedAt: Date | null         // null = não desbloqueada
@@ -700,6 +709,15 @@ curseduca: {
   },
 
   // 🏆 CONQUISTAS
+  engagement: {
+    streak: {
+      current: { type: Number, default: 0 },
+      best: { type: Number, default: 0 },
+      lastActiveDay: { type: String },
+      updatedAt: { type: Date }
+    }
+  },
+
   achievements: [{
     id: { type: String, required: true },
     unlockedAt: { type: Date, default: null },

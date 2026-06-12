@@ -6,6 +6,7 @@ import UserProduct from '../models/UserProduct'
 import CourseLesson from '../models/CourseLesson'
 import { ACHIEVEMENT_DEFINITIONS } from './achievements/achievementDefinitions'
 import { evaluateAndPersistAchievements } from './achievements/achievementEvaluation.service'
+import { recordDailyActivity } from './achievements/streakCalculator'
 import { findRenewalOffer } from './renewal/renewalMatcher.service'
 import { parseTurmaName } from './renewal/turmaParser'
 
@@ -198,12 +199,15 @@ export function isValidSummaryAccessToken(token?: string): boolean {
 export async function getStudentOgiSummary(email: string): Promise<StudentOgiSummary | null> {
   const normalizedEmail = normalizeStudentEmail(email)
   const user = await User.findOne({ email: normalizedEmail })
-    .select('name email hotmart curseduca discord combined inactivation achievements achievementStats')
+    .select('name email hotmart curseduca discord combined engagement inactivation achievements achievementStats')
     .exec() as (StudentLean & { achievements?: any[]; achievementStats?: any }) | null
 
   if (!user) return null
 
+  const streakUpdate = await recordDailyActivity(user)
+
   await evaluateAndPersistAchievements(user, {
+    force: streakUpdate.changed,
     staleMs: 12 * 60 * 60 * 1000,
     backfillUnlockedAsSeen: true
   })
