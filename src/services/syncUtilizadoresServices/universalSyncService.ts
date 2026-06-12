@@ -718,6 +718,10 @@ async function applyAutoReactivation(
 // ═══════════════════════════════════════════════════════════
 
 const EXPIRATION_DAYS = 380 // Dias após compra para considerar expirado
+// ⛔ Inactivação automática DESLIGADA: a inactivação passa a ser SÓ manual,
+// pelo mecanismo do Backoffice. O automatismo por dias inactivava alunos
+// renovados indevidamente. Mudar para true só se se quiser voltar a ligar.
+const AUTO_INACTIVATION_ENABLED = false
 
 interface HotmartClassForExpiration {
   classId?: string
@@ -901,6 +905,12 @@ async function processExpiredStudentsInactivation(): Promise<{
     totalInactivated: 0,
     classesAffected: [] as string[],
     errors: [] as string[]
+  }
+
+  // ⛔ Inactivação automática desligada — manual-only via Backoffice.
+  if (!AUTO_INACTIVATION_ENABLED) {
+    console.log('⏭️ [ExpirationCheck] Inactivação automática DESLIGADA — só manual pelo Backoffice.')
+    return result
   }
 
   const expiredList = getExpiredList()
