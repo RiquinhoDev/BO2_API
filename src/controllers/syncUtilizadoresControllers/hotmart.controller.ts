@@ -9,6 +9,7 @@ import { getUserCountForProduct, getUsersByProduct } from '../../services/userPr
 import { ensureUserHistoryModel } from '../../models/UserHistory'
 import { calculateCombinedEngagement } from '../../utils/engagementCalculator'
 import hotmartAdapter from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
+import { normalizeEngagementLevel } from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.helpers'
 import universalSyncService from '../../services/syncUtilizadoresServices/universalSyncService'
 import { SyncError, SyncProgress, SyncWarning } from '../../types/universalSync.types'
 
@@ -506,7 +507,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
 
                   'hotmart.engagement': {
                     accessCount: Number(apiUser.access_count) || 0,
-                    engagementLevel: apiUser.engagement || 'NONE',
+                    engagementLevel: normalizeEngagementLevel(apiUser.engagement),
                     engagementScore: 0,
                     calculatedAt: new Date()
                   },
