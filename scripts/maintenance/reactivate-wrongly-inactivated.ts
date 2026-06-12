@@ -44,9 +44,10 @@ async function main(): Promise<void> {
 
   await mongoose.connect(mongoUri)
 
+  // Apanha TODOS os inactivados pelo automatismo (isManuallyInactivated true OU false —
+  // o automatismo gravou ambos). O filtro de expiração abaixo é que garante a segurança.
   const query: any = {
-    'inactivation.inactivatedBy': SYSTEM_ACTOR,
-    'inactivation.isManuallyInactivated': true
+    'inactivation.inactivatedBy': SYSTEM_ACTOR
   }
 
   if (ONLY_EMAIL) {
