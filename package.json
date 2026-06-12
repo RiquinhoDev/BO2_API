@@ -82,6 +82,7 @@
     "list:rui-tags": "ts-node scripts/list-rui-tags-complete.ts",
     "renewal:check-names": "ts-node --transpile-only scripts/renewal/check-turma-names.ts",
     "renewal:sync": "ts-node --transpile-only scripts/renewal/sync-offers.ts",
+    "reactivate:expired-fix": "ts-node --transpile-only scripts/maintenance/reactivate-wrongly-inactivated.ts",
     "daily-pipeline": "ts-node scripts/run-daily-pipeline.ts",
     "daily-pipeline:step5": "ts-node scripts/run-daily-pipeline-test.ts",
     "pipeline:history": "ts-node scripts/view-pipeline-history.ts",
