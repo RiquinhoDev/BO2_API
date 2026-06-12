@@ -101,23 +101,23 @@ export async function evaluateAndPersistAchievements(
     options.backfillUnlockedAsSeen !== false
   )
 
+  // Actualiza em memória (para quem usa o objecto a seguir, ex: o summary)
   user.achievements = achievements as any
   user.achievementStats = result.stats as any
 
-  if (typeof user.markModified === 'function') {
-    user.markModified('achievements')
-    user.markModified('achievementStats')
-  }
-
-  if (typeof user.save === 'function') {
-    await user.save()
-  } else if (user._id) {
+  // Persistir SÓ os campos dos achievements via $set targeted.
+  // NÃO usar user.save(): validaria o doc inteiro e rebenta em dados sujos
+  // pré-existentes (ex: hotmart.engagement.engagementLevel='MEDIUM' fora do enum)
+  // → partia o getStudentOgiSummary p/ ~37% dos alunos. $set não corre validators.
+  if (user._id) {
     await User.findByIdAndUpdate(user._id, {
       $set: {
         achievements,
         achievementStats: result.stats
       }
     })
+  } else if (typeof user.save === 'function') {
+    await user.save()
   }
 
   return {

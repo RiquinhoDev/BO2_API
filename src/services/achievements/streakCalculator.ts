@@ -5,6 +5,7 @@
 
 import mongoose from 'mongoose'
 import UserAction from '../../models/UserAction'
+import User from '../../models/user'
 
 export interface StreakResult {
   currentStreak: number   // sequência actual em dias
@@ -64,11 +65,14 @@ export async function recordDailyActivity(user: any, now = new Date()): Promise<
       }
     }
 
-    if (typeof user.markModified === 'function') {
-      user.markModified('engagement')
-    }
-
-    if (typeof user.save === 'function') {
+    // persistir SÓ o streak via $set targeted. NÃO usar user.save():
+    // validaria o doc inteiro e rebenta em dados sujos pré-existentes
+    // (ex: hotmart.engagement.engagementLevel='MEDIUM' fora do enum).
+    if (user._id) {
+      await User.findByIdAndUpdate(user._id, {
+        $set: { 'engagement.streak': user.engagement.streak }
+      })
+    } else if (typeof user.save === 'function') {
       await user.save()
     }
   }
