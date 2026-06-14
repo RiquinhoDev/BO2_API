@@ -8,7 +8,7 @@ import { ACHIEVEMENT_DEFINITIONS } from './achievements/achievementDefinitions'
 import { evaluateAndPersistAchievements } from './achievements/achievementEvaluation.service'
 import { recordDailyActivity } from './achievements/streakCalculator'
 import { findRenewalOffer } from './renewal/renewalMatcher.service'
-import { parseTurmaName } from './renewal/turmaParser'
+import { parseTurmaName, resolveAccessEnd } from './renewal/turmaParser'
 
 type MongooseReadModel = mongoose.Model<mongoose.Document>
 type StudentSummarySource = 'userProduct' | 'legacyHotmart' | 'none'
@@ -267,10 +267,11 @@ async function buildStudentOgiSummary(
   const continueLesson = await buildContinueLesson(userProduct)
   const activeClassName = getActiveHotmartClassName(user)
   const parsedTurma = activeClassName ? parseTurmaName(activeClassName) : null
+  // Fim de acesso canónico (2 camadas: compra + nome da turma) — mesma regra do
+  // gate de login na API legacy. Fallback ao cálculo antigo se não houver dados.
   const fallbackExpiresAt = calculateExpirationDate(purchaseDate || enrolledAt)
-  const expiresAt = parsedTurma?.hasExpiry && parsedTurma.accessEndOgi
-    ? parsedTurma.accessEndOgi
-    : fallbackExpiresAt
+  const expiresAt = resolveAccessEnd(purchaseDate || enrolledAt, activeClassName)
+    || fallbackExpiresAt
   const renewalOffer = await findRenewalOffer({
     turmaNumber: parsedTurma?.turmaNumber,
     expiryYYMM: parsedTurma?.accessEndYYMM
