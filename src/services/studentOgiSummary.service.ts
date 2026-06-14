@@ -125,6 +125,10 @@ interface StudentLean {
   email: string
   hotmart?: LegacyHotmartData
   combined?: LegacyCombinedData
+  inactivation?: {
+    isManuallyInactivated?: boolean
+    reason?: string
+  }
 }
 
 interface ProductLean {
@@ -194,6 +198,59 @@ export function resolveStudentEmailFromToken(token: string): string {
 export function isValidSummaryAccessToken(token?: string): boolean {
   const expectedToken = process.env.STUDENT_SUMMARY_TOKEN
   return Boolean(expectedToken && token && token === expectedToken)
+}
+
+export interface StudentAccessResult {
+  found: boolean
+  email: string
+  name?: string
+  active: boolean
+  expiresAt: Date | null
+  className: string | null
+  purchaseDate: Date | null
+  manuallyInactivated: boolean
+  reason: 'OK' | 'INACTIVATED' | 'EXPIRED' | 'NO_DATA'
+  source: 'bo2'
+}
+
+/**
+ * Decisão de acesso LEVE (sem efeitos secundários: não avalia achievements
+ * nem regista streak). Usada pela API legacy no gate de login — fonte única
+ * da regra de acesso (2 camadas: compra + nome da turma, via resolveAccessEnd)
+ * + inativação manual do Backoffice.
+ */
+export async function getStudentAccess(email: string): Promise<StudentAccessResult | null> {
+  const normalizedEmail = normalizeStudentEmail(email)
+  const user = await User.findOne({ email: normalizedEmail })
+    .select('name email hotmart.enrolledClasses hotmart.purchaseDate hotmart.signupDate inactivation')
+    .lean()
+    .exec() as StudentLean | null
+
+  if (!user) return null
+
+  const activeClassName = getActiveHotmartClassName(user)
+  const purchaseDate = user.hotmart?.purchaseDate || user.hotmart?.signupDate || null
+  const expiresAt = resolveAccessEnd(purchaseDate, activeClassName)
+  const manuallyInactivated = Boolean(user.inactivation?.isManuallyInactivated)
+  const dateValid = Boolean(expiresAt && expiresAt.getTime() >= Date.now())
+
+  let reason: StudentAccessResult['reason'] = 'OK'
+  if (manuallyInactivated) reason = 'INACTIVATED'
+  else if (!expiresAt) reason = 'NO_DATA'
+  else if (!dateValid) reason = 'EXPIRED'
+
+  return {
+    found: true,
+    email: user.email,
+    name: user.name,
+    active: !manuallyInactivated && dateValid,
+    expiresAt: expiresAt ?? null,
+    className: activeClassName ?? null,
+    purchaseDate: purchaseDate ?? null,
+    manuallyInactivated,
+    reason,
+    source: 'bo2'
+  }
 }
 
 export async function getStudentOgiSummary(email: string): Promise<StudentOgiSummary | null> {
