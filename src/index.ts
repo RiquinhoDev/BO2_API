@@ -214,6 +214,13 @@ mongoose.connect(process.env.MONGO_URI || "")
       systemMonitor.start()
     }
 
+    // 📈 CLAREZA TOP10: aquecer cache em memória no arranque, para a 1ª chamada
+    // pública NÃO pagar o custo de ler+serializar o snapshot do Mongo (cold-start).
+    import('./services/clareza/clarezaTop10Service')
+      .then(({ getClarezaTop10Json }) => getClarezaTop10Json())
+      .then((json) => console.log(`📈 [ClarezaTop10] Cache em memória aquecida no arranque (${json ? Math.round(json.length / 1024) : 0} KB)`))
+      .catch((err) => console.error('⚠️ [ClarezaTop10] Falha a aquecer cache no arranque:', err?.message))
+
     // 🔥 WARM-UP: Pré-aquecer cache em BACKGROUND (não bloquear servidor!)
     console.log('\n🔥 ============================================')
     console.log('🔥 Iniciando warm-up do cache em background...')
