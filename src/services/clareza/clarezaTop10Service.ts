@@ -22,7 +22,10 @@ async function runWithConcurrency<T>(
 const FMP_STABLE = 'https://financialmodelingprep.com/stable'
 const FMP_V3 = 'https://financialmodelingprep.com/api/v3'
 export const CLAREZA_TOP10_CACHE_KEY = 'clareza:top10-data'
-const CACHE_TTL = 28800 // 8 horas (alinhado com o Tremómetro)
+// 25h: cobre a maior janela entre refreshes do cron (18h→6h = 12h) com folga.
+// O cron (6h/12h/18h) reescreve a chave 3×/dia, por isso o Redis nunca expira
+// entre refreshes e o GET é sempre um hit rápido (sem fallback ao MongoDB).
+const CACHE_TTL = 90000
 const HISTORY_YEARS = 5 // histórico máximo por ação
 const REVISION = 'Q2 2026'
 const SPACEX_IPO_DATE = '2026-06-12'

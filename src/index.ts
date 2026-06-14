@@ -3,6 +3,7 @@ dotenv.config()
 
 import express from "express"
 import cors from "cors"
+import compression from "compression"
 import mongoose from "mongoose"
 import router from "./routes"
 
@@ -287,6 +288,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'api_key', 'x-api-key']
 }))
+// gzip/brotli das respostas — corta ~10× o JSON pesado do Tremómetro/Top10
+app.use(compression())
 app.use(express.json())
 app.use(metricsMiddleware)
 
