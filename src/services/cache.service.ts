@@ -49,11 +49,34 @@ class CacheService {
 
   async set(key: string, value: any, ttl = 300): Promise<void> {
     if (!this.isConnected || !this.redis) return
-    
+
     try {
       await this.redis.setex(key, ttl, JSON.stringify(value))
     } catch (error) {
       console.error('Cache set error:', error)
+    }
+  }
+
+  // Variantes "raw": guardam/servem a string tal como está, sem JSON.parse/stringify.
+  // Úteis para payloads grandes (ex.: Top 10) onde o custo é a (de)serialização por request.
+  async getRaw(key: string): Promise<string | null> {
+    if (!this.isConnected || !this.redis) return null
+
+    try {
+      return await this.redis.get(key)
+    } catch (error) {
+      console.error('Cache getRaw error:', error)
+      return null
+    }
+  }
+
+  async setRaw(key: string, value: string, ttl = 300): Promise<void> {
+    if (!this.isConnected || !this.redis) return
+
+    try {
+      await this.redis.setex(key, ttl, value)
+    } catch (error) {
+      console.error('Cache setRaw error:', error)
     }
   }
 

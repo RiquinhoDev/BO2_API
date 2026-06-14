@@ -22,6 +22,8 @@ async function runWithConcurrency<T>(
 const FMP_STABLE = 'https://financialmodelingprep.com/stable'
 const FMP_V3 = 'https://financialmodelingprep.com/api/v3'
 export const CLAREZA_TOP10_CACHE_KEY = 'clareza:top10-data'
+// String JSON já serializada — servida diretamente ao HTML sem JSON.parse/stringify por request.
+export const CLAREZA_TOP10_JSON_KEY = 'clareza:top10-data:json'
 // 25h: cobre a maior janela entre refreshes do cron (18h→6h = 12h) com folga.
 // O cron (6h/12h/18h) reescreve a chave 3×/dia, por isso o Redis nunca expira
 // entre refreshes e o GET é sempre um hit rápido (sem fallback ao MongoDB).
@@ -96,6 +98,29 @@ function ymd(date: Date): string {
   return date.toISOString().split('T')[0]
 }
 
+// Reduz a série histórica mantendo fidelidade visual do gráfico:
+// diário nos últimos RECENT_DAYS, ~semanal antes disso. Garante 1º e último ponto.
+// Corta o payload de ~1256 pts/ação para ~150 → JSON ~5× menor.
+const RECENT_DAYS = 90
+const OLD_STRIDE = 5 // 1 ponto a cada ~5 dias úteis (≈ semanal) para histórico antigo
+function downsampleHistory(rows: Array<{ date: string; close: number }>): Array<{ date: string; close: number }> {
+  if (rows.length <= 160) return rows
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - RECENT_DAYS)
+  const cutoffStr = ymd(cutoff)
+
+  const out: Array<{ date: string; close: number }> = []
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i]
+    const isRecent = r.date >= cutoffStr
+    if (isRecent || i % OLD_STRIDE === 0) out.push(r)
+  }
+  // Garantir que o último ponto real (preço atual) está sempre presente
+  const last = rows[rows.length - 1]
+  if (out[out.length - 1]?.date !== last.date) out.push(last)
+  return out
+}
+
 // Histórico: STABLE light → fallback v3 historical-price-full → normalizado {date, close}
 async function fetchHistorical(ticker: string, from: string, to: string): Promise<Array<{ date: string; close: number }>> {
   let rows: any[] = []
@@ -146,7 +171,7 @@ async function fetchPublicStock(ticker: string) {
 
   const from = new Date()
   from.setFullYear(from.getFullYear() - HISTORY_YEARS)
-  const historical = await fetchHistorical(ticker, ymd(from), ymd(new Date()))
+  const historical = downsampleHistory(await fetchHistorical(ticker, ymd(from), ymd(new Date())))
 
   return {
     profile:    isEmpty(profile) ? {} : profile,
@@ -292,8 +317,12 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
     stocks
   }
 
-  // Guardar em Redis
+  // Guardar em Redis: objeto (back-compat) + string já serializada (servida sem parse/stringify)
+  const payloadJson = JSON.stringify(payload)
   await cacheService.set(CLAREZA_TOP10_CACHE_KEY, payload, CACHE_TTL)
+  await cacheService.setRaw(CLAREZA_TOP10_JSON_KEY, payloadJson, CACHE_TTL)
+  // Atualizar cache em memória do processo (rede de segurança independente do Redis)
+  memJson = { value: payloadJson, expires: Date.now() + MEM_TTL_MS }
 
   // Guardar em MongoDB (persistência durável — mesmo se Redis reiniciar)
   try {
@@ -322,6 +351,34 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
 // ─────────────────────────────────────────────────────────────
 // GET COM CACHE (Redis → MongoDB → null)
 // ─────────────────────────────────────────────────────────────
+
+// Rede de segurança em memória do processo: garante <1s mesmo se o Redis estiver
+// desligado/indisponível (evita re-ler Mongo + re-serializar a cada request).
+// TTL curto; o cron (6/12/18h) e o refresh manual mantêm-no fresco.
+let memJson: { value: string; expires: number } | null = null
+const MEM_TTL_MS = 10 * 60 * 1000 // 10 min
+
+// GET rápido: devolve a STRING JSON pronta a enviar (sem JSON.parse + res.json).
+// É este o caminho usado pelo endpoint público /api/clareza/top10.
+export async function getClarezaTop10Json(): Promise<string | null> {
+  // 0. Memória do processo (mais rápido; independente do Redis)
+  if (memJson && memJson.expires > Date.now()) return memJson.value
+
+  // 1. Redis — string já serializada (caminho quente, ~ms)
+  const rawJson = await cacheService.getRaw(CLAREZA_TOP10_JSON_KEY)
+  if (rawJson) {
+    memJson = { value: rawJson, expires: Date.now() + MEM_TTL_MS }
+    return rawJson
+  }
+
+  // 2. Fallback: objeto em Redis/Mongo → serializa uma vez e re-popula as caches
+  const obj = await getClarezaTop10Data()
+  if (!obj) return null
+  const json = JSON.stringify(obj)
+  await cacheService.setRaw(CLAREZA_TOP10_JSON_KEY, json, CACHE_TTL)
+  memJson = { value: json, expires: Date.now() + MEM_TTL_MS }
+  return json
+}
 
 export async function getClarezaTop10Data(): Promise<any | null> {
   // 1. Tentar Redis
