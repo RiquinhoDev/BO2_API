@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, getStockAnalysis } from '../services/clareza/clarezaFmpService'
-import { getClarezaTop10Data, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
+import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
 
 export const clarezaController = {
   async getData(req: Request, res: Response) {
@@ -38,12 +38,15 @@ export const clarezaController = {
   // ── TOP 10 AÇÕES DA EQUIPA ──────────────────────────────────
   async getTop10(req: Request, res: Response) {
     try {
-      const data = await getClarezaTop10Data()
-      if (!data) {
+      const json = await getClarezaTop10Json()
+      if (!json) {
         return res.status(503).json({ error: 'Dados indisponíveis. Tente novamente em breve.' })
       }
       res.setHeader('Cache-Control', 'public, max-age=3600')
-      return res.json(data)
+      res.setHeader('Timing-Allow-Origin', '*') // expõe métricas de timing ao browser cross-origin
+      res.type('application/json')
+      // Envia a string já serializada (gzip aplicado pelo middleware compression). Sem res.json → sem stringify.
+      return res.send(json)
     } catch (error: any) {
       console.error('❌ [GET /api/clareza/top10]', error.message)
       return res.status(500).json({ error: 'Erro interno do servidor' })
