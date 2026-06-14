@@ -147,6 +147,29 @@ export function parseTurmaName(className: string): ParsedTurma {
 }
 
 /**
+ * Fim de acesso CANÓNICO (2 camadas) — a fonte única usada em todo o BO2.
+ * A Hotmart nem sempre actualiza a purchaseDate numa renovação, por isso o
+ * nome da turma é a rede de segurança (e vice-versa). Vale se QUALQUER camada
+ * ainda não expirou → devolvemos a data mais tardia.
+ *   Camada 1: purchaseDate + accessYears (1 ou 2, lidos do nome)
+ *   Camada 2: accessEndOgi (período | YYMM do nome)
+ */
+export function resolveAccessEnd(purchaseDate: Date | null | undefined, className: string | null | undefined): Date | null {
+  const parsed = parseTurmaName(className || '')
+  const ends: Date[] = []
+  if (parsed.accessEndOgi) ends.push(parsed.accessEndOgi)
+  if (purchaseDate) {
+    const pd = new Date(purchaseDate)
+    if (!Number.isNaN(pd.getTime())) {
+      pd.setUTCFullYear(pd.getUTCFullYear() + parsed.accessYears)
+      ends.push(pd)
+    }
+  }
+  if (ends.length === 0) return null
+  return new Date(Math.max(...ends.map((d) => d.getTime())))
+}
+
+/**
  * Faz parse do nome de uma oferta da Hotmart.
  * Renovação: "Renovação turma 1, 2 e 3 | 2605" → [1,2,3], "2605"
  * Nova:      "OGI Turma 19 | L2606 | 447"      → isRenewal false, [19], "2606"
