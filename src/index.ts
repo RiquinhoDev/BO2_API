@@ -70,9 +70,14 @@ import analyticsCacheService from "./services/analytics/analyticsCache.service"
 import cohortAnalyticsRoutes from './routes/cohortAnalytics.routes'
 import testHistoryRoutes from './routes/testHistory.routes'
 import syncSchedulerService from "./services/cron/scheduler"
+import { cacheService } from "./services/cache.service"
 
 const app = express()
 const PORT = process.env.PORT || 3001
+
+// Ligar ao Redis (cache partilhada). Sem isto, todo o cacheService era no-op
+// e o Top10/Tremómetro caía sempre no Mongo. Falha graciosa se REDIS_* faltar.
+cacheService.connect()
 
 // Conexão ao MongoDB
 mongoose.connect(process.env.MONGO_URI || "")
