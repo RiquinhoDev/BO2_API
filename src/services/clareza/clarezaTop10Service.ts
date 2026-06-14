@@ -25,6 +25,11 @@ export const CLAREZA_TOP10_CACHE_KEY = 'clareza:top10-data'
 const CACHE_TTL = 28800 // 8 horas (alinhado com o Tremómetro)
 const HISTORY_YEARS = 5 // histórico máximo por ação
 const REVISION = 'Q2 2026'
+const SPACEX_IPO_DATE = '2026-06-12'
+const SPACEX_IPO_PRICE = 135
+const SPACEX_FIRST_CLOSE = 160.95
+const SPACEX_FIRST_DAY_CHANGE = Number((((SPACEX_FIRST_CLOSE - SPACEX_IPO_PRICE) / SPACEX_IPO_PRICE) * 100).toFixed(2))
+const SPACEX_MARKET_CAP = 2110000000000
 
 // ─────────────────────────────────────────────────────────────
 // WATCHLIST Q2 2026 — Top 10 ações da equipa (alinhado com o HTML/PHP)
@@ -151,11 +156,14 @@ async function fetchPublicStock(ticker: string) {
 
 // SpaceX antes de IPO — dados manuais enquanto a FMP não devolve nada útil
 function spacexIpoFallbackPayload() {
+  const today = ymd(new Date())
   return {
     profile: {
       symbol: 'SPCX',
-      price: 135,
-      marketCap: 1770000000000,
+      price: SPACEX_FIRST_CLOSE,
+      changesPercentage: SPACEX_FIRST_DAY_CHANGE,
+      changePercentage: SPACEX_FIRST_DAY_CHANGE,
+      marketCap: SPACEX_MARKET_CAP,
       companyName: 'SpaceX',
       currency: 'USD',
       exchangeFullName: 'NASDAQ',
@@ -165,21 +173,60 @@ function spacexIpoFallbackPayload() {
       country: 'US',
       image: 'https://lp.serriquinho.com/wp-content/uploads/2026/06/SpaceX_logo_PNG3.png',
       description: 'SpaceX designs, manufactures and launches advanced rockets and spacecraft, and operates Starlink, a satellite internet constellation.',
-      ipoDate: '2026-06-12',
-      isActivelyTrading: false
+      ipoDate: SPACEX_IPO_DATE,
+      isActivelyTrading: true
     },
     ratios: {},
-    keyMetrics: { marketCap: 1770000000000 },
-    historical: [],
+    keyMetrics: { marketCap: SPACEX_MARKET_CAP },
+    historical: [
+      { date: SPACEX_IPO_DATE, close: SPACEX_IPO_PRICE },
+      { date: today, close: SPACEX_FIRST_CLOSE }
+    ],
     ipoInfo: {
-      ipoPrice: 135,
-      listingDate: '2026-06-12',
-      valuation: 1770000000000,
+      ipoPrice: SPACEX_IPO_PRICE,
+      firstClose: SPACEX_FIRST_CLOSE,
+      listingDate: SPACEX_IPO_DATE,
+      valuation: SPACEX_MARKET_CAP,
       tickerSymbol: 'SPCX',
       exchange: 'NASDAQ',
-      status: 'pending'
+      status: 'live-fallback'
     },
     updated: new Date().toISOString()
+  }
+}
+
+function withSpacexIpoFallback(payload: any) {
+  const fallback = spacexIpoFallbackPayload()
+  const liveProfile = payload?.profile || {}
+  const liveRatios = payload?.ratios || {}
+  const liveKeyMetrics = payload?.keyMetrics || {}
+  const liveHistorical = Array.isArray(payload?.historical) ? payload.historical : []
+
+  const livePrice = liveProfile.price
+  const hasPrice = livePrice !== null && livePrice !== undefined && !isNaN(Number(livePrice))
+  const hasHistory = liveHistorical.length >= 2
+  const liveChange = liveProfile.changesPercentage ?? liveProfile.changePercentage
+
+  return {
+    ...fallback,
+    ...payload,
+    profile: {
+      ...fallback.profile,
+      ...liveProfile,
+      price: hasPrice ? Number(livePrice) : fallback.profile.price,
+      changesPercentage: liveChange ?? fallback.profile.changesPercentage,
+      changePercentage: liveChange ?? fallback.profile.changePercentage,
+      marketCap: liveProfile.marketCap ?? fallback.profile.marketCap,
+      isActivelyTrading: liveProfile.isActivelyTrading ?? fallback.profile.isActivelyTrading
+    },
+    ratios: isEmpty(liveRatios) ? fallback.ratios : liveRatios,
+    keyMetrics: isEmpty(liveKeyMetrics) ? fallback.keyMetrics : liveKeyMetrics,
+    historical: hasHistory ? liveHistorical : fallback.historical,
+    ipoInfo: {
+      ...fallback.ipoInfo,
+      ...(payload?.ipoInfo || {})
+    },
+    updated: payload?.updated || fallback.updated
   }
 }
 
@@ -217,10 +264,7 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
 
         // SPCX: usa fallback manual de IPO enquanto a FMP não tiver preço nem histórico
         if (stock.ipoFallback) {
-          const price = payload.profile?.price
-          const hasPrice = price !== null && price !== undefined && !isNaN(Number(price))
-          const hasHist = Array.isArray(payload.historical) && payload.historical.length > 0
-          if (!hasPrice && !hasHist) payload = spacexIpoFallbackPayload()
+          payload = withSpacexIpoFallback(payload)
         }
 
         return { ticker: stock.ticker, payload }
