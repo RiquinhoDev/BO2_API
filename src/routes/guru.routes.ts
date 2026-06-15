@@ -60,6 +60,7 @@ import {
   checkExpired,
   syncTrials,
   revertTrialMark,
+  inactivateTrial,
 } from '../controllers/guru.trials.controller'
 
 const router = Router()
@@ -413,5 +414,12 @@ router.post('/trials/sync', asyncRoute(syncTrials))
  * Body: { email }
  */
 router.post('/trials/revert', asyncRoute(revertTrialMark))
+
+/**
+ * POST /guru/trials/inactivate
+ * Inativar manualmente um trial após os 7 dias → marca UserProducts PARA_INATIVAR
+ * Body: { email }
+ */
+router.post('/trials/inactivate', asyncRoute(inactivateTrial))
 
 export default router
