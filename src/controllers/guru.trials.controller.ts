@@ -10,6 +10,7 @@ import {
   checkExpiredTrials,
   syncTrialsFromGuru,
   revertTrial,
+  manuallyInactivateTrial,
 } from '../services/guru/guruTrialService'
 
 /**
@@ -86,6 +87,30 @@ export async function syncTrials(req: Request, res: Response) {
   } catch (error: any) {
     console.error('❌ [GURU TRIALS] Erro no sync:', error.message)
     res.status(500).json({ success: false, message: 'Erro ao sincronizar trials', details: error.message })
+  }
+}
+
+/**
+ * POST /guru/trials/inactivate
+ * Inativar manualmente um trial após os 7 dias (marca UserProducts PARA_INATIVAR)
+ * Body: { email }
+ */
+export async function inactivateTrial(req: Request, res: Response) {
+  try {
+    const { email } = req.body
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email obrigatório.' })
+    }
+
+    const result = await manuallyInactivateTrial(email)
+    res.json({
+      success: true,
+      message: `Trial de ${result.email} inativado (${result.marked} UserProducts marcados PARA_INATIVAR)`,
+      result,
+    })
+  } catch (error: any) {
+    console.error('❌ [GURU TRIALS] Erro ao inativar:', error.message)
+    res.status(400).json({ success: false, message: error.message })
   }
 }
 
