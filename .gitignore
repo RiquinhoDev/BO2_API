@@ -38,6 +38,9 @@ __snapshots__/
 tmpclaude-*
 nul
 
+# Snapshots de validação CursEduca (contêm emails de alunos — PII, não versionar)
+snapshots/
+
 # ========================
 # 🔒 Variáveis de ambiente
 # ========================
