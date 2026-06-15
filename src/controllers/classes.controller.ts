@@ -4,10 +4,30 @@ import { classesService, studentService } from '../services/syncUtilizadoresServ
 import SyncHistory from '../models/SyncHistory'
 
 import axios from 'axios'
+import jwt from 'jsonwebtoken'
 import { Class } from '../models/Class'
 import StudentClassHistory from '../models/StudentClassHistory'
 import { User, UserProduct } from '../models'
 import UserHistory from '../models/UserHistory'
+
+// Headers autenticados para delegar à API antiga.
+// Desde o commit 87e3457 ("security: proteger rotas admin"), a rota
+// /classes/inactivationLists/create da API antiga exige authenticateAdmin.
+// Esta delegação é máquina-a-máquina, por isso assinamos um JWT admin curto.
+// O segredo TEM de bater com o JWT_SECRET da API antiga em produção;
+// usa OLD_API_JWT_SECRET se for diferente do desta API.
+function buildOldApiHeaders(scope: string) {
+  const secret = process.env.OLD_API_JWT_SECRET || process.env.JWT_SECRET || 'riquinho-secret-key-2024'
+  const token = jwt.sign(
+    { role: 'admin', service: 'BO2_API', scope },
+    secret,
+    { expiresIn: '5m' }
+  )
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  }
+}
 
 
 interface ClassSyncResult {
@@ -1320,7 +1340,7 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         const discordResponse = await axios.post(
           `${oldApiUrl}/classes/inactivationLists/create`,
           { classIds, platforms: ['discord'] },
-          { timeout: 120000, headers: { 'Content-Type': 'application/json' } }
+          { timeout: 120000, headers: buildOldApiHeaders('discord-inactivation-bulk') }
         )
         totalDiscordUpdates = discordResponse.data?.list?.totalDiscordUpdates || discordResponse.data?.discordUpdates || 0
         console.log(`✅ Discord: API antiga processou - ${totalDiscordUpdates} roles removidos`)
@@ -1661,7 +1681,7 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
           const discordResponse = await axios.post(
             `${oldApiUrl}/classes/inactivationLists/create`,
             { classIds: [classId], platforms: ['discord'] },
-            { timeout: 120000, headers: { 'Content-Type': 'application/json' } }
+            { timeout: 120000, headers: buildOldApiHeaders('discord-inactivation-single') }
           )
           discordUpdates = discordResponse.data?.list?.totalDiscordUpdates || discordResponse.data?.discordUpdates || 0
           console.log(`✅ Discord: API antiga processou - ${discordUpdates} roles removidos`)
