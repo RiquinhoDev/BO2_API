@@ -212,22 +212,19 @@ export async function syncTrialsFromGuru(): Promise<{ synced: number; errors: nu
       const status = (sub.last_status || '').toLowerCase()
       if (status !== 'trial' && status !== 'trialing') continue
 
-      const email = sub.subscriber?.email?.toLowerCase()?.trim()
+      // A lista da Guru traz o email em `contact.email` (não `subscriber.email`)
+      const email = ((sub as any).contact?.email || sub.subscriber?.email)?.toLowerCase()?.trim()
       if (!email) continue
 
       try {
-        const user = await User.findOne({ email })
+        const user = await User.findOne({ email }).select('_id')
         if (!user) {
           console.log(`⏳ [GURU TRIALS SYNC] User ${email} não encontrado na BD — ignorado`)
           continue
         }
 
-        // Actualizar campos trial
-        user.set('guru.isTrial', true)
-        user.set('guru.status', 'trial')
-
-        // A LISTA da Guru não traz os campos do trial; o endpoint por subscrição
-        // traz (trial_started_at + trial_finished_at). Buscar os detalhes.
+        // A LISTA da Guru já traz trial_started_at + trial_finished_at; o endpoint
+        // por subscrição é só fallback se faltarem.
         let startRaw = sub.trial_started_at
         let finishRaw = sub.trial_finished_at
         if (!startRaw || !finishRaw) {
@@ -238,23 +235,29 @@ export async function syncTrialsFromGuru(): Promise<{ synced: number; errors: nu
             finishRaw = finishRaw || full?.trial_finished_at
           }
         }
+
+        // $set direcionado (NÃO user.save()) para não revalidar o documento todo —
+        // há docs com valores de enum antigos inválidos noutros campos que faziam
+        // o save rebentar e impediam a atualização das datas do trial.
+        const update: Record<string, any> = {
+          'guru.isTrial': true,
+          'guru.status': 'trial',
+          'guru.subscriptionCode': sub.subscription_code || sub.id,
+          'guru.lastSyncAt': new Date(),
+        }
         if (startRaw) {
           const start = new Date(startRaw)
           if (!isNaN(start.getTime())) {
-            user.set('guru.trialStartedAt', start)
+            update['guru.trialStartedAt'] = start
             // Fim: trial_finished_at da Guru (autoritativo); fallback início + 7 dias
             const finish = finishRaw ? new Date(finishRaw) : new Date(start.getTime() + TRIAL_WINDOW_DAYS * DAY_MS)
-            if (!isNaN(finish.getTime())) {
-              user.set('guru.trialFinishedAt', finish)
-            }
+            if (!isNaN(finish.getTime())) update['guru.trialFinishedAt'] = finish
           }
         }
-        user.set('guru.subscriptionCode', sub.subscription_code || sub.id)
-        user.set('guru.lastSyncAt', new Date())
 
-        await user.save()
+        await User.updateOne({ _id: user._id }, { $set: update })
         synced++
-        console.log(`✅ [GURU TRIALS SYNC] ${email} → trial (início=${startRaw || 'N/A'}, fim=início+7d)`)
+        console.log(`✅ [GURU TRIALS SYNC] ${email} → trial (início=${startRaw || 'N/A'}, fim=${finishRaw || 'início+7d'})`)
       } catch (err: any) {
         console.error(`❌ [GURU TRIALS SYNC] Erro ${email}:`, err.message)
         errors++
@@ -326,10 +329,12 @@ export async function manuallyInactivateTrial(email: string): Promise<ManualInac
     throw new Error(`Trial de ${normalizedEmail} ainda não terminou — inativação não permitida.`)
   }
 
-  // Mesmo efeito que o ramo "expirado sem conversão" do checkExpired
-  user.set('guru.isTrial', false)
-  user.set('guru.status', 'expired')
-  await user.save()
+  // Mesmo efeito que o ramo "expirado sem conversão" do checkExpired.
+  // $set direcionado (não user.save()) para não rebentar em docs com enums antigos.
+  await User.updateOne(
+    { _id: user._id },
+    { $set: { 'guru.isTrial': false, 'guru.status': 'expired' } }
+  )
 
   const marked = await markUserProductsForInactivation(user._id as any, normalizedEmail)
   console.log(`🔴 [GURU TRIALS] Inativação manual de ${normalizedEmail} → ${marked} UserProducts PARA_INATIVAR`)
