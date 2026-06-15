@@ -471,8 +471,153 @@ async function fetchAccessReport(
 
 
 // ═══════════════════════════════════════════════════════════
+// FETCH: TODOS OS MEMBROS EM MASSA (situation + lastAccess)
+// ═══════════════════════════════════════════════════════════
+// Substitui o enrich 1-a-1 via /members/{id} (que sofre de 504s
+// intermitentes ~20% e não escala). O endpoint /members devolve, paginado,
+// situation + lastAccess + groups de TODOS os membros — incluindo users
+// novos. Custo O(páginas) em vez de O(membros): 734 membros = 8 chamadas
+// (~12s) vs 518 chamadas individuais (~25-34min).
+// Robusto: retry por página; se uma página falhar de vez, esses ids ficam
+// fora do mapa e caem no fallback 'ACTIVE' (igual ao comportamento do 504).
+
+interface BulkMemberInfo {
+  situation?: string
+  lastAccess?: string
+  groupIds: number[]
+}
+
+async function fetchAllMembersMap(
+  headers: Record<string, string>
+): Promise<Map<number, BulkMemberInfo>> {
+  const map = new Map<number, BulkMemberInfo>()
+  const limit = 100
+  let offset = 0
+  let total: number | undefined
+  let pages = 0
+  const maxPages = 200 // teto de segurança (~20k membros)
+
+  console.log('   📡 Buscando TODOS os membros em massa via /members (paginado)...')
+
+  while (pages < maxPages) {
+    pages++
+    let pageDone = false
+
+    for (let attempt = 1; attempt <= 3 && !pageDone; attempt++) {
+      try {
+        const response = await axios.get(`${CURSEDUCA_API_URL}/members`, {
+          params: { limit, offset },
+          headers,
+          timeout: 30000
+        })
+
+        const data = response.data || {}
+        const items: any[] = Array.isArray(data.data)
+          ? data.data
+          : Array.isArray(data)
+            ? data
+            : []
+        const meta = data.metadata || {}
+        if (typeof meta.totalCount === 'number') total = meta.totalCount
+
+        for (const m of items) {
+          if (m?.id == null) continue
+          map.set(m.id, {
+            situation: m.situation,
+            lastAccess: m.lastAccess,
+            groupIds: Array.isArray(m.groups)
+              ? m.groups.map((g: any) => g?.groupId).filter((x: any) => x != null)
+              : []
+          })
+        }
+
+        pageDone = true
+
+        const hasMore = typeof meta.hasMore === 'boolean'
+          ? meta.hasMore
+          : items.length === limit
+
+        if (!hasMore || items.length === 0) {
+          console.log(`   ✅ Membros em massa: ${map.size}${total ? `/${total}` : ''} (${pages} páginas)`)
+          return map
+        }
+        offset += limit
+      } catch (error: any) {
+        console.warn(`   ⚠️ /members offset=${offset} tentativa ${attempt}/3 falhou: ${error.message}`)
+        if (attempt === 3) {
+          // Desiste desta página mas continua — ids em falta caem no fallback 'ACTIVE'
+          offset += limit
+          pageDone = true
+        } else {
+          await new Promise(r => setTimeout(r, 500 * attempt))
+        }
+      }
+    }
+  }
+
+  console.log(`   ✅ Membros em massa: ${map.size}${total ? `/${total}` : ''} (${pages} páginas, teto atingido)`)
+  return map
+}
+
+// ═══════════════════════════════════════════════════════════
+// ENRICH (EM MASSA): combinar roster + mapa de /members
+// ═══════════════════════════════════════════════════════════
+// Substitui o antigo enrichMemberWithDetails (1 chamada /members/{id} por
+// membro). Regra de pertença ao grupo (roster /groups/{id}/members é a
+// autoridade): MANTÉM o membro no grupo G se
+//     está no ROSTER de G  OU  o bulk /members confirma o grupo G.
+// Caso contrário descarta. Isto:
+//   • mantém membros do roster mesmo quando o bulk vem com groups:[] (glitch
+//     intermitente da API) -> corrige inativações indevidas;
+//   • descarta os "extra" do /reports que já saíram do grupo (não estão no
+//     roster e o bulk não confirma) -> evita produtos fantasma.
+
+function enrichMemberFromBulk(
+  member: any,
+  groupId: number,
+  groupName: string,
+  bulkMap: Map<number, BulkMemberInfo>,
+  rosterIds: Set<number>
+): CursEducaMemberWithMetadata | null {
+  const bulk = bulkMap.get(member.id)
+
+  const inRoster = rosterIds.has(member.id)
+  const bulkConfirmsThisGroup = !!bulk && bulk.groupIds.includes(groupId)
+
+  // Não está no roster do grupo E o bulk não confirma este grupo -> não pertence.
+  if (!inRoster && !bulkConfirmsThisGroup) {
+    return null
+  }
+
+  const fallbackLastAccess = member.lastAccess as string | undefined
+  const fallbackLastLogin = member.lastLogin as string | undefined
+
+  return {
+    id: member.id,
+    uuid: member.uuid,
+    name: member.name,
+    email: member.email,
+    progress: member.progress,
+    enrollmentsCount: member.enrollmentsCount,
+    groupId,        // do roster (grupo sendo processado)
+    groupName,
+    subscriptionType: detectSubscriptionType(groupName),
+    enrolledAt: member.enteredAt || new Date().toISOString(),
+    expiresAt: member.expiresAt,
+    situation: bulk?.situation || 'ACTIVE',           // real do bulk; fallback 'ACTIVE' (= comportamento antigo no 504)
+    lastLogin: bulk?.lastAccess || fallbackLastLogin,
+    lastAccess: fallbackLastAccess || bulk?.lastAccess,
+    accessCount: member.accessCount,
+    isPrimary: true,  // ajustado na deduplicação
+    isDuplicate: false
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 // FETCH: DETALHES DE UM MEMBRO
 // ═══════════════════════════════════════════════════════════
+// ⚠️ DEPRECADO no sync em massa (substituído por fetchAllMembersMap por
+// causa dos 504s). Mantido para fetchSingleUserData / sync por email.
 
 async function fetchMemberDetails(
   memberId: number,
@@ -651,6 +796,10 @@ export const fetchCurseducaDataForSync = async (
 
     console.log('   Buscando relatorio de acessos para engagement...')
     const accessReport = await fetchAccessReport(headers)
+
+    // 🚀 Buscar situation/lastAccess de TODOS os membros de uma vez (paginado),
+    // em vez de 1 chamada /members/{id} por membro (que sofre de 504s).
+    const allMembersMap = await fetchAllMembersMap(headers)
     const allMembersWithMetadata: CursEducaMemberWithMetadata[] = []
     const errors: string[] = []
 
@@ -706,6 +855,7 @@ export const fetchCurseducaDataForSync = async (
             uuid: gm.uuid,
             name: gm.name,
             email: gm.email,
+            enteredAt: gm.enteredAt, // data de entrada no grupo (roster) -> enrolledAt
             progress: withProgress?.progress || 0,
             enrollmentsCount: withProgress?.enrollmentsCount || 0,
             expiresAt: withProgress?.expiresAt || gm.expiresAt,
@@ -776,39 +926,27 @@ export const fetchCurseducaDataForSync = async (
         // ═══════════════════════════════════════════════════════════
 
         if (options.enrichWithDetails) {
-          console.log(`   🔄 Buscando detalhes (lastLogin, situation)...`)
+          console.log(`   🔄 Enriquecendo via mapa em massa (situation, lastLogin)...`)
 
-          const concurrency = options.progressConcurrency || 5
-          const enrichedMembers: CursEducaMemberWithMetadata[] = []
+          // Sem chamadas 1-a-1 -> sem 504s, sem espera por lotes.
+          // Roster autoritativo deste grupo (para a regra de pertença).
+          const rosterIds = new Set<number>(allGroupMembers.map((gm: any) => gm.id))
 
-          for (let i = 0; i < unifiedMembersList.length; i += concurrency) {
-            const batch = unifiedMembersList.slice(i, i + concurrency)
-
-            const batchPromises = batch.map(member =>
-              enrichMemberWithDetails(member, group.id, group.name, headers)
-            )
-
-            const batchResults = await Promise.all(batchPromises)
-            // 🔥 FILTRAR nulls (users que não pertencem a este grupo)
-            const validResults = batchResults.filter(r => r !== null) as CursEducaMemberWithMetadata[]
-            enrichedMembers.push(...validResults)
-
-            if (i + concurrency < unifiedMembersList.length) {
-              await new Promise(resolve => setTimeout(resolve, 500))
-            }
-
-            const processed = Math.min(i + concurrency, unifiedMembersList.length)
-            console.log(`      Processados ${processed}/${unifiedMembersList.length}`)
-          }
-
-          for (const enrichedMember of enrichedMembers) {
+          let enrichedCount = 0
+          let skippedOtherGroup = 0
+          for (const member of unifiedMembersList) {
+            const enriched = enrichMemberFromBulk(member, group.id, group.name, allMembersMap, rosterIds)
+            if (!enriched) { skippedOtherGroup++; continue }
             try {
-              validateCurseducaMemberExtended(enrichedMember)
-              allMembersWithMetadata.push(enrichedMember)
+              validateCurseducaMemberExtended(enriched)
+              allMembersWithMetadata.push(enriched)
+              enrichedCount++
             } catch (error: any) {
-              errors.push(`${enrichedMember.email}: ${error.message}`)
+              errors.push(`${enriched.email}: ${error.message}`)
             }
           }
+
+          console.log(`      Enriquecidos ${enrichedCount}/${unifiedMembersList.length} (${skippedOtherGroup} de outros grupos ignorados, 0 chamadas individuais)`)
 
         } else {
           console.log(`   ℹ️  Modo simples (sem fetch de detalhes)`)
