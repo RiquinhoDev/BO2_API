@@ -7,6 +7,12 @@ import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { fetchAllSubscriptionsComplete, fetchSubscriptionById } from './guruSync.service'
 
+// Fim do trial: usar o trial_finished_at da Guru (autoritativo). A Guru só o
+// devolve no endpoint POR SUBSCRIÇÃO (a lista omite-o), por isso o sync vai
+// buscá-lo lá. TRIAL_WINDOW_DAYS é apenas fallback quando a Guru não dá fim.
+const TRIAL_WINDOW_DAYS = 7
+const DAY_MS = 86400000
+
 // ─────────────────────────────────────────────────────────────
 // TIPOS
 // ─────────────────────────────────────────────────────────────
@@ -27,6 +33,8 @@ export interface TrialUser {
   }
   daysRemaining: number
   trialStatus: 'active' | 'expiring_soon' | 'expired' | 'converted'
+  /** true quando já passaram 7 dias do início e não converteu → mostrar opção de inativar manualmente */
+  eligibleForInactivation: boolean
 }
 
 export interface TrialStats {
@@ -64,15 +72,22 @@ export async function listTrials(): Promise<TrialUser[]> {
   const now = Date.now()
 
   return (users as any[]).map((u) => {
-    const trialEnd = u.guru?.trialFinishedAt ? new Date(u.guru.trialFinishedAt).getTime() : null
-    const daysRemaining = trialEnd ? Math.ceil((trialEnd - now) / 86400000) : 0
+    // Fim: trial_finished_at da Guru (autoritativo); fallback início + 7 dias.
+    const startMs = u.guru?.trialStartedAt ? new Date(u.guru.trialStartedAt).getTime() : null
+    const trialEnd = u.guru?.trialFinishedAt
+      ? new Date(u.guru.trialFinishedAt).getTime()
+      : (startMs ? startMs + TRIAL_WINDOW_DAYS * DAY_MS : null)
+    const daysRemaining = trialEnd ? Math.ceil((trialEnd - now) / DAY_MS) : 0
+
+    const converted = !!u.guru?.trialConvertedAt
+    const expired = !converted && trialEnd != null && trialEnd <= now
 
     let trialStatus: TrialUser['trialStatus'] = 'active'
-    if (u.guru?.trialConvertedAt) {
+    if (converted) {
       trialStatus = 'converted'
-    } else if (trialEnd && trialEnd <= now) {
+    } else if (expired) {
       trialStatus = 'expired'
-    } else if (daysRemaining <= 2) {
+    } else if (trialEnd && daysRemaining <= 2) {
       trialStatus = 'expiring_soon'
     }
 
@@ -80,9 +95,15 @@ export async function listTrials(): Promise<TrialUser[]> {
       _id: u._id.toString(),
       email: u.email,
       name: u.name || '',
-      guru: u.guru,
+      guru: {
+        ...u.guru,
+        // expor o fim efetivo (início + 7d) mesmo que ainda não esteja gravado
+        trialFinishedAt: u.guru?.trialFinishedAt || (trialEnd ? new Date(trialEnd) : undefined),
+      },
       daysRemaining,
       trialStatus,
+      // só há opção de inativar quando passaram os 7 dias e não converteu
+      eligibleForInactivation: expired,
     }
   })
 }
@@ -204,18 +225,36 @@ export async function syncTrialsFromGuru(): Promise<{ synced: number; errors: nu
         // Actualizar campos trial
         user.set('guru.isTrial', true)
         user.set('guru.status', 'trial')
-        if (sub.trial_started_at) {
-          user.set('guru.trialStartedAt', new Date(sub.trial_started_at))
+
+        // A LISTA da Guru não traz os campos do trial; o endpoint por subscrição
+        // traz (trial_started_at + trial_finished_at). Buscar os detalhes.
+        let startRaw = sub.trial_started_at
+        let finishRaw = sub.trial_finished_at
+        if (!startRaw || !finishRaw) {
+          const code = sub.subscription_code || sub.id
+          if (code) {
+            const full = await fetchSubscriptionById(code)
+            startRaw = startRaw || full?.trial_started_at || (full as any)?.dates?.started_at
+            finishRaw = finishRaw || full?.trial_finished_at
+          }
         }
-        if (sub.trial_finished_at) {
-          user.set('guru.trialFinishedAt', new Date(sub.trial_finished_at))
+        if (startRaw) {
+          const start = new Date(startRaw)
+          if (!isNaN(start.getTime())) {
+            user.set('guru.trialStartedAt', start)
+            // Fim: trial_finished_at da Guru (autoritativo); fallback início + 7 dias
+            const finish = finishRaw ? new Date(finishRaw) : new Date(start.getTime() + TRIAL_WINDOW_DAYS * DAY_MS)
+            if (!isNaN(finish.getTime())) {
+              user.set('guru.trialFinishedAt', finish)
+            }
+          }
         }
         user.set('guru.subscriptionCode', sub.subscription_code || sub.id)
         user.set('guru.lastSyncAt', new Date())
 
         await user.save()
         synced++
-        console.log(`✅ [GURU TRIALS SYNC] ${email} → trial (${sub.trial_started_at} → ${sub.trial_finished_at})`)
+        console.log(`✅ [GURU TRIALS SYNC] ${email} → trial (início=${startRaw || 'N/A'}, fim=início+7d)`)
       } catch (err: any) {
         console.error(`❌ [GURU TRIALS SYNC] Erro ${email}:`, err.message)
         errors++
@@ -251,6 +290,51 @@ async function markUserProductsForInactivation(userId: any, email: string): Prom
   )
 
   return result.modifiedCount || 0
+}
+
+// ─────────────────────────────────────────────────────────────
+// INATIVAR TRIAL MANUALMENTE (após os 7 dias)
+// ─────────────────────────────────────────────────────────────
+// Aciona o mesmo efeito que o checkExpired faz a um trial expirado sem
+// conversão, mas disparado manualmente por trial (botão na UI que só aparece
+// quando passaram 7 dias). Marca os UserProducts CursEduca PARA_INATIVAR —
+// a inativação efetiva no CursEduca continua a passar pelo pipeline normal.
+
+export interface ManualInactivateResult {
+  email: string
+  marked: number
+  eligible: boolean
+}
+
+export async function manuallyInactivateTrial(email: string): Promise<ManualInactivateResult> {
+  const normalizedEmail = email.toLowerCase().trim()
+
+  const user = await User.findOne({ email: normalizedEmail })
+  if (!user) {
+    throw new Error(`Utilizador ${normalizedEmail} não encontrado`)
+  }
+
+  // Validar que o trial já terminou (não inativar um trial a meio).
+  // Fim: trial_finished_at da Guru (autoritativo); fallback início + 7 dias.
+  const g = (user as any).guru || {}
+  const startMs = g.trialStartedAt ? new Date(g.trialStartedAt).getTime() : null
+  const finishMs = g.trialFinishedAt
+    ? new Date(g.trialFinishedAt).getTime()
+    : (startMs != null ? startMs + TRIAL_WINDOW_DAYS * DAY_MS : null)
+  const eligible = finishMs != null && Date.now() >= finishMs
+  if (!eligible) {
+    throw new Error(`Trial de ${normalizedEmail} ainda não terminou — inativação não permitida.`)
+  }
+
+  // Mesmo efeito que o ramo "expirado sem conversão" do checkExpired
+  user.set('guru.isTrial', false)
+  user.set('guru.status', 'expired')
+  await user.save()
+
+  const marked = await markUserProductsForInactivation(user._id as any, normalizedEmail)
+  console.log(`🔴 [GURU TRIALS] Inativação manual de ${normalizedEmail} → ${marked} UserProducts PARA_INATIVAR`)
+
+  return { email: normalizedEmail, marked, eligible: true }
 }
 
 // ─────────────────────────────────────────────────────────────
