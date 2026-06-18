@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, getStockAnalysis } from '../services/clareza/clarezaFmpService'
 import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
+import { getRaioxAnalysis, searchRaiox, refreshClarezaRaioxData } from '../services/clareza/clarezaRaioxService'
 
 export const clarezaController = {
   async getData(req: Request, res: Response) {
@@ -107,6 +108,50 @@ export const clarezaController = {
       return res.json({ success: true, ...result })
     } catch (error: any) {
       console.error('❌ [POST /api/clareza/top10/refresh]', error.message)
+      return res.status(500).json({ error: error.message })
+    }
+  },
+
+  // ── RAIO-X DA AÇÃO POR TICKER (cache-first: Redis → Mongo → FMP) ──
+  async getRaiox(req: Request, res: Response) {
+    try {
+      const data = await getRaioxAnalysis(String(req.params.ticker || ''))
+      res.setHeader('Cache-Control', 'public, max-age=3600')
+      return res.json(data)
+    } catch (error: any) {
+      const msg = error.message || 'Erro interno do servidor'
+      const status = /invalido|nao encontrado/i.test(msg) ? 404 : 500
+      if (status === 500) console.error('❌ [GET /api/clareza/raiox/:ticker]', msg)
+      return res.status(status).json({ error: msg })
+    }
+  },
+
+  // ── PESQUISA / AUTOCOMPLETE DO RAIO-X (só cache) ──
+  async searchRaiox(req: Request, res: Response) {
+    try {
+      const data = await searchRaiox(String(req.query.q || req.query.search || ''))
+      res.setHeader('Cache-Control', 'public, max-age=600')
+      return res.json(data)
+    } catch (error: any) {
+      console.error('❌ [GET /api/clareza/raiox-search]', error.message)
+      return res.status(500).json({ error: 'Erro interno do servidor' })
+    }
+  },
+
+  async refreshRaiox(req: Request, res: Response) {
+    try {
+      const expectedToken = process.env.CLAREZA_REFRESH_TOKEN
+      const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
+
+      if (!expectedToken || providedToken !== expectedToken) {
+        return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
+      }
+
+      console.log('🔄 [POST /api/clareza/raiox/refresh] Refresh manual iniciado')
+      const result = await refreshClarezaRaioxData()
+      return res.json({ success: true, ...result })
+    } catch (error: any) {
+      console.error('❌ [POST /api/clareza/raiox/refresh]', error.message)
       return res.status(500).json({ error: error.message })
     }
   }
