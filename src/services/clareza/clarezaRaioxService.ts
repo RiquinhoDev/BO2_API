@@ -60,10 +60,13 @@ async function fmpGate(): Promise<void> {
   if (wait > 0) await sleep(wait)
 }
 
-async function fmpRaw(path: string, params: Record<string, string> = {}): Promise<any> {
+// useGate=true → respeita o throttle global (usado pelo cron, 2800 chamadas).
+// useGate=false → ignora o throttle: para pesquisas on-demand de UMA empresa,
+// onde o burst (~14 chamadas) é irrelevante face ao limite de 300/min.
+async function fmpRaw(path: string, params: Record<string, string> = {}, useGate = true): Promise<any> {
   if (!process.env.FMP_API_KEY) return null
   for (let attempt = 0; attempt < 3; attempt++) {
-    await fmpGate()
+    if (useGate) await fmpGate()
     try {
       const { data } = await axios.get(`${FMP_STABLE}${path}`, {
         params: { apikey: process.env.FMP_API_KEY, ...params },
@@ -173,50 +176,88 @@ function calcMomentum(
 // Devolve o payload com chaves curtas que o HTML do raiox já consome.
 // ─────────────────────────────────────────────────────────────
 
-async function fetchCompanyRaiox(ticker: string, spyHist: { d: string; c: number }[]): Promise<any | null> {
-  let profile = fmpFirst(await fmpRaw('/profile', { symbol: ticker }))
-  if (!profile) profile = fmpFirst(await fmpRaw('/quote', { symbol: ticker }))
+// Recolhe as chamadas independentes (não dependem do resultado umas das outras).
+// concurrent=true → todas em paralelo, sem gate (pesquisa on-demand, ~1s).
+// concurrent=false → em série pelo gate global (cron, respeita 300/min).
+async function gatherRaiox(ticker: string, concurrent: boolean): Promise<Record<string, any>> {
+  const from = isoDaysAgo(365 * 5)
+  const to   = new Date().toISOString().slice(0, 10)
+  const reqs: Record<string, [string, Record<string, string>]> = {
+    profile: ['/profile', { symbol: ticker }],
+    r:       ['/ratios-ttm', { symbol: ticker }],
+    km:      ['/key-metrics-ttm', { symbol: ticker }],
+    inc:     ['/income-statement', { symbol: ticker, period: 'annual', limit: '8' }],
+    cf:      ['/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '8' }],
+    ra:      ['/ratios', { symbol: ticker, period: 'annual', limit: '8' }],
+    gr:      ['/grades-consensus', { symbol: ticker }],
+    pt:      ['/price-target-consensus', { symbol: ticker }],
+    ea:      ['/earnings', { symbol: ticker, limit: '8' }],
+    dv:      ['/dividends', { symbol: ticker, limit: '60' }],
+    dcf:     ['/levered-discounted-cash-flow', { symbol: ticker }],
+    peers:   ['/stock-peers', { symbol: ticker }],
+    hist:    ['/historical-price-eod/light', { symbol: ticker, from, to }]
+  }
+
+  const entries = Object.entries(reqs)
+  const raw: Record<string, any> = {}
+  if (concurrent) {
+    const vals = await Promise.all(entries.map(([, [p, q]]) => fmpRaw(p, q, false)))
+    entries.forEach(([k], i) => { raw[k] = vals[i] })
+  } else {
+    for (const [k, [p, q]] of entries) raw[k] = await fmpRaw(p, q, true)
+  }
+  return raw
+}
+
+async function fetchCompanyRaiox(
+  ticker: string,
+  spyHist: { d: string; c: number }[],
+  concurrent = false
+): Promise<any | null> {
+  const useGate = !concurrent
+  const raw = await gatherRaiox(ticker, concurrent)
+
+  let profile = fmpFirst(raw.profile)
+  if (!profile) profile = fmpFirst(await fmpRaw('/quote', { symbol: ticker }, useGate))
   if (!profile) return null
 
-  // Peers leves (até 3) para não inflar o nº de chamadas.
-  const peersRaw = await fmpRaw('/stock-peers', { symbol: ticker })
+  let dcf = fmpFirst(raw.dcf)
+  if (!dcf) dcf = fmpFirst(await fmpRaw('/discounted-cash-flow', { symbol: ticker }, useGate))
+
+  // Peers leves (até 3) — depende da lista vinda do /stock-peers.
   let peerList: string[] = []
-  if (Array.isArray(peersRaw) && peersRaw.length) {
-    const pl: string[] = peersRaw[0]?.peersList ?? peersRaw.map((p: any) => p?.symbol).filter(Boolean)
+  if (Array.isArray(raw.peers) && raw.peers.length) {
+    const pl: string[] = raw.peers[0]?.peersList ?? raw.peers.map((p: any) => p?.symbol).filter(Boolean)
     peerList = (pl || []).filter((p: string) => p && p !== ticker).slice(0, 3)
   }
 
   const peerRatios: Record<string, { g: any; n: any }> = {}
-  for (const p of peerList) {
-    const pr = fmpFirst(await fmpRaw('/ratios-ttm', { symbol: p }))
-    if (pr) {
-      peerRatios[p] = {
-        g: pr.grossProfitMarginTTM ?? null,
-        n: pr.netProfitMarginTTM ?? null
-      }
+  const assignPeer = (p: string, pr: any) => {
+    if (pr) peerRatios[p] = { g: pr.grossProfitMarginTTM ?? null, n: pr.netProfitMarginTTM ?? null }
+  }
+  if (peerList.length) {
+    if (concurrent) {
+      const prs = await Promise.all(peerList.map(p => fmpRaw('/ratios-ttm', { symbol: p }, false)))
+      peerList.forEach((p, i) => assignPeer(p, fmpFirst(prs[i])))
+    } else {
+      for (const p of peerList) assignPeer(p, fmpFirst(await fmpRaw('/ratios-ttm', { symbol: p }, true)))
     }
   }
 
-  let dcf = fmpFirst(await fmpRaw('/levered-discounted-cash-flow', { symbol: ticker }))
-  if (!dcf) dcf = fmpFirst(await fmpRaw('/discounted-cash-flow', { symbol: ticker }))
-
-  const from = isoDaysAgo(365 * 5)
-  const to   = new Date().toISOString().slice(0, 10)
-  const histRaw = await fmpRaw('/historical-price-eod/light', { symbol: ticker, from, to })
-  const stockH = compressHist(histRaw ?? [])
+  const stockH = compressHist(raw.hist ?? [])
   const momentum = calcMomentum(stockH, spyHist ?? [])
 
   return {
     p:   profile,
-    r:   fmpFirst(await fmpRaw('/ratios-ttm', { symbol: ticker })) ?? {},
-    km:  fmpFirst(await fmpRaw('/key-metrics-ttm', { symbol: ticker })) ?? {},
-    inc: (await fmpRaw('/income-statement', { symbol: ticker, period: 'annual', limit: '8' })) ?? [],
-    cf:  (await fmpRaw('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '8' })) ?? [],
-    ra:  (await fmpRaw('/ratios', { symbol: ticker, period: 'annual', limit: '8' })) ?? [],
-    gr:  fmpFirst(await fmpRaw('/grades-consensus', { symbol: ticker })) ?? {},
-    pt:  fmpFirst(await fmpRaw('/price-target-consensus', { symbol: ticker })) ?? {},
-    ea:  (await fmpRaw('/earnings', { symbol: ticker, limit: '8' })) ?? [],
-    dv:  (await fmpRaw('/dividends', { symbol: ticker, limit: '60' })) ?? [],
+    r:   fmpFirst(raw.r) ?? {},
+    km:  fmpFirst(raw.km) ?? {},
+    inc: raw.inc ?? [],
+    cf:  raw.cf ?? [],
+    ra:  raw.ra ?? [],
+    gr:  fmpFirst(raw.gr) ?? {},
+    pt:  fmpFirst(raw.pt) ?? {},
+    ea:  raw.ea ?? [],
+    dv:  raw.dv ?? [],
     dcf: dcf ?? {},
     pr:  peerRatios,
     mo:  momentum
@@ -302,6 +343,14 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
 
 async function getSectorPe(): Promise<any[]> {
   const cached = await cacheService.get<any[]>(RAIOX_SECTORPE_KEY)
+  if (cached && cached.length) return cached
+
+  // Cache vazia (ainda sem cron, ou ticker on-demand) → busca lazy + cacheia.
+  const snapshot = (await fmpRaw('/sector-pe-snapshot', { date: lastBday() })) ?? []
+  if (Array.isArray(snapshot) && snapshot.length) {
+    await cacheService.set(RAIOX_SECTORPE_KEY, snapshot, RAIOX_TTL)
+    return snapshot
+  }
   return cached ?? []
 }
 
@@ -316,12 +365,17 @@ export async function getRaioxAnalysis(rawTicker: string): Promise<any> {
   if (cached) return { ...cached, sectorPe: await getSectorPe() }
 
   // 2. Redis miss → snapshot MongoDB do último refresh.
+  // Projeta SÓ a empresa pedida + sectorPe (o snapshot tem ~180 empresas/vários
+  // MB; ler o doc inteiro por request seria lento). Ticker já validado acima.
   try {
-    const latest = await ClarezaRaioxData.findOne().sort({ fetchedAt: -1 }).lean()
-    const hit = latest?.stocks?.[ticker]
+    const latest = await ClarezaRaioxData
+      .findOne({}, { [`stocks.${ticker}`]: 1, sectorPe: 1, fetchedAt: 1 })
+      .sort({ fetchedAt: -1 })
+      .lean()
+    const hit = (latest as any)?.stocks?.[ticker]
     if (hit) {
       await cacheService.set(RAIOX_CACHE_PREFIX + ticker, hit, RAIOX_TTL)
-      return { ...hit, sectorPe: latest?.sectorPe ?? [] }
+      return { ...hit, sectorPe: (latest as any)?.sectorPe ?? [] }
     }
   } catch (err: any) {
     console.error('⚠️ [Raiox] Erro ao ler snapshot da BD:', err.message)
@@ -339,7 +393,8 @@ export async function getRaioxAnalysis(rawTicker: string): Promise<any> {
     if (spyHist.length) await cacheService.set(RAIOX_SPY_KEY, spyHist, RAIOX_TTL)
   }
 
-  const data = await fetchCompanyRaiox(ticker, spyHist ?? [])
+  // Pesquisa on-demand de UMA empresa → chamadas em paralelo (sem gate) ≈ ~1s.
+  const data = await fetchCompanyRaiox(ticker, spyHist ?? [], true)
   if (!data) throw new Error('Ticker nao encontrado')
 
   await cacheService.set(RAIOX_CACHE_PREFIX + ticker, data, RAIOX_TTL)
