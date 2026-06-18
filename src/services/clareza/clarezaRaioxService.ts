@@ -17,7 +17,8 @@ import ClarezaRaioxData from '../../models/ClarezaRaioxData'
 
 const FMP_STABLE = 'https://financialmodelingprep.com/stable'
 
-const RAIOX_CACHE_PREFIX = 'clareza:raiox:v1:'      // clareza:raiox:v1:AAPL → payload rico
+const RAIOX_CACHE_PREFIX = 'clareza:raiox:v1:'      // clareza:raiox:v1:AAPL → payload rico (objeto)
+const RAIOX_JSON_PREFIX  = 'clareza:raiox:json:v1:' // resposta já serializada (payload + sectorPe) p/ servir raw
 const RAIOX_INDEX_KEY    = 'clareza:raiox:index'    // [{symbol,name,price,image}] p/ pesquisa
 const RAIOX_SECTORPE_KEY = 'clareza:raiox:sectorpe' // snapshot setorial (P/E médio)
 const RAIOX_SPY_KEY      = 'clareza:raiox:spy'      // histórico SPY comprimido (momentum)
@@ -310,6 +311,8 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
       const data = await fetchCompanyRaiox(stock.ticker, spyHist)
       if (data) {
         await cacheService.set(RAIOX_CACHE_PREFIX + stock.ticker, data, RAIOX_TTL)
+        // String já serializada (com sectorPe embutido) → GET serve raw, sem stringify por pedido.
+        await cacheService.setRaw(RAIOX_JSON_PREFIX + stock.ticker, JSON.stringify({ ...data, sectorPe }), RAIOX_TTL)
         snapshot[stock.ticker] = data
         index.push({
           symbol: stock.ticker,
@@ -414,6 +417,23 @@ export async function getRaioxAnalysis(rawTicker: string): Promise<any> {
 
   await cacheService.set(RAIOX_CACHE_PREFIX + ticker, data, RAIOX_TTL)
   return { ...data, sectorPe: await getSectorPe() }
+}
+
+// Variante que devolve a resposta JÁ serializada (string), para o endpoint
+// servir raw (res.send) — sem JSON.parse/stringify por pedido no caminho comum.
+// Caminho comum (universo pré-aquecido): getRaw → devolve a string direto.
+export async function getRaioxJson(rawTicker: string): Promise<string> {
+  const ticker = String(rawTicker || '').trim().toUpperCase().replace(/\./g, '-')
+  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) throw new Error('Ticker invalido')
+
+  const raw = await cacheService.getRaw(RAIOX_JSON_PREFIX + ticker)
+  if (raw) return raw
+
+  // Miss → reconstrói pelo caminho objeto (Redis → Mongo → live) e guarda a string.
+  const obj = await getRaioxAnalysis(ticker)
+  const json = JSON.stringify(obj)
+  await cacheService.setRaw(RAIOX_JSON_PREFIX + ticker, json, RAIOX_TTL)
+  return json
 }
 
 // ─────────────────────────────────────────────────────────────

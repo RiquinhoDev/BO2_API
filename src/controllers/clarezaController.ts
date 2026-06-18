@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, getStockAnalysis } from '../services/clareza/clarezaFmpService'
 import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
-import { getRaioxAnalysis, searchRaiox, refreshClarezaRaioxData } from '../services/clareza/clarezaRaioxService'
+import { getRaioxJson, searchRaiox, refreshClarezaRaioxData } from '../services/clareza/clarezaRaioxService'
 
 export const clarezaController = {
   async getData(req: Request, res: Response) {
@@ -115,9 +115,11 @@ export const clarezaController = {
   // ── RAIO-X DA AÇÃO POR TICKER (cache-first: Redis → Mongo → FMP) ──
   async getRaiox(req: Request, res: Response) {
     try {
-      const data = await getRaioxAnalysis(String(req.params.ticker || ''))
+      // String já serializada no Redis → send direto, sem stringify por pedido.
+      const json = await getRaioxJson(String(req.params.ticker || ''))
       res.setHeader('Cache-Control', 'public, max-age=3600')
-      return res.json(data)
+      res.type('application/json')
+      return res.send(json)
     } catch (error: any) {
       const msg = error.message || 'Erro interno do servidor'
       const status = /invalido|nao encontrado/i.test(msg) ? 404 : 500
