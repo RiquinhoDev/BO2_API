@@ -49,6 +49,20 @@ export const RAIOX_UNIVERSE = (() => {
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 const round2 = (n: number) => Math.round(n * 100) / 100
 
+// Limita a concorrência (sem dependências externas).
+async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
+  const results: T[] = []
+  let index = 0
+  async function worker() {
+    while (index < tasks.length) {
+      const i = index++
+      results[i] = await tasks[i]()
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker))
+  return results
+}
+
 // Gate global: serializa o espaçamento mínimo entre chamadas FMP, mesmo
 // com concorrência. Garante que nunca passamos do limite por minuto.
 let _gateUntil = 0
@@ -201,7 +215,8 @@ async function gatherRaiox(ticker: string, concurrent: boolean): Promise<Record<
   const entries = Object.entries(reqs)
   const raw: Record<string, any> = {}
   if (concurrent) {
-    const vals = await Promise.all(entries.map(([, [p, q]]) => fmpRaw(p, q, false)))
+    // Concorrência limitada (~5 ≈ 5/s permitido) — evita 429 por burst de 14.
+    const vals = await runWithConcurrency(entries.map(([, [p, q]]) => () => fmpRaw(p, q, false)), 5)
     entries.forEach(([k], i) => { raw[k] = vals[i] })
   } else {
     for (const [k, [p, q]] of entries) raw[k] = await fmpRaw(p, q, true)
