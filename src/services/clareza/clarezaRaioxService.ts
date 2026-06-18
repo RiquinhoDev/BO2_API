@@ -1,0 +1,370 @@
+import axios from 'axios'
+import { cacheService } from '../cache.service'
+import { UNIVERSE } from './clarezaFmpService'
+import ClarezaRaioxData from '../../models/ClarezaRaioxData'
+
+// ─────────────────────────────────────────────────────────────
+// RAIO-X DA AÇÃO — versão Node (migrada do clareza-raiox.php)
+//
+// Comportamento igual ao Tremómetro/Top10:
+//  • o cron pré-aquece TODO o universo no Redis (uma chave por ticker)
+//  • o frontend lê sempre da cache → carregamento instantâneo
+//  • fallback: Redis → MongoDB (snapshot) → FMP live (on-demand)
+//
+// Plano FMP base (limite por minuto) → todas as chamadas passam por um
+// "gate" global que garante ~4 req/s (240/min) com retry a 429.
+// ─────────────────────────────────────────────────────────────
+
+const FMP_STABLE = 'https://financialmodelingprep.com/stable'
+
+const RAIOX_CACHE_PREFIX = 'clareza:raiox:v1:'      // clareza:raiox:v1:AAPL → payload rico
+const RAIOX_INDEX_KEY    = 'clareza:raiox:index'    // [{symbol,name,price,image}] p/ pesquisa
+const RAIOX_SECTORPE_KEY = 'clareza:raiox:sectorpe' // snapshot setorial (P/E médio)
+const RAIOX_SPY_KEY      = 'clareza:raiox:spy'      // histórico SPY comprimido (momentum)
+
+// 25h: cobre a maior janela entre refreshes do cron (18h→6h) com folga.
+// O cron 6h/12h/18h reescreve as chaves 3×/dia → GET é sempre hit rápido.
+const RAIOX_TTL = 90000
+
+// Throttle global FMP: 250ms entre chamadas ≈ 4 req/s = 240/min (margem vs 300/min)
+const FMP_MIN_SPACING_MS = 250
+
+// Universo do raiox = universo base do Clareza + extras só do raiox.
+const RAIOX_EXTRAS = [
+  { ticker: 'TSM',  name: 'Taiwan Semiconductor', type: 'growth', sector: 'Technology' },
+  { ticker: 'ASML', name: 'ASML Holding',          type: 'growth', sector: 'Technology' },
+  { ticker: 'NBIS', name: 'Nebius Group',          type: 'growth', sector: 'Technology' },
+  { ticker: 'RACE', name: 'Ferrari',               type: 'growth', sector: 'Consumer' },
+]
+
+export const RAIOX_UNIVERSE = (() => {
+  const seen = new Set(UNIVERSE.map(s => s.ticker))
+  return [...UNIVERSE, ...RAIOX_EXTRAS.filter(e => !seen.has(e.ticker))]
+})()
+
+// ─────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+// Gate global: serializa o espaçamento mínimo entre chamadas FMP, mesmo
+// com concorrência. Garante que nunca passamos do limite por minuto.
+let _gateUntil = 0
+async function fmpGate(): Promise<void> {
+  const now = Date.now()
+  const start = Math.max(now, _gateUntil)
+  _gateUntil = start + FMP_MIN_SPACING_MS
+  const wait = start - now
+  if (wait > 0) await sleep(wait)
+}
+
+async function fmpRaw(path: string, params: Record<string, string> = {}): Promise<any> {
+  if (!process.env.FMP_API_KEY) return null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await fmpGate()
+    try {
+      const { data } = await axios.get(`${FMP_STABLE}${path}`, {
+        params: { apikey: process.env.FMP_API_KEY, ...params },
+        timeout: 15000
+      })
+      if (!data) return null
+      if (!Array.isArray(data) && (data as any)['Error Message']) return null
+      return data
+    } catch (e: any) {
+      const status = e?.response?.status
+      if (status === 429 && attempt < 2) {
+        await sleep(2000) // rate limit → espera e tenta de novo
+        continue
+      }
+      return null
+    }
+  }
+  return null
+}
+
+function fmpFirst(d: any): any {
+  if (!d) return null
+  return Array.isArray(d) ? (d[0] ?? null) : d
+}
+
+function isoDaysAgo(days: number): string {
+  const d = new Date()
+  d.setUTCDate(d.getUTCDate() - days)
+  return d.toISOString().slice(0, 10)
+}
+
+function lastBday(): string {
+  const d = new Date()
+  do { d.setUTCDate(d.getUTCDate() - 1) } while ([0, 6].includes(d.getUTCDay()))
+  return d.toISOString().slice(0, 10)
+}
+
+// Bucket semanal de 7 dias (downsample do histórico antigo)
+function weekBucket(date: string): string {
+  const t = Date.parse(`${date}T00:00:00Z`)
+  return String(Math.floor(t / (7 * 86400000)))
+}
+
+// Comprime histórico: diário nos últimos ~6 meses, semanal até 5 anos.
+function compressHist(raw: any[]): { d: string; c: number }[] {
+  if (!Array.isArray(raw)) return []
+  const rows = [...raw].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+  const cutoffDaily  = isoDaysAgo(182)
+  const cutoffWeekly = isoDaysAgo(365 * 5)
+  const out: { d: string; c: number }[] = []
+  let lastWeek: string | null = null
+
+  for (const row of rows) {
+    const date = String(row.date || '').slice(0, 10)
+    const closeRaw = row.price ?? row.close ?? row.adjClose ?? null
+    if (!date || closeRaw === null || isNaN(Number(closeRaw))) continue
+    const close = round2(Number(closeRaw))
+    if (date < cutoffWeekly) continue
+
+    if (date >= cutoffDaily) {
+      out.push({ d: date, c: close })
+    } else {
+      const wk = weekBucket(date)
+      if (wk !== lastWeek) {
+        out.push({ d: date, c: close })
+        lastWeek = wk
+      }
+    }
+  }
+  return out
+}
+
+// Variações de momentum (empresa vs SPY) para períodos fixos.
+function calcMomentum(
+  stockHist: { d: string; c: number }[],
+  spyHist: { d: string; c: number }[]
+): Record<string, { s: number | null; x: number | null }> | null {
+  const periods: Record<string, number> = { '1M': 30, '3M': 90, '6M': 182, '1Y': 365, '3Y': 1095, '5Y': 1825 }
+  const s = [...stockHist].sort((a, b) => a.d.localeCompare(b.d))
+  const x = [...spyHist].sort((a, b) => a.d.localeCompare(b.d))
+  if (!s.length || !x.length) return null
+
+  const stockNow = Number(s[s.length - 1].c)
+  const spyNow   = Number(x[x.length - 1].c)
+  const result: Record<string, { s: number | null; x: number | null }> = {}
+
+  for (const [label, days] of Object.entries(periods)) {
+    const cutoff = isoDaysAgo(days)
+
+    let stockThen: number | null = null
+    for (const r of s) { if (r.d <= cutoff) stockThen = Number(r.c); else break }
+    if (stockThen === null && s.length) stockThen = Number(s[0].c)
+
+    let spyThen: number | null = null
+    for (const r of x) { if (r.d <= cutoff) spyThen = Number(r.c); else break }
+    if (spyThen === null && x.length) spyThen = Number(x[0].c)
+
+    const sPct = stockThen && stockNow ? round2(((stockNow - stockThen) / stockThen) * 100) : null
+    const xPct = spyThen && spyNow ? round2(((spyNow - spyThen) / spyThen) * 100) : null
+    result[label] = { s: sPct, x: xPct }
+  }
+  return result
+}
+
+// ─────────────────────────────────────────────────────────────
+// FETCH RICO POR EMPRESA (espelha fetch_company do PHP)
+// Devolve o payload com chaves curtas que o HTML do raiox já consome.
+// ─────────────────────────────────────────────────────────────
+
+async function fetchCompanyRaiox(ticker: string, spyHist: { d: string; c: number }[]): Promise<any | null> {
+  let profile = fmpFirst(await fmpRaw('/profile', { symbol: ticker }))
+  if (!profile) profile = fmpFirst(await fmpRaw('/quote', { symbol: ticker }))
+  if (!profile) return null
+
+  // Peers leves (até 3) para não inflar o nº de chamadas.
+  const peersRaw = await fmpRaw('/stock-peers', { symbol: ticker })
+  let peerList: string[] = []
+  if (Array.isArray(peersRaw) && peersRaw.length) {
+    const pl: string[] = peersRaw[0]?.peersList ?? peersRaw.map((p: any) => p?.symbol).filter(Boolean)
+    peerList = (pl || []).filter((p: string) => p && p !== ticker).slice(0, 3)
+  }
+
+  const peerRatios: Record<string, { g: any; n: any }> = {}
+  for (const p of peerList) {
+    const pr = fmpFirst(await fmpRaw('/ratios-ttm', { symbol: p }))
+    if (pr) {
+      peerRatios[p] = {
+        g: pr.grossProfitMarginTTM ?? null,
+        n: pr.netProfitMarginTTM ?? null
+      }
+    }
+  }
+
+  let dcf = fmpFirst(await fmpRaw('/levered-discounted-cash-flow', { symbol: ticker }))
+  if (!dcf) dcf = fmpFirst(await fmpRaw('/discounted-cash-flow', { symbol: ticker }))
+
+  const from = isoDaysAgo(365 * 5)
+  const to   = new Date().toISOString().slice(0, 10)
+  const histRaw = await fmpRaw('/historical-price-eod/light', { symbol: ticker, from, to })
+  const stockH = compressHist(histRaw ?? [])
+  const momentum = calcMomentum(stockH, spyHist ?? [])
+
+  return {
+    p:   profile,
+    r:   fmpFirst(await fmpRaw('/ratios-ttm', { symbol: ticker })) ?? {},
+    km:  fmpFirst(await fmpRaw('/key-metrics-ttm', { symbol: ticker })) ?? {},
+    inc: (await fmpRaw('/income-statement', { symbol: ticker, period: 'annual', limit: '8' })) ?? [],
+    cf:  (await fmpRaw('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '8' })) ?? [],
+    ra:  (await fmpRaw('/ratios', { symbol: ticker, period: 'annual', limit: '8' })) ?? [],
+    gr:  fmpFirst(await fmpRaw('/grades-consensus', { symbol: ticker })) ?? {},
+    pt:  fmpFirst(await fmpRaw('/price-target-consensus', { symbol: ticker })) ?? {},
+    ea:  (await fmpRaw('/earnings', { symbol: ticker, limit: '8' })) ?? [],
+    dv:  (await fmpRaw('/dividends', { symbol: ticker, limit: '60' })) ?? [],
+    dcf: dcf ?? {},
+    pr:  peerRatios,
+    mo:  momentum
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// REFRESH COMPLETO (cron ClarezaRefresh + endpoint manual)
+// ─────────────────────────────────────────────────────────────
+
+export async function refreshClarezaRaioxData(): Promise<{ total: number; errors: number }> {
+  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+
+  console.log(`📊 [Raiox] Iniciando refresh de ${RAIOX_UNIVERSE.length} ações...`)
+
+  // 1. Dados globais (uma vez): P/E setorial + histórico SPY p/ momentum.
+  const sectorPe = (await fmpRaw('/sector-pe-snapshot', { date: lastBday() })) ?? []
+  const spyRaw   = await fmpRaw('/historical-price-eod/light', {
+    symbol: 'SPY',
+    from: isoDaysAgo(365 * 5),
+    to: new Date().toISOString().slice(0, 10)
+  })
+  const spyHist = compressHist(spyRaw ?? [])
+
+  await cacheService.set(RAIOX_SECTORPE_KEY, sectorPe, RAIOX_TTL)
+  await cacheService.set(RAIOX_SPY_KEY, spyHist, RAIOX_TTL)
+
+  // 2. Empresas — sequencial (o gate global trata do ritmo).
+  let errors = 0
+  const index: Array<{ symbol: string; name: string; price: any; image: any }> = []
+  const snapshot: Record<string, any> = {}
+
+  for (const stock of RAIOX_UNIVERSE) {
+    try {
+      const data = await fetchCompanyRaiox(stock.ticker, spyHist)
+      if (data) {
+        await cacheService.set(RAIOX_CACHE_PREFIX + stock.ticker, data, RAIOX_TTL)
+        snapshot[stock.ticker] = data
+        index.push({
+          symbol: stock.ticker,
+          name:   data.p?.companyName ?? data.p?.name ?? stock.name,
+          price:  data.p?.price ?? null,
+          image:  data.p?.image ?? null
+        })
+      } else {
+        errors++
+        console.warn(`⚠️ [Raiox] Sem dados para ${stock.ticker}`)
+      }
+    } catch (err: any) {
+      errors++
+      console.error(`❌ [Raiox] Erro em ${stock.ticker}:`, err.message)
+    }
+  }
+
+  await cacheService.set(RAIOX_INDEX_KEY, index, RAIOX_TTL)
+
+  // 3. Snapshot durável em MongoDB (sobrevive a reinício do Redis).
+  try {
+    await ClarezaRaioxData.create({
+      fetchedAt:  new Date(),
+      stockCount: RAIOX_UNIVERSE.length - errors,
+      errors,
+      sectorPe,
+      stocks: snapshot
+    })
+    const all = await ClarezaRaioxData.find({}, '_id fetchedAt').sort({ fetchedAt: -1 }).lean()
+    if (all.length > 5) {
+      const toDelete = all.slice(5).map((d: any) => d._id)
+      await ClarezaRaioxData.deleteMany({ _id: { $in: toDelete } })
+    }
+    console.log('💾 [Raiox] Snapshot guardado na BD')
+  } catch (err: any) {
+    console.error('⚠️ [Raiox] Erro ao guardar snapshot na BD:', err.message)
+  }
+
+  console.log(`✅ [Raiox] Refresh completo — ${RAIOX_UNIVERSE.length - errors} ok, ${errors} erros`)
+  return { total: RAIOX_UNIVERSE.length, errors }
+}
+
+// ─────────────────────────────────────────────────────────────
+// GET POR TICKER (Redis → MongoDB → FMP live)
+// ─────────────────────────────────────────────────────────────
+
+async function getSectorPe(): Promise<any[]> {
+  const cached = await cacheService.get<any[]>(RAIOX_SECTORPE_KEY)
+  return cached ?? []
+}
+
+export async function getRaioxAnalysis(rawTicker: string): Promise<any> {
+  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+
+  const ticker = String(rawTicker || '').trim().toUpperCase().replace(/\./g, '-')
+  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) throw new Error('Ticker invalido')
+
+  // 1. Redis (caminho normal — pré-aquecido pelo cron).
+  const cached = await cacheService.get<any>(RAIOX_CACHE_PREFIX + ticker)
+  if (cached) return { ...cached, sectorPe: await getSectorPe() }
+
+  // 2. Redis miss → snapshot MongoDB do último refresh.
+  try {
+    const latest = await ClarezaRaioxData.findOne().sort({ fetchedAt: -1 }).lean()
+    const hit = latest?.stocks?.[ticker]
+    if (hit) {
+      await cacheService.set(RAIOX_CACHE_PREFIX + ticker, hit, RAIOX_TTL)
+      return { ...hit, sectorPe: latest?.sectorPe ?? [] }
+    }
+  } catch (err: any) {
+    console.error('⚠️ [Raiox] Erro ao ler snapshot da BD:', err.message)
+  }
+
+  // 3. Fora da cache (ticker raro / fora do universo) → fetch live + cacheia.
+  let spyHist = await cacheService.get<{ d: string; c: number }[]>(RAIOX_SPY_KEY)
+  if (!spyHist || !spyHist.length) {
+    const spyRaw = await fmpRaw('/historical-price-eod/light', {
+      symbol: 'SPY',
+      from: isoDaysAgo(365 * 5),
+      to: new Date().toISOString().slice(0, 10)
+    })
+    spyHist = compressHist(spyRaw ?? [])
+    if (spyHist.length) await cacheService.set(RAIOX_SPY_KEY, spyHist, RAIOX_TTL)
+  }
+
+  const data = await fetchCompanyRaiox(ticker, spyHist ?? [])
+  if (!data) throw new Error('Ticker nao encontrado')
+
+  await cacheService.set(RAIOX_CACHE_PREFIX + ticker, data, RAIOX_TTL)
+  return { ...data, sectorPe: await getSectorPe() }
+}
+
+// ─────────────────────────────────────────────────────────────
+// PESQUISA / AUTOCOMPLETE (só a partir da cache, sem chamar FMP)
+// ─────────────────────────────────────────────────────────────
+
+export async function searchRaiox(rawQuery: string): Promise<any> {
+  const q = String(rawQuery || '').trim().toUpperCase()
+
+  let index = await cacheService.get<Array<{ symbol: string; name: string; price: any; image: any }>>(RAIOX_INDEX_KEY)
+
+  // Fallback: reconstruir índice mínimo a partir do universo estático.
+  if (!index || !index.length) {
+    index = RAIOX_UNIVERSE.map(s => ({ symbol: s.ticker, name: s.name, price: null, image: null }))
+  }
+
+  const results = index.filter(item =>
+    q === '' ||
+    item.symbol.includes(q) ||
+    String(item.name || '').toUpperCase().includes(q)
+  )
+
+  return { query: q, count: results.length, results: results.slice(0, 25) }
+}

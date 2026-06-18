@@ -27,7 +27,7 @@ const CACHE_TTL = 28800 // 8 horas
 // UNIVERSO DE AÇÕES
 // ─────────────────────────────────────────────────────────────
 
-const UNIVERSE = [
+export const UNIVERSE = [
   // GROWTH
   { ticker: 'NVDA',  name: 'Nvidia',                 type: 'growth', sector: 'Technology' },
   { ticker: 'AAPL',  name: 'Apple',                  type: 'growth', sector: 'Technology' },
