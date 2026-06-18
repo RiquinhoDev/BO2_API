@@ -20,4 +20,11 @@ router.get('/top10', clarezaController.getTop10)
 // Refresh manual do Top 10 — mesmo token que /refresh
 router.post('/top10/refresh', clarezaController.refreshTop10)
 
+// Endpoint público — Raio-X da Ação por ticker (cache-first) + pesquisa
+router.get('/raiox-search', clarezaController.searchRaiox)
+router.get('/raiox/:ticker', clarezaController.getRaiox)
+
+// Refresh manual do Raio-X — mesmo token que /refresh
+router.post('/raiox/refresh', clarezaController.refreshRaiox)
+
 export default router
