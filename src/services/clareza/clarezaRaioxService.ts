@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { cacheService } from '../cache.service'
 import { UNIVERSE } from './clarezaFmpService'
+import { fmpThrottle } from './fmpThrottle'
 import ClarezaRaioxData from '../../models/ClarezaRaioxData'
 
 // ─────────────────────────────────────────────────────────────
@@ -26,9 +27,6 @@ const RAIOX_SPY_KEY      = 'clareza:raiox:spy'      // histórico SPY comprimido
 // 25h: cobre a maior janela entre refreshes do cron (18h→6h) com folga.
 // O cron 6h/12h/18h reescreve as chaves 3×/dia → GET é sempre hit rápido.
 const RAIOX_TTL = 90000
-
-// Throttle global FMP: 250ms entre chamadas ≈ 4 req/s = 240/min (margem vs 300/min)
-const FMP_MIN_SPACING_MS = 250
 
 // Universo do raiox = universo base do Clareza + extras só do raiox.
 const RAIOX_EXTRAS = [
@@ -64,24 +62,12 @@ async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurrency: n
   return results
 }
 
-// Gate global: serializa o espaçamento mínimo entre chamadas FMP, mesmo
-// com concorrência. Garante que nunca passamos do limite por minuto.
-let _gateUntil = 0
-async function fmpGate(): Promise<void> {
-  const now = Date.now()
-  const start = Math.max(now, _gateUntil)
-  _gateUntil = start + FMP_MIN_SPACING_MS
-  const wait = start - now
-  if (wait > 0) await sleep(wait)
-}
-
-// useGate=true → respeita o throttle global (usado pelo cron, 2800 chamadas).
-// useGate=false → ignora o throttle: para pesquisas on-demand de UMA empresa,
-// onde o burst (~14 chamadas) é irrelevante face ao limite de 300/min.
-async function fmpRaw(path: string, params: Record<string, string> = {}, useGate = true): Promise<any> {
+// Todas as chamadas passam pelo limitador global partilhado (fmpThrottle),
+// comum às 3 ferramentas Clareza → a soma nunca passa do limite do plano.
+async function fmpRaw(path: string, params: Record<string, string> = {}): Promise<any> {
   if (!process.env.FMP_API_KEY) return null
   for (let attempt = 0; attempt < 3; attempt++) {
-    if (useGate) await fmpGate()
+    await fmpThrottle()
     try {
       const { data } = await axios.get(`${FMP_STABLE}${path}`, {
         params: { apikey: process.env.FMP_API_KEY, ...params },
@@ -216,11 +202,11 @@ async function gatherRaiox(ticker: string, concurrent: boolean): Promise<Record<
   const entries = Object.entries(reqs)
   const raw: Record<string, any> = {}
   if (concurrent) {
-    // Concorrência limitada (~5 ≈ 5/s permitido) — evita 429 por burst de 14.
-    const vals = await runWithConcurrency(entries.map(([, [p, q]]) => () => fmpRaw(p, q, false)), 5)
+    // On-demand: até 5 em simultâneo — o burst do bucket serve-as logo se há folga.
+    const vals = await runWithConcurrency(entries.map(([, [p, q]]) => () => fmpRaw(p, q)), 5)
     entries.forEach(([k], i) => { raw[k] = vals[i] })
   } else {
-    for (const [k, [p, q]] of entries) raw[k] = await fmpRaw(p, q, true)
+    for (const [k, [p, q]] of entries) raw[k] = await fmpRaw(p, q)
   }
   return raw
 }
@@ -230,15 +216,14 @@ async function fetchCompanyRaiox(
   spyHist: { d: string; c: number }[],
   concurrent = false
 ): Promise<any | null> {
-  const useGate = !concurrent
   const raw = await gatherRaiox(ticker, concurrent)
 
   let profile = fmpFirst(raw.profile)
-  if (!profile) profile = fmpFirst(await fmpRaw('/quote', { symbol: ticker }, useGate))
+  if (!profile) profile = fmpFirst(await fmpRaw('/quote', { symbol: ticker }))
   if (!profile) return null
 
   let dcf = fmpFirst(raw.dcf)
-  if (!dcf) dcf = fmpFirst(await fmpRaw('/discounted-cash-flow', { symbol: ticker }, useGate))
+  if (!dcf) dcf = fmpFirst(await fmpRaw('/discounted-cash-flow', { symbol: ticker }))
 
   // Peers leves (até 3) — depende da lista vinda do /stock-peers.
   let peerList: string[] = []
@@ -253,10 +238,10 @@ async function fetchCompanyRaiox(
   }
   if (peerList.length) {
     if (concurrent) {
-      const prs = await Promise.all(peerList.map(p => fmpRaw('/ratios-ttm', { symbol: p }, false)))
+      const prs = await Promise.all(peerList.map(p => fmpRaw('/ratios-ttm', { symbol: p })))
       peerList.forEach((p, i) => assignPeer(p, fmpFirst(prs[i])))
     } else {
-      for (const p of peerList) assignPeer(p, fmpFirst(await fmpRaw('/ratios-ttm', { symbol: p }, true)))
+      for (const p of peerList) assignPeer(p, fmpFirst(await fmpRaw('/ratios-ttm', { symbol: p })))
     }
   }
 

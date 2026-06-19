@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { cacheService } from '../cache.service'
+import { fmpThrottle } from './fmpThrottle'
 import ClarezaTop10Data from '../../models/ClarezaTop10Data'
 
 // Limita concorrência sem depender de p-queue (ESM-only)
@@ -67,6 +68,7 @@ const isEmpty = (v: any) => v === null || v === undefined ||
 // Primeiro elemento — endpoints STABLE (?symbol=)
 async function fmpFirstStable<T = any>(path: string, params: Record<string, string> = {}): Promise<T | null> {
   try {
+    await fmpThrottle()
     const { data } = await axios.get(`${FMP_STABLE}${path}`, {
       params: { apikey: process.env.FMP_API_KEY, ...params },
       timeout: 15000
@@ -82,6 +84,7 @@ async function fmpFirstStable<T = any>(path: string, params: Record<string, stri
 // Primeiro elemento — endpoints v3 (ticker no path)
 async function fmpFirstV3<T = any>(pathWithTicker: string): Promise<T | null> {
   try {
+    await fmpThrottle()
     const { data } = await axios.get(`${FMP_V3}${pathWithTicker}`, {
       params: { apikey: process.env.FMP_API_KEY },
       timeout: 15000
@@ -125,6 +128,7 @@ function downsampleHistory(rows: Array<{ date: string; close: number }>): Array<
 async function fetchHistorical(ticker: string, from: string, to: string): Promise<Array<{ date: string; close: number }>> {
   let rows: any[] = []
   try {
+    await fmpThrottle()
     const { data } = await axios.get(`${FMP_STABLE}/historical-price-eod/light`, {
       params: { apikey: process.env.FMP_API_KEY, symbol: ticker, from, to },
       timeout: 20000
@@ -134,6 +138,7 @@ async function fetchHistorical(ticker: string, from: string, to: string): Promis
 
   if (!rows.length) {
     try {
+      await fmpThrottle()
       const { data } = await axios.get(`${FMP_V3}/historical-price-full/${ticker}`, {
         params: { apikey: process.env.FMP_API_KEY, from, to },
         timeout: 20000
