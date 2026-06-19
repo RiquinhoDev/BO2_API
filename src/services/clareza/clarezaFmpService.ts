@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { cacheService } from '../cache.service'
+import { fmpThrottle } from './fmpThrottle'
 import ClarezaMarketData from '../../models/ClarezaMarketData'
 
 // Limita concorrência sem depender de p-queue (ESM-only)
@@ -208,6 +209,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 async function fmpGet<T = any>(path: string, params: Record<string, string> = {}): Promise<T | null> {
   try {
+    await fmpThrottle()
     const { data } = await axios.get(`${FMP_BASE}${path}`, {
       params: { apikey: process.env.FMP_API_KEY, ...params },
       timeout: 15000
@@ -386,6 +388,7 @@ export async function getClarezaData(): Promise<any[] | null> {
 // Variante de fmpGet que devolve o array completo (não só o [0]).
 async function fmpGetArray<T = any>(path: string, params: Record<string, string> = {}): Promise<T[]> {
   try {
+    await fmpThrottle()
     const { data } = await axios.get(`${FMP_BASE}${path}`, {
       params: { apikey: process.env.FMP_API_KEY, ...params },
       timeout: 15000
@@ -567,6 +570,7 @@ export async function getReitAnalysis(rawTicker: string) {
   let profile: any = null
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
+      await fmpThrottle()
       const { data } = await axios.get(`${FMP_BASE}/profile`, {
         params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
         timeout: 15000
@@ -670,6 +674,7 @@ export async function getReitValuation(rawTicker: string) {
   let profile: any = null
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
+      await fmpThrottle()
       const { data } = await axios.get(`${FMP_BASE}/profile`, {
         params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
         timeout: 15000
@@ -911,6 +916,7 @@ export async function getStockAnalysis(rawTicker: string) {
   let profile: any = null
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
+      await fmpThrottle()
       const { data } = await axios.get(`${FMP_BASE}/profile`, {
         params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
         timeout: 15000
