@@ -30,7 +30,7 @@ async function main() {
         // SETUP: Conectar BD
         // ═══════════════════════════════════════════════════════════
         console.log('[SETUP] Conectando à BD...');
-        const mongoUri = "mongodb+srv://desenvolvimentoserriquinho:***REMOVED-DB-PASSWORD***@clusterriquinho.djt0j.mongodb.net/riquinho?retryWrites=true&w=majority&tls=true";
+        const mongoUri = process.env.MONGODB_URI;
         if (!mongoUri)
             throw new Error('MONGO_URI não configurado');
         await mongoose_1.default.connect(mongoUri);

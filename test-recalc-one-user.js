@@ -7,7 +7,7 @@ const { calculateEngagementMetricsForUserProduct } = require('./dist/services/sy
   try {
     console.log('🧪 TESTE DE RECALC COM NOVOS CAMPOS\n');
 
-    await mongoose.connect('mongodb+srv://desenvolvimentoserriquinho:***REMOVED-DB-PASSWORD***@clusterriquinho.djt0j.mongodb.net/riquinho?retryWrites=true&w=majority&tls=true');
+    await mongoose.connect(process.env.MONGODB_URI);
 
     const db = mongoose.connection.db;
 

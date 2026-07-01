@@ -37,10 +37,10 @@ const HOTMART_CLIENT_SECRET = "7447f4ef-cb9d-43c2-8009-46aee590760e"
 const HOTMART_SUBDOMAIN = process.env.subdomain || 'ograndeinvestimento-bomrmk'
 
 const CURSEDUCA_API_URL = "https://prof.curseduca.pro"
-const CURSEDUCA_API_KEY = "***REMOVED-CURSEDUCA-KEY***"
-const CURSEDUCA_ACCESS_TOKEN = "***REMOVED-JWT***"
+const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY
+const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_ACCESS_TOKEN
 
-const MONGODB_URI = "mongodb+srv://desenvolvimentoserriquinho:***REMOVED-DB-PASSWORD***@clusterriquinho.djt0j.mongodb.net/riquinho?retryWrites=true&w=majority&tls=true"
+const MONGODB_URI = process.env.MONGODB_URI
 
 // Parse args
 const args = process.argv.slice(2)

@@ -25,8 +25,8 @@ GURU_TOKEN     = "a105bbd0-2a5c-4966-903b-f45c904fd4d7|M67btixnQ4l6WkqJus2qtTxNU
 GURU_BASE_URL  = "https://digitalmanager.guru/api/v2"
 
 CURSEDUCA_URL  = "https://prof.curseduca.pro"
-CURSEDUCA_KEY  = "***REMOVED-CURSEDUCA-KEY***"
-CURSEDUCA_JWT  = "***REMOVED-JWT***"
+CURSEDUCA_KEY  = process.env.CURSEDUCA_API_KEY
+CURSEDUCA_JWT  = process.env.CURSEDUCA_ACCESS_TOKEN
 
 # IDs dos grupos Clareza no CursEduca
 CURSEDUCA_GROUP_IDS = [6, 7]   # 6=Mensal, 7=Anual

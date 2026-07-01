@@ -8,7 +8,7 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-const MONGO_URI = process.env.MONGODB_URI || "mongodb+srv://desenvolvimentoserriquinho:***REMOVED-DB-PASSWORD***@clusterriquinho.djt0j.mongodb.net/riquinho?retryWrites=true&w=majority&tls=true"
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGODB_URI
 
 async function main() {
   console.log('━'.repeat(60))

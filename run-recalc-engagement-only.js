@@ -15,7 +15,7 @@ const { recalculateAllEngagementMetrics } = require('./dist/services/syncUtiliza
     console.log('');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-    await mongoose.connect('mongodb+srv://desenvolvimentoserriquinho:***REMOVED-DB-PASSWORD***@clusterriquinho.djt0j.mongodb.net/riquinho?retryWrites=true&w=majority&tls=true');
+    await mongoose.connect(process.env.MONGODB_URI);
 
     console.log('✅ Conectado à BD');
     console.log('');

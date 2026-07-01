@@ -35,10 +35,10 @@ const HOTMART_Basic= "Basic NGE5MzM0ODgtNTllYS00YWFlLWEyNjYtYjY4YzM1ZjdkNWYzOjc0
 
 
 const CURSEDUCA_API_URL = "https://prof.curseduca.pro"
-const CURSEDUCA_API_KEY = "***REMOVED-CURSEDUCA-KEY***"
-const CURSEDUCA_ACCESS_TOKEN = "***REMOVED-JWT***"
+const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY
+const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_ACCESS_TOKEN
 
-const MONGODB_URI =  "mongodb+srv://desenvolvimentoserriquinho:***REMOVED-DB-PASSWORD***@clusterriquinho.djt0j.mongodb.net/riquinho?retryWrites=true&w=majority&tls=true"
+const MONGODB_URI =  process.env.MONGODB_URI
 
 // Turmas que sabemos que devem existir (da tua lista)
 const EXPECTED_CLASSES = [

@@ -31,8 +31,8 @@ import {
 
 const CURSEDUCA_API_URL="https://prof.curseduca.pro"
 const CURSEDUCA_CONTENTS_API_URL="https://clas.curseduca.pro"
-const CURSEDUCA_API_KEY="***REMOVED-CURSEDUCA-KEY***"
-const CURSEDUCA_ACCESS_TOKEN="***REMOVED-JWT***"
+const CURSEDUCA_API_KEY=process.env.CURSEDUCA_API_KEY
+const CURSEDUCA_ACCESS_TOKEN=process.env.CURSEDUCA_ACCESS_TOKEN
 
 // ═══════════════════════════════════════════════════════════
 // HELPER: VALIDAR CREDENCIAIS
