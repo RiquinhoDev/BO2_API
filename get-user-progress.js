@@ -1,8 +1,8 @@
 const axios = require('axios');
 const https = require('https');
 
-const ACCESS_TOKEN = "***REMOVED-JWT***";
-const API_KEY = "***REMOVED-CURSEDUCA-KEY***";
+const ACCESS_TOKEN = process.env.CURSEDUCA_ACCESS_TOKEN;
+const API_KEY = process.env.CURSEDUCA_API_KEY;
 
 const TARGET_EMAIL = "joaomcf37@gmail.com";
 const TARGET_MEMBER_ID = 5;

@@ -44,7 +44,7 @@ const mongoose_1 = __importDefault(require("mongoose"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 // MongoDB connection
-const MONGO_URI = process.env.MONGODB_URI || "mongodb+srv://desenvolvimentoserriquinho:***REMOVED-DB-PASSWORD***@clusterriquinho.djt0j.mongodb.net/riquinho?retryWrites=true&w=majority&tls=true";
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGODB_URI;
 async function main() {
     console.log('━'.repeat(60));
     console.log('🔍 DIAGNÓSTICO: Tags AC vs BO (5 users aleatórios)');

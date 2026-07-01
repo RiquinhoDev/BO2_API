@@ -45,7 +45,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 dotenv_1.default.config();
-const MONGO_URI = "mongodb+srv://desenvolvimentoserriquinho:***REMOVED-DB-PASSWORD***@clusterriquinho.djt0j.mongodb.net/riquinho?retryWrites=true&w=majority&tls=true";
+const MONGO_URI = process.env.MONGODB_URI;
 const API_URL = process.env.API_URL || 'http://localhost:3001';
 // Utilizadores específicos para monitorizar (incluir Rui)
 const USERS_TO_MONITOR = [

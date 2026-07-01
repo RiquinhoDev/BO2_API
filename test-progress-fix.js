@@ -1,8 +1,8 @@
 const axios = require('axios');
 const https = require('https');
 
-const ACCESS_TOKEN = "***REMOVED-JWT***";
-const API_KEY = "***REMOVED-CURSEDUCA-KEY***";
+const ACCESS_TOKEN = process.env.CURSEDUCA_ACCESS_TOKEN;
+const API_KEY = process.env.CURSEDUCA_API_KEY;
 
 // Simular a função helper
 function getContentSlugFromGroup(groupName) {

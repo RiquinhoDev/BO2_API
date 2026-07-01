@@ -10,7 +10,7 @@ import path from 'path'
 
 dotenv.config()
 
-const MONGO_URI = "mongodb+srv://desenvolvimentoserriquinho:***REMOVED-DB-PASSWORD***@clusterriquinho.djt0j.mongodb.net/riquinho?retryWrites=true&w=majority&tls=true"
+const MONGO_URI = process.env.MONGODB_URI
 const API_URL = process.env.API_URL || 'http://localhost:3001'
 
 // Utilizadores específicos para monitorizar (incluir Rui)
