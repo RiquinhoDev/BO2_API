@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { cacheService } from '../cache.service'
 import { fmpThrottle } from './fmpThrottle'
+import { normalizeTicker, isValidTicker } from './tickerUtils'
 import ClarezaMarketData from '../../models/ClarezaMarketData'
 
 // Limita concorrência sem depender de p-queue (ESM-only)
@@ -159,7 +160,7 @@ export const UNIVERSE = [
   { ticker: 'PFE',   name: 'Pfizer',                 type: 'value',  sector: 'Healthcare' },
   { ticker: 'GILD',  name: 'Gilead Sciences',        type: 'value',  sector: 'Healthcare' },
   { ticker: 'MDT',   name: 'Medtronic',              type: 'value',  sector: 'Healthcare' },
-  { ticker: 'NVO',   name: 'Novo Nordisk',           type: 'value',  sector: 'Healthcare' },
+  { ticker: 'NOVO-B.CO', name: 'Novo Nordisk',       type: 'value',  sector: 'Healthcare' },
   { ticker: 'NEE',   name: 'NextEra Energy',         type: 'value',  sector: 'Utilities' },
   { ticker: 'DUK',   name: 'Duke Energy',            type: 'value',  sector: 'Utilities' },
   { ticker: 'SO',    name: 'Southern Company',       type: 'value',  sector: 'Utilities' },
@@ -199,6 +200,23 @@ export const UNIVERSE = [
   { ticker: 'REG',   name: 'Regency Centers',        type: 'reit',   sector: 'REIT' },
   { ticker: 'FRT',   name: 'Federal Realty',         type: 'reit',   sector: 'REIT' },
   { ticker: 'BXP',   name: 'Boston Properties',      type: 'reit',   sector: 'REIT' },
+  // INTERNACIONAIS (bolsas de origem, plano Ultimate)
+  { ticker: '2330.TW',   name: 'TSMC',                type: 'growth', sector: 'Technology' },
+  { ticker: 'ASML.AS',   name: 'ASML',                type: 'growth', sector: 'Technology' },
+  { ticker: 'NESN.SW',   name: 'Nestlé',              type: 'value',  sector: 'Consumer' },
+  { ticker: 'TCEHY',     name: 'Tencent',             type: 'growth', sector: 'Technology' },
+  { ticker: 'BABA',      name: 'Alibaba',             type: 'growth', sector: 'Technology' },
+  { ticker: 'SIE.DE',    name: 'Siemens',             type: 'value',  sector: 'Industrials' },
+  { ticker: 'MC.PA',     name: 'LVMH',                type: 'growth', sector: 'Consumer' },
+  { ticker: 'ARM',       name: 'Arm Holdings',        type: 'growth', sector: 'Technology' },
+  { ticker: '005930.KS', name: 'Samsung Electronics', type: 'growth', sector: 'Technology' },
+  { ticker: '000660.KS', name: 'SK Hynix',            type: 'growth', sector: 'Technology' },
+  { ticker: 'SAB.MC',    name: 'Banco Sabadell',      type: 'value',  sector: 'Finance' },
+  { ticker: 'SAP.DE',    name: 'SAP',                 type: 'growth', sector: 'Technology' },
+  { ticker: 'RACE.MI',   name: 'Ferrari',             type: 'growth', sector: 'Consumer' },
+  { ticker: 'SAF.PA',    name: 'Safran',              type: 'value',  sector: 'Industrials' },
+  { ticker: 'RHM.DE',    name: 'Rheinmetall',         type: 'value',  sector: 'Industrials' },
+  { ticker: 'DG.PA',     name: 'Vinci',               type: 'value',  sector: 'Industrials' },
 ]
 
 // ─────────────────────────────────────────────────────────────
@@ -232,10 +250,13 @@ function safe(val: any, mult = 1): number | null {
 // ─────────────────────────────────────────────────────────────
 
 async function fetchStock(ticker: string, isReit: boolean) {
-  // Sequencial com delay para respeitar rate limits da FMP API
-  const p = await fmpGet('/profile', { symbol: ticker }); await sleep(200)
-  const r = await fmpGet('/ratios-ttm', { symbol: ticker }); await sleep(200)
-  const m = await fmpGet('/key-metrics-ttm', { symbol: ticker }); await sleep(200)
+  // Os sleeps manuais entre chamadas foram removidos: o fmpThrottle já é o
+  // único gate de ritmo partilhado por toda a Clareza (2.400/min, plano
+  // Ultimate) — duplicar o limite aqui só tornava o refresh mais lento sem
+  // proteger nada a mais.
+  const p = await fmpGet('/profile', { symbol: ticker })
+  const r = await fmpGet('/ratios-ttm', { symbol: ticker })
+  const m = await fmpGet('/key-metrics-ttm', { symbol: ticker })
 
   const price  = p?.price            ?? null
   const change = p?.changePercentage ?? null
@@ -251,8 +272,8 @@ async function fetchStock(ticker: string, isReit: boolean) {
   let ffoPayoutRatio: number | null = null
 
   if (isReit) {
-    const is = await fmpGet('/income-statement', { symbol: ticker, period: 'annual', limit: '1' }); await sleep(200)
-    const cf = await fmpGet('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '1' }); await sleep(200)
+    const is = await fmpGet('/income-statement', { symbol: ticker, period: 'annual', limit: '1' })
+    const cf = await fmpGet('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '1' })
 
     const netIncome = is?.netIncome ?? null
     const da        = is?.depreciationAndAmortization ?? cf?.depreciationAndAmortization ?? null
@@ -296,7 +317,9 @@ async function fetchStock(ticker: string, isReit: boolean) {
     pFfo,
     ffoYield,
     ffoPayoutRatio,
-    updated: new Date().toISOString()
+    updated: new Date().toISOString(),
+    currency: p?.currency ?? null,
+    exchange: p?.exchangeShortName ?? p?.exchange ?? null
   }
 }
 
@@ -324,7 +347,10 @@ export async function refreshClarezaData(): Promise<{ total: number; errors: num
         return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data: null }
       }
     }),
-    2  // 2 stocks em simultâneo × 200ms por chamada ≈ 5 req/s — dentro dos limites FMP
+    // 12 ações em simultâneo — o fmpThrottle global já garante que a soma de
+    // chamadas (deste + top10 + raio-x) nunca passa de 2.400/min, por isso
+    // subir a concorrência aqui só acelera o refresh, não arrisca o limite.
+    12
   )
 
   // Guardar em Redis
@@ -545,8 +571,8 @@ function mapClarezaToStock(entry: any) {
 export async function getReitAnalysis(rawTicker: string) {
   if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
 
-  const ticker = String(rawTicker || '').trim().toUpperCase()
-  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) throw new Error('Ticker invalido')
+  const ticker = normalizeTicker(rawTicker)
+  if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
 
   const cacheKey = REIT_CACHE_PREFIX + ticker
   const cached = await cacheService.get<any>(cacheKey)
@@ -664,8 +690,8 @@ export async function getReitAnalysis(rawTicker: string) {
 export async function getReitValuation(rawTicker: string) {
   if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
 
-  const ticker = String(rawTicker || '').trim().toUpperCase()
-  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) throw new Error('Ticker invalido')
+  const ticker = normalizeTicker(rawTicker)
+  if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
 
   const cacheKey = REIT_VALUATION_CACHE_PREFIX + ticker
   const cached = await cacheService.get<any>(cacheKey)
@@ -743,8 +769,8 @@ export async function getReitValuation(rawTicker: string) {
       .flatMap((peer: any) =>
         Array.isArray(peer?.peersList) ? peer.peersList : [peer?.symbol ?? peer]
       )
-      .map((sym: any) => String(sym ?? '').trim().toUpperCase())
-      .filter((sym: string) => /^[A-Z][A-Z0-9.\-]{0,9}$/.test(sym) && sym !== ticker)
+      .map((sym: any) => normalizeTicker(sym))
+      .filter((sym: string) => isValidTicker(sym) && sym !== ticker)
       .slice(0, 5)
   } catch {
     peerSymbols = []
@@ -904,8 +930,8 @@ export async function getReitValuation(rawTicker: string) {
 export async function getStockAnalysis(rawTicker: string) {
   if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
 
-  const ticker = String(rawTicker || '').trim().toUpperCase()
-  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) throw new Error('Ticker invalido')
+  const ticker = normalizeTicker(rawTicker)
+  if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
 
   const cacheKey = STOCK_CACHE_PREFIX + ticker
   const cached = await cacheService.get<any>(cacheKey)

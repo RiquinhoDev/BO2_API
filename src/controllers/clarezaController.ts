@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, getStockAnalysis } from '../services/clareza/clarezaFmpService'
 import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
-import { getRaioxJson, searchRaiox, refreshClarezaRaioxData } from '../services/clareza/clarezaRaioxService'
+import { getRaioxJson, searchRaiox, refreshClarezaRaioxData, diagnoseRaiox } from '../services/clareza/clarezaRaioxService'
 
 export const clarezaController = {
   async getData(req: Request, res: Response) {
@@ -137,6 +137,17 @@ export const clarezaController = {
     } catch (error: any) {
       console.error('❌ [GET /api/clareza/raiox-search]', error.message)
       return res.status(500).json({ error: 'Erro interno do servidor' })
+    }
+  },
+
+  // ── DIAGNÓSTICO: testa só os tickers internacionais novos contra a FMP ──
+  async diagnoseRaiox(req: Request, res: Response) {
+    try {
+      const result = await diagnoseRaiox()
+      return res.json(result)
+    } catch (error: any) {
+      console.error('❌ [GET /api/clareza/raiox-diagnose]', error.message)
+      return res.status(500).json({ error: error.message })
     }
   },
 
