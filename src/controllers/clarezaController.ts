@@ -128,6 +128,34 @@ export const clarezaController = {
     }
   },
 
+  // ── RAIO-X POR QUERY STRING (compat com o contrato do PHP original:
+  //    ?symbol=AAPL ou ?search=apple no mesmo URL) — o HTML de raio-x-acao
+  //    em produção já chama assim, não `/raiox/:ticker`.
+  async getRaioxByQuery(req: Request, res: Response) {
+    try {
+      if (req.query.search !== undefined) {
+        const data = await searchRaiox(String(req.query.search || ''))
+        res.setHeader('Cache-Control', 'public, max-age=600')
+        return res.json(data)
+      }
+
+      const symbol = String(req.query.symbol || '')
+      if (!symbol) {
+        return res.status(400).json({ error: 'Parâmetro symbol ou search em falta.' })
+      }
+
+      const json = await getRaioxJson(symbol)
+      res.setHeader('Cache-Control', 'public, max-age=3600')
+      res.type('application/json')
+      return res.send(json)
+    } catch (error: any) {
+      const msg = error.message || 'Erro interno do servidor'
+      const status = /invalido|nao encontrado/i.test(msg) ? 404 : 500
+      if (status === 500) console.error('❌ [GET /api/clareza/raiox?symbol=]', msg)
+      return res.status(status).json({ error: msg })
+    }
+  },
+
   // ── PESQUISA / AUTOCOMPLETE DO RAIO-X (só cache) ──
   async searchRaiox(req: Request, res: Response) {
     try {
