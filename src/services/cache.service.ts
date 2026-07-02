@@ -90,6 +90,26 @@ class CacheService {
     }
   }
 
+  // Lista as chaves que correspondem a um padrão (ex.: "clareza:raiox:v1:*"),
+  // sem as apagar. Usa SCAN (não bloqueia o Redis como KEYS em datasets grandes).
+  async keys(pattern: string): Promise<string[]> {
+    if (!this.isConnected || !this.redis) return []
+
+    try {
+      const found: string[] = []
+      let cursor = '0'
+      do {
+        const [next, batch] = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', '200')
+        found.push(...batch)
+        cursor = next
+      } while (cursor !== '0')
+      return found
+    } catch (error) {
+      console.error('Cache keys/scan error:', error)
+      return []
+    }
+  }
+
   async invalidatePattern(pattern: string): Promise<void> {
     if (!this.isConnected || !this.redis) return
     

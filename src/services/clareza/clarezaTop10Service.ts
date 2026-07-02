@@ -42,26 +42,31 @@ const SPACEX_MARKET_CAP = 2110000000000
 // Pedro: MU, GOOGL, TSM, NVDA, PLTR
 // Rui:   ASML, META, RACE (Ferrari), NBIS (Nebius), SPCX (SpaceX)
 // SpaceX: ainda sem dados FMP úteis → usa fallback manual de IPO.
+//
+// ASML e Ferrari passam a ser pedidas à FMP pela listagem nativa (Euronext
+// Amsterdam / Borsa Italiana, em EUR) via `fetchTicker`, mas continuam
+// guardadas na cache sob a chave "ASML"/"RACE" (campo `ticker`) — é essa a
+// chave que o HTML já espera primeiro (tem alias RACE↔FERRARI como
+// fallback, mas usar a mesma chave evita depender dele).
 // ─────────────────────────────────────────────────────────────
 
 const WATCHLIST = [
-  { ticker: 'MU',    name: 'Micron Technology',        exchange: 'NASDAQ', currency: '$', isPrivate: false, ipoFallback: false },
-  { ticker: 'GOOGL', name: 'Alphabet Inc.',            exchange: 'NASDAQ', currency: '$', isPrivate: false, ipoFallback: false },
-  { ticker: 'TSM',   name: 'Taiwan Semiconductor',     exchange: 'NYSE',   currency: '$', isPrivate: false, ipoFallback: false },
-  { ticker: 'NVDA',  name: 'Nvidia Corporation',       exchange: 'NASDAQ', currency: '$', isPrivate: false, ipoFallback: false },
-  { ticker: 'PLTR',  name: 'Palantir Technologies',    exchange: 'NASDAQ', currency: '$', isPrivate: false, ipoFallback: false },
-  { ticker: 'ASML',  name: 'ASML Holding',             exchange: 'NASDAQ', currency: '$', isPrivate: false, ipoFallback: false },
-  { ticker: 'META',  name: 'Meta Platforms',           exchange: 'NASDAQ', currency: '$', isPrivate: false, ipoFallback: false },
-  { ticker: 'RACE',  name: 'Ferrari NV',               exchange: 'NYSE',   currency: '$', isPrivate: false, ipoFallback: false },
-  { ticker: 'NBIS',  name: 'Nebius Group N.V.',        exchange: 'NASDAQ', currency: '$', isPrivate: false, ipoFallback: false },
-  { ticker: 'SPCX',  name: 'SpaceX',                   exchange: 'NASDAQ', currency: '$', isPrivate: false, ipoFallback: true },
+  { ticker: 'MU',    name: 'Micron Technology',        exchange: 'NASDAQ',            currency: '$', isPrivate: false, ipoFallback: false },
+  { ticker: 'GOOGL', name: 'Alphabet Inc.',            exchange: 'NASDAQ',            currency: '$', isPrivate: false, ipoFallback: false },
+  { ticker: 'TSM',   name: 'Taiwan Semiconductor',     exchange: 'NYSE',              currency: '$', isPrivate: false, ipoFallback: false },
+  { ticker: 'NVDA',  name: 'Nvidia Corporation',       exchange: 'NASDAQ',            currency: '$', isPrivate: false, ipoFallback: false },
+  { ticker: 'PLTR',  name: 'Palantir Technologies',    exchange: 'NASDAQ',            currency: '$', isPrivate: false, ipoFallback: false },
+  { ticker: 'ASML',  name: 'ASML Holding',             exchange: 'Euronext Amsterdam', currency: '€', isPrivate: false, ipoFallback: false, fetchTicker: 'ASML.AS' },
+  { ticker: 'META',  name: 'Meta Platforms',           exchange: 'NASDAQ',            currency: '$', isPrivate: false, ipoFallback: false },
+  { ticker: 'RACE',  name: 'Ferrari NV',               exchange: 'Borsa Italiana',     currency: '€', isPrivate: false, ipoFallback: false, fetchTicker: 'RACE.MI' },
+  { ticker: 'NBIS',  name: 'Nebius Group N.V.',        exchange: 'NASDAQ',            currency: '$', isPrivate: false, ipoFallback: false },
+  { ticker: 'SPCX',  name: 'SpaceX',                   exchange: 'NASDAQ',            currency: '$', isPrivate: false, ipoFallback: true },
 ]
 
 // ─────────────────────────────────────────────────────────────
 // FMP HELPERS (stable + fallback v3)
 // ─────────────────────────────────────────────────────────────
 
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 const isEmpty = (v: any) => v === null || v === undefined ||
   (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
 
@@ -164,15 +169,17 @@ async function fetchHistorical(ticker: string, from: string, to: string): Promis
 // ─────────────────────────────────────────────────────────────
 
 async function fetchPublicStock(ticker: string) {
+  // Sleeps manuais removidos: o fmpThrottle já é o único gate de ritmo
+  // partilhado por toda a Clareza (2.400/min, plano Ultimate).
   // 1) STABLE
-  let profile = await fmpFirstStable('/profile', { symbol: ticker });        await sleep(150)
-  let ratios  = await fmpFirstStable('/ratios-ttm', { symbol: ticker });     await sleep(150)
-  let metrics = await fmpFirstStable('/key-metrics-ttm', { symbol: ticker }); await sleep(150)
+  let profile = await fmpFirstStable('/profile', { symbol: ticker })
+  let ratios  = await fmpFirstStable('/ratios-ttm', { symbol: ticker })
+  let metrics = await fmpFirstStable('/key-metrics-ttm', { symbol: ticker })
 
   // 2) Fallback v3 quando a STABLE devolve vazio (ex.: NBIS, RACE)
-  if (isEmpty(profile)) { profile = await fmpFirstV3(`/profile/${ticker}`);          await sleep(150) }
-  if (isEmpty(ratios))  { ratios  = await fmpFirstV3(`/ratios-ttm/${ticker}`);        await sleep(150) }
-  if (isEmpty(metrics)) { metrics = await fmpFirstV3(`/key-metrics-ttm/${ticker}`);   await sleep(150) }
+  if (isEmpty(profile)) profile = await fmpFirstV3(`/profile/${ticker}`)
+  if (isEmpty(ratios))  ratios  = await fmpFirstV3(`/ratios-ttm/${ticker}`)
+  if (isEmpty(metrics)) metrics = await fmpFirstV3(`/key-metrics-ttm/${ticker}`)
 
   const from = new Date()
   from.setFullYear(from.getFullYear() - HISTORY_YEARS)
@@ -293,7 +300,7 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
         return { ticker: stock.ticker, payload: privateStockPayload() }
       }
       try {
-        let payload: any = await fetchPublicStock(stock.ticker)
+        let payload: any = await fetchPublicStock(stock.fetchTicker || stock.ticker)
 
         // SPCX: usa fallback manual de IPO enquanto a FMP não tiver preço nem histórico
         if (stock.ipoFallback) {
@@ -307,7 +314,9 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
         return { ticker: stock.ticker, payload: null }
       }
     }),
-    2 // 2 ações em simultâneo — dentro dos limites da FMP
+    // 10 ações em simultâneo (a watchlist toda) — o fmpThrottle global já
+    // garante que a soma de chamadas nunca passa de 2.400/min.
+    10
   )
 
   const stocks: Record<string, any> = {}

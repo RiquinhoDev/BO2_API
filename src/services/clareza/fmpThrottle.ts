@@ -3,19 +3,27 @@
 //
 // Partilhado por TODAS as ferramentas Clareza (tremómetro, top10, raio-x —
 // refresh e on-demand). Garante que a SOMA das chamadas à FMP nunca passa do
-// limite do plano (300/min), evitando rejeições "Over Limit".
+// limite do plano, evitando rejeições "Over Limit".
+//
+// Plano Ultimate: 3.000 chamadas/min. Fica-se pelos ~80% (2.400/min) para
+// deixar margem a outras integrações que partilhem a mesma chave/conta e a
+// picos de pesquisas on-demand em simultâneo com o cron.
 //
 // Token bucket:
-//  • refill 240/min  → ritmo sustentado, com margem de segurança vs 300/min;
-//  • capacidade 30   → permite um burst curto (ex.: 1 pesquisa on-demand de
-//                       ~14 chamadas é servida de imediato quando há folga).
+//  • refill 2.400/min (40/s) → ritmo sustentado, com margem vs 3.000/min;
+//  • capacidade 150          → cobre o burst de uma pesquisa on-demand
+//                               (~15-20 chamadas/empresa) quase instantâneo,
+//                               mesmo com o universo (mais tickers) a
+//                               refrescar em paralelo no cron.
 //
-// Pior caso em qualquer janela de 60s ≈ capacidade + refill = 30 + 240 = 270
-// chamadas → sempre < 300. Assume 1 instância do processo (sem réplicas).
+// Pior caso em qualquer janela de 60s ≈ capacidade + refill = 150 + 2400
+// = 2550 chamadas → sempre < 3000. Assume 1 instância do processo (sem
+// réplicas). Se subires de plano outra vez, sobe REFILL_PER_MIN/CAPACITY
+// na mesma proporção (~80% do limite/min do plano).
 // ─────────────────────────────────────────────────────────────
 
-const CAPACITY = 30
-const REFILL_PER_MIN = 240
+const CAPACITY = 150
+const REFILL_PER_MIN = 2400
 const REFILL_PER_MS = REFILL_PER_MIN / 60000
 
 let tokens = CAPACITY

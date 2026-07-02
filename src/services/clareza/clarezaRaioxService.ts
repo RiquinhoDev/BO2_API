@@ -2,6 +2,7 @@ import axios from 'axios'
 import { cacheService } from '../cache.service'
 import { UNIVERSE } from './clarezaFmpService'
 import { fmpThrottle } from './fmpThrottle'
+import { normalizeTicker, isValidTicker } from './tickerUtils'
 import ClarezaRaioxData from '../../models/ClarezaRaioxData'
 
 // ─────────────────────────────────────────────────────────────
@@ -28,12 +29,11 @@ const RAIOX_SPY_KEY      = 'clareza:raiox:spy'      // histórico SPY comprimido
 // O cron 6h/12h/18h reescreve as chaves 3×/dia → GET é sempre hit rápido.
 const RAIOX_TTL = 90000
 
-// Universo do raiox = universo base do Clareza + extras só do raiox.
+// Universo do raiox = universo base do Clareza (já inclui os internacionais:
+// 2330.TW, ASML.AS, RACE.MI, etc.) + extras só do raiox.
 const RAIOX_EXTRAS = [
-  { ticker: 'TSM',  name: 'Taiwan Semiconductor', type: 'growth', sector: 'Technology' },
-  { ticker: 'ASML', name: 'ASML Holding',          type: 'growth', sector: 'Technology' },
-  { ticker: 'NBIS', name: 'Nebius Group',          type: 'growth', sector: 'Technology' },
-  { ticker: 'RACE', name: 'Ferrari',               type: 'growth', sector: 'Consumer' },
+  { ticker: 'NBIS', name: 'Nebius Group', type: 'growth', sector: 'Technology' },
+  { ticker: 'SPCX', name: 'SpaceX',       type: 'growth', sector: 'Industrials' },
 ]
 
 export const RAIOX_UNIVERSE = (() => {
@@ -265,6 +265,24 @@ async function fetchCompanyRaiox(
   }
 }
 
+// Apaga do Redis as chaves de tickers que já não estão em RAIOX_UNIVERSE
+// (equivalente ao prune_stale_stocks do PHP). Corre sempre a seguir a um
+// refresh completo, quando o universo já reflete a lista atual.
+async function pruneStaleRaiox(): Promise<void> {
+  const valid = new Set(RAIOX_UNIVERSE.map(s => s.ticker))
+
+  for (const prefix of [RAIOX_CACHE_PREFIX, RAIOX_JSON_PREFIX]) {
+    const keys = await cacheService.keys(prefix + '*')
+    for (const key of keys) {
+      const ticker = key.slice(prefix.length)
+      if (!valid.has(ticker)) {
+        await cacheService.del(key)
+        console.log(`🧹 [Raiox] Removido da cache (fora do universo): ${ticker}`)
+      }
+    }
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // REFRESH COMPLETO (cron ClarezaRefresh + endpoint manual)
 // ─────────────────────────────────────────────────────────────
@@ -288,7 +306,10 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
 
   // 2. Empresas — sequencial (o gate global trata do ritmo).
   let errors = 0
-  const index: Array<{ symbol: string; name: string; price: any; image: any }> = []
+  const index: Array<{
+    symbol: string; name: string; price: any; image: any
+    currency: any; exchange: any; country: any
+  }> = []
   const snapshot: Record<string, any> = {}
 
   for (const stock of RAIOX_UNIVERSE) {
@@ -300,10 +321,13 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
         await cacheService.setRaw(RAIOX_JSON_PREFIX + stock.ticker, JSON.stringify({ ...data, sectorPe }), RAIOX_TTL)
         snapshot[stock.ticker] = data
         index.push({
-          symbol: stock.ticker,
-          name:   data.p?.companyName ?? data.p?.name ?? stock.name,
-          price:  data.p?.price ?? null,
-          image:  data.p?.image ?? null
+          symbol:   stock.ticker,
+          name:     data.p?.companyName ?? data.p?.name ?? stock.name,
+          price:    data.p?.price ?? null,
+          image:    data.p?.image ?? null,
+          currency: data.p?.currency ?? null,
+          exchange: data.p?.exchangeShortName ?? data.p?.exchange ?? null,
+          country:  data.p?.country ?? null
         })
       } else {
         errors++
@@ -316,6 +340,11 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
   }
 
   await cacheService.set(RAIOX_INDEX_KEY, index, RAIOX_TTL)
+
+  // 2.5 Remove do Redis tickers que já não estão no universo (ex.: troca de
+  // cotação como RACE → RACE.MI) — sem isto ficavam servidos em cache até
+  // expirar o TTL (~25h), mesmo já não fazendo parte da lista curada.
+  await pruneStaleRaiox()
 
   // 3. Snapshot durável em MongoDB (sobrevive a reinício do Redis).
   try {
@@ -360,8 +389,8 @@ async function getSectorPe(): Promise<any[]> {
 export async function getRaioxAnalysis(rawTicker: string): Promise<any> {
   if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
 
-  const ticker = String(rawTicker || '').trim().toUpperCase().replace(/\./g, '-')
-  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) throw new Error('Ticker invalido')
+  const ticker = normalizeTicker(rawTicker)
+  if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
 
   // 1. Redis (caminho normal — pré-aquecido pelo cron).
   const cached = await cacheService.get<any>(RAIOX_CACHE_PREFIX + ticker)
@@ -408,8 +437,8 @@ export async function getRaioxAnalysis(rawTicker: string): Promise<any> {
 // servir raw (res.send) — sem JSON.parse/stringify por pedido no caminho comum.
 // Caminho comum (universo pré-aquecido): getRaw → devolve a string direto.
 export async function getRaioxJson(rawTicker: string): Promise<string> {
-  const ticker = String(rawTicker || '').trim().toUpperCase().replace(/\./g, '-')
-  if (!/^[A-Z][A-Z0-9.\-]{0,9}$/.test(ticker)) throw new Error('Ticker invalido')
+  const ticker = normalizeTicker(rawTicker)
+  if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
 
   const raw = await cacheService.getRaw(RAIOX_JSON_PREFIX + ticker)
   if (raw) return raw
@@ -425,21 +454,93 @@ export async function getRaioxJson(rawTicker: string): Promise<string> {
 // PESQUISA / AUTOCOMPLETE (só a partir da cache, sem chamar FMP)
 // ─────────────────────────────────────────────────────────────
 
+type RaioxIndexEntry = {
+  symbol: string; name: string; price: any; image: any
+  currency?: any; exchange?: any; country?: any
+}
+
 export async function searchRaiox(rawQuery: string): Promise<any> {
   const q = String(rawQuery || '').trim().toUpperCase()
 
-  let index = await cacheService.get<Array<{ symbol: string; name: string; price: any; image: any }>>(RAIOX_INDEX_KEY)
+  let index = await cacheService.get<RaioxIndexEntry[]>(RAIOX_INDEX_KEY)
 
   // Fallback: reconstruir índice mínimo a partir do universo estático.
   if (!index || !index.length) {
-    index = RAIOX_UNIVERSE.map(s => ({ symbol: s.ticker, name: s.name, price: null, image: null }))
+    index = RAIOX_UNIVERSE.map(s => ({
+      symbol: s.ticker, name: s.name, price: null, image: null,
+      currency: null, exchange: null, country: null
+    }))
   }
 
-  const results = index.filter(item =>
-    q === '' ||
-    item.symbol.includes(q) ||
-    String(item.name || '').toUpperCase().includes(q)
-  )
+  // Relevância: 0 = ticker exacto, 1 = ticker começa por, 2 = nome começa por, 3 = contém.
+  const ranked = index
+    .map(item => {
+      const symbolUp = item.symbol.toUpperCase()
+      const nameUp = String(item.name || '').toUpperCase()
+      let rank: number | null = null
+      if (q === '') rank = 3
+      else if (symbolUp === q) rank = 0
+      else if (symbolUp.startsWith(q)) rank = 1
+      else if (nameUp.startsWith(q)) rank = 2
+      else if (symbolUp.includes(q) || nameUp.includes(q)) rank = 3
+      return rank === null ? null : { item, rank }
+    })
+    .filter((x): x is { item: RaioxIndexEntry; rank: number } => x !== null)
+    .sort((a, b) => a.rank - b.rank || a.item.symbol.localeCompare(b.item.symbol))
+    .map(x => x.item)
 
-  return { query: q, count: results.length, results: results.slice(0, 25) }
+  return { query: q, count: ranked.length, results: ranked.slice(0, 25) }
+}
+
+// ─────────────────────────────────────────────────────────────
+// DIAGNÓSTICO (equivalente ao ?diagnose=1 do PHP)
+//
+// Testa os tickers internacionais novos diretamente contra a FMP, um a um
+// e devagar, SEM tocar na cache principal (Redis/Mongo) nem no índice de
+// pesquisa. Serve só para confirmar que o plano FMP devolve dados para
+// cada bolsa antes de confiarmos neles no refresh completo.
+// ─────────────────────────────────────────────────────────────
+
+const DIAGNOSE_TICKERS = [
+  '2330.TW', 'ASML.AS',
+  'NESN.SW', 'TCEHY', 'BABA', 'SIE.DE', 'MC.PA', 'ARM',
+  '005930.KS', '000660.KS', 'SAB.MC', 'SAP.DE', 'RACE.MI', 'SAF.PA', 'RHM.DE', 'DG.PA',
+  'NOVO-B.CO'
+]
+
+export async function diagnoseRaiox(): Promise<any> {
+  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+
+  const results: any[] = []
+
+  for (const t of DIAGNOSE_TICKERS) {
+    let p = fmpFirst(await fmpRaw('/profile', { symbol: t }))
+    if (!p) p = fmpFirst(await fmpRaw('/quote', { symbol: t }))
+
+    if (p) {
+      results.push({
+        ticker: t,
+        ok: true,
+        name: p.companyName ?? p.name ?? null,
+        price: p.price ?? null,
+        currency: p.currency ?? null,
+        exchange: p.exchangeShortName ?? p.exchange ?? null,
+        country: p.country ?? null
+      })
+    } else {
+      results.push({ ticker: t, ok: false, error: 'Sem resposta da FMP para este símbolo.' })
+    }
+
+    // Ritmo deliberadamente lento — isto é um diagnóstico manual, não o
+    // refresh do cron, não há pressa e evita bursts que pareçam abuso.
+    await sleep(300)
+  }
+
+  const failed = results.filter(r => !r.ok)
+  return {
+    tested: results.length,
+    ok: results.length - failed.length,
+    failed: failed.length,
+    results
+  }
 }
