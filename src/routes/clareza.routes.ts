@@ -21,6 +21,9 @@ router.get('/top10', clarezaController.getTop10)
 router.post('/top10/refresh', clarezaController.refreshTop10)
 
 // Endpoint público — Raio-X da Ação por ticker (cache-first) + pesquisa
+// /raiox?symbol=X ou /raiox?search=X — contrato compatível com o PHP original,
+// usado pelo HTML de produção (raio-x-acao.html).
+router.get('/raiox', clarezaController.getRaioxByQuery)
 router.get('/raiox-search', clarezaController.searchRaiox)
 router.get('/raiox-diagnose', clarezaController.diagnoseRaiox)
 router.get('/raiox/:ticker', clarezaController.getRaiox)
