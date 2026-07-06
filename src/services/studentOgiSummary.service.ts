@@ -8,6 +8,8 @@ import { ACHIEVEMENT_DEFINITIONS } from './achievements/achievementDefinitions'
 import { evaluateAndPersistAchievements } from './achievements/achievementEvaluation.service'
 import { recordDailyActivity } from './achievements/streakCalculator'
 import { findRenewalOffer } from './renewal/renewalMatcher.service'
+import { buildCheckoutLink } from './renewal/renewalSync.service'
+import { GENERIC_RENEWAL_OFFER_CODE } from './renewal/renewalConstants'
 import { parseTurmaName, resolveAccessEnd } from './renewal/turmaParser'
 
 type MongooseReadModel = mongoose.Model<mongoose.Document>
@@ -329,10 +331,7 @@ async function buildStudentOgiSummary(
   const fallbackExpiresAt = calculateExpirationDate(purchaseDate || enrolledAt)
   const expiresAt = resolveAccessEnd(purchaseDate || enrolledAt, activeClassName)
     || fallbackExpiresAt
-  const renewalOffer = await findRenewalOffer({
-    turmaNumber: parsedTurma?.turmaNumber,
-    expiryYYMM: parsedTurma?.accessEndYYMM
-  })
+  const renewalOffer = await findRenewalOffer(parsedTurma?.turmaNumber)
 
   // Construir achievements a partir do cache no User doc
   const achievementsData = buildAchievementsResponse(user.achievements, user.achievementStats)
@@ -348,7 +347,7 @@ async function buildStudentOgiSummary(
       enrolledAt,
       purchaseDate,
       expiresAt,
-      renewalUrl: renewalOffer?.link || null,
+      renewalUrl: renewalOffer?.link || buildCheckoutLink(GENERIC_RENEWAL_OFFER_CODE),
       turmaNumber: parsedTurma?.turmaNumber ?? null
     },
     progress: {

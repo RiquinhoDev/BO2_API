@@ -83,6 +83,7 @@
     "cleanup:duplicates:apply": "DRY_RUN=false ts-node scripts/cleanup-duplicate-contacttags.ts",
     "list:rui-tags": "ts-node scripts/list-rui-tags-complete.ts",
     "renewal:check-names": "ts-node --transpile-only scripts/renewal/check-turma-names.ts",
+    "renewal:ensure-generic": "ts-node --transpile-only scripts/renewal/ensure-generic-offer.ts",
     "renewal:sync": "ts-node --transpile-only scripts/renewal/sync-offers.ts",
     "reactivate:expired-fix": "ts-node --transpile-only scripts/maintenance/reactivate-wrongly-inactivated.ts",
     "daily-pipeline": "ts-node scripts/run-daily-pipeline.ts",

@@ -163,7 +163,7 @@ function extractNextPageToken(responseData: any): string | null {
     || null
 }
 
-function buildCheckoutLink(offerCode: string): string {
+export function buildCheckoutLink(offerCode: string): string {
   return `${CHECKOUT_BASE_URL}?off=${encodeURIComponent(offerCode)}&checkoutMode=10`
 }
 

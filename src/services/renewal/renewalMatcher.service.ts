@@ -1,30 +1,27 @@
 import RenewalOffer, { IRenewalOffer } from '../../models/RenewalOffer'
+import { GENERIC_RENEWAL_OFFER_CODE } from './renewalConstants'
 
-interface FindRenewalOfferInput {
+export async function findRenewalOffer(
   turmaNumber?: number | null
-  // período da EXPIRAÇÃO do aluno (accessEndYYMM) — a oferta de renovação deve
-  // começar a partir daí. Em turmas de 2 anos isto é início + 24 meses, não + 12.
-  expiryYYMM?: string | null
-}
+): Promise<IRenewalOffer | null> {
+  if (turmaNumber) {
+    const special = await RenewalOffer.findOne({
+      isActive: true,
+      isRenewal: true,
+      isManuallyEdited: true,
+      turmaNumbers: turmaNumber,
+      offerCode: { $ne: GENERIC_RENEWAL_OFFER_CODE }
+    })
+      .sort({ periodYYMM: -1 })
+      .exec()
 
-export async function findRenewalOffer({
-  turmaNumber,
-  expiryYYMM
-}: FindRenewalOfferInput): Promise<IRenewalOffer | null> {
-  if (!turmaNumber || !expiryYYMM) return null
+    if (special) return special
+  }
 
-  // SEGURANÇA: só ofertas confirmadas por humano no Backoffice chegam ao aluno.
-  // A turma sugerida (dos compradores) é só um palpite — nunca é servida sozinha.
-  // Enquanto ninguém confirmar, o aluno cai no fallback (email de contacto).
   return RenewalOffer.findOne({
-    isActive: true,
-    isRenewal: true,
-    isManuallyEdited: true,
-    turmaNumbers: turmaNumber,
-    periodYYMM: { $gte: expiryYYMM }
-  })
-    .sort({ periodYYMM: 1 })
-    .exec()
+    offerCode: GENERIC_RENEWAL_OFFER_CODE,
+    isActive: true
+  }).exec()
 }
 
 export default findRenewalOffer
