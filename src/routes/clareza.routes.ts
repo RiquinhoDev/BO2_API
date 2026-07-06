@@ -36,5 +36,8 @@ router.post('/raiox/refresh', clarezaController.refreshRaiox)
 router.get('/carteira/data', clarezaController.getCarteira)
 router.get('/carteira-search', clarezaController.searchCarteira)
 router.post('/carteira/refresh', clarezaController.refreshCarteira)
+// Endpoint publico - Calendario de Resultados
+router.get('/earnings/data', clarezaController.getEarnings)
+router.post('/earnings/refresh', clarezaController.refreshEarnings)
 
 export default router

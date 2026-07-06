@@ -3,6 +3,7 @@ import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, 
 import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
 import { getRaioxJson, searchRaiox, refreshClarezaRaioxData, diagnoseRaiox } from '../services/clareza/clarezaRaioxService'
 import { getClarezaCarteiraData, searchCarteira, refreshClarezaCarteiraData } from '../services/clareza/clarezaCarteiraService'
+import { getClarezaEarningsData, refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
 
 export const clarezaController = {
   async getData(req: Request, res: Response) {
@@ -223,6 +224,37 @@ export const clarezaController = {
     }
   },
 
+  async getEarnings(req: Request, res: Response) {
+    try {
+      const data = await getClarezaEarningsData()
+      if (!data) {
+        return res.status(503).json({ error: 'Dados indisponiveis. Tente novamente em breve.' })
+      }
+      res.setHeader('Cache-Control', 'public, max-age=3600')
+      return res.json(data)
+    } catch (error: any) {
+      console.error('[GET /api/clareza/earnings/data]', error.message)
+      return res.status(500).json({ error: 'Erro interno do servidor' })
+    }
+  },
+
+  async refreshEarnings(req: Request, res: Response) {
+    try {
+      const expectedToken = process.env.CLAREZA_REFRESH_TOKEN
+      const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
+
+      if (!expectedToken || providedToken !== expectedToken) {
+        return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
+      }
+
+      console.log('[POST /api/clareza/earnings/refresh] Refresh manual iniciado')
+      const result = await refreshClarezaEarningsData()
+      return res.json({ success: true, ...result })
+    } catch (error: any) {
+      console.error('[POST /api/clareza/earnings/refresh]', error.message)
+      return res.status(500).json({ error: error.message })
+    }
+  },
   async refreshCarteira(req: Request, res: Response) {
     try {
       const expectedToken = process.env.CLAREZA_REFRESH_TOKEN

@@ -2,6 +2,7 @@ import { refreshClarezaData } from '../services/clareza/clarezaFmpService'
 import { refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
 import { refreshClarezaRaioxData } from '../services/clareza/clarezaRaioxService'
 import { refreshClarezaCarteiraData } from '../services/clareza/clarezaCarteiraService'
+import { refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
 
 const clarezaJob = {
   async run(): Promise<{ success: boolean; total: number; errors: number }> {
@@ -39,7 +40,12 @@ const clarezaJob = {
         console.error('[ClarezaRefresh] Falha ao atualizar Carteira:', carteiraErr.message)
       }
 
-
+      try {
+        const earnings = await refreshClarezaEarningsData()
+        console.log(`[ClarezaRefresh] Earnings atualizado - ${earnings.total} tickers, ${earnings.errors} erros`)
+      } catch (earningsErr: any) {
+        console.error('[ClarezaRefresh] Falha ao atualizar Earnings:', earningsErr.message)
+      }
       return { success: true, ...result }
     } catch (error: any) {
       console.error('❌ [ClarezaRefresh] Erro:', error.message)
