@@ -60,6 +60,7 @@ import "./models/SyncModels/CronJobConfig"
 import "./models/SyncModels/ActivitySnapshot"
 import "./models/SyncModels/SyncConflict"
 import "./models/ClarezaMarketData"
+import "./models/ClarezaCarteiraData"
 
 import businessAnalyticsRoutes from './routes/businessAnalytics.routes'
 import "./models"

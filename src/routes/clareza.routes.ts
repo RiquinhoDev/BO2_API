@@ -31,4 +31,10 @@ router.get('/raiox/:ticker', clarezaController.getRaiox)
 // Refresh manual do Raio-X — mesmo token que /refresh
 router.post('/raiox/refresh', clarezaController.refreshRaiox)
 
+
+// Endpoint publico - Raio-X da Carteira
+router.get('/carteira/data', clarezaController.getCarteira)
+router.get('/carteira-search', clarezaController.searchCarteira)
+router.post('/carteira/refresh', clarezaController.refreshCarteira)
+
 export default router

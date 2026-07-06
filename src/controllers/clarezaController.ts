@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, getStockAnalysis } from '../services/clareza/clarezaFmpService'
 import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
 import { getRaioxJson, searchRaiox, refreshClarezaRaioxData, diagnoseRaiox } from '../services/clareza/clarezaRaioxService'
+import { getClarezaCarteiraData, searchCarteira, refreshClarezaCarteiraData } from '../services/clareza/clarezaCarteiraService'
 
 export const clarezaController = {
   async getData(req: Request, res: Response) {
@@ -193,6 +194,49 @@ export const clarezaController = {
       return res.json({ success: true, ...result })
     } catch (error: any) {
       console.error('❌ [POST /api/clareza/raiox/refresh]', error.message)
+      return res.status(500).json({ error: error.message })
+    }
+  },
+
+  async getCarteira(req: Request, res: Response) {
+    try {
+      const data = await getClarezaCarteiraData()
+      if (!data) {
+        return res.status(503).json({ error: 'Dados indisponiveis. Tente novamente em breve.' })
+      }
+      res.setHeader('Cache-Control', 'public, max-age=3600')
+      return res.json(data)
+    } catch (error: any) {
+      console.error('[GET /api/clareza/carteira/data]', error.message)
+      return res.status(500).json({ error: 'Erro interno do servidor' })
+    }
+  },
+
+  async searchCarteira(req: Request, res: Response) {
+    try {
+      const data = await searchCarteira(String(req.query.q || req.query.search || ''))
+      res.setHeader('Cache-Control', 'public, max-age=600')
+      return res.json(data)
+    } catch (error: any) {
+      console.error('[GET /api/clareza/carteira-search]', error.message)
+      return res.status(500).json({ error: 'Erro interno do servidor' })
+    }
+  },
+
+  async refreshCarteira(req: Request, res: Response) {
+    try {
+      const expectedToken = process.env.CLAREZA_REFRESH_TOKEN
+      const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
+
+      if (!expectedToken || providedToken !== expectedToken) {
+        return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
+      }
+
+      console.log('[POST /api/clareza/carteira/refresh] Refresh manual iniciado')
+      const result = await refreshClarezaCarteiraData()
+      return res.json({ success: true, ...result })
+    } catch (error: any) {
+      console.error('[POST /api/clareza/carteira/refresh]', error.message)
       return res.status(500).json({ error: error.message })
     }
   }

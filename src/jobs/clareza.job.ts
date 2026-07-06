@@ -1,6 +1,7 @@
 import { refreshClarezaData } from '../services/clareza/clarezaFmpService'
 import { refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
 import { refreshClarezaRaioxData } from '../services/clareza/clarezaRaioxService'
+import { refreshClarezaCarteiraData } from '../services/clareza/clarezaCarteiraService'
 
 const clarezaJob = {
   async run(): Promise<{ success: boolean; total: number; errors: number }> {
@@ -28,6 +29,16 @@ const clarezaJob = {
       } catch (raioxErr: any) {
         console.error('⚠️ [ClarezaRefresh] Falha ao atualizar Raio-X:', raioxErr.message)
       }
+
+      // Raio-X da Carteira - mesmo agendamento, depois do Raio-X da Acao.
+      // Best-effort: nao falha o job principal.
+      try {
+        const carteira = await refreshClarezaCarteiraData()
+        console.log(`[ClarezaRefresh] Carteira atualizada - ${carteira.total} ativos, ${carteira.errors} erros`)
+      } catch (carteiraErr: any) {
+        console.error('[ClarezaRefresh] Falha ao atualizar Carteira:', carteiraErr.message)
+      }
+
 
       return { success: true, ...result }
     } catch (error: any) {
