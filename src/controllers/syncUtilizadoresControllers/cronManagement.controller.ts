@@ -31,12 +31,37 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
       jobs = await syncSchedulerService.getAllJobs()
     }
 
+    // Agendamentos que vivem FORA do CronJobConfig (sistemas legacy) — expostos
+    // aqui para que TODOS os crons apareçam listados no Backoffice.
+    // TAG_RULES_SYNC (TagCronManagement/CronConfig) não é agendado no arranque
+    // actual (initializeCronJobs não é invocado no index.ts) — daí scheduledAtRuntime.
+    let systemJobs: any[] = []
+    if (!syncType && active !== 'true') {
+      try {
+        const CronConfig = (await import('../../models/cron/CronConfig')).default
+        const legacyConfigs = await CronConfig.find({}).lean()
+        systemJobs = legacyConfigs.map((cfg: any) => ({
+          source: 'legacy-tag-cron',
+          name: cfg.name,
+          description: 'Sistema legacy de tags AC (colecção cronconfigs) — gerido fora do scheduler principal',
+          cronExpression: cfg.cronExpression,
+          isActive: cfg.isActive,
+          scheduledAtRuntime: false,
+          nextRun: cfg.nextRun || null,
+          lastRun: cfg.lastRun || null
+        }))
+      } catch (legacyError: any) {
+        console.warn('⚠️ Não foi possível ler jobs legacy (cronconfigs):', legacyError.message)
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: 'Jobs recuperados com sucesso',
       data: {
         total: jobs.length,
-        jobs
+        jobs,
+        systemJobs
       }
     })
 

@@ -143,18 +143,16 @@ mongoose.connect(process.env.MONGO_URI || "")
       } else {
         const fixedCronExpression = '0 6,12,18 * * *'
         const fixedTimezone = 'Europe/Lisbon'
+        // O seed repara apenas o horário — NUNCA toca em enabled/isActive.
+        // Pausar um job na UI é um kill switch e tem de sobreviver a deploys.
         const needsScheduleRepair =
           existingClarezaJob.schedule.cronExpression !== fixedCronExpression ||
-          existingClarezaJob.schedule.timezone !== fixedTimezone ||
-          existingClarezaJob.schedule.enabled !== true ||
-          existingClarezaJob.isActive !== true
+          existingClarezaJob.schedule.timezone !== fixedTimezone
         const missingCreatedBy = !(existingClarezaJob as any).createdBy
 
         if (needsScheduleRepair) {
           existingClarezaJob.set('schedule.cronExpression', fixedCronExpression)
           existingClarezaJob.set('schedule.timezone', fixedTimezone)
-          existingClarezaJob.set('schedule.enabled', true)
-          existingClarezaJob.set('isActive', true)
           console.log('📈 [Clareza] Schedule protegido reparado: 6h, 12h, 18h Lisboa')
         }
 
