@@ -41,7 +41,7 @@
 ### ❌ Não possível / limitações a aceitar
 | Limitação | Detalhe |
 |-----------|---------|
-| **~48% dos alunos não têm Discord ligado no BO** | O Discord não expõe email dos membros — é impossível fazer matching por email. Sem `discordId` no BO, o aluno é ignorado (fica em relatório). Subir a cobertura = campanha para os alunos ligarem a conta (fluxo discordAuth já existe) |
+| **~48% dos alunos não têm Discord ligado no BO** | O Discord não expõe email dos membros — é impossível fazer matching por email. **DECISÃO (João, 2026-07-10): não fazer nada agora** — o sistema é auto-corrector: como o diff corre todas as noites, quando um aluno ligar o Discord mais tarde recebe o cargo na noite seguinte automaticamente. Fica só o relatório de "não ligados" para visibilidade |
 | Membros que saíram do servidor | Bot não atribui cargos a quem não está no guild → relatório "não encontrado" |
 | Cargo acima do cargo do bot | O bot só gere cargos ABAIXO do seu na hierarquia — os 12 cargos têm de ficar abaixo do cargo do bot |
 | Velocidade | Rate limit do Discord obriga ao ritmo lento (é o que queremos, mas o backfill não é instantâneo) |
@@ -100,13 +100,13 @@ Porquê BO planeia + bot executa (e não o BO a falar directo com a API do Disco
 | D6 | Aprovação de mensagens | envia logo quem cola vs 2º par de olhos | enviar logo (com pré-visualização e confirmação) |
 | D7 | Guild | 1 servidor único? ID? | confirmar guild ID |
 
-## 8. Faseamento (quando aprovares)
+## 8. Faseamento (ordem decidida pelo João a 2026-07-10)
 
-- **Fase D0 — segurança do bot**: auth no endpoint 3002 + refactor mínimo do bot1 para receber operações genéricas de cargos (mantendo a fila 1 op/s). Sem mudança de comportamento do fluxo Ativo/Inativo.
-- **Fase D1 — cargos + mapeamento**: criar os 12 cargos no Discord (manual), config mês→roleId no BO; motor de plano `DiscordRolesSync` em dry-run (só BD), tab no Front (espelho da "Sync AC").
+- **Fase D1 — cargos + mapeamento**: criar os 12 cargos no Discord (manual), config mês→roleId no BO; endpoint genérico de cargos no bot (reutilizando a fila 1 op/s); motor de plano `DiscordRolesSync` em dry-run (só BD), tab no Front (espelho da "Sync AC").
 - **Fase D2 — execução piloto**: switches ligados, aplicar a 2-3 membros de teste, verificar no Discord; depois backfill por lotes aprovados (~40 min total).
 - **Fase D3 — cron nocturno**: ligar o cron 05:30 (deltas diários, auto ou com aprovação — mesma escolha do sync AC).
 - **Fase D4 — mensagens**: endpoint `POST /messages` no bot + fila/UI no BO (colar → pré-visualizar → enviar), `allowed_mentions` bloqueado por defeito.
+- **Fase D5 (última, decisão do João) — segurança do bot**: auth (shared secret) nos endpoints HTTP do bot, incluindo o `/setUserAsInactive` existente. Feita depois de tudo operacional. *Mitigação entretanto: manter a porta 3002 inacessível do exterior (rede interna Railway/localhost) — confirmar exposição actual na Fase D1.*
 
 ## 9. Números para expectativas
 
