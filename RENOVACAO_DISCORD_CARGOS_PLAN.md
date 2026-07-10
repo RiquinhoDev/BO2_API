@@ -241,3 +241,13 @@ Fluxo completo confirmado em produção:
 ⚠️ **Nota de visibilidade (não é bug):** os cargos R.* têm `hoist=false` (de propósito — são marcadores), logo **não agrupam na barra lateral de membros** do Discord. Vêem-se no perfil do membro ou em Definições do Servidor → Cargos → membros. Não confundir "não aparece na sidebar" com "não foi aplicado".
 
 **Estado operacional:** `DISCORD_ROLES_SYNC_ENABLED=true`, `DISCORD_ROLES_AUTO_EXECUTE=true`, `DISCORD_ROLES_MAX_OPS_PER_RUN=150`, cron LIGADO (05:30). Backfill em curso: cliques manuais em "Executar lote" (~3 min/150) + cron nocturno. Mensagens (`DISCORD_MESSAGES_ENABLED`) ainda OFF. Falta: D5 (BOT_SHARED_SECRET) no fim.
+
+### 10.6 Mensagens movidas para o menu "Comunicados" (2026-07-10, sugestão do João)
+
+As mensagens do bot saíram da tab Discord das Renovações para um **menu próprio "Comunicados"** (sidebar → Comunidade), como área de comunicação geral:
+- **Texto livre** (comunicados gerais) OU os templates de renovação;
+- **Menções OPCIONAIS**: sem meses seleccionados, `allowed_mentions` vai vazio e a mensagem **não notifica ninguém** — é o modo de teste seguro pedido ("validar sem chamar ninguém"). Badge na UI torna isso explícito;
+- **Selector de canal**: lista configurável via env `DISCORD_MESSAGE_CHANNELS` do BO2 (`id:nome,id:nome`; default anúncios-alunos). ⚠️ Ao acrescentar um canal, acrescentar o ID também em `RENEWAL_MESSAGE_CHANNEL_IDS` no serviço do bot (allowlist do lado de lá);
+- Pré-visualização obrigatória + histórico de envios completo na página.
+
+Commits: BO2 `db67ff3`, Front `2b258f4`. A allowlist de MENÇÕES continua restrita aos 12 cargos R.* (mencionar outros cargos do servidor = decisão futura, exigiria alargar a allowlist dos dois lados com cuidado).
