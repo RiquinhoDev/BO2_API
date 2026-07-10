@@ -68,6 +68,20 @@ const ROLE_NAME_BY_ID = new Map(Object.values(RENEWAL_ROLES).map((r) => [r.roleI
 
 export const DEFAULT_MESSAGE_CHANNEL_ID = process.env.DISCORD_MESSAGE_CHANNEL_ID || '1182457352012697671'
 
+// Canais onde o BO pode publicar comunicados: "id:nome,id:nome".
+// ⚠️ Ao acrescentar um canal aqui, acrescentar o ID também no env
+// RENEWAL_MESSAGE_CHANNEL_IDS do serviço do bot (allowlist do lado de lá).
+export function getMessageChannels(): Array<{ channelId: string; name: string }> {
+  const raw = process.env.DISCORD_MESSAGE_CHANNELS || `${DEFAULT_MESSAGE_CHANNEL_ID}:🗣📢︱anúncios-alunos`
+  return raw
+    .split(',')
+    .map((entry) => {
+      const [channelId, ...nameParts] = entry.trim().split(':')
+      return { channelId: (channelId || '').trim(), name: nameParts.join(':').trim() || channelId }
+    })
+    .filter((c) => c.channelId)
+}
+
 // ─────────────────────────────────────────────────────────────
 // EXPIRAÇÃO DE PLANOS VELHOS
 // ─────────────────────────────────────────────────────────────
@@ -504,6 +518,10 @@ export async function sendDiscordMessage(params: {
   }
 
   const channelId = params.channelId || DEFAULT_MESSAGE_CHANNEL_ID
+  const allowedChannels = getMessageChannels()
+  if (!allowedChannels.some((c) => c.channelId === channelId)) {
+    return { success: false, message: 'Canal fora da lista de canais permitidos (DISCORD_MESSAGE_CHANNELS)' }
+  }
   const finalContent = renderMessage(params.content, roleIds, params.dataFim)
   if (!finalContent.trim()) return { success: false, message: 'Mensagem vazia' }
 
@@ -562,6 +580,7 @@ export async function getDiscordRenewalStatus() {
       botUrl: botUrl(),
       maxOpsPerRun: maxOpsPerRun(),
       defaultChannelId: DEFAULT_MESSAGE_CHANNEL_ID,
+      channels: getMessageChannels(),
       roles: RENEWAL_ROLES
     },
     counts,
