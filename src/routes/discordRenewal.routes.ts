@@ -42,18 +42,31 @@ router.get('/status', asyncRoute(async (_req: Request, res: Response) => {
   res.json({ success: true, data: { ...status, cronJob: cronJob || null } })
 }))
 
-/** GET /api/discord-renewal/changes?status=&batchId=&limit= */
+/** GET /api/discord-renewal/changes?status=&batchId=&search=&limit=&skip=
+ *  search: parcial e case-insensitive sobre email OU discordUserId.
+ *  Devolve total (contagem completa do filtro) para paginação. */
 router.get('/changes', asyncRoute(async (req: Request, res: Response) => {
-  const { status, batchId, email } = req.query
-  const limit = Math.min(Number(req.query.limit) || 200, 500)
+  const { status, batchId, search } = req.query
+  const limit = Math.min(Number(req.query.limit) || 50, 500)
+  const skip = Math.max(Number(req.query.skip) || 0, 0)
 
   const query: any = {}
   if (status) query.status = status
   if (batchId) query.planBatchId = batchId
-  if (email) query.email = String(email).toLowerCase()
+  if (search && String(search).trim()) {
+    const escaped = String(search).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    query.$or = [
+      { email: { $regex: escaped, $options: 'i' } },
+      { discordUserId: { $regex: escaped } }
+    ]
+  }
 
-  const changes = await DiscordRoleChange.find(query).sort({ plannedAt: -1 }).limit(limit).lean().exec()
-  res.json({ success: true, data: { total: changes.length, changes } })
+  const [total, changes] = await Promise.all([
+    DiscordRoleChange.countDocuments(query),
+    DiscordRoleChange.find(query).sort({ plannedAt: -1 }).skip(skip).limit(limit).lean().exec()
+  ])
+
+  res.json({ success: true, data: { total, skip, limit, changes } })
 }))
 
 /** POST /api/discord-renewal/plan — reconciliação (dry-run, só BD) */

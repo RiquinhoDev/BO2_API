@@ -112,6 +112,8 @@ export interface DiscordPlanReport {
   accountsDesired: number
   invalidTurma: number
   planned: number
+  newAssignments: number // contas sem cargo registado → primeira atribuição (nunca é anomalia)
+  realChanges: number // cargos já aplicados que mudariam/seriam removidos (sujeitos ao detector)
   removals: number
   skippedDuplicates: number
   anomalyAborted: boolean
@@ -130,6 +132,8 @@ export async function generateDiscordRolesPlan(): Promise<DiscordPlanReport> {
     accountsDesired: 0,
     invalidTurma: 0,
     planned: 0,
+    newAssignments: 0,
+    realChanges: 0,
     removals: 0,
     skippedDuplicates: 0,
     anomalyAborted: false,
@@ -221,12 +225,18 @@ export async function generateDiscordRolesPlan(): Promise<DiscordPlanReport> {
     }
   }
 
-  // 4. Circuit breaker (não se aplica ao backfill inicial, que é esperado ser grande)
+  // 4. Circuit breaker — só conta MUDANÇAS de cargos já aplicados (troca ou
+  // remoção). Primeiras atribuições (conta sem estado) nunca são anomalia:
+  // durante o rollout há milhares por definição, e a execução tem caps na
+  // mesma. O sinal de falha da Hotmart é a massa de cargos EXISTENTES a mudar.
+  report.newAssignments = pending.filter((p) => p.desired && !stateByAccount.has(p.discordUserId)).length
+  report.realChanges = pending.length - report.newAssignments
+
   if (!report.isBackfill) {
-    const threshold = Math.max(30, Math.ceil(desiredByAccount.size * 0.05))
-    if (pending.length > threshold) {
+    const threshold = Math.max(30, Math.ceil(Math.max(stateByAccount.size, 1) * 0.05))
+    if (report.realChanges > threshold) {
       report.anomalyAborted = true
-      report.anomalyDetail = `${pending.length} mudanças de cargo (> limiar ${threshold}) — provável anomalia nos dados, plano NÃO gerado`
+      report.anomalyDetail = `${report.realChanges} mudanças de cargos JÁ aplicados (> limiar ${threshold}) — provável anomalia nos dados, plano NÃO gerado (novas atribuições: ${report.newAssignments}, não contam)`
       console.error(`🚨 [DiscordRoles] ${report.anomalyDetail}`)
       return report
     }
