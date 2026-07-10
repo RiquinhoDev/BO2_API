@@ -475,6 +475,73 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
 }
 
   // ═══════════════════════════════════════════════════════════
+  // CUSTOM FIELDS (Renovação OGI — ver RENOVACAO_OGI_BO_PLAN.md)
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Ler o valor actual de um custom field de um contacto.
+   * Devolve null se o contacto não existir na AC.
+   * Usado para o diff "só escrever se mudou" antes de qualquer escrita.
+   */
+  async getContactFieldValue(
+    email: string,
+    fieldId: number
+  ): Promise<{ contactId: string; value: string | null } | null> {
+    await this.checkRateLimit()
+    try {
+      const contact = await this.getContactByEmail(email)
+      if (!contact) return null
+
+      const contactId = contact.contact.id
+      const resp = await this.retryRequest(async () => {
+        return await this.client.get(`/api/3/contacts/${contactId}/fieldValues`)
+      })
+
+      const fieldValues = resp.data?.fieldValues || []
+      const match = fieldValues.find((fv: any) => String(fv.field) === String(fieldId))
+
+      return { contactId, value: match?.value ?? null }
+    } catch (error) {
+      console.error(`❌ [AC] Erro ao ler field ${fieldId} de ${email}:`, this.formatError(error))
+      throw error
+    }
+  }
+
+  /**
+   * Escrever um custom field de um contacto (upsert por contacto+field).
+   *
+   * REGRA (guard F7 do plano): o contacto TEM de já existir na AC —
+   * este método nunca cria contactos. Devolve false se não existir.
+   */
+  async updateContactField(email: string, fieldId: number, value: string): Promise<boolean> {
+    await this.checkRateLimit()
+    try {
+      const contact = await this.getContactByEmail(email)
+      if (!contact) {
+        console.warn(`⚠️ [AC] updateContactField: contacto ${email} não existe — a não criar (guard F7)`)
+        return false
+      }
+
+      const payload = {
+        fieldValue: {
+          contact: contact.contact.id,
+          field: String(fieldId),
+          value
+        }
+      }
+
+      await this.retryRequest(async () => {
+        return await this.client.post('/api/3/fieldValues', payload)
+      })
+
+      return true
+    } catch (error) {
+      console.error(`❌ [AC] Erro ao escrever field ${fieldId} de ${email}:`, this.formatError(error))
+      throw error
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // HELPERS - TAGS
   // ═══════════════════════════════════════════════════════════
 

@@ -23,6 +23,7 @@ import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../t
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
 const RENEWAL_OFFER_SYNC_JOB_NAME = 'RenewalOfferSync'
 const ACHIEVEMENT_EVALUATION_JOB_NAME = 'AchievementEvaluation'
+const RENEWAL_AC_SYNC_JOB_NAME = 'RenewalAcSync'
 const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('000000000000000000000001')
 
 // ─────────────────────────────────────────────────────────────
@@ -652,6 +653,40 @@ const job = await CronJobConfig.create({
     console.log('[AchievementEvaluation] Cron diário criado (04:30 Lisboa)')
   }
 
+  /**
+   * Cron da Fase B (Renovação OGI → AC). NASCE DESLIGADO e o seed é
+   * create-only: NUNCA altera enabled/isActive de um job existente —
+   * ligar/desligar é decisão exclusiva da UI/BD (kill switch, 13.2/13.3).
+   */
+  private async ensureRenewalAcSyncJob(): Promise<void> {
+    const existingJob = await CronJobConfig.findOne({ name: RENEWAL_AC_SYNC_JOB_NAME })
+    if (existingJob) return
+
+    await CronJobConfig.create({
+      name: RENEWAL_AC_SYNC_JOB_NAME,
+      description: 'Renovação OGI → ActiveCampaign (Fase B): gera plano de alterações (data de expiração + tags de turma + reversões por reembolso) e, só com os switches RENEWAL_AC_* ligados, executa-o. Ver RENOVACAO_OGI_BO_PLAN.md.',
+      syncType: 'hotmart',
+      schedule: {
+        cronExpression: '30 7 * * *', // 07:30 Lisboa — 3h30 depois do sync "1º" (04:00)
+        timezone: 'Europe/Lisbon',
+        enabled: false // ⛔ nasce DESLIGADO — ligar é acção manual na UI
+      },
+      syncConfig: { fullSync: false, includeProgress: false, includeTags: false, batchSize: 100 },
+      tagRules: [],
+      tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
+      notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: true, recipients: [] },
+      retryPolicy: { maxRetries: 1, retryDelayMinutes: 30, exponentialBackoff: false },
+      nextRun: this.calculateNextRun('30 7 * * *'),
+      createdBy: SYSTEM_CRON_ADMIN_ID,
+      isActive: true,
+      totalRuns: 0,
+      successfulRuns: 0,
+      failedRuns: 0
+    })
+
+    console.log('[RenewalAcSync] Cron criado DESLIGADO (07:30 Lisboa) — ligar manualmente na UI quando a feature for activada')
+  }
+
   async initializeScheduler(): Promise<void> {
     console.log('🚀 Inicializando scheduler...')
 
@@ -660,6 +695,7 @@ const job = await CronJobConfig.create({
 
     await this.ensureRenewalOfferSyncJob()
     await this.ensureAchievementEvaluationJob()
+    await this.ensureRenewalAcSyncJob()
 
     // Carregar todos os jobs ativos
     const activeJobs = await CronJobConfig.getActiveJobs()
@@ -709,7 +745,8 @@ private async executeSyncJob(job: ICronJobConfig): Promise<{
     'ClarezaRefresh',
     'GuruTrialCheck',
     RENEWAL_OFFER_SYNC_JOB_NAME,
-    ACHIEVEMENT_EVALUATION_JOB_NAME
+    ACHIEVEMENT_EVALUATION_JOB_NAME,
+    RENEWAL_AC_SYNC_JOB_NAME
   ]
   
   // Verificar se job atual tem lógica específica
@@ -834,6 +871,20 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
         updated: report.upserted,
         errors: 0,
         skipped: report.unknownNames.length
+      }
+
+    } else if (job.name.includes(RENEWAL_AC_SYNC_JOB_NAME)) {
+      console.log('Executando: RenewalAcSync (Renovação OGI → AC, Fase B)')
+      const { runRenewalAcSyncJob } = await import('../renewal/renewalAcSync.service')
+      const report = await runRenewalAcSyncJob()
+      result = {
+        success: !report.plan.anomalyAborted,
+        total: report.plan.classChangesSeen,
+        inserted: report.plan.planned,
+        updated: report.execution?.applied || 0,
+        errors: (report.execution?.failed || 0) + (report.plan.anomalyAborted ? 1 : 0),
+        skipped: report.plan.blocked + report.plan.skippedDuplicates,
+        errorMessage: report.plan.anomalyDetail
       }
 
     } else if (job.name.includes(ACHIEVEMENT_EVALUATION_JOB_NAME)) {

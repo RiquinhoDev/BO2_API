@@ -1,6 +1,6 @@
 # Renovação OGI — Integração BackOffice ↔ ActiveCampaign (Plano)
 
-> **Estado:** plano aprovado em conceito. Implementados apenas os pré-requisitos de segurança dos crons (secção 13.6) — **toda a escrita na AC continua desligada** (verificação em 13.7). Fases 1-4 por implementar.
+> **Estado:** infraestrutura COMPLETA e DESLIGADA (2026-07-10). Fases 1-4 implementadas; nada corre automaticamente — cron criado `enabled:false`, todos os switches `false`. Ligar = seguir o runbook da **secção 14**.
 > **Fontes:** documento "Processo de Renovação - OGI" (equipa Ser Riquinho) + análise do código BO2_API / Front + auditoria read-only da AC e da BD de produção (2026-07-09).
 
 ---
@@ -83,18 +83,18 @@ Se `refunded === true`, o cron **não pode** escrever data de expiração futura
 ## 7. Plano de implementação proposto (fases)
 
 ### Fase 1 — Fundações
-- [ ] `updateContactField()` no activeCampaignService (Gap B) + config do field ID.
-- [ ] Detecção de reembolsos Hotmart no sync diário → escreve `metadata.refunded`/`refundedAt` (Gap A).
+- [x] `updateContactField()` no activeCampaignService (Gap B) + config do field ID. *(2026-07-10 — ver 14.1)*
+- [x] Detecção de reembolsos Hotmart → escreve `metadata.refunded`/`refundedAt` (Gap A). *(corre na Fase B/manual, não no sync "1º" — decisão 13.1)*
 
 ### Fase 2 — Orquestrador de renovação
-- [ ] Serviço `renewalAcSync` pendurado no `[ClassChange]` do sync diário: data na AC + tag nova + remove tag antiga, com diff e guard de reembolso (Gaps C + D).
-- [ ] Persistir tag aplicada pelo BO (`appliedTurmaTag` + timestamp).
+- [x] Serviço `renewalAcSync`: data na AC + tag nova + remove tag antiga, com diff e guard de reembolso (Gaps C + D). *(2026-07-10 — lê o StudentClassHistory gravado pelo sync "1º" em vez de tocar no sync — decisão 13.1)*
+- [x] Persistir tag aplicada pelo BO (`appliedTurmaTag` + timestamp). *(UserProduct.platformData.renewalAc)*
 
 ### Fase 3 — Reversão por reembolso
-- [ ] Ao detectar `refunded` novo: remover `appliedTurmaTag` na AC, registar reversão, não tocar na data.
+- [x] Ao detectar `refunded` novo: remover `appliedTurmaTag` na AC, registar reversão, não tocar na data. *(2026-07-10 — planeada como change REFUND/REMOVE_TAG, executada com os mesmos guards)*
 
 ### Fase 4 — Visibilidade
-- [ ] Relatório/log no BO (ex.: tab na RenewalOffersPage ou nos SyncReports): quantas datas escritas, tags aplicadas/removidas, reembolsos revertidos, falhas.
+- [x] Relatório/log no BO: tab "Sync AC" na RenewalOffersPage — switches, plano, aprovação, execução, reversão. *(2026-07-10 — ver 14.2)*
 
 ## 8. Decisões pendentes (a fechar antes da Fase 2)
 
@@ -343,3 +343,61 @@ Confirmado que **hoje não existe nenhum caminho de cron que escreva na ActiveCa
 | `RenewalAcSync` (Fase B deste plano) | ❌ não existe | ainda não implementado; env switches documentados em `.env.example` com default `false` |
 
 Escritas AC possíveis hoje = apenas acções **manuais** na UI (force evaluation, etc.), fora de qualquer cron.
+
+---
+
+## 14. Infraestrutura implementada (2026-07-10) + Runbook de activação
+
+Pedido do João: "tudo pronto mas sem estar automático — deixar a infraestrutura preparada e depois ser só ligar o cron". Feito. **Nada corre sozinho e nada escreve na AC até os passos do runbook (14.3) serem executados por um humano.**
+
+### 14.1 O que foi construído (backend BO2_API)
+
+| Peça | Ficheiro | Notas |
+|------|----------|-------|
+| Change set auditável | `src/models/RenewalAcChange.ts` | 1 doc = 1 acção AC; estados PLANNED→APPROVED→APPLIED/FAILED→REVERTED, +BLOCKED/EXPIRED; guarda before/after para reversão |
+| Escrita de custom fields AC | `activeCampaignService.ts` → `getContactFieldValue()` / `updateContactField()` | nunca cria contactos (guard F7); leitura before p/ diff |
+| Detecção reembolsos Hotmart | `src/services/renewal/hotmartRefunds.service.ts` | sales/history REFUNDED+CHARGEBACK 30d → marca `UserProduct.metadata.refunded/refundedAt`. Escreve SÓ na nossa BD |
+| Orquestrador Fase B | `src/services/renewal/renewalAcSync.service.ts` | `generatePlan()` (dry-run, ZERO AC) · `executePlan()` (única zona que escreve na AC) · `revertChange()` · `expireStaleChanges()` · guards F1–F17 |
+| Tag de turma | `buildTurmaTagName()` no orquestrador | convenção real da equipa (`Aluno OGI {YYMM} - Renovação Turma {N}` / `L{YYMM} - Turma {N}` / `[2anos]`); remoções limitadas por `TURMA_TAG_REGEX` (allowlist 11.4) |
+| Cron | scheduler → `ensureRenewalAcSyncJob()` | nome `RenewalAcSync`, 07:30 Lisboa, **criado `enabled:false`**, seed create-only (nunca força enabled — lição 13.3) |
+| Endpoints | `src/routes/renewalAc.routes.ts` → `/api/renewal-ac/*` | status · changes · plan · refunds/detect · approve · execute · changes/:id/revert |
+
+Registo da tag aplicada pelo BO: `UserProduct.platformData.renewalAc = { appliedTurmaTag, appliedAt, changeId }` — é o que a reversão por reembolso usa.
+
+### 14.2 UI (Front)
+
+Página **Renovações → tab "Sync AC"** (`RenewalAcSyncTab.tsx` + `services/renewalAcSync.service.ts`):
+- estado dos 5 switches em runtime + estado do cron (com aviso amarelo "modo dry-run" quando o master está OFF);
+- botões: Gerar plano (dry-run) · Detectar reembolsos (só BD) · Executar aprovadas (bloqueado se master OFF);
+- lista de alterações filtrável por estado, com before→after, origem (turma/reembolso), motivo de bloqueio, selecção+aprovação em massa (PLANNED) e botão Reverter (APPLIED).
+- O cron liga-se/desliga-se na página Sincronizar Utilizadores → CRON Jobs (kill switch por job, secção 13.6).
+
+### 14.3 RUNBOOK — como ligar (por esta ordem, sem saltar passos)
+
+**Fase 0 — validação em dry-run (sem tocar na AC, pode ser feita já após deploy):**
+1. Na tab Sync AC: **Detectar reembolsos** → confirmar números plausíveis na resposta.
+2. **Gerar plano** → rever a lista PLANNED/BLOCKED: emails certos? tags com o nome certo? datas certas? bloqueios fazem sentido?
+3. Repetir uns dias; nada disto toca na AC.
+
+**Fase 1 — primeiro contacto real (piloto):**
+4. Confirmar na AC (checklist 11.8): automações lêem o campo id 332; qual a variante hífen/travessão das tags técnicas.
+5. No Railway (BO2_API): `RENEWAL_AC_SYNC_ENABLED=true` + `RENEWAL_AC_WRITE_DATES=true` (tags ainda OFF). Redeploy.
+6. Na tab Sync AC: aprovar APENAS 1-2 changes de contactos-piloto (ex.: os 6 com a tag `OGI - Atualizar Data de Termino` pendente) → **Executar aprovadas** → verificar na AC o campo e que nenhuma automação disparou indevidamente.
+7. `RENEWAL_AC_WRITE_TAGS=true` → repetir com 1-2 changes de tag → verificar tags na AC.
+
+**Fase 2 — operação com revisão manual:**
+8. `RENEWAL_AC_PROCESS_REFUNDS=true`.
+9. Ligar o cron `RenewalAcSync` na UI de CRON Jobs. Com `RENEWAL_AC_AUTO_EXECUTE=false` (default), o cron diário gera o plano e PÁRA — a equipa revê/aprova/executa na tab. Operar assim ≥1 semana.
+
+**Fase 3 — automático (opcional, só com confiança):**
+10. `RENEWAL_AC_AUTO_EXECUTE=true` → o cron executa sozinho (PLANNED+APPROVED), sempre sujeito a caps (50/run), anomalia (aborta se >5% dos alunos mudarem de turma), diff, e às regras todas da secção 11.
+
+**Desligar tudo em emergência:** `RENEWAL_AC_SYNC_ENABLED=false` (mata qualquer escrita, mesmo com o cron ligado) e/ou pausar o cron na UI. Ambos têm efeito imediato (switches lidos em runtime).
+
+### 14.4 Garantias de "nada automático" (estado pós-deploy, antes do runbook)
+
+- Cron `RenewalAcSync`: criado **DESLIGADO**; o seed nunca o liga (create-only).
+- `RENEWAL_AC_SYNC_ENABLED` ausente do env de produção → default `false` → `executePlan()` recusa e regista.
+- Switches por operação e auto-execute: `false`.
+- Endpoints manuais: `plan` e `refunds/detect` escrevem só na nossa BD; `execute`/`revert` passam pelo master switch em runtime.
+- O sync "1º" das 04:00 não foi tocado.
