@@ -79,6 +79,7 @@ Porquê BO planeia + bot executa (e não o BO a falar directo com a API do Disco
 - Turmas `[2anos]` funcionam automaticamente (o parser já soma 24 meses).
 - Turma sem parse válido (genérica/intermédia) → sem cargo, entra em relatório BLOCKED (mesma filosofia do sync AC).
 - Aluno reembolsado/inativo → remover cargo de renovação (decisão pendente D4).
+- **Regra de ouro (D3, decidida):** o cargo espelha SEMPRE a turma actual na Hotmart. Renovação fora de janela → turma nova → o diff nocturno aplica o cargo do mês novo e retira o antigo, sem intervenção manual.
 
 ## 6. Riscos e correcções obrigatórias antes de implementar
 
@@ -94,7 +95,7 @@ Porquê BO planeia + bot executa (e não o BO a falar directo com a API do Disco
 |---|---------|--------|-----------|
 | D1 | Nomes exactos dos cargos | `renovaçãojaneiro` vs `Renovação Janeiro` vs `renovacao-janeiro` | indiferente tecnicamente (usamos IDs) — escolher pelo aspecto na lista de membros |
 | D2 | Múltiplos discordIds (104 alunos) | aplicar a todos vs só ao 1º | todos |
-| D3 | Cargo antigo ao mudar de mês | remover sempre vs manter histórico | remover (1 cargo de renovação por membro) |
+| D3 | Cargo antigo ao mudar de mês | remover sempre vs manter histórico | **RESOLVIDO (João, 2026-07-10): remover.** O cargo é uma catalogação que raramente muda (subscrição anual → renovam tendencialmente no mesmo mês). Quando muda — renovação fora de janela, "acontece com alguma frequência" — a regra é: o cargo espelha SEMPRE a turma actual na Hotmart; o diff nocturno aplica o cargo do mês novo e retira o anterior automaticamente. 1 cargo de renovação por membro |
 | D4 | Reembolsado/ex-aluno | remover cargo vs manter | remover |
 | D5 | Canal(is) das mensagens | 1 canal fixo vs escolha na UI | escolha na UI (lista de canais permitidos em config) |
 | D6 | Aprovação de mensagens | envia logo quem cola vs 2º par de olhos | enviar logo (com pré-visualização e confirmação) |
