@@ -12,7 +12,10 @@ O produto "OGI — O Grande Investimento" (curso, vendido na **Hotmart**) tem re
 1. **Sync BO→AC** (`RenewalAcSync`): quando um aluno muda de turma (renova), escrever a data de expiração no campo AC + trocar a tag de turma; reverter tag em reembolso.
 2. **Cargos Discord** (`DiscordRolesSync`): cada aluno recebe o cargo `R. {Mês}` do seu mês de renovação (derivado da turma Hotmart), reconciliado todas as noites; + área no BO para o bot publicar mensagens que mencionam `@R. {Mês}` (notifica só as pessoas certas).
 
-**ESTADO ACTUAL: as duas infraestruturas estão 100% construídas e 100% DESLIGADAS.** Crons criados `enabled:false`; todos os switches `false`. Nada corre nem escreve em sistemas externos até activação manual pelos runbooks.
+**ESTADO ACTUAL (2026-07-10, fim do dia):**
+- **Discord: LIGADO e validado em produção** — piloto confirmado ponta a ponta (2 contas de teste com cargos verificados por leitura à API Discord). `DISCORD_ROLES_SYNC_ENABLED=true`, `DISCORD_ROLES_AUTO_EXECUTE=true`, cap 150, cron LIGADO (05:30). Backfill de ~2.370 operações em curso (botão "Executar lote" na UI + cron nocturno). Mensagens ainda OFF. Endpoints de produção vivem em `API/routes/renewal.js` (montados no api.js — o bot1.js é LEGACY, não corre em produção).
+- **AC (RenewalAcSync): construído e 100% DESLIGADO** — cron `enabled:false` (07:30), switches `RENEWAL_AC_*` false. Checklist por fazer (secção 15 do plano AC).
+- Nota UX Discord: cargos R.* têm hoist=false → não aparecem na sidebar de membros; ver no perfil do membro.
 
 ## 2. Mapa do ecossistema
 
