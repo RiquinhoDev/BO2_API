@@ -24,6 +24,7 @@ const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
 const RENEWAL_OFFER_SYNC_JOB_NAME = 'RenewalOfferSync'
 const ACHIEVEMENT_EVALUATION_JOB_NAME = 'AchievementEvaluation'
 const RENEWAL_AC_SYNC_JOB_NAME = 'RenewalAcSync'
+const DISCORD_ROLES_SYNC_JOB_NAME = 'DiscordRolesSync'
 const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('000000000000000000000001')
 
 // ─────────────────────────────────────────────────────────────
@@ -687,6 +688,39 @@ const job = await CronJobConfig.create({
     console.log('[RenewalAcSync] Cron criado DESLIGADO (07:30 Lisboa) — ligar manualmente na UI quando a feature for activada')
   }
 
+  /**
+   * Cron dos cargos de renovação Discord. NASCE DESLIGADO; seed
+   * create-only (nunca altera enabled/isActive — kill switch respeitado).
+   */
+  private async ensureDiscordRolesSyncJob(): Promise<void> {
+    const existingJob = await CronJobConfig.findOne({ name: DISCORD_ROLES_SYNC_JOB_NAME })
+    if (existingJob) return
+
+    await CronJobConfig.create({
+      name: DISCORD_ROLES_SYNC_JOB_NAME,
+      description: 'Reconciliação nocturna dos cargos de renovação Discord (R. Janeiro…R. Dezembro) com base na turma Hotmart de cada aluno. Gera plano revisável; só executa com os switches DISCORD_ROLES_* ligados. Ver RENOVACAO_DISCORD_CARGOS_PLAN.md.',
+      syncType: 'hotmart',
+      schedule: {
+        cronExpression: '30 5 * * *', // 05:30 Lisboa — depois do sync "1º" (04:00)
+        timezone: 'Europe/Lisbon',
+        enabled: false // ⛔ nasce DESLIGADO — ligar é acção manual na UI
+      },
+      syncConfig: { fullSync: false, includeProgress: false, includeTags: false, batchSize: 100 },
+      tagRules: [],
+      tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
+      notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: true, recipients: [] },
+      retryPolicy: { maxRetries: 1, retryDelayMinutes: 30, exponentialBackoff: false },
+      nextRun: this.calculateNextRun('30 5 * * *'),
+      createdBy: SYSTEM_CRON_ADMIN_ID,
+      isActive: true,
+      totalRuns: 0,
+      successfulRuns: 0,
+      failedRuns: 0
+    })
+
+    console.log('[DiscordRolesSync] Cron criado DESLIGADO (05:30 Lisboa) — ligar manualmente na UI quando a feature for activada')
+  }
+
   async initializeScheduler(): Promise<void> {
     console.log('🚀 Inicializando scheduler...')
 
@@ -696,6 +730,7 @@ const job = await CronJobConfig.create({
     await this.ensureRenewalOfferSyncJob()
     await this.ensureAchievementEvaluationJob()
     await this.ensureRenewalAcSyncJob()
+    await this.ensureDiscordRolesSyncJob()
 
     // Carregar todos os jobs ativos
     const activeJobs = await CronJobConfig.getActiveJobs()
@@ -746,7 +781,8 @@ private async executeSyncJob(job: ICronJobConfig): Promise<{
     'GuruTrialCheck',
     RENEWAL_OFFER_SYNC_JOB_NAME,
     ACHIEVEMENT_EVALUATION_JOB_NAME,
-    RENEWAL_AC_SYNC_JOB_NAME
+    RENEWAL_AC_SYNC_JOB_NAME,
+    DISCORD_ROLES_SYNC_JOB_NAME
   ]
   
   // Verificar se job atual tem lógica específica
@@ -871,6 +907,20 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
         updated: report.upserted,
         errors: 0,
         skipped: report.unknownNames.length
+      }
+
+    } else if (job.name.includes(DISCORD_ROLES_SYNC_JOB_NAME)) {
+      console.log('Executando: DiscordRolesSync (cargos R.{Mês})')
+      const { runDiscordRolesSyncJob } = await import('../renewal/discordRolesSync.service')
+      const report = await runDiscordRolesSyncJob()
+      result = {
+        success: !report.plan.anomalyAborted,
+        total: report.plan.accountsDesired,
+        inserted: report.plan.planned,
+        updated: report.execution?.applied || 0,
+        errors: (report.execution?.failed || 0) + (report.plan.anomalyAborted ? 1 : 0),
+        skipped: report.plan.skippedDuplicates + (report.execution?.notInGuild || 0),
+        errorMessage: report.plan.anomalyDetail
       }
 
     } else if (job.name.includes(RENEWAL_AC_SYNC_JOB_NAME)) {

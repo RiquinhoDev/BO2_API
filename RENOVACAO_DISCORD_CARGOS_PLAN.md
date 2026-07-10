@@ -179,3 +179,45 @@ O mês certo para enviar cada mensagem é derivável dos dados que o BO já tem 
 O cargo do bot principal **"Ser Riquinho"** tem `send_messages=true` mas **NÃO tem** a permissão "Mencionar @everyone, @here e todos os cargos" (`mention_everyone=false`). Como os cargos R.* estão (correctamente) `mentionable=false`, **as menções não pingariam ninguém**.
 
 **Passo manual necessário (2 min, antes da Fase D4):** no Discord → canal `🗣📢︱anúncios-alunos` → Editar canal → Permissões → adicionar o cargo **Ser Riquinho** → permitir **"Mencionar @everyone, @here e todos os cargos"** (override só neste canal). Assim: o bot pinga os cargos R.* apenas neste canal; os membros continuam sem conseguir pingá-los; e a allowlist `allowed_mentions` no código garante que só os R.* seleccionados pingam.
+
+---
+
+## 11. Infraestrutura implementada (2026-07-10) + Runbook — TUDO DESLIGADO
+
+Mesmo padrão do sync AC: montado e desconectado. Cron `DiscordRolesSync` criado **`enabled:false`** (05:30 Lisboa); switches `DISCORD_*` default `false` lidos em runtime; envio de mensagens gated.
+
+### 11.1 O que foi construído
+
+| Peça | Onde |
+|------|------|
+| Bot: `GET /renewal/health` · `POST /renewal/roles/apply` (≤25 ops/chamada, sequencial ~1.1s/membro, retry 429, allowlist dos 12 role IDs) · `POST /renewal/messages/send` (allowlist de canal + cargos, `allowed_mentions` nunca @everyone/users, split 2000 chars) | `API/bot1.js` |
+| Auth opcional no bot: só valida `X-Bot-Auth` se `BOT_SHARED_SECRET` estiver definido → **activar a D5 = definir a env nos 2 lados**, zero code change | `API/bot1.js` |
+| Modelos: `DiscordRoleChange` (plano), `DiscordRoleState` (estado aplicado por conta Discord — fonte da reconciliação), `DiscordMessageTemplate` (2 templates do João seeded), `DiscordMessageLog` | `BO2_API/src/models/discordRenewal.ts` |
+| Motor de reconciliação: desejado (mês do `accessEndOgi` da turma actual) vs aplicado → plano; remove os outros 11 R.* por operação (auto-corrige drift manual); remoção quando deixa de ser elegível (D4); dedupe por conta; quem saiu do servidor não é re-planeado durante 7 dias; anomalia >5% aborta (excepto backfill inicial); cap 100 ops/run | `BO2_API/src/services/renewal/discordRolesSync.service.ts` |
+| Mensagens: render `{cargos}`/`{dataFim}`, envio gated, log auditável | idem |
+| Cron `DiscordRolesSync` 05:30 DESLIGADO, seed create-only | `scheduler.ts` |
+| Rotas `/api/discord-renewal/*`: status, changes, plan, approve, execute, templates GET/PUT, messages preview/send/logs | `BO2_API/src/routes/discordRenewal.routes.ts` |
+| UI: página Renovações → tab **"Discord"** — switches/bot health/cron, plano com aprovação, editor de templates, selecção de meses, pré-visualização obrigatória, envio gated, últimos envios | `Front/.../DiscordRenewalTab.tsx` |
+
+### 11.2 Runbook de activação (por ordem)
+
+**Dry-run (já possível após deploy, zero Discord):**
+1. Tab Discord → **Gerar plano** → vai marcar `BACKFILL inicial` com ~2.2k operações PLANNED → rever amostras (cargo certo para a turma certa?).
+
+**Piloto:**
+2. Railway BO2: `DISCORD_ROLES_SYNC_ENABLED=true` (auto-exec fica OFF).
+3. Aprovar 2-3 operações de contas de teste → **Executar aprovadas** → verificar os cargos no Discord.
+
+**Backfill:**
+4. Aprovar por lotes (cap 100/run) ao longo de alguns dias, ou subir `DISCORD_ROLES_MAX_OPS_PER_RUN` e aprovar tudo → ~40 min de execução total.
+
+**Cron nocturno:**
+5. Ligar o cron `DiscordRolesSync` na UI de CRON Jobs (com auto-exec OFF = só gera plano diário para aprovação; com `DISCORD_ROLES_AUTO_EXECUTE=true` = totalmente automático, deltas diários).
+
+**Mensagens:**
+6. `DISCORD_MESSAGES_ENABLED=true` → testar 1 envio sem meses seleccionados (não pinga ninguém) → depois com 1 mês.
+
+**Última fase (D5 — decisão do João):**
+7. Definir `BOT_SHARED_SECRET` no serviço do bot E no BO2 → auth activa; confirmar que a porta 3002 não está exposta ao exterior.
+
+**Emergência:** `DISCORD_ROLES_SYNC_ENABLED=false` / `DISCORD_MESSAGES_ENABLED=false` matam tudo em runtime; pausar o cron na UI também.
