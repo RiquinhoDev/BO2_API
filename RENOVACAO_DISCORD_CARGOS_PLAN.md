@@ -1,6 +1,6 @@
 # Renovação OGI — Cargos Discord + Mensagens do Bot (Plano)
 
-> **Estado:** PLANO — nada implementado (pedido do João a 2026-07-10: "não programes, apenas plano").
+> **Estado:** infraestrutura COMPLETA e DESLIGADA (2026-07-10, luz verde do João "fica montado mas desconectado"). Cron `DiscordRolesSync` criado `enabled:false`; switches `DISCORD_*` default `false`. Ligar = runbook da **secção 11.2**.
 > **Relacionado:** `RENOVACAO_OGI_BO_PLAN.md` (sync BO→AC) — este plano reutiliza os mesmos padrões (change set, kill switches, dry-run, cron desligado à nascença).
 > **Repos envolvidos:** BO2_API (orquestração) · `C:\...\api\API` (bots Discord, discord.js v14) · Front (UI).
 
