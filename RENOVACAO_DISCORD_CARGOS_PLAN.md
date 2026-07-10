@@ -93,13 +93,38 @@ Porquê BO planeia + bot executa (e não o BO a falar directo com a API do Disco
 
 | # | Decisão | Opções | Inclinação |
 |---|---------|--------|-----------|
-| D1 | Nomes exactos dos cargos | `renovaçãojaneiro` vs `Renovação Janeiro` vs `renovacao-janeiro` | indiferente tecnicamente (usamos IDs) — escolher pelo aspecto na lista de membros |
+| D1 | Nomes exactos dos cargos | — | **RESOLVIDO: criados a 2026-07-10 como `R. Janeiro` … `R. Dezembro`** (ver 7.1 — IDs verificados por leitura) |
 | D2 | Múltiplos discordIds (104 alunos) | aplicar a todos vs só ao 1º | todos |
 | D3 | Cargo antigo ao mudar de mês | remover sempre vs manter histórico | **RESOLVIDO (João, 2026-07-10): remover.** O cargo é uma catalogação que raramente muda (subscrição anual → renovam tendencialmente no mesmo mês). Quando muda — renovação fora de janela, "acontece com alguma frequência" — a regra é: o cargo espelha SEMPRE a turma actual na Hotmart; o diff nocturno aplica o cargo do mês novo e retira o anterior automaticamente. 1 cargo de renovação por membro |
 | D4 | Reembolsado/ex-aluno | remover cargo vs manter | remover |
 | D5 | Canal(is) das mensagens | 1 canal fixo vs escolha na UI | escolha na UI (lista de canais permitidos em config) |
 | D6 | Aprovação de mensagens | envia logo quem cola vs 2º par de olhos | enviar logo (com pré-visualização e confirmação) |
-| D7 | Guild | 1 servidor único? ID? | confirmar guild ID |
+| D7 | Guild | — | **RESOLVIDO: "Os Riquinhos", guild id `1179187507875827782`** (único servidor; coincide com `DISCORD_GUILD_ID` do .env da API) |
+
+### 7.1 Cargos criados — IDs verificados (leitura à API Discord, 2026-07-10)
+
+Estado ideal confirmado: `permissions=0`, `mentionable=false`, `hoist=false`, posições 1-12 (fundo da hierarquia, muito abaixo do cargo do bot "Ser Riquinho", pos. 59) → todos geríveis pelo bot.
+
+| Mês | Cargo | Role ID |
+|-----|-------|---------|
+| 1 | R. Janeiro | `1525119563182772385` |
+| 2 | R. Fevereiro | `1525119750030495745` |
+| 3 | R. Março | `1525119843806875868` |
+| 4 | R. Abril | `1525119885867352105` |
+| 5 | R. Maio | `1525119933300740156` |
+| 6 | R. Junho | `1525119979500998818` |
+| 7 | R. Julho | `1525120024681910424` |
+| 8 | R. Agosto | `1525120114918166638` |
+| 9 | R. Setembro | `1525120320225149108` |
+| 10 | R. Outubro | `1525120518695682199` |
+| 11 | R. Novembro | `1525120372071202827` |
+| 12 | R. Dezembro | `1525120419768696872` |
+
+⚠️ Nota: Outubro/Novembro/Dezembro não foram criados pela ordem do mês (IDs/posições fora de sequência) — irrelevante para o sistema (usamos IDs), registado só para ninguém "corrigir" a ordem à mão e estranhar.
+
+### 7.2 ⚠️ Descoberta na verificação: token principal do bot INVÁLIDO no .env local
+
+O `DISCORD_TOKEN` (bot principal, bot1.js) no `.env` local do repo API devolve **401 Unauthorized** — foi rodado e o local está desactualizado face ao Railway. A verificação acima foi feita com o token do bot BTC (market bot, mesmo servidor). **Antes da Fase D2 (execução):** sincronizar o token actual do Railway para o `.env` local, senão o desenvolvimento/testes locais do bot principal falham.
 
 ## 8. Faseamento (ordem decidida pelo João a 2026-07-10)
 
