@@ -97,8 +97,8 @@ Porquê BO planeia + bot executa (e não o BO a falar directo com a API do Disco
 | D2 | Múltiplos discordIds (104 alunos) | aplicar a todos vs só ao 1º | todos |
 | D3 | Cargo antigo ao mudar de mês | remover sempre vs manter histórico | **RESOLVIDO (João, 2026-07-10): remover.** O cargo é uma catalogação que raramente muda (subscrição anual → renovam tendencialmente no mesmo mês). Quando muda — renovação fora de janela, "acontece com alguma frequência" — a regra é: o cargo espelha SEMPRE a turma actual na Hotmart; o diff nocturno aplica o cargo do mês novo e retira o anterior automaticamente. 1 cargo de renovação por membro |
 | D4 | Reembolsado/ex-aluno | remover cargo vs manter | remover |
-| D5 | Canal(is) das mensagens | 1 canal fixo vs escolha na UI | escolha na UI (lista de canais permitidos em config) |
-| D6 | Aprovação de mensagens | envia logo quem cola vs 2º par de olhos | enviar logo (com pré-visualização e confirmação) |
+| D5 | Canal(is) das mensagens | — | **RESOLVIDO: `🗣📢︱anúncios-alunos`, channel id `1182457352012697671`** (verificado por leitura; canal de texto do guild). Config permite acrescentar mais canais no futuro |
+| D6 | Aprovação de mensagens | envia logo quem cola vs 2º par de olhos | enviar logo (com pré-visualização obrigatória e confirmação) |
 | D7 | Guild | — | **RESOLVIDO: "Os Riquinhos", guild id `1179187507875827782`** (único servidor; coincide com `DISCORD_GUILD_ID` do .env da API) |
 
 ### 7.1 Cargos criados — IDs verificados (leitura à API Discord, 2026-07-10)
@@ -140,3 +140,36 @@ O `DISCORD_TOKEN` (bot principal, bot1.js) no `.env` local do repo API devolve *
 - Backfill inicial: ~2.286 operações × 1/s ≈ **38-40 min** (uma noite).
 - Deltas diários (renovações/mudanças de turma): tipicamente < 30 ops → segundos.
 - Custo Discord: zero (bot próprio, API gratuita dentro dos rate limits).
+
+---
+
+## 10. Sistema de mensagens — desenho detalhado (2026-07-10)
+
+Contexto do João: a equipa envia tipicamente **2 mensagens** por ciclo de fim de acesso no canal `🗣📢︱anúncios-alunos`:
+1. **"Aviso importante"** — o acesso terminou, há um período de tolerância na comunidade antes da remoção;
+2. **"Último dia"** — despedida/última chamada, o acesso é removido à meia-noite.
+
+Hoje as turmas são nomeadas à mão no texto ("Turma 5, Turma 10, Turma 14 e Turma 1,2 e 3") e a mensagem "fala" para o canal inteiro. **A mudança:** passar a mencionar os cargos — ex. `@R. Maio` — para o Discord **notificar apenas as pessoas certas** (quem tem o cargo do mês em causa), em vez de todos.
+
+### 10.1 Como funciona a menção de cargo (tecnicamente)
+
+- No conteúdo da mensagem, a menção é `<@&ROLE_ID>` (ex.: `<@&1525119933300740156>` renderiza como **@R. Maio**).
+- Os cargos estão `mentionable=false` (correcto — impede membros de os pingar). Para o **bot** conseguir pingar mesmo assim, precisa da permissão **"Mencionar @everyone, @here e todos os cargos"** — a dar por **override só no canal `🗣📢︱anúncios-alunos`** (não no servidor inteiro).
+- Na API, o envio usa `allowed_mentions.roles = [apenas os R.* seleccionados na UI]` — garantia dupla: mesmo que alguém cole `@everyone` no texto, **não pinga** (a allowlist só contém os 12 cargos R.*; `@everyone`/`@here`/users ficam sempre bloqueados).
+
+### 10.2 Templates editáveis (Front)
+
+- Os 2 textos actuais entram como **templates default** guardados na BD, editáveis na UI (área nova na tab/página Discord do BO).
+- Placeholders suportados: `{cargos}` (substituído pelas menções dos meses seleccionados), `{dataFim}` (ex.: "31 de Maio").
+- Fluxo na UI: escolher template (ou texto livre) → seleccionar 1+ meses (checkboxes R. Janeiro…R. Dezembro) → preencher `{dataFim}` se aplicável → **pré-visualização** (com as menções resolvidas e contagem de membros por cargo) → confirmar → enviar.
+- Registo de envios na BD: quem enviou, quando, para que cargos, texto final, message id do Discord (permite apagar/editar a mensagem do bot depois, se preciso).
+
+### 10.3 Limites e comportamento
+
+- 2000 caracteres/mensagem (limite Discord para bots): as 2 mensagens actuais têm ~1.7k e ~1.4k — cabem; textos maiores são divididos automaticamente em várias mensagens (a menção vai na primeira).
+- O autor visível no Discord é sempre o bot.
+- Editar/apagar depois do envio: possível (mensagens do próprio bot), via registo do message id.
+
+### 10.4 Sinergia com o sync AC (nota)
+
+O mês certo para enviar cada mensagem é derivável dos dados que o BO já tem (turmas a expirar no fim do mês = tab Desempenho das Renovações). Futuro opcional (não pedido): o BO sugerir "este mês toca a @R. Maio" e pré-preencher a selecção — o envio continua sempre manual.
