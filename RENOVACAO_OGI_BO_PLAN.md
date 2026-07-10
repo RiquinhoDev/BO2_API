@@ -401,3 +401,40 @@ Página **Renovações → tab "Sync AC"** (`RenewalAcSyncTab.tsx` + `services/r
 - Switches por operação e auto-execute: `false`.
 - Endpoints manuais: `plan` e `refunds/detect` escrevem só na nossa BD; `execute`/`revert` passam pelo master switch em runtime.
 - O sync "1º" das 04:00 não foi tocado.
+
+---
+
+## 15. Checklist final de operacionalização (estado a 2026-07-10)
+
+### A. Pós-deploy ✔ parcial
+- [x] Deploy dos commits (BO2_API `cdcd2ad`+`7f3e8d1`, Front `3b753d2`+`9b6a871`)
+- [x] Cron `RenewalAcSync` criado DESLIGADO às 07:30 (verificado na BD de produção a 2026-07-10)
+- [ ] UI: tab "Sync AC" com switches OFF + aviso dry-run; CRON Jobs com RenewalAcSync desligado + secção legacy
+- [ ] Teste do kill switch: pausar ClarezaRefresh → redeploy → continua pausado → retomar
+
+### B. Dry-run (não toca na AC)
+- [ ] Detectar reembolsos → números plausíveis
+- [ ] Gerar plano → rever PLANNED/BLOCKED (emails/tags/datas); repetir uns dias, incl. um dia com renovações reais
+
+### C. Verificações manuais na AC (leitura, UI da AC — ver 11.8)
+- [ ] Automações lêem o campo id 332 (não o 333 "Data de Fim", morto)
+- [ ] Variante hífen vs travessão nos triggers (677 vs 707; 675 vs 711) — fundir a órfã
+- [ ] Nenhuma automação usa tags `Aluno OGI ... Turma ...` como trigger
+- [ ] Identificar quem preenche hoje o campo 332 (4.404 contactos) — evitar dois escritores
+- [ ] Hotmart no reembolso: aluno sai da turma?
+
+### D. Activação por fases (detalhe no runbook 14.3)
+- [ ] `RENEWAL_AC_SYNC_ENABLED=true` + `RENEWAL_AC_WRITE_DATES=true` no Railway
+- [ ] Piloto datas: 1-2 dos 6 contactos com tag `OGI - Atualizar Data de Termino` → executar → verificar AC
+- [ ] `RENEWAL_AC_WRITE_TAGS=true` → piloto tags
+- [ ] `RENEWAL_AC_PROCESS_REFUNDS=true`
+- [ ] Ligar cron na UI (auto-execute OFF: plano diário + aprovação manual)
+- [ ] ≥1 semana de operação com revisão; monitorizar BLOCKED/FAILED
+- [ ] (Opcional) `RENEWAL_AC_AUTO_EXECUTE=true`
+
+### E. Limpeza
+- [ ] 🔑 Rodar password Mongo `desenvolvimentoserriquinho` no Atlas + actualizar Railway
+- [ ] Decidir zombie `TAG_RULES_SYNC` e job de teste `TEST_CURSEDUCA_4MIN` (23:10 diário)
+- [ ] Actualizar o doc "Processo de Renovação - OGI" da equipa (checklist mensal manual → BO)
+
+**Emergência:** `RENEWAL_AC_SYNC_ENABLED=false` mata toda a escrita instantaneamente (lido em runtime), mesmo com o cron ligado.
