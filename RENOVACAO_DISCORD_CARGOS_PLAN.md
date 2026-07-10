@@ -229,3 +229,15 @@ O primeiro deploy mostrou "Bot: inacessível" na tab Discord. Diagnóstico: os e
 Correcção (commit `eca6d80` do repo API): endpoints movidos para **`routes/renewal.js`**, montados em `/renewal/` no `routes/routes.js`, usando o cliente partilhado. Mesma lógica e allowlists. O `DISCORD_BOT_URL` do BO2 (`https://api.serriquinho.com`) já apontava para o sítio certo — depois do deploy do repo API o badge fica verde. As alterações ao `bot1.js` ficam no repo mas são inertes (o ficheiro não corre em produção).
 
 Nota adicional do primeiro dry-run real: plano gerou **2.370 operações** (backfill) com alvos correctos verificados por amostragem na UI.
+
+### 11.4 Piloto VALIDADO ponta a ponta (2026-07-10)
+
+Fluxo completo confirmado em produção:
+1. Plano gerado: 2.370 operações (backfill), alvos correctos por amostragem.
+2. Switches ligados no serviço **BO_v2** do Railway (nota: têm de ser `true` minúsculo — `True`/aspas/espaços não contam) + botão "Executar lote (N planeadas)" adicionado à UI para backfill manual sem aprovar checkbox a checkbox.
+3. 2 contas de teste aprovadas e executadas → `APPLIED`, "0 falhas".
+4. **Verificado por leitura à API Discord**: `_t3st33_` tem `R. Dezembro` e `testeriquinho` tem `R. Maio` — cargos realmente aplicados.
+
+⚠️ **Nota de visibilidade (não é bug):** os cargos R.* têm `hoist=false` (de propósito — são marcadores), logo **não agrupam na barra lateral de membros** do Discord. Vêem-se no perfil do membro ou em Definições do Servidor → Cargos → membros. Não confundir "não aparece na sidebar" com "não foi aplicado".
+
+**Estado operacional:** `DISCORD_ROLES_SYNC_ENABLED=true`, `DISCORD_ROLES_AUTO_EXECUTE=true`, `DISCORD_ROLES_MAX_OPS_PER_RUN=150`, cron LIGADO (05:30). Backfill em curso: cliques manuais em "Executar lote" (~3 min/150) + cron nocturno. Mensagens (`DISCORD_MESSAGES_ENABLED`) ainda OFF. Falta: D5 (BOT_SHARED_SECRET) no fim.
