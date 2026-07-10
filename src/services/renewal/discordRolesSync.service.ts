@@ -492,12 +492,31 @@ export async function ensureDefaultTemplates(): Promise<void> {
   }
 }
 
-/** Substitui placeholders: {cargos} → menções <@&id>; {dataFim} → texto. */
-export function renderMessage(content: string, mentionRoleIds: string[], dataFim?: string): string {
+/**
+ * Substitui placeholders: {cargos} → menções <@&id>; {dataFim} → texto.
+ * GARANTIA DE MARCAÇÃO: se há meses seleccionados mas o texto não tem
+ * {cargos}, as menções são acrescentadas no topo — seleccionar = marcar,
+ * sem depender de o autor se lembrar do placeholder. Idem @everyone.
+ */
+export function renderMessage(
+  content: string,
+  mentionRoleIds: string[],
+  dataFim?: string,
+  mentionEveryone: boolean = false
+): string {
   const mentions = mentionRoleIds.map((id) => `<@&${id}>`).join(' ')
-  return content
+  const hadCargosPlaceholder = /\{cargos\}/.test(content)
+
+  let out = content
     .replace(/\{cargos\}/g, mentions || '')
     .replace(/\{dataFim\}/g, dataFim || '{dataFim}')
+
+  const header: string[] = []
+  if (mentionEveryone && !/@everyone/.test(out)) header.push('@everyone')
+  if (mentions && !hadCargosPlaceholder) header.push(mentions)
+  if (header.length > 0) out = `${header.join(' ')}\n\n${out}`
+
+  return out
 }
 
 export async function sendDiscordMessage(params: {
@@ -506,6 +525,7 @@ export async function sendDiscordMessage(params: {
   dataFim?: string
   channelId?: string
   templateKey?: string
+  mentionEveryone?: boolean
   sentBy: string
 }): Promise<{ success: boolean; message: string; messageIds?: string[] }> {
   if (!isMessagesEnabled()) {
@@ -522,13 +542,14 @@ export async function sendDiscordMessage(params: {
   if (!allowedChannels.some((c) => c.channelId === channelId)) {
     return { success: false, message: 'Canal fora da lista de canais permitidos (DISCORD_MESSAGE_CHANNELS)' }
   }
-  const finalContent = renderMessage(params.content, roleIds, params.dataFim)
+  const mentionEveryone = params.mentionEveryone === true
+  const finalContent = renderMessage(params.content, roleIds, params.dataFim, mentionEveryone)
   if (!finalContent.trim()) return { success: false, message: 'Mensagem vazia' }
 
   try {
     const resp = await axios.post(
       `${botUrl()}/renewal/messages/send`,
-      { channelId, content: finalContent, mentionRoleIds: roleIds },
+      { channelId, content: finalContent, mentionRoleIds: roleIds, mentionEveryone },
       { headers: botHeaders(), timeout: 60000 }
     )
 
@@ -536,7 +557,10 @@ export async function sendDiscordMessage(params: {
       channelId,
       content: finalContent,
       mentionRoleIds: roleIds,
-      mentionRoleNames: roleIds.map((id) => ROLE_NAME_BY_ID.get(id) || id),
+      mentionRoleNames: [
+        ...(mentionEveryone ? ['@everyone'] : []),
+        ...roleIds.map((id) => ROLE_NAME_BY_ID.get(id) || id)
+      ],
       templateKey: params.templateKey,
       sentBy: params.sentBy,
       messageIds: resp.data?.messageIds || [],

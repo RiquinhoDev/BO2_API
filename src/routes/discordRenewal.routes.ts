@@ -113,15 +113,15 @@ router.put('/templates/:key', asyncRoute(async (req: Request, res: Response) => 
   res.json({ success: true, data: { template: updated } })
 }))
 
-/** POST /api/discord-renewal/messages/preview  { content, mentionRoleIds, dataFim? } */
+/** POST /api/discord-renewal/messages/preview  { content, mentionRoleIds, dataFim?, mentionEveryone? } */
 router.post('/messages/preview', asyncRoute(async (req: Request, res: Response) => {
   const { content, dataFim } = req.body || {}
   const mentionRoleIds: string[] = Array.isArray(req.body?.mentionRoleIds) ? req.body.mentionRoleIds : []
-  const rendered = renderMessage(String(content || ''), mentionRoleIds, dataFim)
+  const rendered = renderMessage(String(content || ''), mentionRoleIds, dataFim, req.body?.mentionEveryone === true)
   res.json({ success: true, data: { rendered, length: rendered.length, parts: Math.max(1, Math.ceil(rendered.length / 1990)) } })
 }))
 
-/** POST /api/discord-renewal/messages/send  { content, mentionRoleIds, dataFim?, channelId?, templateKey? } */
+/** POST /api/discord-renewal/messages/send  { content, mentionRoleIds, dataFim?, channelId?, templateKey?, mentionEveryone? } */
 router.post('/messages/send', asyncRoute(async (req: Request, res: Response) => {
   const mentionRoleIds: string[] = Array.isArray(req.body?.mentionRoleIds) ? req.body.mentionRoleIds : []
   const result = await sendDiscordMessage({
@@ -130,6 +130,7 @@ router.post('/messages/send', asyncRoute(async (req: Request, res: Response) => 
     dataFim: req.body?.dataFim,
     channelId: req.body?.channelId,
     templateKey: req.body?.templateKey,
+    mentionEveryone: req.body?.mentionEveryone === true,
     sentBy: actor(req)
   })
   res.status(result.success ? 200 : 400).json(result)
