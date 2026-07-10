@@ -173,3 +173,9 @@ Hoje as turmas são nomeadas à mão no texto ("Turma 5, Turma 10, Turma 14 e Tu
 ### 10.4 Sinergia com o sync AC (nota)
 
 O mês certo para enviar cada mensagem é derivável dos dados que o BO já tem (turmas a expirar no fim do mês = tab Desempenho das Renovações). Futuro opcional (não pedido): o BO sugerir "este mês toca a @R. Maio" e pré-preencher a selecção — o envio continua sempre manual.
+
+### 10.5 Verificação de permissões do bot (leitura, 2026-07-10)
+
+O cargo do bot principal **"Ser Riquinho"** tem `send_messages=true` mas **NÃO tem** a permissão "Mencionar @everyone, @here e todos os cargos" (`mention_everyone=false`). Como os cargos R.* estão (correctamente) `mentionable=false`, **as menções não pingariam ninguém**.
+
+**Passo manual necessário (2 min, antes da Fase D4):** no Discord → canal `🗣📢︱anúncios-alunos` → Editar canal → Permissões → adicionar o cargo **Ser Riquinho** → permitir **"Mencionar @everyone, @here e todos os cargos"** (override só neste canal). Assim: o bot pinga os cargos R.* apenas neste canal; os membros continuam sem conseguir pingá-los; e a allowlist `allowed_mentions` no código garante que só os R.* seleccionados pingam.
