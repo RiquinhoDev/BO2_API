@@ -10,7 +10,7 @@ import axios from 'axios'
 
 export const CURSEDUCA_API_URL = process.env.CURSEDUCA_API_URL || 'https://prof.curseduca.pro'
 export const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY || process.env.CURSEDUCA_API_KEY
-export const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_ACCESS_TOKEN
+export const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_AccessToken
 
 // ═══════════════════════════════════════════════════════════
 // STATUS GURU
