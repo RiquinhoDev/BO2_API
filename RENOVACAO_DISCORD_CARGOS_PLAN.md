@@ -221,3 +221,11 @@ Mesmo padrão do sync AC: montado e desconectado. Cron `DiscordRolesSync` criado
 7. Definir `BOT_SHARED_SECRET` no serviço do bot E no BO2 → auth activa; confirmar que a porta 3002 não está exposta ao exterior.
 
 **Emergência:** `DISCORD_ROLES_SYNC_ENABLED=false` / `DISCORD_MESSAGES_ENABLED=false` matam tudo em runtime; pausar o cron na UI também.
+
+### 11.3 Correcção pós-deploy (2026-07-10): endpoints movidos para o api.js
+
+O primeiro deploy mostrou "Bot: inacessível" na tab Discord. Diagnóstico: os endpoints tinham sido postos no `bot1.js`, mas **o bot1.js é legacy — não faz parte do `npm start` do repo API**. O processo real de produção é o **`api.js`** (`api.serriquinho.com`), que tem o seu próprio cliente Discord partilhado (`utils/discord.js`) — é ele que faz as inativações Ativo/Inativo de hoje.
+
+Correcção (commit `eca6d80` do repo API): endpoints movidos para **`routes/renewal.js`**, montados em `/renewal/` no `routes/routes.js`, usando o cliente partilhado. Mesma lógica e allowlists. O `DISCORD_BOT_URL` do BO2 (`https://api.serriquinho.com`) já apontava para o sítio certo — depois do deploy do repo API o badge fica verde. As alterações ao `bot1.js` ficam no repo mas são inertes (o ficheiro não corre em produção).
+
+Nota adicional do primeiro dry-run real: plano gerou **2.370 operações** (backfill) com alvos correctos verificados por amostragem na UI.
