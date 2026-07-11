@@ -24,6 +24,8 @@ import {
 } from '../controllers/guru.sync.controller'
 import {
   getChurnMetrics,
+  getChurnLive,
+  getChurnLiveStatus,
   getMRRMetrics,
   compareGuruVsClareza,
   fixMultiSubscriptions
@@ -139,7 +141,7 @@ router.get('/stats', asyncRoute(getGuruStats))
 /**
  * GET /guru/subscriptions
  * Listar todas as subscrições
- * Query params: page, limit, status, productId
+ * Query params: page, limit, status, productId, email (pesquisa parcial), dateFrom, dateTo (guru.updatedAt)
  */
 router.get('/subscriptions', asyncRoute(listSubscriptions))
 
@@ -205,6 +207,19 @@ router.get('/sync/users', asyncRoute(listUsersWithGuru))
  * Obter métricas de churn (taxa de cancelamento)
  */
 router.get('/analytics/churn', asyncRoute(getChurnMetrics))
+
+/**
+ * GET /guru/analytics/churn-live
+ * Churn mensal preciso calculado em direto da Guru API (sem snapshots, sem escrita na BD)
+ * Query: refresh=true força recálculo
+ */
+router.get('/analytics/churn-live', asyncRoute(getChurnLive))
+
+/**
+ * GET /guru/analytics/churn-live/status
+ * Progresso do cálculo em curso (para a barra de progresso do frontend)
+ */
+router.get('/analytics/churn-live/status', asyncRoute(getChurnLiveStatus))
 
 /**
  * GET /guru/analytics/mrr

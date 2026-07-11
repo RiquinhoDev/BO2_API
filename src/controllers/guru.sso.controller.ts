@@ -244,7 +244,10 @@ export const listSubscriptions = async (req: Request, res: Response) => {
       page = 1,
       limit = 10000,
       status,
-      productId
+      productId,
+      email,
+      dateFrom,
+      dateTo
     } = req.query
 
     const query: any = { guru: { $exists: true } }
@@ -255,6 +258,21 @@ export const listSubscriptions = async (req: Request, res: Response) => {
     }
     if (productId) {
       query['guru.productId'] = productId
+    }
+    if (email && typeof email === 'string' && email.trim()) {
+      // Pesquisa parcial case-insensitive (escapar metacaracteres de regex)
+      const escaped = email.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      query.email = { $regex: escaped, $options: 'i' }
+    }
+    if (dateFrom || dateTo) {
+      const range: any = {}
+      if (dateFrom) range.$gte = new Date(String(dateFrom))
+      if (dateTo) {
+        const end = new Date(String(dateTo))
+        end.setHours(23, 59, 59, 999)
+        range.$lte = end
+      }
+      query['guru.updatedAt'] = range
     }
 
     const [users, total] = await Promise.all([

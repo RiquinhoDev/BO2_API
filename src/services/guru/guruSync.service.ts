@@ -159,11 +159,15 @@ export async function fetchAllSubscriptions(params?: {
 /**
  * Buscar todas as páginas de subscrições
  */
-export async function fetchAllSubscriptionsPaginated(additionalParams?: {
-  started_at_ini?: string // YYYY-MM-DD
-  started_at_end?: string // YYYY-MM-DD
-  status?: string
-}): Promise<GuruSubscription[]> {
+export async function fetchAllSubscriptionsPaginated(
+  additionalParams?: {
+    started_at_ini?: string // YYYY-MM-DD
+    started_at_end?: string // YYYY-MM-DD
+    status?: string
+  },
+  // Progresso página-a-página (fetched, totalEsperado) — usado pela barra de progresso do churn live
+  onProgress?: (fetched: number, total: number | null) => void
+): Promise<GuruSubscription[]> {
   console.log('📡 [GURU SYNC] Buscando TODAS as subscrições (cursor-based pagination)...')
   if (additionalParams?.started_at_ini || additionalParams?.started_at_end) {
     console.log(`📅 [GURU SYNC] Filtros de data: ${additionalParams.started_at_ini || 'início'} até ${additionalParams.started_at_end || 'fim'}`)
@@ -222,6 +226,7 @@ export async function fetchAllSubscriptionsPaginated(additionalParams?: {
 
       // Adicionar dados ao array
       allSubscriptions.push(...data)
+      onProgress?.(allSubscriptions.length, totalExpected)
 
       // Verificar se há mais páginas usando os flags da API
       if (onLastPage || !hasMorePages || data.length === 0 || !nextCursor) {
@@ -273,11 +278,13 @@ export async function fetchSubscriptionsByMonth(year: number, month: number): Pr
  * Buscar TODAS as subscrições da Guru (sem filtros)
  * Para criar snapshots históricos precisos
  */
-export async function fetchAllSubscriptionsComplete(): Promise<GuruSubscription[]> {
+export async function fetchAllSubscriptionsComplete(
+  onProgress?: (fetched: number, total: number | null) => void
+): Promise<GuruSubscription[]> {
   console.log('📡 [GURU SNAPSHOT] Buscando TODAS as subscrições (SEM FILTROS)...')
 
   // Chamar sem parâmetros = busca tudo
-  return fetchAllSubscriptionsPaginated()
+  return fetchAllSubscriptionsPaginated(undefined, onProgress)
 }
 
 /**

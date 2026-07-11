@@ -4,6 +4,7 @@ import axios from 'axios'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import { fetchAllSubscriptionsComplete } from '../services/guru/guruSync.service'
+import { computeChurnSeries } from '../services/guru/guruChurn.service'
 import {
   GURU_CANCELED_STATUSES,
   CURSEDUCA_CANCELED_STATUSES,
@@ -16,6 +17,115 @@ import {
   CURSEDUCA_ACCESS_TOKEN,
   type GuruDateInfo
 } from '../services/guru/guru.constants'
+
+// ═══════════════════════════════════════════════════════════
+// CHURN LIVE (calculado direto da Guru API — substitui os snapshots)
+// ═══════════════════════════════════════════════════════════
+
+// Cache em memória (NÃO usa a BD — o objetivo é precisamente não ocupar espaço no Mongo).
+// Reinicia a cada deploy, o que é aceitável: o fetch completo demora ~10-15s.
+const CHURN_LIVE_TTL_MS = 6 * 60 * 60 * 1000 // 6 horas
+let churnLiveCache: { computedAt: Date; churn: ReturnType<typeof computeChurnSeries> } | null = null
+let churnLiveInFlight: Promise<{ computedAt: Date; churn: ReturnType<typeof computeChurnSeries> }> | null = null
+
+// Progresso do cálculo em curso (o fetch da Guru reporta página a página) — alimenta a
+// barra de progresso do frontend via GET /analytics/churn-live/status
+let churnLiveProgress: {
+  running: boolean
+  phase: 'idle' | 'fetching' | 'computing'
+  fetched: number
+  total: number | null
+  startedAt: string | null
+} = { running: false, phase: 'idle', fetched: 0, total: null, startedAt: null }
+
+/**
+ * Progresso do cálculo de churn live em curso
+ * GET /guru/analytics/churn-live/status
+ */
+export const getChurnLiveStatus = async (_req: Request, res: Response) => {
+  const percent =
+    churnLiveProgress.total && churnLiveProgress.total > 0
+      ? Math.min(100, Math.round((churnLiveProgress.fetched / churnLiveProgress.total) * 100))
+      : null
+
+  return res.json({
+    success: true,
+    ...churnLiveProgress,
+    percent: churnLiveProgress.phase === 'computing' ? 100 : percent,
+    hasCache: !!churnLiveCache
+  })
+}
+
+/**
+ * Churn mensal preciso calculado em direto das subscrições da Guru
+ * GET /guru/analytics/churn-live
+ * Query: refresh=true força recálculo (ignora cache)
+ *
+ * Cada subscrição da Guru traz started_at + cancelled_at, por isso a série mensal
+ * completa é recalculável a qualquer momento — não são precisos snapshots na BD.
+ */
+export const getChurnLive = async (req: Request, res: Response) => {
+  try {
+    const refresh = req.query.refresh === 'true'
+    const cacheValid =
+      churnLiveCache && Date.now() - churnLiveCache.computedAt.getTime() < CHURN_LIVE_TTL_MS
+
+    if (!refresh && cacheValid && churnLiveCache) {
+      return res.json({
+        success: true,
+        source: 'guru_api_live',
+        cached: true,
+        computedAt: churnLiveCache.computedAt.toISOString(),
+        churn: churnLiveCache.churn
+      })
+    }
+
+    // Partilhar o fetch entre pedidos concorrentes (o fetch completo demora ~10-15s)
+    if (!churnLiveInFlight) {
+      churnLiveInFlight = (async () => {
+        console.log('📡 [CHURN LIVE] Recalculando churn a partir da Guru API...')
+        churnLiveProgress = {
+          running: true,
+          phase: 'fetching',
+          fetched: 0,
+          total: null,
+          startedAt: new Date().toISOString()
+        }
+        const allSubs = await fetchAllSubscriptionsComplete((fetched, total) => {
+          churnLiveProgress.fetched = fetched
+          churnLiveProgress.total = total
+        })
+        churnLiveProgress.phase = 'computing'
+        const churn = computeChurnSeries(allSubs)
+        const entry = { computedAt: new Date(), churn }
+        churnLiveCache = entry
+        console.log(
+          `✅ [CHURN LIVE] ${churn.totalSubscriptions} subscrições, ${churn.months.length} meses, média ${churn.average}%`
+        )
+        return entry
+      })().finally(() => {
+        churnLiveInFlight = null
+        churnLiveProgress = { ...churnLiveProgress, running: false, phase: 'idle' }
+      })
+    }
+
+    const entry = await churnLiveInFlight
+
+    return res.json({
+      success: true,
+      source: 'guru_api_live',
+      cached: false,
+      computedAt: entry.computedAt.toISOString(),
+      churn: entry.churn
+    })
+  } catch (error: any) {
+    console.error('❌ [CHURN LIVE] Erro ao calcular churn:', error.message)
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    })
+  }
+}
 
 // ═══════════════════════════════════════════════════════════
 // CHURN METRICS
