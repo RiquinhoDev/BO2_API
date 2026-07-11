@@ -86,11 +86,12 @@ router.post('/approve', asyncRoute(async (req: Request, res: Response) => {
   res.json({ success: true, data: { approved } })
 }))
 
-/** POST /api/discord-renewal/execute  { batchId?, includePlanned? } */
+/** POST /api/discord-renewal/execute  { batchId?, includePlanned?, limit? } — limit é clampado ao cap do env */
 router.post('/execute', asyncRoute(async (req: Request, res: Response) => {
   const report = await executeDiscordRolesPlan({
     includePlanned: req.body?.includePlanned === true,
     batchId: req.body?.batchId || undefined,
+    limit: req.body?.limit ? Number(req.body.limit) : undefined,
     executedBy: actor(req)
   })
   res.json({ success: report.masterEnabled, data: report })

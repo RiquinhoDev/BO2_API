@@ -331,6 +331,9 @@ const BOT_BATCH_SIZE = 20 // ≤25 (limite do endpoint do bot); ~22s por lote a 
 export async function executeDiscordRolesPlan(options: {
   includePlanned?: boolean
   batchId?: string
+  // Tamanho do lote pedido pela UI (ex.: 100 de cada vez durante o backfill).
+  // Sempre limitado pelo cap do env — o limit só pode APERTAR, nunca alargar.
+  limit?: number
   executedBy: string
 }): Promise<DiscordExecuteReport> {
   const report: DiscordExecuteReport = {
@@ -353,7 +356,10 @@ export async function executeDiscordRolesPlan(options: {
   const query: any = { status: { $in: statuses } }
   if (options.batchId) query.planBatchId = options.batchId
 
-  const cap = maxOpsPerRun()
+  const requested = Number(options.limit)
+  const cap = Number.isFinite(requested) && requested > 0
+    ? Math.min(Math.floor(requested), maxOpsPerRun())
+    : maxOpsPerRun()
   const candidates = await DiscordRoleChange.find(query)
     .sort({ status: 1, plannedAt: 1 })
     .limit(cap + 1)

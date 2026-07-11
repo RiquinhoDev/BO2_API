@@ -12,8 +12,9 @@ O produto "OGI — O Grande Investimento" (curso, vendido na **Hotmart**) tem re
 1. **Sync BO→AC** (`RenewalAcSync`): quando um aluno muda de turma (renova), escrever a data de expiração no campo AC + trocar a tag de turma; reverter tag em reembolso.
 2. **Cargos Discord** (`DiscordRolesSync`): cada aluno recebe o cargo `R. {Mês}` do seu mês de renovação (derivado da turma Hotmart), reconciliado todas as noites; + área no BO para o bot publicar mensagens que mencionam `@R. {Mês}` (notifica só as pessoas certas).
 
-**ESTADO ACTUAL (2026-07-10, fim do dia):**
-- **Discord: LIGADO e validado em produção** — piloto confirmado ponta a ponta (2 contas de teste com cargos verificados por leitura à API Discord). `DISCORD_ROLES_SYNC_ENABLED=true`, `DISCORD_ROLES_AUTO_EXECUTE=true`, cap 150, cron LIGADO (05:30). Backfill de ~2.370 operações em curso (botão "Executar lote" na UI + cron nocturno). Mensagens ainda OFF. Endpoints de produção vivem em `API/routes/renewal.js` (montados no api.js — o bot1.js é LEGACY, não corre em produção).
+**ESTADO ACTUAL (2026-07-11):**
+- **Discord: LIGADO, validado e COM AUTH** — piloto confirmado ponta a ponta (2 contas de teste com cargos verificados por leitura à API Discord). `DISCORD_ROLES_SYNC_ENABLED=true`, `DISCORD_ROLES_AUTO_EXECUTE=true`, cap 150, cron LIGADO (05:30). Backfill correu de noite via cron (confirmar contagens APPLIED na tab). Mensagens TESTADAS e a funcionar no menu Comunicados (envio sem menções + com mês). **Fase D5 concluída (2026-07-11): `BOT_SHARED_SECRET` activo nos 2 serviços — /renewal/* exige `X-Bot-Auth`, verificado 401 sem header; porta 3002 confirmada não exposta (detalhe: secção 11.5 do plano Discord).** Endpoints de produção vivem em `API/routes/renewal.js` (montados no api.js — o bot1.js é LEGACY, não corre em produção).
+- **Mensagens agendadas (automatismo):** PLANO PRONTO na **secção 12 do plano Discord** (regras dia 8 lembrete + dia 15 último aviso ao cargo `R. {mês anterior}`, cron nasce desligado, idempotência por mês). Aguarda luz verde do João para implementar (decisões D-e1..D-e5 na tabela 12.4).
 - **AC (RenewalAcSync): construído e 100% DESLIGADO** — cron `enabled:false` (07:30), switches `RENEWAL_AC_*` false. Checklist por fazer (secção 15 do plano AC).
 - Nota UX Discord: cargos R.* têm hoist=false → não aparecem na sidebar de membros; ver no perfil do membro.
 
@@ -89,9 +90,12 @@ Parser canónico: `BO2_API/src/services/renewal/turmaParser.ts` (`parseTurmaName
 | 2 | Sync AC: checklist de operacionalização = **secção 15 do RENOVACAO_OGI_BO_PLAN.md** (dry-run, verificações na UI da AC, activação por fases) | João + IA |
 | 3 | Discord: runbook = **secção 11.2 do RENOVACAO_DISCORD_CARGOS_PLAN.md** (dry-run backfill → piloto → cron → mensagens → D5 auth) | João + IA |
 | 4 | 🔑 Rodar password Mongo `desenvolvimentoserriquinho` no Atlas (string partilhada em sessão dev) + actualizar Railway | João |
-| 5 | Re-copiar `DISCORD_TOKEN` válido do Railway para `.env` local do repo API | João |
+| 5 | ~~Re-copiar `DISCORD_TOKEN` para `.env` local~~ **FEITO 2026-07-11** (copiado do serviço API2 via Railway CLI; validado contra a API Discord — bot "Riquinho" 200 OK) | ✔ |
 | 6 | Limpeza: apagar `TEST_CURSEDUCA_4MIN` e decidir zombie `TAG_RULES_SYNC`; fundir tags AC duplicadas hífen/travessão | Equipa |
-| 7 | Fase D5 (última): `BOT_SHARED_SECRET` nos 2 lados + confirmar porta 3002 não exposta | IA + João |
+| 7 | ~~Fase D5: `BOT_SHARED_SECRET` nos 2 lados + porta 3002~~ **FEITO 2026-07-11** (secção 11.5 do plano Discord) | ✔ |
+| 8 | ~~Limpar chamadas legacy `/add-roles`~~ **FEITO 2026-07-11** (blocos removidos com nota; nunca funcionaram — endpoint inexistente) | ✔ |
+| 9 | Implementar mensagens agendadas (plano na secção 12 do plano Discord) — aguarda luz verde + decisões D-e1..D-e5 | João → IA |
+| 10 | UI: selector de tamanho de lote (25/50/100/150) no "Executar lote" da tab Discord + param `limit` no /execute — CÓDIGO PRONTO local (BO2+Front), por commitar/deployar | João (commit) |
 
 ## 9. Índice de documentação
 

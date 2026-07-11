@@ -688,27 +688,10 @@ async function applyAutoReactivation(
     { $set: { status: 'ACTIVE' } }
   )
 
-  // 3. Notificar Discord Bot para reativar (adicionar roles)
-  if (process.env.DISCORD_BOT_URL) {
-    try {
-      const user = await User.findById(userId).lean() as any
-      const discordId = user?.discord?.discordIds?.[0]
-
-      if (discordId) {
-        await fetch(`${process.env.DISCORD_BOT_URL}/add-roles`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: discordId,
-            reason: `Renovação detetada automaticamente - Compra: ${renewalResult.purchaseDate?.toISOString()}`
-          })
-        })
-        console.log(`   🎮 Discord: Roles restaurados para ${userEmail}`)
-      }
-    } catch (discordError: any) {
-      console.warn(`   ⚠️ Discord: Erro ao restaurar roles para ${userEmail}:`, discordError.message)
-    }
-  }
+  // Nota (2026-07-11): a chamada legacy ao Discord (`${DISCORD_BOT_URL}/add-roles`)
+  // foi removida — esse endpoint nunca existiu no repo API (o fetch levava 404 e o log
+  // "Roles restaurados" era falso). Os cargos R.* de renovação são reconciliados de
+  // noite pelo DiscordRolesSync.
 
   console.log(`✅ [AutoReactivation] ${userEmail} reativado com sucesso!`)
 }

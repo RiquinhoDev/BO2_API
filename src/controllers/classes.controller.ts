@@ -1539,45 +1539,10 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         reason: reason || 'Reversão de inativação'
       })
 
-      // 🎮 NOVO: Restaurar papéis no Discord Bot
-      if (platforms.includes('discord') || platforms.includes('all')) {
-        try {
-          const user = await User.findById(inactivation.userId).lean()
-          const discordIds = user?.discord?.discordIds || []
-
-          if (discordIds.length > 0 && process.env.DISCORD_BOT_URL) {
-            // Chamar API Riquinho (Discord Bot) para cada Discord ID
-            const discordPromises = discordIds.map(async (discordId: string) => {
-              try {
-                const response = await fetch(`${process.env.DISCORD_BOT_URL}/add-roles`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    userId: discordId,
-                    reason: reason || 'Reversão manual de inativação'
-                  })
-                })
-
-                if (!response.ok) {
-                  console.warn(`⚠️ Discord: Falha ao restaurar roles para ${discordId}`)
-                } else {
-                  console.log(`✅ Discord: Papéis restaurados para ${user?.email || discordId}`)
-                }
-              } catch (discordError) {
-                console.warn(`⚠️ Discord: Erro ao processar ${discordId}:`, (discordError as Error).message)
-              }
-            })
-
-            // Aguardar todas as chamadas ao Discord (mas não bloquear response se falhar)
-            await Promise.allSettled(discordPromises)
-          } else if (discordIds.length === 0) {
-            console.log(`ℹ️ Discord: Usuário ${inactivation.userEmail} não possui Discord IDs`)
-          }
-        } catch (discordError) {
-          // Não bloquear a reversão se Discord falhar
-          console.warn('⚠️ Discord: Erro ao restaurar papéis:', (discordError as Error).message)
-        }
-      }
+      // Nota (2026-07-11): a chamada legacy ao Discord (`${DISCORD_BOT_URL}/add-roles`)
+      // foi removida — esse endpoint nunca existiu no repo API, pelo que falhava em
+      // silêncio desde sempre (a reversão nunca restaurou cargos no Discord). Os cargos
+      // R.* de renovação são reconciliados de noite pelo DiscordRolesSync.
 
       const result = { success: true }
 

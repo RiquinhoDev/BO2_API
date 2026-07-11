@@ -242,6 +242,16 @@ Fluxo completo confirmado em produção:
 
 **Estado operacional:** `DISCORD_ROLES_SYNC_ENABLED=true`, `DISCORD_ROLES_AUTO_EXECUTE=true`, `DISCORD_ROLES_MAX_OPS_PER_RUN=150`, cron LIGADO (05:30). Backfill em curso: cliques manuais em "Executar lote" (~3 min/150) + cron nocturno. Mensagens (`DISCORD_MESSAGES_ENABLED`) ainda OFF. Falta: D5 (BOT_SHARED_SECRET) no fim.
 
+### 11.5 Fase D5 CONCLUÍDA — auth activa (2026-07-11)
+
+Executada via Railway CLI (sessão Claude com autorização do João):
+1. Segredo de 64 hex gerado localmente e definido como `BOT_SHARED_SECRET` **primeiro no BO_v2** (projecto BO) e depois no **API2** (projecto adventurous-wisdom, serve api.serriquinho.com) — esta ordem evita a janela de 401. Ambos os redeploys SUCCESS (~14:37Z). O valor só existe no Railway (ficheiro local apagado; nunca impresso em chat/logs).
+2. Verificado em produção: `/renewal/health` → `authEnabled: true` (bot Riquinho#1487 online, 12 roles, 1 canal); POST `/renewal/roles/apply` **sem** header → **401**; **com** header certo → 400 "operations obrigatório" (auth passa, validação segue).
+3. Porta 3002 confirmada NÃO exposta: o serviço API2 só tem os domínios api.serriquinho.com + api2-production-1fc0.up.railway.app (ambos para o processo api.js), e nenhum serviço Railway de nenhum projecto arranca o bot1.js (legacy, inerte).
+4. Os 3 call sites do BO2 (`roles/apply`, `messages/send`, `health`) usam `botHeaders()` que injecta `X-Bot-Auth` quando a env existe — Comunicados e cron continuam a funcionar sem alterações de código.
+
+**Rotação futura do segredo:** definir novo valor primeiro no BO_v2, depois no API2 (mesma ordem). **Emergência:** apagar `BOT_SHARED_SECRET` do API2 + redeploy = volta a aceitar sem auth (funcional, inseguro).
+
 ### 10.6 Mensagens movidas para o menu "Comunicados" (2026-07-10, sugestão do João)
 
 As mensagens do bot saíram da tab Discord das Renovações para um **menu próprio "Comunicados"** (sidebar → Comunidade), como área de comunicação geral:
@@ -251,3 +261,43 @@ As mensagens do bot saíram da tab Discord das Renovações para um **menu próp
 - Pré-visualização obrigatória + histórico de envios completo na página.
 
 Commits: BO2 `db67ff3`, Front `2b258f4`. A allowlist de MENÇÕES continua restrita aos 12 cargos R.* (mencionar outros cargos do servidor = decisão futura, exigiria alargar a allowlist dos dois lados com cuidado).
+
+---
+
+## 12. PLANO — Mensagens agendadas de renovação (2026-07-11, por implementar)
+
+> Pedido do João (2026-07-11): "as mensagens são enviadas 1 semana após o fim do curso na comunidade, porque damos 15 dias para voltar a tentar que renovem. Turma R. Junho, em Julho dia 15 recebe o último aviso e nessa noite os que não renovam passam a inativos na comunidade." Objectivo: em datas certas, a mensagem sai com a tag ao cargo `@R. {Mês}` certo **sem intervenção humana**. Estado: **PLANO — aguarda luz verde para implementar.**
+
+### 12.1 Regra de negócio (interpretação a confirmar em D-e1)
+
+O acesso da turma termina no último dia do mês M (= cargo `R. {M}`). Janela de renovação: 15 dias do mês seguinte (M+1). Cadência proposta:
+- **Dia 8 de M+1** (≈1 semana após o fim): lembrete de renovação → menciona `@R. {M}`.
+- **Dia 15 de M+1**: **último aviso** → menciona `@R. {M}`. Nessa noite os não-renovados são inativados (processo EXISTENTE do BO, fora deste automatismo — ver D-e6).
+
+Exemplo: turma R. Junho → lembrete a 8 de Julho, último aviso a 15 de Julho, inativação na noite de 15.
+
+### 12.2 Desenho técnico (reutiliza a infra 10.x — nada de novo a falar com o Discord)
+
+- **Modelo `DiscordScheduledRule`** (novo, colecção pequena): `{ key, label, dayOfMonth (1-28), templateKey, channelId, enabled:false, lastSentMonth ('YYYY-MM', idempotência), createdBy, updatedAt }`. Mês alvo NÃO é configurável: é sempre derivado = mês anterior à data de envio → cargo `R. {mêsAnterior}` (uma regra dispara 12×/ano, uma vez por mês).
+- **Cron `DiscordScheduledMessages`** (novo, proposta 10:00 Europe/Lisbon, **nasce DESLIGADO**, seed create-only): para cada regra `enabled` com `dayOfMonth === hoje` e `lastSentMonth !== mêsActual`: renderiza o template com o mês alvo (e dataFim = dia 15 de M+1 para o texto), envia via `sendDiscordMessage()` **existente** (mesmas allowlists dos 12 cargos R.* + canais, mesmo `DiscordMessageLog`), grava `lastSentMonth`.
+- **Kill switches (runtime, default false)**: master `DISCORD_SCHEDULED_MESSAGES_ENABLED` + `enabled` por regra na BD. Emergência: master off ou pausar o cron na UI.
+- **Idempotência**: `lastSentMonth` garante no máx. 1 envio por regra/mês mesmo com re-runs; redeploys não re-disparam.
+- **UI (menu Comunicados → secção "Agendadas")**: lista de regras (dia, template, canal, cargo alvo derivado do mês corrente, último envio, próximo disparo), toggle por regra, botão "Pré-visualizar" e "Testar agora SEM menções" (reutiliza o modo seguro existente).
+- **Seeds default (desligadas)**: `lembrete-renovacao` (dia 8) e `ultimo-aviso-renovacao` (dia 15), apontando aos templates de renovação existentes.
+
+### 12.3 Runbook de activação (quando implementado)
+
+1. Deploy → confirmar cron criado DESLIGADO e regras `enabled:false`.
+2. "Testar agora sem menções" de cada regra → validar texto/canal (ninguém é notificado).
+3. `DISCORD_SCHEDULED_MESSAGES_ENABLED=true` + ligar só a regra do dia 15; observar 1 ciclo real (dia 15 seguinte).
+4. Ligar a regra do dia 8 no ciclo seguinte. Cron LIGADO desde o passo 3 (é ele que verifica o dia).
+
+### 12.4 Decisões pendentes (João)
+
+| # | Decisão | Proposta |
+|---|---------|----------|
+| D-e1 | 2 envios (dia 8 + dia 15) ou só o último aviso do dia 15? "1 semana após o fim" sugere o dia 8 como lembrete | 2 envios, cada um com o seu template |
+| D-e2 | Textos: usar os templates de renovação existentes ou escrever 2 novos específicos? | Rever textos antes de ligar |
+| D-e3 | Hora do envio | 10:00 Lisboa |
+| D-e4 | A inativação da noite de dia 15 continua manual (BO) ou automatiza-se noutra fase? | Manter manual por agora (D-e6 = fase própria, com change set como o resto) |
+| D-e5 | Primeiro ciclo assistido? (regra ligada mas João confirma o texto no dia anterior) | Sim, no 1º mês |
