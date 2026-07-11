@@ -186,6 +186,44 @@ const discordMessageLogSchema = new Schema<IDiscordMessageLog>(
   { timestamps: true, collection: 'discordmessagelogs' }
 )
 
+// ─────────────────────────────────────────────────────────────
+// 5. DiscordScheduledRule — regras de mensagens agendadas de renovação
+//    (plano na secção 12 do RENOVACAO_DISCORD_CARGOS_PLAN.md).
+//    O mês alvo NUNCA é guardado: é derivado na execução = mês anterior
+//    à data de envio → cargo R.{mêsAnterior}. Uma regra dispara 12×/ano.
+// ─────────────────────────────────────────────────────────────
+
+export interface IDiscordScheduledRule extends Document {
+  key: string // 'lembrete-dia-8' | 'ultimo-aviso-dia-15'
+  label: string
+  dayOfMonth: number // 1-28 (dia do mês em que dispara, Europe/Lisbon)
+  templateKey: string // referência a DiscordMessageTemplate.key
+  channelId?: string // vazio = canal default
+  enabled: boolean // por regra; além do master DISCORD_SCHEDULED_MESSAGES_ENABLED
+  lastSentMonth?: string // 'YYYY-MM' — idempotência: máx. 1 envio por regra/mês
+  lastRunAt?: Date
+  lastResult?: string // 'enviada' | razão do skip/falha (para a UI)
+  createdBy: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+const discordScheduledRuleSchema = new Schema<IDiscordScheduledRule>(
+  {
+    key: { type: String, required: true, unique: true },
+    label: { type: String, required: true },
+    dayOfMonth: { type: Number, required: true, min: 1, max: 28 },
+    templateKey: { type: String, required: true },
+    channelId: { type: String },
+    enabled: { type: Boolean, default: false }, // ⛔ nasce desligada
+    lastSentMonth: { type: String },
+    lastRunAt: { type: Date },
+    lastResult: { type: String },
+    createdBy: { type: String, required: true }
+  },
+  { timestamps: true, collection: 'discordscheduledrules' }
+)
+
 // Casts explícitos (padrão do projecto — evita o union type não-callable)
 export const DiscordRoleChange = (mongoose.models.DiscordRoleChange ||
   mongoose.model<IDiscordRoleChange>('DiscordRoleChange', discordRoleChangeSchema)) as mongoose.Model<IDiscordRoleChange>
@@ -198,3 +236,6 @@ export const DiscordMessageTemplate = (mongoose.models.DiscordMessageTemplate ||
 
 export const DiscordMessageLog = (mongoose.models.DiscordMessageLog ||
   mongoose.model<IDiscordMessageLog>('DiscordMessageLog', discordMessageLogSchema)) as mongoose.Model<IDiscordMessageLog>
+
+export const DiscordScheduledRule = (mongoose.models.DiscordScheduledRule ||
+  mongoose.model<IDiscordScheduledRule>('DiscordScheduledRule', discordScheduledRuleSchema)) as mongoose.Model<IDiscordScheduledRule>

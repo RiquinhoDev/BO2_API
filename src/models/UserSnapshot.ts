@@ -179,7 +179,11 @@ const userSnapshotSchema = new Schema<IUserSnapshot>(
       type: Date,
       default: Date.now,
       required: true,
-      index: true
+      // TTL de 7 dias (aplicado em produção a 2026-07-11 via collMod, depois de a
+      // coleção encher a quota do Atlas — 124k docs/147MB em 25 dias e bloquear as
+      // escritas do cluster). O Mongo apaga sozinho snapshots com >7 dias; a
+      // retenção "6 meses" do expiresAt abaixo nunca teve TTL e não cabia em 512MB.
+      index: { expireAfterSeconds: 7 * 24 * 3600 }
     },
 
     userState: {

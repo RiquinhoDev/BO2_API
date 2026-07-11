@@ -264,9 +264,15 @@ Commits: BO2 `db67ff3`, Front `2b258f4`. A allowlist de MENÇÕES continua restr
 
 ---
 
-## 12. PLANO — Mensagens agendadas de renovação (2026-07-11, por implementar)
+## 12. Mensagens agendadas de renovação — IMPLEMENTADO 2026-07-11 (nasce DESLIGADO)
 
-> Pedido do João (2026-07-11): "as mensagens são enviadas 1 semana após o fim do curso na comunidade, porque damos 15 dias para voltar a tentar que renovem. Turma R. Junho, em Julho dia 15 recebe o último aviso e nessa noite os que não renovam passam a inativos na comunidade." Objectivo: em datas certas, a mensagem sai com a tag ao cargo `@R. {Mês}` certo **sem intervenção humana**. Estado: **PLANO — aguarda luz verde para implementar.**
+> Pedido do João (2026-07-11): "as mensagens são enviadas 1 semana após o fim do curso na comunidade, porque damos 15 dias para voltar a tentar que renovem. Turma R. Junho, em Julho dia 15 recebe o último aviso e nessa noite os que não renovam passam a inativos na comunidade." Decisões confirmadas pelo João: **2 envios, cada dia com a sua mensagem** (dia 8 + dia 15), usando os templates existentes ('aviso-importante' e 'ultimo-dia'), mês derivado da data.
+>
+> **Estado: CÓDIGO PRONTO (por commitar/deployar), tudo DESLIGADO.** Superfícies: modelo `DiscordScheduledRule` + `services/renewal/discordScheduledMessages.service.ts` + cron `DiscordScheduledMessages` (10:00 Lisboa diário, seed create-only OFF) + endpoints `/api/discord-renewal/scheduled*` + secção "Mensagens agendadas" na página Comunicados (Front main `3171051`). Master switch novo: `DISCORD_SCHEDULED_MESSAGES_ENABLED` (default false).
+>
+> **Guard de mês vazio (pedida pelo João)**: verificação de 2026-07-11 aos dados reais mostrou meses SEM turmas a renovar (Agosto=0, Outubro=0 alunos; Abril=8, Junho=9, Dezembro=2). Se o cargo alvo tem 0 membros (DiscordRoleState), a mensagem NÃO sai e fica registado o skip — nunca se anuncia renovação a um cargo vazio.
+>
+> **Runbook de activação**: 1) deploy BO2+Front; 2) na secção Agendadas dos Comunicados: Pré-visualizar cada regra + "Testar sem menções"; 3) env `DISCORD_SCHEDULED_MESSAGES_ENABLED=true` no BO_v2; 4) ligar o cron `DiscordScheduledMessages` na UI de CRON Jobs; 5) ligar as 2 regras na secção Agendadas. Idempotência: máx. 1 envio por regra/mês (lastSentMonth). Emergência: desligar master/cron/regra — qualquer um trava.
 
 ### 12.1 Regra de negócio (interpretação a confirmar em D-e1)
 

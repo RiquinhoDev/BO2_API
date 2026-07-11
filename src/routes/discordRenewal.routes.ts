@@ -157,4 +157,48 @@ router.get('/messages/logs', asyncRoute(async (req: Request, res: Response) => {
   res.json({ success: true, data: { logs } })
 }))
 
+// ─────────────────────────────────────────────────────────────
+// MENSAGENS AGENDADAS (secção 12 do plano Discord)
+// ─────────────────────────────────────────────────────────────
+
+/** GET /api/discord-renewal/scheduled — regras + alvo corrente + switch */
+router.get('/scheduled', asyncRoute(async (_req: Request, res: Response) => {
+  const { getScheduledStatus } = await import('../services/renewal/discordScheduledMessages.service')
+  const cronJob = await CronJobConfig.findOne({ name: 'DiscordScheduledMessages' })
+    .select('schedule.enabled schedule.cronExpression isActive lastRun nextRun')
+    .lean()
+    .exec()
+  const status = await getScheduledStatus()
+  res.json({ success: true, data: { ...status, cronJob: cronJob || null } })
+}))
+
+/** PATCH /api/discord-renewal/scheduled/:key  { enabled } — liga/desliga uma regra */
+router.patch('/scheduled/:key', asyncRoute(async (req: Request, res: Response) => {
+  const { setScheduledRuleEnabled } = await import('../services/renewal/discordScheduledMessages.service')
+  const rule = await setScheduledRuleEnabled(String(req.params.key), req.body?.enabled === true)
+  if (!rule) return res.status(404).json({ success: false, message: 'Regra não encontrada' })
+  res.json({ success: true, data: { rule } })
+}))
+
+/** GET /api/discord-renewal/scheduled/:key/preview — texto como sairia hoje (não envia) */
+router.get('/scheduled/:key/preview', asyncRoute(async (req: Request, res: Response) => {
+  const { previewScheduledRule } = await import('../services/renewal/discordScheduledMessages.service')
+  const result = await previewScheduledRule(String(req.params.key))
+  res.status(result.success ? 200 : 404).json(result)
+}))
+
+/** POST /api/discord-renewal/scheduled/:key/test — envia SEM menções (ninguém notificado) */
+router.post('/scheduled/:key/test', asyncRoute(async (req: Request, res: Response) => {
+  const { testScheduledRule } = await import('../services/renewal/discordScheduledMessages.service')
+  const result = await testScheduledRule(String(req.params.key), actor(req))
+  res.status(result.success ? 200 : 400).json(result)
+}))
+
+/** POST /api/discord-renewal/scheduled/run — corre o job já (respeita switches/idempotência) */
+router.post('/scheduled/run', asyncRoute(async (_req: Request, res: Response) => {
+  const { runScheduledMessagesJob } = await import('../services/renewal/discordScheduledMessages.service')
+  const report = await runScheduledMessagesJob()
+  res.json({ success: true, data: report })
+}))
+
 export default router

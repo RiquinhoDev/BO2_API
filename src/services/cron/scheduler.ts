@@ -25,6 +25,7 @@ const RENEWAL_OFFER_SYNC_JOB_NAME = 'RenewalOfferSync'
 const ACHIEVEMENT_EVALUATION_JOB_NAME = 'AchievementEvaluation'
 const RENEWAL_AC_SYNC_JOB_NAME = 'RenewalAcSync'
 const DISCORD_ROLES_SYNC_JOB_NAME = 'DiscordRolesSync'
+const DISCORD_SCHEDULED_MESSAGES_JOB_NAME = 'DiscordScheduledMessages'
 const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('000000000000000000000001')
 
 // ─────────────────────────────────────────────────────────────
@@ -721,6 +722,41 @@ const job = await CronJobConfig.create({
     console.log('[DiscordRolesSync] Cron criado DESLIGADO (05:30 Lisboa) — ligar manualmente na UI quando a feature for activada')
   }
 
+  /**
+   * Cron das mensagens agendadas de renovação (dia 8 lembrete + dia 15 último aviso
+   * ao cargo R.{mês anterior}). NASCE DESLIGADO; seed create-only. Corre DIARIAMENTE
+   * às 10:00 Lisboa — é o próprio job que verifica se hoje é dia de alguma regra.
+   * Ver secção 12 do RENOVACAO_DISCORD_CARGOS_PLAN.md.
+   */
+  private async ensureDiscordScheduledMessagesJob(): Promise<void> {
+    const existingJob = await CronJobConfig.findOne({ name: DISCORD_SCHEDULED_MESSAGES_JOB_NAME })
+    if (existingJob) return
+
+    await CronJobConfig.create({
+      name: DISCORD_SCHEDULED_MESSAGES_JOB_NAME,
+      description: 'Mensagens agendadas de renovação no Discord: dia 8 lembrete e dia 15 último aviso, mencionando o cargo R.{mês anterior}. Só envia com DISCORD_SCHEDULED_MESSAGES_ENABLED=true + regra ligada; salta meses sem renovações (cargo sem membros). Ver secção 12 do RENOVACAO_DISCORD_CARGOS_PLAN.md.',
+      syncType: 'hotmart',
+      schedule: {
+        cronExpression: '0 10 * * *', // 10:00 Lisboa, diário — o job decide se hoje há mensagem
+        timezone: 'Europe/Lisbon',
+        enabled: false // ⛔ nasce DESLIGADO — ligar é acção manual na UI
+      },
+      syncConfig: { fullSync: false, includeProgress: false, includeTags: false, batchSize: 100 },
+      tagRules: [],
+      tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
+      notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: true, recipients: [] },
+      retryPolicy: { maxRetries: 1, retryDelayMinutes: 30, exponentialBackoff: false },
+      nextRun: this.calculateNextRun('0 10 * * *'),
+      createdBy: SYSTEM_CRON_ADMIN_ID,
+      isActive: true,
+      totalRuns: 0,
+      successfulRuns: 0,
+      failedRuns: 0
+    })
+
+    console.log('[DiscordScheduledMessages] Cron criado DESLIGADO (10:00 Lisboa, diário) — ligar manualmente na UI quando a feature for activada')
+  }
+
   async initializeScheduler(): Promise<void> {
     console.log('🚀 Inicializando scheduler...')
 
@@ -731,6 +767,7 @@ const job = await CronJobConfig.create({
     await this.ensureAchievementEvaluationJob()
     await this.ensureRenewalAcSyncJob()
     await this.ensureDiscordRolesSyncJob()
+    await this.ensureDiscordScheduledMessagesJob()
 
     // Carregar todos os jobs ativos
     const activeJobs = await CronJobConfig.getActiveJobs()
@@ -907,6 +944,20 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
         updated: report.upserted,
         errors: 0,
         skipped: report.unknownNames.length
+      }
+
+    } else if (job.name.includes(DISCORD_SCHEDULED_MESSAGES_JOB_NAME)) {
+      console.log('Executando: DiscordScheduledMessages (mensagens agendadas de renovação)')
+      const { runScheduledMessagesJob } = await import('../renewal/discordScheduledMessages.service')
+      const report = await runScheduledMessagesJob()
+      result = {
+        success: true,
+        total: report.checked,
+        inserted: report.sent,
+        updated: 0,
+        errors: 0,
+        skipped: report.skipped.length,
+        errorMessage: report.skipped.map((s) => `${s.rule}: ${s.reason}`).join(' | ') || undefined
       }
 
     } else if (job.name.includes(DISCORD_ROLES_SYNC_JOB_NAME)) {
