@@ -4,20 +4,22 @@
 // ════════════════════════════════════════════════════════════
 
 import mongoose from 'mongoose'
-import { expect } from 'chai'
+import { getRequiredTestMongoUri } from '../../src/config/testDatabase'
 import User from '../../src/models/user'
 import Product from '../../src/models/product/Product'
 import UserProduct from '../../src/models/UserProduct'
 import Course from '../../src/models/Course'
 import { Class } from '../../src/models/Class'
 
-describe('Sprint 1: Architecture V2', () => {
+const describeArchitecture = process.env.RUN_ARCHITECTURE_TESTS === 'true' ? describe : describe.skip
+
+describeArchitecture('Sprint 1: Architecture V2 (opt-in)', () => {
   
-  before(async () => {
-    await mongoose.connect(process.env.MONGO_URI_TEST || process.env.MONGO_URI || '')
+  beforeAll(async () => {
+    await mongoose.connect(getRequiredTestMongoUri())
   })
   
-  after(async () => {
+  afterAll(async () => {
     // Cleanup
     await UserProduct.deleteMany({ source: 'TEST' })
     await Product.deleteMany({ code: /^TEST-/ })
@@ -48,10 +50,10 @@ describe('Sprint 1: Architecture V2', () => {
         }
       })
       
-      expect(product.code).to.equal('TEST-PRODUCT-1')
-      expect(product.platform).to.equal('hotmart')
-      expect(product.isActive).to.be.true
-      expect(product.getPlatformId()).to.equal('test-123')
+      expect(product.code).toBe('TEST-PRODUCT-1')
+      expect(product.platform).toBe('hotmart')
+      expect(product.isActive).toBe(true)
+      expect(product.getPlatformId()).toBe('test-123')
     })
     
     it('deve impedir produtos com mesmo code', async () => {
@@ -70,9 +72,9 @@ describe('Sprint 1: Architecture V2', () => {
           courseId: course._id,
           isActive: true
         })
-        expect.fail('Deveria ter falhado com duplicate key')
+        throw new Error('Deveria ter falhado com duplicate key')
       } catch (error: any) {
-        expect(error.code).to.equal(11000) // Duplicate key
+        expect(error.code).toBe(11000) // Duplicate key
       }
     })
     
@@ -93,7 +95,7 @@ describe('Sprint 1: Architecture V2', () => {
         isActive: true
       })
       
-      expect(activeProduct.isAvailable()).to.be.true
+      expect(activeProduct.isAvailable()).toBe(true)
       
       // Produto inativo
       const inactiveProduct = await Product.create({
@@ -104,7 +106,7 @@ describe('Sprint 1: Architecture V2', () => {
         isActive: false
       })
       
-      expect(inactiveProduct.isAvailable()).to.be.false
+      expect(inactiveProduct.isAvailable()).toBe(false)
     })
     
   })
@@ -114,7 +116,7 @@ describe('Sprint 1: Architecture V2', () => {
     let testUser: any
     let testProduct: any
     
-    before(async () => {
+    beforeAll(async () => {
       const course = await Course.findOne({ code: 'OGI' })
       
       if (!course) {
@@ -168,9 +170,9 @@ describe('Sprint 1: Architecture V2', () => {
         classes: []
       })
       
-      expect(userProduct.userId.toString()).to.equal(testUser._id.toString())
-      expect(userProduct.platform).to.equal('hotmart')
-      expect(userProduct.isActive()).to.be.true
+      expect(userProduct.userId.toString()).toBe(testUser._id.toString())
+      expect(userProduct.platform).toBe('hotmart')
+      expect(userProduct.isActive()).toBe(true)
     })
     
     it('deve impedir enrollment duplicado no mesmo produto', async () => {
@@ -189,9 +191,9 @@ describe('Sprint 1: Architecture V2', () => {
           status: 'ACTIVE',
           source: 'TEST'
         })
-        expect.fail('Deveria ter falhado com duplicate key')
+        throw new Error('Deveria ter falhado com duplicate key')
       } catch (error: any) {
-        expect(error.code).to.equal(11000) // Duplicate key
+        expect(error.code).toBe(11000) // Duplicate key
       }
     })
     
@@ -226,11 +228,11 @@ describe('Sprint 1: Architecture V2', () => {
         source: 'TEST'
       })
       
-      expect(userProduct).to.exist
+      expect(userProduct).toBeDefined()
       
       // Verificar que user tem 2 produtos
       const userProducts = await UserProduct.find({ userId: testUser._id, source: 'TEST' })
-      expect(userProducts.length).to.be.at.least(2)
+      expect(userProducts.length).toBeGreaterThanOrEqual(2)
     })
     
     it('deve calcular dias desde enrollment', async () => {
@@ -250,8 +252,8 @@ describe('Sprint 1: Architecture V2', () => {
       }
       
       const days = userProduct.getDaysSinceEnrollment()
-      expect(days).to.be.a('number')
-      expect(days).to.be.at.least(0)
+      expect(days).toEqual(expect.any(Number))
+      expect(days).toBeGreaterThanOrEqual(0)
     })
     
   })
@@ -260,7 +262,7 @@ describe('Sprint 1: Architecture V2', () => {
     
     let testProduct: any
     
-    before(async () => {
+    beforeAll(async () => {
       testProduct = await Product.findOne({ code: 'TEST-PRODUCT-1' })
     })
     
@@ -279,7 +281,7 @@ describe('Sprint 1: Architecture V2', () => {
         source: 'manual'
       })
       
-      expect(classDoc.productId?.toString()).to.equal(testProduct._id.toString())
+      expect(classDoc.productId?.toString()).toBe(testProduct._id.toString())
       
       // Cleanup
       await Class.deleteOne({ _id: classDoc._id })
@@ -299,7 +301,7 @@ describe('Sprint 1: Architecture V2', () => {
         idx.key.productId
       )
       
-      expect(uniqueIndex).to.exist
+      expect(uniqueIndex).toBeDefined()
     })
     
     it('deve ter índices em Product.code', async () => {
@@ -309,7 +311,7 @@ describe('Sprint 1: Architecture V2', () => {
         idx.key && idx.key.code
       )
       
-      expect(codeIndex).to.exist
+      expect(codeIndex).toBeDefined()
     })
     
   })

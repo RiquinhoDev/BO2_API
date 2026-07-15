@@ -14,6 +14,7 @@ build/
 .vitest/
 coverage/
 storybook-static/
+.cache/
 
 # ========================
 # 📄 Logs
@@ -47,6 +48,7 @@ snapshots/
 .env
 .env.*
 !.env.example
+!.env.test
 
 # ========================
 # 💻 IDEs e SO
