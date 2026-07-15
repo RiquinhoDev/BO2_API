@@ -5,6 +5,7 @@ import { deflateRawSync } from 'node:zlib'
 import ExcelJS from 'exceljs'
 import request from 'supertest'
 import { createApp } from '../../src/app'
+import { createErrorHandling, type ErrorLogEvent } from '../../src/security/errorHandling'
 import {
   MAX_USERS_IMPORT_BYTES,
   MAX_USERS_IMPORT_UNCOMPRESSED_BYTES,
@@ -13,8 +14,13 @@ import {
   withUploadedFileCleanup,
 } from '../../src/security/usersImportUpload'
 
-function buildUploadApp(uploadDirectory: string) {
+function buildUploadApp(uploadDirectory: string, events: ErrorLogEvent[] = []) {
   return createApp({
+    createErrorHandling: () =>
+      createErrorHandling({
+        generateCorrelationId: () => 'upload-correlation-id',
+        logError: (event) => events.push(event),
+      }),
     registerRoutes: (app) => {
       app.get('/health', (_req, res) => res.status(204).end())
       app.post(
@@ -30,9 +36,10 @@ function buildUploadApp(uploadDirectory: string) {
 
 test('rejeita ficheiro acima do limite com 413 e remove temporarios', async () => {
   const uploadDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'bo2-upload-'))
+  const events: ErrorLogEvent[] = []
 
   try {
-    const response = await request(buildUploadApp(uploadDirectory))
+    const response = await request(buildUploadApp(uploadDirectory, events))
       .post('/api/users/syncDiscordAndHotmart?__bo2_offline_loopback=1')
       .attach('file', Buffer.alloc(MAX_USERS_IMPORT_BYTES + 1), {
         filename: 'demasiado-grande.xlsx',
@@ -40,6 +47,13 @@ test('rejeita ficheiro acima do limite com 413 e remove temporarios', async () =
       })
 
     expect(response.status).toBe(413)
+    expect(response.body).toEqual({
+      success: false,
+      code: 'UPLOAD_TOO_LARGE',
+      message: 'Ficheiro demasiado grande',
+      correlationId: 'upload-correlation-id',
+    })
+    expect(events[0]?.detail).toBe('File too large')
     expect(fs.readdirSync(uploadDirectory)).toEqual([])
   } finally {
     fs.rmSync(uploadDirectory, { recursive: true, force: true })
@@ -132,7 +146,8 @@ test('rejeita MIME falso mesmo quando o conteúdo é XLSX válido', async () => 
 
 test('rejeita XLSX malformado com 400 sem derrubar o processo', async () => {
   const uploadDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'bo2-upload-'))
-  const app = buildUploadApp(uploadDirectory)
+  const events: ErrorLogEvent[] = []
+  const app = buildUploadApp(uploadDirectory, events)
 
   try {
     const response = await request(app)
@@ -143,6 +158,20 @@ test('rejeita XLSX malformado com 400 sem derrubar o processo', async () => {
       })
 
     expect(response.status).toBe(400)
+    expect(response.body).toEqual({
+      success: false,
+      code: 'INVALID_UPLOAD',
+      message: 'Ficheiro inválido',
+      correlationId: 'upload-correlation-id',
+    })
+    expect(events[0]).toEqual({
+      correlationId: 'upload-correlation-id',
+      code: 'INVALID_UPLOAD',
+      status: 400,
+      method: 'POST',
+      route: '/api/users/syncDiscordAndHotmart',
+      detail: 'ZIP inválido',
+    })
     expect(fs.readdirSync(uploadDirectory)).toEqual([])
     await request(app).get('/health?__bo2_offline_loopback=1').expect(204)
   } finally {

@@ -4,6 +4,7 @@ import { inflateRawSync } from 'node:zlib'
 import type { RequestHandler } from 'express'
 import ExcelJS from 'exceljs'
 import multer from 'multer'
+import { HttpError } from './errorHandling'
 
 export const MAX_USERS_IMPORT_BYTES = 5 * 1024 * 1024
 export const MAX_USERS_IMPORT_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
@@ -132,6 +133,26 @@ export async function removeUploadedFile(file?: Express.Multer.File): Promise<vo
   if (file?.path) await fs.promises.rm(file.path, { force: true })
 }
 
+async function forwardUploadError(
+  file: Express.Multer.File | undefined,
+  next: Parameters<RequestHandler>[2],
+  error: HttpError,
+): Promise<void> {
+  try {
+    await removeUploadedFile(file)
+    next(error)
+  } catch (cleanupError) {
+    next(
+      new HttpError({
+        status: 500,
+        code: 'UPLOAD_CLEANUP_FAILED',
+        publicMessage: 'Erro interno do servidor',
+        cause: cleanupError,
+      }),
+    )
+  }
+}
+
 export async function withUploadedFileCleanup<T>(
   file: Express.Multer.File,
   processFile: (filePath: string) => Promise<T>,
@@ -155,23 +176,44 @@ export function createUsersImportUpload(
   return (req, res, next) => {
     upload(req, res, (error) => {
       if (!error) {
-        if (!req.file) return next()
+        if (!req.file) {
+          next(
+            new HttpError({
+              status: 400,
+              code: 'UPLOAD_FILE_REQUIRED',
+              publicMessage: 'Nenhum ficheiro carregado',
+            }),
+          )
+          return
+        }
         void validateUsersImportFile(req.file)
           .then(() => next())
-          .catch(async () => {
-            await removeUploadedFile(req.file)
-            res.status(400).json({ message: 'Ficheiro inválido' })
-          })
+          .catch((validationError) =>
+            forwardUploadError(
+              req.file,
+              next,
+              new HttpError({
+                status: 400,
+                code: 'INVALID_UPLOAD',
+                publicMessage: 'Ficheiro inválido',
+                cause: validationError,
+              }),
+            ),
+          )
         return
       }
 
-      void removeUploadedFile(req.file).then(() => {
-        if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
-          res.status(413).json({ message: 'Ficheiro demasiado grande' })
-          return
-        }
-        res.status(400).json({ message: 'Upload inválido' })
-      })
+      const tooLarge = error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE'
+      void forwardUploadError(
+        req.file,
+        next,
+        new HttpError({
+          status: tooLarge ? 413 : 400,
+          code: tooLarge ? 'UPLOAD_TOO_LARGE' : 'INVALID_UPLOAD',
+          publicMessage: tooLarge ? 'Ficheiro demasiado grande' : 'Upload inválido',
+          cause: error,
+        }),
+      )
     })
   }
 }

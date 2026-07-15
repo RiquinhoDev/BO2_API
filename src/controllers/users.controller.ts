@@ -1,5 +1,5 @@
 // src/controllers/users.controller.ts - PARTE 1/3
-import { Request, RequestHandler, Response } from "express"
+import { NextFunction, Request, RequestHandler, Response } from "express"
 import User from "../models/user"
 import IdsDiferentes from "../models/IdsDiferentes"
 import UnmatchedUser from "../models/UnmatchedUser"
@@ -14,6 +14,7 @@ import { UserProduct } from "../models"
 import Product from "../models/product/Product"
 import { readImportedUsers } from "../services/importedUsersWorkbook"
 import { withUploadedFileCleanup } from "../security/usersImportUpload"
+import { HttpError } from "../security/errorHandling"
 
 
 
@@ -1963,24 +1964,35 @@ export const bulkDeleteUnmatchedUsers = async (req: Request, res: Response): Pro
  * POST /api/users/sync-csv
  * Sincronizar CSV Discord + Hotmart (mantido)
  */
-export const syncDiscordAndHotmart = async (req: Request, res: Response): Promise<void> => {
+export const syncDiscordAndHotmart = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   if (!req.file) {
-    res.status(400).json({ message: "Nenhum ficheiro carregado" })
+    next(
+      new HttpError({
+        status: 400,
+        code: 'UPLOAD_FILE_REQUIRED',
+        publicMessage: 'Nenhum ficheiro carregado',
+      }),
+    )
     return
   }
 
   const uploadedFile = req.file
-  await withUploadedFileCleanup(uploadedFile, async (filePath) => {
-    const syncRecord = new SyncHistory({
-      type: "csv",
-      user: req.body.user || "system",
-      metadata: { fileName: uploadedFile.originalname },
-      status: "running"
-    })
-    await syncRecord.save()
+  try {
+    await withUploadedFileCleanup(uploadedFile, async (filePath) => {
+      const syncRecord = new SyncHistory({
+        type: "csv",
+        user: req.body.user || "system",
+        metadata: { fileName: uploadedFile.originalname },
+        status: "running"
+      })
+      await syncRecord.save()
 
-    try {
-      const data = await readImportedUsers(filePath)
+      try {
+        const data = await readImportedUsers(filePath)
 
       let added = 0, unmatched = 0, errors = 0
 
@@ -2035,16 +2047,32 @@ export const syncDiscordAndHotmart = async (req: Request, res: Response): Promis
         stats: { added, unmatched, errors }
       })
 
-    } catch (error: any) {
-      await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-        status: "failed",
-        completedAt: new Date(),
-        errorDetails: [error.message]
-      })
+      } catch (error: any) {
+        await SyncHistory.findByIdAndUpdate(syncRecord._id, {
+          status: "failed",
+          completedAt: new Date()
+        })
 
-      res.status(500).json({ message: "Erro na sincronização", details: error.message })
-    }
-  })
+        throw new HttpError({
+          status: 500,
+          code: 'USER_IMPORT_FAILED',
+          publicMessage: 'Erro na sincronização',
+          cause: error,
+        })
+      }
+    })
+  } catch (error) {
+    next(
+      error instanceof HttpError
+        ? error
+        : new HttpError({
+            status: 500,
+            code: 'USER_IMPORT_FAILED',
+            publicMessage: 'Erro na sincronização',
+            cause: error,
+          }),
+    )
+  }
 }
     
 /**
