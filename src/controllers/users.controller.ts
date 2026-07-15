@@ -15,6 +15,7 @@ import Product from "../models/product/Product"
 import { readImportedUsers } from "../services/importedUsersWorkbook"
 import { withUploadedFileCleanup } from "../security/usersImportUpload"
 import { HttpError } from "../security/errorHandling"
+import { ensureUsersV2Products } from "../contracts/usersV2"
 
 
 
@@ -2884,7 +2885,7 @@ export const getUsers: RequestHandler = async (req, res) => {
 
       res.json({
         success: true,
-        data: usersWithProduct,
+        data: ensureUsersV2Products(usersWithProduct),
         pagination: { total: usersWithProduct.length },
         filters: { productId },
       })
@@ -3174,7 +3175,7 @@ export const getUsers: RequestHandler = async (req, res) => {
 
     res.json({
       success: true,
-      data: paginatedUsers,
+      data: ensureUsersV2Products(paginatedUsers),
       pagination: {
         total: totalCount,
         totalPages: Math.ceil(totalCount / limitNum),
