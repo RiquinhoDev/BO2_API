@@ -42,6 +42,7 @@ test('loadConfig valida e tipa porta, JWT e Redis explicito', () => {
     mongoUri: 'mongodb://database.internal/bo2',
     jwtSecret: STRONG_JWT_SECRET,
     oldApiJwtSecret: 'old-api-test-secret-with-at-least-32-characters',
+    enableDebugRoutes: false,
     port: 4321,
     redis: {
       host: 'redis.internal',
@@ -50,6 +51,26 @@ test('loadConfig valida e tipa porta, JWT e Redis explicito', () => {
       password: 'secret',
     },
   })
+})
+
+test('debug routes exigem flag explicita e sao proibidas em producao', () => {
+  expect(
+    loadConfig({
+      NODE_ENV: 'development',
+      MONGO_URI: 'mongodb://database.internal/bo2',
+      JWT_SECRET: STRONG_JWT_SECRET,
+      ENABLE_DEBUG_ROUTES: 'true',
+    }).enableDebugRoutes,
+  ).toBe(true)
+
+  expect(() =>
+    loadConfig({
+      NODE_ENV: 'production',
+      MONGO_URI: 'mongodb://database.internal/bo2',
+      JWT_SECRET: STRONG_JWT_SECRET,
+      ENABLE_DEBUG_ROUTES: 'true',
+    }),
+  ).toThrow('ENABLE_DEBUG_ROUTES')
 })
 
 test('loadConfig nao ativa Redis localhost por omissao', () => {

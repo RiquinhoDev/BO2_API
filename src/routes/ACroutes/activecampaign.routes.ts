@@ -5,6 +5,7 @@
 // =====================================================
 
 import { Router } from 'express'
+import { localDebugOnly } from '../../security/debugRoutes'
 import {
   // CRON
   testCron,
@@ -125,7 +126,7 @@ router.post('/v2/sync/:productId', syncProductTags)
 // ─────────────────────────────────────────────────────────────
 
 // GET /api/activecampaign/debug/curseduca-data
-router.get('/debug/curseduca-data', async (req, res) => {
+router.get('/debug/curseduca-data', localDebugOnly, async (req, res) => {
   try {
     const UserProduct = (await import('../../models/UserProduct')).default
     const Product = (await import('../../models/product/Product')).default

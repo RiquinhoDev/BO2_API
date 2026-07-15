@@ -1,5 +1,6 @@
 // src/routes/guru.routes.ts - Routes para integração Guru
 import { Router, RequestHandler } from 'express'
+import { localDebugOnly } from '../security/debugRoutes'
 import {
   handleGuruWebhook,
   listGuruWebhooks,
@@ -93,7 +94,7 @@ router.post('/webhook', asyncRoute(handleGuruWebhook))
  * GET /guru/debug/token
  * Endpoint de debug para verificar configuração do token
  */
-router.get('/debug/token', asyncRoute(debugToken))
+router.get('/debug/token', localDebugOnly, asyncRoute(debugToken))
 
 // ═══════════════════════════════════════════════════════════
 // SSO
