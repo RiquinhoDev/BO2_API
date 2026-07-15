@@ -82,6 +82,15 @@ describe('egress guard', () => {
 
     restore()
   })
+
+  test('marcador offline não permite um host externo', () => {
+    const restore = installEgressGuard()
+    const url = 'https://guru.example.test/students?__bo2_offline_loopback=1'
+
+    expect(() => https.request(url)).toThrow(BLOCKED_NETWORK)
+
+    restore()
+  })
 })
 
 describe('Mongo test sentinel', () => {

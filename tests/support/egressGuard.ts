@@ -4,6 +4,7 @@ const http = require('http') as typeof import('http')
 const https = require('https') as typeof import('https')
 
 const BLOCKED_MESSAGE = 'BLOQUEADO: chamada de rede real em teste'
+const LOOPBACK_MARKER = '__bo2_offline_loopback'
 
 function blockedNetworkError(url: string): Error {
   return new Error(`${BLOCKED_MESSAGE} → ${url}`)
@@ -41,6 +42,20 @@ function axiosUrl(config: { baseURL?: string; url?: string }): string {
   }
 }
 
+function isAllowedLoopback(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    const port = Number(parsed.port)
+    return (
+      (parsed.hostname === '127.0.0.1' || parsed.hostname === '[::1]') &&
+      Number.isInteger(port) &&
+      parsed.searchParams.get(LOOPBACK_MARKER) === '1'
+    )
+  } catch {
+    return false
+  }
+}
+
 export function installEgressGuard(): () => void {
   const originalHttpRequest = http.request
   const originalHttpsRequest = https.request
@@ -50,16 +65,32 @@ export function installEgressGuard(): () => void {
   const originalAxiosAdapter = axios.defaults.adapter
 
   const blockedHttpRequest = ((...args: unknown[]) => {
-    throw blockedNetworkError(requestUrl(args, 'http:'))
+    const url = requestUrl(args, 'http:')
+    if (isAllowedLoopback(url)) {
+      return (originalHttpRequest as (...requestArgs: unknown[]) => unknown)(...args)
+    }
+    throw blockedNetworkError(url)
   }) as typeof http.request
   const blockedHttpsRequest = ((...args: unknown[]) => {
-    throw blockedNetworkError(requestUrl(args, 'https:'))
+    const url = requestUrl(args, 'https:')
+    if (isAllowedLoopback(url)) {
+      return (originalHttpsRequest as (...requestArgs: unknown[]) => unknown)(...args)
+    }
+    throw blockedNetworkError(url)
   }) as typeof https.request
   const blockedHttpGet = ((...args: unknown[]) => {
-    throw blockedNetworkError(requestUrl(args, 'http:'))
+    const url = requestUrl(args, 'http:')
+    if (isAllowedLoopback(url)) {
+      return (originalHttpGet as (...requestArgs: unknown[]) => unknown)(...args)
+    }
+    throw blockedNetworkError(url)
   }) as typeof http.get
   const blockedHttpsGet = ((...args: unknown[]) => {
-    throw blockedNetworkError(requestUrl(args, 'https:'))
+    const url = requestUrl(args, 'https:')
+    if (isAllowedLoopback(url)) {
+      return (originalHttpsGet as (...requestArgs: unknown[]) => unknown)(...args)
+    }
+    throw blockedNetworkError(url)
   }) as typeof https.get
 
   http.request = blockedHttpRequest
