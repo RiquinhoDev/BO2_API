@@ -5,6 +5,7 @@ export interface AppConfig {
   mongoUri: string
   jwtSecret: string
   oldApiJwtSecret?: string
+  acWebhookSecret: string
   enableDebugRoutes: boolean
   allowedOrigins: string[]
   port: number
@@ -22,6 +23,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   const jwtSecret = parseStrongSecret(env.JWT_SECRET, 'JWT_SECRET', true)
   const oldApiJwtSecret = parseStrongSecret(env.OLD_API_JWT_SECRET, 'OLD_API_JWT_SECRET', false)
+  const acWebhookSecret = parseStrongSecret(env.AC_WEBHOOK_SECRET, 'AC_WEBHOOK_SECRET', true)
   const nodeEnv = env.NODE_ENV || 'development'
   if (!['development', 'test', 'production'].includes(nodeEnv)) {
     throw new Error('CONFIG_INVÁLIDA: NODE_ENV deve ser development, test ou production')
@@ -40,6 +42,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     nodeEnv: nodeEnv as AppConfig['nodeEnv'],
     mongoUri,
     jwtSecret,
+    acWebhookSecret,
     ...(oldApiJwtSecret ? { oldApiJwtSecret } : {}),
     enableDebugRoutes,
     allowedOrigins,

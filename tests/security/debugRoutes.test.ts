@@ -6,7 +6,6 @@ import { configureDebugRoutes, localDebugOnly } from '../../src/security/debugRo
 const routes = [
   ['get', '/api/guru/debug/token'],
   ['get', '/api/activecampaign/debug/curseduca-data'],
-  ['post', '/api/webhooks/ac/test'],
   ['post', '/api/test/history/make-changes'],
 ] as const
 

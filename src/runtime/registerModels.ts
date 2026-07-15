@@ -3,6 +3,7 @@ const modelLoaders = [
   () => import('../models/acTags/ACNativeTagsSnapshot'),
   () => import('../models/acTags/CommunicationHistory'),
   () => import('../models/acTags/TagRule'),
+  () => import('../models/AcWebhookReceipt'),
   () => import('../models/Admin'),
   () => import('../models/AnalyticsCache'),
   () => import('../models/ClarezaCarteiraData'),
