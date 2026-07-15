@@ -286,7 +286,7 @@ ProductProfileSchema.statics = {
 /**
  * Exportar model
  */
-const ProductProfile = mongoose.models.ProductProfile || 
+const ProductProfile: mongoose.Model<IProductProfile> = mongoose.models.ProductProfile ||
   mongoose.model<IProductProfile>('ProductProfile', ProductProfileSchema)
 
 export default ProductProfile

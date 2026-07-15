@@ -425,6 +425,6 @@ UserProductSchema.methods.getDaysSinceEnrollment = function(): number {
 // EXPORT
 // ─────────────────────────────────────────────────────────────
 
-const UserProduct = mongoose.models.UserProduct || mongoose.model<IUserProduct>('UserProduct', UserProductSchema)
+const UserProduct: mongoose.Model<IUserProduct> = mongoose.models.UserProduct || mongoose.model<IUserProduct>('UserProduct', UserProductSchema)
 
 export default UserProduct

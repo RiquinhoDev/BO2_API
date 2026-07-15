@@ -231,7 +231,7 @@ ClassSchema.pre('save', function(next) {
   next()
 })
 
-export const Class = mongoose.models.Class || mongoose.model<IClass>('Class', ClassSchema)
+export const Class: mongoose.Model<IClass> = mongoose.models.Class || mongoose.model<IClass>('Class', ClassSchema)
 
 // ===== MODELO DE ESTUDANTE =====
 
@@ -405,7 +405,7 @@ ClassHistorySchema.index({ studentEmail: 1, dateMoved: -1 })
 ClassHistorySchema.index({ dateMoved: -1 })
 ClassHistorySchema.index({ action: 1, dateMoved: -1 })
 
-export const ClassHistory = mongoose.models.ClassHistory || mongoose.model<IClassHistory>('ClassHistory', ClassHistorySchema)
+export const ClassHistory: mongoose.Model<IClassHistory> = mongoose.models.ClassHistory || mongoose.model<IClassHistory>('ClassHistory', ClassHistorySchema)
 
 // ===== MODELO DE LISTAS DE INATIVAÇÃO =====
 

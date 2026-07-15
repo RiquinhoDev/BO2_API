@@ -56,7 +56,7 @@ studentClassHistorySchema.index({ studentId: 1, dateMoved: -1 })
 studentClassHistorySchema.index({ classId: 1, dateMoved: -1 })
 
 // ✅ FIX: Verificar se o modelo já existe antes de criar
-const StudentClassHistory = mongoose.models.StudentClassHistory || 
+const StudentClassHistory: mongoose.Model<IStudentClassHistory> = mongoose.models.StudentClassHistory ||
   mongoose.model<IStudentClassHistory>('StudentClassHistory', studentClassHistorySchema)
 
 export default StudentClassHistory

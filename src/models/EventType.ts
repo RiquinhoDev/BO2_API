@@ -30,6 +30,6 @@ const EventTypeSchema = new Schema<IEventType>({
   collection: 'eventtypes',
 })
 
-const EventType = mongoose.models.EventType || mongoose.model<IEventType>('EventType', EventTypeSchema)
+const EventType: mongoose.Model<IEventType> = mongoose.models.EventType || mongoose.model<IEventType>('EventType', EventTypeSchema)
 
 export default EventType

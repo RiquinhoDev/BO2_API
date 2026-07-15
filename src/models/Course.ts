@@ -134,7 +134,7 @@ CourseSchema.index({ code: 1, isActive: 1 })
 // EXPORT
 // ─────────────────────────────────────────────────────────────
 
-const Course = mongoose.models.Course || mongoose.model<ICourse>('Course', CourseSchema)
+const Course: mongoose.Model<ICourse> = mongoose.models.Course || mongoose.model<ICourse>('Course', CourseSchema)
 
 export default Course
 

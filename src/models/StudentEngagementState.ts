@@ -413,7 +413,7 @@ StudentEngagementStateSchema.pre('save', function(next) {
 /**
  * Exportar model
  */
-const StudentEngagementState = mongoose.models.StudentEngagementState || 
+const StudentEngagementState: mongoose.Model<IStudentEngagementState> = mongoose.models.StudentEngagementState ||
   mongoose.model<IStudentEngagementState>(
     'StudentEngagementState',
     StudentEngagementStateSchema

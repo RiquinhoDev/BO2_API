@@ -127,9 +127,9 @@ renewalAcChangeSchema.index({ email: 1, action: 1, status: 1 })
 // dedupe: a mesma origem não gera a mesma acção duas vezes enquanto viva
 renewalAcChangeSchema.index({ sourceRef: 1, action: 1 })
 
-// Cast explícito: o padrão `models.X || model(...)` produz um union type
+// Tipo explícito: o padrão `models.X || model(...)` produz um union type
 // que o TS não considera "callable" (problema sistémico do projecto).
-const RenewalAcChange = (mongoose.models.RenewalAcChange ||
-  mongoose.model<IRenewalAcChange>('RenewalAcChange', renewalAcChangeSchema)) as mongoose.Model<IRenewalAcChange>
+const RenewalAcChange: mongoose.Model<IRenewalAcChange> = mongoose.models.RenewalAcChange ||
+  mongoose.model<IRenewalAcChange>('RenewalAcChange', renewalAcChangeSchema)
 
 export default RenewalAcChange

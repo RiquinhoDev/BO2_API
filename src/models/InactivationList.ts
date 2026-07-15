@@ -168,4 +168,6 @@ inactivationListSchema.statics.findRevertible = function() {
   return this.find({ status: 'COMPLETED' })
 }
 
-export default mongoose.models.InactivationList || mongoose.model<IInactivationList>('InactivationList', inactivationListSchema)
+const InactivationList: mongoose.Model<IInactivationList> = mongoose.models.InactivationList || mongoose.model<IInactivationList>('InactivationList', inactivationListSchema)
+
+export default InactivationList

@@ -304,5 +304,5 @@ ClassAnalyticsSchema.virtual('retentionRate').get(function() {
   return Math.round((recent / this.totalStudents) * 100)
 })
 
-export const ClassAnalytics = mongoose.models.ClassAnalytics || 
+export const ClassAnalytics: mongoose.Model<IClassAnalytics> = mongoose.models.ClassAnalytics ||
   mongoose.model<IClassAnalytics>('ClassAnalytics', ClassAnalyticsSchema)
