@@ -17,7 +17,7 @@ function normalizeOrigin(value: string): string {
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error()
     return url.origin
   } catch {
-    throw new Error(`CONFIG_INVÃLIDA: ALLOWED_ORIGINS contÃ©m origem invÃ¡lida: ${value}`)
+    throw new Error(`CONFIG_INVÁLIDA: ALLOWED_ORIGINS contém origem inválida: ${value}`)
   }
 }
 

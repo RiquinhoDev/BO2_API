@@ -29,7 +29,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   const enableDebugRoutes = parseBooleanFlag(env.ENABLE_DEBUG_ROUTES, 'ENABLE_DEBUG_ROUTES')
   if (nodeEnv === 'production' && enableDebugRoutes) {
-    throw new Error('CONFIG_INVÃLIDA: ENABLE_DEBUG_ROUTES Ã© proibida em produÃ§Ã£o')
+    throw new Error('CONFIG_INVÁLIDA: ENABLE_DEBUG_ROUTES é proibida em produção')
   }
   const allowedOrigins = buildAllowedOrigins(env.ALLOWED_ORIGINS)
 
@@ -51,7 +51,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 function parseBooleanFlag(value: string | undefined, name: string): boolean {
   if (value === undefined || value.trim() === '' || value === 'false') return false
   if (value === 'true') return true
-  throw new Error(`CONFIG_INVÃLIDA: ${name} deve ser true ou false`)
+  throw new Error(`CONFIG_INVÁLIDA: ${name} deve ser true ou false`)
 }
 
 function parseStrongSecret(value: string | undefined, name: string, required: true): string

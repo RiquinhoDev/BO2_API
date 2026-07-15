@@ -29,6 +29,12 @@ RUN npm ci --omit=dev
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
+# Prepare runtime-writable paths before dropping root privileges
+RUN mkdir -p /app/uploads /logs \
+    && chown -R node:node /app /logs
+
+USER node
+
 # Expose port (Railway will override with PORT env var)
 EXPOSE 3000
 
