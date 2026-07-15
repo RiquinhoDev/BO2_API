@@ -6,11 +6,17 @@ import {
   createHttpPerimeter,
   type HttpPerimeterLimits,
 } from '../../src/security/httpPerimeter'
+import { createErrorHandling } from '../../src/security/errorHandling'
 
 const marker = { __bo2_offline_loopback: '1' }
 
 function buildApp(limits: Partial<HttpPerimeterLimits> = {}, onRateLimit = jest.fn()) {
   return createApp({
+    createErrorHandling: () =>
+      createErrorHandling({
+        generateCorrelationId: () => 'http-perimeter-correlation-id',
+        logError: () => undefined,
+      }),
     createHttpPerimeter: () => createHttpPerimeter({ limits, onRateLimit }),
     registerRoutes: (app) => {
       app.get('/probe', (_req, res) => res.sendStatus(204))
@@ -97,11 +103,18 @@ test('cada app recebe stores de rate limit independentes', async () => {
 })
 
 test('body JSON acima de 100 KB devolve 413', async () => {
-  await request(buildApp())
+  const response = await request(buildApp())
     .post('/echo')
     .query(marker)
     .send({ payload: 'x'.repeat(101 * 1024) })
     .expect(413)
+
+  expect(response.body).toEqual({
+    success: false,
+    code: 'PAYLOAD_TOO_LARGE',
+    message: 'Pedido demasiado grande',
+    correlationId: 'http-perimeter-correlation-id',
+  })
 })
 
 test('limites de producao e paths pesados ficam explicitos', () => {
