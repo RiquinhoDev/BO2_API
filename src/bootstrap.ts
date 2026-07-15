@@ -46,7 +46,11 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
   await registerModels()
 
   const registerRoutes = await (options.loadRouteRegistrar ?? defaultLoadRouteRegistrar)()
-  const app = createApp({ registerRoutes, allowedOrigins: config.allowedOrigins })
+  const app = createApp({
+    registerRoutes,
+    allowedOrigins: config.allowedOrigins,
+    acWebhookSecret: config.acWebhookSecret,
+  })
 
   const startJobs = await (options.loadJobStarter ?? defaultLoadJobStarter)()
   await startJobs(config)

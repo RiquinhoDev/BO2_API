@@ -2,6 +2,7 @@ import type { Application } from 'express'
 import { bootstrap } from '../../src/bootstrap'
 
 const STRONG_JWT_SECRET = 'test-only-jwt-secret-with-at-least-32-characters'
+const STRONG_AC_WEBHOOK_SECRET = 'test-only-ac-webhook-secret-at-least-32-characters'
 
 test('bootstrap falha na config antes de carregar infraestrutura', async () => {
   const loadInfrastructure = jest.fn()
@@ -33,6 +34,7 @@ test('bootstrap respeita config -> infra -> modelos -> rotas -> jobs -> listen',
       NODE_ENV: 'test',
       MONGO_URI: 'mongodb://database.internal/bo2',
       JWT_SECRET: STRONG_JWT_SECRET,
+      AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
       PORT: '4321',
     },
     loadInfrastructure: async () => {

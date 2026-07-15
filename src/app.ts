@@ -3,6 +3,11 @@ import compression from 'compression'
 import cors from 'cors'
 import { buildAllowedOrigins, isOriginAllowed } from './security/cors'
 import {
+  AC_WEBHOOK_PATHS,
+  createAcWebhookSecurity,
+  type AcWebhookReplayStore,
+} from './security/acWebhookSecurity'
+import {
   HEAVY_OPERATION_PATHS,
   LOGIN_PATHS,
   WEBHOOK_PATHS,
@@ -19,6 +24,8 @@ export interface CreateAppDependencies {
   allowedOrigins?: readonly string[]
   createHttpPerimeter?: () => HttpPerimeter
   createErrorHandling?: () => ErrorHandling
+  acWebhookSecret?: string
+  acWebhookReplayStore?: AcWebhookReplayStore
 }
 
 export function createApp(_deps: CreateAppDependencies): Application {
@@ -26,6 +33,10 @@ export function createApp(_deps: CreateAppDependencies): Application {
   const allowedOrigins = _deps.allowedOrigins ?? buildAllowedOrigins()
   const httpPerimeter = (_deps.createHttpPerimeter ?? createHttpPerimeter)()
   const errorHandling = (_deps.createErrorHandling ?? createErrorHandling)()
+  const acWebhookSecurity = createAcWebhookSecurity({
+    secret: _deps.acWebhookSecret,
+    replayStore: _deps.acWebhookReplayStore,
+  })
   app.set('trust proxy', 1)
   app.use(errorHandling.correlationId)
   app.use(httpPerimeter.helmet)
@@ -44,6 +55,9 @@ export function createApp(_deps: CreateAppDependencies): Application {
   app.use(LOGIN_PATHS, httpPerimeter.login)
   app.use(WEBHOOK_PATHS, httpPerimeter.webhook)
   app.use(HEAVY_OPERATION_PATHS, httpPerimeter.heavy)
+  app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.jsonParser)
+  app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.urlencodedParser)
+  app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.replayGuard)
   app.use(express.json({ limit: '100kb' }))
   _deps.registerRoutes(app)
   app.use(errorHandling.handler)

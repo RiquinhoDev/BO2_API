@@ -1784,10 +1784,6 @@
     "path": "/api/webhooks/ac/link-clicked"
   },
   {
-    "method": "POST",
-    "path": "/api/webhooks/ac/test"
-  },
-  {
     "method": "GET",
     "path": "/cron-tags/config"
   },
