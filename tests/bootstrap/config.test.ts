@@ -31,6 +31,7 @@ test('loadConfig valida e tipa porta, JWT e Redis explicito', () => {
       MONGO_URI: 'mongodb://database.internal/bo2',
       JWT_SECRET: STRONG_JWT_SECRET,
       OLD_API_JWT_SECRET: 'old-api-test-secret-with-at-least-32-characters',
+      ALLOWED_ORIGINS: 'https://extra.example/app',
       PORT: '4321',
       REDIS_HOST: 'redis.internal',
       REDIS_PORT: '6380',
@@ -43,6 +44,11 @@ test('loadConfig valida e tipa porta, JWT e Redis explicito', () => {
     jwtSecret: STRONG_JWT_SECRET,
     oldApiJwtSecret: 'old-api-test-secret-with-at-least-32-characters',
     enableDebugRoutes: false,
+    allowedOrigins: expect.arrayContaining([
+      'https://extra.example',
+      'https://backoffice.serriquinho.com',
+      'http://localhost:3000',
+    ]),
     port: 4321,
     redis: {
       host: 'redis.internal',

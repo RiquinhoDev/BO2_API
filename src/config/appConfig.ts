@@ -1,9 +1,12 @@
+import { buildAllowedOrigins } from '../security/cors'
+
 export interface AppConfig {
   nodeEnv: 'development' | 'test' | 'production'
   mongoUri: string
   jwtSecret: string
   oldApiJwtSecret?: string
   enableDebugRoutes: boolean
+  allowedOrigins: string[]
   port: number
   redis?: {
     host: string
@@ -28,6 +31,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (nodeEnv === 'production' && enableDebugRoutes) {
     throw new Error('CONFIG_INVÃLIDA: ENABLE_DEBUG_ROUTES Ã© proibida em produÃ§Ã£o')
   }
+  const allowedOrigins = buildAllowedOrigins(env.ALLOWED_ORIGINS)
 
   const port = parsePort(env.PORT, 3001, 'PORT')
   const redis = parseRedisConfig(env)
@@ -38,6 +42,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     jwtSecret,
     ...(oldApiJwtSecret ? { oldApiJwtSecret } : {}),
     enableDebugRoutes,
+    allowedOrigins,
     port,
     ...(redis ? { redis } : {}),
   }
