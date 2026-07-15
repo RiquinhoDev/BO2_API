@@ -1,6 +1,7 @@
 import type { Application } from 'express'
 import { createApp, type CreateAppDependencies } from './app'
 import { loadConfig, type AppConfig } from './config/appConfig'
+import { configureJwt } from './security/jwt'
 
 export interface Infrastructure {
   connectMongo: (config: AppConfig) => Promise<void>
@@ -34,6 +35,7 @@ const defaultLoadListener = async (): Promise<AppListener> =>
 
 export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown> {
   const config = loadConfig(options.env)
+  configureJwt(config)
   const infrastructure = await (options.loadInfrastructure ?? defaultLoadInfrastructure)()
   await infrastructure.connectMongo(config)
   await infrastructure.connectRedis(config)

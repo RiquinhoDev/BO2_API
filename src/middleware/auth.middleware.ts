@@ -1,8 +1,7 @@
 // src/middleware/auth.middleware.ts
 import { Request, Response, NextFunction } from "express"
 import jwt from "jsonwebtoken"
-
-const JWT_SECRET = process.env.JWT_SECRET || "riquinho-secret-key-2024"
+import { verifyAppToken } from '../security/jwt'
 
 // Extend Express Request type to include user
 declare global {
@@ -42,7 +41,7 @@ export const authenticate = async (
     console.log('🔑 Token extraído:', `${token.substring(0, 20)}...`)
 
     // Verify token
-    const decoded = jwt.verify(token, JWT_SECRET) as {
+    const decoded = verifyAppToken(token) as {
       id: string
       email: string
       role: string

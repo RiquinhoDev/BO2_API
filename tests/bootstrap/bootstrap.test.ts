@@ -1,19 +1,30 @@
 import type { Application } from 'express'
 import { bootstrap } from '../../src/bootstrap'
 
+const STRONG_JWT_SECRET = 'test-only-jwt-secret-with-at-least-32-characters'
+
 test('bootstrap falha na config antes de carregar infraestrutura', async () => {
   const loadInfrastructure = jest.fn()
 
   await expect(
-    bootstrap({
-      env: { NODE_ENV: 'test' },
-      loadInfrastructure,
-    }),
-  ).rejects.toThrow('CONFIG_INVÁLIDA: MONGO_URI é obrigatória')
+    bootstrap({ env: { NODE_ENV: 'test' }, loadInfrastructure }),
+  ).rejects.toThrow('MONGO_URI')
   expect(loadInfrastructure).not.toHaveBeenCalled()
 })
 
-test('bootstrap respeita a ordem config → infra → modelos → rotas → jobs → listen', async () => {
+test('bootstrap aborta sem JWT_SECRET antes de carregar infraestrutura', async () => {
+  const loadInfrastructure = jest.fn()
+
+  await expect(
+    bootstrap({
+      env: { NODE_ENV: 'test', MONGO_URI: 'mongodb://database.internal/bo2' },
+      loadInfrastructure,
+    }),
+  ).rejects.toThrow('JWT_SECRET')
+  expect(loadInfrastructure).not.toHaveBeenCalled()
+})
+
+test('bootstrap respeita config -> infra -> modelos -> rotas -> jobs -> listen', async () => {
   const events: string[] = []
   const server = { close: jest.fn() }
 
@@ -21,6 +32,7 @@ test('bootstrap respeita a ordem config → infra → modelos → rotas → jobs
     env: {
       NODE_ENV: 'test',
       MONGO_URI: 'mongodb://database.internal/bo2',
+      JWT_SECRET: STRONG_JWT_SECRET,
       PORT: '4321',
     },
     loadInfrastructure: async () => {
