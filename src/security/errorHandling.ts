@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { ErrorRequestHandler, RequestHandler } from 'express'
+import { redactSensitiveData } from '../observability/redaction'
+import { logHttpError } from '../utils/logger'
 
 export interface HttpErrorOptions {
   status: number
@@ -44,19 +46,6 @@ export interface ErrorHandlingOptions {
 }
 
 const SAFE_REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
-const PLAIN_EMAIL = /[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g
-const ENCODED_EMAIL = /[\w.+-]+%40[\w.-]+(?:%2e|\.)[A-Za-z]{2,}/gi
-const BEARER_TOKEN = /(\bBearer\s+)[^\s,;]+/gi
-const NAMED_SECRET = /\b(token|password|secret|api[_-]?key)\s*[:=]\s*[^\s,;]+/gi
-
-function redactErrorDetail(detail: string): string {
-  return detail
-    .replace(PLAIN_EMAIL, '[REDACTED_EMAIL]')
-    .replace(ENCODED_EMAIL, '[REDACTED_EMAIL]')
-    .replace(BEARER_TOKEN, '$1[REDACTED]')
-    .replace(NAMED_SECRET, '$1=[REDACTED]')
-    .slice(0, 2_048)
-}
 
 function getErrorDetail(error: unknown): string {
   if (error instanceof HttpError && error.internalCause instanceof Error) {
@@ -75,6 +64,13 @@ function classifyError(error: unknown): Pick<HttpErrorOptions, 'status' | 'code'
       publicMessage: 'Pedido demasiado grande',
     }
   }
+  if (error instanceof Error && 'type' in error && error.type === 'entity.parse.failed') {
+    return {
+      status: 400,
+      code: 'INVALID_JSON',
+      publicMessage: 'JSON inválido',
+    }
+  }
   return {
     status: 500,
     code: 'INTERNAL_ERROR',
@@ -84,7 +80,7 @@ function classifyError(error: unknown): Pick<HttpErrorOptions, 'status' | 'code'
 
 export function createErrorHandling(options: ErrorHandlingOptions = {}): ErrorHandling {
   const generateCorrelationId = options.generateCorrelationId ?? randomUUID
-  const logError = options.logError ?? ((event) => console.error('[HTTP_ERROR]', event))
+  const logError = options.logError ?? logHttpError
 
   const correlationId: RequestHandler = (req, res, next) => {
     const incoming = req.get('x-request-id')
@@ -101,14 +97,14 @@ export function createErrorHandling(options: ErrorHandlingOptions = {}): ErrorHa
     const { status, code, publicMessage: message } = classifyError(error)
 
     res.setHeader('X-Request-ID', correlation)
-    logError({
+    logError(redactSensitiveData({
       correlationId: correlation,
       code,
       status,
       method: req.method,
       route: typeof req.route?.path === 'string' ? req.route.path : '[unmatched]',
-      detail: redactErrorDetail(getErrorDetail(error)),
-    })
+      detail: getErrorDetail(error).slice(0, 2_048),
+    }))
     res.status(status).json({ success: false, code, message, correlationId: correlation })
   }
 
