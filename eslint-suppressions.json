@@ -1,0 +1,1044 @@
+{
+  "src/config/activecampaign.config.ts": {
+    "no-console": {
+      "count": 2
+    }
+  },
+  "src/controllers/acTags/acReader.controller.ts": {
+    "no-console": {
+      "count": 16
+    }
+  },
+  "src/controllers/acTags/activecampaign.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 62
+    }
+  },
+  "src/controllers/acTags/tagRule.controller.ts": {
+    "no-console": {
+      "count": 9
+    }
+  },
+  "src/controllers/acTags/tagRuleEstimate.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 12
+    }
+  },
+  "src/controllers/analytics.controller.ts": {
+    "@typescript-eslint/no-require-imports": {
+      "count": 7
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "count": 3
+    },
+    "no-console": {
+      "count": 49
+    }
+  },
+  "src/controllers/auth.controller.ts": {
+    "no-console": {
+      "count": 4
+    }
+  },
+  "src/controllers/businessAnalytics.controller.ts": {
+    "no-console": {
+      "count": 10
+    }
+  },
+  "src/controllers/clarezaController.ts": {
+    "no-console": {
+      "count": 22
+    }
+  },
+  "src/controllers/classManagement.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 3
+    },
+    "no-console": {
+      "count": 17
+    }
+  },
+  "src/controllers/classes.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 3
+    },
+    "no-console": {
+      "count": 93
+    },
+    "prefer-const": {
+      "count": 5
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/controllers/cohortAnalytics.controller.ts": {
+    "no-console": {
+      "count": 2
+    }
+  },
+  "src/controllers/course.controller.ts": {
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/controllers/cron/cronManagement.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 44
+    }
+  },
+  "src/controllers/dashboard.controller.ts": {
+    "@typescript-eslint/no-require-imports": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 36
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/controllers/dashboardQuick.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 9
+    }
+  },
+  "src/controllers/discovery.controller.ts": {
+    "no-console": {
+      "count": 5
+    }
+  },
+  "src/controllers/engagement.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 31
+    },
+    "no-useless-assignment": {
+      "count": 2
+    }
+  },
+  "src/controllers/guru.analytics.controller.ts": {
+    "no-console": {
+      "count": 36
+    }
+  },
+  "src/controllers/guru.inactivation.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 3
+    },
+    "no-console": {
+      "count": 87
+    }
+  },
+  "src/controllers/guru.snapshot.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 51
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/controllers/guru.sso.controller.ts": {
+    "no-console": {
+      "count": 14
+    }
+  },
+  "src/controllers/guru.sync.controller.ts": {
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/controllers/guru.trials.controller.ts": {
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/controllers/guru.webhook.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 19
+    }
+  },
+  "src/controllers/lessons.controller.ts": {
+    "no-console": {
+      "count": 9
+    }
+  },
+  "src/controllers/ogiCourse.controller.ts": {
+    "no-console": {
+      "count": 4
+    }
+  },
+  "src/controllers/populateHistory.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 14
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/controllers/products/product.controller.ts": {
+    "no-console": {
+      "count": 7
+    }
+  },
+  "src/controllers/products/productProfile.controller.ts": {
+    "no-console": {
+      "count": 12
+    }
+  },
+  "src/controllers/products/productSalesStats.controller.ts": {
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/controllers/products/products.controller.ts": {
+    "no-console": {
+      "count": 9
+    }
+  },
+  "src/controllers/reengagement.controller.ts": {
+    "no-console": {
+      "count": 13
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/controllers/studentHistory.controller.ts": {
+    "no-console": {
+      "count": 4
+    }
+  },
+  "src/controllers/studentOgiSummary.controller.ts": {
+    "no-console": {
+      "count": 2
+    }
+  },
+  "src/controllers/studentsController.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "src/controllers/sync.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 5
+    },
+    "no-console": {
+      "count": 25
+    }
+  },
+  "src/controllers/syncUtilizadoresControllers/cronManagement.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 26
+    }
+  },
+  "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts": {
+    "no-console": {
+      "count": 5
+    }
+  },
+  "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts": {
+    "@typescript-eslint/no-require-imports": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 43
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts": {
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": {
+    "no-console": {
+      "count": 11
+    }
+  },
+  "src/controllers/tagEvaluation.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 20
+    }
+  },
+  "src/controllers/testHistory.controller.ts": {
+    "no-console": {
+      "count": 22
+    }
+  },
+  "src/controllers/testimonials.controller.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 48
+    },
+    "prefer-const": {
+      "count": 2
+    }
+  },
+  "src/controllers/userHistory.controller.ts": {
+    "no-console": {
+      "count": 3
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/controllers/users.controller.ts": {
+    "@typescript-eslint/no-require-imports": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "count": 6
+    },
+    "no-console": {
+      "count": 102
+    }
+  },
+  "src/controllers/webhooks.controller.ts": {
+    "no-console": {
+      "count": 5
+    }
+  },
+  "src/index.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/jobs/clareza.job.ts": {
+    "no-console": {
+      "count": 11
+    }
+  },
+  "src/jobs/cleanupHistory.job.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 10
+    }
+  },
+  "src/jobs/cronExecutionCleanup.job.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 32
+    }
+  },
+  "src/jobs/dailyPipeline.job.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/jobs/dailyPipeline/tagEvaluation/engagementScore.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/jobs/dailyPipeline/tagEvaluation/evaluateStudentTags.ts": {
+    "no-console": {
+      "count": 10
+    }
+  },
+  "src/jobs/dailyPipeline/tagEvaluation/globalUserTags.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/jobs/dailyPipeline/tagEvaluation/inactivityTags.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/jobs/dailyPipeline/tagEvaluation/positiveTags.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/jobs/dailyPipeline/tagEvaluation/progressTags.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/jobs/evaluateRules.job.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 22
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/jobs/guruTrialCheck.job.ts": {
+    "no-console": {
+      "count": 5
+    }
+  },
+  "src/jobs/precompute.job.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 5
+    }
+  },
+  "src/jobs/rebuildDashboardStats.job.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 6
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/jobs/rebuildProductSalesStats.job.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/jobs/resetCounters.job.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 5
+    },
+    "no-console": {
+      "count": 1
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/jobs/weeklyTagSnapshot.job.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/middleware/auth.middleware.ts": {
+    "@typescript-eslint/no-namespace": {
+      "count": 1
+    }
+  },
+  "src/models/Class.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/models/ClassAnalytics.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "src/models/SyncModels/ActivitySnapshot.ts": {
+    "@typescript-eslint/no-empty-object-type": {
+      "count": 1
+    }
+  },
+  "src/models/SyncModels/SyncHistory.ts": {
+    "@typescript-eslint/no-empty-object-type": {
+      "count": 1
+    }
+  },
+  "src/models/ValidationLog.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/models/index.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 5
+    }
+  },
+  "src/models/user.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 2
+    }
+  },
+  "src/routes/achievements.routes.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "src/routes/classes.routes.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/routes/dashboardRoutes.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/routes/products.routes.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/routes/users.routes.ts": {
+    "@typescript-eslint/no-require-imports": {
+      "count": 6
+    },
+    "no-console": {
+      "count": 18
+    }
+  },
+  "src/routes/validationLogs.routes.ts": {
+    "no-console": {
+      "count": 2
+    }
+  },
+  "src/runtime/infrastructure.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/runtime/listen.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/runtime/startJobs.ts": {
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/scripts/add-discord-id-joao.ts": {
+    "no-console": {
+      "count": 14
+    }
+  },
+  "src/scripts/add-discord-id.ts": {
+    "no-console": {
+      "count": 14
+    }
+  },
+  "src/scripts/check-student.ts": {
+    "no-console": {
+      "count": 65
+    }
+  },
+  "src/scripts/clean-duplicate-classes.ts": {
+    "no-console": {
+      "count": 24
+    }
+  },
+  "src/scripts/diagnose-classes.ts": {
+    "no-console": {
+      "count": 45
+    }
+  },
+  "src/scripts/find-joao-turma.ts": {
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/scripts/fix-status-inconsistencies.ts": {
+    "no-console": {
+      "count": 44
+    }
+  },
+  "src/scripts/get-joao-class.ts": {
+    "no-console": {
+      "count": 7
+    }
+  },
+  "src/scripts/investigate-classes.ts": {
+    "no-console": {
+      "count": 67
+    }
+  },
+  "src/scripts/migrateWebhookSource.ts": {
+    "no-console": {
+      "count": 6
+    }
+  },
+  "src/scripts/sync-status-from-userproducts.ts": {
+    "no-console": {
+      "count": 38
+    }
+  },
+  "src/scripts/test-discord-assignrole.ts": {
+    "no-console": {
+      "count": 33
+    }
+  },
+  "src/scripts/test-discord-inactivation.ts": {
+    "no-console": {
+      "count": 22
+    }
+  },
+  "src/scripts/test-final-joao.ts": {
+    "no-console": {
+      "count": 60
+    }
+  },
+  "src/scripts/test-inactivation-flow.ts": {
+    "no-console": {
+      "count": 73
+    }
+  },
+  "src/scripts/test-joao-complete.ts": {
+    "no-console": {
+      "count": 50
+    }
+  },
+  "src/security/httpPerimeter.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/security/usersImportUpload.ts": {
+    "no-control-regex": {
+      "count": 1
+    }
+  },
+  "src/services/achievements/achievementEvaluation.service.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/services/achievements/streakCalculator.ts": {
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/services/activeCampaign/TagCronManagement.service.ts": {
+    "no-console": {
+      "count": 25
+    }
+  },
+  "src/services/activeCampaign/activeCampaignService.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 23
+    }
+  },
+  "src/services/activeCampaign/contactTagReader.service.ts": {
+    "no-console": {
+      "count": 13
+    }
+  },
+  "src/services/activeCampaign/decisionEngine.service.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/services/activeCampaign/pipelineSnapshot.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/services/activeCampaign/tagOrchestrator.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 6
+    }
+  },
+  "src/services/activeCampaign/tagPreCreation.service.ts": {
+    "no-console": {
+      "count": 6
+    }
+  },
+  "src/services/analytics/analyticsCache.service.ts": {
+    "no-console": {
+      "count": 23
+    }
+  },
+  "src/services/analytics/analyticsCalculator.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 5
+    },
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/services/analytics/analyticsService.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 9
+    }
+  },
+  "src/services/analytics/cohortAnalytics.service.ts": {
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/services/cache.service.ts": {
+    "no-console": {
+      "count": 12
+    }
+  },
+  "src/services/clareza/clarezaCarteiraService.ts": {
+    "no-console": {
+      "count": 8
+    },
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/services/clareza/clarezaEarningsService.ts": {
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/services/clareza/clarezaFmpService.ts": {
+    "no-console": {
+      "count": 8
+    },
+    "no-useless-assignment": {
+      "count": 5
+    },
+    "preserve-caught-error": {
+      "count": 3
+    }
+  },
+  "src/services/clareza/clarezaRaioxService.ts": {
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/services/clareza/clarezaTop10Service.ts": {
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/services/clareza/tickerUtils.ts": {
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/services/cron/cronManagement.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 8
+    },
+    "no-console": {
+      "count": 38
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/services/cron/dailyPipeline.service.ts": {
+    "no-console": {
+      "count": 53
+    },
+    "prefer-const": {
+      "count": 1
+    }
+  },
+  "src/services/cron/scheduler.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 7
+    },
+    "no-console": {
+      "count": 70
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/services/dashboardStatsBuilder.service.ts": {
+    "no-console": {
+      "count": 33
+    }
+  },
+  "src/services/discovery/hotmartDiscovery.service.ts": {
+    "no-console": {
+      "count": 6
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/services/guru/crossReference.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 26
+    }
+  },
+  "src/services/guru/guru.constants.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "src/services/guru/guruSync.service.ts": {
+    "no-console": {
+      "count": 57
+    }
+  },
+  "src/services/guru/guruTrialService.ts": {
+    "no-console": {
+      "count": 12
+    }
+  },
+  "src/services/notification.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 5
+    }
+  },
+  "src/services/productSalesStatsBuilder.ts": {
+    "no-console": {
+      "count": 25
+    }
+  },
+  "src/services/renewal/discordRolesSync.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 7
+    },
+    "no-useless-assignment": {
+      "count": 2
+    }
+  },
+  "src/services/renewal/discordScheduledMessages.service.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "src/services/renewal/hotmartRefunds.service.ts": {
+    "no-console": {
+      "count": 2
+    }
+  },
+  "src/services/renewal/renewalAcSync.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 8
+    }
+  },
+  "src/services/renewal/renewalSync.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/services/renewal/turmaParser.ts": {
+    "no-useless-escape": {
+      "count": 1
+    }
+  },
+  "src/services/snapshotServices/userSnapshot.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 2
+    }
+  },
+  "src/services/studentCompleteService.ts": {
+    "no-console": {
+      "count": 11
+    }
+  },
+  "src/services/syncUtilizadoresServices/activitySnapshot.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 4
+    },
+    "no-console": {
+      "count": 14
+    }
+  },
+  "src/services/syncUtilizadoresServices/conflictDetection.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 17
+    }
+  },
+  "src/services/syncUtilizadoresServices/curseducaServices/curseduca.adapter.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 75
+    },
+    "preserve-caught-error": {
+      "count": 3
+    }
+  },
+  "src/services/syncUtilizadoresServices/discordSync.service.ts/discordSync.service.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/services/syncUtilizadoresServices/dualReadService.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 33
+    }
+  },
+  "src/services/syncUtilizadoresServices/engagement/engagementCalculator.service.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/services/syncUtilizadoresServices/hotmartServices/classesService.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 3
+    },
+    "no-console": {
+      "count": 24
+    },
+    "no-useless-assignment": {
+      "count": 1
+    },
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts": {
+    "no-console": {
+      "count": 25
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/services/syncUtilizadoresServices/hotmartServices/hotmart.helpers.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 26
+    },
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService.ts": {
+    "no-console": {
+      "count": 20
+    },
+    "preserve-caught-error": {
+      "count": 2
+    }
+  },
+  "src/services/syncUtilizadoresServices/syncReports.service.ts": {
+    "no-console": {
+      "count": 25
+    },
+    "preserve-caught-error": {
+      "count": 1
+    }
+  },
+  "src/services/syncUtilizadoresServices/universalSyncService.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 63
+    },
+    "no-useless-assignment": {
+      "count": 31
+    }
+  },
+  "src/services/systemMonitor.service.ts": {
+    "no-console": {
+      "count": 4
+    }
+  },
+  "src/services/userProducts/productService.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/types/studentComplete.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/utils/classHelpers.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/utils/debugLogger.ts": {
+    "no-console": {
+      "count": 5
+    }
+  },
+  "src/utils/detailedLogger.ts": {
+    "no-console": {
+      "count": 7
+    }
+  },
+  "src/utils/engagementCalculator.ts": {
+    "no-console": {
+      "count": 19
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/utils/studentDataConsolidator.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/utils/syncLogger.ts": {
+    "no-console": {
+      "count": 11
+    }
+  }
+}

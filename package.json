@@ -56,7 +56,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc || exit 0",
-    "lint": "eslint src/ --ext .ts",
+    "lint": "eslint src --max-warnings=0",
     "test": "jest",
     "check-ac-sync": "ts-node scripts/check-ac-sync.ts",
     "check-ac-sync:verbose": "VERBOSE=true ts-node scripts/check-ac-sync.ts",
@@ -102,6 +102,7 @@
     "validate:full": "npm run build && npm run lint && npm test && npm run check-ac-sync",
     "types:check": "node scripts/typecheck-ratchet.js",
     "types:baseline:update": "node scripts/typecheck-ratchet.js --update",
-    "prebuild": "npm run types:check"
+    "prebuild": "npm run types:check",
+    "lint:baseline:prune": "eslint src --prune-suppressions --max-warnings=0"
   }
 }
