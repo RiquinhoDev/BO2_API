@@ -16,6 +16,7 @@ import {
 
 function buildUploadApp(uploadDirectory: string, events: ErrorLogEvent[] = []) {
   return createApp({
+    authEnforce: false,
     createErrorHandling: () =>
       createErrorHandling({
         generateCorrelationId: () => 'upload-correlation-id',

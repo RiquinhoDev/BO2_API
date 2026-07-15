@@ -55,6 +55,7 @@ test('loadConfig valida e tipa porta, JWT e Redis explicito', () => {
     mongoUri: 'mongodb://database.internal/bo2',
     jwtSecret: STRONG_JWT_SECRET,
     acWebhookSecret: STRONG_AC_WEBHOOK_SECRET,
+    authEnforce: true,
     oldApiJwtSecret: 'old-api-test-secret-with-at-least-32-characters',
     enableDebugRoutes: false,
     allowedOrigins: expect.arrayContaining([

@@ -6,6 +6,7 @@ export interface AppConfig {
   jwtSecret: string
   oldApiJwtSecret?: string
   acWebhookSecret: string
+  authEnforce: boolean
   enableDebugRoutes: boolean
   allowedOrigins: string[]
   port: number
@@ -29,6 +30,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('CONFIG_INVÁLIDA: NODE_ENV deve ser development, test ou production')
   }
 
+  const authEnforce = parseBooleanFlag(env.AUTH_ENFORCE, 'AUTH_ENFORCE', true)
   const enableDebugRoutes = parseBooleanFlag(env.ENABLE_DEBUG_ROUTES, 'ENABLE_DEBUG_ROUTES')
   if (nodeEnv === 'production' && enableDebugRoutes) {
     throw new Error('CONFIG_INVÁLIDA: ENABLE_DEBUG_ROUTES é proibida em produção')
@@ -43,6 +45,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     mongoUri,
     jwtSecret,
     acWebhookSecret,
+    authEnforce,
     ...(oldApiJwtSecret ? { oldApiJwtSecret } : {}),
     enableDebugRoutes,
     allowedOrigins,
@@ -51,8 +54,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
 }
 
-function parseBooleanFlag(value: string | undefined, name: string): boolean {
-  if (value === undefined || value.trim() === '' || value === 'false') return false
+function parseBooleanFlag(
+  value: string | undefined,
+  name: string,
+  fallback = false,
+): boolean {
+  if (value === undefined || value.trim() === '') return fallback
+  if (value === 'false') return false
   if (value === 'true') return true
   throw new Error(`CONFIG_INVÁLIDA: ${name} deve ser true ou false`)
 }

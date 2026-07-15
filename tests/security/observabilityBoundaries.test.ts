@@ -29,6 +29,7 @@ test('auth regista template de rota sem URL, email ou fragmento do token', async
   const router = express.Router()
   router.get('/by-email/:email', authenticate, (_req, res) => res.sendStatus(204))
   const app = createApp({
+    authEnforce: false,
     registerRoutes: (target) => target.use('/api/users', router),
   })
   const token = signAppToken({
@@ -63,6 +64,7 @@ test('auth regista template de rota sem URL, email ou fragmento do token', async
 test('métricas guardam template em vez do email presente no path', async () => {
   const metrics = new MetricsMiddleware()
   const app = createApp({
+    authEnforce: false,
     registerRoutes: (target) => {
       target.use(metrics.handler)
       target.get('/api/users/by-email/:email', (_req, res) => res.sendStatus(204))

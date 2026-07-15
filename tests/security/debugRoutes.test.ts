@@ -12,6 +12,7 @@ const routes = [
 function createDebugProbeApp(): Application {
   const handler: RequestHandler = (_req, res) => res.sendStatus(204)
   return createApp({
+    authEnforce: false,
     registerRoutes: (app) => {
       for (const [method, path] of routes) app[method](path, localDebugOnly, handler)
     },
