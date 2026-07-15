@@ -44,6 +44,8 @@ function axiosUrl(config: { baseURL?: string; url?: string }): string {
 export function installEgressGuard(): () => void {
   const originalHttpRequest = http.request
   const originalHttpsRequest = https.request
+  const originalHttpGet = http.get
+  const originalHttpsGet = https.get
   const originalFetch = global.fetch
   const originalAxiosAdapter = axios.defaults.adapter
 
@@ -53,9 +55,17 @@ export function installEgressGuard(): () => void {
   const blockedHttpsRequest = ((...args: unknown[]) => {
     throw blockedNetworkError(requestUrl(args, 'https:'))
   }) as typeof https.request
+  const blockedHttpGet = ((...args: unknown[]) => {
+    throw blockedNetworkError(requestUrl(args, 'http:'))
+  }) as typeof http.get
+  const blockedHttpsGet = ((...args: unknown[]) => {
+    throw blockedNetworkError(requestUrl(args, 'https:'))
+  }) as typeof https.get
 
   http.request = blockedHttpRequest
   https.request = blockedHttpsRequest
+  http.get = blockedHttpGet
+  https.get = blockedHttpsGet
   global.fetch = (async (input: Parameters<typeof fetch>[0]) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
     throw blockedNetworkError(url)
@@ -67,6 +77,8 @@ export function installEgressGuard(): () => void {
   return () => {
     if (http.request === blockedHttpRequest) http.request = originalHttpRequest
     if (https.request === blockedHttpsRequest) https.request = originalHttpsRequest
+    if (http.get === blockedHttpGet) http.get = originalHttpGet
+    if (https.get === blockedHttpsGet) https.get = originalHttpsGet
     global.fetch = originalFetch
     axios.defaults.adapter = originalAxiosAdapter
   }

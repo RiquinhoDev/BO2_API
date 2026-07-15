@@ -4,6 +4,7 @@ import { installEgressGuard } from '../support/egressGuard'
 
 const http = require('http') as typeof import('http')
 const https = require('https') as typeof import('https')
+const net = require('net') as typeof import('net')
 
 const BLOCKED_NETWORK = 'BLOQUEADO: chamada de rede real em teste'
 const BLOCKED_DATABASE = 'BLOQUEADO: Mongo de teste inseguro'
@@ -13,6 +14,7 @@ describe('egress guard', () => {
   const originalHttpsRequest = https.request
   const originalFetch = global.fetch
   const originalAxiosAdapter = axios.defaults.adapter
+  const originalSocketConnect = net.Socket.prototype.connect
 
   beforeEach(() => {
     const lowLevelTrap = () => {
@@ -26,6 +28,9 @@ describe('egress guard', () => {
     global.fetch = (async () => {
       throw new Error('LOW_LEVEL_TRAP: o teste tentou ultrapassar o guard')
     }) as typeof fetch
+    net.Socket.prototype.connect = (() => {
+      throw new Error('LOW_LEVEL_TRAP: http.get tentou abrir um socket real')
+    }) as typeof net.Socket.prototype.connect
   })
 
   afterEach(() => {
@@ -33,6 +38,7 @@ describe('egress guard', () => {
     ;(https as unknown as { request: typeof https.request }).request = originalHttpsRequest
     global.fetch = originalFetch
     axios.defaults.adapter = originalAxiosAdapter
+    net.Socket.prototype.connect = originalSocketConnect
   })
 
   test('bloqueia fetch com a URL no erro', async () => {
@@ -62,6 +68,17 @@ describe('egress guard', () => {
     const restore = installEgressGuard()
 
     expect(() => client.request(url)).toThrow(`${BLOCKED_NETWORK} → ${url}`)
+
+    restore()
+  })
+
+  test.each([
+    ['http', http, 'http://activecampaign.example.test/contact'],
+    ['https', https, 'https://discord.example.test/roles'],
+  ])('bloqueia %s.get com a URL no erro', (_name, client, url) => {
+    const restore = installEgressGuard()
+
+    expect(() => client.get(url)).toThrow(`${BLOCKED_NETWORK} → ${url}`)
 
     restore()
   })
