@@ -94,6 +94,9 @@
     "diagnose:email": "ts-node scripts/diagnostics/verify-email-tracking.ts",
     "diagnose:all": "npm run diagnose:segregation && npm run diagnose:dashboard && npm run diagnose:email",
     "maintenance:indexes": "ts-node scripts/maintenance/create-indexes.ts",
-    "validate:full": "npm run build && npm run lint && npm test && npm run check-ac-sync"
+    "validate:full": "npm run build && npm run lint && npm test && npm run check-ac-sync",
+    "types:check": "node scripts/typecheck-ratchet.js",
+    "types:baseline:update": "node scripts/typecheck-ratchet.js --update",
+    "prebuild": "npm run types:check"
   }
 }
