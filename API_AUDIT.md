@@ -19,6 +19,12 @@ Esta auditoria não arrancou a API, não leu `.env`, não correu suites que poss
 - A cache original do binário Mongo estava em `node_modules/.cache/mongodb-memory-server` e seria destruída por `npm ci` ou pela remoção de `node_modules`, exigindo novo download. A F1.0 fixa `MONGOMS_DOWNLOAD_DIR=.cache/mongodb-memory-server`, fora de `node_modules`, com runtime download desligado nos testes; a cache continua sendo artefacto local ignorado e deve ser pré-carregada no ambiente offline.
 - O gate Jest padrão passa a bloquear egress antes das suites, não inicia Mongo globalmente e mantém load, E2E e a suite legacy de arquitetura fora da execução normal. A suite legacy deixou de aceitar `MONGO_URI` como fallback e só pode receber `MONGO_URI_TEST` validada pelo sentinel.
 
+## Atualização F1.8 — 2026-07-15
+
+- A redação de observabilidade passa a ter uma única implementação, consumida pelo logger Winston e pelo error handler. Os vetores cobrem emails planos e `%40`, Bearer tokens, segredos nomeados, query strings e paths conhecidos com PII.
+- Foram migrados apenas os pontos de fuga definidos para esta fase: autenticação, métricas de requests e fragmentos de credenciais/tokens do serviço de lições Hotmart. Auth e métricas guardam templates de rota, nunca o email presente no path.
+- Permanecem **2681 chamadas `console.*` em 136 ficheiros**. Esta dívida não foi escondida nem migrada em massa: deve ser tratada por módulo. A F1.10 deve ativar `no-console` no scope limpo para impedir novas chamadas enquanto a migração avança.
+
 ## Método e escala
 
 Severidade:

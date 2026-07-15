@@ -5,6 +5,8 @@ import {
   createErrorHandling,
   type ErrorLogEvent,
 } from '../../src/security/errorHandling'
+import * as redaction from '../../src/observability/redaction'
+import * as loggerModule from '../../src/utils/logger'
 
 const marker = { __bo2_offline_loopback: '1' }
 
@@ -85,4 +87,35 @@ test('erro tipado preserva só a mensagem pública e redige a causa no log', asy
     route: '/typed',
     detail: 'contacto [REDACTED_EMAIL] Authorization: Bearer [REDACTED]',
   })
+})
+
+test('error handler consome a função única de redação', async () => {
+  const redact = jest.spyOn(redaction, 'redactSensitiveData')
+
+  await request(buildApp(() => undefined)).get('/internal').query(marker).expect(500)
+
+  expect(redact).toHaveBeenCalledWith(
+    expect.objectContaining({
+      detail: 'mongo falhou para alice@example.test token=segredo-interno',
+    }),
+  )
+  redact.mockRestore()
+})
+
+test('error handler aponta por defeito para o logger único', async () => {
+  const logHttpError = jest.spyOn(loggerModule, 'logHttpError').mockImplementation(() => undefined)
+  const app = createApp({
+    registerRoutes: (target) => {
+      target.get('/default-logger', () => {
+        throw new Error('falha interna')
+      })
+    },
+  })
+
+  await request(app).get('/default-logger').query(marker).expect(500)
+
+  expect(logHttpError).toHaveBeenCalledWith(
+    expect.objectContaining({ code: 'INTERNAL_ERROR', route: '/default-logger' }),
+  )
+  logHttpError.mockRestore()
 })

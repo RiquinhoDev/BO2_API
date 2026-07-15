@@ -1,6 +1,7 @@
 // src/services/hotmartLessonsService.ts
 import axios from 'axios'
 import { HotmartLessonsResponse, HotmartLesson, LessonProgress, UserLessonsData, LessonStats } from '../../../types/lesson.types'
+import logger from '../../../utils/logger'
 
 class HotmartLessonsService {
   private baseURL = 'https://developers.hotmart.com/club/api/v1' // ✅ CORRIGIDO: URL correta
@@ -11,9 +12,9 @@ class HotmartLessonsService {
     const clientId = process.env.HOTMART_CLIENT_ID
     const clientSecret = process.env.HOTMART_CLIENT_SECRET
     
-    console.log(`🔧 Credenciais Hotmart:`)
-    console.log(`  CLIENT_ID: ${clientId ? `${clientId.substring(0, 10)}...` : 'NÃO CONFIGURADO'}`)
-    console.log(`  CLIENT_SECRET: ${clientSecret ? `${clientSecret.substring(0, 10)}...` : 'NÃO CONFIGURADO'}`)
+    logger.debug('Credenciais Hotmart avaliadas', {
+      configured: Boolean(clientId && clientSecret),
+    })
     
     if (!clientId || !clientSecret) {
       throw new Error('HOTMART_CLIENT_ID e HOTMART_CLIENT_SECRET não configurados nas variáveis de ambiente')
@@ -22,10 +23,13 @@ class HotmartLessonsService {
     // ✅ OBTER TOKEN USANDO O MESMO MÉTODO DO PROJETO
     try {
       const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-      console.log(`🔐 Basic Auth gerado: ${basicAuth.substring(0, 20)}...`)
+      logger.debug('Autenticação Hotmart preparada')
 
       const tokenUrl = 'https://api-sec-vlc.hotmart.com/security/oauth/token'
-      console.log(`🎯 Solicitando token em: ${tokenUrl}`)
+      logger.debug('Pedido de token Hotmart preparado', {
+        method: 'POST',
+        endpoint: '/security/oauth/token',
+      })
 
       const response = await axios.post(
         tokenUrl,
@@ -40,9 +44,10 @@ class HotmartLessonsService {
         }
       )
 
-      console.log(`✅ Token obtido com sucesso - Status: ${response.status}`)
-      console.log(`🔑 Access Token: ${response.data.access_token?.substring(0, 30)}...`)
-      console.log(`⏰ Expires in: ${response.data.expires_in} segundos`)
+      logger.info('Token Hotmart obtido', {
+        status: response.status,
+        expiresInSeconds: response.data.expires_in,
+      })
 
       if (!response.data.access_token) {
         throw new Error('Access token not found')
@@ -53,11 +58,11 @@ class HotmartLessonsService {
         'Authorization': `Bearer ${response.data.access_token}`
       }
     } catch (error: any) {
-      console.error('❌ === ERRO NA GERAÇÃO DO TOKEN ===')
-      console.error('🔗 URL tentada:', 'https://api-sec-vlc.hotmart.com/security/oauth/token')
-      console.error('📊 Status:', error.response?.status)
-      console.error('📄 Resposta:', JSON.stringify(error.response?.data, null, 2))
-      console.error('❌ === FIM DO DEBUG TOKEN ===')
+      logger.error('Falha ao obter token Hotmart', {
+        method: 'POST',
+        endpoint: '/security/oauth/token',
+        status: error.response?.status,
+      })
       
       throw new Error('Falha ao obter token de acesso da Hotmart')
     }
@@ -72,9 +77,11 @@ class HotmartLessonsService {
       
       // 🧪 DEBUG: Log da requisição completa
       const requestUrl = `${this.baseURL}/users/${userId}/lessons`
-      console.log(`📡 URL completa: ${requestUrl}`)
-      console.log(`📋 Parâmetros: { subdomain: "${subdomain}" }`)
-      console.log(`🔑 Headers: Authorization: ${headers.Authorization?.substring(0, 30)}...`)
+      logger.debug('Pedido de lições Hotmart preparado', {
+        method: 'GET',
+        endpoint: '/club/api/v1/users/:userId/lessons',
+        subdomainConfigured: Boolean(subdomain),
+      })
       
       const response = await axios.get(requestUrl, {
         headers,
@@ -107,22 +114,11 @@ class HotmartLessonsService {
       return response.data
     } catch (error: any) {
       // 🧪 DEBUG: Log detalhado do erro
-      console.error('❌ === ERRO DETALHADO ===')
-      console.error('🔗 URL tentada:', `${this.baseURL}/users/${userId}/lessons`)
-      console.error('📋 Parâmetros enviados:', { subdomain })
-      console.error('📊 Status do erro:', error.response?.status)
-      console.error('📄 Dados do erro:', JSON.stringify(error.response?.data, null, 2))
-      console.error('🌐 Headers da resposta:', error.response?.headers)
-      console.error('⚙️ Config da requisição:', {
-        method: error.config?.method,
-        url: error.config?.url,
-        params: error.config?.params,
-        headers: error.config?.headers ? {
-          'Content-Type': error.config.headers['Content-Type'],
-          'Authorization': error.config.headers['Authorization']?.substring(0, 30) + '...'
-        } : 'N/A'
+      logger.error('Falha ao obter lições Hotmart', {
+        method: 'GET',
+        endpoint: '/club/api/v1/users/:userId/lessons',
+        status: error.response?.status,
       })
-      console.error('❌ === FIM DO DEBUG ===')
       
       throw new Error(`Erro ao buscar lições: ${error.response?.data?.message || error.message}`)
     }

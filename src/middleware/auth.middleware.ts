@@ -2,6 +2,8 @@
 import { Request, Response, NextFunction } from "express"
 import jwt from "jsonwebtoken"
 import { verifyAppToken } from '../security/jwt'
+import { getRequestRouteTemplate } from '../observability/requestRoute'
+import logger, { type AppLogger } from '../utils/logger'
 
 // Extend Express Request type to include user
 declare global {
@@ -17,67 +19,69 @@ declare global {
   }
 }
 
-export const authenticate = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    // Get token from header
-    const authHeader = req.headers.authorization
+export function createAuthenticate(log: AppLogger = logger) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const route = getRequestRouteTemplate(req)
+    try {
+      const authHeader = req.headers.authorization
 
-    console.log('🔐 Auth Middleware - URL:', req.method, req.originalUrl)
-    console.log('🔐 Auth Header:', authHeader ? `${authHeader.substring(0, 30)}...` : 'NENHUM')
+      log.debug('Pedido de autenticação', {
+        method: req.method,
+        route,
+        credentialsPresent: Boolean(authHeader),
+      })
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.warn('⚠️ Token não fornecido ou formato incorreto')
-      return res.status(401).json({
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        log.warn('Token não fornecido ou formato incorreto', { method: req.method, route })
+        return res.status(401).json({
+          success: false,
+          message: "Token não fornecido"
+        })
+      }
+
+      const token = authHeader.substring(7)
+
+      const decoded = verifyAppToken(token) as {
+        id: string
+        email: string
+        role: string
+        permissions: string[]
+      }
+
+      req.user = decoded
+      log.info('Autenticação concluída', { method: req.method, route })
+      next()
+    } catch (error) {
+      if (error instanceof jwt.JsonWebTokenError) {
+        log.warn('Token inválido', { method: req.method, route, errorName: error.name })
+        return res.status(401).json({
+          success: false,
+          message: "Token inválido"
+        })
+      }
+
+      if (error instanceof jwt.TokenExpiredError) {
+        log.warn('Token expirado', { method: req.method, route, errorName: error.name })
+        return res.status(401).json({
+          success: false,
+          message: "Token expirado"
+        })
+      }
+
+      log.error('Erro no middleware de autenticação', {
+        method: req.method,
+        route,
+        error,
+      })
+      return res.status(500).json({
         success: false,
-        message: "Token não fornecido"
+        message: "Erro na autenticação"
       })
     }
-
-    const token = authHeader.substring(7) // Remove "Bearer "
-    console.log('🔑 Token extraído:', `${token.substring(0, 20)}...`)
-
-    // Verify token
-    const decoded = verifyAppToken(token) as {
-      id: string
-      email: string
-      role: string
-      permissions: string[]
-    }
-
-    console.log('✅ Token válido para user:', decoded.email)
-
-    // Attach user to request
-    req.user = decoded
-
-    next()
-  } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      console.error('❌ Token inválido:', error.message)
-      return res.status(401).json({
-        success: false,
-        message: "Token inválido"
-      })
-    }
-
-    if (error instanceof jwt.TokenExpiredError) {
-      console.error('❌ Token expirado:', error.message)
-      return res.status(401).json({
-        success: false,
-        message: "Token expirado"
-      })
-    }
-
-    console.error("❌ Auth middleware error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Erro na autenticação"
-    })
   }
 }
+
+export const authenticate = createAuthenticate()
 
 export const authorize = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {

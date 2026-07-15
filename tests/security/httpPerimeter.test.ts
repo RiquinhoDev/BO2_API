@@ -117,6 +117,22 @@ test('body JSON acima de 100 KB devolve 413', async () => {
   })
 })
 
+test('body JSON malformado devolve 400 sem parecer erro interno', async () => {
+  const response = await request(buildApp())
+    .post('/echo')
+    .set('Content-Type', 'application/json')
+    .query(marker)
+    .send('{"payload":')
+    .expect(400)
+
+  expect(response.body).toEqual({
+    success: false,
+    code: 'INVALID_JSON',
+    message: 'JSON inválido',
+    correlationId: 'http-perimeter-correlation-id',
+  })
+})
+
 test('limites de producao e paths pesados ficam explicitos', () => {
   expect(DEFAULT_RATE_LIMITS).toEqual({
     login: { limit: 10, windowMs: 15 * 60_000 },
