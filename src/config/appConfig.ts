@@ -3,6 +3,7 @@ export interface AppConfig {
   mongoUri: string
   jwtSecret: string
   oldApiJwtSecret?: string
+  enableDebugRoutes: boolean
   port: number
   redis?: {
     host: string
@@ -23,6 +24,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('CONFIG_INVÁLIDA: NODE_ENV deve ser development, test ou production')
   }
 
+  const enableDebugRoutes = parseBooleanFlag(env.ENABLE_DEBUG_ROUTES, 'ENABLE_DEBUG_ROUTES')
+  if (nodeEnv === 'production' && enableDebugRoutes) {
+    throw new Error('CONFIG_INVÃLIDA: ENABLE_DEBUG_ROUTES Ã© proibida em produÃ§Ã£o')
+  }
+
   const port = parsePort(env.PORT, 3001, 'PORT')
   const redis = parseRedisConfig(env)
 
@@ -31,9 +37,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     mongoUri,
     jwtSecret,
     ...(oldApiJwtSecret ? { oldApiJwtSecret } : {}),
+    enableDebugRoutes,
     port,
     ...(redis ? { redis } : {}),
   }
+}
+
+function parseBooleanFlag(value: string | undefined, name: string): boolean {
+  if (value === undefined || value.trim() === '' || value === 'false') return false
+  if (value === 'true') return true
+  throw new Error(`CONFIG_INVÃLIDA: ${name} deve ser true ou false`)
 }
 
 function parseStrongSecret(value: string | undefined, name: string, required: true): string

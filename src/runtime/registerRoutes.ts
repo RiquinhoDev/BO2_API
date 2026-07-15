@@ -12,6 +12,7 @@ import cronManagementRoutes from '../routes/cron/cronManagement.routes'
 import businessAnalyticsRoutes from '../routes/businessAnalytics.routes'
 import cohortAnalyticsRoutes from '../routes/cohortAnalytics.routes'
 import testHistoryRoutes from '../routes/testHistory.routes'
+import { localDebugOnly } from '../security/debugRoutes'
 import {
   createTagRule,
   deleteTagRule,
@@ -38,5 +39,5 @@ export const registerRoutes: RouteRegistrar = (app) => {
   app.delete('/api/tag-rules/:id', deleteTagRule)
   app.get('/api/communication-history', getCommunicationHistory)
   app.use('/cron-tags', cronManagementRoutes)
-  app.use('/api/test/history', testHistoryRoutes)
+  app.use('/api/test/history', localDebugOnly, testHistoryRoutes)
 }

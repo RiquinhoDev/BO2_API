@@ -4,6 +4,7 @@ import User from '../models/user'
 import GuruWebhook from '../models/GuruWebhook'
 import UserProduct from '../models/UserProduct'
 import { GuruWebhookPayload, GuruSubscriptionStatus } from '../types/guru.types'
+import { guruTokenDebugStatus } from '../security/debugRoutes'
 
 // Status da Guru que indicam cancelamento
 const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
@@ -534,31 +535,7 @@ export const getGuruStats = async (req: Request, res: Response) => {
  * GET /guru/debug/token
  */
 export const debugToken = async (req: Request, res: Response) => {
-  try {
-    const tokenFromEnv = GURU_ACCOUNT_TOKEN
-    const tokenLength = tokenFromEnv ? tokenFromEnv.length : 0
-    const hasQuotes = tokenFromEnv ? tokenFromEnv.startsWith('"') || tokenFromEnv.startsWith("'") : false
-
-    return res.json({
-      success: true,
-      debug: {
-        hasToken: !!tokenFromEnv,
-        tokenLength,
-        hasQuotes,
-        firstChar: tokenFromEnv ? tokenFromEnv[0] : null,
-        lastChar: tokenFromEnv ? tokenFromEnv[tokenFromEnv.length - 1] : null,
-        // Mostrar apenas primeiros e últimos 4 caracteres (segurança)
-        preview: tokenFromEnv
-          ? `${tokenFromEnv.substring(0, 4)}...${tokenFromEnv.substring(tokenFromEnv.length - 4)}`
-          : null
-      }
-    })
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
-  }
+  return res.json(guruTokenDebugStatus(GURU_ACCOUNT_TOKEN))
 }
 
 // ═══════════════════════════════════════════════════════════
