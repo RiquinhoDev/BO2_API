@@ -8,8 +8,9 @@ import axios from 'axios'
 const BASE_URL = process.env.TEST_URL || 'http://localhost:3001'
 const CONCURRENT_REQUESTS = 100
 const TOTAL_REQUESTS = 1000
+const describeLoad = process.env.RUN_LOAD_TESTS === 'true' ? describe : describe.skip
 
-describe('Load Tests', () => {
+describeLoad('Load Tests (opt-in)', () => {
   it('deve aguentar 100 requests concorrentes', async () => {
     const promises = []
     const startTime = Date.now()

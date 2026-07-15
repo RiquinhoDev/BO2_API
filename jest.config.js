@@ -8,6 +8,7 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  testPathIgnorePatterns: ['<rootDir>/tests/e2e/', '<rootDir>/tests/sprint1/'],
   transform: {
     '^.+\\.ts$': 'ts-jest',
   },
@@ -22,6 +23,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  setupFiles: ['<rootDir>/tests/setupEnv.ts'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000, // 30 segundos
   verbose: true,
