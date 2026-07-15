@@ -201,4 +201,13 @@ router.post('/scheduled/run', asyncRoute(async (_req: Request, res: Response) =>
   res.json({ success: true, data: report })
 }))
 
+/** POST /api/discord-renewal/scheduled/:key/send-now — "enviar agora" uma regra,
+ *  ignorando só o gate do dia-do-mês (para quando o cron não correu no dia).
+ *  Mantém switches, idempotência mensal, guard de mês vazio e menção ao cargo. */
+router.post('/scheduled/:key/send-now', asyncRoute(async (req: Request, res: Response) => {
+  const { sendScheduledRuleNow } = await import('../services/renewal/discordScheduledMessages.service')
+  const result = await sendScheduledRuleNow(String(req.params.key), actor(req))
+  res.status(result.success ? 200 : 400).json(result)
+}))
+
 export default router

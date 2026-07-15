@@ -819,9 +819,10 @@ private async executeSyncJob(job: ICronJobConfig): Promise<{
     RENEWAL_OFFER_SYNC_JOB_NAME,
     ACHIEVEMENT_EVALUATION_JOB_NAME,
     RENEWAL_AC_SYNC_JOB_NAME,
-    DISCORD_ROLES_SYNC_JOB_NAME
+    DISCORD_ROLES_SYNC_JOB_NAME,
+    DISCORD_SCHEDULED_MESSAGES_JOB_NAME
   ]
-  
+
   // Verificar se job atual tem lógica específica
   const hasSpecificLogic = jobsWithSpecificLogic.some(name => 
     job.name.includes(name)

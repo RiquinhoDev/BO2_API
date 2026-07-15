@@ -264,6 +264,73 @@ export async function setScheduledRuleEnabled(key: string, enabled: boolean): Pr
   return DiscordScheduledRule.findOneAndUpdate({ key }, { $set: { enabled } }, { new: true }).exec()
 }
 
+/**
+ * "Enviar agora" — envio manual imediato de UMA regra (botão do BO para casos em que
+ * o cron falhou/não correu no dia). Faz o MESMO envio real do cron (com menção ao cargo
+ * R.{mês anterior}), mas IGNORA o gate do dia-do-mês. Mantém TODOS os outros guards:
+ * regra ligada, master switch, idempotência mensal, guard de mês vazio e template.
+ * A idempotência continua a valer: não reenvia se já saiu este mês (evita duplo @cargo).
+ */
+export async function sendScheduledRuleNow(
+  key: string,
+  sentBy: string
+): Promise<{
+  success: boolean
+  message: string
+  target?: { roleName: string; members: number; dataFim: string }
+}> {
+  await ensureDefaultScheduledRules()
+  const rule = await DiscordScheduledRule.findOne({ key }).exec()
+  if (!rule) return { success: false, message: `Regra '${key}' não encontrada` }
+
+  const now = new Date()
+  const target = getTargetMonth(now)
+
+  if (!rule.enabled) return { success: false, message: 'Regra desligada — liga a regra primeiro' }
+  if (!isScheduledMessagesEnabled()) {
+    return { success: false, message: 'DISCORD_SCHEDULED_MESSAGES_ENABLED != true — envio recusado' }
+  }
+  if (rule.lastSentMonth === target.monthKey) {
+    return { success: false, message: `Já foi enviada este mês (${target.monthKey}) — não reenvio para não duplicar` }
+  }
+
+  const members = await DiscordRoleState.countDocuments({ roleId: target.roleId })
+  if (members === 0) {
+    return { success: false, message: `Cargo ${target.roleName} sem membros — mês sem renovações, nada enviado` }
+  }
+
+  const template = await DiscordMessageTemplate.findOne({ key: rule.templateKey }).lean().exec()
+  if (!template) return { success: false, message: `Template '${rule.templateKey}' não encontrado` }
+
+  const result = await sendDiscordMessage({
+    content: template.content,
+    mentionRoleIds: [target.roleId],
+    dataFim: target.dataFim,
+    channelId: rule.channelId || undefined,
+    templateKey: rule.templateKey,
+    sentBy: sentBy || 'ui:enviar-agora'
+  })
+
+  rule.lastRunAt = now
+  if (result.success) {
+    rule.lastSentMonth = target.monthKey
+    rule.lastResult = `envio manual "enviar agora" a ${target.roleName} (${members} membros)`
+    console.log(`📨 [ScheduledMessages] ENVIAR-AGORA ${rule.key} → ${target.roleName} (${members} membros): OK`)
+  } else {
+    rule.lastResult = `FALHOU (enviar agora): ${result.message}`
+    console.error(`❌ [ScheduledMessages] ENVIAR-AGORA ${rule.key}: ${result.message}`)
+  }
+  await rule.save()
+
+  return {
+    success: result.success,
+    message: result.success
+      ? `Mensagem enviada a ${target.roleName} (${members} membros)`
+      : result.message,
+    target: { roleName: target.roleName, members, dataFim: target.dataFim }
+  }
+}
+
 export default {
   isScheduledMessagesEnabled,
   ensureDefaultScheduledRules,
@@ -272,5 +339,6 @@ export default {
   previewScheduledRule,
   testScheduledRule,
   setScheduledRuleEnabled,
+  sendScheduledRuleNow,
   getTargetMonth
 }
