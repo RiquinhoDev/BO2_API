@@ -1,9 +1,8 @@
 // src/controllers/auth.controller.ts
 import { Request, Response } from "express"
-import jwt from "jsonwebtoken"
 import Admin from "../models/Admin"
+import { signAppToken } from '../security/jwt'
 
-const JWT_SECRET = process.env.JWT_SECRET || "riquinho-secret-key-2024"
 const JWT_EXPIRES_IN = "7d"
 
 export const login = async (req: Request, res: Response) => {
@@ -79,14 +78,13 @@ export const login = async (req: Request, res: Response) => {
     await admin.save()
 
     // Generate JWT token
-    const token = jwt.sign(
+    const token = signAppToken(
       {
         id: admin._id,
         email: admin.email,
         role: admin.role,
         permissions: admin.permissions
       },
-      JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     )
 

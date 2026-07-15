@@ -4,7 +4,7 @@ import { classesService, studentService } from '../services/syncUtilizadoresServ
 import SyncHistory from '../models/SyncHistory'
 
 import axios from 'axios'
-import jwt from 'jsonwebtoken'
+import { signOldApiToken } from '../security/jwt'
 import { Class } from '../models/Class'
 import StudentClassHistory from '../models/StudentClassHistory'
 import { User, UserProduct } from '../models'
@@ -17,10 +17,8 @@ import UserHistory from '../models/UserHistory'
 // O segredo TEM de bater com o JWT_SECRET da API antiga em produção;
 // usa OLD_API_JWT_SECRET se for diferente do desta API.
 function buildOldApiHeaders(scope: string) {
-  const secret = process.env.OLD_API_JWT_SECRET || process.env.JWT_SECRET || 'riquinho-secret-key-2024'
-  const token = jwt.sign(
+  const token = signOldApiToken(
     { role: 'admin', service: 'BO2_API', scope },
-    secret,
     { expiresIn: '5m' }
   )
   return {
