@@ -1,12 +1,8 @@
 // src/controllers/users.controller.ts - PARTE 1/3
 import { Request, RequestHandler, Response } from "express"
-import fs from "fs"
-import path from "path"
-import XLSX from "xlsx"
 import User from "../models/user"
 import IdsDiferentes from "../models/IdsDiferentes"
 import UnmatchedUser from "../models/UnmatchedUser"
-import { ImportedUserRecord } from "../types/ImportedUserRecord"
 import mongoose from "mongoose"
 import SyncHistory from "../models/SyncHistory"
 
@@ -16,6 +12,8 @@ import { cacheService } from "../services/cache.service"
 import { getUserCountsByPlatform, getUserCountsByProduct, getUsersForProduct, getUserWithProducts } from "../services/userProducts/userProductService"
 import { UserProduct } from "../models"
 import Product from "../models/product/Product"
+import { readImportedUsers } from "../services/importedUsersWorkbook"
+import { withUploadedFileCleanup } from "../security/usersImportUpload"
 
 
 
@@ -1971,86 +1969,82 @@ export const syncDiscordAndHotmart = async (req: Request, res: Response): Promis
     return
   }
 
-  const syncRecord = new SyncHistory({
-    type: "csv",
-    user: req.body.user || "system",
-    metadata: { fileName: req.file.originalname },
-    status: "running"
-  })
-  await syncRecord.save()
+  const uploadedFile = req.file
+  await withUploadedFileCleanup(uploadedFile, async (filePath) => {
+    const syncRecord = new SyncHistory({
+      type: "csv",
+      user: req.body.user || "system",
+      metadata: { fileName: uploadedFile.originalname },
+      status: "running"
+    })
+    await syncRecord.save()
 
-  const filePath = path.resolve(req.file.path)
+    try {
+      const data = await readImportedUsers(filePath)
 
-  try {
-    const workbook = XLSX.readFile(filePath)
-    const data = XLSX.utils.sheet_to_json<ImportedUserRecord>(workbook.Sheets[workbook.SheetNames[0]])
+      let added = 0, unmatched = 0, errors = 0
 
-    let added = 0, unmatched = 0, errors = 0
+      for (const record of data) {
+        try {
+          const discordId = String(record["User ID"] || "").trim()
+          const email = String(record["Qual o e-mail com que te inscreveste no curso?"] || "").trim().toLowerCase()
 
-    for (const record of data) {
-      try {
-        const discordId = String(record["User ID"] || "").trim()
-        const email = String(record["Qual o e-mail com que te inscreveste no curso?"] || "").trim().toLowerCase()
+          if (!email || !discordId) {
+            unmatched++
+            continue
+          }
 
-        if (!email || !discordId) {
-          unmatched++
-          continue
-        }
+          const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, "i") } })
+          if (!user) {
+            unmatched++
+            await UnmatchedUser.create({ discordId, email })
+            continue
+          }
 
-        const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, "i") } })
-        if (!user) {
-          unmatched++
-          await UnmatchedUser.create({ discordId, email })
-          continue
-        }
+          const u = user as any
+          const currentIds = u.discord?.discordIds || []
 
-        const u = user as any
-        const currentIds = u.discord?.discordIds || []
-        
-        if (!currentIds.includes(discordId)) {
-          await User.updateOne(
-            { _id: user._id },
-            { 
-              $set: {
-                'discord.discordIds': [...currentIds, discordId],
-                'discord.updatedAt': new Date()
+          if (!currentIds.includes(discordId)) {
+            await User.updateOne(
+              { _id: user._id },
+              {
+                $set: {
+                  'discord.discordIds': [...currentIds, discordId],
+                  'discord.updatedAt': new Date()
+                }
               }
-            }
-          )
-          added++
+            )
+            added++
+          }
+
+        } catch (recordError: any) {
+          errors++
+          console.error(`Erro no registo:`, recordError.message)
         }
-
-      } catch (recordError: any) {
-        errors++
-        console.error(`Erro no registo:`, recordError.message)
       }
+
+      await SyncHistory.findByIdAndUpdate(syncRecord._id, {
+        status: "completed",
+        completedAt: new Date(),
+        stats: { total: data.length, added, errors }
+      })
+
+      res.json({
+        message: "Sincronização concluída",
+        syncId: syncRecord._id,
+        stats: { added, unmatched, errors }
+      })
+
+    } catch (error: any) {
+      await SyncHistory.findByIdAndUpdate(syncRecord._id, {
+        status: "failed",
+        completedAt: new Date(),
+        errorDetails: [error.message]
+      })
+
+      res.status(500).json({ message: "Erro na sincronização", details: error.message })
     }
-
-    await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-      status: "completed",
-      completedAt: new Date(),
-      stats: { total: data.length, added, errors }
-    })
-
-    fs.unlinkSync(filePath)
-
-    res.json({ 
-      message: "Sincronização concluída",
-      syncId: syncRecord._id,
-      stats: { added, unmatched, errors }
-    })
-
-  } catch (error: any) {
-    await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-      status: "failed",
-      completedAt: new Date(),
-      errorDetails: [error.message]
-    })
-
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
-
-    res.status(500).json({ message: "Erro na sincronização", details: error.message })
-  }
+  })
 }
     
 /**

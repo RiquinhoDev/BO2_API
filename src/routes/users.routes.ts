@@ -1,6 +1,6 @@
 // src/routes/users.routes.ts - ROTAS ATUALIZADAS PARA COMPATIBILIDADE
 import { Router } from "express"
-import multer from "multer"
+import { createUsersImportUpload } from "../security/usersImportUpload"
 import {
   // Funções existentes (mantidas para compatibilidade)
   listUsers,
@@ -42,7 +42,7 @@ import { calculateBatchAverageEngagement } from "../services/syncUtilizadoresSer
 import { getUserByEmail } from "../controllers/syncUtilizadoresControllers/curseduca.controller"
 
 const router = Router()
-const upload = multer({ dest: "uploads/" })
+const usersImportUpload = createUsersImportUpload()
 
 // ──────────────────────────────────────────────────────────
 // ✅ Tipos locais só para remover implicit any (sem mexer na lógica)
@@ -514,7 +514,7 @@ router.get('/', getUsers)
 router.get('/:id', getUserById)  // 🚨 ÚLTIMA ROTA GET!
 
 // 4️⃣ ROTAS POST/PUT/DELETE - Podem ficar em qualquer posição (não conflitam com GET)
-router.post("/syncDiscordAndHotmart", upload.single("file"), syncDiscordAndHotmart)
+router.post("/syncDiscordAndHotmart", usersImportUpload, syncDiscordAndHotmart)
 router.post("/mergeDiscordId", mergeDiscordId)
 router.post("/bulkMerge", bulkMergeIds)
 router.post("/bulkDelete", bulkDeleteIds)
