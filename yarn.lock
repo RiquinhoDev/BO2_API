@@ -749,13 +749,6 @@
     "@types/range-parser" "*"
     "@types/send" "*"
 
-"@types/express-validator@^3.0.2":
-  version "3.0.2"
-  resolved "https://registry.npmjs.org/@types/express-validator/-/express-validator-3.0.2.tgz"
-  integrity sha512-dV+1u6absDDEIVe5jd5ID1XYvPPvOSvggMWh09VYM3TeBjAjBDtwJWyJg/5PnK7s8FRgbOtHgD6oX3N2MKWwDw==
-  dependencies:
-    express-validator "*"
-
 "@types/express@*", "@types/express@^5.0.1":
   version "5.0.6"
   resolved "https://registry.npmjs.org/@types/express/-/express-5.0.6.tgz"
@@ -823,13 +816,6 @@
   integrity sha512-DyuyYGpV6r+4Z1bUznLi/Y7HpGn4iQ4IVcGn8zrr1P4KotKLdH0sbK1TFR6RGyX6B+G8u83wCzL+bpawKU/hdQ==
   dependencies:
     moment "*"
-
-"@types/mongoose@^5.11.97":
-  version "5.11.97"
-  resolved "https://registry.npmjs.org/@types/mongoose/-/mongoose-5.11.97.tgz"
-  integrity sha512-cqwOVYT3qXyLiGw7ueU2kX9noE8DPGRY6z8eUxudhXY8NZ7DMKYAxyZkLSevGfhCX3dO/AoX5/SO9lAzfjon0Q==
-  dependencies:
-    mongoose "*"
 
 "@types/ms@*":
   version "2.1.0"
@@ -1961,7 +1947,7 @@ express-rate-limit@^8.5.2:
   dependencies:
     ip-address "^10.2.0"
 
-express-validator@*, express-validator@^7.2.1:
+express-validator@^7.2.1:
   version "7.3.2"
   resolved "https://registry.npmjs.org/express-validator/-/express-validator-7.3.2.tgz"
   integrity sha512-ctLw1Vl6dXVH62dIQMDdTAQkrh480mkFuG6/SGXOaVlwPNukhRAe7EgJIMJ2TSAni8iwHBRp530zAZE5ZPF2IA==
@@ -3294,7 +3280,7 @@ mongodb@~6.20.0:
     bson "^6.10.4"
     mongodb-connection-string-url "^3.0.2"
 
-mongoose@*, mongoose@^8.0.0:
+mongoose@^8.0.0:
   version "8.24.1"
   resolved "https://registry.npmjs.org/mongoose/-/mongoose-8.24.1.tgz"
   integrity sha512-UpHBA0l5kHyKJQFjmBaFYQFo5sgz1DK0TRqDkOyBLYbqiIbKKhIvBpHWBXqeo0rgW4kGI1UhhAw+kTQZoj1BdA==
