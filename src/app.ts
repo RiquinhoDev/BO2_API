@@ -1,4 +1,4 @@
-import express, { type Application } from 'express'
+import express, { type Application, type RequestHandler } from 'express'
 import compression from 'compression'
 import cors from 'cors'
 import { buildAllowedOrigins, isOriginAllowed } from './security/cors'
@@ -18,6 +18,7 @@ import {
   createErrorHandling,
   type ErrorHandling,
 } from './security/errorHandling'
+import { createDefaultDenyAuth } from './security/defaultDenyAuth'
 
 export interface CreateAppDependencies {
   registerRoutes: (app: Application) => void
@@ -26,6 +27,8 @@ export interface CreateAppDependencies {
   createErrorHandling?: () => ErrorHandling
   acWebhookSecret?: string
   acWebhookReplayStore?: AcWebhookReplayStore
+  authEnforce?: boolean
+  authenticateRequest?: RequestHandler
 }
 
 export function createApp(_deps: CreateAppDependencies): Application {
@@ -33,6 +36,10 @@ export function createApp(_deps: CreateAppDependencies): Application {
   const allowedOrigins = _deps.allowedOrigins ?? buildAllowedOrigins()
   const httpPerimeter = (_deps.createHttpPerimeter ?? createHttpPerimeter)()
   const errorHandling = (_deps.createErrorHandling ?? createErrorHandling)()
+  const defaultDenyAuth = createDefaultDenyAuth({
+    enabled: _deps.authEnforce,
+    authenticateRequest: _deps.authenticateRequest,
+  })
   const acWebhookSecurity = createAcWebhookSecurity({
     secret: _deps.acWebhookSecret,
     replayStore: _deps.acWebhookReplayStore,
@@ -58,6 +65,7 @@ export function createApp(_deps: CreateAppDependencies): Application {
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.jsonParser)
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.urlencodedParser)
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.replayGuard)
+  app.use(defaultDenyAuth)
   app.use(express.json({ limit: '100kb' }))
   _deps.registerRoutes(app)
   app.use(errorHandling.handler)

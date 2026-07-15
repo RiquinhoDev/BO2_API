@@ -3,6 +3,7 @@ import { createApp, type CreateAppDependencies } from './app'
 import { loadConfig, type AppConfig } from './config/appConfig'
 import { configureJwt } from './security/jwt'
 import { configureDebugRoutes } from './security/debugRoutes'
+import logger, { type AppLogger } from './utils/logger'
 
 export interface Infrastructure {
   connectMongo: (config: AppConfig) => Promise<void>
@@ -21,6 +22,7 @@ export interface BootstrapOptions {
   loadRouteRegistrar?: () => Promise<RouteRegistrar>
   loadJobStarter?: () => Promise<JobStarter>
   loadListener?: () => Promise<AppListener>
+  log?: Pick<AppLogger, 'error'>
 }
 
 const defaultLoadInfrastructure = async (): Promise<Infrastructure> =>
@@ -38,6 +40,10 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
   const config = loadConfig(options.env)
   configureJwt(config)
   configureDebugRoutes(config)
+  const log = options.log ?? logger
+  if (config.nodeEnv === 'production' && !config.authEnforce) {
+    log.error('AUTH_ENFORCE=false em producao: default-deny de autenticacao desligado')
+  }
   const infrastructure = await (options.loadInfrastructure ?? defaultLoadInfrastructure)()
   await infrastructure.connectMongo(config)
   await infrastructure.connectRedis(config)
@@ -50,6 +56,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
     registerRoutes,
     allowedOrigins: config.allowedOrigins,
     acWebhookSecret: config.acWebhookSecret,
+    authEnforce: config.authEnforce,
   })
 
   const startJobs = await (options.loadJobStarter ?? defaultLoadJobStarter)()
