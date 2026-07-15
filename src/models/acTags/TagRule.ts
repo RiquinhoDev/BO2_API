@@ -183,7 +183,7 @@ TagRuleSchema.statics.getActiveRulesByCourse = async function(
 // EXPORT
 // ─────────────────────────────────────────────────────────────
 
-const TagRule = mongoose.models.TagRule || mongoose.model<ITagRule>('TagRule', TagRuleSchema)
+const TagRule: mongoose.Model<ITagRule> = mongoose.models.TagRule || mongoose.model<ITagRule>('TagRule', TagRuleSchema)
 
 export default TagRule
 

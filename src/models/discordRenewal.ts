@@ -224,18 +224,18 @@ const discordScheduledRuleSchema = new Schema<IDiscordScheduledRule>(
   { timestamps: true, collection: 'discordscheduledrules' }
 )
 
-// Casts explícitos (padrão do projecto — evita o union type não-callable)
-export const DiscordRoleChange = (mongoose.models.DiscordRoleChange ||
-  mongoose.model<IDiscordRoleChange>('DiscordRoleChange', discordRoleChangeSchema)) as mongoose.Model<IDiscordRoleChange>
+// Tipos explícitos (padrão do projecto — evita o union type não-callable)
+export const DiscordRoleChange: mongoose.Model<IDiscordRoleChange> = mongoose.models.DiscordRoleChange ||
+  mongoose.model<IDiscordRoleChange>('DiscordRoleChange', discordRoleChangeSchema)
 
-export const DiscordRoleState = (mongoose.models.DiscordRoleState ||
-  mongoose.model<IDiscordRoleState>('DiscordRoleState', discordRoleStateSchema)) as mongoose.Model<IDiscordRoleState>
+export const DiscordRoleState: mongoose.Model<IDiscordRoleState> = mongoose.models.DiscordRoleState ||
+  mongoose.model<IDiscordRoleState>('DiscordRoleState', discordRoleStateSchema)
 
-export const DiscordMessageTemplate = (mongoose.models.DiscordMessageTemplate ||
-  mongoose.model<IDiscordMessageTemplate>('DiscordMessageTemplate', discordMessageTemplateSchema)) as mongoose.Model<IDiscordMessageTemplate>
+export const DiscordMessageTemplate: mongoose.Model<IDiscordMessageTemplate> = mongoose.models.DiscordMessageTemplate ||
+  mongoose.model<IDiscordMessageTemplate>('DiscordMessageTemplate', discordMessageTemplateSchema)
 
-export const DiscordMessageLog = (mongoose.models.DiscordMessageLog ||
-  mongoose.model<IDiscordMessageLog>('DiscordMessageLog', discordMessageLogSchema)) as mongoose.Model<IDiscordMessageLog>
+export const DiscordMessageLog: mongoose.Model<IDiscordMessageLog> = mongoose.models.DiscordMessageLog ||
+  mongoose.model<IDiscordMessageLog>('DiscordMessageLog', discordMessageLogSchema)
 
-export const DiscordScheduledRule = (mongoose.models.DiscordScheduledRule ||
-  mongoose.model<IDiscordScheduledRule>('DiscordScheduledRule', discordScheduledRuleSchema)) as mongoose.Model<IDiscordScheduledRule>
+export const DiscordScheduledRule: mongoose.Model<IDiscordScheduledRule> = mongoose.models.DiscordScheduledRule ||
+  mongoose.model<IDiscordScheduledRule>('DiscordScheduledRule', discordScheduledRuleSchema)

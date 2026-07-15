@@ -124,7 +124,7 @@ UserActionSchema.statics.countActionsInPeriod = async function(
 // EXPORT
 // ─────────────────────────────────────────────────────────────
 
-const UserAction = mongoose.models.UserAction || 
+const UserAction: mongoose.Model<IUserAction> = mongoose.models.UserAction ||
   mongoose.model<IUserAction>('UserAction', UserActionSchema)
 
 export default UserAction

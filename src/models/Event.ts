@@ -129,6 +129,6 @@ const EventSchema = new Schema<IEvent>({
 EventSchema.index({ status: 1, scheduledAt: 1 })
 EventSchema.index({ eventType: 1, scheduledAt: 1 })
 
-const Event = mongoose.models.Event || mongoose.model<IEvent>('Event', EventSchema)
+const Event: mongoose.Model<IEvent> = mongoose.models.Event || mongoose.model<IEvent>('Event', EventSchema)
 
 export default Event

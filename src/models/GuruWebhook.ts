@@ -206,4 +206,6 @@ guruWebhookSchema.statics.getStats = async function() {
 // EXPORT
 // ═══════════════════════════════════════════════════════════
 
-export default mongoose.models.GuruWebhook || model<IGuruWebhook>("GuruWebhook", guruWebhookSchema)
+const GuruWebhook: mongoose.Model<IGuruWebhook> = mongoose.models.GuruWebhook || model<IGuruWebhook>("GuruWebhook", guruWebhookSchema)
+
+export default GuruWebhook

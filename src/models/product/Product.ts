@@ -269,7 +269,7 @@ ProductSchema.methods.isAvailable = function(): boolean {
 // EXPORT
 // ─────────────────────────────────────────────────────────────
 
-const Product = mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)
+const Product: mongoose.Model<IProduct> = mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)
 
 export default Product
 

@@ -396,7 +396,7 @@ CommunicationHistorySchema.statics.getAverageTimeToReturn = async function(
 // EXPORT
 // ─────────────────────────────────────────────────────────────
 
-const CommunicationHistory = mongoose.models.CommunicationHistory || 
+const CommunicationHistory: mongoose.Model<ICommunicationHistory> = mongoose.models.CommunicationHistory ||
   mongoose.model<ICommunicationHistory>('CommunicationHistory', CommunicationHistorySchema)
 
 export default CommunicationHistory

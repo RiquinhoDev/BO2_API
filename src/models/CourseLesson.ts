@@ -76,6 +76,6 @@ const CourseLessonSchema = new Schema<ICourseLesson>({
 
 CourseLessonSchema.index({ moduleSequence: 1, lessonSequence: 1 })
 
-const CourseLesson = mongoose.models.CourseLesson || mongoose.model<ICourseLesson>('CourseLesson', CourseLessonSchema)
+const CourseLesson: mongoose.Model<ICourseLesson> = mongoose.models.CourseLesson || mongoose.model<ICourseLesson>('CourseLesson', CourseLessonSchema)
 
 export default CourseLesson
