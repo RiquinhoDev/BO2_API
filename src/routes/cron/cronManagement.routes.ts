@@ -5,6 +5,8 @@
 // ================================================================
 
 import { Router } from 'express'
+import { withValidatedInput } from '../../security/validatedInput'
+import { cronTagsExecuteInput } from '../../security/cronTagsDestructiveInput'
 import cronManagementController from '../../controllers/cron/cronManagement.controller'
 
 
@@ -18,10 +20,10 @@ router.get('/config', cronManagementController.getConfig)
 router.put('/config', cronManagementController.updateConfig)
 
 // POST /api/cron/execute - Executar sincronização INTELIGENTE manualmente (novo sistema)
-router.post('/execute', cronManagementController.executeNow)
+router.post('/execute', withValidatedInput(cronTagsExecuteInput, (input, _req, res) => cronManagementController.executeNow(input, res)))
 
 // POST /api/cron/execute-legacy - Executar sincronização LEGADA (sistema antigo)
-router.post('/execute-legacy', cronManagementController.executeLegacy)
+router.post('/execute-legacy', withValidatedInput(cronTagsExecuteInput, (input, _req, res) => cronManagementController.executeLegacy(input, res)))
 
 // GET /api/cron/history - Histórico de execuções
 router.get('/history', cronManagementController.getHistory)

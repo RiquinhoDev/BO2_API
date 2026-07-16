@@ -10,6 +10,7 @@ import cronManagementService from '../../services/cron/cronManagement.service'
 import CronJobConfig from '../../models/SyncModels/CronJobConfig'
 import { CronExecution } from '../../models'
 import syncSchedulerService from '../../services/cron/scheduler'
+import type { CronTagsExecuteInput } from '../../security/cronTagsDestructiveInput'
 
 
 
@@ -95,11 +96,11 @@ class CronManagementController {
    * POST /api/cron/execute
    * 🆕 Executa sincronização INTELIGENTE manualmente (novo sistema)
    */
-  async executeNow(req: Request, res: Response): Promise<void> {
+  async executeNow(input: CronTagsExecuteInput, res: Response): Promise<void> {
     try {
       console.log('🔥 [API] POST /api/cron/execute (MANUAL - INTELIGENTE)')
       
-      const userId = req.body.userId // Assumindo que vem do auth middleware
+      const userId = input.body.userId // Assumindo que vem do auth middleware
 
       // Usar novo sistema inteligente
       const result = await cronManagementService.executeIntelligentTagSync('manual', userId)
@@ -138,11 +139,11 @@ class CronManagementController {
    * ⚠️ Executa sincronização LEGADA manualmente (sistema antigo)
    * @deprecated Use /api/cron/execute para o novo sistema inteligente
    */
-  async executeLegacy(req: Request, res: Response): Promise<void> {
+  async executeLegacy(input: CronTagsExecuteInput, res: Response): Promise<void> {
     try {
       console.log('🔥 [API] POST /api/cron/execute-legacy (MANUAL - LEGADO)')
       
-      const userId = req.body.userId
+      const userId = input.body.userId
 
       const result = await cronManagementService.executeTagRulesSync('manual', userId)
 
