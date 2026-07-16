@@ -6,6 +6,13 @@
 
 import { Router } from 'express'
 import { localDebugOnly } from '../../security/debugRoutes'
+import { withValidatedInput } from '../../security/validatedInput'
+import {
+  activeCampaignEmptyInput,
+  activeCampaignProductSyncInput,
+  activeCampaignTagMutationInput,
+  activeCampaignTagRuleDeleteInput,
+} from '../../security/activeCampaignDestructiveInput'
 import {
   // CRON
   testCron,
@@ -40,6 +47,14 @@ getHistoryStats,
 } from '../../controllers/acTags/activecampaign.controller'
 
 
+type DebugUserProduct = {
+  userId?: { name?: string; email?: string }
+  productId?: { name?: string; code?: string }
+  status?: unknown
+  progress?: unknown
+  engagement?: unknown
+}
+
 const router = Router()
 
 // ─────────────────────────────────────────────────────────────
@@ -47,7 +62,7 @@ const router = Router()
 // ─────────────────────────────────────────────────────────────
 
 // POST /api/activecampaign/test-cron
-router.post('/test-cron', testCron)
+router.post('/test-cron', withValidatedInput(activeCampaignEmptyInput, (input, _req, res) => testCron(input, res)))
 
 // GET /api/activecampaign/cron-logs
 router.get('/cron-logs', getCronLogs)
@@ -92,7 +107,7 @@ router.post('/tag-rules', createTagRule)
 router.put('/tag-rules/:id', updateTagRule)
 
 // DELETE /api/activecampaign/tag-rules/:id
-router.delete('/tag-rules/:id', deleteTagRule)
+router.delete('/tag-rules/:id', withValidatedInput(activeCampaignTagRuleDeleteInput, (input, _req, res) => deleteTagRule(input, res)))
 
 
 // ─────────────────────────────────────────────────────────────
@@ -107,10 +122,10 @@ router.get('/history/stats', getHistoryStats)
 // ─────────────────────────────────────────────────────────────
 
 // POST /api/activecampaign/v2/tag/apply
-router.post('/v2/tag/apply', applyTagToUserProduct)
+router.post('/v2/tag/apply', withValidatedInput(activeCampaignTagMutationInput, (input, _req, res) => applyTagToUserProduct(input, res)))
 
 // POST /api/activecampaign/v2/tag/remove
-router.post('/v2/tag/remove', removeTagFromUserProduct)
+router.post('/v2/tag/remove', withValidatedInput(activeCampaignTagMutationInput, (input, _req, res) => removeTagFromUserProduct(input, res)))
 
 // GET /api/activecampaign/v2/products/:productId/tagged?tag=...
 router.get('/v2/products/:productId/tagged', getUsersWithTagsInProduct)
@@ -119,7 +134,7 @@ router.get('/v2/products/:productId/tagged', getUsersWithTagsInProduct)
 router.get('/v2/stats', getACStats)
 
 // POST /api/activecampaign/v2/sync/:productId
-router.post('/v2/sync/:productId', syncProductTags)
+router.post('/v2/sync/:productId', withValidatedInput(activeCampaignProductSyncInput, (input, _req, res) => syncProductTags(input, res)))
 
 // ─────────────────────────────────────────────────────────────
 // DEBUG - TEMPORARY
@@ -143,7 +158,7 @@ router.get('/debug/curseduca-data', localDebugOnly, async (req, res) => {
       .populate('userId', 'name email')
       .populate('productId', 'name code')
       .limit(5)
-      .lean()
+      .lean() as unknown as DebugUserProduct[]
 
     // 3. Stats gerais
     const totalUserProducts = await UserProduct.countDocuments({

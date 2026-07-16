@@ -4,7 +4,6 @@
     "controllers": 136,
     "jobs": 1,
     "models": 5,
-    "routes": 4,
     "scripts": 1,
     "services": 39,
     "utils": 8
@@ -42,7 +41,6 @@
     "src/models/ClarezaTop10Data.ts",
     "src/models/Class.ts",
     "src/models/user.ts",
-    "src/routes/ACroutes/activecampaign.routes.ts",
     "src/scripts/investigate-classes.ts",
     "src/services/activeCampaign/activeCampaignService.ts",
     "src/services/snapshotServices/snapshotComparison.service.ts",

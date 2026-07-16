@@ -4,7 +4,7 @@
 // Endpoints de gestão Active Campaign (Legacy + V2 Tags por Produto)
 // =====================================================
 
-import type { RequestHandler } from 'express'
+import type { RequestHandler, Response } from 'express'
 
 import User from '../../models/user'
 import CronExecutionLog from '../../models/cron/CronExecutionLog'
@@ -12,12 +12,18 @@ import TagRule from '../../models/acTags/TagRule'
 import { CommunicationHistory, Course, Product, UserProduct } from '../../models'
 import activeCampaignService from '../../services/activeCampaign/activeCampaignService'
 import decisionEngine from '../../services/activeCampaign/decisionEngine.service'
+import type {
+  ActiveCampaignEmptyInput,
+  ActiveCampaignProductSyncInput,
+  ActiveCampaignTagMutationInput,
+  ActiveCampaignTagRuleDeleteInput,
+} from '../../security/activeCampaignDestructiveInput'
 
 /**
  * POST /api/activecampaign/test-cron
  * ✅ NOVO: Executa avaliação manual usando DecisionEngine por produto
  */
-export const testCron: RequestHandler = async (_req, res) => {
+export const testCron = async (_input: ActiveCampaignEmptyInput, res: Response): Promise<void> => {
   const startTime = Date.now()
   const executionId = `MANUAL_${Date.now()}`
 
@@ -601,9 +607,9 @@ export const updateTagRule: RequestHandler = async (req, res) => {
 /**
  * DELETE /api/tag-rules/:id
  */
-export const deleteTagRule: RequestHandler = async (req, res) => {
+export const deleteTagRule = async (input: ActiveCampaignTagRuleDeleteInput, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    const { id } = input.params
     console.log(`🗑️ Deletando tag rule: ${id}`)
 
     const rule = await TagRule.findByIdAndDelete(id)
@@ -953,9 +959,9 @@ export const getHistoryStats: RequestHandler = async (req, res) => {
     return
   }
 }
-export const applyTagToUserProduct: RequestHandler = async (req, res) => {
+export const applyTagToUserProduct = async (input: ActiveCampaignTagMutationInput, res: Response): Promise<void> => {
   try {
-    const { userId, productId, tagName } = req.body
+    const { userId, productId, tagName } = input.body
 
     if (!userId || !productId || !tagName) {
       res.status(400).json({
@@ -1027,9 +1033,9 @@ export const applyTagToUserProduct: RequestHandler = async (req, res) => {
 }
 
 
-export const removeTagFromUserProduct: RequestHandler = async (req, res) => {
+export const removeTagFromUserProduct = async (input: ActiveCampaignTagMutationInput, res: Response): Promise<void> => {
   try {
-    const { userId, productId, tagName } = req.body
+    const { userId, productId, tagName } = input.body
 
     if (!userId || !productId || !tagName) {
       res.status(400).json({
@@ -1172,9 +1178,9 @@ export const getACStats: RequestHandler = async (_req, res) => {
 /**
  * POST /api/activecampaign/v2/sync/:productId
  */
-export const syncProductTags: RequestHandler = async (req, res) => {
+export const syncProductTags = async (input: ActiveCampaignProductSyncInput, res: Response): Promise<void> => {
   try {
-    const { productId } = req.params
+    const { productId } = input.params
 
     const product = await Product.findById(productId)
     if (!product) {
