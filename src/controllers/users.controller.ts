@@ -16,6 +16,11 @@ import { readImportedUsers } from "../services/importedUsersWorkbook"
 import { withUploadedFileCleanup } from "../security/usersImportUpload"
 import { HttpError } from "../security/errorHandling"
 import { ensureUsersV2Products } from "../contracts/usersV2"
+import type {
+  UsersBulkDeleteInput,
+  UsersDeleteByIdInput,
+  UsersDeleteStudentInput,
+} from "../security/usersDestructiveInput"
 
 
 
@@ -1676,9 +1681,9 @@ export const syncSpecificStudent = async (req: Request, res: Response): Promise<
  * DELETE /api/users/:id
  * Eliminar aluno (mantido)
  */
-export const deleteStudent = async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params
-  const { permanent = false } = req.query
+export const deleteStudent = async (input: UsersDeleteStudentInput, res: Response): Promise<void> => {
+  const { id } = input.params
+  const { permanent = 'false' } = input.query
 
   try {
     if (permanent === 'true') {
@@ -1771,8 +1776,8 @@ export const mergeDiscordId = async (req: Request, res: Response): Promise<void>
   }
 }
 
-export const deleteIdsDiferentes = async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params
+export const deleteIdsDiferentes = async (input: UsersDeleteByIdInput, res: Response): Promise<void> => {
+  const { id } = input.params
   try {
     const deleted = await IdsDiferentes.findByIdAndDelete(id)
 
@@ -1797,8 +1802,8 @@ export const getUnmatchedUsers = async (req: Request, res: Response): Promise<vo
   }
 }
 
-export const deleteUnmatchedUser = async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params
+export const deleteUnmatchedUser = async (input: UsersDeleteByIdInput, res: Response): Promise<void> => {
+  const { id } = input.params
   try {
     const result = await UnmatchedUser.findByIdAndDelete(id)
     if (!result) {
@@ -1912,8 +1917,8 @@ export const bulkMergeIds = async (req: Request, res: Response): Promise<void> =
   }
 }
 
-export const bulkDeleteIds = async (req: Request, res: Response): Promise<void> => {
-  const { ids } = req.body;
+export const bulkDeleteIds = async (input: UsersBulkDeleteInput, res: Response): Promise<void> => {
+  const { ids } = input.body;
   
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     res.status(400).json({ message: "Lista de IDs é obrigatória." });
@@ -1936,8 +1941,8 @@ export const bulkDeleteIds = async (req: Request, res: Response): Promise<void> 
   }
 }
 
-export const bulkDeleteUnmatchedUsers = async (req: Request, res: Response): Promise<void> => {
-  const { ids } = req.body;
+export const bulkDeleteUnmatchedUsers = async (input: UsersBulkDeleteInput, res: Response): Promise<void> => {
+  const { ids } = input.body;
   
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     res.status(400).json({ message: "Lista de IDs é obrigatória." });

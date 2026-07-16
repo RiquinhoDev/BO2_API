@@ -1,6 +1,12 @@
 // src/routes/users.routes.ts - ROTAS ATUALIZADAS PARA COMPATIBILIDADE
 import { Router } from "express"
 import { createUsersImportUpload } from "../security/usersImportUpload"
+import { withValidatedInput } from "../security/validatedInput"
+import {
+  usersBulkDeleteInput,
+  usersDeleteByIdInput,
+  usersDeleteStudentInput,
+} from "../security/usersDestructiveInput"
 import {
   // Funções existentes (mantidas para compatibilidade)
   listUsers,
@@ -517,8 +523,18 @@ router.get('/:id', getUserById)  // 🚨 ÚLTIMA ROTA GET!
 router.post("/syncDiscordAndHotmart", usersImportUpload, syncDiscordAndHotmart)
 router.post("/mergeDiscordId", mergeDiscordId)
 router.post("/bulkMerge", bulkMergeIds)
-router.post("/bulkDelete", bulkDeleteIds)
-router.post("/bulkDeleteUnmatched", bulkDeleteUnmatchedUsers)
+router.post(
+  "/bulkDelete",
+  withValidatedInput(usersBulkDeleteInput, (input, _req, res) =>
+    bulkDeleteIds(input, res)
+  )
+)
+router.post(
+  "/bulkDeleteUnmatched",
+  withValidatedInput(usersBulkDeleteInput, (input, _req, res) =>
+    bulkDeleteUnmatchedUsers(input, res)
+  )
+)
 router.post("/manualMatch", manualMatch)
 router.post("/:id/sync", syncSpecificStudent)
 router.post("/student/:id/sync", syncSpecificStudent)
@@ -526,9 +542,29 @@ router.post("/student/:id/sync", syncSpecificStudent)
 router.put("/:id", editStudent)
 router.put("/editStudent/:id", editStudent)
 
-router.delete("/unmatchedUsers/:id", deleteUnmatchedUser)
-router.delete("/idsDiferentes/:id", deleteIdsDiferentes)
-router.delete("/:id", deleteStudent)
-router.delete("/student/:id", deleteStudent)
+router.delete(
+  "/unmatchedUsers/:id",
+  withValidatedInput(usersDeleteByIdInput, (input, _req, res) =>
+    deleteUnmatchedUser(input, res)
+  )
+)
+router.delete(
+  "/idsDiferentes/:id",
+  withValidatedInput(usersDeleteByIdInput, (input, _req, res) =>
+    deleteIdsDiferentes(input, res)
+  )
+)
+router.delete(
+  "/:id",
+  withValidatedInput(usersDeleteStudentInput, (input, _req, res) =>
+    deleteStudent(input, res)
+  )
+)
+router.delete(
+  "/student/:id",
+  withValidatedInput(usersDeleteStudentInput, (input, _req, res) =>
+    deleteStudent(input, res)
+  )
+)
 
 export default router
