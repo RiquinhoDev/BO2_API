@@ -21,3 +21,7 @@ não existir uma matriz de permissões, um papel só-consulta, audit log de admi
 e gating equivalente no Front, nenhuma entrada pode usar `role:*`. O teste
 `tests/security/routeCatalog.test.ts` fecha essa regra e exige cobertura exata
 do manifest.
+
+As 18 montagens de `cron-tags` estão marcadas `deprecated: true`, mas continuam
+ativas. Os headers e logs iniciam a janela de observação; remoção exige tráfego
+real observado e uma decisão posterior.

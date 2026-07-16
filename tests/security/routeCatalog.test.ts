@@ -8,6 +8,8 @@ type CatalogRoute = ManifestRoute & {
   writes: boolean
   destructive: boolean
   evidence: string
+  deprecated?: boolean
+  deprecatedReason?: string
 }
 
 const securityDir = path.join(process.cwd(), 'src', 'security')
@@ -63,4 +65,17 @@ test('a evidencia aponta para a declaracao real da rota', () => {
     const sourceLine = fs.readFileSync(sourcePath, 'utf8').split(/\r?\n/)[Number(match![2]) - 1]
     expect(sourceLine).toContain(`.${route.method.toLowerCase()}(`)
   }
+})
+
+test('marca apenas as 18 montagens cron-tags como deprecated', () => {
+  const deprecated = catalog.filter((route) => route.deprecated)
+
+  expect(deprecated).toHaveLength(18)
+  expect(
+    deprecated.every(
+      (route) =>
+        route.path.startsWith('/api/cron-tags/') || route.path.startsWith('/cron-tags/'),
+    ),
+  ).toBe(true)
+  expect(deprecated.every((route) => Boolean(route.deprecatedReason?.trim()))).toBe(true)
 })
