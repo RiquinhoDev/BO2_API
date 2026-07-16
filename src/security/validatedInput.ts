@@ -27,6 +27,22 @@ export type ValidatedInputHandler<TSchema extends z.AnyZodObject> = (
   next: NextFunction,
 ) => unknown | Promise<unknown>
 
+export function validatedSchema<
+  TParams extends z.ZodRawShape,
+  TQuery extends z.ZodRawShape,
+  TBody extends z.ZodRawShape,
+>(shapes: {
+  params: TParams
+  query: TQuery
+  body: TBody
+}) {
+  return z.object({
+    params: z.object(shapes.params).strict(),
+    query: z.object(shapes.query).strict(),
+    body: z.object(shapes.body).strict(),
+  }).strict()
+}
+
 function withoutOfflineLoopbackMarker(query: unknown): unknown {
   if (
     process.env.NODE_ENV !== 'test'

@@ -2,13 +2,16 @@ import express from 'express'
 import request from 'supertest'
 import { z } from 'zod'
 import { createErrorHandling } from '../../src/security/errorHandling'
-import { withValidatedInput } from '../../src/security/validatedInput'
+import {
+  validatedSchema,
+  withValidatedInput,
+} from '../../src/security/validatedInput'
 
-const destructiveInput = z.object({
-  params: z.object({}).strict(),
-  query: z.object({}).strict(),
-  body: z.object({ name: z.string() }).strict(),
-}).strict()
+const destructiveInput = validatedSchema({
+  params: {},
+  query: {},
+  body: { name: z.string() },
+})
 
 function buildApp(onValidated = jest.fn()) {
   const app = express()
@@ -31,6 +34,20 @@ function buildApp(onValidated = jest.fn()) {
 }
 
 const offlineMarker = { __bo2_offline_loopback: '1' }
+
+test('validatedSchema makes every input shape strict centrally', () => {
+  const schema = validatedSchema({
+    params: {},
+    query: {},
+    body: { name: z.string() },
+  })
+
+  expect(schema.safeParse({
+    params: {},
+    query: {},
+    body: { name: 'Alice', role: 'SUPER_ADMIN' },
+  }).success).toBe(false)
+})
 
 test('rejects an extra role field instead of stripping it', async () => {
   const onValidated = jest.fn()
@@ -125,14 +142,14 @@ test('forwards handler failures without misclassifying them as invalid input', a
 })
 
 test('runs the operator guard before invoking Zod', async () => {
-  const schema = z.object({
-    params: z.object({}).strict(),
-    query: z.object({}).strict(),
-    body: z.object({
+  const schema = validatedSchema({
+    params: {},
+    query: {},
+    body: {
       name: z.string(),
       nested: z.unknown(),
-    }).strict(),
-  }).strict()
+    },
+  })
   const safeParse = jest.spyOn(schema, 'safeParse')
   const app = express()
   const errors = createErrorHandling({
