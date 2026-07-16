@@ -32,7 +32,7 @@
 
 ```bash
 npm run lint            # exit 0. NUNCA --pass-on-unpruned-suppressions
-npm run types:check     # ratchet TS: 194 erros / 45 ficheiros. SÓ pode descer
+npm run types:check     # ratchet TS: 190 erros / 44 ficheiros. SÓ pode descer
 npx jest --ci           # verde, egress guard ativo
 npm run build           # exit 0
 ```
@@ -61,13 +61,14 @@ um teste** que o param real chega ao handler (não 400). O padrão já está fei
 
 - [x] **Users (6)** — feito (`48bdc2f`)
 - [x] **cron-tags (4)** — feito (`0f76dc6`); as duas montagens (`/api/cron-tags` e `/cron-tags`) cobertas
-- [ ] **activecampaign (5)** ← **PRÓXIMA**
-  - `DELETE /api/activecampaign/tag-rules/:id` ⚠️ param `:id`
-  - `POST /api/activecampaign/v2/sync/:productId` ⚠️ param `:productId`
-  - `POST /api/activecampaign/test-cron`
-  - `POST /api/activecampaign/v2/tag/apply`
-  - `POST /api/activecampaign/v2/tag/remove`
-- [ ] **guru (4)** — `POST /inactivation/bulk`, `/inactivation/single`, `DELETE /snapshots/:year/:month` ⚠️, `/snapshots/all`
+- [x] **activecampaign (5)** — feito (`1fac3cf`); params `:id`/`:productId` modelados como ObjectId, validado pelo revisor
+- [ ] **guru (4)** ← **PRÓXIMA**
+  - `POST /api/guru/inactivation/bulk`
+  - `POST /api/guru/inactivation/single`
+  - `DELETE /api/guru/snapshots/:year/:month` ⚠️ params `:year`/`:month`
+  - `DELETE /api/guru/snapshots/all`
+  - Nota: estas rotas usam o wrapper `asyncRoute(handler)` (`guru.routes.ts`); `withValidatedInput` já
+    apanha erros async — substitui o wrapper nas 4 rotas, não os empilhes.
 - [ ] **discord-renewal (4)** — `POST /execute`, `/messages/send`, `/scheduled/:key/test` ⚠️, `/scheduled/run`
 - [ ] **cron (3)** — `DELETE /jobs/:id` ⚠️, `POST /jobs/:id/trigger` ⚠️, `/tag-rules-only`
 - [ ] **renewal-ac (2)** — `POST /changes/:id/revert` ⚠️, `/execute`
