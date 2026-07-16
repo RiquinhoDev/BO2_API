@@ -114,7 +114,7 @@ export function withValidatedInput<TSchema extends z.AnyZodObject>(
     const input = {
       params: req.params,
       query: withoutOfflineLoopbackMarker(req.query),
-      body: req.body,
+      body: req.body ?? {},
     }
 
     let data: z.infer<TSchema>
