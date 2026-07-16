@@ -19,6 +19,10 @@ import {
   type ErrorHandling,
 } from './security/errorHandling'
 import { createDefaultDenyAuth } from './security/defaultDenyAuth'
+import {
+  createRouteUsageInstrumentation,
+  type RouteUsageInstrumentation,
+} from './observability/routeUsageInstrumentation'
 
 export interface CreateAppDependencies {
   registerRoutes: (app: Application) => void
@@ -29,6 +33,7 @@ export interface CreateAppDependencies {
   acWebhookReplayStore?: AcWebhookReplayStore
   authEnforce?: boolean
   authenticateRequest?: RequestHandler
+  createRouteUsageInstrumentation?: () => RouteUsageInstrumentation
 }
 
 export function createApp(_deps: CreateAppDependencies): Application {
@@ -36,6 +41,9 @@ export function createApp(_deps: CreateAppDependencies): Application {
   const allowedOrigins = _deps.allowedOrigins ?? buildAllowedOrigins()
   const httpPerimeter = (_deps.createHttpPerimeter ?? createHttpPerimeter)()
   const errorHandling = (_deps.createErrorHandling ?? createErrorHandling)()
+  const routeUsage = (
+    _deps.createRouteUsageInstrumentation ?? createRouteUsageInstrumentation
+  )()
   const defaultDenyAuth = createDefaultDenyAuth({
     enabled: _deps.authEnforce,
     authenticateRequest: _deps.authenticateRequest,
@@ -46,6 +54,7 @@ export function createApp(_deps: CreateAppDependencies): Application {
   })
   app.set('trust proxy', 1)
   app.use(errorHandling.correlationId)
+  app.use(routeUsage.handler)
   app.use(httpPerimeter.helmet)
   app.use(
     cors({
