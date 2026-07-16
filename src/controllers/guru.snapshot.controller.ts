@@ -3,6 +3,7 @@ import { Request, Response } from 'express'
 import GuruMonthlySnapshot from '../models/GuruMonthlySnapshot'
 import User from '../models/user'
 import { fetchSubscriptionsByMonth, fetchAllSubscriptionsPaginated } from '../services/guru/guruSync.service'
+import type { GuruEmptyInput, GuruSnapshotDeleteInput } from '../security/guruDestructiveInput'
 
 // ═══════════════════════════════════════════════════════════
 // CREATE SNAPSHOT
@@ -367,9 +368,9 @@ export const getSnapshot = async (req: Request, res: Response) => {
  * Apagar snapshot
  * DELETE /guru/snapshots/:year/:month
  */
-export const deleteSnapshot = async (req: Request, res: Response) => {
+export const deleteSnapshot = async (input: GuruSnapshotDeleteInput, res: Response) => {
   try {
-    const { year, month } = req.params
+    const { year, month } = input.params
 
     const deleted = await GuruMonthlySnapshot.findOneAndDelete({
       year: parseInt(year),
@@ -827,7 +828,7 @@ async function createSnapshotFromSubscriptions(
  * Apagar TODOS os snapshots (para recriação)
  * DELETE /guru/snapshots/all
  */
-export const deleteAllSnapshots = async (req: Request, res: Response) => {
+export const deleteAllSnapshots = async (_input: GuruEmptyInput, res: Response) => {
   try {
     console.log('🗑️ [SNAPSHOT] Apagando todos os snapshots...')
 
