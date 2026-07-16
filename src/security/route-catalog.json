@@ -1914,7 +1914,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:210"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:217"
     },
     {
         "method":  "GET",
@@ -1923,7 +1923,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:217"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:224"
     },
     {
         "method":  "GET",
@@ -1932,7 +1932,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:223"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:230"
     },
     {
         "method":  "GET",
@@ -1941,7 +1941,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:235"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:242"
     },
     {
         "method":  "GET",
@@ -1950,7 +1950,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:242"
+        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:249"
     },
     {
         "method":  "GET",
@@ -1959,7 +1959,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:229"
+        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:236"
     },
     {
         "method":  "GET",
@@ -1968,7 +1968,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:97"
+        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:104"
     },
     {
         "method":  "GET",
@@ -1977,7 +1977,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:153"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:160"
     },
     {
         "method":  "POST",
@@ -1986,7 +1986,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:334"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:341"
     },
     {
         "method":  "POST",
@@ -1995,7 +1995,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:354"
+        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:361"
     },
     {
         "method":  "POST",
@@ -2004,7 +2004,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:382"
+        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:389"
     },
     {
         "method":  "POST",
@@ -2013,7 +2013,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:368"
+        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:375"
     },
     {
         "method":  "POST",
@@ -2022,7 +2022,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:361"
+        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:368"
     },
     {
         "method":  "GET",
@@ -2031,7 +2031,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:320"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:327"
     },
     {
         "method":  "POST",
@@ -2040,7 +2040,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:348"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:355"
     },
     {
         "method":  "POST",
@@ -2049,7 +2049,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:396"
+        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:403"
     },
     {
         "method":  "GET",
@@ -2058,7 +2058,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:307"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:314"
     },
     {
         "method":  "POST",
@@ -2067,7 +2067,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:375"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:382"
     },
     {
         "method":  "POST",
@@ -2076,7 +2076,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:389"
+        "evidence":  "consumer nao identificado; rota em src/routes/guru.routes.ts:396"
     },
     {
         "method":  "POST",
@@ -2085,7 +2085,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:341"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:348"
     },
     {
         "method":  "POST",
@@ -2094,7 +2094,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:327"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:334"
     },
     {
         "method":  "GET",
@@ -2103,7 +2103,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:313"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInactivation.api.ts\u003e; rota em src/routes/guru.routes.ts:320"
     },
     {
         "method":  "GET",
@@ -2112,7 +2112,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:110"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:117"
     },
     {
         "method":  "GET",
@@ -2121,7 +2121,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:266"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:273"
     },
     {
         "method":  "POST",
@@ -2130,7 +2130,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:253"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:260"
     },
     {
         "method":  "DELETE",
@@ -2139,7 +2139,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:297"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:304"
     },
     {
         "method":  "GET",
@@ -2148,7 +2148,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:285"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:292"
     },
     {
         "method":  "PUT",
@@ -2157,7 +2157,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:291"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:298"
     },
     {
         "method":  "DELETE",
@@ -2166,7 +2166,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:279"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:286"
     },
     {
         "method":  "GET",
@@ -2175,7 +2175,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:272"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:279"
     },
     {
         "method":  "POST",
@@ -2184,7 +2184,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:260"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruInsights.api.ts\u003e; rota em src/routes/guru.routes.ts:267"
     },
     {
         "method":  "GET",
@@ -2193,7 +2193,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:140"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:147"
     },
     {
         "method":  "GET",
@@ -2202,7 +2202,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:116"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:123"
     },
     {
         "method":  "GET",
@@ -2211,7 +2211,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:147"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:154"
     },
     {
         "method":  "GET",
@@ -2220,7 +2220,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:182"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:189"
     },
     {
         "method":  "GET",
@@ -2229,7 +2229,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:188"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:195"
     },
     {
         "method":  "GET",
@@ -2238,7 +2238,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:175"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:182"
     },
     {
         "method":  "GET",
@@ -2247,7 +2247,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:194"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:201"
     },
     {
         "method":  "GET",
@@ -2256,7 +2256,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:200"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:207"
     },
     {
         "method":  "GET",
@@ -2265,7 +2265,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:407"
+        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:414"
     },
     {
         "method":  "POST",
@@ -2274,7 +2274,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:419"
+        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:426"
     },
     {
         "method":  "POST",
@@ -2283,7 +2283,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:439"
+        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:446"
     },
     {
         "method":  "POST",
@@ -2292,7 +2292,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:432"
+        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:439"
     },
     {
         "method":  "GET",
@@ -2301,7 +2301,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:413"
+        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:420"
     },
     {
         "method":  "POST",
@@ -2310,7 +2310,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:425"
+        "evidence":  "chamada do Front em \u003csrc/pages/guru/TrialsTab.tsx\u003e; rota em src/routes/guru.routes.ts:432"
     },
     {
         "method":  "POST",
@@ -2319,7 +2319,7 @@
         "consumer":  "webhook:guru",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer webhook:guru; autenticacao por assinatura; rota em src/routes/guru.routes.ts:91"
+        "evidence":  "consumer webhook:guru; autenticacao por assinatura; rota em src/routes/guru.routes.ts:98"
     },
     {
         "method":  "GET",
@@ -2328,7 +2328,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:134"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:141"
     },
     {
         "method":  "POST",
@@ -2337,7 +2337,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:159"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:166"
     },
     {
         "method":  "GET",
@@ -2346,7 +2346,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:127"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:134"
     },
     {
         "method":  "POST",
@@ -2355,7 +2355,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:165"
+        "evidence":  "chamada do Front em \u003csrc/features/guru/guruCore.api.ts\u003e; rota em src/routes/guru.routes.ts:172"
     },
     {
         "method":  "GET",

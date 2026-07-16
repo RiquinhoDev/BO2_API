@@ -15,6 +15,10 @@ import {
   type GuruDateInfo
 } from '../services/guru/guru.constants'
 import { fetchContactByEmail, fetchContactSubscriptions } from '../services/guru/guruSync.service'
+import type {
+  GuruInactivationBulkInput,
+  GuruInactivationSingleInput,
+} from '../security/guruDestructiveInput'
 
 // ═══════════════════════════════════════════════════════════
 // LISTAR USERS PARA INATIVAR
@@ -114,9 +118,9 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
  * POST /guru/inactivation/single
  * Body: { userProductId: string } ou { curseducaUserId: string }
  */
-export const inactivateSingle = async (req: Request, res: Response) => {
+export const inactivateSingle = async (input: GuruInactivationSingleInput, res: Response) => {
   try {
-    const { userProductId, curseducaUserId } = req.body
+    const { userProductId, curseducaUserId } = input.body
 
     if (!userProductId && !curseducaUserId) {
       return res.status(400).json({
@@ -223,9 +227,9 @@ export const inactivateSingle = async (req: Request, res: Response) => {
  * POST /guru/inactivation/bulk
  * Body: { userProductIds: string[] } ou { all: true }
  */
-export const inactivateBulk = async (req: Request, res: Response) => {
+export const inactivateBulk = async (input: GuruInactivationBulkInput, res: Response) => {
   try {
-    const { userProductIds, all } = req.body
+    const { userProductIds, all } = input.body
 
     let userProducts
     if (all === true) {

@@ -1,6 +1,13 @@
 // src/routes/guru.routes.ts - Routes para integração Guru
 import { Router, RequestHandler } from 'express'
 import { localDebugOnly } from '../security/debugRoutes'
+import { withValidatedInput } from '../security/validatedInput'
+import {
+  guruEmptyInput,
+  guruInactivationBulkInput,
+  guruInactivationSingleInput,
+  guruSnapshotDeleteInput,
+} from '../security/guruDestructiveInput'
 import {
   handleGuruWebhook,
   listGuruWebhooks,
@@ -276,7 +283,7 @@ router.get('/snapshots/churn', asyncRoute(getChurnFromSnapshots))
  * Apagar TODOS os snapshots (para recriação)
  * NOTA: Deve vir ANTES das routes com parâmetros
  */
-router.delete('/snapshots/all', asyncRoute(deleteAllSnapshots))
+router.delete('/snapshots/all', withValidatedInput(guruEmptyInput, (input, _req, res) => deleteAllSnapshots(input, res)))
 
 /**
  * GET /guru/snapshots/:year/:month
@@ -294,7 +301,7 @@ router.put('/snapshots/:year/:month', asyncRoute(updateSnapshot))
  * DELETE /guru/snapshots/:year/:month
  * Apagar snapshot
  */
-router.delete('/snapshots/:year/:month', asyncRoute(deleteSnapshot))
+router.delete('/snapshots/:year/:month', withValidatedInput(guruSnapshotDeleteInput, (input, _req, res) => deleteSnapshot(input, res)))
 
 // ═══════════════════════════════════════════════════════════
 // INATIVAÇÃO CURSEDUCA
@@ -324,14 +331,14 @@ router.get('/inactivation/inactive', asyncRoute(listInactivated))
  * Inativar um único membro no CursEduca
  * Body: { userProductId: string } ou { curseducaUserId: string }
  */
-router.post('/inactivation/single', asyncRoute(inactivateSingle))
+router.post('/inactivation/single', withValidatedInput(guruInactivationSingleInput, (input, _req, res) => inactivateSingle(input, res)))
 
 /**
  * POST /guru/inactivation/bulk
  * Inativar múltiplos membros no CursEduca
  * Body: { userProductIds: string[] } ou { all: true }
  */
-router.post('/inactivation/bulk', asyncRoute(inactivateBulk))
+router.post('/inactivation/bulk', withValidatedInput(guruInactivationBulkInput, (input, _req, res) => inactivateBulk(input, res)))
 
 /**
  * POST /guru/inactivation/revert
