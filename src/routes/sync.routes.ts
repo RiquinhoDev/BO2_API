@@ -10,6 +10,11 @@
 
 import { Router } from 'express'
 import * as syncController from '../controllers/sync.controller'
+import {
+  syncCleanHistoryInput,
+  syncExecutePipelineInput,
+} from '../security/syncDestructiveInput'
+import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
 
@@ -18,7 +23,11 @@ const router = Router()
 // ═══════════════════════════════════════════════════════════
 
 // Pipeline completo (4 steps: Sync Hotmart → Sync CursEduca → Recalc Engagement → Tag Rules)
-router.post('/execute-pipeline', syncController.executePipeline)
+router.post(
+  '/execute-pipeline',
+  withValidatedInput(syncExecutePipelineInput, (input, _req, res) =>
+    syncController.executePipeline(input, res)),
+)
 
 // Hotmart sync
 router.post('/hotmart', syncController.syncHotmartEndpoint)
@@ -41,7 +50,11 @@ router.post('/discord/batch', syncController.syncDiscordBatchEndpoint)
 router.get('/history', syncController.getSyncHistory)
 router.post('/history', syncController.createSyncRecord)
 router.post('/history/:syncId/retry', syncController.retrySyncOperation)
-router.delete('/history/clean', syncController.cleanOldHistory)
+router.delete(
+  '/history/clean',
+  withValidatedInput(syncCleanHistoryInput, (input, _req, res) =>
+    syncController.cleanOldHistory(input, res)),
+)
 
 // Estatísticas
 router.get('/stats', syncController.getSyncStats)

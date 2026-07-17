@@ -2976,7 +2976,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:28"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:37"
     },
     {
         "method":  "POST",
@@ -2985,7 +2985,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:29"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:38"
     },
     {
         "method":  "POST",
@@ -2994,7 +2994,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:32"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:41"
     },
     {
         "method":  "POST",
@@ -3003,7 +3003,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:34"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:43"
     },
     {
         "method":  "POST",
@@ -3012,7 +3012,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:33"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:42"
     },
     {
         "method":  "POST",
@@ -3021,7 +3021,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:21"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:26"
     },
     {
         "method":  "GET",
@@ -3039,7 +3039,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:42"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:51"
     },
     {
         "method":  "GET",
@@ -3057,7 +3057,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:43"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:52"
     },
     {
         "method":  "DELETE",
@@ -3066,7 +3066,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:44"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:53"
     },
     {
         "method":  "POST",
@@ -3075,7 +3075,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:24"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:33"
     },
     {
         "method":  "POST",
@@ -3084,7 +3084,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:25"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:34"
     },
     {
         "method":  "GET",
@@ -3138,7 +3138,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:48"
+        "evidence":  "consumer nao identificado; rota em src/routes/sync.routes.ts:61"
     },
     {
         "method":  "GET",
