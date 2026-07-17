@@ -1,5 +1,6 @@
 // src/controllers/testimonials.controller.ts
 import { Request, Response } from 'express'
+import type { TestimonialsDeleteInput } from '../security/testimonialsDestructiveInput'
 import { Testimonial, ITestimonial } from '../models/Testimonial'
 import User from '../models/user'
 import { Class } from '../models/Class'
@@ -710,9 +711,12 @@ export const updateTestimonialStatus = async (req: Request, res: Response): Prom
 }
 
 // 🗑️ REMOVER TESTEMUNHO
-export const deleteTestimonial = async (req: Request, res: Response): Promise<void> => {
+export const deleteTestimonial = async (
+  input: TestimonialsDeleteInput,
+  res: Response,
+): Promise<void> => {
   try {
-    const { id } = req.params
+    const { id } = input.params
 
     const testimonial = await Testimonial.findByIdAndDelete(id)
     if (!testimonial) {
