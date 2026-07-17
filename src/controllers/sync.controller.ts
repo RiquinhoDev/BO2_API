@@ -15,6 +15,10 @@ import { executeDailyPipeline } from '../services/cron/dailyPipeline.service'
 import universalSyncService from '../services/syncUtilizadoresServices/universalSyncService'
 import hotmartAdapter from '../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import curseducaAdapter from '../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
+import type {
+  SyncCleanHistoryInput,
+  SyncExecutePipelineInput,
+} from '../security/syncDestructiveInput'
 
 type PipelineStage = mongoose.PipelineStage
 
@@ -26,7 +30,10 @@ type PipelineStage = mongoose.PipelineStage
  * POST /api/sync/execute-pipeline
  * Executar pipeline diário completo
  */
-export const executePipeline = async (req: Request, res: Response): Promise<void> => {
+export const executePipeline = async (
+  _input: SyncExecutePipelineInput,
+  res: Response,
+): Promise<void> => {
   try {
     const result = await executeDailyPipeline()
     
@@ -543,8 +550,11 @@ export const getSyncStats = async (req: Request, res: Response): Promise<void> =
  * DELETE /api/sync/history/clean
  * Limpar histórico antigo
  */
-export const cleanOldHistory = async (req: Request, res: Response): Promise<void> => {
-  const { days = 90 } = req.query
+export const cleanOldHistory = async (
+  input: SyncCleanHistoryInput,
+  res: Response,
+): Promise<void> => {
+  const { days = 90 } = input.query
 
   try {
     const cutoffDate = new Date()
