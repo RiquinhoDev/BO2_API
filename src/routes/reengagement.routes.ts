@@ -5,6 +5,8 @@
 
 import { Router } from 'express'
 import * as reengagementController from '../controllers/reengagement.controller'
+import { reengagementExecuteInput } from '../security/reengagementDestructiveInput'
+import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
 
@@ -22,7 +24,11 @@ router.post('/evaluate/:userId', reengagementController.evaluateStudent)
  * @body    { productCode: string, dryRun?: boolean }
  * @access  Private (Admin)
  */
-router.post('/evaluate/:userId/execute', reengagementController.evaluateAndExecute)
+router.post(
+  '/evaluate/:userId/execute',
+  withValidatedInput(reengagementExecuteInput, (input, _req, res) =>
+    reengagementController.evaluateAndExecute(input, res)),
+)
 
 /**
  * @route   POST /api/reengagement/evaluate-batch
@@ -62,4 +68,3 @@ router.post('/simulate/:productCode', reengagementController.simulateProductRun)
 router.post('/reset/:userId/:productCode', reengagementController.resetStudentState)
 
 export default router
-
