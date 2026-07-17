@@ -99,21 +99,56 @@ um teste** que o param real chega ao handler (não 400). O padrão já está fei
 
 ---
 
-## ▶ Fase atual: F3.2 — ARCH-05 (paginação) — **PRÓXIMA**
+## ▶ Fase atual: F3.2 — ARCH-05 (paginação) — **DECIDIDA, PRONTA A EXECUTAR**
 
-**Objetivo:** um **helper único** de paginação (fonte única — regra 5) com `min/max` clamp e projeção
-explícita, aplicado às listagens sem limite. Eliminar caps insanos e `find({})` cru.
+**Objetivo:** um **helper único** de paginação (fonte única — regra 5), offset agora + cursor como evolução
+aditiva depois. Eliminar caps insanos (`limit=10000`) e `find({})` cru **sem partir funcionalidade viva**.
 
-Alvos confirmados pelo revisor contra o código:
-- `src/controllers/guru.sso.controller.ts:245` — `limit = 10000` (default).
-- `src/controllers/guru.webhook.controller.ts:306` — `limit = 10000` (default).
-- Vários `find({})` sem `.limit()` — o Codex enumera com `grep -rn "find({})" src` e reporta a lista antes de mexer.
+**Decisão aprovada pelo utilizador (2026-07-18):** offset `defaultLimit=50` / teto absoluto `200`, cursor
+aditivo mais tarde. Mas o **clamp isolado no backend PARTE o Front** — o revisor verificou contra o código
+(abaixo). Por isso a fase entrega-se em 3 passos, e as 2 telas Guru são **mudança emparelhada Front+Back**.
 
-Forma (a decidir/aprovar no arranque da fase — **pergunta antes de assumir**, regra 8):
-- Helper `paginate({ page, limit }, { maxLimit })` com defaults sãos (ex.: `limit=50`, `maxLimit=200`), devolve
-  `{ skip, limit }` clampados; projeção **sempre explícita** por endpoint.
-- Um commit por controller migrado; **preservar o contrato de resposta do Front** (não trocar array↔envelope aqui — isso é ARCH-03).
-- Gate verde entre cada; caracterização primeiro onde o payload muda.
+### ⚠️ O que o revisor JÁ verificou no Front (não repetir a análise, agir sobre ela)
+
+As telas Guru já têm **paginação, filtros (status/email/data) e re-fetch server-side wired**; o `limit:10000`
+(`Front/src/features/guru/hooks/useGuruCore.ts:8`) só faz uma "página gigante" que esconde os controlos.
+**Clamp a 200 é seguro para a tabela + filtros + paginação.** MAS duas operações correm sobre o **array
+carregado inteiro** e clamp cego parte-as em silêncio:
+- **Export CSV** (`Front/src/pages/guru/GuruDashboard.tsx:397` → `downloadCSV(sortedSubscriptions, …)`): hoje
+  exporta tudo; com 200 exportaria **só 200 linhas** → perda de dados.
+- **Sort global** (`GuruDashboard.tsx:226`, `sortedSubscriptions` é `useMemo` client-side; `toggleSort` **não**
+  re-fetcha): hoje ordena o conjunto; com 200 ordenaria **só a página**.
+- `rawData`/`__v`: **verificado que o Front NUNCA os lê** (`grep rawData Front/src` = 0) → excluir da projeção
+  webhooks é seguro e desejável (`rawData` é o campo pesado).
+
+### Passo 1 — helper puro + testes (backend, não muda comportamento)
+- [ ] `src/utils/pagination.ts` (ou perto): `paginate({ page, limit }, { defaultLimit=50, maxLimit=200 })` →
+  `{ page, limit, skip, metadata(total) → { page, limit, total, pages } }`. **Puro** (sem Express/Mongoose).
+  Inválidos → default; fora do intervalo → clamp; teto absoluto 200 **inultrapassável**.
+- [ ] Testes unitários do helper (clamp, defaults, metadata). Commit isolado.
+
+### Passo 2 — listas backend-only (seguras, sem Front)
+- [ ] Migrar as listagens sem consumidor de "carregar tudo": alvos a enumerar com `grep -rn "find({})" src`
+  (o Codex reporta a lista **antes** de mexer). **Ordenação estável obrigatória** (inclui `_id` de desempate).
+  Projeção **explícita** por endpoint. Um commit por controller. **Não** trocar array↔envelope (isso é ARCH-03).
+- [ ] Os **full-scans internos** (jobs/scripts/serviços que precisam do conjunto todo) **não** levam `.limit(200)`
+  — usam **cursor/batch**; truncá-los alteraria resultados de jobs. Lista dos que são scan vs. listagem HTTP
+  já levantada pelo Codex no report de arranque; confirmar caso a caso.
+
+### Passo 3 — as 2 telas Guru (par Front+Back, no MESMO bloco)
+- [ ] **Backend:** `guru.sso.controller.ts:245` e `guru.webhook.controller.ts:306` passam a offset 50/200 via
+  helper; webhooks com projeção explícita **sem** `rawData`/`__v`; **sort server-side** (`sortField`/`sortDirection`
+  → query, ordena no Mongo com `_id` de desempate).
+- [ ] **Front:** larga o `useMemo` de sort client-side e envia sort ao servidor; **export passa a paginar no
+  servidor** (loop de páginas a 200 até esgotar, ou endpoint CSV dedicado) — **nunca** um pedido de 10000.
+  Remove o `defaultLimit=10_000` de `useGuruCore.ts`.
+- [ ] **Contract tests** (provas negativas): `limit=10000` devolve **≤200** e `pages` correcto; filtros+envelope
+  iguais; sort não duplica/perde itens entre páginas; `rawData` **não** sai na listagem; export traz **tudo**.
+- [ ] Backend NÃO faz deploy do clamp Guru **antes** deste par estar completo (a `remake` não está em prod → há
+  folga, mas entrega-se junto).
+
+**Regra da fase:** correcção antes de elegância; caracterização primeiro onde o payload muda; gate verde entre
+cada commit.
 
 ## A seguir à F3.2
 
