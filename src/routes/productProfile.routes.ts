@@ -5,6 +5,8 @@
 
 import { Router } from 'express'
 import * as productProfileController from '../controllers/products/productProfile.controller'
+import { productProfilesDeleteInput } from '../security/productProfilesDestructiveInput'
+import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
 
@@ -57,7 +59,10 @@ router.put('/:code', productProfileController.updateProductProfile)
  * @query   hardDelete=true (opcional) para remover permanentemente
  * @access  Private (Admin)
  */
-router.delete('/:code', productProfileController.deleteProductProfile)
+router.delete(
+  '/:code',
+  withValidatedInput(productProfilesDeleteInput, (input, _req, res) =>
+    productProfileController.deleteProductProfile(input, res)),
+)
 
 export default router
-
