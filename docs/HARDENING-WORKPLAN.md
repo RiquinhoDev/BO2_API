@@ -44,7 +44,15 @@ A regeneração do manifest de rotas e o contract test correm no Front — **iss
 
 ---
 
-## Fase atual: F3.1 — SEC-09 (validação de input nas rotas destrutivas)
+## ✅ F3.1 — SEC-09 (validação de input nas rotas destrutivas) — **FECHADA (39/39)**
+
+**Concluída 2026-07-17.** As 39 rotas destrutivas têm boundary strict (37 wrappers `withValidatedInput` em 16
+ficheiros — cron-tags cobre 4 rotas via 2 montagens duplas). Gate final validado pelo revisor: lint 0,
+ratchet **178/44**, jest **249 passed / 2 skipped**, build exit 0. As 3 variantes da armadilha cobertas
+(path param, body `actor`, query `days`) e os 2 params string-key (`classId`, `code`) preservados como negócio.
+**Fase atual passa a F3.2 (ver "A seguir").**
+
+### Registo do boundary (referência para o padrão)
 
 Boundary aprovado: usa `withValidatedInput(schema, handler)` + `validatedSchema({ params, query, body })`
 (o builder aplica `.strict()` sozinho — dás só as *shapes*). Controllers recebem o **DTO inferido**, nunca
@@ -79,32 +87,41 @@ um teste** que o param real chega ao handler (não 400). O padrão já está fei
 > **Podem ir numa só sessão, mas mantém 1 commit por família** (gate + revisão por família). Atenção: **2
 > destes params NÃO são ObjectId** — são chaves de negócio (string). Modelar como ObjectId dá 400 a tudo.
 
-- [ ] **classes (1)** — `DELETE /api/classes/:classId` — ⚠️ **`:classId` é STRING, não ObjectId** (o serviço
-  faz `Class.findOne({ classId })`, id externo Hotmart). Shape: `params: { classId: z.string().min(1) }`.
-- [ ] **product-profiles (1)** — `DELETE /api/product-profiles/:code` — ⚠️ **`:code` é STRING, não ObjectId**
-  (`findOneAndDelete({ code: code.toUpperCase() })`) **+ query `hardDelete`**. Shapes: `params: { code:
-  z.string().min(1) }`, `query: { hardDelete: z.enum(['true','false']).optional() }`.
-- [ ] **events (1)** — `DELETE /api/events/:id` — `:id` **ObjectId** (`Event.findByIdAndDelete`). **Handler inline**
-  (arrow func) — mesmo padrão discord/renewal-ac, substitui o inline por `withValidatedInput`.
-- [ ] **reengagement (1)** — `POST /api/reengagement/evaluate/:userId/execute` — `:userId` **ObjectId**
-  (`User.findById`) **+ body** `{ productCode: z.string().min(1), dryRun: z.boolean().optional() }`.
-- [ ] **testimonials (1)** — `DELETE /api/testimonials/:id` — `:id` **ObjectId** (`findByIdAndDelete`).
-- [ ] **curseduca (1)** — `POST /api/curseduca/cleanup` — empty input (o controller é um **stub 501**, não lê nada).
-- [ ] **test (1)** — `POST /api/test/history/delete-test-events` — modela conforme o que `deleteTestEvents` lê.
-  Nota: o gating `ENABLE_DEBUG_ROUTES` é **SEC-03, fora do âmbito F3.1** — aqui só adicionas validação; se
-  reparares que a rota **não** está atrás de flag, **não a mexas**, regista a observação e reporta.
+- [x] **classes (1)** — feito (`ba429c9`); `:classId` string de negócio preservada
+- [x] **product-profiles (1)** — feito (`ab9e5c6`); `:code` string + query `hardDelete`
+- [x] **events (1)** — feito (`a489d61`); `:id` ObjectId, handler inline migrado
+- [x] **reengagement (1)** — feito (`682985b`); `:userId` ObjectId + body `{ productCode, dryRun? }`
+- [x] **testimonials (1)** — feito (`470cb06`); `:id` ObjectId
+- [x] **curseduca (1)** — feito (`44cf6a5`); stub 501, empty input
+- [x] **test (1)** — feito (`f6486f8`); body `{ email }`; **`localDebugOnly` confirmado no mount** (`runtime/registerRoutes.ts:42`)
 
-> ⚠️ = tem path param. **Confirma sempre o formato antes de escolher a regex** — os 5 primeiros já estão
-> verificados acima; ObjectId só onde diz ObjectId.
+> ⚠️ Todos validados pelo revisor contra o código. F3.1 fechada.
 
 ---
 
-## A seguir à F3.1
+## ▶ Fase atual: F3.2 — ARCH-05 (paginação) — **PRÓXIMA**
 
-- **F3.2 — ARCH-05 (paginação):** helper único com min/max e projeção explícita; há defaults de **10 000**
-  (`guru.sso.controller.ts`, `guru.webhook.controller.ts`) e `find({})` sem limite.
-- **F3.3 — moagem TS 184→0:** baixar o ratchet **por módulo**, um commit por módulo, números no corpo.
+**Objetivo:** um **helper único** de paginação (fonte única — regra 5) com `min/max` clamp e projeção
+explícita, aplicado às listagens sem limite. Eliminar caps insanos e `find({})` cru.
+
+Alvos confirmados pelo revisor contra o código:
+- `src/controllers/guru.sso.controller.ts:245` — `limit = 10000` (default).
+- `src/controllers/guru.webhook.controller.ts:306` — `limit = 10000` (default).
+- Vários `find({})` sem `.limit()` — o Codex enumera com `grep -rn "find({})" src` e reporta a lista antes de mexer.
+
+Forma (a decidir/aprovar no arranque da fase — **pergunta antes de assumir**, regra 8):
+- Helper `paginate({ page, limit }, { maxLimit })` com defaults sãos (ex.: `limit=50`, `maxLimit=200`), devolve
+  `{ skip, limit }` clampados; projeção **sempre explícita** por endpoint.
+- Um commit por controller migrado; **preservar o contrato de resposta do Front** (não trocar array↔envelope aqui — isso é ARCH-03).
+- Gate verde entre cada; caracterização primeiro onde o payload muda.
+
+## A seguir à F3.2
+
+- **F3.3 — moagem TS 178→0:** baixar o ratchet **por módulo**, um commit por módulo, números no corpo.
   `npm run types:baseline:update` para regravar (nunca à mão). Só no fim (zero erros) se remove o `tsc || exit 0`.
+- **Depois: cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver
+  a régua em **"Estado-alvo (Definition of Done)"**. Nota: ARCH-01 **já arrancou** (rotas montadas em
+  `src/runtime/registerRoutes.ts`, não no `index.ts`).
 
 **Cada família/bloco entregue → reporta ao utilizador, que passa ao revisor. O revisor valida contra o código
 (nunca contra o report) e desbloqueia o próximo.**
