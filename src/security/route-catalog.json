@@ -1581,7 +1581,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:79"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:87"
     },
     {
         "method":  "GET",
@@ -1590,7 +1590,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:48"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:56"
     },
     {
         "method":  "POST",
@@ -1599,7 +1599,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:90"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:98"
     },
     {
         "method":  "GET",
@@ -1608,7 +1608,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:154"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:161"
     },
     {
         "method":  "POST",
@@ -1617,7 +1617,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:131"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:139"
     },
     {
         "method":  "POST",
@@ -1626,7 +1626,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:139"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:147"
     },
     {
         "method":  "POST",
@@ -1635,7 +1635,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:73"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:81"
     },
     {
         "method":  "GET",
@@ -1644,7 +1644,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:165"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:172"
     },
     {
         "method":  "PATCH",
@@ -1653,7 +1653,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:176"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:183"
     },
     {
         "method":  "GET",
@@ -1662,7 +1662,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:184"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:191"
     },
     {
         "method":  "POST",
@@ -1671,7 +1671,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:191"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:198"
     },
     {
         "method":  "POST",
@@ -1680,7 +1680,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:198"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:205"
     },
     {
         "method":  "GET",
@@ -1689,7 +1689,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:36"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:44"
     },
     {
         "method":  "GET",
@@ -1698,7 +1698,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:105"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:113"
     },
     {
         "method":  "PUT",
@@ -1707,7 +1707,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:112"
+        "evidence":  "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:120"
     },
     {
         "method":  "POST",
