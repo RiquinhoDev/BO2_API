@@ -35,7 +35,7 @@
 
 ```bash
 npm run lint            # exit 0. NUNCA --pass-on-unpruned-suppressions
-npm run types:check     # ratchet TS: 184 erros / 44 ficheiros. SÓ pode descer
+npm run types:check     # ratchet TS: 182 erros / 44 ficheiros. SÓ pode descer
 npx jest --ci           # verde, egress guard ativo
 npm run build           # exit 0
 ```
@@ -71,25 +71,31 @@ um teste** que o param real chega ao handler (não 400). O padrão já está fei
 - [x] **cron (3)** — feito (`4730cd7`); `:id` ObjectId, sem wrapper→`withValidatedInput`, checks internos mantidos, validado pelo revisor
 - [x] **renewal-ac (2)** — feito (`2698421`); inline migrados, `:id` ObjectId (confirmado `findById`), `actor` preservado nas duas, validado pelo revisor
 - [x] **sync (2)** — feito (`9435038`); query `days` modelado (variante query da armadilha), default 90 preservado, negativos `?days=abc`/`?foo=1` provados, validado pelo revisor
-- [ ] **tag-monitoring (2)** ← **PRÓXIMA** (ficheiro `tagMonitoring.routes.ts`, montado em `/api/tag-monitoring`)
-  - `DELETE /api/tag-monitoring/critical-tags/:id/permanent` ⚠️ param `:id` (ObjectId — confirmado `findByIdAndDelete`)
-  - `DELETE /api/tag-monitoring/notifications/:id` ⚠️ param `:id` (ObjectId — confirmado `findByIdAndDelete`)
-  - Nota A ⚠️ **middleware `authenticate` inline**: estas rotas são `router.delete(path, authenticate, controller)`.
-    Insere o `withValidatedInput` **depois** do `authenticate`, não o largues: `router.delete(path, authenticate,
-    withValidatedInput(schema, (input, _req, res) => controller(input, res)))`. Ambos os `:id` são ObjectId;
-    o check interno `if (!id)` fica redundante mas **não o removas**.
-  - Nota B (teste) ⚠️: como o `authenticate` corre inline, a suite isolada apanha **401 antes** da validação.
-    Mocka-o: `jest.mock('../../src/middleware/auth.middleware', () => ({ authenticate: (_req,_res,next)=>next() }))`.
-    Só assim os testes de 400 (campo extra / NoSQL / `:id` válido→handler) exercem a fronteira de validação.
-- [ ] **classes (1)** — `DELETE /:classId` ⚠️
-- [ ] **curseduca (1)** — `POST /cleanup`
-- [ ] **events (1)** — `DELETE /:id` ⚠️
-- [ ] **product-profiles (1)** — `DELETE /:code` ⚠️
-- [ ] **reengagement (1)** — `POST /evaluate/:userId/execute` ⚠️
-- [ ] **test (1)** — `POST /test/history/delete-test-events` (já atrás de `ENABLE_DEBUG_ROUTES`; menor risco)
-- [ ] **testimonials (1)** — `DELETE /:id` ⚠️
+- [x] **tag-monitoring (2)** — feito (`9d3970e`); `authenticate` preservado antes do boundary, `:id` ObjectId, mock do authenticate no teste, validado pelo revisor
+- **↓ PRÓXIMO BLOCO: as 7 famílias singleton (ver formatos verificados abaixo) ↓**
 
-> ⚠️ = tem path param → modela-o na shape (ver a armadilha acima).
+#### 🔴 As 7 singleton finais — formatos de param JÁ VERIFICADOS pelo revisor (não adivinhes)
+
+> **Podem ir numa só sessão, mas mantém 1 commit por família** (gate + revisão por família). Atenção: **2
+> destes params NÃO são ObjectId** — são chaves de negócio (string). Modelar como ObjectId dá 400 a tudo.
+
+- [ ] **classes (1)** — `DELETE /api/classes/:classId` — ⚠️ **`:classId` é STRING, não ObjectId** (o serviço
+  faz `Class.findOne({ classId })`, id externo Hotmart). Shape: `params: { classId: z.string().min(1) }`.
+- [ ] **product-profiles (1)** — `DELETE /api/product-profiles/:code` — ⚠️ **`:code` é STRING, não ObjectId**
+  (`findOneAndDelete({ code: code.toUpperCase() })`) **+ query `hardDelete`**. Shapes: `params: { code:
+  z.string().min(1) }`, `query: { hardDelete: z.enum(['true','false']).optional() }`.
+- [ ] **events (1)** — `DELETE /api/events/:id` — `:id` **ObjectId** (`Event.findByIdAndDelete`). **Handler inline**
+  (arrow func) — mesmo padrão discord/renewal-ac, substitui o inline por `withValidatedInput`.
+- [ ] **reengagement (1)** — `POST /api/reengagement/evaluate/:userId/execute` — `:userId` **ObjectId**
+  (`User.findById`) **+ body** `{ productCode: z.string().min(1), dryRun: z.boolean().optional() }`.
+- [ ] **testimonials (1)** — `DELETE /api/testimonials/:id` — `:id` **ObjectId** (`findByIdAndDelete`).
+- [ ] **curseduca (1)** — `POST /api/curseduca/cleanup` — empty input (o controller é um **stub 501**, não lê nada).
+- [ ] **test (1)** — `POST /api/test/history/delete-test-events` — modela conforme o que `deleteTestEvents` lê.
+  Nota: o gating `ENABLE_DEBUG_ROUTES` é **SEC-03, fora do âmbito F3.1** — aqui só adicionas validação; se
+  reparares que a rota **não** está atrás de flag, **não a mexas**, regista a observação e reporta.
+
+> ⚠️ = tem path param. **Confirma sempre o formato antes de escolher a regex** — os 5 primeiros já estão
+> verificados acima; ObjectId só onde diz ObjectId.
 
 ---
 
