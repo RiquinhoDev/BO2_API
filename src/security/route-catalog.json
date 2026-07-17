@@ -1311,7 +1311,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:53"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:55"
     },
     {
         "method":  "GET",
@@ -1320,7 +1320,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:37"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:39"
     },
     {
         "method":  "GET",
@@ -1329,7 +1329,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:48"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:50"
     },
     {
         "method":  "GET",
@@ -1338,7 +1338,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:41"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:43"
     },
     {
         "method":  "GET",
@@ -1347,7 +1347,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:42"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:44"
     },
     {
         "method":  "GET",
@@ -1356,7 +1356,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:43"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:45"
     },
     {
         "method":  "GET",
@@ -1365,7 +1365,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:65"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:71"
     },
     {
         "method":  "GET",
@@ -1374,7 +1374,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:66"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:72"
     },
     {
         "method":  "GET",
@@ -1383,7 +1383,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:67"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:73"
     },
     {
         "method":  "GET",
@@ -1392,7 +1392,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:51"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:53"
     },
     {
         "method":  "GET",
@@ -1401,7 +1401,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:44"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:46"
     },
     {
         "method":  "GET",
@@ -1410,7 +1410,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:64"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:70"
     },
     {
         "method":  "GET",
@@ -1419,7 +1419,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:74"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:80"
     },
     {
         "method":  "GET",
@@ -1428,7 +1428,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/guru/GuruDashboard.tsx\u003e; rota em src/routes/curseduca.routes.ts:78"
+        "evidence":  "chamada do Front em \u003csrc/pages/guru/GuruDashboard.tsx\u003e; rota em src/routes/curseduca.routes.ts:84"
     },
     {
         "method":  "GET",
@@ -1437,7 +1437,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:73"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:79"
     },
     {
         "method":  "GET",
@@ -1446,7 +1446,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/guru/GuruDashboard.tsx\u003e; rota em src/routes/curseduca.routes.ts:77"
+        "evidence":  "chamada do Front em \u003csrc/pages/guru/GuruDashboard.tsx\u003e; rota em src/routes/curseduca.routes.ts:83"
     },
     {
         "method":  "GET",
@@ -1455,7 +1455,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:52"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:54"
     },
     {
         "method":  "PUT",
@@ -1464,7 +1464,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:56"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:62"
     },
     {
         "method":  "GET",
@@ -1473,7 +1473,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:45"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:47"
     },
     {
         "method":  "GET",
@@ -1482,7 +1482,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:55"
+        "evidence":  "consumer nao identificado; rota em src/routes/curseduca.routes.ts:61"
     },
     {
         "method":  "POST",

@@ -26,6 +26,8 @@ import {
   syncCurseducaUsersStart,
   getCurseducaSyncStatus
 } from '../controllers/syncUtilizadoresControllers/curseduca.controller'
+import { curseducaCleanupInput } from '../security/curseducaDestructiveInput'
+import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
 
@@ -50,7 +52,11 @@ router.get('/debug', debugCurseducaAPI)
 // 🚀 FUTURO
 router.get('/report', getSyncReport)
 router.get('/user', getUserByEmail)
-router.post('/cleanup', cleanupDuplicates)
+router.post(
+  '/cleanup',
+  withValidatedInput(curseducaCleanupInput, (input, _req, res) =>
+    cleanupDuplicates(input, res)),
+)
 
 router.get('/users-with-classes', getUsersWithClasses)
 router.put('/user/:userId/classes', updateUserClasses)

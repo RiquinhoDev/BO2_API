@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Request, Response } from 'express'
+import type { CurseducaCleanupInput } from '../../security/curseducaDestructiveInput'
 import fs from 'fs'
 import path from 'path'
 import User from '../../models/user'
@@ -909,7 +910,10 @@ export const getUserByEmail = async (req: Request, res: Response): Promise<void>
   })
 }
 
-export const cleanupDuplicates = async (req: Request, res: Response): Promise<void> => {
+export const cleanupDuplicates = async (
+  _input: CurseducaCleanupInput,
+  res: Response,
+): Promise<void> => {
   res.status(501).json({
     success: false,
     message: 'Funcionalidade não implementada',
