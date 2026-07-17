@@ -10,6 +10,10 @@ import mongoose from 'mongoose'
 import { SyncType } from '../../models/SyncModels/CronJobConfig'
 import { CronExecution, Product, TagRule } from '../../models'
 import syncSchedulerService from '../../services/cron/scheduler'
+import type {
+  CronEmptyInput,
+  CronJobIdInput,
+} from '../../security/cronDestructiveInput'
 
 
 // ═══════════════════════════════════════════════════════════
@@ -437,9 +441,12 @@ export const updateJob = async (req: Request, res: Response): Promise<void> => {
 // DELETE /api/cron/jobs/:id
 // ═══════════════════════════════════════════════════════════
 
-export const deleteJob = async (req: Request, res: Response): Promise<void> => {
+export const deleteJob = async (
+  input: CronJobIdInput,
+  res: Response,
+): Promise<void> => {
   try {
-    const { id } = req.params
+    const { id } = input.params
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({
@@ -520,9 +527,12 @@ export const toggleJob = async (req: Request, res: Response): Promise<void> => {
 // POST /api/cron/jobs/:id/trigger
 // ═══════════════════════════════════════════════════════════
 
-export const triggerJob = async (req: Request, res: Response): Promise<void> => {
+export const triggerJob = async (
+  input: CronJobIdInput,
+  res: Response,
+): Promise<void> => {
   try {
-    const { id } = req.params
+    const { id } = input.params
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({
@@ -761,7 +771,10 @@ export const getSchedulerStatus = async (req: Request, res: Response): Promise<v
 // POST /api/cron/tag-rules-only
 // ═══════════════════════════════════════════════════════════
 
-export const triggerTagRulesOnly = async (req: Request, res: Response): Promise<void> => {
+export const triggerTagRulesOnly = async (
+  _input: CronEmptyInput,
+  res: Response,
+): Promise<void> => {
   console.log('━'.repeat(60))
   console.log('🏷️  [TAG-RULES-ONLY] Endpoint chamado!')
   console.log('🏷️  [TAG-RULES-ONLY] Timestamp:', new Date().toISOString())

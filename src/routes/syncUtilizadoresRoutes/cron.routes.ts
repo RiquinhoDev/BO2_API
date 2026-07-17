@@ -6,6 +6,11 @@
 
 import { Router } from 'express'
 import * as cronController from '../../controllers/syncUtilizadoresControllers/cronManagement.controller'
+import {
+  cronEmptyInput,
+  cronJobIdInput,
+} from '../../security/cronDestructiveInput'
+import { withValidatedInput } from '../../security/validatedInput'
 
 const router = Router()
 
@@ -50,7 +55,11 @@ router.put('/jobs/:id', cronController.updateJob)
  * @desc    Deletar job
  * @access  Private (Admin)
  */
-router.delete('/jobs/:id', cronController.deleteJob)
+router.delete(
+  '/jobs/:id',
+  withValidatedInput(cronJobIdInput, (input, _req, res) =>
+    cronController.deleteJob(input, res)),
+)
 
 /**
  * @route   POST /api/cron/jobs/:id/toggle
@@ -65,7 +74,11 @@ router.post('/jobs/:id/toggle', cronController.toggleJob)
  * @desc    Executar job manualmente
  * @access  Private (Admin)
  */
-router.post('/jobs/:id/trigger', cronController.triggerJob)
+router.post(
+  '/jobs/:id/trigger',
+  withValidatedInput(cronJobIdInput, (input, _req, res) =>
+    cronController.triggerJob(input, res)),
+)
 
 /**
  * @route   GET /api/cron/jobs/:id/history
@@ -102,6 +115,10 @@ router.get('/tag-rules', cronController.getAvailableTagRules)
  *          Steps: Pre-create Tags → Recalc Engagement → Evaluate Tag Rules
  * @access  Private (Admin)
  */
-router.post('/tag-rules-only', cronController.triggerTagRulesOnly)
+router.post(
+  '/tag-rules-only',
+  withValidatedInput(cronEmptyInput, (input, _req, res) =>
+    cronController.triggerTagRulesOnly(input, res)),
+)
 
 export default router
