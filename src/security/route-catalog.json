@@ -780,7 +780,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e, \u003csrc/features/testimonials/testimonials.api.ts\u003e, \u003csrc/services/api.ts\u003e; rota em src/routes/classes.routes.ts:11"
+        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e, \u003csrc/features/testimonials/testimonials.api.ts\u003e, \u003csrc/services/api.ts\u003e; rota em src/routes/classes.routes.ts:13"
     },
     {
         "method":  "DELETE",
@@ -789,7 +789,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:41"
+        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:43"
     },
     {
         "method":  "GET",
@@ -798,7 +798,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/components/ClassHistoryDialog.tsx\u003e; rota em src/routes/classes.routes.ts:54"
+        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/components/ClassHistoryDialog.tsx\u003e; rota em src/routes/classes.routes.ts:60"
     },
     {
         "method":  "GET",
@@ -807,7 +807,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:38"
+        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:40"
     },
     {
         "method":  "GET",
@@ -816,7 +816,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/components/StudentsDialog.tsx\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:35"
+        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/components/StudentsDialog.tsx\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:37"
     },
     {
         "method":  "POST",
@@ -825,7 +825,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useWizard.ts\u003e; rota em src/routes/classes.routes.ts:17"
+        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useWizard.ts\u003e; rota em src/routes/classes.routes.ts:19"
     },
     {
         "method":  "POST",
@@ -834,7 +834,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:60"
+        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:66"
     },
     {
         "method":  "GET",
@@ -843,7 +843,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:23"
+        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:25"
     },
     {
         "method":  "POST",
@@ -852,7 +852,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e; rota em src/routes/classes.routes.ts:26"
+        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e; rota em src/routes/classes.routes.ts:28"
     },
     {
         "method":  "GET",
@@ -861,7 +861,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:57"
+        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:63"
     },
     {
         "method":  "GET",
@@ -870,7 +870,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e; rota em src/routes/classes.routes.ts:74"
+        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e; rota em src/routes/classes.routes.ts:80"
     },
     {
         "method":  "POST",
@@ -879,7 +879,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e; rota em src/routes/classes.routes.ts:71"
+        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e; rota em src/routes/classes.routes.ts:77"
     },
     {
         "method":  "POST",
@@ -888,7 +888,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e; rota em src/routes/classes.routes.ts:77"
+        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e; rota em src/routes/classes.routes.ts:83"
     },
     {
         "method":  "GET",
@@ -897,7 +897,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/components/analytics/analytics/ClassAnalyticsTab.tsx\u003e, \u003csrc/features/inactivation/inactivation.api.ts\u003e, \u003csrc/features/testimonials/testimonials.api.ts\u003e, \u003csrc/hooks/useClasses.ts\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:14"
+        "evidence":  "chamada do Front em \u003csrc/components/analytics/analytics/ClassAnalyticsTab.tsx\u003e, \u003csrc/features/inactivation/inactivation.api.ts\u003e, \u003csrc/features/testimonials/testimonials.api.ts\u003e, \u003csrc/hooks/useClasses.ts\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:16"
     },
     {
         "method":  "POST",
@@ -906,7 +906,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:49"
+        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:55"
     },
     {
         "method":  "POST",
@@ -915,7 +915,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:46"
+        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:52"
     },
     {
         "method":  "GET",
@@ -924,7 +924,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:29"
+        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:31"
     },
     {
         "method":  "GET",
@@ -933,7 +933,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/components/ClassHistoryDialog.tsx\u003e, \u003csrc/pages/gerirAlunos/turmas/components/StudentsDialog.tsx\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:63"
+        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/components/ClassHistoryDialog.tsx\u003e, \u003csrc/pages/gerirAlunos/turmas/components/StudentsDialog.tsx\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:69"
     },
     {
         "method":  "GET",
@@ -942,7 +942,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/components/ClassHistoryDialog.tsx\u003e, \u003csrc/pages/gerirAlunos/turmas/components/StudentsDialog.tsx\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:66"
+        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/components/ClassHistoryDialog.tsx\u003e, \u003csrc/pages/gerirAlunos/turmas/components/StudentsDialog.tsx\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:72"
     },
     {
         "method":  "POST",
@@ -951,7 +951,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/components/analytics/analytics/ClassAnalyticsTab.tsx\u003e; rota em src/routes/classes.routes.ts:86"
+        "evidence":  "chamada do Front em \u003csrc/components/analytics/analytics/ClassAnalyticsTab.tsx\u003e; rota em src/routes/classes.routes.ts:92"
     },
     {
         "method":  "POST",
@@ -960,7 +960,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:20"
+        "evidence":  "chamada do Front em \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:22"
     },
     {
         "method":  "PUT",
@@ -969,7 +969,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:32"
+        "evidence":  "chamada do Front em \u003csrc/features/inactivation/inactivation.api.ts\u003e, \u003csrc/pages/gerirAlunos/turmas/hooks/useClassManagement.ts\u003e; rota em src/routes/classes.routes.ts:34"
     },
     {
         "method":  "GET",
@@ -978,7 +978,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:84"
+        "evidence":  "consumer nao identificado; rota em src/routes/classes.routes.ts:90"
     },
     {
         "method":  "GET",

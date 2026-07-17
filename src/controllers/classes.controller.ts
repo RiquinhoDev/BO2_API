@@ -1,5 +1,6 @@
 // src/controllers/classes.controller.ts - CORRIGIDO para evitar erros TypeScript
 import { Request, Response } from 'express'
+import type { ClassesDeleteInput } from '../security/classesDestructiveInput'
 import { classesService, studentService } from '../services/syncUtilizadoresServices/hotmartServices/classesService'
 import SyncHistory from '../models/SyncHistory'
 
@@ -723,9 +724,9 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
     }
   }
 
-  deleteClass = async (req: Request, res: Response): Promise<void> => {
+  deleteClass = async (input: ClassesDeleteInput, res: Response): Promise<void> => {
     try {
-      const { classId } = req.params
+      const { classId } = input.params
 
       const classData = await classesService.getClassById(classId)
       if (!classData) {

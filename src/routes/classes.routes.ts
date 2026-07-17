@@ -1,6 +1,8 @@
 // src/routes/classes.routes.ts - SIMPLIFICADO sem validação
 import { Router } from 'express'
 import { classesController, bulkInactivateStudents } from '../controllers/classes.controller'
+import { classesDeleteInput } from '../security/classesDestructiveInput'
+import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
 
@@ -38,7 +40,11 @@ router.get('/:classId/students', classesController.getStudentsByClass)
 router.get('/:classId/details', classesController.getClassDetails)
 
 // DELETE /api/classes/:classId - Remove uma turma
-router.delete('/:classId', classesController.deleteClass)
+router.delete(
+  '/:classId',
+  withValidatedInput(classesDeleteInput, (input, _req, res) =>
+    classesController.deleteClass(input, res)),
+)
 
 // ===== MOVIMENTAÇÃO DE ESTUDANTES =====
 
