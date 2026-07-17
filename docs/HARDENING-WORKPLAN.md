@@ -67,15 +67,17 @@ um teste** que o param real chega ao handler (não 400). O padrão já está fei
   via param explícito no `actor()` refactorado, validado pelo revisor (Front sempre envia `mentionRoleIds`)
 - [x] **cron (3)** — feito (`4730cd7`); `:id` ObjectId, sem wrapper→`withValidatedInput`, checks internos mantidos, validado pelo revisor
 - [x] **renewal-ac (2)** — feito (`2698421`); inline migrados, `:id` ObjectId (confirmado `findById`), `actor` preservado nas duas, validado pelo revisor
-- [ ] **sync (2)** ← **PRÓXIMA** (ficheiro `sync.routes.ts`, montado em `/api/sync`)
-  - `POST /api/sync/execute-pipeline` — **não lê nada** do req (empty input)
-  - `DELETE /api/sync/history/clean` — ⚠️ **armadilha nova: query param**. Lê `req.query.days` (default 90).
-  - Nota: controller-based, **sem wrapper** — só envolve com `withValidatedInput`. A armadilha aqui **não é
-    path nem body, é query**: `validatedSchema` faz `query.strict()`, logo `?days=30` dá **400** se não
-    modelares. Modela `query: { days: z.string().regex(/^\d+$/).optional() }` (chega como string, o controller
-    faz `+days`; opcional porque o default 90 é aplicado quando ausente). **Prova com teste** que
-    `DELETE /history/clean?days=30` chega ao handler (não 400) **e** que `?days=abc` ou `?foo=1` dá 400.
-- [ ] **tag-monitoring (2)** — `DELETE /critical-tags/:id/permanent` ⚠️, `/notifications/:id` ⚠️
+- [x] **sync (2)** — feito (`9435038`); query `days` modelado (variante query da armadilha), default 90 preservado, negativos `?days=abc`/`?foo=1` provados, validado pelo revisor
+- [ ] **tag-monitoring (2)** ← **PRÓXIMA** (ficheiro `tagMonitoring.routes.ts`, montado em `/api/tag-monitoring`)
+  - `DELETE /api/tag-monitoring/critical-tags/:id/permanent` ⚠️ param `:id` (ObjectId — confirmado `findByIdAndDelete`)
+  - `DELETE /api/tag-monitoring/notifications/:id` ⚠️ param `:id` (ObjectId — confirmado `findByIdAndDelete`)
+  - Nota A ⚠️ **middleware `authenticate` inline**: estas rotas são `router.delete(path, authenticate, controller)`.
+    Insere o `withValidatedInput` **depois** do `authenticate`, não o largues: `router.delete(path, authenticate,
+    withValidatedInput(schema, (input, _req, res) => controller(input, res)))`. Ambos os `:id` são ObjectId;
+    o check interno `if (!id)` fica redundante mas **não o removas**.
+  - Nota B (teste) ⚠️: como o `authenticate` corre inline, a suite isolada apanha **401 antes** da validação.
+    Mocka-o: `jest.mock('../../src/middleware/auth.middleware', () => ({ authenticate: (_req,_res,next)=>next() }))`.
+    Só assim os testes de 400 (campo extra / NoSQL / `:id` válido→handler) exercem a fronteira de validação.
 - [ ] **classes (1)** — `DELETE /:classId` ⚠️
 - [ ] **curseduca (1)** — `POST /cleanup`
 - [ ] **events (1)** — `DELETE /:id` ⚠️
