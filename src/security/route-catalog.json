@@ -1788,7 +1788,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:98"
+        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:100"
     },
     {
         "method":  "POST",
@@ -1797,7 +1797,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:123"
+        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:125"
     },
     {
         "method":  "DELETE",
@@ -1806,7 +1806,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:153"
+        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:155"
     },
     {
         "method":  "GET",
@@ -1815,7 +1815,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/events.routes.ts:39"
+        "evidence":  "consumer nao identificado; rota em src/routes/events.routes.ts:41"
     },
     {
         "method":  "PUT",
@@ -1824,7 +1824,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:140"
+        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:142"
     },
     {
         "method":  "POST",
@@ -1833,7 +1833,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/events.routes.ts:57"
+        "evidence":  "consumer nao identificado; rota em src/routes/events.routes.ts:59"
     },
     {
         "method":  "PATCH",
@@ -1842,7 +1842,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:166"
+        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:168"
     },
     {
         "method":  "POST",
@@ -1851,7 +1851,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:224"
+        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:226"
     },
     {
         "method":  "POST",
@@ -1860,7 +1860,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/events.routes.ts:201"
+        "evidence":  "consumer nao identificado; rota em src/routes/events.routes.ts:203"
     },
     {
         "method":  "PUT",
@@ -1869,7 +1869,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/events.routes.ts:211"
+        "evidence":  "consumer nao identificado; rota em src/routes/events.routes.ts:213"
     },
     {
         "method":  "GET",
@@ -1878,7 +1878,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:192"
+        "evidence":  "chamada do Front em \u003csrc/pages/events/events.api.ts\u003e; rota em src/routes/events.routes.ts:194"
     },
     {
         "method":  "GET",
@@ -1887,7 +1887,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/events.routes.ts:17"
+        "evidence":  "consumer nao identificado; rota em src/routes/events.routes.ts:19"
     },
     {
         "method":  "GET",
