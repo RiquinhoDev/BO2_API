@@ -2544,7 +2544,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:17"
+        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:19"
     },
     {
         "method":  "POST",
@@ -2553,7 +2553,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:38"
+        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:40"
     },
     {
         "method":  "DELETE",
@@ -2562,7 +2562,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:60"
+        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:62"
     },
     {
         "method":  "GET",
@@ -2571,7 +2571,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:24"
+        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:26"
     },
     {
         "method":  "PUT",
@@ -2580,7 +2580,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:52"
+        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:54"
     },
     {
         "method":  "POST",
@@ -2589,7 +2589,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:45"
+        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:47"
     },
     {
         "method":  "GET",
@@ -2598,7 +2598,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:31"
+        "evidence":  "consumer nao identificado; rota em src/routes/productProfile.routes.ts:33"
     },
     {
         "method":  "GET",

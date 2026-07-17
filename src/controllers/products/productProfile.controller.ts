@@ -4,6 +4,7 @@
 // ================================================================
 
 import { Request, Response } from 'express'
+import type { ProductProfilesDeleteInput } from '../../security/productProfilesDestructiveInput'
 import ProductProfile, { IReengagementLevel } from '../../models/product/ProductProfile'
 import StudentEngagementState from '../../models/StudentEngagementState'
 import CommunicationHistory from '../../models/acTags/CommunicationHistory'
@@ -185,10 +186,13 @@ export const updateProductProfile = async (req: Request, res: Response): Promise
  * DELETE /api/product-profiles/:code
  * Deletar perfil (soft delete - apenas desativa)
  */
-export const deleteProductProfile = async (req: Request, res: Response): Promise<void> => {
+export const deleteProductProfile = async (
+  input: ProductProfilesDeleteInput,
+  res: Response,
+): Promise<void> => {
   try {
-    const { code } = req.params
-    const { hardDelete } = req.query
+    const { code } = input.params
+    const { hardDelete } = input.query
 
     if (hardDelete === 'true') {
       // Hard delete (remover completamente)
@@ -448,4 +452,3 @@ export const duplicateProductProfile = async (req: Request, res: Response): Prom
     })
   }
 }
-
