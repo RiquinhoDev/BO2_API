@@ -63,22 +63,15 @@ um teste** que o param real chega ao handler (não 400). O padrão já está fei
 - [x] **cron-tags (4)** — feito (`0f76dc6`); as duas montagens (`/api/cron-tags` e `/cron-tags`) cobertas
 - [x] **activecampaign (5)** — feito (`1fac3cf`); params `:id`/`:productId` modelados como ObjectId, validado pelo revisor
 - [x] **guru (4)** — feito (`c42800f`); `:year`/`:month` modelados, `asyncRoute`→`withValidatedInput`, validado pelo revisor
-- [ ] **discord-renewal (4)** ← **PRÓXIMA**
-  - `POST /api/discord-renewal/execute` — body `{ batchId?, includePlanned?, limit? }`
-  - `POST /api/discord-renewal/messages/send` — body `{ content, mentionRoleIds[], dataFim?, channelId?, templateKey?, mentionEveryone? }`
-  - `POST /api/discord-renewal/scheduled/:key/test` ⚠️ param `:key`
-  - `POST /api/discord-renewal/scheduled/run` — sem body
-  - Nota A (inline handlers): estes handlers são **arrow funcs inline** no `discordRenewal.routes.ts` (não
-    controllers importados). Envolve cada um em `withValidatedInput(schema, (input, req, res) => {...})` e lê
-    `input.body`/`input.params`. Mantêm `asyncRoute`? Não — `withValidatedInput` já apanha o async; substitui.
-  - Nota B ⚠️ **a armadilha do `actor`**: o helper `actor(req)` (linha 32) faz fallback a `req.body.actor`.
-    Com `.strict()`, um body com `actor` passa a dar **400**. Para preservar o comportamento, **inclui
-    `actor: z.string().min(1).optional()`** no body schema das 3 rotas com body (`execute`, `messages/send`,
-    `scheduled/run` não tem body mas o `actor(req)` continua a ler `req.user`/fallback — deixa body `{}`).
-    `actor(req)` recebe o `req` cru (2º arg do handler) — o `req.body` runtime ainda existe, só o **tipo** diz
-    `undefined`; podes fazer `actor(req as any)` ou tipar. **Prova com teste** que um `POST /execute` com
-    `{ actor: 'x' }` no body **não** dá 400 (chega ao handler).
-- [ ] **cron (3)** — `DELETE /jobs/:id` ⚠️, `POST /jobs/:id/trigger` ⚠️, `/tag-rules-only`
+- [x] **discord-renewal (4)** — feito (`dcbee9d`); handlers inline migrados, `:key` modelado, `actor` preservado
+  via param explícito no `actor()` refactorado, validado pelo revisor (Front sempre envia `mentionRoleIds`)
+- [ ] **cron (3)** ← **PRÓXIMA** (ficheiro `syncUtilizadoresRoutes/cron.routes.ts`, montado em `/api/cron`)
+  - `DELETE /api/cron/jobs/:id` ⚠️ param `:id` (ObjectId) — controller já valida ObjectId internamente
+  - `POST /api/cron/jobs/:id/trigger` ⚠️ param `:id` (ObjectId); **não lê body** (`triggeredBy` é hardcoded)
+  - `POST /api/cron/tag-rules-only` — sem params, sem body (empty input)
+  - Nota: as rotas chamam o controller **directamente** (`cronController.deleteJob`), **sem wrapper** — só
+    envolve com `withValidatedInput`. Modela `id` como ObjectId (regex 24-hex); o check interno de ObjectId
+    fica redundante mas **não o removas** (defesa em profundidade). `id` inválido deve dar 400 na fronteira.
 - [ ] **renewal-ac (2)** — `POST /changes/:id/revert` ⚠️, `/execute`
 - [ ] **sync (2)** — `POST /execute-pipeline`, `DELETE /history/clean`
 - [ ] **tag-monitoring (2)** — `DELETE /critical-tags/:id/permanent` ⚠️, `/notifications/:id` ⚠️
