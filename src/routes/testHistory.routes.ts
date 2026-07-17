@@ -7,6 +7,8 @@
 import express from 'express'
 import * as testHistoryController from '../controllers/testHistory.controller'
 import * as populateHistoryController from '../controllers/populateHistory.controller'
+import { testHistoryDeleteEventsInput } from '../security/testHistoryDestructiveInput'
+import { withValidatedInput } from '../security/validatedInput'
 
 const router = express.Router()
 
@@ -36,7 +38,11 @@ router.post('/populate-retroactive', populateHistoryController.populateRetroacti
  * Apaga eventos de teste do histórico
  * Body: { email: "user@example.com" }
  */
-router.post('/delete-test-events', populateHistoryController.deleteTestEvents)
+router.post(
+  '/delete-test-events',
+  withValidatedInput(testHistoryDeleteEventsInput, (input, _req, res) =>
+    populateHistoryController.deleteTestEvents(input, res)),
+)
 
 /**
  * POST /api/test/history/populate-all-users
