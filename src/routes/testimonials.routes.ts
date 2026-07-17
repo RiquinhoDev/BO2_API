@@ -12,6 +12,8 @@ import {
   getBestCandidates,
   getStudentTestimonials
 } from '../controllers/testimonials.controller'
+import { testimonialsDeleteInput } from '../security/testimonialsDestructiveInput'
+import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
 
@@ -51,7 +53,11 @@ router.put('/:id', updateTestimonialStatus)
 
 // 🗑️ REMOVER TESTEMUNHO
 // DELETE /api/testimonials/:id - Remover testemunho
-router.delete('/:id', deleteTestimonial)
+router.delete(
+  '/:id',
+  withValidatedInput(testimonialsDeleteInput, (input, _req, res) =>
+    deleteTestimonial(input, res)),
+)
 
 export default router
 
