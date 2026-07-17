@@ -4,6 +4,7 @@
 // ================================================================
 
 import { Request, Response } from 'express'
+import type { ReengagementExecuteInput } from '../security/reengagementDestructiveInput'
 import decisionEngine from '../services/activeCampaign/decisionEngine.service'
 import tagOrchestrator from '../services/activeCampaign/tagOrchestrator.service'
 import StudentEngagementState from '../models/StudentEngagementState'
@@ -70,10 +71,13 @@ export const evaluateStudent = async (req: Request, res: Response): Promise<void
  * POST /api/reengagement/evaluate/:userId/execute
  * Avaliar E EXECUTAR decisão para um aluno (TESTE)
  */
-export const evaluateAndExecute = async (req: Request, res: Response): Promise<void> => {
+export const evaluateAndExecute = async (
+  input: ReengagementExecuteInput,
+  res: Response,
+): Promise<void> => {
   try {
-    const { userId } = req.params
-    const { productCode, dryRun } = req.body
+    const { userId } = input.params
+    const { productCode, dryRun } = input.body
 
     if (!productCode) {
       res.status(400).json({
@@ -424,4 +428,3 @@ export const resetStudentState = async (req: Request, res: Response): Promise<vo
     })
   }
 }
-
