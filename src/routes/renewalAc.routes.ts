@@ -11,6 +11,11 @@
 import { Router, type Request, type RequestHandler, type Response } from 'express'
 import RenewalAcChange from '../models/RenewalAcChange'
 import CronJobConfig from '../models/SyncModels/CronJobConfig'
+import {
+  renewalAcExecuteInput,
+  renewalAcRevertInput,
+} from '../security/renewalAcDestructiveInput'
+import { withValidatedInput } from '../security/validatedInput'
 import { detectHotmartRefunds } from '../services/renewal/hotmartRefunds.service'
 import {
   approveChanges,
@@ -28,8 +33,9 @@ const asyncRoute = (fn: any): RequestHandler => {
   }
 }
 
-function actor(req: Request): string {
-  return (req as any).user?.email || (req.body && req.body.actor) || 'backoffice'
+function actor(req: { body?: unknown }, validatedActor?: string): string {
+  const bodyActor = (req.body as { actor?: string } | undefined)?.actor
+  return (req as any).user?.email || validatedActor || bodyActor || 'backoffice'
 }
 
 /**
@@ -106,11 +112,11 @@ router.post('/approve', asyncRoute(async (req: Request, res: Response) => {
  * caso contrário devolve o relatório com masterEnabled=false e nada escrito.
  * Por defeito executa APENAS changes APPROVED (revistas por humano).
  */
-router.post('/execute', asyncRoute(async (req: Request, res: Response) => {
+router.post('/execute', withValidatedInput(renewalAcExecuteInput, async (input, req, res) => {
   const report = await executePlan({
-    includePlanned: req.body?.includePlanned === true,
-    batchId: req.body?.batchId || undefined,
-    executedBy: actor(req)
+    includePlanned: input.body.includePlanned === true,
+    batchId: input.body.batchId,
+    executedBy: actor(req, input.body.actor)
   })
   res.json({ success: report.masterEnabled, data: report })
 }))
@@ -118,8 +124,8 @@ router.post('/execute', asyncRoute(async (req: Request, res: Response) => {
 /**
  * POST /api/renewal-ac/changes/:id/revert
  */
-router.post('/changes/:id/revert', asyncRoute(async (req: Request, res: Response) => {
-  const result = await revertChange(String(req.params.id), actor(req))
+router.post('/changes/:id/revert', withValidatedInput(renewalAcRevertInput, async (input, req, res) => {
+  const result = await revertChange(input.params.id, actor(req, input.body.actor))
   res.status(result.success ? 200 : 400).json({ success: result.success, message: result.message })
 }))
 
