@@ -6,6 +6,8 @@
 import { Router, Request, Response } from 'express'
 import Event from '../models/Event'
 import EventType from '../models/EventType'
+import { eventsDeleteInput } from '../security/eventsDestructiveInput'
+import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
 
@@ -150,9 +152,9 @@ router.put('/:id', async (req: Request, res: Response) => {
 })
 
 // DELETE /api/events/:id — Apagar evento
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', withValidatedInput(eventsDeleteInput, async (input, _req, res) => {
   try {
-    const event = await Event.findByIdAndDelete(req.params.id)
+    const event = await Event.findByIdAndDelete(input.params.id)
     if (!event) {
       return res.status(404).json({ message: 'Evento não encontrado.' })
     }
@@ -160,7 +162,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ message: 'Erro ao apagar evento', details: error.message })
   }
-})
+}))
 
 // PATCH /api/events/:id/status — Mudar estado
 router.patch('/:id/status', async (req: Request, res: Response) => {
