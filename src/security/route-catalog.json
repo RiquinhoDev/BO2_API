@@ -1203,7 +1203,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useSyncJobs.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:23"
+        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useSyncJobs.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:28"
     },
     {
         "method":  "POST",
@@ -1212,7 +1212,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useCreateJob.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:38"
+        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useCreateJob.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:43"
     },
     {
         "method":  "DELETE",
@@ -1221,7 +1221,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useDeleteJob.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:53"
+        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useDeleteJob.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:58"
     },
     {
         "method":  "GET",
@@ -1230,7 +1230,7 @@
         "consumer":  "desconhecido",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:30"
+        "evidence":  "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:35"
     },
     {
         "method":  "PUT",
@@ -1239,7 +1239,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:46"
+        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:51"
     },
     {
         "method":  "GET",
@@ -1248,7 +1248,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:76"
+        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:89"
     },
     {
         "method":  "POST",
@@ -1257,7 +1257,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useToggleJob.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:61"
+        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useToggleJob.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:70"
     },
     {
         "method":  "POST",
@@ -1266,7 +1266,7 @@
         "consumer":  "front",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useExecuteJob.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:68"
+        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useExecuteJob.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:77"
     },
     {
         "method":  "GET",
@@ -1275,7 +1275,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useSyncStatus.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:95"
+        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e, \u003csrc/pages/gerirAlunos/hotmartSync/hooks/useSyncStatus.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:108"
     },
     {
         "method":  "GET",
@@ -1284,7 +1284,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:97"
+        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:110"
     },
     {
         "method":  "POST",
@@ -1293,7 +1293,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:105"
+        "evidence":  "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:118"
     },
     {
         "method":  "POST",
@@ -1302,7 +1302,7 @@
         "consumer":  "front",
         "writes":  false,
         "destructive":  false,
-        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:88"
+        "evidence":  "chamada do Front em \u003csrc/features/cron/cron.api.ts\u003e; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:101"
     },
     {
         "method":  "POST",
