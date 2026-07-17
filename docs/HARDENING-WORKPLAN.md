@@ -121,13 +121,15 @@ carregado inteiro** e clamp cego parte-as em silêncio:
 - `rawData`/`__v`: **verificado que o Front NUNCA os lê** (`grep rawData Front/src` = 0) → excluir da projeção
   webhooks é seguro e desejável (`rawData` é o campo pesado).
 
-### Passo 1 — helper puro + testes (backend, não muda comportamento)
-- [ ] `src/utils/pagination.ts` (ou perto): `paginate({ page, limit }, { defaultLimit=50, maxLimit=200 })` →
+### Passo 1 — helper puro + testes (backend, não muda comportamento) — ✅ FEITO (`446b3e0`)
+- [x] `src/utils/pagination.ts`: `paginate({ page, limit }, { defaultLimit=50, maxLimit=200 })` →
   `{ page, limit, skip, metadata(total) → { page, limit, total, pages } }`. **Puro** (sem Express/Mongoose).
-  Inválidos → default; fora do intervalo → clamp; teto absoluto 200 **inultrapassável**.
-- [ ] Testes unitários do helper (clamp, defaults, metadata). Commit isolado.
+  Inválidos → default; fora do intervalo → clamp; teto absoluto 200 **inultrapassável** (provado com teste
+  `maxLimit:10000`→200). Substituiu a `PaginationHelper` legada (código morto) e o cap conflituoso `MAX_LIMIT:100`
+  de `config/constants.ts` (revisor confirmou: nada consumia nenhum dos dois). Validado: lint 0, ratchet 178/44,
+  7 testes, full jest 256/2 skipped.
 
-### Passo 2 — listas backend-only (seguras, sem Front)
+### Passo 2 — listas backend-only (seguras, sem Front) ← **PRÓXIMO**
 - [ ] Migrar as listagens sem consumidor de "carregar tudo": alvos a enumerar com `grep -rn "find({})" src`
   (o Codex reporta a lista **antes** de mexer). **Ordenação estável obrigatória** (inclui `_id` de desempate).
   Projeção **explícita** por endpoint. Um commit por controller. **Não** trocar array↔envelope (isso é ARCH-03).
