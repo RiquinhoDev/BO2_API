@@ -66,14 +66,15 @@ um teste** que o param real chega ao handler (não 400). O padrão já está fei
 - [x] **discord-renewal (4)** — feito (`dcbee9d`); handlers inline migrados, `:key` modelado, `actor` preservado
   via param explícito no `actor()` refactorado, validado pelo revisor (Front sempre envia `mentionRoleIds`)
 - [x] **cron (3)** — feito (`4730cd7`); `:id` ObjectId, sem wrapper→`withValidatedInput`, checks internos mantidos, validado pelo revisor
-- [ ] **renewal-ac (2)** ← **PRÓXIMA** (ficheiro `renewalAc.routes.ts`, montado em `/api/renewal-ac`)
-  - `POST /api/renewal-ac/execute` — body `{ batchId?, includePlanned?, actor? }`
-  - `POST /api/renewal-ac/changes/:id/revert` ⚠️ param `:id` (ObjectId — confirma no `revertChange`/model que é `findById`)
-  - **Mesmo padrão do discord-renewal** (já resolvido, usa-o de guia): handlers **inline** + `asyncRoute`
-    (substitui por `withValidatedInput`) **e a armadilha do `actor(req)`** (linha 32, fallback `req.body.actor`)
-    → inclui `actor: z.string().min(1).optional()` no body das **duas** (o revert lê `actor(req)` também).
-    Prova com teste que `{ actor: 'x' }` chega ao `executedBy`/reverter (não dá 400).
-- [ ] **sync (2)** — `POST /execute-pipeline`, `DELETE /history/clean`
+- [x] **renewal-ac (2)** — feito (`2698421`); inline migrados, `:id` ObjectId (confirmado `findById`), `actor` preservado nas duas, validado pelo revisor
+- [ ] **sync (2)** ← **PRÓXIMA** (ficheiro `sync.routes.ts`, montado em `/api/sync`)
+  - `POST /api/sync/execute-pipeline` — **não lê nada** do req (empty input)
+  - `DELETE /api/sync/history/clean` — ⚠️ **armadilha nova: query param**. Lê `req.query.days` (default 90).
+  - Nota: controller-based, **sem wrapper** — só envolve com `withValidatedInput`. A armadilha aqui **não é
+    path nem body, é query**: `validatedSchema` faz `query.strict()`, logo `?days=30` dá **400** se não
+    modelares. Modela `query: { days: z.string().regex(/^\d+$/).optional() }` (chega como string, o controller
+    faz `+days`; opcional porque o default 90 é aplicado quando ausente). **Prova com teste** que
+    `DELETE /history/clean?days=30` chega ao handler (não 400) **e** que `?days=abc` ou `?foo=1` dá 400.
 - [ ] **tag-monitoring (2)** — `DELETE /critical-tags/:id/permanent` ⚠️, `/notifications/:id` ⚠️
 - [ ] **classes (1)** — `DELETE /:classId` ⚠️
 - [ ] **curseduca (1)** — `POST /cleanup`
