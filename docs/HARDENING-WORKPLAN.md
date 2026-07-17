@@ -6,6 +6,9 @@
 >
 > **Missão:** elevar esta API a arquitetura/segurança/código limpo/operacionalidade de alto nível, por
 > **refactor incremental (strangler), NÃO rewrite.** Trabalho na branch `remake`.
+>
+> **O nível técnico-alvo (a régua de aceitação) está no fim: "Estado-alvo (Definition of Done)".** Nada se
+> declara "feito" sem bater esses critérios, provados contra o código.
 
 ---
 
@@ -94,8 +97,64 @@ um teste** que o param real chega ao handler (não 400). O padrão já está fei
 
 - **F3.2 — ARCH-05 (paginação):** helper único com min/max e projeção explícita; há defaults de **10 000**
   (`guru.sso.controller.ts`, `guru.webhook.controller.ts`) e `find({})` sem limite.
-- **F3.3 — moagem TS 194→0:** baixar o ratchet **por módulo**, um commit por módulo, números no corpo.
+- **F3.3 — moagem TS 184→0:** baixar o ratchet **por módulo**, um commit por módulo, números no corpo.
   `npm run types:baseline:update` para regravar (nunca à mão). Só no fim (zero erros) se remove o `tsc || exit 0`.
 
 **Cada família/bloco entregue → reporta ao utilizador, que passa ao revisor. O revisor valida contra o código
 (nunca contra o report) e desbloqueia o próximo.**
+
+---
+
+## Estado-alvo (Definition of Done) — a régua
+
+> **Para que serve.** Isto é o nível técnico que a API tem de atingir. Não é aspiração: é a **régua de
+> aceitação**. Nenhum item se declara "feito" sem **bater estes critérios, provados contra o código** — a
+> mesma disciplina que já aplicamos às rotas. Qualquer agente/sessão mede contra esta secção. Decisão do
+> utilizador (2026-07-17): estratégia aprovada.
+>
+> **Regra de ouro do alvo:** não se troca correcção por elegância. Cada critério entra por **refactor
+> incremental** atrás dos contratos vivos (Front, webhooks, CRON), com **characterization tests primeiro**.
+
+### 1. Arquitectura & bootstrap
+- [ ] `src/index.ts` deixa de ser god-file: separado em `config`, `app`, `routes`, `database`, `jobs`, `server` (ARCH-01).
+- [ ] `createApp(deps)` **puro** — não liga rede/BD nem arranca jobs no import; `bootstrap()` coordena as dependências explicitamente.
+- [ ] Modelos e jobs registados **explicitamente**, nunca por side-effect de import. Startup order e shutdown testáveis.
+
+### 2. Ficheiros pequenos & módulos por domínio
+- [ ] **Nenhum ficheiro novo/tocado > ~400 linhas.** Os monstros existentes (`clarezaCarteiraService` 4692, `users.controller` 3649, `universalSyncService` 2585, `classes.controller` 2347) partidos **verticalmente por domínio** (use cases + adapters), não reorganização cosmética (ARCH-02).
+- [ ] Cada módulo tem uma responsabilidade clara; sem "controller-que-faz-tudo".
+
+### 3. Estrutura de pastas & higiene
+- [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
+- [ ] Sem artefactos locais commitados; imagens de compose fixadas por versão/digest, sem credenciais default.
+
+### 4. Middleware & funções
+- [ ] **Helmet + rate limiting** (login, webhooks, operações pesadas separados) + limites de body/upload + timeouts + container **não-root** (SEC-08).
+- [ ] **Error handler central** `(err,req,res,next)` — mensagem pública estável + correlation ID; detalhe só no logger redigido (SEC-10). *(base já entregue — validar cobertura em todas as rotas.)*
+- [ ] Redação PII/tokens **numa só função** partilhada (logger + error handler). Sem `console.*` novo (ESLint `no-console` global).
+
+### 5. Segurança & rotas protegidas
+- [x] **Default-deny** derivado do catálogo (SEC-01) — feito.
+- [ ] **Matriz de papéis** ADMIN/SUPER_ADMIN/só-consulta com `authorize(...)` por rota + audit log; gating equivalente no Front (fica **depois** da F3.1).
+- [ ] **Toda rota destrutiva:** auth + role + **validação de input strict** (F3.1) + **idempotência/cap/kill-switch/dry-run** onde escreve em sistemas externos (OPS-02).
+- [ ] JWT sem defaults, segredo forte validado no arranque (SEC-02). Debug routes fora de produção (SEC-03). Upload endurecido (SEC-05).
+- [ ] **CORS** por `ALLOWED_ORIGINS`, fail-closed fora de local (SEC-11 — bloqueador D3 do deploy).
+
+### 6. Escalabilidade
+- [ ] **Helper único de paginação** (min/max, cursor onde precisa, projeção explícita). Zero defaults de 10 000, zero `find({})` sem limite (ARCH-05 / F3.2).
+- [ ] Idempotência e caps como **política transversal**, não caso-a-caso (OPS-02).
+
+### 7. Contrato de resposta
+- [ ] Envelope/versionamento **único** para código novo; adaptado feature a feature preservando o Front (ARCH-03). Sem mistura de arrays crus / `{success,data}` / `{error}`.
+
+### 8. Metodologias 2026 (toolchain & qualidade)
+- [ ] **TypeScript `strict` a zero erros**, ratchet removido, `noEmitOnError:true`, sem `tsc || exit 0` (TOOL-01 / F3.3).
+- [ ] **ESLint** `--max-warnings=0`, baseline podada a zero; `no-explicit-any` ratchetado quando `strict` entrar (TOOL-02).
+- [ ] **Um** package manager autoritativo (decisão: npm; migrar Nixpacks num commit isolado) (TOOL-03).
+- [ ] Suites separadas unit/integration/load/e2e, mocks por defeito, **egress guard**; cobertura honesta e a subir (TEST-01/02).
+- [ ] Config validada e tipada com **fail-fast** no arranque (OPS-01).
+
+### Como se mede
+Cada caixa fecha com **prova contra o código** (comando/teste), não com report. O revisor regrava o estado
+aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → paginação (F3.2) → TS zero (F3.3)
+→ cirurgia de arquitectura (ARCH-01/02/03) → strict em ondas.** Correcção nunca cede a prazo.
