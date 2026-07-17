@@ -64,24 +64,3 @@ export const USER_ROLES = {
     MAX_REASON_LENGTH: 500,
     MAX_NOTES_LENGTH: 1000
   }
-  
-  // Limites de paginação
-  export const PAGINATION = {
-    DEFAULT_PAGE: 1,
-    DEFAULT_LIMIT: 50,
-    MAX_LIMIT: 100,
-    MIN_LIMIT: 1
-  }
-  
-  
-  
-  
-  
-  
-  
-  
-  
- 
-  
-  
-  
