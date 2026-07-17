@@ -11,6 +11,13 @@ import { Router, type Request, type RequestHandler, type Response } from 'expres
 import { DiscordMessageLog, DiscordMessageTemplate, DiscordRoleChange } from '../models/discordRenewal'
 import CronJobConfig from '../models/SyncModels/CronJobConfig'
 import {
+  discordRenewalExecuteInput,
+  discordRenewalMessageSendInput,
+  discordRenewalScheduledRunInput,
+  discordRenewalScheduledTestInput,
+} from '../security/discordRenewalDestructiveInput'
+import { withValidatedInput } from '../security/validatedInput'
+import {
   approveRoleChanges,
   ensureDefaultTemplates,
   executeDiscordRolesPlan,
@@ -28,8 +35,9 @@ const asyncRoute = (fn: any): RequestHandler => {
   }
 }
 
-function actor(req: Request): string {
-  return (req as any).user?.email || (req.body && req.body.actor) || 'backoffice'
+function actor(req: { body?: unknown }, validatedActor?: string): string {
+  const bodyActor = (req.body as { actor?: string } | undefined)?.actor
+  return (req as any).user?.email || validatedActor || bodyActor || 'backoffice'
 }
 
 /** GET /api/discord-renewal/status */
@@ -87,12 +95,12 @@ router.post('/approve', asyncRoute(async (req: Request, res: Response) => {
 }))
 
 /** POST /api/discord-renewal/execute  { batchId?, includePlanned?, limit? } — limit é clampado ao cap do env */
-router.post('/execute', asyncRoute(async (req: Request, res: Response) => {
+router.post('/execute', withValidatedInput(discordRenewalExecuteInput, async (input, req, res) => {
   const report = await executeDiscordRolesPlan({
-    includePlanned: req.body?.includePlanned === true,
-    batchId: req.body?.batchId || undefined,
-    limit: req.body?.limit ? Number(req.body.limit) : undefined,
-    executedBy: actor(req)
+    includePlanned: input.body.includePlanned === true,
+    batchId: input.body.batchId,
+    limit: input.body.limit,
+    executedBy: actor(req, input.body.actor)
   })
   res.json({ success: report.masterEnabled, data: report })
 }))
@@ -136,16 +144,15 @@ router.post('/messages/preview', asyncRoute(async (req: Request, res: Response) 
 }))
 
 /** POST /api/discord-renewal/messages/send  { content, mentionRoleIds, dataFim?, channelId?, templateKey?, mentionEveryone? } */
-router.post('/messages/send', asyncRoute(async (req: Request, res: Response) => {
-  const mentionRoleIds: string[] = Array.isArray(req.body?.mentionRoleIds) ? req.body.mentionRoleIds : []
+router.post('/messages/send', withValidatedInput(discordRenewalMessageSendInput, async (input, req, res) => {
   const result = await sendDiscordMessage({
-    content: String(req.body?.content || ''),
-    mentionRoleIds,
-    dataFim: req.body?.dataFim,
-    channelId: req.body?.channelId,
-    templateKey: req.body?.templateKey,
-    mentionEveryone: req.body?.mentionEveryone === true,
-    sentBy: actor(req)
+    content: input.body.content,
+    mentionRoleIds: input.body.mentionRoleIds,
+    dataFim: input.body.dataFim,
+    channelId: input.body.channelId,
+    templateKey: input.body.templateKey,
+    mentionEveryone: input.body.mentionEveryone === true,
+    sentBy: actor(req, input.body.actor)
   })
   res.status(result.success ? 200 : 400).json(result)
 }))
@@ -188,14 +195,14 @@ router.get('/scheduled/:key/preview', asyncRoute(async (req: Request, res: Respo
 }))
 
 /** POST /api/discord-renewal/scheduled/:key/test — envia SEM menções (ninguém notificado) */
-router.post('/scheduled/:key/test', asyncRoute(async (req: Request, res: Response) => {
+router.post('/scheduled/:key/test', withValidatedInput(discordRenewalScheduledTestInput, async (input, req, res) => {
   const { testScheduledRule } = await import('../services/renewal/discordScheduledMessages.service')
-  const result = await testScheduledRule(String(req.params.key), actor(req))
+  const result = await testScheduledRule(input.params.key, actor(req, input.body.actor))
   res.status(result.success ? 200 : 400).json(result)
 }))
 
 /** POST /api/discord-renewal/scheduled/run — corre o job já (respeita switches/idempotência) */
-router.post('/scheduled/run', asyncRoute(async (_req: Request, res: Response) => {
+router.post('/scheduled/run', withValidatedInput(discordRenewalScheduledRunInput, async (_input, _req, res) => {
   const { runScheduledMessagesJob } = await import('../services/renewal/discordScheduledMessages.service')
   const report = await runScheduledMessagesJob()
   res.json({ success: true, data: report })
