@@ -5,6 +5,8 @@ import {
   tagNotificationController,
   tagMonitoringController,
 } from '../controllers/tagMonitoring'
+import { tagMonitoringDeleteInput } from '../security/tagMonitoringDestructiveInput'
+import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
 
@@ -22,7 +24,12 @@ router.post('/critical-tags', authenticate, criticalTagController.addCriticalTag
 router.delete('/critical-tags/:id', authenticate, criticalTagController.removeCriticalTag)
 
 // Remove tag crítica permanentemente
-router.delete('/critical-tags/:id/permanent', authenticate, criticalTagController.deleteCriticalTag)
+router.delete(
+  '/critical-tags/:id/permanent',
+  authenticate,
+  withValidatedInput(tagMonitoringDeleteInput, (input, _req, res) =>
+    criticalTagController.deleteCriticalTag(input, res)),
+)
 
 // Alterna estado ativo/inativo
 router.patch('/critical-tags/:id/toggle', authenticate, criticalTagController.toggleCriticalTag)
@@ -64,7 +71,12 @@ router.patch('/notifications/:id/read', authenticate, tagNotificationController.
 router.patch('/notifications/:id/unread', authenticate, tagNotificationController.markAsUnread)
 
 // Remove notificação
-router.delete('/notifications/:id', authenticate, tagNotificationController.dismissNotification)
+router.delete(
+  '/notifications/:id',
+  authenticate,
+  withValidatedInput(tagMonitoringDeleteInput, (input, _req, res) =>
+    tagNotificationController.dismissNotification(input, res)),
+)
 
 // Contagem de notificações não lidas
 router.get(

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { criticalTagManagementService } from '../../services/tagMonitoring'
 import logger from '../../utils/logger'
+import type { TagMonitoringDeleteInput } from '../../security/tagMonitoringDestructiveInput'
 
 /**
  * GET /api/tag-monitoring/critical-tags
@@ -131,9 +132,12 @@ export const removeCriticalTag = async (req: Request, res: Response) => {
  * DELETE /api/tag-monitoring/critical-tags/:id/permanent
  * Remove permanentemente uma tag crítica
  */
-export const deleteCriticalTag = async (req: Request, res: Response) => {
+export const deleteCriticalTag = async (
+  input: TagMonitoringDeleteInput,
+  res: Response,
+) => {
   try {
-    const { id } = req.params
+    const { id } = input.params
 
     if (!id) {
       return res.status(400).json({

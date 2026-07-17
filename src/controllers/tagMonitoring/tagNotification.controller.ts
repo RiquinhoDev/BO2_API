@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { tagNotificationService } from '../../services/tagMonitoring'
 import logger from '../../utils/logger'
+import type { TagMonitoringDeleteInput } from '../../security/tagMonitoringDestructiveInput'
 
 /**
  * GET /api/tag-monitoring/notifications
@@ -191,9 +192,12 @@ export const markAsUnread = async (req: Request, res: Response) => {
  * DELETE /api/tag-monitoring/notifications/:id
  * Remove uma notificação
  */
-export const dismissNotification = async (req: Request, res: Response) => {
+export const dismissNotification = async (
+  input: TagMonitoringDeleteInput,
+  res: Response,
+) => {
   try {
-    const { id } = req.params
+    const { id } = input.params
 
     if (!id) {
       return res.status(400).json({
