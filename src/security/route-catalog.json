@@ -3489,7 +3489,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  true,
-        "evidence":  "consumer nao identificado; rota em src/routes/testHistory.routes.ts:39"
+        "evidence":  "consumer nao identificado; rota em src/routes/testHistory.routes.ts:41"
     },
     {
         "method":  "POST",
@@ -3498,7 +3498,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/testHistory.routes.ts:18"
+        "evidence":  "consumer nao identificado; rota em src/routes/testHistory.routes.ts:20"
     },
     {
         "method":  "POST",
@@ -3507,7 +3507,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/testHistory.routes.ts:46"
+        "evidence":  "consumer nao identificado; rota em src/routes/testHistory.routes.ts:52"
     },
     {
         "method":  "POST",
@@ -3516,7 +3516,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/testHistory.routes.ts:32"
+        "evidence":  "consumer nao identificado; rota em src/routes/testHistory.routes.ts:34"
     },
     {
         "method":  "POST",
@@ -3525,7 +3525,7 @@
         "consumer":  "desconhecido",
         "writes":  true,
         "destructive":  false,
-        "evidence":  "consumer nao identificado; rota em src/routes/testHistory.routes.ts:25"
+        "evidence":  "consumer nao identificado; rota em src/routes/testHistory.routes.ts:27"
     },
     {
         "method":  "GET",

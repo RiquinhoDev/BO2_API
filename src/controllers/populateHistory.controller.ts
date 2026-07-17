@@ -4,6 +4,7 @@
 // ══════════════════════════════════════════════════════════════════════
 
 import { Request, Response } from 'express'
+import type { TestHistoryDeleteEventsInput } from '../security/testHistoryDestructiveInput'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import UserHistory from '../models/UserHistory'
@@ -265,9 +266,12 @@ export const populateRetroactiveHistory = async (req: Request, res: Response) =>
  * POST /api/test/history/delete-test-events
  * Apaga eventos de teste do histórico de um user
  */
-export const deleteTestEvents = async (req: Request, res: Response) => {
+export const deleteTestEvents = async (
+  input: TestHistoryDeleteEventsInput,
+  res: Response,
+) => {
   try {
-    const { email } = req.body
+    const { email } = input.body
 
     if (!email) {
       return res.status(400).json({
