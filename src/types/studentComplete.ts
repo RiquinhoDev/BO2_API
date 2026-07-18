@@ -117,7 +117,6 @@ export interface ConsolidatedClass {
   isActive: boolean
   enrolledAt: Date | null
   expiresAt?: Date | null
-  role?: string
 }
 
 // ═══════════════════════════════════════════════════════════════
