@@ -305,7 +305,11 @@ Progresso services (clusters reportados pelo Codex):
   **Consistência cross-cluster verificada:** o `role?` no schema **não** contradiz a remoção de `role` do
   `ConsolidatedClass` em utils — camadas diferentes (persistência vs DTO de display sem consumidor). 0 cast/suppression.
   Ratchet 123/28.
-- [ ] restantes clusters services (7): studentComplete 4 · UniversalSyncConfig 3.
+- [x] **studentComplete (services 7→3)** — feito (`5e3c4e1`). Retipou as funções do `studentDataConsolidator`
+  para aceitar contratos **lean** via `Pick<IUserProduct, …>` (`StudentProductData`/`StudentStatsUser` — subconjuntos
+  precisos, **não `any`**); largou o param `user` não usado do `consolidateClasses`. Testes actualizados, discord/role/
+  fallback continuam a passar. 0 cast/suppression. Ratchet 119/27.
+- [ ] **UniversalSyncConfig (services 3→0)** ← fecha os services.
 - [ ] **controllers (116)** — o maior. Sub-dividir por ficheiro/padrão, um cluster por commit.
 
 ### Depois da F3.3
