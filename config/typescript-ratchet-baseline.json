@@ -2,7 +2,6 @@
   "version": 1,
   "directories": {
     "controllers": 124,
-    "jobs": 1,
     "services": 39,
     "utils": 8
   },
@@ -33,7 +32,6 @@
     "src/controllers/testHistory.controller.ts",
     "src/controllers/testimonials.controller.ts",
     "src/controllers/users.controller.ts",
-    "src/jobs/dailyPipeline/tagEvaluation/applyTags.ts",
     "src/services/activeCampaign/activeCampaignService.ts",
     "src/services/snapshotServices/snapshotComparison.service.ts",
     "src/services/snapshotServices/userSnapshot.service.ts",
