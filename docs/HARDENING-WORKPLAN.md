@@ -243,14 +243,24 @@ primeiro**, depois services, controllers por último.
     — off ⇒ `addTag` **não** é chamado; on ⇒ batches chamam `addTag` correctamente. **Nunca** toca a AC real.
   - Golden rule cumprida: o tipo compila porque o método **existe** (0 cast/suppression). `jobs 1→0`.
 
-### ⚠️ Módulos com BUGS REAIS escondidos (o revisor já os viu — trata com cuidado, NÃO com `any`)
-- **utils (8)** — todos em `studentDataConsolidator.ts` (usado por `services/studentCompleteService.ts`, **não é
-  morto**). Inclui `TS2304 Cannot find name 'user'` **×3** (linhas 95/100/134) → **ReferenceError latente em
-  código vivo**. Fixar exige perceber a lógica (o que `user` devia ser). Também `productCode`→`productId`
-  (TS2551) e `createdAt`/`productName` inexistentes. **Não silenciar** — é aqui que se corrige um bug real.
-- **jobs (1)** — `applyTags.ts:176` chama `activeCampaignService.addTagsBatch(...)` que **não existe** em lado
-  nenhum → `is not a function` em runtime. Decisão (regra 8): implementar o método ou corrigir a chamada? **Pergunta.**
-- **scripts (1)** — `investigate-classes.ts:5` importa `{ User }` inexistente (é `IUser`/default). Trivial.
+- [x] **jobs (1→0)** — feito (`73937eb`). `addTagsBatch` implementado (`tagBatch.ts` puro + DI, espelha
+  `removeTagBatch`, categoriza por `ACTagResponse.contactTag.id`); aplicação gated por `AC_TAG_APPLY_ENABLED`
+  (default OFF) no `applyTags`; off = skip limpo sem `stats.errors++`; `.env.example` documentado. 3 testes
+  offline provam off (0 chamadas, 0 erros) / on (batches) / categorização. Revisor: 0 cast/suppression. Ratchet 171/37.
+
+### ⚠️ Módulo com bug real por resolver
+- [ ] **utils (8→0)** — os 8 erros vivem em `studentDataConsolidator.ts` (usado por `studentCompleteService.ts`),
+  mas **espalhados por várias funções**; o revisor mapeou (2026-07-18):
+  - **3 numa função MORTA:** `calculateHotmartProgressLegacy` (`:95/:100/:134`, `Cannot find name 'user'`) — recebe
+    `product` mas usa `user`; **nunca é chamada** (só a definição existe). `lessonsData` vive no `IUser`. → o mais
+    provável é **apagar a função morta** (limpa 3 erros, 0 risco runtime) — confirmar antes.
+  - **5 em funções a rever:** `:40` (TS2322 PlatformType), `:44` (`role` em `IClassEnrollment`), `:386` (`createdAt`
+    em `IUser`), `:456` (`productCode`→`productId` — TS2551, cheira a **bug de modelo**), `:461` (`productName`).
+    Cada uma: confirmar se a função é viva e **fixar o tipo/bug**, nunca silenciar. `:456`/`:461` podem revelar
+    campos mal referenciados (bug real) — investigar caso a caso.
+  - É o módulo mais envolvido da F3.3 (mistura código morto + fixes de tipo + possíveis bugs de modelo). Merece
+    uma sessão focada. **Alternativa:** fazer os grandes mecânicos (`services 39`, `controllers 124`) primeiro e
+    guardar o utils para um passe de caça-bugs dedicado.
 
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
