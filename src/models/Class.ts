@@ -1,5 +1,9 @@
 // src/models/Class.ts
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, {
+  Schema,
+  Document,
+  type HydratedDocument,
+} from 'mongoose'
 
 export interface IClass extends Document {
   classId: string
@@ -235,8 +239,7 @@ export const Class: mongoose.Model<IClass> = mongoose.models.Class || mongoose.m
 
 // ===== MODELO DE ESTUDANTE =====
 
-export interface IStudent extends Document {
-  _id: string
+export interface IStudent {
   name: string
   email: string
   classId?: string
@@ -250,6 +253,8 @@ export interface IStudent extends Document {
   createdAt: Date
   updatedAt: Date
 }
+
+export type StudentDocument = HydratedDocument<IStudent>
 
 const StudentSchema = new Schema<IStudent>({
   name: {
