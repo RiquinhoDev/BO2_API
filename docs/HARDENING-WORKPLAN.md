@@ -202,13 +202,45 @@ carregado inteiro** e clamp cego parte-as em silêncio:
 
 **Regra da fase (cumprida):** correcção antes de elegância; provas negativas dos dois lados; gate verde.
 
-## ▶ Fase atual: F3.3
+## ▶ Fase atual: F3.3 — moagem TS 178→0 (por módulo)
 
-- **F3.3 — moagem TS 178→0:** baixar o ratchet **por módulo**, um commit por módulo, números no corpo.
-  `npm run types:baseline:update` para regravar (nunca à mão). Só no fim (zero erros) se remove o `tsc || exit 0`.
-- **Depois: cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver
-  a régua em **"Estado-alvo (Definition of Done)"**. Nota: ARCH-01 **já arrancou** (rotas montadas em
-  `src/runtime/registerRoutes.ts`, não no `index.ts`).
+**Objetivo:** baixar o ratchet TypeScript até **0**, **por directório/módulo**, um commit por módulo, com os
+números antes/depois no corpo. `npm run types:baseline:update` regrava a baseline (**nunca à mão**). Só no fim
+(zero em tudo) se remove `noEmitOnError:false`/`tsc || exit 0` e arranca `strict` em ondas.
+
+### 🔴 REGRA DE OURO (o revisor vai injectar-testar cada fix)
+**Baixa o ratchet FIXANDO o tipo, NUNCA silenciando-o.** Proibido `any`, `@ts-ignore`, `@ts-expect-error`, cast
+`as X`/`as unknown as X` que **esconda** um bug. Porquê tão duro: a dívida TS aqui **já esconde bugs reais de
+runtime** (o revisor encontrou 2 ao mapear) — um `as any` fá-los-ia desaparecer do compilador **deixando o bug
+vivo**. Se um erro TS revelar um bug, **corrige o bug** (ou, se for decisão de negócio, **pára e pergunta** —
+regra 8). Se um tipo estiver genuinamente errado, corrige o **tipo**, não o local de uso.
+
+### Mapa dos 178 erros por directório (revisor, `tsc --noEmit`, 2026-07-18)
+`controllers:124 · services:39 · utils:8 · models:5 · jobs:1 · scripts:1`. Ordem sugerida: **pequenos e
+coesos primeiro** (estabelece o padrão, prova a mecânica do ratchet), depois services, controllers por último.
+
+- [ ] **1º módulo — models (5→0)** ← **PRÓXIMO** (baixo risco, coeso, sem lógica de runtime):
+  - 4× **TS2430** `interface IX incorrectly extends Document` — `ClarezaMarketData.ts:3`, `ClarezaRaioxData.ts:3`,
+    `ClarezaTop10Data.ts:3`, `Class.ts:238` (`IStudent`). Padrão mongoose v7+: a interface `extends Document`
+    entra em conflito com o `Document` genérico. Fix por **tipagem correcta** (ex.: não estender `Document`
+    directamente / usar `HydratedDocument`), **não** relaxar campos para `any`.
+  - 1× **TS2322** `user.ts:953` — `sourcesAvailable` typed como `("hotmart"|"curseduca"|"discord")[]` mas o valor
+    inclui `"guru"` (ripple da adição do guru). Fix: **adicionar `"guru"`** ao union do tipo (mecânico).
+  - Um commit; `types:baseline:update`; corpo com `models 5→0`. Gate verde.
+
+### ⚠️ Módulos com BUGS REAIS escondidos (o revisor já os viu — trata com cuidado, NÃO com `any`)
+- **utils (8)** — todos em `studentDataConsolidator.ts` (usado por `services/studentCompleteService.ts`, **não é
+  morto**). Inclui `TS2304 Cannot find name 'user'` **×3** (linhas 95/100/134) → **ReferenceError latente em
+  código vivo**. Fixar exige perceber a lógica (o que `user` devia ser). Também `productCode`→`productId`
+  (TS2551) e `createdAt`/`productName` inexistentes. **Não silenciar** — é aqui que se corrige um bug real.
+- **jobs (1)** — `applyTags.ts:176` chama `activeCampaignService.addTagsBatch(...)` que **não existe** em lado
+  nenhum → `is not a function` em runtime. Decisão (regra 8): implementar o método ou corrigir a chamada? **Pergunta.**
+- **scripts (1)** — `investigate-classes.ts:5` importa `{ User }` inexistente (é `IUser`/default). Trivial.
+
+### Depois da F3.3
+- **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
+  **"Estado-alvo (Definition of Done)"**. ARCH-01 **já arrancou** (`src/runtime/registerRoutes.ts`); ARCH-02
+  a ganhar terreno (controllers pequenos extraídos: `usersReviewLists`, `guruWebhookList`, `guruSubscriptionList`).
 
 **Cada família/bloco entregue → reporta ao utilizador, que passa ao revisor. O revisor valida contra o código
 (nunca contra o report) e desbloqueia o próximo.**
