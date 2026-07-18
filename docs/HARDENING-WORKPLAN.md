@@ -226,11 +226,22 @@ primeiro**, depois services, controllers por último.
   adicionados, 0 mudança runtime. Gate: lint 0, ratchet 173/39, jest 269/2, build 0.
 - [x] **scripts (1→0)** — feito (`963545a`); `import { User }` → `import User` (default export, que é o que
   `User.find()` usa). Revisor: 0 cast/suppression, só a linha do import. Ratchet 172/38.
-- [ ] **jobs (1→0)** ← **PRÓXIMO, MAS PRECISA DECISÃO (regra 8)**: `applyTags.ts:176` chama
-  `activeCampaignService.addTagsBatch(user.email, toAdd)` — método **inexistente**. O serviço tem `addTag`
-  (single, :257) e `removeTagBatch` (batch, :423) mas **falta o `addTagsBatch` simétrico**. É um **bug real de
-  runtime** (`is not a function`) que a dívida TS escondia. **Não é fix mecânico** — implementar o método liga
-  comportamento de aplicação de tags na AC (integração viva). Decisão pendente do utilizador (ver abaixo).
+- [ ] **jobs (1→0)** ← **PRÓXIMO. Decisão do utilizador (2026-07-18): implementar, mas manter DESLIGADO atrás
+  de flag** (padrão OPS-02 kill-switch). Bug: `applyTags.ts:176` chama `addTagsBatch` inexistente → aplicação de
+  tags na AC falha em silêncio (está em try/catch). Spec:
+  - **Implementar `addTagsBatch(email, tagNames, batchSize=3)`** em `activeCampaignService`, **espelhando o
+    `removeTagBatch` existente** (:423): batches, `Promise.all(batch.map(t => this.addTag(email, t)))`, rate-limit
+    2000ms entre batches, devolve `{ success, failed, total }`. Adapta a categorização à resposta do `addTag`
+    (`ACTagResponse`, não booleano como o `removeTag`).
+  - **Gate a APLICAÇÃO atrás de `AC_TAG_APPLY_ENABLED` (default OFF)**, seguindo o idioma existente
+    `isMasterEnabled()`/`RENEWAL_AC_SYNC_ENABLED` (`renewalAcSync.service.ts:38`). Guarda no **caller** (`applyTags.ts`,
+    antes do `if (toAdd.length > 0)`) — o `addTagsBatch` fica primitivo. Só `applyTags:176` o chama.
+  - **Desligado = skip limpo:** quando off, **não chama a AC, não faz `stats.errors++`** (hoje o método em falta
+    inflaciona errors); loga uma vez ou conta `stats.skipped`. Isto **preserva o comportamento actual** (tags não
+    aplicadas) mas agora **intencional e sem spam de erro**, pronto a ligar quando o utilizador quiser.
+  - Documenta `AC_TAG_APPLY_ENABLED` no `.env.example`. **Offline:** testa os 2 caminhos com `addTag`/http mockado
+    — off ⇒ `addTag` **não** é chamado; on ⇒ batches chamam `addTag` correctamente. **Nunca** toca a AC real.
+  - Golden rule cumprida: o tipo compila porque o método **existe** (0 cast/suppression). `jobs 1→0`.
 
 ### ⚠️ Módulos com BUGS REAIS escondidos (o revisor já os viu — trata com cuidado, NÃO com `any`)
 - **utils (8)** — todos em `studentDataConsolidator.ts` (usado por `services/studentCompleteService.ts`, **não é
