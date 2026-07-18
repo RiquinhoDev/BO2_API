@@ -157,7 +157,7 @@
   },
   "src/controllers/guru.sso.controller.ts": {
     "no-console": {
-      "count": 14
+      "count": 13
     }
   },
   "src/controllers/guru.sync.controller.ts": {

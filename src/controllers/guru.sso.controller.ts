@@ -3,6 +3,9 @@ import { Request, Response } from 'express'
 import axios from 'axios'
 import User from '../models/user'
 import { GURU_SSO_ALLOWED_STATUSES } from '../types/guru.types'
+import { createListSubscriptions } from './guruSubscriptionList.controller'
+
+export const listSubscriptions = createListSubscriptions({ model: User })
 
 // Configuração da API Guru
 // NOTA: A API v2 é a atual, v1 foi descontinuada
@@ -238,81 +241,6 @@ export const getSubscriptionStatus = async (req: Request, res: Response) => {
  * Listar todas as subscrições Guru
  * GET /guru/subscriptions
  */
-export const listSubscriptions = async (req: Request, res: Response) => {
-  try {
-    const {
-      page = 1,
-      limit = 10000,
-      status,
-      productId,
-      email,
-      dateFrom,
-      dateTo
-    } = req.query
-
-    const query: any = { guru: { $exists: true } }
-
-    // Filtros
-    if (status) {
-      query['guru.status'] = status
-    }
-    if (productId) {
-      query['guru.productId'] = productId
-    }
-    if (email && typeof email === 'string' && email.trim()) {
-      // Pesquisa parcial case-insensitive (escapar metacaracteres de regex)
-      const escaped = email.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      query.email = { $regex: escaped, $options: 'i' }
-    }
-    if (dateFrom || dateTo) {
-      const range: any = {}
-      if (dateFrom) range.$gte = new Date(String(dateFrom))
-      if (dateTo) {
-        const end = new Date(String(dateTo))
-        end.setHours(23, 59, 59, 999)
-        range.$lte = end
-      }
-      query['guru.updatedAt'] = range
-    }
-
-    const [users, total] = await Promise.all([
-      User
-        .find(query)
-        .select('email name guru')
-        .sort({ 'guru.updatedAt': -1 })
-        .limit(Number(limit))
-        .skip((Number(page) - 1) * Number(limit))
-        .lean(),
-      User.countDocuments(query)
-    ])
-
-    const subscriptions = users.map(user => ({
-      email: user.email,
-      name: user.name,
-      ...user.guru,
-      canAccessSSO: GURU_SSO_ALLOWED_STATUSES.includes(user.guru?.status as any)
-    }))
-
-    return res.json({
-      success: true,
-      subscriptions,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit))
-      }
-    })
-
-  } catch (error: any) {
-    console.error('❌ [GURU] Erro ao listar subscrições:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
-  }
-}
-
 // ═══════════════════════════════════════════════════════════
 // DIAGNÓSTICO (ADMIN)
 // ═══════════════════════════════════════════════════════════

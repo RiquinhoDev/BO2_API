@@ -1105,6 +1105,25 @@ UserSchema.index({ 'metadata.updatedAt': -1 })
 // 💰 Índices para Guru
 UserSchema.index({ 'guru.guruContactId': 1 })
 UserSchema.index({ 'guru.subscriptionCode': 1 })
+const guruSubscriptionsOnly = {
+  partialFilterExpression: { guru: { $exists: true } },
+}
+UserSchema.index(
+  { email: 1, _id: 1 },
+  { ...guruSubscriptionsOnly, name: 'guru_subscriptions_email' },
+)
+UserSchema.index(
+  { name: 1, _id: 1 },
+  { ...guruSubscriptionsOnly, name: 'guru_subscriptions_name' },
+)
+UserSchema.index(
+  { 'guru.updatedAt': 1, _id: 1 },
+  { ...guruSubscriptionsOnly, name: 'guru_subscriptions_date' },
+)
+UserSchema.index(
+  { 'guru.status': 1, _id: 1 },
+  { ...guruSubscriptionsOnly, name: 'guru_subscriptions_status' },
+)
 
 // 🔧 VERIFICAR SE MODELO JÁ EXISTE ANTES DE CRIAR
 let UserModel: IUserModel
