@@ -183,11 +183,6 @@
       "count": 9
     }
   },
-  "src/controllers/ogiCourse.controller.ts": {
-    "no-console": {
-      "count": 4
-    }
-  },
   "src/controllers/populateHistory.controller.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
