@@ -73,6 +73,7 @@ export interface IEngagement {
 export interface IClassEnrollment {
   classId: string
   className?: string  // ⚠️ DEPRECATED - Não guardado no sync! Use lookup na tabela Class
+  role?: string
   joinedAt: Date
   leftAt?: Date
 }
@@ -288,6 +289,7 @@ const UserProductSchema = new Schema<IUserProduct>({
       required: true
     },
     className: String,
+    role: String,
     joinedAt: {
       type: Date,
       required: true

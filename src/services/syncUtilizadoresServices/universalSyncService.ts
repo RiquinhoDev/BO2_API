@@ -14,6 +14,7 @@ import { Class } from '../../models/Class'
 import { IProduct } from '../../models/product/Product'
 import { ProcessItemResult, SyncError, SyncWarning, UniversalSourceItem, UniversalSyncConfig, UniversalSyncResult } from '../../types/universalSync.types'
 import { snapshotAndCompare } from '../snapshotServices/userSnapshot.service'
+import { planClassEnrollmentRole } from './classEnrollmentRole'
 import { parseTurmaName } from '../renewal/turmaParser'
 
 // ═══════════════════════════════════════════════════════════
@@ -1981,6 +1982,11 @@ if (lastAccessDate) {
                               toDateOrNull(item.purchaseDate) ||
                               toDateOrNull(item.joinedDate) ||
                               new Date()
+        const rolePlan = planClassEnrollmentRole(
+          existingUP.classes || [],
+          classId,
+          item.role
+        )
 
         // Verificar se a turma já existe no array
         const existingClassIndex = existingUP.classes?.findIndex((c: any) => c.classId === classId) ?? -1
@@ -1991,12 +1997,16 @@ if (lastAccessDate) {
             ...(existingUP.classes || []),
             {
               classId,
+              role: rolePlan.role,
               joinedAt: enrollmentDate,
               leftAt: null
             }
           ]
           upNeedsUpdate = true
           console.log(`   📚 [Classes] Adicionada turma ${classId} para ${user.email}`)
+        } else if (rolePlan.update) {
+          upUpdateFields[rolePlan.update.path] = rolePlan.update.value
+          upNeedsUpdate = true
         }
         // Não atualizamos className porque ele vem da tabela Class, não do sync
       }
@@ -2127,10 +2137,14 @@ if (lastAccessDate) {
         : config.syncType === 'curseduca'
           ? String(item.groupId)
           : null
+      const rolePlan = classId
+        ? planClassEnrollmentRole([], classId, item.role)
+        : {}
 
       // Não guardamos className no UserProduct - ele vem da tabela Class via lookup
       const classesArray = classId ? [{
         classId,
+        role: rolePlan.role,
         joinedAt: enrolledAt,
         leftAt: null
       }] : []
