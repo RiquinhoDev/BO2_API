@@ -31,6 +31,22 @@
   duplicados — servem famílias diferentes (`/cron-tags` vs `/cron`); só o nome colide. Não apagar.
 - Recomendação: correr `npx knip` ou `ts-prune` para uma lista completa de exports/ficheiros não usados.
 
+### 🧹 SWEEP de código morto — bloco em fila (executar A SEGUIR à deleção do reengagement)
+> **Re-verifica tudo TU antes de apagar.** Os candidatos acima são do revisor — prova cada um contra o código;
+> só é morto se **nada em `src/` o importa/monta/chama** (todas as formas de import + `registerRoutes.ts`).
+1. **Inventário:** `npx knip` (ou `npx ts-prune`; **não instales**, usa `npx`). Reporta a lista crua. ⚠️ Filtra
+   falsos positivos: entry points, `await import(...)` dinâmicos, jobs por side-effect, `registerModels`.
+2. **Re-verifica os candidatos do revisor:** `ogiCourse.controller.ts`+`ogiCourse.routes.ts` (routes importado em
+   lado nenhum? OGI vivo no `activecampaign.controller`?) e `getDashboardStatsV3Legacy` (só a definição?). Confirmados → apaga.
+3. **Apaga o confirmado:** 1 commit por unidade (`chore: remove dead ...`), remove imports/mounts pendentes,
+   `types:baseline:update` se tinha erros no ratchet. **NÃO toques:** `decisionEngine`, cron de tags vivo, os
+   **dois** `cronManagement.controller.ts` (famílias diferentes, não são duplicados).
+4. **PARA E PERGUNTA (regra 8):** os stubs vivos `evaluateClarezaRules`/`evaluateOGIRules` devolvem hardcoded e o
+   Front chama-os → **decisão de comportamento**, não deleção. Reporta e espera.
+5. **Gate verde + report** por candidato: *confirmado morto e apagado* / *afinal vivo, mantido* / *precisa decisão*.
+   Lista também o que o knip/ts-prune achou a mais.
+> **Não é teu:** regenerar `route-catalog.json` + manifest/contract do Front (deleções de rotas) — é do revisor.
+
 ---
 
 ## Regras a respeitar (não negociáveis)
@@ -51,6 +67,12 @@
 7. **Nunca desligar uma regra/guarda sem GATILHO escrito** (na config e no commit).
 8. Se uma rota exigir uma **decisão** (formato de param não óbvio, semântica destrutiva), **pára e pergunta** —
    não adivinhes.
+9. **Antes de trabalhar num ficheiro, confirma que está VIVO.** Repetidamente encontrámos código morto/duplicado
+   (reengagement V1, ogiCourse, `calculateHotmartProgressLegacy`, `syncComplete`, `getDashboardStatsV3Legacy`). Não
+   gastes esforço a tipar/arranjar código que ninguém usa. **Ao tocar num ficheiro, verifica:** é importado/montado
+   em `src/` (incluindo `registerRoutes.ts`)? Há uma 2ª cópia da mesma função/rota? É uma versão `Legacy`/`V1`
+   superseded, ou um stub que devolve dados hardcoded? Se cheirar a morto/duplicado → **pára, prova com um grep, e
+   reporta** em vez de o "arranjar". Apagar lixo confirmado vale mais que tipar um fantasma.
 
 ## Gate (verde antes de reportar)
 
