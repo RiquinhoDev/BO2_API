@@ -285,8 +285,11 @@ Progresso services (clusters reportados pelo Codex):
 - [x] **sync/hotmart module progress (39→33)** — feito (`b70873a`). Tipou o contrato central `UniversalProgressModule`
   + `modulesList?/totalModules?/modulesCompleted?/currentModule?` (opcionais, sem `any`) → 6 erros do serviço
   consumidor resolvidos na **definição**, não no uso. Revisor: 0 cast/suppression. Ratchet 157/35.
-- [ ] restantes clusters services (~33): tag-monitoring 10 · classesService 8 · snapshots 7 · studentComplete 4 ·
-  UniversalSyncConfig 3 · ActiveCampaign 1. Um cluster por commit.
+- [x] **ActiveCampaign (33→32)** — feito (`e9ab346`). **Bug real (3º da F3.3):** remover a 1ª tag criava
+  `activeCampaignData = { tags: [] }` sem `lists` (obrigatório em `IActiveCampaignData`) → `{ tags: [], lists: [] }`.
+  Fix satisfaz o tipo E a integridade. Teste RED/GREEN. 0 cast/suppression. Ratchet 156/34.
+- [ ] restantes clusters services (32): tag-monitoring 10 · classesService 8 · snapshots 7 · studentComplete 4 ·
+  UniversalSyncConfig 3. Um cluster por commit.
 
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
