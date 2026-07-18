@@ -317,10 +317,25 @@ Progresso services (clusters reportados pelo Codex):
 ### ✅ services, models, scripts, jobs, utils todos a 0 — **resta só controllers**
 - [x] **activecampaign.controller (116→115)** — feito (`e82708e`). **Bug real (8º, gémeo do 3º):** o controller
   criava `activeCampaignData` sem `lists` (obrigatório) → `{ …, lists: [] }`. Teste HTTP boundary. 0 cast/suppression.
-- [ ] **controllers (115)** — a reta final. **Agrupar mais agressivamente** (o commit AC foi só 1 erro): juntar por
-  ficheiro **ou por padrão partilhado** (ex.: "params Express" repete-se em vários controllers → 1 commit). Sugestão
-  Codex: `acReader.controller.ts` (4 erros de params Express). O maior ficheiro é `users.controller.ts`.
-  1 cluster por commit, `types:baseline:update` a cada. Golden rule: fixa tipo/bug, nunca `any`/cast.
+### controllers (115) — reta final: **1 commit por FICHEIRO** (~15 commits, não 115)
+> **Não** 1 erro/commit. Agrupa **por ficheiro** — os erros de um controller partilham contexto (mesmos models,
+> req/res) e formam um assunto coerente e revisível. Ordem sugerida: maiores primeiro.
+
+Distribuição (revisor, `tsc --noEmit`, 2026-07-18):
+- **Por ficheiro:** analytics 13 · reengagement 12 · cron/cronManagement 11 · syncStats 8 · syncUtiliz/cronManagement 8 ·
+  productProfile 8 · testimonials 7 · classes 5 · guru.inactivation 5 · tagNotification 4 · studentHistory 4 ·
+  acReader 4 · guru.snapshot 4 · criticalTag 3 · guru.sync 3 · +cauda (~2-1 cada).
+- **Por tipo de erro:** TS2345 46 · TS2339 43 · TS2769 16 · TS2551 4 · **TS1117 4** · TS2307 1 · TS2352 1.
+
+⚠️ **Regra de ouro reforçada nos controllers** (é onde vivem os bugs):
+- **TS2339 (43, "propriedade não existe")** é a classe que já revelou 8 bugs reais (campos fantasma / schema a
+  descartar). Em cada um: **é bug de dados ou gap de tipo?** Corrige a raiz, **não** casta para compilar.
+- **TS1117 (4, chaves duplicadas num literal)** = **bug garantido** (a 2ª chave sobrescreve a 1ª em silêncio).
+  Investiga o que era pretendido, corrige. Nunca só apagar uma chave sem perceber qual é a correcta.
+- TS2345/TS2769 (argumento/overload): normalmente tipo mal-casado → corrige o tipo na fronteira.
+
+- [ ] 1 commit por ficheiro, `types:baseline:update` a cada, número no corpo (`controllers 115→N`), gate verde.
+  Podes entregar vários ficheiros num report. Se um erro revelar um bug (esp. TS2339/TS1117), **corrige ou pergunta**.
 
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
