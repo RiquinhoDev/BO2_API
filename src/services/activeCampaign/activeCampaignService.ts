@@ -12,6 +12,7 @@ import {
   ACTagResponse 
 } from '../../types/activecampaign.types'
 import { User, UserProduct } from '../../models'
+import { addTagsInBatches } from './tagBatch'
 
 // ─────────────────────────────────────────────────────────────
 // CLASSE PRINCIPAL
@@ -178,6 +179,24 @@ class ActiveCampaignService {
       throw error
     }
   }
+
+  async addTagsBatch(
+    email: string,
+    tagNames: string[],
+    batchSize: number = 3
+  ): Promise<{
+    success: string[]
+    failed: string[]
+    total: number
+  }> {
+    return addTagsInBatches(
+      email,
+      tagNames,
+      (contactEmail, tag) => this.addTag(contactEmail, tag),
+      batchSize
+    )
+  }
+
 /**
  * Encontrar ou criar contacto (retorna o contacto com id)
  */
@@ -893,4 +912,3 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
 
 export const activeCampaignService = new ActiveCampaignService()
 export default activeCampaignService
-

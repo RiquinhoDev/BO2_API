@@ -17,6 +17,9 @@ import {
 // ✅ USAR SERVIÇO EXISTENTE
 import { activeCampaignService } from '../../../services/activeCampaign/activeCampaignService'
 
+export const isTagApplyEnabled = () =>
+  process.env.AC_TAG_APPLY_ENABLED === 'true'
+
 // ═══════════════════════════════════════════════════════════
 // APLICAÇÃO DE TAGS
 // ═══════════════════════════════════════════════════════════
@@ -50,8 +53,15 @@ export async function evaluateAndApplyTags(
   options: ITagEvaluationOptions = {}
 ): Promise<IApplyTagsResult> {
   const { dryRun = false, verbose = false } = options
+  const tagApplyEnabled = isTagApplyEnabled()
 
   logger.info('[TagApply] 🚀 Iniciando avaliação e aplicação de tags', { dryRun, verbose })
+
+  if (!dryRun && !tagApplyEnabled) {
+    logger.warn(
+      '[TagApply] AC_TAG_APPLY_ENABLED != true; adição de tags desativada'
+    )
+  }
 
   const stats = {
     usersProcessed: 0,
@@ -171,7 +181,7 @@ export async function evaluateAndApplyTags(
           }
 
           // ✅ USAR SERVIÇO EXISTENTE para adicionar tags
-          if (toAdd.length > 0) {
+          if (tagApplyEnabled && toAdd.length > 0) {
             try {
               await activeCampaignService.addTagsBatch(user.email, toAdd)
               stats.tagsApplied += toAdd.length
