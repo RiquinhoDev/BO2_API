@@ -22,6 +22,10 @@ import type {
   UsersDeleteStudentInput,
 } from "../security/usersDestructiveInput"
 
+export {
+  getIdsDiferentes,
+  getUnmatchedUsers,
+} from "./usersReviewLists.controller"
 
 
 type PipelineStage = mongoose.PipelineStage
@@ -1716,16 +1720,6 @@ export const deleteStudent = async (input: UsersDeleteStudentInput, res: Respons
 }
 
 
-// 🔧 GESTÃO DE IDS DIFERENTES
-export const getIdsDiferentes = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const idsDiferentes = await IdsDiferentes.find({}).sort({ detectedAt: -1 })
-    res.json({ idsDiferentes })
-  } catch (error: any) {
-    res.status(500).json({ message: "Erro ao buscar IDs diferentes", details: error.message })
-  }
-}
-
 export const mergeDiscordId = async (req: Request, res: Response): Promise<void> => {
   const { id, email, newDiscordId } = req.body;
   
@@ -1789,16 +1783,6 @@ export const deleteIdsDiferentes = async (input: UsersDeleteByIdInput, res: Resp
     res.status(200).json({ message: "Registo removido com sucesso." })
   } catch (error: any) {
     res.status(500).json({ message: "Erro ao apagar registo.", details: error.message })
-  }
-}
-
-// 🔧 GESTÃO DE UTILIZADORES NÃO CORRESPONDIDOS
-export const getUnmatchedUsers = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const unmatchedUsers = await UnmatchedUser.find({})
-    res.status(200).json({ unmatchedUsers })
-  } catch (error: any) {
-    res.status(500).json({ message: "Erro ao buscar utilizadores não correspondidos", details: error.message })
   }
 }
 
