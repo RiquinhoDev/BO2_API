@@ -5,6 +5,18 @@
 
 import { SyncType, TriggerType } from "../models/SyncModels/SyncReport"
 
+export interface UniversalProgressModule {
+  moduleId: string
+  name: string
+  sequence: number
+  totalPages: number
+  completedPages: number
+  isCompleted: boolean
+  isExtra: boolean
+  progressPercentage: number
+  lastCompletedDate?: number
+}
+
 
 
 // ═══════════════════════════════════════════════════════════
@@ -76,6 +88,10 @@ export interface UniversalSourceItem {
       isCompleted?: boolean
       completedDate?: Date | string | null
     }>
+    modulesList?: UniversalProgressModule[]
+    totalModules?: number
+    modulesCompleted?: string[]
+    currentModule?: number
   }
   
   // ═══════════════════════════════════════════════════════════
