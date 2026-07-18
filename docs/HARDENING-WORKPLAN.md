@@ -298,7 +298,14 @@ Progresso services (clusters reportados pelo Codex):
   (fluxos de gestão/movimento de turmas perdiam dados); restaurados no schema. Removeu `syncComplete()` morto do
   serviço (referenciava `api` inexistente; a rota viva usa o **controller**, confirmado). Suppressions **pruned**:
   `no-console` 24→21 + `preserve-caught-error` (2). 0 cast/suppression novos. Ratchet 130/30.
-- [ ] restantes clusters services (14): snapshots 7 · studentComplete 4 · UniversalSyncConfig 3.
+- [x] **snapshots (services 14→7)** — feito (`84dc936`). **2 bugs reais (5º e 6º):** (a) `UserProduct` descartava
+  `role` (não estava no schema) → `CLASS_ROLE_CHANGE` impossível; `role?` restaurado no schema (persistência de role
+  numa função pura `classEnrollmentRole.ts`, testada: turma nova / role alterado / role inalterado). (b) snapshots
+  liam `user.averageEngagement*` fantasma → `undefined`; agora `user.combined?.combinedEngagement`.
+  **Consistência cross-cluster verificada:** o `role?` no schema **não** contradiz a remoção de `role` do
+  `ConsolidatedClass` em utils — camadas diferentes (persistência vs DTO de display sem consumidor). 0 cast/suppression.
+  Ratchet 123/28.
+- [ ] restantes clusters services (7): studentComplete 4 · UniversalSyncConfig 3.
 - [ ] **controllers (116)** — o maior. Sub-dividir por ficheiro/padrão, um cluster por commit.
 
 ### Depois da F3.3
