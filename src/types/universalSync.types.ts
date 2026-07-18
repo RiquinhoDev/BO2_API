@@ -5,6 +5,8 @@
 
 import { SyncType, TriggerType } from "../models/SyncModels/SyncReport"
 
+export type UniversalSyncType = Exclude<SyncType, 'all'>
+
 export interface UniversalProgressModule {
   moduleId: string
   name: string
@@ -136,7 +138,7 @@ export interface UniversalSourceItem {
 
 export interface UniversalSyncConfig {
   // Identificação
-  syncType: SyncType
+  syncType: UniversalSyncType
   jobName: string
   jobId?: string
 

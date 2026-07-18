@@ -16,6 +16,10 @@ import { ProcessItemResult, SyncError, SyncWarning, UniversalSourceItem, Univers
 import { snapshotAndCompare } from '../snapshotServices/userSnapshot.service'
 import { planClassEnrollmentRole } from './classEnrollmentRole'
 import { parseTurmaName } from '../renewal/turmaParser'
+import {
+  createUniversalSnapshotContext,
+  type UniversalSnapshotContext,
+} from './universalSyncSnapshot'
 
 // ═══════════════════════════════════════════════════════════
 // TYPE HELPERS
@@ -405,6 +409,7 @@ export const executeUniversalSync = async (
 
     hid = getDocId(syncHistory, 'SyncHistory')
     syncHistoryId = hid
+    const snapshotContext = createUniversalSnapshotContext(config.syncType, hid)
 
     console.log(`✅ [UniversalSync] SyncHistory criado: ${hid}`)
 
@@ -435,7 +440,7 @@ export const executeUniversalSync = async (
         const item = batch[j]
 
         try {
-          const result = await processSyncItem(item, config)
+          const result = await processSyncItem(item, config, snapshotContext)
 
           if (result.action === 'inserted') stats.inserted++
           else if (result.action === 'updated') stats.updated++
@@ -1142,7 +1147,8 @@ async function ensureClassExists(
 
 const processSyncItem = async (
   item: UniversalSourceItem,
-  config: UniversalSyncConfig
+  config: UniversalSyncConfig,
+  snapshotContext: UniversalSnapshotContext,
 ): Promise<ProcessItemResult> => {
   // ═══════════════════════════════════════════════════════════
   // VALIDAÇÃO INICIAL
@@ -2365,8 +2371,8 @@ if (lastAccessDate) {
     const { comparison } = await snapshotAndCompare(
       user,
       userProducts as any[],
-      config.syncType,
-      config.syncId ? new mongoose.Types.ObjectId(config.syncId) : undefined
+      snapshotContext.syncType,
+      snapshotContext.syncId,
     )
 
     if (comparison.hasChanges && comparison.summary.totalChanges > 1) {
