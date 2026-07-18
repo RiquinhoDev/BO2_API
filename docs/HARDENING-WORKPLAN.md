@@ -215,18 +215,17 @@ runtime** (o revisor encontrou 2 ao mapear) — um `as any` fá-los-ia desaparec
 vivo**. Se um erro TS revelar um bug, **corrige o bug** (ou, se for decisão de negócio, **pára e pergunta** —
 regra 8). Se um tipo estiver genuinamente errado, corrige o **tipo**, não o local de uso.
 
-### Mapa dos 178 erros por directório (revisor, `tsc --noEmit`, 2026-07-18)
-`controllers:124 · services:39 · utils:8 · models:5 · jobs:1 · scripts:1`. Ordem sugerida: **pequenos e
-coesos primeiro** (estabelece o padrão, prova a mecânica do ratchet), depois services, controllers por último.
+### Mapa dos erros por directório (revisor, `tsc --noEmit`)
+Início: `controllers:124 · services:39 · utils:8 · models:5 · jobs:1 · scripts:1` (178). **Agora: 173/39**
+(`controllers:124 · services:39 · utils:8 · jobs:1 · scripts:1` — models a 0). Ordem: **pequenos e coesos
+primeiro**, depois services, controllers por último.
 
-- [ ] **1º módulo — models (5→0)** ← **PRÓXIMO** (baixo risco, coeso, sem lógica de runtime):
-  - 4× **TS2430** `interface IX incorrectly extends Document` — `ClarezaMarketData.ts:3`, `ClarezaRaioxData.ts:3`,
-    `ClarezaTop10Data.ts:3`, `Class.ts:238` (`IStudent`). Padrão mongoose v7+: a interface `extends Document`
-    entra em conflito com o `Document` genérico. Fix por **tipagem correcta** (ex.: não estender `Document`
-    directamente / usar `HydratedDocument`), **não** relaxar campos para `any`.
-  - 1× **TS2322** `user.ts:953` — `sourcesAvailable` typed como `("hotmart"|"curseduca"|"discord")[]` mas o valor
-    inclui `"guru"` (ripple da adição do guru). Fix: **adicionar `"guru"`** ao union do tipo (mecânico).
-  - Um commit; `types:baseline:update`; corpo com `models 5→0`. Gate verde.
+- [x] **models (5→0)** — feito (`16ef3b1`). Interfaces separadas do `Document` via `HydratedDocument<I>`;
+  `IStudent` perdeu o `_id: string` manual (a causa do TS2430); `user.ts` `sourcesAvailable` ganhou `"guru"`
+  **na declaração do tipo** (não cast no uso). Revisor confirmou por grep: **0** `any`/`@ts-ignore`/cast/suppression
+  adicionados, 0 mudança runtime. Gate: lint 0, ratchet 173/39, jest 269/2, build 0.
+- [ ] **scripts (1→0)** ← **PRÓXIMO** (trivial): `investigate-classes.ts:5` importa `{ User }` inexistente →
+  usar `IUser` (ou o default). Um commit, `types:baseline:update`, gate verde.
 
 ### ⚠️ Módulos com BUGS REAIS escondidos (o revisor já os viu — trata com cuidado, NÃO com `any`)
 - **utils (8)** — todos em `studentDataConsolidator.ts` (usado por `services/studentCompleteService.ts`, **não é
