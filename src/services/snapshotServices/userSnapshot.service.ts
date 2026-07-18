@@ -10,6 +10,15 @@ import type { IUser } from '../../models/user'
 import type { IUserProduct } from '../../models/UserProduct'
 import { compareSnapshots, type ComparisonResult } from './snapshotComparison.service'
 
+export function snapshotUserState(user: IUser) {
+  return {
+    name: user.name,
+    email: user.email,
+    averageEngagement: user.combined?.combinedEngagement,
+    averageEngagementLevel: user.combined?.engagement?.level
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // CREATE SNAPSHOT
 // ═══════════════════════════════════════════════════════════════
@@ -90,10 +99,7 @@ export async function createUserSnapshot(
     snapshotDate: new Date(),
 
     userState: {
-      name: user.name,
-      email: user.email,
-      averageEngagement: user.averageEngagement,
-      averageEngagementLevel: user.averageEngagementLevel,
+      ...snapshotUserState(user),
       totalProducts: products.length,
       activePlatforms: Object.entries(platformCounts)
         .filter(([_, count]) => count > 0)
