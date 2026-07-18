@@ -803,7 +803,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
       const updatedTags = currentTags.filter((t: string) => t !== tagName)
 
       if (!userProduct.activeCampaignData) {
-        userProduct.activeCampaignData = { tags: [] }
+        userProduct.activeCampaignData = { tags: [], lists: [] }
       }
 
       userProduct.activeCampaignData.tags = updatedTags
