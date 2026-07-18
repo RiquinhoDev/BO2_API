@@ -3,6 +3,7 @@ import { Request, Response } from 'express'
 import { analyticsService } from '../services/analytics/analyticsService'
 import User from '../models/user'
 import { calculateCombinedEngagement } from '../utils/engagementCalculator'
+import { getEngagementStatsByPlatform } from '../services/syncUtilizadoresServices/engagement/engagementService'
 
 // Cache simples para evitar recálculos frequentes
 const cache = new Map<string, { data: any; timestamp: number }>()
@@ -18,8 +19,9 @@ const cleanExpiredCache = () => {
   }
 }
 
-// Executar limpeza a cada 10 minutos
-setInterval(cleanExpiredCache, 10 * 60 * 1000)
+// Executar limpeza a cada 10 minutos sem manter processos de teste/CLI abertos
+const cacheCleanupTimer = setInterval(cleanExpiredCache, 10 * 60 * 1000)
+cacheCleanupTimer.unref()
 interface ComparisonOk {
   classId: string
   className: string
@@ -50,11 +52,30 @@ interface OpportunityItem {
 
 type Comparison = ComparisonOk | ComparisonErr
 
+interface ClassParams {
+  classId: string
+}
+
+interface MultiPlatformUserSources {
+  hotmart?: {
+    hotmartUserId?: string
+  }
+  curseduca?: {
+    curseducaUserId?: string
+  }
+  discord?: {
+    discordIds?: string[]
+  }
+  hotmartUserId?: string
+  curseducaUserId?: string
+  discordIds?: string[]
+}
+
 // Type guard para o TS perceber quais são válidos
 const isOk = (c: Comparison): c is ComparisonOk => !('error' in c)
 
 // ✅ ENDPOINT PRINCIPAL - ANALYTICS DE UMA TURMA (COM CACHE)
-export const getClassAnalytics = async (req: Request, res: Response): Promise<void> => {
+export const getClassAnalytics = async (req: Request<ClassParams>, res: Response): Promise<void> => {
   try {
     const { classId } = req.params
     const forceRecalculate = req.query.force === 'true'
@@ -111,7 +132,7 @@ const isCached = !forceRecalculate && cacheAge < defaultCacheHours * 60
 }
 
 // ✅ ENDPOINT PARA FORÇAR RECÁLCULO DOS SCORES
-export const recalculateClassScores = async (req: Request, res: Response): Promise<void> => {
+export const recalculateClassScores = async (req: Request<ClassParams>, res: Response): Promise<void> => {
   try {
     const { classId } = req.params
     
@@ -186,7 +207,7 @@ export const getOutdatedClasses = async (req: Request, res: Response): Promise<v
 
 
 // ✅ ENDPOINT PARA OBTER HEALTH SCORE ESPECÍFICO
-export const getHealthScore = async (req: Request, res: Response): Promise<void> => {
+export const getHealthScore = async (req: Request<ClassParams>, res: Response): Promise<void> => {
   try {
     const { classId } = req.params
     
@@ -230,7 +251,7 @@ export const getHealthScore = async (req: Request, res: Response): Promise<void>
 }
 
 // ✅ ENDPOINT PARA OBTER APENAS DISTRIBUIÇÃO DE ENGAGEMENT
-export const getEngagementDistribution = async (req: Request, res: Response): Promise<void> => {
+export const getEngagementDistribution = async (req: Request<ClassParams>, res: Response): Promise<void> => {
   try {
     const { classId } = req.params
     
@@ -274,7 +295,7 @@ export const getEngagementDistribution = async (req: Request, res: Response): Pr
 }
 
 // ✅ ENDPOINT PARA OBTER ALERTAS DA TURMA
-export const getClassAlerts = async (req: Request, res: Response): Promise<void> => {
+export const getClassAlerts = async (req: Request<ClassParams>, res: Response): Promise<void> => {
   try {
     const { classId } = req.params
     
@@ -800,7 +821,7 @@ export const compareClasses = async (req: Request, res: Response): Promise<void>
 }
 
 // ✅ 4. ENDPOINT PARA OPORTUNIDADES DE MELHORIA
-export const getOpportunities = async (req: Request, res: Response): Promise<void> => {
+export const getOpportunities = async (req: Request<ClassParams>, res: Response): Promise<void> => {
   try {
     const { classId } = req.params
     
@@ -1282,16 +1303,16 @@ export const getMultiPlatformAnalytics = async (req: Request, res: Response) => 
     const hotmartUsers = await User.countDocuments({
       ...baseQuery,
       $or: [
-        { 'hotmart.hotmartUserId': { $exists: true, $ne: null, $ne: '' } },
-        { hotmartUserId: { $exists: true, $ne: null, $ne: '' } }
+        { 'hotmart.hotmartUserId': { $exists: true, $nin: [null, ''] } },
+        { hotmartUserId: { $exists: true, $nin: [null, ''] } }
       ]
     })
 
     const curseducaUsers = await User.countDocuments({
       ...baseQuery,
       $or: [
-        { 'curseduca.curseducaUserId': { $exists: true, $ne: null, $ne: '' } },
-        { curseducaUserId: { $exists: true, $ne: null, $ne: '' } }
+        { 'curseduca.curseducaUserId': { $exists: true, $nin: [null, ''] } },
+        { curseducaUserId: { $exists: true, $nin: [null, ''] } }
       ]
     })
 
@@ -1306,7 +1327,7 @@ export const getMultiPlatformAnalytics = async (req: Request, res: Response) => 
     // Multi-plataforma
     const allUsers = await User.find(baseQuery)
       .select('hotmart curseduca discord hotmartUserId curseducaUserId discordIds')
-      .lean()
+      .lean<MultiPlatformUserSources[]>()
 
     let multiPlatformUsers = 0
     allUsers.forEach(user => {
@@ -1320,7 +1341,6 @@ export const getMultiPlatformAnalytics = async (req: Request, res: Response) => 
     })
 
     // Engagement por plataforma - importar função do serviço
-    const { getEngagementStatsByPlatform } = require('../services/engagementService')
     const engagementStats = await getEngagementStatsByPlatform()
 
     res.json({
