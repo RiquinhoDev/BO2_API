@@ -129,13 +129,33 @@ carregado inteiro** e clamp cego parte-as em silêncio:
   de `config/constants.ts` (revisor confirmou: nada consumia nenhum dos dois). Validado: lint 0, ratchet 178/44,
   7 testes, full jest 256/2 skipped.
 
-### Passo 2 — listas backend-only (seguras, sem Front) ← **PRÓXIMO**
-- [ ] Migrar as listagens sem consumidor de "carregar tudo": alvos a enumerar com `grep -rn "find({})" src`
-  (o Codex reporta a lista **antes** de mexer). **Ordenação estável obrigatória** (inclui `_id` de desempate).
-  Projeção **explícita** por endpoint. Um commit por controller. **Não** trocar array↔envelope (isso é ARCH-03).
-- [ ] Os **full-scans internos** (jobs/scripts/serviços que precisam do conjunto todo) **não** levam `.limit(200)`
-  — usam **cursor/batch**; truncá-los alteraria resultados de jobs. Lista dos que são scan vs. listagem HTTP
-  já levantada pelo Codex no report de arranque; confirmar caso a caso.
+### Passo 2 — listas backend-only (seguras, sem Front) ← **EM CURSO**
+
+**Classificação dos 18 `find({})` (Codex 2026-07-18, revisor confirmou):**
+- **Paginar (listagem HTTP sem consumidor "carregar tudo"):** `users.controller.ts:1722` (`getIdsDiferentes`)
+  e `:1798` (`getUnmatchedUsers`). Revisor confirmou: **Front tem 0 chamadas vivas** a estes paths
+  (`grep idsDiferentes|unmatchedUsers Front/src` = 0; catálogo `consumer:front` está **stale**). Ambos os
+  modelos têm `detectedAt` **com índice** → sort `{ detectedAt: -1, _id: -1 }` é estável **e** index-backed.
+  → **1º commit do Passo 2 (aprovado).**
+- **NÃO paginar — full-scan interno (cursor/batch, nunca `.limit(200)`):** `scripts/fix-status-inconsistencies.ts:20`,
+  `scripts/sync-status-from-userproducts.ts:21`, `jobs/dailyPipeline/tagEvaluation/applyTags.ts:81`,
+  `services/analytics/analyticsCache.service.ts:288` (melhor → agregação/count no Mongo),
+  `services/renewal/discordRolesSync.service.ts:203` (reconciliação — preservar deteção de remoções),
+  `services/renewal/discordScheduledMessages.service.ts:138`, `services/renewal/renewalPerformance.service.ts:78`,
+  `services/syncUtilizadoresServices/hotmartServices/classesService.ts:532`.
+- **NÃO paginar — full-set de config/cálculo (Front consome o todo, ou não é a lista devolvida):**
+  `cronManagement.controller.ts:46` (`/cron/jobs` legacy completo), `routes/discordRenewal.routes.ts:115`
+  (templates), `services/renewal/discordScheduledMessages.service.ts:212` (estado UI), `routes/users.routes.ts:241`
+  (revisor confirmou: alimenta o cálculo de `/v2/engagement/comparison`, **não** é a lista de resposta).
+- **Falsos positivos (já limitados):** `scripts/diagnose-classes.ts:127` (`.limit(10)`),
+  `populateHistory.controller.ts:328` (`.limit(limit)` def 100), `contactTagReader.service.ts:264` (batch def 100),
+  `routes/discordRenewal.routes.ts:163` (def 20, máx 100).
+
+**Regras do commit:** sort estável (`_id` desempate), projeção **explícita** com todos os campos atuais (inclui
+`_id`/timestamps/`__v` — não reduzir contrato), `{ idsDiferentes }`/`{ unmatchedUsers }` preservados + campo
+`pagination` aditivo, `countDocuments({})`. Testes: defaults, clamp `10000→200`, ordenação, projeção, envelope.
+
+- [ ] 1º commit: as 2 listagens de `users.controller.ts` (aprovado). Um commit para as duas (mesmo controller).
 
 ### Passo 3 — as 2 telas Guru (par Front+Back, no MESMO bloco)
 - [ ] **Backend:** `guru.sso.controller.ts:245` e `guru.webhook.controller.ts:306` passam a offset 50/200 via
