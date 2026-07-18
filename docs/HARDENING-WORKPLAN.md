@@ -159,22 +159,49 @@ carregado inteiro** e clamp cego parte-as em silêncio:
   `usersReviewLists.controller.ts` (re-export mantém as rotas; mini-ARCH-02). Revisor confirmou **campo-a-campo**
   contra os 2 modelos que as projeções são completas (0 redução de contrato); sort index-backed; clamp
   `10000→200` provado; envelope + `pagination` aditivo. Gate: lint 0, ratchet 178/44, jest 258/2 skipped.
-- [ ] **Próximas listagens HTTP** (se aparecerem): mesma receita. Caso contrário, avançar para o **Passo 3** (telas Guru).
+- [x] **Não há mais listagens HTTP puras** na classificação → Passo 2 esgotado. Segue o Passo 3.
 
-### Passo 3 — as 2 telas Guru (par Front+Back, no MESMO bloco)
-- [ ] **Backend:** `guru.sso.controller.ts:245` e `guru.webhook.controller.ts:306` passam a offset 50/200 via
-  helper; webhooks com projeção explícita **sem** `rawData`/`__v`; **sort server-side** (`sortField`/`sortDirection`
-  → query, ordena no Mongo com `_id` de desempate).
-- [ ] **Front:** larga o `useMemo` de sort client-side e envia sort ao servidor; **export passa a paginar no
-  servidor** (loop de páginas a 200 até esgotar, ou endpoint CSV dedicado) — **nunca** um pedido de 10000.
-  Remove o `defaultLimit=10_000` de `useGuruCore.ts`.
-- [ ] **Contract tests** (provas negativas): `limit=10000` devolve **≤200** e `pages` correcto; filtros+envelope
-  iguais; sort não duplica/perde itens entre páginas; `rawData` **não** sai na listagem; export traz **tudo**.
-- [ ] Backend NÃO faz deploy do clamp Guru **antes** deste par estar completo (a `remake` não está em prod → há
-  folga, mas entrega-se junto).
+### Passo 3 — telas Guru. **O revisor mapeou os 2 lados; o risco divide-se em 3a (seguro) e 3b (delicado).**
+
+> Contexto verificado pelo revisor (2026-07-18), agir sobre isto:
+> - Ambos os controllers **já devolvem** `pagination:{page,limit,total,pages}` — igual ao `paginationSchema` do
+>   Front. Logo `helper.metadata(total)` encaixa **sem mudar envelope**.
+> - **Webhooks NÃO tem consumidor vivo:** o hook `useGuruWebhooks` está **órfão** (não há tab webhooks —
+>   `GuruTab = 'overview'|'churn'|'sync'|'subscriptions'`; nenhum componente o importa). Sem UI = sem break
+>   client-side possível. → **backend-only, seguro.**
+> - **Só subscriptions é o par real:** tem export CSV (`GuruDashboard.tsx:397`) e sort client-side
+>   (`GuruDashboard.tsx:226`, `useMemo`; `toggleSort:289` não re-fetcha).
+
+#### Passo 3a — webhooks (backend-only, seguro, SEM Front) ← primeiro
+- [ ] `guru.webhook.controller.ts:302` (`listGuruWebhooks`): clamp via `paginate(req.query)` (50/200);
+  sort `{ receivedAt: -1, _id: -1 }` (add desempate); **add** `.select('_id email event status processed receivedAt')`
+  — **exactamente** os 6 campos do `guruWebhooksResponseSchema` (estrito, sem passthrough); exclui `rawData`/`__v`
+  (o Front já os stripava → 0 mudança de contrato, ganho de peso/segurança). Envelope `{success, webhooks, pagination}`
+  fica igual via `metadata(total)`.
+- [ ] Contract test: `limit=10000`→≤200 e `pages` certo; projeção traz **só** os 6 campos; `rawData`/`__v` ausentes.
+
+#### Passo 3b — subscriptions (par Front+Back, no MESMO bloco) ← o delicado
+- [ ] **Backend** `guru.sso.controller.ts:241` (`listSubscriptions`): clamp via helper; **manter** `.select('email name guru')`
+  (o schema Front é `.passthrough()` — preserva `...guru`); **sort server-side** aceitando `sortField`/`sortDirection`,
+  com este mapa (item = `{email,name,...guru,canAccessSSO}`): `email→email`, `name→name`, `date→guru.updatedAt`,
+  `status→guru.status`; **sempre** com `_id` de desempate; default preserva o actual `{ 'guru.updatedAt': -1, _id: -1 }`.
+  ⚠️ **Verificar índices**: hoje já ordena por `guru.updatedAt`; email/name/status server-side são **novos** — confirmar
+  índices ou registar a limitação (sort in-memory tem teto de 32MB no Mongo).
+- [ ] **Front** (`GuruDashboard.tsx` + `hooks/useGuruCore.ts`):
+  - Remover `defaultLimit = 10_000` (`useGuruCore.ts:8`) — deixar o backend aplicar 50; os controlos de página
+    **já existem** em `GuruSubscriptionListPanel.tsx`.
+  - **Sort server-side:** `toggleSort` passa a `applySubscriptionFilters({ sortField, sortDirection, page:1 })`
+    (re-fetch); **remover** o `useMemo` `sortedSubscriptions` (usar `subscriptions` já ordenado pelo servidor).
+  - **Export por paginação:** `onExportSubscriptions` passa a percorrer o servidor (loop de páginas a 200 até
+    `pagination.pages`, **respeitando os filtros+sort actuais**) e junta tudo antes do `downloadCSV`. **Nunca** um
+    pedido de 10000. (A vista `comparação` usa outro caminho — não mexer.)
+- [ ] **Contract tests (provas negativas):** `limit=10000`→≤200; sort por cada campo compõe com paginação **sem
+  duplicar/perder** itens entre páginas; filtros+envelope iguais; **export traz TODAS as linhas** (paged), não 200.
+- [ ] Backend **não** faz deploy do clamp subscriptions **antes** do Front (sort+export) estar pronto. `remake`
+  não está em prod → há folga, mas 3b entrega-se junto (back+front no mesmo bloco de report).
 
 **Regra da fase:** correcção antes de elegância; caracterização primeiro onde o payload muda; gate verde entre
-cada commit.
+cada commit. **Ordem:** 3a (webhooks, isolado) → 3b (subscriptions, par).
 
 ## A seguir à F3.2
 
