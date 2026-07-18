@@ -19,19 +19,22 @@
 - [x] **reengagement V1** — APAGADO (`09df244`, 605 linhas). Engine/cron/domínio (`reengagementLevels`) intactos.
   Revisor validou (0 refs pendentes) e regenerou catálogo/manifest (455→448) + contrato do Front (`1bc95cc`,
   `371d22b`). Gate verde nos 2 repos. Controllers 102→90.
-- [ ] **`ogiCourse.controller.ts` + `ogiCourse.routes.ts`** — **morto/duplicado.** `ogiCourse.routes` **não é
-  importado em lado nenhum** (não está no `registerRoutes.ts`). Os endpoints OGI vivos estão no
-  `activecampaign.controller` (`/api/activecampaign/courses/ogi/*`). O `getOGIStudents` do ogiCourse é uma 2ª
-  cópia; o `evaluateOGIRules` é um stub 410. → candidato a apagar (par controller+routes).
-- [ ] **`getDashboardStatsV3Legacy`** (`dashboard.controller.ts:409`) — **morto.** Única referência é a própria
-  definição; a rota `/stats/v3` usa `getDashboardStatsV3` (sem "Legacy"). Sobra da reescrita V3. → apagar a função.
-- [ ] **Stubs "vivos" que devolvem dados falsos** (⚠️ não é morto — é bug/smell): `activecampaign.controller`
-  `evaluateClarezaRules`/`evaluateOGIRules` devolvem hardcoded `{tagsApplied:12/8, tagsRemoved:3/2}` **e o Front
-  chama-os** (`courses/clareza|ogi/evaluate`). O Front recebe números fictícios. Decisão: ligar ao motor real
-  (`test-cron`/`decisionEngine`), deprecar (410 como o ogiCourse), ou é placeholder intencional? **perguntar.**
+- [x] **`ogiCourse.controller.ts` + `ogiCourse.routes.ts`** — APAGADO (`ae9e856`). Confirmado sem imports/mounts;
+  OGI vivo (`activecampaign.controller`) intacto. Nunca esteve montado → **sem impacto no catálogo** (448/448).
+  Ratchet 90→88. Validado pelo revisor.
+- [x] **`getDashboardStatsV3Legacy`** — APAGADO (`bf780e8`, 397 linhas). Revisor confirmou: removeu **só** essa função
+  (única `-export`); `getDashboardStatsV3` vivo (linha 364, `/stats/v3`) intacto; 0 refs pendentes.
+- [ ] **⚠️ DECISÃO PENDENTE — stubs "vivos" que mentem no UI:** `evaluateClarezaRules`/`evaluateOGIRules`
+  (`activecampaign.controller`) devolvem hardcoded `{tagsApplied:12/8, tagsRemoved:3/2}`, e o Front consome-os
+  (`evaluateCourseRules` → mostra os números). **É pior que morto — é dado falso ao utilizador.** Opções: (A) ligar
+  ao motor real, (B) contar stats reais read-only, (C) deprecar 410 + tirar/religar o botão no Front, (D) mensagem
+  honesta "corre via cron". É par Front+Back. Ver decisão abaixo.
 - Nota: os **dois** `cronManagement.controller.ts` (`cron/` e `syncUtilizadoresControllers/`) **não** são
   duplicados — servem famílias diferentes (`/cron-tags` vs `/cron`); só o nome colide. Não apagar.
-- Recomendação: correr `npx knip` ou `ts-prune` para uma lista completa de exports/ficheiros não usados.
+- **`ts-prune` correu (revisor):** 147 candidatos brutos, mas **muito ruído** (barrel re-exports em `models/index.ts`
+  incl. `IdsDiferentes`/`UnmatchedUser` que **são vivos**; tipos; `default` de jobs/serviços; handlers via `import * as`).
+  Guardado em `scratchpad/ts-prune-candidates.txt`. **Não apagar às cegas** — precisa triagem por-item (grep a confirmar).
+  Melhor: a regra #9 apanha isto organicamente na moagem dos controllers; um passe de triagem dedicado depois.
 
 ### 🧹 SWEEP de código morto — bloco em fila (executar A SEGUIR à deleção do reengagement)
 > **Re-verifica tudo TU antes de apagar.** Os candidatos acima são do revisor — prova cada um contra o código;
