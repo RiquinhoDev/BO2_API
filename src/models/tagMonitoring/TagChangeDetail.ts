@@ -14,7 +14,16 @@ export interface ITagChangeDetail extends Document {
   detectedAt: Date
 }
 
-const TagChangeDetailSchema = new Schema<ITagChangeDetail>(
+export interface ITagChangeDetailModel extends mongoose.Model<ITagChangeDetail> {
+  findByNotification(notificationId: string): Promise<ITagChangeDetail[]>
+  findByEmail(email: string, limit?: number): Promise<ITagChangeDetail[]>
+  findByProduct(product: string): Promise<ITagChangeDetail[]>
+}
+
+const TagChangeDetailSchema = new Schema<
+  ITagChangeDetail,
+  ITagChangeDetailModel
+>(
   {
     notificationId: {
       type: Schema.Types.ObjectId,
@@ -77,7 +86,7 @@ TagChangeDetailSchema.statics.findByProduct = function (product: string) {
   return this.find({ product }).sort({ detectedAt: -1 })
 }
 
-const TagChangeDetail = mongoose.model<ITagChangeDetail>(
+const TagChangeDetail = mongoose.model<ITagChangeDetail, ITagChangeDetailModel>(
   'TagChangeDetail',
   TagChangeDetailSchema
 )

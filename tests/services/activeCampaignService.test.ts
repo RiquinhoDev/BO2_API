@@ -52,4 +52,36 @@ describe('ActiveCampaignService UserProduct state', () => {
     })
     expect(mockSave).toHaveBeenCalledTimes(1)
   })
+
+  it('loads every contact page for all-contact monitoring', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({
+      id: `contact-${index}`,
+      email: `student-${index}@example.test`,
+      firstName: `Student ${index}`,
+      lastName: 'Example',
+      cdate: '2026-07-18T00:00:00Z',
+      udate: '2026-07-18T00:00:00Z',
+    }))
+    const secondPage = [{
+      id: 'contact-100',
+      email: 'student-100@example.test',
+      firstName: 'Student 100',
+      lastName: 'Example',
+      cdate: '2026-07-18T00:00:00Z',
+      udate: '2026-07-18T00:00:00Z',
+    }]
+    const get = jest.spyOn(activeCampaignService.client, 'get')
+      .mockResolvedValueOnce({ data: { contacts: firstPage } })
+      .mockResolvedValueOnce({ data: { contacts: secondPage } })
+
+    const contacts = await activeCampaignService.getAllContacts()
+
+    expect(contacts).toHaveLength(101)
+    expect(get).toHaveBeenNthCalledWith(1, '/api/3/contacts', {
+      params: { limit: 100, offset: 0 },
+    })
+    expect(get).toHaveBeenNthCalledWith(2, '/api/3/contacts', {
+      params: { limit: 100, offset: 100 },
+    })
+  })
 })

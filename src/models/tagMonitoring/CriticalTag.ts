@@ -16,9 +16,16 @@ export interface ICriticalTag extends Document {
   createdAt: Date
   createdBy: mongoose.Types.ObjectId
   description?: string
+  toggle(): Promise<ICriticalTag>
 }
 
-const CriticalTagSchema = new Schema<ICriticalTag>(
+export interface ICriticalTagModel extends mongoose.Model<ICriticalTag> {
+  findActiveTags(): Promise<ICriticalTag[]>
+  isCritical(tagName: string): Promise<boolean>
+  getPriorityLevel(tagName: string): Promise<TagPriority | null>
+}
+
+const CriticalTagSchema = new Schema<ICriticalTag, ICriticalTagModel>(
   {
     tagName: {
       type: String,
@@ -89,6 +96,9 @@ CriticalTagSchema.statics.getPriorityLevel = async function (
   return tag?.priority || null
 }
 
-const CriticalTag = mongoose.model<ICriticalTag>('CriticalTag', CriticalTagSchema)
+const CriticalTag = mongoose.model<ICriticalTag, ICriticalTagModel>(
+  'CriticalTag',
+  CriticalTagSchema
+)
 
 export default CriticalTag
