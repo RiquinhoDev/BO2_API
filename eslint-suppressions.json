@@ -32,7 +32,7 @@
   },
   "src/controllers/analytics.controller.ts": {
     "@typescript-eslint/no-require-imports": {
-      "count": 7
+      "count": 6
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 3
