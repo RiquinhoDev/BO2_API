@@ -1,7 +1,7 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 102
+    "controllers": 90
   },
   "dirtyFiles": [
     "src/controllers/acTags/acReader.controller.ts",
@@ -14,7 +14,6 @@
     "src/controllers/lessons.controller.ts",
     "src/controllers/ogiCourse.controller.ts",
     "src/controllers/products/productProfile.controller.ts",
-    "src/controllers/reengagement.controller.ts",
     "src/controllers/studentHistory.controller.ts",
     "src/controllers/sync.controller.ts",
     "src/controllers/syncUtilizadoresControllers/cronManagement.controller.ts",

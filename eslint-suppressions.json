@@ -219,14 +219,6 @@
       "count": 9
     }
   },
-  "src/controllers/reengagement.controller.ts": {
-    "no-console": {
-      "count": 13
-    },
-    "prefer-const": {
-      "count": 1
-    }
-  },
   "src/controllers/studentHistory.controller.ts": {
     "no-console": {
       "count": 4
