@@ -938,13 +938,10 @@
       "count": 3
     },
     "no-console": {
-      "count": 24
+      "count": 21
     },
     "no-useless-assignment": {
       "count": 1
-    },
-    "preserve-caught-error": {
-      "count": 2
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts": {
