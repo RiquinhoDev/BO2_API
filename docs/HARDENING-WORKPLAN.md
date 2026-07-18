@@ -293,8 +293,13 @@ Progresso services (clusters reportados pelo Codex):
   `getAllContacts()`** (paginação `/api/3/contacts`) — método que faltava e o `weeklyTagMonitoring` consumia; é
   READ e fica atrás do gate **existente** `config.enabled`+`scope==='ALL_CONTACTS'` (não force-enable). Bónus:
   removeu um `(c: any)` pré-existente. Revisor: 0 cast/suppression novos (models continua a 0). Ratchet 142/31.
-- [ ] restantes clusters services (22): classesService 8 · snapshots 7 · studentComplete 4 · UniversalSyncConfig 3.
-- [ ] **controllers (120)** — o maior. Sub-dividir por ficheiro/padrão, um cluster por commit.
+- [x] **classesService (services 22→14, controllers 120→116)** — feito (`d4339fb`). **Bug real (4º):** `classId`/
+  `className` estavam na interface mas **não no schema** → `strict:true` descartava-os silenciosamente ao gravar
+  (fluxos de gestão/movimento de turmas perdiam dados); restaurados no schema. Removeu `syncComplete()` morto do
+  serviço (referenciava `api` inexistente; a rota viva usa o **controller**, confirmado). Suppressions **pruned**:
+  `no-console` 24→21 + `preserve-caught-error` (2). 0 cast/suppression novos. Ratchet 130/30.
+- [ ] restantes clusters services (14): snapshots 7 · studentComplete 4 · UniversalSyncConfig 3.
+- [ ] **controllers (116)** — o maior. Sub-dividir por ficheiro/padrão, um cluster por commit.
 
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
