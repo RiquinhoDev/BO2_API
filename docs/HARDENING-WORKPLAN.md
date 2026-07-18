@@ -337,6 +337,23 @@ Distribuição (revisor, `tsc --noEmit`, 2026-07-18):
 - [ ] 1 commit por ficheiro, `types:baseline:update` a cada, número no corpo (`controllers 115→N`), gate verde.
   Podes entregar vários ficheiros num report. Se um erro revelar um bug (esp. TS2339/TS1117), **corrige ou pergunta**.
 
+Progresso controllers:
+- [x] **analytics (115→102)** — feito (`183427e`). **3 bugs reais (9º/10º/11º):** `$ne` duplicado no mesmo literal
+  (`{$ne:null, $ne:''}` → 2º sobrescrevia o 1º; só excluía `''`, não `null`) → `$nin:[null,'']`; `require` de
+  path inexistente (`../services/engagementService`) → import correcto; `setInterval` sem ref prendia o Jest →
+  `.unref()`. 0 cast/suppression (suppressions pruned). Ratchet 102/24.
+- [ ] **reengagement (12) — BLOQUEADO, precisa DECISÃO (regra 8).** O Codex parou correctamente. Contexto do revisor:
+  - O controller V1 chama métodos inexistentes (12 erros). **Nenhum endpoint reengagement tem consumidor vivo no
+    Front** (revisor confirmou: o `EngagementDashboard` só tem um label de texto; a chamada `courses/.../evaluate`
+    do Front é do AC, não do reengagement). Logo estão **partidos E não usados**.
+  - A engine V2 (`decisionEngine.service.ts`) **escreve na AC** (`applyTagToUserProduct:1301`, `removeTagFromUserProduct:1287`)
+    mesmo em avaliação → encaminhar V1→V2 mecanicamente tornaria `evaluate`/`simulate` **destrutivos**.
+  - **Opção A (recomendada):** manter `state`/`reset`; os 5 endpoints V1 incompatíveis
+    (`evaluate/:userId`, `evaluate/:userId/execute`, `evaluate-batch`, `stats/:productCode`, `simulate/:productCode`)
+    devolvem **501** (tipados, limpam os 12 erros sem silenciar nem arriscar writes). Baixo risco (0 consumidores).
+  - **Opção B (maior):** dry-run real na engine (evaluate/simulate **não** escrevem) + `productCode→productId` +
+    redefinir stats. Toca serviços/engine. Não urgente (endpoints não usados).
+
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
   **"Estado-alvo (Definition of Done)"**. ARCH-01 **já arrancou** (`src/runtime/registerRoutes.ts`); ARCH-02
