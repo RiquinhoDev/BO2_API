@@ -1002,7 +1002,8 @@ export const applyTagToUserProduct = async (input: ActiveCampaignTagMutationInpu
     if (!userProduct.activeCampaignData) {
       userProduct.activeCampaignData = {
         contactId: acContact.id,
-        tags: []
+        tags: [],
+        lists: []
       }
     }
 
