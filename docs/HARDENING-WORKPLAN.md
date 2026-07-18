@@ -224,8 +224,13 @@ primeiro**, depois services, controllers por último.
   `IStudent` perdeu o `_id: string` manual (a causa do TS2430); `user.ts` `sourcesAvailable` ganhou `"guru"`
   **na declaração do tipo** (não cast no uso). Revisor confirmou por grep: **0** `any`/`@ts-ignore`/cast/suppression
   adicionados, 0 mudança runtime. Gate: lint 0, ratchet 173/39, jest 269/2, build 0.
-- [ ] **scripts (1→0)** ← **PRÓXIMO** (trivial): `investigate-classes.ts:5` importa `{ User }` inexistente →
-  usar `IUser` (ou o default). Um commit, `types:baseline:update`, gate verde.
+- [x] **scripts (1→0)** — feito (`963545a`); `import { User }` → `import User` (default export, que é o que
+  `User.find()` usa). Revisor: 0 cast/suppression, só a linha do import. Ratchet 172/38.
+- [ ] **jobs (1→0)** ← **PRÓXIMO, MAS PRECISA DECISÃO (regra 8)**: `applyTags.ts:176` chama
+  `activeCampaignService.addTagsBatch(user.email, toAdd)` — método **inexistente**. O serviço tem `addTag`
+  (single, :257) e `removeTagBatch` (batch, :423) mas **falta o `addTagsBatch` simétrico**. É um **bug real de
+  runtime** (`is not a function`) que a dívida TS escondia. **Não é fix mecânico** — implementar o método liga
+  comportamento de aplicação de tags na AC (integração viva). Decisão pendente do utilizador (ver abaixo).
 
 ### ⚠️ Módulos com BUGS REAIS escondidos (o revisor já os viu — trata com cuidado, NÃO com `any`)
 - **utils (8)** — todos em `studentDataConsolidator.ts` (usado por `services/studentCompleteService.ts`, **não é
