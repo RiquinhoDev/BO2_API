@@ -1185,34 +1185,6 @@
   },
   {
     "method": "POST",
-    "path": "/api/reengagement/evaluate-batch"
-  },
-  {
-    "method": "POST",
-    "path": "/api/reengagement/evaluate/:userId"
-  },
-  {
-    "method": "POST",
-    "path": "/api/reengagement/evaluate/:userId/execute"
-  },
-  {
-    "method": "POST",
-    "path": "/api/reengagement/reset/:userId/:productCode"
-  },
-  {
-    "method": "POST",
-    "path": "/api/reengagement/simulate/:productCode"
-  },
-  {
-    "method": "GET",
-    "path": "/api/reengagement/state/:userId/:productCode"
-  },
-  {
-    "method": "GET",
-    "path": "/api/reengagement/stats/:productCode"
-  },
-  {
-    "method": "POST",
     "path": "/api/renewal-ac/approve"
   },
   {
