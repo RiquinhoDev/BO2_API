@@ -3,6 +3,8 @@ import UserProduct from '../../src/models/UserProduct'
 import {
   calculateStudentStats,
   consolidateClasses,
+  consolidateEngagement,
+  consolidateProgressByProduct,
 } from '../../src/utils/studentDataConsolidator'
 
 describe('consolidateClasses', () => {
@@ -30,7 +32,7 @@ describe('consolidateClasses', () => {
       isPrimary: false,
     })
 
-    expect(consolidateClasses(user, [discordProduct])).toEqual([])
+    expect(consolidateClasses([discordProduct])).toEqual([])
   })
 
   it('does not expose a role that is absent from class enrollments', () => {
@@ -52,15 +54,29 @@ describe('consolidateClasses', () => {
       isPrimary: true,
     })
 
-    const [consolidatedClass] = consolidateClasses(user, [hotmartProduct])
+    const [consolidatedClass] = consolidateClasses([hotmartProduct])
 
     expect(consolidatedClass).not.toHaveProperty('role')
   })
 
-  it('falls back to the canonical metadata creation date', () => {
-    const stats = calculateStudentStats(user, [], [], [])
+  it('accepts the plain data returned by lean queries', () => {
+    const metadataCreatedAt = new Date('2026-01-01T00:00:00.000Z')
+    const leanUser = {
+      metadata: {
+        createdAt: metadataCreatedAt,
+      },
+    }
 
-    expect(stats.memberSince).toEqual(user.metadata.createdAt)
+    expect(consolidateProgressByProduct([])).toEqual([])
+    expect(consolidateEngagement([], [])).toEqual(
+      expect.objectContaining({
+        states: [],
+      }),
+    )
+
+    const stats = calculateStudentStats(leanUser, [], [], [])
+
+    expect(stats.memberSince).toEqual(metadataCreatedAt)
     expect(Number.isFinite(stats.daysSinceMemberSince)).toBe(true)
   })
 })
