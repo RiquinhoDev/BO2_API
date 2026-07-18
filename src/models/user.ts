@@ -214,7 +214,7 @@ curseduca?: {
     
     // Metadados
     lastActivity?: Date
-    sourcesAvailable: ('discord' | 'hotmart' | 'curseduca')[]
+    sourcesAvailable: ('discord' | 'hotmart' | 'curseduca' | 'guru')[]
     dataQuality: 'EXCELLENT' | 'GOOD' | 'BASIC' | 'LIMITED'
     calculatedAt: Date
   }

@@ -1,12 +1,15 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, { Schema, type HydratedDocument } from 'mongoose'
 
-export interface IClarezaTop10Data extends Document {
+export interface IClarezaTop10Data {
   fetchedAt: Date
   stockCount: number
   errors: number
   // Payload completo servido ao HTML: { updated, source, stocks: { TICKER: {...} } }
   payload: any
 }
+
+export type ClarezaTop10DataDocument =
+  HydratedDocument<IClarezaTop10Data>
 
 const ClarezaTop10DataSchema = new Schema<IClarezaTop10Data>(
   {

@@ -1,6 +1,6 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, { Schema, type HydratedDocument } from 'mongoose'
 
-export interface IClarezaRaioxData extends Document {
+export interface IClarezaRaioxData {
   fetchedAt: Date
   stockCount: number
   errors: number
@@ -8,6 +8,9 @@ export interface IClarezaRaioxData extends Document {
   // Mapa { TICKER: payloadRico } — payload no mesmo formato de chaves curtas do raiox
   stocks: Record<string, any>
 }
+
+export type ClarezaRaioxDataDocument =
+  HydratedDocument<IClarezaRaioxData>
 
 const ClarezaRaioxDataSchema = new Schema<IClarezaRaioxData>(
   {
