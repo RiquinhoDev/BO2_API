@@ -288,8 +288,13 @@ Progresso services (clusters reportados pelo Codex):
 - [x] **ActiveCampaign (33→32)** — feito (`e9ab346`). **Bug real (3º da F3.3):** remover a 1ª tag criava
   `activeCampaignData = { tags: [] }` sem `lists` (obrigatório em `IActiveCampaignData`) → `{ tags: [], lists: [] }`.
   Fix satisfaz o tipo E a integridade. Teste RED/GREEN. 0 cast/suppression. Ratchet 156/34.
-- [ ] restantes clusters services (32): tag-monitoring 10 · classesService 8 · snapshots 7 · studentComplete 4 ·
-  UniversalSyncConfig 3. Um cluster por commit.
+- [x] **tag-monitoring (services 32→22, controllers 124→120)** — feito (`0caf5bf`). Tipou 5 modelos
+  tag-monitoring (interfaces/documents) → resolveu 14 erros nos consumidores (services+controllers). **Restaurou
+  `getAllContacts()`** (paginação `/api/3/contacts`) — método que faltava e o `weeklyTagMonitoring` consumia; é
+  READ e fica atrás do gate **existente** `config.enabled`+`scope==='ALL_CONTACTS'` (não force-enable). Bónus:
+  removeu um `(c: any)` pré-existente. Revisor: 0 cast/suppression novos (models continua a 0). Ratchet 142/31.
+- [ ] restantes clusters services (22): classesService 8 · snapshots 7 · studentComplete 4 · UniversalSyncConfig 3.
+- [ ] **controllers (120)** — o maior. Sub-dividir por ficheiro/padrão, um cluster por commit.
 
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
