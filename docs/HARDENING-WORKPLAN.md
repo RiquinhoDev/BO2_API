@@ -314,9 +314,13 @@ Progresso services (clusters reportados pelo Codex):
   constrói o contexto com `syncId` do `SyncHistory` real do fluxo (tipado `syncId: Types.ObjectId`).
   `UniversalSyncConfig` restringido a plataformas concretas (exclui `all`). 0 cast/suppression. Ratchet 116/26.
 
-### ✅ services, models, scripts, jobs, utils todos a 0 — **resta só controllers (116)**
-- [ ] **controllers (116)** — a reta final. Sub-dividir por ficheiro/padrão (o maior é `users.controller.ts`),
-  um cluster por commit, `types:baseline:update` a cada. Golden rule: fixa tipo/bug, nunca `any`/cast.
+### ✅ services, models, scripts, jobs, utils todos a 0 — **resta só controllers**
+- [x] **activecampaign.controller (116→115)** — feito (`e82708e`). **Bug real (8º, gémeo do 3º):** o controller
+  criava `activeCampaignData` sem `lists` (obrigatório) → `{ …, lists: [] }`. Teste HTTP boundary. 0 cast/suppression.
+- [ ] **controllers (115)** — a reta final. **Agrupar mais agressivamente** (o commit AC foi só 1 erro): juntar por
+  ficheiro **ou por padrão partilhado** (ex.: "params Express" repete-se em vários controllers → 1 commit). Sugestão
+  Codex: `acReader.controller.ts` (4 erros de params Express). O maior ficheiro é `users.controller.ts`.
+  1 cluster por commit, `types:baseline:update` a cada. Golden rule: fixa tipo/bug, nunca `any`/cast.
 
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
