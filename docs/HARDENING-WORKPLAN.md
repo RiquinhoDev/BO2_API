@@ -268,8 +268,19 @@ Todos em `studentDataConsolidator.ts` (usado por `studentCompleteService.ts`). M
   estreito (`'hotmart'|'curseduca'`). Aqui as turmas só vêm de hotmart/curseduca. → alarga `ConsolidatedClass.platform`
   a `PlatformType` **ou** guarda/estreita explicitamente. Sem `as any`.
 
-Golden rule: fixa tipo/apaga morto, **nunca** silencia. Um commit (`utils 8→0`), `types:baseline:update`, gate verde.
-Se `:44` precisar de decisão, **pára e pergunta** antes de avançar.
+- [x] **utils (8→0)** — feito (`e43aedf`). Função morta apagada; `role` fantasma removido (do uso **e** do tipo
+  `ConsolidatedClass`); `createdAt?/updatedAt?` no `IUser` + fallback defensivo `|| user.metadata.createdAt`;
+  `productCode?/productName?` opcionais no `IUserProduct` (fallbacks **preservados**). **Bónus — bug real
+  corrigido:** o `:40` revelou que enrolments **discord/guru** eram classificados como `curseduca_sync`; fix por
+  **guard** (`if platform !== hotmart && !== curseduca return`), não cast. 3 testes com instâncias mongoose reais
+  provam: discord→`[]`, sem `role`, fallback metadata. Revisor: 0 cast/suppression (suppressions **pruned** 2→1).
+  Gate: lint 0, ratchet 163/36, jest 275/2 skipped.
+
+### ⬛ Restam só os 2 grandes: services (39) e controllers (124)
+> **Sub-dividir** (não um commit de 124 fixes). O ratchet é por-directório mas pode descer **em vários commits**:
+> fixa um cluster (por ficheiro ou por padrão de erro) → `types:baseline:update` (ex.: `controllers 124→110`) →
+> commit com os números → gate → repete. Cada commit fica revisível. **services primeiro** (menor, 39). Golden
+> rule na mesma; onde um erro TS revelar um bug (como no `:40`/jobs), **corrige o bug ou pergunta**, nunca cast.
 
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
