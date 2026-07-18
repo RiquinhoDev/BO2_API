@@ -11,7 +11,19 @@ export interface IWeeklyTagMonitoringConfig extends Document {
   updatedAt: Date
 }
 
-const WeeklyTagMonitoringConfigSchema = new Schema<IWeeklyTagMonitoringConfig>(
+export interface IWeeklyTagMonitoringConfigModel
+  extends mongoose.Model<IWeeklyTagMonitoringConfig> {
+  getConfig(): Promise<IWeeklyTagMonitoringConfig>
+  updateScope(
+    scope: 'STUDENTS_ONLY' | 'ALL_CONTACTS'
+  ): Promise<IWeeklyTagMonitoringConfig>
+  toggleEnabled(): Promise<IWeeklyTagMonitoringConfig>
+}
+
+const WeeklyTagMonitoringConfigSchema = new Schema<
+  IWeeklyTagMonitoringConfig,
+  IWeeklyTagMonitoringConfigModel
+>(
   {
     scope: {
       type: String,
@@ -86,7 +98,10 @@ WeeklyTagMonitoringConfigSchema.statics.toggleEnabled = async function (): Promi
   return config
 }
 
-const WeeklyTagMonitoringConfig = mongoose.model<IWeeklyTagMonitoringConfig>(
+const WeeklyTagMonitoringConfig = mongoose.model<
+  IWeeklyTagMonitoringConfig,
+  IWeeklyTagMonitoringConfigModel
+>(
   'WeeklyTagMonitoringConfig',
   WeeklyTagMonitoringConfigSchema
 )

@@ -33,6 +33,10 @@ export interface ACContactResponse {
 }
 export type ACContactApi = ACContactResponse['contact']
 
+export interface ACContactsResponse {
+  contacts: ACContactApi[]
+}
+
 export interface ACTagResponse {
   contactTag: {
     id: string
@@ -67,4 +71,3 @@ export interface ACWebhookPayload {
     id: string
   }
 }
-

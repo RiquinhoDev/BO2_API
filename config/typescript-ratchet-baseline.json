@@ -1,8 +1,8 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 124,
-    "services": 32
+    "controllers": 120,
+    "services": 22
   },
   "dirtyFiles": [
     "src/controllers/acTags/acReader.controller.ts",
@@ -35,9 +35,6 @@
     "src/services/snapshotServices/userSnapshot.service.ts",
     "src/services/studentCompleteService.ts",
     "src/services/syncUtilizadoresServices/hotmartServices/classesService.ts",
-    "src/services/syncUtilizadoresServices/universalSyncService.ts",
-    "src/services/tagMonitoring/criticalTagManagement.service.ts",
-    "src/services/tagMonitoring/tagNotification.service.ts",
-    "src/services/tagMonitoring/weeklyTagMonitoring.service.ts"
+    "src/services/syncUtilizadoresServices/universalSyncService.ts"
   ]
 }

@@ -134,7 +134,7 @@ class WeeklyTagMonitoringService {
       try {
         const allContacts = await activeCampaignService.getAllContacts()
         logger.info(`📊 ALL_CONTACTS: ${allContacts.length} contactos da AC`)
-        return allContacts.map((c: any) => c.email).filter(Boolean)
+        return allContacts.map((contact) => contact.email).filter(Boolean)
       } catch (error) {
         logger.error('Erro ao buscar contactos da AC, fallback para STUDENTS_ONLY', error)
         // Fallback para STUDENTS_ONLY em caso de erro
@@ -343,7 +343,7 @@ class WeeklyTagMonitoringService {
 
       // Buscar produto principal do aluno
       const userProduct = await UserProduct.findOne({ userId: user._id, status: 'ACTIVE' })
-        .populate('productId')
+        .populate<{ productId: { name?: string } }>('productId')
         .lean()
 
       const productName = userProduct?.productId?.name || 'N/A'

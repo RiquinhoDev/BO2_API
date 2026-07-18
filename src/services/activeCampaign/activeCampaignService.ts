@@ -9,6 +9,7 @@ import {
   ACContact, 
   ACContactApi, 
   ACContactResponse, 
+  ACContactsResponse,
   ACTagResponse 
 } from '../../types/activecampaign.types'
 import { User, UserProduct } from '../../models'
@@ -142,6 +143,28 @@ class ActiveCampaignService {
     } catch (error) {
       console.error(`❌ Erro ao buscar contacto ${email}:`, this.formatError(error))
       throw error
+    }
+  }
+
+  async getAllContacts(): Promise<ACContactApi[]> {
+    const contacts: ACContactApi[] = []
+    const limit = 100
+    let offset = 0
+
+    while (true) {
+      await this.checkRateLimit()
+      const response = await this.retryRequest(() =>
+        this.client.get<ACContactsResponse>('/api/3/contacts', {
+          params: { limit, offset },
+        })
+      )
+      const page = response.data.contacts || []
+      contacts.push(...page)
+
+      if (page.length < limit) {
+        return contacts
+      }
+      offset += limit
     }
   }
 
