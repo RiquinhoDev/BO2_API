@@ -1,7 +1,7 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 90
+    "controllers": 88
   },
   "dirtyFiles": [
     "src/controllers/acTags/acReader.controller.ts",
@@ -12,7 +12,6 @@
     "src/controllers/guru.sync.controller.ts",
     "src/controllers/guru.webhook.controller.ts",
     "src/controllers/lessons.controller.ts",
-    "src/controllers/ogiCourse.controller.ts",
     "src/controllers/products/productProfile.controller.ts",
     "src/controllers/studentHistory.controller.ts",
     "src/controllers/sync.controller.ts",
