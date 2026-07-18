@@ -99,7 +99,12 @@ um teste** que o param real chega ao handler (não 400). O padrão já está fei
 
 ---
 
-## ▶ Fase atual: F3.2 — ARCH-05 (paginação) — **DECIDIDA, PRONTA A EXECUTAR**
+## ✅ F3.2 — ARCH-05 (paginação) — **FECHADA (2026-07-18)**
+
+Concluída em 3 passos: helper puro (`446b3e0`) → listas backend-only (`a7886e8`) → telas Guru
+(webhooks `7c0aed9` + subscriptions par back `2a01ca3`/front `cf9c080`). Caps de 10 000 eliminados sem partir
+funcionalidade (export por paginação + sort server-side). Bónus: 4 extrações para controllers pequenos
+testáveis (ARCH-02) e 3 prunes `no-console`. **Fase atual passa a F3.3.**
 
 **Objetivo:** um **helper único** de paginação (fonte única — regra 5), offset agora + cursor como evolução
 aditiva depois. Eliminar caps insanos (`limit=10000`) e `find({})` cru **sem partir funcionalidade viva**.
@@ -180,30 +185,24 @@ carregado inteiro** e clamp cego parte-as em silêncio:
   `limit=10000`→200/`pages:2`, sort `_id` desc estável, e **`rawData`/`__v` ausentes** (prova negativa real de
   não-fuga). Gate: lint 0, ratchet 178/44, jest 259/2 skipped. Validado pelo revisor.
 
-#### Passo 3b — subscriptions (par Front+Back, no MESMO bloco) ← o delicado
-- [ ] **Backend** `guru.sso.controller.ts:241` (`listSubscriptions`): clamp via helper; **manter** `.select('email name guru')`
-  (o schema Front é `.passthrough()` — preserva `...guru`); **sort server-side** aceitando `sortField`/`sortDirection`,
-  com este mapa (item = `{email,name,...guru,canAccessSSO}`): `email→email`, `name→name`, `date→guru.updatedAt`,
-  `status→guru.status`; **sempre** com `_id` de desempate; default preserva o actual `{ 'guru.updatedAt': -1, _id: -1 }`.
-  ⚠️ **Verificar índices**: hoje já ordena por `guru.updatedAt`; email/name/status server-side são **novos** — confirmar
-  índices ou registar a limitação (sort in-memory tem teto de 32MB no Mongo).
-- [ ] **Front** (`GuruDashboard.tsx` + `hooks/useGuruCore.ts`):
-  - Remover `defaultLimit = 10_000` (`useGuruCore.ts:8`) — deixar o backend aplicar 50; os controlos de página
-    **já existem** em `GuruSubscriptionListPanel.tsx`.
-  - **Sort server-side:** `toggleSort` passa a `applySubscriptionFilters({ sortField, sortDirection, page:1 })`
-    (re-fetch); **remover** o `useMemo` `sortedSubscriptions` (usar `subscriptions` já ordenado pelo servidor).
-  - **Export por paginação:** `onExportSubscriptions` passa a percorrer o servidor (loop de páginas a 200 até
-    `pagination.pages`, **respeitando os filtros+sort actuais**) e junta tudo antes do `downloadCSV`. **Nunca** um
-    pedido de 10000. (A vista `comparação` usa outro caminho — não mexer.)
-- [ ] **Contract tests (provas negativas):** `limit=10000`→≤200; sort por cada campo compõe com paginação **sem
-  duplicar/perder** itens entre páginas; filtros+envelope iguais; **export traz TODAS as linhas** (paged), não 200.
-- [ ] Backend **não** faz deploy do clamp subscriptions **antes** do Front (sort+export) estar pronto. `remake`
-  não está em prod → há folga, mas 3b entrega-se junto (back+front no mesmo bloco de report).
+#### Passo 3b — subscriptions (par Front+Back) — ✅ FEITO (back `2a01ca3` / front `cf9c080`)
+- [x] **Backend** `2a01ca3`: `listSubscriptions` **extraído** para `guruSubscriptionList.controller.ts` (factory
+  com DI `createListSubscriptions({model})`, re-export mantém a rota). Clamp helper; `.select('email name guru')`
+  mantido; sort server-side com o mapa exacto + `_id` desempate; **4 índices parciais compostos** em `user.ts`
+  (`{campo:1,_id:1}` com `partialFilterExpression:{guru:{$exists:true}}` → index-backed, resolve o teto 32MB).
+  Prune `no-console` 14→13 (console→logger). Suite Mongo efémero **10/10** incl. "sort desc sem duplicar/perder
+  entre páginas". Gate: lint 0, ratchet 178/44, jest 269/2 skipped.
+- [x] **Front** `cf9c080`: removido `defaultLimit=10_000` (→ `fallbackLimit=50`); `sortedSubscriptions` useMemo
+  **removido**; `toggleSort` re-fetcha server-side; `useGuruSubscriptions({limit:50, sortField, sortDirection})`;
+  **`fetchAllSubscriptions`** percorre páginas a 200 respeitando filtros+sort; export = `downloadCSV(await
+  fetchAllSubscriptions())`. Contract test prova: export traz **405/405 únicos**, chama pág 1/2/3 a limit 200,
+  e **`not.toHaveBeenCalledWith({limit:10_000})`**. Front: **893/893**, lint 0, Vite build verde.
+  (Nota: prettier `--check` global fica vermelho por **92 ficheiros preexistentes**; os tocados passam — dívida
+  separada, não regressão desta entrega.)
 
-**Regra da fase:** correcção antes de elegância; caracterização primeiro onde o payload muda; gate verde entre
-cada commit. **Ordem:** 3a (webhooks, isolado) → 3b (subscriptions, par).
+**Regra da fase (cumprida):** correcção antes de elegância; provas negativas dos dois lados; gate verde.
 
-## A seguir à F3.2
+## ▶ Fase atual: F3.3
 
 - **F3.3 — moagem TS 178→0:** baixar o ratchet **por módulo**, um commit por módulo, números no corpo.
   `npm run types:baseline:update` para regravar (nunca à mão). Só no fim (zero erros) se remove o `tsc || exit 0`.
