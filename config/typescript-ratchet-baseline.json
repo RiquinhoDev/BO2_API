@@ -1,11 +1,10 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 116
+    "controllers": 115
   },
   "dirtyFiles": [
     "src/controllers/acTags/acReader.controller.ts",
-    "src/controllers/acTags/activecampaign.controller.ts",
     "src/controllers/analytics.controller.ts",
     "src/controllers/classes.controller.ts",
     "src/controllers/cron/cronManagement.controller.ts",
