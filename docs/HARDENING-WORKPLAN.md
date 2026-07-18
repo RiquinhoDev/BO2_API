@@ -309,8 +309,14 @@ Progresso services (clusters reportados pelo Codex):
   para aceitar contratos **lean** via `Pick<IUserProduct, …>` (`StudentProductData`/`StudentStatsUser` — subconjuntos
   precisos, **não `any`**); largou o param `user` não usado do `consolidateClasses`. Testes actualizados, discord/role/
   fallback continuam a passar. 0 cast/suppression. Ratchet 119/27.
-- [ ] **UniversalSyncConfig (services 3→0)** ← fecha os services.
-- [ ] **controllers (116)** — o maior. Sub-dividir por ficheiro/padrão, um cluster por commit.
+- [x] **UniversalSyncConfig (services 3→0)** — feito (`33ce15e`). **Bug real (7º):** snapshots liam `config.syncId`
+  (nunca fornecido → sempre `undefined`, órfãos do `SyncHistory`); agora um helper `universalSyncSnapshot.ts`
+  constrói o contexto com `syncId` do `SyncHistory` real do fluxo (tipado `syncId: Types.ObjectId`).
+  `UniversalSyncConfig` restringido a plataformas concretas (exclui `all`). 0 cast/suppression. Ratchet 116/26.
+
+### ✅ services, models, scripts, jobs, utils todos a 0 — **resta só controllers (116)**
+- [ ] **controllers (116)** — a reta final. Sub-dividir por ficheiro/padrão (o maior é `users.controller.ts`),
+  um cluster por commit, `types:baseline:update` a cada. Golden rule: fixa tipo/bug, nunca `any`/cast.
 
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
