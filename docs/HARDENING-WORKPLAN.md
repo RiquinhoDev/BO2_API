@@ -16,7 +16,9 @@
 > Detecção manual verificada (não exaustiva; um `ts-prune`/`knip` daria a lista completa). Tratar como o
 > reengagement: confirmar consumidor → apagar com decisão do utilizador.
 
-- [ ] **reengagement V1** — a apagar (decisão tomada; ver F3.3).
+- [x] **reengagement V1** — APAGADO (`09df244`, 605 linhas). Engine/cron/domínio (`reengagementLevels`) intactos.
+  Revisor validou (0 refs pendentes) e regenerou catálogo/manifest (455→448) + contrato do Front (`1bc95cc`,
+  `371d22b`). Gate verde nos 2 repos. Controllers 102→90.
 - [ ] **`ogiCourse.controller.ts` + `ogiCourse.routes.ts`** — **morto/duplicado.** `ogiCourse.routes` **não é
   importado em lado nenhum** (não está no `registerRoutes.ts`). Os endpoints OGI vivos estão no
   `activecampaign.controller` (`/api/activecampaign/courses/ogi/*`). O `getOGIStudents` do ogiCourse é uma 2ª
@@ -385,18 +387,11 @@ Progresso controllers:
   (`{$ne:null, $ne:''}` → 2º sobrescrevia o 1º; só excluía `''`, não `null`) → `$nin:[null,'']`; `require` de
   path inexistente (`../services/engagementService`) → import correcto; `setInterval` sem ref prendia o Jest →
   `.unref()`. 0 cast/suppression (suppressions pruned). Ratchet 102/24.
-- [ ] **reengagement (12→0) — DECISÃO: APAGAR (utilizador 2026-07-18).** O `reengagement` V1 é um **duplicado morto
-  e superseded** do sistema vivo de cron de tags (`/api/activecampaign/test-cron` + tag-rules + `TagCronManagement`,
-  já endurecido na F3.1). Provas do revisor: (a) `reengagement.controller` é importado **só** pelas suas rotas;
-  (b) chama métodos que já não existem na engine (`evaluateStudent` vs o actual `decisionEngine.evaluateUserProduct`
-  que o `test-cron:70` usa) → escrito contra API antiga; (c) `ogiCourse` já diz *"descontinuado, use /test-cron"*;
-  (d) sem consumidor no Front. A **engine `decisionEngine` fica intacta** (usada por `test-cron`/`TagCronManagement`/
-  `tagOrchestrator`/`jobs/evaluateRules.job`). **Apagar:**
-  - `src/controllers/reengagement.controller.ts` · `src/routes/reengagement.routes.ts` ·
-    `src/security/reengagementDestructiveInput.ts` · `tests/security/reengagementDestructiveValidation.test.ts`
-  - `src/routes/index.ts`: remover o import (linha ~20) e o mount `router.use("/reengagement", ...)` (linha ~87).
-  - `types:baseline:update` (reengagement sai do ratchet). Supersede a entrada F3.1 "reengagement (1)".
-  - **Revisor** regenera `route-catalog.json` + manifest/contract no Front (não é do Codex).
+- [x] **reengagement (12→0) — APAGADO** (`09df244`, decisão utilizador 2026-07-18). Duplicado morto/superseded do
+  cron de tags (`/test-cron`, já endurecido na F3.1). 605 linhas removidas (controller+routes+schema+teste+mount).
+  Engine `decisionEngine` + cron + domínio `reengagementLevels` **intactos** (revisor: 0 refs pendentes). Revisor
+  regenerou `route-catalog.json`+`route-manifest.json` (455→448) e o contrato do Front (`1bc95cc`, `371d22b`),
+  ajustou contagens nos testes (routeCatalog 455→448, defaultDenyAuth 450→443). Gate verde nos 2 repos. **Controllers 102→90.**
 
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
