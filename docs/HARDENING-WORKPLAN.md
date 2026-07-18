@@ -172,13 +172,13 @@ carregado inteiro** e clamp cego parte-as em silêncio:
 > - **Só subscriptions é o par real:** tem export CSV (`GuruDashboard.tsx:397`) e sort client-side
 >   (`GuruDashboard.tsx:226`, `useMemo`; `toggleSort:289` não re-fetcha).
 
-#### Passo 3a — webhooks (backend-only, seguro, SEM Front) ← primeiro
-- [ ] `guru.webhook.controller.ts:302` (`listGuruWebhooks`): clamp via `paginate(req.query)` (50/200);
-  sort `{ receivedAt: -1, _id: -1 }` (add desempate); **add** `.select('_id email event status processed receivedAt')`
-  — **exactamente** os 6 campos do `guruWebhooksResponseSchema` (estrito, sem passthrough); exclui `rawData`/`__v`
-  (o Front já os stripava → 0 mudança de contrato, ganho de peso/segurança). Envelope `{success, webhooks, pagination}`
-  fica igual via `metadata(total)`.
-- [ ] Contract test: `limit=10000`→≤200 e `pages` certo; projeção traz **só** os 6 campos; `rawData`/`__v` ausentes.
+#### Passo 3a — webhooks (backend-only, seguro, SEM Front) — ✅ FEITO (`7c0aed9`)
+- [x] `listGuruWebhooks` **extraído** para `guruWebhookList.controller.ts` (re-export mantém a rota; mini-ARCH-02).
+  Clamp 50/200 via helper; sort `{ receivedAt: -1, _id: -1 }`; `.select('_id email event status processed receivedAt')`
+  (os 6 campos do schema estrito). Bónus: `console.error`→`logger.error` (baseline `no-console` 19→18, pruned).
+- [x] Contract test com **Mongo efémero** (não mock): insere 205 docs com `rawData:{token}`+`__v`, prova
+  `limit=10000`→200/`pages:2`, sort `_id` desc estável, e **`rawData`/`__v` ausentes** (prova negativa real de
+  não-fuga). Gate: lint 0, ratchet 178/44, jest 259/2 skipped. Validado pelo revisor.
 
 #### Passo 3b — subscriptions (par Front+Back, no MESMO bloco) ← o delicado
 - [ ] **Backend** `guru.sso.controller.ts:241` (`listSubscriptions`): clamp via helper; **manter** `.select('email name guru')`
