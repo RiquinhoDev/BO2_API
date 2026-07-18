@@ -2,8 +2,7 @@
   "version": 1,
   "directories": {
     "controllers": 124,
-    "services": 39,
-    "utils": 8
+    "services": 39
   },
   "dirtyFiles": [
     "src/controllers/acTags/acReader.controller.ts",
@@ -41,7 +40,6 @@
     "src/services/syncUtilizadoresServices/universalSyncService.ts",
     "src/services/tagMonitoring/criticalTagManagement.service.ts",
     "src/services/tagMonitoring/tagNotification.service.ts",
-    "src/services/tagMonitoring/weeklyTagMonitoring.service.ts",
-    "src/utils/studentDataConsolidator.ts"
+    "src/services/tagMonitoring/weeklyTagMonitoring.service.ts"
   ]
 }

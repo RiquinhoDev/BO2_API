@@ -97,6 +97,9 @@ export interface IUserProduct extends Document {
   _id: mongoose.Types.ObjectId
   userId: mongoose.Types.ObjectId
   productId: mongoose.Types.ObjectId
+  // Campos desnormalizados presentes em documentos legados.
+  productCode?: string
+  productName?: string
 
   platform: PlatformType
   platformUserId: string

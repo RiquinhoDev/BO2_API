@@ -5,6 +5,8 @@ export interface IUser extends Document {
   // 🔑 CAMPOS PRINCIPAIS (ÚNICOS E IMUTÁVEIS)
   email: string // Chave única para identificar o utilizador
   name: string  // Nome pode ser atualizado pela fonte mais recente
+  createdAt?: Date
+  updatedAt?: Date
   
   // 🎮 DADOS DO DISCORD (apenas Discord pode alterar)
   discord?: {

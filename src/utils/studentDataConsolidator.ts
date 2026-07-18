@@ -29,19 +29,20 @@ export function consolidateClasses(user: IUser, products: IUserProduct[]): Conso
 
   // Preferir UserProduct como fonte de verdade
   products.forEach((product) => {
+    if (product.platform !== 'hotmart' && product.platform !== 'curseduca') return
+    const platform = product.platform
     if (!Array.isArray(product.classes)) return
     product.classes.forEach((cls) => {
-      const key = `${product.platform}:${cls.classId}`
+      const key = `${platform}:${cls.classId}`
       if (seen.has(key)) return
       seen.add(key)
       classes.push({
         classId: cls.classId,
         className: cls.className || `Turma ${cls.classId}`,
-        platform: product.platform,
-        source: product.platform === 'hotmart' ? 'hotmart_sync' : 'curseduca_sync',
+        platform,
+        source: platform === 'hotmart' ? 'hotmart_sync' : 'curseduca_sync',
         isActive: product.status === 'ACTIVE',
         enrolledAt: cls.joinedAt || product.enrolledAt || null,
-        role: cls.role,
       })
     })
   })
@@ -85,56 +86,6 @@ export function consolidateProgressByProduct(
   }
 
   return progressList
-}
-
-function calculateHotmartProgressLegacy(
-  product: IUserProduct,
-  productCode: string,
-  productName: string,
-): HotmartProductProgress | null {
-  if (!user.hotmart?.progress?.lessonsData) {
-    return null
-  }
-
-  // Filtrar lições deste produto
-  const productLessons = user.hotmart.progress.lessonsData.filter(
-    (lesson) => lesson.productCode === productCode,
-  )
-
-  if (productLessons.length === 0) {
-    return null
-  }
-
-  const completedLessons = productLessons.filter((l) => l.completed)
-  const totalLessons = productLessons.length
-  const percentage = totalLessons > 0 ? Math.round((completedLessons.length / totalLessons) * 100) : 0
-  const totalTimeMinutes = productLessons.reduce((sum, l) => sum + (l.timeSpent || 0), 0)
-
-  // Últimas 5 lições completadas
-  const recentLessons = completedLessons
-    .filter((l) => l.completedAt)
-    .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
-    .slice(0, 5)
-    .map((l) => ({
-      lessonId: l.lessonId,
-      title: l.title,
-      completedAt: l.completedAt!,
-      timeSpent: l.timeSpent || 0,
-    }))
-
-  return {
-    productCode,
-    productName,
-    platform: 'hotmart',
-    progress: {
-      completedLessons: completedLessons.length,
-      totalLessons,
-      percentage,
-      totalTimeMinutes,
-      lastAccessDate: user.hotmart.lastAccessDate || null,
-      recentLessons,
-    },
-  }
 }
 
 function calculateHotmartProgressFromProduct(
@@ -383,7 +334,7 @@ export function calculateStudentStats(
   }
 
   // Atividade
-  const memberSince = user.createdAt
+  const memberSince = user.createdAt || user.metadata.createdAt
   const daysSinceMemberSince = Math.floor(
     (now.getTime() - new Date(memberSince).getTime()) / (1000 * 60 * 60 * 24),
   )
