@@ -175,7 +175,7 @@
       "count": 1
     },
     "no-console": {
-      "count": 19
+      "count": 18
     }
   },
   "src/controllers/lessons.controller.ts": {

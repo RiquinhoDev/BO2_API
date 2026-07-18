@@ -6,6 +6,8 @@ import UserProduct from '../models/UserProduct'
 import { GuruWebhookPayload, GuruSubscriptionStatus } from '../types/guru.types'
 import { guruTokenDebugStatus } from '../security/debugRoutes'
 
+export { listGuruWebhooks } from './guruWebhookList.controller'
+
 // Status da Guru que indicam cancelamento
 const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
 
@@ -294,84 +296,6 @@ export const handleGuruWebhook = async (req: Request, res: Response) => {
 // ═══════════════════════════════════════════════════════════
 // LISTAR WEBHOOKS (DASHBOARD)
 // ═══════════════════════════════════════════════════════════
-
-/**
- * Listar webhooks recebidos
- * GET /guru/webhooks
- */
-export const listGuruWebhooks = async (req: Request, res: Response) => {
-  try {
-    const {
-      page = 1,
-      limit = 10000,
-      email,
-      processed,
-      status,
-      event,
-      source,
-      year,
-      month
-    } = req.query
-
-    const query: any = {}
-
-    // Filtros
-    if (email) {
-      query.email = (email as string).toLowerCase().trim()
-    }
-    if (processed !== undefined) {
-      query.processed = processed === 'true'
-    }
-    if (status) {
-      query.status = status
-    }
-    if (event) {
-      query.event = event
-    }
-    if (source) {
-      query.source = source
-    }
-
-    // Filtro por ano/mês
-    if (year && month) {
-      const startDate = new Date(Number(year), Number(month) - 1, 1)
-      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59, 999)
-      query.receivedAt = { $gte: startDate, $lte: endDate }
-    } else if (year) {
-      const startDate = new Date(Number(year), 0, 1)
-      const endDate = new Date(Number(year), 11, 31, 23, 59, 59, 999)
-      query.receivedAt = { $gte: startDate, $lte: endDate }
-    }
-
-    const [webhooks, total] = await Promise.all([
-      GuruWebhook
-        .find(query)
-        .sort({ receivedAt: -1 })
-        .limit(Number(limit))
-        .skip((Number(page) - 1) * Number(limit))
-        .lean(),
-      GuruWebhook.countDocuments(query)
-    ])
-
-    return res.json({
-      success: true,
-      webhooks,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit))
-      }
-    })
-
-  } catch (error: any) {
-    console.error('❌ [GURU] Erro ao listar webhooks:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
-  }
-}
 
 /**
  * Listar webhooks agrupados por mês
