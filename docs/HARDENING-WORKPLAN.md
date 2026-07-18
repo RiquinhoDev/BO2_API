@@ -155,7 +155,11 @@ carregado inteiro** e clamp cego parte-as em silêncio:
 `_id`/timestamps/`__v` — não reduzir contrato), `{ idsDiferentes }`/`{ unmatchedUsers }` preservados + campo
 `pagination` aditivo, `countDocuments({})`. Testes: defaults, clamp `10000→200`, ordenação, projeção, envelope.
 
-- [ ] 1º commit: as 2 listagens de `users.controller.ts` (aprovado). Um commit para as duas (mesmo controller).
+- [x] 1º commit: as 2 listagens de `users.controller.ts` — feito (`a7886e8`). Handlers **extraídos** para
+  `usersReviewLists.controller.ts` (re-export mantém as rotas; mini-ARCH-02). Revisor confirmou **campo-a-campo**
+  contra os 2 modelos que as projeções são completas (0 redução de contrato); sort index-backed; clamp
+  `10000→200` provado; envelope + `pagination` aditivo. Gate: lint 0, ratchet 178/44, jest 258/2 skipped.
+- [ ] **Próximas listagens HTTP** (se aparecerem): mesma receita. Caso contrário, avançar para o **Passo 3** (telas Guru).
 
 ### Passo 3 — as 2 telas Guru (par Front+Back, no MESMO bloco)
 - [ ] **Backend:** `guru.sso.controller.ts:245` e `guru.webhook.controller.ts:306` passam a offset 50/200 via
