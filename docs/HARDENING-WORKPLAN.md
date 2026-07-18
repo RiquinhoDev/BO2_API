@@ -248,19 +248,28 @@ primeiro**, depois services, controllers por último.
   (default OFF) no `applyTags`; off = skip limpo sem `stats.errors++`; `.env.example` documentado. 3 testes
   offline provam off (0 chamadas, 0 erros) / on (batches) / categorização. Revisor: 0 cast/suppression. Ratchet 171/37.
 
-### ⚠️ Módulo com bug real por resolver
-- [ ] **utils (8→0)** — os 8 erros vivem em `studentDataConsolidator.ts` (usado por `studentCompleteService.ts`),
-  mas **espalhados por várias funções**; o revisor mapeou (2026-07-18):
-  - **3 numa função MORTA:** `calculateHotmartProgressLegacy` (`:95/:100/:134`, `Cannot find name 'user'`) — recebe
-    `product` mas usa `user`; **nunca é chamada** (só a definição existe). `lessonsData` vive no `IUser`. → o mais
-    provável é **apagar a função morta** (limpa 3 erros, 0 risco runtime) — confirmar antes.
-  - **5 em funções a rever:** `:40` (TS2322 PlatformType), `:44` (`role` em `IClassEnrollment`), `:386` (`createdAt`
-    em `IUser`), `:456` (`productCode`→`productId` — TS2551, cheira a **bug de modelo**), `:461` (`productName`).
-    Cada uma: confirmar se a função é viva e **fixar o tipo/bug**, nunca silenciar. `:456`/`:461` podem revelar
-    campos mal referenciados (bug real) — investigar caso a caso.
-  - É o módulo mais envolvido da F3.3 (mistura código morto + fixes de tipo + possíveis bugs de modelo). Merece
-    uma sessão focada. **Alternativa:** fazer os grandes mecânicos (`services 39`, `controllers 124`) primeiro e
-    guardar o utils para um passe de caça-bugs dedicado.
+### ⚠️ utils (8→0) — passe caça-bugs (decisão user 2026-07-18: fazer agora). Plano grounded pelo revisor
+Todos em `studentDataConsolidator.ts` (usado por `studentCompleteService.ts`). Modelos já confirmados pelo revisor:
+
+- **`:95/:100/:134` (3) — apagar código morto.** `calculateHotmartProgressLegacy` recebe `product` mas usa `user`
+  (fora de scope) e **nunca é chamada** (grep: só a definição). → **apaga a função inteira.** 0 risco runtime.
+- **`:386` — gap de timestamps.** `user.createdAt`: o interface `IUser` **não declara** `createdAt`/`updatedAt`
+  top-level (mongoose `timestamps:true` cria-os em runtime). → **adiciona `createdAt?: Date; updatedAt?: Date`** ao
+  `IUser`. Mecânico, 0 risco.
+- **`:456`/`:461` — fallback legacy.** `getProductCode`/`getProductName` fazem `productId?.code || product.productCode
+  || …`. `IUserProduct` **não tem** `productCode`/`productName` (confirmado no schema). São fallbacks para docs
+  legacy denormalizados. → **preservar o comportamento**: adiciona `productCode?: string; productName?: string`
+  **opcionais** ao `IUserProduct` (documenta os campos legacy, mantém o fallback vivo). **Não** removas o fallback
+  (pode apanhar docs antigos). Nota: a linha já tem `product.productId as any` **pré-existente** — não adicionar mais.
+- **`:44` — campo fantasma.** `role: cls.role` mas `IClassEnrollment` = `{classId, className?, joinedAt, leftAt?}`
+  (**sem `role`**) → `role` é **sempre `undefined`**. Decisão: **verifica se `ConsolidatedClass.role` é consumido**
+  em algum lado. Se não → remove o campo (fantasma). Se sim → é bug latente (dados nunca lá estiveram); **pergunta**.
+- **`:40` — tipo estreito.** `platform: product.platform` (`PlatformType`, largo) num `ConsolidatedClass.platform`
+  estreito (`'hotmart'|'curseduca'`). Aqui as turmas só vêm de hotmart/curseduca. → alarga `ConsolidatedClass.platform`
+  a `PlatformType` **ou** guarda/estreita explicitamente. Sem `as any`.
+
+Golden rule: fixa tipo/apaga morto, **nunca** silencia. Um commit (`utils 8→0`), `types:baseline:update`, gate verde.
+Se `:44` precisar de decisão, **pára e pergunta** antes de avançar.
 
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
