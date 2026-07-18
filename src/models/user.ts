@@ -7,6 +7,9 @@ export interface IUser extends Document {
   name: string  // Nome pode ser atualizado pela fonte mais recente
   createdAt?: Date
   updatedAt?: Date
+  // Compatibilidade com os fluxos legacy de gestão/movimento de turmas.
+  classId?: string
+  className?: string
   
   // 🎮 DADOS DO DISCORD (apenas Discord pode alterar)
   discord?: {
@@ -338,6 +341,9 @@ const UserSchema: Schema = new Schema({
     required: true,
     trim: true
   },
+  // Compatibilidade com os fluxos legacy de gestão/movimento de turmas.
+  classId: { type: String, trim: true },
+  className: { type: String, trim: true },
   
   // Dados do Discord
   discord: {

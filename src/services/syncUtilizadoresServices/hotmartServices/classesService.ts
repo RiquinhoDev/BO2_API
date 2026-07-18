@@ -779,30 +779,6 @@ class StudentService {
     }
   }
 
- async syncComplete(): Promise<any> {
-    try {
-      console.log('🔄 Iniciando sincronização completa de turmas...');
-      
-      const response = await api.post('/classes/syncComplete');
-      
-      if (response.data.success) {
-        console.log('✅ Sincronização completa realizada com sucesso');
-        return response.data;
-      } else {
-        throw new Error(response.data.message || 'Erro na sincronização completa');
-      }
-    } catch (error: any) {
-      console.error('❌ Erro na sincronização completa:', error);
-      
-      // Se o erro tem uma estrutura de resposta da API
-      if (error.response?.data) {
-        throw new Error(error.response.data.message || 'Erro na sincronização completa');
-      }
-      
-      throw new Error(error.message || 'Erro desconhecido na sincronização completa');
-    }
-  }
-
 }
 
 export const studentService = new StudentService()
