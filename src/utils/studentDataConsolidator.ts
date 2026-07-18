@@ -3,7 +3,6 @@
 // Utilitários para consolidar dados do estudante de múltiplas fontes
 // ══════════════════════════════════════════════════════════════════════
 
-import type { IUser } from '../models/user'
 import type { IUserProduct } from '../models/UserProduct'
 import type { IUserHistory } from '../models/UserHistory'
 import type { IStudentEngagementState } from '../models/StudentEngagementState'
@@ -23,7 +22,43 @@ import type {
 // CONSOLIDAR TURMAS
 // ═══════════════════════════════════════════════════════════════
 
-export function consolidateClasses(user: IUser, products: IUserProduct[]): ConsolidatedClass[] {
+interface StudentStatsUser {
+  createdAt?: Date
+  metadata: {
+    createdAt: Date
+  }
+  discord?: unknown
+}
+
+type StudentProductData = Pick<
+  IUserProduct,
+  | 'productId'
+  | 'productCode'
+  | 'productName'
+  | 'platform'
+  | 'enrolledAt'
+  | 'status'
+  | 'progress'
+  | 'engagement'
+  | 'classes'
+  | 'isPrimary'
+  | 'createdAt'
+  | 'updatedAt'
+>
+
+type StudentEngagementStateData = Pick<
+  IStudentEngagementState,
+  | 'productCode'
+  | 'currentState'
+  | 'daysSinceLastLogin'
+  | 'currentLevel'
+  | 'currentTagAC'
+  | 'stats'
+  | 'totalEmailsSent'
+  | 'totalReturns'
+>
+
+export function consolidateClasses(products: StudentProductData[]): ConsolidatedClass[] {
   const classes: ConsolidatedClass[] = []
   const seen = new Set<string>()
 
@@ -55,8 +90,7 @@ export function consolidateClasses(user: IUser, products: IUserProduct[]): Conso
 // ═══════════════════════════════════════════════════════════════
 
 export function consolidateProgressByProduct(
-  user: IUser,
-  products: IUserProduct[],
+  products: StudentProductData[],
 ): ProductProgress[] {
   const progressList: ProductProgress[] = []
 
@@ -89,7 +123,7 @@ export function consolidateProgressByProduct(
 }
 
 function calculateHotmartProgressFromProduct(
-  product: IUserProduct,
+  product: StudentProductData,
   productCode: string,
   productName: string,
 ): HotmartProductProgress | null {
@@ -135,7 +169,7 @@ function calculateHotmartProgressFromProduct(
   }
 }
 
-function calculateCurseducaProgress(product: IUserProduct): CurseducaProductProgress | null {
+function calculateCurseducaProgress(product: StudentProductData): CurseducaProductProgress | null {
   const enrolledAt = product.enrolledAt || product.createdAt
   const expiresAt = (product as any).expiresAt || null
   const now = new Date()
@@ -167,9 +201,8 @@ function calculateCurseducaProgress(product: IUserProduct): CurseducaProductProg
 // ═══════════════════════════════════════════════════════════════
 
 export function consolidateEngagement(
-  user: IUser,
-  products: IUserProduct[],
-  engagementStates: IStudentEngagementState[],
+  products: StudentProductData[],
+  engagementStates: StudentEngagementStateData[],
 ): ConsolidatedEngagement {
   const hotmart = getHotmartEngagementFromProducts(products)
 
@@ -204,7 +237,7 @@ export function consolidateEngagement(
 }
 
 function calculateCurseducaEngagement(
-  products: IUserProduct[],
+  products: StudentProductData[],
 ): CurseducaEngagement | null {
 
   const curseducaProducts = products.filter(
@@ -249,7 +282,7 @@ function calculateCurseducaEngagement(
 function calculateOverallEngagement(
   hotmart: HotmartEngagement | null,
   curseduca: CurseducaEngagement | null,
-  products: IUserProduct[],
+  products: StudentProductData[],
 ): {
   level: 'ALTO' | 'MEDIO' | 'BAIXO'
   totalAccessCount: number
@@ -307,8 +340,8 @@ function mapHotmartLevel(
 // ═══════════════════════════════════════════════════════════════
 
 export function calculateStudentStats(
-  user: IUser,
-  products: IUserProduct[],
+  user: StudentStatsUser,
+  products: StudentProductData[],
   classes: ConsolidatedClass[],
   history: IUserHistory[],
 ): StudentStats {
@@ -386,7 +419,7 @@ export function calculateStudentStats(
   }
 }
 
-function getLastAccessDateFromProducts(products: IUserProduct[]): Date | null {
+function getLastAccessDateFromProducts(products: StudentProductData[]): Date | null {
   const dates: Date[] = []
   products.forEach((p) => {
     const last =
@@ -402,12 +435,12 @@ function getLastAccessDateFromProducts(products: IUserProduct[]): Date | null {
   return new Date(Math.max(...dates.map((d) => d.getTime())))
 }
 
-function getProductCode(product: IUserProduct): string {
+function getProductCode(product: StudentProductData): string {
   const productId = product.productId as any
   return productId?.code || product.productCode || String(product.productId)
 }
 
-function getProductName(product: IUserProduct): string {
+function getProductName(product: StudentProductData): string {
   const productId = product.productId as any
   return productId?.name || product.productName || getProductCode(product)
 }
@@ -427,7 +460,7 @@ function toNumber(value: unknown, fallback = 0): number {
   return fallback
 }
 
-function getHotmartEngagementFromProducts(products: IUserProduct[]): HotmartEngagement | null {
+function getHotmartEngagementFromProducts(products: StudentProductData[]): HotmartEngagement | null {
   const hotmartProducts = products.filter(
     (p) => p.platform === 'hotmart' && p.status === 'ACTIVE',
   )

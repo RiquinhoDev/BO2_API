@@ -2,7 +2,7 @@
   "version": 1,
   "directories": {
     "controllers": 116,
-    "services": 7
+    "services": 3
   },
   "dirtyFiles": [
     "src/controllers/acTags/acReader.controller.ts",
@@ -31,7 +31,6 @@
     "src/controllers/testHistory.controller.ts",
     "src/controllers/testimonials.controller.ts",
     "src/controllers/users.controller.ts",
-    "src/services/studentCompleteService.ts",
     "src/services/syncUtilizadoresServices/universalSyncService.ts"
   ]
 }

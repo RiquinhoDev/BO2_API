@@ -68,13 +68,13 @@ export class StudentCompleteService {
       const consolidationStart = Date.now()
 
       // Consolidar turmas
-      const classes = consolidateClasses(user, products)
+      const classes = consolidateClasses(products)
 
       // Consolidar progresso por produto
-      const progressByProduct = consolidateProgressByProduct(user, products)
+      const progressByProduct = consolidateProgressByProduct(products)
 
       // Consolidar engagement
-      const engagement = consolidateEngagement(user, products, engagementStates)
+      const engagement = consolidateEngagement(products, engagementStates)
 
       // Calcular estatísticas
       const stats = calculateStudentStats(user, products, classes, history)
