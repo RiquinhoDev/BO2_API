@@ -276,11 +276,17 @@ Todos em `studentDataConsolidator.ts` (usado por `studentCompleteService.ts`). M
   provam: discord→`[]`, sem `role`, fallback metadata. Revisor: 0 cast/suppression (suppressions **pruned** 2→1).
   Gate: lint 0, ratchet 163/36, jest 275/2 skipped.
 
-### ⬛ Restam só os 2 grandes: services (39) e controllers (124)
-> **Sub-dividir** (não um commit de 124 fixes). O ratchet é por-directório mas pode descer **em vários commits**:
-> fixa um cluster (por ficheiro ou por padrão de erro) → `types:baseline:update` (ex.: `controllers 124→110`) →
-> commit com os números → gate → repete. Cada commit fica revisível. **services primeiro** (menor, 39). Golden
+### ⬛ Restam os 2 grandes: services (~33) e controllers (124) — sub-dividir em vários commits
+> **Sub-dividir** (não um commit de 124 fixes). O ratchet é por-directório mas desce **em vários commits**:
+> fixa um cluster → `types:baseline:update` → commit com números → gate → repete. **services primeiro.** Golden
 > rule na mesma; onde um erro TS revelar um bug (como no `:40`/jobs), **corrige o bug ou pergunta**, nunca cast.
+
+Progresso services (clusters reportados pelo Codex):
+- [x] **sync/hotmart module progress (39→33)** — feito (`b70873a`). Tipou o contrato central `UniversalProgressModule`
+  + `modulesList?/totalModules?/modulesCompleted?/currentModule?` (opcionais, sem `any`) → 6 erros do serviço
+  consumidor resolvidos na **definição**, não no uso. Revisor: 0 cast/suppression. Ratchet 157/35.
+- [ ] restantes clusters services (~33): tag-monitoring 10 · classesService 8 · snapshots 7 · studentComplete 4 ·
+  UniversalSyncConfig 3 · ActiveCampaign 1. Um cluster por commit.
 
 ### Depois da F3.3
 - **Cirurgia de arquitectura** (ARCH-01 god-file, ARCH-02 módulos gigantes, ARCH-03 envelope) — ver a régua em
