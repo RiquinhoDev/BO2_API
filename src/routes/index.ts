@@ -17,7 +17,6 @@ import courseRoutes from './course.routes'
 import tagRuleRoutes from './ACroutes/tagRule.routes'
 import dashboardRoutes from './dashboardRoutes'
 import productProfileRoutes from './productProfile.routes'
-import reengagementRoutes from './reengagement.routes'
 import discoveryRoutes from './discovery.routes'
 import acReaderRoutes from './ACroutes/acReader.routes'
 import studentsRoutes from './students'
@@ -84,7 +83,6 @@ router.get('/tag-rules/fields', getAvailableFields)
 router.use("/tag-rules", tagRuleRoutes)
 
 router.use("/product-profiles", productProfileRoutes)
-router.use("/reengagement", reengagementRoutes)
 router.use("/discovery", discoveryRoutes)
 
 // 📈 CLAREZA — Tremómetro de Ações
