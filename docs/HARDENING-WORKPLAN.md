@@ -12,6 +12,27 @@
 
 ---
 
+## Candidatos a código morto/duplicado (caça do revisor 2026-07-18) — cada um precisa DECISÃO
+> Detecção manual verificada (não exaustiva; um `ts-prune`/`knip` daria a lista completa). Tratar como o
+> reengagement: confirmar consumidor → apagar com decisão do utilizador.
+
+- [ ] **reengagement V1** — a apagar (decisão tomada; ver F3.3).
+- [ ] **`ogiCourse.controller.ts` + `ogiCourse.routes.ts`** — **morto/duplicado.** `ogiCourse.routes` **não é
+  importado em lado nenhum** (não está no `registerRoutes.ts`). Os endpoints OGI vivos estão no
+  `activecampaign.controller` (`/api/activecampaign/courses/ogi/*`). O `getOGIStudents` do ogiCourse é uma 2ª
+  cópia; o `evaluateOGIRules` é um stub 410. → candidato a apagar (par controller+routes).
+- [ ] **`getDashboardStatsV3Legacy`** (`dashboard.controller.ts:409`) — **morto.** Única referência é a própria
+  definição; a rota `/stats/v3` usa `getDashboardStatsV3` (sem "Legacy"). Sobra da reescrita V3. → apagar a função.
+- [ ] **Stubs "vivos" que devolvem dados falsos** (⚠️ não é morto — é bug/smell): `activecampaign.controller`
+  `evaluateClarezaRules`/`evaluateOGIRules` devolvem hardcoded `{tagsApplied:12/8, tagsRemoved:3/2}` **e o Front
+  chama-os** (`courses/clareza|ogi/evaluate`). O Front recebe números fictícios. Decisão: ligar ao motor real
+  (`test-cron`/`decisionEngine`), deprecar (410 como o ogiCourse), ou é placeholder intencional? **perguntar.**
+- Nota: os **dois** `cronManagement.controller.ts` (`cron/` e `syncUtilizadoresControllers/`) **não** são
+  duplicados — servem famílias diferentes (`/cron-tags` vs `/cron`); só o nome colide. Não apagar.
+- Recomendação: correr `npx knip` ou `ts-prune` para uma lista completa de exports/ficheiros não usados.
+
+---
+
 ## Regras a respeitar (não negociáveis)
 
 1. **Tudo offline.** NUNCA tocar nas APIs reais (Guru, Hotmart, ActiveCampaign, CursEduca, Discord) nem em
