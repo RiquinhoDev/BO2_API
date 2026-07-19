@@ -428,6 +428,9 @@ Progresso controllers:
   remover as 2 rotas shadowed + os handlers `getSyncStats`/`getSyncHistory` duplicados + tipar os 4 handlers `:id`
   vivos (`getSyncById`, `getConflictById`, `resolveConflict`, `ignoreConflict`) como `Request<{id:string}>`.
   Esperado: controllers **77→69**.
+  - [x] FEITO (`fe8c02f`). Revisor: 2 rotas+handlers shadowed fora, 4 `:id` tipados sem cast, sync/guru/manifest
+    intactos. Evidência do catálogo reapontada para as declarações vivas (`sync.routes.ts:50/60`) — **sem mudança
+    de count** (as rotas continuam a existir, só se deduplicou) → sem regen de manifest/contrato. Ratchet **69/20**.
 - [x] **analytics (115→102)** — feito (`183427e`). **3 bugs reais (9º/10º/11º):** `$ne` duplicado no mesmo literal
   (`{$ne:null, $ne:''}` → 2º sobrescrevia o 1º; só excluía `''`, não `null`) → `$nin:[null,'']`; `require` de
   path inexistente (`../services/engagementService`) → import correcto; `setInterval` sem ref prendia o Jest →
