@@ -5,7 +5,6 @@ import { Testimonial, ITestimonial } from '../models/Testimonial'
 import User from '../models/user'
 import { Class } from '../models/Class'
 import UserProduct from '../models/UserProduct'
-import Product from '../models/Product'
 import activeCampaignService from '../services/activeCampaign/activeCampaignService'
 import mongoose, { PipelineStage } from 'mongoose'
 
@@ -828,7 +827,7 @@ export const getAvailableStudents = async (req: Request, res: Response): Promise
 
     // Buscar estudantes com campos de engagement e progress
     let students = await User.find(studentFilters)
-      .select('_id name email classId status estado hotmart.engagement curseduca.engagement combined.engagement combined.totalProgress curseduca.progress')
+      .select('_id name email classId hotmart.engagement curseduca.engagement curseduca.memberStatus combined.status combined.engagement combined.totalProgress curseduca.progress')
       .sort({ name: 1 })
       .limit(Number(limit))
       .lean()
@@ -837,11 +836,10 @@ export const getAvailableStudents = async (req: Request, res: Response): Promise
 
     // Filtrar apenas ativos se solicitado
     if (onlyActive === 'true') {
-      students = students.filter(student =>
-        student.status === 'ACTIVE' ||
-        student.estado === 'ativo' ||  // ← Correto: 'ativo' não 'ACTIVE'
-        (!student.status && !student.estado)
-      )
+      students = students.filter(student => {
+        const status = student.combined?.status ?? student.curseduca?.memberStatus
+        return status === 'ACTIVE' || status === undefined
+      })
     }
 
     // Excluir estudantes que já têm testemunhos ativos
@@ -883,7 +881,7 @@ export const getAvailableStudents = async (req: Request, res: Response): Promise
         email: student.email,
         classId: student.classId || null,
         className: null, // Será preenchido depois se necessário
-        status: student.status || student.estado || 'UNKNOWN',
+        status: student.combined?.status ?? student.curseduca?.memberStatus ?? 'UNKNOWN',
         // 🆕 Add engagement and progress info for frontend display
         engagement: {
           score: engagementScore,
