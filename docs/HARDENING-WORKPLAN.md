@@ -404,7 +404,21 @@ Progresso services (clusters reportados pelo Codex):
 
 ### controllers 46→32 (`0b4dca4`,`2dcab35`,`63f291b`): **bug 13** (5 metadados de audit de inativação descartados pelo strict → persistidos) · **bug 14** (`createInactivationHistory` inexistente, 3 fluxos chamavam via `(UserHistory as any)` e engoliam a falha → método restaurado, **2 casts `as any` velhos removidos**) · 4 params classes + 4 `:id` notificações tipados. Testes RED/GREEN.
 
-### controllers (32) — 1 commit por FICHEIRO (regra #9 + golden rule)
+### controllers 32→24 (`57b2520` studentHistory, `ea8e055` guru.snapshot) — 0 casts, ratchet 24/12.
+
+### ⚠️ acReader — DECISÃO: apagar 4 endpoints de leitura partidos (utilizador 2026-07-18)
+Revisor mapeou (corrigindo scope inicial): **4** endpoints AC de leitura chamam statics **inexistentes** no model
+`ACContactState` via `as any` — todos **partidos** (rebentariam em runtime) e **sem consumidor no Front**:
+- `GET /api/ac/analytics/overview` (`getACOverview`) — `findOldSyncs`+`findWithInconsistencies`
+- `GET /api/ac/analytics/product/:code` (`getProductACAnalytics`) — `findByProduct`
+- `GET /api/ac/inconsistencies` (`getInconsistencies`) — `findWithInconsistencies`
+- `POST /api/ac/maintenance/refresh-old` (`refreshOldSyncs`) — `findOldSyncs`
+Decisão: **apagar os 4** (rotas + handlers + os `as any`). O **lado de escrita** (`getContactTags`, `syncContactTags`,
+`getBatchContactTags`, `batchSyncContacts`, `clearACCache`) e o model `ACContactState` ficam **intactos**. Se um dia
+precisar de analytics de contact-state, reconstroi-se com statics reais. **Reviewer regenera catálogo/manifest/contrato**
+(4 rotas saem, 448→444).
+
+### controllers (24) — 1 commit por FICHEIRO (regra #9 + golden rule)
 > **Não** 1 erro/commit. Agrupa **por ficheiro** — os erros de um controller partilham contexto (mesmos models,
 > req/res) e formam um assunto coerente e revisível. Ordem sugerida: maiores primeiro.
 
