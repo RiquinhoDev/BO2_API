@@ -2967,7 +2967,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/index.page.client.tsx>; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:34"
+    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/index.page.client.tsx>; rota em src/routes/sync.routes.ts:50"
   },
   {
     "method": "POST",
@@ -3066,7 +3066,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:23"
+    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:60"
   },
   {
     "method": "GET",

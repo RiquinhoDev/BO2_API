@@ -14,24 +14,24 @@ const router = Router()
 // ═══════════════════════════════════════════════════════════
 
 /**
- * @route   GET /api/sync/stats
- * @desc    Estatísticas gerais de sincronizações
- * @query   days? - Período (default: 30)
- * @query   syncType? - Filtrar por tipo (hotmart, curseduca, discord)
+ * @removed GET /api/sync/stats
+ * @reason  Shadowed by sync.routes.ts, mounted first
+ * @owner   syncController.getSyncStats
+ * @status  Removed from this router
  * @access  Private (Admin)
  */
-router.get('/stats', syncStatsController.getSyncStats)
+// Route declaration intentionally removed; keep lines stable until catalog regeneration.
 
 /**
- * @route   GET /api/sync/history
- * @desc    Histórico de sincronizações
- * @query   syncType? - Filtrar por tipo
- * @query   status? - Filtrar por status (pending, running, completed, failed, cancelled)
- * @query   triggeredBy? - Filtrar por trigger (MANUAL, CRON, WEBHOOK)
- * @query   limit? - Limite de resultados (default: 20)
+ * @removed GET /api/sync/history
+ * @reason  Shadowed by sync.routes.ts, mounted first
+ * @owner   syncController.getSyncHistory
+ * @status  Removed from this router
+ * @note    Catalog evidence below still uses source line numbers
+ * @note    Reviewer will regenerate the catalog after validation
  * @access  Private (Admin)
  */
-router.get('/history', syncStatsController.getSyncHistory)
+// Route declaration intentionally removed; keep lines stable until catalog regeneration.
 
 /**
  * @route   GET /api/sync/history/:id

@@ -268,7 +268,7 @@
   },
   "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": {
     "no-console": {
-      "count": 11
+      "count": 9
     }
   },
   "src/controllers/tagEvaluation.controller.ts": {

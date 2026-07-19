@@ -1,7 +1,7 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 77
+    "controllers": 69
   },
   "dirtyFiles": [
     "src/controllers/acTags/acReader.controller.ts",
@@ -18,7 +18,6 @@
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts",
     "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts",
     "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts",
-    "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts",
     "src/controllers/tagMonitoring/criticalTag.controller.ts",
     "src/controllers/tagMonitoring/tagMonitoring.controller.ts",
     "src/controllers/tagMonitoring/tagNotification.controller.ts",
