@@ -1,18 +1,19 @@
 // src/controllers/users.controller.ts - PARTE 1/3
 import { NextFunction, Request, RequestHandler, Response } from "express"
-import User from "../models/user"
+import User, { type IUser } from "../models/user"
 import IdsDiferentes from "../models/IdsDiferentes"
 import UnmatchedUser from "../models/UnmatchedUser"
 import mongoose from "mongoose"
-import SyncHistory from "../models/SyncHistory"
-import UserHistory from "../models/UserHistory"
+import SyncHistory, { type ISyncHistory } from "../models/SyncHistory"
+import UserHistory, { type IUserHistory } from "../models/UserHistory"
 
-import StudentClassHistory from "../models/StudentClassHistory"
+import StudentClassHistory, { type IStudentClassHistory } from "../models/StudentClassHistory"
 import { Class } from "../models/Class"
 import { cacheService } from "../services/cache.service"
 import { getUserCountsByPlatform, getUserCountsByProduct, getUsersForProduct, getUserWithProducts } from "../services/userProducts/userProductService"
 import { UserProduct } from "../models"
-import Product from "../models/product/Product"
+import Product, { type IProduct } from "../models/product/Product"
+import type { IUserProduct } from "../models/UserProduct"
 import { readImportedUsers } from "../services/importedUsersWorkbook"
 import { withUploadedFileCleanup } from "../security/usersImportUpload"
 import { HttpError } from "../security/errorHandling"
@@ -31,6 +32,182 @@ export {
 
 type PipelineStage = mongoose.PipelineStage
 type UserIdParams = { id: string }
+type MongoFilter = Record<string, unknown>
+
+interface UserListRecord {
+  _id: mongoose.Types.ObjectId
+  email?: string
+  name?: string
+  username?: string
+  classId?: string
+  className?: string
+  status?: string
+  estado?: string
+  role?: string
+  type?: string
+  purchaseDate?: Date
+  lastAccessDate?: Date
+  acceptedTerms?: boolean
+  plusAccess?: boolean
+  hotmartUserId?: string
+  curseducaUserId?: string
+  discordIds?: string[]
+  engagement?: string
+  accessCount?: number
+  progress?: { completedPercentage?: number }
+  hotmart?: IUser['hotmart']
+  curseduca?: IUser['curseduca']
+  combined?: IUser['combined']
+  preComputed?: {
+    engagementScore?: number
+    activityLevel?: string
+  }
+  engagementScore?: number
+  activityLevel?: string
+  isPreComputed?: boolean
+  hasDiscord?: boolean
+  hasHotmart?: boolean
+  hasCurseduca?: boolean
+}
+
+interface UserClassView {
+  classId: string
+  className: string
+  source: 'hotmart' | 'curseduca'
+  isActive: boolean
+  enrolledAt?: Date
+  expiresAt?: Date
+  role?: string
+  curseducaId?: string
+  curseducaUuid?: string
+}
+
+type UserSummary = Pick<UserListRecord, '_id' | 'name' | 'email' | 'combined'>
+type ProductSummary = Pick<IProduct, '_id' | 'name' | 'code' | 'platform'>
+
+interface UserProductRecord {
+  _id: mongoose.Types.ObjectId
+  userId: mongoose.Types.ObjectId
+  productId: mongoose.Types.ObjectId
+  platform: IUserProduct['platform']
+  status: IUserProduct['status']
+  enrolledAt: Date
+  isPrimary: boolean
+  progress?: IUserProduct['progress']
+  engagement?: IUserProduct['engagement']
+  activeCampaignData?: IUserProduct['activeCampaignData']
+}
+
+interface PopulatedUserProductRecord extends Omit<UserProductRecord, 'productId'> {
+  productId: ProductSummary
+}
+
+type UserTransformSource = Pick<
+  IUser,
+  | '_id'
+  | 'email'
+  | 'name'
+  | 'discord'
+  | 'hotmart'
+  | 'curseduca'
+  | 'combined'
+  | 'metadata'
+  | 'communicationByCourse'
+> & {
+  username?: string
+  deletedAt?: Date
+  deletedBy?: string
+  tags?: string[]
+  notes?: string
+  source?: string
+  type?: string
+}
+
+interface FrontendClass {
+  classId: string
+  className: string
+  source: IUserProduct['platform']
+  isActive: boolean
+  enrolledAt?: Date
+  role?: string
+}
+
+interface ActiveCampaignTagsView {
+  productCode: string
+  productName: string
+  tags: string[]
+  lastSyncAt?: Date
+}
+
+interface UserIdFacet {
+  total: Array<{ count: number }>
+  data: Array<{ _id: mongoose.Types.ObjectId }>
+}
+
+interface UserProductResponse {
+  _id: mongoose.Types.ObjectId
+  userId: {
+    _id: mongoose.Types.ObjectId
+    name?: string
+    email?: string
+    averageEngagement: number
+    averageEngagementLevel: string
+  }
+  productId: ProductSummary | mongoose.Types.ObjectId
+  platform: IUserProduct['platform']
+  status: IUserProduct['status']
+  enrolledAt: Date
+  isPrimary: boolean
+  progress: {
+    percentage: number
+    progressPercentage: number
+    lastActivity?: Date
+  }
+  engagement: {
+    score: number
+    level: string
+    lastAction?: Date
+  }
+  averageEngagement: number
+  averageEngagementLevel: string
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function errorStack(error: unknown): string | undefined {
+  return error instanceof Error ? error.stack : undefined
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function engagementLevelFromScore(score: number): string {
+  if (score >= 80) return 'MUITO_ALTO'
+  if (score >= 60) return 'ALTO'
+  if (score >= 40) return 'MEDIO'
+  if (score >= 20) return 'BAIXO'
+  if (score > 0) return 'MUITO_BAIXO'
+  return 'NONE'
+}
+
+function validDiscordIds(user: IUser): string[] {
+  return (user.discord?.discordIds || []).filter(discordId => discordId.trim() !== '')
+}
+
+async function persistDiscordIds(user: IUser, discordIds: string[]): Promise<void> {
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        'discord.discordIds': discordIds,
+        'discord.lastEditedAt': new Date(),
+      },
+    },
+  )
+}
 interface SyncHistoryResult {
   completedAt: Date
 }
@@ -38,7 +215,7 @@ interface SyncHistoryResult {
 // ✅ SUBSTITUIR A FUNÇÃO listUsers em src/controllers/users.controller.ts
 interface CachedUsersData {
   success: boolean
-  users: any[]
+  users: UserListRecord[]
   hasMore: boolean
   nextCursor: string | null
   totalCount?: number
@@ -67,7 +244,7 @@ export const listUsers = async (req: Request, res: Response): Promise<void> => {
   const skip = (+page - 1) * +limit;
 
   try {
-    const matchStage: Record<string, any> = {};
+    const matchStage: MongoFilter = {};
     
     if (search && typeof search === "string") {
       matchStage.$or = [
@@ -204,11 +381,11 @@ export const listUsers = async (req: Request, res: Response): Promise<void> => {
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Erro ao buscar utilizadores:", error);
     res.status(500).json({ 
       message: "Erro ao buscar utilizadores", 
-      details: error.message 
+      details: errorMessage(error)
     });
   }
 }
@@ -232,14 +409,14 @@ export const listUsersSimple = async (req: Request, res: Response): Promise<void
   // ✅ Status filtering (active | inactive)
   const statusParam = typeof req.query.status === 'string' ? req.query.status.toLowerCase() : undefined
 
-  const baseFilter: any = {
+  const baseFilter: MongoFilter = {
     $or: [
       { isDeleted: { $exists: false } },
       { isDeleted: false }
     ]
   }
 
-  let statusFilter: any = {}
+  let statusFilter: MongoFilter = {}
   if (statusParam === 'active') {
     statusFilter = { $or: [
       { status: 'ACTIVE' },
@@ -311,17 +488,17 @@ export const listUsersSimple = async (req: Request, res: Response): Promise<void
           'combined.totalProgress': 1
         }
       )
-      .lean() // ✅ USAR LEAN() para melhor performance
+      .lean<UserListRecord[]>() // ✅ USAR LEAN() para melhor performance
       .maxTimeMS(120000); // 2 minutos timeout
 
       // ✅ LOOKUP SEPARADO E OTIMIZADO para className (opcional)
 const classIds = [...new Set(
   users
-    .map(u => (u as any).classId)
+    .map(user => user.classId)
     .filter((id): id is string => typeof id === 'string' && id.trim() !== '')
 )];
 
-let classMap: Record<string, string> = {};
+const classMap: Record<string, string> = {};
 
 if (classIds.length > 0 && classIds.length < 1000) {
   try {
@@ -332,10 +509,11 @@ if (classIds.length > 0 && classIds.length < 1000) {
         .project({ classId: 1, name: 1 })
         .toArray();
 
-      classMap = classes.reduce((map: Record<string, string>, cls: any) => {
-        map[cls.classId] = cls.name;
-        return map;
-      }, {});
+      for (const classRecord of classes) {
+        if (typeof classRecord.classId === 'string' && typeof classRecord.name === 'string') {
+          classMap[classRecord.classId] = classRecord.name
+        }
+      }
     }
   } catch (classError) {
     console.warn('⚠️ Erro ao carregar classes, continuando sem nomes...');
@@ -344,7 +522,7 @@ if (classIds.length > 0 && classIds.length < 1000) {
 
 // ✅ MAPEAR PARA ESTRUTURA COMPATÍVEL
 const usersWithClassName = users.map(user => {
-  const u = user as any; // Type assertion para acesso às propriedades
+  const u = user
   
   // 🐛 DEBUG TEMPORÁRIO
   if (u.email === 'joaobarroshtc@gmail.com') {
@@ -368,8 +546,7 @@ const usersWithClassName = users.map(user => {
   
   // Extrair dados da Curseduca
   const curseducaEngagement = u.curseduca?.engagement?.engagementLevel
-  const curseducaAccessCount = u.curseduca?.engagement?.accessCount
-  const curseducaProgress = u.curseduca?.progress?.completedPercentage || 0
+  const curseducaProgress = u.curseduca?.progress?.estimatedProgress || 0
   
   // Usar Combined se disponível, senão usar da plataforma principal
   const finalEngagement = u.combined?.engagement?.level || 
@@ -379,7 +556,6 @@ const usersWithClassName = users.map(user => {
                          'NONE'
                          
   const finalAccessCount = hotmartAccessCount || 
-                          curseducaAccessCount || 
                           u.accessCount || 
                           0
                           
@@ -398,7 +574,7 @@ const usersWithClassName = users.map(user => {
     curseducaUserId: u.curseducaUserId || u.curseduca?.curseducaUserId || "",
     discordIds: u.discordIds || [],
     classId: u.classId,
-    className: classMap[u.classId] || null,
+    className: u.classId ? classMap[u.classId] || null : null,
     status: u.status,
     estado: u.estado,
     role: u.role || "",
@@ -465,7 +641,7 @@ const usersWithClassName = users.map(user => {
       // 2️⃣ Skip e Limit ANTES do lookup para reduzir dados
       { $skip: skip },
       // Só limitar quando actualLimit > 0
-      ...((actualLimit > 0) ? [{ $limit: actualLimit }] : [] as any),
+      ...(actualLimit > 0 ? [{ $limit: actualLimit }] : []),
       
       // 3️⃣ Lookup para classes
       {
@@ -617,16 +793,16 @@ const usersWithClassName = users.map(user => {
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(" Erro em listUsersSimple:", {
-      message: error.message,
-      stack: error.stack?.slice(0, 500),
+      message: errorMessage(error),
+      stack: errorStack(error)?.slice(0, 500),
       params: { page: pageNum, limit: limitNum }
     });
 
     res.status(500).json({ 
       message: "Erro ao buscar utilizadores", 
-      details: error.message,
+      details: errorMessage(error),
       params: { page: pageNum, limit: limitNum },
       timestamp: new Date().toISOString()
     });
@@ -644,7 +820,7 @@ export const getAllUsersUnified = async (req: Request, res: Response) => {
     } = req.query
 
     // Query base: todos os users não deletados
-    const query: any = {
+    const query: MongoFilter = {
       isDeleted: { $ne: true }
     }
 
@@ -737,12 +913,12 @@ export const getAllUsersUnified = async (req: Request, res: Response) => {
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar utilizadores:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar utilizadores',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -1132,12 +1308,12 @@ const curseducaOnly = await User.countDocuments({
 
     console.log('\n✅ [DASHBOARD] Estatísticas calculadas com sucesso!\n')
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [DASHBOARD] Erro ao buscar stats:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar estatísticas',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -1418,11 +1594,11 @@ export const getUserStats = async (req: Request, res: Response): Promise<void> =
       topPerformersCount: engagementResults.topPerformers,
       needsAttentionCount: engagementResults.needsAttention
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao obter estatísticas:", error);
     res.status(500).json({ 
       message: "Erro ao obter estatísticas", 
-      details: error.message 
+      details: errorMessage(error)
     });
   }
 }
@@ -1444,7 +1620,7 @@ export const editStudent = async (req: Request<UserIdParams>, res: Response): Pr
       return
     }
 
-    const updateFields: any = {}
+    const updateFields: mongoose.UpdateQuery<IUser> = {}
 
     if (updateData.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -1477,8 +1653,8 @@ export const editStudent = async (req: Request<UserIdParams>, res: Response): Pr
 
     res.status(200).json(updatedStudent)
 
-  } catch (error: any) {
-    res.status(500).json({ message: "Erro ao atualizar aluno", details: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ message: "Erro ao atualizar aluno", details: errorMessage(error) })
   }
 }
 // 📊 ESTATÍSTICAS DO ALUNO
@@ -1493,36 +1669,44 @@ export const getStudentStats = async (req: Request, res: Response): Promise<void
       return
     }
 
+const discordIds = student.discord?.discordIds || []
+const progressPercentage = student.combined?.totalProgress || 0
+const purchaseDate = student.hotmart?.purchaseDate
+const lastAccessDate = student.combined?.lastActivity
+  || student.hotmart?.lastAccessDate
+  || student.curseduca?.lastAccess
+const classId = student.combined?.classId || student.classId
+
 const stats = {
-  hasEmail: !!(student as any).email,
-  hasName: !!(student as any).name,
-  hasDiscordIds: ((student as any).discordIds?.length || 0) > 0,
-  totalDiscordIds: (student as any).discordIds?.length || 0,
-  isActive: (student as any).status === 'ACTIVE',
-  hasProgress: !!(student as any).progress?.completedPercentage,
-  progressPercentage: (student as any).progress?.completedPercentage || 0,
-  hasPurchaseDate: !!(student as any).purchaseDate,
-  hasLastAccess: !!(student as any).lastAccessDate,
-  daysSincePurchase: (student as any).purchaseDate 
-    ? Math.floor((Date.now() - new Date((student as any).purchaseDate).getTime()) / (1000 * 60 * 60 * 24))
+  hasEmail: !!student.email,
+  hasName: !!student.name,
+  hasDiscordIds: discordIds.length > 0,
+  totalDiscordIds: discordIds.length,
+  isActive: student.combined?.status === 'ACTIVE',
+  hasProgress: progressPercentage > 0,
+  progressPercentage,
+  hasPurchaseDate: !!purchaseDate,
+  hasLastAccess: !!lastAccessDate,
+  daysSincePurchase: purchaseDate
+    ? Math.floor((Date.now() - new Date(purchaseDate).getTime()) / (1000 * 60 * 60 * 24))
     : null,
-  daysSinceLastAccess: (student as any).lastAccessDate
-    ? Math.floor((Date.now() - new Date((student as any).lastAccessDate).getTime()) / (1000 * 60 * 60 * 24))
+  daysSinceLastAccess: lastAccessDate
+    ? Math.floor((Date.now() - new Date(lastAccessDate).getTime()) / (1000 * 60 * 60 * 24))
     : null,
-  hasClass: !!(student as any).classId,
-  classId: (student as any).classId,
+  hasClass: !!classId,
+  classId,
   validationStatus: {
-    email: !!(student as any).email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((student as any).email),
-    discordIds: ((student as any).discordIds || []).every((discordId: string) => /^\d{17,19}$/.test(discordId)),
-    name: !!(student as any).name && (student as any).name.trim().length > 0
+    email: !!student.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(student.email),
+    discordIds: discordIds.every(discordId => /^\d{17,19}$/.test(discordId)),
+    name: !!student.name && student.name.trim().length > 0
   }
 }
 
     res.status(200).json(stats)
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({ 
       message: "Erro ao calcular estatísticas do aluno.", 
-      details: error.message 
+      details: errorMessage(error)
     })
   }
 }
@@ -1545,7 +1729,7 @@ export const getStudentHistory = async (req: Request<UserIdParams>, res: Respons
     const legacyCurseducaUserId: unknown = student.get("curseducaUserId")
 
     // ✅ BUSCAR HISTÓRICO USANDO EMAIL E ID (nova estrutura)
-    let userHistory: any[] = []
+    let userHistory: IUserHistory[] = []
     try {
       userHistory = await UserHistory.find({
         $or: [
@@ -1556,26 +1740,26 @@ export const getStudentHistory = async (req: Request<UserIdParams>, res: Respons
       .sort({ changeDate: -1 })
       .limit(limit)
       .populate('syncId', 'startTime endTime status totalUsers source')
-      .lean()
+      .lean<IUserHistory[]>()
     } catch (userHistoryError) {
       console.warn('⚠️ Erro ao buscar histórico do utilizador:', userHistoryError)
     }
 
     // ✅ BUSCAR HISTÓRICO DE MUDANÇAS DE TURMA
-    let classHistory: any[] = []
+    let classHistory: IStudentClassHistory[] = []
     try {
       classHistory = await StudentClassHistory.find({
         studentId: student._id
       })
       .sort({ dateMoved: -1 })
       .limit(20)
-      .lean()
+      .lean<IStudentClassHistory[]>()
     } catch (classHistoryError) {
       console.warn('⚠️ Erro ao buscar histórico de turmas:', classHistoryError)
     }
 
     // ✅ BUSCAR HISTÓRICO DE SINCRONIZAÇÕES
-    let syncHistory: any[] = []
+    let syncHistory: ISyncHistory[] = []
     try {
       syncHistory = await SyncHistory.find({
         $or: [
@@ -1586,7 +1770,7 @@ export const getStudentHistory = async (req: Request<UserIdParams>, res: Respons
       .sort({ startedAt: -1 })
       .limit(10)
       .select('type startedAt completedAt status stats source')
-      .lean()
+      .lean<ISyncHistory[]>()
     } catch (syncHistoryError) {
       console.warn('⚠️ Erro ao buscar histórico de sincronizações:', syncHistoryError)
     }
@@ -1609,7 +1793,7 @@ export const getStudentHistory = async (req: Request<UserIdParams>, res: Respons
         ...h,
         type: 'sync',
         date: h.startedAt,
-        source: h.source || h.type
+        source: h.type
       }))
     ]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -1654,10 +1838,10 @@ export const getStudentHistory = async (req: Request<UserIdParams>, res: Respons
       total: combinedHistory.length
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({ 
       message: "Erro ao buscar histórico do aluno.", 
-      details: error.message 
+      details: errorMessage(error)
     })
   }
 }
@@ -1682,10 +1866,10 @@ export const syncSpecificStudent = async (req: Request, res: Response): Promise<
       message: "Sincronização específica iniciada para o aluno.",
       email: student.email 
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({ 
       message: "Erro ao sincronizar aluno.", 
-      details: error.message 
+      details: errorMessage(error)
     })
   }
 }
@@ -1724,8 +1908,8 @@ export const deleteStudent = async (input: UsersDeleteStudentInput, res: Respons
       }
       res.status(200).json({ message: "Aluno marcado como inativo", student: updated })
     }
-  } catch (error: any) {
-    res.status(500).json({ message: "Erro ao eliminar aluno", details: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ message: "Erro ao eliminar aluno", details: errorMessage(error) })
   }
 }
 
@@ -1748,15 +1932,12 @@ export const mergeDiscordId = async (req: Request, res: Response): Promise<void>
       return
     }
 
-    // Type assertion para aceder às propriedades
-    const u = user as any;
+    const currentIds = validDiscordIds(user)
+    let mergedIds = currentIds
 
-    const discordIds = Array.isArray(u.discordIds) ? u.discordIds : [];
-    const validIds = discordIds.filter((discordId: string) => discordId && discordId.trim() !== "");
-
-    if (!validIds.includes(newDiscordId)) {
-      u.discordIds = [...new Set([...validIds, newDiscordId])];
-      await user.save();
+    if (!currentIds.includes(newDiscordId)) {
+      mergedIds = [...new Set([...currentIds, newDiscordId])]
+      await persistDiscordIds(user, mergedIds)
     }
 
     if (id) {
@@ -1766,16 +1947,16 @@ export const mergeDiscordId = async (req: Request, res: Response): Promise<void>
     res.status(200).json({ 
       message: "Merge concluído com sucesso.",
       user: {
-        email: u.email,
-        discordIds: u.discordIds
+        email: user.email,
+        discordIds: mergedIds
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro no merge:", error);
     res.status(500).json({ 
       message: "Erro interno no merge", 
-      details: error.message 
+      details: errorMessage(error)
     });
   }
 }
@@ -1791,8 +1972,8 @@ export const deleteIdsDiferentes = async (input: UsersDeleteByIdInput, res: Resp
     }
 
     res.status(200).json({ message: "Registo removido com sucesso." })
-  } catch (error: any) {
-    res.status(500).json({ message: "Erro ao apagar registo.", details: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ message: "Erro ao apagar registo.", details: errorMessage(error) })
   }
 }
 
@@ -1805,8 +1986,8 @@ export const deleteUnmatchedUser = async (input: UsersDeleteByIdInput, res: Resp
       return
     }
     res.status(200).json({ message: "Utilizador apagado com sucesso." })
-  } catch (error: any) {
-    res.status(500).json({ message: "Erro ao apagar utilizador.", details: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ message: "Erro ao apagar utilizador.", details: errorMessage(error) })
   }
 }
 
@@ -1828,14 +2009,12 @@ export const manualMatch = async (req: Request, res: Response): Promise<void> =>
       return
     }
 
-    // Type assertion para aceder às propriedades
-    const u = user as any;
-
-    const discordIds = Array.isArray(u.discordIds) ? u.discordIds : [];
+    const discordIds = validDiscordIds(user)
+    let mergedIds = discordIds
     
     if (!discordIds.includes(discordId)) {
-      u.discordIds = [...discordIds, discordId];
-      await user.save();
+      mergedIds = [...discordIds, discordId]
+      await persistDiscordIds(user, mergedIds)
     }
 
     await UnmatchedUser.deleteOne({ discordId, email });
@@ -1843,16 +2022,16 @@ export const manualMatch = async (req: Request, res: Response): Promise<void> =>
     res.json({ 
       message: "Correspondência manual criada com sucesso.",
       user: {
-        email: u.email,
-        discordIds: u.discordIds,
-        name: u.name
+        email: user.email,
+        discordIds: mergedIds,
+        name: user.name
       }
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({ 
       message: "Erro na correspondência manual", 
-      details: error.message 
+      details: errorMessage(error)
     });
   }
 }
@@ -1879,21 +2058,16 @@ export const bulkMergeIds = async (req: Request, res: Response): Promise<void> =
         });
 
         if (user) {
-          // Type assertion para aceder às propriedades
-          const u = user as any;
-          
-          const discordIds = Array.isArray(u.discordIds) ? u.discordIds : [];
-          const validIds = discordIds.filter((discordId: string) => discordId && discordId.trim() !== "");
+          const currentIds = validDiscordIds(user)
 
-          if (validIds.length === 0) {
-            u.discordIds = [idDiferente.newDiscordId];
-            await user.save();
+          if (currentIds.length === 0) {
+            await persistDiscordIds(user, [idDiferente.newDiscordId])
             await IdsDiferentes.findByIdAndDelete(id as string);
             mergedCount++;
           }
         }
-      } catch (error: any) {
-        errors.push(`Erro no ID ${id}: ${error.message}`);
+      } catch (error: unknown) {
+        errors.push(`Erro no ID ${id}: ${errorMessage(error)}`);
       }
     }
 
@@ -1903,10 +2077,10 @@ export const bulkMergeIds = async (req: Request, res: Response): Promise<void> =
       errors: errors.length > 0 ? errors : undefined
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({ 
       message: "Erro no merge em lote", 
-      details: error.message 
+      details: errorMessage(error)
     });
   }
 }
@@ -1927,10 +2101,10 @@ export const bulkDeleteIds = async (input: UsersBulkDeleteInput, res: Response):
       deletedCount: result.deletedCount
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({ 
       message: "Erro na eliminação em lote", 
-      details: error.message 
+      details: errorMessage(error)
     });
   }
 }
@@ -1951,10 +2125,10 @@ export const bulkDeleteUnmatchedUsers = async (input: UsersBulkDeleteInput, res:
       deletedCount: result.deletedCount
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({ 
       message: "Erro na eliminação em lote", 
-      details: error.message 
+      details: errorMessage(error)
     });
   }
 }
@@ -2013,8 +2187,7 @@ export const syncDiscordAndHotmart = async (
             continue
           }
 
-          const u = user as any
-          const currentIds = u.discord?.discordIds || []
+          const currentIds = validDiscordIds(user)
 
           if (!currentIds.includes(discordId)) {
             await User.updateOne(
@@ -2029,9 +2202,9 @@ export const syncDiscordAndHotmart = async (
             added++
           }
 
-        } catch (recordError: any) {
+        } catch (recordError: unknown) {
           errors++
-          console.error(`Erro no registo:`, recordError.message)
+          console.error(`Erro no registo:`, errorMessage(recordError))
         }
       }
 
@@ -2047,7 +2220,7 @@ export const syncDiscordAndHotmart = async (
         stats: { added, unmatched, errors }
       })
 
-      } catch (error: any) {
+      } catch (error: unknown) {
         await SyncHistory.findByIdAndUpdate(syncRecord._id, {
           status: "failed",
           completedAt: new Date()
@@ -2079,7 +2252,7 @@ export const syncDiscordAndHotmart = async (
  * ✅ ENDPOINT OTIMIZADO: Infinite Loading de Utilizadores
  * Cursor-based pagination para performance máxima
  */
-export const getUsersInfinite = async (req: Request, res: Response): Promise<any> => {
+export const getUsersInfinite = async (req: Request, res: Response): Promise<void> => {
   try {
     const startTime = Date.now()
     
@@ -2106,15 +2279,16 @@ export const getUsersInfinite = async (req: Request, res: Response): Promise<any
 
     // ✅ VERIFICAR CACHE (se não for force refresh)
     if (!forceRefresh) {
-      const cached: any = await cacheService.get(cacheKey)
+      const cached = await cacheService.get<CachedUsersData>(cacheKey)
       if (cached) {
         console.log(`📦 Cache hit: ${cacheKey.substring(0, 50)}...`)
-        return res.status(200).json({
+        res.status(200).json({
           ...cached,
           fromCache: true,
           cacheAge: Date.now() - ((cached && cached.cachedAt) || Date.now()),
           timestamp: new Date().toISOString()
         })
+        return
       }
     }
 
@@ -2159,10 +2333,10 @@ export const getUsersInfinite = async (req: Request, res: Response): Promise<any
     const fields = { ...baseFields, ...conditionalFields }
 
     // ✅ CONSTRUIR PIPELINE de agregação (mais eficiente para queries complexas)
-    const pipeline: any[] = []
+    const pipeline: PipelineStage[] = []
 
     // Stage 1: Match básico com índices otimizados
-    const matchStage: any = {
+    const matchStage: mongoose.PipelineStage.Match = {
       $match: {
         $or: [
           { isDeleted: { $exists: false } },
@@ -2269,7 +2443,7 @@ export const getUsersInfinite = async (req: Request, res: Response): Promise<any
     // ✅ EXECUTAR AGREGAÇÃO com timeout
     const queryStartTime = Date.now()
     
-    const users = await User.aggregate(pipeline)
+    const users = await User.aggregate<UserListRecord>(pipeline)
       .allowDiskUse(true)  // Para queries grandes
       .option({ maxTimeMS: 30000 })  // Timeout 30s
       .exec()
@@ -2291,13 +2465,11 @@ export const getUsersInfinite = async (req: Request, res: Response): Promise<any
       
       try {
         // Tentar usar contagem estimada primeiro (muito mais rápido)
-      const collectionAny: any = User.collection as any
-      const stats = typeof collectionAny.stats === 'function' ? await collectionAny.stats() : undefined
-      const estimatedCount = stats?.count
+      const estimatedCount = await User.estimatedDocumentCount()
         
         // Se a query tem filtros, fazer contagem exata
         if (search || (status && status !== 'all') || (engagementLevel && engagementLevel !== 'all')) {
-          const countPipeline = [matchStage]
+          const countPipeline: PipelineStage[] = [matchStage]
           if (search) {
             countPipeline.push({
               $match: {
@@ -2329,7 +2501,7 @@ export const getUsersInfinite = async (req: Request, res: Response): Promise<any
     }
 
     // ✅ PROCESSAR RESULTADOS
-    const processedUsers = users.map((user: any) => ({
+    const processedUsers = users.map(user => ({
       _id: user._id,
       name: user.name || '',
       email: user.email || '',
@@ -2398,11 +2570,14 @@ export const getUsersInfinite = async (req: Request, res: Response): Promise<any
       timestamp: new Date().toISOString()
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro no infinite loading:', error)
     
     // Log detalhado para debugging
-    if (error.name === 'MongoError' || error.name === 'MongooseError') {
+    if (
+      isRecord(error)
+      && (error.name === 'MongoError' || error.name === 'MongooseError')
+    ) {
       console.error('MongoDB Error Details:', {
         code: error.code,
         codeName: error.codeName,
@@ -2413,134 +2588,13 @@ export const getUsersInfinite = async (req: Request, res: Response): Promise<any
     res.status(500).json({
       success: false,
       message: 'Erro ao carregar utilizadores',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? errorMessage(error) : 'Internal server error',
       timestamp: new Date().toISOString()
     })
   }
 }
 
 
-/**
- * ✅ ENDPOINT AUXILIAR: Limpar cache de utilizadores
- */
-export const clearUsersCache = async (req: Request, res: Response): Promise<void> => {
-  try {
-    await cacheService.invalidatePattern('users:*')
-    
-    console.log('🧹 Cache de utilizadores limpo')
-    
-    res.status(200).json({
-      success: true,
-      message: 'Cache de utilizadores limpo com sucesso'
-    })
-  } catch (error: any) {
-    console.error('❌ Erro ao limpar cache:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao limpar cache',
-      error: error.message
-    })
-  }
-}
-
-/**
- * ✅ ENDPOINT AUXILIAR: Pré-aquecer cache
- */
-export const warmupUsersCache = async (req: Request, res: Response): Promise<void> => {
-  try {
-    console.log('🔥 Iniciando warmup do cache...')
-    
-    // Queries comuns para pré-aquecer
-    const commonQueries = [
-      { limit: '50' },
-      { limit: '50', status: 'active' },
-      { limit: '50', includePreCalculated: 'true' }
-    ]
-    
-    const warmupResults = []
-    
-    for (const queryParams of commonQueries) {
-      try {
-        // Gerar cache key
-        const cacheKey = cacheService.getCacheKey('users:infinite', queryParams)
-        
-        // Verificar se já está em cache
-        const existing = await cacheService.get(cacheKey)
-        if (existing) {
-          warmupResults.push({ query: queryParams, status: 'already_cached' })
-          continue
-        }
-        
-        // Construir query para MongoDB
-        const limit = parseInt(queryParams.limit || '50')
-        const matchQuery: any = {
-          $or: [
-            { isDeleted: { $exists: false } },
-            { isDeleted: false }
-          ]
-        }
-        
-        if (queryParams.status === 'active') {
-          matchQuery.$and = [
-            {
-              $or: [
-                { status: 'ACTIVE' },
-                { estado: { $in: ['ativo', 'active'] } }
-              ]
-            }
-          ]
-        }
-        
-        // Buscar dados
-        const users = await User.find(matchQuery)
-          .limit(limit + 1)
-          .sort({ _id: -1 })
-          .lean()
-        
-        const hasMore = users.length > limit
-        if (hasMore) users.pop()
-        
-        // Preparar dados para cache
-        const cacheData = {
-          success: true,
-          users: users.slice(0, limit),
-          hasMore,
-          nextCursor: users.length > 0 ? users[users.length - 1]._id : null,
-          meta: {
-            limit,
-            returned: users.length,
-            preCalculated: queryParams.includePreCalculated === 'true'
-          },
-          cachedAt: Date.now()
-        }
-        
-        // Guardar no cache
-        await cacheService.set(cacheKey, cacheData, 60)
-        warmupResults.push({ query: queryParams, status: 'cached' })
-        
-      } catch (err) {
-        console.error(`⚠️ Erro ao aquecer query:`, queryParams, err)
-        warmupResults.push({ query: queryParams, status: 'error' })
-      }
-    }
-    
-    console.log('✅ Cache warmup concluído:', warmupResults)
-    
-    res.status(200).json({
-      success: true,
-      message: 'Cache aquecido com sucesso',
-      results: warmupResults,
-      totalWarmed: warmupResults.filter(r => r.status === 'cached').length
-    })
-  } catch (error: any) {
-    console.error('❌ Erro no warmup:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro no warmup do cache',
-      error: error.message
-    })
-  }
-}
 /**
  * ✅ ENDPOINT AUXILIAR: Estatísticas rápidas para infinite loading
  */
@@ -2611,11 +2665,11 @@ export const getUsersInfiniteStats = async (req: Request, res: Response): Promis
       timestamp: new Date().toISOString()
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao calcular estatísticas:', error)
     res.status(500).json({
       success: false,
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -2642,7 +2696,7 @@ export const getProductStats = async (req: Request, res: Response): Promise<void
         status: 1,
         estado: 1
       }
-    ).lean()
+    ).lean<UserListRecord[]>()
 
     // Calcular estatísticas
     const stats = {
@@ -2656,8 +2710,7 @@ export const getProductStats = async (req: Request, res: Response): Promise<void
     }
 
     users.forEach(user => {
-      // Type assertion para aceder às propriedades
-      const u = user as any;
+      const u = user
       
       // Contar por produto
       const hasGrande = u.className?.toLowerCase().includes('grande investimento') || 
@@ -2683,12 +2736,12 @@ export const getProductStats = async (req: Request, res: Response): Promise<void
       timestamp: new Date().toISOString()
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao calcular estatísticas de produtos:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao calcular estatísticas',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -2703,29 +2756,27 @@ const recalculateCombinedData = async (userId: string): Promise<void> => {
     const user = await User.findById(userId)
     if (!user) return
 
-    const u = user as any
     const sourcesAvailable = []
-    if (u.discord?.discordIds?.length || u.discordIds?.length) sourcesAvailable.push('discord')
-    if (u.hotmart?.hotmartUserId || u.hotmartUserId) sourcesAvailable.push('hotmart')
-    if (u.curseduca?.curseducaUserId || u.curseducaUserId) sourcesAvailable.push('curseduca')
+    if (user.discord?.discordIds?.length) sourcesAvailable.push('discord')
+    if (user.hotmart?.hotmartUserId) sourcesAvailable.push('hotmart')
+    if (user.curseduca?.curseducaUserId) sourcesAvailable.push('curseduca')
 
     let status = 'ACTIVE'
-    if (u.discord?.isDeleted) status = 'INACTIVE'
-    else if (u.curseduca?.memberStatus === 'INACTIVE') status = 'INACTIVE'
-    else if (u.status === 'BLOCKED' || u.estado === 'inativo') status = 'INACTIVE'
+    if (user.discord?.isDeleted) status = 'INACTIVE'
+    else if (user.curseduca?.memberStatus === 'INACTIVE') status = 'INACTIVE'
 
     let totalProgress = 0
     let combinedEngagement = 0
     let bestEngagementSource = 'estimated'
 
-    if (u.hotmart?.progress) {
-      const totalTimeMinutes = u.hotmart.progress.totalTimeMinutes || 0
+    if (user.hotmart?.progress) {
+      const totalTimeMinutes = user.hotmart.progress.totalTimeMinutes || 0
       totalProgress = Math.min((totalTimeMinutes / (20 * 60)) * 100, 100)
-      combinedEngagement = u.hotmart.engagement?.engagementScore || 0
+      combinedEngagement = user.hotmart.engagement?.engagementScore || 0
       bestEngagementSource = 'hotmart'
-    } else if (u.curseduca?.progress) {
-      totalProgress = u.curseduca.progress.estimatedProgress || 0
-      combinedEngagement = u.curseduca.engagement?.alternativeEngagement || 0
+    } else if (user.curseduca?.progress) {
+      totalProgress = user.curseduca.progress.estimatedProgress || 0
+      combinedEngagement = user.curseduca.engagement?.alternativeEngagement || 0
       bestEngagementSource = 'curseduca'
     }
 
@@ -2743,8 +2794,8 @@ const recalculateCombinedData = async (userId: string): Promise<void> => {
       "metadata.updatedAt": new Date()
     })
 
-  } catch (error: any) {
-    console.error(`❌ Erro ao recalcular dados combinados para ${userId}:`, error.message)
+  } catch (error: unknown) {
+    console.error(`❌ Erro ao recalcular dados combinados para ${userId}:`, errorMessage(error))
   }
 }
 
@@ -2777,7 +2828,7 @@ export const getUserAllClasses = async (req: Request, res: Response): Promise<vo
     }
 
     // ✅ Agregar turmas de todas as plataformas
-    const allClasses: any[] = []
+    const allClasses: UserClassView[] = []
 
     // Turmas da Hotmart
     if (user.hotmart?.enrolledClasses && Array.isArray(user.hotmart.enrolledClasses)) {
@@ -2830,12 +2881,12 @@ export const getUserAllClasses = async (req: Request, res: Response): Promise<vo
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar turmas do utilizador:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar turmas do utilizador',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -2892,7 +2943,7 @@ export const getUsers: RequestHandler = async (req, res) => {
     }
 
     // ✅ OPTIMIZED: Build UserProduct query first to filter at DB level
-    const userProductQuery: any = {}
+    const userProductQuery: MongoFilter = {}
 
     if (platform) {
       userProductQuery.platform = platform.toLowerCase()
@@ -2949,7 +3000,7 @@ export const getUsers: RequestHandler = async (req, res) => {
 
     // ✅ OPTIMIZED: Get distinct userIds from UserProduct collection first
     const hasProductFilters = Object.keys(userProductQuery).length > 0
-    let userIds: any[] = []
+    let userIds: mongoose.Types.ObjectId[] = []
     let totalCount = 0
 
     if (hasProductFilters) {
@@ -2957,7 +3008,7 @@ export const getUsers: RequestHandler = async (req, res) => {
       const startTime = Date.now()
 
       // ✅ CRITICAL FIX: Use aggregation to get UNIQUE userIds with pagination
-      const aggregation = await UserProduct.aggregate([
+      const aggregation = await UserProduct.aggregate<UserIdFacet>([
         { $match: userProductQuery },
         { $group: { _id: "$userId" } },
         { $facet: {
@@ -2971,7 +3022,7 @@ export const getUsers: RequestHandler = async (req, res) => {
 
       const queryTime = Date.now() - startTime
       totalCount = aggregation[0].total[0]?.count || 0
-      userIds = aggregation[0].data.map((item: any) => item._id)
+      userIds = aggregation[0].data.map(item => item._id)
 
       console.log(`⚡ [V2] ${userIds.length} userIds (de ${totalCount} total) em ${queryTime}ms - página ${pageNum}`)
 
@@ -3003,34 +3054,31 @@ export const getUsers: RequestHandler = async (req, res) => {
     }
 
     // Base user query
-    const userQuery: any = {
-      $and: [
-        {
-          $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
-        },
-      ],
-    }
+    const userConditions: MongoFilter[] = [{
+      $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
+    }]
+    const userQuery = { $and: userConditions }
 
     // Add userIds filter if we have product filters
     if (hasProductFilters && userIds.length > 0) {
-      userQuery.$and.push({ _id: { $in: userIds } })
+      userConditions.push({ _id: { $in: userIds } })
     }
 
     if (search) {
       const searchRegex = new RegExp(search, "i")
-      userQuery.$and.push({ $or: [{ name: searchRegex }, { email: searchRegex }] })
+      userConditions.push({ $or: [{ name: searchRegex }, { email: searchRegex }] })
     }
 
     if (enrolledAfter) {
-      userQuery.$and.push({ createdAt: { $gte: new Date(enrolledAfter) } })
+      userConditions.push({ createdAt: { $gte: new Date(enrolledAfter) } })
     }
 
     if (status === "ACTIVE") {
-      userQuery.$and.push({ "combined.status": "ACTIVE" })
+      userConditions.push({ "combined.status": "ACTIVE" })
     }
 
     // ✅ OPTIMIZED: Apply pagination at DB level for non-product-filter queries too
-    let users: any[] = []
+    let users: UserSummary[] = []
 
     if (!hasProductFilters) {
       // Sem filtros de produto: paginar direto nos Users
@@ -3039,7 +3087,7 @@ export const getUsers: RequestHandler = async (req, res) => {
           .select("_id name email combined.status")
           .skip((pageNum - 1) * limitNum)
           .limit(limitNum)
-          .lean(),
+          .lean<UserSummary[]>(),
         User.countDocuments(userQuery)
       ])
       users = usersData
@@ -3047,13 +3095,15 @@ export const getUsers: RequestHandler = async (req, res) => {
       console.log(`📊 [V2] ${users.length} users (de ${totalCount} total) sem filtros de produto - página ${pageNum}`)
     } else {
       // Com filtros de produto: buscar apenas os users dos userIds paginados
-      users = await User.find(userQuery).select("_id name email combined.status").lean()
+      users = await User.find(userQuery)
+        .select("_id name email combined.status")
+        .lean<UserSummary[]>()
       console.log(`📊 [V2] ${users.length} users encontrados com filtros de produto`)
     }
 
     // ✅ OPTIMIZED: Buscar TODOS os UserProducts de uma vez (não N queries!)
-    const userIdsToEnrich = users.map((u: any) => u._id)
-    const upQuery: any = {
+    const userIdsToEnrich = users.map(user => user._id)
+    const upQuery: MongoFilter = {
       userId: { $in: userIdsToEnrich },
       ...userProductQuery
     }
@@ -3061,29 +3111,31 @@ export const getUsers: RequestHandler = async (req, res) => {
     console.log(`📊 [V2] Buscando UserProducts para ${userIdsToEnrich.length} users`)
     const startUpTime = Date.now()
 
-    const allUserProducts = await UserProduct.find(upQuery).lean()
+    const allUserProducts = await UserProduct.find(upQuery).lean<UserProductRecord[]>()
 
     const upTime = Date.now() - startUpTime
     console.log(`📊 [V2] ${allUserProducts.length} UserProducts encontrados em ${upTime}ms`)
 
     // Buscar produtos únicos (sem populate - mais rápido!)
-    const uniqueProductIds = [...new Set(allUserProducts.map((up: any) => up.productId?.toString()).filter(Boolean))]
+    const uniqueProductIds = [...new Set(
+      allUserProducts.map(userProduct => userProduct.productId.toString())
+    )]
     console.log(`📦 [V2] Buscando ${uniqueProductIds.length} produtos únicos`)
 
     const startProdTime = Date.now()
     const products = await Product.find({ _id: { $in: uniqueProductIds } })
       .select("_id name code platform")
-      .lean()
+      .lean<ProductSummary[]>()
     const prodTime = Date.now() - startProdTime
     console.log(`📦 [V2] ${products.length} produtos carregados em ${prodTime}ms`)
 
     // Criar map de produtos
-    const productMap = new Map(products.map((p: any) => [p._id.toString(), p]))
+    const productMap = new Map(products.map(product => [product._id.toString(), product]))
 
     // Agrupar UserProducts por userId
-    const userProductsMap = new Map<string, any[]>()
+    const userProductsMap = new Map<string, UserProductRecord[]>()
     for (const up of allUserProducts) {
-      const userId = (up.userId as any).toString()
+      const userId = up.userId.toString()
       if (!userProductsMap.has(userId)) {
         userProductsMap.set(userId, [])
       }
@@ -3098,18 +3150,13 @@ export const getUsers: RequestHandler = async (req, res) => {
       const userProducts = userProductsMap.get(userId) || []
 
       if (userProducts.length > 0) {
-        const totalScore = userProducts.reduce((sum: number, up: any) => {
+        const totalScore = userProducts.reduce((sum, up) => {
           return sum + (up.engagement?.engagementScore || 0)
         }, 0)
         const averageScore = Math.round(totalScore / userProducts.length)
 
         // Calculate engagement level based on average score
-        let level = "NONE"
-        if (averageScore >= 80) level = "MUITO_ALTO"
-        else if (averageScore >= 60) level = "ALTO"
-        else if (averageScore >= 40) level = "MEDIO"
-        else if (averageScore >= 20) level = "BAIXO"
-        else if (averageScore > 0) level = "MUITO_BAIXO"
+        const level = engagementLevelFromScore(averageScore)
 
         userEngagementMap.set(userId, { averageScore, level })
       }
@@ -3117,7 +3164,7 @@ export const getUsers: RequestHandler = async (req, res) => {
 
     // ✅ CRITICAL FIX: Transform data to match frontend expectations
     // Frontend expects array of UserProducts, not array of Users with products
-    const userProductsFlattened: any[] = []
+    const userProductsFlattened: UserProductResponse[] = []
 
     for (const user of users) {
       const userId = user._id.toString()
@@ -3157,7 +3204,7 @@ export const getUsers: RequestHandler = async (req, res) => {
           },
           engagement: {
             score: up.engagement?.engagementScore || 0,
-            level: up.engagement?.engagementLevel || "NONE",
+            level: engagementLevelFromScore(up.engagement?.engagementScore || 0),
             lastAction: up.engagement?.lastAction,
           },
           // Also add at root level for compatibility
@@ -3194,9 +3241,9 @@ export const getUsers: RequestHandler = async (req, res) => {
         enrolledAfter,
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ [V2] Erro em getUsers:", error)
-    res.status(500).json({ success: false, error: error.message })
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 /**
@@ -3216,9 +3263,9 @@ export const getUserById: RequestHandler<UserIdParams> = async (req, res) => {
     }
 
     res.json({ success: true, data: user })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Erro em getUserById:", error)
-    res.status(500).json({ success: false, error: error.message })
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 /**
@@ -3236,9 +3283,9 @@ export const getUserByEmail = async (req: Request, res: Response) => {
     
     const enriched = await getUserWithProducts(user._id.toString())
     res.json({ success: true, data: enriched })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro em getUserByEmail:', error)
-    res.status(500).json({ success: false, error: error.message })
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 
@@ -3266,9 +3313,9 @@ export const getUserProducts: RequestHandler = async (req, res) => {
       data: userProducts, 
       count: userProducts.length 
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro em getUserProducts:', error)
-    res.status(500).json({ success: false, error: error.message })
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3344,9 +3391,9 @@ export const getStats = async (req: Request, res: Response) => {
       }
     })
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro em getStats:', error)
-    res.status(500).json({ success: false, error: error.message })
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 export const getUsersStats = async (req: Request, res: Response) => {
@@ -3368,55 +3415,22 @@ export const getUsersStats = async (req: Request, res: Response) => {
       },
       _v2Enabled: true 
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in getUsersStats:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: errorMessage(error) });
   }
 };
 
-
-/**
- * POST /api/users/v2
- * Cria novo user (básico, sem produtos ainda)
- */
-export const createUser = async (req: Request, res: Response) => {
-  try {
-    const { email, name } = req.body;
-    
-    // Verificar se já existe
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'User already exists' 
-      });
-    }
-    
-    // Criar user básico
-    const user = await User.create({ email, name });
-    
-    // Retornar com estrutura V2 (products vazio)
-    const enrichedUser = await getUserWithProducts(user.id.toString());
-    
-    res.status(201).json({ 
-      success: true, 
-      data: enrichedUser,
-      _v2Enabled: true 
-    });
-  } catch (error: any) {
-    console.error('Error in createUser:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
 
 /**
  * Transforma dados segregados do modelo User para formato retrocompatível com o frontend
  */
-function transformUserForFrontend(user: any, userProductsMap?: Map<string, any[]>): any {
-  if (!user) return null
-
+function transformUserForFrontend(
+  user: UserTransformSource,
+  userProductsMap?: Map<string, PopulatedUserProductRecord[]>,
+) {
   // Campos base sempre presentes
-  const transformed: any = {
+  const transformed = {
     _id: user._id,
     email: user.email,
     name: user.name,
@@ -3467,9 +3481,10 @@ function transformUserForFrontend(user: any, userProductsMap?: Map<string, any[]
 
     // Turmas combinadas (novo) - agregar de UserProducts
     combined: (() => {
+      const allClasses: FrontendClass[] = [...(user.combined?.allClasses || [])]
       const baseCombined = {
         ...user.combined,
-        allClasses: [...(user.combined?.allClasses || [])],
+        allClasses,
         primaryClass: user.combined?.primaryClass
       }
 
@@ -3479,13 +3494,14 @@ function transformUserForFrontend(user: any, userProductsMap?: Map<string, any[]
         const userProducts = userProductsMap.get(userId) || []
 
         // Adicionar cada UserProduct como uma "turma" virtual baseada no produto
-        userProducts.forEach((up: any) => {
+        userProducts.forEach(up => {
           const productCode = up.productId?.code || 'UNKNOWN'
           const productName = up.productId?.name || 'Produto Desconhecido'
 
           // Verificar se já existe uma classe com este produto
           const existingClass = baseCombined.allClasses.find(
-            (c: any) => c.classId === productCode || c.className?.includes(productName)
+            currentClass => currentClass.classId === productCode
+              || currentClass.className.includes(productName)
           )
 
           if (!existingClass) {
@@ -3537,24 +3553,22 @@ function transformUserForFrontend(user: any, userProductsMap?: Map<string, any[]
       const userId = user._id.toString()
       const userProducts = userProductsMap ? (userProductsMap.get(userId) || []) : []
 
-      const acc = userProducts.reduce((acc: any, up: any) => {
+      const acc = userProducts.reduce<Record<string, ActiveCampaignTagsView>>((tagsByProduct, up) => {
         if (up.activeCampaignData?.tags && up.activeCampaignData.tags.length > 0) {
           const productCode = up.productId?.code || up.productId?._id?.toString() || 'UNKNOWN'
           const productName = up.productId?.name || 'Produto Desconhecido'
 
-          acc[productCode] = {
+          tagsByProduct[productCode] = {
             productCode,
             productName,
             tags: up.activeCampaignData.tags,
             lastSyncAt: up.activeCampaignData.lastSyncAt
           }
         }
-        return acc
+        return tagsByProduct
       }, {})
 
-      const testimonialData =
-        (user.communicationByCourse as any)?.get?.('TESTIMONIALS') ||
-        (user.communicationByCourse as any)?.TESTIMONIALS
+      const testimonialData = user.communicationByCourse?.get('TESTIMONIALS')
       const testimonialTags = testimonialData?.currentTags || []
 
       if (testimonialTags.length > 0) {
@@ -3562,7 +3576,7 @@ function transformUserForFrontend(user: any, userProductsMap?: Map<string, any[]
           productCode: 'TESTIMONIALS',
           productName: 'Testemunhos',
           tags: testimonialTags,
-          lastSyncAt: testimonialData?.lastSyncedAt
+          lastSyncAt: testimonialData?.lastTagAppliedAt
         }
       }
 
@@ -3588,7 +3602,8 @@ export const searchStudent = async (req: Request, res: Response): Promise<void> 
   }
 
   try {
-    const matchConditions: any = {}
+    const matchConditions: MongoFilter = {}
+    const platformConditions: MongoFilter[] = []
     
     if (email && typeof email === "string") {
       matchConditions.email = { $regex: new RegExp(email, "i") }
@@ -3599,31 +3614,33 @@ export const searchStudent = async (req: Request, res: Response): Promise<void> 
     }
     
     if (discordId && typeof discordId === "string") {
-      matchConditions.$or = [
+      platformConditions.push(
         { "discord.discordIds": { $in: [discordId] } },
         { "discordIds": { $in: [discordId] } }
-      ]
+      )
     }
 
     if (hotmartUserId && typeof hotmartUserId === "string") {
-      matchConditions.$or = matchConditions.$or || []
-      matchConditions.$or.push(
+      platformConditions.push(
         { "hotmart.hotmartUserId": hotmartUserId },
         { "hotmartUserId": hotmartUserId }
       )
     }
 
     if (curseducaUserId && typeof curseducaUserId === "string") {
-      matchConditions.$or = matchConditions.$or || []
-      matchConditions.$or.push(
+      platformConditions.push(
         { "curseduca.curseducaUserId": curseducaUserId },
         { "curseducaUserId": curseducaUserId }
       )
     }
 
+    if (platformConditions.length > 0) {
+      matchConditions.$or = platformConditions
+    }
+
     const students = await User.find(matchConditions)
       .select('email name hotmart curseduca discord combined status metadata username tags notes source type deletedAt deletedBy communicationByCourse')
-      .lean()
+      .lean<UserTransformSource[]>()
 
     if (!students.length) {
       res.status(404).json({ message: "Nenhum aluno encontrado com os critérios fornecidos." })
@@ -3637,10 +3654,10 @@ export const searchStudent = async (req: Request, res: Response): Promise<void> 
     })
       .populate('productId', 'code name')
       .select('userId productId platform status classes enrolledAt isPrimary activeCampaignData')
-      .lean()
+      .lean<PopulatedUserProductRecord[]>()
 
     // Criar map de userId -> UserProducts para passar ao transformer
-    const userProductsMap = new Map<string, any[]>()
+    const userProductsMap = new Map<string, PopulatedUserProductRecord[]>()
     allUserProducts.forEach(up => {
       const userId = up.userId.toString()
       if (!userProductsMap.has(userId)) {
@@ -3662,10 +3679,10 @@ export const searchStudent = async (req: Request, res: Response): Promise<void> 
     }
 
     res.status(200).json(transformedStudents[0])
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({ 
       message: "Erro ao buscar aluno.", 
-      details: error.message 
+      details: errorMessage(error)
     })
   }
 }

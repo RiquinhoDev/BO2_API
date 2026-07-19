@@ -466,14 +466,11 @@
     }
   },
   "src/controllers/users.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 108
-    },
     "@typescript-eslint/no-unused-vars": {
-      "count": 5
+      "count": 4
     },
     "no-console": {
-      "count": 102
+      "count": 95
     }
   },
   "src/controllers/usersReviewLists.controller.ts": {
