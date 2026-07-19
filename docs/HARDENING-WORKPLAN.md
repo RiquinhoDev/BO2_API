@@ -369,6 +369,13 @@ Progresso moagem:
   `isPrimary`/`isDuplicate`/`duplicateCount`/logs mantêm-se intactos (continuam a existir N itens).
 - Testes: 1 matrícula (inalterado); 2 matrículas com só uma activa (**só a activa fica `isActive: true`**); duplicados continuam sinalizados.
 
+- [x] **FIX A FEITO** (`d05d40b`). Novo helper `curseducaMemberships.ts`: agrega as matrículas por utilizador e
+  **anexa a mesma lista completa a cada um dos N itens** (cardinalidade intacta → UserProducts continuam todos a
+  sincronizar); `isCurseducaEnrollmentActive(situation)` deriva `isActive` (`INACTIVE`/`SUSPENDED` → inactivo).
+  Revisor confirmou por teste: `toHaveLength(2)` (não colapsa), `result[0].allCurseducaGroups === result[1]…`
+  (**idempotente**), situations reais preservadas, `isPrimary`/`isDuplicate` intactos, derivação não invertida.
+  `classes.controller` e fluxos de inactivação **não tocados**. Gate: lint 0, tsc 0, jest 305/2, build 0.
+
 ### ▶ FIX B (bloco estrutural seguinte) — eliminar a duplicação
 `classes.controller` passa a listar alunos da turma **pelo `UserProduct`** (`platform:'curseduca'`, `status:'ACTIVE'`,
 `classes.classId`) em vez da cópia; `enrolledClasses` deixa de ser fonte de verdade. É ARCH-02/03 na prática →
