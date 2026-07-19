@@ -376,10 +376,34 @@ Progresso moagem:
   (**idempotente**), situations reais preservadas, `isPrimary`/`isDuplicate` intactos, derivação não invertida.
   `classes.controller` e fluxos de inactivação **não tocados**. Gate: lint 0, tsc 0, jest 305/2, build 0.
 
-### ▶ FIX B (bloco estrutural seguinte) — eliminar a duplicação
-`classes.controller` passa a listar alunos da turma **pelo `UserProduct`** (`platform:'curseduca'`, `status:'ACTIVE'`,
-`classes.classId`) em vez da cópia; `enrolledClasses` deixa de ser fonte de verdade. É ARCH-02/03 na prática →
-**bloco próprio, com characterization tests** (comparar resultados antes/depois) por mexer numa listagem viva.
+### ▶ FIX B (bloco estrutural seguinte) — listagem por `UserProduct`, matar a duplicação
+
+**Viabilidade confirmada pelo revisor (2026-07-18):** para CursEduca, `UserProduct.classes[].classId =
+String(item.groupId)` (`universalSyncService:2124-2125`) — **o mesmo valor** de `enrolledClasses[].curseducaId`.
+A troca de query mapeia 1:1. E o modelo é mais correcto: **1 UserProduct por matrícula**, cada um com a sua turma
+(`classes: [{classId}]`, linha 2132) e o seu **`status` próprio** (dono = os fluxos de inactivação, já validados).
+
+**Estado actual** (`classes.controller:1895-1913`, ramo `curseduca_sync`):
+```js
+filter = { 'curseduca.enrolledClasses': { $elemMatch: { curseducaId: {$in:[...]}, isActive: true } } }
+if (includeInactive !== 'true') filter['curseduca.memberStatus'] = 'ACTIVE'
+const students = await User.find(filter).sort(sortObj).limit(Number(limit))
+```
+
+**Alvo:** obter os alunos a partir da fonte de verdade:
+```js
+UserProduct.find({ platform:'curseduca', 'classes.classId': String(classId),
+                   ...(includeInactive !== 'true' ? { status:'ACTIVE' } : {}) })
+```
+- ⚠️ **Preservar sort/paginação/shape da resposta.** Recomendado **2 passos**: `UserProduct` → recolher `userId`s →
+  `User.find({ _id: { $in: userIds } }).sort(sortObj).limit(...)`. Assim o sort/limit continuam sobre campos de User
+  (mudar para sort sobre populate é armadilha no Mongo) e o payload devolvido não muda.
+- `includeInactive` passa a filtrar pelo **`status` da matrícula** (mais correcto que o `memberStatus` do utilizador).
+- **Só o ramo `curseduca_sync`.** O ramo Hotmart usa `classId` top-level no User (outra cópia denormalizada) — é
+  limpeza separada (B2), **fora deste bloco**.
+- **Characterization tests obrigatórios:** semear dados (aluno com 1 matrícula; aluno com 2 onde só uma é activa;
+  aluno inactivo) e provar que a lista devolvida é **igual ou mais correcta** que a antiga, incluindo sort e limite.
+- Só depois de verde é que `enrolledClasses` deixa de ser fonte de verdade (pode ficar como cache; remover é ARCH-03).
 
 Depois: cirurgia ARCH-01/02/03.
 
