@@ -5,11 +5,17 @@
     }
   },
   "src/controllers/acTags/acReader.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
     "no-console": {
       "count": 8
     }
   },
   "src/controllers/acTags/activecampaign.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 41
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -18,11 +24,17 @@
     }
   },
   "src/controllers/acTags/tagRule.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
     "no-console": {
       "count": 9
     }
   },
   "src/controllers/acTags/tagRuleEstimate.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 15
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -31,6 +43,9 @@
     }
   },
   "src/controllers/analytics.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 16
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -44,16 +59,25 @@
     }
   },
   "src/controllers/businessAnalytics.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
     "no-console": {
       "count": 10
     }
   },
   "src/controllers/clarezaController.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 17
+    },
     "no-console": {
       "count": 22
     }
   },
   "src/controllers/classManagement.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 19
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 3
     },
@@ -62,6 +86,9 @@
     }
   },
   "src/controllers/classes.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 72
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 3
     },
@@ -76,16 +103,30 @@
     }
   },
   "src/controllers/cohortAnalytics.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
     "no-console": {
       "count": 2
     }
   },
   "src/controllers/course.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
     "no-console": {
       "count": 8
     }
   },
+  "src/controllers/courseLessons.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
   "src/controllers/cron/cronManagement.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 10
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -94,6 +135,9 @@
     }
   },
   "src/controllers/dashboard.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 15
+    },
     "@typescript-eslint/no-require-imports": {
       "count": 1
     },
@@ -105,6 +149,9 @@
     }
   },
   "src/controllers/dashboardQuick.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -113,11 +160,17 @@
     }
   },
   "src/controllers/discovery.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
     "no-console": {
       "count": 5
     }
   },
   "src/controllers/engagement.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 18
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -129,11 +182,17 @@
     }
   },
   "src/controllers/guru.analytics.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 33
+    },
     "no-console": {
       "count": 36
     }
   },
   "src/controllers/guru.inactivation.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 46
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 3
     },
@@ -142,6 +201,9 @@
     }
   },
   "src/controllers/guru.snapshot.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 18
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -153,21 +215,33 @@
     }
   },
   "src/controllers/guru.sso.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    },
     "no-console": {
       "count": 13
     }
   },
   "src/controllers/guru.sync.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 11
+    },
     "no-console": {
       "count": 8
     }
   },
   "src/controllers/guru.trials.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "no-console": {
       "count": 8
     }
   },
   "src/controllers/guru.webhook.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 12
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -175,12 +249,38 @@
       "count": 18
     }
   },
+  "src/controllers/guruSubscriptionList.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/controllers/guruWebhookList.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/controllers/health.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
   "src/controllers/lessons.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
     "no-console": {
       "count": 9
     }
   },
+  "src/controllers/metrics.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
   "src/controllers/populateHistory.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -192,26 +292,46 @@
     }
   },
   "src/controllers/products/product.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
+    },
     "no-console": {
       "count": 7
     }
   },
   "src/controllers/products/productProfile.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 10
+    },
     "no-console": {
       "count": 12
     }
   },
   "src/controllers/products/productSalesStats.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
+    },
     "no-console": {
       "count": 8
     }
   },
   "src/controllers/products/products.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
     "no-console": {
       "count": 9
     }
   },
+  "src/controllers/renewal.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
   "src/controllers/studentHistory.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
     "no-console": {
       "count": 4
     }
@@ -227,6 +347,9 @@
     }
   },
   "src/controllers/sync.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 16
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
     },
@@ -235,6 +358,9 @@
     }
   },
   "src/controllers/syncUtilizadoresControllers/cronManagement.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 20
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -243,11 +369,17 @@
     }
   },
   "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 40
+    },
     "no-console": {
       "count": 5
     }
   },
   "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 43
+    },
     "@typescript-eslint/no-require-imports": {
       "count": 2
     },
@@ -259,16 +391,25 @@
     }
   },
   "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    },
     "no-console": {
       "count": 6
     }
   },
   "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 12
+    },
     "no-console": {
       "count": 9
     }
   },
   "src/controllers/tagEvaluation.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 13
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -276,12 +417,33 @@
       "count": 20
     }
   },
+  "src/controllers/tagMonitoring/criticalTag.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    }
+  },
+  "src/controllers/tagMonitoring/tagMonitoring.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 11
+    }
+  },
+  "src/controllers/tagMonitoring/tagNotification.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
+    }
+  },
   "src/controllers/testHistory.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
     "no-console": {
       "count": 22
     }
   },
   "src/controllers/testimonials.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 46
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -293,6 +455,9 @@
     }
   },
   "src/controllers/userHistory.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 12
+    },
     "no-console": {
       "count": 3
     },
@@ -301,6 +466,9 @@
     }
   },
   "src/controllers/users.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 108
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
     },
@@ -308,7 +476,15 @@
       "count": 102
     }
   },
+  "src/controllers/usersReviewLists.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
   "src/controllers/webhooks.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
     "no-console": {
       "count": 4
     }
@@ -319,11 +495,17 @@
     }
   },
   "src/jobs/clareza.job.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
     "no-console": {
       "count": 11
     }
   },
   "src/jobs/cleanupHistory.job.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -332,6 +514,9 @@
     }
   },
   "src/jobs/cronExecutionCleanup.job.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -340,8 +525,16 @@
     }
   },
   "src/jobs/dailyPipeline.job.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
+    }
+  },
+  "src/jobs/dailyPipeline/tagEvaluation/applyTags.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
     }
   },
   "src/jobs/dailyPipeline/tagEvaluation/engagementScore.ts": {
@@ -375,6 +568,9 @@
     }
   },
   "src/jobs/evaluateRules.job.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -386,11 +582,22 @@
     }
   },
   "src/jobs/guruTrialCheck.job.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
     "no-console": {
       "count": 5
     }
   },
+  "src/jobs/index.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
   "src/jobs/precompute.job.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -399,6 +606,9 @@
     }
   },
   "src/jobs/rebuildDashboardStats.job.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -418,6 +628,9 @@
     }
   },
   "src/jobs/resetCounters.job.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
     },
@@ -429,6 +642,9 @@
     }
   },
   "src/jobs/weeklyTagSnapshot.job.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -438,7 +654,35 @@
       "count": 1
     }
   },
+  "src/models/ClarezaCarteiraData.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/models/ClarezaEarningsData.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/models/ClarezaMarketData.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/models/ClarezaRaioxData.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/models/ClarezaTop10Data.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
   "src/models/Class.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "no-useless-assignment": {
       "count": 1
     }
@@ -448,18 +692,74 @@
       "count": 3
     }
   },
+  "src/models/GuruWebhook.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/models/HotmartWebhook.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    }
+  },
+  "src/models/StudentEngagementState.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
   "src/models/SyncModels/ActivitySnapshot.ts": {
     "@typescript-eslint/no-empty-object-type": {
       "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/models/SyncModels/SyncConflict.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
     }
   },
   "src/models/SyncModels/SyncHistory.ts": {
     "@typescript-eslint/no-empty-object-type": {
       "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/models/UserAction.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/models/UserHistory.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/models/UserSnapshot.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
     }
   },
   "src/models/ValidationLog.ts": {
     "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/models/acTags/CommunicationHistory.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/models/cron/CronExecutionLog.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/models/cron/PipelineExecution.ts": {
+    "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
@@ -471,7 +771,15 @@
       "count": 5
     }
   },
+  "src/models/tagMonitoring/TagChangeNotification.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
   "src/models/user.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -479,7 +787,15 @@
       "count": 2
     }
   },
+  "src/routes/ACroutes/activecampaign.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
   "src/routes/achievements.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    },
     "no-console": {
       "count": 3
     }
@@ -490,7 +806,30 @@
     }
   },
   "src/routes/dashboardRoutes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
     "no-console": {
+      "count": 1
+    }
+  },
+  "src/routes/discordRenewal.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/routes/events.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 13
+    }
+  },
+  "src/routes/guru.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/routes/hotmart.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
@@ -499,7 +838,15 @@
       "count": 2
     }
   },
+  "src/routes/renewalAc.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
   "src/routes/users.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
     "@typescript-eslint/no-require-imports": {
       "count": 6
     },
@@ -508,6 +855,9 @@
     }
   },
   "src/routes/validationLogs.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
     "no-console": {
       "count": 2
     }
@@ -523,51 +873,81 @@
     }
   },
   "src/runtime/startJobs.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
     "no-console": {
       "count": 8
     }
   },
   "src/scripts/add-discord-id-joao.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    },
     "no-console": {
       "count": 14
     }
   },
   "src/scripts/add-discord-id.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
     "no-console": {
       "count": 14
     }
   },
   "src/scripts/check-student.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 10
+    },
     "no-console": {
       "count": 65
     }
   },
   "src/scripts/clean-duplicate-classes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
     "no-console": {
       "count": 24
     }
   },
   "src/scripts/diagnose-classes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
     "no-console": {
       "count": 45
     }
   },
   "src/scripts/find-joao-turma.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "no-console": {
       "count": 8
     }
   },
   "src/scripts/fix-status-inconsistencies.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 11
+    },
     "no-console": {
       "count": 44
     }
   },
   "src/scripts/get-joao-class.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "no-console": {
       "count": 7
     }
   },
   "src/scripts/investigate-classes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 14
+    },
     "no-console": {
       "count": 67
     }
@@ -578,33 +958,56 @@
     }
   },
   "src/scripts/sync-status-from-userproducts.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    },
     "no-console": {
       "count": 38
     }
   },
   "src/scripts/test-discord-assignrole.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
     "no-console": {
       "count": 33
     }
   },
   "src/scripts/test-discord-inactivation.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
     "no-console": {
       "count": 22
     }
   },
   "src/scripts/test-final-joao.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    },
     "no-console": {
       "count": 60
     }
   },
   "src/scripts/test-inactivation-flow.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 23
+    },
     "no-console": {
       "count": 73
     }
   },
   "src/scripts/test-joao-complete.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
     "no-console": {
       "count": 50
+    }
+  },
+  "src/security/acWebhookSecurity.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
     }
   },
   "src/security/httpPerimeter.ts": {
@@ -618,21 +1021,38 @@
     }
   },
   "src/services/achievements/achievementEvaluation.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
     "no-console": {
       "count": 1
     }
   },
+  "src/services/achievements/achievementEvaluator.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 16
+    }
+  },
   "src/services/achievements/streakCalculator.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
     "no-useless-assignment": {
       "count": 1
     }
   },
   "src/services/activeCampaign/TagCronManagement.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 16
+    },
     "no-console": {
       "count": 25
     }
   },
   "src/services/activeCampaign/activeCampaignService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 19
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -646,16 +1066,30 @@
     }
   },
   "src/services/activeCampaign/decisionEngine.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 23
+    },
     "no-console": {
       "count": 1
     }
   },
+  "src/services/activeCampaign/nativeTagProtection.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
   "src/services/activeCampaign/pipelineSnapshot.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     }
   },
   "src/services/activeCampaign/tagOrchestrator.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 12
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -664,16 +1098,30 @@
     }
   },
   "src/services/activeCampaign/tagPreCreation.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
     "no-console": {
       "count": 6
     }
   },
+  "src/services/activeCampaign/testimonialTagSync.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    }
+  },
   "src/services/analytics/analyticsCache.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
     "no-console": {
       "count": 23
     }
   },
   "src/services/analytics/analyticsCalculator.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 31
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
     },
@@ -682,6 +1130,9 @@
     }
   },
   "src/services/analytics/analyticsService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -690,16 +1141,25 @@
     }
   },
   "src/services/analytics/cohortAnalytics.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    },
     "prefer-const": {
       "count": 1
     }
   },
   "src/services/cache.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
     "no-console": {
       "count": 12
     }
   },
   "src/services/clareza/clarezaCarteiraService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 19
+    },
     "no-console": {
       "count": 8
     },
@@ -708,11 +1168,17 @@
     }
   },
   "src/services/clareza/clarezaEarningsService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "no-console": {
       "count": 8
     }
   },
   "src/services/clareza/clarezaFmpService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 42
+    },
     "no-console": {
       "count": 8
     },
@@ -724,11 +1190,17 @@
     }
   },
   "src/services/clareza/clarezaRaioxService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 37
+    },
     "no-console": {
       "count": 8
     }
   },
   "src/services/clareza/clarezaTop10Service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 15
+    },
     "no-console": {
       "count": 8
     }
@@ -738,7 +1210,15 @@
       "count": 1
     }
   },
+  "src/services/courseLessonCatalog.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
   "src/services/cron/cronManagement.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 17
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 8
     },
@@ -750,6 +1230,9 @@
     }
   },
   "src/services/cron/dailyPipeline.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 26
+    },
     "no-console": {
       "count": 53
     },
@@ -758,6 +1241,9 @@
     }
   },
   "src/services/cron/scheduler.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 16
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 7
     },
@@ -769,11 +1255,17 @@
     }
   },
   "src/services/dashboardStatsBuilder.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "no-console": {
       "count": 33
     }
   },
   "src/services/discovery/hotmartDiscovery.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "no-console": {
       "count": 6
     },
@@ -782,6 +1274,9 @@
     }
   },
   "src/services/guru/crossReference.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 22
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -790,16 +1285,30 @@
     }
   },
   "src/services/guru/guru.constants.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
     "no-console": {
       "count": 3
     }
   },
+  "src/services/guru/guruChurn.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
   "src/services/guru/guruSync.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 65
+    },
     "no-console": {
       "count": 57
     }
   },
   "src/services/guru/guruTrialService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 13
+    },
     "no-console": {
       "count": 12
     }
@@ -813,11 +1322,17 @@
     }
   },
   "src/services/productSalesStatsBuilder.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
     "no-console": {
       "count": 25
     }
   },
   "src/services/renewal/discordRolesSync.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -834,11 +1349,17 @@
     }
   },
   "src/services/renewal/hotmartRefunds.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 13
+    },
     "no-console": {
       "count": 2
     }
   },
   "src/services/renewal/renewalAcSync.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 16
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -846,7 +1367,20 @@
       "count": 8
     }
   },
+  "src/services/renewal/renewalCoverage.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/services/renewal/renewalPerformance.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
   "src/services/renewal/renewalSync.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 18
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -856,7 +1390,15 @@
       "count": 1
     }
   },
+  "src/services/snapshotServices/snapshotComparison.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
   "src/services/snapshotServices/userSnapshot.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -865,11 +1407,22 @@
     }
   },
   "src/services/studentCompleteService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
     "no-console": {
       "count": 11
     }
   },
+  "src/services/studentOgiSummary.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
+    }
+  },
   "src/services/syncUtilizadoresServices/activitySnapshot.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 4
     },
@@ -878,6 +1431,9 @@
     }
   },
   "src/services/syncUtilizadoresServices/conflictDetection.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -886,6 +1442,9 @@
     }
   },
   "src/services/syncUtilizadoresServices/curseducaServices/curseduca.adapter.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 22
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -897,11 +1456,17 @@
     }
   },
   "src/services/syncUtilizadoresServices/discordSync.service.ts/discordSync.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
   },
   "src/services/syncUtilizadoresServices/dualReadService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 22
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -910,11 +1475,27 @@
     }
   },
   "src/services/syncUtilizadoresServices/engagement/engagementCalculator.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "no-console": {
       "count": 1
     }
   },
+  "src/services/syncUtilizadoresServices/engagement/engagementService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/services/syncUtilizadoresServices/engagement/recalculate-engagement-metrics.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 15
+    }
+  },
   "src/services/syncUtilizadoresServices/hotmartServices/classesService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 13
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 3
     },
@@ -926,6 +1507,9 @@
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    },
     "no-console": {
       "count": 25
     },
@@ -934,6 +1518,9 @@
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart.helpers.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -945,6 +1532,9 @@
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
     "no-console": {
       "count": 20
     },
@@ -953,6 +1543,9 @@
     }
   },
   "src/services/syncUtilizadoresServices/syncReports.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 12
+    },
     "no-console": {
       "count": 25
     },
@@ -961,6 +1554,9 @@
     }
   },
   "src/services/syncUtilizadoresServices/universalSyncService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 72
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
@@ -976,12 +1572,58 @@
       "count": 4
     }
   },
+  "src/services/tagMonitoring/criticalTagManagement.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/services/tagMonitoring/tagNotification.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "src/services/tagMonitoring/weeklyTagMonitoring.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    }
+  },
   "src/services/userProducts/productService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    },
     "no-console": {
       "count": 1
     }
   },
+  "src/services/userProducts/userProductService.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 13
+    }
+  },
+  "src/types/analytics.types.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    }
+  },
+  "src/types/api.types.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/types/cron.types.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/types/discovery.types.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
   "src/types/studentComplete.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -992,11 +1634,17 @@
     }
   },
   "src/utils/debugLogger.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
     "no-console": {
       "count": 5
     }
   },
   "src/utils/detailedLogger.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 21
+    },
     "no-console": {
       "count": 7
     }
@@ -1009,14 +1657,30 @@
       "count": 1
     }
   },
+  "src/utils/responseHelpers.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    }
+  },
   "src/utils/studentDataConsolidator.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 10
+    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
   },
   "src/utils/syncLogger.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
     "no-console": {
       "count": 11
+    }
+  },
+  "src/utils/userHelpers.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
     }
   }
 }

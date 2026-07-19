@@ -66,12 +66,12 @@ describe('ESLint ratchet', () => {
     expect(ruleIds(result)).toContain('@typescript-eslint/no-unused-vars')
   })
 
-  test('mantém explicit any desligado até à sua migração ratcheted', async () => {
+  test('rejeita explicit any novo num ficheiro limpo (ratcheted)', async () => {
     const [result] = await createLinter().lintText(
       'export const legacyValue: any = 1\n',
       { filePath: cleanProbe },
     )
 
-    expect(ruleIds(result)).not.toContain('@typescript-eslint/no-explicit-any')
+    expect(ruleIds(result)).toContain('@typescript-eslint/no-explicit-any')
   })
 })

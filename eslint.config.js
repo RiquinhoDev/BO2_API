@@ -23,10 +23,9 @@ module.exports = [
       'no-new-func': 'error',
       'no-script-url': 'error',
 
-      // TypeScript strict is now enabled. Reactivate this through its own
-      // suppression-ratcheted migration: 1965 violations across 183 files
-      // are too large to fold into the atomic strict-mode change safely.
-      '@typescript-eslint/no-explicit-any': 'off',
+      // Ratcheted: 'error' + bulk-suppressions baseline (eslint-suppressions.json).
+      // Novo `any` falha o lint; os existentes descem por moagem + lint:baseline:prune.
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
 ]
