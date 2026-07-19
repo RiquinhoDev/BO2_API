@@ -400,7 +400,9 @@ Progresso services (clusters reportados pelo Codex):
 ### ✅ services, models, scripts, jobs, utils todos a 0 — **resta só controllers**
 - [x] **activecampaign.controller (116→115)** — feito (`e82708e`). **Bug real (8º, gémeo do 3º):** o controller
   criava `activeCampaignData` sem `lists` (obrigatório) → `{ …, lists: [] }`. Teste HTTP boundary. 0 cast/suppression.
-### controllers (115) — reta final: **1 commit por FICHEIRO** (~15 commits, não 115)
+### controllers — reta final por ficheiro. **Progresso: 115→46.** ✅ analytics, ac-lists, cron-dead, sync-shadowed, cron-twin(`2c086ea`), product-profiles(`9313d77`), testimonials(`3778e90`, **bug 12: `onlyActive` lia `status`/`estado` fantasma→sempre true; agora `combined.status`**). 0 casts em nenhum.
+
+### controllers (46) — 1 commit por FICHEIRO (regra #9 + golden rule)
 > **Não** 1 erro/commit. Agrupa **por ficheiro** — os erros de um controller partilham contexto (mesmos models,
 > req/res) e formam um assunto coerente e revisível. Ordem sugerida: maiores primeiro.
 
