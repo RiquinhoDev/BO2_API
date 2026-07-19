@@ -267,7 +267,11 @@ class DecisionEngine {
   // PUBLIC API
   // ───────────────────────────────────────────────────────────
 
-async evaluateUserProduct(userId: string, productId: string,): Promise<DecisionResult> {
+async evaluateUserProduct(
+  userId: string,
+  productId: string,
+  dryRun: boolean = false
+): Promise<DecisionResult> {
     const result: DecisionResult = {
       userId,
       productId,
@@ -342,7 +346,9 @@ async evaluateUserProduct(userId: string, productId: string,): Promise<DecisionR
 
           // aplica cooldown curto após retorno/progresso
           const until = addDays(nowUTC(), 1)
-          await setCooldown(context.userProduct._id.toString(), until)
+          if (!dryRun) {
+            await setCooldown(context.userProduct._id.toString(), until)
+          }
           result.nextEvaluationDate = until
         } else {
           // 2) Se voltou a ativo (0 dias) e tem nível -> remover tags
@@ -360,7 +366,9 @@ async evaluateUserProduct(userId: string, productId: string,): Promise<DecisionR
             })
 
             const until = addDays(nowUTC(), 1)
-            await setCooldown(context.userProduct._id.toString(), until)
+            if (!dryRun) {
+              await setCooldown(context.userProduct._id.toString(), until)
+            }
             result.nextEvaluationDate = until
           }
 
@@ -394,7 +402,9 @@ async evaluateUserProduct(userId: string, productId: string,): Promise<DecisionR
               // cooldown após escalonamento
               const cdDays = target.cooldownDays ?? DEFAULT_COOLDOWN_DAYS
               const until = addDays(nowUTC(), cdDays)
-              await setCooldown(context.userProduct._id.toString(), until)
+              if (!dryRun) {
+                await setCooldown(context.userProduct._id.toString(), until)
+              }
               result.nextEvaluationDate = until
             }
           }
@@ -452,7 +462,9 @@ async evaluateUserProduct(userId: string, productId: string,): Promise<DecisionR
         result.tagsToRemove = resolved.tagsToRemove
 
         // ===== executar
-        await this.executeDecisions(result)
+        if (!dryRun) {
+          await this.executeDecisions(result)
+        }
 
         return result
       } catch (error: any) {
@@ -461,23 +473,29 @@ async evaluateUserProduct(userId: string, productId: string,): Promise<DecisionR
       }
     }
 
-    async evaluateAllUserProducts(userId: string): Promise<DecisionResult[]> {
+    async evaluateAllUserProducts(
+      userId: string,
+      dryRun: boolean = false
+    ): Promise<DecisionResult[]> {
       const userProducts = await UserProduct.find({ userId })
       const out: DecisionResult[] = []
 
       for (const up of userProducts) {
-        out.push(await this.evaluateUserProduct(userId, up.productId.toString()))
+        out.push(await this.evaluateUserProduct(userId, up.productId.toString(), dryRun))
       }
 
       return out
     }
 
-    async evaluateAllUsersOfProduct(productId: string): Promise<DecisionResult[]> {
+    async evaluateAllUsersOfProduct(
+      productId: string,
+      dryRun: boolean = false
+    ): Promise<DecisionResult[]> {
       const userProducts = await UserProduct.find({ productId })
       const out: DecisionResult[] = []
 
       for (const up of userProducts) {
-        out.push(await this.evaluateUserProduct(up.userId.toString(), productId))
+        out.push(await this.evaluateUserProduct(up.userId.toString(), productId, dryRun))
       }
 
       return out
