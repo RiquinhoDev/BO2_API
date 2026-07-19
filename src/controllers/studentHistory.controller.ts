@@ -8,6 +8,10 @@ import mongoose from 'mongoose'
 import UserHistory from '../models/UserHistory'
 import User from '../models/user'
 
+type StudentHistoryParams = {
+  userId: string
+}
+
 // ═══════════════════════════════════════════════════════════════
 // GET STUDENT HISTORY
 // ═══════════════════════════════════════════════════════════════
@@ -16,7 +20,7 @@ import User from '../models/user'
  * GET /api/students/:userId/history
  * Retorna histórico completo de alterações do estudante
  */
-export const getStudentHistory = async (req: Request, res: Response) => {
+export const getStudentHistory = async (req: Request<StudentHistoryParams>, res: Response) => {
   try {
     const { userId } = req.params
     const { limit = '50', offset = '0', changeType, platform, startDate, endDate } = req.query
@@ -122,7 +126,7 @@ export const getStudentHistory = async (req: Request, res: Response) => {
  * GET /api/students/:userId/history/summary
  * Retorna resumo do histórico (estatísticas)
  */
-export const getStudentHistorySummary = async (req: Request, res: Response) => {
+export const getStudentHistorySummary = async (req: Request<StudentHistoryParams>, res: Response) => {
   try {
     const { userId } = req.params
 

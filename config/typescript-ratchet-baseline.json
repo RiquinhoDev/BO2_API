@@ -1,7 +1,7 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 32
+    "controllers": 28
   },
   "dirtyFiles": [
     "src/controllers/acTags/acReader.controller.ts",
@@ -9,7 +9,6 @@
     "src/controllers/guru.sync.controller.ts",
     "src/controllers/guru.webhook.controller.ts",
     "src/controllers/lessons.controller.ts",
-    "src/controllers/studentHistory.controller.ts",
     "src/controllers/sync.controller.ts",
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts",
     "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts",
