@@ -24,7 +24,13 @@
   Ratchet 90→88. Validado pelo revisor.
 - [x] **`getDashboardStatsV3Legacy`** — APAGADO (`bf780e8`, 397 linhas). Revisor confirmou: removeu **só** essa função
   (única `-export`); `getDashboardStatsV3` vivo (linha 364, `/stats/v3`) intacto; 0 refs pendentes.
-- [ ] **stubs de avaliação — DECISÃO: preview real read-only por curso (utilizador 2026-07-18).** Os botões
+- [x] **stubs de avaliação — FEITO: preview real read-only por curso** (back `bd9643e`+`4eb2281` / front `7772a0b`).
+  `dryRun` no motor bloqueia **os 3 `setCooldown` E o `executeDecisions`** (revisor: teste prova `executeDecisions`/
+  `applyTag`/`removeTag`/`findByIdAndUpdate` **não chamados**, `tagsToApply/Remove` reais, `actionsExecuted:0`).
+  Endpoints Clareza/OGI correm `evaluateAllUsersOfProduct(id, true)` e devolvem `{studentsEvaluated, proposedAdditions,
+  proposedRemovals, errors}` reais. Front actualizou o schema (sem `tagsApplied` falso) — activecampaign 57/57, full
+  893/893. "Aplicar" fica separado e desligado. Rotas inalteradas → catálogo intacto. Gate verde nos 2 repos. A mentira do UI acabou.
+- [ ] ~~DECISÃO PENDENTE~~ (resolvida acima). Os botões
   "Avaliar Regras" Clareza/OGI passam a ser **pré-visualização real** (dry-run), NÃO escrevem na AC/Mongo. Aplicação
   real fica numa acção **separada, destrutiva, com confirmação e `AC_TAG_APPLY_ENABLED=true`**. Revisor confirmou a
   viabilidade e a segurança:
