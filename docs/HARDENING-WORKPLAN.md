@@ -24,17 +24,40 @@
   Ratchet 90→88. Validado pelo revisor.
 - [x] **`getDashboardStatsV3Legacy`** — APAGADO (`bf780e8`, 397 linhas). Revisor confirmou: removeu **só** essa função
   (única `-export`); `getDashboardStatsV3` vivo (linha 364, `/stats/v3`) intacto; 0 refs pendentes.
-- [ ] **⚠️ DECISÃO PENDENTE — stubs "vivos" que mentem no UI:** `evaluateClarezaRules`/`evaluateOGIRules`
-  (`activecampaign.controller`) devolvem hardcoded `{tagsApplied:12/8, tagsRemoved:3/2}`, e o Front consome-os
-  (`evaluateCourseRules` → mostra os números). **É pior que morto — é dado falso ao utilizador.** Opções: (A) ligar
-  ao motor real, (B) contar stats reais read-only, (C) deprecar 410 + tirar/religar o botão no Front, (D) mensagem
-  honesta "corre via cron". É par Front+Back. Ver decisão abaixo.
+- [ ] **stubs de avaliação — DECISÃO: preview real read-only por curso (utilizador 2026-07-18).** Os botões
+  "Avaliar Regras" Clareza/OGI passam a ser **pré-visualização real** (dry-run), NÃO escrevem na AC/Mongo. Aplicação
+  real fica numa acção **separada, destrutiva, com confirmação e `AC_TAG_APPLY_ENABLED=true`**. Revisor confirmou a
+  viabilidade e a segurança:
+  - **Reuso limpo do motor:** `decisionEngine.evaluateUserProduct` computa `tagsToApply`/`tagsToRemove`
+    (resolvidos, linha 452) **antes** do único write `executeDecisions()` (linha 455). → adicionar `dryRun` que
+    salta a 455 dá o preview real sem escrever. Sem rewrite.
+  - **Porque NÃO re-apontar ao `test-cron`** (achados do Codex, válidos): processa **todos** os produtos (não
+    só o curso); `executeDecisions()` **escreve** tags reais; esse caminho **não respeita `AC_TAG_APPLY_ENABLED`**;
+    e a resposta não tem o contrato do Front (`tagsApplied`) → o Front mostraria `0` apesar de ter alterado.
+  - **Handoff (par Front+Back):** ver bloco abaixo. Reviewer regenera catálogo se as rotas mudarem.
 - Nota: os **dois** `cronManagement.controller.ts` (`cron/` e `syncUtilizadoresControllers/`) **não** são
   duplicados — servem famílias diferentes (`/cron-tags` vs `/cron`); só o nome colide. Não apagar.
 - **`ts-prune` correu (revisor):** 147 candidatos brutos, mas **muito ruído** (barrel re-exports em `models/index.ts`
   incl. `IdsDiferentes`/`UnmatchedUser` que **são vivos**; tipos; `default` de jobs/serviços; handlers via `import * as`).
   Guardado em `scratchpad/ts-prune-candidates.txt`. **Não apagar às cegas** — precisa triagem por-item (grep a confirmar).
   Melhor: a regra #9 apanha isto organicamente na moagem dos controllers; um passe de triagem dedicado depois.
+
+### 🔧 Handoff — preview real por curso (Clareza/OGI) — par Front+Back
+1. **Motor:** adiciona `dryRun?: boolean` a `decisionEngine.evaluateUserProduct` — quando `true`, computa tudo mas
+   **salta `executeDecisions()` (linha 455)** e devolve o `DecisionResult` (com `tagsToApply`/`tagsToRemove`,
+   `actionsExecuted:0`). NÃO escreve. Prova com teste: `dryRun` → `executeDecisions` não é chamado, mas
+   `tagsToApply/Remove` vêm preenchidos.
+2. **Backend endpoints:** `evaluateClarezaRules`/`evaluateOGIRules` deixam de ser stubs — correm o dry-run **por
+   curso** (filtra os UserProducts activos dos produtos desse curso), agregam e devolvem números **reais**:
+   `{ studentsEvaluated, proposedAdditions, proposedRemovals, errors }`. **Zero writes.** (Reutiliza
+   `evaluateAllUsersOfProduct` com `dryRun`.)
+3. **Aplicação real = acção SEPARADA:** endpoint próprio, destrutivo, atrás de `AC_TAG_APPLY_ENABLED` (default off)
+   + confirmação. **Não** o mistures com o preview. (Pode ser follow-up; o preview honesto é a entrega principal.)
+4. **Front (par):** actualiza `evaluationResponseSchema`/`EvaluationResponse` para os campos do preview
+   (`proposedAdditions`/`proposedRemovals`/`studentsEvaluated`); relabel do botão para deixar claro que é
+   pré-visualização; os números mostrados passam a ser reais. "Aplicar alterações" fica botão separado e desligado.
+5. **Legacy:** os duplicados (`ogiCourse` já 410) ficam removidos/410 — sem 2ª cópia.
+6. Offline: motor/http mockados; nunca AC real. Gate verde nos 2 repos. **Reviewer regenera catálogo/contrato** se rotas mudarem.
 
 ### 🧹 SWEEP de código morto — bloco em fila (executar A SEGUIR à deleção do reengagement)
 > **Re-verifica tudo TU antes de apagar.** Os candidatos acima são do revisor — prova cada um contra o código;
