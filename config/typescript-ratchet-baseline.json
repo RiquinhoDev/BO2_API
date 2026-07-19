@@ -1,9 +1,5 @@
 {
   "version": 1,
-  "directories": {
-    "controllers": 3
-  },
-  "dirtyFiles": [
-    "src/controllers/users.controller.ts"
-  ]
+  "directories": {},
+  "dirtyFiles": []
 }
