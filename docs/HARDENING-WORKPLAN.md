@@ -47,6 +47,8 @@
   `getJobById`, `createJob`, `updateJob`, `deleteJob`, `toggleJob`, `triggerJob` — cópia da família viva (revisor
   confirmou: só definidos, não montados, refs internas são a **serviços** homónimos, não ao controller). **Apagar
   os 7** + tipar o `:id` de `getJobHistory` (esse é vivo, montado). Esperado: controllers **88→77**. Aprovado.
+  - [x] FEITO (`a9afe50`, 399 linhas). Revisor: só os 7 saíram (8 métodos vivos + `getJobHistory` intactos, tipado
+    `Request<{id:string}>`), twin **não tocado**, 0 casts, prune `no-console` 44→22. Ratchet **77/21**.
 - **`ts-prune` correu (revisor):** 147 candidatos brutos, mas **muito ruído** (barrel re-exports em `models/index.ts`
   incl. `IdsDiferentes`/`UnmatchedUser` que **são vivos**; tipos; `default` de jobs/serviços; handlers via `import * as`).
   Guardado em `scratchpad/ts-prune-candidates.txt`. **Não apagar às cegas** — precisa triagem por-item (grep a confirmar).
