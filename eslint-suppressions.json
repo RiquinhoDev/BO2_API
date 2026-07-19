@@ -93,7 +93,7 @@
       "count": 1
     },
     "no-console": {
-      "count": 44
+      "count": 22
     }
   },
   "src/controllers/dashboard.controller.ts": {
