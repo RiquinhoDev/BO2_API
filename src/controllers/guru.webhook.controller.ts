@@ -14,6 +14,8 @@ const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
 // Token para validar webhooks (guardado em env vars)
 const GURU_ACCOUNT_TOKEN = process.env.GURU_ACCOUNT_TOKEN
 
+type GuruWebhookRequest = Pick<Request, 'body' | 'headers'>
+
 // ═══════════════════════════════════════════════════════════
 // WEBHOOK PRINCIPAL
 // ═══════════════════════════════════════════════════════════
@@ -22,7 +24,7 @@ const GURU_ACCOUNT_TOKEN = process.env.GURU_ACCOUNT_TOKEN
  * Receber e processar webhooks da Guru
  * POST /guru/webhook
  */
-export const handleGuruWebhook = async (req: Request, res: Response) => {
+export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response) => {
   const startTime = Date.now()
   const requestId = (req.headers['x-request-id'] as string) || req.body.request_id || `guru_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
@@ -486,7 +488,7 @@ export const reprocessWebhook = async (req: Request, res: Response) => {
     const mockReq = {
       body: webhook.rawData,
       headers: { 'x-request-id': `reprocess_${webhook.requestId}` }
-    } as Request
+    }
 
     // Processar novamente
     await handleGuruWebhook(mockReq, res)
