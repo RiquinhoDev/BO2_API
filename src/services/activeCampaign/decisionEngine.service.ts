@@ -491,7 +491,10 @@ async evaluateUserProduct(
       productId: string,
       dryRun: boolean = false
     ): Promise<DecisionResult[]> {
-      const userProducts = await UserProduct.find({ productId })
+      const userProducts = await UserProduct.find({
+        productId,
+        status: 'ACTIVE'
+      })
       const out: DecisionResult[] = []
 
       for (const up of userProducts) {

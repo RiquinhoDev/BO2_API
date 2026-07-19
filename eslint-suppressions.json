@@ -14,7 +14,7 @@
       "count": 2
     },
     "no-console": {
-      "count": 62
+      "count": 60
     }
   },
   "src/controllers/acTags/tagRule.controller.ts": {

@@ -12,6 +12,7 @@ import TagRule from '../../models/acTags/TagRule'
 import { CommunicationHistory, Course, Product, UserProduct } from '../../models'
 import activeCampaignService from '../../services/activeCampaign/activeCampaignService'
 import decisionEngine from '../../services/activeCampaign/decisionEngine.service'
+import type { DecisionResult } from '../../services/activeCampaign/decisionEngine.service'
 import type {
   ActiveCampaignEmptyInput,
   ActiveCampaignProductSyncInput,
@@ -355,19 +356,14 @@ export const getClarezaStudents: RequestHandler = async (_req, res) => {
  */
 export const evaluateClarezaRules: RequestHandler = async (_req, res) => {
   try {
-    console.log('🔄 Avaliando regras Clareza...')
-    res.json({
-      success: true,
-      message: 'Regras Clareza avaliadas com sucesso',
-      tagsApplied: 12,
-      tagsRemoved: 3
-    })
+    const preview = await previewCourseRules({ name: /^Clareza$/i })
+    res.json({ success: true, ...preview })
     return
   } catch (error: any) {
-    console.error('❌ Erro ao avaliar regras Clareza:', error)
+    console.error('❌ Erro ao pré-visualizar regras Clareza:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao avaliar regras'
+      error: error.message || 'Erro ao pré-visualizar regras'
     })
     return
   }
@@ -505,21 +501,70 @@ export const getOGIStudents: RequestHandler = async (_req, res) => {
  */
 export const evaluateOGIRules: RequestHandler = async (_req, res) => {
   try {
-    console.log('🔄 Avaliando regras OGI...')
-    res.json({
-      success: true,
-      message: 'Regras OGI avaliadas com sucesso',
-      tagsApplied: 8,
-      tagsRemoved: 2
-    })
+    const preview = await previewCourseRules({ code: /^OGI$/i })
+    res.json({ success: true, ...preview })
     return
   } catch (error: any) {
-    console.error('❌ Erro ao avaliar regras OGI:', error)
+    console.error('❌ Erro ao pré-visualizar regras OGI:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao avaliar regras'
+      error: error.message || 'Erro ao pré-visualizar regras'
     })
     return
+  }
+}
+
+type CourseLookup = {
+  name?: RegExp
+  code?: RegExp
+}
+
+type CourseRulesPreview = {
+  studentsEvaluated: number
+  proposedAdditions: number
+  proposedRemovals: number
+  errors: number
+}
+
+async function previewCourseRules(courseLookup: CourseLookup): Promise<CourseRulesPreview> {
+  const course = await Course.findOne(courseLookup)
+  if (!course) {
+    return {
+      studentsEvaluated: 0,
+      proposedAdditions: 0,
+      proposedRemovals: 0,
+      errors: 0
+    }
+  }
+
+  const products = await Product.find({
+    courseId: course._id,
+    isActive: true
+  }).select('_id')
+
+  const results: DecisionResult[] = []
+  for (const product of products) {
+    const productResults = await decisionEngine.evaluateAllUsersOfProduct(
+      product._id.toString(),
+      true
+    )
+    results.push(...productResults)
+  }
+
+  return {
+    studentsEvaluated: new Set(results.map(result => result.userId)).size,
+    proposedAdditions: results.reduce(
+      (total, result) => total + result.tagsToApply.length,
+      0
+    ),
+    proposedRemovals: results.reduce(
+      (total, result) => total + result.tagsToRemove.length,
+      0
+    ),
+    errors: results.reduce(
+      (total, result) => total + result.errors.length,
+      0
+    )
   }
 }
 
