@@ -3,6 +3,10 @@ import { weeklyTagMonitoringService } from '../../services/tagMonitoring'
 import { WeeklyNativeTagSnapshot, WeeklyTagMonitoringConfig } from '../../models/tagMonitoring'
 import logger from '../../utils/logger'
 
+type SnapshotEmailParams = {
+  email: string
+}
+
 /**
  * GET /api/tag-monitoring/snapshots
  * Lista snapshots recentes
@@ -39,7 +43,7 @@ export const getSnapshots = async (req: Request, res: Response) => {
  * GET /api/tag-monitoring/snapshots/user/:email
  * Histórico de snapshots de um aluno específico
  */
-export const getSnapshotsByEmail = async (req: Request, res: Response) => {
+export const getSnapshotsByEmail = async (req: Request<SnapshotEmailParams>, res: Response) => {
   try {
     const { email } = req.params
     const { limit } = req.query
