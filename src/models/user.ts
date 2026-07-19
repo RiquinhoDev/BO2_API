@@ -28,6 +28,7 @@ export interface IUser extends Document {
   // 🛒 DADOS DA HOTMART (apenas Hotmart pode alterar)
   hotmart?: {
     hotmartUserId: string
+    status?: 'ACTIVE' | 'INACTIVE'
     purchaseDate: Date
     signupDate: Date
     plusAccess: 'WITH_PLUS_ACCESS' | 'WITHOUT_PLUS_ACCESS'
@@ -370,6 +371,10 @@ const UserSchema: Schema = new Schema({
   // Dados da Hotmart
   hotmart: {
     hotmartUserId: { type: String },
+    status: {
+      type: String,
+      enum: ['ACTIVE', 'INACTIVE'],
+    },
     purchaseDate: Date,
     signupDate: Date,
     plusAccess: { 

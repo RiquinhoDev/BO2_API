@@ -3,6 +3,10 @@ import { Request, Response } from 'express'
 import guruSyncService from '../services/guru/guruSync.service'
 import User from '../models/user'
 
+type GuruSyncEmailParams = {
+  email: string
+}
+
 // ═══════════════════════════════════════════════════════════
 // SYNC COMPLETO
 // ═══════════════════════════════════════════════════════════
@@ -69,7 +73,7 @@ export const syncAllFromGuru = async (req: Request, res: Response) => {
  * Sincronizar um email específico (útil para debug ou sync individual)
  * GET /guru/sync/email/:email
  */
-export const syncEmailFromGuru = async (req: Request, res: Response) => {
+export const syncEmailFromGuru = async (req: Request<GuruSyncEmailParams>, res: Response) => {
   const { email } = req.params
 
   if (!email) {
@@ -289,7 +293,7 @@ export const listUsersWithGuru = async (req: Request, res: Response) => {
       // Info de cruzamento
       hasCurseduca: !!user.curseduca,
       hasHotmart: !!user.hotmart,
-      curseducaStatus: user.curseduca?.platformData?.situation,
+      curseducaStatus: user.curseduca?.situation,
       hotmartStatus: user.hotmart?.status
     }))
 
