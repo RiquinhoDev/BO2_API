@@ -337,6 +337,38 @@ Progresso moagem:
   escrevia/lia o campo fantasma `estado` ('ativo'/'inativo') — descartado pelo schema strict → status nunca persistia;
   agora `'combined.status'`/`'hotmart.status'` canónicos (classe recorrente de bug). TDD test. Baseline **1772→1700**. Gate verde.
 
+- [x] **universalSyncService (1700→1628)** — feito (`5a34d2a`). Tipos reais, 0 casts. Extraiu helper canónico
+  `buildCanonicalActiveUserStatusUpdate()` (só escreve campos do schema, nunca `status`/`estado` fantasmas) + teste.
+
+---
+
+## 🔎 CursEduca / UserProduct — desenho VALIDADO + o que está partido (revisor 2026-07-18)
+
+**Validado contra o código (o desenho do utilizador está correcto e funciona):**
+- **Inactivação é POR PRODUTO**, não por user ✅
+  - *Inativar turmas (Hotmart/OGI)* — `classes.controller:1409-1412` faz `UserProduct … { $set: { status: 'INACTIVE' } }` + actualiza agregados no User (`combined.status`, `hotmart.status`).
+  - *Guru → CursEduca* — `guru.inactivation.controller` opera sobre `UserProduct` (status **`PARA_INATIVAR`** como staging) e **já dedup­lica múltiplos UserProducts do mesmo membro** (mudança de plano mensal/anual, linha 81).
+- Logo o `UserProduct.status: 'ACTIVE'` hardcoded (`universalSyncService:2242`) está no caminho de **criação** e é um **default aceitável** — o dono do status são os fluxos de inactivação, não o sync. **Não é bug** (alarme do revisor retirado).
+- Assessment canónico correcto existe: `curseduca.memberStatus` derivado do `situation` (`universalSyncService:1558`).
+
+**O que ESTÁ partido — a cópia denormalizada `User.curseduca.enrolledClasses`:**
+1. `isActive` **hardcoded `true`** (linhas 1496 e 1527) — nunca reflecte o `situation`/status do produto.
+2. **Overwrite:** sem `allCurseducaGroups` (nunca produzido pelo adapter), cai no fallback que faz
+   `enrolledClasses = [umaTurma]` por item → num aluno com 2 matrículas fica **só a última processada (a mais antiga)**.
+3. O `classes.controller` lista alunos da turma **por essa cópia** (`$elemMatch: { curseducaId, isActive: true }`)
+   em vez do `UserProduct`, que é a fonte de verdade. → aluno aparece na turma errada e **falta** na certa.
+
+### ▶ FIX A (agora, contido e seguro) — corrigir a cópia
+- `isActive` **derivado** (reutilizar a lógica canónica da 1558: `situation` INACTIVE/SUSPENDED → inactivo), nos **dois** ramos (1496 e 1527). Nunca hardcoded.
+- Acabar com o overwrite: adapter emite **1 item por utilizador** com `allCurseducaGroups` = todas as matrículas (cada uma com o seu `situation`); o ramo já existente (1481-1512) escreve-as todas.
+- **Preservar** a detecção de duplicados do adapter (`isPrimary`/`isDuplicate`/`duplicateCount` + logs) ao colapsar N→1.
+- Testes: 1 matrícula (inalterado); 2 matrículas com só uma activa (**só a activa fica `isActive: true`**); duplicados continuam sinalizados.
+
+### ▶ FIX B (bloco estrutural seguinte) — eliminar a duplicação
+`classes.controller` passa a listar alunos da turma **pelo `UserProduct`** (`platform:'curseduca'`, `status:'ACTIVE'`,
+`classes.classId`) em vez da cópia; `enrolledClasses` deixa de ser fonte de verdade. É ARCH-02/03 na prática →
+**bloco próprio, com characterization tests** (comparar resultados antes/depois) por mexer numa listagem viva.
+
 Depois: cirurgia ARCH-01/02/03.
 
 ---
