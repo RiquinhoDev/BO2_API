@@ -314,7 +314,20 @@ TS2322 5 · TS2339 3 · **TS18048 (possibly undefined) 3** · TS7053/TS2783/TS23
   build 0. `eslint no-explicit-any` fica off (comentário actualizado, migração ratcheted separada). `tsconfig.jest.json`
   herda strict via extends (suites verdes). Committado pelo revisor (sandbox do Codex bateu num lock).
 
-Depois: `no-explicit-any` do ESLint (~1965, separado — explicit any, não é do tsc strict) e cirurgia ARCH-01/02/03.
+### ▶ PRÓXIMO: **moer `no-explicit-any`** — ratchet ligado (`9d5d0de`)
+Rule `@typescript-eslint/no-explicit-any` agora `error` + baseline de suppressions nativo. **Novo `any` falha o lint**
+(provado). Medido pelo revisor (2026-07-18): **1880 violações em 184 ficheiros** — controllers 808 · services 766 ·
+scripts 111 · models 60 · utils 50 · routes 41 · jobs 32 · types 10. Top: `users.controller` 108 · `classes` 72 ·
+`universalSyncService` 72 · `guruSync` 65 · `guru.inactivation`/`testimonials` 46 · `hotmart.controller` 43 · `clarezaFmpService` 42.
+
+**Moagem (blocos médio-grandes, maiores primeiro):** por ficheiro (os grandes 1 commit cada; agrupa 3-5 pequenos).
+Por commit: substitui `any` pelo **tipo real** (onde for genuinamente dinâmico, `unknown` + narrowing, **não** outro cast);
+`npm run lint:baseline:prune` (remove as suppressions já resolvidas); `npm run lint` verde; corpo com a queda
+(`no-explicit-any 1880→N`). Golden rule: substituir `any` pode **revelar bugs** (o tipo real expõe mismatches) — corrige
+ou pergunta. Alguns `any` são intratáveis (dados dinâmicos) → deixa suprimidos, o ratchet aceita residual. É grind longo
+(pode atravessar sessões); o **valor principal já está capturado** (não entram `any` novos).
+
+Depois: cirurgia ARCH-01/02/03.
 
 ---
 
