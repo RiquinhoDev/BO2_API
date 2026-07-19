@@ -3,6 +3,10 @@ import { criticalTagManagementService } from '../../services/tagMonitoring'
 import logger from '../../utils/logger'
 import type { TagMonitoringDeleteInput } from '../../security/tagMonitoringDestructiveInput'
 
+type CriticalTagParams = {
+  id: string
+}
+
 /**
  * GET /api/tag-monitoring/critical-tags
  * Lista todas as tags críticas
@@ -93,7 +97,7 @@ export const addCriticalTag = async (req: Request, res: Response) => {
  * DELETE /api/tag-monitoring/critical-tags/:id
  * Remove uma tag crítica (soft delete)
  */
-export const removeCriticalTag = async (req: Request, res: Response) => {
+export const removeCriticalTag = async (req: Request<CriticalTagParams>, res: Response) => {
   try {
     const { id } = req.params
 
@@ -174,7 +178,7 @@ export const deleteCriticalTag = async (
  * PATCH /api/tag-monitoring/critical-tags/:id/toggle
  * Alterna o estado ativo/inativo de uma tag crítica
  */
-export const toggleCriticalTag = async (req: Request, res: Response) => {
+export const toggleCriticalTag = async (req: Request<CriticalTagParams>, res: Response) => {
   try {
     const { id } = req.params
 
@@ -214,7 +218,7 @@ export const toggleCriticalTag = async (req: Request, res: Response) => {
  * PATCH /api/tag-monitoring/critical-tags/:id/priority
  * Atualiza a prioridade de uma tag crítica
  */
-export const updateCriticalTagPriority = async (req: Request, res: Response) => {
+export const updateCriticalTagPriority = async (req: Request<CriticalTagParams>, res: Response) => {
   try {
     const { id } = req.params
     const { priority } = req.body
