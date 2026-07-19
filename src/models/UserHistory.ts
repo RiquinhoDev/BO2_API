@@ -21,9 +21,17 @@ export interface IUserHistory {
   metadata?: any
 }
 
-export type UserHistoryModelType = Model<IUserHistory>
+export interface UserHistoryModelType extends Model<IUserHistory> {
+  createInactivationHistory(
+    userId: mongoose.Types.ObjectId,
+    userEmail: string,
+    platforms: string[],
+    reason: string,
+    changedBy: string,
+  ): Promise<IUserHistory>
+}
 
-const userHistorySchema = new Schema<IUserHistory>(
+const userHistorySchema = new Schema<IUserHistory, UserHistoryModelType>(
   {
     userId: { type: Schema.Types.ObjectId, required: true, ref: 'User', index: true },
     userEmail: { type: String, required: true, index: true },
@@ -64,10 +72,35 @@ userHistorySchema.index({ changeType: 1, changeDate: -1 })
 userHistorySchema.index({ platform: 1, timestamp: -1 })
 userHistorySchema.index({ userId: 1, platform: 1, timestamp: -1 })
 
+userHistorySchema.static(
+  'createInactivationHistory',
+  function createInactivationHistory(
+    userId: mongoose.Types.ObjectId,
+    userEmail: string,
+    platforms: string[],
+    reason: string,
+    changedBy: string,
+  ) {
+    return this.create({
+      userId,
+      userEmail,
+      changeType: 'INACTIVATION',
+      previousValue: { status: 'ACTIVE' },
+      newValue: { status: 'INACTIVE' },
+      platform: 'system',
+      action: 'update',
+      source: 'MANUAL',
+      changedBy,
+      reason,
+      metadata: { platforms },
+    })
+  },
+)
+
 // ✅ O ponto-chave: força o cast do model existente para o tipo certo
 const UserHistory: UserHistoryModelType =
   (mongoose.models.UserHistory as UserHistoryModelType) ??
-  model<IUserHistory>('UserHistory', userHistorySchema)
+  model<IUserHistory, UserHistoryModelType>('UserHistory', userHistorySchema)
 
 export default UserHistory
 
