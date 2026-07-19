@@ -1,13 +1,12 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 12
+    "controllers": 11
   },
   "dirtyFiles": [
     "src/controllers/guru.sync.controller.ts",
     "src/controllers/guru.webhook.controller.ts",
     "src/controllers/sync.controller.ts",
-    "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts",
     "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts",
     "src/controllers/testHistory.controller.ts",
     "src/controllers/users.controller.ts"
