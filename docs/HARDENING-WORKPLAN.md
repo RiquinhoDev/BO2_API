@@ -404,6 +404,15 @@ UserProduct.find({ platform:'curseduca', 'classes.classId': String(classId),
 - **Characterization tests obrigatórios:** semear dados (aluno com 1 matrícula; aluno com 2 onde só uma é activa;
   aluno inactivo) e provar que a lista devolvida é **igual ou mais correcta** que a antiga, incluindo sort e limite.
 - Só depois de verde é que `enrolledClasses` deixa de ser fonte de verdade (pode ficar como cache; remover é ARCH-03).
+- [x] **FIX B FEITO** (`db0d9c3`). Ramo `curseduca_sync` passa a `UserProduct.find({ platform:'curseduca',
+  'classes.classId', status })` → `.select('userId').lean()` → `User.find({_id:{$in:userIds}})` com o sort/limit
+  existentes (2 passos, como especificado). `includeInactive` filtra pelo **status da matrícula**. Revisor confirmou:
+  `platform` presente (sem colisão Hotmart), ramo Hotmart e `enrolledClasses` **intocados**, 3 characterization tests
+  (lista por UserProduct · filtra por status de cada matrícula · preserva sort/limite/envelope). Gate: lint 0, tsc 0,
+  jest 308/2, build 0.
+
+**Fica em fila:** *B2* — mesma limpeza no ramo **Hotmart** (usa `classId` top-level no User, outra cópia
+denormalizada). E, quando estabilizar, remover o `enrolledClasses` como fonte (ARCH-03).
 
 Depois: cirurgia ARCH-01/02/03.
 
