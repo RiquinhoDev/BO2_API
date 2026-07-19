@@ -295,10 +295,17 @@ fantasma, schema strict a descartar campos, métodos/exports inexistentes escond
 mentira do UI** transformada em preview real. Últimos 5: `90281fc`(webhook), `9036413`(migração morta),
 `ff42326`(bug16 subdomain), `c8e3b73`(bug17 engagement fora do schema), `ad4a312`(bug18 UserHistory sempre vazio).
 
-### ▶ PRÓXIMO (o revisor/utilizador valida — NÃO é moagem cega): **matar o falso-verde**
-Agora que o ratchet é 0, o passo que fecha o TOOL-01: remover o `tsc || exit 0` do build, activar `noEmitOnError:true`,
-e confirmar que o `prebuild`/ratchet continua a proteger. Depois: **`strict` em ondas** (o `no-explicit-any` do ESLint
-está desligado por ~1965 violações — reavaliar quando o strict entrar). Isto é decisão/validação conjunta, um commit próprio.
+### ✅ TOOL-01 FECHADO — falso-verde morto (`e625691`)
+`build` passou de `tsc || exit 0` → `tsc`; `noEmitOnError:false → true`. **Prova negativa:** build com erro TS
+injectado devolve **exit 1** (limpo exit 0). Gotcha resolvido: `noEmitOnError:true` quebrava o **ts-jest** (recusava
+emitir ficheiros de teste com folga de tipos, fora do ratchet) → criado `tsconfig.jest.json` (extends principal,
+`noEmitOnError:false`) só para o ts-jest; jest volta a 294/2, build fica estrito. **A dívida TS não pode voltar sem
+falhar o build.**
+
+### ▶ PRÓXIMO: **`strict` em ondas**
+`tsconfig strict:false` (linha 88). Activar as flags strict uma a uma (`noImplicitAny`, `strictNullChecks`, …) por
+ondas, cada uma com a sua moagem+ratchet, um commit por onda. O ESLint `no-explicit-any` está desligado por ~1965
+violações — reavaliar/ratchetar quando o `strict` entrar. Também pendente: cirurgia de arquitectura (ARCH-01/02/03).
 
 ---
 
