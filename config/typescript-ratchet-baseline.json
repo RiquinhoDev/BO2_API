@@ -1,11 +1,10 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 28
+    "controllers": 24
   },
   "dirtyFiles": [
     "src/controllers/acTags/acReader.controller.ts",
-    "src/controllers/guru.snapshot.controller.ts",
     "src/controllers/guru.sync.controller.ts",
     "src/controllers/guru.webhook.controller.ts",
     "src/controllers/lessons.controller.ts",
