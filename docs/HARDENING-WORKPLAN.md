@@ -411,8 +411,23 @@ UserProduct.find({ platform:'curseduca', 'classes.classId': String(classId),
   (lista por UserProduct · filtra por status de cada matrícula · preserva sort/limite/envelope). Gate: lint 0, tsc 0,
   jest 308/2, build 0.
 
-**Fica em fila:** *B2* — mesma limpeza no ramo **Hotmart** (usa `classId` top-level no User, outra cópia
-denormalizada). E, quando estabilizar, remover o `enrolledClasses` como fonte (ARCH-03).
+### ❌ B2 (Hotmart) — INVESTIGADO E DESCARTADO (revisor 2026-07-18). **Não fazer.**
+Trocar a listagem Hotmart para `UserProduct.classes` seria **regressão**, não limpeza:
+- `User.classId` (top-level) **é a turma actual e é activamente mantida** pelo sync (`universalSyncService:1279,
+  1305, 1410, 1672`) e pelo fluxo de movimento → a listagem actual (`classes.controller`, ramo `else`) **já lê a
+  fonte certa**, que reflecte a Hotmart (como o desenho pretende: 1 turma actual).
+- `UserProduct.classes` para Hotmart **acumula** turmas e **nunca** escreve `leftAt` (`universalSyncService:1989-2000`
+  faz append com `leftAt: null` e não fecha a anterior) → uma query por `classes.classId` devolveria alunos de
+  turmas **antigas**.
+- O histórico de movimentos vive no `StudentClassHistory` (colecção própria), não no `classes[]`.
+**Diferença-chave vs CursEduca:** lá havia uma cópia denormalizada a mentir; aqui a listagem já usa o campo correcto.
+
+**Dívida latente (não urgente):** `getCurrentClass()` (`UserProduct.ts:424`, `classes.find(c => !c.leftAt)`) e
+`isFullyLeft()` (429) são **dormentes** (0 usos fora do modelo) e dariam respostas **erradas** se usados, porque o
+`leftAt` nunca é escrito. Escolha futura: ou passar a fechar a matrícula anterior (`leftAt`) no movimento, ou
+**remover os métodos mortos** (regra #9). Não bloqueia nada hoje.
+
+**Fica em fila:** remover o `enrolledClasses` como fonte quando estabilizar (ARCH-03) · moagem `no-explicit-any` (1628).
 
 Depois: cirurgia ARCH-01/02/03.
 
