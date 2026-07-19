@@ -1,30 +1,12 @@
 [
   {
-    "method": "GET",
-    "path": "/api/ac/analytics/overview",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:24"
-  },
-  {
-    "method": "GET",
-    "path": "/api/ac/analytics/product/:code",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:25"
-  },
-  {
     "method": "DELETE",
     "path": "/api/ac/cache/clear",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:30"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:19"
   },
   {
     "method": "POST",
@@ -33,7 +15,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:18"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:14"
   },
   {
     "method": "GET",
@@ -42,7 +24,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/acReader.routes.ts:17"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/acReader.routes.ts:13"
   },
   {
     "method": "POST",
@@ -51,7 +33,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:21"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:17"
   },
   {
     "method": "POST",
@@ -60,25 +42,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:20"
-  },
-  {
-    "method": "GET",
-    "path": "/api/ac/inconsistencies",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:26"
-  },
-  {
-    "method": "POST",
-    "path": "/api/ac/maintenance/refresh-old",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:29"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:16"
   },
   {
     "method": "GET",
