@@ -11,6 +11,10 @@ import contactTagReaderService, {
   SyncResult
 } from '../../services/activeCampaign/contactTagReader.service'
 
+type ContactEmailParams = {
+  email: string
+}
+
 // ─────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────
@@ -102,7 +106,7 @@ const syncByEmail = async (
  * GET /api/ac/contact/:email/tags
  * Buscar todas as tags de um contacto
  */
-export const getContactTags: RequestHandler = async (req, res) => {
+export const getContactTags: RequestHandler<ContactEmailParams> = async (req, res) => {
   try {
     const { email } = req.params
     const forceRefresh = isTruthyQuery(req.query.forceRefresh)
@@ -155,7 +159,7 @@ export const getContactTags: RequestHandler = async (req, res) => {
  * POST /api/ac/contact/:email/sync
  * Sincronizar tags AC → BO para um contacto (por email)
  */
-export const syncContactTags: RequestHandler = async (req, res) => {
+export const syncContactTags: RequestHandler<ContactEmailParams> = async (req, res) => {
   try {
     const { email } = req.params
 
