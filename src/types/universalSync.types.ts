@@ -120,9 +120,11 @@ export interface UniversalSourceItem {
     enrolledAt?: Date | string | null
     expiresAt?: Date | string | null
     role?: 'student' | 'assistant' | 'teacher'
+    situation?: string
   }>
   subscriptionType?: 'MONTHLY' | 'ANNUAL'
   enrolledAt?: Date | string | null
+  expiresAt?: Date | string | null
   joinedDate?: Date | string | null
   lastLogin?: string | Date         // ✅ Último login real
   lastAccess?: string | Date        // ✅ Última atividade
