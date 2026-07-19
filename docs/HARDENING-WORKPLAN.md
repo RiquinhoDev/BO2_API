@@ -360,8 +360,13 @@ Progresso moagem:
 
 ### ▶ FIX A (agora, contido e seguro) — corrigir a cópia
 - `isActive` **derivado** (reutilizar a lógica canónica da 1558: `situation` INACTIVE/SUSPENDED → inactivo), nos **dois** ramos (1496 e 1527). Nunca hardcoded.
-- Acabar com o overwrite: adapter emite **1 item por utilizador** com `allCurseducaGroups` = todas as matrículas (cada uma com o seu `situation`); o ramo já existente (1481-1512) escreve-as todas.
-- **Preservar** a detecção de duplicados do adapter (`isPrimary`/`isDuplicate`/`duplicateCount` + logs) ao colapsar N→1.
+- ⚠️ **CORRECÇÃO à spec inicial do revisor (Codex apanhou, 2026-07-18):** colapsar N→1 itens **partiria o sync dos
+  UserProducts** — o serviço processa **1 item de cada vez** (`universalSyncService:461-462`) e faz **um upsert de
+  UserProduct por item** (2116/2299). Com 1 item só, as matrículas secundárias deixavam de ser sincronizadas.
+- **Variante correcta (aprovada):** manter os **N itens** e anexar a **cada um** o mesmo `allCurseducaGroups`
+  agregado por utilizador. Assim: todos os UserProducts continuam sincronizados; cada item escreve a **mesma lista
+  completa** em `enrolledClasses` → o overwrite torna-se **idempotente** (a ordem deixa de importar);
+  `isPrimary`/`isDuplicate`/`duplicateCount`/logs mantêm-se intactos (continuam a existir N itens).
 - Testes: 1 matrícula (inalterado); 2 matrículas com só uma activa (**só a activa fica `isActive: true`**); duplicados continuam sinalizados.
 
 ### ▶ FIX B (bloco estrutural seguinte) — eliminar a duplicação
