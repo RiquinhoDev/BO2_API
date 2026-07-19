@@ -127,6 +127,11 @@ export interface IUserProduct extends Document {
     refundedAt?: Date
     notes?: string
     platform?: string
+    markedForInactivationAt?: Date
+    markedForInactivationReason?: string
+    inactivatedAt?: Date
+    inactivatedBy?: string
+    inactivatedReason?: string
   }
 
   platformData?: Record<string, unknown>
@@ -363,7 +368,12 @@ const UserProductSchema = new Schema<IUserProduct>({
     },
     refundedAt: Date,
     notes: String,
-    platform: String
+    platform: String,
+    markedForInactivationAt: Date,
+    markedForInactivationReason: String,
+    inactivatedAt: Date,
+    inactivatedBy: String,
+    inactivatedReason: String
   },
 
   platformData: Schema.Types.Mixed
