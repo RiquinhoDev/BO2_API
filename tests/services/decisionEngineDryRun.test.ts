@@ -1,4 +1,5 @@
 const mockFindUserProduct = jest.fn()
+const mockFindUserProducts = jest.fn()
 const mockUpdateUserProduct = jest.fn()
 const mockFindProduct = jest.fn()
 const mockFindUser = jest.fn()
@@ -12,6 +13,7 @@ jest.mock('../../src/models/UserProduct', () => ({
   __esModule: true,
   default: {
     findOne: mockFindUserProduct,
+    find: mockFindUserProducts,
     findByIdAndUpdate: mockUpdateUserProduct,
   },
 }))
@@ -147,4 +149,38 @@ describe('DecisionEngine dry-run', () => {
     expect(mockRemoveTag).not.toHaveBeenCalled()
     expect(mockUpdateUserProduct).not.toHaveBeenCalled()
   })
+
+  it('previews only active UserProducts for one product', async () => {
+    mockFindUserProducts.mockResolvedValue([
+      { userId: { toString: () => 'student-1' } },
+    ])
+    const evaluation = resultForProduct()
+    const evaluateSpy = jest
+      .spyOn(decisionEngine, 'evaluateUserProduct')
+      .mockResolvedValue(evaluation)
+
+    await decisionEngine.evaluateAllUsersOfProduct('product-1', true)
+
+    expect(mockFindUserProducts).toHaveBeenCalledWith({
+      productId: 'product-1',
+      status: 'ACTIVE',
+    })
+    expect(evaluateSpy).toHaveBeenCalledWith('student-1', 'product-1', true)
+  })
 })
+
+function resultForProduct(): DecisionResult {
+  return {
+    userId: 'student-1',
+    productId: 'product-1',
+    productCode: 'OGI_V1',
+    currentLevel: 0,
+    appropriateLevel: 1,
+    inCooldown: false,
+    decisions: [],
+    tagsToApply: ['OGI_LEVEL_1'],
+    tagsToRemove: [],
+    actionsExecuted: 0,
+    errors: [],
+  }
+}
