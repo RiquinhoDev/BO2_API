@@ -415,8 +415,12 @@ Revisor mapeou (corrigindo scope inicial): **4** endpoints AC de leitura chamam 
 - `POST /api/ac/maintenance/refresh-old` (`refreshOldSyncs`) — `findOldSyncs`
 Decisão: **apagar os 4** (rotas + handlers + os `as any`). O **lado de escrita** (`getContactTags`, `syncContactTags`,
 `getBatchContactTags`, `batchSyncContacts`, `clearACCache`) e o model `ACContactState` ficam **intactos**. Se um dia
-precisar de analytics de contact-state, reconstroi-se com statics reais. **Reviewer regenera catálogo/manifest/contrato**
-(4 rotas saem, 448→444).
+precisar de analytics de contact-state, reconstroi-se com statics reais.
+- [x] FEITO (`9ccb446` back / `0942cd9` front contrato). Codex removeu os 4 (validado: só os 4, escrita+model
+  intactos); revisor regenerou catálogo/manifest (448→444), reapontou evidências das 5 rotas AC sobreviventes
+  (line-shift), ajustou contagens (routeCatalog 448→444; defaultDenyAuth 448→444, authenticated 443→439),
+  regenerou contrato Front (444, transportContract 10/10). **Committado verde de uma vez** (regen antes do commit,
+  sem intermédio vermelho). Ratchet **23/12**.
 
 ### controllers (24) — 1 commit por FICHEIRO (regra #9 + golden rule)
 > **Não** 1 erro/commit. Agrupa **por ficheiro** — os erros de um controller partilham contexto (mesmos models,
