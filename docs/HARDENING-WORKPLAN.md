@@ -41,8 +41,12 @@
     só o curso); `executeDecisions()` **escreve** tags reais; esse caminho **não respeita `AC_TAG_APPLY_ENABLED`**;
     e a resposta não tem o contrato do Front (`tagsApplied`) → o Front mostraria `0` apesar de ter alterado.
   - **Handoff (par Front+Back):** ver bloco abaixo. Reviewer regenera catálogo se as rotas mudarem.
-- Nota: os **dois** `cronManagement.controller.ts` (`cron/` e `syncUtilizadoresControllers/`) **não** são
-  duplicados — servem famílias diferentes (`/cron-tags` vs `/cron`); só o nome colide. Não apagar.
+- **CORREÇÃO** (regra #9, Codex+revisor 2026-07-18): os dois `cronManagement.controller.ts` servem famílias
+  diferentes (o `cron/` monta config/execute/history/getJobHistory; o `syncUtilizadoresControllers/` monta o CRUD
+  de jobs em `/cron`), MAS o `cron/cronManagement.controller.ts` tem **7 métodos de CRUD MORTOS** — `getAllJobs`,
+  `getJobById`, `createJob`, `updateJob`, `deleteJob`, `toggleJob`, `triggerJob` — cópia da família viva (revisor
+  confirmou: só definidos, não montados, refs internas são a **serviços** homónimos, não ao controller). **Apagar
+  os 7** + tipar o `:id` de `getJobHistory` (esse é vivo, montado). Esperado: controllers **88→77**. Aprovado.
 - **`ts-prune` correu (revisor):** 147 candidatos brutos, mas **muito ruído** (barrel re-exports em `models/index.ts`
   incl. `IdsDiferentes`/`UnmatchedUser` que **são vivos**; tipos; `default` de jobs/serviços; handlers via `import * as`).
   Guardado em `scratchpad/ts-prune-candidates.txt`. **Não apagar às cegas** — precisa triagem por-item (grep a confirmar).
