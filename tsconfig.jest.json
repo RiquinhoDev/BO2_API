@@ -1,0 +1,10 @@
+{
+  // ts-jest transforma cada ficheiro de teste em memória. O build (tsc, tsconfig.json)
+  // usa noEmitOnError:true — mas os ficheiros em tests/ têm folga de tipos que não está
+  // no ratchet, e noEmitOnError:true faria o ts-jest recusar emiti-los. Este override
+  // mantém o ts-jest tolerante sem afrouxar o build.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmitOnError": false
+  }
+}
