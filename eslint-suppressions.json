@@ -234,7 +234,7 @@
       "count": 5
     },
     "no-console": {
-      "count": 25
+      "count": 11
     }
   },
   "src/controllers/syncUtilizadoresControllers/cronManagement.controller.ts": {
