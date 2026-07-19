@@ -1,7 +1,7 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 53
+    "controllers": 46
   },
   "dirtyFiles": [
     "src/controllers/acTags/acReader.controller.ts",
@@ -20,7 +20,6 @@
     "src/controllers/tagMonitoring/tagMonitoring.controller.ts",
     "src/controllers/tagMonitoring/tagNotification.controller.ts",
     "src/controllers/testHistory.controller.ts",
-    "src/controllers/testimonials.controller.ts",
     "src/controllers/users.controller.ts"
   ]
 }
