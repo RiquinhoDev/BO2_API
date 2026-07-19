@@ -302,10 +302,19 @@ emitir ficheiros de teste com folga de tipos, fora do ratchet) → criado `tscon
 `noEmitOnError:false`) só para o ts-jest; jest volta a 294/2, build fica estrito. **A dívida TS não pode voltar sem
 falhar o build.**
 
-### ▶ PRÓXIMO: **`strict` em ondas**
-`tsconfig strict:false` (linha 88). Activar as flags strict uma a uma (`noImplicitAny`, `strictNullChecks`, …) por
-ondas, cada uma com a sua moagem+ratchet, um commit por onda. O ESLint `no-explicit-any` está desligado por ~1965
-violações — reavaliar/ratchetar quando o `strict` entrar. Também pendente: cirurgia de arquitectura (ARCH-01/02/03).
+### ▶ PRÓXIMO: **activar `strict` — 1 bloco de 22 erros** (medido pelo revisor 2026-07-18)
+Surpresa boa: o `strict:true` completo dá **só 22 erros** (com `strictNullChecks` a inferência resolve muitos
+`noImplicitAny`; por isso o total é < que as flags isoladas). As 5 flags sem custo (`strictFunctionTypes`,
+`strictBindCallApply`, `noImplicitThis`, `useUnknownInCatchVariables`, `alwaysStrict`) = **0 erros**, vêm de borla.
+Distribuição dos 22: **controllers 10 · services 9 · models 2 · security 1**. Códigos: TS7006 (param implicit any) 7 ·
+TS2322 5 · TS2339 3 · **TS18048 (possibly undefined) 3** · TS7053/TS2783/TS2352/TS2345 (1 cada).
+
+**Plano — 1 commit (o flip é atómico, não dá build verde a meio):** flip `strict:false → true`, fixar os 22, gate
+verde. Golden rule: os TS18048 (`possibly undefined`) e TS2339 podem **revelar bugs reais** (null-deref latente) —
+corrige a raiz com guard/tipo, **nunca `!` ou `as`**. Se algum for decisão, pára e pergunta.
+Nota: `tsconfig.jest.json` extends o principal → herda `strict:true` automaticamente (ts-jest fica strict também;
+se as suites reclamarem de folga nos testes, adiciona lá um override pontual, não afrouxes o build).
+Depois: `no-explicit-any` do ESLint (~1965, separado — explicit any, não é do tsc strict) e cirurgia ARCH-01/02/03.
 
 ---
 
