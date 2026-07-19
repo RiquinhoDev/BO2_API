@@ -333,6 +333,10 @@ Progresso moagem:
   (clearUsersCache/warmupUsersCache/createUser — sem refs, sem rota, 0 impacto catálogo). Bugs corrigidos (student
   stats/Discord IDs/engagement) com teste. Baseline **1880→1772**. Gate verde.
 
+- [x] **classes.controller (72→0)** — feito (`aff32fe`). `any`→tipos reais, 0 casts. **Bug real:** activação/inactivação
+  escrevia/lia o campo fantasma `estado` ('ativo'/'inativo') — descartado pelo schema strict → status nunca persistia;
+  agora `'combined.status'`/`'hotmart.status'` canónicos (classe recorrente de bug). TDD test. Baseline **1772→1700**. Gate verde.
+
 Depois: cirurgia ARCH-01/02/03.
 
 ---
