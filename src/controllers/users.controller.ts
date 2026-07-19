@@ -5,6 +5,7 @@ import IdsDiferentes from "../models/IdsDiferentes"
 import UnmatchedUser from "../models/UnmatchedUser"
 import mongoose from "mongoose"
 import SyncHistory from "../models/SyncHistory"
+import UserHistory from "../models/UserHistory"
 
 import StudentClassHistory from "../models/StudentClassHistory"
 import { Class } from "../models/Class"
@@ -29,6 +30,7 @@ export {
 
 
 type PipelineStage = mongoose.PipelineStage
+type UserIdParams = { id: string }
 interface SyncHistoryResult {
   completedAt: Date
 }
@@ -1431,7 +1433,7 @@ export const getUserStats = async (req: Request, res: Response): Promise<void> =
  * PUT /api/users/:id
  * Editar aluno (mantido)
  */
-export const editStudent = async (req: Request, res: Response): Promise<void> => {
+export const editStudent = async (req: Request<UserIdParams>, res: Response): Promise<void> => {
   const { id } = req.params
   const updateData = req.body
 
@@ -1527,7 +1529,7 @@ const stats = {
 
 
 // 📋 HISTÓRICO DO ALUNO - CORRIGIDO PARA NOVA ESTRUTURA
-export const getStudentHistory = async (req: Request, res: Response): Promise<void> => {
+export const getStudentHistory = async (req: Request<UserIdParams>, res: Response): Promise<void> => {
   const { id } = req.params
   const limit = parseInt(req.query.limit as string) || 50
 
@@ -1538,18 +1540,17 @@ export const getStudentHistory = async (req: Request, res: Response): Promise<vo
       return
     }
 
-    // Type assertion para aceder às propriedades
-    const s = student as any;
+    const legacyDiscordIds: unknown = student.get("discordIds")
+    const legacyHotmartUserId: unknown = student.get("hotmartUserId")
+    const legacyCurseducaUserId: unknown = student.get("curseducaUserId")
 
     // ✅ BUSCAR HISTÓRICO USANDO EMAIL E ID (nova estrutura)
     let userHistory: any[] = []
     try {
-      const UserHistory = require('../models/UserHistory').UserHistory
-      
       userHistory = await UserHistory.find({
         $or: [
           { userId: new mongoose.Types.ObjectId(id) },
-          { userEmail: s.email }
+          { userEmail: student.email }
         ]
       })
       .sort({ changeDate: -1 })
@@ -1557,7 +1558,7 @@ export const getStudentHistory = async (req: Request, res: Response): Promise<vo
       .populate('syncId', 'startTime endTime status totalUsers source')
       .lean()
     } catch (userHistoryError) {
-      console.warn('⚠️ UserHistory model não encontrado, continuando sem histórico de utilizador...')
+      console.warn('⚠️ Erro ao buscar histórico do utilizador:', userHistoryError)
     }
 
     // ✅ BUSCAR HISTÓRICO DE MUDANÇAS DE TURMA
@@ -1578,8 +1579,8 @@ export const getStudentHistory = async (req: Request, res: Response): Promise<vo
     try {
       syncHistory = await SyncHistory.find({
         $or: [
-          { "metadata.affectedEmails": s.email },
-          { user: s.email }
+          { "metadata.affectedEmails": student.email },
+          { user: student.email }
         ]
       })
       .sort({ startedAt: -1 })
@@ -1626,13 +1627,22 @@ export const getStudentHistory = async (req: Request, res: Response): Promise<vo
     res.status(200).json({
       student: {
         id: student._id,
-        email: s.email,
-        name: s.name,
+        email: student.email,
+        name: student.name,
         // ✅ INCLUIR DADOS DAS PLATAFORMAS
         platforms: {
-          discord: !!(s.discord?.discordIds?.length || s.discordIds?.length),
-          hotmart: !!(s.hotmart?.hotmartUserId || s.hotmartUserId),
-          curseduca: !!(s.curseduca?.curseducaUserId || s.curseducaUserId)
+          discord: !!(
+            student.discord?.discordIds?.length ||
+            (Array.isArray(legacyDiscordIds) && legacyDiscordIds.length)
+          ),
+          hotmart: !!(
+            student.hotmart?.hotmartUserId ||
+            (typeof legacyHotmartUserId === "string" && legacyHotmartUserId)
+          ),
+          curseduca: !!(
+            student.curseduca?.curseducaUserId ||
+            (typeof legacyCurseducaUserId === "string" && legacyCurseducaUserId)
+          )
         }
       },
       history: combinedHistory,
@@ -3194,7 +3204,7 @@ export const getUsers: RequestHandler = async (req, res) => {
  * ✅ NOVO: Busca user com todos os UserProducts
  */
 
-export const getUserById: RequestHandler = async (req, res) => {
+export const getUserById: RequestHandler<UserIdParams> = async (req, res) => {
   try {
     const { id } = req.params
 
