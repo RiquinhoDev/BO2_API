@@ -11,6 +11,14 @@ import StudentClassHistory from '../models/StudentClassHistory'
 import { User, UserProduct } from '../models'
 import UserHistory from '../models/UserHistory'
 
+type ClassIdParams = {
+  classId: string
+}
+
+type StudentEmailParams = {
+  email: string
+}
+
 // Headers autenticados para delegar à API antiga.
 // Desde o commit 87e3457 ("security: proteger rotas admin"), a rota
 // /classes/inactivationLists/create da API antiga exige authenticateAdmin.
@@ -762,7 +770,10 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
     }
   }
 
-  getClassDetails = async (req: Request, res: Response): Promise<void> => {
+  getClassDetails = async (
+    req: Request<ClassIdParams>,
+    res: Response,
+  ): Promise<void> => {
     try {
       const { classId } = req.params
       const { includeStudents = 'false', includeHistory = 'false' } = req.query
@@ -870,7 +881,10 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
   // ===== HISTÓRICO =====
 
   // ✅ NOVO: Endpoint completo de histórico da turma
-  getClassCompleteHistory = async (req: Request, res: Response): Promise<void> => {
+  getClassCompleteHistory = async (
+    req: Request<ClassIdParams>,
+    res: Response,
+  ): Promise<void> => {
     try {
       const { classId } = req.params
       const { limit = 50, offset = 0, type } = req.query
@@ -1163,7 +1177,10 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
   }
 
   // ✅ CORRIGIDO: Implementação direta sem historyService
-  getStudentHistoryByEmail = async (req: Request, res: Response): Promise<void> => {
+  getStudentHistoryByEmail = async (
+    req: Request<StudentEmailParams>,
+    res: Response,
+  ): Promise<void> => {
     try {
       const { email } = req.params
       const { limit = 50, offset = 0 } = req.query
@@ -1297,7 +1314,7 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
             // 3.2. Registrar no histórico
             try {
-              await (UserHistory as any).createInactivationHistory(
+              await UserHistory.createInactivationHistory(
                 student._id,
                 student.email || 'Email desconhecido',
                 platforms,
@@ -1742,7 +1759,10 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
   // ===== ESTUDANTES POR TURMA =====
 
-  getStudentsByClass = async (req: Request, res: Response): Promise<void> => {
+  getStudentsByClass = async (
+    req: Request<ClassIdParams>,
+    res: Response,
+  ): Promise<void> => {
     try {
       const { classId } = req.params
       const { 
@@ -2316,8 +2336,7 @@ export const bulkInactivateStudents = async (req: Request, res: Response) => {
     
     for (const student of students) {
       try {
-        const { UserHistory } = await import('../models/UserHistory')
-        await (UserHistory as any).createInactivationHistory(
+        await UserHistory.createInactivationHistory(
           student._id,
           student.email || 'Email desconhecido',
           platforms || ['all'],
