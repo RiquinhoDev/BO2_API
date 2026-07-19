@@ -422,7 +422,9 @@ precisar de analytics de contact-state, reconstroi-se com statics reais.
   regenerou contrato Front (444, transportContract 10/10). **Committado verde de uma vez** (regen antes do commit,
   sem intermédio vermelho). Ratchet **23/12**.
 
-### controllers (24) — 1 commit por FICHEIRO (regra #9 + golden rule)
+### controllers 23→8 (7 commits `57091bd`..`53694b5`): acReader, criticalTag, lessons, tagMonitoring, guru.sync tipados; syncReports (getReportById re-tipado + `getReportsByJob` morto removido), CursEduca (`syncCurseducaByEmail` morto removido — era candidato ts-prune, apanhado pela regra #9). **Bug 15:** `hotmart.status` escrito pelos syncs mas não no schema strict → descartado; adicionado ao `user.ts` + `curseducaStatus` lê `curseduca.situation` canónico. Teste RED/GREEN. **0 casts novos, 2 velhos removidos.** Ratchet 8/5. Restam: guru.webhook 1 · sync 1 · hotmart 1 · testHistory 2 · users 3.
+
+### controllers (8) — reta final, 1 commit por FICHEIRO (regra #9 + golden rule)
 > **Não** 1 erro/commit. Agrupa **por ficheiro** — os erros de um controller partilham contexto (mesmos models,
 > req/res) e formam um assunto coerente e revisível. Ordem sugerida: maiores primeiro.
 
