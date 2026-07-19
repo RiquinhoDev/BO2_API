@@ -2,6 +2,7 @@
 import { Request, Response } from 'express'
 import { analyticsService } from '../services/analytics/analyticsService'
 import User from '../models/user'
+import { Class } from '../models/Class'
 import { calculateCombinedEngagement } from '../utils/engagementCalculator'
 import { getEngagementStatsByPlatform } from '../services/syncUtilizadoresServices/engagement/engagementService'
 
@@ -39,6 +40,19 @@ interface ComparisonErr {
 }
 // Tipo Priority já definido no início do arquivo
 type Priority = 'high' | 'medium' | 'low' | 'info'
+type EngagementLevelKey = 'muito_alto' | 'alto' | 'medio' | 'baixo' | 'muito_baixo'
+
+const ENGAGEMENT_LEVELS = new Set<string>([
+  'muito_alto',
+  'alto',
+  'medio',
+  'baixo',
+  'muito_baixo',
+])
+
+function isEngagementLevel(value: string): value is EngagementLevelKey {
+  return ENGAGEMENT_LEVELS.has(value)
+}
 
 // Interface local com tipo específico
 interface OpportunityItem {
@@ -405,10 +419,6 @@ export const recalculateIndividualScores = async (req: Request, res: Response): 
     
     console.log(`🔄 [CONTROLLER] Recalculando scores individuais para turma: ${classId}`)
 
-    // Importar aqui para evitar dependência circular
-    const User = require('../models/user').default
-    const { calculateCombinedEngagement } = require('../utils/engagementCalculator')
-
     // Buscar alunos da turma
     const students = await User.find({ 
       classId: classId,
@@ -431,28 +441,35 @@ export const recalculateIndividualScores = async (req: Request, res: Response): 
       console.log(`📊 Recalculando para aluno: ${student.name || student.email}`)
       
       try {
+        const existingLevel = student.combined?.engagement?.level
+          ?? student.hotmart?.engagement?.engagementLevel
+          ?? student.curseduca?.engagement?.engagementLevel
+
         // Calcular novo engagement score
         const engagementResult = calculateCombinedEngagement({
-          engagement: student.engagement,
-          accessCount: student.accessCount,
-          progress: student.progress
+          engagement: existingLevel,
+          accessCount: student.hotmart?.engagement?.accessCount,
+          progress: {
+            completedPercentage: student.combined?.totalProgress ?? 0,
+          },
         })
         
         // Atualizar na base de dados
         await User.findByIdAndUpdate(student._id, {
-          engagementScore: engagementResult.score,
-          engagementLevel: engagementResult.level,
-          engagementCalculatedAt: new Date(),
-          lastScoreUpdate: new Date()
+          'combined.combinedEngagement': engagementResult.score,
+          'combined.engagement.score': engagementResult.score,
+          'combined.engagement.level': engagementResult.level,
+          'combined.calculatedAt': new Date(),
+          'metadata.updatedAt': new Date(),
         })
         
         updated++
         results.push({
           studentId: student._id,
           name: student.name || student.email,
-          oldScore: student.engagementScore || 0,
+          oldScore: student.combined?.combinedEngagement || 0,
           newScore: engagementResult.score,
-          oldLevel: student.engagementLevel || 'baixo',
+          oldLevel: existingLevel || 'BAIXO',
           newLevel: engagementResult.level
         })
         
@@ -519,8 +536,6 @@ export const getGlobalAnalytics = async (req: Request, res: Response): Promise<v
     }
     
     // Importar modelos
-    const User = require('../models/user').default
-    const { Class } = require('../models/Class')
     
     // Buscar todas as turmas ativas
     const activeClasses = await Class.find({ 
@@ -560,7 +575,7 @@ export const getGlobalAnalytics = async (req: Request, res: Response): Promise<v
     })
     
     // Distribuição de engagement global - VERSÃO CORRIGIDA
-    const engagementDistribution = await User.aggregate([
+    const engagementDistribution = await User.aggregate<{ _id: string; count: number }>([
       {
         $match: {
           classId: { $in: classIds },
@@ -593,7 +608,7 @@ export const getGlobalAnalytics = async (req: Request, res: Response): Promise<v
     ])
     
     // ✅ CORREÇÃO APLICADA: Converter para formato esperado
-    const distribution = {
+    const distribution: Record<EngagementLevelKey, number> = {
       muito_alto: 0,
       alto: 0,
       medio: 0,
@@ -603,12 +618,8 @@ export const getGlobalAnalytics = async (req: Request, res: Response): Promise<v
     
     // ✅ VERSÃO CORRIGIDA DO FOREACH:
     engagementDistribution.forEach(item => {
-      const validLevels: (keyof typeof distribution)[] = [
-        'muito_alto', 'alto', 'medio', 'baixo', 'muito_baixo'
-      ]
-      
-      if (validLevels.includes(item._id)) {
-        distribution[item._id as keyof typeof distribution] = item.count
+      if (isEngagementLevel(item._id)) {
+        distribution[item._id] = item.count
       }
     })
     
@@ -1066,8 +1077,6 @@ export const getBenchmarks = async (req: Request, res: Response): Promise<void> 
     console.log(`📈 [CONTROLLER] Calculando benchmarks da indústria`)
     
     // Importar modelos
-    const User = require('../models/user').default
-    const { Class } = require('../models/Class')
     
     const startTime = Date.now()
     

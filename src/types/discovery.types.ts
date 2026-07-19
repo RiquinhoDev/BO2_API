@@ -31,6 +31,18 @@ export type ProductCategory =
   | 'educacao' 
   | 'outros';
 
+export interface ReengagementTemplate {
+  durationDays: number;
+  levels: Array<{
+    level: number;
+    daysInactive: number;
+    name: string;
+    tone: string;
+    cooldownDays: number;
+  }>;
+  actions: string[];
+}
+
 // Resultado do discovery
 export interface DiscoveryResult {
   hotmartProducts: DiscoveredProduct[];
@@ -92,7 +104,9 @@ export const CATEGORY_PATTERNS = {
 };
 
 // Templates de reengajamento por categoria
-export const REENGAGEMENT_TEMPLATES = {
+export const REENGAGEMENT_TEMPLATES: Partial<
+  Record<ProductCategory, ReengagementTemplate>
+> & { default: ReengagementTemplate } = {
   biblioteca: {
     durationDays: 365,
     levels: [
@@ -129,4 +143,3 @@ export const REENGAGEMENT_TEMPLATES = {
 export function validateConfigurationData(config: any): config is ProductConfigurationData {
   return config?.productData?.code && config?.profileData?.name;
 }
-

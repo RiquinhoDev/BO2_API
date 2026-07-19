@@ -503,8 +503,8 @@ export const createHistoricalSnapshots = async (req: Request, res: Response) => 
     // NOTA: A API Guru retorna campos no nível raiz (started_at, cancelled_at)
     // e podem ser Unix timestamps (números) ou ISO strings
     let earliestDate: Date | null = null
-    allSubs.forEach((sub: any) => {
-      const startedAtValue = sub.started_at || sub.dates?.started_at
+    for (const sub of allSubs) {
+      const startedAtValue = sub.started_at ?? sub.dates?.started_at
       if (startedAtValue) {
         // Converter: se for número, é Unix timestamp (segundos)
         const started = typeof startedAtValue === 'number'
@@ -514,7 +514,7 @@ export const createHistoricalSnapshots = async (req: Request, res: Response) => 
           earliestDate = started
         }
       }
-    })
+    }
 
     if (!earliestDate) {
       return res.status(400).json({

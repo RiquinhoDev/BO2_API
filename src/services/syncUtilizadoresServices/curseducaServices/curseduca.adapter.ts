@@ -67,6 +67,15 @@ function normalizeEmail(value: unknown): string {
   return value.trim().toLowerCase()
 }
 
+interface CursEducaRosterMember {
+  id: number
+  uuid: string
+  name: string
+  email: string
+  enteredAt?: string
+  expiresAt?: string | null
+}
+
 
 // ═══════════════════════════════════════════════════════════
 // HELPER: DEDUPLICAÇÃO INTELIGENTE
@@ -131,7 +140,7 @@ function deduplicateMembers(
 // HELPER: DETECTAR TIPO DE SUBSCRIÇÃO
 // ═══════════════════════════════════════════════════════════
 
-function detectSubscriptionType(groupName: string): 'MONTHLY' | 'ANNUAL' | undefined {
+function detectSubscriptionType(groupName: string): 'MONTHLY' | 'ANNUAL' {
   const nameLower = groupName.toLowerCase()
   
   if (nameLower.includes('mensal') || nameLower.includes('monthly')) {
@@ -142,7 +151,7 @@ function detectSubscriptionType(groupName: string): 'MONTHLY' | 'ANNUAL' | undef
     return 'ANNUAL'
   }
   
-  return undefined
+  return 'MONTHLY'
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -843,7 +852,7 @@ export const fetchCurseducaDataForSync = async (
         })
 
         const membersByEmail = new Set<string>()
-        const unifiedMembersList = allGroupMembers.map(gm => {
+        const unifiedMembersList = allGroupMembers.map((gm: CursEducaRosterMember) => {
           const emailKey = normalizeEmail(gm.email)
           if (emailKey) membersByEmail.add(emailKey)
 
@@ -930,7 +939,9 @@ export const fetchCurseducaDataForSync = async (
 
           // Sem chamadas 1-a-1 -> sem 504s, sem espera por lotes.
           // Roster autoritativo deste grupo (para a regra de pertença).
-          const rosterIds = new Set<number>(allGroupMembers.map((gm: any) => gm.id))
+          const rosterIds = new Set<number>(
+            allGroupMembers.map((gm: CursEducaRosterMember) => gm.id)
+          )
 
           let enrichedCount = 0
           let skippedOtherGroup = 0

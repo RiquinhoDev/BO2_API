@@ -1,11 +1,11 @@
-import express from 'express'
+import express, { type NextFunction, type Request, type Response } from 'express'
 import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
 
 const mockControllerHandler = jest.fn((_input, res) => res.status(204).end())
 
 jest.mock('../../src/middleware/auth.middleware', () => ({
-  authenticate: (_req, _res, next) => next(),
+  authenticate: (_req: Request, _res: Response, next: NextFunction) => next(),
 }))
 
 jest.mock('../../src/controllers/tagMonitoring', () => ({

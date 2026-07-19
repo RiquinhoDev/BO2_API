@@ -83,6 +83,7 @@ WeeklyNativeTagSnapshotSchema.index({ capturedAt: 1 }, { expireAfterSeconds: 157
 
 // Método para comparar com snapshot anterior
 WeeklyNativeTagSnapshotSchema.methods.compareWith = function (
+  this: IWeeklyNativeTagSnapshot,
   previousSnapshot: IWeeklyNativeTagSnapshot
 ): TagChanges {
   const currentTags = new Set(this.nativeTags)

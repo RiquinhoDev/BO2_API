@@ -14,11 +14,7 @@ const FORBIDDEN_PROPERTY_NAMES = new Set([
   'prototype',
 ])
 
-export type ValidatedRequest = Omit<Request, 'body' | 'params' | 'query'> & {
-  readonly body: undefined
-  readonly params: undefined
-  readonly query: undefined
-}
+export type ValidatedRequest = Omit<Request, 'body' | 'params' | 'query'>
 
 export type ValidatedInputHandler<TSchema extends z.AnyZodObject> = (
   input: z.infer<TSchema>,
@@ -129,7 +125,7 @@ export function withValidatedInput<TSchema extends z.AnyZodObject>(
     }
 
     void (async () => {
-      await handler(data, req as ValidatedRequest, res, next)
+      await handler(data, req, res, next)
     })().catch(next)
   }
 }

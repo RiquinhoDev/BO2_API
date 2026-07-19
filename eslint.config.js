@@ -23,8 +23,9 @@ module.exports = [
       'no-new-func': 'error',
       'no-script-url': 'error',
 
-      // Reactivate when TypeScript strict starts rolling out in waves.
-      // With strict:false, 1965 existing violations across 183 files are migration noise.
+      // TypeScript strict is now enabled. Reactivate this through its own
+      // suppression-ratcheted migration: 1965 violations across 183 files
+      // are too large to fold into the atomic strict-mode change safely.
       '@typescript-eslint/no-explicit-any': 'off',
     },
   },
