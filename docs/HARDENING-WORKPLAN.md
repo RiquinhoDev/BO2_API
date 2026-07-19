@@ -402,7 +402,9 @@ Progresso services (clusters reportados pelo Codex):
   criava `activeCampaignData` sem `lists` (obrigatório) → `{ …, lists: [] }`. Teste HTTP boundary. 0 cast/suppression.
 ### controllers — reta final por ficheiro. **Progresso: 115→46.** ✅ analytics, ac-lists, cron-dead, sync-shadowed, cron-twin(`2c086ea`), product-profiles(`9313d77`), testimonials(`3778e90`, **bug 12: `onlyActive` lia `status`/`estado` fantasma→sempre true; agora `combined.status`**). 0 casts em nenhum.
 
-### controllers (46) — 1 commit por FICHEIRO (regra #9 + golden rule)
+### controllers 46→32 (`0b4dca4`,`2dcab35`,`63f291b`): **bug 13** (5 metadados de audit de inativação descartados pelo strict → persistidos) · **bug 14** (`createInactivationHistory` inexistente, 3 fluxos chamavam via `(UserHistory as any)` e engoliam a falha → método restaurado, **2 casts `as any` velhos removidos**) · 4 params classes + 4 `:id` notificações tipados. Testes RED/GREEN.
+
+### controllers (32) — 1 commit por FICHEIRO (regra #9 + golden rule)
 > **Não** 1 erro/commit. Agrupa **por ficheiro** — os erros de um controller partilham contexto (mesmos models,
 > req/res) e formam um assunto coerente e revisível. Ordem sugerida: maiores primeiro.
 
