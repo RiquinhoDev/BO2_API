@@ -1,10 +1,9 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 6
+    "controllers": 5
   },
   "dirtyFiles": [
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts",
     "src/controllers/testHistory.controller.ts",
     "src/controllers/users.controller.ts"
   ]

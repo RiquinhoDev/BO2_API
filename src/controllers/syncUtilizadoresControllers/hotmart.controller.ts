@@ -149,7 +149,7 @@ export const getHotmartStats = async (req: Request, res: Response) => {
         return {
           productId: product._id,
           productName: product.name,
-          subdomain: product.platformData?.subdomain,
+          subdomain: product.subdomain,
           totalUsers: users.length,
           activeUsers: users.filter(u =>
             u.products.some((p: any) =>
