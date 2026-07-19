@@ -327,6 +327,12 @@ Por commit: substitui `any` pelo **tipo real** (onde for genuinamente dinâmico,
 ou pergunta. Alguns `any` são intratáveis (dados dinâmicos) → deixa suprimidos, o ratchet aceita residual. É grind longo
 (pode atravessar sessões); o **valor principal já está capturado** (não entram `any` novos).
 
+Progresso moagem:
+- [x] **users.controller (108→0)** — feito (`a9861fb`). `any` → interfaces reais (`discordIds:string[]`…) + `unknown`
+  com narrowing (revisor: **0 casts** adicionados). `getUsersInfinite` re-tipado (vivo); 3 handlers mortos removidos
+  (clearUsersCache/warmupUsersCache/createUser — sem refs, sem rota, 0 impacto catálogo). Bugs corrigidos (student
+  stats/Discord IDs/engagement) com teste. Baseline **1880→1772**. Gate verde.
+
 Depois: cirurgia ARCH-01/02/03.
 
 ---
