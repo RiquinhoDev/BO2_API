@@ -2,9 +2,13 @@
 import { Request, Response } from 'express'
 import { hotmartLessonsService } from '../services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService'
 
+type UserLessonsParams = {
+  userId: string
+}
+
 class LessonsController {
   // 📚 Buscar lições de um utilizador específico
-  getUserLessons = async (req: Request, res: Response): Promise<void> => {
+  getUserLessons = async (req: Request<UserLessonsParams>, res: Response): Promise<void> => {
     try {
       const { userId } = req.params
       const { subdomain, userEmail, userName } = req.query
@@ -98,7 +102,7 @@ class LessonsController {
   }
 
   // 🎯 Buscar lições integradas com dados do utilizador do sistema
-  getUserLessonsIntegrated = async (req: Request, res: Response): Promise<void> => {
+  getUserLessonsIntegrated = async (req: Request<UserLessonsParams>, res: Response): Promise<void> => {
     try {
       const { userId } = req.params
       const { subdomain } = req.query
