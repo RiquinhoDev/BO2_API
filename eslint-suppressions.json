@@ -263,7 +263,7 @@
   },
   "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts": {
     "no-console": {
-      "count": 8
+      "count": 6
     }
   },
   "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": {

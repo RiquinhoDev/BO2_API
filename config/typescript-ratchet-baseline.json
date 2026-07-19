@@ -1,7 +1,7 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 15
+    "controllers": 13
   },
   "dirtyFiles": [
     "src/controllers/guru.sync.controller.ts",
@@ -9,7 +9,6 @@
     "src/controllers/sync.controller.ts",
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts",
     "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts",
-    "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts",
     "src/controllers/tagMonitoring/tagMonitoring.controller.ts",
     "src/controllers/testHistory.controller.ts",
     "src/controllers/users.controller.ts"
