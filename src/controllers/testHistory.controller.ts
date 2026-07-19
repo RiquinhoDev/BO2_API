@@ -48,7 +48,7 @@ export const makeTestChanges = async (req: Request, res: Response) => {
     const originalState = {
       userId: user._id.toString(),
       name: user.name,
-      averageEngagement: user.averageEngagement,
+      averageEngagement: user.combined?.combinedEngagement,
       products: products.map((p: any) => ({
         _id: p._id.toString(),
         productName: p.productId?.name || 'Produto',
@@ -81,14 +81,14 @@ export const makeTestChanges = async (req: Request, res: Response) => {
     })
 
     // Alteração 2: Engagement médio
-    const oldEngagement = user.averageEngagement || 50
+    const oldEngagement = user.combined?.combinedEngagement || 50
     const newEngagement = Math.min(oldEngagement + 10, 100)
     console.log(`2️⃣ [TEST] Engagement: ${oldEngagement} → ${newEngagement}`)
     changes.push(`Engagement alterado de ${oldEngagement} para ${newEngagement}`)
 
-    // Atualizar apenas o campo averageEngagement, sem validação do modelo completo
+    // Atualizar apenas o engagement canónico, sem validação do modelo completo
     await User.findByIdAndUpdate(user._id, {
-      $set: { averageEngagement: newEngagement }
+      $set: { 'combined.combinedEngagement': newEngagement }
     })
 
     // Alteração 3-5: No primeiro produto
@@ -198,7 +198,7 @@ export const revertTestChanges = async (req: Request, res: Response) => {
     await User.findByIdAndUpdate(originalState.userId, {
       $set: {
         name: originalState.name,
-        averageEngagement: originalState.averageEngagement
+        'combined.combinedEngagement': originalState.averageEngagement
       }
     })
 
