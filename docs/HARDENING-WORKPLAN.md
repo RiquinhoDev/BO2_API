@@ -421,6 +421,13 @@ Distribuição (revisor, `tsc --noEmit`, 2026-07-18):
   Podes entregar vários ficheiros num report. Se um erro revelar um bug (esp. TS2339/TS1117), **corrige ou pergunta**.
 
 Progresso controllers:
+- [ ] **syncStats — rotas shadowed (regra #9, aprovado 2026-07-18):** `GET /api/sync/stats` e `/api/sync/history`
+  são servidas pelo `sync.routes` (montado 1º, `index.ts:53`); as cópias no `syncStats.routes` (montado 2º, `:94`)
+  são **inalcançáveis**. Revisor confirmou a ordem **e** que o `getSyncStats` do `guru.routes` vem de
+  `guru.sync.controller` (colisão de nome, NÃO dependência) → apagar os do `syncStats.controller` é seguro. Aprovado:
+  remover as 2 rotas shadowed + os handlers `getSyncStats`/`getSyncHistory` duplicados + tipar os 4 handlers `:id`
+  vivos (`getSyncById`, `getConflictById`, `resolveConflict`, `ignoreConflict`) como `Request<{id:string}>`.
+  Esperado: controllers **77→69**.
 - [x] **analytics (115→102)** — feito (`183427e`). **3 bugs reais (9º/10º/11º):** `$ne` duplicado no mesmo literal
   (`{$ne:null, $ne:''}` → 2º sobrescrevia o 1º; só excluía `''`, não `null`) → `$nin:[null,'']`; `require` de
   path inexistente (`../services/engagementService`) → import correcto; `setInterval` sem ref prendia o Jest →
