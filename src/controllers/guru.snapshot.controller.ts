@@ -5,6 +5,11 @@ import User from '../models/user'
 import { fetchSubscriptionsByMonth, fetchAllSubscriptionsPaginated } from '../services/guru/guruSync.service'
 import type { GuruEmptyInput, GuruSnapshotDeleteInput } from '../security/guruDestructiveInput'
 
+type SnapshotPeriodParams = {
+  year: string
+  month: string
+}
+
 // ═══════════════════════════════════════════════════════════
 // CREATE SNAPSHOT
 // ═══════════════════════════════════════════════════════════
@@ -224,7 +229,7 @@ export const createSnapshot = async (req: Request, res: Response) => {
  * Apaga o existente e recria com dados atuais da API Guru
  * PUT /guru/snapshots/:year/:month
  */
-export const updateSnapshot = async (req: Request, res: Response) => {
+export const updateSnapshot = async (req: Request<SnapshotPeriodParams>, res: Response) => {
   try {
     const { year, month } = req.params
 
@@ -330,7 +335,7 @@ export const listSnapshots = async (req: Request, res: Response) => {
  * Obter snapshot específico
  * GET /guru/snapshots/:year/:month
  */
-export const getSnapshot = async (req: Request, res: Response) => {
+export const getSnapshot = async (req: Request<SnapshotPeriodParams>, res: Response) => {
   try {
     const { year, month } = req.params
 
