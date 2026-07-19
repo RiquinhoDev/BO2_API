@@ -1,7 +1,7 @@
 {
   "version": 1,
   "directories": {
-    "controllers": 24
+    "controllers": 23
   },
   "dirtyFiles": [
     "src/controllers/acTags/acReader.controller.ts",

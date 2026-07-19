@@ -1,13 +1,5 @@
 [
   {
-    "method": "GET",
-    "path": "/api/ac/analytics/overview"
-  },
-  {
-    "method": "GET",
-    "path": "/api/ac/analytics/product/:code"
-  },
-  {
     "method": "DELETE",
     "path": "/api/ac/cache/clear"
   },
@@ -26,14 +18,6 @@
   {
     "method": "POST",
     "path": "/api/ac/contacts/batch-tags"
-  },
-  {
-    "method": "GET",
-    "path": "/api/ac/inconsistencies"
-  },
-  {
-    "method": "POST",
-    "path": "/api/ac/maintenance/refresh-old"
   },
   {
     "method": "GET",

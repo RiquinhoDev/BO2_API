@@ -21,11 +21,11 @@ const catalog = JSON.parse(
 ) as CatalogRoute[]
 const key = ({ method, path: routePath }: ManifestRoute) => `${method} ${routePath}`
 
-test('o catalogo cobre exatamente as 448 rotas do manifest', () => {
-  expect(manifest).toHaveLength(448)
-  expect(catalog).toHaveLength(448)
-  expect(new Set(manifest.map(key)).size).toBe(448)
-  expect(new Set(catalog.map(key)).size).toBe(448)
+test('o catalogo cobre exatamente as 444 rotas do manifest', () => {
+  expect(manifest).toHaveLength(444)
+  expect(catalog).toHaveLength(444)
+  expect(new Set(manifest.map(key)).size).toBe(444)
+  expect(new Set(catalog.map(key)).size).toBe(444)
   expect(catalog.map(key).sort()).toEqual(manifest.map(key).sort())
 })
 
@@ -53,7 +53,7 @@ test('a superficie excecional fica curta e explicita', () => {
     'POST /api/webhooks/ac/link-clicked',
   ])
   expect(routesWith('dead')).toEqual([])
-  expect(routesWith('authenticated')).toHaveLength(443)
+  expect(routesWith('authenticated')).toHaveLength(439)
   expect(catalog.filter((route) => route.access === 'public').every((route) => route.evidence.startsWith('public:'))).toBe(true)
 })
 test('a evidencia aponta para a declaracao real da rota', () => {

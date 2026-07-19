@@ -6,7 +6,7 @@
   },
   "src/controllers/acTags/acReader.controller.ts": {
     "no-console": {
-      "count": 16
+      "count": 8
     }
   },
   "src/controllers/acTags/activecampaign.controller.ts": {
