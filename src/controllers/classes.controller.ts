@@ -1893,24 +1893,18 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
       let filter: FilterQuery<IUser>
 
       if (classData.source === 'curseduca_sync') {
-        // ✅ USAR enrolledClasses array (fonte correta de dados)
-        // Buscar users que têm esta turma no array enrolledClasses
+        const enrollmentFilter = {
+          platform: 'curseduca',
+          'classes.classId': String(classId),
+          ...(includeInactive !== 'true' ? { status: 'ACTIVE' } : {}),
+        }
+        const enrollments = await UserProduct.find(enrollmentFilter)
+          .select('userId')
+          .lean()
+
         filter = {
-          'curseduca.enrolledClasses': {
-            $elemMatch: {
-              curseducaId: { $in: [classId, String(classId), Number(classId)] },
-              isActive: true
-            }
-          }
+          _id: { $in: enrollments.map(enrollment => enrollment.userId) },
         }
-
-        // Por padrão, só mostrar estudantes ativos
-        if (includeInactive !== 'true') {
-          filter['curseduca.memberStatus'] = 'ACTIVE'
-        }
-
-        // 🔄 FALLBACK: Se não há enrolledClasses, tentar por groupId (dados antigos)
-        // Isso será removido depois que todos os users tiverem enrolledClasses populado
       } else {
         // Para turmas Hotmart e outras, buscar por classId
         filter = {
