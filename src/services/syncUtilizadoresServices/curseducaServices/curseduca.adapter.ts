@@ -24,6 +24,7 @@ import {
   CursEducaMemberDetails,
   CursEducaMemberWithMetadata
 } from '../../../types/curseduca.types'
+import { attachCurseducaMemberships } from './curseducaMemberships'
 
 // ═══════════════════════════════════════════════════════════
 // CREDENCIAIS (PROCESS.ENV)
@@ -1025,7 +1026,9 @@ export const fetchCurseducaDataForSync = async (
     
     console.log('🔄 [CurseducaAdapter] Step 5/5: Normalizando dados...')
     
-    const normalized = deduplicated.map(m => normalizeCurseducaMember(m))
+    const normalized = attachCurseducaMemberships(
+      deduplicated.map(m => normalizeCurseducaMember(m)),
+    )
 
     const duration = Math.floor((Date.now() - startTime) / 1000)
     

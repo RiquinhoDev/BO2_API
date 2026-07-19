@@ -21,6 +21,7 @@ import {
   createUniversalSnapshotContext,
   type UniversalSnapshotContext,
 } from './universalSyncSnapshot'
+import { buildCurseducaEnrollment } from './curseducaServices/curseducaMemberships'
 
 // ═══════════════════════════════════════════════════════════
 // TYPE HELPERS
@@ -1483,21 +1484,7 @@ if (lastAccessDate) {
       const newEnrolledClasses: CurseducaEnrollment[] = []
 
       for (const group of allCurseducaGroups) {
-        const enrolledAtDate = toDateOrNull(group.enrolledAt) || new Date()
-        const expiresAtDate = toDateOrNull(group.expiresAt) || undefined
-
-        const enrolledClass = {
-          classId: String(group.groupId),
-          className: group.groupName || `Grupo ${group.groupId}`,
-          curseducaId: String(group.groupId),
-          curseducaUuid: String(group.groupId), // Use groupId como UUID
-          enteredAt: enrolledAtDate,
-          expiresAt: expiresAtDate,
-          isActive: true,
-          role: group.role || 'student'
-        }
-
-        newEnrolledClasses.push(enrolledClass)
+        newEnrolledClasses.push(buildCurseducaEnrollment(group))
       }
 
       // Substituir TODO o array enrolledClasses de uma vez
@@ -1514,19 +1501,14 @@ if (lastAccessDate) {
     } else if (item.groupId) {
       // ⚠️ FALLBACK: Se não há allCurseducaGroups, usar groupId (modo antigo)
       // Isto só acontece se o adapter não foi atualizado ainda
-      const enrolledAtDate = toDateOrNull(item.enrolledAt) || new Date()
-      const expiresAtDate = toDateOrNull(item.expiresAt) || undefined
-
-      const singleClass: CurseducaEnrollment = {
-        classId: String(item.groupId),
-        className: item.groupName || `Grupo ${item.groupId}`,
-        curseducaId: String(item.groupId),
-        curseducaUuid: String(item.groupId),
-        enteredAt: enrolledAtDate,
-        expiresAt: expiresAtDate,
-        isActive: true,
-        role: 'student'
-      }
+      const singleClass: CurseducaEnrollment = buildCurseducaEnrollment({
+        groupId: item.groupId,
+        groupName: item.groupName,
+        enrolledAt: item.enrolledAt,
+        expiresAt: item.expiresAt,
+        role: 'student',
+        situation: item.platformData?.situation,
+      })
 
       pendingCurseducaClasses = [singleClass]
       updateFields['curseduca.enrolledClasses'] = pendingCurseducaClasses
