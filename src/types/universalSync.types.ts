@@ -87,6 +87,7 @@ export interface UniversalSourceItem {
     lessons?: Array<{
       pageId?: string
       pageName?: string
+      moduleName?: string
       isCompleted?: boolean
       completedDate?: Date | string | null
     }>
@@ -113,6 +114,13 @@ export interface UniversalSourceItem {
   curseducaUuid?: string
   groupId?: string | number
   groupName?: string
+  allCurseducaGroups?: Array<{
+    groupId: string | number
+    groupName?: string
+    enrolledAt?: Date | string | null
+    expiresAt?: Date | string | null
+    role?: 'student' | 'assistant' | 'teacher'
+  }>
   subscriptionType?: 'MONTHLY' | 'ANNUAL'
   enrolledAt?: Date | string | null
   joinedDate?: Date | string | null

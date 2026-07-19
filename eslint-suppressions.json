@@ -1548,9 +1548,6 @@
     }
   },
   "src/services/syncUtilizadoresServices/universalSyncService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 72
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },

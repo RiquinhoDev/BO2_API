@@ -8,10 +8,11 @@ import syncReportsService from './syncReports.service'
 import SyncHistory from '../../models/SyncModels/SyncHistory'
 import User, { IUser } from '../../models/user'
 import type { SyncType, TriggerType } from '../../models/SyncModels/SyncReport'
-import mongoose from 'mongoose'
+import mongoose, { type UpdateQuery } from 'mongoose'
 import { Product, UserProduct } from '../../models'
-import { Class } from '../../models/Class'
+import { Class, type IClass } from '../../models/Class'
 import { IProduct } from '../../models/product/Product'
+import type { IClassEnrollment, IEngagement, IProgress, IUserProduct } from '../../models/UserProduct'
 import { ProcessItemResult, SyncError, SyncWarning, UniversalSourceItem, UniversalSyncConfig, UniversalSyncResult } from '../../types/universalSync.types'
 import { snapshotAndCompare } from '../snapshotServices/userSnapshot.service'
 import { planClassEnrollmentRole } from './classEnrollmentRole'
@@ -30,12 +31,33 @@ type LeanProduct = {
   code: string
   platform: string
   curseducaGroupId?: string
-  platformData?: any
+  platformData?: Record<string, unknown>
   name?: string
 }
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info'
 
-function debugLog(...args: any[]) {
+type HotmartEnrollment = NonNullable<NonNullable<IUser['hotmart']>['enrolledClasses']>[number]
+type CurseducaEnrollment = NonNullable<NonNullable<IUser['curseduca']>['enrolledClasses']>[number]
+type CombinedClass = NonNullable<NonNullable<IUser['combined']>['allClasses']>[number]
+
+interface NewUserProductInput {
+  userId: string
+  productId: mongoose.Types.ObjectId
+  platform: IUserProduct['platform']
+  platformUserId: string
+  platformUserUuid?: string
+  status: IUserProduct['status']
+  source: IUserProduct['source']
+  enrolledAt: Date
+  isPrimary: boolean
+  progress: IProgress
+  engagement: IEngagement
+  platformData?: Record<string, unknown>
+  classes: IClassEnrollment[]
+  metadata?: IUserProduct['metadata']
+}
+
+function debugLog(...args: unknown[]) {
   if (LOG_LEVEL === 'debug') {
     console.log(...args)
   }
@@ -78,6 +100,20 @@ const toNumber = (value: unknown, fallback = 0): number => {
   return fallback
 }
 
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
+const mongoErrorCode = (error: unknown): number | undefined => {
+  if (!error || typeof error !== 'object' || !('code' in error)) return undefined
+  return typeof error.code === 'number' ? error.code : undefined
+}
+
+export const buildCanonicalActiveUserStatusUpdate = () => ({
+  'combined.status': 'ACTIVE',
+  'hotmart.status': 'ACTIVE',
+  'curseduca.memberStatus': 'ACTIVE',
+})
+
 // ═══════════════════════════════════════════════════════════
 // ✅ CACHE GLOBAL DE PRODUTOS (OTIMIZAÇÃO FASE 1)
 // ═══════════════════════════════════════════════════════════
@@ -103,7 +139,7 @@ async function preloadProductsCache(): Promise<void> {
 
   const products = await Product.find({ isActive: true })
     .select('_id code platform curseducaGroupId platformData name')
-    .lean() as unknown as LeanProduct[]
+    .lean<LeanProduct[]>()
 
   PRODUCTS_CACHE = new Map()
 
@@ -115,8 +151,8 @@ async function preloadProductsCache(): Promise<void> {
     PRODUCTS_CACHE.set(`${p.platform}:${p.code}`, p)
 
     // Key (CursEduca): group_{groupId}
-    if (p.platform === 'curseduca' && (p as any).curseducaGroupId) {
-      PRODUCTS_CACHE.set(`group_${(p as any).curseducaGroupId}`, p)
+    if (p.platform === 'curseduca' && p.curseducaGroupId) {
+      PRODUCTS_CACHE.set(`group_${p.curseducaGroupId}`, p)
     }
   }
 
@@ -636,9 +672,7 @@ async function detectRenewal(
     return result
   }
 
-  const userStatus = (user as any).status
-  const combinedStatus = (user as any).combined?.status
-  const isInactiveInDB = userStatus === 'INACTIVE' || combinedStatus === 'INACTIVE'
+  const isInactiveInDB = user.combined?.status === 'INACTIVE'
 
   if (purchaseDate) {
     result.purchaseDate = purchaseDate
@@ -674,12 +708,7 @@ async function applyAutoReactivation(
   // 1. Atualizar User
   await User.findByIdAndUpdate(userId, {
     $set: {
-      'combined.status': 'ACTIVE',
-      status: 'ACTIVE',
-      estado: 'ativo',           // campo legacy também tem de ser reposto
-      'hotmart.status': 'ACTIVE',
-      'curseduca.memberStatus': 'ACTIVE',
-      'discord.isActive': true,
+      ...buildCanonicalActiveUserStatusUpdate(),
       // Atualizar dados de inativação
       'inactivation.isManuallyInactivated': false,
       'inactivation.reactivatedAt': new Date(),
@@ -743,8 +772,8 @@ function getDaysSincePurchase(purchaseDate: Date | null): number {
 }
 
 function getActiveHotmartClassForExpiration(
-  user: any,
-  pendingHotmartClasses?: any[],
+  user: Pick<IUser, 'hotmart'>,
+  pendingHotmartClasses?: HotmartEnrollment[],
   fallbackClassId?: string,
   fallbackClassName?: string
 ): HotmartClassForExpiration | null {
@@ -753,14 +782,14 @@ function getActiveHotmartClassForExpiration(
     ...(Array.isArray(user?.hotmart?.enrolledClasses) ? user.hotmart.enrolledClasses : [])
   ]
 
-  const activeClass = candidates.find((cls: any) => cls?.className && cls.isActive !== false)
-  const anyClass = candidates.find((cls: any) => cls?.className)
+  const activeClass = candidates.find(cls => cls.className && cls.isActive !== false)
+  const anyClass = candidates.find(cls => cls.className)
 
-  if (activeClass || anyClass) {
-    const cls = activeClass || anyClass
+  const selectedClass = activeClass ?? anyClass
+  if (selectedClass) {
     return {
-      classId: cls.classId,
-      className: cls.className
+      classId: selectedClass.classId,
+      className: selectedClass.className
     }
   }
 
@@ -919,7 +948,7 @@ async function processExpiredStudentsInactivation(): Promise<{
 
     try {
       // Verificar se já está inativo
-      const user = await User.findById(student.userId).lean() as any
+      const user = await User.findById(student.userId).lean()
 
       if (!user) {
         result.errors.push(`User não encontrado: ${student.email}`)
@@ -936,7 +965,6 @@ async function processExpiredStudentsInactivation(): Promise<{
       await User.findByIdAndUpdate(student.userId, {
         $set: {
           'combined.status': 'INACTIVE',
-          status: 'INACTIVE',
           'hotmart.status': 'INACTIVE',
           // Guardar dados de inativação
           'inactivation.isManuallyInactivated': true,
@@ -987,8 +1015,8 @@ async function processExpiredStudentsInactivation(): Promise<{
             accessEndOgi: student.accessEndOgi
           }
         })
-      } catch (error: any) {
-        console.warn(`   ⚠️ Erro ao registrar histórico de expiração para ${student.email}:`, error.message)
+      } catch (error: unknown) {
+        console.warn(`   ⚠️ Erro ao registrar histórico de expiração para ${student.email}:`, errorMessage(error))
       }
 
       result.totalInactivated++
@@ -1001,9 +1029,9 @@ async function processExpiredStudentsInactivation(): Promise<{
 
       console.log(`   ✅ ${student.email} inativado (${student.expirationReason})`)
 
-    } catch (error: any) {
-      result.errors.push(`Erro ao inativar ${student.email}: ${error.message}`)
-      console.error(`   ❌ Erro ao inativar ${student.email}:`, error.message)
+    } catch (error: unknown) {
+      result.errors.push(`Erro ao inativar ${student.email}: ${errorMessage(error)}`)
+      console.error(`   ❌ Erro ao inativar ${student.email}:`, errorMessage(error))
     }
   }
 
@@ -1041,8 +1069,8 @@ async function processExpiredStudentsInactivation(): Promise<{
         )
         debugLog(`   📊 Turma ${classId}: ${activeCount} alunos ativos restantes`)
       }
-    } catch (error: any) {
-      result.errors.push(`Erro ao atualizar turma ${classId}: ${error.message}`)
+    } catch (error: unknown) {
+      result.errors.push(`Erro ao atualizar turma ${classId}: ${errorMessage(error)}`)
     }
   }
 
@@ -1097,7 +1125,7 @@ async function ensureClassExists(
       return displayName
 
     } else {
-      const updates: any = {
+      const updates: UpdateQuery<IClass> = {
         lastSyncAt: new Date(),
         $inc: { studentCount: 0 }
       }
@@ -1119,9 +1147,9 @@ async function ensureClassExists(
       // Devolver o nome real da BD (que pode ter sido editado manualmente)
       return (isGenericName && hasNewName ? className : existingClass.name) || `Turma ${classId}`
     }
-  } catch (error: any) {
-    if (error.code !== 11000) {
-      console.error(`   ⚠️ [Class] Erro ao criar/atualizar turma ${classId}:`, error.message)
+  } catch (error: unknown) {
+    if (mongoErrorCode(error) !== 11000) {
+      console.error(`   ⚠️ [Class] Erro ao criar/atualizar turma ${classId}:`, errorMessage(error))
     }
     return className || `Turma ${classId}`
   }
@@ -1155,8 +1183,7 @@ const processSyncItem = async (
   if (!user) {
     user = await User.create({
       email,
-      name,
-      isActive: true
+      name
     })
     console.log(`✨ [UniversalSync] Novo user criado: ${user.email}`)
   }
@@ -1167,6 +1194,8 @@ const processSyncItem = async (
   // PREPARAR UPDATES DO USER
   // ═══════════════════════════════════════════════════════════
   const updateFields: Record<string, unknown> = {}
+  let pendingHotmartClasses: HotmartEnrollment[] | undefined
+  let pendingCurseducaClasses: CurseducaEnrollment[] | undefined
   let needsUpdate = false
 
   if (name && user.name !== name) {
@@ -1244,8 +1273,8 @@ if (lastAccessDate) {
     // Se a Hotmart não devolveu class_id mas o user já tem uma turma ativa registada,
     // garantir que o root classId está em sync com hotmart.enrolledClasses
     if (!item.classId) {
-      const existingActiveClass = (user as any).hotmart?.enrolledClasses?.find((c: any) => c.isActive)
-      if (existingActiveClass && (user as any).classId !== existingActiveClass.classId) {
+      const existingActiveClass = user.hotmart?.enrolledClasses?.find(c => c.isActive)
+      if (existingActiveClass && user.classId !== existingActiveClass.classId) {
         updateFields['classId'] = existingActiveClass.classId
         updateFields['className'] = existingActiveClass.className
         needsUpdate = true
@@ -1254,14 +1283,14 @@ if (lastAccessDate) {
 
     if (item.classId) {
       // 🆕 DETECTAR MUDANÇA DE TURMA (CRÍTICO!)
-      const oldClassId = (user as any).hotmart?.enrolledClasses?.[0]?.classId
-      const oldClassName = (user as any).hotmart?.enrolledClasses?.[0]?.className
+      const oldClassId = user.hotmart?.enrolledClasses?.[0]?.classId
+      const oldClassName = user.hotmart?.enrolledClasses?.[0]?.className
       const hasClassChanged = oldClassId && oldClassId !== item.classId
 
       // Buscar o nome real da BD (pode ter sido editado manualmente)
       const realClassName = await ensureClassExists(item.classId, item.className, 'hotmart')
 
-      updateFields['hotmart.enrolledClasses'] = [
+      pendingHotmartClasses = [
         {
           classId: item.classId,
           className: realClassName,
@@ -1270,6 +1299,7 @@ if (lastAccessDate) {
           enrolledAt: purchaseDate || new Date()
         }
       ]
+      updateFields['hotmart.enrolledClasses'] = pendingHotmartClasses
       // Manter root classId sempre em sync com a Hotmart (campo usado por updateClassStatus)
       updateFields['classId'] = item.classId
       updateFields['className'] = realClassName
@@ -1291,8 +1321,8 @@ if (lastAccessDate) {
             movedBy: 'Sistema - Sync Automático'
           })
           console.log(`   📝 [ClassChange] ${user.email}: "${oldClassName}" → "${item.className || item.classId}"`)
-        } catch (error: any) {
-          console.warn(`   ⚠️ Erro ao registrar mudança de turma para ${user.email}:`, error.message)
+        } catch (error: unknown) {
+          console.warn(`   ⚠️ Erro ao registrar mudança de turma para ${user.email}:`, errorMessage(error))
         }
       } else if (!oldClassId && !isNew) {
         // Primeira atribuição de turma (user já existia mas não tinha turma)
@@ -1308,8 +1338,8 @@ if (lastAccessDate) {
             movedBy: 'Sistema - Sync Automático'
           })
           console.log(`   ✨ [FirstEnrollment] ${user.email} inscrito em "${item.className || item.classId}" (${purchaseDate ? purchaseDate.toISOString().split('T')[0] : 'hoje'})`)
-        } catch (error: any) {
-          console.warn(`   ⚠️ Erro ao registrar primeira inscrição para ${user.email}:`, error.message)
+        } catch (error: unknown) {
+          console.warn(`   ⚠️ Erro ao registrar primeira inscrição para ${user.email}:`, errorMessage(error))
         }
       }
     }
@@ -1319,19 +1349,11 @@ if (lastAccessDate) {
     // findByIdAndUpdate NÃO dispara pre('save'), por isso temos de
     // recalcular combined manualmente aqui.
     // ═══════════════════════════════════════════════════════════
-    const allClasses: Array<{
-      classId: string
-      className: string
-      source: string
-      isActive: boolean
-      enrolledAt?: Date
-      role?: string
-    }> = []
+    const allClasses: CombinedClass[] = []
 
     // Turmas Hotmart: usar os dados que vamos guardar (podem ter mudado)
-    const hotmartEnrolled = updateFields['hotmart.enrolledClasses'] as any[] | undefined
-    if (hotmartEnrolled && Array.isArray(hotmartEnrolled)) {
-      hotmartEnrolled.forEach((cls: any) => {
+    if (pendingHotmartClasses) {
+      pendingHotmartClasses.forEach(cls => {
         allClasses.push({
           classId: cls.classId,
           className: cls.className,
@@ -1340,9 +1362,9 @@ if (lastAccessDate) {
           enrolledAt: cls.enrolledAt
         })
       })
-    } else if ((user as any).hotmart?.enrolledClasses) {
+    } else if (user.hotmart?.enrolledClasses) {
       // Sem alteração neste sync – manter as turmas existentes
-      ;((user as any).hotmart.enrolledClasses as any[]).forEach((cls: any) => {
+      user.hotmart.enrolledClasses.forEach(cls => {
         allClasses.push({
           classId: cls.classId,
           className: cls.className,
@@ -1354,14 +1376,14 @@ if (lastAccessDate) {
     }
 
     // Turmas CursEduca: manter as existentes (este é um sync Hotmart)
-    if ((user as any).curseduca?.enrolledClasses && Array.isArray((user as any).curseduca.enrolledClasses)) {
-      ;((user as any).curseduca.enrolledClasses as any[]).forEach((cls: any) => {
+    if (user.curseduca?.enrolledClasses) {
+      user.curseduca.enrolledClasses.forEach(cls => {
         allClasses.push({
           classId: cls.classId,
           className: cls.className,
           source: 'curseduca',
           isActive: cls.isActive ?? true,
-          enrolledAt: cls.enteredAt || cls.enrolledAt,
+          enrolledAt: cls.enteredAt,
           role: cls.role
         })
       })
@@ -1405,7 +1427,7 @@ if (lastAccessDate) {
     // ═══════════════════════════════════════════════════════════
     // IDs
     // ═══════════════════════════════════════════════════════════
-    if (item.curseducaUserId && item.curseducaUserId !== (user as any).curseduca?.curseducaUserId) {
+    if (item.curseducaUserId && item.curseducaUserId !== user.curseduca?.curseducaUserId) {
       updateFields['curseduca.curseducaUserId'] = item.curseducaUserId
       needsUpdate = true
     }
@@ -1454,15 +1476,15 @@ if (lastAccessDate) {
     // Now we populate the enrolledClasses array from allCurseducaGroups
 
     // ✅ FIX: Processar TODOS os grupos do array allCurseducaGroups
-    const allCurseducaGroups = (item as any).allCurseducaGroups
+    const allCurseducaGroups = item.allCurseducaGroups
 
     if (allCurseducaGroups && Array.isArray(allCurseducaGroups) && allCurseducaGroups.length > 0) {
       // Processar TODOS os grupos de uma vez
-      const newEnrolledClasses: any[] = []
+      const newEnrolledClasses: CurseducaEnrollment[] = []
 
       for (const group of allCurseducaGroups) {
         const enrolledAtDate = toDateOrNull(group.enrolledAt) || new Date()
-        const expiresAtDate = toDateOrNull(group.expiresAt) || null
+        const expiresAtDate = toDateOrNull(group.expiresAt) || undefined
 
         const enrolledClass = {
           classId: String(group.groupId),
@@ -1480,7 +1502,8 @@ if (lastAccessDate) {
 
       // Substituir TODO o array enrolledClasses de uma vez
       // Isto garante que não há duplicações e que todos os grupos são salvos
-      updateFields['curseduca.enrolledClasses'] = newEnrolledClasses
+      pendingCurseducaClasses = newEnrolledClasses
+      updateFields['curseduca.enrolledClasses'] = pendingCurseducaClasses
       needsUpdate = true
 
       console.log(`   📚 [EnrolledClasses] Guardados ${newEnrolledClasses.length} grupos para ${user.email}:`)
@@ -1492,9 +1515,9 @@ if (lastAccessDate) {
       // ⚠️ FALLBACK: Se não há allCurseducaGroups, usar groupId (modo antigo)
       // Isto só acontece se o adapter não foi atualizado ainda
       const enrolledAtDate = toDateOrNull(item.enrolledAt) || new Date()
-      const expiresAtDate = toDateOrNull(item.expiresAt) || null
+      const expiresAtDate = toDateOrNull(item.expiresAt) || undefined
 
-      const singleClass = {
+      const singleClass: CurseducaEnrollment = {
         classId: String(item.groupId),
         className: item.groupName || `Grupo ${item.groupId}`,
         curseducaId: String(item.groupId),
@@ -1505,7 +1528,8 @@ if (lastAccessDate) {
         role: 'student'
       }
 
-      updateFields['curseduca.enrolledClasses'] = [singleClass]
+      pendingCurseducaClasses = [singleClass]
+      updateFields['curseduca.enrolledClasses'] = pendingCurseducaClasses
       needsUpdate = true
 
       console.log(`   ⚠️  [EnrolledClasses] FALLBACK: Guardado 1 grupo para ${user.email}`)
@@ -1562,8 +1586,8 @@ if (lastAccessDate) {
           })
           debugLog(`   ✅ [CursEduca Sync] Removido de PARA_INATIVAR (já INACTIVE): ${user.email}`)
         }
-      } catch (err: any) {
-        console.error(`⚠️ [CursEduca Sync] Erro ao atualizar UserProduct para ${user.email}:`, err.message)
+      } catch (err: unknown) {
+        console.error(`⚠️ [CursEduca Sync] Erro ao atualizar UserProduct para ${user.email}:`, errorMessage(err))
       }
     }
 
@@ -1605,18 +1629,11 @@ if (lastAccessDate) {
     // findByIdAndUpdate NÃO dispara pre('save'), por isso temos de
     // recalcular combined manualmente aqui.
     // ═══════════════════════════════════════════════════════════
-    const allClassesCE: Array<{
-      classId: string
-      className: string
-      source: string
-      isActive: boolean
-      enrolledAt?: Date
-      role?: string
-    }> = []
+    const allClassesCE: CombinedClass[] = []
 
     // Turmas Hotmart: manter as existentes (este é um sync CursEduca)
-    if ((user as any).hotmart?.enrolledClasses && Array.isArray((user as any).hotmart.enrolledClasses)) {
-      ;((user as any).hotmart.enrolledClasses as any[]).forEach((cls: any) => {
+    if (user.hotmart?.enrolledClasses) {
+      user.hotmart.enrolledClasses.forEach(cls => {
         allClassesCE.push({
           classId: cls.classId,
           className: cls.className,
@@ -1628,26 +1645,25 @@ if (lastAccessDate) {
     }
 
     // Turmas CursEduca: usar os dados que vamos guardar (podem ter mudado)
-    const ceEnrolled = updateFields['curseduca.enrolledClasses'] as any[] | undefined
-    if (ceEnrolled && Array.isArray(ceEnrolled)) {
-      ceEnrolled.forEach((cls: any) => {
+    if (pendingCurseducaClasses) {
+      pendingCurseducaClasses.forEach(cls => {
         allClassesCE.push({
           classId: cls.classId,
           className: cls.className,
           source: 'curseduca',
           isActive: cls.isActive ?? true,
-          enrolledAt: cls.enteredAt || cls.enrolledAt,
+          enrolledAt: cls.enteredAt,
           role: cls.role
         })
       })
-    } else if ((user as any).curseduca?.enrolledClasses && Array.isArray((user as any).curseduca.enrolledClasses)) {
-      ;((user as any).curseduca.enrolledClasses as any[]).forEach((cls: any) => {
+    } else if (user.curseduca?.enrolledClasses) {
+      user.curseduca.enrolledClasses.forEach(cls => {
         allClassesCE.push({
           classId: cls.classId,
           className: cls.className,
           source: 'curseduca',
           isActive: cls.isActive ?? true,
-          enrolledAt: cls.enteredAt || cls.enrolledAt,
+          enrolledAt: cls.enteredAt,
           role: cls.role
         })
       })
@@ -1733,12 +1749,10 @@ if (lastAccessDate) {
     config.syncType === 'hotmart' &&
     !renewalResult.shouldReactivate
   ) {
-    const userStatus = (user as any).status
-    const combinedStatus = (user as any).combined?.status
-    const isInactiveInDB = userStatus === 'INACTIVE' || combinedStatus === 'INACTIVE'
+    const isInactiveInDB = user.combined?.status === 'INACTIVE'
     const activeHotmartClass = getActiveHotmartClassForExpiration(
       user,
-      updateFields['hotmart.enrolledClasses'] as any[] | undefined,
+      pendingHotmartClasses,
       item.classId,
       item.className
     )
@@ -1752,10 +1766,7 @@ if (lastAccessDate) {
         ? `acesso válido até ${formatDateOnly(expiration.accessEndOgi)}`
         : `compra recente (${expiration.daysSincePurchase}d)`
       console.log(`   🔄 [AutoFix] ${user.email} está INACTIVE mas tem ${validUntil} → reativando`)
-      updateFields['status'] = 'ACTIVE'
-      updateFields['estado'] = 'ativo'
-      updateFields['combined.status'] = 'ACTIVE'
-      updateFields['hotmart.status'] = 'ACTIVE'
+      Object.assign(updateFields, buildCanonicalActiveUserStatusUpdate())
       updateFields['inactivation.isManuallyInactivated'] = false
       updateFields['inactivation.reactivatedAt'] = new Date()
       updateFields['inactivation.reactivatedBy'] = 'Sistema - Sync Automático (compra recente)'
@@ -1775,7 +1786,7 @@ if (lastAccessDate) {
   if (config.syncType === 'hotmart' && !renewalResult.shouldReactivate) {
     const activeHotmartClass = getActiveHotmartClassForExpiration(
       user,
-      updateFields['hotmart.enrolledClasses'] as any[] | undefined,
+      pendingHotmartClasses,
       item.classId,
       item.className
     )
@@ -1829,7 +1840,7 @@ if (lastAccessDate) {
     // CASO 1: ATUALIZAR USERPRODUCT EXISTENTE
     // ═══════════════════════════════════════════════════════════
     if (existingUP) {
-      const upUpdateFields: Record<string, any> = {}
+      const upUpdateFields: Record<string, unknown> = {}
       let upNeedsUpdate = false
       
       // isPrimary
@@ -1872,8 +1883,7 @@ if (lastAccessDate) {
         // lessonsCompleted - array de pageIds das aulas completadas
         if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
           const completedLessons = item.progress.lessons
-            .filter((l: any) => l.isCompleted)
-            .map((l: any) => l.pageId)
+            .flatMap(l => l.isCompleted && l.pageId ? [l.pageId] : [])
 
           if (completedLessons.length > 0) {
             upUpdateFields['progress.lessonsCompleted'] = completedLessons
@@ -1885,8 +1895,7 @@ if (lastAccessDate) {
         if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
           const completedModules = [...new Set(
             item.progress.lessons
-              .filter((l: any) => l.isCompleted && l.moduleName)
-              .map((l: any) => l.moduleName)
+              .flatMap(l => l.isCompleted && l.moduleName ? [l.moduleName] : [])
           )]
 
           if (completedModules.length > 0) {
@@ -1995,7 +2004,7 @@ if (lastAccessDate) {
         )
 
         // Verificar se a turma já existe no array
-        const existingClassIndex = existingUP.classes?.findIndex((c: any) => c.classId === classId) ?? -1
+        const existingClassIndex = existingUP.classes?.findIndex(c => c.classId === classId) ?? -1
 
         if (existingClassIndex === -1) {
           // Adicionar nova turma ao array (SEM className - virá da tabela Class)
@@ -2044,16 +2053,6 @@ if (lastAccessDate) {
             upNeedsUpdate = true
           }
           
-          if (metrics.engagement.actionsLastWeek !== undefined) {
-            upUpdateFields['engagement.actionsLastWeek'] = metrics.engagement.actionsLastWeek
-            upNeedsUpdate = true
-          }
-          
-          if (metrics.engagement.actionsLastMonth !== undefined) {
-            upUpdateFields['engagement.actionsLastMonth'] = metrics.engagement.actionsLastMonth
-            upNeedsUpdate = true
-          }
-          
           // Metadata fields
           if (metrics.metadata.purchaseDate !== null) {
             upUpdateFields['metadata.purchaseDate'] = metrics.metadata.purchaseDate
@@ -2072,8 +2071,8 @@ if (lastAccessDate) {
           
           debugLog(`   ✅ [Sprint 1.5B] Engagement metrics calculados e adicionados`)
         }
-      } catch (metricsError: any) {
-        console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, metricsError.message)
+      } catch (metricsError: unknown) {
+        console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, errorMessage(metricsError))
       }
       
       // Nota: PARA_INATIVAR não é revertido pelo sync.
@@ -2148,17 +2147,16 @@ if (lastAccessDate) {
         : {}
 
       // Não guardamos className no UserProduct - ele vem da tabela Class via lookup
-      const classesArray = classId ? [{
+      const classesArray: IClassEnrollment[] = classId ? [{
         classId,
         role: rolePlan.role,
-        joinedAt: enrolledAt,
-        leftAt: null
+        joinedAt: enrolledAt
       }] : []
 
       // ═══════════════════════════════════════════════════════════
       // Construir objeto progress por plataforma
       // ═══════════════════════════════════════════════════════════
-      const progressObj: any = {
+      const progressObj: IProgress = {
         percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
         lastActivity: toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
       }
@@ -2180,16 +2178,14 @@ if (lastAccessDate) {
         // lessonsCompleted - array de pageIds
         if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
           progressObj.lessonsCompleted = item.progress.lessons
-            .filter((l: any) => l.isCompleted)
-            .map((l: any) => l.pageId)
+            .flatMap(l => l.isCompleted && l.pageId ? [l.pageId] : [])
         }
 
         // modulesCompleted - array de módulos únicos
         if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
           progressObj.modulesCompleted = [...new Set(
             item.progress.lessons
-              .filter((l: any) => l.isCompleted && l.moduleName)
-              .map((l: any) => l.moduleName)
+              .flatMap(l => l.isCompleted && l.moduleName ? [l.moduleName] : [])
           )]
         }
       }
@@ -2201,7 +2197,7 @@ if (lastAccessDate) {
       const now = new Date()
       const daysInactive = Math.floor((now.getTime() - lastActionDate.getTime()) / (1000 * 60 * 60 * 24))
 
-      const engagementObj: any = {
+      const engagementObj: IEngagement = {
         engagementScore: item.engagement?.engagementScore
           ? toNumber(item.engagement.engagementScore, 0)
           : toNumber(item.accessCount, 0),
@@ -2215,7 +2211,7 @@ if (lastAccessDate) {
           engagementObj.totalLogins = toNumber(item.accessCount, 0)
         }
         if (item.lastAccessDate) {
-          engagementObj.lastLogin = toDateOrNull(item.lastAccessDate)
+          engagementObj.lastLogin = toDateOrNull(item.lastAccessDate) || undefined
         }
       }
 
@@ -2223,7 +2219,7 @@ if (lastAccessDate) {
       if (config.syncType === 'curseduca') {
         if (item.lastLogin) {
           const curseducaLastAction = toDateOrNull(item.lastLogin)
-          engagementObj.lastAction = curseducaLastAction
+          engagementObj.lastAction = curseducaLastAction || undefined
           if (curseducaLastAction) {
             const curseducaDaysInactive = Math.floor((now.getTime() - curseducaLastAction.getTime()) / (1000 * 60 * 60 * 24))
             engagementObj.daysInactive = Math.max(0, curseducaDaysInactive)
@@ -2237,7 +2233,7 @@ if (lastAccessDate) {
       // ═══════════════════════════════════════════════════════════
       // Criar novo UserProduct com TODOS os campos
       // ═══════════════════════════════════════════════════════════
-      const newUserProduct: any = {
+      const newUserProduct: NewUserProductInput = {
         userId: userIdStr,
         productId: productId,
         platform: config.syncType,
@@ -2268,11 +2264,13 @@ if (lastAccessDate) {
           // Adicionar engagement metrics
           newUserProduct.engagement = {
             ...newUserProduct.engagement,
-            daysSinceLastLogin: metrics.engagement.daysSinceLastLogin,
-            daysSinceLastAction: metrics.engagement.daysSinceLastAction,
-            totalLogins: metrics.engagement.totalLogins || 0,
-            actionsLastWeek: metrics.engagement.actionsLastWeek || 0,
-            actionsLastMonth: metrics.engagement.actionsLastMonth || 0
+            ...(metrics.engagement.daysSinceLastLogin !== null && {
+              daysSinceLastLogin: metrics.engagement.daysSinceLastLogin
+            }),
+            ...(metrics.engagement.daysSinceLastAction !== null && {
+              daysSinceLastAction: metrics.engagement.daysSinceLastAction
+            }),
+            totalLogins: metrics.engagement.totalLogins || 0
           }
           
           // Adicionar metadata
@@ -2282,46 +2280,28 @@ if (lastAccessDate) {
           
           newUserProduct.metadata = {
             ...newUserProduct.metadata,
-            purchaseDate: metrics.metadata.purchaseDate,
+            ...(metrics.metadata.purchaseDate !== null && {
+              purchaseDate: metrics.metadata.purchaseDate
+            }),
             platform: metrics.metadata.platform,
-            purchaseValue: metrics.metadata.purchaseValue
+            ...(metrics.metadata.purchaseValue !== null && {
+              purchaseValue: metrics.metadata.purchaseValue
+            })
           }
           
           console.log(`   ✅ [Sprint 1.5B] Engagement metrics adicionados ao novo UserProduct`)
         }
-      } catch (metricsError: any) {
-        console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, metricsError.message)
+      } catch (metricsError: unknown) {
+        console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, errorMessage(metricsError))
       }
       
       // Dados específicos da plataforma
-      if (config.syncType === 'hotmart') {
-        newUserProduct.hotmartData = {
-          hotmartUserId: item.hotmartUserId,
-          productCode: item.productCode
-        }
-      }
-      
-      if (config.syncType === 'curseduca') {
-        newUserProduct.curseducaData = {
-          curseducaUserId: item.curseducaUserId,
-          groupId: item.groupId,
-          subscriptionType: item.subscriptionType
-        }
-      }
-      
-      if (config.syncType === 'discord') {
-        newUserProduct.discordData = {
-          discordUserId: item.discordUserId,
-          username: item.username
-        }
-      }
-      
       await UserProduct.create(newUserProduct)
       debugLog(`   ✨ UserProduct CRIADO: ${user.email} → ${config.syncType}`)
     }
     
-  } catch (upError: any) {
-    console.error(`❌ [UniversalSync] Erro ao criar/atualizar UserProduct para ${user.email}:`, upError.message)
+  } catch (upError: unknown) {
+    console.error(`❌ [UniversalSync] Erro ao criar/atualizar UserProduct para ${user.email}:`, errorMessage(upError))
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -2332,12 +2312,11 @@ if (lastAccessDate) {
     // Buscar todos os produtos do user APÓS atualização
     const userProducts = await UserProduct.find({ userId: user._id })
       .populate('productId', 'name code platform')
-      .lean()
 
     // Criar snapshot, comparar com anterior e registar histórico
     const { comparison } = await snapshotAndCompare(
       user,
-      userProducts as any[],
+      userProducts,
       snapshotContext.syncType,
       snapshotContext.syncId,
     )
@@ -2348,8 +2327,8 @@ if (lastAccessDate) {
       debugLog(`      - MEDIUM: ${comparison.summary.mediumPriorityChanges}`)
       debugLog(`      - LOW: ${comparison.summary.lowPriorityChanges}`)
     }
-  } catch (snapshotError: any) {
-    console.error(`⚠️  [Snapshot] Erro ao criar snapshot para ${user.email}:`, snapshotError.message)
+  } catch (snapshotError: unknown) {
+    console.error(`⚠️  [Snapshot] Erro ao criar snapshot para ${user.email}:`, errorMessage(snapshotError))
     // Não falhar o sync por erro no snapshot
   }
 
