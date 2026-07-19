@@ -15,6 +15,9 @@ import type {
   CronJobIdInput,
 } from '../../security/cronDestructiveInput'
 
+type JobIdParams = {
+  id: string
+}
 
 // ═══════════════════════════════════════════════════════════
 // GET ALL JOBS
@@ -84,7 +87,10 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
 // GET /api/cron/jobs/:id
 // ═══════════════════════════════════════════════════════════
 
-export const getJobById = async (req: Request, res: Response): Promise<void> => {
+export const getJobById = async (
+  req: Request<JobIdParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
 
@@ -374,7 +380,10 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
 // PUT /api/cron/jobs/:id
 // ═══════════════════════════════════════════════════════════
 
-export const updateJob = async (req: Request, res: Response): Promise<void> => {
+export const updateJob = async (
+  req: Request<JobIdParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
     const updates = req.body
@@ -480,7 +489,10 @@ export const deleteJob = async (
 // POST /api/cron/jobs/:id/toggle
 // ═══════════════════════════════════════════════════════════
 
-export const toggleJob = async (req: Request, res: Response): Promise<void> => {
+export const toggleJob = async (
+  req: Request<JobIdParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
     const { enabled } = req.body
@@ -579,7 +591,10 @@ export const triggerJob = async (
 // GET /api/cron/jobs/:id/history
 // ═══════════════════════════════════════════════════════════
 
-export const getJobHistory = async (req: Request, res: Response): Promise<void> => {
+export const getJobHistory = async (
+  req: Request<JobIdParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
     const limit = parseInt(req.query.limit as string) || 20
