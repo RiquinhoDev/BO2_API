@@ -118,16 +118,8 @@ class ClassesService {
       }
 
       // 🆕 DETERMINAR ESTADO FINAL baseado em prioridade
-      let finalEstado = estado
-      let finalIsActive = isActive
-      
-      if (estado) {
-        // Se estado foi fornecido, sincronizar isActive
-        finalIsActive = estado === 'ativo'
-      } else {
-        // Se apenas isActive foi fornecido, determinar estado
-        finalEstado = isActive ? 'ativo' : 'inativo'
-      }
+      const finalEstado = estado ?? (isActive ? 'ativo' : 'inativo')
+      const finalIsActive = estado ? estado === 'ativo' : isActive
 
       // Verificar se já existe
       let existingClass = await Class.findOne({ classId })

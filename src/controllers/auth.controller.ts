@@ -112,8 +112,16 @@ export const login = async (req: Request, res: Response) => {
 }
 
 export const verify = async (req: Request, res: Response) => {
+  const user = req.user
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: "Não autenticado"
+    })
+  }
+
   try {
-    const admin = await Admin.findById(req.user.id).select("-password")
+    const admin = await Admin.findById(user.id).select("-password")
 
     if (!admin) {
       return res.status(404).json({
@@ -204,9 +212,17 @@ export const unlockAccount = async (req: Request, res: Response) => {
 }
 
 export const changePassword = async (req: Request, res: Response) => {
+  const user = req.user
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: "Não autenticado"
+    })
+  }
+
   try {
     const { currentPassword, newPassword } = req.body
-    const adminId = req.user.id
+    const adminId = user.id
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({

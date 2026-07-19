@@ -33,9 +33,8 @@ const asyncRoute = (fn: any): RequestHandler => {
   }
 }
 
-function actor(req: { body?: unknown }, validatedActor?: string): string {
-  const bodyActor = (req.body as { actor?: string } | undefined)?.actor
-  return (req as any).user?.email || validatedActor || bodyActor || 'backoffice'
+function actor(req: Pick<Request, 'user'>, validatedActor?: string): string {
+  return req.user?.email || validatedActor || 'backoffice'
 }
 
 /**
@@ -102,7 +101,10 @@ router.post('/approve', asyncRoute(async (req: Request, res: Response) => {
     res.status(400).json({ success: false, message: 'ids obrigatório (array de change ids)' })
     return
   }
-  const approved = await approveChanges(ids, actor(req))
+  const approved = await approveChanges(
+    ids,
+    actor(req, typeof req.body?.actor === 'string' ? req.body.actor : undefined)
+  )
   res.json({ success: true, data: { approved } })
 }))
 

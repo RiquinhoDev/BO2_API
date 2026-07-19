@@ -133,9 +133,12 @@ export const configureProduct = async (req: Request, res: Response): Promise<voi
       code: configData.productData.code.toUpperCase(),
       courseId: course._id,
       activeCampaignConfig: {
-        tagPrefix: configData.productData.code.toUpperCase(),
-        listId: course.activeCampaignConfig?.listId || '1',
-        ...configData.activeCampaignConfig
+        ...configData.activeCampaignConfig,
+        tagPrefix: configData.activeCampaignConfig?.tagPrefix
+          || configData.productData.code.toUpperCase(),
+        listId: configData.activeCampaignConfig?.listId
+          || course.activeCampaignConfig?.listId
+          || '1'
       },
       launchDate: new Date()
     });
@@ -164,4 +167,3 @@ export const configureProduct = async (req: Request, res: Response): Promise<voi
     });
   }
 };
-

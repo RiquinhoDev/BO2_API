@@ -85,9 +85,9 @@ export class HotmartDiscoveryService {
       isActive: true 
     }).select('hotmartProductId').lean();
     
-    return products
-      .filter(p => p.hotmartProductId)
-      .map(p => p.hotmartProductId);
+    return products.flatMap(product =>
+      product.hotmartProductId ? [product.hotmartProductId] : []
+    );
   }
 
   /**
@@ -215,4 +215,3 @@ export class HotmartDiscoveryService {
 
 export const hotmartDiscoveryService = new HotmartDiscoveryService();
 export default hotmartDiscoveryService;
-

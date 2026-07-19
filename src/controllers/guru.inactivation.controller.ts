@@ -586,9 +586,10 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
     }).select('_id email name guru curseduca').lean()
 
     // Só cancelamentos explícitos — pending (stale) não justifica inativação
-    const usersWithGuruCanceled = usersWithGuruData.filter(u =>
-      GURU_CANCELED_STATUSES.includes(u.guru?.status)
-    )
+    const usersWithGuruCanceled = usersWithGuruData.filter(u => {
+      const status = u.guru?.status
+      return typeof status === 'string' && GURU_CANCELED_STATUSES.includes(status)
+    })
 
     console.log(`   📌 Users com Guru cancelado: ${usersWithGuruCanceled.length}`)
 

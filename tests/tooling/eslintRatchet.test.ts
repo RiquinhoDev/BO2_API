@@ -66,7 +66,7 @@ describe('ESLint ratchet', () => {
     expect(ruleIds(result)).toContain('@typescript-eslint/no-unused-vars')
   })
 
-  test('mantém explicit any desligado enquanto strict estiver desligado', async () => {
+  test('mantém explicit any desligado até à sua migração ratcheted', async () => {
     const [result] = await createLinter().lintText(
       'export const legacyValue: any = 1\n',
       { filePath: cleanProbe },

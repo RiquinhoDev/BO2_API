@@ -5,6 +5,7 @@
 import { 
   ProductConfigurationData, 
   DiscoveredProduct,
+  ProductCategory,
   REENGAGEMENT_TEMPLATES 
 } from '../../types/discovery.types';
 
@@ -75,8 +76,8 @@ export class IntelligentDefaultsService {
   /**
    * 📋 Lista padrão por categoria
    */
-  private getDefaultListId(category: string): string {
-    const listMap: any = {
+  private getDefaultListId(category: ProductCategory): string {
+    const listMap: Record<ProductCategory, string> = {
       'biblioteca': '1',
       'investimento': '2', 
       'desenvolvimento': '3',
@@ -91,4 +92,3 @@ export class IntelligentDefaultsService {
 
 export const intelligentDefaultsService = new IntelligentDefaultsService();
 export default intelligentDefaultsService;
-

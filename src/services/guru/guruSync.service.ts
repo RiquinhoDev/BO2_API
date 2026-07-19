@@ -44,10 +44,11 @@ guruApi.interceptors.request.use((config) => {
 // TIPOS
 // ═══════════════════════════════════════════════════════════
 
-interface GuruSubscription {
+export interface GuruSubscription {
   id: string
   subscription_code: string
   last_status: string
+  started_at?: string | number
   name: string
   payment_method: string
   charged_every_days: number
@@ -212,7 +213,9 @@ export async function fetchAllSubscriptionsPaginated(
 
       const data = response.data?.data || []
       const hasMorePages = response.data?.has_more_pages === 1
-      const nextCursor = response.data?.next_cursor
+      const nextCursor = typeof response.data?.next_cursor === 'string'
+        ? response.data.next_cursor
+        : undefined
       const totalRows = response.data?.total_rows
       const onLastPage = response.data?.on_last_page === 1
 
@@ -235,7 +238,7 @@ export async function fetchAllSubscriptionsPaginated(
       } else {
         cursor = nextCursor
         hasMore = true
-        console.log(`➡️ [GURU SYNC] Próximo cursor: ${cursor.substring(0, 50)}...`)
+        console.log(`➡️ [GURU SYNC] Próximo cursor: ${nextCursor.substring(0, 50)}...`)
       }
 
       // Rate limiting - esperar 300ms entre requests
