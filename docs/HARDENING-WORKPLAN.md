@@ -309,11 +309,11 @@ Surpresa boa: o `strict:true` completo dá **só 22 erros** (com `strictNullChec
 Distribuição dos 22: **controllers 10 · services 9 · models 2 · security 1**. Códigos: TS7006 (param implicit any) 7 ·
 TS2322 5 · TS2339 3 · **TS18048 (possibly undefined) 3** · TS7053/TS2783/TS2352/TS2345 (1 cada).
 
-**Plano — 1 commit (o flip é atómico, não dá build verde a meio):** flip `strict:false → true`, fixar os 22, gate
-verde. Golden rule: os TS18048 (`possibly undefined`) e TS2339 podem **revelar bugs reais** (null-deref latente) —
-corrige a raiz com guard/tipo, **nunca `!` ou `as`**. Se algum for decisão, pára e pergunta.
-Nota: `tsconfig.jest.json` extends o principal → herda `strict:true` automaticamente (ts-jest fica strict também;
-se as suites reclamarem de folga nos testes, adiciona lá um override pontual, não afrouxes o build).
+- [x] **`strict:true` ACTIVADO** (`e36e6c1`). Flip + 22 fixes (controllers/services/models/security) com guards/tipos
+  reais — revisor confirmou por grep: **0 non-null (`!`), 0 casts, 0 any**. `tsc --noEmit` = 0 sob strict; jest 297/2;
+  build 0. `eslint no-explicit-any` fica off (comentário actualizado, migração ratcheted separada). `tsconfig.jest.json`
+  herda strict via extends (suites verdes). Committado pelo revisor (sandbox do Codex bateu num lock).
+
 Depois: `no-explicit-any` do ESLint (~1965, separado — explicit any, não é do tsc strict) e cirurgia ARCH-01/02/03.
 
 ---
