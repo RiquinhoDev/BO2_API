@@ -285,7 +285,24 @@ carregado inteiro** e clamp cego parte-as em silêncio:
 
 **Regra da fase (cumprida):** correcção antes de elegância; provas negativas dos dois lados; gate verde.
 
-## ▶ Fase atual: F3.3 — moagem TS 178→0 (por módulo)
+## ✅ F3.3 — moagem TS **FECHADA: ratchet 0/0** (2026-07-18)
+
+`npx tsc --noEmit` = **0 erros** (verdade crua, verificado pelo revisor). 178→0 por módulo/ficheiro, **sem 1 único
+`any`/cast/suppression** — o revisor injectou-testou cada bloco. Pelo caminho: **18 bugs reais** corrigidos (campos
+fantasma, schema strict a descartar campos, métodos/exports inexistentes escondidos por `as any` e engolidos por
+`catch`, `$ne` duplicado, misclassificação discord, etc.), **7 blocos de código morto/duplicado** eliminados
+(reengagement, ogiCourse, dashboard-legacy, 7 métodos cron, 2 rotas shadowed, 4 reads AC, handlers soltos), e **1
+mentira do UI** transformada em preview real. Últimos 5: `90281fc`(webhook), `9036413`(migração morta),
+`ff42326`(bug16 subdomain), `c8e3b73`(bug17 engagement fora do schema), `ad4a312`(bug18 UserHistory sempre vazio).
+
+### ▶ PRÓXIMO (o revisor/utilizador valida — NÃO é moagem cega): **matar o falso-verde**
+Agora que o ratchet é 0, o passo que fecha o TOOL-01: remover o `tsc || exit 0` do build, activar `noEmitOnError:true`,
+e confirmar que o `prebuild`/ratchet continua a proteger. Depois: **`strict` em ondas** (o `no-explicit-any` do ESLint
+está desligado por ~1965 violações — reavaliar quando o strict entrar). Isto é decisão/validação conjunta, um commit próprio.
+
+---
+
+## (histórico) F3.3 — moagem TS 178→0 (por módulo)
 
 **Objetivo:** baixar o ratchet TypeScript até **0**, **por directório/módulo**, um commit por módulo, com os
 números antes/depois no corpo. `npm run types:baseline:update` regrava a baseline (**nunca à mão**). Só no fim
