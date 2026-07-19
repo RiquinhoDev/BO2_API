@@ -6,7 +6,9 @@
 import { Request, Response } from 'express'
 import syncReportsService from '../../services/syncUtilizadoresServices/syncReports.service'
 
-
+type SyncReportParams = {
+  id: string
+}
 
 // ═══════════════════════════════════════════════════════════
 // GET ALL REPORTS
@@ -48,7 +50,7 @@ export const getAllReports = async (req: Request, res: Response): Promise<void> 
 // GET /api/sync/reports/:id
 // ═══════════════════════════════════════════════════════════
 
-export const getReportById = async (req: Request, res: Response): Promise<void> => {
+export const getReportById = async (req: Request<SyncReportParams>, res: Response): Promise<void> => {
   try {
     const { id } = req.params
     
@@ -75,43 +77,6 @@ export const getReportById = async (req: Request, res: Response): Promise<void> 
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar report',
-      error: error.message
-    })
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// GET REPORTS BY JOB
-// GET /api/cron/jobs/:jobId/reports
-// ═══════════════════════════════════════════════════════════
-
-export const getReportsByJob = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { jobId } = req.params
-    const { limit } = req.query
-    
-    console.log(`📋 [ReportsController] Buscando reports do job: ${jobId}`)
-    
-    const reports = await syncReportsService.getReportsByJob(
-      jobId,
-      limit ? parseInt(limit as string) : 20
-    )
-    
-    res.status(200).json({
-      success: true,
-      message: 'Reports do job recuperados com sucesso',
-      data: {
-        reports,
-        total: reports.length,
-        jobId
-      }
-    })
-    
-  } catch (error: any) {
-    console.error('❌ [ReportsController] Erro ao buscar reports do job:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar reports do job',
       error: error.message
     })
   }
@@ -155,6 +120,5 @@ export const getAggregatedStats = async (req: Request, res: Response): Promise<v
 export default {
   getAllReports,
   getReportById,
-  getReportsByJob,
   getAggregatedStats
 }
