@@ -70,6 +70,7 @@ type EngineInternals = {
 
 describe('DecisionEngine dry-run', () => {
   beforeEach(() => {
+    jest.restoreAllMocks()
     jest.clearAllMocks()
 
     mockFindUserProduct.mockResolvedValue({
@@ -167,7 +168,81 @@ describe('DecisionEngine dry-run', () => {
     })
     expect(evaluateSpy).toHaveBeenCalledWith('student-1', 'product-1', true)
   })
+
+  it('uses recent learner activity instead of the account creation date', async () => {
+    mockFindUserProduct.mockResolvedValue(userProductWithoutMetrics())
+    mockFindUser.mockResolvedValue({
+      _id: 'user-1',
+      email: 'student@example.test',
+      createdAt: daysAgo(100),
+      communicationByCourse: new Map([
+        ['OGI_V1', {
+          courseSpecificData: { lastReportOpenedAt: daysAgo(2) },
+        }],
+      ]),
+    })
+
+    const result = await decisionEngine.evaluateUserProduct(
+      'user-1',
+      'product-1',
+      true,
+    )
+
+    expect(result.tagsToApply).toEqual([])
+  })
+
+  it('does not mark a learner inactive when there is no activity signal', async () => {
+    mockFindUserProduct.mockResolvedValue(userProductWithoutMetrics())
+    mockFindUser.mockResolvedValue({
+      _id: 'user-1',
+      email: 'student@example.test',
+      createdAt: daysAgo(100),
+    })
+
+    const result = await decisionEngine.evaluateUserProduct(
+      'user-1',
+      'product-1',
+      true,
+    )
+
+    expect(result.tagsToApply).toEqual([])
+  })
+
+  it('ignores recent system actions when calculating learner inactivity', async () => {
+    mockFindUserProduct.mockResolvedValue(userProductWithoutMetrics())
+    mockFindUser.mockResolvedValue({
+      _id: 'user-1',
+      email: 'student@example.test',
+      createdAt: daysAgo(100),
+      communicationByCourse: new Map([
+        ['OGI_V1', {
+          lastTagAppliedAt: daysAgo(1),
+          lastEmailSentAt: daysAgo(1),
+          courseSpecificData: { lastModuleCompletedAt: daysAgo(15) },
+        }],
+      ]),
+    })
+
+    const result = await decisionEngine.evaluateUserProduct(
+      'user-1',
+      'product-1',
+      true,
+    )
+
+    expect(result.tagsToApply).toEqual(['OGI_LEVEL_1'])
+  })
 })
+
+function userProductWithoutMetrics() {
+  return {
+    _id: { toString: () => 'user-product-1' },
+    activeCampaignData: { tags: [] },
+  }
+}
+
+function daysAgo(days: number): Date {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+}
 
 function resultForProduct(): DecisionResult {
   return {

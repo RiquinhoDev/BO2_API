@@ -14,6 +14,7 @@ import TagRule from '../../models/acTags/TagRule'
 import UserAction from '../../models/UserAction'
 import activeCampaignService from './activeCampaignService'
 import { Course } from '../../models'
+import { getLastLearnerActivityDate } from '../activity/learnerActivity'
 
 // ─────────────────────────────────────────────────────────────
 // TIPOS
@@ -325,7 +326,9 @@ async evaluateUserProduct(
 
         // ===== níveis (escalonamento)
         const currentLevel = inferCurrentLevel(context.userProduct, levelRules)
-        const appropriateLevel = determineAppropriateLevel(daysInactive, levelRules)
+        const appropriateLevel = daysInactive === null
+          ? 0
+          : determineAppropriateLevel(daysInactive, levelRules)
 
         result.currentLevel = currentLevel
         result.appropriateLevel = appropriateLevel
@@ -373,7 +376,7 @@ async evaluateUserProduct(
           }
 
           // 3) Se apropriado > atual -> aplicar/escalar para tag do nível apropriado
-    if (appropriateLevel > currentLevel && levelRules.length > 0) {
+          if (daysInactive !== null && appropriateLevel > currentLevel && levelRules.length > 0) {
             const target = levelRules.find(lr => lr.level === appropriateLevel)
 
             if (target) {
@@ -609,8 +612,8 @@ async evaluateUserProduct(
   }
 
 private async getMetrics(context: DecisionContext): Promise<{
-  daysSinceLastLogin: number
-  daysSinceLastAction: number
+  daysSinceLastLogin: number | null
+  daysSinceLastAction: number | null
   daysSinceEnrollment: number  // 🆕 ADICIONADO!
   engagementScore: number
   totalLogins: number
@@ -619,9 +622,11 @@ private async getMetrics(context: DecisionContext): Promise<{
   const up = context.userProduct
 
   // Preferir métricas já calculadas no UserProduct.engagement
+  const lastActivity = getLastLearnerActivityDate(context.user, context.product.code)
+  const fallbackDays = this.calculateDaysInactive(lastActivity)
   const fallback = {
-    daysSinceLastLogin: 999,
-    daysSinceLastAction: 999,
+    daysSinceLastLogin: fallbackDays,
+    daysSinceLastAction: fallbackDays,
     daysSinceEnrollment: 999,  // 🆕 ADICIONADO!
     engagementScore: 0,
     totalLogins: 0,
@@ -642,26 +647,16 @@ private async getMetrics(context: DecisionContext): Promise<{
     }
   }
 
-  // Fallback: tentar inferir via User (última atividade)
-  const last = this.getLastActivityDate(context.user, context.product.code)
-  const days = this.calculateDaysInactive(last)
-
   return {
     ...fallback,
-    daysSinceLastLogin: days,
-    daysSinceLastAction: days
+    daysSinceLastLogin: fallbackDays,
+    daysSinceLastAction: fallbackDays
     // daysSinceEnrollment mantém fallback 999 se não houver engagement
   }
 }
 
-  private getLastActivityDate(user: any, productCode: string): Date {
-    const courseData = user.communicationByCourse?.get?.(productCode)
-    if (courseData?.lastActivityDate) return new Date(courseData.lastActivityDate)
-    if (user.lastLogin) return new Date(user.lastLogin)
-    return new Date(user.createdAt || Date.now())
-  }
-
-  private calculateDaysInactive(lastActivity: Date): number {
+  private calculateDaysInactive(lastActivity: Date | null): number | null {
+    if (!lastActivity) return null
     const diffMs = Date.now() - lastActivity.getTime()
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
     return Math.max(0, diffDays)
@@ -738,8 +733,8 @@ private async evaluateCondition(
   // ───────────────────────────────────────────────────────────
   // EXTRAIR MÉTRICAS (✅ INCLUINDO daysSinceEnrollment)
   // ───────────────────────────────────────────────────────────
-  const daysSinceLastLogin = metrics.daysSinceLastLogin ?? 999
-  const daysSinceLastAction = metrics.daysSinceLastAction ?? 999
+  const daysSinceLastLogin = metrics.daysSinceLastLogin ?? Number.NaN
+  const daysSinceLastAction = metrics.daysSinceLastAction ?? Number.NaN
   const daysSinceEnrollment = metrics.daysSinceEnrollment ?? 999  // 🆕 NOVO!
   const engagementScore = metrics.engagementScore ?? 0
   const totalLogins = metrics.totalLogins ?? 0
@@ -1254,7 +1249,7 @@ private async evaluateCondition(
   private async checkRecentProgress(
     userId: string,
     productCode: string,
-    metrics: { daysSinceLastLogin: number; daysSinceLastAction: number }
+    metrics: { daysSinceLastLogin: number | null; daysSinceLastAction: number | null }
   ): Promise<{ type: string; value: number } | null> {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
