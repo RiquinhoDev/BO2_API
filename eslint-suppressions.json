@@ -1533,14 +1533,6 @@
       "count": 1
     }
   },
-  "src/utils/detailedLogger.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 21
-    },
-    "no-console": {
-      "count": 7
-    }
-  },
   "src/utils/engagementCalculator.ts": {
     "no-console": {
       "count": 19
