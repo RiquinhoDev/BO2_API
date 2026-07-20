@@ -1292,9 +1292,6 @@
     }
   },
   "src/services/guru/guruSync.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 65
-    },
     "no-console": {
       "count": 57
     }
