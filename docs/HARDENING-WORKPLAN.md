@@ -518,9 +518,13 @@ comparem `situation`/`memberStatus` a literais.
   `engagement.totalActions` inexistente; serialização de condições incompletas. Dead code (regra #9):
   `fetchMemberDetails`/`enrichMemberWithDetails` removidos (substituídos pelo bulk map). Gate: lint 0, tsc 0,
   ratchet 0, build 0, jest 321/2.
-  **Deixado deliberadamente fora (decisão própria pendente):** `tagOrchestrator.service.ts` mantém a **sua** noção
-  de última actividade (`studentState.lastActivityDate = ctx.lastActivity`, :442/:469; leitura :487). Propagar `null`
-  aí precisa de decidir o que fazer quando `ctx.lastActivity` é desconhecido nesse fluxo — **não tocar sem decisão**.
+  **Deixado deliberadamente fora → agora DECIDIDO (próximo bloco):** `tagOrchestrator.service.ts` tem a **sua** noção
+  de última actividade. **Investigado (não é decisão nova, é o MESMO bug numa 2ª cópia):** `getUserLastActivity`
+  (:482-490) é o gémeo exacto do bug corrigido no decisionEngine — lê `courseData.lastActivityDate` e `user.lastLogin`
+  (ambos fantasmas) e cai sempre em `createdAt`; o `daysInactive` resultante (:99) alimenta
+  `studentState.daysSinceLastLogin` (:443, :470) que **decide tags**. Mesmo motor de bug, mesma direcção errada.
+  **Decisão: Opção A — unificar.** O orchestrator passa a consumir `getLastLearnerActivityDate` e trata `null` como
+  "desconhecido ≠ inactivo", igual ao decisionEngine. Uma só fonte de verdade, uma só semântica. Ver handoff abaixo.
 
 Depois: cirurgia ARCH-01/02/03.
 
