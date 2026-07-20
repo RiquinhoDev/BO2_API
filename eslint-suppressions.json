@@ -1592,11 +1592,6 @@
       "count": 1
     }
   },
-  "src/utils/responseHelpers.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    }
-  },
   "src/utils/studentDataConsolidator.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 10
