@@ -1,7 +1,8 @@
 // src/services/guru/guruSync.service.ts - Serviço para sincronizar dados da Guru (APENAS LEITURA)
 import axios from 'axios'
-import User from '../../models/user'
+import User, { type IUser } from '../../models/user'
 import UserProduct from '../../models/UserProduct'
+import type { CrossReferenceResult } from './crossReference.service'
 import {
   GURU_CANCELED_STATUSES,
   getStatusPriority,
@@ -55,6 +56,7 @@ export interface GuruSubscription {
   next_cycle_value: number
   dates: {
     started_at: string
+    created_at?: string
     canceled_at?: string
     next_cycle_at?: string
     last_status_at: string
@@ -86,6 +88,21 @@ export interface GuruSubscription {
   trial_days?: number
   trial_started_at?: string
   trial_finished_at?: string
+  status?: string
+  contact?: {
+    id?: string
+    email?: string
+    name?: string
+  }
+  email?: string
+  customer?: {
+    email?: string
+  }
+  code?: string
+  offer?: {
+    id?: string
+  }
+  product_id?: string
 }
 
 interface GuruContact {
@@ -107,13 +124,80 @@ interface SyncResult {
   markedForInactivation: number
   uniqueEmails: number
   multiSubEmails: number
-  crossReference?: any
+  crossReference?: CrossReferenceResult
   details: Array<{
     email: string
     action: 'created' | 'updated' | 'skipped' | 'error'
     error?: string
     markedForInactivation?: number
   }>
+}
+
+type GuruStatus = NonNullable<IUser['guru']>['status']
+
+interface GuruListResponse {
+  data?: GuruSubscription[]
+  has_more_pages?: number
+  next_cursor?: string
+  total_rows?: number
+  on_last_page?: number
+}
+
+interface GuruContactListResponse {
+  data?: GuruContact[]
+}
+
+interface GuruSubscriptionResponse {
+  data?: GuruSubscription
+}
+
+interface GuruSyncData {
+  guruContactId?: string
+  subscriptionCode?: string
+  status: GuruStatus
+  updatedAt?: Date
+  nextCycleAt?: Date
+  offerId?: string
+  productId?: string
+  paymentUrl?: string
+  isTrial?: boolean
+  trialStartedAt?: Date
+  trialFinishedAt?: Date
+  trialConvertedAt?: Date
+  lastSyncAt: Date
+  syncVersion: string
+  lastWebhookAt?: Date
+}
+
+interface GuruApiErrorDetails {
+  status?: number
+  url?: string
+  data?: unknown
+  message: string
+}
+
+function guruApiErrorDetails(error: unknown): GuruApiErrorDetails {
+  if (axios.isAxiosError(error)) {
+    return {
+      status: error.response?.status,
+      url: `${error.config?.baseURL || ''}${error.config?.url || ''}` || undefined,
+      data: error.response?.data,
+      message: error.message,
+    }
+  }
+
+  return {
+    message: error instanceof Error ? error.message : String(error),
+  }
+}
+
+function subscriptionEmail(subscription: GuruSubscription): string | undefined {
+  return (
+    subscription.subscriber?.email ||
+    subscription.contact?.email ||
+    subscription.email ||
+    subscription.customer?.email
+  )?.toLowerCase().trim()
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -139,20 +223,23 @@ export async function fetchAllSubscriptions(params?: {
     }
     console.log('📤 [GURU SYNC] Params:', requestParams)
 
-    const response = await guruApi.get('/subscriptions', {
+    const response = await guruApi.get<GuruListResponse | GuruSubscription[]>('/subscriptions', {
       params: requestParams
     })
 
-    const subscriptions = response.data?.data || response.data || []
+    const subscriptions = Array.isArray(response.data)
+      ? response.data
+      : response.data.data || []
     console.log(`✅ [GURU SYNC] Pedido: ${requestParams.per_page}, Recebido: ${subscriptions.length} subscrições`)
 
     return subscriptions
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const details = guruApiErrorDetails(error)
     console.error('❌ [GURU SYNC] Erro ao buscar subscrições:')
-    console.error('   Status:', error.response?.status)
-    console.error('   URL:', error.config?.url)
-    console.error('   Data:', JSON.stringify(error.response?.data, null, 2))
-    console.error('   Message:', error.message)
+    console.error('   Status:', details.status)
+    console.error('   URL:', details.url)
+    console.error('   Data:', JSON.stringify(details.data, null, 2))
+    console.error('   Message:', details.message)
     throw error
   }
 }
@@ -185,7 +272,13 @@ export async function fetchAllSubscriptionsPaginated(
       pageNumber++
 
       // GURU usa cursor-based pagination, não page-based!
-      const requestParams: any = {
+      const requestParams: {
+        per_page: number
+        cursor?: string
+        started_at_ini?: string
+        started_at_end?: string
+        status?: string
+      } = {
         per_page: 50 // Máximo permitido pela API da Guru
       }
 
@@ -207,7 +300,7 @@ export async function fetchAllSubscriptionsPaginated(
 
       console.log(`📤 [GURU SYNC] Requisição ${pageNumber} com params:`, requestParams)
 
-      const response = await guruApi.get('/subscriptions', {
+      const response = await guruApi.get<GuruListResponse>('/subscriptions', {
         params: requestParams
       })
 
@@ -244,11 +337,12 @@ export async function fetchAllSubscriptionsPaginated(
       // Rate limiting - esperar 300ms entre requests
       await new Promise(resolve => setTimeout(resolve, 300))
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const details = guruApiErrorDetails(error)
       console.error(`❌ [GURU SYNC] Erro na requisição ${pageNumber}:`)
-      console.error('   Status:', error.response?.status)
-      console.error('   URL:', error.config?.baseURL + error.config?.url)
-      console.error('   Data:', JSON.stringify(error.response?.data, null, 2))
+      console.error('   Status:', details.status)
+      console.error('   URL:', details.url)
+      console.error('   Data:', JSON.stringify(details.data, null, 2))
       hasMore = false
     }
   }
@@ -295,10 +389,10 @@ export async function fetchAllSubscriptionsComplete(
  */
 export async function fetchSubscriptionById(subscriptionId: string): Promise<GuruSubscription | null> {
   try {
-    const response = await guruApi.get(`/subscriptions/${subscriptionId}`)
-    return response.data?.data || response.data
-  } catch (error: any) {
-    if (error.response?.status === 404) {
+    const response = await guruApi.get<GuruSubscriptionResponse | GuruSubscription>(`/subscriptions/${subscriptionId}`)
+    return 'id' in response.data ? response.data : response.data.data || null
+  } catch (error: unknown) {
+    if (guruApiErrorDetails(error).status === 404) {
       return null
     }
     throw error
@@ -310,13 +404,15 @@ export async function fetchSubscriptionById(subscriptionId: string): Promise<Gur
  */
 export async function fetchContactByEmail(email: string): Promise<GuruContact | null> {
   try {
-    const response = await guruApi.get('/contacts', {
+    const response = await guruApi.get<GuruContactListResponse | GuruContact[]>('/contacts', {
       params: { email }
     })
-    const contacts = response.data?.data || response.data || []
+    const contacts = Array.isArray(response.data)
+      ? response.data
+      : response.data.data || []
     return contacts[0] || null
-  } catch (error: any) {
-    if (error.response?.status === 404) {
+  } catch (error: unknown) {
+    if (guruApiErrorDetails(error).status === 404) {
       return null
     }
     throw error
@@ -328,10 +424,10 @@ export async function fetchContactByEmail(email: string): Promise<GuruContact | 
  */
 export async function fetchContactSubscriptions(contactId: string): Promise<GuruSubscription[]> {
   try {
-    const response = await guruApi.get(`/contacts/${contactId}/subscriptions`)
-    return response.data?.data || response.data || []
-  } catch (error: any) {
-    console.error(`❌ [GURU SYNC] Erro ao buscar subscrições do contacto ${contactId}:`, error.message)
+    const response = await guruApi.get<GuruListResponse | GuruSubscription[]>(`/contacts/${contactId}/subscriptions`)
+    return Array.isArray(response.data) ? response.data : response.data.data || []
+  } catch (error: unknown) {
+    console.error(`❌ [GURU SYNC] Erro ao buscar subscrições do contacto ${contactId}:`, guruApiErrorDetails(error).message)
     return []
   }
 }
@@ -343,8 +439,8 @@ export async function fetchContactSubscriptions(contactId: string): Promise<Guru
 /**
  * Mapear status da Guru para o nosso formato
  */
-function mapGuruStatus(guruStatus: string): 'active' | 'pastdue' | 'canceled' | 'expired' | 'pending' | 'refunded' | 'suspended' | 'trial' {
-  const statusMap: Record<string, any> = {
+function mapGuruStatus(guruStatus: string): GuruStatus {
+  const statusMap: Record<string, GuruStatus> = {
     'active': 'active',
     'paid': 'active',
     'trialing': 'trial',
@@ -372,12 +468,7 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
   markedForInactivation?: number
 }> {
   // Tentar encontrar o email em diferentes locais da estrutura
-  const email = (
-    subscription.subscriber?.email ||
-    (subscription as any).contact?.email ||
-    (subscription as any).email ||
-    (subscription as any).customer?.email
-  )?.toLowerCase().trim()
+  const email = subscriptionEmail(subscription)
 
   if (!email) {
     console.warn('⚠️ [GURU SYNC] Subscrição sem email:', JSON.stringify({
@@ -389,44 +480,41 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
     return { action: 'skipped', email: 'sem-email' }
   }
 
-  // Extrair dados de diferentes estruturas possíveis
-  const sub = subscription as any
+  const mappedStatus = mapGuruStatus(subscription.last_status || subscription.status || '')
 
-  const mappedStatus = mapGuruStatus(sub.last_status || sub.status)
-
-  const guruData = {
-    guruContactId: sub.subscriber?.id || sub.contact?.id,
-    subscriptionCode: sub.subscription_code || sub.code || sub.id,
+  const guruData: GuruSyncData = {
+    guruContactId: subscription.subscriber?.id || subscription.contact?.id,
+    subscriptionCode: subscription.subscription_code || subscription.code || subscription.id,
     status: mappedStatus,
-    updatedAt: sub.dates?.last_status_at ? new Date(sub.dates.last_status_at)
-      : sub.dates?.started_at ? new Date(sub.dates.started_at)
-      : sub.dates?.created_at ? new Date(sub.dates.created_at)
+    updatedAt: subscription.dates?.last_status_at ? new Date(subscription.dates.last_status_at)
+      : subscription.dates?.started_at ? new Date(subscription.dates.started_at)
+      : subscription.dates?.created_at ? new Date(subscription.dates.created_at)
       : undefined,
-    nextCycleAt: sub.dates?.next_cycle_at ? new Date(sub.dates.next_cycle_at) : undefined,
-    offerId: sub.product?.offer?.id || sub.offer?.id,
-    productId: sub.product?.id || sub.product_id,
-    paymentUrl: sub.current_invoice?.payment_url,
+    nextCycleAt: subscription.dates?.next_cycle_at ? new Date(subscription.dates.next_cycle_at) : undefined,
+    offerId: subscription.product?.offer?.id || subscription.offer?.id,
+    productId: subscription.product?.id || subscription.product_id,
+    paymentUrl: subscription.current_invoice?.payment_url,
     // Trial
     isTrial: mappedStatus === 'trial',
-    trialStartedAt: sub.trial_started_at ? new Date(sub.trial_started_at) : undefined,
-    trialFinishedAt: sub.trial_finished_at ? new Date(sub.trial_finished_at) : undefined,
+    trialStartedAt: subscription.trial_started_at ? new Date(subscription.trial_started_at) : undefined,
+    trialFinishedAt: subscription.trial_finished_at ? new Date(subscription.trial_finished_at) : undefined,
     // Se era trial e agora é active → converteu
-    trialConvertedAt: undefined as Date | undefined,
+    trialConvertedAt: undefined,
     lastSyncAt: new Date(),
     syncVersion: '2.0',
     lastWebhookAt: undefined // Não veio de webhook, veio de sync
   }
 
   // Nome do subscriber
-  const subscriberName = sub.subscriber?.name || sub.contact?.name || sub.name || email.split('@')[0]
+  const subscriberName = subscription.subscriber?.name || subscription.contact?.name || subscription.name || email.split('@')[0]
 
   const existingUser = await User.findOne({ email }).select('_id guru')
   let action: 'created' | 'updated' | 'skipped'
 
-  let userId: any
+  let userId: IUser['_id']
 
   if (existingUser) {
-    const currentGuruStatus = (existingUser as any).guru?.status || null
+    const currentGuruStatus = existingUser.guru?.status || null
 
     // ═══════════════════════════════════════════════════════════
     // PRIORIDADE DE SUBSCRIÇÕES: Só atualizar se nova for MELHOR
@@ -439,8 +527,8 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
       nextCycleAt: guruData.nextCycleAt
     }
     const currentDates: GuruDateInfo = {
-      updatedAt: (existingUser as any).guru?.updatedAt,
-      nextCycleAt: (existingUser as any).guru?.nextCycleAt
+      updatedAt: existingUser.guru?.updatedAt,
+      nextCycleAt: existingUser.guru?.nextCycleAt
     }
     if (currentGuruStatus && !sharedIsStatusBetterOrEqual(guruData.status, currentGuruStatus, newDates, currentDates)) {
       console.log(`  ⏭️ SKIP: ${email} - manter ${currentGuruStatus} (ignorar ${guruData.status} de sub ${guruData.subscriptionCode})`)
@@ -587,25 +675,22 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
     // Elimina problemas de ordem de processamento
     // ═══════════════════════════════════════════════════════════
 
-    const subsByEmail = new Map<string, any[]>()
+    const subsByEmail = new Map<string, GuruSubscription[]>()
 
     for (const sub of subscriptions) {
-      const email = (
-        (sub as any).subscriber?.email ||
-        (sub as any).contact?.email ||
-        (sub as any).email ||
-        (sub as any).customer?.email
-      )?.toLowerCase().trim()
+      const email = subscriptionEmail(sub)
 
       if (!email) {
         result.skipped++
         continue
       }
 
-      if (!subsByEmail.has(email)) {
-        subsByEmail.set(email, [])
+      const emailSubscriptions = subsByEmail.get(email)
+      if (emailSubscriptions) {
+        emailSubscriptions.push(sub)
+      } else {
+        subsByEmail.set(email, [sub])
       }
-      subsByEmail.get(email)!.push(sub)
     }
 
     result.uniqueEmails = subsByEmail.size
@@ -627,60 +712,59 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
         // Encontrar a MELHOR subscrição para este email
         // NOTA: pending stale (>7 dias sem pagar) recebe prioridade 8 (pior que refunded)
         const bestSub = subs.reduce((best, curr) => {
-          const bestStatus = mapGuruStatus((best as any).last_status || (best as any).status || '')
-          const currStatus = mapGuruStatus((curr as any).last_status || (curr as any).status || '')
+          const bestStatus = mapGuruStatus(best.last_status || best.status || '')
+          const currStatus = mapGuruStatus(curr.last_status || curr.status || '')
           const bestDates: GuruDateInfo = {
-            updatedAt: (best as any).dates?.last_status_at,
-            nextCycleAt: (best as any).dates?.next_cycle_at,
-            startedAt: (best as any).dates?.started_at
+            updatedAt: best.dates?.last_status_at,
+            nextCycleAt: best.dates?.next_cycle_at,
+            startedAt: best.dates?.started_at
           }
           const currDates: GuruDateInfo = {
-            updatedAt: (curr as any).dates?.last_status_at,
-            nextCycleAt: (curr as any).dates?.next_cycle_at,
-            startedAt: (curr as any).dates?.started_at
+            updatedAt: curr.dates?.last_status_at,
+            nextCycleAt: curr.dates?.next_cycle_at,
+            startedAt: curr.dates?.started_at
           }
           const bestPrio = getStatusPriority(bestStatus, bestDates)
           const currPrio = getStatusPriority(currStatus, currDates)
           return currPrio < bestPrio ? curr : best
         })
 
-        const bestStatus = mapGuruStatus((bestSub as any).last_status || (bestSub as any).status || '')
+        const bestStatus = mapGuruStatus(bestSub.last_status || bestSub.status || '')
 
         // Datas da melhor subscrição (para classificação de pending stale)
         const bestDatesForCheck: GuruDateInfo = {
-          updatedAt: (bestSub as any).dates?.last_status_at,
-          nextCycleAt: (bestSub as any).dates?.next_cycle_at,
-          startedAt: (bestSub as any).dates?.started_at
+          updatedAt: bestSub.dates?.last_status_at,
+          nextCycleAt: bestSub.dates?.next_cycle_at,
+          startedAt: bestSub.dates?.started_at
         }
 
         // Guardar dados da melhor subscrição
-        const guruData = {
-          guruContactId: (bestSub as any).subscriber?.id || (bestSub as any).contact?.id,
-          subscriptionCode: (bestSub as any).subscription_code || (bestSub as any).code || (bestSub as any).id,
+        const guruData: GuruSyncData = {
+          guruContactId: bestSub.subscriber?.id || bestSub.contact?.id,
+          subscriptionCode: bestSub.subscription_code || bestSub.code || bestSub.id,
           status: bestStatus,
-          updatedAt: (bestSub as any).dates?.last_status_at ? new Date((bestSub as any).dates.last_status_at)
-            : (bestSub as any).dates?.started_at ? new Date((bestSub as any).dates.started_at)
-            : (bestSub as any).dates?.created_at ? new Date((bestSub as any).dates.created_at)
+          updatedAt: bestSub.dates?.last_status_at ? new Date(bestSub.dates.last_status_at)
+            : bestSub.dates?.started_at ? new Date(bestSub.dates.started_at)
+            : bestSub.dates?.created_at ? new Date(bestSub.dates.created_at)
             : undefined,
-          nextCycleAt: (bestSub as any).dates?.next_cycle_at ? new Date((bestSub as any).dates.next_cycle_at) : undefined,
-          offerId: (bestSub as any).product?.offer?.id || (bestSub as any).offer?.id,
-          productId: (bestSub as any).product?.id || (bestSub as any).product_id,
-          paymentUrl: (bestSub as any).current_invoice?.payment_url,
+          nextCycleAt: bestSub.dates?.next_cycle_at ? new Date(bestSub.dates.next_cycle_at) : undefined,
+          offerId: bestSub.product?.offer?.id || bestSub.offer?.id,
+          productId: bestSub.product?.id || bestSub.product_id,
+          paymentUrl: bestSub.current_invoice?.payment_url,
           lastSyncAt: new Date(),
           syncVersion: '3.0',
-          totalSubscriptions: subs.length,
           lastWebhookAt: undefined
         }
 
-        const subscriberName = (bestSub as any).subscriber?.name || (bestSub as any).contact?.name || (bestSub as any).name || email.split('@')[0]
+        const subscriberName = bestSub.subscriber?.name || bestSub.contact?.name || bestSub.name || email.split('@')[0]
 
         // Buscar user existente
         const existingUser = await User.findOne({ email }).select('_id guru')
-        let userId: any
+        let userId: IUser['_id']
         let action: 'created' | 'updated' | 'skipped'
 
         if (existingUser) {
-          const currentGuruStatus = (existingUser as any).guru?.status || null
+          const currentGuruStatus = existingUser.guru?.status || null
 
           // Atualizar user com dados da melhor subscrição
           await User.updateOne(
@@ -700,8 +784,8 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
           // Se melhorou de canceled → active, reverter PARA_INATIVAR
           // NOTA: pending stale é tratado como canceled
           const prevEffective = getEffectiveStatus(currentGuruStatus, {
-            updatedAt: (existingUser as any).guru?.updatedAt,
-            nextCycleAt: (existingUser as any).guru?.nextCycleAt
+            updatedAt: existingUser.guru?.updatedAt,
+            nextCycleAt: existingUser.guru?.nextCycleAt
           })
           const newEffectiveSync = getEffectiveStatus(bestStatus, bestDatesForCheck)
           if (currentGuruStatus && prevEffective.isCanceled && !newEffectiveSync.isCanceled) {
@@ -793,10 +877,11 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
           console.log(`\n📈 [GURU SYNC] Progresso: ${processedCount}/${subsByEmail.size} emails (✨${result.created} novos, 🔄${result.updated} atualizados, 🔴${result.markedForInactivation} p/inativar)\n`)
         }
 
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message = guruApiErrorDetails(error).message
         result.errors++
-        result.details.push({ email, action: 'error', error: error.message })
-        console.error(`❌ [GURU SYNC] Erro ${email}:`, error.message)
+        result.details.push({ email, action: 'error', error: message })
+        console.error(`❌ [GURU SYNC] Erro ${email}:`, message)
       }
     }
 
@@ -807,8 +892,8 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
       const { runCrossReferenceAfterGuruSync } = await import('./crossReference.service')
       const crossRefResult = await runCrossReferenceAfterGuruSync()
       result.crossReference = crossRefResult
-    } catch (crossRefError: any) {
-      console.error('⚠️ [GURU SYNC] Cross-reference falhou (não-fatal):', crossRefError.message)
+    } catch (crossRefError: unknown) {
+      console.error('⚠️ [GURU SYNC] Cross-reference falhou (não-fatal):', guruApiErrorDetails(crossRefError).message)
     }
 
     const duration = Date.now() - startTime
@@ -831,8 +916,8 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
 
     return result
 
-  } catch (error: any) {
-    console.error('\n❌ [GURU SYNC] ERRO FATAL:', error.message)
+  } catch (error: unknown) {
+    console.error('\n❌ [GURU SYNC] ERRO FATAL:', guruApiErrorDetails(error).message)
     throw error
   }
 }
@@ -866,8 +951,8 @@ export async function checkEmailInGuru(email: string): Promise<{
 
     return { exists: true, subscription: activeSubscription }
 
-  } catch (error: any) {
-    console.error(`❌ [GURU SYNC] Erro ao verificar email ${email}:`, error.message)
+  } catch (error: unknown) {
+    console.error(`❌ [GURU SYNC] Erro ao verificar email ${email}:`, guruApiErrorDetails(error).message)
     return { exists: false }
   }
 }
