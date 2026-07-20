@@ -12,6 +12,7 @@ import {
   CURSEDUCA_ACCESS_TOKEN,
   type GuruDateInfo
 } from './guru.constants'
+import { isCurseducaEnrollmentActive } from '../syncUtilizadoresServices/curseducaServices/curseducaMemberships'
 
 // ═══════════════════════════════════════════════════════════
 // TIPOS
@@ -62,8 +63,7 @@ export function determineCrossReferenceAction(
 
   const curseducaIsInactive =
     curseducaMemberStatus === 'INACTIVE' ||
-    curseducaSituation === 'INACTIVE' ||
-    curseducaSituation === 'SUSPENDED'
+    !isCurseducaEnrollmentActive(curseducaSituation)
 
   // UserProduct INACTIVE na BD:
   // - Se Guru cancelado MAS CursEduca ainda ACTIVE → discrepância real
@@ -474,8 +474,7 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
             const realSituation = apiResp.data?.situation || apiResp.data?.data?.situation
             if (realSituation) {
               curseducaSituation = realSituation
-              curseducaStatus = (realSituation === 'INACTIVE' || realSituation === 'SUSPENDED')
-                ? 'INACTIVE' : 'ACTIVE'
+              curseducaStatus = isCurseducaEnrollmentActive(realSituation) ? 'ACTIVE' : 'INACTIVE'
 
               // Atualizar BD com dados frescos
               await User.findByIdAndUpdate(user._id, {

@@ -21,7 +21,10 @@ import {
   createUniversalSnapshotContext,
   type UniversalSnapshotContext,
 } from './universalSyncSnapshot'
-import { buildCurseducaEnrollment } from './curseducaServices/curseducaMemberships'
+import {
+  buildCurseducaEnrollment,
+  isCurseducaEnrollmentActive,
+} from './curseducaServices/curseducaMemberships'
 
 // ═══════════════════════════════════════════════════════════
 // TYPE HELPERS
@@ -1537,13 +1540,13 @@ if (lastAccessDate) {
     // MEMBER STATUS (baseado em situation)
     // ═══════════════════════════════════════════════════════════
     const situation = item.platformData?.situation || 'ACTIVE'
-    updateFields['curseduca.memberStatus'] = (situation === 'INACTIVE' || situation === 'SUSPENDED') ? 'INACTIVE' : 'ACTIVE'
+    updateFields['curseduca.memberStatus'] = isCurseducaEnrollmentActive(situation) ? 'ACTIVE' : 'INACTIVE'
     needsUpdate = true
 
     // ═══════════════════════════════════════════════════════════
     // 🆕 LIMPAR "PARA_INATIVAR" SE JÁ ESTÁ INACTIVE NO CURSEDUCA
     // ═══════════════════════════════════════════════════════════
-    if (situation === 'INACTIVE' || situation === 'SUSPENDED') {
+    if (!isCurseducaEnrollmentActive(situation)) {
       try {
         // Buscar UserProduct CursEduca deste user que esteja marcado PARA_INATIVAR
         const userProductToUpdate = await UserProduct.findOne({

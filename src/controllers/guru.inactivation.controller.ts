@@ -14,6 +14,7 @@ import {
   CURSEDUCA_ACCESS_TOKEN,
   type GuruDateInfo
 } from '../services/guru/guru.constants'
+import { isCurseducaEnrollmentActive } from '../services/syncUtilizadoresServices/curseducaServices/curseducaMemberships'
 import { fetchContactByEmail, fetchContactSubscriptions } from '../services/guru/guruSync.service'
 import type {
   GuruInactivationBulkInput,
@@ -949,7 +950,7 @@ export const cleanupInactivationList = async (req: Request, res: Response) => {
       // ═══════════════════════════════════════════════════════════
       // CASO 1: Já está INACTIVE no CursEduca
       // ═══════════════════════════════════════════════════════════
-      if (curseducaStatus === 'INACTIVE' || curseducaStatus === 'SUSPENDED') {
+      if (!isCurseducaEnrollmentActive(curseducaStatus)) {
         await UserProduct.findByIdAndUpdate(userProduct._id, {
           $set: {
             status: 'INACTIVE',
@@ -1027,7 +1028,7 @@ export const cleanupInactivationList = async (req: Request, res: Response) => {
             }
           )
           const realSituation = apiResp.data?.situation || apiResp.data?.data?.situation
-          if (realSituation === 'INACTIVE' || realSituation === 'SUSPENDED') {
+          if (!isCurseducaEnrollmentActive(realSituation)) {
             // BD desatualizada! User já está inativo no CursEduca real
             await UserProduct.findByIdAndUpdate(userProduct._id, {
               $set: {

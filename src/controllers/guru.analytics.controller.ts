@@ -20,6 +20,7 @@ import {
   CURSEDUCA_ACCESS_TOKEN,
   type GuruDateInfo
 } from '../services/guru/guru.constants'
+import { isCurseducaEnrollmentActive } from '../services/syncUtilizadoresServices/curseducaServices/curseducaMemberships'
 
 type CurseducaDetails = NonNullable<IUser['curseduca']>
 
@@ -678,7 +679,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
         const curseducaStatus = user.curseduca?.situation || user.curseduca?.memberStatus || 'ACTIVE'
 
         // CASO 1: Já está INACTIVE no CursEduca
-        if (curseducaStatus === 'INACTIVE' || curseducaStatus === 'SUSPENDED') {
+        if (!isCurseducaEnrollmentActive(curseducaStatus)) {
           await UserProduct.findByIdAndUpdate(userProduct._id, {
             $set: {
               status: 'INACTIVE',
@@ -736,7 +737,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
               }
             )
             const realSituation = apiResp.data?.situation || apiResp.data?.data?.situation
-            if (realSituation === 'INACTIVE' || realSituation === 'SUSPENDED') {
+            if (!isCurseducaEnrollmentActive(realSituation)) {
               await UserProduct.findByIdAndUpdate(userProduct._id, {
                 $set: {
                   status: 'INACTIVE',
