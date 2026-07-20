@@ -53,7 +53,21 @@ beforeEach(async () => {
       name: 'Ana',
       email: 'ana@example.test',
       combined: { status: 'ACTIVE' },
-      curseduca: { memberStatus: 'INACTIVE' },
+      communicationByCourse: {
+        CLAREZA: {
+          lastTagAppliedAt: new Date('2026-07-19'),
+          courseSpecificData: {
+            lastReportOpenedAt: new Date('2026-07-18'),
+            lastModuleCompletedAt: new Date('2026-07-16'),
+          },
+        },
+      },
+      hotmart: { lastAccessDate: new Date('2026-07-15') },
+      curseduca: {
+        memberStatus: 'INACTIVE',
+        lastLogin: new Date('2026-07-17'),
+        lastAccess: new Date('2026-07-14'),
+      },
       metadata: { createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-02') },
     },
     {
@@ -148,4 +162,17 @@ test('keeps User sorting, limiting and the response envelope', async () => {
     pagination: { total: 2, limit: 1, offset: 0, hasMore: true },
     filters: { includeInactive: false, sortBy: 'name', sortOrder: 'desc' },
   })
+})
+
+test('uses the latest learner activity and excludes system actions', async () => {
+  const response = await getStudents('class-a')
+  const ana = response.body.students.find(
+    (student: { email: string }) => student.email === 'ana@example.test',
+  )
+  const zoe = response.body.students.find(
+    (student: { email: string }) => student.email === 'zoe@example.test',
+  )
+
+  expect(ana.lastActivity).toBe('2026-07-18T00:00:00.000Z')
+  expect(zoe.lastActivity).toBeNull()
 })

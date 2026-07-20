@@ -13,6 +13,7 @@ import { User, UserProduct } from '../models'
 import type { IUser } from '../models/user'
 import UserHistory, { type IUserHistory } from '../models/UserHistory'
 import type { ISyncHistory } from '../models/SyncHistory'
+import { getLastLearnerActivityDate } from '../services/activity/learnerActivity'
 
 type ClassIdParams = {
   classId: string
@@ -1936,15 +1937,12 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
       const formattedStudents = students.map(student => {
         // ✅ CORRIGIDO: Suportar dados de ambas as plataformas
         let joinedDate = student.hotmart?.purchaseDate || student.metadata.createdAt
-        let lastActivityDate = student.combined?.lastActivity
-          || student.hotmart?.lastAccessDate
-          || student.metadata.updatedAt
+        const lastActivityDate = getLastLearnerActivityDate(student)
         let studentStatus = student.combined?.status || student.hotmart?.status || 'ACTIVE'
         
         // Para CursEduca, usar campos específicos
         if (classData.source === 'curseduca_sync') {
           joinedDate = student.curseduca?.joinedDate || joinedDate
-          lastActivityDate = student.curseduca?.lastAccess || lastActivityDate
           studentStatus = student.combined?.status || student.curseduca?.memberStatus || studentStatus
         }
         
