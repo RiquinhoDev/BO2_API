@@ -1130,8 +1130,8 @@ export const applyTagToUserProduct = async (input: ActiveCampaignTagMutationInpu
       userProduct = await UserProduct.create({
         userId,
         productId,
-        status: 'active',
-        progress: { progressPercentage: 0 }
+        status: 'ACTIVE',
+        progress: { percentage: 0 }
       })
     }
 
