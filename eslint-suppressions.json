@@ -1191,9 +1191,6 @@
     }
   },
   "src/services/cron/dailyPipeline.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 26
-    },
     "no-console": {
       "count": 53
     },
