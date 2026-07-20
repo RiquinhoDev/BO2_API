@@ -532,6 +532,29 @@ comparem `situation`/`memberStatus` a literais.
   a partir de `createdAt`). Teste RED/GREEN novo: `tests/services/tagOrchestratorActivity.test.ts` (sem sinal → null;
   actividade real 15d → 15). **Gate: lint 0, tsc 0, ratchet (1 `any` podado, 12→11), build 0, jest 323/2.**
 
+- [x] **Sweep de código morto — 18 ficheiros, −2380 linhas (17 commits atómicos `3554ebd`..`3d4b3fe`)** — validado.
+  0 imports órfãos: prova = **tsc 0 erros** (um só import pendente para qualquer das 18 unidades teria feito falhar
+  a compilação). Gate meu: lint 0, tsc 0, ratchet 0/0, build 0, jest 323/2 (76 suites/1 skipped), incl.
+  `routeCatalog.test.ts` e `defaultDenyAuth.test.ts` **PASS** (não foi preciso regenerar catálogo/manifest porque a
+  rota removida nunca foi viva). Removidos: `tagRuleEstimate.routes.ts` (duplicado morto — os handlers
+  `estimate/preview/fields` continuam montados em `routes/index.ts:80-82` via controller, **endpoints vivos
+  intactos**), barrel `tagEvaluation/index.ts`, `middleware/multer.ts`, `users.service.ts`, `userHelpers.ts`,
+  `config/constants.ts`, class/history/response helpers, jobs cleanupHistory/precompute/rebuildProductSalesStats,
+  `types/api.types.ts`, loggers debug/detailed/sync, `TagCronManagement.service.ts` (não agendado), `discordSync`
+  aninhado. Knip pós-sweep: 122 restantes, todos em scripts/harnesses/configs/`discord-analytics` — nada em `src/`
+  normal.
+
+  **⚠️ CORRECÇÃO AO REGISTO (o relatório do sweep descreveu mal — fica aqui para ninguém agir sobre isto):**
+  `evaluateClarezaRules`/`evaluateOGIRules` **NÃO são stubs "a precisar de decisão"**. São o **preview dry-run real
+  por curso** que construímos (`bd9643e`/`4eb2281`/`7772a0b`); verificado no HEAD actual:
+  `activecampaign.controller.ts:642-646` chama `decisionEngine.evaluateAllUsersOfProduct(product._id, true)` com
+  `dryRun=true`. Montados em `activecampaign.routes.ts` e `course.routes.ts` — **é o comportamento correcto, não há
+  decisão pendente aqui**. Não gutar.
+
+  **⚠️ AINDA ABERTO — o sweep substituiu (não cumpriu) o handoff do `tagOrchestrator`:** o gémeo do bug de
+  actividade em `tagOrchestrator.service.ts` (`getUserLastActivity` :482-490, campos fantasma → `createdAt`) continua
+  **vivo**. Decisão já tomada = Opção A (unificar no `getLastLearnerActivityDate`). Re-emitir o handoff.
+
 Depois: cirurgia ARCH-01/02/03.
 
 ---
