@@ -435,17 +435,8 @@
     }
   },
   "src/controllers/testimonials.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 46
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
     "no-console": {
       "count": 48
-    },
-    "prefer-const": {
-      "count": 2
     }
   },
   "src/controllers/userHistory.controller.ts": {
