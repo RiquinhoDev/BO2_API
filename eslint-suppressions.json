@@ -1548,13 +1548,5 @@
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
-  },
-  "src/utils/syncLogger.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
-    "no-console": {
-      "count": 11
-    }
   }
 }
