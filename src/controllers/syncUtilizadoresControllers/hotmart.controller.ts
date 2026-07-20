@@ -3,8 +3,11 @@
 
 import { Request, Response } from 'express'
 import axios from 'axios'
-import type { Types } from 'mongoose'
+import type { AnyBulkWriteOperation, Types } from 'mongoose'
 import { Class, Product, SyncHistory, User } from '../../models'
+import type { IUser } from '../../models/user'
+import type { IUserHistory } from '../../models/UserHistory'
+import type { ISyncHistory } from '../../models/SyncHistory'
 import { getUserCountForProduct, getUsersByProduct } from '../../services/userProducts/userProductService'
 import { ensureUserHistoryModel } from '../../models/UserHistory'
 import { calculateCombinedEngagement } from '../../utils/engagementCalculator'
@@ -12,6 +15,98 @@ import hotmartAdapter from '../../services/syncUtilizadoresServices/hotmartServi
 import { normalizeEngagementLevel } from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.helpers'
 import universalSyncService from '../../services/syncUtilizadoresServices/universalSyncService'
 import { SyncError, SyncProgress, SyncWarning } from '../../types/universalSync.types'
+
+type ProductUser = {
+  products: Array<{
+    product: { _id: Types.ObjectId }
+    platformSpecificData?: { hotmart?: { status?: string } }
+    progress?: { progressPercentage?: number }
+  }>
+}
+
+type HotmartApiUser = {
+  email?: string
+  name?: string
+  id?: string
+  user_id?: string
+  uid?: string
+  code?: string
+  class_id?: string
+  purchase_date?: unknown
+  signup_date?: unknown
+  plus_access?: IUser['hotmart'] extends { plusAccess: infer T } ? T : string
+  first_access_date?: unknown
+  last_access_date?: unknown
+  access_count?: string | number
+  engagement?: string
+}
+
+type HotmartUsersResponse = {
+  users?: HotmartApiUser[]
+  items?: HotmartApiUser[]
+  data?: HotmartApiUser[]
+  page_info?: { next_page_token?: string }
+  pageInfo?: { nextPageToken?: string }
+  pagination?: { next_page_token?: string; nextPageToken?: string }
+}
+
+type ProgressLesson = {
+  pageId: string
+  pageName: string
+  moduleName: string
+  isModuleExtra: boolean
+  isCompleted: boolean
+  completedDate?: Date
+}
+
+type ProgressData = {
+  completedPercentage: number
+  total: number
+  completed: number
+  lessons: ProgressLesson[]
+  lastUpdated: Date
+}
+
+type HotmartUpdateFields = Record<string, unknown> & {
+  'hotmart.enrolledClasses': Array<{
+    classId: string
+    className: string
+    source: 'hotmart'
+    isActive: boolean
+    enrolledAt: Date
+  }>
+}
+
+type UserBulkOperation = {
+  updateOne: {
+    filter: { email: string }
+    update: { $set: HotmartUpdateFields }
+    upsert: boolean
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function errorStack(error: unknown): string | undefined {
+  return error instanceof Error ? error.stack : undefined
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function axiosErrorData(error: unknown): unknown {
+  return axios.isAxiosError(error) ? error.response?.data : undefined
+}
+
+function axiosErrorDescription(error: unknown): string | undefined {
+  const data = axiosErrorData(error)
+  return isRecord(data) && typeof data.error_description === 'string'
+    ? data.error_description
+    : undefined
+}
 
 
 // ─────────────────────────────────────────────────────────────
@@ -34,8 +129,8 @@ export const getHotmartProducts = async (req: Request, res: Response) => {
       count: products.length,
       _v2Enabled: true
     })
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 
@@ -74,8 +169,8 @@ export const getHotmartProductBySubdomain = async (req: Request, res: Response) 
       data: { ...product, userCount },
       _v2Enabled: true
     })
-  } catch (error: any) {
-    return res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    return res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 
@@ -105,7 +200,7 @@ export const getHotmartProductUsers = async (req: Request, res: Response) => {
 
     if (status) {
       users = users.filter(u =>
-        u.products.some((p: any) =>
+        u.products.some((p: ProductUser['products'][number]) =>
           p.product._id.toString() === product._id.toString() &&
           p.platformSpecificData?.hotmart?.status === status
         )
@@ -113,9 +208,9 @@ export const getHotmartProductUsers = async (req: Request, res: Response) => {
     }
 
     if (minProgress) {
-      const minProg = parseInt(minProgress as string, 10)
+      const minProg = parseInt(String(minProgress), 10)
       users = users.filter(u =>
-        u.products.some((p: any) =>
+        u.products.some((p: ProductUser['products'][number]) =>
           p.product._id.toString() === product._id.toString() &&
           (p.progress?.progressPercentage || 0) >= minProg
         )
@@ -129,8 +224,8 @@ export const getHotmartProductUsers = async (req: Request, res: Response) => {
       filters: { status, minProgress },
       _v2Enabled: true
     })
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 
@@ -152,7 +247,7 @@ export const getHotmartStats = async (req: Request, res: Response) => {
           subdomain: product.subdomain,
           totalUsers: users.length,
           activeUsers: users.filter(u =>
-            u.products.some((p: any) =>
+            u.products.some((p: ProductUser['products'][number]) =>
               p.product._id.toString() === (String(product._id)) &&
               p.platformSpecificData?.hotmart?.status === 'active'
             )
@@ -171,8 +266,8 @@ export const getHotmartStats = async (req: Request, res: Response) => {
       },
       _v2Enabled: true
     })
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 
@@ -198,7 +293,7 @@ async function getHotmartAccessToken(): Promise<string> {
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
     console.log(`🔐 Gerando token com Basic Auth para client_id: ${clientId.substring(0, 10)}...`)
 
-    const response = await axios.post(
+    const response = await axios.post<{ access_token: string; expires_in?: number }>(
       'https://api-sec-vlc.hotmart.com/security/oauth/token',
       new URLSearchParams({ grant_type: 'client_credentials' }),
       {
@@ -215,13 +310,13 @@ async function getHotmartAccessToken(): Promise<string> {
 
     console.log(`✅ Token obtido com sucesso - Expira em: ${response.data.expires_in} segundos`)
     return response.data.access_token
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro detalhado ao obter token Hotmart:')
-    console.error('📊 Status:', error.response?.status)
-    console.error('📄 Resposta:', error.response?.data)
-    console.error('🔗 URL:', error.config?.url)
+    console.error('📊 Status:', axios.isAxiosError(error) ? error.response?.status : undefined)
+    console.error('📄 Resposta:', axiosErrorData(error))
+    console.error('🔗 URL:', axios.isAxiosError(error) ? error.config?.url : undefined)
     throw new Error(
-      `Falha ao obter token de acesso da Hotmart: ${error.response?.data?.error_description || error.message}`
+      `Falha ao obter token de acesso da Hotmart: ${axiosErrorDescription(error) || errorMessage(error)}`
     )
   }
 }
@@ -231,7 +326,7 @@ const fetchUserLessons = async (userId: string, accessToken: string): Promise<Ho
     const subdomain = process.env.subdomain || 'ograndeinvestimento-bomrmk'
     console.log(`🔍 Buscando lições do utilizador ${userId}`)
 
-    const response = await axios.get(
+    const response = await axios.get<{ lessons?: HotmartLesson[] }>(
       `https://developers.hotmart.com/club/api/v1/users/${userId}/lessons?subdomain=${subdomain}`,
       {
         headers: {
@@ -247,15 +342,15 @@ const fetchUserLessons = async (userId: string, accessToken: string): Promise<Ho
     })
 
     return response.data.lessons || []
-  } catch (error: any) {
-    console.error(`❌ Erro ao buscar lições do utilizador ${userId}:`, error.response?.data || error.message)
+  } catch (error: unknown) {
+    console.error(`❌ Erro ao buscar lições do utilizador ${userId}:`, axiosErrorData(error) || errorMessage(error))
     return []
   }
 }
 
-const calculateProgress = (lessons: HotmartLesson[]) => {
+const calculateProgress = (lessons: HotmartLesson[]): Omit<ProgressData, 'lastUpdated'> => {
   if (lessons.length === 0) {
-    return { completedPercentage: 0, total: 0, completed: 0, lessons: [] as any[] }
+    return { completedPercentage: 0, total: 0, completed: 0, lessons: [] }
   }
 
   const completed = lessons.filter(lesson => lesson.is_completed).length
@@ -277,7 +372,7 @@ const calculateProgress = (lessons: HotmartLesson[]) => {
   }
 }
 
-function convertUnixTimestamp(timestamp: any): Date | null {
+function convertUnixTimestamp(timestamp: unknown): Date | null {
   if (!timestamp) return null
 
   if (typeof timestamp === 'string' && timestamp.includes('T') && timestamp.includes('Z')) {
@@ -293,7 +388,11 @@ function convertUnixTimestamp(timestamp: any): Date | null {
     return null
   }
 
-  const numTimestamp = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp
+  const numTimestamp = typeof timestamp === 'string'
+    ? parseInt(timestamp, 10)
+    : typeof timestamp === 'number'
+      ? timestamp
+      : Number.NaN
   if (isNaN(numTimestamp) || numTimestamp <= 0) return null
 
   const timestampMs = numTimestamp < 1e12 ? numTimestamp * 1000 : numTimestamp
@@ -312,7 +411,7 @@ function convertUnixTimestamp(timestamp: any): Date | null {
 
 // ✅ SYNC COMPLETO (legacy)
 export const syncHotmartUsers = async (req: Request, res: Response): Promise<void> => {
-  let syncRecord: any = null
+  let syncRecord: ISyncHistory | null = null
 
   try {
     syncRecord = await SyncHistory.create({
@@ -336,7 +435,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
       'metadata.progress': 10
     })
 
-    let allUsers: any[] = []
+    let allUsers: HotmartApiUser[] = []
     let nextPageToken: string | null = null
     let pageCount = 0
     const batchSize = 50
@@ -355,7 +454,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
 
       console.log(`🔗 [${syncRecord._id}] Requisição: ${requestUrl}`)
 
-      const response = await axios.get(requestUrl, {
+      const response = await axios.get<HotmartUsersResponse>(requestUrl, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
@@ -365,14 +464,17 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
       console.log(`📋 [${syncRecord._id}] Estrutura da resposta:`, Object.keys(response.data))
 
       const users = response.data.users || response.data.items || response.data.data || []
-      const pageInfo = response.data.page_info || response.data.pageInfo || response.data.pagination || {}
 
       if (!Array.isArray(users)) {
         throw new Error(`Resposta inválida da API: esperado array, recebido ${typeof users}`)
       }
 
       allUsers = allUsers.concat(users)
-      nextPageToken = pageInfo.next_page_token || pageInfo.nextPageToken || null
+      nextPageToken = response.data.page_info?.next_page_token
+        || response.data.pageInfo?.nextPageToken
+        || response.data.pagination?.next_page_token
+        || response.data.pagination?.nextPageToken
+        || null
 
       console.log(`📄 [${syncRecord._id}] Página ${pageCount}: ${users.length} utilizadores`)
       await new Promise(resolve => setTimeout(resolve, 200))
@@ -396,7 +498,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
 
     for (let i = 0; i < allUsers.length; i += batchSize) {
       const batch = allUsers.slice(i, i + batchSize)
-      const bulkOperations: any[] = []
+      const bulkOperations: UserBulkOperation[] = []
 
       const progressPercentage = 50 + ((i / allUsers.length) * 45)
       await SyncHistory.findByIdAndUpdate(syncRecord._id, {
@@ -443,11 +545,11 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
             console.log(`🎓 [${syncRecord._id}] Turma encontrada: ${apiUser.email} → ${userClassId}`)
           }
 
-          let progressData = {
+          let progressData: ProgressData = {
             completedPercentage: 0,
             total: 0,
             completed: 0,
-            lessons: [] as any[],
+            lessons: [],
             lastUpdated: new Date()
           }
 
@@ -495,11 +597,11 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
                   'hotmart.progress': {
                     totalTimeMinutes: 0,
                     completedLessons: progressData.completed,
-                    lessonsData: progressData.lessons.map((l: any) => ({
-                      lessonId: l.pageId,
-                      title: l.pageName,
-                      completed: l.isCompleted,
-                      completedAt: l.completedDate,
+                    lessonsData: progressData.lessons.map(lesson => ({
+                      lessonId: lesson.pageId,
+                      title: lesson.pageName,
+                      completed: lesson.isCompleted,
+                      completedAt: lesson.completedDate,
                       timeSpent: 0
                     })),
                     lastAccessDate: convertUnixTimestamp(apiUser.last_access_date)
@@ -526,9 +628,9 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
 
           totalProcessed++
 
-        } catch (userError: any) {
+        } catch (userError: unknown) {
           totalErrors++
-          errors.push(`Erro ao processar ${apiUser.email || 'email_desconhecido'}: ${userError.message}`)
+          errors.push(`Erro ao processar ${apiUser.email || 'email_desconhecido'}: ${errorMessage(userError)}`)
         }
 
         await new Promise(resolve => setTimeout(resolve, 50))
@@ -543,8 +645,8 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
             .select('email hotmart.enrolledClasses combined.classId combined.className')
             .lean()
 
-          const existingUsersMap = new Map(existingUsers.map((u: any) => [u.email, u]))
-          const historyOperations: any[] = []
+          const existingUsersMap = new Map(existingUsers.map(user => [user.email, user]))
+          const historyOperations: AnyBulkWriteOperation<IUserHistory>[] = []
 
           for (const operation of bulkOperations) {
             const email = operation.updateOne?.filter?.email
@@ -596,7 +698,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
             const batchUsers = await User.find(
               { email: { $in: batchEmails } },
               { _id: 1, email: 1, 'hotmart.engagement': 1, 'hotmart.progress': 1 }
-            ).lean() as any[]
+            ).lean()
 
             for (const u of batchUsers) {
               try {
@@ -617,14 +719,14 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
                 })
 
                 successfulEngagement++
-              } catch (engagementError: any) {
-                engagementErrors.push(`Erro engagement ${u.email || 'unknown'}: ${engagementError.message}`)
+              } catch (engagementError: unknown) {
+                engagementErrors.push(`Erro engagement ${u.email || 'unknown'}: ${errorMessage(engagementError)}`)
               }
 
               await new Promise(resolve => setTimeout(resolve, 10))
             }
-          } catch (batchEngagementError: any) {
-            engagementErrors.push(`Erro geral: ${batchEngagementError.message}`)
+          } catch (batchEngagementError: unknown) {
+            engagementErrors.push(`Erro geral: ${errorMessage(batchEngagementError)}`)
           }
 
           totalWithEngagement += successfulEngagement
@@ -633,9 +735,9 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
         } else {
           console.error(`❌ [${syncRecord._id}] Nenhuma operação para executar!`)
         }
-      } catch (batchError: any) {
+      } catch (batchError: unknown) {
         totalErrors++
-        errors.push(`Erro no lote ${i}-${i + batchSize}: ${batchError.message}`)
+        errors.push(`Erro no lote ${i}-${i + batchSize}: ${errorMessage(batchError)}`)
       }
 
       await new Promise(resolve => setTimeout(resolve, 500))
@@ -657,8 +759,8 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
           })
           newClassesCreated++
         }
-      } catch (classError: any) {
-        errors.push(`Erro ao criar turma ${classId}: ${classError.message}`)
+      } catch (classError: unknown) {
+        errors.push(`Erro ao criar turma ${classId}: ${errorMessage(classError)}`)
       }
     }
 
@@ -702,7 +804,7 @@ console.log('✅ [HotmartUniversal] Stats atualizados!')
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`💥 [${syncRecord?._id}] ERRO CRÍTICO NA SINCRONIZAÇÃO:`, error)
 
     if (syncRecord) {
@@ -710,21 +812,21 @@ console.log('✅ [HotmartUniversal] Stats atualizados!')
         status: 'failed',
         completedAt: new Date(),
         'metadata.currentStep': 'Erro na sincronização',
-        errorDetails: [error.message]
+        errorDetails: [errorMessage(error)]
       })
     }
 
     res.status(500).json({
       message: 'Erro crítico na sincronização com Hotmart',
-      error: error.message,
-      details: error.stack
+      error: errorMessage(error),
+      details: errorStack(error)
     })
   }
 }
 
 // ✅ SYNC apenas progresso (legacy)
 export const syncProgressOnly = async (req: Request, res: Response): Promise<void> => {
-  let syncRecord: any = null
+  let syncRecord: ISyncHistory | null = null
 
   try {
     syncRecord = await SyncHistory.create({
@@ -766,7 +868,7 @@ export const syncProgressOnly = async (req: Request, res: Response): Promise<voi
     let totalErrors = 0
     const errors: string[] = []
 
-    for (const u of existingUsers as any[]) {
+    for (const u of existingUsers) {
       try {
         const progressPercentage = (totalProcessed / existingUsers.length) * 100
         await SyncHistory.findByIdAndUpdate(syncRecord._id, {
@@ -794,11 +896,11 @@ export const syncProgressOnly = async (req: Request, res: Response): Promise<voi
             'hotmart.progress': {
               totalTimeMinutes: 0,
               completedLessons: progressData.completed,
-              lessonsData: progressData.lessons.map((l: any) => ({
-                lessonId: l.pageId,
-                title: l.pageName,
-                completed: l.isCompleted,
-                completedAt: l.completedDate,
+              lessonsData: progressData.lessons.map(lesson => ({
+                lessonId: lesson.pageId,
+                title: lesson.pageName,
+                completed: lesson.isCompleted,
+                completedAt: lesson.completedDate,
                 timeSpent: 0
               })),
               lastAccessDate: new Date()
@@ -810,9 +912,9 @@ export const syncProgressOnly = async (req: Request, res: Response): Promise<voi
         }
 
         totalProcessed++
-      } catch (userError: any) {
+      } catch (userError: unknown) {
         totalErrors++
-        errors.push(`Erro ao atualizar progresso de ${u.email}: ${userError.message}`)
+        errors.push(`Erro ao atualizar progresso de ${u.email}: ${errorMessage(userError)}`)
         totalProcessed++
       }
 
@@ -833,17 +935,17 @@ export const syncProgressOnly = async (req: Request, res: Response): Promise<voi
       stats: { total: totalProcessed, withProgress: totalWithProgress, errors: totalErrors }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (syncRecord) {
       await SyncHistory.findByIdAndUpdate(syncRecord._id, {
         status: 'failed',
         completedAt: new Date(),
         'metadata.currentStep': 'Erro na sincronização',
-        errorDetails: [error.message]
+        errorDetails: [errorMessage(error)]
       })
     }
 
-    res.status(500).json({ message: 'Erro na sincronização de progresso', error: error.message })
+    res.status(500).json({ message: 'Erro na sincronização de progresso', error: errorMessage(error) })
   }
 }
 
@@ -857,7 +959,7 @@ export const findHotmartUser = async (req: Request, res: Response): Promise<void
       return
     }
 
-    const foundUser: any = await User.findOne({ email: String(email) })
+    const foundUser = await User.findOne({ email: String(email) })
 
     if (!foundUser) {
       res.status(404).json({ message: 'Utilizador não encontrado' })
@@ -875,8 +977,8 @@ export const findHotmartUser = async (req: Request, res: Response): Promise<void
         progress: foundUser.combined?.totalProgress
       }
     })
-  } catch (error: any) {
-    res.status(500).json({ message: 'Erro ao buscar utilizador', error: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ message: 'Erro ao buscar utilizador', error: errorMessage(error) })
   }
 }
 
@@ -900,11 +1002,11 @@ export const testDatabaseConnection = async (req: Request, res: Response): Promi
       testPassed: true,
       connectionStatus: 'OK'
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({
       success: false,
       message: 'Erro no teste da BD',
-      error: error.message,
+      error: errorMessage(error),
       connectionStatus: 'FAILED'
     })
   }
@@ -947,7 +1049,7 @@ const hotmartData = await hotmartAdapter.fetchHotmartDataForSync({
       syncType: 'hotmart',
       jobName: 'Hotmart Universal Sync (Manual)',
       triggeredBy: 'MANUAL',
-      triggeredByUser: (req as any).user?._id?.toString(),
+      triggeredByUser: req.user?.id,
 
       fullSync: true,
       includeProgress: true,
@@ -997,14 +1099,14 @@ onWarning: (warning: SyncWarning) => {
       _version: '3.0'
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [HotmartUniversal] Erro fatal:', error)
 
     res.status(500).json({
       success: false,
       message: 'Erro ao executar sincronização via Universal Service',
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      error: errorMessage(error),
+      stack: process.env.NODE_ENV === 'development' ? errorStack(error) : undefined
     })
   }
 }
@@ -1034,18 +1136,18 @@ export const syncProgressOnlyUniversal = async (req: Request, res: Response): Pr
     }
 
     const userIds = existingUsers
-      .map((u: any) => u.hotmart?.hotmartUserId)
-      .filter(Boolean)
+      .map(user => user.hotmart?.hotmartUserId)
+      .filter((userId): userId is string => Boolean(userId))
 
     const progressMap = await hotmartAdapter.fetchProgressForExistingUsers(userIds)
 
-    const progressData = existingUsers.map((u: any) => {
-      const hotmartId = u.hotmart?.hotmartUserId
+    const progressData = existingUsers.map(user => {
+      const hotmartId = user.hotmart?.hotmartUserId
       const progress = hotmartId ? progressMap.get(hotmartId) : undefined
 
       return {
-        email: u.email,
-        name: u.name,
+        email: user.email,
+        name: user.name,
         hotmartUserId: hotmartId,
         progress: progress || undefined
       }
@@ -1055,7 +1157,7 @@ export const syncProgressOnlyUniversal = async (req: Request, res: Response): Pr
       syncType: 'hotmart',
       jobName: 'Hotmart Progress Sync (Universal)',
       triggeredBy: 'MANUAL',
-      triggeredByUser: (req as any).user?._id?.toString(),
+      triggeredByUser: req.user?.id,
       fullSync: false,
       includeProgress: true,
       includeTags: false,
@@ -1075,9 +1177,9 @@ export const syncProgressOnlyUniversal = async (req: Request, res: Response): Pr
       _universalSync: true
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [HotmartProgress] Erro:', error)
-    res.status(500).json({ success: false, message: error.message })
+    res.status(500).json({ success: false, message: errorMessage(error) })
   }
 }
 
@@ -1087,7 +1189,7 @@ export const syncProgressOnlyUniversal = async (req: Request, res: Response): Pr
  */
 export const compareSyncMethods = async (req: Request, res: Response): Promise<void> => {
   try {
-    const SyncReport = (await import('../../models/SyncModels/SyncReport')).default as any
+    const SyncReport = (await import('../../models/SyncModels/SyncReport')).default
 
     const legacyHistory = await SyncHistory.find({ type: 'hotmart' })
       .sort({ startedAt: -1 })
@@ -1115,21 +1217,21 @@ export const compareSyncMethods = async (req: Request, res: Response): Promise<v
           all: universalReports
         },
         comparison: {
-          avgDurationLegacy: legacyHistory.reduce((sum: number, h: any) => {
-            const duration = h.completedAt && h.startedAt
-              ? (new Date(h.completedAt).getTime() - new Date(h.startedAt).getTime()) / 1000
+          avgDurationLegacy: legacyHistory.reduce((sum, history) => {
+            const duration = history.completedAt && history.startedAt
+              ? (new Date(history.completedAt).getTime() - new Date(history.startedAt).getTime()) / 1000
               : 0
             return sum + duration
           }, 0) / (legacyHistory.length || 1),
 
           avgDurationUniversal: universalReports.reduce(
-            (sum: number, r: any) => sum + (r.duration || 0),
+            (sum, report) => sum + (report.duration || 0),
             0
           ) / (universalReports.length || 1)
         }
       }
     })
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, message: errorMessage(error) })
   }
 }
