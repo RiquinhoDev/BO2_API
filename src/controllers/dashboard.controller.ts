@@ -29,9 +29,9 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     }
 
     if (progressMin || progressMax) {
-      matchStage['progress.progressPercentage'] = {};
-      if (progressMin) matchStage['progress.progressPercentage'].$gte = Number(progressMin);
-      if (progressMax) matchStage['progress.progressPercentage'].$lte = Number(progressMax);
+      matchStage['progress.percentage'] = {};
+      if (progressMin) matchStage['progress.percentage'].$gte = Number(progressMin);
+      if (progressMax) matchStage['progress.percentage'].$lte = Number(progressMax);
     }
 
     // Se houver search, precisamos fazer lookup em User
@@ -66,7 +66,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
           _id: null,
           totalStudents: { $addToSet: '$userId' },
           avgEngagement: { $avg: '$engagement.engagementScore' },
-          avgProgress: { $avg: '$progress.progressPercentage' },
+          avgProgress: { $avg: '$progress.percentage' },
           activeStudents: {
             $sum: { $cond: [{ $eq: ['$status', 'ACTIVE'] }, 1, 0] }
           },
@@ -289,7 +289,7 @@ export const compareProducts = async (req: Request, res: Response) => {
             _id: null,
             totalStudents: { $addToSet: '$userId' },
             avgEngagement: { $avg: '$engagement.engagementScore' },
-            avgProgress: { $avg: '$progress.progressPercentage' },
+            avgProgress: { $avg: '$progress.percentage' },
             activeStudents: {
               $sum: { $cond: [{ $eq: ['$status', 'ACTIVE'] }, 1, 0] }
             }
