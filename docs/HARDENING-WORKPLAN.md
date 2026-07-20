@@ -320,6 +320,15 @@ Rule `@typescript-eslint/no-explicit-any` agora `error` + baseline de suppressio
 scripts 111 · models 60 · utils 50 · routes 41 · jobs 32 · types 10. Top: `users.controller` 108 · `classes` 72 ·
 `universalSyncService` 72 · `guruSync` 65 · `guru.inactivation`/`testimonials` 46 · `hotmart.controller` 43 · `clarezaFmpService` 42.
 
+**Distribuição actual (revisor, do baseline, 2026-07-18): 1628 em 181 ficheiros** — services 694 · controllers 628 ·
+scripts 111 · models 60 · utils 50 · routes 41 · jobs 32 · types 10. **Top:** `guru/guruSync.service` 65 ·
+`guru.inactivation.controller` 46 · `testimonials.controller` 46 · `syncUtiliz/hotmart.controller` 43 ·
+`clareza/clarezaFmpService` 42 · `acTags/activecampaign.controller` 41 · `syncUtiliz/curseduca.controller` 40 ·
+`clareza/clarezaRaioxService` 37 · `guru.analytics.controller` 33 · `analytics/analyticsCalculator` 31 ·
+`cron/dailyPipeline` 26 · `activeCampaign/decisionEngine` 23 · `guru/crossReference` 22 · `curseduca.adapter` 22.
+> Para contar o restante: **lê o `eslint-suppressions.json`** (o `--rule` já não força nada — a rule está `error` e
+> as suppressions aplicam-se, logo o eslint reporta 0). **Prioriza runtime** (services/controllers) sobre `scripts/` (111).
+
 **Moagem (blocos médio-grandes, maiores primeiro):** por ficheiro (os grandes 1 commit cada; agrupa 3-5 pequenos).
 Por commit: substitui `any` pelo **tipo real** (onde for genuinamente dinâmico, `unknown` + narrowing, **não** outro cast);
 `npm run lint:baseline:prune` (remove as suppressions já resolvidas); `npm run lint` verde; corpo com a queda
