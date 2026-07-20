@@ -2,11 +2,39 @@
 import { Request, Response } from 'express'
 import type { TestimonialsDeleteInput } from '../security/testimonialsDestructiveInput'
 import { Testimonial, ITestimonial } from '../models/Testimonial'
-import User from '../models/user'
+import User, { IUser } from '../models/user'
 import { Class } from '../models/Class'
 import UserProduct from '../models/UserProduct'
+import type { IProduct } from '../models/product/Product'
 import activeCampaignService from '../services/activeCampaign/activeCampaignService'
-import mongoose, { PipelineStage } from 'mongoose'
+import mongoose, { FilterQuery, PipelineStage } from 'mongoose'
+
+type TestimonialStatus = ITestimonial['status']
+type StatusCount = { _id: TestimonialStatus; count: number }
+type RequestCreated = {
+  testimonialId: mongoose.Types.ObjectId
+  studentName: string
+  studentEmail: string
+}
+type RequestSkipped = { studentId: string; studentName: string; reason: string }
+type RequestFailure = { studentId: string; error: string }
+type Candidate = {
+  testimonialScore?: number
+  hasTestimonial: boolean
+  engagementLevel?: string
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function errorStack(error: unknown): string | undefined {
+  return error instanceof Error ? error.stack : undefined
+}
+
+function queryString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined
+}
 
 // Função para verificar se o modelo Testimonial está disponível
 function ensureTestimonialModel() {
@@ -20,7 +48,7 @@ function ensureTestimonialModel() {
 async function getTestimonialTags(userId: mongoose.Types.ObjectId): Promise<string[]> {
   try {
     // Buscar todos os UserProducts do aluno
-    const userProducts = await UserProduct.find({ userId }).populate('productId')
+    const userProducts = await UserProduct.find({ userId }).populate<{ productId: IProduct }>('productId')
 
     if (!userProducts || userProducts.length === 0) {
       console.log(`⚠️ No products found for user ${userId}`)
@@ -31,7 +59,7 @@ async function getTestimonialTags(userId: mongoose.Types.ObjectId): Promise<stri
     const productsProcessed = new Set<string>() // Para evitar tags duplicadas
 
     for (const userProduct of userProducts) {
-      const product = userProduct.productId as any
+      const product = userProduct.productId
 
       if (!product || !product.name) {
         console.log(`⚠️ Product not found for UserProduct ${userProduct._id}`)
@@ -39,14 +67,13 @@ async function getTestimonialTags(userId: mongoose.Types.ObjectId): Promise<stri
       }
 
       const productName = product.name.toLowerCase()
-      const productSlug = product.slug?.toLowerCase() || ''
 
-      // Determinar tag baseada no nome/slug do produto
+      // Determinar tag baseada no nome do produto
       let tagName = ''
 
-      if (productSlug === 'ogi' || productName.includes('ogi')) {
+      if (productName.includes('ogi')) {
         tagName = 'OGI_TESTEMUNHO'
-      } else if (productSlug === 'clareza' || productName.includes('clareza')) {
+      } else if (productName.includes('clareza')) {
         tagName = 'CLAREZA_TESTEMUNHO'
       } else if (productName.includes('comunidade') || productName.includes('discord')) {
         tagName = 'COMUNIDADE_DISCORD_TESTEMUNHO'
@@ -61,8 +88,8 @@ async function getTestimonialTags(userId: mongoose.Types.ObjectId): Promise<stri
     }
 
     return tags
-  } catch (error: any) {
-    console.error('❌ Error getting testimonial tags:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ Error getting testimonial tags:', errorMessage(error))
     return []
   }
 }
@@ -131,8 +158,8 @@ async function addTestimonialTagsToUser(userId: mongoose.Types.ObjectId, tags: s
     await user.save()
     console.log(`✅ Testimonial tags saved for user ${user.email}: ${tags.join(', ')}`)
 
-  } catch (error: any) {
-    console.error('❌ Error adding testimonial tags to user:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ Error adding testimonial tags to user:', errorMessage(error))
     throw error
   }
 }
@@ -209,8 +236,8 @@ async function updateTestimonialTagsOnCompletion(userId: mongoose.Types.ObjectId
     console.log(`   - Removed: ${tagsToRemove.join(', ')}`)
     console.log(`   - Added: ${tagsToAdd.join(', ')}`)
 
-  } catch (error: any) {
-    console.error('❌ Error updating testimonial completion tags:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ Error updating testimonial completion tags:', errorMessage(error))
     throw error
   }
 }
@@ -246,8 +273,8 @@ async function removeTestimonialTagsFromUser(
     await user.save()
 
     return { email: user.email || null, tags: tagsToRemove }
-  } catch (error: any) {
-    console.error('Error removing testimonial tags from user:', error.message)
+  } catch (error: unknown) {
+    console.error('Error removing testimonial tags from user:', errorMessage(error))
     return { email: null, tags: [] }
   }
 }
@@ -257,7 +284,7 @@ export const getTestimonialStats = async (req: Request, res: Response): Promise<
   try {
     const TestimonialModel = ensureTestimonialModel()
     
-    const stats = await TestimonialModel.aggregate([
+    const stats = await TestimonialModel.aggregate<StatusCount>([
       {
         $group: {
           _id: '$status',
@@ -266,7 +293,7 @@ export const getTestimonialStats = async (req: Request, res: Response): Promise<
       }
     ])
 
-    const statusMap = stats.reduce((acc: any, curr: any) => {
+    const statusMap = stats.reduce<Partial<Record<TestimonialStatus, number>>>((acc, curr) => {
       acc[curr._id] = curr.count
       return acc
     }, {})
@@ -328,11 +355,11 @@ export const getTestimonialStats = async (req: Request, res: Response): Promise<
       lastUpdated: new Date()
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao buscar estatísticas de testemunhos:', error)
     res.status(500).json({
       message: 'Erro ao buscar estatísticas',
-      details: error.message
+      details: errorMessage(error)
     })
   }
 }
@@ -355,7 +382,7 @@ export const listTestimonials = async (req: Request, res: Response): Promise<voi
     const skip = (Number(page) - 1) * Number(limit)
 
     // Construir filtros
-    const filters: any = {}
+    const filters: FilterQuery<ITestimonial> = {}
     
     if (status && status !== 'all') {
       filters.status = status
@@ -374,6 +401,7 @@ export const listTestimonials = async (req: Request, res: Response): Promise<voi
     }
 
     // Pipeline de agregação
+    const sortField = queryString(sortBy) ?? 'requestedDate'
     const pipeline: PipelineStage[] = [
       { $match: filters },
       {
@@ -397,7 +425,7 @@ export const listTestimonials = async (req: Request, res: Response): Promise<voi
       },
       {
         $sort: {
-          [sortBy as string]: sortOrder === 'desc' ? -1 : 1
+          [sortField]: sortOrder === 'desc' ? -1 : 1
         }
       },
       { $skip: skip },
@@ -422,11 +450,11 @@ export const listTestimonials = async (req: Request, res: Response): Promise<voi
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao listar testemunhos:', error)
     res.status(500).json({
       message: 'Erro ao listar testemunhos',
-      details: error.message
+      details: errorMessage(error)
     })
   }
 }
@@ -500,8 +528,8 @@ export const createTestimonial = async (req: Request, res: Response): Promise<vo
       } else {
         console.log(`No testimonial tags determined for user ${studentEmail}`)
       }
-    } catch (tagError: any) {
-      console.error(`Error adding tags to user ${studentEmail}:`, tagError.message)
+    } catch (tagError: unknown) {
+      console.error(`Error adding tags to user ${studentEmail}:`, errorMessage(tagError))
     }
 
     res.status(201).json({
@@ -510,7 +538,7 @@ export const createTestimonial = async (req: Request, res: Response): Promise<vo
       testimonial
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao criar testemunho:', error)
     res.status(500).json({
       success: false,
@@ -533,10 +561,14 @@ export const createTestimonialRequest = async (req: Request, res: Response): Pro
       return
     }
 
-    const results = {
-      created: [] as any[],
-      skipped: [] as any[],
-      errors: [] as any[]
+    const results: {
+      created: RequestCreated[]
+      skipped: RequestSkipped[]
+      errors: RequestFailure[]
+    } = {
+      created: [],
+      skipped: [],
+      errors: []
     }
 
     for (const studentId of studentIds) {
@@ -590,15 +622,15 @@ export const createTestimonialRequest = async (req: Request, res: Response): Pro
 
         // 🏷️ Adicionar tags de testemunho ao User
         try {
-          const tags = await getTestimonialTags(student._id as mongoose.Types.ObjectId)
+          const tags = await getTestimonialTags(student._id)
           if (tags.length > 0) {
-            await addTestimonialTagsToUser(student._id as mongoose.Types.ObjectId, tags)
+            await addTestimonialTagsToUser(student._id, tags)
             console.log(`✅ Tags added to user ${student.email}: ${tags.join(', ')}`)
           } else {
             console.log(`⚠️ No testimonial tags determined for user ${student.email}`)
           }
-        } catch (tagError: any) {
-          console.error(`❌ Error adding tags to user ${student.email}:`, tagError.message)
+        } catch (tagError: unknown) {
+          console.error(`❌ Error adding tags to user ${student.email}:`, errorMessage(tagError))
           // Não falhar a criação do testemunho se as tags falharem
         }
 
@@ -608,10 +640,10 @@ export const createTestimonialRequest = async (req: Request, res: Response): Pro
           studentEmail: student.email
         })
 
-      } catch (error: any) {
+      } catch (error: unknown) {
         results.errors.push({
           studentId,
-          error: error.message
+          error: errorMessage(error)
         })
       }
     }
@@ -621,11 +653,11 @@ export const createTestimonialRequest = async (req: Request, res: Response): Pro
       results
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao criar solicitações de testemunho:', error)
     res.status(500).json({
       message: 'Erro ao criar solicitações',
-      details: error.message
+      details: errorMessage(error)
     })
   }
 }
@@ -658,30 +690,30 @@ export const updateTestimonialStatus = async (req: Request, res: Response): Prom
       // 🏷️ Se o status mudou para COMPLETED, atualizar tags
       if (status === 'COMPLETED') {
         try {
-          await updateTestimonialTagsOnCompletion(testimonial.studentId as mongoose.Types.ObjectId)
+          await updateTestimonialTagsOnCompletion(testimonial.studentId)
           console.log(`✅ Tags updated for completed testimonial ${testimonial._id}`)
-        } catch (tagError: any) {
-          console.error(`❌ Error updating tags for testimonial ${testimonial._id}:`, tagError.message)
+        } catch (tagError: unknown) {
+          console.error(`❌ Error updating tags for testimonial ${testimonial._id}:`, errorMessage(tagError))
           // Não falhar a atualização se as tags falharem
         }
       }
       if (status === 'DECLINED' || status === 'CANCELLED') {
         try {
           const { email, tags } = await removeTestimonialTagsFromUser(
-            testimonial.studentId as mongoose.Types.ObjectId
+            testimonial.studentId
           )
 
           if (email && tags.length > 0) {
             for (const tag of tags) {
               try {
                 await activeCampaignService.removeTag(email, tag)
-              } catch (removeError: any) {
-                console.warn(`Error removing tag "${tag}" from ${email}:`, removeError.message)
+              } catch (removeError: unknown) {
+                console.warn(`Error removing tag "${tag}" from ${email}:`, errorMessage(removeError))
               }
             }
           }
-        } catch (tagError: any) {
-          console.error(`Error removing tags for testimonial ${testimonial._id}:`, tagError.message)
+        } catch (tagError: unknown) {
+          console.error(`Error removing tags for testimonial ${testimonial._id}:`, errorMessage(tagError))
         }
       }
     }
@@ -700,11 +732,11 @@ export const updateTestimonialStatus = async (req: Request, res: Response): Prom
       testimonial
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao atualizar testemunho:', error)
     res.status(500).json({
       message: 'Erro ao atualizar testemunho',
-      details: error.message
+      details: errorMessage(error)
     })
   }
 }
@@ -732,11 +764,11 @@ export const deleteTestimonial = async (
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao remover testemunho:', error)
     res.status(500).json({
       message: 'Erro ao remover testemunho',
-      details: error.message
+      details: errorMessage(error)
     })
   }
 }
@@ -759,7 +791,7 @@ export const getAvailableStudents = async (req: Request, res: Response): Promise
     console.log('📋 Parâmetros processados:', { search, classId, excludeRequested, onlyActive, minEngagement, minProgress, limit })
 
     // Iniciar com filtros básicos simples
-    const studentFilters: any = {}
+    const studentFilters: FilterQuery<IUser> = {}
 
     // Filtro para nome e email existentes
     studentFilters.email = { $exists: true, $ne: '' }
@@ -767,11 +799,11 @@ export const getAvailableStudents = async (req: Request, res: Response): Promise
 
     // 🆕 FILTER BY ENGAGEMENT AND PROGRESS (OR logic as user requested)
     if ((minEngagement && minEngagement !== 'none') || (minProgress && minProgress !== '0')) {
-      const orConditions: any[] = []
+      const orConditions: FilterQuery<IUser>[] = []
 
       // Add engagement conditions
       if (minEngagement && minEngagement !== 'none') {
-        const acceptedLevels = getEngagementLevels(minEngagement as string)
+        const acceptedLevels = getEngagementLevels(queryString(minEngagement) ?? 'MEDIO')
         const minScore = minEngagement === 'MEDIO' ? 40 : minEngagement === 'ALTO' ? 60 : minEngagement === 'MUITO_ALTO' ? 80 : 25
 
         orConditions.push(
@@ -786,7 +818,7 @@ export const getAvailableStudents = async (req: Request, res: Response): Promise
 
       // Add progress conditions
       if (minProgress && minProgress !== '0') {
-        const minProgressValue = parseInt(minProgress as string)
+        const minProgressValue = parseInt(queryString(minProgress) ?? '0')
         orConditions.push(
           { 'combined.totalProgress': { $gte: minProgressValue } },
           { 'curseduca.progress.estimatedProgress': { $gte: minProgressValue } }
@@ -850,29 +882,29 @@ export const getAvailableStudents = async (req: Request, res: Response): Promise
         }).select('studentId').lean()
         
         const excludeIds = activeRequests.map(req => req.studentId.toString())
-        students = students.filter(student => !excludeIds.includes((student._id as any).toString()))
+        students = students.filter(student => !excludeIds.includes(student._id.toString()))
         console.log('👥 Estudantes após excluir solicitados:', students.length)
-      } catch (testimonialError: any) {
-        console.log('⚠️ Erro ao buscar testemunhos, ignorando filtro:', testimonialError.message)
+      } catch (testimonialError: unknown) {
+        console.log('⚠️ Erro ao buscar testemunhos, ignorando filtro:', errorMessage(testimonialError))
       }
     }
 
     // Mapear para o formato esperado
     const finalStudents = students.map(student => {
       // 🆕 Extract engagement data from all sources
-      const engagementScore = (student as any).combined?.engagement?.score ||
-                              (student as any).hotmart?.engagement?.engagementScore ||
-                              (student as any).curseduca?.engagement?.alternativeEngagement ||
+      const engagementScore = student.combined?.engagement?.score ||
+                              student.hotmart?.engagement?.engagementScore ||
+                              student.curseduca?.engagement?.alternativeEngagement ||
                               0
 
-      const engagementLevel = (student as any).combined?.engagement?.level ||
-                              (student as any).hotmart?.engagement?.engagementLevel ||
-                              (student as any).curseduca?.engagement?.engagementLevel ||
+      const engagementLevel = student.combined?.engagement?.level ||
+                              student.hotmart?.engagement?.engagementLevel ||
+                              student.curseduca?.engagement?.engagementLevel ||
                               'NONE'
 
       // 🆕 Extract progress data
-      const progressPercentage = (student as any).combined?.totalProgress ||
-                                 (student as any).curseduca?.progress?.estimatedProgress ||
+      const progressPercentage = student.combined?.totalProgress ||
+                                 student.curseduca?.progress?.estimatedProgress ||
                                  0
 
       return {
@@ -901,12 +933,12 @@ export const getAvailableStudents = async (req: Request, res: Response): Promise
       excludedCount: 0
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar estudantes disponíveis:', error)
     res.status(500).json({
       message: 'Erro ao buscar estudantes',
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      details: errorMessage(error),
+      stack: process.env.NODE_ENV === 'development' ? errorStack(error) : undefined
     })
   }
 }
@@ -916,16 +948,18 @@ export const getTestimonialReport = async (req: Request, res: Response): Promise
   try {
     const { startDate, endDate, groupBy = 'month' } = req.query
 
-    const matchFilters: any = {}
+    const matchFilters: FilterQuery<ITestimonial> = {}
     
     if (startDate || endDate) {
       matchFilters.requestedDate = {}
-      if (startDate) matchFilters.requestedDate.$gte = new Date(startDate as string)
-      if (endDate) matchFilters.requestedDate.$lte = new Date(endDate as string)
+      const start = queryString(startDate)
+      const end = queryString(endDate)
+      if (start) matchFilters.requestedDate.$gte = new Date(start)
+      if (end) matchFilters.requestedDate.$lte = new Date(end)
     }
 
     // Agrupar por período
-    let groupStage: any = {
+    const groupStage: PipelineStage.Group['$group'] = {
       _id: null,
       total: { $sum: 1 },
       completed: { $sum: { $cond: [{ $eq: ['$status', 'COMPLETED'] }, 1, 0] } },
@@ -977,11 +1011,11 @@ export const getTestimonialReport = async (req: Request, res: Response): Promise
       generatedAt: new Date()
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao gerar relatório:', error)
     res.status(500).json({
       message: 'Erro ao gerar relatório',
-      details: error.message
+      details: errorMessage(error)
     })
   }
 }
@@ -1006,9 +1040,9 @@ export const getBestCandidates = async (req: Request, res: Response): Promise<vo
         $match: {
           status: 'ACTIVE',
           isDeleted: { $ne: true },
-          ...(classId && { classId: classId as string }),
-          ...(minEngagement && { engagementLevel: { $in: getEngagementLevels(minEngagement as string) } }),
-          ...(minProgress && { 'progress.completedPercentage': { $gte: parseInt(minProgress as string) } })
+          ...(queryString(classId) && { classId: queryString(classId) }),
+          ...(queryString(minEngagement) && { engagementLevel: { $in: getEngagementLevels(queryString(minEngagement) ?? '') } }),
+          ...(queryString(minProgress) && { 'progress.completedPercentage': { $gte: parseInt(queryString(minProgress) ?? '0') } })
         }
       },
       
@@ -1040,12 +1074,12 @@ export const getBestCandidates = async (req: Request, res: Response): Promise<vo
       
       // Ordenação
       {
-        $sort: getSortCriteria(sortBy as string)
+        $sort: getSortCriteria(queryString(sortBy) ?? 'testimonialScore')
       },
       
       // Limitar resultados
       {
-        $limit: parseInt(limit as string)
+        $limit: parseInt(queryString(limit) ?? '20')
       },
       
       // Projeção dos campos necessários
@@ -1071,14 +1105,14 @@ export const getBestCandidates = async (req: Request, res: Response): Promise<vo
       }
     ]
 
-    const students = await User.aggregate(pipeline)
+    const students = await User.aggregate<Candidate>(pipeline)
 
     // Estatísticas adicionais
     const stats = {
       totalCandidates: students.length,
-      averageScore: students.length > 0 ? Math.round(students.reduce((acc: any, student: any) => acc + (student.testimonialScore || 0), 0) / students.length) : 0,
-      withTestimonials: students.filter((s: any) => s.hasTestimonial).length,
-      highEngagement: students.filter((s: any) => ['ALTO', 'MUITO_ALTO'].includes(s.engagementLevel)).length
+      averageScore: students.length > 0 ? Math.round(students.reduce((acc, student) => acc + (student.testimonialScore || 0), 0) / students.length) : 0,
+      withTestimonials: students.filter(student => student.hasTestimonial).length,
+      highEngagement: students.filter(student => student.engagementLevel !== undefined && ['ALTO', 'MUITO_ALTO'].includes(student.engagementLevel)).length
     }
 
     res.json({
@@ -1086,7 +1120,7 @@ export const getBestCandidates = async (req: Request, res: Response): Promise<vo
       students,
       stats
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Erro ao buscar melhores candidatos:', error)
     res.status(500).json({
       success: false,
@@ -1133,11 +1167,13 @@ export const getStudentTestimonials = async (req: Request, res: Response): Promi
     const TestimonialModel = ensureTestimonialModel()
     
     // Criar filtro baseado no parâmetro fornecido
-    let filter: any = {}
-    if (studentId) {
-      filter.studentId = new mongoose.Types.ObjectId(studentId as string)
-    } else if (email) {
-      filter.studentEmail = (email as string).toLowerCase().trim()
+    const filter: FilterQuery<ITestimonial> = {}
+    const requestedStudentId = queryString(studentId)
+    const requestedEmail = queryString(email)
+    if (requestedStudentId) {
+      filter.studentId = new mongoose.Types.ObjectId(requestedStudentId)
+    } else if (requestedEmail) {
+      filter.studentEmail = requestedEmail.toLowerCase().trim()
     }
 
     // Buscar testemunhos do estudante
@@ -1168,12 +1204,12 @@ export const getStudentTestimonials = async (req: Request, res: Response): Promi
       timestamp: new Date().toISOString()
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar testemunhos do estudante:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar testemunhos do estudante',
-      details: error.message
+      details: errorMessage(error)
     })
   }
 }
