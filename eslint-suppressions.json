@@ -1568,11 +1568,6 @@
       "count": 1
     }
   },
-  "src/utils/classHelpers.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "src/utils/debugLogger.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 7
