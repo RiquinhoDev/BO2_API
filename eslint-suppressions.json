@@ -1617,10 +1617,5 @@
     "no-console": {
       "count": 11
     }
-  },
-  "src/utils/userHelpers.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
   }
 }
