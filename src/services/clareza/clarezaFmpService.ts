@@ -4,6 +4,134 @@ import { fmpThrottle } from './fmpThrottle'
 import { normalizeTicker, isValidTicker } from './tickerUtils'
 import ClarezaMarketData from '../../models/ClarezaMarketData'
 
+type FmpNumericField =
+  | 'price'
+  | 'changePercentage'
+  | 'marketCap'
+  | 'beta'
+  | 'sharesOutstanding'
+  | 'sharesOut'
+  | 'netIncome'
+  | 'depreciationAndAmortization'
+  | 'weightedAverageShsOut'
+  | 'weightedAverageShsOutDil'
+  | 'netDividendsPaid'
+  | 'dividendsPaid'
+  | 'capitalExpenditure'
+  | 'adjDividend'
+  | 'dividend'
+  | 'stockPrice'
+  | 'revenue'
+  | 'ebitda'
+  | 'grossProfit'
+  | 'operatingIncome'
+  | 'eps'
+  | 'epsdiluted'
+  | 'totalStockholdersEquity'
+  | 'cashAndShortTermInvestments'
+  | 'totalDebt'
+  | 'totalDebtAndCapitalLeaseObligations'
+  | 'shortTermDebt'
+  | 'longTermDebt'
+  | 'netDebt'
+  | 'totalCurrentAssets'
+  | 'totalCurrentLiabilities'
+  | 'lastDividend'
+  | 'lastDiv'
+  | 'lastMonthAvgPriceTarget'
+  | 'allTimeAvgPriceTarget'
+  | 'targetConsensus'
+  | 'priceTarget'
+  | 'priceToEarningsRatioTTM'
+  | 'forwardPriceToEarningsGrowthRatioTTM'
+  | 'priceToEarningsGrowthRatioTTM'
+  | 'priceToSalesRatioTTM'
+  | 'priceToBookRatioTTM'
+  | 'debtToEquityRatioTTM'
+  | 'netProfitMarginTTM'
+  | 'grossProfitMarginTTM'
+  | 'dividendYieldTTM'
+  | 'dividendPayoutRatioTTM'
+  | 'interestCoverageRatioTTM'
+  | 'interestCoverageTTM'
+  | 'currentRatioTTM'
+  | 'cashRatioTTM'
+  | 'evToEBITDATTM'
+  | 'freeCashFlowYieldTTM'
+  | 'returnOnEquityTTM'
+  | 'netDebtToEBITDATTM'
+
+type FmpRecord = Partial<Record<FmpNumericField, number | null>> & {
+  [key: string]: unknown
+  symbol?: string
+  companyName?: string
+  sector?: string
+  industry?: string
+  currency?: string
+  exchangeShortName?: string
+  exchange?: string
+  range?: string
+  calendarYear?: string | number
+  year?: string | number
+  date?: string
+  peersList?: string[]
+}
+
+interface ClarezaStockData extends FmpRecord {
+  change?: number | null
+  pe?: number | null
+  peg?: number | null
+  pb?: number | null
+  evEbitda?: number | null
+  grossMarginTTM?: number | null
+  netMargin?: number | null
+  roe?: number | null
+  debtEbitda?: number | null
+  pFfo?: number | null
+  ffoYield?: number | null
+  ffoPayoutRatio?: number | null
+  payoutRatio?: number | null
+  updated?: string
+}
+
+interface ClarezaStockEntry {
+  ticker: string
+  name: string
+  type: string
+  sector: string
+  data: ClarezaStockData | null
+}
+
+function isRecord(value: unknown): value is FmpRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function firstRecord(value: unknown): FmpRecord | null {
+  if (Array.isArray(value)) return value.find(isRecord) ?? null
+  return isRecord(value) ? value : null
+}
+
+function recordArray(value: unknown): FmpRecord[] {
+  if (Array.isArray(value)) return value.filter(isRecord)
+  return isRecord(value) ? [value] : []
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function fmpErrorDetails(error: unknown): { status?: number; body: string; message: string } {
+  if (!axios.isAxiosError(error)) {
+    return { body: '', message: errorMessage(error) }
+  }
+
+  const responseData: unknown = error.response?.data
+  const body = typeof responseData === 'string'
+    ? responseData.slice(0, 120)
+    : JSON.stringify(responseData ?? '').slice(0, 120)
+  return { status: error.response?.status, body, message: error.message }
+}
+
 // Limita concorrência sem depender de p-queue (ESM-only)
 async function runWithConcurrency<T>(
   tasks: (() => Promise<T>)[],
@@ -225,22 +353,20 @@ export const UNIVERSE = [
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
-async function fmpGet<T = any>(path: string, params: Record<string, string> = {}): Promise<T | null> {
+async function fmpGet(path: string, params: Record<string, string> = {}): Promise<FmpRecord | null> {
   try {
     await fmpThrottle()
-    const { data } = await axios.get(`${FMP_BASE}${path}`, {
+    const { data } = await axios.get<unknown>(`${FMP_BASE}${path}`, {
       params: { apikey: process.env.FMP_API_KEY, ...params },
       timeout: 15000
     })
-    if (!data) return null
-    if (Array.isArray(data)) return (data[0] ?? null) as T
-    return data as T
+    return firstRecord(data)
   } catch {
     return null
   }
 }
 
-function safe(val: any, mult = 1): number | null {
+function safe(val: unknown, mult = 1): number | null {
   if (val === null || val === undefined || isNaN(Number(val))) return null
   return Math.round(Number(val) * mult * 10000) / 10000
 }
@@ -341,9 +467,9 @@ export async function refreshClarezaData(): Promise<{ total: number; errors: num
       try {
         const data = await fetchStock(stock.ticker, stock.type === 'reit')
         return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data }
-      } catch (err: any) {
+      } catch (err: unknown) {
         errors++
-        console.error(`❌ [Clareza] Erro em ${stock.ticker}:`, err.message)
+        console.error(`❌ [Clareza] Erro em ${stock.ticker}:`, errorMessage(err))
         return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data: null }
       }
     }),
@@ -367,12 +493,12 @@ export async function refreshClarezaData(): Promise<{ total: number; errors: num
     // Manter apenas os últimos 5 snapshots
     const all = await ClarezaMarketData.find({}, '_id fetchedAt').sort({ fetchedAt: -1 }).lean()
     if (all.length > 5) {
-      const toDelete = all.slice(5).map((d: any) => d._id)
+      const toDelete = all.slice(5).map(d => d._id)
       await ClarezaMarketData.deleteMany({ _id: { $in: toDelete } })
     }
     console.log(`💾 [Clareza] Snapshot guardado na BD`)
-  } catch (err: any) {
-    console.error('⚠️ [Clareza] Erro ao guardar snapshot na BD:', err.message)
+  } catch (err: unknown) {
+    console.error('⚠️ [Clareza] Erro ao guardar snapshot na BD:', errorMessage(err))
   }
 
   console.log(`✅ [Clareza] Refresh completo — ${UNIVERSE.length - errors} ok, ${errors} erros`)
@@ -384,9 +510,9 @@ export async function refreshClarezaData(): Promise<{ total: number; errors: num
 // GET COM CACHE (Redis → MongoDB → FMP API)
 // ─────────────────────────────────────────────────────────────
 
-export async function getClarezaData(): Promise<any[] | null> {
+export async function getClarezaData(): Promise<ClarezaStockEntry[] | null> {
   // 1. Tentar Redis
-  const cached = await cacheService.get<any[]>(CLAREZA_CACHE_KEY)
+  const cached = await cacheService.get<ClarezaStockEntry[]>(CLAREZA_CACHE_KEY)
   if (cached) return cached
 
   // 2. Redis miss → tentar MongoDB (dados persistidos do último refresh)
@@ -396,10 +522,10 @@ export async function getClarezaData(): Promise<any[] | null> {
       console.log(`📦 [Clareza] Cache Redis vazio — a servir snapshot da BD (${latest.fetchedAt})`)
       // Repor em Redis para as próximas chamadas
       await cacheService.set(CLAREZA_CACHE_KEY, latest.stocks, CACHE_TTL)
-      return latest.stocks as any[]
+      return latest.stocks
     }
-  } catch (err: any) {
-    console.error('⚠️ [Clareza] Erro ao ler snapshot da BD:', err.message)
+  } catch (err: unknown) {
+    console.error('⚠️ [Clareza] Erro ao ler snapshot da BD:', errorMessage(err))
   }
 
   // 3. Nenhum dado disponivel. Nao chamar FMP em load publico.
@@ -412,22 +538,21 @@ export async function getClarezaData(): Promise<any[] | null> {
 // ─────────────────────────────────────────────────────────────
 
 // Variante de fmpGet que devolve o array completo (não só o [0]).
-async function fmpGetArray<T = any>(path: string, params: Record<string, string> = {}): Promise<T[]> {
+async function fmpGetArray(path: string, params: Record<string, string> = {}): Promise<FmpRecord[]> {
   try {
     await fmpThrottle()
-    const { data } = await axios.get(`${FMP_BASE}${path}`, {
+    const { data } = await axios.get<unknown>(`${FMP_BASE}${path}`, {
       params: { apikey: process.env.FMP_API_KEY, ...params },
       timeout: 15000
     })
-    if (!data) return []
-    return Array.isArray(data) ? (data as T[]) : [data as T]
+    return recordArray(data)
   } catch {
     return []
   }
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
-const num = (v: any): number | null =>
+const num = (v: unknown): number | null =>
   v === null || v === undefined || isNaN(Number(v)) ? null : round2(Number(v))
 
 const REIT_CACHE_PREFIX = 'clareza:reit:'
@@ -437,7 +562,7 @@ const REIT_CACHE_TTL = 86400 // 24 horas
 
 // Mapeia uma entrada da cache do cron clareza para o formato da análise REIT.
 // Evita chamadas FMP para os tickers que o cron já atualiza 3×/dia.
-function mapClarezaToReit(entry: any) {
+function mapClarezaToReit(entry: ClarezaStockEntry) {
   const d = entry?.data ?? {}
   return {
     ticker:    entry.ticker,
@@ -469,7 +594,12 @@ function div(a: number | null, b: number | null): number | null {
   return a !== null && b !== null && b !== 0 ? a / b : null
 }
 
-function metricNum(v: any): number | null {
+function roundedRatio(a: number | null, b: number | null, multiplier = 1): number | null {
+  const ratio = div(a, b)
+  return ratio === null ? null : round2(ratio * multiplier)
+}
+
+function metricNum(v: unknown): number | null {
   return v === null || v === undefined || isNaN(Number(v)) ? null : Number(v)
 }
 
@@ -477,7 +607,7 @@ function roundOrNull(v: number | null): number | null {
   return v === null || !Number.isFinite(v) ? null : round2(v)
 }
 
-function yearOf(row: any): string | null {
+function yearOf(row: FmpRecord | null | undefined): string | null {
   return String(row?.calendarYear ?? row?.year ?? row?.date ?? '').slice(0, 4) || null
 }
 
@@ -494,7 +624,7 @@ function calcCagr(values: number[]): number | null {
   return Math.pow(newest / oldest, 1 / (valid.length - 1)) - 1
 }
 
-function buildFfoRow(income: any, cashFlow?: any) {
+function buildFfoRow(income: FmpRecord | null | undefined, cashFlow?: FmpRecord | null) {
   const shares = metricNum(income?.weightedAverageShsOutDil ?? income?.weightedAverageShsOut)
   const netIncome = metricNum(income?.netIncome)
   const depreciation = metricNum(
@@ -510,8 +640,8 @@ function buildFfoRow(income: any, cashFlow?: any) {
   return { shares, ffo, ffoPerShare, capex, capexPerShare, affoPerShare }
 }
 
-function cashFlowByYear(cashFlows: any[]) {
-  const byYear = new Map<string, any>()
+function cashFlowByYear(cashFlows: FmpRecord[]) {
+  const byYear = new Map<string, FmpRecord>()
   for (const row of cashFlows) {
     const year = yearOf(row)
     if (year) byYear.set(year, row)
@@ -519,7 +649,7 @@ function cashFlowByYear(cashFlows: any[]) {
   return byYear
 }
 
-function aggregateDividends(rows: any[]) {
+function aggregateDividends(rows: FmpRecord[]) {
   const byYear = new Map<string, number>()
   for (const row of rows) {
     const year = yearOf(row)
@@ -534,7 +664,7 @@ function aggregateDividends(rows: any[]) {
     .slice(0, 6)
 }
 
-function mapClarezaToStock(entry: any) {
+function mapClarezaToStock(entry: ClarezaStockEntry) {
   const d = entry?.data ?? {}
   return {
     ticker:    entry.ticker,
@@ -575,13 +705,13 @@ export async function getReitAnalysis(rawTicker: string) {
   if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
 
   const cacheKey = REIT_CACHE_PREFIX + ticker
-  const cached = await cacheService.get<any>(cacheKey)
-  if (cached) return cached
+  const cached = await cacheService.get<unknown>(cacheKey)
+  if (isRecord(cached)) return cached
 
   // 1. Reutilizar a cache do cron clareza — 0 chamadas FMP para tickers do universo.
   try {
     const universe = await getClarezaData()
-    const hit = universe?.find((s: any) => s?.ticker === ticker && s?.data)
+    const hit = universe?.find(s => s.ticker === ticker && s.data)
     if (hit) {
       const cachedResult = mapClarezaToReit(hit)
       await cacheService.set(cacheKey, cachedResult, REIT_CACHE_TTL)
@@ -593,26 +723,23 @@ export async function getReitAnalysis(rawTicker: string) {
 
   // 2. Fora do universo → fetch live (com retry a 429) e cache 24h.
   // Profile com diagnóstico: distingue falha da FMP (key/plano/quota) de ticker inexistente.
-  let profile: any = null
+  let profile: FmpRecord | null = null
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       await fmpThrottle()
-      const { data } = await axios.get(`${FMP_BASE}/profile`, {
+      const { data } = await axios.get<unknown>(`${FMP_BASE}/profile`, {
         params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
         timeout: 15000
       })
-      profile = Array.isArray(data) ? (data[0] ?? null) : data
+      profile = firstRecord(data)
       break
-    } catch (e: any) {
-      const status = e?.response?.status
+    } catch (e: unknown) {
+      const { status, body, message } = fmpErrorDetails(e)
       if (status === 429 && attempt === 0) {
         await sleep(1500) // rate limit momentâneo (refresh do cron) → 1 retry
         continue
       }
-      const body = typeof e?.response?.data === 'string'
-        ? e.response.data.slice(0, 120)
-        : JSON.stringify(e?.response?.data ?? '').slice(0, 120)
-      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${e?.message || 'erro de rede'}`}`)
+      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`)
     }
   }
   await sleep(150)
@@ -639,7 +766,7 @@ export async function getReitAnalysis(rawTicker: string) {
   // FFO 5Y CAGR a partir da série anual disponível (mais recente → mais antigo)
   let ffoCagr5y: number | null = null
   const ffoSeries = incomes
-    .map((s: any) =>
+    .map(s =>
       s?.netIncome != null && s?.depreciationAndAmortization != null
         ? s.netIncome + s.depreciationAndAmortization
         : null
@@ -694,29 +821,26 @@ export async function getReitValuation(rawTicker: string) {
   if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
 
   const cacheKey = REIT_VALUATION_CACHE_PREFIX + ticker
-  const cached = await cacheService.get<any>(cacheKey)
-  if (cached) return cached
+  const cached = await cacheService.get<unknown>(cacheKey)
+  if (isRecord(cached)) return cached
 
-  let profile: any = null
+  let profile: FmpRecord | null = null
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       await fmpThrottle()
-      const { data } = await axios.get(`${FMP_BASE}/profile`, {
+      const { data } = await axios.get<unknown>(`${FMP_BASE}/profile`, {
         params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
         timeout: 15000
       })
-      profile = Array.isArray(data) ? (data[0] ?? null) : data
+      profile = firstRecord(data)
       break
-    } catch (e: any) {
-      const status = e?.response?.status
+    } catch (e: unknown) {
+      const { status, body, message } = fmpErrorDetails(e)
       if (status === 429 && attempt === 0) {
         await sleep(1500)
         continue
       }
-      const body = typeof e?.response?.data === 'string'
-        ? e.response.data.slice(0, 120)
-        : JSON.stringify(e?.response?.data ?? '').slice(0, 120)
-      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${e?.message || 'erro de rede'}`}`)
+      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`)
     }
   }
   await sleep(150)
@@ -725,7 +849,7 @@ export async function getReitValuation(rawTicker: string) {
   const incomes = await fmpGetArray('/income-statement', { symbol: ticker, period: 'annual', limit: '6' }); await sleep(150)
   const cashFlows = await fmpGetArray('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '6' }); await sleep(150)
 
-  let enterpriseValues: any[] = []
+  let enterpriseValues: FmpRecord[] = []
   try {
     enterpriseValues = await fmpGetArray('/enterprise-values', { symbol: ticker, period: 'annual', limit: '6' })
   } catch {
@@ -733,7 +857,7 @@ export async function getReitValuation(rawTicker: string) {
   }
   await sleep(150)
 
-  let dividendsRaw: any[] = []
+  let dividendsRaw: FmpRecord[] = []
   try {
     dividendsRaw = await fmpGetArray('/dividends', { symbol: ticker, limit: '120' })
   } catch {
@@ -742,7 +866,7 @@ export async function getReitValuation(rawTicker: string) {
   await sleep(150)
 
   // Cockpit: balanço (equity, dívida) + price target.
-  let balance: any = null
+  let balance: FmpRecord | null = null
   try {
     balance = await fmpGet('/balance-sheet-statement', { symbol: ticker, period: 'annual', limit: '1' })
   } catch {
@@ -752,7 +876,7 @@ export async function getReitValuation(rawTicker: string) {
 
   let priceTarget: number | null = null
   try {
-    const pt = await fmpGet<any>('/price-target-summary', { symbol: ticker })
+    const pt = await fmpGet('/price-target-summary', { symbol: ticker })
     priceTarget = num(
       pt?.lastMonthAvgPriceTarget ?? pt?.allTimeAvgPriceTarget ?? pt?.targetConsensus ?? pt?.priceTarget
     )
@@ -764,12 +888,13 @@ export async function getReitValuation(rawTicker: string) {
   let peerSymbols: string[] = []
   try {
     // /stock-peers devolve um array de objetos de pares; usar fmpGetArray (não fmpGet).
-    const peerArr = await fmpGetArray<any>('/stock-peers', { symbol: ticker })
+    const peerArr = await fmpGetArray('/stock-peers', { symbol: ticker })
     peerSymbols = peerArr
-      .flatMap((peer: any) =>
+      .flatMap((peer): unknown[] =>
         Array.isArray(peer?.peersList) ? peer.peersList : [peer?.symbol ?? peer]
       )
-      .map((sym: any) => normalizeTicker(sym))
+      .filter((sym): sym is string => typeof sym === 'string')
+      .map(sym => normalizeTicker(sym))
       .filter((sym: string) => isValidTicker(sym) && sym !== ticker)
       .slice(0, 5)
   } catch {
@@ -785,14 +910,14 @@ export async function getReitValuation(rawTicker: string) {
   await sleep(150)
 
   const cashByYear = cashFlowByYear(cashFlows)
-  const enterpriseByYear = new Map<string, any>()
+  const enterpriseByYear = new Map<string, FmpRecord>()
   for (const row of enterpriseValues) {
     const year = yearOf(row)
     if (year) enterpriseByYear.set(year, row)
   }
 
   const history = incomes
-    .map((income: any) => {
+    .map(income => {
       const year = yearOf(income)
       const cashFlow = year ? cashByYear.get(year) : null
       const enterprise = year ? enterpriseByYear.get(year) : null
@@ -826,13 +951,12 @@ export async function getReitValuation(rawTicker: string) {
   const dividendAnnual = dividends[0]?.annual
     ?? (lastDivAnnual !== null && lastDivAnnual > 0 ? lastDivAnnual : null)
     ?? null
-  const dividendCagr = roundOrNull(calcCagr(dividends.map((row) => row.annual)) !== null
-    ? (calcCagr(dividends.map((row) => row.annual)) as number) * 100
-    : null)
+  const dividendCagrValue = calcCagr(dividends.map(row => row.annual))
+  const dividendCagr = roundOrNull(dividendCagrValue === null ? null : dividendCagrValue * 100)
 
   const peerTasks = peerSymbols.map((peerTicker) => async () => {
     const [peerProfile, peerIncomes, peerCashFlows] = await Promise.all([
-      fmpGet<any>('/profile', { symbol: peerTicker }),
+      fmpGet('/profile', { symbol: peerTicker }),
       fmpGetArray('/income-statement', { symbol: peerTicker, period: 'annual', limit: '1' }),
       fmpGetArray('/cash-flow-statement', { symbol: peerTicker, period: 'annual', limit: '1' })
     ])
@@ -870,7 +994,7 @@ export async function getReitValuation(rawTicker: string) {
     balance?.totalDebt ?? ((metricNum(balance?.shortTermDebt) ?? 0) + (metricNum(balance?.longTermDebt) ?? 0))
   )
   const cNetDebt = metricNum(balance?.netDebt) ?? (cTotalDebt !== null && cCash !== null ? cTotalDebt - cCash : null)
-  const pct = (n: number | null, d: number | null) => (div(n, d) !== null ? round2((div(n, d) as number) * 100) : null)
+  const pct = (n: number | null, d: number | null) => roundedRatio(n, d, 100)
   const histReturn = (idx: number) => {
     const past = metricNum(history[idx]?.price)
     return price !== null && past ? round2((price / past - 1) * 100) : null
@@ -886,7 +1010,7 @@ export async function getReitValuation(rawTicker: string) {
     operatingMargin: pct(cOperating, cRevenue),
     netMargin: pct(cNetIncome, cRevenue),
     roe: pct(cNetIncome, cEquity),
-    netDebtToEbitda: div(cNetDebt, cEbitda) !== null ? round2(div(cNetDebt, cEbitda) as number) : null,
+    netDebtToEbitda: roundedRatio(cNetDebt, cEbitda),
     pFfo: roundOrNull(div(price, currentRow.ffoPerShare)),
     dividendYield: dividendAnnual !== null && price ? round2((dividendAnnual / price) * 100) : null,
     payoutEarnings: dividendAnnual !== null && cEps ? round2((dividendAnnual / cEps) * 100) : null,
@@ -934,23 +1058,23 @@ export async function getStockAnalysis(rawTicker: string) {
   if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
 
   const cacheKey = STOCK_CACHE_PREFIX + ticker
-  const cached = await cacheService.get<any>(cacheKey)
-  if (cached) return cached
+  const cached = await cacheService.get<unknown>(cacheKey)
+  if (isRecord(cached)) return cached
 
   // Calcula sempre live (16 indicadores das demonstrações). A cache do cron
   // (parcial) é usada apenas como fallback se a FMP falhar (ver catch abaixo).
-  let profile: any = null
+  let profile: FmpRecord | null = null
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       await fmpThrottle()
-      const { data } = await axios.get(`${FMP_BASE}/profile`, {
+      const { data } = await axios.get<unknown>(`${FMP_BASE}/profile`, {
         params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
         timeout: 15000
       })
-      profile = Array.isArray(data) ? (data[0] ?? null) : data
+      profile = firstRecord(data)
       break
-    } catch (e: any) {
-      const status = e?.response?.status
+    } catch (e: unknown) {
+      const { status, body, message } = fmpErrorDetails(e)
       if (status === 429 && attempt === 0) {
         await sleep(1500)
         continue
@@ -958,17 +1082,14 @@ export async function getStockAnalysis(rawTicker: string) {
       // Live falhou (rate limit / erro) -> fallback parcial da cache do cron.
       try {
         const universe = await getClarezaData()
-        const hit = universe?.find((s: any) => s?.ticker === ticker && s?.data)
+        const hit = universe?.find(s => s.ticker === ticker && s.data)
         if (hit) {
           const partial = mapClarezaToStock(hit)
           await cacheService.set(cacheKey, partial, REIT_CACHE_TTL)
           return partial
         }
       } catch { /* sem cache -> propaga o erro original */ }
-      const body = typeof e?.response?.data === 'string'
-        ? e.response.data.slice(0, 120)
-        : JSON.stringify(e?.response?.data ?? '').slice(0, 120)
-      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${e?.message || 'erro de rede'}`}`)
+      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`)
     }
   }
   await sleep(150)
@@ -1041,13 +1162,13 @@ export async function getStockAnalysis(rawTicker: string) {
       pVpa:             pVpaValue !== null ? round2(pVpaValue) : null,
       cagrEps:          cagrEpsValue !== null ? round2(cagrEpsValue) : null,
       peg:              pegValue !== null ? round2(pegValue) : null,
-      grossMargin:      div(grossProfit, revenue) !== null ? round2((div(grossProfit, revenue) as number) * 100) : safe(ratios?.grossProfitMarginTTM, 100),
-      ebitdaMargin:     div(ebitda, revenue) !== null ? round2((div(ebitda, revenue) as number) * 100) : null,
-      netMargin:        div(netIncome, revenue) !== null ? round2((div(netIncome, revenue) as number) * 100) : safe(ratios?.netProfitMarginTTM, 100),
-      roe:              div(netIncome, equity) !== null ? round2((div(netIncome, equity) as number) * 100) : safe(keyMetrics?.returnOnEquityTTM, 100),
-      netDebtToEbitda:  div(netDebt, ebitda) !== null ? round2(div(netDebt, ebitda) as number) : num(keyMetrics?.netDebtToEBITDATTM),
-      currentRatio:     div(currentAssets, currentLiabilities) !== null ? round2(div(currentAssets, currentLiabilities) as number) : num(ratios?.currentRatioTTM),
-      cashRatio:        div(cash, currentLiabilities) !== null ? round2(div(cash, currentLiabilities) as number) : num(ratios?.cashRatioTTM),
+      grossMargin:      roundedRatio(grossProfit, revenue, 100) ?? safe(ratios?.grossProfitMarginTTM, 100),
+      ebitdaMargin:     roundedRatio(ebitda, revenue, 100),
+      netMargin:        roundedRatio(netIncome, revenue, 100) ?? safe(ratios?.netProfitMarginTTM, 100),
+      roe:              roundedRatio(netIncome, equity, 100) ?? safe(keyMetrics?.returnOnEquityTTM, 100),
+      netDebtToEbitda:  roundedRatio(netDebt, ebitda) ?? num(keyMetrics?.netDebtToEBITDATTM),
+      currentRatio:     roundedRatio(currentAssets, currentLiabilities) ?? num(ratios?.currentRatioTTM),
+      cashRatio:        roundedRatio(cash, currentLiabilities) ?? num(ratios?.cashRatioTTM),
       dividendYield:    dividendPerShare !== null && price !== null && price !== 0
         ? round2((dividendPerShare / price) * 100)
         : safe(ratios?.dividendYieldTTM, 100),
