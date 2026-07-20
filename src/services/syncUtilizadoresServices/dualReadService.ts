@@ -18,6 +18,7 @@
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import Product from '../../models/product/Product'
+import { isCurseducaEnrollmentActive } from './curseducaServices/curseducaMemberships'
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔥 CACHE COM WARM-UP E BACKGROUND REFRESH
@@ -114,7 +115,7 @@ const PLATFORM_MAPPINGS: PlatformMapping[] = [
     statusLogic: (data: any) => {
       // ✅ CURSEDUCA = ACTION-BASED
       // 1. Verificar situation (ACTIVE/INACTIVE/SUSPENDED)
-      if (data?.situation === 'INACTIVE' || data?.situation === 'SUSPENDED') {
+      if (!isCurseducaEnrollmentActive(data?.situation)) {
         return 'INACTIVE'
       }
       
