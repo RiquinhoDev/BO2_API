@@ -15,6 +15,9 @@ import UserAction from '../../models/UserAction'
 import activeCampaignService from './activeCampaignService'
 import { Course } from '../../models'
 import { getLastLearnerActivityDate } from '../activity/learnerActivity'
+import type { IUserProduct } from '../../models/UserProduct'
+import type { IUser } from '../../models/user'
+import type { IProduct } from '../../models/product/Product'
 
 // ─────────────────────────────────────────────────────────────
 // TIPOS
@@ -60,16 +63,51 @@ export interface DecisionResult {
   errors: string[]
 
   nextEvaluationDate?: Date
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
+}
+
+type DecisionUserProduct = IUserProduct & {
+  reengagement?: {
+    cooldownUntil?: Date | string | number
+    currentLevel?: number
+  }
+  cooldownUntil?: Date | string | number
+  activeCampaignData?: IUserProduct['activeCampaignData'] & {
+    cooldownUntil?: Date | string | number
+  }
+}
+
+type InternalRule = {
+  _id?: { toString(): string }
+  name: string
+  tagName?: string
+  tag?: string
+  tagAC?: string
+  action: DecisionAction
+  condition?: string
+  priority?: number
+  daysInactive?: number
+  daysInactiveThreshold?: number
+  level?: number
+  cooldownDays?: number
+}
+
+type DecisionMetrics = {
+  daysSinceLastLogin: number | null
+  daysSinceLastAction: number | null
+  daysSinceEnrollment: number
+  engagementScore: number
+  totalLogins: number
+  totalActions: number
 }
 
 export interface DecisionContext {
   userId: string
   productId: string
-  userProduct: any
-  user: any
-  product: any
-  rules: any[]
+  userProduct: DecisionUserProduct
+  user: IUser
+  product: IProduct
+  rules: InternalRule[]
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -77,7 +115,7 @@ export interface DecisionContext {
 // ─────────────────────────────────────────────────────────────
 
 type LevelRule = {
-  rule: any
+  rule: InternalRule
   level: number
   daysInactive: number
   tagName: string
@@ -94,6 +132,10 @@ function addDays(date: Date, days: number): Date {
   const d = new Date(date)
   d.setDate(d.getDate() + days)
   return d
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
 }
 
 /**
@@ -125,12 +167,12 @@ function extractDaysThreshold(condition?: string): number | null {
  *
  * Para evitar duplicação, tudo o que for "LevelRule" sai de "rules normais".
  */
-function splitRulesIntoLevelAndRegular(rules: any[]): {
+function splitRulesIntoLevelAndRegular(rules: InternalRule[]): {
   levelRules: LevelRule[]
-  regularRules: any[]
+  regularRules: InternalRule[]
 } {
   const levelRules: LevelRule[] = []
-  const regularRules: any[] = []
+  const regularRules: InternalRule[] = []
 
   for (const rule of rules) {
     const tagName = rule.tagName || rule.tag || rule.tagAC
@@ -191,7 +233,7 @@ function splitRulesIntoLevelAndRegular(rules: any[]): {
  * Lê cooldown guardado no UserProduct (compatível com vários formatos).
  * Escolhe 1 estrutura e usa-a sempre no update (ver setCooldown()).
  */
-function getCooldownUntil(userProduct: any): Date | undefined {
+function getCooldownUntil(userProduct: DecisionUserProduct): Date | undefined {
   const raw =
     userProduct?.reengagement?.cooldownUntil ??
     userProduct?.activeCampaignData?.cooldownUntil ??
@@ -219,7 +261,7 @@ async function setCooldown(userProductId: string, until?: Date): Promise<void> {
  * 1) userProduct.reengagement.currentLevel
  * 2) tags presentes em userProduct.activeCampaignData.tags comparando com levelRules
  */
-function inferCurrentLevel(userProduct: any, levelRules: LevelRule[]): number {
+function inferCurrentLevel(userProduct: DecisionUserProduct, levelRules: LevelRule[]): number {
   const stored = userProduct?.reengagement?.currentLevel
   if (typeof stored === 'number') return stored
 
@@ -470,8 +512,8 @@ async evaluateUserProduct(
         }
 
         return result
-      } catch (error: any) {
-        result.errors.push(error?.message || 'Erro desconhecido')
+      } catch (error: unknown) {
+        result.errors.push(errorMessage(error))
         return result
       }
     }
@@ -521,7 +563,7 @@ async evaluateUserProduct(
       }
 
     const course = await Course.findOne({
-      code: (product as any).courseCode || product.code
+      code: product.courseCode || product.code
     })
 
       if (!course) {
@@ -535,7 +577,7 @@ async evaluateUserProduct(
   }).sort({ priority: -1, name: 1 })
 
   // ✅ CONVERTER TagRules para formato interno (sem adapter externo)
-  const adaptedRules = rules.map((tagRule: any) => {
+  const adaptedRules: InternalRule[] = rules.map(tagRule => {
     // Converter conditions para string (se necessário)
     let conditionStr = tagRule.condition
 
@@ -549,13 +591,18 @@ async evaluateUserProduct(
         'newerThan': '<'
       }
 
-      const parts = tagRule.conditions.map((cond: any) => {
-        if (cond.type === 'SIMPLE') {
+      const parts = tagRule.conditions.map(cond => {
+        if (
+          cond.type === 'SIMPLE'
+          && cond.field
+          && cond.operator
+          && cond.value !== undefined
+        ) {
           const op = opMap[cond.operator] || cond.operator
           return `${cond.field} ${op} ${cond.value}`
         } else if (cond.type === 'COMPOUND' && cond.subConditions && Array.isArray(cond.subConditions)) {
           // Processar subConditions e combiná-las com logic (AND/OR)
-          const subParts = cond.subConditions.map((sub: any) => {
+          const subParts = cond.subConditions.map(sub => {
             const op = opMap[sub.operator] || sub.operator
             return `${sub.field} ${op} ${sub.value}`
           }).filter(Boolean)
@@ -643,7 +690,7 @@ private async getMetrics(context: DecisionContext): Promise<{
       daysSinceEnrollment: m.daysSinceEnrollment ?? fallback.daysSinceEnrollment,  // 🆕 NOVA LINHA!
       engagementScore: m.engagementScore ?? fallback.engagementScore,
       totalLogins: m.totalLogins ?? fallback.totalLogins,
-      totalActions: m.totalActions ?? fallback.totalActions
+      totalActions: fallback.totalActions
     }
   }
 
@@ -666,7 +713,11 @@ private async getMetrics(context: DecisionContext): Promise<{
   // RULE EVAL
   // ───────────────────────────────────────────────────────────
 
-  private async evaluateRule(rule: any, context: DecisionContext, metrics: any): Promise<Decision> {
+  private async evaluateRule(
+    rule: InternalRule,
+    context: DecisionContext,
+    metrics: DecisionMetrics
+  ): Promise<Decision> {
     const decision: Decision = {
       source: 'TAG_RULE',
       ruleId: rule._id?.toString?.(),
@@ -690,9 +741,9 @@ private async getMetrics(context: DecisionContext): Promise<{
       }
 
       return decision
-    } catch (error: any) {
+    } catch (error: unknown) {
       decision.shouldExecute = false
-      decision.reason = `Erro ao avaliar: ${error.message}`
+      decision.reason = `Erro ao avaliar: ${errorMessage(error)}`
       decision.confidence = 0
       return decision
     }
@@ -724,9 +775,9 @@ private async getMetrics(context: DecisionContext): Promise<{
  */
 
 private async evaluateCondition(
-  condition: string,
+  condition: string | undefined,
   context: DecisionContext,
-  metrics: any
+  metrics: DecisionMetrics
 ): Promise<boolean> {
   if (!condition) return false
 
@@ -1306,8 +1357,8 @@ private async evaluateCondition(
           tag
         )
         result.actionsExecuted++
-      } catch (error: any) {
-        result.errors.push(`Erro ao remover tag ${tag}: ${error.message}`)
+      } catch (error: unknown) {
+        result.errors.push(`Erro ao remover tag ${tag}: ${errorMessage(error)}`)
       }
     }
 
@@ -1320,8 +1371,8 @@ private async evaluateCondition(
           tag
         )
         result.actionsExecuted++
-      } catch (error: any) {
-        result.errors.push(`Erro ao aplicar tag ${tag}: ${error.message}`)
+      } catch (error: unknown) {
+        result.errors.push(`Erro ao aplicar tag ${tag}: ${errorMessage(error)}`)
       }
     }
   }

@@ -1036,9 +1036,6 @@
     }
   },
   "src/services/activeCampaign/decisionEngine.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 22
-    },
     "no-console": {
       "count": 1
     }
