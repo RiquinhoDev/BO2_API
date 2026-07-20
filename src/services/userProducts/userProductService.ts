@@ -321,9 +321,8 @@ export async function getUsersByProduct(productId: string): Promise<any[]> {
       progress: up.progress
         ? {
             ...up.progress,
-            // compatibilidade com o teu controller (que usa progressPercentage)
-            progressPercentage:
-              (up.progress as any).progressPercentage ?? (up.progress as any).percentage ?? 0
+            // Alias do contrato legacy, derivado sempre do campo canónico.
+            progressPercentage: up.progress.percentage ?? 0
           }
         : undefined,
       engagement: up.engagement,

@@ -1555,7 +1555,7 @@
   },
   "src/services/userProducts/userProductService.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 13
+      "count": 11
     }
   },
   "src/types/analytics.types.ts": {
