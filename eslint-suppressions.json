@@ -567,14 +567,6 @@
       "count": 1
     }
   },
-  "src/jobs/rebuildProductSalesStats.job.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 8
-    }
-  },
   "src/jobs/resetCounters.job.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 7
