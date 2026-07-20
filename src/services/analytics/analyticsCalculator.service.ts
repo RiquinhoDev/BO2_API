@@ -5,8 +5,24 @@
 // Responsável por processar dados brutos e gerar insights
 // ════════════════════════════════════════════════════════════════════
 
-import UserProduct from '../../models/UserProduct'
-import { CalculateMetricsOptions, KPIMetric } from '../../types/analytics.types'
+import mongoose, { type FilterQuery } from 'mongoose'
+import UserProduct, { type IEngagement, type IUserProduct } from '../../models/UserProduct'
+import { CalculateMetricsOptions, KPIMetric, type TimeSeriesPoint } from '../../types/analytics.types'
+
+type AnalyticsUserReference = mongoose.Types.ObjectId | {
+  _id: mongoose.Types.ObjectId
+}
+
+type AnalyticsUserProduct = Pick<IUserProduct, 'status'> & {
+  userId: AnalyticsUserReference
+  engagement?: Pick<IEngagement, 'engagementScore'>
+}
+
+function getAnalyticsUserId(userProduct: AnalyticsUserProduct): string {
+  return userProduct.userId instanceof mongoose.Types.ObjectId
+    ? userProduct.userId.toString()
+    : userProduct.userId._id.toString()
+}
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -35,7 +51,7 @@ class AnalyticsCalculatorService {
     } = options
     
     // Construir query base
-    const query: any = {
+    const query: FilterQuery<IUserProduct> = {
       enrolledAt: { $gte: startDate, $lte: endDate }
     }
     
@@ -51,7 +67,7 @@ class AnalyticsCalculatorService {
     console.log(`   📊 ${currentPeriodUPs.length} UserProducts no período atual`)
     
     // Buscar UserProducts do período anterior (para comparação)
-    let previousPeriodUPs: any[] = []
+    let previousPeriodUPs: AnalyticsUserProduct[] = []
     if (compareWithPrevious) {
       const periodDuration = endDate.getTime() - startDate.getTime()
       const previousStartDate = new Date(startDate.getTime() - periodDuration)
@@ -104,16 +120,16 @@ class AnalyticsCalculatorService {
    * Total de alunos únicos
    */
   private async calculateTotalStudents(
-    currentUPs: any[],
-    previousUPs: any[]
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     // Contar users únicos (não UserProducts)
     const currentUserIds = new Set(
-      currentUPs.map(up => up.userId?._id?.toString() || up.userId?.toString()).filter(Boolean)
+      currentUPs.map(getAnalyticsUserId)
     )
     
     const previousUserIds = new Set(
-      previousUPs.map(up => up.userId?._id?.toString() || up.userId?.toString()).filter(Boolean)
+      previousUPs.map(getAnalyticsUserId)
     )
     
     const current = currentUserIds.size
@@ -126,18 +142,18 @@ class AnalyticsCalculatorService {
    * Alunos ativos (status ACTIVE)
    */
   private async calculateActiveStudents(
-    currentUPs: any[],
-    previousUPs: any[]
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     const currentActive = currentUPs.filter(up => up.status === 'ACTIVE')
     const previousActive = previousUPs.filter(up => up.status === 'ACTIVE')
     
     const currentUserIds = new Set(
-      currentActive.map(up => up.userId?._id?.toString() || up.userId?.toString()).filter(Boolean)
+      currentActive.map(getAnalyticsUserId)
     )
     
     const previousUserIds = new Set(
-      previousActive.map(up => up.userId?._id?.toString() || up.userId?.toString()).filter(Boolean)
+      previousActive.map(getAnalyticsUserId)
     )
     
     return this.createKPIMetric(currentUserIds.size, previousUserIds.size)
@@ -147,8 +163,8 @@ class AnalyticsCalculatorService {
    * Novos alunos (primeira compra no período)
    */
   private async calculateNewStudents(
-    currentUPs: any[],
-    previousUPs: any[]
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     // Lógica: User é "novo" se não tinha nenhum UP antes
     // TODO: Implementar lógica mais sofisticada considerando primeira compra
@@ -165,7 +181,7 @@ class AnalyticsCalculatorService {
   private async calculateChurnedStudents(
     startDate: Date,
     endDate: Date,
-    previousUPs: any[]
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     // Buscar users que tinham status ACTIVE mas mudaram para INACTIVE/CANCELLED
     const churnedUPs = await UserProduct.find({
@@ -178,11 +194,11 @@ class AnalyticsCalculatorService {
     )
     
     const currentUserIds = new Set(
-      churnedUPs.map(up => up.userId?._id?.toString() || up.userId?.toString()).filter(Boolean)
+      churnedUPs.map(getAnalyticsUserId)
     )
     
     const previousUserIds = new Set(
-      previousChurnedUPs.map(up => up.userId?._id?.toString() || up.userId?.toString()).filter(Boolean)
+      previousChurnedUPs.map(getAnalyticsUserId)
     )
     
     return this.createKPIMetric(currentUserIds.size, previousUserIds.size)
@@ -196,8 +212,8 @@ class AnalyticsCalculatorService {
    * Receita total
    */
   private async calculateRevenue(
-    currentUPs: any[],
-    previousUPs: any[]
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     // TODO: Adicionar campo 'price' ao UserProduct
     // Por agora, estimar baseado em produto médio
@@ -214,8 +230,8 @@ class AnalyticsCalculatorService {
    * MRR - Monthly Recurring Revenue
    */
   private async calculateMRR(
-    currentUPs: any[],
-    previousUPs: any[]
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     // MRR = Alunos ativos × Preço médio mensal
     const activeUPs = currentUPs.filter(up => up.status === 'ACTIVE')
@@ -233,8 +249,8 @@ class AnalyticsCalculatorService {
    * ARR - Annual Recurring Revenue
    */
   private async calculateARR(
-    currentUPs: any[],
-    previousUPs: any[]
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     const mrr = await this.calculateMRR(currentUPs, previousUPs)
     
@@ -255,8 +271,8 @@ class AnalyticsCalculatorService {
    * Churn Rate (% de alunos que saíram)
    */
   private async calculateChurnRate(
-    currentUPs: any[],
-    previousUPs: any[],
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[],
     startDate: Date,
     endDate: Date
   ): Promise<KPIMetric> {
@@ -278,8 +294,8 @@ class AnalyticsCalculatorService {
    * Retention Rate (% de alunos que ficaram)
    */
   private async calculateRetentionRate(
-    currentUPs: any[],
-    previousUPs: any[]
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     const activeUPs = currentUPs.filter(up => up.status === 'ACTIVE')
     const previousActiveUPs = previousUPs.filter(up => up.status === 'ACTIVE')
@@ -299,8 +315,8 @@ class AnalyticsCalculatorService {
    * Growth Rate (% de crescimento)
    */
   private async calculateGrowthRate(
-    currentUPs: any[],
-    previousUPs: any[]
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     const current = currentUPs.length
     const previous = previousUPs.length
@@ -328,8 +344,8 @@ class AnalyticsCalculatorService {
    * LTV Médio - Lifetime Value
    */
   private async calculateAvgLTV(
-    currentUPs: any[],
-    previousUPs: any[]
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     // LTV = Receita média por aluno × Tempo médio como aluno
     // TODO: Implementar cálculo real com histórico de receita
@@ -343,8 +359,8 @@ class AnalyticsCalculatorService {
    * Valor Médio de Pedido
    */
   private async calculateAvgOrderValue(
-    currentUPs: any[],
-    previousUPs: any[]
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     const AVERAGE_PRICE = 500 // R$ 500 (placeholder)
     
@@ -355,8 +371,8 @@ class AnalyticsCalculatorService {
    * Engagement Médio
    */
   private async calculateAvgEngagement(
-    currentUPs: any[],
-    previousUPs: any[]
+    currentUPs: AnalyticsUserProduct[],
+    previousUPs: AnalyticsUserProduct[]
   ): Promise<KPIMetric> {
     // Calcular engagement médio dos UserProducts
     const currentEngagements = currentUPs
@@ -394,11 +410,11 @@ class AnalyticsCalculatorService {
   ) {
     console.log('📈 [Time Series] Gerando série temporal acumulada...')
     
-    const timeSeries: any[] = []
+    const timeSeries: TimeSeriesPoint[] = []
     const intervals = this.getIntervals(startDate, endDate, interval)
     
     for (const { start, end, label } of intervals) {
-      const query: any = {
+      const query: FilterQuery<IUserProduct> = {
         enrolledAt: { $lte: end }
       }
       
@@ -409,7 +425,7 @@ class AnalyticsCalculatorService {
       
       // Contar users únicos
       const uniqueUsers = new Set(
-        userProducts.map(up => up.userId?._id?.toString() || up.userId?.toString()).filter(Boolean)
+        userProducts.map(getAnalyticsUserId)
       )
       
       timeSeries.push({
@@ -435,11 +451,11 @@ class AnalyticsCalculatorService {
   ) {
     console.log('📈 [Time Series] Gerando série de novas vendas...')
     
-    const timeSeries: any[] = []
+    const timeSeries: TimeSeriesPoint[] = []
     const intervals = this.getIntervals(startDate, endDate, interval)
     
     for (const { start, end, label } of intervals) {
-      const query: any = {
+      const query: FilterQuery<IUserProduct> = {
         enrolledAt: { $gte: start, $lte: end }
       }
       
@@ -450,7 +466,7 @@ class AnalyticsCalculatorService {
       
       // Contar users únicos
       const uniqueUsers = new Set(
-        userProducts.map(up => up.userId?._id?.toString() || up.userId?.toString()).filter(Boolean)
+        userProducts.map(getAnalyticsUserId)
       )
       
       timeSeries.push({

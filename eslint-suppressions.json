@@ -1089,9 +1089,6 @@
     }
   },
   "src/services/analytics/analyticsCalculator.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 31
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
     },
