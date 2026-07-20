@@ -17,6 +17,7 @@ import ProductProfile, { IProductProfile, IReengagementLevel } from '../../model
 
 import StudentEngagementState from '../../models/StudentEngagementState'
 import decisionEngine from './decisionEngine.service'
+import { getLastLearnerActivityDate } from '../activity/learnerActivity'
 
 // 🛡️ SISTEMA DE PROTEÇÃO DE TAGS NATIVAS
 import nativeTagProtection from './nativeTagProtection.service'
@@ -60,8 +61,8 @@ export interface OrchestrationResult {
 type OrchestrationContext = {
   user: any
   product: any
-  lastActivity: Date
-  daysInactive: number
+  lastActivity: Date | null
+  daysInactive: number | null
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -95,7 +96,7 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
     const productCode = String(product.code || '').toUpperCase()
     result.productCode = productCode
 
-    const lastActivity = this.getUserLastActivity(user, productCode)
+    const lastActivity = getLastLearnerActivityDate(user, product.code)
     const daysInactive = this.calculateDaysInactive(lastActivity)
 
     const ctx: OrchestrationContext = { user, product, lastActivity, daysInactive }
@@ -479,17 +480,9 @@ private getProductTagPrefixes(productCode: string): string[] {
   // HELPERS (vindos do V1)
   // ─────────────────────────────────────────────────────────────
 
-  private getUserLastActivity(user: any, productCode: string): Date {
-    const byCourse = user?.communicationByCourse
-    const courseData =
-      typeof byCourse?.get === 'function' ? byCourse.get(productCode) : byCourse?.[productCode]
-
-    if (courseData?.lastActivityDate) return courseData.lastActivityDate
-    if (user?.lastLogin) return user.lastLogin
-    return user?.createdAt || new Date()
-  }
-
-  private calculateDaysInactive(lastActivity: Date): number {
+  private calculateDaysInactive(lastActivity: Date | null): number | null {
+    // Sem sinal de actividade = desconhecido, NÃO inactivo (mesma semântica do decisionEngine).
+    if (!lastActivity) return null
     const now = new Date()
     const diffMs = now.getTime() - lastActivity.getTime()
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
@@ -627,12 +620,12 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
           const product = await Product.findById(op.productId)
           if (!user || !product) return false
 
-          const productCode = String(product.code || '').toUpperCase()
+          const lastActivity = getLastLearnerActivityDate(user, product.code)
           const ctx: OrchestrationContext = {
             user,
             product,
-            lastActivity: this.getUserLastActivity(user, productCode),
-            daysInactive: this.calculateDaysInactive(this.getUserLastActivity(user, productCode))
+            lastActivity,
+            daysInactive: this.calculateDaysInactive(lastActivity)
           }
 
           return op.action === 'APPLY'
@@ -675,11 +668,12 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
       }
     }
 
+    const lastActivity = getLastLearnerActivityDate(user, product.code)
     const ctx: OrchestrationContext = {
       user,
       product,
-      lastActivity: this.getUserLastActivity(user, productCode),
-      daysInactive: this.calculateDaysInactive(this.getUserLastActivity(user, productCode))
+      lastActivity,
+      daysInactive: this.calculateDaysInactive(lastActivity)
     }
 
     for (const t of tagsToRemove) {
