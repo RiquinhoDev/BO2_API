@@ -1391,14 +1391,8 @@
     }
   },
   "src/services/syncUtilizadoresServices/curseducaServices/curseduca.adapter.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 22
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
     "no-console": {
-      "count": 75
+      "count": 73
     },
     "preserve-caught-error": {
       "count": 3
