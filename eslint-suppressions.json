@@ -981,14 +981,6 @@
       "count": 1
     }
   },
-  "src/services/activeCampaign/TagCronManagement.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 16
-    },
-    "no-console": {
-      "count": 25
-    }
-  },
   "src/services/activeCampaign/activeCampaignService.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 19
