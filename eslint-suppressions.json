@@ -187,14 +187,11 @@
     }
   },
   "src/controllers/guru.inactivation.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 46
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 3
     },
     "no-console": {
-      "count": 87
+      "count": 86
     }
   },
   "src/controllers/guru.snapshot.controller.ts": {

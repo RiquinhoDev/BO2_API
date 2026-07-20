@@ -1,8 +1,8 @@
 // src/controllers/guru.inactivation.controller.ts - Controller para inativação CursEduca
 import { Request, Response } from 'express'
 import axios from 'axios'
-import User from '../models/user'
-import UserProduct from '../models/UserProduct'
+import User, { type IUser } from '../models/user'
+import UserProduct, { type IUserProduct } from '../models/UserProduct'
 import {
   GURU_CANCELED_STATUSES,
   GURU_ACTIVE_STATUSES,
@@ -19,6 +19,102 @@ import type {
   GuruInactivationBulkInput,
   GuruInactivationSingleInput,
 } from '../security/guruDestructiveInput'
+
+type PopulatedUser = Pick<IUser, '_id' | 'email' | 'name' | 'guru' | 'curseduca'>
+type InactivationUserProduct = Pick<
+  IUserProduct,
+  '_id' | 'userId' | 'status' | 'platformUserId' | 'classes' | 'metadata'
+>
+
+interface BulkInactivationDetail {
+  userProductId: IUserProduct['_id']
+  email?: string
+  memberId?: string | number
+  success: boolean
+  error?: string
+}
+
+interface MarkedInactivationDetail {
+  email: string
+  name?: string
+  guruStatus?: NonNullable<IUser['guru']>['status']
+  userProductId: IUserProduct['_id']
+  action: 'created' | 'marked' | 're-marked (was INACTIVE but CursEduca still ACTIVE)'
+}
+
+interface CleanedInactivationDetail {
+  email: string
+  name?: string
+  reason: string
+  curseducaStatus?: string
+  guruStatus?: NonNullable<IUser['guru']>['status']
+}
+
+interface FixToActiveResult {
+  email: string
+  success: boolean
+  reason?: string
+  userUpdated?: boolean
+  userProductUpdated?: boolean
+}
+
+interface CurseducaMemberPayload {
+  situation?: string
+  name?: string
+  data?: {
+    situation?: string
+    name?: string
+  }
+}
+
+interface CurseducaApiStatus {
+  status?: number
+  situation?: string
+  name?: string
+  raw?: unknown
+  error?: string | number
+  data?: unknown
+}
+
+interface DiagnoseUserResult {
+  email: string
+  found: boolean
+  reason?: string
+  name?: string
+  db?: {
+    guruStatus: NonNullable<IUser['guru']>['status'] | null
+    guruSubscriptionCode: string | null
+    curseducaMemberStatus: string | null
+    curseducaUserId: string | null
+    curseducaSituation: string | null
+  }
+  userProduct?: {
+    status: IUserProduct['status']
+    platformUserId: string
+    metadata: IUserProduct['metadata']
+    classes: number
+  } | null
+  curseducaApi?: CurseducaApiStatus | null
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function axiosErrorDetails(error: unknown): {
+  status?: number
+  data?: unknown
+  message: string
+} {
+  if (axios.isAxiosError(error)) {
+    return {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message,
+    }
+  }
+  return { message: errorMessage(error) }
+}
 
 // ═══════════════════════════════════════════════════════════
 // LISTAR USERS PARA INATIVAR
@@ -41,7 +137,7 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
       platform: 'curseduca',
       status: 'PARA_INATIVAR'
     })
-      .populate('userId', 'email name guru curseduca')
+      .populate<{ userId: PopulatedUser }>('userId', 'email name guru curseduca')
       .sort({ 'metadata.markedForInactivationAt': -1 })
       .lean()
 
@@ -50,7 +146,7 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
     // Filtrar apenas os que têm Guru efetivamente cancelado (inclui pending stale)
     const pendingList = userProducts
       .filter(up => {
-        const user = up.userId as any
+        const user = up.userId
         const guruStatus = user?.guru?.status
 
         // Se não tem Guru status, manter (pode ser user só Clareza)
@@ -60,7 +156,7 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
         return GURU_CANCELED_STATUSES.includes(guruStatus)
       })
       .map(up => {
-        const user = up.userId as any
+        const user = up.userId
         return {
           userProductId: up._id,
           userId: user?._id,
@@ -100,11 +196,12 @@ export const listPendingInactivation = async (req: Request, res: Response) => {
       pendingList: dedupedList
     })
 
-  } catch (error: any) {
-    console.error('❌ [INATIVAÇÃO] Erro ao listar:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [INATIVAÇÃO] Erro ao listar:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -132,12 +229,13 @@ export const inactivateSingle = async (input: GuruInactivationSingleInput, res: 
     // Buscar UserProduct
     let userProduct
     if (userProductId) {
-      userProduct = await UserProduct.findById(userProductId).populate('userId', 'email name curseduca')
+      userProduct = await UserProduct.findById(userProductId)
+        .populate<{ userId: PopulatedUser }>('userId', 'email name curseduca')
     } else {
       userProduct = await UserProduct.findOne({
         platform: 'curseduca',
         platformUserId: curseducaUserId
-      }).populate('userId', 'email name curseduca')
+      }).populate<{ userId: PopulatedUser }>('userId', 'email name curseduca')
     }
 
     if (!userProduct) {
@@ -147,7 +245,7 @@ export const inactivateSingle = async (input: GuruInactivationSingleInput, res: 
       })
     }
 
-    const user = userProduct.userId as any
+    const user = userProduct.userId
     const memberId = userProduct.platformUserId || user?.curseduca?.curseducaUserId
 
     if (!memberId) {
@@ -209,11 +307,12 @@ export const inactivateSingle = async (input: GuruInactivationSingleInput, res: 
       })
     }
 
-  } catch (error: any) {
-    console.error('❌ [INATIVAÇÃO] Erro:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [INATIVAÇÃO] Erro:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -237,11 +336,11 @@ export const inactivateBulk = async (input: GuruInactivationBulkInput, res: Resp
       userProducts = await UserProduct.find({
         platform: 'curseduca',
         status: 'PARA_INATIVAR'
-      }).populate('userId', 'email name curseduca')
+      }).populate<{ userId: PopulatedUser }>('userId', 'email name curseduca')
     } else if (userProductIds && Array.isArray(userProductIds)) {
       userProducts = await UserProduct.find({
         _id: { $in: userProductIds }
-      }).populate('userId', 'email name curseduca')
+      }).populate<{ userId: PopulatedUser }>('userId', 'email name curseduca')
     } else {
       return res.status(400).json({
         success: false,
@@ -266,7 +365,7 @@ export const inactivateBulk = async (input: GuruInactivationBulkInput, res: Resp
     const dupUserProductIds: string[] = []
 
     for (const up of userProducts) {
-      const user = up.userId as any
+      const user = up.userId
       const memberId = up.platformUserId || user?.curseduca?.curseducaUserId
       if (!memberId || !seenMemberIds.has(String(memberId))) {
         if (memberId) seenMemberIds.add(String(memberId))
@@ -287,16 +386,21 @@ export const inactivateBulk = async (input: GuruInactivationBulkInput, res: Resp
 
     console.log(`🔴 [INATIVAÇÃO BULK] Iniciando inativação de ${uniqueUserProducts.length} membros únicos (${userProducts.length} total, ${dupUserProductIds.length} dedup)...`)
 
-    const results = {
+    const results: {
+      processed: number
+      succeeded: number
+      failed: number
+      details: BulkInactivationDetail[]
+    } = {
       processed: 0,
       succeeded: 0,
       failed: 0,
-      details: [] as any[]
+      details: []
     }
 
     // Processar um a um (com delay para não sobrecarregar a API)
     for (const userProduct of uniqueUserProducts) {
-      const user = userProduct.userId as any
+      const user = userProduct.userId
       const memberId = userProduct.platformUserId || user?.curseduca?.curseducaUserId
 
       results.processed++
@@ -359,13 +463,13 @@ export const inactivateBulk = async (input: GuruInactivationBulkInput, res: Resp
         // Delay entre chamadas (500ms)
         await new Promise(resolve => setTimeout(resolve, 500))
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         results.failed++
         results.details.push({
           userProductId: userProduct._id,
           email: user?.email,
           success: false,
-          error: err.message
+          error: errorMessage(err)
         })
       }
     }
@@ -378,11 +482,12 @@ export const inactivateBulk = async (input: GuruInactivationBulkInput, res: Resp
       ...results
     })
 
-  } catch (error: any) {
-    console.error('❌ [INATIVAÇÃO BULK] Erro:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [INATIVAÇÃO BULK] Erro:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -431,9 +536,10 @@ export const quarantineUser = async (req: Request, res: Response) => {
       message: `${result.modifiedCount} produto(s) de ${email} movidos para QUARENTENA`,
       modifiedCount: result.modifiedCount
     })
-  } catch (error: any) {
-    console.error('❌ [QUARENTENA] Erro:', error.message)
-    return res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [QUARENTENA] Erro:', message)
+    return res.status(500).json({ success: false, message })
   }
 }
 
@@ -487,11 +593,12 @@ export const revertInactivationMark = async (req: Request, res: Response) => {
       message: 'Marcação revertida com sucesso'
     })
 
-  } catch (error: any) {
-    console.error('❌ [INATIVAÇÃO] Erro ao reverter:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [INATIVAÇÃO] Erro ao reverter:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -515,7 +622,7 @@ export const getInactivationStats = async (req: Request, res: Response) => {
       // Filtrar apenas com Guru efetivamente cancelado (mesma lógica do pending list)
       UserProduct.find({ platform: 'curseduca', status: 'PARA_INATIVAR' })
         .select('platformUserId userId')
-        .populate('userId', 'email guru.status curseduca.curseducaUserId')
+        .populate<{ userId: PopulatedUser }>('userId', 'email guru.status curseduca.curseducaUserId')
         .lean(),
       UserProduct.countDocuments({
         platform: 'curseduca',
@@ -533,13 +640,13 @@ export const getInactivationStats = async (req: Request, res: Response) => {
 
     // Filtrar por Guru canceled e deduplicar por CursEduca ID
     const filteredUPs = paraInativarUPs.filter(up => {
-      const guruStatus = (up.userId as any)?.guru?.status
+      const guruStatus = up.userId?.guru?.status
       if (!guruStatus) return true // sem Guru → manter
       return GURU_CANCELED_STATUSES.includes(guruStatus)
     })
     const seenIds = new Set<string>()
     for (const up of filteredUPs) {
-      const cid = up.platformUserId || (up.userId as any)?.curseduca?.curseducaUserId
+      const cid = up.platformUserId || up.userId?.curseduca?.curseducaUserId
       if (cid) seenIds.add(String(cid))
       else seenIds.add(String(up._id))
     }
@@ -554,11 +661,12 @@ export const getInactivationStats = async (req: Request, res: Response) => {
       }
     })
 
-  } catch (error: any) {
-    console.error('❌ [INATIVAÇÃO] Erro nas estatísticas:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [INATIVAÇÃO] Erro nas estatísticas:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -634,11 +742,11 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
     let created = 0
     let alreadyMarked = 0
     let skipped = 0
-    const markedDetails: any[] = []
+    const markedDetails: MarkedInactivationDetail[] = []
 
     for (const user of usersWithGuruCanceled) {
       const userId = user._id.toString()
-      let userProduct: any = existingUserProductsMap.get(userId)
+      let userProduct: InactivationUserProduct | undefined = existingUserProductsMap.get(userId)
 
       // Se não tem UserProduct mas tem dados curseduca, criar
       let curseducaUserId = user.curseduca?.curseducaUserId
@@ -738,34 +846,18 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
         if (contact?.id) {
           const guruSubs = await fetchContactSubscriptions(String(contact.id))
           const hasActiveSub = guruSubs.some(sub => {
-            const status = (sub.last_status || (sub as any).status || '').toLowerCase()
+            const status = (sub.last_status || sub.status || '').toLowerCase()
             return GURU_ACTIVE_STATUSES.includes(status) || status === 'active' || status === 'paid' || status === 'trialing' || status === 'trial'
           })
 
           if (hasActiveSub) {
             skipped++
             console.log(`   🛡️ PROTEGIDO: ${user.email} tem sub ativa na Guru (ex: mudança Mensal→Anual)`)
-
-            // Se estava incorretamente PARA_INATIVAR, reverter para ACTIVE
-            if (userProduct.status === 'PARA_INATIVAR') {
-              await UserProduct.findByIdAndUpdate(userProduct._id, {
-                $set: {
-                  status: 'ACTIVE',
-                  'metadata.protectedAt': new Date(),
-                  'metadata.protectedReason': 'Sub ativa encontrada na Guru — possível mudança de plano'
-                },
-                $unset: {
-                  'metadata.markedForInactivationAt': 1,
-                  'metadata.markedForInactivationReason': 1
-                }
-              })
-              console.log(`   ↩️ Revertido PARA_INATIVAR → ACTIVE: ${user.email}`)
-            }
             continue
           }
         }
-      } catch (guruErr: any) {
-        console.log(`   ⚠️ Erro ao verificar Guru para ${user.email}: ${guruErr.message} — prosseguindo com marcação`)
+      } catch (guruErr: unknown) {
+        console.log(`   ⚠️ Erro ao verificar Guru para ${user.email}: ${errorMessage(guruErr)} — prosseguindo com marcação`)
       }
 
       // Marcar como PARA_INATIVAR
@@ -808,11 +900,12 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
       details: markedDetails.slice(0, 50) // Limitar detalhes a 50
     })
 
-  } catch (error: any) {
-    console.error('❌ [INATIVAÇÃO] Erro ao marcar discrepâncias:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [INATIVAÇÃO] Erro ao marcar discrepâncias:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -833,17 +926,17 @@ export const cleanupInactivationList = async (req: Request, res: Response) => {
     const pendingList = await UserProduct.find({
       platform: 'curseduca',
       status: 'PARA_INATIVAR'
-    }).populate('userId', 'email name curseduca guru')
+    }).populate<{ userId: PopulatedUser }>('userId', 'email name curseduca guru')
 
     console.log(`   📋 Encontrados ${pendingList.length} UserProducts PARA_INATIVAR`)
 
     let cleanedInactive = 0
     let cleanedGuruActive = 0
     let kept = 0
-    const cleanedDetails: any[] = []
+    const cleanedDetails: CleanedInactivationDetail[] = []
 
     for (const userProduct of pendingList) {
-      const user = userProduct.userId as any
+      const user = userProduct.userId
 
       if (!user) {
         console.log(`   ⚠️ UserProduct ${userProduct._id} sem user associado`)
@@ -969,8 +1062,9 @@ export const cleanupInactivationList = async (req: Request, res: Response) => {
             console.log(`   ✅ Limpo (API CursEduca ${realSituation}, BD desatualizada): ${user.email}`)
             continue
           }
-        } catch (err: any) {
-          console.log(`   ⚠️ Erro API CursEduca para ${user.email}: ${err.response?.status || err.message}`)
+        } catch (err: unknown) {
+          const details = axiosErrorDetails(err)
+          console.log(`   ⚠️ Erro API CursEduca para ${user.email}: ${details.status || details.message}`)
         }
       }
 
@@ -999,11 +1093,12 @@ export const cleanupInactivationList = async (req: Request, res: Response) => {
       cleanedDetails: cleanedDetails.slice(0, 50) // Aumentar limite para ver mais detalhes
     })
 
-  } catch (error: any) {
-    console.error('❌ [CLEANUP] Erro:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [CLEANUP] Erro:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -1077,9 +1172,10 @@ export const cleanupDuplicateUserProducts = async (req: Request, res: Response) 
       modifiedCount: result.modifiedCount,
       requestedCount: userProductIds.length
     })
-  } catch (error: any) {
-    console.error('❌ [CLEANUP DUPLICATES] Erro:', error.message)
-    return res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [CLEANUP DUPLICATES] Erro:', message)
+    return res.status(500).json({ success: false, message })
   }
 }
 
@@ -1148,9 +1244,10 @@ export const markStaleInactive = async (req: Request, res: Response) => {
       userProductsModified: upResult.modifiedCount,
       usersModified: userResult.modifiedCount
     })
-  } catch (error: any) {
-    console.error('❌ [MARK STALE] Erro:', error.message)
-    return res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [MARK STALE] Erro:', message)
+    return res.status(500).json({ success: false, message })
   }
 }
 
@@ -1194,9 +1291,10 @@ export const restoreUserProducts = async (req: Request, res: Response) => {
       modifiedCount: result.modifiedCount,
       requestedCount: userProductIds.length
     })
-  } catch (error: any) {
-    console.error('❌ [RESTORE] Erro:', error.message)
-    return res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [RESTORE] Erro:', message)
+    return res.status(500).json({ success: false, message })
   }
 }
 
@@ -1218,7 +1316,7 @@ export const fixUsersToActive = async (req: Request, res: Response) => {
 
     console.log(`🔧 [FIX TO ACTIVE] Corrigindo ${emails.length} utilizadores...`)
 
-    const results: any[] = []
+    const results: FixToActiveResult[] = []
     let updatedUserProducts = 0
     let updatedUsers = 0
 
@@ -1294,11 +1392,12 @@ export const fixUsersToActive = async (req: Request, res: Response) => {
       results
     })
 
-  } catch (error: any) {
-    console.error('❌ [FIX TO ACTIVE] Erro:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [FIX TO ACTIVE] Erro:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -1316,20 +1415,22 @@ export const listInactivated = async (req: Request, res: Response) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1)
     const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50))
-    const emailFilter = (req.query.email as string)?.toLowerCase().trim()
+    const emailFilter = typeof req.query.email === 'string'
+      ? req.query.email.toLowerCase().trim()
+      : undefined
 
     const userProducts = await UserProduct.find({
       platform: 'curseduca',
       status: 'INACTIVE'
     })
-      .populate('userId', 'email name guru curseduca')
+      .populate<{ userId: PopulatedUser }>('userId', 'email name guru curseduca')
       .sort({ 'metadata.inactivatedAt': -1 })
       .lean()
 
     let list = userProducts
-      .filter(up => (up.userId as any)?.email)
+      .filter(up => up.userId?.email)
       .map(up => {
-        const user = up.userId as any
+        const user = up.userId
         return {
           userProductId: up._id,
           email: user.email,
@@ -1363,9 +1464,10 @@ export const listInactivated = async (req: Request, res: Response) => {
       inactivatedList: paginated
     })
 
-  } catch (error: any) {
-    console.error('❌ [INATIVAÇÃO] Erro ao listar inativados:', error.message)
-    return res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [INATIVAÇÃO] Erro ao listar inativados:', message)
+    return res.status(500).json({ success: false, message })
   }
 }
 
@@ -1391,7 +1493,7 @@ export const diagnoseUsers = async (req: Request, res: Response) => {
 
     console.log(`🔍 [DIAGNOSE] Diagnosticando ${emails.length} utilizadores...`)
 
-    const results: any[] = []
+    const results: DiagnoseUserResult[] = []
 
     for (const email of emails) {
       console.log(`\n   📧 ${email}:`)
@@ -1411,11 +1513,11 @@ export const diagnoseUsers = async (req: Request, res: Response) => {
       }).lean()
 
       // 3. Chamar API CursEduca para ver estado real
-      let curseducaApiStatus: any = null
-      const memberId = userProduct?.platformUserId || (user as any).curseduca?.curseducaUserId
+      let curseducaApiStatus: CurseducaApiStatus | null = null
+      const memberId = userProduct?.platformUserId || user.curseduca?.curseducaUserId
       if (memberId && CURSEDUCA_API_KEY && CURSEDUCA_ACCESS_TOKEN) {
         try {
-          const apiResponse = await axios.get(
+          const apiResponse = await axios.get<CurseducaMemberPayload>(
             `${CURSEDUCA_API_URL}/members/${memberId}`,
             {
               headers: {
@@ -1432,31 +1534,32 @@ export const diagnoseUsers = async (req: Request, res: Response) => {
             raw: apiResponse.data?.data || apiResponse.data
           }
           console.log(`   📡 CursEduca API: situation=${curseducaApiStatus.situation}`)
-        } catch (err: any) {
+        } catch (err: unknown) {
+          const details = axiosErrorDetails(err)
           curseducaApiStatus = {
-            error: err.response?.status || err.message,
-            data: err.response?.data
+            error: details.status || details.message,
+            data: details.data
           }
-          console.log(`   ⚠️ CursEduca API erro: ${err.response?.status || err.message}`)
+          console.log(`   ⚠️ CursEduca API erro: ${details.status || details.message}`)
         }
       }
 
       const result = {
         email,
         found: true,
-        name: (user as any).name,
+        name: user.name,
         db: {
-          guruStatus: (user as any).guru?.status || null,
-          guruSubscriptionCode: (user as any).guru?.subscriptionCode || null,
-          curseducaMemberStatus: (user as any).curseduca?.memberStatus || null,
-          curseducaUserId: (user as any).curseduca?.curseducaUserId || null,
-          curseducaSituation: (user as any).curseduca?.situation || null
+          guruStatus: user.guru?.status || null,
+          guruSubscriptionCode: user.guru?.subscriptionCode || null,
+          curseducaMemberStatus: user.curseduca?.memberStatus || null,
+          curseducaUserId: user.curseduca?.curseducaUserId || null,
+          curseducaSituation: user.curseduca?.situation || null
         },
         userProduct: userProduct ? {
           status: userProduct.status,
           platformUserId: userProduct.platformUserId,
           metadata: userProduct.metadata,
-          classes: (userProduct as any).classes?.length || 0
+          classes: userProduct.classes?.length || 0
         } : null,
         curseducaApi: curseducaApiStatus
       }
@@ -1469,9 +1572,10 @@ export const diagnoseUsers = async (req: Request, res: Response) => {
 
     return res.json({ success: true, results })
 
-  } catch (error: any) {
-    console.error('❌ [DIAGNOSE] Erro:', error.message)
-    return res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [DIAGNOSE] Erro:', message)
+    return res.status(500).json({ success: false, message })
   }
 }
 
@@ -1479,7 +1583,7 @@ export const diagnoseUsers = async (req: Request, res: Response) => {
 // FUNÇÃO AUXILIAR: CHAMAR API CURSEDUCA
 // ═══════════════════════════════════════════════════════════
 
-async function callCurseducaInactivate(memberId: string | number): Promise<{ success: boolean; response?: any; error?: string }> {
+async function callCurseducaInactivate(memberId: string | number): Promise<{ success: boolean; response?: unknown; error?: string }> {
   try {
     if (!CURSEDUCA_API_KEY || !CURSEDUCA_ACCESS_TOKEN) {
       return { success: false, error: 'Credenciais CursEduca não configuradas (API_KEY ou ACCESS_TOKEN)' }
@@ -1511,12 +1615,18 @@ async function callCurseducaInactivate(memberId: string | number): Promise<{ suc
       response: response.data
     }
 
-  } catch (error: any) {
-    const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message
-    console.error(`   ❌ [CursEduca API] Erro:`, error.response?.status, errorMessage)
+  } catch (error: unknown) {
+    const details = axiosErrorDetails(error)
+    const responseData = details.data
+    const message = typeof responseData === 'object' && responseData !== null && 'message' in responseData
+      ? String(responseData.message)
+      : typeof responseData === 'object' && responseData !== null && 'error' in responseData
+        ? String(responseData.error)
+        : details.message
+    console.error(`   ❌ [CursEduca API] Erro:`, details.status, message)
     return {
       success: false,
-      error: errorMessage
+      error: message
     }
   }
 }
