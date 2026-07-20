@@ -3,6 +3,7 @@
 // DAILY PIPELINE ORCHESTRATOR (100% UNIVERSAL SYNC)
 // ════════════════════════════════════════════════════════════
 
+import type mongoose from 'mongoose'
 import { Product, UserProduct, PipelineExecution } from '../../models'
 import CronJobConfig from '../../models/SyncModels/CronJobConfig'
 import logger from '../../utils/logger'
@@ -11,14 +12,44 @@ import { recalculateAllEngagementMetrics } from '../syncUtilizadoresServices/eng
 
 import tagPreCreationService from '../activeCampaign/tagPreCreation.service'
 import testimonialTagSyncService from '../activeCampaign/testimonialTagSync.service'
-import pipelineSnapshotService from '../activeCampaign/pipelineSnapshot.service'
+import pipelineSnapshotService, {
+  type PipelineSnapshot,
+  type SnapshotComparison,
+} from '../activeCampaign/pipelineSnapshot.service'
 
 // ✅ Adapters + Universal Sync
 import universalSyncService from '../syncUtilizadoresServices/universalSyncService'
 import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import { DailyPipelineResult, PipelineStepResult } from '../../types/cron.types'
-import tagOrchestratorV2 from '../activeCampaign/tagOrchestrator.service'
+import tagOrchestratorV2, { type OrchestrationResult } from '../activeCampaign/tagOrchestrator.service'
+
+type PipelineUser = {
+  _id: mongoose.Types.ObjectId
+  hotmart?: {
+    lastAccessDate?: Date
+    firstAccessDate?: Date
+    progress?: { lastAccessDate?: Date }
+  }
+  metadata?: { purchaseDate?: Date }
+}
+
+type PipelineProduct = {
+  _id: mongoose.Types.ObjectId
+  code?: string
+}
+
+type PipelineUserProduct = {
+  userId: PipelineUser | null
+  productId: PipelineProduct | null
+  metadata?: { purchaseDate?: Date }
+}
+
+function hasPipelineReferences(
+  userProduct: PipelineUserProduct
+): userProduct is PipelineUserProduct & { userId: PipelineUser; productId: PipelineProduct } {
+  return Boolean(userProduct.userId?._id && userProduct.productId?._id)
+}
 
 // ═══════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -55,7 +86,7 @@ async function getProductsConfig() {
 /**
  * Helper para logging limpo (sem spam)
  */
-function logStep(stepNum: number, stepName: string, status: 'START' | 'DONE' | 'ERROR', stats?: any) {
+function logStep(stepNum: number, stepName: string, status: 'START' | 'DONE' | 'ERROR', stats?: string) {
   const timestamp = new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
 
   if (status === 'START') {
@@ -117,7 +148,7 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
 
       if (hotmartProductsCount > 0) {
         for (let idx = 0; idx < hotmartProductsCount; idx++) {
-          const product = config.hotmart.products[idx] as any
+          const product = config.hotmart.products[idx]
 
           const hotmartData = await hotmartAdapter.fetchHotmartDataForSync()
           if (hotmartData.length === 0) continue
@@ -297,13 +328,14 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
     logger.info('   ➡️  Transição Step 4 → Step 5...')
     logger.info('   📸 Capturando snapshot PRE (antes de tags)...')
 
-    let preSnapshot: any = null
+    let preSnapshot: PipelineSnapshot | null = null
     try {
       preSnapshot = await pipelineSnapshotService.captureSnapshot('PRE')
       await pipelineSnapshotService.saveSnapshot(preSnapshot, 'snapshot_PRE_latest.json')
       logger.info(`   ✅ Snapshot PRE: ${preSnapshot.stats.totalTags} tags, ${preSnapshot.stats.totalUsers} users`)
-    } catch (err: any) {
-      logger.warn(`   ⚠️  Erro ao capturar snapshot PRE: ${err.message}`)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.warn(`   ⚠️  Erro ao capturar snapshot PRE: ${message}`)
     }
 
     // STEP 5/5: EVALUATE TAG RULES
@@ -324,7 +356,7 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
       cutoffActivityDate.setDate(cutoffActivityDate.getDate() - inactiveDaysThreshold)
 
       // Buscar produto OGI_V1
-      const ogiProduct = await Product.findOne({ code: 'OGI_V1' }).select('_id').lean() as { _id: any } | null
+      const ogiProduct = await Product.findOne({ code: 'OGI_V1' }).select('_id').lean()
       const ogiProductId = ogiProduct?._id?.toString()
 
       // Produtos a IGNORAR (não têm regras de tags)
@@ -332,7 +364,7 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
       const productsToSkip = await Product.find({
         code: { $in: PRODUCTS_TO_SKIP }
       }).select('_id').lean()
-      const productIdsToSkip = new Set(productsToSkip.map((p: any) => p._id.toString()))
+      const productIdsToSkip = new Set(productsToSkip.map((product) => product._id.toString()))
       logger.info(`   🚫 Produtos a ignorar: ${PRODUCTS_TO_SKIP.join(', ')}`)
 
       // Buscar TODOS os UserProducts ativos
@@ -340,14 +372,14 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
         .select('userId productId metadata engagement')
         .populate({ path: 'userId', select: 'hotmart.lastAccessDate hotmart.firstAccessDate hotmart.progress.lastAccessDate metadata.purchaseDate email' })
         .populate({ path: 'productId', select: 'code' })
-        .lean<any[]>()
+        .lean<PipelineUserProduct[]>()
 
       logger.info(`   📊 Total UserProducts ativos: ${userProducts.length}`)
 
       // Filtrar produtos sem regras de tags (DISCORD_COMMUNITY, etc)
       const userProductsWithTags = userProducts.filter((up) => {
         const productIdStr = up.productId?._id?.toString() || up.productId?.toString()
-        if (productIdsToSkip.has(productIdStr)) return false
+        if (productIdStr && productIdsToSkip.has(productIdStr)) return false
         return true
       })
       const skippedCount = userProducts.length - userProductsWithTags.length
@@ -356,7 +388,7 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
       }
 
       // Filtrar UserProducts órfãos (userId null)
-      const validUserProducts = userProductsWithTags.filter((up) => up.userId && up.userId._id)
+      const validUserProducts = userProductsWithTags.filter(hasPipelineReferences)
       const orphanCount = userProductsWithTags.length - validUserProducts.length
       if (orphanCount > 0) {
         logger.warn(`   ⚠️  ${orphanCount} UserProducts órfãos ignorados`)
@@ -403,14 +435,13 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
 
       // Mapear items para processamento
       const items = filteredUserProducts
-        .filter(up => up.userId && up.userId._id)
         .map((up) => ({
-          userId: up.userId._id?.toString() || up.userId.toString(),
-          productId: up.productId?._id?.toString() || up.productId?.toString()
+          userId: up.userId._id.toString(),
+          productId: up.productId._id.toString()
         }))
 
       // Processamento sequencial (evita race conditions no rate limiting)
-      const orchestrationResults: any[] = []
+      const orchestrationResults: OrchestrationResult[] = []
       let lastLoggedPercent = 0
       let totalTagsApplied = 0
       let totalTagsRemoved = 0
@@ -463,12 +494,12 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
       const stats = tagOrchestratorV2.getExecutionStats(orchestrationResults)
 
       const tagsApplied = orchestrationResults.reduce(
-        (sum: number, r: any) => sum + (r.tagsApplied?.length || 0),
+        (sum, orchestrationResult) => sum + orchestrationResult.tagsApplied.length,
         0
       )
 
       const tagsRemoved = orchestrationResults.reduce(
-        (sum: number, r: any) => sum + (r.tagsRemoved?.length || 0),
+        (sum, orchestrationResult) => sum + orchestrationResult.tagsRemoved.length,
         0
       )
 
@@ -514,8 +545,8 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
 
     logger.info('   📸 Capturando snapshot POST (depois de tags)...')
 
-    let postSnapshot: any = null
-    let comparison: any = null
+    let postSnapshot: PipelineSnapshot | null = null
+    let comparison: SnapshotComparison | null = null
 
     try {
       postSnapshot = await pipelineSnapshotService.captureSnapshot('POST')
@@ -538,8 +569,9 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
 
         logger.info('   📂 Snapshots e relatório salvos em: ./snapshots/')
       }
-    } catch (err: any) {
-      logger.warn(`   ⚠️  Erro ao capturar snapshot POST: ${err.message}`)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.warn(`   ⚠️  Erro ao capturar snapshot POST: ${message}`)
     }
 
     // STEP 6/6: SYNC TESTIMONIAL TAGS
@@ -625,8 +657,9 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
         triggeredBy: 'CRON'
       })
       logger.info('💾 Histórico salvo')
-    } catch (err: any) {
-      logger.error(`❌ Erro ao salvar histórico: ${err.message}`)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      logger.error(`❌ Erro ao salvar histórico: ${message}`)
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -815,13 +848,14 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
     // ═══════════════════════════════════════════════════════════
 
     console.log('[TAG-RULES] 📸 Capturando snapshot PRE...')
-    let preSnapshot: any = null
+    let preSnapshot: PipelineSnapshot | null = null
     try {
       preSnapshot = await pipelineSnapshotService.captureSnapshot('PRE')
       await pipelineSnapshotService.saveSnapshot(preSnapshot, 'snapshot_PRE_tagrules.json')
       console.log(`[TAG-RULES] ✅ Snapshot PRE: ${preSnapshot.stats.totalTags} tags, ${preSnapshot.stats.totalUsers} users`)
-    } catch (err: any) {
-      console.log(`[TAG-RULES] ⚠️ Erro ao capturar snapshot PRE: ${err.message}`)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.log(`[TAG-RULES] ⚠️ Erro ao capturar snapshot PRE: ${message}`)
     }
 
     // STEP 3/3: EVALUATE TAG RULES
@@ -835,7 +869,7 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
       const cutoffActivityDate = new Date()
       cutoffActivityDate.setDate(cutoffActivityDate.getDate() - inactiveDaysThreshold)
 
-      const ogiProduct = await Product.findOne({ code: 'OGI_V1' }).select('_id').lean() as { _id: any } | null
+      const ogiProduct = await Product.findOne({ code: 'OGI_V1' }).select('_id').lean()
       const ogiProductId = ogiProduct?._id?.toString()
 
       // Produtos a IGNORAR (não têm regras de tags)
@@ -843,7 +877,7 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
       const productsToSkip = await Product.find({
         code: { $in: PRODUCTS_TO_SKIP }
       }).select('_id').lean()
-      const productIdsToSkip = new Set(productsToSkip.map((p: any) => p._id.toString()))
+      const productIdsToSkip = new Set(productsToSkip.map((product) => product._id.toString()))
       console.log(`[TAG-RULES] 🚫 Produtos a ignorar: ${PRODUCTS_TO_SKIP.join(', ')}`)
 
       console.log('[TAG-RULES] ▶️ A buscar UserProducts ativos...')
@@ -851,14 +885,14 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         .select('userId productId metadata engagement')
         .populate({ path: 'userId', select: 'hotmart.lastAccessDate hotmart.firstAccessDate hotmart.progress.lastAccessDate metadata.purchaseDate email' })
         .populate({ path: 'productId', select: 'code' })
-        .lean<any[]>()
+        .lean<PipelineUserProduct[]>()
 
       console.log(`[TAG-RULES] 📊 Total UserProducts ativos: ${userProducts.length}`)
 
       // Filtrar produtos sem regras de tags (DISCORD_COMMUNITY, etc)
       const userProductsWithTags = userProducts.filter((up) => {
         const productIdStr = up.productId?._id?.toString() || up.productId?.toString()
-        if (productIdsToSkip.has(productIdStr)) return false
+        if (productIdStr && productIdsToSkip.has(productIdStr)) return false
         return true
       })
       const skippedCount = userProducts.length - userProductsWithTags.length
@@ -866,7 +900,7 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         console.log(`[TAG-RULES] 🚫 ${skippedCount} UserProducts de produtos sem tags ignorados`)
       }
 
-      const validUserProducts = userProductsWithTags.filter((up) => up.userId && up.userId._id)
+      const validUserProducts = userProductsWithTags.filter(hasPipelineReferences)
       const orphanCount = userProductsWithTags.length - validUserProducts.length
       if (orphanCount > 0) {
         console.log(`[TAG-RULES] ⚠️ ${orphanCount} UserProducts órfãos ignorados`)
@@ -894,13 +928,12 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
       }
 
       const items = filteredUserProducts
-        .filter(up => up.userId && up.userId._id)
         .map((up) => ({
-          userId: up.userId._id?.toString() || up.userId.toString(),
-          productId: up.productId?._id?.toString() || up.productId?.toString()
+          userId: up.userId._id.toString(),
+          productId: up.productId._id.toString()
         }))
 
-      const orchestrationResults: any[] = []
+      const orchestrationResults: OrchestrationResult[] = []
       let lastLoggedPercent = 0
       let totalTagsApplied = 0
       let totalTagsRemoved = 0
@@ -951,11 +984,11 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
       const stats = tagOrchestratorV2.getExecutionStats(orchestrationResults)
 
       const tagsApplied = orchestrationResults.reduce(
-        (sum: number, r: any) => sum + (r.tagsApplied?.length || 0),
+        (sum, orchestrationResult) => sum + orchestrationResult.tagsApplied.length,
         0
       )
       const tagsRemoved = orchestrationResults.reduce(
-        (sum: number, r: any) => sum + (r.tagsRemoved?.length || 0),
+        (sum, orchestrationResult) => sum + orchestrationResult.tagsRemoved.length,
         0
       )
 
@@ -993,8 +1026,8 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
     // ═══════════════════════════════════════════════════════════
 
     console.log('[TAG-RULES] 📸 Capturando snapshot POST...')
-    let postSnapshot: any = null
-    let comparison: any = null
+    let postSnapshot: PipelineSnapshot | null = null
+    let comparison: SnapshotComparison | null = null
 
     try {
       postSnapshot = await pipelineSnapshotService.captureSnapshot('POST')
@@ -1017,8 +1050,9 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
 
         console.log('[TAG-RULES] 📂 Ficheiros salvos em: ./snapshots/')
       }
-    } catch (err: any) {
-      console.log(`[TAG-RULES] ⚠️ Erro ao capturar snapshot POST: ${err.message}`)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.log(`[TAG-RULES] ⚠️ Erro ao capturar snapshot POST: ${message}`)
     }
 
     // FINALIZAR
@@ -1066,8 +1100,9 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         triggeredBy: 'API'
       })
       console.log('[TAG-RULES] 💾 Histórico salvo')
-    } catch (err: any) {
-      console.log(`[TAG-RULES] ❌ Erro ao salvar histórico: ${err.message}`)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.log(`[TAG-RULES] ❌ Erro ao salvar histórico: ${message}`)
     }
 
     return result
