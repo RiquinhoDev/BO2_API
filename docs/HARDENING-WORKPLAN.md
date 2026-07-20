@@ -472,6 +472,29 @@ em `UserProduct`:**
 3. Varrer o resto: `grep -rn "progressPercentage" src` — confirmar caso a caso se é o de topo (bug) ou o de
    dentro de `modulesList[]` (legítimo).
 
+- [x] **Fantasma `progressPercentage` fechado + curseduca/raiox/guru.analytics (1345→1233, −112)** — feito
+  (`3ae8404`, `b92ee47`, `eecdee2`, `8dc3d15`, `1519096`). 0 casts/any novos. Gate: lint 0, tsc 0, ratchet 0,
+  build 0, jest 314/2 (+3 testes de regressão). Verificado contra código:
+  - `dashboard.controller` :32-34, :69 e **:292 (`compareProducts`, sítio que eu não tinha apanhado)** → `progress.percentage`.
+    O filtro `progressMin/Max` e as médias voltam a funcionar (antes: filtro nunca filtrava, média sempre nula).
+  - `activecampaign.controller:1130-1134` → `status: 'ACTIVE'` (era `'active'`, inválido para `EnrollmentStatus`)
+    e `progress: { percentage: 0 }`.
+  - **Alias legacy `progressPercentage` é legítimo**: provado o produtor em `userProducts/userProductService.ts:320-325`
+    (`{ ...up.progress, progressPercentage: up.progress.percentage ?? 0 }`), mais `testHistory:56`, `users:3202`,
+    `userSnapshot.service:50` — todos derivam de `percentage`. Logo o filtro `hotmart.controller:215` funciona.
+  - **Bug real (buraco de auditoria, sítio novo):** `triggeredByUser` lia `(req as any).user?._id` em
+    `curseduca.controller` — mesma classe já corrigida em `hotmart.controller` (`319b0e4`). Auth dá `req.user.id`.
+  - **Bug real (limbo permanente):** cleanup Guru em `guru.analytics.controller:678-681` só olhava para
+    `memberStatus`/`INACTIVE`; matrículas `SUSPENDED` ficavam presas em `PARA_INATIVAR` para sempre. Agora lê
+    `curseduca.situation` (canónico) e trata `INACTIVE`+`SUSPENDED`. Default `|| 'ACTIVE'` erra no sentido seguro.
+
+**Dívida nova registada (duplicação de predicado — rule #9):** o predicado canónico
+`isCurseducaEnrollmentActive(situation)` (`curseducaServices/curseducaMemberships.ts:16`) tem **1 só uso** — dentro
+do seu próprio módulo (:38). O cleanup do Guru (`guru.analytics.controller:681`) acabou de escrever **à mão uma
+segunda cópia da mesma regra** (`=== 'INACTIVE' || === 'SUSPENDED'`). Duas definições de "matrícula curseduca
+inactiva" vão divergir. Próximo bloco: fazer o guru.analytics importar o helper e varrer outros sítios que
+comparem `situation`/`memberStatus` a literais.
+
 Depois: cirurgia ARCH-01/02/03.
 
 ---
