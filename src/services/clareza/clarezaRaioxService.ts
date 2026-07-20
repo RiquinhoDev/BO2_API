@@ -29,6 +29,59 @@ const RAIOX_SPY_KEY      = 'clareza:raiox:spy'      // histórico SPY comprimido
 // O cron 6h/12h/18h reescreve as chaves 3×/dia → GET é sempre hit rápido.
 const RAIOX_TTL = 90000
 
+type JsonObject = Record<string, unknown>
+type PricePoint = { d: string; c: number }
+
+interface RaioxPayload extends JsonObject {
+  p: JsonObject
+  r: JsonObject
+  km: JsonObject
+  inc: unknown[]
+  cf: unknown[]
+  ra: unknown[]
+  gr: JsonObject
+  pt: JsonObject
+  ea: unknown[]
+  dv: unknown[]
+  dcf: JsonObject
+  pr: Record<string, { g: unknown; n: unknown }>
+  mo: Record<string, { s: number | null; x: number | null }> | null
+}
+
+interface RaioxSnapshot {
+  stocks?: Record<string, RaioxPayload>
+  sectorPe?: unknown[]
+}
+
+interface RaioxSearchResult {
+  query: string
+  count: number
+  results: RaioxIndexEntry[]
+}
+
+interface RaioxDiagnosis {
+  tested: number
+  ok: number
+  failed: number
+  results: Array<JsonObject & { ticker: string; ok: boolean }>
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function objectOrEmpty(value: unknown): JsonObject {
+  return isJsonObject(value) ? value : {}
+}
+
+function arrayOrEmpty(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 // Universo do raiox = universo base do Clareza (já inclui os internacionais:
 // 2330.TW, ASML.AS, RACE.MI, etc.) + extras só do raiox.
 const RAIOX_EXTRAS = [
@@ -64,20 +117,20 @@ async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurrency: n
 
 // Todas as chamadas passam pelo limitador global partilhado (fmpThrottle),
 // comum às 3 ferramentas Clareza → a soma nunca passa do limite do plano.
-async function fmpRaw(path: string, params: Record<string, string> = {}): Promise<any> {
+async function fmpRaw(path: string, params: Record<string, string> = {}): Promise<unknown> {
   if (!process.env.FMP_API_KEY) return null
   for (let attempt = 0; attempt < 3; attempt++) {
     await fmpThrottle()
     try {
-      const { data } = await axios.get(`${FMP_STABLE}${path}`, {
+      const { data } = await axios.get<unknown>(`${FMP_STABLE}${path}`, {
         params: { apikey: process.env.FMP_API_KEY, ...params },
         timeout: 15000
       })
       if (!data) return null
-      if (!Array.isArray(data) && (data as any)['Error Message']) return null
+      if (isJsonObject(data) && data['Error Message']) return null
       return data
-    } catch (e: any) {
-      const status = e?.response?.status
+    } catch (error: unknown) {
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined
       if (status === 429 && attempt < 2) {
         await sleep(2000) // rate limit → espera e tenta de novo
         continue
@@ -88,9 +141,9 @@ async function fmpRaw(path: string, params: Record<string, string> = {}): Promis
   return null
 }
 
-function fmpFirst(d: any): any {
-  if (!d) return null
-  return Array.isArray(d) ? (d[0] ?? null) : d
+function fmpFirst(data: unknown): JsonObject | null {
+  const first = Array.isArray(data) ? data[0] : data
+  return isJsonObject(first) ? first : null
 }
 
 function isoDaysAgo(days: number): string {
@@ -112,12 +165,13 @@ function weekBucket(date: string): string {
 }
 
 // Comprime histórico: diário nos últimos ~6 meses, semanal até 5 anos.
-function compressHist(raw: any[]): { d: string; c: number }[] {
+function compressHist(raw: unknown): PricePoint[] {
   if (!Array.isArray(raw)) return []
-  const rows = [...raw].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+  const rows = raw.filter(isJsonObject)
+    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
   const cutoffDaily  = isoDaysAgo(182)
   const cutoffWeekly = isoDaysAgo(365 * 5)
-  const out: { d: string; c: number }[] = []
+  const out: PricePoint[] = []
   let lastWeek: string | null = null
 
   for (const row of rows) {
@@ -180,7 +234,7 @@ function calcMomentum(
 // Recolhe as chamadas independentes (não dependem do resultado umas das outras).
 // concurrent=true → todas em paralelo, sem gate (pesquisa on-demand, ~1s).
 // concurrent=false → em série pelo gate global (cron, respeita 300/min).
-async function gatherRaiox(ticker: string, concurrent: boolean): Promise<Record<string, any>> {
+async function gatherRaiox(ticker: string, concurrent: boolean): Promise<Record<string, unknown>> {
   const from = isoDaysAgo(365 * 5)
   const to   = new Date().toISOString().slice(0, 10)
   const reqs: Record<string, [string, Record<string, string>]> = {
@@ -200,7 +254,7 @@ async function gatherRaiox(ticker: string, concurrent: boolean): Promise<Record<
   }
 
   const entries = Object.entries(reqs)
-  const raw: Record<string, any> = {}
+  const raw: Record<string, unknown> = {}
   if (concurrent) {
     // On-demand: até 5 em simultâneo — o burst do bucket serve-as logo se há folga.
     const vals = await runWithConcurrency(entries.map(([, [p, q]]) => () => fmpRaw(p, q)), 5)
@@ -215,7 +269,7 @@ async function fetchCompanyRaiox(
   ticker: string,
   spyHist: { d: string; c: number }[],
   concurrent = false
-): Promise<any | null> {
+): Promise<RaioxPayload | null> {
   const raw = await gatherRaiox(ticker, concurrent)
 
   let profile = fmpFirst(raw.profile)
@@ -228,13 +282,24 @@ async function fetchCompanyRaiox(
   // Peers leves (até 3) — depende da lista vinda do /stock-peers.
   let peerList: string[] = []
   if (Array.isArray(raw.peers) && raw.peers.length) {
-    const pl: string[] = raw.peers[0]?.peersList ?? raw.peers.map((p: any) => p?.symbol).filter(Boolean)
-    peerList = (pl || []).filter((p: string) => p && p !== ticker).slice(0, 3)
+    const firstPeer = isJsonObject(raw.peers[0]) ? raw.peers[0] : null
+    const listedPeers = firstPeer && Array.isArray(firstPeer.peersList)
+      ? firstPeer.peersList.filter((peer): peer is string => typeof peer === 'string')
+      : raw.peers
+        .filter(isJsonObject)
+        .map(peer => peer.symbol)
+        .filter((symbol): symbol is string => typeof symbol === 'string')
+    peerList = listedPeers.filter(peer => peer && peer !== ticker).slice(0, 3)
   }
 
-  const peerRatios: Record<string, { g: any; n: any }> = {}
-  const assignPeer = (p: string, pr: any) => {
-    if (pr) peerRatios[p] = { g: pr.grossProfitMarginTTM ?? null, n: pr.netProfitMarginTTM ?? null }
+  const peerRatios: Record<string, { g: unknown; n: unknown }> = {}
+  const assignPeer = (peer: string, ratios: JsonObject | null) => {
+    if (ratios) {
+      peerRatios[peer] = {
+        g: ratios.grossProfitMarginTTM ?? null,
+        n: ratios.netProfitMarginTTM ?? null
+      }
+    }
   }
   if (peerList.length) {
     if (concurrent) {
@@ -250,16 +315,16 @@ async function fetchCompanyRaiox(
 
   return {
     p:   profile,
-    r:   fmpFirst(raw.r) ?? {},
-    km:  fmpFirst(raw.km) ?? {},
-    inc: raw.inc ?? [],
-    cf:  raw.cf ?? [],
-    ra:  raw.ra ?? [],
-    gr:  fmpFirst(raw.gr) ?? {},
-    pt:  fmpFirst(raw.pt) ?? {},
-    ea:  raw.ea ?? [],
-    dv:  raw.dv ?? [],
-    dcf: dcf ?? {},
+    r:   objectOrEmpty(fmpFirst(raw.r)),
+    km:  objectOrEmpty(fmpFirst(raw.km)),
+    inc: arrayOrEmpty(raw.inc),
+    cf:  arrayOrEmpty(raw.cf),
+    ra:  arrayOrEmpty(raw.ra),
+    gr:  objectOrEmpty(fmpFirst(raw.gr)),
+    pt:  objectOrEmpty(fmpFirst(raw.pt)),
+    ea:  arrayOrEmpty(raw.ea),
+    dv:  arrayOrEmpty(raw.dv),
+    dcf: objectOrEmpty(dcf),
     pr:  peerRatios,
     mo:  momentum
   }
@@ -307,10 +372,10 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
   // 2. Empresas — sequencial (o gate global trata do ritmo).
   let errors = 0
   const index: Array<{
-    symbol: string; name: string; price: any; image: any
-    currency: any; exchange: any; country: any
+    symbol: string; name: string; price: unknown; image: unknown
+    currency: unknown; exchange: unknown; country: unknown
   }> = []
-  const snapshot: Record<string, any> = {}
+  const snapshot: Record<string, RaioxPayload> = {}
 
   for (const stock of RAIOX_UNIVERSE) {
     try {
@@ -322,7 +387,7 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
         snapshot[stock.ticker] = data
         index.push({
           symbol:   stock.ticker,
-          name:     data.p?.companyName ?? data.p?.name ?? stock.name,
+          name:     String(data.p.companyName ?? data.p.name ?? stock.name),
           price:    data.p?.price ?? null,
           image:    data.p?.image ?? null,
           currency: data.p?.currency ?? null,
@@ -333,9 +398,9 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
         errors++
         console.warn(`⚠️ [Raiox] Sem dados para ${stock.ticker}`)
       }
-    } catch (err: any) {
+    } catch (error: unknown) {
       errors++
-      console.error(`❌ [Raiox] Erro em ${stock.ticker}:`, err.message)
+      console.error(`❌ [Raiox] Erro em ${stock.ticker}:`, errorMessage(error))
     }
   }
 
@@ -357,12 +422,12 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
     })
     const all = await ClarezaRaioxData.find({}, '_id fetchedAt').sort({ fetchedAt: -1 }).lean()
     if (all.length > 5) {
-      const toDelete = all.slice(5).map((d: any) => d._id)
+      const toDelete = all.slice(5).map(document => document._id)
       await ClarezaRaioxData.deleteMany({ _id: { $in: toDelete } })
     }
     console.log('💾 [Raiox] Snapshot guardado na BD')
-  } catch (err: any) {
-    console.error('⚠️ [Raiox] Erro ao guardar snapshot na BD:', err.message)
+  } catch (error: unknown) {
+    console.error('⚠️ [Raiox] Erro ao guardar snapshot na BD:', errorMessage(error))
   }
 
   console.log(`✅ [Raiox] Refresh completo — ${RAIOX_UNIVERSE.length - errors} ok, ${errors} erros`)
@@ -373,8 +438,8 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
 // GET POR TICKER (Redis → MongoDB → FMP live)
 // ─────────────────────────────────────────────────────────────
 
-async function getSectorPe(): Promise<any[]> {
-  const cached = await cacheService.get<any[]>(RAIOX_SECTORPE_KEY)
+async function getSectorPe(): Promise<unknown[]> {
+  const cached = await cacheService.get<unknown[]>(RAIOX_SECTORPE_KEY)
   if (cached && cached.length) return cached
 
   // Cache vazia (ainda sem cron, ou ticker on-demand) → busca lazy + cacheia.
@@ -386,14 +451,14 @@ async function getSectorPe(): Promise<any[]> {
   return cached ?? []
 }
 
-export async function getRaioxAnalysis(rawTicker: string): Promise<any> {
+export async function getRaioxAnalysis(rawTicker: string): Promise<RaioxPayload & { sectorPe: unknown[] }> {
   if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
 
   const ticker = normalizeTicker(rawTicker)
   if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
 
   // 1. Redis (caminho normal — pré-aquecido pelo cron).
-  const cached = await cacheService.get<any>(RAIOX_CACHE_PREFIX + ticker)
+  const cached = await cacheService.get<RaioxPayload>(RAIOX_CACHE_PREFIX + ticker)
   if (cached) return { ...cached, sectorPe: await getSectorPe() }
 
   // 2. Redis miss → snapshot MongoDB do último refresh.
@@ -403,14 +468,14 @@ export async function getRaioxAnalysis(rawTicker: string): Promise<any> {
     const latest = await ClarezaRaioxData
       .findOne({}, { [`stocks.${ticker}`]: 1, sectorPe: 1, fetchedAt: 1 })
       .sort({ fetchedAt: -1 })
-      .lean()
-    const hit = (latest as any)?.stocks?.[ticker]
+      .lean<RaioxSnapshot | null>()
+    const hit = latest?.stocks?.[ticker]
     if (hit) {
       await cacheService.set(RAIOX_CACHE_PREFIX + ticker, hit, RAIOX_TTL)
-      return { ...hit, sectorPe: (latest as any)?.sectorPe ?? [] }
+      return { ...hit, sectorPe: latest?.sectorPe ?? [] }
     }
-  } catch (err: any) {
-    console.error('⚠️ [Raiox] Erro ao ler snapshot da BD:', err.message)
+  } catch (error: unknown) {
+    console.error('⚠️ [Raiox] Erro ao ler snapshot da BD:', errorMessage(error))
   }
 
   // 3. Fora da cache (ticker raro / fora do universo) → fetch live + cacheia.
@@ -455,11 +520,11 @@ export async function getRaioxJson(rawTicker: string): Promise<string> {
 // ─────────────────────────────────────────────────────────────
 
 type RaioxIndexEntry = {
-  symbol: string; name: string; price: any; image: any
-  currency?: any; exchange?: any; country?: any
+  symbol: string; name: string; price: unknown; image: unknown
+  currency?: unknown; exchange?: unknown; country?: unknown
 }
 
-export async function searchRaiox(rawQuery: string): Promise<any> {
+export async function searchRaiox(rawQuery: string): Promise<RaioxSearchResult> {
   const q = String(rawQuery || '').trim().toUpperCase()
 
   let index = await cacheService.get<RaioxIndexEntry[]>(RAIOX_INDEX_KEY)
@@ -508,10 +573,10 @@ const DIAGNOSE_TICKERS = [
   'NOVO-B.CO'
 ]
 
-export async function diagnoseRaiox(): Promise<any> {
+export async function diagnoseRaiox(): Promise<RaioxDiagnosis> {
   if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
 
-  const results: any[] = []
+  const results: Array<JsonObject & { ticker: string; ok: boolean }> = []
 
   for (const t of DIAGNOSE_TICKERS) {
     let p = fmpFirst(await fmpRaw('/profile', { symbol: t }))

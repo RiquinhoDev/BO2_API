@@ -1160,9 +1160,6 @@
     }
   },
   "src/services/clareza/clarezaRaioxService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 37
-    },
     "no-console": {
       "count": 8
     }
