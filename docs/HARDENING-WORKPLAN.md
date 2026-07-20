@@ -495,6 +495,33 @@ segunda cópia da mesma regra** (`=== 'INACTIVE' || === 'SUSPENDED'`). Duas defi
 inactiva" vão divergir. Próximo bloco: fazer o guru.analytics importar o helper e varrer outros sítios que
 comparem `situation`/`memberStatus` a literais.
 
+- [x] **Predicado curseduca centralizado + analytics/dailyPipeline (1233→1176, −57)** — feito (`aa6a480`,
+  `9122b7b`, `357f980`). `isCurseducaEnrollmentActive` agora importado em `guru.analytics.controller` (:682, :740),
+  fim da 2ª cópia da regra; teste `SUSPENDED → INACTIVE` + sonda de mutação. `dailyPipeline` ignora referências de
+  produto órfãs antes do orquestrador. Gate verde.
+
+- [x] **Última actividade real (fim do fantasma de inactividade) + decisionEngine/crossReference/adapter
+  (1176→1109, −67)** — feito (`7d3a978`, `1851e04`, `cf9f04d`, `28b8a8f`). 0 casts/any novos. 4 guardas
+  `if (!dryRun)` intactas. **Bug estrutural corrigido (o mais importante do bloco):** `getLastActivityDate` lia
+  `communicationByCourse[code].lastActivityDate` e `user.lastLogin` — **ambos inexistentes** no schema (o `lastLogin`
+  real vive dentro de `curseduca`); caía sempre em `createdAt`. Resultado: `daysSinceLastLogin`/`daysSinceLastAction`
+  eram a **idade da conta**, não inactividade — as regras de inactividade disparavam nos alunos **mais antigos**, não
+  nos inactivos. Substituído por helper partilhado `src/services/activity/learnerActivity.ts`
+  (`getLastLearnerActivityDate`): mais recente entre `hotmart.lastAccessDate`, `curseduca.lastLogin/lastAccess`,
+  `courseSpecificData.lastReportOpenedAt/lastModuleCompletedAt`; **exclui** `lastTagAppliedAt`/`lastEmailSentAt`
+  (acção do sistema, ciclo auto-referencial); **sem sinal → `null`**. Consumo: `calculateDaysInactive(null)=null`;
+  nível cai para 0 e a guarda de escalada exige `daysInactive !== null` → **sem sinal não escala** (antes: `999`,
+  disparava no máximo). Na avaliação de regras-string, `null → NaN` → toda comparação `false` (nem activo nem
+  inactivo dispara — "desconhecido" honesto e simétrico). Testes: `learnerActivity.test.ts` +
+  `decisionEngineDryRun.test.ts`. **Parte B:** o mesmo fantasma `combined.lastActivity` (+ fallback
+  `metadata.updatedAt`, data de sistema) em `classes.controller` migrado para o mesmo helper. Bugs extra:
+  `engagement.totalActions` inexistente; serialização de condições incompletas. Dead code (regra #9):
+  `fetchMemberDetails`/`enrichMemberWithDetails` removidos (substituídos pelo bulk map). Gate: lint 0, tsc 0,
+  ratchet 0, build 0, jest 321/2.
+  **Deixado deliberadamente fora (decisão própria pendente):** `tagOrchestrator.service.ts` mantém a **sua** noção
+  de última actividade (`studentState.lastActivityDate = ctx.lastActivity`, :442/:469; leitura :487). Propagar `null`
+  aí precisa de decidir o que fazer quando `ctx.lastActivity` é desconhecido nesse fluxo — **não tocar sem decisão**.
+
 Depois: cirurgia ARCH-01/02/03.
 
 ---
