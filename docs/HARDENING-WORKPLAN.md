@@ -445,6 +445,12 @@ Trocar a listagem Hotmart para `UserProduct.classes` seria **regressão**, não 
   interno nunca podia disparar. ⚠️ A **PROTECÇÃO sobrevive intacta** (`hasActiveSub` → `skipped++` + `continue`,
   protege mudanças Mensal→Anual) e o `(sub as any)` virou tipagem real. Gate: lint 0, tsc 0, jest 308/2, build 0.
 
+- [x] **testimonials + hotmart.controller (1517→1428, −89)** — feito (`319b0e4`, `75153d5`). 0 casts/any novos.
+  Leitura fantasma `Product.slug` removida (não existe no schema). **Bug real (buraco de auditoria):**
+  `(req as any).user?._id` — o **cast escondia** que o auth fornece `req.user.id` (confirmado em
+  `auth.middleware:13,45,51`), logo `triggeredByUser` era **sempre `undefined`** (nunca se soube que admin
+  accionou cada sync Hotmart). Corrigido nos 2 sítios + teste RED/GREEN. Gate: lint 0, tsc 0, jest 309/2, build 0.
+
 Depois: cirurgia ARCH-01/02/03.
 
 ---
