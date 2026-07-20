@@ -5,6 +5,7 @@
 // =====================================================
 
 import type { RequestHandler, Response } from 'express'
+import type { FilterQuery, Types } from 'mongoose'
 
 import User from '../../models/user'
 import CronExecutionLog from '../../models/cron/CronExecutionLog'
@@ -13,12 +14,104 @@ import { CommunicationHistory, Course, Product, UserProduct } from '../../models
 import activeCampaignService from '../../services/activeCampaign/activeCampaignService'
 import decisionEngine from '../../services/activeCampaign/decisionEngine.service'
 import type { DecisionResult } from '../../services/activeCampaign/decisionEngine.service'
+import type { IUserProduct } from '../../models/UserProduct'
+import type {
+  ICommunicationHistory,
+  IUserStateSnapshot,
+} from '../../models/acTags/CommunicationHistory'
 import type {
   ActiveCampaignEmptyInput,
   ActiveCampaignProductSyncInput,
   ActiveCampaignTagMutationInput,
   ActiveCampaignTagRuleDeleteInput,
 } from '../../security/activeCampaignDestructiveInput'
+
+type EvaluationError = {
+  productId: Types.ObjectId
+  userProductId?: Types.ObjectId
+  error: string
+}
+
+type PopulatedUser = {
+  _id: Types.ObjectId
+  name?: string
+  email?: string
+}
+
+type PopulatedCourse = {
+  _id: Types.ObjectId
+  name?: string
+  code?: string
+}
+
+type PopulatedProduct = {
+  _id: Types.ObjectId
+  name?: string
+  code?: string
+  platform?: string
+}
+
+type PopulatedRule = {
+  _id: Types.ObjectId
+  name?: string
+  category?: string
+}
+
+type CommunicationHistoryRecord = {
+  _id: Types.ObjectId
+  userId: Types.ObjectId | PopulatedUser
+  courseId?: Types.ObjectId | PopulatedCourse
+  tagRuleId?: Types.ObjectId | PopulatedRule
+  tagApplied: string
+  sentAt?: Date
+  createdAt: Date
+  source: ICommunicationHistory['source']
+  status: ICommunicationHistory['status']
+  userStateSnapshot?: IUserStateSnapshot
+}
+
+type PopulatedUserProduct = {
+  _id: Types.ObjectId
+  userId: PopulatedUser
+  productId: Types.ObjectId | PopulatedProduct
+  activeCampaignData?: IUserProduct['activeCampaignData']
+  progress?: IUserProduct['progress']
+}
+
+type SyncUserProduct = {
+  _id: Types.ObjectId
+  userId: PopulatedUser
+}
+
+type ProductSyncResults = {
+  synced: number
+  failed: number
+  errors: Array<{ userProductId: Types.ObjectId; error: string }>
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
+function queryString(value: unknown, fallback: string): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+function isPopulatedUser(value: Types.ObjectId | PopulatedUser): value is PopulatedUser {
+  return 'email' in value || 'name' in value
+}
+
+function isPopulatedCourse(
+  value: Types.ObjectId | PopulatedCourse | undefined
+): value is PopulatedCourse {
+  return value !== undefined && ('name' in value || 'code' in value)
+}
+
+function isPopulatedRule(
+  value: Types.ObjectId | PopulatedRule | undefined
+): value is PopulatedRule {
+  return value !== undefined && ('name' in value || 'category' in value)
+}
 
 /**
  * POST /api/activecampaign/test-cron
@@ -40,7 +133,7 @@ export const testCron = async (_input: ActiveCampaignEmptyInput, res: Response):
     let totalUserProducts = 0
     let totalDecisions = 0
     let totalExecutions = 0
-    const errors: any[] = []
+    const errors: EvaluationError[] = []
 
     // ═══════════════════════════════════════════════════════════
     // 2. PROCESSAR CADA PRODUTO
@@ -79,23 +172,25 @@ export const testCron = async (_input: ActiveCampaignEmptyInput, res: Response):
             if (result.errors && result.errors.length > 0) {
               console.error(`   ⚠️  Erros:`, result.errors)
             }
-          } catch (userError: any) {
-            console.error(`   ❌ Erro UserProduct ${up._id}:`, userError.message)
+          } catch (userError: unknown) {
+            const message = errorMessage(userError, 'Erro ao avaliar UserProduct')
+            console.error(`   ❌ Erro UserProduct ${up._id}:`, message)
             errors.push({
               userProductId: up._id,
               productId: product._id,
-              error: userError.message
+              error: message
             })
           }
         }
 
         console.log(`   ✅ ${userProducts.length} UserProducts avaliados`)
 
-      } catch (productError: any) {
-        console.error(`❌ Erro produto ${product._id}:`, productError.message)
+      } catch (productError: unknown) {
+        const message = errorMessage(productError, 'Erro ao avaliar produto')
+        console.error(`❌ Erro produto ${product._id}:`, message)
         errors.push({
           productId: product._id,
-          error: productError.message
+          error: message
         })
       }
     }
@@ -144,7 +239,7 @@ export const testCron = async (_input: ActiveCampaignEmptyInput, res: Response):
       }
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro na avaliação manual:', error)
 
     await CronExecutionLog.create({
@@ -155,13 +250,13 @@ export const testCron = async (_input: ActiveCampaignEmptyInput, res: Response):
       finishedAt: new Date(),
       duration: Date.now() - startTime,
       results: {
-        error: error.message
+        error: errorMessage(error, 'Erro na avaliação manual')
       }
     })
 
     res.status(500).json({
       success: false,
-      error: error.message
+      error: errorMessage(error, 'Erro na avaliação manual')
     })
     return
   }
@@ -176,8 +271,8 @@ export const getCronLogs: RequestHandler = async (_req, res) => {
     const logs = await CronExecutionLog.find().sort({ startedAt: -1 }).limit(20)
     res.json({ success: true, logs })
     return
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, message: errorMessage(error, 'Erro ao buscar cron logs') })
     return
   }
 }
@@ -213,11 +308,11 @@ export const getStats: RequestHandler = async (_req, res) => {
       }
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar stats:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao buscar estatísticas'
+      error: errorMessage(error, 'Erro ao buscar estatísticas')
     })
     return
   }
@@ -274,7 +369,7 @@ export const getClarezaStudents: RequestHandler = async (_req, res) => {
     }).select('userId activeCampaignData').lean()
 
     const emailToBDTagsMap = new Map<string, string[]>()
-    userProducts.forEach((up: any) => {
+    userProducts.forEach(up => {
       const user = students.find(s => s._id.toString() === up.userId.toString())
       if (user?.email && up.activeCampaignData?.tags) {
         const clarezaTags = up.activeCampaignData.tags.filter((t: string) => /CLAREZA/i.test(t))
@@ -294,8 +389,8 @@ export const getClarezaStudents: RequestHandler = async (_req, res) => {
     acStates.forEach(state => {
       if (state.email && state.tags && Array.isArray(state.tags)) {
         const clarezaTags = state.tags
-          .filter((t: any) => t.name && /CLAREZA/i.test(t.name))
-          .map((t: any) => t.name)
+          .filter(t => t.name && /CLAREZA/i.test(t.name))
+          .map(t => t.name)
         if (clarezaTags.length > 0) {
           emailToACTagsMap.set(state.email, clarezaTags)
         }
@@ -341,11 +436,11 @@ export const getClarezaStudents: RequestHandler = async (_req, res) => {
       })
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [Clareza] Erro ao buscar alunos:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao buscar alunos'
+      error: errorMessage(error, 'Erro ao buscar alunos')
     })
     return
   }
@@ -359,11 +454,11 @@ export const evaluateClarezaRules: RequestHandler = async (_req, res) => {
     const preview = await previewCourseRules({ name: /^Clareza$/i })
     res.json({ success: true, ...preview })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao pré-visualizar regras Clareza:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao pré-visualizar regras'
+      error: errorMessage(error, 'Erro ao pré-visualizar regras')
     })
     return
   }
@@ -419,7 +514,7 @@ export const getOGIStudents: RequestHandler = async (_req, res) => {
     }).select('userId activeCampaignData').lean()
 
     const emailToBDTagsMap = new Map<string, string[]>()
-    userProducts.forEach((up: any) => {
+    userProducts.forEach(up => {
       const user = students.find(s => s._id.toString() === up.userId.toString())
       if (user?.email && up.activeCampaignData?.tags) {
         const ogiTags = up.activeCampaignData.tags.filter((t: string) => /^OGI_/i.test(t))
@@ -439,8 +534,8 @@ export const getOGIStudents: RequestHandler = async (_req, res) => {
     acStates.forEach(state => {
       if (state.email && state.tags && Array.isArray(state.tags)) {
         const ogiTags = state.tags
-          .filter((t: any) => t.name && /^OGI_/i.test(t.name))
-          .map((t: any) => t.name)
+          .filter(t => t.name && /^OGI_/i.test(t.name))
+          .map(t => t.name)
         if (ogiTags.length > 0) {
           emailToACTagsMap.set(state.email, ogiTags)
         }
@@ -486,11 +581,11 @@ export const getOGIStudents: RequestHandler = async (_req, res) => {
       })
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [OGI] Erro ao buscar alunos:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao buscar alunos'
+      error: errorMessage(error, 'Erro ao buscar alunos')
     })
     return
   }
@@ -504,11 +599,11 @@ export const evaluateOGIRules: RequestHandler = async (_req, res) => {
     const preview = await previewCourseRules({ code: /^OGI$/i })
     res.json({ success: true, ...preview })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao pré-visualizar regras OGI:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao pré-visualizar regras'
+      error: errorMessage(error, 'Erro ao pré-visualizar regras')
     })
     return
   }
@@ -587,11 +682,11 @@ export const getAllTagRules: RequestHandler = async (_req, res) => {
       data: rules  // ✅ MUDAR DE "rules" PARA "data"
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar tag rules:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao buscar regras'
+      error: errorMessage(error, 'Erro ao buscar regras')
     })
     return
   }
@@ -610,11 +705,11 @@ export const createTagRule: RequestHandler = async (req, res) => {
 
     res.json({ success: true, rule })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao criar tag rule:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao criar regra'
+      error: errorMessage(error, 'Erro ao criar regra')
     })
     return
   }
@@ -639,11 +734,11 @@ export const updateTagRule: RequestHandler = async (req, res) => {
 
     res.json({ success: true, rule })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao atualizar tag rule:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao atualizar regra'
+      error: errorMessage(error, 'Erro ao atualizar regra')
     })
     return
   }
@@ -668,11 +763,11 @@ export const deleteTagRule = async (input: ActiveCampaignTagRuleDeleteInput, res
 
     res.json({ success: true, message: 'Regra deletada com sucesso' })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao deletar tag rule:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao deletar regra'
+      error: errorMessage(error, 'Erro ao deletar regra')
     })
     return
   }
@@ -701,11 +796,12 @@ export const getCommunicationHistory: RequestHandler = async (req, res) => {
     // ═══════════════════════════════════════════════════════════
     // CONSTRUIR FILTRO
     // ═══════════════════════════════════════════════════════════
-    const filter: any = {}
+    const filter: FilterQuery<ICommunicationHistory> = {}
     
     // ✅ Se veio email, buscar userId primeiro
     if (email) {
-      const user = await User.findOne({ email: (email as string).toLowerCase() })
+      const emailValue = queryString(email, '').toLowerCase()
+      const user = await User.findOne({ email: emailValue })
       if (user) {
         filter.userId = user._id
         console.log(`🔍 Email "${email}" → userId: ${user._id}`)
@@ -714,7 +810,7 @@ export const getCommunicationHistory: RequestHandler = async (req, res) => {
         res.json({
           success: true,
           history: [],
-          pagination: { total: 0, page: 1, limit: parseInt(limit as string), pages: 0 }
+          pagination: { total: 0, page: 1, limit: parseInt(queryString(limit, '50')), pages: 0 }
         })
         return
       }
@@ -726,9 +822,10 @@ export const getCommunicationHistory: RequestHandler = async (req, res) => {
     if (tagName) filter.tagApplied = { $regex: tagName, $options: 'i' }
     
     if (startDate || endDate) {
-      filter.createdAt = {}
-      if (startDate) filter.createdAt.$gte = new Date(startDate as string)
-      if (endDate) filter.createdAt.$lte = new Date(endDate as string)
+      const createdAt: { $gte?: Date; $lte?: Date } = {}
+      if (startDate) createdAt.$gte = new Date(queryString(startDate, ''))
+      if (endDate) createdAt.$lte = new Date(queryString(endDate, ''))
+      filter.createdAt = createdAt
     }
 
     console.log('🔍 Filtros aplicados:', filter)
@@ -736,8 +833,8 @@ export const getCommunicationHistory: RequestHandler = async (req, res) => {
     // ═══════════════════════════════════════════════════════════
     // BUSCAR COM PAGINAÇÃO E POPULATE
     // ═══════════════════════════════════════════════════════════
-    const limitNum = parseInt(limit as string)
-    const pageNum = parseInt(page as string)
+    const limitNum = parseInt(queryString(limit, '50'))
+    const pageNum = parseInt(queryString(page, '1'))
     const skip = (pageNum - 1) * limitNum
 
     const [rawHistory, total] = await Promise.all([
@@ -748,7 +845,7 @@ export const getCommunicationHistory: RequestHandler = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .lean(),
+        .lean<CommunicationHistoryRecord[]>(),
       
       CommunicationHistory.countDocuments(filter)
     ])
@@ -758,11 +855,11 @@ export const getCommunicationHistory: RequestHandler = async (req, res) => {
     // ═══════════════════════════════════════════════════════════
     // ✅ MAPEAR PARA FORMATO DO FRONTEND!
     // ═══════════════════════════════════════════════════════════
-    const history = rawHistory.map((record: any) => {
+    const history = rawHistory.map(record => {
       // Extrair dados do populate
-      const user = record.userId as any
-      const course = record.courseId as any
-      const rule = record.tagRuleId as any
+      const user = isPopulatedUser(record.userId) ? record.userId : undefined
+      const course = isPopulatedCourse(record.courseId) ? record.courseId : undefined
+      const rule = isPopulatedRule(record.tagRuleId) ? record.tagRuleId : undefined
 
       return {
         _id: record._id.toString(),
@@ -807,11 +904,11 @@ export const getCommunicationHistory: RequestHandler = async (req, res) => {
       }
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar histórico:', error)
     res.status(500).json({
       success: false,
-      error: error.message || 'Erro ao buscar histórico'
+      error: errorMessage(error, 'Erro ao buscar histórico')
     })
     return
   }
@@ -825,7 +922,7 @@ export const getHistoryStats: RequestHandler = async (req, res) => {
     console.log('📊 Calculando estatísticas do histórico...')
 
     const { days = '30' } = req.query
-    const daysNum = parseInt(days as string)
+    const daysNum = parseInt(queryString(days, '30'))
     
     const since = new Date()
     since.setDate(since.getDate() - daysNum)
@@ -995,11 +1092,11 @@ export const getHistoryStats: RequestHandler = async (req, res) => {
       topRules: result.topRules
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao calcular stats:', error)
     res.status(500).json({ 
       success: false, 
-      error: error.message || 'Erro ao calcular estatísticas'
+      error: errorMessage(error, 'Erro ao calcular estatísticas')
     })
     return
   }
@@ -1071,9 +1168,9 @@ export const applyTagToUserProduct = async (input: ActiveCampaignTagMutationInpu
       _v2Enabled: true
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[AC TAG APPLY ERROR]', error)
-    res.status(500).json({ success: false, error: error.message })
+    res.status(500).json({ success: false, error: errorMessage(error, 'Erro ao aplicar tag') })
     return
   }
 }
@@ -1125,9 +1222,9 @@ export const removeTagFromUserProduct = async (input: ActiveCampaignTagMutationI
       _v2Enabled: true
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[AC TAG REMOVE ERROR]', error)
-    res.status(500).json({ success: false, error: error.message })
+    res.status(500).json({ success: false, error: errorMessage(error, 'Erro ao remover tag') })
     return
   }
 }
@@ -1146,20 +1243,20 @@ export const getUsersWithTagsInProduct: RequestHandler = async (req, res) => {
       return
     }
 
-    const query: any = { productId }
+    const query: FilterQuery<IUserProduct> = { productId }
     if (tag) query['activeCampaignData.tags'] = tag
 
     const userProducts = await UserProduct.find(query)
       .populate('userId', 'name email')
       .populate('productId', 'name code platform')
-      .lean()
+      .lean<PopulatedUserProduct[]>()
 
-    const enrichedData = userProducts.map((up: any) => ({
+    const enrichedData = userProducts.map(up => ({
       user: up.userId,
       product: up.productId,
       tags: up.activeCampaignData?.tags || [],
       lastSync: up.activeCampaignData?.lastSyncAt,
-      progress: up.progress?.progressPercentage || 0
+      progress: up.progress?.percentage || 0
     }))
 
     res.json({
@@ -1170,8 +1267,8 @@ export const getUsersWithTagsInProduct: RequestHandler = async (req, res) => {
       _v2Enabled: true
     })
     return
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: errorMessage(error, 'Erro ao buscar tags do produto') })
     return
   }
 }
@@ -1190,7 +1287,7 @@ export const getACStats: RequestHandler = async (_req, res) => {
           'activeCampaignData.tags': { $exists: true, $ne: [] }
         }).lean()
 
-        const allTags = userProducts.flatMap((up: any) => up.activeCampaignData?.tags || [])
+        const allTags = userProducts.flatMap(up => up.activeCampaignData?.tags || [])
         const uniqueTags = [...new Set(allTags)]
 
         return {
@@ -1215,8 +1312,8 @@ export const getACStats: RequestHandler = async (_req, res) => {
       _v2Enabled: true
     })
     return
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: errorMessage(error, 'Erro ao buscar estatísticas AC') })
     return
   }
 }
@@ -1234,17 +1331,22 @@ export const syncProductTags = async (input: ActiveCampaignProductSyncInput, res
       return
     }
 
-    const userProducts = await UserProduct.find({ productId }).populate('userId', 'email').lean()
+    const userProducts = await UserProduct.find({ productId })
+      .populate('userId', 'email')
+      .lean<SyncUserProduct[]>()
 
-    const results = {
+    const results: ProductSyncResults = {
       synced: 0,
       failed: 0,
-      errors: [] as any[]
+      errors: []
     }
 
-    for (const up of userProducts as any[]) {
+    for (const up of userProducts) {
       try {
-        const user = up.userId as any
+        const user = up.userId
+        if (!user.email) {
+          throw new Error('Utilizador sem email para sincronização ActiveCampaign')
+        }
         const acContact = await activeCampaignService.findOrCreateContact(user.email)
 
         await UserProduct.findByIdAndUpdate(up._id, {
@@ -1253,11 +1355,11 @@ export const syncProductTags = async (input: ActiveCampaignProductSyncInput, res
         })
 
         results.synced++
-      } catch (error: any) {
+      } catch (error: unknown) {
         results.failed++
         results.errors.push({
           userProductId: up._id,
-          error: error.message
+          error: errorMessage(error, 'Erro ao sincronizar UserProduct')
         })
       }
     }
@@ -1270,12 +1372,15 @@ export const syncProductTags = async (input: ActiveCampaignProductSyncInput, res
       _v2Enabled: true
     })
     return
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: errorMessage(error, 'Erro ao sincronizar tags') })
     return
   }
 }
-function buildReason(record: any, rule: any): string {
+function buildReason(
+  record: Pick<CommunicationHistoryRecord, 'userStateSnapshot'>,
+  rule?: PopulatedRule
+): string {
   // Se tiver snapshot, usar para criar reason descritivo
   const snapshot = record.userStateSnapshot
   

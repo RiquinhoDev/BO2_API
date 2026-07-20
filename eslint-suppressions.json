@@ -13,9 +13,6 @@
     }
   },
   "src/controllers/acTags/activecampaign.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 41
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
