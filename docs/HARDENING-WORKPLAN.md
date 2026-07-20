@@ -524,7 +524,13 @@ comparem `situation`/`memberStatus` a literais.
   (ambos fantasmas) e cai sempre em `createdAt`; o `daysInactive` resultante (:99) alimenta
   `studentState.daysSinceLastLogin` (:443, :470) que **decide tags**. Mesmo motor de bug, mesma direcção errada.
   **Decisão: Opção A — unificar.** O orchestrator passa a consumir `getLastLearnerActivityDate` e trata `null` como
-  "desconhecido ≠ inactivo", igual ao decisionEngine. Uma só fonte de verdade, uma só semântica. Ver handoff abaixo.
+  "desconhecido ≠ inactivo", igual ao decisionEngine. Uma só fonte de verdade, uma só semântica.
+  **✅ FEITO (2026-07-20):** `getUserLastActivity` (fantasma) removido; os 3 sítios que montam `OrchestrationContext`
+  (`orchestrateUserProduct` :98 + 2 fluxos de execução múltipla) passam a `getLastLearnerActivityDate(user, product.code)`;
+  `calculateDaysInactive(Date|null): number|null` com `if (!lastActivity) return null`; `OrchestrationContext.lastActivity`/
+  `daysInactive` agora nulláveis → `studentState.daysSinceLastLogin` = `null` quando desconhecido (já não fabrica inatividade
+  a partir de `createdAt`). Teste RED/GREEN novo: `tests/services/tagOrchestratorActivity.test.ts` (sem sinal → null;
+  actividade real 15d → 15). **Gate: lint 0, tsc 0, ratchet (1 `any` podado, 12→11), build 0, jest 323/2.**
 
 Depois: cirurgia ARCH-01/02/03.
 
