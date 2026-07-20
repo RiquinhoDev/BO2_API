@@ -1515,11 +1515,6 @@
       "count": 3
     }
   },
-  "src/types/api.types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/types/cron.types.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
