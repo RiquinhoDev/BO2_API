@@ -4,6 +4,8 @@
 // ════════════════════════════════════════════════════════════
 
 import { Request, Response } from 'express'
+import type { CrossReferenceResult } from '../../services/guru/crossReference.service'
+import type { SyncError, SyncProgress, SyncWarning } from '../../types/universalSync.types'
 import type { CurseducaCleanupInput } from '../../security/curseducaDestructiveInput'
 import fs from 'fs'
 import path from 'path'
@@ -16,6 +18,38 @@ import {
 } from '../../services/userProducts/userProductService'
 import universalSyncService from '../../services/syncUtilizadoresServices/universalSyncService'
 import curseducaAdapter from '../../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
+
+interface ProductUserView {
+  products?: Array<{
+    product?: { _id?: unknown }
+    progress?: { percentage?: number }
+  }>
+}
+
+interface SyncResponse {
+  status(code: number): SyncResponse
+  json(payload: Record<string, unknown>): SyncResponse
+}
+
+interface BackgroundSyncResult extends Record<string, unknown> {
+  httpStatus: number
+}
+
+declare global {
+  var __curseducaSyncRunning: boolean | undefined
+  var __curseducaSyncStartedAt: Date | undefined
+  var __curseducaSyncFinishedAt: Date | null | undefined
+  var __curseducaSyncResult: BackgroundSyncResult | null | undefined
+  var __curseducaSyncError: string | null | undefined
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function errorStack(error: unknown): string | undefined {
+  return error instanceof Error ? error.stack : undefined
+}
 
 // ═══════════════════════════════════════════════════════════
 // SYNC LOGGER
@@ -95,10 +129,10 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       ...stats,
       timestamp: new Date().toISOString()
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({
       success: false,
-      message: `Erro interno: ${error.message}`,
+      message: `Erro interno: ${errorMessage(error)}`,
       timestamp: new Date().toISOString()
     })
   }
@@ -136,8 +170,8 @@ export const getCurseducaDashboardStats = async () => {
       totalUserProducts,
       products: curseducaProducts.length
     }
-  } catch (error: any) {
-    console.error('❌ Erro ao calcular estatísticas:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ Erro ao calcular estatísticas:', errorMessage(error))
     throw error
   }
 }
@@ -150,7 +184,7 @@ export const getCurseducaDashboardStats = async () => {
  * POST /api/curseduca/sync
  * Sincronização CursEduca usando Universal Sync Service
  */
-export const syncCurseducaUsers = async (req: Request, res: Response): Promise<void> => {
+export const syncCurseducaUsers = async (req: Request, res: SyncResponse): Promise<void> => {
   const logger = new SyncLogger()
   
   try {
@@ -183,14 +217,15 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
     
     logger.section('STEP 1: BUSCAR DADOS VIA ADAPTER')
     
-    const { groupId, enrichWithDetails } = req.query
+    const groupId = typeof req.query.groupId === 'string' ? req.query.groupId : undefined
+    const enrichWithDetails = req.query.enrichWithDetails
     logger.info(`GroupId filter: ${groupId || 'TODOS'}`)
     logger.info(`Enrich with details: ${enrichWithDetails !== 'false'}`)
 
     const curseducaData = await curseducaAdapter.fetchCurseducaDataForSync({
       includeProgress: true,
       includeGroups: true,
-      groupId: groupId as string | undefined,
+      groupId,
       enrichWithDetails: enrichWithDetails !== 'false', // Default true
       progressConcurrency: 5
     })
@@ -233,7 +268,7 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
       syncType: 'curseduca',
       jobName: 'CursEduca Sync (API)',
       triggeredBy: 'MANUAL',
-      triggeredByUser: (req as any).user?._id?.toString(),
+      triggeredByUser: req.user?.id,
 
       fullSync: true,
       includeProgress: true,
@@ -242,17 +277,17 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
 
       sourceData: curseducaData,
 
-      onProgress: (progress: any) => {
+      onProgress: (progress: SyncProgress) => {
         if (progress.current % 50 === 0 || progress.percentage === 100) {
           logger.info(`Progresso: ${progress.percentage.toFixed(1)}% (${progress.current}/${progress.total})`)
         }
       },
 
-      onError: (error: any) => {
+      onError: (error: SyncError) => {
         logger.error(`Erro: ${error.message}`)
       },
 
-      onWarning: (warning: any) => {
+      onWarning: (warning: SyncWarning) => {
         logger.warn(`Aviso: ${warning.message}`)
       }
     })
@@ -279,15 +314,15 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
 
     logger.section('STEP 3.5: CROSS-REFERENCE GURU VS CURSEDUCA')
 
-    let crossRefResult: any = null
+    let crossRefResult: CrossReferenceResult | null = null
     try {
       const { runCrossReferenceAfterCurseducaSync } = await import(
         '../../services/guru/crossReference.service'
       )
 
       const syncedEmails = curseducaData
-        .map((m: any) => m.email?.toLowerCase().trim())
-        .filter(Boolean)
+        .map(member => member.email?.toLowerCase().trim())
+        .filter((email): email is string => Boolean(email))
 
       // Reconciliação só no sync completo (sem filtro de grupo) e com volume mínimo seguro
       const isFullSync = !groupId
@@ -301,8 +336,8 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
       logger.log(`   🟢 Revertidos a ACTIVE: ${crossRefResult.revertedToActive}`)
       logger.log(`   ⚫ Confirmados INACTIVE: ${crossRefResult.confirmedInactive}`)
       logger.log(`   ⏭️ Ignorados: ${crossRefResult.skipped}`)
-    } catch (e: any) {
-      logger.warn(`Cross-reference falhou (não-fatal): ${e?.message}`)
+    } catch (error: unknown) {
+      logger.warn(`Cross-reference falhou (não-fatal): ${errorMessage(error)}`)
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -312,19 +347,19 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
     logger.section('STEP 4: REBUILD DASHBOARD STATS')
     
     try {
-      const dualRead = await import('../../services/syncUtilizadoresServices/dualReadService').catch(() => null as any)
+      const dualRead = await import('../../services/syncUtilizadoresServices/dualReadService').catch(() => null)
       if (dualRead?.clearUnifiedCache) {
         dualRead.clearUnifiedCache()
         logger.success('Cache invalidado')
       }
 
-      const builder = await import('../../services/dashboardStatsBuilder.service').catch(() => null as any)
+      const builder = await import('../../services/dashboardStatsBuilder.service').catch(() => null)
       if (builder?.buildDashboardStats) {
         await builder.buildDashboardStats()
         logger.success('Stats reconstruídos')
       }
-    } catch (e: any) {
-      logger.warn(`Falha ao rebuild stats (ignorado): ${e?.message}`)
+    } catch (error: unknown) {
+      logger.warn(`Falha ao rebuild stats (ignorado): ${errorMessage(error)}`)
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -369,16 +404,16 @@ export const syncCurseducaUsers = async (req: Request, res: Response): Promise<v
       _universalSync: true,
       _version: '3.1'
     })
-  } catch (error: any) {
-    logger.error(`Erro fatal: ${error.message}`)
-    logger.log(error.stack || '')
+  } catch (error: unknown) {
+    logger.error(`Erro fatal: ${errorMessage(error)}`)
+    logger.log(errorStack(error) || '')
     
     res.status(500).json({
       success: false,
       message: 'Erro ao executar sincronização',
-      error: error.message,
+      error: errorMessage(error),
       logFile: logger.getLogPath(),
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: process.env.NODE_ENV === 'development' ? errorStack(error) : undefined
     })
   }
 }
@@ -411,7 +446,13 @@ async function validateUserProductsCreated(logger: SyncLogger, sampleSize = 5) {
     const productIds = curseducaProducts.map(p => p._id)
     const userProducts = await UserProduct.find({
       productId: { $in: productIds }
-    }).populate('userId', 'email name').populate('productId', 'code name')
+    }).populate<{
+      userId: { email?: string; name?: string }
+      productId: { code?: string; name?: string }
+    }>([
+      { path: 'userId', select: 'email name' },
+      { path: 'productId', select: 'code name' }
+    ])
 
     logger.success(`UserProducts CursEduca: ${userProducts.length}`)
 
@@ -447,8 +488,8 @@ async function validateUserProductsCreated(logger: SyncLogger, sampleSize = 5) {
     const sample = userProducts.slice(0, sampleSize)
     
     for (const up of sample) {
-      const user = up.userId as any
-      const product = up.productId as any
+      const user = up.userId
+      const product = up.productId
       
       logger.log(`   ${user?.email || 'N/A'}`)
       logger.log(`      → Produto: ${product?.code || 'N/A'}`)
@@ -483,8 +524,8 @@ async function validateUserProductsCreated(logger: SyncLogger, sampleSize = 5) {
       logger.success('✅ Todos os users com dados CursEduca têm UserProducts!')
     }
 
-  } catch (error: any) {
-    logger.error(`Erro na validação: ${error.message}`)
+  } catch (error: unknown) {
+    logger.error(`Erro na validação: ${errorMessage(error)}`)
   }
 }
 
@@ -508,8 +549,8 @@ export const getCurseducaProducts = async (req: Request, res: Response) => {
       count: products.length,
       _v2Enabled: true
     })
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 
@@ -537,15 +578,15 @@ export const getCurseducaProductByGroupId = async (req: Request, res: Response):
       return
     }
 
-    const userCount = await getUserCountForProduct(String((product as any)._id))
+    const userCount = await getUserCountForProduct(String(product._id))
 
     res.json({
       success: true,
       data: { ...product, userCount },
       _v2Enabled: true
     })
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 
@@ -556,7 +597,7 @@ export const getCurseducaProductByGroupId = async (req: Request, res: Response):
 export const getCurseducaProductUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const { groupId } = req.params
-    const { minProgress } = req.query
+    const minProgress = typeof req.query.minProgress === 'string' ? req.query.minProgress : undefined
 
     const product = await Product.findOne({
       platform: 'curseduca',
@@ -574,14 +615,14 @@ export const getCurseducaProductUsers = async (req: Request, res: Response): Pro
       return
     }
 
-    let users = await getUsersByProductService(String(product._id))
+    let users: ProductUserView[] = await getUsersByProductService(String(product._id))
 
     if (minProgress) {
-      const minProg = parseInt(minProgress as string, 10)
-      users = users.filter((u: any) =>
-        u.products?.some((p: any) => {
-          const sameProduct = String(p.product?._id) === String(product._id)
-          const prog = p.progress?.percentage || 0
+      const minProg = parseInt(minProgress, 10)
+      users = users.filter(user =>
+        user.products?.some(productView => {
+          const sameProduct = String(productView.product?._id) === String(product._id)
+          const prog = productView.progress?.percentage || 0
           return sameProduct && prog >= minProg
         })
       )
@@ -594,8 +635,8 @@ export const getCurseducaProductUsers = async (req: Request, res: Response): Pro
       filters: { minProgress },
       _v2Enabled: true
     })
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 
@@ -608,14 +649,14 @@ export const getCurseducaStats = async (req: Request, res: Response) => {
     const products = await Product.find({ platform: 'curseduca' }).lean()
 
     const stats = await Promise.all(
-      products.map(async (product: any) => {
-        const users = await getUsersByProductService(String(product._id))
+      products.map(async product => {
+        const users: ProductUserView[] = await getUsersByProductService(String(product._id))
 
         const avgProgress =
           users.length > 0
-            ? users.reduce((sum: number, u: any) => {
-                const productData = u.products?.find(
-                  (p: any) => String(p.product?._id) === String(product._id)
+            ? users.reduce((sum, user) => {
+                const productData = user.products?.find(
+                  productView => String(productView.product?._id) === String(product._id)
                 )
                 const prog = productData?.progress?.percentage || 0
                 return sum + prog
@@ -644,8 +685,8 @@ export const getCurseducaStats = async (req: Request, res: Response) => {
       },
       _v2Enabled: true
     })
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: errorMessage(error) })
   }
 }
 
@@ -667,14 +708,14 @@ export const getUsersWithClasses = async (req: Request, res: Response): Promise<
 
     const stats = {
       total: users.length,
-      withSingleClass: users.filter((u: any) => u.curseduca?.enrolledClasses?.length === 1).length,
-      withMultipleClasses: users.filter((u: any) => u.curseduca?.enrolledClasses?.length > 1).length,
-      withoutClasses: users.filter((u: any) => !u.curseduca?.enrolledClasses?.length).length
+      withSingleClass: users.filter(user => user.curseduca?.enrolledClasses?.length === 1).length,
+      withMultipleClasses: users.filter(user => (user.curseduca?.enrolledClasses?.length || 0) > 1).length,
+      withoutClasses: users.filter(user => !user.curseduca?.enrolledClasses?.length).length
     }
 
     res.json({ success: true, users, stats })
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, message: errorMessage(error) })
   }
 }
 
@@ -699,8 +740,8 @@ export const updateUserClasses = async (req: Request, res: Response): Promise<vo
     )
 
     res.json({ success: true, user })
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, message: errorMessage(error) })
   }
 }
 
@@ -710,7 +751,7 @@ export const updateUserClasses = async (req: Request, res: Response): Promise<vo
  */
 export const compareSyncMethods = async (req: Request, res: Response): Promise<void> => {
   try {
-    const SyncReport = (await import('../../models/SyncModels/SyncReport')).default as any
+    const SyncReport = (await import('../../models/SyncModels/SyncReport')).default
 
     const legacyHistory = await SyncHistory.find({
       $or: [
@@ -745,22 +786,22 @@ export const compareSyncMethods = async (req: Request, res: Response): Promise<v
         },
         comparison: {
           avgDurationLegacy:
-            legacyHistory.reduce((sum: number, h: any) => {
+            legacyHistory.reduce((sum, history) => {
               const duration =
-                h.completedAt && h.startedAt
-                  ? (new Date(h.completedAt).getTime() - new Date(h.startedAt).getTime()) / 1000
+                history.completedAt && history.startedAt
+                  ? (new Date(history.completedAt).getTime() - new Date(history.startedAt).getTime()) / 1000
                   : 0
               return sum + duration
             }, 0) / (legacyHistory.length || 1),
 
           avgDurationUniversal:
-            universalReports.reduce((sum: number, r: any) => sum + (r.duration || 0), 0) /
+            universalReports.reduce((sum, report) => sum + (report.duration || 0), 0) /
             (universalReports.length || 1)
         }
       }
     })
-  } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, message: errorMessage(error) })
   }
 }
 
@@ -865,48 +906,52 @@ export const syncCurseducaUsersUniversal = syncCurseducaUsers
  * Inicia o sync universal em background. Devolve 202 imediatamente.
  */
 export const syncCurseducaUsersStart = async (req: Request, res: Response): Promise<void> => {
-  const g = global as any
-
-  if (g.__curseducaSyncRunning) {
+  if (global.__curseducaSyncRunning) {
     res.status(409).json({
       success: false,
       running: true,
-      startedAt: g.__curseducaSyncStartedAt || null,
+      startedAt: global.__curseducaSyncStartedAt || null,
       message: 'Já existe um sync CursEduca em curso. Aguarde a conclusão.'
     })
     return
   }
 
   // Marcar como em execução
-  g.__curseducaSyncRunning = true
-  g.__curseducaSyncStartedAt = new Date()
-  g.__curseducaSyncFinishedAt = null
-  g.__curseducaSyncResult = null
-  g.__curseducaSyncError = null
+  global.__curseducaSyncRunning = true
+  global.__curseducaSyncStartedAt = new Date()
+  global.__curseducaSyncFinishedAt = null
+  global.__curseducaSyncResult = null
+  global.__curseducaSyncError = null
 
   // Responder JÁ (não bloquear → sem timeout)
   res.status(202).json({
     success: true,
     started: true,
-    startedAt: g.__curseducaSyncStartedAt,
+    startedAt: global.__curseducaSyncStartedAt,
     message: 'Sincronização CursEduca iniciada em background. Use /curseduca/sync/status para acompanhar.'
   })
 
   // Correr em fundo reutilizando o handler existente com um res falso
-  const fakeRes: any = {
+  const fakeRes: SyncResponse & { statusCode: number } = {
     statusCode: 200,
     status(code: number) { this.statusCode = code; return this },
-    json(payload: any) { g.__curseducaSyncResult = { httpStatus: this.statusCode, ...payload }; return this }
+    json(payload: Record<string, unknown>) {
+      global.__curseducaSyncResult = { httpStatus: this.statusCode, ...payload }
+      return this
+    }
   }
 
   // fire-and-forget — o processo Railway mantém o event loop vivo
   Promise.resolve()
     .then(() => syncCurseducaUsers(req, fakeRes))
-    .catch((e: any) => { g.__curseducaSyncError = e?.message || String(e) })
+    .catch((error: unknown) => { global.__curseducaSyncError = errorMessage(error) })
     .finally(() => {
-      g.__curseducaSyncRunning = false
-      g.__curseducaSyncFinishedAt = new Date()
-      const dur = Math.round((g.__curseducaSyncFinishedAt - g.__curseducaSyncStartedAt) / 1000)
+      global.__curseducaSyncRunning = false
+      global.__curseducaSyncFinishedAt = new Date()
+      const startedAt = global.__curseducaSyncStartedAt
+      const dur = startedAt
+        ? Math.round((global.__curseducaSyncFinishedAt.getTime() - startedAt.getTime()) / 1000)
+        : 0
       console.log(`✅ [CursEduca BG] Sync background concluído em ${dur}s`)
     })
 }
@@ -916,13 +961,12 @@ export const syncCurseducaUsersStart = async (req: Request, res: Response): Prom
  * Estado do sync background (para polling do frontend).
  */
 export const getCurseducaSyncStatus = async (_req: Request, res: Response): Promise<void> => {
-  const g = global as any
   res.json({
     success: true,
-    running: Boolean(g.__curseducaSyncRunning),
-    startedAt: g.__curseducaSyncStartedAt || null,
-    finishedAt: g.__curseducaSyncFinishedAt || null,
-    error: g.__curseducaSyncError || null,
-    result: g.__curseducaSyncResult || null
+    running: Boolean(global.__curseducaSyncRunning),
+    startedAt: global.__curseducaSyncStartedAt || null,
+    finishedAt: global.__curseducaSyncFinishedAt || null,
+    error: global.__curseducaSyncError || null,
+    result: global.__curseducaSyncResult || null
   })
 }
