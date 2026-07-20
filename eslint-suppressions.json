@@ -371,9 +371,6 @@
     }
   },
   "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 43
-    },
     "@typescript-eslint/no-require-imports": {
       "count": 2
     },
