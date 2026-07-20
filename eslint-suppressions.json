@@ -553,17 +553,6 @@
       "count": 1
     }
   },
-  "src/jobs/precompute.job.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 5
-    }
-  },
   "src/jobs/rebuildDashboardStats.job.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
