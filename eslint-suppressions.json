@@ -176,9 +176,6 @@
     }
   },
   "src/controllers/guru.analytics.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 33
-    },
     "no-console": {
       "count": 36
     }

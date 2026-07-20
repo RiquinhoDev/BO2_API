@@ -1,9 +1,12 @@
 // src/controllers/guru.analytics.controller.ts - Controller para analytics e métricas Guru
 import { Request, Response } from 'express'
 import axios from 'axios'
-import User from '../models/user'
+import User, { type IUser } from '../models/user'
 import UserProduct from '../models/UserProduct'
-import { fetchAllSubscriptionsComplete } from '../services/guru/guruSync.service'
+import {
+  fetchAllSubscriptionsComplete,
+  type GuruSubscription
+} from '../services/guru/guruSync.service'
 import { computeChurnSeries } from '../services/guru/guruChurn.service'
 import {
   GURU_CANCELED_STATUSES,
@@ -17,6 +20,64 @@ import {
   CURSEDUCA_ACCESS_TOKEN,
   type GuruDateInfo
 } from '../services/guru/guru.constants'
+
+type CurseducaDetails = NonNullable<IUser['curseduca']>
+
+interface ClarezaComparisonData {
+  userEmail: string
+  userName?: string
+  status: string
+  curseducaUserId?: string | null
+  platformUserId?: string
+  enrolledClasses?: CurseducaDetails['enrolledClasses']
+  updatedAt?: Date
+  enrolledAt?: Date
+  source?: string
+}
+
+interface ComparisonRecord {
+  email: string
+  name?: string
+  guruStatus?: string | null
+  guruEffective?: string
+  guruUpdatedAt?: Date
+  clarezaStatus?: string | null
+  clarezaUpdatedAt?: Date
+  clarezaEnrolledAt?: Date
+  clarezaSource?: string
+  verified?: boolean
+}
+
+interface CurseducaMemberResponse {
+  situation?: string
+  data?: { situation?: string }
+}
+
+interface SubscriptionCandidate {
+  code: string
+  status: string
+  startedAt: string
+  sub: GuruSubscription
+}
+
+interface MultiSubscriptionUser {
+  email: string
+  subscriptions: Array<{ code: string; status: string; startedAt: string }>
+  bestStatus: string
+  bestCode: string
+}
+
+interface ProblemUser {
+  email: string
+  currentStatus: string
+  shouldBe: string
+  bestSubscriptionCode: string
+  allSubscriptions: string[]
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 // ═══════════════════════════════════════════════════════════
 // CHURN LIVE (calculado direto da Guru API — substitui os snapshots)
@@ -118,11 +179,11 @@ export const getChurnLive = async (req: Request, res: Response) => {
       computedAt: entry.computedAt.toISOString(),
       churn: entry.churn
     })
-  } catch (error: any) {
-    console.error('❌ [CHURN LIVE] Erro ao calcular churn:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [CHURN LIVE] Erro ao calcular churn:', errorMessage(error))
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: errorMessage(error)
     })
   }
 }
@@ -276,11 +337,11 @@ export const getChurnMetrics = async (req: Request, res: Response) => {
       }
     })
 
-  } catch (error: any) {
-    console.error('❌ [GURU ANALYTICS] Erro ao calcular churn:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [GURU ANALYTICS] Erro ao calcular churn:', errorMessage(error))
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: errorMessage(error)
     })
   }
 }
@@ -314,11 +375,11 @@ export const getMRRMetrics = async (req: Request, res: Response) => {
       }
     })
 
-  } catch (error: any) {
-    console.error('❌ [GURU ANALYTICS] Erro ao calcular MRR:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [GURU ANALYTICS] Erro ao calcular MRR:', errorMessage(error))
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: errorMessage(error)
     })
   }
 }
@@ -358,14 +419,14 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
     const clarezaProducts = await UserProduct.find({
       platform: 'curseduca',
       status: { $in: ['ACTIVE', 'PARA_INATIVAR'] }
-    }).populate('userId', 'email name').lean()
+    }).populate<{ userId: Pick<IUser, 'email' | 'name'> }>('userId', 'email name').lean()
 
     console.log(`   📌 UserProducts Clareza: ${clarezaProducts.length}`)
 
     // Criar mapa de Clareza por email (de UserProduct)
-    const clarezaByEmail = new Map<string, any>()
+    const clarezaByEmail = new Map<string, ClarezaComparisonData>()
     for (const up of clarezaProducts) {
-      const user = up.userId as any
+      const user = up.userId
       if (user?.email) {
         const email = user.email.toLowerCase().trim()
         // Se já existe, verificar se este é mais "ativo"
@@ -399,7 +460,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
     for (const user of usersWithCurseduca) {
       const email = user.email?.toLowerCase().trim()
       if (email && !clarezaByEmail.has(email)) {
-        const hasActiveClass = user.curseduca?.enrolledClasses?.some((c: any) => c.isActive) || false
+        const hasActiveClass = user.curseduca?.enrolledClasses?.some(enrollment => enrollment.isActive) || false
         const memberStatus = user.curseduca?.memberStatus || (hasActiveClass ? 'ACTIVE' : 'INACTIVE')
 
         // Só adicionar ao mapa se estiver ativo — INACTIVE não deve contar como "Só no Clareza"
@@ -428,12 +489,12 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
     let verifyCallsUsed = 0
 
     const discrepancies = {
-      guruCanceledClarezaActive: [] as any[],
-      guruActiveClarezaCanceled: [] as any[],
-      bothCanceled: [] as any[],
-      bothActive: [] as any[],
-      guruOnlyNoClareza: [] as any[],
-      clarezaOnlyNoGuru: [] as any[]
+      guruCanceledClarezaActive: new Array<ComparisonRecord>(),
+      guruActiveClarezaCanceled: new Array<ComparisonRecord>(),
+      bothCanceled: new Array<ComparisonRecord>(),
+      bothActive: new Array<ComparisonRecord>(),
+      guruOnlyNoClareza: new Array<ComparisonRecord>(),
+      clarezaOnlyNoGuru: new Array<ComparisonRecord>()
     }
 
     // Processar users com Guru
@@ -454,10 +515,10 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
       let clarezaData = clarezaByEmail.get(email)
 
       // FIX: Verificar user.curseduca mesmo SEM curseducaUserId (tem memberStatus)
-      if (!clarezaData && (user as any).curseduca) {
-        const curseduca = (user as any).curseduca
+      if (!clarezaData && user.curseduca) {
+        const curseduca = user.curseduca
         if (curseduca.curseducaUserId || curseduca.memberStatus) {
-          const hasActiveClass = curseduca.enrolledClasses?.some((c: any) => c.isActive) || false
+          const hasActiveClass = curseduca.enrolledClasses?.some(enrollment => enrollment.isActive) || false
           const memberStatus = curseduca.memberStatus || (hasActiveClass ? 'ACTIVE' : 'INACTIVE')
 
           clarezaData = {
@@ -601,18 +662,20 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
     const pendingList = await UserProduct.find({
       platform: 'curseduca',
       status: 'PARA_INATIVAR'
-    }).populate('userId', 'email name curseduca guru')
+    }).populate<{
+      userId: Pick<IUser, '_id' | 'email' | 'name' | 'curseduca' | 'guru'>
+    }>('userId', 'email name curseduca guru')
 
     let cleanedActiveCount = 0
     let cleanedInactiveCount = 0
 
     for (const userProduct of pendingList) {
       try {
-        const user = userProduct.userId as any
+        const user = userProduct.userId
         if (!user) continue
 
         const guruStatus = user?.guru?.status || null
-        const curseducaStatus = user?.curseduca?.memberStatus || 'ACTIVE'
+        const curseducaStatus = user.curseduca?.situation || user.curseduca?.memberStatus || 'ACTIVE'
 
         // CASO 1: Já está INACTIVE no CursEduca
         if (curseducaStatus === 'INACTIVE' || curseducaStatus === 'SUSPENDED') {
@@ -662,7 +725,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
         const memberId = userProduct.platformUserId || user?.curseduca?.curseducaUserId
         if (memberId && CURSEDUCA_ACCESS_TOKEN && CURSEDUCA_API_KEY) {
           try {
-            const apiResp = await axios.get(
+            const apiResp = await axios.get<CurseducaMemberResponse>(
               `${CURSEDUCA_API_URL}/members/${memberId}`,
               {
                 headers: {
@@ -696,12 +759,15 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
               console.log(`      ✅ ${user.email}: PARA_INATIVAR → INACTIVE (API CursEduca: ${realSituation}, BD stale)`)
               continue
             }
-          } catch (apiErr: any) {
-            console.log(`      ⚠️ Erro API CursEduca ${user.email}: ${apiErr.response?.status || apiErr.message}`)
+          } catch (apiError: unknown) {
+            const detail = axios.isAxiosError(apiError)
+              ? apiError.response?.status || apiError.message
+              : errorMessage(apiError)
+            console.log(`      ⚠️ Erro API CursEduca ${user.email}: ${detail}`)
           }
         }
-      } catch (err: any) {
-        console.error(`      ⚠️ Erro ao limpar ${(userProduct.userId as any)?.email}:`, err.message)
+      } catch (error: unknown) {
+        console.error(`      ⚠️ Erro ao limpar ${userProduct.userId?.email}:`, errorMessage(error))
       }
     }
 
@@ -732,11 +798,11 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
       }
     })
 
-  } catch (error: any) {
-    console.error('❌ [COMPARE] Erro ao comparar:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [COMPARE] Erro ao comparar:', errorMessage(error))
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: errorMessage(error)
     })
   }
 }
@@ -763,12 +829,12 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
     console.log(`   📊 Total subscrições na Guru: ${allSubscriptions.length}`)
 
     // 2. Agrupar por email
-    const subsByEmail = new Map<string, Array<{ code: string; status: string; startedAt: string; sub: any }>>()
+    const subsByEmail = new Map<string, SubscriptionCandidate[]>()
 
     for (const sub of allSubscriptions) {
       const email = (
         sub.subscriber?.email ||
-        (sub as any).contact?.email
+        sub.contact?.email
       )?.toLowerCase().trim()
 
       if (!email) continue
@@ -780,23 +846,22 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
         'expired': 'expired', 'pending': 'pending',
         'refunded': 'refunded', 'suspended': 'suspended'
       }
-      const mappedStatus = statusMap[(sub as any).last_status?.toLowerCase()] || 'pending'
+      const mappedStatus = statusMap[sub.last_status?.toLowerCase()] || 'pending'
 
-      if (!subsByEmail.has(email)) {
-        subsByEmail.set(email, [])
-      }
-      subsByEmail.get(email)!.push({
+      const subscriptions = subsByEmail.get(email) || []
+      subscriptions.push({
         code: sub.subscription_code || sub.id,
         status: mappedStatus,
-        startedAt: (sub as any).dates?.started_at || '',
+        startedAt: sub.dates?.started_at || '',
         sub
       })
+      subsByEmail.set(email, subscriptions)
     }
 
     // 3. Encontrar emails com múltiplas subscrições onde pelo menos uma é active
     // FIX: Usar getStatusPriority centralizado (pending stale recebe prioridade 8)
-    const multiSubUsers: any[] = []
-    const problemUsers: any[] = []
+    const multiSubUsers: MultiSubscriptionUser[] = []
+    const problemUsers: ProblemUser[] = []
     let fixed = 0
 
     for (const [email, subs] of subsByEmail) {
@@ -825,9 +890,12 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
       // Verificar se nosso user tem status errado
       const user = await User.findOne({ email }).select('guru').lean()
 
-      if (user && (user as any).guru?.status) {
-        const ourStatus = (user as any).guru.status
-        const ourDates: GuruDateInfo = { updatedAt: (user as any).guru?.updatedAt, nextCycleAt: (user as any).guru?.nextCycleAt }
+      if (user?.guru?.status) {
+        const ourStatus = user.guru.status
+        const ourDates: GuruDateInfo = {
+          updatedAt: user.guru.updatedAt,
+          nextCycleAt: user.guru.nextCycleAt
+        }
         const ourPrio = getStatusPriority(ourStatus, ourDates)
         const bestDatesForFix: GuruDateInfo = { startedAt: bestSub.startedAt }
         const bestPrio = getStatusPriority(bestSub.status, bestDatesForFix)
@@ -845,7 +913,7 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
           // Corrigir se pedido
           if (shouldFix) {
             // Extrair dados da melhor subscrição
-            const bestSubData = bestSub.sub as any
+            const bestSubData = bestSub.sub
 
             await User.updateOne(
               { email },
@@ -868,7 +936,7 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
                 !GURU_CANCELED_STATUSES.includes(bestSub.status)) {
               const revert = await UserProduct.updateMany(
                 {
-                  userId: (user as any)._id,
+                  userId: user._id,
                   platform: 'curseduca',
                   status: 'PARA_INATIVAR'
                 },
@@ -917,11 +985,11 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
       multiSubDetails: multiSubUsers.slice(0, 50)
     })
 
-  } catch (error: any) {
-    console.error('❌ [MULTI-SUB] Erro:', error.message)
+  } catch (error: unknown) {
+    console.error('❌ [MULTI-SUB] Erro:', errorMessage(error))
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: errorMessage(error)
     })
   }
 }
