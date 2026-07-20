@@ -13,6 +13,7 @@ import {
   type GuruDateInfo
 } from './guru.constants'
 import { isCurseducaEnrollmentActive } from '../syncUtilizadoresServices/curseducaServices/curseducaMemberships'
+import type { FilterQuery } from 'mongoose'
 
 // ═══════════════════════════════════════════════════════════
 // TIPOS
@@ -33,6 +34,24 @@ export interface CrossReferenceResult {
 interface CrossReferenceAction {
   action: 'mark_para_inativar' | 'revert_to_active' | 'confirm_inactive' | 'skip'
   reason: string
+}
+
+type CurseducaSituation = NonNullable<NonNullable<IUser['curseduca']>['situation']>
+
+interface CurseducaMemberResponse {
+  situation?: CurseducaSituation
+  data?: { situation?: CurseducaSituation }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
+}
+
+function requestErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    return String(error.response?.status ?? error.message)
+  }
+  return errorMessage(error)
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -203,7 +222,7 @@ export async function runCrossReferenceAfterCurseducaSync(
   }
 
   // 1. Buscar users com dados Guru + CursEduca
-  const query: any = {
+  const query: FilterQuery<IUser> = {
     'guru.status': { $exists: true },
     'curseduca.curseducaUserId': { $exists: true }
   }
@@ -229,10 +248,7 @@ export async function runCrossReferenceAfterCurseducaSync(
     platform: 'curseduca'
   }).lean()
 
-  const upByUserId = new Map<string, any>()
-  for (const up of userProducts) {
-    upByUserId.set(up.userId.toString(), up)
-  }
+  const upByUserId = new Map(userProducts.map(up => [up.userId.toString(), up]))
 
   // 3. Processar cada user
   for (const user of users) {
@@ -245,11 +261,11 @@ export async function runCrossReferenceAfterCurseducaSync(
     result.processed++
 
     try {
-      const guruData = (user as any).guru
+      const guruData = user.guru
       const action = determineCrossReferenceAction(
         guruData?.status,
-        (user as any).curseduca?.memberStatus,
-        (user as any).curseduca?.situation,
+        user.curseduca?.memberStatus,
+        user.curseduca?.situation,
         up.status,
         { updatedAt: guruData?.updatedAt, nextCycleAt: guruData?.nextCycleAt }
       )
@@ -266,15 +282,15 @@ export async function runCrossReferenceAfterCurseducaSync(
       if (action.action === 'confirm_inactive') result.confirmedInactive++
 
       result.details.push({
-        email: (user as any).email,
+        email: user.email,
         action: action.action,
         reason: action.reason
       })
 
-      console.log(`   ${action.action === 'mark_para_inativar' ? '🔴' : action.action === 'revert_to_active' ? '🟢' : '⚫'} ${(user as any).email}: ${action.action} (${action.reason})`)
-    } catch (err: any) {
+      console.log(`   ${action.action === 'mark_para_inativar' ? '🔴' : action.action === 'revert_to_active' ? '🟢' : '⚫'} ${user.email}: ${action.action} (${action.reason})`)
+    } catch (err: unknown) {
       result.errors++
-      console.error(`   ❌ Erro ${(user as any).email}: ${err.message}`)
+      console.error(`   ❌ Erro ${user.email}: ${errorMessage(err)}`)
     }
   }
 
@@ -302,10 +318,7 @@ export async function runCrossReferenceAfterCurseducaSync(
         status: 'ACTIVE'
       }).lean()
 
-      const missedUpByUserId = new Map<string, any>()
-      for (const up of missedUPs) {
-        missedUpByUserId.set(up.userId.toString(), up)
-      }
+      const missedUpByUserId = new Map(missedUPs.map(up => [up.userId.toString(), up]))
 
       for (const user of missedUsers) {
         const up = missedUpByUserId.get(user._id.toString())
@@ -313,11 +326,11 @@ export async function runCrossReferenceAfterCurseducaSync(
 
         result.processed++
         try {
-          const guruData = (user as any).guru
+          const guruData = user.guru
           const action = determineCrossReferenceAction(
             guruData?.status,
-            (user as any).curseduca?.memberStatus,
-            (user as any).curseduca?.situation,
+            user.curseduca?.memberStatus,
+            user.curseduca?.situation,
             up.status,
             { updatedAt: guruData?.updatedAt, nextCycleAt: guruData?.nextCycleAt }
           )
@@ -333,14 +346,14 @@ export async function runCrossReferenceAfterCurseducaSync(
           if (action.action === 'confirm_inactive') result.confirmedInactive++
 
           result.details.push({
-            email: (user as any).email,
+            email: user.email,
             action: action.action,
             reason: `[fora do sync] ${action.reason}`
           })
-          console.log(`   🔍 ${(user as any).email}: ${action.action} (fora do sync, Guru ${guruData?.status})`)
-        } catch (err: any) {
+          console.log(`   🔍 ${user.email}: ${action.action} (fora do sync, Guru ${guruData?.status})`)
+        } catch (err: unknown) {
           result.errors++
-          console.error(`   ❌ Erro ${(user as any).email}: ${err.message}`)
+          console.error(`   ❌ Erro ${user.email}: ${errorMessage(err)}`)
         }
       }
 
@@ -363,11 +376,11 @@ export async function runCrossReferenceAfterCurseducaSync(
     const activeUPs = await UserProduct.find({
       platform: 'curseduca',
       status: 'ACTIVE'
-    }).populate('userId', 'email').lean()
+    }).populate<{ userId: IUser }>('userId', 'email').lean()
 
     const staleIds = activeUPs
       .filter(up => {
-        const email = ((up.userId as any)?.email || '').toLowerCase().trim()
+        const email = (up.userId?.email || '').toLowerCase().trim()
         return email && !syncedSet.has(email)
       })
       .map(up => up._id)
@@ -429,7 +442,7 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
     status: 'PARA_INATIVAR',
     'metadata.guruSyncMarked': true
   })
-    .populate('userId', 'email curseduca.memberStatus curseduca.situation curseduca.curseducaUserId guru.status guru.updatedAt guru.nextCycleAt')
+    .populate<{ userId: IUser }>('userId', 'email curseduca.memberStatus curseduca.situation curseduca.curseducaUserId guru.status guru.updatedAt guru.nextCycleAt')
     .lean()
 
   console.log(`   📋 ${userProducts.length} UserProducts PARA_INATIVAR para verificar`)
@@ -444,7 +457,7 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
   let apiCallsUsed = 0
 
   for (const up of userProducts) {
-    const user = up.userId as any
+    const user = up.userId
     if (!user) {
       result.skipped++
       continue
@@ -461,7 +474,7 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
         const memberId = up.platformUserId || user.curseduca?.curseducaUserId
         if (memberId && CURSEDUCA_ACCESS_TOKEN && CURSEDUCA_API_KEY) {
           try {
-            const apiResp = await axios.get(
+            const apiResp = await axios.get<CurseducaMemberResponse>(
               `${CURSEDUCA_API_URL}/members/${memberId}`,
               {
                 headers: {
@@ -486,8 +499,8 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
             }
             apiCallsUsed++
             await new Promise(resolve => setTimeout(resolve, 300))
-          } catch (apiErr: any) {
-            console.log(`   ⚠️ API check falhou ${user.email}: ${apiErr.response?.status || apiErr.message}`)
+          } catch (apiErr: unknown) {
+            console.log(`   ⚠️ API check falhou ${user.email}: ${requestErrorMessage(apiErr)}`)
           }
         }
       }
@@ -518,9 +531,9 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
       })
 
       console.log(`   ${action.action === 'confirm_inactive' ? '⚫' : '🟢'} ${user.email}: ${action.action}`)
-    } catch (err: any) {
+    } catch (err: unknown) {
       result.errors++
-      console.error(`   ❌ Erro ${(up.userId as any)?.email}: ${err.message}`)
+      console.error(`   ❌ Erro ${up.userId?.email}: ${errorMessage(err)}`)
     }
   }
 
