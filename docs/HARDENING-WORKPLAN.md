@@ -451,6 +451,27 @@ Trocar a listagem Hotmart para `UserProduct.classes` seria **regressão**, não 
   `auth.middleware:13,45,51`), logo `triggeredByUser` era **sempre `undefined`** (nunca se soube que admin
   accionou cada sync Hotmart). Corrigido nos 2 sítios + teste RED/GREEN. Gate: lint 0, tsc 0, jest 309/2, build 0.
 
+- [x] **clarezaFmpService + activecampaign.controller (1428→1345, −83)** — feito (`e3fdf0d`, `0a8bca7`).
+  0 casts/any novos. Previews Clareza/OGI verificados intactos: `evaluateAllUsersOfProduct(id, true)` mantém o
+  **`dryRun=true`** (o preview continua read-only — era o risco maior desta passagem). Guarda `if (!user.email)`
+  real (utilizadores sem email já não geram chamadas inválidas à AC). **Bug real (progresso sempre 0):**
+  `up.progress?.progressPercentage` lia um nível fundo demais — em `UserProduct.IProgress` o campo de topo é
+  `percentage`; `progressPercentage` só existe **dentro de `modulesList[]`** (por módulo). Corrigido para
+  `up.progress?.percentage`. *Nota de review: o report atribuiu este bug ao `e3fdf0d` (clarezaFmpService), mas
+  esse serviço é Financial Modeling Prep (dados de bolsa) — o fix está no `0a8bca7`.*
+
+**Mesma classe de bug ainda VIVA (prioridade para o próximo bloco) — campo fantasma `progress.progressPercentage`
+em `UserProduct`:**
+1. `dashboard.controller.ts:32-34` — `matchStage['progress.progressPercentage']` num `UserProduct.aggregate`:
+   o filtro `progressMin`/`progressMax` **nunca filtra** (path inexistente). Linha 69: `avgProgress: { $avg:
+   '$progress.progressPercentage' }` → **média sempre nula/0**. Deve ser `progress.percentage`.
+2. `activecampaign.controller.ts:1134` — `UserProduct.create({ status: 'active', progress: { progressPercentage: 0 } })`:
+   escreve campo fantasma e **nunca põe `percentage`** (obrigatório em `IProgress`). Além disso `'active'`
+   minúsculo **não é** `EnrollmentStatus` válido (o tipo é `'ACTIVE'`). Ficheiro acabado de tipar — a tipagem
+   não apanhou porque o lado da **escrita** (`.create()`) aceitou o objecto parcial.
+3. Varrer o resto: `grep -rn "progressPercentage" src` — confirmar caso a caso se é o de topo (bug) ou o de
+   dentro de `modulesList[]` (legítimo).
+
 Depois: cirurgia ARCH-01/02/03.
 
 ---
