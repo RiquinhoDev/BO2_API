@@ -1360,14 +1360,6 @@
       "count": 3
     }
   },
-  "src/services/syncUtilizadoresServices/discordSync.service.ts/discordSync.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "src/services/syncUtilizadoresServices/dualReadService.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 22
