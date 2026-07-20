@@ -551,9 +551,27 @@ comparem `situation`/`memberStatus` a literais.
   `dryRun=true`. Montados em `activecampaign.routes.ts` e `course.routes.ts` — **é o comportamento correcto, não há
   decisão pendente aqui**. Não gutar.
 
-  **⚠️ AINDA ABERTO — o sweep substituiu (não cumpriu) o handoff do `tagOrchestrator`:** o gémeo do bug de
-  actividade em `tagOrchestrator.service.ts` (`getUserLastActivity` :482-490, campos fantasma → `createdAt`) continua
-  **vivo**. Decisão já tomada = Opção A (unificar no `getLastLearnerActivityDate`). Re-emitir o handoff.
+- [x] **`tagOrchestrator` — gémeo do bug de actividade FECHADO** (commit `e2efb90`, já em `origin/remake`; validado
+  a posteriori — tinha entrado na história sem eu o ter revisto explicitamente). `getUserLastActivity` (campos
+  fantasma → `createdAt`) **removido**, substituído por `getLastLearnerActivityDate`; `calculateDaysInactive` devolve
+  `number | null` (`if (!lastActivity) return null`). Efeito lateral positivo: o código antigo chamava
+  `getUserLastActivity` 2× por avaliação — agora 1×.
+  **Verificado que NÃO há misfire de tags:** o orchestrator não compara `daysInactive` a thresholds — aplica via
+  `studentState.applyTag(tag, level)` com o `level` decidido a montante. Os thresholds (`>= X`) vivem só no
+  `decisionEngine` (:834), que lê `metrics ?? Number.NaN` (null→NaN, comparações todas `false`). O `null` do
+  orchestrator só aterra em `StudentEngagementState.daysSinceLastLogin`, campo **de reporting** (indexado/ordenado por
+  `.sort({daysSinceLastLogin:-1})` :387). Guardar `null` é **mais** correcto que a mentira do `createdAt`: antes as
+  contas sem sinal tinham nº gigante e apareciam no topo dos "mais inactivos" (o bug); agora ordenam em baixo.
+
+  **Pontas soltas de BAIXA severidade (mascaradas por tipagem frouxa — próximo bloco, não bloqueiam):**
+  1. `tagOrchestrator` :399/:460 — `let studentState: any = await StudentEngagementState.findOne(...)`. O `any`
+     mascarou a escrita de `number | null` num campo `Number`. Tipar `StudentEngagementState` corrige e teria
+     apanhado isto. (ratchet + correctness)
+  2. `activecampaign.controller.ts` `buildReason` :1394/:1397 — guarda `!== undefined` **não apanha `null`** → um
+     `userStateSnapshot.daysSinceLastLogin` nulo renderiza a string literal `"null dias sem login"`. Trocar por
+     `!= null` (ou `typeof === 'number'`) nos dois ramos (daysSinceLastLogin e daysSinceLastAction).
+  3. `StudentEngagementState.ts:45,146` — campo `daysSinceLastLogin: number` não-opcional mas agora por vezes `null`.
+     Reflectir no schema (`?: number` / permitir null) OU saltar a escrita quando `null`. Decidir ao tipar o modelo.
 
 Depois: cirurgia ARCH-01/02/03.
 
