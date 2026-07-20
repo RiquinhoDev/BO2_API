@@ -438,6 +438,13 @@ Trocar a listagem Hotmart para `UserProduct.classes` seria **regressão**, não 
 
 **Fica em fila:** remover o `enrolledClasses` como fonte quando estabilizar (ARCH-03) · moagem `no-explicit-any` (1628).
 
+- [x] **guruSync.service + guru.inactivation.controller (1628→1517, −111)** — feito (`af745ea`, `716dd76`).
+  0 casts/any novos. **Escrita fantasma removida:** `guru.totalSubscriptions` **não existe no schema** (era
+  descartada pelo strict). **Ramo `PARA_INATIVAR` morto removido** — revisor **verificou a alcançabilidade**: o loop
+  faz `if (status === 'PARA_INATIVAR') { alreadyMarked++; continue }` **antes** do bloco de protecção, logo o ramo
+  interno nunca podia disparar. ⚠️ A **PROTECÇÃO sobrevive intacta** (`hasActiveSub` → `skipped++` + `continue`,
+  protege mudanças Mensal→Anual) e o `(sub as any)` virou tipagem real. Gate: lint 0, tsc 0, jest 308/2, build 0.
+
 Depois: cirurgia ARCH-01/02/03.
 
 ---
