@@ -1155,9 +1155,6 @@
     }
   },
   "src/services/clareza/clarezaFmpService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 42
-    },
     "no-console": {
       "count": 8
     },
