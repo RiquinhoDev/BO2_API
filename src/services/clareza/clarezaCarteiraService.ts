@@ -2,11 +2,84 @@ import axios from 'axios'
 import { cacheService } from '../cache.service'
 import { fmpThrottle } from './fmpThrottle'
 import { normalizeTicker, isValidTicker } from './tickerUtils'
-import ClarezaCarteiraData from '../../models/ClarezaCarteiraData'
+import ClarezaCarteiraData, {
+  IClarezaCarteiraItem,
+  IClarezaCarteiraMetrics
+} from '../../models/ClarezaCarteiraData'
 
 type CarteiraKind = 'stock' | 'fund' | 'crypto'
 type CarteiraUniverseItem = { ticker: string; name: string; type: string; sector: string }
 type CarteiraItem = CarteiraUniverseItem & { kind: CarteiraKind }
+type NumericFmpValue = number | null | undefined
+
+interface FmpProfile {
+  price?: NumericFmpValue
+  changePercentage?: NumericFmpValue
+  range?: string | null
+  currency?: string | null
+  exchangeShortName?: string | null
+  exchange?: string | null
+}
+
+interface FmpRatios {
+  priceToEarningsRatioTTM?: NumericFmpValue
+  forwardPriceToEarningsGrowthRatioTTM?: NumericFmpValue
+  priceToEarningsGrowthRatioTTM?: NumericFmpValue
+  priceToSalesRatioTTM?: NumericFmpValue
+  priceToBookRatioTTM?: NumericFmpValue
+  netProfitMarginTTM?: NumericFmpValue
+  grossProfitMarginTTM?: NumericFmpValue
+  dividendYieldTTM?: NumericFmpValue
+  dividendPayoutRatioTTM?: NumericFmpValue
+  debtToEquityRatioTTM?: NumericFmpValue
+}
+
+interface FmpKeyMetrics {
+  evToEBITDATTM?: NumericFmpValue
+  freeCashFlowYieldTTM?: NumericFmpValue
+  returnOnEquityTTM?: NumericFmpValue
+  netDebtToEBITDATTM?: NumericFmpValue
+}
+
+interface FmpIncomeStatement {
+  netIncome?: NumericFmpValue
+  depreciationAndAmortization?: NumericFmpValue
+  weightedAverageShsOut?: NumericFmpValue
+}
+
+interface FmpCashFlowStatement {
+  depreciationAndAmortization?: NumericFmpValue
+  netDividendsPaid?: NumericFmpValue
+}
+
+interface FmpQuote {
+  price?: NumericFmpValue
+  changePercentage?: NumericFmpValue
+  yearLow?: NumericFmpValue
+}
+
+interface CarteiraSearchResult {
+  ticker: string
+  name: string
+  type: string | null
+  kind: CarteiraKind | null
+  currency: string | null
+}
+
+interface CarteiraSearchResponse {
+  query: string
+  count: number
+  results: CarteiraSearchResult[]
+}
+
+interface RankedCarteiraResult {
+  rank: number
+  result: CarteiraSearchResult
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 // Limits concurrency without adding p-queue to this hot path.
 async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
@@ -4559,22 +4632,26 @@ export const UNIVERSE: CarteiraItem[] = [
   ...CRYPTO_UNIVERSE.map((item) => ({ ...item, kind: 'crypto' as const }))
 ]
 
-async function fmpGet<T = any>(path: string, params: Record<string, string> = {}): Promise<T | null> {
+function hasFmpError(data: object): boolean {
+  return 'Error Message' in data
+}
+
+async function fmpGet<T extends object>(path: string, params: Record<string, string> = {}): Promise<T | null> {
   try {
     await fmpThrottle()
-    const { data } = await axios.get(`${FMP_BASE}${path}`, {
+    const { data } = await axios.get<T | T[]>(`${FMP_BASE}${path}`, {
       params: { apikey: process.env.FMP_API_KEY, ...params },
       timeout: 15000
     })
-    if (!data || (!Array.isArray(data) && (data as any)['Error Message'])) return null
-    if (Array.isArray(data)) return (data[0] ?? null) as T
-    return data as T
+    if (!data || (!Array.isArray(data) && hasFmpError(data))) return null
+    if (Array.isArray(data)) return data[0] ?? null
+    return data
   } catch {
     return null
   }
 }
 
-function safe(val: any, mult = 1): number | null {
+function safe(val: unknown, mult = 1): number | null {
   if (val === null || val === undefined || isNaN(Number(val))) return null
   return Math.round(Number(val) * mult * 10000) / 10000
 }
@@ -4593,17 +4670,17 @@ function normalizeForFmp(rawTicker: string): string {
   return ticker
 }
 
-function perfFromRange(range: any, price: any): number | null {
+function perfFromRange(range: unknown, price: unknown): number | null {
   if (!range || !price) return null
   const low52 = parseFloat(String(range).split('-')[0])
   return low52 > 0 ? round2(((Number(price) - low52) / low52) * 100) : null
 }
 
-export async function fetchStock(rawTicker: string, isReit: boolean) {
+export async function fetchStock(rawTicker: string, isReit: boolean): Promise<IClarezaCarteiraMetrics> {
   const ticker = normalizeForFmp(rawTicker)
-  const p = await fmpGet('/profile', { symbol: ticker })
-  const r = await fmpGet('/ratios-ttm', { symbol: ticker })
-  const m = await fmpGet('/key-metrics-ttm', { symbol: ticker })
+  const p = await fmpGet<FmpProfile>('/profile', { symbol: ticker })
+  const r = await fmpGet<FmpRatios>('/ratios-ttm', { symbol: ticker })
+  const m = await fmpGet<FmpKeyMetrics>('/key-metrics-ttm', { symbol: ticker })
 
   const price = p?.price ?? null
   const change = p?.changePercentage ?? null
@@ -4614,8 +4691,8 @@ export async function fetchStock(rawTicker: string, isReit: boolean) {
   let ffoPayoutRatio: number | null = null
 
   if (isReit) {
-    const income = await fmpGet('/income-statement', { symbol: ticker, period: 'annual', limit: '1' })
-    const cashFlow = await fmpGet('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '1' })
+    const income = await fmpGet<FmpIncomeStatement>('/income-statement', { symbol: ticker, period: 'annual', limit: '1' })
+    const cashFlow = await fmpGet<FmpCashFlowStatement>('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '1' })
 
     const netIncome = income?.netIncome ?? null
     const da = income?.depreciationAndAmortization ?? cashFlow?.depreciationAndAmortization ?? null
@@ -4665,10 +4742,10 @@ export async function fetchStock(rawTicker: string, isReit: boolean) {
   }
 }
 
-export async function fetchEtf(rawTicker: string) {
+export async function fetchEtf(rawTicker: string): Promise<IClarezaCarteiraMetrics> {
   const ticker = normalizeForFmp(rawTicker)
-  const p = await fmpGet('/profile', { symbol: ticker })
-  const r = await fmpGet('/ratios-ttm', { symbol: ticker })
+  const p = await fmpGet<FmpProfile>('/profile', { symbol: ticker })
+  const r = await fmpGet<FmpRatios>('/ratios-ttm', { symbol: ticker })
   const price = p?.price ?? null
 
   return {
@@ -4682,9 +4759,9 @@ export async function fetchEtf(rawTicker: string) {
   }
 }
 
-export async function fetchCrypto(rawTicker: string) {
+export async function fetchCrypto(rawTicker: string): Promise<IClarezaCarteiraMetrics> {
   const ticker = normalizeForFmp(rawTicker)
-  const q = await fmpGet('/quote', { symbol: ticker })
+  const q = await fmpGet<FmpQuote>('/quote', { symbol: ticker })
   const price = q?.price ?? null
   let perf12m: number | null = null
   if (q?.yearLow && price) {
@@ -4703,7 +4780,7 @@ export async function fetchCrypto(rawTicker: string) {
   }
 }
 
-export async function fetchItem(item: CarteiraItem) {
+export async function fetchItem(item: CarteiraItem): Promise<IClarezaCarteiraMetrics> {
   if (item.kind === 'crypto') return fetchCrypto(item.ticker)
   if (item.kind === 'fund') return fetchEtf(item.ticker)
   return fetchStock(item.ticker, item.type === 'reit')
@@ -4729,9 +4806,9 @@ export async function refreshClarezaCarteiraData(): Promise<{ total: number; err
           sector: item.sector,
           data
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         errors++
-        console.error(`[ClarezaCarteira] Erro em ${item.ticker}:`, err.message)
+        console.error(`[ClarezaCarteira] Erro em ${item.ticker}:`, errorMessage(err))
         return {
           ticker: item.ticker,
           name: item.name,
@@ -4756,20 +4833,20 @@ export async function refreshClarezaCarteiraData(): Promise<{ total: number; err
     })
     const all = await ClarezaCarteiraData.find({}, '_id fetchedAt').sort({ fetchedAt: -1 }).lean()
     if (all.length > 5) {
-      const toDelete = all.slice(5).map((d: any) => d._id)
+      const toDelete = all.slice(5).map((document) => document._id)
       await ClarezaCarteiraData.deleteMany({ _id: { $in: toDelete } })
     }
     console.log('[ClarezaCarteira] Snapshot guardado na BD')
-  } catch (err: any) {
-    console.error('[ClarezaCarteira] Erro ao guardar snapshot na BD:', err.message)
+  } catch (err: unknown) {
+    console.error('[ClarezaCarteira] Erro ao guardar snapshot na BD:', errorMessage(err))
   }
 
   console.log(`[ClarezaCarteira] Refresh completo - ${UNIVERSE.length - errors} ok, ${errors} erros`)
   return { total: UNIVERSE.length, errors }
 }
 
-export async function getClarezaCarteiraData(): Promise<any[] | null> {
-  const cached = await cacheService.get<any[]>(CLAREZA_CARTEIRA_CACHE_KEY)
+export async function getClarezaCarteiraData(): Promise<IClarezaCarteiraItem[] | null> {
+  const cached = await cacheService.get<IClarezaCarteiraItem[]>(CLAREZA_CARTEIRA_CACHE_KEY)
   if (cached) return cached
 
   try {
@@ -4777,23 +4854,23 @@ export async function getClarezaCarteiraData(): Promise<any[] | null> {
     if (latest?.items?.length) {
       console.log(`[ClarezaCarteira] Cache Redis vazio - a servir snapshot da BD (${latest.fetchedAt})`)
       await cacheService.set(CLAREZA_CARTEIRA_CACHE_KEY, latest.items, CLAREZA_CARTEIRA_CACHE_TTL)
-      return latest.items as any[]
+      return latest.items
     }
-  } catch (err: any) {
-    console.error('[ClarezaCarteira] Erro ao ler snapshot da BD:', err.message)
+  } catch (err: unknown) {
+    console.error('[ClarezaCarteira] Erro ao ler snapshot da BD:', errorMessage(err))
   }
 
   console.warn('[ClarezaCarteira] Sem cache Redis e sem snapshot MongoDB. Aguardar cron ClarezaRefresh.')
   return null
 }
 
-export async function searchCarteira(rawQuery: string): Promise<any> {
+export async function searchCarteira(rawQuery: string): Promise<CarteiraSearchResponse> {
   const q = String(rawQuery || '').trim().toUpperCase()
   const cache = await getClarezaCarteiraData()
   const ranked = (cache ?? [])
-    .map((item: any) => {
-      const ticker = String(item?.ticker ?? '')
-      const name = String(item?.name ?? '')
+    .map((item): RankedCarteiraResult | null => {
+      const ticker = String(item.ticker ?? '')
+      const name = String(item.name ?? '')
       const tickerUp = ticker.toUpperCase()
       const nameUp = name.toUpperCase()
       let rank: number | null = null
@@ -4810,15 +4887,15 @@ export async function searchCarteira(rawQuery: string): Promise<any> {
         result: {
           ticker,
           name,
-          type: item?.type ?? null,
-          kind: item?.kind ?? null,
-          currency: item?.data?.currency ?? null
+          type: item.type ?? null,
+          kind: item.kind ?? null,
+          currency: item.data?.currency ?? null
         }
       }
     })
-    .filter((entry: any): entry is { rank: number; result: any } => entry !== null)
-    .sort((a: any, b: any) => a.rank - b.rank || a.result.ticker.localeCompare(b.result.ticker))
-    .map((entry: any) => entry.result)
+    .filter((entry): entry is RankedCarteiraResult => entry !== null)
+    .sort((a, b) => a.rank - b.rank || a.result.ticker.localeCompare(b.result.ticker))
+    .map((entry) => entry.result)
 
   return { query: q, count: ranked.length, results: ranked.slice(0, 25) }
 }
