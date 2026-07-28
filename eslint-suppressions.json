@@ -1286,9 +1286,6 @@
     }
   },
   "src/services/renewal/renewalSync.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 18
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }

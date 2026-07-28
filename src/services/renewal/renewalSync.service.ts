@@ -1,7 +1,7 @@
 import axios from 'axios'
 import mongoose from 'mongoose'
 import Product from '../../models/product/Product'
-import RenewalOffer from '../../models/RenewalOffer'
+import RenewalOffer, { type IRenewalOffer } from '../../models/RenewalOffer'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServices/hotmart.helpers'
@@ -41,20 +41,20 @@ interface HotmartOfferSnapshot {
   buyerEmails: Set<string>
 }
 
-type MongooseReadModel = {
-  findOne: (...args: any[]) => any
-  find?: (...args: any[]) => any
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
 }
 
-const ProductReadModel = Product as unknown as MongooseReadModel
-const UserReadModel = User as unknown as MongooseReadModel
-const UserProductReadModel = UserProduct as unknown as MongooseReadModel
-
-function getValue(obj: any, path: string): any {
-  return path.split('.').reduce((acc, key) => acc?.[key], obj)
+function getValue(obj: unknown, path: string): unknown {
+  let current: unknown = obj
+  for (const key of path.split('.')) {
+    if (!isRecord(current)) return undefined
+    current = current[key]
+  }
+  return current
 }
 
-function firstString(obj: any, paths: string[]): string | null {
+function firstString(obj: unknown, paths: string[]): string | null {
   for (const path of paths) {
     const value = getValue(obj, path)
     if (typeof value === 'string' && value.trim()) return value.trim()
@@ -62,7 +62,7 @@ function firstString(obj: any, paths: string[]): string | null {
   return null
 }
 
-function firstScalarString(obj: any, paths: string[]): string | null {
+function firstScalarString(obj: unknown, paths: string[]): string | null {
   for (const path of paths) {
     const value = getValue(obj, path)
     if ((typeof value === 'string' || typeof value === 'number') && String(value).trim()) {
@@ -72,7 +72,7 @@ function firstScalarString(obj: any, paths: string[]): string | null {
   return null
 }
 
-function extractOfferFromSale(item: any): { offerCode: string; offerName: string } | null {
+function extractOfferFromSale(item: unknown): { offerCode: string; offerName: string } | null {
   const offerCode = firstString(item, [
     'purchase.offer.code',
     'purchase.offer.offer_code',
@@ -104,7 +104,7 @@ function extractOfferFromSale(item: any): { offerCode: string; offerName: string
   return { offerCode, offerName }
 }
 
-function extractProductIdFromSale(item: any): string | null {
+function extractProductIdFromSale(item: unknown): string | null {
   return firstScalarString(item, [
     'purchase.product.id',
     'purchase.product.product_id',
@@ -119,16 +119,16 @@ function extractProductIdFromSale(item: any): string | null {
   ])
 }
 
-function isOgiSale(item: any, ogiHotmartProductId: string): boolean {
+function isOgiSale(item: unknown, ogiHotmartProductId: string): boolean {
   const productId = extractProductIdFromSale(item)
   return Boolean(productId && productId === ogiHotmartProductId)
 }
 
-function extractPaymentMode(item: any): string | null {
+function extractPaymentMode(item: unknown): string | null {
   return firstString(item, ['purchase.offer.payment_mode', 'offer.payment_mode', 'purchase.payment.type'])
 }
 
-function extractPrice(item: any): { value: number | null; currency: string | null } {
+function extractPrice(item: unknown): { value: number | null; currency: string | null } {
   const value = getValue(item, 'purchase.price.value') ?? getValue(item, 'price.value')
   const currency = firstString(item, ['purchase.price.currency_code', 'price.currency_code'])
   return {
@@ -137,31 +137,27 @@ function extractPrice(item: any): { value: number | null; currency: string | nul
   }
 }
 
-function extractBuyerEmail(item: any): string | null {
+function extractBuyerEmail(item: unknown): string | null {
   const email = firstString(item, ['buyer.email', 'purchase.buyer.email'])
   return email ? email.toLowerCase() : null
 }
 
-function extractSalesItems(responseData: any): any[] {
-  const candidates = [
-    responseData?.items,
-    responseData?.data,
-    responseData?.sales,
-    responseData?.transactions,
-    responseData?.results
-  ]
-
-  const items = candidates.find(Array.isArray)
-  return items || []
+function extractSalesItems(responseData: unknown): unknown[] {
+  for (const path of ['items', 'data', 'sales', 'transactions', 'results']) {
+    const candidate = getValue(responseData, path)
+    if (Array.isArray(candidate)) return candidate
+  }
+  return []
 }
 
-function extractNextPageToken(responseData: any): string | null {
-  return responseData?.page_info?.next_page_token
-    || responseData?.pageInfo?.nextPageToken
-    || responseData?.pagination?.next_page_token
-    || responseData?.pagination?.nextPageToken
-    || responseData?.next_page_token
-    || null
+function extractNextPageToken(responseData: unknown): string | null {
+  return firstScalarString(responseData, [
+    'page_info.next_page_token',
+    'pageInfo.nextPageToken',
+    'pagination.next_page_token',
+    'pagination.nextPageToken',
+    'next_page_token',
+  ])
 }
 
 export function buildCheckoutLink(offerCode: string): string {
@@ -172,7 +168,7 @@ async function resolveOgiHotmartProductId(): Promise<string> {
   const envProductId = process.env.HOTMART_OGI_PRODUCT_ID?.trim()
   if (envProductId) return envProductId
 
-  const ogiProduct = await ProductReadModel.findOne({
+  const ogiProduct = await Product.findOne({
     platform: 'hotmart',
     isActive: true,
     $or: [
@@ -183,7 +179,7 @@ async function resolveOgiHotmartProductId(): Promise<string> {
   })
     .select('hotmartProductId')
     .lean()
-    .exec() as { hotmartProductId?: string } | null
+    .exec()
 
   if (!ogiProduct?.hotmartProductId) {
     throw new Error('HOTMART_OGI_PRODUCT_ID não configurado e produto OGI sem hotmartProductId na BD')
@@ -289,15 +285,15 @@ async function computeSuggestedTurmas(
   const empty: SuggestionResult = { suggestedTurmas: [], confidence: 0, sampleSize: 0 }
   if (buyerEmails.size === 0) return empty
 
-  const users = await UserReadModel.find!({ email: { $in: [...buyerEmails] } })
+  const users = await User.find({ email: { $in: [...buyerEmails] } })
     .select('_id hotmart.enrolledClasses')
     .lean()
-    .exec() as Array<{ _id: mongoose.Types.ObjectId; hotmart?: { enrolledClasses?: Array<{ className?: string; isActive?: boolean }> } }>
+    .exec()
 
   // Validação: quais destes compradores são alunos OGI ACTIVOS (UserProduct)?
   let activeUserIds: Set<string> | null = null
   if (ogiProductObjectId && users.length > 0) {
-    const enrollments = await UserProductReadModel.find!({
+    const enrollments = await UserProduct.find({
       userId: { $in: users.map((u) => u._id) },
       platform: 'hotmart',
       productId: ogiProductObjectId,
@@ -305,7 +301,7 @@ async function computeSuggestedTurmas(
     })
       .select('userId')
       .lean()
-      .exec() as Array<{ userId: mongoose.Types.ObjectId }>
+      .exec()
     activeUserIds = new Set(enrollments.map((e) => String(e.userId)))
   }
 
@@ -337,7 +333,7 @@ async function computeSuggestedTurmas(
 }
 
 async function resolveOgiProductObjectId(): Promise<mongoose.Types.ObjectId | null> {
-  const ogiProduct = await ProductReadModel.findOne({
+  const ogiProduct = await Product.findOne({
     platform: 'hotmart',
     isActive: true,
     $or: [
@@ -348,7 +344,7 @@ async function resolveOgiProductObjectId(): Promise<mongoose.Types.ObjectId | nu
   })
     .select('_id')
     .lean()
-    .exec() as { _id: mongoose.Types.ObjectId } | null
+    .exec()
 
   return ogiProduct?._id || null
 }
@@ -379,7 +375,7 @@ export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
 
     const suggestion = await computeSuggestedTurmas(offer.buyerEmails, ogiProductObjectId)
 
-    const update: any = {
+    const update: mongoose.UpdateQuery<IRenewalOffer> = {
       $set: {
         lastSeenAt: now,
         isActive: true,
@@ -390,7 +386,8 @@ export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
         salesCount: offer.salesCount,
         suggestedTurmas: suggestion.suggestedTurmas,
         suggestionConfidence: suggestion.confidence,
-        suggestionSampleSize: suggestion.sampleSize
+        suggestionSampleSize: suggestion.sampleSize,
+        ...(existing && !existing.offerName && offerName ? { offerName } : {})
       },
       $setOnInsert: {
         offerCode: offer.offerCode,
@@ -403,11 +400,6 @@ export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
         source: 'hotmart_sync',
         isManuallyEdited: false
       }
-    }
-
-    // se já existe sem nome e agora temos um, preenche (sem tocar nos derivados)
-    if (existing && !existing.offerName && offerName) {
-      update.$set.offerName = offerName
     }
 
     await RenewalOffer.updateOne(
