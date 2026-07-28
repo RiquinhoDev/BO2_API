@@ -340,11 +340,8 @@
     }
   },
   "src/controllers/syncUtilizadoresControllers/cronManagement.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 20
-    },
     "@typescript-eslint/no-unused-vars": {
-      "count": 2
+      "count": 1
     },
     "no-console": {
       "count": 26
