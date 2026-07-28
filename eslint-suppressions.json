@@ -1352,9 +1352,6 @@
     }
   },
   "src/services/syncUtilizadoresServices/dualReadService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 22
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
     },
