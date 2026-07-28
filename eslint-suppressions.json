@@ -574,11 +574,6 @@
       "count": 1
     }
   },
-  "src/models/ClarezaCarteiraData.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/models/ClarezaEarningsData.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
@@ -1060,9 +1055,6 @@
     }
   },
   "src/services/clareza/clarezaCarteiraService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 19
-    },
     "no-console": {
       "count": 8
     },
