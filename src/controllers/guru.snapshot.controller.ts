@@ -1,13 +1,47 @@
 // src/controllers/guru.snapshot.controller.ts - Controller para snapshots mensais Guru
 import { Request, Response } from 'express'
-import GuruMonthlySnapshot from '../models/GuruMonthlySnapshot'
+import GuruMonthlySnapshot, { type IGuruMonthlySnapshot } from '../models/GuruMonthlySnapshot'
 import User from '../models/user'
-import { fetchSubscriptionsByMonth, fetchAllSubscriptionsPaginated } from '../services/guru/guruSync.service'
+import {
+  fetchSubscriptionsByMonth,
+  fetchAllSubscriptionsPaginated,
+  type GuruSubscription,
+} from '../services/guru/guruSync.service'
 import type { GuruEmptyInput, GuruSnapshotDeleteInput } from '../security/guruDestructiveInput'
 
 type SnapshotPeriodParams = {
   year: string
   month: string
+}
+
+type SnapshotStatus =
+  | 'active'
+  | 'pastdue'
+  | 'canceled'
+  | 'expired'
+  | 'pending'
+  | 'refunded'
+  | 'suspended'
+
+type SnapshotSubscription = {
+  email?: string
+  status?: string
+  subscriptionCode?: string
+  productId?: string
+  offerId?: string
+  startedAt?: string | number | Date
+  nextCycleAt?: string | number | Date
+  canceledAt?: string | number | Date
+  chargedEveryDays?: number
+  value?: number
+}
+
+type SnapshotBuildResult =
+  | { skipped: true; reason: string }
+  | { skipped: false; snapshot: IGuruMonthlySnapshot }
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -50,7 +84,7 @@ export const createSnapshot = async (req: Request, res: Response) => {
       })
     }
 
-    let subscriptions: any[] = []
+    let subscriptions: SnapshotSubscription[] = []
     let dataQuality: 'complete' | 'estimated' | 'partial' = 'complete'
 
     // ─────────────────────────────────────────────────────────
@@ -63,7 +97,7 @@ export const createSnapshot = async (req: Request, res: Response) => {
       const guruSubscriptions = await fetchSubscriptionsByMonth(year, month)
 
       // Mapear para formato simplificado
-      subscriptions = guruSubscriptions.map((sub: any) => ({
+      subscriptions = guruSubscriptions.map((sub) => ({
         email: sub.subscriber?.email || sub.contact?.email,
         status: sub.last_status,
         subscriptionCode: sub.subscription_code,
@@ -154,7 +188,8 @@ export const createSnapshot = async (req: Request, res: Response) => {
     // Se temos dados da Guru, podemos calcular movimentos
     if (source === 'guru_api') {
       movements.newSubscriptions = subscriptions.filter(s => {
-        const startedAt = new Date(s.startedAt)
+        const startedAt = parseGuruDate(s.startedAt)
+        if (!startedAt) return false
         return startedAt.getMonth() === month - 1 && startedAt.getFullYear() === year
       }).length
 
@@ -211,11 +246,12 @@ export const createSnapshot = async (req: Request, res: Response) => {
       snapshot
     })
 
-  } catch (error: any) {
-    console.error('❌ [SNAPSHOT] Erro ao criar snapshot:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [SNAPSHOT] Erro ao criar snapshot:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -289,11 +325,12 @@ export const updateSnapshot = async (req: Request<SnapshotPeriodParams>, res: Re
       previousExists: !!deleted
     })
 
-  } catch (error: any) {
-    console.error('❌ [SNAPSHOT] Erro ao atualizar snapshot:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [SNAPSHOT] Erro ao atualizar snapshot:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -318,11 +355,12 @@ export const listSnapshots = async (req: Request, res: Response) => {
       total: snapshots.length
     })
 
-  } catch (error: any) {
-    console.error('❌ [SNAPSHOT] Erro ao listar snapshots:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [SNAPSHOT] Erro ao listar snapshots:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -356,11 +394,12 @@ export const getSnapshot = async (req: Request<SnapshotPeriodParams>, res: Respo
       snapshot
     })
 
-  } catch (error: any) {
-    console.error('❌ [SNAPSHOT] Erro ao obter snapshot:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [SNAPSHOT] Erro ao obter snapshot:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -394,11 +433,12 @@ export const deleteSnapshot = async (input: GuruSnapshotDeleteInput, res: Respon
       message: `Snapshot apagado para ${month}/${year}`
     })
 
-  } catch (error: any) {
-    console.error('❌ [SNAPSHOT] Erro ao apagar snapshot:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [SNAPSHOT] Erro ao apagar snapshot:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -431,7 +471,7 @@ export const getChurnFromSnapshots = async (req: Request, res: Response) => {
     }
 
     // Usar o churn já calculado em cada snapshot (dados corretos!)
-    const monthlyChurn = snapshots.map((snapshot: any) => ({
+    const monthlyChurn = snapshots.map((snapshot) => ({
       year: snapshot.year,
       month: snapshot.month,
       monthName: new Date(snapshot.year, snapshot.month - 1).toLocaleDateString('pt-PT', {
@@ -463,11 +503,12 @@ export const getChurnFromSnapshots = async (req: Request, res: Response) => {
       }
     })
 
-  } catch (error: any) {
-    console.error('❌ [SNAPSHOT] Erro ao calcular churn:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [SNAPSHOT] Erro ao calcular churn:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -584,12 +625,13 @@ export const createHistoricalSnapshots = async (req: Request, res: Response) => 
           console.log(`   ✅ Snapshot criado: ${result.snapshot.totals.total} subscrições, ${result.snapshot.churn.rate}% churn`)
         }
 
-      } catch (error: any) {
-        console.error(`   ❌ Erro ao criar snapshot ${month}/${year}:`, error.message)
+      } catch (error: unknown) {
+        const message = errorMessage(error)
+        console.error(`   ❌ Erro ao criar snapshot ${month}/${year}:`, message)
         errors.push({
           year,
           month,
-          error: error.message
+          error: message
         })
       }
 
@@ -617,11 +659,12 @@ export const createHistoricalSnapshots = async (req: Request, res: Response) => 
       errors: errors.length > 0 ? errors : undefined
     })
 
-  } catch (error: any) {
-    console.error('❌ [HISTORICAL] Erro fatal:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [HISTORICAL] Erro fatal:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -634,19 +677,25 @@ export const createHistoricalSnapshots = async (req: Request, res: Response) => 
  * Helper: Converte valor de data da Guru para Date
  * A API Guru pode retornar Unix timestamp (número) ou ISO string
  */
-function parseGuruDate(value: any): Date | null {
+function parseGuruDate(value: unknown): Date | null {
   if (!value) return null
+  if (value instanceof Date) {
+    return value
+  }
   if (typeof value === 'number') {
     return new Date(value * 1000) // Unix timestamp em segundos
   }
-  return new Date(value)
+  if (typeof value === 'string') {
+    return new Date(value)
+  }
+  return null
 }
 
 /**
  * Helper: Obtém data de início de uma subscrição
  * A API Guru pode ter started_at no nível raiz ou em dates.started_at
  */
-function getStartedAt(sub: any): Date | null {
+function getStartedAt(sub: GuruSubscription): Date | null {
   const value = sub.started_at || sub.dates?.started_at
   return parseGuruDate(value)
 }
@@ -655,7 +704,7 @@ function getStartedAt(sub: any): Date | null {
  * Helper: Obtém data de cancelamento de uma subscrição
  * A API Guru usa cancelled_at (com dois L) no nível raiz ou canceled_at em dates
  */
-function getCanceledAt(sub: any): Date | null {
+function getCanceledAt(sub: GuruSubscription): Date | null {
   const value = sub.cancelled_at || sub.canceled_at || sub.dates?.canceled_at || sub.dates?.cancelled_at
   return parseGuruDate(value)
 }
@@ -668,8 +717,8 @@ function getCanceledAt(sub: any): Date | null {
 async function createSnapshotFromSubscriptions(
   year: number,
   month: number,
-  allSubscriptions: any[]
-): Promise<{ skipped: boolean; reason?: string; snapshot?: any }> {
+  allSubscriptions: GuruSubscription[]
+): Promise<SnapshotBuildResult> {
 
   // ────────────────────────────────────────────────────────
   // DATAS DE REFERÊNCIA
@@ -847,11 +896,12 @@ export const deleteAllSnapshots = async (_input: GuruEmptyInput, res: Response) 
       deletedCount: result.deletedCount
     })
 
-  } catch (error: any) {
-    console.error('❌ [SNAPSHOT] Erro ao apagar snapshots:', error.message)
+  } catch (error: unknown) {
+    const message = errorMessage(error)
+    console.error('❌ [SNAPSHOT] Erro ao apagar snapshots:', message)
     return res.status(500).json({
       success: false,
-      message: error.message
+      message
     })
   }
 }
@@ -863,12 +913,12 @@ export const deleteAllSnapshots = async (_input: GuruEmptyInput, res: Response) 
 /**
  * Mapear status da Guru para formato padronizado
  */
-function mapStatus(status: string): 'active' | 'pastdue' | 'canceled' | 'expired' | 'pending' | 'refunded' | 'suspended' {
-  const statusMap: Record<string, any> = {
+export function mapStatus(status?: string): SnapshotStatus {
+  const statusMap: Partial<Record<string, SnapshotStatus>> = {
     'active': 'active',
     'paid': 'active',
-    'trialing': 'trial',
-    'trial': 'trial',
+    'trialing': 'active',
+    'trial': 'active',
     'past_due': 'pastdue',
     'pastdue': 'pastdue',
     'unpaid': 'pastdue',
@@ -879,7 +929,8 @@ function mapStatus(status: string): 'active' | 'pastdue' | 'canceled' | 'expired
     'refunded': 'refunded',
     'suspended': 'suspended'
   }
-  return statusMap[status?.toLowerCase()] || 'pending'
+  const normalizedStatus = status?.toLowerCase()
+  return normalizedStatus ? statusMap[normalizedStatus] ?? 'pending' : 'pending'
 }
 
 /**
