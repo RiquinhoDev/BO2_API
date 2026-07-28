@@ -148,17 +148,8 @@
     }
   },
   "src/controllers/engagement.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 18
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    },
     "no-console": {
-      "count": 31
-    },
-    "no-useless-assignment": {
-      "count": 2
+      "count": 20
     }
   },
   "src/controllers/guru.analytics.controller.ts": {
