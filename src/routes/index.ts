@@ -6,7 +6,6 @@ import hotmartRoutes from "./hotmart.routes"
 import curseducaRoutes from './curseduca.routes'
 import syncRoutes from "./sync.routes"
 import classesRoutes from "./classes.routes"
-import classManagementRoutes from "./classManagement.routes"
 import testimonialRoutes from "./testimonials.routes"
 import lessonsRoutes from "./lessons.routes"
 import engagementRoutes from './engagement.routes'
@@ -59,7 +58,6 @@ router.use("/ac", acReaderRoutes)
 
 // 📚 GESTÃO DE TURMAS E CONTEÚDOS
 router.use("/classes", classesRoutes)
-router.use("/class-management", classManagementRoutes)
 router.use("/lessons", lessonsRoutes)
 
 // 👥 GESTÃO DE UTILIZADORES
