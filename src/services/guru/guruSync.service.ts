@@ -50,6 +50,8 @@ export interface GuruSubscription {
   subscription_code: string
   last_status: string
   started_at?: string | number
+  cancelled_at?: string | number
+  canceled_at?: string | number
   name: string
   payment_method: string
   charged_every_days: number
@@ -58,6 +60,7 @@ export interface GuruSubscription {
     started_at: string
     created_at?: string
     canceled_at?: string
+    cancelled_at?: string
     next_cycle_at?: string
     last_status_at: string
   }
