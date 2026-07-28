@@ -3,7 +3,7 @@
 // Serviço de integração com Active Campaign API
 // ════════════════════════════════════════════════════════════
 
-import axios, { AxiosInstance, AxiosError } from 'axios'
+import axios, { AxiosInstance } from 'axios'
 import { activeCampaignConfig, validateConfig } from '../../config/activecampaign.config'
 import { 
   ACContact, 
@@ -14,6 +14,47 @@ import {
 } from '../../types/activecampaign.types'
 import { User, UserProduct } from '../../models'
 import { addTagsInBatches } from './tagBatch'
+
+type ACContactTagLink = {
+  id: string
+  tag: string
+  contact?: string
+  cdate?: string
+  seriesid?: string | null
+}
+
+type ACContactTagsResponse = {
+  contactTags?: ACContactTagLink[]
+}
+
+type ACContactTag = {
+  id: string
+  tag: string
+  cdate?: string
+  seriesid?: string | null
+}
+
+type ACFieldValueResponse = {
+  field: string | number
+  value?: string | null
+}
+
+type ACFieldValuesResponse = {
+  fieldValues?: ACFieldValueResponse[]
+}
+
+type ACTagSummary = {
+  id: string
+  tag: string
+}
+
+type ACTagsResponse = {
+  tags?: ACTagSummary[]
+}
+
+type ACTagDetailResponse = {
+  tag?: ACTagSummary
+}
 
 // ─────────────────────────────────────────────────────────────
 // CLASSE PRINCIPAL
@@ -105,7 +146,7 @@ class ActiveCampaignService {
     }
   }
 
-  private isRetryableError(error: any): boolean {
+  private isRetryableError(error: unknown): boolean {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status
       // Retry em erros 5xx ou timeout
@@ -126,7 +167,7 @@ class ActiveCampaignService {
 
     try {
       const response = await this.retryRequest(async () => {
-        return await this.client.get<any>('/api/3/contacts', {
+        return await this.client.get<ACContactsResponse>('/api/3/contacts', {
           params: { email },
           headers: {
             'Cache-Control': 'no-cache',
@@ -320,7 +361,7 @@ async getContactId(email: string, userId?: string): Promise<string | null> {
             contact: contact.contact.id,
             tag: tagId
           }
-        } as ACTagResponse
+        }
       }
 
       // 3. Aplicar tag ao contacto (só se NÃO existir)
@@ -364,12 +405,12 @@ async getContactTagsByEmail(email: string): Promise<string[]> {
     const contactTagsObjects = await this.getContactTags(contactId)
 
     const tagNames = contactTagsObjects
-      .map((ct: any) => ct.tag)
+      .map(ct => ct.tag)
       .filter(Boolean)
 
     return tagNames
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`❌ [AC] Erro ao buscar tags:`, this.formatError(error))
     return []
   }
@@ -427,8 +468,8 @@ async removeTag(email: string, tagName: string): Promise<boolean> {
           headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
         })
         return false
-      } catch (e: any) {
-        if (e?.response?.status === 404) {
+      } catch (error: unknown) {
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
           return true
         }
         return true
@@ -436,7 +477,7 @@ async removeTag(email: string, tagName: string): Promise<boolean> {
     }
 
     return true
-  } catch (error: any) {
+  } catch (error: unknown) {
     // ⚠️ eu aqui NÃO tratava 404 como sucesso às cegas sem debug,
     // porque pode ser URL errada (/api/3 duplicado) ou ID errado.
     console.error(`❌ [AC] Erro ao remover tag "${tagName}":`, this.formatError(error))
@@ -450,13 +491,13 @@ private async findContactTagIdFromContact(
   await this.checkRateLimit()
 
   const resp = await this.retryRequest(async () => {
-    return await this.client.get(`/api/3/contacts/${contactId}/contactTags`, {
+    return await this.client.get<ACContactTagsResponse>(`/api/3/contacts/${contactId}/contactTags`, {
       headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
     })
   })
 
   const contactTags = resp.data?.contactTags || []
-  const match = contactTags.find((ct: any) => String(ct.tag) === String(tagId))
+  const match = contactTags.find(ct => String(ct.tag) === String(tagId))
 
   return match?.id || null
 }
@@ -536,11 +577,11 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
 
       const contactId = contact.contact.id
       const resp = await this.retryRequest(async () => {
-        return await this.client.get(`/api/3/contacts/${contactId}/fieldValues`)
+        return await this.client.get<ACFieldValuesResponse>(`/api/3/contacts/${contactId}/fieldValues`)
       })
 
       const fieldValues = resp.data?.fieldValues || []
-      const match = fieldValues.find((fv: any) => String(fv.field) === String(fieldId))
+      const match = fieldValues.find(fv => String(fv.field) === String(fieldId))
 
       return { contactId, value: match?.value ?? null }
     } catch (error) {
@@ -602,7 +643,7 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
 
       // Criar nova tag
       const response = await this.retryRequest(async () => {
-        return await this.client.post('/api/3/tags', {
+        return await this.client.post<{ tag: ACTagSummary }>('/api/3/tags', {
           tag: {
             tag: tagName,
             tagType: 'contact'
@@ -622,7 +663,7 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
 
     try {
       const response = await this.retryRequest(async () => {
-        return await this.client.get('/api/3/tags', {
+        return await this.client.get<ACTagsResponse>('/api/3/tags', {
           params: { search: tagName },
           headers: {
             'Cache-Control': 'no-cache',
@@ -632,7 +673,7 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
       })
 
       const tags = response.data.tags || []
-      const tag = tags.find((t: any) => t.tag === tagName)
+      const tag = tags.find(t => t.tag === tagName)
       
       return tag ? tag.id : null
     } catch (error) {
@@ -646,13 +687,13 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
 
   try {
     const response = await this.retryRequest(async () => {
-      return await this.client.get(`/api/3/contacts/${contactId}/contactTags`, {
+      return await this.client.get<ACContactTagsResponse>(`/api/3/contacts/${contactId}/contactTags`, {
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       })
     })
 
     const contactTags = response.data.contactTags || []
-    const match = contactTags.find((ct: any) => String(ct.tag) === String(tagId))
+    const match = contactTags.find(ct => String(ct.tag) === String(tagId))
     return match?.id || null
   } catch (error) {
     console.error(`[AC] findContactTag() ERROR:`, this.formatError(error))
@@ -665,16 +706,15 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
   // UTILITIES
   // ═══════════════════════════════════════════════════════════
 
-  private formatError(error: any): string {
+  private formatError(error: unknown): string {
     if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError
       return JSON.stringify({
-        status: axiosError.response?.status,
-        data: axiosError.response?.data,
-        message: axiosError.message
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
       }, null, 2)
     }
-    return error.message || 'Erro desconhecido'
+    return error instanceof Error ? error.message : 'Erro desconhecido'
   }
 
   /**
@@ -701,11 +741,11 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
    * @param contactId ID do contacto no AC
    * @returns Array de tags do contacto
    */
-  async getContactTags(contactId: string): Promise<any[]> {
+  async getContactTags(contactId: string): Promise<ACContactTag[]> {
     try {
       await this.checkRateLimit()
 
-      const response = await this.client.get(`/api/3/contacts/${contactId}/contactTags`, {
+      const response = await this.client.get<ACContactTagsResponse>(`/api/3/contacts/${contactId}/contactTags`, {
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
@@ -715,9 +755,9 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
       const contactTags = response.data.contactTags || []
 
       const tagsWithDetails = await Promise.all(
-        contactTags.map(async (ct: any) => {
+        contactTags.map(async ct => {
           try {
-            const tagResponse = await this.client.get(`/api/3/tags/${ct.tag}`, {
+            const tagResponse = await this.client.get<ACTagDetailResponse>(`/api/3/tags/${ct.tag}`, {
               headers: {
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache'
@@ -742,7 +782,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
       )
 
       return tagsWithDetails
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[AC Service] Erro ao buscar tags: ${this.formatError(error)}`)
       throw error
     }
@@ -793,7 +833,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
       }
 
       return true
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[AC Service] Error applying tag: ${this.formatError(error)}`)
       return false
     }
@@ -835,7 +875,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
       await userProduct.save()
 
       return true
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[AC Service] Error removing tag: ${this.formatError(error)}`)
       return false
     }
@@ -848,7 +888,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
    * @param productId ID do produto
    * @returns Contacto sincronizado
    */
-  async syncContactByProduct(userId: string, productId: string): Promise<any> {
+  async syncContactByProduct(userId: string, productId: string): Promise<ACContactResponse> {
     try {
       const User = (await import('../../models/user')).default
       const Product = (await import('../../models/product/Product')).default
@@ -880,7 +920,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
       }
 
       return contact
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[AC Service] Error syncing contact by product: ${this.formatError(error)}`)
       throw error
     }
@@ -922,7 +962,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
       })
 
       return true
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[AC Service] Error removing all product tags: ${this.formatError(error)}`)
       return false
     }

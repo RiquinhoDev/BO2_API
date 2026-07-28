@@ -42,7 +42,7 @@ export interface ACTagResponse {
     id: string
     contact: string
     tag: string
-    cdate: string
+    cdate?: string
   }
 }
 
