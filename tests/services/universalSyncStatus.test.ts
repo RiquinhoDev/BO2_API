@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import { buildCanonicalActiveUserStatusUpdate } from '../../src/services/syncUtilizadoresServices/universalSyncService'
 
 describe('universal sync canonical user status', () => {
@@ -11,5 +13,19 @@ describe('universal sync canonical user status', () => {
     })
     expect(update).not.toHaveProperty('status')
     expect(update).not.toHaveProperty('estado')
+  })
+
+  it('keeps the Hotmart current module only in UserProduct', () => {
+    const source = fs.readFileSync(
+      path.resolve(
+        process.cwd(),
+        'src/services/syncUtilizadoresServices/universalSyncService.ts',
+      ),
+      'utf8',
+    )
+
+    expect(source).not.toContain("updateFields['hotmart.currentModule']")
+    expect(source).toContain("upUpdateFields['progress.currentModule']")
+    expect(source).toContain('progressObj.currentModule')
   })
 })

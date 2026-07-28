@@ -1264,15 +1264,10 @@ const processSyncItem = async (
       needsUpdate = true
     }
 
-    // Current Module
-    if (item.currentModule !== undefined) {
-      updateFields['hotmart.currentModule'] = toNumber(item.currentModule, 0)
+    if (lastAccessDate) {
+      updateFields['hotmart.lastAccessDate'] = lastAccessDate
       needsUpdate = true
     }
-if (lastAccessDate) {
-  updateFields['hotmart.lastAccessDate'] = lastAccessDate
-  needsUpdate = true
-}
     // Turmas
     // Se a Hotmart não devolveu class_id mas o user já tem uma turma ativa registada,
     // garantir que o root classId está em sync com hotmart.enrolledClasses
