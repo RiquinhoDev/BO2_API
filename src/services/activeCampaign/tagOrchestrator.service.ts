@@ -396,7 +396,7 @@ private getProductTagPrefixes(productCode: string): string[] {
       const code = productCode.toUpperCase()
 
       // Buscar ou criar estado
-      let studentState: any = await StudentEngagementState.findOne({ userId, productCode: code })
+      let studentState = await StudentEngagementState.findOne({ userId, productCode: code })
 
       if (!studentState) {
         studentState = await StudentEngagementState.create({
@@ -440,7 +440,6 @@ private getProductTagPrefixes(productCode: string): string[] {
       }
 
 
-      studentState.lastActivityDate = ctx.lastActivity
       studentState.daysSinceLastLogin = ctx.daysInactive
 
       await studentState.save()
@@ -457,7 +456,7 @@ private getProductTagPrefixes(productCode: string): string[] {
   ): Promise<void> {
     try {
       const code = productCode.toUpperCase()
-      const studentState: any = await StudentEngagementState.findOne({ userId, productCode: code })
+      const studentState = await StudentEngagementState.findOne({ userId, productCode: code })
       if (!studentState) return
 
       if (typeof studentState.removeTag === 'function') {
@@ -467,7 +466,6 @@ private getProductTagPrefixes(productCode: string): string[] {
         studentState.markAsReturned()
       }
 
-      studentState.lastActivityDate = ctx.lastActivity
       studentState.daysSinceLastLogin = ctx.daysInactive
 
       await studentState.save()

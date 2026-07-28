@@ -213,7 +213,7 @@ export function consolidateEngagement(
   const states: ProductEngagementState[] = engagementStates.map((state) => ({
     productCode: state.productCode,
     currentState: state.currentState,
-    daysSinceLastLogin: state.daysSinceLastLogin,
+    daysSinceLastLogin: state.daysSinceLastLogin ?? null,
     currentLevel: state.currentLevel || null,
     currentTagAC: state.currentTagAC || null,
     stats: {

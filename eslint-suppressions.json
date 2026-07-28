@@ -1017,7 +1017,7 @@
   },
   "src/services/activeCampaign/tagOrchestrator.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 11
+      "count": 9
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 2

@@ -71,7 +71,6 @@ jest.mock('../../src/services/activeCampaign/nativeTagProtection.service', () =>
 import tagOrchestratorV2 from '../../src/services/activeCampaign/tagOrchestrator.service'
 
 type StudentStateStub = {
-  lastActivityDate: unknown
   daysSinceLastLogin: unknown
   save: jest.Mock
 }
@@ -82,7 +81,6 @@ function daysAgo(days: number): Date {
 
 function makeStudentStateStub(): StudentStateStub {
   return {
-    lastActivityDate: undefined,
     daysSinceLastLogin: undefined,
     save: jest.fn().mockResolvedValue(undefined),
   }

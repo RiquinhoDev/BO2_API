@@ -82,7 +82,7 @@ export interface CurseducaEngagement {
 export interface ProductEngagementState {
   productCode: string
   currentState: 'ACTIVE' | 'AT_RISK' | 'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3' | 'LOST'
-  daysSinceLastLogin: number
+  daysSinceLastLogin: number | null
   currentLevel: number | null
   currentTagAC: string | null
   stats: {
