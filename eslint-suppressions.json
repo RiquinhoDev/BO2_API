@@ -68,17 +68,6 @@
       "count": 22
     }
   },
-  "src/controllers/classManagement.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 19
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 3
-    },
-    "no-console": {
-      "count": 17
-    }
-  },
   "src/controllers/classes.controller.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 3
