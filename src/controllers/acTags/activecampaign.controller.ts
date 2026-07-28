@@ -1377,7 +1377,7 @@ export const syncProductTags = async (input: ActiveCampaignProductSyncInput, res
     return
   }
 }
-function buildReason(
+export function buildReason(
   record: Pick<CommunicationHistoryRecord, 'userStateSnapshot'>,
   rule?: PopulatedRule
 ): string {
@@ -1391,9 +1391,9 @@ function buildReason(
   const parts: string[] = []
   
   // Adicionar informação de inatividade
-  if (snapshot.daysSinceLastLogin !== undefined) {
+  if (snapshot.daysSinceLastLogin != null) {
     parts.push(`${snapshot.daysSinceLastLogin} dias sem login`)
-  } else if (snapshot.daysSinceLastAction !== undefined) {
+  } else if (snapshot.daysSinceLastAction != null) {
     parts.push(`${snapshot.daysSinceLastAction} dias inativo`)
   }
   
