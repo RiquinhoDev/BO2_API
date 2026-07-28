@@ -11,6 +11,10 @@ import {
   refreshComparadorSymbols
 } from '../services/clareza/clarezaComparadorService'
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 export const clarezaController = {
   async getData(req: Request, res: Response) {
     try {
@@ -20,8 +24,8 @@ export const clarezaController = {
       }
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
-    } catch (error: any) {
-      console.error('❌ [GET /api/clareza/data]', error.message)
+    } catch (error: unknown) {
+      console.error('❌ [GET /api/clareza/data]', errorMessage(error))
       return res.status(500).json({ error: 'Erro interno do servidor' })
     }
   },
@@ -38,9 +42,10 @@ export const clarezaController = {
       console.log('🔄 [POST /api/clareza/refresh] Refresh manual iniciado')
       const result = await refreshClarezaData()
       return res.json({ success: true, ...result })
-    } catch (error: any) {
-      console.error('❌ [POST /api/clareza/refresh]', error.message)
-      return res.status(500).json({ error: error.message })
+    } catch (error: unknown) {
+      const message = errorMessage(error)
+      console.error('❌ [POST /api/clareza/refresh]', message)
+      return res.status(500).json({ error: message })
     }
   },
 
@@ -56,8 +61,8 @@ export const clarezaController = {
       res.type('application/json')
       // Envia a string já serializada (gzip aplicado pelo middleware compression). Sem res.json → sem stringify.
       return res.send(json)
-    } catch (error: any) {
-      console.error('❌ [GET /api/clareza/top10]', error.message)
+    } catch (error: unknown) {
+      console.error('❌ [GET /api/clareza/top10]', errorMessage(error))
       return res.status(500).json({ error: 'Erro interno do servidor' })
     }
   },
@@ -68,8 +73,8 @@ export const clarezaController = {
       const data = await getReitAnalysis(String(req.params.ticker || ''))
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
-    } catch (error: any) {
-      const msg = error.message || 'Erro interno do servidor'
+    } catch (error: unknown) {
+      const msg = errorMessage(error) || 'Erro interno do servidor'
       const status = /invalido|nao encontrado/i.test(msg) ? 400 : 500
       if (status === 500) console.error('❌ [GET /api/clareza/reit/:ticker]', msg)
       return res.status(status).json({ error: msg })
@@ -81,8 +86,8 @@ export const clarezaController = {
       const data = await getReitValuation(String(req.params.ticker || ''))
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
-    } catch (error: any) {
-      const msg = error.message || 'Erro interno do servidor'
+    } catch (error: unknown) {
+      const msg = errorMessage(error) || 'Erro interno do servidor'
       const status = /invalido|nao encontrado/i.test(msg) ? 400 : 500
       if (status === 500) console.error('[GET /api/clareza/reit-valuation/:ticker]', msg)
       return res.status(status).json({ error: msg })
@@ -94,8 +99,8 @@ export const clarezaController = {
       const data = await getStockAnalysis(String(req.params.ticker || ''))
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
-    } catch (error: any) {
-      const msg = error.message || 'Erro interno do servidor'
+    } catch (error: unknown) {
+      const msg = errorMessage(error) || 'Erro interno do servidor'
       const status = /invalido|nao encontrado/i.test(msg) ? 400 : 500
       if (status === 500) console.error('❌ [GET /api/clareza/stock/:ticker]', msg)
       return res.status(status).json({ error: msg })
@@ -114,9 +119,10 @@ export const clarezaController = {
       console.log('🔄 [POST /api/clareza/top10/refresh] Refresh manual iniciado')
       const result = await refreshClarezaTop10Data()
       return res.json({ success: true, ...result })
-    } catch (error: any) {
-      console.error('❌ [POST /api/clareza/top10/refresh]', error.message)
-      return res.status(500).json({ error: error.message })
+    } catch (error: unknown) {
+      const message = errorMessage(error)
+      console.error('❌ [POST /api/clareza/top10/refresh]', message)
+      return res.status(500).json({ error: message })
     }
   },
 
@@ -128,8 +134,8 @@ export const clarezaController = {
       res.setHeader('Cache-Control', 'public, max-age=3600')
       res.type('application/json')
       return res.send(json)
-    } catch (error: any) {
-      const msg = error.message || 'Erro interno do servidor'
+    } catch (error: unknown) {
+      const msg = errorMessage(error) || 'Erro interno do servidor'
       const status = /invalido|nao encontrado/i.test(msg) ? 404 : 500
       if (status === 500) console.error('❌ [GET /api/clareza/raiox/:ticker]', msg)
       return res.status(status).json({ error: msg })
@@ -156,8 +162,8 @@ export const clarezaController = {
       res.setHeader('Cache-Control', 'public, max-age=3600')
       res.type('application/json')
       return res.send(json)
-    } catch (error: any) {
-      const msg = error.message || 'Erro interno do servidor'
+    } catch (error: unknown) {
+      const msg = errorMessage(error) || 'Erro interno do servidor'
       const status = /invalido|nao encontrado/i.test(msg) ? 404 : 500
       if (status === 500) console.error('❌ [GET /api/clareza/raiox?symbol=]', msg)
       return res.status(status).json({ error: msg })
@@ -170,8 +176,8 @@ export const clarezaController = {
       const data = await searchRaiox(String(req.query.q || req.query.search || ''))
       res.setHeader('Cache-Control', 'public, max-age=600')
       return res.json(data)
-    } catch (error: any) {
-      console.error('❌ [GET /api/clareza/raiox-search]', error.message)
+    } catch (error: unknown) {
+      console.error('❌ [GET /api/clareza/raiox-search]', errorMessage(error))
       return res.status(500).json({ error: 'Erro interno do servidor' })
     }
   },
@@ -181,9 +187,10 @@ export const clarezaController = {
     try {
       const result = await diagnoseRaiox()
       return res.json(result)
-    } catch (error: any) {
-      console.error('❌ [GET /api/clareza/raiox-diagnose]', error.message)
-      return res.status(500).json({ error: error.message })
+    } catch (error: unknown) {
+      const message = errorMessage(error)
+      console.error('❌ [GET /api/clareza/raiox-diagnose]', message)
+      return res.status(500).json({ error: message })
     }
   },
 
@@ -199,9 +206,10 @@ export const clarezaController = {
       console.log('🔄 [POST /api/clareza/raiox/refresh] Refresh manual iniciado')
       const result = await refreshClarezaRaioxData()
       return res.json({ success: true, ...result })
-    } catch (error: any) {
-      console.error('❌ [POST /api/clareza/raiox/refresh]', error.message)
-      return res.status(500).json({ error: error.message })
+    } catch (error: unknown) {
+      const message = errorMessage(error)
+      console.error('❌ [POST /api/clareza/raiox/refresh]', message)
+      return res.status(500).json({ error: message })
     }
   },
 
@@ -213,8 +221,8 @@ export const clarezaController = {
       }
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
-    } catch (error: any) {
-      console.error('[GET /api/clareza/carteira/data]', error.message)
+    } catch (error: unknown) {
+      console.error('[GET /api/clareza/carteira/data]', errorMessage(error))
       return res.status(500).json({ error: 'Erro interno do servidor' })
     }
   },
@@ -224,8 +232,8 @@ export const clarezaController = {
       const data = await searchCarteira(String(req.query.q || req.query.search || ''))
       res.setHeader('Cache-Control', 'public, max-age=600')
       return res.json(data)
-    } catch (error: any) {
-      console.error('[GET /api/clareza/carteira-search]', error.message)
+    } catch (error: unknown) {
+      console.error('[GET /api/clareza/carteira-search]', errorMessage(error))
       return res.status(500).json({ error: 'Erro interno do servidor' })
     }
   },
@@ -238,8 +246,8 @@ export const clarezaController = {
       }
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
-    } catch (error: any) {
-      console.error('[GET /api/clareza/earnings/data]', error.message)
+    } catch (error: unknown) {
+      console.error('[GET /api/clareza/earnings/data]', errorMessage(error))
       return res.status(500).json({ error: 'Erro interno do servidor' })
     }
   },
@@ -256,9 +264,10 @@ export const clarezaController = {
       console.log('[POST /api/clareza/earnings/refresh] Refresh manual iniciado')
       const result = await refreshClarezaEarningsData()
       return res.json({ success: true, ...result })
-    } catch (error: any) {
-      console.error('[POST /api/clareza/earnings/refresh]', error.message)
-      return res.status(500).json({ error: error.message })
+    } catch (error: unknown) {
+      const message = errorMessage(error)
+      console.error('[POST /api/clareza/earnings/refresh]', message)
+      return res.status(500).json({ error: message })
     }
   },
   // ── COMPARADOR DE AÇÕES ─────────────────────────────────────
@@ -325,9 +334,10 @@ export const clarezaController = {
       console.log('[POST /api/clareza/carteira/refresh] Refresh manual iniciado')
       const result = await refreshClarezaCarteiraData()
       return res.json({ success: true, ...result })
-    } catch (error: any) {
-      console.error('[POST /api/clareza/carteira/refresh]', error.message)
-      return res.status(500).json({ error: error.message })
+    } catch (error: unknown) {
+      const message = errorMessage(error)
+      console.error('[POST /api/clareza/carteira/refresh]', message)
+      return res.status(500).json({ error: message })
     }
   }
 }

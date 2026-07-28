@@ -64,9 +64,6 @@
     }
   },
   "src/controllers/clarezaController.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 17
-    },
     "no-console": {
       "count": 22
     }
