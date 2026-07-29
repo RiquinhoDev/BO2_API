@@ -1109,15 +1109,11 @@ UserSchema.statics.getEnhancedUsersList = async function(filters = {}) {
 UserSchema.index({ 'discord.discordIds': 1 })
 UserSchema.index({ 'hotmart.hotmartUserId': 1 })
 UserSchema.index({ 'curseduca.curseducaUserId': 1 })
-UserSchema.index({ 'curseduca.curseducaUuid': 1 })  // 🆕 UUID do membro
-UserSchema.index({ 'curseduca.groupCurseducaUuid': 1 })  // 🆕 UUID do grupo
-UserSchema.index({ 'curseduca.groupCurseducaId': 1 })  // 🆕 ID numérico do grupo
 UserSchema.index({ 'combined.dataQuality': 1 })
 UserSchema.index({ 'combined.combinedEngagement': -1 })
 UserSchema.index({ 'metadata.updatedAt': -1 })
+UserSchema.index({ classId: 1 }, { name: 'users_class_id' })
 // 💰 Índices para Guru
-UserSchema.index({ 'guru.guruContactId': 1 })
-UserSchema.index({ 'guru.subscriptionCode': 1 })
 const guruSubscriptionsOnly = {
   partialFilterExpression: { guru: { $exists: true } },
 }

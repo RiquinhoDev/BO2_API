@@ -842,6 +842,19 @@ Progresso controllers:
   ligação real das rotas, default seguro de `force` e preservação dos handlers fora do corte. Gate: lint 0,
   TS **0/0**, Jest **105 suites / 439 passed / 2 skipped**, build 0. Spec:
   `docs/superpowers/specs/2026-07-29-class-analytics-boundary-design.md`.
+- [x] **ARCH-02 — quick stats de turma extraído e corrigido** (2026-07-29):
+  `analytics.controller.ts` **1138→1081 linhas**. `GET /api/analytics/class/:classId/quick` passou para boundary
+  strict + controller fino + serviço puro + reader Mongoose injetável. O contrato público mantém path, auth,
+  status, envelopes, campos, mensagem da turma vazia e fórmula de percentagem. **Bug real:** o handler antigo
+  consultava `status`/`isDeleted` no topo de `User`; esses campos não existem aí, pelo que ativos davam zero e
+  apagados não eram excluídos. A agregação única usa agora `combined.status` e `discord.isDeleted`, não materializa
+  alunos, tem `maxTimeMS` e índice `users_class_id`. Para garantir que o índice é realmente instalável, foram
+  removidas cinco declarações duplicadas do próprio schema `User`; os índices inline `sparse` equivalentes ficaram
+  intactos e `User.syncIndexes()` passou offline. Catálogo/manifest permanecem **437/437**.
+  `no-explicit-any` **836→835** (`analytics.controller` 10→9). RED/GREEN + mutações provaram campos canónicos,
+  exclusão de apagados, boundary hostil, envelopes, erro central e ligação real da rota. Gate: lint 0, TS **0/0**,
+  Jest **109 suites / 452 passed / 2 skipped**, build 0. Spec:
+  `docs/superpowers/specs/2026-07-29-class-quick-stats-boundary-design.md`.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).

@@ -34,6 +34,13 @@ jest.mock(
   }),
 )
 
+jest.mock(
+  '../../src/services/analytics/classQuickStats.runtime',
+  () => ({
+    getClassQuickStats: extractedHandler('getClassQuickStats'),
+  }),
+)
+
 jest.mock('../../src/controllers/analytics.controller', () => ({
   analyticsController: {
     getClassAnalytics: legacyHandler('getClassAnalytics'),
@@ -42,7 +49,6 @@ jest.mock('../../src/controllers/analytics.controller', () => ({
     getHealthScore: legacyHandler('getHealthScore'),
     getEngagementDistribution: legacyHandler('getEngagementDistribution'),
     getClassAlerts: legacyHandler('getClassAlerts'),
-    getQuickStats: legacyHandler('getQuickStats'),
     getOutdatedClasses: legacyHandler('getOutdatedClasses'),
     getGlobalAnalytics: legacyHandler('getGlobalAnalytics'),
     getBenchmarks: legacyHandler('getBenchmarks'),
@@ -83,14 +89,29 @@ describe('class analytics routes', () => {
     },
   )
 
-  it('keeps handlers outside the extracted slice on the legacy controller', async () => {
+  it('mounts quick stats through its extracted boundary', async () => {
     const response = await request(createTestApp())
       .get('/class/class-1/quick?__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
+    expect(response.body).toMatchObject({
+      source: 'class-analytics-boundary',
+      handler: 'getClassQuickStats',
+      input: {
+        params: { classId: 'class-1' },
+        query: {},
+      },
+    })
+  })
+
+  it('keeps handlers outside the extracted slices on the legacy controller', async () => {
+    const response = await request(createTestApp())
+      .get('/global?__bo2_offline_loopback=1')
+
+    expect(response.status).toBe(200)
     expect(response.body).toEqual({
       source: 'legacy-analytics-controller',
-      handler: 'getQuickStats',
+      handler: 'getGlobalAnalytics',
     })
   })
 })

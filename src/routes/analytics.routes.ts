@@ -2,11 +2,13 @@
 import { Router } from 'express'
 import { analyticsController } from '../controllers/analytics.controller'
 import { classAnalyticsController } from '../controllers/analytics/classAnalytics.controller'
+import { getClassQuickStats } from '../services/analytics/classQuickStats.runtime'
 import {
   classAnalyticsClassInput,
   classAnalyticsEmptyInput,
   classAnalyticsQueryInput,
 } from '../security/classAnalyticsInput'
+import { classQuickStatsInput } from '../security/classQuickStatsInput'
 import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
@@ -73,7 +75,10 @@ router.get(
 )
 
 // GET /api/analytics/class/:classId/quick - Estatísticas rápidas (sem cache pesado)
-router.get('/class/:classId/quick', analyticsController.getQuickStats)
+router.get(
+  '/class/:classId/quick',
+  withValidatedInput(classQuickStatsInput, getClassQuickStats),
+)
 
 // ===== MANUTENÇÃO DE CACHE =====
 // GET /api/analytics/outdated - Listar turmas com cache desatualizado
