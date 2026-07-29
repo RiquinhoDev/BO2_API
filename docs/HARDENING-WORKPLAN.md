@@ -884,6 +884,20 @@ Progresso controllers:
   parcial, resumo, estado de cache visível, wiring real e chave sensível à ordem. Catálogo/manifest permanecem
   **437/437**. Gate offline: lint 0, TS **0/0**, Jest **117 suites / 490 passed / 2 skipped**, build 0.
   Spec: `docs/superpowers/specs/2026-07-29-class-comparison-boundary-design.md`.
+- [x] **ARCH-02 — oportunidades de turma extraídas** (2026-07-29):
+  `analytics.controller.ts` **698→446 linhas físicas**. O endpoint vivo
+  `GET /api/analytics/opportunities/:classId` passou para boundary strict + controller de 37 linhas + serviço
+  puro de 352 linhas com reader/clock injetáveis e runtime explícito. As **12 regras** ficaram num registry
+  ordenado e tipado; thresholds, textos, overlap intencional `progress`/`progress_critical`, prioridade estável,
+  resumo e envelope consumido pelo `OpportunitiesCard` permanecem iguais. Query extra/operadores são rejeitados
+  antes do serviço; falhas inesperadas passam pelo error handler central com correlation ID e sem detalhe interno.
+  Saíram handler/tipos/import legacy e o `classIds` comprovadamente não usado do benchmark, com **0 referências
+  órfãs**; benchmarks, multi-platform e recálculo individual permanecem vivos e intocados. `no-explicit-any`
+  **831→830**, `no-console` **2351→2348**, `no-unused-vars` **83→82**. RED/GREEN + duas mutações provaram o
+  threshold exacto `<50`, ordem/overlap, zero-division guard, wiring real e boundary strict. Catálogo/manifest
+  permanecem **437/437**. Gate offline: lint 0, TS **0/0**, Jest
+  **119 suites / 505 passed / 2 skipped**, build 0.
+  Spec: `docs/superpowers/specs/2026-07-29-class-opportunities-boundary-design.md`.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
