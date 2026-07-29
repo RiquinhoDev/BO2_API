@@ -830,12 +830,17 @@ Progresso controllers:
   `curseducaUserId` top-level deixou de ser descartado. Gate: API lint 0, TS 0/0, **102 suites / 418 passed /
   2 skipped**, build 0; Front format/lint 0, **199 suites / 900 passed**, build 0. Playwright não arrancou
   browser neste sandbox: falta o Chromium headless 1228; 30 casos falharam antes de launch e 2 ficaram skipped.
-- [ ] **ARCH-02 — fronteira de analytics por turma** (desenho aprovado em 2026-07-29):
-  extrair de `analytics.controller.ts` os seis handlers que delegam em `analyticsService`
+- [x] **ARCH-02 — fronteira de analytics por turma** (2026-07-29):
+  `analytics.controller.ts` **1407→1138 linhas**; os seis handlers que delegam em `analyticsService`
   (`getClassAnalytics`, `recalculateClassScores`, `getOutdatedClasses`, `getHealthScore`,
-  `getEngagementDistribution`, `getClassAlerts`) para controller injetável + boundary strict. Paths e contratos
-  de sucesso/404 ficam intactos; erros inesperados passam pelo handler central sem expor detalhe. `quick` e
-  `recalculate-individual` ficam para corte posterior porque acedem diretamente a modelos. Spec:
+  `getEngagementDistribution`, `getClassAlerts`) passaram para factory injetável de 274 linhas + boundary strict
+  de 25 linhas. Os sete mounts (health tem alias), paths e contratos de sucesso/404 ficaram intactos; erros
+  inesperados passam pelo handler central com correlation ID e sem expor detalhe. `quick` e
+  `recalculate-individual` ficaram no controller original porque acedem diretamente a modelos e exigem port
+  próprio num corte posterior. Catálogo mantém **437/437**, apenas com evidências de linha atualizadas.
+  `no-explicit-any` **842→836** (`analytics.controller` 16→10). RED/GREEN provou boundary hostil, envelopes,
+  ligação real das rotas, default seguro de `force` e preservação dos handlers fora do corte. Gate: lint 0,
+  TS **0/0**, Jest **105 suites / 439 passed / 2 skipped**, build 0. Spec:
   `docs/superpowers/specs/2026-07-29-class-analytics-boundary-design.md`.
 
 ### 3. Estrutura de pastas & higiene

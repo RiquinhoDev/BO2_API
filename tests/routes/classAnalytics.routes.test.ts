@@ -1,0 +1,96 @@
+import express from 'express'
+import request from 'supertest'
+
+const extractedHandler = (name: string) =>
+  (input: { params: object; query: object }, _req: unknown, res: express.Response) => {
+    res.json({
+      source: 'class-analytics-boundary',
+      handler: name,
+      input,
+    })
+  }
+
+const legacyHandler = (name: string): express.RequestHandler =>
+  (_req, res) => {
+    res.json({
+      source: 'legacy-analytics-controller',
+      handler: name,
+    })
+  }
+
+jest.mock(
+  '../../src/controllers/analytics/classAnalytics.controller',
+  () => ({
+    classAnalyticsController: {
+      getClassAnalytics: extractedHandler('getClassAnalytics'),
+      recalculateClassScores: extractedHandler('recalculateClassScores'),
+      getOutdatedClasses: extractedHandler('getOutdatedClasses'),
+      getHealthScore: extractedHandler('getHealthScore'),
+      getEngagementDistribution: extractedHandler(
+        'getEngagementDistribution',
+      ),
+      getClassAlerts: extractedHandler('getClassAlerts'),
+    },
+  }),
+)
+
+jest.mock('../../src/controllers/analytics.controller', () => ({
+  analyticsController: {
+    getClassAnalytics: legacyHandler('getClassAnalytics'),
+    recalculateClassScores: legacyHandler('recalculateClassScores'),
+    recalculateIndividualScores: legacyHandler('recalculateIndividualScores'),
+    getHealthScore: legacyHandler('getHealthScore'),
+    getEngagementDistribution: legacyHandler('getEngagementDistribution'),
+    getClassAlerts: legacyHandler('getClassAlerts'),
+    getQuickStats: legacyHandler('getQuickStats'),
+    getOutdatedClasses: legacyHandler('getOutdatedClasses'),
+    getGlobalAnalytics: legacyHandler('getGlobalAnalytics'),
+    getBenchmarks: legacyHandler('getBenchmarks'),
+    getOpportunities: legacyHandler('getOpportunities'),
+    compareClasses: legacyHandler('compareClasses'),
+    getMultiPlatformAnalytics: legacyHandler('getMultiPlatformAnalytics'),
+  },
+}))
+
+import analyticsRouter from '../../src/routes/analytics.routes'
+
+const createTestApp = () => {
+  const app = express()
+  app.use(analyticsRouter)
+  return app
+}
+
+describe('class analytics routes', () => {
+  it.each([
+    ['get', '/class/class-1', 'getClassAnalytics'],
+    ['post', '/class/class-1/recalculate', 'recalculateClassScores'],
+    ['get', '/class/class-1/health', 'getHealthScore'],
+    ['get', '/health-score/class-1', 'getHealthScore'],
+    ['get', '/class/class-1/engagement', 'getEngagementDistribution'],
+    ['get', '/class/class-1/alerts', 'getClassAlerts'],
+    ['get', '/outdated', 'getOutdatedClasses'],
+  ] as const)(
+    'mounts %s %s through the extracted %s handler',
+    async (method, path, handler) => {
+      const response = await request(createTestApp())
+        [method](`${path}?__bo2_offline_loopback=1`)
+
+      expect(response.status).toBe(200)
+      expect(response.body).toMatchObject({
+        source: 'class-analytics-boundary',
+        handler,
+      })
+    },
+  )
+
+  it('keeps handlers outside the extracted slice on the legacy controller', async () => {
+    const response = await request(createTestApp())
+      .get('/class/class-1/quick?__bo2_offline_loopback=1')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({
+      source: 'legacy-analytics-controller',
+      handler: 'getQuickStats',
+    })
+  })
+})
