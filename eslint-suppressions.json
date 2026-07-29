@@ -767,14 +767,6 @@
       "count": 1
     }
   },
-  "src/runtime/startJobs.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 8
-    }
-  },
   "src/scripts/add-discord-id-joao.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 8

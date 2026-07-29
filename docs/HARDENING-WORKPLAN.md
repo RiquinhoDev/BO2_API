@@ -582,7 +582,19 @@ comparem `situation`/`memberStatus` a literais.
   (**444→437**) e eliminou sete entradas `class-management` órfãs. O gerador do
   Front passou a seguir router factories. `no-explicit-any` **872→845**.
 
-Depois: cirurgia ARCH-01/02/03.
+- [x] **ARCH-01 bootstrap/runtime fechado (2026-07-29).** `src/index.ts`
+  permanece entrypoint de 11 linhas; `createApp(deps)` continua puro; bootstrap
+  carrega config → infraestrutura → modelos → rotas → jobs → listener por
+  dependências explícitas. O último acoplamento de `startJobs.ts` foi separado
+  em factory pura, provisionador idempotente de cron seeds, repository Mongoose
+  e shutdown injetável. Testes cobrem ordem, política production-only,
+  tolerância a falhas, criação/reparação dos seeds e sinais. Removidos
+  `jobs/index.ts` (startAll que não agendava nada) e `dailyPipeline.job.ts`
+  (zero consumidores); os jobs vivos chamados pelo scheduler permanecem.
+  `startJobs.ts` **160→48 linhas**, `no-explicit-any` **845→844**, oito
+  suppressions `no-console` removidas.
+
+Depois: cirurgia ARCH-02/03.
 
 ---
 
@@ -787,9 +799,9 @@ Progresso controllers:
 > incremental** atrás dos contratos vivos (Front, webhooks, CRON), com **characterization tests primeiro**.
 
 ### 1. Arquitectura & bootstrap
-- [ ] `src/index.ts` deixa de ser god-file: separado em `config`, `app`, `routes`, `database`, `jobs`, `server` (ARCH-01).
-- [ ] `createApp(deps)` **puro** — não liga rede/BD nem arranca jobs no import; `bootstrap()` coordena as dependências explicitamente.
-- [ ] Modelos e jobs registados **explicitamente**, nunca por side-effect de import. Startup order e shutdown testáveis.
+- [x] `src/index.ts` deixa de ser god-file: separado em `config`, `app`, `routes`, `database`, `jobs`, `server` (ARCH-01).
+- [x] `createApp(deps)` **puro** — não liga rede/BD nem arranca jobs no import; `bootstrap()` coordena as dependências explicitamente.
+- [x] Modelos e jobs registados **explicitamente**, nunca por side-effect de import. Startup order e shutdown testáveis.
 
 ### 2. Ficheiros pequenos & módulos por domínio
 - [ ] **Nenhum ficheiro novo/tocado > ~400 linhas.** Os monstros existentes (`clarezaCarteiraService` 4692, `users.controller` 3649, `universalSyncService` 2585, `classes.controller` 2347) partidos **verticalmente por domínio** (use cases + adapters), não reorganização cosmética (ARCH-02).
