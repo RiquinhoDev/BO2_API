@@ -5,18 +5,9 @@ import { createErrorHandling } from '../../src/security/errorHandling'
 jest.mock('../../src/controllers/users.controller', () => {
   const names = [
     'listUsers',
-    'getIdsDiferentes',
     'syncDiscordAndHotmart',
-    'mergeDiscordId',
-    'getUnmatchedUsers',
-    'deleteUnmatchedUser',
-    'deleteIdsDiferentes',
     'getUserStats',
     'listUsersSimple',
-    'bulkMergeIds',
-    'bulkDeleteIds',
-    'bulkDeleteUnmatchedUsers',
-    'manualMatch',
     'getAllUsersUnified',
     'getDashboardStats',
     'editStudent',
@@ -44,6 +35,32 @@ jest.mock('../../src/controllers/users.controller', () => {
   }
 })
 
+jest.mock('../../src/controllers/userIdentityReconciliation.controller', () => {
+  const names = [
+    'mergeDiscordId',
+    'manualMatch',
+    'bulkMergeIds',
+    'bulkDeleteIds',
+    'bulkDeleteUnmatchedUsers',
+    'deleteUnmatchedUser',
+    'deleteIdsDiferentes',
+  ]
+
+  return {
+    __esModule: true,
+    ...Object.fromEntries(names.map((name) => [
+      name,
+      jest.fn((_input, _req, res) => res.status(204).end()),
+    ])),
+  }
+})
+
+jest.mock('../../src/controllers/usersReviewLists.controller', () => ({
+  __esModule: true,
+  getIdsDiferentes: jest.fn((_input, res) => res.status(204).end()),
+  getUnmatchedUsers: jest.fn((_input, res) => res.status(204).end()),
+}))
+
 jest.mock(
   '../../src/controllers/syncUtilizadoresControllers/curseduca.controller',
   () => ({
@@ -65,6 +82,30 @@ type DestructiveRoute = {
 }
 
 const routes: DestructiveRoute[] = [
+  {
+    name: 'merge Discord identity',
+    method: 'post',
+    path: '/api/users/mergeDiscordId',
+    body: {
+      email: 'student@example.test',
+      newDiscordId: '123456789012345678',
+    },
+  },
+  {
+    name: 'bulk merge Discord identities',
+    method: 'post',
+    path: '/api/users/bulkMerge',
+    body: { ids: ['507f1f77bcf86cd799439011'] },
+  },
+  {
+    name: 'manually match Discord identity',
+    method: 'post',
+    path: '/api/users/manualMatch',
+    body: {
+      discordId: '123456789012345678',
+      email: 'student@example.test',
+    },
+  },
   {
     name: 'bulk delete ids',
     method: 'post',

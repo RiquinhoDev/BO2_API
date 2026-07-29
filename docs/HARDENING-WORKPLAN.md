@@ -806,6 +806,14 @@ Progresso controllers:
 ### 2. Ficheiros pequenos & módulos por domínio
 - [ ] **Nenhum ficheiro novo/tocado > ~400 linhas.** Os monstros existentes (`clarezaCarteiraService` 4692, `users.controller` 3649, `universalSyncService` 2585, `classes.controller` 2347) partidos **verticalmente por domínio** (use cases + adapters), não reorganização cosmética (ARCH-02).
 - [ ] Cada módulo tem uma responsabilidade clara; sem "controller-que-faz-tudo".
+- [x] **ARCH-02 — reconciliação de identidade Discord extraída** (2026-07-29): `users.controller.ts`
+  **3688→3432** neste checkout. Os 7 handlers de merge/manual/bulk/delete passaram para controller fino +
+  `UserIdentityReconciliationService` + port + adapter Mongoose; o import CSV consome o mesmo caso de uso
+  (`added`/`unchanged`/`unmatched`), sem segunda implementação. Inputs dos 3 writes antes sem boundary são agora
+  strict; lookup de email escapa metacaracteres antes da regex exata case-insensitive. Contratos HTTP de sucesso
+  preservados; erros internos seguem o handler central. RED/GREEN: campos extra/`$where`, merge idempotente,
+  bulk conservador, unmatched e email com `+`/`.`. Gate: lint 0, TS 0/0, Jest **95 suites / 387 passed /
+  2 skipped**, build 0. Main ARCH-02 continua aberto até partir os restantes domínios gigantes.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).

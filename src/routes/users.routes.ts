@@ -8,20 +8,14 @@ import {
   usersDeleteStudentInput,
 } from "../security/usersDestructiveInput"
 import {
+  userIdentityBulkMergeInput, userIdentityManualMatchInput, userIdentityMergeInput,
+} from "../security/userIdentityInput"
+import {
   // Funções existentes (mantidas para compatibilidade)
   listUsers,
-  getIdsDiferentes,
   syncDiscordAndHotmart,
-  mergeDiscordId,
-  getUnmatchedUsers,
-  deleteUnmatchedUser,
-  deleteIdsDiferentes,
   getUserStats,
   listUsersSimple,
-  bulkMergeIds,
-  bulkDeleteIds,
-  bulkDeleteUnmatchedUsers,
-  manualMatch,
 
   // ✅ NOVAS FUNÇÕES DA FASE 1
   getAllUsersUnified,
@@ -43,6 +37,12 @@ import {
   getUsersStats,
   searchStudent,
 } from "../controllers/users.controller"
+import {
+  bulkDeleteIds, bulkDeleteUnmatchedUsers, bulkMergeIds,
+  deleteIdsDiferentes, deleteUnmatchedUser, manualMatch,
+  mergeDiscordId,
+} from "../controllers/userIdentityReconciliation.controller"
+import { getIdsDiferentes, getUnmatchedUsers } from "../controllers/usersReviewLists.controller"
 
 import { calculateBatchAverageEngagement } from "../services/syncUtilizadoresServices/engagement/engagementCalculator.service"
 import { getUserByEmail } from "../controllers/syncUtilizadoresControllers/curseduca.controller"
@@ -521,21 +521,21 @@ router.get('/:id', getUserById)  // 🚨 ÚLTIMA ROTA GET!
 
 // 4️⃣ ROTAS POST/PUT/DELETE - Podem ficar em qualquer posição (não conflitam com GET)
 router.post("/syncDiscordAndHotmart", usersImportUpload, syncDiscordAndHotmart)
-router.post("/mergeDiscordId", mergeDiscordId)
-router.post("/bulkMerge", bulkMergeIds)
+router.post("/mergeDiscordId", withValidatedInput(userIdentityMergeInput, mergeDiscordId))
+router.post("/bulkMerge", withValidatedInput(userIdentityBulkMergeInput, bulkMergeIds))
 router.post(
   "/bulkDelete",
-  withValidatedInput(usersBulkDeleteInput, (input, _req, res) =>
-    bulkDeleteIds(input, res)
+  withValidatedInput(
+    usersBulkDeleteInput, bulkDeleteIds,
   )
 )
 router.post(
   "/bulkDeleteUnmatched",
-  withValidatedInput(usersBulkDeleteInput, (input, _req, res) =>
-    bulkDeleteUnmatchedUsers(input, res)
+  withValidatedInput(
+    usersBulkDeleteInput, bulkDeleteUnmatchedUsers,
   )
 )
-router.post("/manualMatch", manualMatch)
+router.post("/manualMatch", withValidatedInput(userIdentityManualMatchInput, manualMatch))
 router.post("/:id/sync", syncSpecificStudent)
 router.post("/student/:id/sync", syncSpecificStudent)
 
@@ -544,14 +544,14 @@ router.put("/editStudent/:id", editStudent)
 
 router.delete(
   "/unmatchedUsers/:id",
-  withValidatedInput(usersDeleteByIdInput, (input, _req, res) =>
-    deleteUnmatchedUser(input, res)
+  withValidatedInput(
+    usersDeleteByIdInput, deleteUnmatchedUser,
   )
 )
 router.delete(
   "/idsDiferentes/:id",
-  withValidatedInput(usersDeleteByIdInput, (input, _req, res) =>
-    deleteIdsDiferentes(input, res)
+  withValidatedInput(
+    usersDeleteByIdInput, deleteIdsDiferentes,
   )
 )
 router.delete(
