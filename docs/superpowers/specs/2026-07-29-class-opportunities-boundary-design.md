@@ -19,7 +19,7 @@ The current handler mixes five responsibilities across roughly 240 lines:
 
 1. HTTP parameter handling;
 2. loading class analytics;
-3. evaluating eleven business rules;
+3. evaluating twelve business rules;
 4. ordering and summarising the results;
 5. serialising HTTP success and failure responses.
 
@@ -74,7 +74,7 @@ Create `src/services/analytics/classOpportunities.service.ts` with:
 
 - the minimal analytics snapshot consumed by the rules;
 - `OpportunityItem`, priority, summary, and response-data types;
-- an ordered registry containing the eleven current rules;
+- an ordered registry containing the twelve current rules;
 - a pure `deriveClassOpportunities(snapshot, analysisDate)` function;
 - `ClassOpportunitiesService`, depending only on a
   `ClassOpportunitiesReader` and injected clock.
