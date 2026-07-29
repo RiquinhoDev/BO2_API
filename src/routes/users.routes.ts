@@ -10,13 +10,13 @@ import {
 import {
   userIdentityBulkMergeInput, userIdentityManualMatchInput, userIdentityMergeInput,
 } from "../security/userIdentityInput"
+import { usersSimpleListInput } from "../security/usersSimpleListInput"
 import { syncDiscordAndHotmart } from "../controllers/userDiscordImport.controller"
+import { listUsersSimple } from "../services/users/usersSimpleList.runtime"
 import {
   // Funções existentes (mantidas para compatibilidade)
   listUsers,
   getUserStats,
-  listUsersSimple,
-
   // ✅ NOVAS FUNÇÕES DA FASE 1
   getAllUsersUnified,
   getDashboardStats,
@@ -500,7 +500,7 @@ router.get('/stats/overview', getUsersStats)
 router.get('/search', searchStudent)
 
 router.get("/listUsers", listUsers)
-router.get("/listUsersSimple", listUsersSimple)
+router.get("/listUsersSimple", withValidatedInput(usersSimpleListInput, listUsersSimple))
 router.get("/idsDiferentes", getIdsDiferentes)
 router.get("/unmatchedUsers", getUnmatchedUsers)
 router.get("/getUserStats", getUserStats)

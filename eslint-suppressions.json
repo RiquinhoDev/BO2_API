@@ -400,10 +400,10 @@
   },
   "src/controllers/users.controller.ts": {
     "@typescript-eslint/no-unused-vars": {
-      "count": 4
+      "count": 3
     },
     "no-console": {
-      "count": 93
+      "count": 75
     }
   },
   "src/controllers/usersReviewLists.controller.ts": {

@@ -821,11 +821,15 @@ Progresso controllers:
   O adapter passou ainda a gravar o subdocumento `stats` completo (`updated`/`conflicts: 0`), evitando campos
   obrigatórios ausentes após `findByIdAndUpdate`. RED/GREEN: serviço puro (falha por linha e estrutural), MongoMemory
   offline, autoria autenticada contra body hostil, cleanup em sucesso/falha e catálogo **437/437**.
-- [ ] **ARCH-02 — `listUsersSimple` paginado Front+Back:** desenho aprovado em 2026-07-29 e fixado em
-  `docs/superpowers/specs/2026-07-29-users-simple-pagination-design.md`. O `limit: 10000` vinha de um caminho
-  `loadAll` agora sem consumidor de produção no Front. Migrar atomicamente as branches `remake`: backend com
-  helper canónico 50/200 + sort estável + projeção; Front paged-only, fallback explícito para metadata legacy e
-  erro visível se não existir nenhum contrato de paginação. Nunca truncar silenciosamente nem repor load-all.
+- [x] **ARCH-02 — `listUsersSimple` paginado Front+Back** (2026-07-29): `users.controller.ts`
+  **3324→2905**; o handler de 419 linhas passou para boundary strict + controller fino + serviço puro +
+  adapter Mongoose. A query tem projeção explícita, sort `_id`, `limit` positivo obrigatório e teto canónico
+  200; o lookup de turmas recebe apenas os IDs da página. O Front removeu `loadAll`/`limit: 10000`, valida
+  respostas `unknown` com Zod, aceita metadata canónica ou legacy completa e preserva a última página válida
+  perante erro de contrato. `curseduca.progress.estimatedProgress` ficou como fonte canónica e o
+  `curseducaUserId` top-level deixou de ser descartado. Gate: API lint 0, TS 0/0, **102 suites / 418 passed /
+  2 skipped**, build 0; Front format/lint 0, **199 suites / 900 passed**, build 0. Playwright não arrancou
+  browser neste sandbox: falta o Chromium headless 1228; 30 casos falharam antes de launch e 2 ficaram skipped.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
