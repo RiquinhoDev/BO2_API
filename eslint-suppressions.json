@@ -103,17 +103,6 @@
       "count": 3
     }
   },
-  "src/controllers/cron/cronManagement.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 10
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 22
-    }
-  },
   "src/controllers/dashboard.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 15
@@ -1092,20 +1081,6 @@
   },
   "src/services/courseLessonCatalog.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/services/cron/cronManagement.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 17
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 8
-    },
-    "no-console": {
-      "count": 38
-    },
-    "preserve-caught-error": {
       "count": 1
     }
   },

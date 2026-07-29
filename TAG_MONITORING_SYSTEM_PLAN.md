@@ -707,56 +707,18 @@ async updateSnapshotScope(req, res) {
 
 ### Integração
 
-**Arquivo**: `src/services/cron/cronManagement.service.ts`
+**Implementação atual**: `src/jobs/weeklyTagSnapshot.job.ts`, carregado
+dinamicamente pelo scheduler canónico em `src/services/cron/scheduler.ts`.
+O job delega em `weeklyTagMonitoringService.performWeeklySnapshot()` e devolve
+o resultado no contrato comum dos jobs.
 
-Adicionar método:
+### Provisionamento
 
-```typescript
-async executeWeeklyTagSnapshot() {
-  const result = await weeklyTagMonitoringService.performWeeklySnapshot()
-
-  logger.info('Weekly snapshot completed', {
-    studentsProcessed: result.totalStudents,
-    snapshotsCreated: result.snapshotsCreated,
-    changesDetected: result.changesDetected,
-    notificationsCreated: result.notificationsCreated,
-    duration: result.duration
-  })
-
-  return result
-}
-```
-
-### Seed Script
-
-**Arquivo**: `scripts/seedWeeklyTagSnapshotJob.ts`
-
-```typescript
-import CronJobConfig from '../src/models/SyncModels/CronJobConfig'
-
-async function seedWeeklyTagSnapshotJob() {
-  const job = await CronJobConfig.create({
-    name: 'Weekly Native Tags Snapshot',
-    description: 'Captura semanal de tags nativas para auditoria',
-    schedule: {
-      cronExpression: '0 2 * * 0',
-      timezone: 'Europe/Lisbon',
-      enabled: true
-    },
-    syncType: 'pipeline',
-    notifications: { enabled: false },
-    retryPolicy: {
-      maxRetries: 2,
-      retryDelayMinutes: 60,
-      exponentialBackoff: true
-    }
-  })
-
-  console.log('✅ Weekly Tag Snapshot Job created:', job._id)
-}
-
-seedWeeklyTagSnapshotJob()
-```
+Não existe um seed versionado para `WeeklyTagSnapshot`, e o scheduler não cria
+este job automaticamente. O código de execução está vivo, mas só corre quando
+uma configuração `CronJobConfig` com esse nome já existe. Criar essa
+configuração e decidir se nasce ligada ou desligada é uma decisão operacional
+separada; este plano não deve fingir que o seed inexistente foi executado.
 
 ---
 
@@ -1316,10 +1278,10 @@ db.tag_change_notifications.find({ isRead: false })
 12. `src/routes/tagMonitoring.routes.ts` (modificado - adiciona rotas de config)
 
 **CRON**:
-13. `src/services/cron/cronManagement.service.ts` (modificar)
+13. `src/services/cron/scheduler.ts`
 
-**Scripts**:
-14. `scripts/seedWeeklyTagSnapshotJob.ts`
+**Job**:
+14. `src/jobs/weeklyTagSnapshot.job.ts`
 
 ### Frontend (11 ficheiros)
 
