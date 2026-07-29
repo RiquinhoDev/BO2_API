@@ -10,10 +10,10 @@ import {
 import {
   userIdentityBulkMergeInput, userIdentityManualMatchInput, userIdentityMergeInput,
 } from "../security/userIdentityInput"
+import { syncDiscordAndHotmart } from "../controllers/userDiscordImport.controller"
 import {
   // Funções existentes (mantidas para compatibilidade)
   listUsers,
-  syncDiscordAndHotmart,
   getUserStats,
   listUsersSimple,
 

@@ -48,7 +48,7 @@
   - `DiscordIdentityImportHistoryRepository`
   - `DiscordIdentityImportService.execute(input): Promise<DiscordIdentityImportResult>`
 
-- [ ] **Step 1: Write failing use-case tests**
+- [x] **Step 1: Write failing use-case tests**
 
 Cover these cases with in-memory fakes:
 
@@ -73,7 +73,7 @@ The input rows must include an added identity, an unchanged identity, an unmatch
 - a workbook-level failure calls `history.fail` and rejects;
 - `history.start` failure does not call `history.fail` because no history ID exists.
 
-- [ ] **Step 2: Run the focused tests and verify RED**
+- [x] **Step 2: Run the focused tests and verify RED**
 
 Run:
 
@@ -83,7 +83,7 @@ npx jest --ci tests/services/users/discordIdentityImport.service.test.ts
 
 Expected: FAIL because `DiscordIdentityImportService` does not exist.
 
-- [ ] **Step 3: Implement the ports and use case**
+- [x] **Step 3: Implement the ports and use case**
 
 Define:
 
@@ -117,7 +117,7 @@ export interface DiscordIdentityImportResult {
 
 `execute()` starts history, reads records, processes them sequentially to preserve current database-write behavior, completes history, and returns the response statistics. Only failures after `start()` mark that history record failed.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run:
 
@@ -137,7 +137,7 @@ Expected: PASS with no network access.
 - Consumes: `DiscordIdentityImportHistoryRepository`
 - Produces: `MongooseDiscordIdentityImportHistoryRepository`
 
-- [ ] **Step 1: Write the failing MongoMemory contract test**
+- [x] **Step 1: Write the failing MongoMemory contract test**
 
 Start MongoMemory with the existing offline environment (`MONGOMS_RUNTIME_DOWNLOAD=false`). Assert:
 
@@ -150,7 +150,7 @@ const syncId = await repository.start({
 
 persists `type: "csv"`, `status: "running"`, authenticated `user`, and `metadata.fileName`. Then assert `complete()` writes `status: "completed"`, `completedAt`, and the exact history stats, while `fail()` writes `status: "failed"` and `completedAt`.
 
-- [ ] **Step 2: Run the adapter test and verify RED**
+- [x] **Step 2: Run the adapter test and verify RED**
 
 Run:
 
@@ -160,11 +160,11 @@ npx jest --ci tests/services/users/mongooseDiscordIdentityImportHistory.reposito
 
 Expected: FAIL because the adapter does not exist.
 
-- [ ] **Step 3: Implement the adapter**
+- [x] **Step 3: Implement the adapter**
 
 Use `new SyncHistory(...).save()` for `start()` and `SyncHistory.findByIdAndUpdate()` for terminal states. Return `document.id` as the opaque service identifier; do not expose Mongoose documents to the use case.
 
-- [ ] **Step 4: Run adapter and use-case tests**
+- [x] **Step 4: Run adapter and use-case tests**
 
 Run:
 
@@ -187,7 +187,7 @@ Expected: both suites PASS offline.
 - Consumes: `DiscordIdentityImportService.execute()`, `withUploadedFileCleanup()`, `req.user.email`
 - Produces: `syncDiscordAndHotmart: RequestHandler`
 
-- [ ] **Step 1: Write failing controller characterization tests**
+- [x] **Step 1: Write failing controller characterization tests**
 
 Build a test app with an injected controller service and multipart upload middleware. Prove:
 
@@ -207,7 +207,7 @@ Build a test app with an injected controller service and multipart upload middle
 - the uploaded file is deleted after success and after service failure;
 - service failure reaches the central handler as `500 / USER_IMPORT_FAILED`.
 
-- [ ] **Step 2: Run the controller test and verify RED**
+- [x] **Step 2: Run the controller test and verify RED**
 
 Run:
 
@@ -217,7 +217,7 @@ npx jest --ci tests/controllers/userDiscordImport.controller.test.ts
 
 Expected: FAIL because the controller factory does not exist.
 
-- [ ] **Step 3: Implement runtime composition and the thin controller**
+- [x] **Step 3: Implement runtime composition and the thin controller**
 
 Expose a factory for tests:
 
@@ -237,11 +237,11 @@ The handler must:
 
 The runtime service wires `readImportedUsers`, `userIdentityReconciliationService.reconcileImportedIdentity`, `MongooseDiscordIdentityImportHistoryRepository`, `() => new Date()`, and the shared redacted logger.
 
-- [ ] **Step 4: Switch the route and delete the old implementation**
+- [x] **Step 4: Switch the route and delete the old implementation**
 
 Import `syncDiscordAndHotmart` from `userDiscordImport.controller.ts`. Delete the old handler from `users.controller.ts`, remove `readImportedUsers`, `withUploadedFileCleanup`, `HttpError`, and identity runtime imports only when `rg` proves they are no longer used there. Preserve the route declaration line when possible because route-catalog evidence is line-sensitive.
 
-- [ ] **Step 5: Run focused regression tests**
+- [x] **Step 5: Run focused regression tests**
 
 Run:
 
@@ -260,7 +260,7 @@ Expected: all suites PASS offline.
 - Consumes: measured before/after line count and fresh gate output
 - Produces: independently reviewable ARCH-02 checkpoint
 
-- [ ] **Step 1: Prove dead-code cleanup and architecture boundaries**
+- [x] **Step 1: Prove dead-code cleanup and architecture boundaries**
 
 Run:
 
@@ -271,11 +271,11 @@ rg -n "any|@ts-ignore|eslint-disable|eslint-suppress" src/controllers/userDiscor
 
 Expected: one live route/controller composition, no old orchestration, no client-controlled audit owner, and no new suppressions.
 
-- [ ] **Step 2: Update the workplan**
+- [x] **Step 2: Update the workplan**
 
 Record the extracted vertical, authenticated audit ownership, preserved HTTP/upload contracts, RED/GREEN evidence, and measured `users.controller.ts` line-count reduction.
 
-- [ ] **Step 3: Run the full sandbox gate**
+- [x] **Step 3: Run the full sandbox gate**
 
 Run sequentially:
 
@@ -288,7 +288,7 @@ npm run build
 
 Expected: lint 0, TypeScript ratchet 0/0, Jest green with only the two known skips, build 0.
 
-- [ ] **Step 4: Review and commit**
+- [x] **Step 4: Review and commit**
 
 Review `git diff --check`, `git diff --stat`, and the complete diff. Stage only this vertical and commit:
 

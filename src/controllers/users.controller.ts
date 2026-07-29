@@ -1,5 +1,5 @@
 // src/controllers/users.controller.ts - PARTE 1/3
-import { NextFunction, Request, RequestHandler, Response } from "express"
+import { Request, RequestHandler, Response } from "express"
 import User, { type IUser } from "../models/user"
 import mongoose from "mongoose"
 import SyncHistory, { type ISyncHistory } from "../models/SyncHistory"
@@ -12,11 +12,7 @@ import { getUserCountsByPlatform, getUserCountsByProduct, getUsersForProduct, ge
 import { UserProduct } from "../models"
 import Product, { type IProduct } from "../models/product/Product"
 import type { IUserProduct } from "../models/UserProduct"
-import { readImportedUsers } from "../services/importedUsersWorkbook"
-import { withUploadedFileCleanup } from "../security/usersImportUpload"
-import { HttpError } from "../security/errorHandling"
 import { ensureUsersV2Products } from "../contracts/usersV2"
-import { userIdentityReconciliationService } from "../services/users/userIdentityReconciliation.runtime"
 import type {
   UsersDeleteStudentInput,
 } from "../security/usersDestructiveInput"
@@ -1888,110 +1884,6 @@ export const deleteStudent = async (input: UsersDeleteStudentInput, res: Respons
     res.status(500).json({ message: "Erro ao eliminar aluno", details: errorMessage(error) })
   }
 }
-
-
-// src/controllers/users.controller.ts - PARTE 3/3 (final)
-
-/**
- * POST /api/users/sync-csv
- * Sincronizar CSV Discord + Hotmart (mantido)
- */
-export const syncDiscordAndHotmart = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  if (!req.file) {
-    next(
-      new HttpError({
-        status: 400,
-        code: 'UPLOAD_FILE_REQUIRED',
-        publicMessage: 'Nenhum ficheiro carregado',
-      }),
-    )
-    return
-  }
-
-  const uploadedFile = req.file
-  try {
-    await withUploadedFileCleanup(uploadedFile, async (filePath) => {
-      const syncRecord = new SyncHistory({
-        type: "csv",
-        user: req.body.user || "system",
-        metadata: { fileName: uploadedFile.originalname },
-        status: "running"
-      })
-      await syncRecord.save()
-
-      try {
-        const data = await readImportedUsers(filePath)
-
-      let added = 0, unmatched = 0, errors = 0
-
-      for (const record of data) {
-        try {
-          const discordId = String(record["User ID"] || "").trim()
-          const email = String(record["Qual o e-mail com que te inscreveste no curso?"] || "").trim().toLowerCase()
-
-          if (!email || !discordId) {
-            unmatched++
-            continue
-          }
-
-          const result = await userIdentityReconciliationService
-            .reconcileImportedIdentity({ discordId, email })
-          if (result === 'unmatched') {
-            unmatched++
-            continue
-          }
-          if (result === 'added') added++
-
-        } catch (recordError: unknown) {
-          errors++
-          console.error(`Erro no registo:`, errorMessage(recordError))
-        }
-      }
-
-      await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-        status: "completed",
-        completedAt: new Date(),
-        stats: { total: data.length, added, errors }
-      })
-
-      res.json({
-        message: "Sincronização concluída",
-        syncId: syncRecord._id,
-        stats: { added, unmatched, errors }
-      })
-
-      } catch (error: unknown) {
-        await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-          status: "failed",
-          completedAt: new Date()
-        })
-
-        throw new HttpError({
-          status: 500,
-          code: 'USER_IMPORT_FAILED',
-          publicMessage: 'Erro na sincronização',
-          cause: error,
-        })
-      }
-    })
-  } catch (error) {
-    next(
-      error instanceof HttpError
-        ? error
-        : new HttpError({
-            status: 500,
-            code: 'USER_IMPORT_FAILED',
-            publicMessage: 'Erro na sincronização',
-            cause: error,
-          }),
-    )
-  }
-}
-    
 /**
  * ✅ ENDPOINT OTIMIZADO: Infinite Loading de Utilizadores
  * Cursor-based pagination para performance máxima
