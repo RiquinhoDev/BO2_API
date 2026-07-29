@@ -55,6 +55,13 @@ jest.mock(
   }),
 )
 
+jest.mock(
+  '../../src/services/analytics/classOpportunities.runtime',
+  () => ({
+    getClassOpportunities: extractedHandler('getClassOpportunities'),
+  }),
+)
+
 jest.mock('../../src/controllers/analytics.controller', () => ({
   analyticsController: {
     getClassAnalytics: legacyHandler('getClassAnalytics'),
@@ -65,7 +72,6 @@ jest.mock('../../src/controllers/analytics.controller', () => ({
     getClassAlerts: legacyHandler('getClassAlerts'),
     getOutdatedClasses: legacyHandler('getOutdatedClasses'),
     getBenchmarks: legacyHandler('getBenchmarks'),
-    getOpportunities: legacyHandler('getOpportunities'),
     getMultiPlatformAnalytics: legacyHandler('getMultiPlatformAnalytics'),
   },
 }))
@@ -146,6 +152,32 @@ describe('class analytics routes', () => {
         query: { classIds: ['class-a', 'class-b'] },
       },
     })
+  })
+
+  it('mounts class opportunities through its extracted boundary', async () => {
+    const response = await request(createTestApp())
+      .get(
+        '/opportunities/class-a?__bo2_offline_loopback=1',
+      )
+
+    expect(response.status).toBe(200)
+    expect(response.body).toMatchObject({
+      source: 'class-analytics-boundary',
+      handler: 'getClassOpportunities',
+      input: {
+        params: { classId: 'class-a' },
+        query: {},
+      },
+    })
+  })
+
+  it('rejects unknown class-opportunities query fields at the route', async () => {
+    const response = await request(createTestApp())
+      .get(
+        '/opportunities/class-a?extra=value&__bo2_offline_loopback=1',
+      )
+
+    expect(response.status).toBe(400)
   })
 
   it('keeps handlers outside the extracted slices on the legacy controller', async () => {

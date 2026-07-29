@@ -3,6 +3,7 @@ import { Router } from 'express'
 import { analyticsController } from '../controllers/analytics.controller'
 import { classAnalyticsController } from '../controllers/analytics/classAnalytics.controller'
 import { compareClasses } from '../services/analytics/classComparison.runtime'
+import { getClassOpportunities } from '../services/analytics/classOpportunities.runtime'
 import { getClassQuickStats } from '../services/analytics/classQuickStats.runtime'
 import { getGlobalAnalytics } from '../services/analytics/globalAnalytics.runtime'
 import {
@@ -105,7 +106,10 @@ router.get(
 router.get('/benchmarks', analyticsController.getBenchmarks)
 
 // GET /api/analytics/opportunities/:classId - Oportunidades de melhoria
-router.get('/opportunities/:classId', analyticsController.getOpportunities)
+router.get(
+  '/opportunities/:classId',
+  withValidatedInput(classAnalyticsClassInput, getClassOpportunities),
+)
 
 // GET /api/analytics/compare?classIds=id1,id2,id3 - Comparar múltiplas turmas
 router.get(
