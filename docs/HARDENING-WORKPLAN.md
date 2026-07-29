@@ -573,6 +573,15 @@ comparem `situation`/`memberStatus` a literais.
   3. `StudentEngagementState.ts:45,146` — campo `daysSinceLastLogin: number` não-opcional mas agora por vezes `null`.
      Reflectir no schema (`?: number` / permitir null) OU saltar a escrita quando `null`. Decidir ao tipar o modelo.
 
+- [x] **Consolidação `cron-tags` (2026-07-29).** O serviço duplicado de 895
+  linhas e os resultados hardcoded foram removidos. As 18 montagens
+  depreciadas continuam observáveis; os quatro aliases de execução devolvem
+  `410` e não alcançam motores de escrita. Leituras/config/status usam um caso
+  de uso injetado, ports tipados e adapters Mongoose/scheduler canónicos; as
+  nove rotas têm schemas strict. O inventário foi regenerado de fonte real
+  (**444→437**) e eliminou sete entradas `class-management` órfãs. O gerador do
+  Front passou a seguir router factories. `no-explicit-any` **872→845**.
+
 Depois: cirurgia ARCH-01/02/03.
 
 ---

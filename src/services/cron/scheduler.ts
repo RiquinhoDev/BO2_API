@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/services/cronManagement.service.ts
+// 📁 src/services/cron/scheduler.ts
 // Service: CRON Job Management
 // Gestão completa de jobs agendados (criar, executar, monitorar)
 // ════════════════════════════════════════════════════════════
@@ -790,6 +790,10 @@ const job = await CronJobConfig.create({
     console.log('🛑 Parando scheduler...')
     registry.clear()
     console.log('✅ Scheduler parado')
+  }
+
+  isSchedulerActive(): boolean {
+    return registry.getAll().size > 0
   }
 
   // ═══════════════════════════════════════════════════════════

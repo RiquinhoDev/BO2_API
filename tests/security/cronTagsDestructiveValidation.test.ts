@@ -1,26 +1,32 @@
 import express from 'express'
 import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
+import {
+  createCronManagementController,
+  type CronTagsUseCases,
+} from '../../src/controllers/cron/cronManagement.controller'
+import {
+  createCronManagementRouter,
+} from '../../src/routes/cron/createCronManagementRouter'
 
-jest.mock('../../src/controllers/cron/cronManagement.controller', () => {
-  const handler = jest.fn((_input, res) => res.status(204).end())
-  return {
-    __esModule: true,
-    default: {
-      getConfig: handler,
-      updateConfig: handler,
-      executeNow: handler,
-      executeLegacy: handler,
-      getHistory: handler,
-      getStatistics: handler,
-      getJobHistory: handler,
-      validateCronExpression: handler,
-      getCronStatus: handler,
-    },
-  }
-})
-
-import cronTagsRouter from '../../src/routes/cron/cronManagement.routes'
+const unusedAsyncUseCase = async (): Promise<never> => {
+  throw new Error('execution aliases must not call a cron use case')
+}
+const unusedSyncUseCase = (): never => {
+  throw new Error('execution aliases must not call a cron use case')
+}
+const useCases: CronTagsUseCases = {
+  getConfig: unusedAsyncUseCase,
+  getHistory: unusedAsyncUseCase,
+  getJobHistory: unusedAsyncUseCase,
+  getStatistics: unusedAsyncUseCase,
+  getStatus: unusedAsyncUseCase,
+  updateConfig: unusedAsyncUseCase,
+  validateCronExpression: unusedSyncUseCase,
+}
+const cronTagsRouter = createCronManagementRouter(
+  createCronManagementController(useCases),
+)
 
 const marker = { __bo2_offline_loopback: '1' }
 
@@ -54,7 +60,7 @@ function callRoute(path: string, body: Record<string, unknown>) {
 }
 
 test.each(routes)('$name accepts its explicit DTO', async ({ path }) => {
-  await callRoute(path, { userId: 'admin-1' }).expect(204)
+  await callRoute(path, { userId: 'admin-1' }).expect(410)
 })
 
 test.each(routes)('$name rejects an extra role field', async ({ path }) => {

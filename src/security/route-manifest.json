@@ -300,34 +300,6 @@
     "path": "/api/clareza/top10/refresh"
   },
   {
-    "method": "POST",
-    "path": "/api/class-management/checkAndUpdateClassHistory"
-  },
-  {
-    "method": "GET",
-    "path": "/api/class-management/history"
-  },
-  {
-    "method": "GET",
-    "path": "/api/class-management/inactivationLists"
-  },
-  {
-    "method": "POST",
-    "path": "/api/class-management/inactivationLists/create"
-  },
-  {
-    "method": "POST",
-    "path": "/api/class-management/inactivationLists/execute/:id"
-  },
-  {
-    "method": "POST",
-    "path": "/api/class-management/inactivationLists/revert/:id"
-  },
-  {
-    "method": "GET",
-    "path": "/api/class-management/studentHistoryByEmail/:email"
-  },
-  {
     "method": "GET",
     "path": "/api/classes"
   },

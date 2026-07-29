@@ -1,6 +1,6 @@
 # Catálogo de rotas
 
-`route-manifest.json` é a fotografia das 455 rotas gerada pelo Front com
+`route-manifest.json` é a fotografia das 437 rotas gerada pelo Front com
 `node scripts/gen-backend-routes.mjs`. O SHA-256 desta cópia tem de coincidir
 com `Front/tests/contracts/backend-routes.json` sempre que a superfície mudar.
 

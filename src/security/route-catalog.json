@@ -675,69 +675,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:21"
   },
   {
-    "method": "POST",
-    "path": "/api/class-management/checkAndUpdateClassHistory",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classManagement.routes.ts:16"
-  },
-  {
-    "method": "GET",
-    "path": "/api/class-management/history",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classManagement.routes.ts:22"
-  },
-  {
-    "method": "GET",
-    "path": "/api/class-management/inactivationLists",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classManagement.routes.ts:28"
-  },
-  {
-    "method": "POST",
-    "path": "/api/class-management/inactivationLists/create",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classManagement.routes.ts:25"
-  },
-  {
-    "method": "POST",
-    "path": "/api/class-management/inactivationLists/execute/:id",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classManagement.routes.ts:31"
-  },
-  {
-    "method": "POST",
-    "path": "/api/class-management/inactivationLists/revert/:id",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classManagement.routes.ts:34"
-  },
-  {
-    "method": "GET",
-    "path": "/api/class-management/studentHistoryByEmail/:email",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classManagement.routes.ts:19"
-  },
-  {
     "method": "GET",
     "path": "/api/classes",
     "access": "authenticated",
@@ -1068,7 +1005,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:17",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:19",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -1079,7 +1016,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:20",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:24",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -1090,7 +1027,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:23",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:29",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -1101,7 +1038,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:26",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:34",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -1112,7 +1049,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:29",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:39",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -1123,7 +1060,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:34",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:49",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -1134,7 +1071,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:32",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:44",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -1145,7 +1082,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:40",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:59",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -1156,7 +1093,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:37",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:54",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -2427,7 +2364,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:155"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:153"
   },
   {
     "method": "POST",
@@ -3345,7 +3282,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:81"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:78"
   },
   {
     "method": "GET",
@@ -3354,7 +3291,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:82"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:80"
   },
   {
     "method": "POST",
@@ -3363,7 +3300,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:81"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:79"
   },
   {
     "method": "POST",
@@ -3939,7 +3876,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:17",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:19",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -3950,7 +3887,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:20",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:24",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -3961,7 +3898,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:23",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:29",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -3972,7 +3909,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:26",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:34",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -3983,7 +3920,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:29",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:39",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -3994,7 +3931,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:34",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:49",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -4005,7 +3942,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:32",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:44",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -4016,7 +3953,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:40",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:59",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -4027,7 +3964,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/cronManagement.routes.ts:37",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:54",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   }

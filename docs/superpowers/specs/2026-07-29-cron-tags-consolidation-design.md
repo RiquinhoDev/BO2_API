@@ -1,7 +1,7 @@
 # Consolidação do `cron-tags`
 
 **Data:** 2026-07-29
-**Estado:** aprovado para implementação
+**Estado:** implementado e validado
 
 ## Problema
 
@@ -23,10 +23,13 @@ entrada destrutivo que pode divergir do fluxo real.
 ## Decisão
 
 Eliminar o serviço duplicado e transformar `cron-tags` numa camada de
-compatibilidade fina sobre o scheduler, modelos e histórico canónicos.
+compatibilidade fina sobre ports explícitos para o scheduler e para a
+persistência canónicos.
 
 As rotas permanecem montadas enquanto a janela de observação de tráfego não
-estiver concluída. Não se removem rotas nem se regenera o catálogo neste bloco.
+estiver concluída. A consolidação não remove rotas `cron-tags`. O inventário
+foi regenerado porque ainda continha sete rotas `class-management` cujo ficheiro
+já não existe; manter essa dívida quebrava o gate e contradizia a fonte real.
 
 ### Execução
 
@@ -43,11 +46,29 @@ Os aliases não importam nem chamam `executeTagRulesOnly()`,
 canónico continua a ser `POST /api/cron/tag-rules-only`, com a validação e
 proteções já existentes.
 
-### Configuração e scheduler
+### Fronteiras e responsabilidades
 
-O controller de compatibilidade usa:
+O fluxo fica separado em quatro unidades:
 
-- `CronJobConfig.findOne({ name: "TAG_RULES_SYNC" })` para ler a configuração;
+- o router valida `params`, `query` e `body` com schemas estritos;
+- o controller converte HTTP em chamadas tipadas e não conhece Mongoose;
+- `CronTagsCompatibilityService` concentra os casos de uso de leitura,
+  configuração, validação e status;
+- um adapter Mongoose implementa o port de persistência e o scheduler canónico
+  implementa o port de agendamento.
+
+O serviço recebe as dependências no construtor. Os testes usam fakes tipados
+dos ports, não mocks frágeis de query chains.
+
+O adapter usa:
+
+- `CronJobConfig.findOne({ name: "TAG_RULES_SYNC" })` para configuração;
+- `CronExecution` para histórico, estatísticas e execuções recentes;
+- agregação Mongo para estatísticas, evitando carregar todo o histórico em
+  memória.
+
+O port do scheduler usa:
+
 - `syncSchedulerService.updateJob()` para atualizar `cronExpression` e
   `schedule.enabled`, garantindo validação, persistência e reagendamento numa
   só implementação;
@@ -59,17 +80,33 @@ O scheduler canónico expõe um método público de estado baseado no seu regist
 real. `schedulerActive` nunca é hardcoded nem inferido apenas da configuração
 persistida.
 
-A descrição humana da expressão cron fica num helper puro junto da camada de
-compatibilidade. Não justifica manter um segundo scheduler.
+A descrição humana da expressão cron e a normalização dos resultados ficam em
+funções puras. Não justificam manter um segundo scheduler.
+
+### Validação
+
+Todas as nove rotas da família passam por `withValidatedInput()` e
+`validatedSchema()`. Cada shape é estrita:
+
+- config update aceita apenas `cronExpression` e `isActive`;
+- history aceita apenas `limit`, com teto 200;
+- statistics aceita apenas `days`, entre 1 e 365;
+- job history valida `:id` como ObjectId e aceita apenas `limit`;
+- validate aceita apenas `cronExpression`;
+- config/status usam input vazio;
+- execute/execute-legacy mantêm `userId?` apenas para devolver `410` aos
+  clientes legados que ainda o enviem.
+
+Campos extra e operadores NoSQL devolvem `400` antes do caso de uso.
 
 ### Histórico e estatísticas
 
 `GET .../history` consulta `CronExecution` para `cronName:
-"TAG_RULES_SYNC"`, ordena por `{ startTime: -1 }` e limita o resultado. O
-limite é normalizado com o helper de paginação já existente, sem aceitar um
-valor acima do teto global.
+"TAG_RULES_SYNC"`, ordena por `{ startTime: -1, _id: -1 }` e limita o
+resultado. O schema normaliza o limite sem aceitar valor acima do teto global.
 
-`GET .../statistics` calcula sobre `CronExecution` no intervalo pedido:
+`GET .../statistics` agrega em Mongo sobre `CronExecution` no intervalo
+pedido:
 
 - `totalExecutions`;
 - `successRate`, usando execuções terminadas com `status: "success"` ou
@@ -111,12 +148,14 @@ A implementação é TDD e completamente offline:
 
 1. os quatro aliases montados devolvem `410` e o replacement canónico;
 2. uma sonda/mocking do motor real prova que os aliases nunca iniciam escrita;
-3. histórico devolve execuções reais, ordenadas e limitadas;
-4. estatísticas cobrem sucesso, erro, running, duração ausente e intervalo;
-5. atualização de config delega no scheduler canónico com
+3. schemas estritos rejeitam campo extra, operador NoSQL e limites inválidos;
+4. histórico devolve execuções reais, ordenadas e limitadas;
+5. estatísticas cobrem sucesso, erro, running, duração ausente e intervalo;
+6. o adapter usa agregação Mongo e não materializa o histórico completo;
+7. atualização de config delega no scheduler canónico com
    `{ cronExpression, enabled: isActive }`;
-6. status usa o estado real do registry e `startTime`;
-7. a procura negativa prova que o serviço duplicado deixou de ser consumido e
+8. status usa o estado real do registry e `startTime`;
+9. a procura negativa prova que o serviço duplicado deixou de ser consumido e
    foi removido.
 
 Os testes usam mocks de modelos/scheduler ou Mongo efémero com download em
@@ -132,14 +171,14 @@ Antes do commit de implementação:
 - `npx jest --ci`;
 - `npm run build`.
 
-O erro conhecido do catálogo reviewer-owned, se ainda existir, é reportado
-separadamente e não é escondido nem corrigido fora do âmbito.
+O catálogo e o manifest têm de corresponder à superfície real e o gate tem de
+terminar sem falhas.
 
 ## Fora do âmbito
 
 - remover as 18 montagens antes de observar tráfego real;
 - alterar a semântica do endpoint canónico `/api/cron/tag-rules-only`;
 - criar outro endpoint de escrita;
-- regenerar `route-catalog.json` ou o manifest do Front;
+- alterar a classificação de acesso das rotas existentes;
 - chamar APIs reais ou Mongo de produção;
 - continuar a moagem geral de `no-explicit-any` no mesmo commit.
