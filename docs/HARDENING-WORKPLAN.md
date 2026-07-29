@@ -814,10 +814,13 @@ Progresso controllers:
   preservados; erros internos seguem o handler central. RED/GREEN: campos extra/`$where`, merge idempotente,
   bulk conservador, unmatched e email com `+`/`.`. Gate: lint 0, TS 0/0, Jest **95 suites / 387 passed /
   2 skipped**, build 0. Main ARCH-02 continua aberto até partir os restantes domínios gigantes.
-- [ ] **ARCH-02 — import de identidades Discord:** desenho aprovado em 2026-07-29 e plano executável em
-  `docs/superpowers/plans/2026-07-29-discord-identity-import.md`. Extrair a orquestração CSV/XLSX para caso de
-  uso + portas + adapters; controller fica só com HTTP/cleanup. A autoria do audit passa a vir de
-  `req.user.email`, nunca do `req.body.user` controlado pelo cliente. Preservar rota, upload e envelopes.
+- [x] **ARCH-02 — import de identidades Discord extraído** (2026-07-29): `users.controller.ts`
+  **3432→3324**. A orquestração CSV/XLSX passou para `DiscordIdentityImportService`, com portas explícitas para
+  workbook, reconciliação e histórico, adapter Mongoose e controller fino. O audit deriva de `req.user.email`;
+  `req.body.user` controlado pelo cliente deixou de ser aceite. Rota, limites, cleanup e envelope HTTP preservados.
+  O adapter passou ainda a gravar o subdocumento `stats` completo (`updated`/`conflicts: 0`), evitando campos
+  obrigatórios ausentes após `findByIdAndUpdate`. RED/GREEN: serviço puro (falha por linha e estrutural), MongoMemory
+  offline, autoria autenticada contra body hostil, cleanup em sucesso/falha e catálogo **437/437**.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
