@@ -203,17 +203,30 @@ export interface ClassAnalyticsReader {
   getClassAnalytics(classId: string): Promise<ClassAnalyticsSnapshot | null>
 }
 
-export interface ClassComparisonRow {
+interface ClassComparisonMetrics {
   classId: string
-  className: string
   totalStudents: number
   activeStudents: number
   averageEngagement: number
   healthScore: number
   averageProgress: number
   lastCalculated: string
-  error?: string
 }
+
+export interface SuccessfulClassComparisonRow
+  extends ClassComparisonMetrics {
+  className: string
+  error?: never
+}
+
+export interface FailedClassComparisonRow extends ClassComparisonMetrics {
+  className?: never
+  error: string
+}
+
+export type ClassComparisonRow =
+  | SuccessfulClassComparisonRow
+  | FailedClassComparisonRow
 
 export interface ClassComparisonData {
   comparisons: ClassComparisonRow[]
@@ -221,8 +234,8 @@ export interface ClassComparisonData {
     totalStudentsSum: number
     averageEngagementMean: number
     healthScoreMean: number
-    bestPerformingClass: ClassComparisonRow
-    worstPerformingClass: ClassComparisonRow
+    bestPerformingClass: SuccessfulClassComparisonRow
+    worstPerformingClass: SuccessfulClassComparisonRow
   }
   validComparisons: number
   totalRequested: number
@@ -305,9 +318,10 @@ expect(result).toEqual({
 ```
 
 2. One valid, one missing, and one throwing reader produce two complete error
-   rows. Assert each contains empty `className`, all five numeric metrics,
-   empty `lastCalculated`, and only a stable public `error`. Assert the
-   dependency message `database-secret-detail` is absent from serialized data.
+   rows. Assert each omits `className` so the Front uses `Turma <id>`,
+   contains all five numeric metrics plus empty `lastCalculated`, and exposes
+   only a stable public `error`. Assert the dependency message
+   `database-secret-detail` is absent from serialized data.
 3. Summary totals and means use only the valid row.
 4. Every class invalid returns exactly `{ found: false }` and a subsequent
    identical call invokes the reader again, proving the failure was not cached.
@@ -339,7 +353,6 @@ Use these private mappings:
 ```ts
 const missingRow = (classId: string): ClassComparisonRow => ({
   classId,
-  className: '',
   totalStudents: 0,
   activeStudents: 0,
   averageEngagement: 0,

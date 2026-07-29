@@ -84,7 +84,7 @@ details never enter the response.
 Error rows include the complete Front-required shape:
 
 - requested `classId`;
-- empty `className`;
+- omitted `className`, preserving the Front fallback label `Turma <id>`;
 - numeric metrics set to zero;
 - empty `lastCalculated`;
 - stable `error`.

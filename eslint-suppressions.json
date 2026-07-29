@@ -41,13 +41,13 @@
   },
   "src/controllers/analytics.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 8
+      "count": 5
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
     "no-console": {
-      "count": 17
+      "count": 13
     }
   },
   "src/controllers/auth.controller.ts": {

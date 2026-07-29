@@ -2,6 +2,7 @@
 import { Router } from 'express'
 import { analyticsController } from '../controllers/analytics.controller'
 import { classAnalyticsController } from '../controllers/analytics/classAnalytics.controller'
+import { compareClasses } from '../services/analytics/classComparison.runtime'
 import { getClassQuickStats } from '../services/analytics/classQuickStats.runtime'
 import { getGlobalAnalytics } from '../services/analytics/globalAnalytics.runtime'
 import {
@@ -10,6 +11,7 @@ import {
   classAnalyticsQueryInput,
 } from '../security/classAnalyticsInput'
 import { classQuickStatsInput } from '../security/classQuickStatsInput'
+import { classComparisonInput } from '../security/classComparisonInput'
 import { globalAnalyticsInput } from '../security/globalAnalyticsInput'
 import { withValidatedInput } from '../security/validatedInput'
 
@@ -106,7 +108,10 @@ router.get('/benchmarks', analyticsController.getBenchmarks)
 router.get('/opportunities/:classId', analyticsController.getOpportunities)
 
 // GET /api/analytics/compare?classIds=id1,id2,id3 - Comparar múltiplas turmas
-router.get('/compare', analyticsController.compareClasses)
+router.get(
+  '/compare',
+  withValidatedInput(classComparisonInput, compareClasses),
+)
 
 // ✅ NOVO: GET /api/analytics/multi-platform - Analytics multi-plataforma (Fase 5)
 router.get('/multi-platform', analyticsController.getMultiPlatformAnalytics)
