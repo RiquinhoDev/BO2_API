@@ -830,6 +830,13 @@ Progresso controllers:
   `curseducaUserId` top-level deixou de ser descartado. Gate: API lint 0, TS 0/0, **102 suites / 418 passed /
   2 skipped**, build 0; Front format/lint 0, **199 suites / 900 passed**, build 0. Playwright não arrancou
   browser neste sandbox: falta o Chromium headless 1228; 30 casos falharam antes de launch e 2 ficaram skipped.
+- [ ] **ARCH-02 — fronteira de analytics por turma** (desenho aprovado em 2026-07-29):
+  extrair de `analytics.controller.ts` os seis handlers que delegam em `analyticsService`
+  (`getClassAnalytics`, `recalculateClassScores`, `getOutdatedClasses`, `getHealthScore`,
+  `getEngagementDistribution`, `getClassAlerts`) para controller injetável + boundary strict. Paths e contratos
+  de sucesso/404 ficam intactos; erros inesperados passam pelo handler central sem expor detalhe. `quick` e
+  `recalculate-individual` ficam para corte posterior porque acedem diretamente a modelos. Spec:
+  `docs/superpowers/specs/2026-07-29-class-analytics-boundary-design.md`.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
