@@ -88,63 +88,6 @@ interface MultiPlatformUserSources {
 // Type guard para o TS perceber quais são válidos
 const isOk = (c: Comparison): c is ComparisonOk => !('error' in c)
 
-// ✅ ENDPOINT PARA ESTATÍSTICAS RÁPIDAS (SEM CACHE PESADO)
-export const getQuickStats = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { classId } = req.params
-    
-    console.log(`⚡ [CONTROLLER] Buscando stats rápidos para turma: ${classId}`)
-
-    // Buscar dados básicos sem cache pesado
-    const totalStudents = await User.countDocuments({ 
-      classId: classId,
-      isDeleted: { $ne: true }
-    })
-    
-    const activeStudents = await User.countDocuments({ 
-      classId: classId,
-      status: 'ACTIVE',
-      isDeleted: { $ne: true }
-    })
-
-    if (totalStudents === 0) {
-      res.status(200).json({
-        success: true,
-        data: {
-          classId,
-          totalStudents: 0,
-          activeStudents: 0,
-          message: 'Turma sem alunos'
-        }
-      })
-      return
-    }
-
-    const quickStats = {
-      classId,
-      totalStudents,
-      activeStudents,
-      inactiveStudents: totalStudents - activeStudents,
-      activityRate: Math.round((activeStudents / totalStudents) * 100)
-    }
-
-    console.log(`✅ [CONTROLLER] Stats rápidos calculados`)
-
-    res.status(200).json({
-      success: true,
-      data: quickStats,
-      timestamp: new Date().toISOString()
-    })
-
-  } catch (error: any) {
-    console.error('❌ [CONTROLLER] Erro ao buscar stats rápidos:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar estatísticas rápidas',
-      error: error.message
-    })
-  }
-}
 // ================================================================================================
 // 🚀 NOVOS ENDPOINTS PARA ADICIONAR AO analytics.controller.ts EXISTENTE
 // ================================================================================================
@@ -1129,7 +1072,6 @@ export const getMultiPlatformAnalytics = async (req: Request, res: Response) => 
 // ✅ EXPORTAR TODOS OS CONTROLADORES
 export const analyticsController = {
   recalculateIndividualScores,
-  getQuickStats,
   getGlobalAnalytics,             // ← NOVO
   compareClasses,                 // ← NOVO
   getOpportunities,               // ← NOVO
