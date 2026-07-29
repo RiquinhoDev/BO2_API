@@ -6,42 +6,8 @@ import { Class } from '../models/Class'
 import { calculateCombinedEngagement } from '../utils/engagementCalculator'
 import { getEngagementStatsByPlatform } from '../services/syncUtilizadoresServices/engagement/engagementService'
 
-// Cache simples para evitar recálculos frequentes
-const cache = new Map<string, { data: any; timestamp: number }>()
-const CACHE_DURATION = 5 * 60 * 1000 // 5 minutos
-
-// Função para limpar cache expirado
-const cleanExpiredCache = () => {
-  const now = Date.now()
-  for (const [key, value] of cache.entries()) {
-    if (now - value.timestamp > CACHE_DURATION) {
-      cache.delete(key)
-    }
-  }
-}
-
-// Executar limpeza a cada 10 minutos sem manter processos de teste/CLI abertos
-const cacheCleanupTimer = setInterval(cleanExpiredCache, 10 * 60 * 1000)
-cacheCleanupTimer.unref()
-interface ComparisonOk {
-  classId: string
-  className: string
-  totalStudents: number
-  activeStudents: number
-  averageEngagement: number
-  healthScore: number
-  averageProgress: number
-  lastCalculated: string
-}
-
-interface ComparisonErr {
-  classId: string
-  error: string
-}
 // Tipo Priority já definido no início do arquivo
 type Priority = 'high' | 'medium' | 'low' | 'info'
-
-type Comparison = ComparisonOk | ComparisonErr
 
 interface ClassParams {
   classId: string
@@ -61,9 +27,6 @@ interface MultiPlatformUserSources {
   curseducaUserId?: string
   discordIds?: string[]
 }
-
-// Type guard para o TS perceber quais são válidos
-const isOk = (c: Comparison): c is ComparisonOk => !('error' in c)
 
 // ================================================================================================
 // 🚀 NOVOS ENDPOINTS PARA ADICIONAR AO analytics.controller.ts EXISTENTE
@@ -164,153 +127,6 @@ export const recalculateIndividualScores = async (req: Request, res: Response): 
       success: false,
       message: 'Erro ao recalcular scores individuais da turma',
       error: error.message
-    })
-  }
-}
-
-// ✅ 3. ENDPOINT PARA COMPARAR MÚLTIPLAS TURMAS - MELHORADO
-export const compareClasses = async (req: Request, res: Response): Promise<void> => {
-  const startTime = Date.now()
-  
-  try {
-    const { classIds } = req.query
-
-    // Validações melhoradas
-    if (!classIds || typeof classIds !== 'string') {
-      res.status(400).json({
-        success: false,
-        message: 'Parâmetro classIds é obrigatório (formato: ?classIds=id1,id2,id3)',
-        timestamp: new Date().toISOString()
-      })
-      return
-    }
-
-    const classIdArray = classIds
-      .split(',')
-      .map((id) => id.trim())
-      .filter((id) => id)
-
-    if (classIdArray.length < 2) {
-      res.status(400).json({
-        success: false,
-        message: 'Pelo menos 2 turmas são necessárias para comparação',
-        timestamp: new Date().toISOString()
-      })
-      return
-    }
-
-    if (classIdArray.length > 10) {
-      res.status(400).json({
-        success: false,
-        message: 'Máximo de 10 turmas por comparação',
-        timestamp: new Date().toISOString()
-      })
-      return
-    }
-
-    // Verificar cache
-    const cacheKey = `comparison-${classIds}`
-    const cached = cache.get(cacheKey)
-    
-    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-      console.log('📦 [CONTROLLER] Retornando comparação do cache')
-      res.status(200).json({
-        success: true,
-        data: cached.data,
-        cached: true,
-        timestamp: new Date(cached.timestamp).toISOString(),
-        cacheAge: Math.round((Date.now() - cached.timestamp) / 1000)
-      })
-      return
-    }
-
-    console.log(`📊 [CONTROLLER] Comparando ${classIdArray.length} turmas:`, classIdArray)
-
-    // Buscar analytics de cada turma em paralelo
-    const comparisons: Comparison[] = await Promise.all(
-      classIdArray.map(async (classId): Promise<Comparison> => {
-        try {
-          const analytics = await analyticsService.getClassAnalytics(classId)
-
-          if (analytics) {
-            return {
-              classId: analytics.classId,
-              className: analytics.className,
-              totalStudents: analytics.totalStudents,
-              activeStudents: analytics.activeStudents,
-              averageEngagement: analytics.averageEngagement,
-              healthScore: analytics.healthScore,
-              averageProgress: analytics.averageProgress,
-              // garante string
-              lastCalculated: String(analytics.lastCalculatedAt ?? ''),
-            }
-          }
-
-          return { classId, error: 'Turma não encontrada' }
-        } catch (error: any) {
-          return { classId, error: error?.message ?? 'Erro desconhecido' }
-        }
-      }),
-    )
-
-    // Apenas válidas para estatísticas
-    const validComparisons: ComparisonOk[] = comparisons.filter(isOk)
-
-    if (validComparisons.length === 0) {
-      res.status(404).json({
-        success: false,
-        message: 'Nenhuma turma válida encontrada para comparação',
-      })
-      return
-    }
-
-    // Estatísticas agregadas (com tipos garantidos)
-    const stats = {
-      totalStudentsSum: validComparisons.reduce((sum, c) => sum + c.totalStudents, 0),
-      averageEngagementMean: Math.round(
-        validComparisons.reduce((sum, c) => sum + c.averageEngagement, 0) / validComparisons.length,
-      ),
-      healthScoreMean: Math.round(
-        validComparisons.reduce((sum, c) => sum + c.healthScore, 0) / validComparisons.length,
-      ),
-      bestPerformingClass: validComparisons.reduce((best, current) =>
-        current.healthScore > best.healthScore ? current : best,
-      ),
-      worstPerformingClass: validComparisons.reduce((worst, current) =>
-        current.healthScore < worst.healthScore ? current : worst,
-      ),
-    }
-
-    const responseData = {
-      comparisons, // contém válidas e com erro (útil para UI)
-      summary: stats,
-      validComparisons: validComparisons.length,
-      totalRequested: classIdArray.length,
-      calculationDuration: Date.now() - startTime,
-      lastUpdated: new Date().toISOString()
-    }
-
-    // Atualizar cache
-    cache.set(cacheKey, {
-      data: responseData,
-      timestamp: Date.now()
-    })
-
-    console.log(`✅ [CONTROLLER] Comparação concluída para ${validComparisons.length} turmas em ${Date.now() - startTime}ms`)
-
-    res.status(200).json({
-      success: true,
-      data: responseData,
-      cached: false,
-      timestamp: new Date().toISOString(),
-      calculationDuration: Date.now() - startTime
-    })
-  } catch (error: any) {
-    console.error('❌ [CONTROLLER] Erro ao comparar turmas:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao comparar turmas',
-      error: error?.message ?? String(error),
     })
   }
 }
@@ -876,7 +692,6 @@ export const getMultiPlatformAnalytics = async (req: Request, res: Response) => 
 // ✅ EXPORTAR TODOS OS CONTROLADORES
 export const analyticsController = {
   recalculateIndividualScores,
-  compareClasses,                 // ← NOVO
   getOpportunities,               // ← NOVO
   getBenchmarks,                  // ← NOVO
   getMultiPlatformAnalytics       // ✅ NOVO - Fase 5

@@ -48,6 +48,13 @@ jest.mock(
   }),
 )
 
+jest.mock(
+  '../../src/services/analytics/classComparison.runtime',
+  () => ({
+    compareClasses: extractedHandler('compareClasses'),
+  }),
+)
+
 jest.mock('../../src/controllers/analytics.controller', () => ({
   analyticsController: {
     getClassAnalytics: legacyHandler('getClassAnalytics'),
@@ -59,7 +66,6 @@ jest.mock('../../src/controllers/analytics.controller', () => ({
     getOutdatedClasses: legacyHandler('getOutdatedClasses'),
     getBenchmarks: legacyHandler('getBenchmarks'),
     getOpportunities: legacyHandler('getOpportunities'),
-    compareClasses: legacyHandler('compareClasses'),
     getMultiPlatformAnalytics: legacyHandler('getMultiPlatformAnalytics'),
   },
 }))
@@ -121,6 +127,23 @@ describe('class analytics routes', () => {
       input: {
         params: {},
         query: {},
+      },
+    })
+  })
+
+  it('mounts class comparison through its extracted boundary', async () => {
+    const response = await request(createTestApp())
+      .get(
+        '/compare?classIds=class-a,class-b&__bo2_offline_loopback=1',
+      )
+
+    expect(response.status).toBe(200)
+    expect(response.body).toMatchObject({
+      source: 'class-analytics-boundary',
+      handler: 'compareClasses',
+      input: {
+        params: {},
+        query: { classIds: ['class-a', 'class-b'] },
       },
     })
   })

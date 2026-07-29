@@ -863,12 +863,27 @@ Progresso controllers:
   `discord.isDeleted`, `combined.status` e a precedência canónica de engagement, devolve zeros completos no caso
   vazio e nunca expõe detalhe interno. As consultas por request desceram de **5→2** (turmas projetadas + uma
   agregação de utilizadores), sem query por turma nem materialização de alunos. O cache mantém TTL de cinco
-  minutos, mas expira lazy e não cria timer/handle no novo módulo; o cache legacy fica isolado enquanto
-  `compareClasses` ainda o usa. Catálogo/manifest permanecem **437/437**. `no-explicit-any` **835→834**
+  minutos, mas expira lazy e não cria timer/handle no novo módulo; o cache legacy então isolado saiu no corte
+  seguinte de `compareClasses`. Catálogo/manifest permanecem **437/437**. `no-explicit-any` **835→834**
   (`analytics.controller` 9→8), `no-console` 21→17 e `no-unused-vars` 2→1; a declaração `OpportunityItem`
   sombreada e comprovadamente morta também saiu. RED/GREEN + quatro mutações provaram apagados, estado, score e
   ligação real da rota. Gate offline: lint 0, TS **0/0**, Jest **114 suites / 473 passed / 2 skipped**, build 0.
   Spec: `docs/superpowers/specs/2026-07-29-global-analytics-boundary-design.md`.
+- [x] **ARCH-02 — comparação de turmas extraída e corrigida** (2026-07-29):
+  `analytics.controller.ts` **883→698 linhas físicas**. `GET /api/analytics/compare` passou para boundary strict +
+  controller fino + serviço puro com reader/clock/cache injetáveis + runtime explícito. **Dois bugs reais:** uma
+  turma em erro produzia uma linha incompleta que o `comparisonResultSchema` do Front rejeitava, anulando toda a
+  comparação parcial; e o estado `cached` existia apenas no envelope exterior que o `unwrap()` do Front descarta,
+  pelo que a UI nunca o via. As linhas de erro têm agora o contrato completo, omitem `className` para preservar o
+  fallback `Turma <id>` e usam mensagem pública estável, enquanto os resumos usam apenas turmas válidas; `cached`
+  segue também dentro de `data`. Ordem e multiplicidade pedidas
+  ficam preservadas e fazem parte da chave normalizada. O cache TTL de cinco minutos passou a expiração lazy:
+  saíram o `setInterval`, `unref`, mapa `any`, tipos/guard e handler legacy, com **0 referências órfãs**; as
+  comparações Guru e snapshot permanecem vivas e intocadas. `no-explicit-any` **834→831**, `no-console`
+  **2355→2351**, `no-unused-vars` mantém **83**. RED/GREEN + cinco mutações provaram boundary hostil, contrato
+  parcial, resumo, estado de cache visível, wiring real e chave sensível à ordem. Catálogo/manifest permanecem
+  **437/437**. Gate offline: lint 0, TS **0/0**, Jest **117 suites / 490 passed / 2 skipped**, build 0.
+  Spec: `docs/superpowers/specs/2026-07-29-class-comparison-boundary-design.md`.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
