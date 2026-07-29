@@ -1,17 +1,9 @@
 // src/controllers/analytics.controller.ts - VERSÃO COMPLETA FINAL MELHORADA
 import { Request, Response } from 'express'
-import { analyticsService } from '../services/analytics/analyticsService'
 import User from '../models/user'
 import { Class } from '../models/Class'
 import { calculateCombinedEngagement } from '../utils/engagementCalculator'
 import { getEngagementStatsByPlatform } from '../services/syncUtilizadoresServices/engagement/engagementService'
-
-// Tipo Priority já definido no início do arquivo
-type Priority = 'high' | 'medium' | 'low' | 'info'
-
-interface ClassParams {
-  classId: string
-}
 
 interface MultiPlatformUserSources {
   hotmart?: {
@@ -131,247 +123,6 @@ export const recalculateIndividualScores = async (req: Request, res: Response): 
   }
 }
 
-// ✅ 4. ENDPOINT PARA OPORTUNIDADES DE MELHORIA
-export const getOpportunities = async (req: Request<ClassParams>, res: Response): Promise<void> => {
-  try {
-    const { classId } = req.params
-    
-    console.log(`💡 [CONTROLLER] Analisando oportunidades para turma: ${classId}`)
-    
-    const analytics = await analyticsService.getClassAnalytics(classId)
-    
-    if (!analytics) {
-      res.status(404).json({
-        success: false,
-        message: 'Turma não encontrada'
-      })
-      return
-    }
-    
-    // Interface para as oportunidades com tipo de prioridade bem definido
-    interface OpportunityItem {
-      type: string
-      priority: Priority
-      title: string
-      description: string
-      suggestion: string
-      impact: string
-    }
-    
-    const opportunities: OpportunityItem[] = []
-    
-    // 1. Análise de Low Engagement
-    if (analytics.averageEngagement < 50) {
-      opportunities.push({
-        type: 'engagement',
-        priority: 'high',
-        title: 'Engagement Baixo',
-        description: `O engagement médio da turma (${analytics.averageEngagement}%) está abaixo da média recomendada (50%)`,
-        suggestion: 'Considere enviar mensagens de motivação ou criar conteúdo mais interativo',
-        impact: 'Alto'
-      })
-    }
-    
-    // 2. Análise de Alunos Inativos
-    if (analytics.totalStudents > 0) {
-      const inactiveRate = ((analytics.totalStudents - analytics.activeStudents) / analytics.totalStudents) * 100
-      if (inactiveRate > 30) {
-        opportunities.push({
-          type: 'activity',
-          priority: 'high',
-          title: 'Muitos Alunos Inativos',
-          description: `${Math.round(inactiveRate)}% dos alunos estão inativos`,
-          suggestion: 'Implemente uma campanha de reativação ou analise as barreiras de acesso',
-          impact: 'Alto'
-        })
-      }
-    }
-    
-    // 3. Análise de Progresso Baixo
-    if (analytics.averageProgress < 40) {
-      opportunities.push({
-        type: 'progress',
-        priority: 'medium',
-        title: 'Progresso Lento',
-        description: `O progresso médio da turma (${analytics.averageProgress}%) pode ser melhorado`,
-        suggestion: 'Considere criar marcos intermediários ou gamificação para motivar os alunos',
-        impact: 'Médio'
-      })
-    }
-    
-    // 4. Análise de Health Score
-    if (analytics.healthScore < 60) {
-      opportunities.push({
-        type: 'health',
-        priority: 'high',
-        title: 'Health Score Baixo',
-        description: `O health score da turma (${analytics.healthScore}) indica problemas estruturais`,
-        suggestion: 'Revise a estratégia geral da turma e analise os fatores específicos do health score',
-        impact: 'Alto'
-      })
-    }
-    
-    // 5. Análise da Distribuição de Engagement
-    const dist = analytics.engagementDistribution
-    const lowEngagementCount = (dist.baixo || 0) + (dist.muito_baixo || 0)
-    if (analytics.totalStudents > 0) {
-      const lowEngagementPercentage = (lowEngagementCount / analytics.totalStudents) * 100
-      if (lowEngagementPercentage > 40) {
-        opportunities.push({
-          type: 'distribution',
-          priority: 'medium',
-          title: 'Concentração de Baixo Engagement',
-          description: `${Math.round(lowEngagementPercentage)}% dos alunos têm engagement baixo ou muito baixo`,
-          suggestion: 'Segmente estes alunos para ações específicas de engagement e suporte personalizado',
-          impact: 'Médio'
-        })
-      }
-    }
-    
-    // 6. Análise de Distribuição de Progresso (se disponível)
-    if (analytics.averageProgress > 0 && analytics.averageProgress < 25) {
-      opportunities.push({
-        type: 'progress_critical',
-        priority: 'high',
-        title: 'Progresso Crítico',
-        description: `O progresso médio está muito baixo (${analytics.averageProgress}%)`,
-        suggestion: 'Intervenção urgente necessária - revise conteúdo e métodos de ensino',
-        impact: 'Crítico'
-      })
-    }
-    
-    // 7. Análise de Retenção (baseada em fatores de health)
-    if (analytics.healthFactors && analytics.healthFactors.retention < 50) {
-      opportunities.push({
-        type: 'retention',
-        priority: 'high',
-        title: 'Problemas de Retenção',
-        description: `O fator de retenção está baixo (${analytics.healthFactors.retention})`,
-        suggestion: 'Analise os padrões de abandono e implemente estratégias de retenção',
-        impact: 'Alto'
-      })
-    }
-    
-    // 8. Oportunidades de Moderado Engagement
-    if (analytics.averageEngagement >= 50 && analytics.averageEngagement < 70) {
-      opportunities.push({
-        type: 'engagement_improvement',
-        priority: 'medium',
-        title: 'Engagement Moderado',
-        description: `O engagement está na média (${analytics.averageEngagement}%) mas pode ser otimizado`,
-        suggestion: 'Implemente técnicas avançadas de gamificação ou conteúdo interativo',
-        impact: 'Médio'
-      })
-    }
-    
-    // 9. Análise de Atividade Baixa vs Alta
-    if (analytics.totalStudents > 0) {
-      const activityRate = (analytics.activeStudents / analytics.totalStudents) * 100
-      if (activityRate >= 70 && activityRate < 90) {
-        opportunities.push({
-          type: 'activity_optimization',
-          priority: 'low',
-          title: 'Otimização de Atividade',
-          description: `Taxa de atividade boa (${Math.round(activityRate)}%) mas pode chegar a excelência`,
-          suggestion: 'Identifique os últimos alunos inativos e crie campanhas direcionadas',
-          impact: 'Baixo'
-        })
-      }
-    }
-    
-    // 10. Insights Positivos
-    if (analytics.averageEngagement > 70) {
-      opportunities.push({
-        type: 'success',
-        priority: 'info',
-        title: 'Engagement Excelente',
-        description: `A turma tem engagement excelente de ${analytics.averageEngagement}%`,
-        suggestion: 'Mantenha as estratégias atuais e considere documentar as melhores práticas para replicar em outras turmas',
-        impact: 'Positivo'
-      })
-    }
-    
-    if (analytics.healthScore > 80) {
-      opportunities.push({
-        type: 'excellence',
-        priority: 'info',
-        title: 'Turma de Alta Performance',
-        description: `Health score excelente (${analytics.healthScore}) indica uma turma muito bem gerida`,
-        suggestion: 'Use esta turma como referência e case study para outras turmas',
-        impact: 'Referência'
-      })
-    }
-    
-    // 11. Análise de Balanceamento
-    if (analytics.totalStudents > 0) {
-      const highEngagementCount = (dist.muito_alto || 0) + (dist.alto || 0)
-      const highEngagementPercentage = (highEngagementCount / analytics.totalStudents) * 100
-      
-      if (highEngagementPercentage > 60) {
-        opportunities.push({
-          type: 'balance',
-          priority: 'info',
-          title: 'Distribuição Positiva',
-          description: `${Math.round(highEngagementPercentage)}% dos alunos têm alto engagement`,
-          suggestion: 'Aproveite os alunos engajados como mentores para os demais',
-          impact: 'Estratégico'
-        })
-      }
-    }
-    
-    // Ordenação por prioridade usando o tipo correto
-    const priorityOrder: Record<Priority, number> = {
-      high: 1,
-      medium: 2,
-      low: 3,
-      info: 4
-    }
-    
-    opportunities.sort((a, b) => {
-      const priorityA = priorityOrder[a.priority]
-      const priorityB = priorityOrder[b.priority]
-      return priorityA - priorityB
-    })
-    
-    console.log(`✅ [CONTROLLER] ${opportunities.length} oportunidades identificadas`)
-    
-    // Construir resposta completa
-    const responseData = {
-      classId: analytics.classId,
-      className: analytics.className,
-      totalOpportunities: opportunities.length,
-      opportunities,
-      classMetrics: {
-        totalStudents: analytics.totalStudents,
-        activeStudents: analytics.activeStudents,
-        averageEngagement: analytics.averageEngagement,
-        healthScore: analytics.healthScore,
-        averageProgress: analytics.averageProgress
-      },
-      summary: {
-        highPriority: opportunities.filter(o => o.priority === 'high').length,
-        mediumPriority: opportunities.filter(o => o.priority === 'medium').length,
-        lowPriority: opportunities.filter(o => o.priority === 'low').length,
-        positiveInsights: opportunities.filter(o => o.priority === 'info').length
-      },
-      analysisDate: new Date().toISOString()
-    }
-    
-    res.status(200).json({
-      success: true,
-      data: responseData,
-      timestamp: new Date().toISOString()
-    })
-
-  } catch (error: any) {
-    console.error('❌ [CONTROLLER] Erro ao analisar oportunidades:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao analisar oportunidades de melhoria',
-      error: error.message
-    })
-  }
-}
 export const getBenchmarks = async (req: Request, res: Response): Promise<void> => {
   try {
     console.log(`📈 [CONTROLLER] Calculando benchmarks da indústria`)
@@ -398,8 +149,6 @@ export const getBenchmarks = async (req: Request, res: Response): Promise<void> 
       })
       return
     }
-    
-    const classIds = activeClasses.map(c => c.classId)
     
     // Calcular métricas de todas as turmas para benchmarks
     const allClassesAnalytics = []
@@ -692,7 +441,6 @@ export const getMultiPlatformAnalytics = async (req: Request, res: Response) => 
 // ✅ EXPORTAR TODOS OS CONTROLADORES
 export const analyticsController = {
   recalculateIndividualScores,
-  getOpportunities,               // ← NOVO
   getBenchmarks,                  // ← NOVO
   getMultiPlatformAnalytics       // ✅ NOVO - Fase 5
 }
