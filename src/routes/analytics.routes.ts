@@ -4,6 +4,7 @@ import { analyticsController } from '../controllers/analytics.controller'
 import { classAnalyticsController } from '../controllers/analytics/classAnalytics.controller'
 import { compareClasses } from '../services/analytics/classComparison.runtime'
 import { getClassOpportunities } from '../services/analytics/classOpportunities.runtime'
+import { getBenchmarkAnalytics } from '../services/analytics/benchmarkAnalytics.runtime'
 import { getClassQuickStats } from '../services/analytics/classQuickStats.runtime'
 import { getGlobalAnalytics } from '../services/analytics/globalAnalytics.runtime'
 import {
@@ -14,6 +15,7 @@ import {
 import { classQuickStatsInput } from '../security/classQuickStatsInput'
 import { classComparisonInput } from '../security/classComparisonInput'
 import { globalAnalyticsInput } from '../security/globalAnalyticsInput'
+import { benchmarkAnalyticsInput } from '../security/benchmarkAnalyticsInput'
 import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
@@ -103,7 +105,13 @@ router.get(
 )
 
 // GET /api/analytics/benchmarks - Benchmarks da indústria
-router.get('/benchmarks', analyticsController.getBenchmarks)
+router.get(
+  '/benchmarks',
+  withValidatedInput(
+    benchmarkAnalyticsInput,
+    getBenchmarkAnalytics,
+  ),
+)
 
 // GET /api/analytics/opportunities/:classId - Oportunidades de melhoria
 router.get(

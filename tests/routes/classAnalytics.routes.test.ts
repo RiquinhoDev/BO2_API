@@ -62,6 +62,13 @@ jest.mock(
   }),
 )
 
+jest.mock(
+  '../../src/services/analytics/benchmarkAnalytics.runtime',
+  () => ({
+    getBenchmarkAnalytics: extractedHandler('getBenchmarkAnalytics'),
+  }),
+)
+
 jest.mock('../../src/controllers/analytics.controller', () => ({
   analyticsController: {
     getClassAnalytics: legacyHandler('getClassAnalytics'),
@@ -71,7 +78,6 @@ jest.mock('../../src/controllers/analytics.controller', () => ({
     getEngagementDistribution: legacyHandler('getEngagementDistribution'),
     getClassAlerts: legacyHandler('getClassAlerts'),
     getOutdatedClasses: legacyHandler('getOutdatedClasses'),
-    getBenchmarks: legacyHandler('getBenchmarks'),
     getMultiPlatformAnalytics: legacyHandler('getMultiPlatformAnalytics'),
   },
 }))
@@ -180,14 +186,25 @@ describe('class analytics routes', () => {
     expect(response.status).toBe(400)
   })
 
-  it('keeps handlers outside the extracted slices on the legacy controller', async () => {
+  it('mounts benchmarks through its extracted strict boundary', async () => {
     const response = await request(createTestApp())
       .get('/benchmarks?__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
-    expect(response.body).toEqual({
-      source: 'legacy-analytics-controller',
-      handler: 'getBenchmarks',
+    expect(response.body).toMatchObject({
+      source: 'class-analytics-boundary',
+      handler: 'getBenchmarkAnalytics',
+      input: {
+        params: {},
+        query: {},
+      },
     })
+  })
+
+  it('rejects unknown benchmark query fields at the route', async () => {
+    const response = await request(createTestApp())
+      .get('/benchmarks?extra=value&__bo2_offline_loopback=1')
+
+    expect(response.status).toBe(400)
   })
 })
