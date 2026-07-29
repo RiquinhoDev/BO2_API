@@ -403,7 +403,7 @@
       "count": 4
     },
     "no-console": {
-      "count": 95
+      "count": 94
     }
   },
   "src/controllers/usersReviewLists.controller.ts": {
@@ -441,14 +441,6 @@
     },
     "no-console": {
       "count": 32
-    }
-  },
-  "src/jobs/dailyPipeline.job.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
     }
   },
   "src/jobs/dailyPipeline/tagEvaluation/applyTags.ts": {
@@ -506,11 +498,6 @@
     },
     "no-console": {
       "count": 5
-    }
-  },
-  "src/jobs/index.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "src/jobs/rebuildDashboardStats.job.ts": {

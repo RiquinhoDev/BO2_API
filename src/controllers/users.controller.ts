@@ -1,8 +1,6 @@
 // src/controllers/users.controller.ts - PARTE 1/3
 import { NextFunction, Request, RequestHandler, Response } from "express"
 import User, { type IUser } from "../models/user"
-import IdsDiferentes from "../models/IdsDiferentes"
-import UnmatchedUser from "../models/UnmatchedUser"
 import mongoose from "mongoose"
 import SyncHistory, { type ISyncHistory } from "../models/SyncHistory"
 import UserHistory, { type IUserHistory } from "../models/UserHistory"
@@ -18,17 +16,10 @@ import { readImportedUsers } from "../services/importedUsersWorkbook"
 import { withUploadedFileCleanup } from "../security/usersImportUpload"
 import { HttpError } from "../security/errorHandling"
 import { ensureUsersV2Products } from "../contracts/usersV2"
+import { userIdentityReconciliationService } from "../services/users/userIdentityReconciliation.runtime"
 import type {
-  UsersBulkDeleteInput,
-  UsersDeleteByIdInput,
   UsersDeleteStudentInput,
 } from "../security/usersDestructiveInput"
-
-export {
-  getIdsDiferentes,
-  getUnmatchedUsers,
-} from "./usersReviewLists.controller"
-
 
 type PipelineStage = mongoose.PipelineStage
 type UserIdParams = { id: string }
@@ -193,21 +184,6 @@ function engagementLevelFromScore(score: number): string {
   return 'NONE'
 }
 
-function validDiscordIds(user: IUser): string[] {
-  return (user.discord?.discordIds || []).filter(discordId => discordId.trim() !== '')
-}
-
-async function persistDiscordIds(user: IUser, discordIds: string[]): Promise<void> {
-  await User.updateOne(
-    { _id: user._id },
-    {
-      $set: {
-        'discord.discordIds': discordIds,
-        'discord.lastEditedAt': new Date(),
-      },
-    },
-  )
-}
 interface SyncHistoryResult {
   completedAt: Date
 }
@@ -1914,224 +1890,6 @@ export const deleteStudent = async (input: UsersDeleteStudentInput, res: Respons
 }
 
 
-export const mergeDiscordId = async (req: Request, res: Response): Promise<void> => {
-  const { id, email, newDiscordId } = req.body;
-  
-  if (!email || !newDiscordId) {
-    res.status(400).json({ message: "Dados incompletos." });
-    return
-  }
-
-  try {
-    const user = await User.findOne({ 
-      email: { $regex: new RegExp(`^${email}$`, "i") } 
-    });
-
-    if (!user) {
-      res.status(404).json({ message: "Utilizador não encontrado." });
-      return
-    }
-
-    const currentIds = validDiscordIds(user)
-    let mergedIds = currentIds
-
-    if (!currentIds.includes(newDiscordId)) {
-      mergedIds = [...new Set([...currentIds, newDiscordId])]
-      await persistDiscordIds(user, mergedIds)
-    }
-
-    if (id) {
-      await IdsDiferentes.findByIdAndDelete(id);
-    }
-
-    res.status(200).json({ 
-      message: "Merge concluído com sucesso.",
-      user: {
-        email: user.email,
-        discordIds: mergedIds
-      }
-    });
-
-  } catch (error: unknown) {
-    console.error("Erro no merge:", error);
-    res.status(500).json({ 
-      message: "Erro interno no merge", 
-      details: errorMessage(error)
-    });
-  }
-}
-
-export const deleteIdsDiferentes = async (input: UsersDeleteByIdInput, res: Response): Promise<void> => {
-  const { id } = input.params
-  try {
-    const deleted = await IdsDiferentes.findByIdAndDelete(id)
-
-    if (!deleted) {
-      res.status(404).json({ message: "Registo não encontrado." })
-      return
-    }
-
-    res.status(200).json({ message: "Registo removido com sucesso." })
-  } catch (error: unknown) {
-    res.status(500).json({ message: "Erro ao apagar registo.", details: errorMessage(error) })
-  }
-}
-
-export const deleteUnmatchedUser = async (input: UsersDeleteByIdInput, res: Response): Promise<void> => {
-  const { id } = input.params
-  try {
-    const result = await UnmatchedUser.findByIdAndDelete(id)
-    if (!result) {
-      res.status(404).json({ message: "Utilizador não encontrado." })
-      return
-    }
-    res.status(200).json({ message: "Utilizador apagado com sucesso." })
-  } catch (error: unknown) {
-    res.status(500).json({ message: "Erro ao apagar utilizador.", details: errorMessage(error) })
-  }
-}
-
-export const manualMatch = async (req: Request, res: Response): Promise<void> => {
-  const { discordId, email } = req.body;
-  
-  if (!discordId || !email) {
-    res.status(400).json({ message: "Discord ID e email são obrigatórios." });
-    return
-  }
-
-  try {
-    const user = await User.findOne({ 
-      email: { $regex: new RegExp(`^${email}$`, "i") } 
-    });
-
-    if (!user) {
-      res.status(404).json({ message: "Utilizador não encontrado no Hotmart." });
-      return
-    }
-
-    const discordIds = validDiscordIds(user)
-    let mergedIds = discordIds
-    
-    if (!discordIds.includes(discordId)) {
-      mergedIds = [...discordIds, discordId]
-      await persistDiscordIds(user, mergedIds)
-    }
-
-    await UnmatchedUser.deleteOne({ discordId, email });
-
-    res.json({ 
-      message: "Correspondência manual criada com sucesso.",
-      user: {
-        email: user.email,
-        discordIds: mergedIds,
-        name: user.name
-      }
-    });
-
-  } catch (error: unknown) {
-    res.status(500).json({ 
-      message: "Erro na correspondência manual", 
-      details: errorMessage(error)
-    });
-  }
-}
-// 🔧 OPERAÇÕES EM LOTE
-export const bulkMergeIds = async (req: Request, res: Response): Promise<void> => {
-  const { ids } = req.body;
-  
-  if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    res.status(400).json({ message: "Lista de IDs é obrigatória." });
-    return
-  }
-
-  try {
-    let mergedCount = 0;
-    const errors: string[] = [];
-
-    for (const id of ids) {
-      try {
-        const idDiferente = await IdsDiferentes.findById(id as string);
-        if (!idDiferente) continue;
-
-        const user = await User.findOne({ 
-          email: { $regex: new RegExp(`^${idDiferente.email}$`, "i") } 
-        });
-
-        if (user) {
-          const currentIds = validDiscordIds(user)
-
-          if (currentIds.length === 0) {
-            await persistDiscordIds(user, [idDiferente.newDiscordId])
-            await IdsDiferentes.findByIdAndDelete(id as string);
-            mergedCount++;
-          }
-        }
-      } catch (error: unknown) {
-        errors.push(`Erro no ID ${id}: ${errorMessage(error)}`);
-      }
-    }
-
-    res.json({ 
-      message: `${mergedCount} merges concluídos com sucesso.`,
-      mergedCount,
-      errors: errors.length > 0 ? errors : undefined
-    });
-
-  } catch (error: unknown) {
-    res.status(500).json({ 
-      message: "Erro no merge em lote", 
-      details: errorMessage(error)
-    });
-  }
-}
-
-export const bulkDeleteIds = async (input: UsersBulkDeleteInput, res: Response): Promise<void> => {
-  const { ids } = input.body;
-  
-  if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    res.status(400).json({ message: "Lista de IDs é obrigatória." });
-    return
-  }
-
-  try {
-    const result = await IdsDiferentes.deleteMany({ _id: { $in: ids } });
-    
-    res.json({ 
-      message: `${result.deletedCount} registos eliminados com sucesso.`,
-      deletedCount: result.deletedCount
-    });
-
-  } catch (error: unknown) {
-    res.status(500).json({ 
-      message: "Erro na eliminação em lote", 
-      details: errorMessage(error)
-    });
-  }
-}
-
-export const bulkDeleteUnmatchedUsers = async (input: UsersBulkDeleteInput, res: Response): Promise<void> => {
-  const { ids } = input.body;
-  
-  if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    res.status(400).json({ message: "Lista de IDs é obrigatória." });
-    return
-  }
-
-  try {
-    const result = await UnmatchedUser.deleteMany({ _id: { $in: ids } });
-    
-    res.json({ 
-      message: `${result.deletedCount} utilizadores não correspondidos eliminados.`,
-      deletedCount: result.deletedCount
-    });
-
-  } catch (error: unknown) {
-    res.status(500).json({ 
-      message: "Erro na eliminação em lote", 
-      details: errorMessage(error)
-    });
-  }
-}
 // src/controllers/users.controller.ts - PARTE 3/3 (final)
 
 /**
@@ -2180,27 +1938,13 @@ export const syncDiscordAndHotmart = async (
             continue
           }
 
-          const user = await User.findOne({ email: { $regex: new RegExp(`^${email}$`, "i") } })
-          if (!user) {
+          const result = await userIdentityReconciliationService
+            .reconcileImportedIdentity({ discordId, email })
+          if (result === 'unmatched') {
             unmatched++
-            await UnmatchedUser.create({ discordId, email })
             continue
           }
-
-          const currentIds = validDiscordIds(user)
-
-          if (!currentIds.includes(discordId)) {
-            await User.updateOne(
-              { _id: user._id },
-              {
-                $set: {
-                  'discord.discordIds': [...currentIds, discordId],
-                  'discord.updatedAt': new Date()
-                }
-              }
-            )
-            added++
-          }
+          if (result === 'added') added++
 
         } catch (recordError: unknown) {
           errors++
