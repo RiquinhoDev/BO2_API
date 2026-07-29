@@ -41,6 +41,13 @@ jest.mock(
   }),
 )
 
+jest.mock(
+  '../../src/services/analytics/globalAnalytics.runtime',
+  () => ({
+    getGlobalAnalytics: extractedHandler('getGlobalAnalytics'),
+  }),
+)
+
 jest.mock('../../src/controllers/analytics.controller', () => ({
   analyticsController: {
     getClassAnalytics: legacyHandler('getClassAnalytics'),
@@ -50,7 +57,6 @@ jest.mock('../../src/controllers/analytics.controller', () => ({
     getEngagementDistribution: legacyHandler('getEngagementDistribution'),
     getClassAlerts: legacyHandler('getClassAlerts'),
     getOutdatedClasses: legacyHandler('getOutdatedClasses'),
-    getGlobalAnalytics: legacyHandler('getGlobalAnalytics'),
     getBenchmarks: legacyHandler('getBenchmarks'),
     getOpportunities: legacyHandler('getOpportunities'),
     compareClasses: legacyHandler('compareClasses'),
@@ -104,14 +110,29 @@ describe('class analytics routes', () => {
     })
   })
 
-  it('keeps handlers outside the extracted slices on the legacy controller', async () => {
+  it('mounts global analytics through its extracted boundary', async () => {
     const response = await request(createTestApp())
       .get('/global?__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
+    expect(response.body).toMatchObject({
+      source: 'class-analytics-boundary',
+      handler: 'getGlobalAnalytics',
+      input: {
+        params: {},
+        query: {},
+      },
+    })
+  })
+
+  it('keeps handlers outside the extracted slices on the legacy controller', async () => {
+    const response = await request(createTestApp())
+      .get('/benchmarks?__bo2_offline_loopback=1')
+
+    expect(response.status).toBe(200)
     expect(response.body).toEqual({
       source: 'legacy-analytics-controller',
-      handler: 'getGlobalAnalytics',
+      handler: 'getBenchmarks',
     })
   })
 })
