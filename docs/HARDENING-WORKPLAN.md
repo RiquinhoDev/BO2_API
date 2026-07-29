@@ -898,6 +898,25 @@ Progresso controllers:
   permanecem **437/437**. Gate offline: lint 0, TS **0/0**, Jest
   **119 suites / 505 passed / 2 skipped**, build 0.
   Spec: `docs/superpowers/specs/2026-07-29-class-opportunities-boundary-design.md`.
+- [x] **ARCH-02/03 — benchmarks de analytics extraídos e contrato Front alinhado** (2026-07-29):
+  `analytics.controller.ts` **446→226 linhas físicas**. `GET /api/analytics/benchmarks` passou para boundary
+  strict, controller de 36 linhas, serviço puro com clock/reader injetáveis e adapter Mongoose; a complexidade
+  caiu de **1 + 3N queries para no máximo 2** (uma projeção de turmas + uma agregação agrupada de utilizadores),
+  independentemente do número de turmas. A precedência canónica ficou explícita: estado
+  `combined.status→status`; engagement `combined.engagement.score→combined.combinedEngagement→`
+  `hotmart.engagement.engagementScore→curseduca.engagement.alternativeEngagement→0`; progresso
+  `combined.totalProgress→Hotmart derivado de aulas→curseduca.progress.estimatedProgress→0`, preservando zeros,
+  clamp `0..100`, exclusão de apagados e fallback legacy. Percentis nearest-rank, rankings, desempate por
+  `classId`, insights, limite de dez e os dois envelopes vazios permaneceram determinísticos. O Front passou a
+  validar o contrato rico real e os dois envelopes vazios; o schema inventado anterior é rejeitado. Catálogo
+  mantém **437/437** e o consumer foi corrigido de `front` para `desconhecido`, pois existe wrapper mas nenhum
+  caller de componente. `no-explicit-any` **830→829**, `no-console` **2348→2344** e `no-unused-vars` mantém
+  **82**. RED/GREEN + mutações provaram nearest-rank, desempate determinístico, query count, wiring real e
+  contrato Front. Gate API offline: lint 0, TS **0/0**, Jest **123 suites / 525 passed / 2 skipped**, build 0.
+  Gate Front: lint 0, Jest **199 suites / 904 passed**, build 0; o hook
+  `Front/scripts/git-hooks/pre-commit` pré-existente permaneceu staged e fora do commit analytics.
+  Specs: `docs/superpowers/specs/2026-07-29-analytics-benchmarks-boundary-design.md` e
+  `docs/superpowers/plans/2026-07-29-analytics-benchmarks-boundary.md`.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
