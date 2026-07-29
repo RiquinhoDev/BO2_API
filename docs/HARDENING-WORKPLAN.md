@@ -821,6 +821,11 @@ Progresso controllers:
   O adapter passou ainda a gravar o subdocumento `stats` completo (`updated`/`conflicts: 0`), evitando campos
   obrigatórios ausentes após `findByIdAndUpdate`. RED/GREEN: serviço puro (falha por linha e estrutural), MongoMemory
   offline, autoria autenticada contra body hostil, cleanup em sucesso/falha e catálogo **437/437**.
+- [ ] **ARCH-02 — `listUsersSimple` paginado Front+Back:** desenho aprovado em 2026-07-29 e fixado em
+  `docs/superpowers/specs/2026-07-29-users-simple-pagination-design.md`. O `limit: 10000` vinha de um caminho
+  `loadAll` agora sem consumidor de produção no Front. Migrar atomicamente as branches `remake`: backend com
+  helper canónico 50/200 + sort estável + projeção; Front paged-only, fallback explícito para metadata legacy e
+  erro visível se não existir nenhum contrato de paginação. Nunca truncar silenciosamente nem repor load-all.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
