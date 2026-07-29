@@ -3,12 +3,14 @@ import { Router } from 'express'
 import { analyticsController } from '../controllers/analytics.controller'
 import { classAnalyticsController } from '../controllers/analytics/classAnalytics.controller'
 import { getClassQuickStats } from '../services/analytics/classQuickStats.runtime'
+import { getGlobalAnalytics } from '../services/analytics/globalAnalytics.runtime'
 import {
   classAnalyticsClassInput,
   classAnalyticsEmptyInput,
   classAnalyticsQueryInput,
 } from '../security/classAnalyticsInput'
 import { classQuickStatsInput } from '../security/classQuickStatsInput'
+import { globalAnalyticsInput } from '../security/globalAnalyticsInput'
 import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
@@ -92,7 +94,10 @@ router.get(
 
 // ===== ANALYTICS AVANÇADOS (ATIVOS) =====
 // GET /api/analytics/global - Visão geral de todas as turmas
-router.get('/global', analyticsController.getGlobalAnalytics)
+router.get(
+  '/global',
+  withValidatedInput(globalAnalyticsInput, getGlobalAnalytics),
+)
 
 // GET /api/analytics/benchmarks - Benchmarks da indústria
 router.get('/benchmarks', analyticsController.getBenchmarks)

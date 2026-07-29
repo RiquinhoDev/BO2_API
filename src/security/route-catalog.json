@@ -267,7 +267,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:98"
+    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:103"
   },
   {
     "method": "GET",
@@ -276,7 +276,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>, <src/pages/gerirAlunos/turmas/hooks/useSimpleAnalytics.ts>; rota em src/routes/analytics.routes.ts:19"
+    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>, <src/pages/gerirAlunos/turmas/hooks/useSimpleAnalytics.ts>; rota em src/routes/analytics.routes.ts:21"
   },
   {
     "method": "GET",
@@ -285,7 +285,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:69"
+    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:71"
   },
   {
     "method": "GET",
@@ -294,7 +294,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:60"
+    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:62"
   },
   {
     "method": "GET",
@@ -303,7 +303,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:42"
+    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:44"
   },
   {
     "method": "GET",
@@ -312,7 +312,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:78"
+    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:80"
   },
   {
     "method": "POST",
@@ -321,7 +321,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:29"
+    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:31"
   },
   {
     "method": "POST",
@@ -330,7 +330,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:38"
+    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:40"
   },
   {
     "method": "GET",
@@ -348,7 +348,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:104"
+    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:109"
   },
   {
     "method": "GET",
@@ -357,7 +357,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:95"
+    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:97"
   },
   {
     "method": "GET",
@@ -366,7 +366,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:51"
+    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:53"
   },
   {
     "method": "GET",
@@ -375,7 +375,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:107"
+    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:112"
   },
   {
     "method": "GET",
@@ -384,7 +384,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:101"
+    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/analytics.routes.ts:106"
   },
   {
     "method": "GET",
@@ -393,7 +393,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:85"
+    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:87"
   },
   {
     "method": "GET",

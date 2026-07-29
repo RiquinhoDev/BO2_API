@@ -855,6 +855,20 @@ Progresso controllers:
   exclusão de apagados, boundary hostil, envelopes, erro central e ligação real da rota. Gate: lint 0, TS **0/0**,
   Jest **109 suites / 452 passed / 2 skipped**, build 0. Spec:
   `docs/superpowers/specs/2026-07-29-class-quick-stats-boundary-design.md`.
+- [x] **ARCH-02 — analytics globais extraídos e corrigidos** (2026-07-29):
+  `analytics.controller.ts` **1081→884 linhas**. `GET /api/analytics/global` passou para boundary strict +
+  controller fino + serviço puro + cache TTL lazy injetável + reader Mongoose. **Quatro bugs reais:** o handler
+  consultava `isDeleted`, `status` e `engagementScore` no topo de `User`, onde não existem, e o resultado sem
+  turmas não cumpria o `globalAnalyticsDataSchema` obrigatório do Front. A leitura usa agora
+  `discord.isDeleted`, `combined.status` e a precedência canónica de engagement, devolve zeros completos no caso
+  vazio e nunca expõe detalhe interno. As consultas por request desceram de **5→2** (turmas projetadas + uma
+  agregação de utilizadores), sem query por turma nem materialização de alunos. O cache mantém TTL de cinco
+  minutos, mas expira lazy e não cria timer/handle no novo módulo; o cache legacy fica isolado enquanto
+  `compareClasses` ainda o usa. Catálogo/manifest permanecem **437/437**. `no-explicit-any` **835→834**
+  (`analytics.controller` 9→8), `no-console` 21→17 e `no-unused-vars` 2→1; a declaração `OpportunityItem`
+  sombreada e comprovadamente morta também saiu. RED/GREEN + quatro mutações provaram apagados, estado, score e
+  ligação real da rota. Gate offline: lint 0, TS **0/0**, Jest **114 suites / 473 passed / 2 skipped**, build 0.
+  Spec: `docs/superpowers/specs/2026-07-29-global-analytics-boundary-design.md`.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
