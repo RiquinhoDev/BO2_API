@@ -814,6 +814,10 @@ Progresso controllers:
   preservados; erros internos seguem o handler central. RED/GREEN: campos extra/`$where`, merge idempotente,
   bulk conservador, unmatched e email com `+`/`.`. Gate: lint 0, TS 0/0, Jest **95 suites / 387 passed /
   2 skipped**, build 0. Main ARCH-02 continua aberto até partir os restantes domínios gigantes.
+- [ ] **ARCH-02 — import de identidades Discord:** desenho aprovado em 2026-07-29 e plano executável em
+  `docs/superpowers/plans/2026-07-29-discord-identity-import.md`. Extrair a orquestração CSV/XLSX para caso de
+  uso + portas + adapters; controller fica só com HTTP/cleanup. A autoria do audit passa a vir de
+  `req.user.email`, nunca do `req.body.user` controlado pelo cliente. Preservar rota, upload e envelopes.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
