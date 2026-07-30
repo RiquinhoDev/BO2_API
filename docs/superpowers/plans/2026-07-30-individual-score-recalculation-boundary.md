@@ -177,7 +177,7 @@ Run:
 npx.cmd jest --ci --runInBand tests/utils/engagementCalculator.test.ts
 ```
 
-Expected: three tests pass against the existing formula. These are
+Expected: eleven tests pass against the existing formula. These are
 characterization tests; mutation proof in Step 7 establishes their sensitivity.
 
 - [ ] **Step 3: Write the failing purity test**
