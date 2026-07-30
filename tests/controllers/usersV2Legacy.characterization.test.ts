@@ -68,8 +68,14 @@ const enrollment = {
   status: 'ACTIVE',
   enrolledAt: new Date('2026-07-30T12:00:00.000Z'),
   isPrimary: true,
-  progress: { percentage: 50 },
-  engagement: { engagementScore: 77 },
+  progress: {
+    percentage: 50,
+    lastActivity: new Date('2026-07-29T12:00:00.000Z'),
+  },
+  engagement: {
+    engagementScore: 77,
+    lastAction: new Date('2026-07-28T12:00:00.000Z'),
+  },
 }
 
 const product = {
@@ -100,6 +106,33 @@ describe('legacy users V2 list handler', () => {
       success: true,
       data: [{
         _id: 'enrollment-1',
+        userId: {
+          _id: 'user-1',
+          name: 'Alice',
+          email: 'alice@example.test',
+          averageEngagement: 77,
+          averageEngagementLevel: 'ALTO',
+        },
+        productId: {
+          _id: 'product-1',
+          name: 'Course One',
+          code: 'course-one',
+          platform: 'hotmart',
+        },
+        platform: 'hotmart',
+        status: 'ACTIVE',
+        enrolledAt: '2026-07-30T12:00:00.000Z',
+        isPrimary: true,
+        progress: {
+          percentage: 50,
+          progressPercentage: 50,
+          lastActivity: '2026-07-29T12:00:00.000Z',
+        },
+        engagement: {
+          score: 77,
+          level: 'ALTO',
+          lastAction: '2026-07-28T12:00:00.000Z',
+        },
         averageEngagement: 77,
         averageEngagementLevel: 'ALTO',
         products: [],
@@ -112,6 +145,19 @@ describe('legacy users V2 list handler', () => {
       },
     })
     expect(response.body.filters).not.toHaveProperty('benign')
+  })
+
+  it('keeps the no-query legacy pagination default at 50', async () => {
+    const response = await request(createApp())
+      .get('/users?__bo2_offline_loopback=1')
+
+    expect(response.status).toBe(200)
+    expect(response.body.pagination).toEqual({
+      total: 1,
+      totalPages: 1,
+      page: 1,
+      limit: 50,
+    })
   })
 
   it('applies score 77 whenever topPercentage is present', async () => {
