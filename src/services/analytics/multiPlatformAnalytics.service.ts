@@ -74,8 +74,8 @@ export class MultiPlatformAnalyticsService {
       engagement: { hotmart, curseduca, combined },
       insights: {
         platformDiversity: snapshot.multiPlatformUsers > 0
-          ? `${((snapshot.multiPlatformUsers / snapshot.totalUsers) * 100).toFixed(1)}% dos utilizadores estÃƒÂ£o em mÃƒÂºltiplas plataformas`
-          : 'Nenhum utilizador em mÃƒÂºltiplas plataformas',
+          ? `${((snapshot.multiPlatformUsers / snapshot.totalUsers) * 100).toFixed(1)}% dos utilizadores estão em múltiplas plataformas`
+          : 'Nenhum utilizador em múltiplas plataformas',
         mostPopular,
         bestEngagement: hotmart.avg > curseduca.avg
           ? 'Hotmart tem melhor engagement'
