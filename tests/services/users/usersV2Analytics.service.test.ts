@@ -280,6 +280,45 @@ describe('UsersV2ComparisonService', () => {
     expect(harness.read).toHaveBeenCalledTimes(1)
   })
 
+  it('includes all-zero user averages in the product average denominator', async () => {
+    const harness = createComparisonHarness({
+      products: [
+        { id: 'product-a', name: 'Product A', platform: 'hotmart' },
+      ],
+      enrollments: [
+        {
+          userId: 'positive-user',
+          productId: 'product-a',
+          platform: 'hotmart',
+          engagement: { engagementScore: 80 },
+        },
+        {
+          userId: 'zero-user',
+          productId: 'product-a',
+          platform: 'hotmart',
+          engagement: { engagementScore: 0 },
+        },
+      ],
+    })
+
+    await expect(harness.service.get()).resolves.toEqual([
+      {
+        productId: 'product-a',
+        productName: 'Product A',
+        platform: 'hotmart',
+        totalStudents: 2,
+        avgScore: 40,
+        trend: 0,
+        distribution: {
+          alto: { count: 1, percentage: 50 },
+          medio: { count: 0, percentage: 0 },
+          baixo: { count: 0, percentage: 0 },
+          risco: { count: 1, percentage: 50 },
+        },
+      },
+    ])
+  })
+
   it('reads enrollment elements exactly twice regardless of product count', async () => {
     let elementReads = 0
     const enrollments: UsersV2ComparisonEnrollment[] = [
