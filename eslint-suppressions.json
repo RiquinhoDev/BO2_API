@@ -716,13 +716,13 @@
   },
   "src/routes/users.routes.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
+      "count": 1
     },
     "@typescript-eslint/no-require-imports": {
-      "count": 6
+      "count": 2
     },
     "no-console": {
-      "count": 18
+      "count": 4
     }
   },
   "src/routes/validationLogs.routes.ts": {

@@ -977,6 +977,23 @@ Progresso controllers:
   Baseline/Browserslist antigos, duas classes Tailwind ambíguas e um chunk acima de 500 kB. Nenhum destes avisos
   foi contado como falha nem corrigido fora do escopo. Continua fora deste corte: matriz de papéis,
   idempotência/caps transversal e o restante pilar ARCH-02.
+- [x] **ARCH-02/03 — fronteira de analytics Users V2 extraída e limitada** (2026-07-30):
+  `GET /api/users/v2/stats` e `GET /api/users/v2/engagement/comparison` deixaram os handlers inline e passaram
+  para schemas strict independentes, controllers injectáveis, serviços puros, readers Mongoose projetados e
+  composição runtime import-safe. `users.routes.ts` caiu de **570→315 linhas**. Stats passou de **2 queries e
+  materialização em Node para 1 aggregation** com projeção, facet e `maxTimeMS`. Comparison passou de **3 reads**
+  (incluindo o batch reader) e `products.map(enrollments.filter(...))` **O(P×E)** para **2 reads projetados** e
+  duas passagens sobre enrollments + uma sobre products, **O(E+P)**; os testes contam exactamente as duas
+  passagens e preservam utilizadores com média zero no denominador. Contratos, `totalStudents` por matrícula,
+  bandas, desempate, `trend: 0` e paths foram mantidos.
+
+  O catálogo e manifest permanecem **437/437**, só com evidências de linha actualizadas; contrato Front
+  **10/10**, lint e build verdes. Focused backend: **10 suites / 82 testes**. Full backend offline:
+  **141 passed + 1 skipped suites; 666 passed + 2 skipped testes**, lint 0, TypeScript **0/0**, build 0.
+  O router perdeu suppressions obsoletas (`no-explicit-any` **7→1**, `no-require-imports` **6→2**,
+  `no-console` **18→4**). RED/GREEN e três mutações provaram boundary strict, wiring correcto de cada runtime e
+  ausência dos dois handlers inline. O heatmap permanece **deliberadamente fora do corte**: continua com a
+  única ocorrência de `Math.random` no router; essa lógica não foi alterada nem copiada.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
