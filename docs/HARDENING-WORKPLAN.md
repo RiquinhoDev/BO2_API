@@ -938,6 +938,45 @@ Progresso controllers:
   lint exit **0**, contrato **2/2 suites, 12/12 testes**, build exit **0** após permissão apenas para
   `.vite-temp` (avisos preexistentes de browsers, classes Tailwind ambíguas e chunk >500 kB). Isto não fecha a
   matriz de papéis, idempotência/caps transversal, o endpoint multi-plataforma nem o pilar ARCH-02 inteiro.
+- [x] **ARCH-02/03 — analytics multi-plataforma extraído e agregado** (2026-07-30):
+  `GET /api/analytics/multi-platform` preserva o contrato público, strings UTF-8 e desempates exactos
+  (Hotmart só ganha com `>` sobre as duas alternativas; os restantes empates de popularidade resolvem para
+  Discord e o empate de engagement para Curseduca). O handler passou para boundary strict de input vazio,
+  controller e serviço injectáveis, reader Mongoose tipado e runtime de composição; falhas seguem para o error
+  handler central, que redige a causa. Uma única agregação limitada por `maxTimeMS` substitui as **cinco**
+  `countDocuments` e as **duas** materializações/scans completas do fluxo removido, sem `find`,
+  `countDocuments`, cursor ou query por utilizador de fallback. A fixture offline medida devolve **17 total,
+  4 activos, 6 Hotmart, 5 Curseduca, 4 Discord e 2 multi-plataforma**, com engagement Hotmart `4/200`,
+  Curseduca `3/80` e combinado `6/355`; também prova IDs canónicos/legacy, ambos os guards de apagados e defesa
+  contra zero, string, objecto, `NaN` e infinitos sem perder números negativos finitos. Foram apagados exactamente
+  `src/controllers/analytics.controller.ts` e `tests/controllers/analytics.controller.test.ts`; scan final:
+  ficheiro legacy ausente, **0** refs a `analyticsController`/`controllers/analytics.controller`, e **0** novos
+  `console.*`, `any`, casts supressores ou `@ts-ignore` no diff (os **55** hits do scan largo já existiam todos em
+  `33ff611`). Catálogo e manifest medidos em **437/437**.
+
+  RED/GREEN factual: as duas mutações `>`→`>=` dos empates produziram, separadamente,
+  **1 failed / 8 passed** e voltaram a **9/9**; retirar `discord.isDeleted` alterou a fixture para 18 utilizadores
+  e retirar o ID Hotmart legacy reduziu 6→5; adicionar `countDocuments({})` fez **2/2** testes RED por query extra,
+  todos restaurados para **2/2** GREEN. A fuga directa de detalhe deu **1 failed / 5 passed**; retirar o guard de
+  chave pontuada deu **1 failed / 5 passed**; retirar o boundary da rota deu **3 failed / 17 passed** e injectar
+  uma chave extra deu **1 failed / 19 passed**; cada mutação foi restaurada e o respectivo gate ficou GREEN.
+
+  Gates frescos offline: API `npm.cmd run lint` exit **0**, `npm.cmd run types:check` **0 erros/0 ficheiros**,
+  `npx.cmd jest --ci --runInBand` **132 passed + 1 skipped suites; 590 passed + 2 skipped testes**, e
+  `npm.cmd run build` exit **0**. Front, na branch `remake`, com
+  `npm.cmd --prefix ..\Front test -- --runInBand src/features/analytics src/__tests__/transportContract.test.ts`
+  **8/8 suites e 39/39 testes**, lint exit **0** e build exit **0**; antes e depois, o único staged continuou a
+  ser `scripts/git-hooks/pre-commit` (52 linhas), sem modificação ou commit. Nenhuma API externa, Mongo de produção,
+  instalação ou rede foi usada; a integração de dados usou só `MongoMemoryServer` offline com
+  `MONGOMS_RUNTIME_DOWNLOAD=false`.
+
+  **Falhas:** nenhuma nos gates finais. **Avisos preexistentes:** o Jest da API mantém o
+  `src/models/user.ts:1145` `console.log` de inicialização do modelo User, logs/avisos do registry de modelos
+  (incluindo `ProductSalesStats` indisponível), avisos Mongoose de índices duplicados/chave reservada e o aviso
+  offline de ActiveCampaign sem configuração. O Front mantém o aviso TS151001 do `ts-jest`, dados
+  Baseline/Browserslist antigos, duas classes Tailwind ambíguas e um chunk acima de 500 kB. Nenhum destes avisos
+  foi contado como falha nem corrigido fora do escopo. Continua fora deste corte: matriz de papéis,
+  idempotência/caps transversal e o restante pilar ARCH-02.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
