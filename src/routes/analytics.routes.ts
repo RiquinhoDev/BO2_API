@@ -7,6 +7,7 @@ import { getClassOpportunities } from '../services/analytics/classOpportunities.
 import { getBenchmarkAnalytics } from '../services/analytics/benchmarkAnalytics.runtime'
 import { getClassQuickStats } from '../services/analytics/classQuickStats.runtime'
 import { getGlobalAnalytics } from '../services/analytics/globalAnalytics.runtime'
+import { recalculateIndividualScores } from '../services/analytics/individualScoreRecalculation.runtime'
 import {
   classAnalyticsClassInput,
   classAnalyticsEmptyInput,
@@ -16,6 +17,7 @@ import { classQuickStatsInput } from '../security/classQuickStatsInput'
 import { classComparisonInput } from '../security/classComparisonInput'
 import { globalAnalyticsInput } from '../security/globalAnalyticsInput'
 import { benchmarkAnalyticsInput } from '../security/benchmarkAnalyticsInput'
+import { individualScoreRecalculationInput } from '../security/individualScoreRecalculationInput'
 import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
@@ -42,7 +44,13 @@ router.post(
 )
 
 // POST /api/analytics/class/:classId/recalculate-individual - Recalcular scores individuais dos alunos
-router.post('/class/:classId/recalculate-individual', analyticsController.recalculateIndividualScores)
+router.post(
+  '/class/:classId/recalculate-individual',
+  withValidatedInput(
+    individualScoreRecalculationInput,
+    recalculateIndividualScores,
+  ),
+)
 
 // ===== MÉTRICAS ESPECÍFICAS =====
 // GET /api/analytics/class/:classId/health - Health Score específico

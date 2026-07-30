@@ -69,11 +69,18 @@ jest.mock(
   }),
 )
 
+jest.mock(
+  '../../src/services/analytics/individualScoreRecalculation.runtime',
+  () => ({
+    recalculateIndividualScores:
+      extractedHandler('recalculateIndividualScores'),
+  }),
+)
+
 jest.mock('../../src/controllers/analytics.controller', () => ({
   analyticsController: {
     getClassAnalytics: legacyHandler('getClassAnalytics'),
     recalculateClassScores: legacyHandler('recalculateClassScores'),
-    recalculateIndividualScores: legacyHandler('recalculateIndividualScores'),
     getHealthScore: legacyHandler('getHealthScore'),
     getEngagementDistribution: legacyHandler('getEngagementDistribution'),
     getClassAlerts: legacyHandler('getClassAlerts'),
@@ -86,6 +93,7 @@ import analyticsRouter from '../../src/routes/analytics.routes'
 
 const createTestApp = () => {
   const app = express()
+  app.use(express.json())
   app.use(analyticsRouter)
   return app
 }
@@ -126,6 +134,43 @@ describe('class analytics routes', () => {
         query: {},
       },
     })
+  })
+
+  it('mounts individual score recalculation through its extracted strict boundary', async () => {
+    const response = await request(createTestApp())
+      .post(
+        '/class/class-1/recalculate-individual?__bo2_offline_loopback=1',
+      )
+
+    expect(response.status).toBe(200)
+    expect(response.body).toMatchObject({
+      source: 'class-analytics-boundary',
+      handler: 'recalculateIndividualScores',
+      input: {
+        params: { classId: 'class-1' },
+        query: {},
+        body: {},
+      },
+    })
+  })
+
+  it('rejects unknown individual score recalculation query fields at the route', async () => {
+    const response = await request(createTestApp())
+      .post(
+        '/class/class-1/recalculate-individual?extra=value&__bo2_offline_loopback=1',
+      )
+
+    expect(response.status).toBe(400)
+  })
+
+  it('rejects unknown individual score recalculation body fields at the route', async () => {
+    const response = await request(createTestApp())
+      .post(
+        '/class/class-1/recalculate-individual?__bo2_offline_loopback=1',
+      )
+      .send({ extra: 'value' })
+
+    expect(response.status).toBe(400)
   })
 
   it('mounts global analytics through its extracted boundary', async () => {
