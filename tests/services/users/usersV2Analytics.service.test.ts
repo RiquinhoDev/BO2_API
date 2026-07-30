@@ -1,6 +1,10 @@
 import {
+  UsersV2ComparisonService,
   UsersV2StatsService,
   type Clock,
+  type UsersV2ComparisonEnrollment,
+  type UsersV2ComparisonReader,
+  type UsersV2ComparisonSnapshot,
   type UsersV2StatsReader,
   type UsersV2StatsSnapshot,
 } from '../../../src/services/users/usersV2Analytics.service'
@@ -133,5 +137,192 @@ describe('UsersV2StatsService', () => {
     expect(harness.now).toHaveBeenCalledTimes(1)
     expect(harness.read).toHaveBeenCalledTimes(1)
     expect(harness.read).toHaveBeenCalledWith(fixedNow)
+  })
+})
+
+function createComparisonHarness(snapshot: UsersV2ComparisonSnapshot): {
+  service: UsersV2ComparisonService
+  read: jest.MockedFunction<UsersV2ComparisonReader['read']>
+} {
+  const read = jest.fn<
+    ReturnType<UsersV2ComparisonReader['read']>,
+    Parameters<UsersV2ComparisonReader['read']>
+  >().mockResolvedValue(snapshot)
+
+  return {
+    service: new UsersV2ComparisonService({ read }),
+    read,
+  }
+}
+
+describe('UsersV2ComparisonService', () => {
+  it('uses each user normalized positive-score average in every product distribution', async () => {
+    const harness = createComparisonHarness({
+      products: [
+        { id: 'product-b', name: 'Hotmart Main', platform: 'hotmart' },
+        { id: 'product-a', name: 'CursEduca Main', platform: 'curseduca' },
+        { id: 'product-c', name: 'Discord Main', platform: 'discord' },
+        { id: 'product-d', name: 'Low Band', platform: 'hotmart' },
+        { id: 'product-e', name: 'Empty', platform: 'discord' },
+      ],
+      enrollments: [
+        {
+          userId: 'shared-user',
+          productId: 'product-b',
+          platform: 'hotmart',
+          engagement: { engagementScore: 80 },
+        },
+        {
+          userId: 'shared-user',
+          productId: 'product-a',
+          platform: 'curseduca',
+          engagement: { engagementScore: 40 },
+        },
+        {
+          userId: 'shared-user',
+          productId: 'product-c',
+          platform: 'discord',
+          engagement: { engagementScore: 0 },
+        },
+        {
+          userId: 'risk-user',
+          productId: 'product-b',
+          platform: 'hotmart',
+          engagement: { engagementScore: 20 },
+        },
+        {
+          userId: 'medium-user',
+          productId: 'product-b',
+          platform: 'hotmart',
+          engagement: { engagementScore: 40 },
+        },
+        {
+          userId: 'low-user',
+          productId: 'product-d',
+          platform: 'hotmart',
+          engagement: { engagementScore: 25 },
+        },
+      ],
+    })
+
+    await expect(harness.service.get()).resolves.toEqual([
+      {
+        productId: 'product-b',
+        productName: 'Hotmart Main',
+        platform: 'hotmart',
+        totalStudents: 3,
+        avgScore: 40,
+        trend: 0,
+        distribution: {
+          alto: { count: 1, percentage: 33 },
+          medio: { count: 1, percentage: 33 },
+          baixo: { count: 0, percentage: 0 },
+          risco: { count: 1, percentage: 33 },
+        },
+      },
+      {
+        productId: 'product-a',
+        productName: 'CursEduca Main',
+        platform: 'curseduca',
+        totalStudents: 1,
+        avgScore: 60,
+        trend: 0,
+        distribution: {
+          alto: { count: 1, percentage: 100 },
+          medio: { count: 0, percentage: 0 },
+          baixo: { count: 0, percentage: 0 },
+          risco: { count: 0, percentage: 0 },
+        },
+      },
+      {
+        productId: 'product-c',
+        productName: 'Discord Main',
+        platform: 'discord',
+        totalStudents: 1,
+        avgScore: 60,
+        trend: 0,
+        distribution: {
+          alto: { count: 1, percentage: 100 },
+          medio: { count: 0, percentage: 0 },
+          baixo: { count: 0, percentage: 0 },
+          risco: { count: 0, percentage: 0 },
+        },
+      },
+      {
+        productId: 'product-d',
+        productName: 'Low Band',
+        platform: 'hotmart',
+        totalStudents: 1,
+        avgScore: 25,
+        trend: 0,
+        distribution: {
+          alto: { count: 0, percentage: 0 },
+          medio: { count: 0, percentage: 0 },
+          baixo: { count: 1, percentage: 100 },
+          risco: { count: 0, percentage: 0 },
+        },
+      },
+      {
+        productId: 'product-e',
+        productName: 'Empty',
+        platform: 'discord',
+        totalStudents: 0,
+        avgScore: 0,
+        trend: 0,
+        distribution: {
+          alto: { count: 0, percentage: 0 },
+          medio: { count: 0, percentage: 0 },
+          baixo: { count: 0, percentage: 0 },
+          risco: { count: 0, percentage: 0 },
+        },
+      },
+    ])
+    expect(harness.read).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads enrollment elements exactly twice regardless of product count', async () => {
+    let elementReads = 0
+    const enrollments: UsersV2ComparisonEnrollment[] = [
+      {
+        userId: 'user-a',
+        productId: 'product-a',
+        platform: 'hotmart',
+        engagement: { engagementScore: 80 },
+      },
+      {
+        userId: 'user-b',
+        productId: 'product-b',
+        platform: 'curseduca',
+        engagement: { engagementScore: 40 },
+      },
+      {
+        userId: 'user-c',
+        productId: 'product-c',
+        platform: 'discord',
+        engagement: { engagementScore: 100 },
+      },
+    ]
+    const countedEnrollments = new Proxy(enrollments, {
+      get(target, property, receiver) {
+        if (typeof property === 'string' && /^\d+$/.test(property)) {
+          elementReads += 1
+        }
+        return Reflect.get(target, property, receiver)
+      },
+    })
+    const harness = createComparisonHarness({
+      products: [
+        { id: 'product-a', name: 'A', platform: 'hotmart' },
+        { id: 'product-b', name: 'B', platform: 'curseduca' },
+        { id: 'product-c', name: 'C', platform: 'discord' },
+        { id: 'product-d', name: 'D', platform: 'hotmart' },
+        { id: 'product-e', name: 'E', platform: 'curseduca' },
+      ],
+      enrollments: countedEnrollments,
+    })
+
+    await harness.service.get()
+
+    expect(elementReads).toBe(enrollments.length * 2)
   })
 })
