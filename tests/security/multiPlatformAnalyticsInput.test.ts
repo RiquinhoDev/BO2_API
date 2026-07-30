@@ -1,14 +1,14 @@
 import express from 'express'
 import request from 'supertest'
-import { createErrorHandling } from '../../src/security/errorHandling'
+import { createErrorHandling, type ErrorLogEvent } from '../../src/security/errorHandling'
 import { multiPlatformAnalyticsInput } from '../../src/security/multiPlatformAnalyticsInput'
 import { withValidatedInput } from '../../src/security/validatedInput'
 
-const createTestApp = () => {
+const createTestApp = (logError: (event: ErrorLogEvent) => void = jest.fn()) => {
   const app = express()
   const errors = createErrorHandling({
     generateCorrelationId: () => 'multi-platform-input-request-id',
-    logError: jest.fn(),
+    logError,
   })
 
   app.use(express.json())
@@ -43,6 +43,7 @@ describe('multiPlatformAnalyticsInput', () => {
   it.each([
     'extra=value',
     '%24where=return%20true',
+    'filter.name=unsafe',
   ])('rejects unexpected query input: %s', async (query) => {
     const response = await request(createTestApp())
       .get(`/multi-platform?${query}&__bo2_offline_loopback=1`)
@@ -53,6 +54,17 @@ describe('multiPlatformAnalyticsInput', () => {
       code: 'INVALID_REQUEST',
       correlationId: 'multi-platform-input-request-id',
     })
+  })
+
+  it('rejects a dotted query key before schema parsing', async () => {
+    const logError = jest.fn<void, [ErrorLogEvent]>()
+    const response = await request(createTestApp(logError))
+      .get('/multi-platform?filter.name=unsafe&__bo2_offline_loopback=1')
+
+    expect(response.status).toBe(400)
+    expect(logError).toHaveBeenCalledWith(expect.objectContaining({
+      detail: 'unsafe input property at input.query.filter.name',
+    }))
   })
 
   it('rejects an own __proto__ key without polluting Object.prototype', async () => {
