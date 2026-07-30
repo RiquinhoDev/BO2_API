@@ -43,7 +43,7 @@ describe('MultiPlatformAnalyticsService', () => {
       },
       insights: {
         platformDiversity:
-          '30.0% dos utilizadores estÃƒÂ£o em mÃƒÂºltiplas plataformas',
+          '30.0% dos utilizadores estão em múltiplas plataformas',
         mostPopular: 'Hotmart',
         bestEngagement: 'Hotmart tem melhor engagement',
       },
@@ -73,7 +73,7 @@ describe('MultiPlatformAnalyticsService', () => {
         combined: { avg: 0 },
       },
       insights: {
-        platformDiversity: 'Nenhum utilizador em mÃƒÂºltiplas plataformas',
+        platformDiversity: 'Nenhum utilizador em múltiplas plataformas',
         mostPopular: 'Discord',
         bestEngagement: 'Curseduca tem melhor engagement',
       },
@@ -103,6 +103,32 @@ describe('MultiPlatformAnalyticsService', () => {
 
     await expect(service.get()).resolves.toMatchObject({
       insights: { mostPopular: 'Curseduca' },
+    })
+  })
+
+  it('does not select Hotmart when Hotmart and Curseduca tie above Discord', async () => {
+    const service = new MultiPlatformAnalyticsService(readerWith({
+      ...populatedSnapshot,
+      hotmartUsers: 5,
+      curseducaUsers: 5,
+      discordUsers: 4,
+    }))
+
+    await expect(service.get()).resolves.toMatchObject({
+      insights: { mostPopular: 'Curseduca' },
+    })
+  })
+
+  it('does not select Hotmart when Hotmart and Discord tie above Curseduca', async () => {
+    const service = new MultiPlatformAnalyticsService(readerWith({
+      ...populatedSnapshot,
+      hotmartUsers: 5,
+      curseducaUsers: 4,
+      discordUsers: 5,
+    }))
+
+    await expect(service.get()).resolves.toMatchObject({
+      insights: { mostPopular: 'Discord' },
     })
   })
 

@@ -97,7 +97,7 @@ await expect(service.get()).resolves.toEqual({
   },
   insights: {
     platformDiversity:
-      '30.0% dos utilizadores estÃ£o em mÃºltiplas plataformas',
+      '30.0% dos utilizadores estão em múltiplas plataformas',
     mostPopular: 'Hotmart',
     bestEngagement: 'Hotmart tem melhor engagement',
   },
