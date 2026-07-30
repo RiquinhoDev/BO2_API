@@ -249,11 +249,11 @@ describe('class analytics routes', () => {
     expect(response.body).toMatchObject({
       source: 'class-analytics-boundary',
       handler: 'getMultiPlatformAnalytics',
-      input: {
-        params: {},
-        query: {},
-        body: {},
-      },
+    })
+    expect(response.body.input).toEqual({
+      params: {},
+      query: {},
+      body: {},
     })
   })
 
