@@ -924,15 +924,20 @@ Progresso controllers:
   O calculador de engagement caiu de **19 para 0 `console.*`**. A leitura é um cursor Mongoose projetado e
   ordenado; a escrita passou de **1 leitura + N writes** para **1 cursor + `ceil(N/100)` `bulkWrite` unordered**.
   A rota e o catálogo continuam em **437/437**; o consumer do catálogo foi corrigido para `desconhecido`, pois o
-  Front tem wrapper/hook mas nenhum caller de componente. RED/GREEN e mutações cobriram batch 205→`[100,100,5]`,
-  falhas parciais sem mensagem privada, filtro de aluno apagado, ausência de writes por aluno, boundary hostil e
-  wiring da rota. A integração usou somente `MongoMemoryServer` com `MONGOMS_RUNTIME_DOWNLOAD=false`; não usou
-  Mongo ou integrações de produção. Gates frescos offline: API lint exit **0**, TS **0 erros/0 ficheiros**, Jest
-  **128 passed + 1 skipped suites; 555 passed + 2 skipped testes** (avisos preexistentes de índices Mongoose
-  duplicados e logs de modelos), build exit **0**; Front sem instalação: lint exit **0**, contrato **2/2 suites,
-  12/12 testes**, build exit **0** após permissão apenas para `.vite-temp` (avisos preexistentes de browsers,
-  classes Tailwind ambíguas e chunk >500 kB). Isto não fecha a matriz de papéis, idempotência/caps transversal,
-  o endpoint multi-plataforma nem o pilar ARCH-02 inteiro.
+  Front tem wrapper/hook mas nenhum caller de componente. A correção da revisão final restaurou a precedência
+  nullish exata `combined→Hotmart→CursEduca` com projeção dos dois níveis legacy, restringiu falhas parciais a
+  erros indexados puros (write concern ambíguo falha o lote inteiro) e retirou IDs estáveis do log runtime de
+  lote, que agora regista apenas `failedCount` e a causa pelo redator comum. Os pares 14/15, 29/30, 49/50 e
+  69/70 ficaram caracterizados com nível e label. RED factual: adapter **5 failed / 5 passed** e runtime TS2305;
+  GREEN focado: **9 suites / 65 testes**. As mutações anteriores continuam a cobrir batch
+  205→`[100,100,5]`, filtro de aluno apagado, ausência de writes por aluno, boundary hostil e wiring da rota. A
+  integração usou somente `MongoMemoryServer` com `MONGOMS_RUNTIME_DOWNLOAD=false`; não usou Mongo ou integrações
+  de produção. Gates frescos offline após a correção: API lint exit **0**, TS **0 erros/0 ficheiros**, Jest
+  **129 passed + 1 skipped suites; 569 passed + 2 skipped testes** (avisos preexistentes de índices Mongoose
+  duplicados e logs de modelos), build exit **0**. O gate Front anterior, sem alteração neste lote, permanece:
+  lint exit **0**, contrato **2/2 suites, 12/12 testes**, build exit **0** após permissão apenas para
+  `.vite-temp` (avisos preexistentes de browsers, classes Tailwind ambíguas e chunk >500 kB). Isto não fecha a
+  matriz de papéis, idempotência/caps transversal, o endpoint multi-plataforma nem o pilar ARCH-02 inteiro.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
