@@ -39,14 +39,6 @@
       "count": 12
     }
   },
-  "src/controllers/analytics.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 1
-    }
-  },
   "src/controllers/auth.controller.ts": {
     "no-console": {
       "count": 4

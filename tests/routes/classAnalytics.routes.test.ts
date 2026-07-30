@@ -10,14 +10,6 @@ const extractedHandler = (name: string) =>
     })
   }
 
-const legacyHandler = (name: string): express.RequestHandler =>
-  (_req, res) => {
-    res.json({
-      source: 'legacy-analytics-controller',
-      handler: name,
-    })
-  }
-
 jest.mock(
   '../../src/controllers/analytics/classAnalytics.controller',
   () => ({
@@ -77,17 +69,13 @@ jest.mock(
   }),
 )
 
-jest.mock('../../src/controllers/analytics.controller', () => ({
-  analyticsController: {
-    getClassAnalytics: legacyHandler('getClassAnalytics'),
-    recalculateClassScores: legacyHandler('recalculateClassScores'),
-    getHealthScore: legacyHandler('getHealthScore'),
-    getEngagementDistribution: legacyHandler('getEngagementDistribution'),
-    getClassAlerts: legacyHandler('getClassAlerts'),
-    getOutdatedClasses: legacyHandler('getOutdatedClasses'),
-    getMultiPlatformAnalytics: legacyHandler('getMultiPlatformAnalytics'),
-  },
-}))
+jest.mock(
+  '../../src/services/analytics/multiPlatformAnalytics.runtime',
+  () => ({
+    getMultiPlatformAnalytics:
+      extractedHandler('getMultiPlatformAnalytics'),
+  }),
+)
 
 import analyticsRouter from '../../src/routes/analytics.routes'
 
@@ -249,6 +237,37 @@ describe('class analytics routes', () => {
   it('rejects unknown benchmark query fields at the route', async () => {
     const response = await request(createTestApp())
       .get('/benchmarks?extra=value&__bo2_offline_loopback=1')
+
+    expect(response.status).toBe(400)
+  })
+
+  it('mounts multi-platform analytics through its extracted strict boundary', async () => {
+    const response = await request(createTestApp())
+      .get('/multi-platform?__bo2_offline_loopback=1')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toMatchObject({
+      source: 'class-analytics-boundary',
+      handler: 'getMultiPlatformAnalytics',
+      input: {
+        params: {},
+        query: {},
+        body: {},
+      },
+    })
+  })
+
+  it('rejects unknown multi-platform query fields at the route', async () => {
+    const response = await request(createTestApp())
+      .get('/multi-platform?extra=value&__bo2_offline_loopback=1')
+
+    expect(response.status).toBe(400)
+  })
+
+  it('rejects unknown multi-platform body fields at the route', async () => {
+    const response = await request(createTestApp())
+      .get('/multi-platform?__bo2_offline_loopback=1')
+      .send({ extra: 'value' })
 
     expect(response.status).toBe(400)
   })

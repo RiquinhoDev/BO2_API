@@ -1,6 +1,5 @@
 // src/routes/analytics.routes.ts - Rotas Completas para Analytics
 import { Router } from 'express'
-import { analyticsController } from '../controllers/analytics.controller'
 import { classAnalyticsController } from '../controllers/analytics/classAnalytics.controller'
 import { compareClasses } from '../services/analytics/classComparison.runtime'
 import { getClassOpportunities } from '../services/analytics/classOpportunities.runtime'
@@ -8,6 +7,7 @@ import { getBenchmarkAnalytics } from '../services/analytics/benchmarkAnalytics.
 import { getClassQuickStats } from '../services/analytics/classQuickStats.runtime'
 import { getGlobalAnalytics } from '../services/analytics/globalAnalytics.runtime'
 import { recalculateIndividualScores } from '../services/analytics/individualScoreRecalculation.runtime'
+import { getMultiPlatformAnalytics } from '../services/analytics/multiPlatformAnalytics.runtime'
 import {
   classAnalyticsClassInput,
   classAnalyticsEmptyInput,
@@ -18,6 +18,7 @@ import { classComparisonInput } from '../security/classComparisonInput'
 import { globalAnalyticsInput } from '../security/globalAnalyticsInput'
 import { benchmarkAnalyticsInput } from '../security/benchmarkAnalyticsInput'
 import { individualScoreRecalculationInput } from '../security/individualScoreRecalculationInput'
+import { multiPlatformAnalyticsInput } from '../security/multiPlatformAnalyticsInput'
 import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
@@ -134,6 +135,12 @@ router.get(
 )
 
 // ✅ NOVO: GET /api/analytics/multi-platform - Analytics multi-plataforma (Fase 5)
-router.get('/multi-platform', analyticsController.getMultiPlatformAnalytics)
+router.get(
+  '/multi-platform',
+  withValidatedInput(
+    multiPlatformAnalyticsInput,
+    getMultiPlatformAnalytics,
+  ),
+)
 
 export default router
