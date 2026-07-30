@@ -962,7 +962,7 @@ Progresso controllers:
   uma chave extra deu **1 failed / 19 passed**; cada mutação foi restaurada e o respectivo gate ficou GREEN.
 
   Gates frescos offline: API `npm.cmd run lint` exit **0**, `npm.cmd run types:check` **0 erros/0 ficheiros**,
-  `npx.cmd jest --ci --runInBand` **132 passed + 1 skipped suites; 590 passed + 2 skipped testes**, e
+  `npx.cmd jest --ci --runInBand` **132 passed + 1 skipped suites; 592 passed + 2 skipped testes**, e
   `npm.cmd run build` exit **0**. Front, na branch `remake`, com
   `npm.cmd --prefix ..\Front test -- --runInBand src/features/analytics src/__tests__/transportContract.test.ts`
   **8/8 suites e 39/39 testes**, lint exit **0** e build exit **0**; antes e depois, o único staged continuou a
