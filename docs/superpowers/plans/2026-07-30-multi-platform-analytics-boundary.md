@@ -209,6 +209,9 @@ The fixture matrix must include:
 - a top-level-deleted user and a Discord-deleted user;
 - zero, negative, string, object, `NaN`, `Infinity`, and `-Infinity`
   engagement candidates;
+- raw Decimal128 and unsafe Long engagement candidates on the same document,
+  proving primitive double output and Hotmart-first combined precedence;
+- exact `Number.MAX_VALUE` and `-Number.MAX_VALUE` candidates;
 - a raw numeric top-level legacy `engagement`;
 - a document with empty IDs/arrays;
 - an empty collection case.
@@ -257,19 +260,48 @@ const hasArrayValue = (path: string) => ({
   ],
 })
 
-const isFiniteNonZeroNumber = (path: string) => ({
-  $and: [
-    { $isNumber: path },
-    { $gt: [path, -Number.MAX_VALUE] },
-    { $lt: [path, Number.MAX_VALUE] },
-    { $ne: [path, 0] },
-  ],
+const finiteNonZeroDoubleOrNull = (path: string) => ({
+  $let: {
+    vars: {
+      converted: {
+        $cond: [
+          { $isNumber: path },
+          {
+            $convert: {
+              input: path,
+              to: 'double',
+              onError: null,
+              onNull: null,
+            },
+          },
+          null,
+        ],
+      },
+    },
+    in: {
+      $cond: [
+        {
+          $and: [
+            { $ne: ['$$converted', null] },
+            { $gte: ['$$converted', -Number.MAX_VALUE] },
+            { $lte: ['$$converted', Number.MAX_VALUE] },
+            { $ne: ['$$converted', 0] },
+          ],
+        },
+        '$$converted',
+        null,
+      ],
+    },
+  },
 })
 ```
 
-The strict finite bounds intentionally reject infinities; the comparisons also
-prevent `NaN` from reaching sums. Scores in this domain are far inside the
-numeric bounds.
+Guard the original candidate with `$isNumber` before conversion so strings and
+objects remain invalid. Normalize accepted BSON numeric types with `$convert`
+to `double`, using `onError` and `onNull` as `null`, before any score reaches
+the typed reader port. The inclusive finite bounds preserve exact
+`±Number.MAX_VALUE`, while rejecting infinities and preventing `NaN` from
+reaching sums.
 
 - [ ] **Step 4: Implement the one-query pipeline**
 

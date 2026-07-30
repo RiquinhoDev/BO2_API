@@ -85,6 +85,7 @@ describe('multi-platform analytics controller', () => {
       correlationId: 'multi-platform-request-id',
     })
     expect(JSON.stringify(response.body)).not.toContain('database-secret-detail')
+    expect(logError).toHaveBeenCalledTimes(1)
     expect(logError).toHaveBeenCalledWith(expect.objectContaining({
       detail: 'database-secret-detail',
     }))

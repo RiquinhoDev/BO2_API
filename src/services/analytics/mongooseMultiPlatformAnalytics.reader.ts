@@ -39,13 +39,39 @@ const hasArrayValue = (path: string) => ({
   ],
 })
 
-const isFiniteNonZeroNumber = (path: string) => ({
-  $and: [
-    { $isNumber: path },
-    { $gt: [path, -Number.MAX_VALUE] },
-    { $lt: [path, Number.MAX_VALUE] },
-    { $ne: [path, 0] },
-  ],
+const finiteNonZeroDoubleOrNull = (path: string) => ({
+  $let: {
+    vars: {
+      converted: {
+        $cond: [
+          { $isNumber: path },
+          {
+            $convert: {
+              input: path,
+              to: 'double',
+              onError: null,
+              onNull: null,
+            },
+          },
+          null,
+        ],
+      },
+    },
+    in: {
+      $cond: [
+        {
+          $and: [
+            { $ne: ['$$converted', null] },
+            { $gte: ['$$converted', -Number.MAX_VALUE] },
+            { $lte: ['$$converted', Number.MAX_VALUE] },
+            { $ne: ['$$converted', 0] },
+          ],
+        },
+        '$$converted',
+        null,
+      ],
+    },
+  },
 })
 
 const emptySnapshot = (): MultiPlatformAnalyticsSnapshot => ({
@@ -96,27 +122,13 @@ const pipeline: PipelineStage[] = [
           hasArrayValue('$discordIds'),
         ],
       },
-      hotmartScore: {
-        $cond: [
-          isFiniteNonZeroNumber('$hotmart.engagement.engagementScore'),
-          '$hotmart.engagement.engagementScore',
-          null,
-        ],
-      },
-      curseducaScore: {
-        $cond: [
-          isFiniteNonZeroNumber('$curseduca.engagement.alternativeEngagement'),
+      hotmartScore:
+        finiteNonZeroDoubleOrNull('$hotmart.engagement.engagementScore'),
+      curseducaScore:
+        finiteNonZeroDoubleOrNull(
           '$curseduca.engagement.alternativeEngagement',
-          null,
-        ],
-      },
-      legacyScore: {
-        $cond: [
-          isFiniteNonZeroNumber('$engagement'),
-          '$engagement',
-          null,
-        ],
-      },
+        ),
+      legacyScore: finiteNonZeroDoubleOrNull('$engagement'),
     },
   },
   {
