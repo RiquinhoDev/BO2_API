@@ -52,6 +52,7 @@
 ### Task 5 — production composition and legacy removal
 
 - Create `src/services/analytics/individualScoreRecalculation.runtime.ts`: observer, repository, service, and controller composition.
+- Create `tests/services/analytics/individualScoreRecalculation.runtime.test.ts`: direct typed batch-log privacy proof.
 - Modify `src/routes/analytics.routes.ts`: validated runtime mount.
 - Modify `src/controllers/analytics.controller.ts`: remove only the recalculation handler and orphan dependencies.
 - Modify `tests/routes/classAnalytics.routes.test.ts`: extracted wiring and boundary proof.
@@ -86,7 +87,29 @@
 Create `tests/utils/engagementCalculator.test.ts`:
 
 ```ts
-import { calculateCombinedEngagement } from '../../src/utils/engagementCalculator'
+import {
+  calculateCombinedEngagement,
+  type EngagementResult,
+  type UserData,
+} from '../../src/utils/engagementCalculator'
+
+type ThresholdCase = readonly [
+  UserData,
+  number,
+  EngagementResult['level'],
+  string,
+]
+
+const thresholdCases: readonly ThresholdCase[] = [
+  [{ engagement: 'MEDIO', accessCount: 0, progress: { completedPercentage: 9 } }, 14, 'MUITO_BAIXO', 'Muito Baixo'],
+  [{ engagement: 'ALTO', accessCount: 0, progress: { completedPercentage: 0 } }, 15, 'BAIXO', 'Baixo'],
+  [{ engagement: 'MUITO_ALTO', accessCount: 0, progress: { completedPercentage: 22 } }, 29, 'BAIXO', 'Baixo'],
+  [{ engagement: 'MUITO_ALTO', accessCount: 0, progress: { completedPercentage: 24 } }, 30, 'MEDIO', 'Médio'],
+  [{ engagement: 'MUITO_ALTO', accessCount: 0, progress: { completedPercentage: 72 } }, 49, 'MEDIO', 'Médio'],
+  [{ engagement: 'MUITO_ALTO', accessCount: 0, progress: { completedPercentage: 74 } }, 50, 'ALTO', 'Alto'],
+  [{ engagement: 'MUITO_ALTO', accessCount: 4, progress: { completedPercentage: 98 } }, 69, 'ALTO', 'Alto'],
+  [{ engagement: 'MUITO_ALTO', accessCount: 4, progress: { completedPercentage: 100 } }, 70, 'MUITO_ALTO', 'Muito Alto'],
+]
 
 describe('calculateCombinedEngagement', () => {
   it('preserves the 40/40/20 formula and high-score output', () => {
@@ -132,6 +155,17 @@ describe('calculateCombinedEngagement', () => {
       progress: { completedPercentage: 150 },
     }).breakdown.progressScore).toBe(100)
   })
+
+  it.each(thresholdCases)(
+    'maps threshold case %# to its exact score, level, and label',
+    (input, score, level, levelLabel) => {
+      expect(calculateCombinedEngagement(input)).toMatchObject({
+        score,
+        level,
+        levelLabel,
+      })
+    },
+  )
 })
 ```
 
@@ -510,6 +544,9 @@ Seed learners with:
 - one canonical Discord-deleted learner;
 - one raw legacy top-level deleted document written through
   `User.collection.insertOne` so Mongoose strict schema cannot discard it.
+- stored level fixtures proving Hotmart fallback, CursEduca fallback, and
+  combined precedence. Use actual MongoMemoryServer documents, not repository
+  mocks.
 
 - [ ] **Step 2: Write failing stream assertions**
 
@@ -519,7 +556,11 @@ Collect `repository.streamByClass('class-1')` and assert:
 - both deleted representations are excluded;
 - order is `_id` ascending;
 - projection maps only ID/name/email/current score/current level/access count/
-  total progress;
+  total progress, including the two legacy level fields required to derive
+  `currentLevel`;
+- `currentLevel` uses exact nullish precedence:
+  `combined.engagement.level ?? hotmart.engagement.engagementLevel ??
+  curseduca.engagement.engagementLevel`;
 - meaningful zero remains zero.
 
 Spy on `User.find`; assert one call with both deletion filters and the exact
@@ -590,6 +631,11 @@ Also mock a rejection shaped as:
 Assert only the second learner fails, the first succeeds, the observer receives
 the cause and failed ID, and no raw message appears in the returned outcome.
 
+Add a realistic combined failure shaped with valid indexed `writeErrors` plus
+a non-empty `writeConcernError` or `writeConcernErrors` in the cause or nested
+result. Assert every submitted learner fails because the committed subset is
+ambiguous.
+
 For `{ cause: 'unclassified' }`, assert every submitted learner fails.
 
 - [ ] **Step 7: Implement structural bulk-error narrowing**
@@ -603,9 +649,12 @@ function isRecord(value: unknown): value is Record<PropertyKey, unknown> {
 ```
 
 Read `writeErrors` only after `isRecord`, require an array, and accept an index
-only when it is an integer within the submitted update range. If the structure
-is missing, empty, malformed, or out of range, classify the complete batch as
-failed. Never access `.message` for the public outcome.
+only when it is an integer within the submitted update range. Before mapping
+indexes, structurally inspect both the cause and its result: any non-empty
+`writeConcernError` or `writeConcernErrors` makes the entire submitted batch
+failed. If the indexed structure is missing, empty, malformed, out of range,
+or otherwise ambiguous, classify the complete batch as failed. Never access
+`.message` for the public outcome.
 
 - [ ] **Step 8: Add the 205-learner integration proof**
 
@@ -852,7 +901,6 @@ const observer: ScoreRecalculationObserver = {
   },
   writeFailed: ({ learnerIds, cause }) => {
     logger.error('Individual score batch write failed', {
-      learnerIds,
       failedCount: learnerIds.length,
       error: cause,
     })
@@ -860,8 +908,18 @@ const observer: ScoreRecalculationObserver = {
 }
 ```
 
-Do not include learner name or email. Pass the same observer to the Mongoose
-repository and service. Compose the controller last.
+Expose this composition as a small typed factory receiving an `AppLogger`.
+Do not include learner ID, name, or email in batch-write logger metadata. Pass
+the same observer to the Mongoose repository and service. Compose the
+controller last.
+
+- [ ] **Step 3a: Prove count-only batch logging**
+
+Create `tests/services/analytics/individualScoreRecalculation.runtime.test.ts`.
+Invoke the observer factory directly with a typed recording logger, then call
+`writeFailed` with opaque learner IDs and a sensitive cause. Assert the logger
+metadata contains `failedCount` and the cause passed for shared redaction, but
+neither the metadata nor its serialized form contains either learner ID.
 
 - [ ] **Step 4: Mount the validated runtime**
 
@@ -927,7 +985,7 @@ route; none remain in the legacy controller. No forbidden new pattern.
 Run:
 
 ```powershell
-npx.cmd jest --ci --runInBand tests/utils/engagementCalculator.test.ts tests/services/analytics/individualScoreRecalculation.service.test.ts tests/services/analytics/mongooseIndividualScoreRecalculation.repository.test.ts tests/security/individualScoreRecalculationInput.test.ts tests/controllers/individualScoreRecalculation.controller.test.ts tests/controllers/analytics.controller.test.ts tests/routes/classAnalytics.routes.test.ts tests/security/routeCatalog.test.ts
+npx.cmd jest --ci --runInBand tests/utils/engagementCalculator.test.ts tests/services/analytics/individualScoreRecalculation.service.test.ts tests/services/analytics/mongooseIndividualScoreRecalculation.repository.test.ts tests/services/analytics/individualScoreRecalculation.runtime.test.ts tests/security/individualScoreRecalculationInput.test.ts tests/controllers/individualScoreRecalculation.controller.test.ts tests/controllers/analytics.controller.test.ts tests/routes/classAnalytics.routes.test.ts tests/security/routeCatalog.test.ts
 ```
 
 Expected: all focused tests pass; catalog is 437/437.
