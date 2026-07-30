@@ -1268,14 +1268,6 @@
       "count": 33
     }
   },
-  "src/services/syncUtilizadoresServices/engagement/engagementCalculator.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
-    "no-console": {
-      "count": 1
-    }
-  },
   "src/services/syncUtilizadoresServices/engagement/engagementService.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
