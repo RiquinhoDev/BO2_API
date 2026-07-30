@@ -80,6 +80,12 @@ interface EnrollmentFixture {
   isPrimary?: boolean
 }
 
+interface BoundaryFixture {
+  level: ProgressLevel
+  progress: number
+  engagement: number
+}
+
 const enrollmentDocument = ({
   platform = 'hotmart',
   status = 'ACTIVE',
@@ -362,6 +368,36 @@ describe('MongooseUsersV2EnrollmentReader', () => {
     })
   })
 
+  it('keeps a non-Discord enrollment when only discord is marked deleted', async () => {
+    const discordDeletedOnly = new mongoose.Types.ObjectId(
+      '00000000000000000000000e',
+    )
+    await User.collection.insertOne(userDocument(
+      discordDeletedOnly,
+      'Discord Deleted Only',
+      'discord-deleted-only@example.test',
+      { discord: { isDeleted: true } },
+    ))
+    await UserProduct.collection.insertOne(enrollmentDocument({
+      _id: new mongoose.Types.ObjectId('20000000000000000000000f'),
+      userId: discordDeletedOnly,
+      productId: ids.productA,
+      platform: 'hotmart',
+      engagement: { engagementScore: 60 },
+    }))
+    const reader = new MongooseUsersV2EnrollmentReader()
+
+    await expect(reader.read(baseFilters({
+      search: 'Discord Deleted Only',
+    }))).resolves.toMatchObject({
+      totalUsers: 1,
+      rows: [{
+        userId: { _id: discordDeletedOnly },
+        platform: 'hotmart',
+      }],
+    })
+  })
+
   it('uses enrollment date and applies the canonical active-user guard only for ACTIVE', async () => {
     const reader = new MongooseUsersV2EnrollmentReader()
 
@@ -447,16 +483,16 @@ describe('MongooseUsersV2EnrollmentReader', () => {
       ALTO: new mongoose.Types.ObjectId('300000000000000000000004'),
       MUITO_ALTO: new mongoose.Types.ObjectId('300000000000000000000005'),
     }
-    const boundaryRows = [
+    const boundaryRows: BoundaryFixture[] = [
       {
-        level: 'MUITO_BAIXO' as const,
+        level: 'MUITO_BAIXO',
         progress: 0,
         engagement: 1,
       },
-      { level: 'BAIXO' as const, progress: 25, engagement: 20 },
-      { level: 'MEDIO' as const, progress: 40, engagement: 40 },
-      { level: 'ALTO' as const, progress: 60, engagement: 60 },
-      { level: 'MUITO_ALTO' as const, progress: 100, engagement: 80 },
+      { level: 'BAIXO', progress: 25, engagement: 20 },
+      { level: 'MEDIO', progress: 40, engagement: 40 },
+      { level: 'ALTO', progress: 60, engagement: 60 },
+      { level: 'MUITO_ALTO', progress: 100, engagement: 80 },
     ]
     await User.collection.insertMany(boundaryRows.map(({ level }) =>
       userDocument(
@@ -739,7 +775,6 @@ describe('MongooseUsersV2EnrollmentReader', () => {
             {
               $match: {
                 isDeleted: { $ne: true },
-                'discord.isDeleted': { $ne: true },
               },
             },
             {
