@@ -243,18 +243,14 @@ export class UsersV2ComparisonService {
 
     for (const product of snapshot.products) {
       const scores = scoresByProduct.get(product.id) ?? []
-      let positiveScoreSum = 0
-      let positiveScoreCount = 0
+      let scoreSum = 0
       let alto = 0
       let medio = 0
       let baixo = 0
       let risco = 0
 
       for (const score of scores) {
-        if (score > 0) {
-          positiveScoreSum += score
-          positiveScoreCount += 1
-        }
+        scoreSum += score
 
         if (score >= 60) {
           alto += 1
@@ -273,9 +269,9 @@ export class UsersV2ComparisonService {
         productName: product.name,
         platform: product.platform,
         totalStudents,
-        avgScore: positiveScoreCount === 0
+        avgScore: totalStudents === 0
           ? 0
-          : Math.round(positiveScoreSum / positiveScoreCount),
+          : Math.round(scoreSum / totalStudents),
         trend: 0,
         distribution: {
           alto: {
