@@ -13,6 +13,7 @@ import { UserProduct } from "../models"
 import Product, { type IProduct } from "../models/product/Product"
 import type { IUserProduct } from "../models/UserProduct"
 import { ensureUsersV2Products } from "../contracts/usersV2"
+import { engagementLevelFromScore } from '../services/users/usersV2Enrollment.domain'
 import type {
   UsersDeleteStudentInput,
 } from "../security/usersDestructiveInput"
@@ -169,15 +170,6 @@ function errorStack(error: unknown): string | undefined {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
-}
-
-function engagementLevelFromScore(score: number): string {
-  if (score >= 80) return 'MUITO_ALTO'
-  if (score >= 60) return 'ALTO'
-  if (score >= 40) return 'MEDIO'
-  if (score >= 20) return 'BAIXO'
-  if (score > 0) return 'MUITO_BAIXO'
-  return 'NONE'
 }
 
 interface SyncHistoryResult {
