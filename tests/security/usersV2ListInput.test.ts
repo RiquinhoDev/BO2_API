@@ -83,10 +83,19 @@ describe('users V2 enrollment input', () => {
     expect(usersV2OverviewAnalyticsInput.parse(emptyInput)).toEqual(emptyInput)
   })
 
-  it('retains legacy defaults and translates any topPercentage to score 77', () => {
+  it('defaults legacy pagination to the unchanged handler limit of 50', () => {
+    const parsed = usersV2LegacyInput.parse(emptyInput)
+
+    expect(parsed.query).toEqual(expect.objectContaining({
+      page: 1,
+      limit: 50,
+    }))
+  })
+
+  it('caps legacy limits and translates any topPercentage to score 77', () => {
     const parsed = usersV2LegacyInput.parse({
       params: {},
-      query: { topPercentage: '0', benign: 'x' },
+      query: { limit: '10000', topPercentage: '0', benign: 'x' },
       body: {},
     })
 

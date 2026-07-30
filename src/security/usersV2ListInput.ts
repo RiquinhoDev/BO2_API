@@ -88,7 +88,7 @@ export const usersV2OverviewAnalyticsInput = validatedSchema({
 
 const legacyQuery = z.object({
   page: positiveInteger.default('1'),
-  limit: positiveInteger.default('100').transform(value => Math.min(value, 100)),
+  limit: positiveInteger.default('50').transform(value => Math.min(value, 100)),
   platform: platform.optional(),
   productId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
   status: status.optional(),
