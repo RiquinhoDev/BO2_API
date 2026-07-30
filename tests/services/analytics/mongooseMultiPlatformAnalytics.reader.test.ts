@@ -3,6 +3,7 @@ import { MongoMemoryServer } from 'mongodb-memory-server'
 import { assertSafeTestMongoUri } from '../../../src/config/testDatabase'
 import User from '../../../src/models/user'
 import { MongooseMultiPlatformAnalyticsReader } from '../../../src/services/analytics/mongooseMultiPlatformAnalytics.reader'
+import { MultiPlatformAnalyticsService } from '../../../src/services/analytics/multiPlatformAnalytics.service'
 
 let mongoServer: MongoMemoryServer
 
@@ -151,6 +152,92 @@ describe('MongooseMultiPlatformAnalyticsReader', () => {
       $match: {
         isDeleted: { $ne: true },
         'discord.isDeleted': { $ne: true },
+      },
+    })
+  })
+
+  it('normalizes raw BSON scores to finite primitive sums without changing combined precedence', async () => {
+    const unsafeLongAsDouble = 9_007_199_254_740_992
+    await User.collection.insertOne({
+      email: 'bson-scores@example.test',
+      name: 'BSON Scores',
+      hotmart: {
+        hotmartUserId: 'hotmart-bson',
+        engagement: {
+          engagementScore: mongoose.mongo.Decimal128.fromString('12.5'),
+        },
+      },
+      curseduca: {
+        curseducaUserId: 'curseduca-bson',
+        engagement: {
+          alternativeEngagement:
+            mongoose.mongo.Long.fromString('9007199254740993'),
+        },
+      },
+    })
+    const reader = new MongooseMultiPlatformAnalyticsReader()
+
+    const snapshot = await reader.read()
+
+    expect(snapshot.engagement).toEqual({
+      hotmart: { total: 1, sum: 12.5 },
+      curseduca: { total: 1, sum: unsafeLongAsDouble },
+      combined: { total: 1, sum: 12.5 },
+    })
+
+    const publicResult = await new MultiPlatformAnalyticsService({
+      read: async () => snapshot,
+    }).get()
+    expect(publicResult.engagement).toEqual({
+      hotmart: { total: 1, sum: 12.5, avg: 12.5 },
+      curseduca: {
+        total: 1,
+        sum: unsafeLongAsDouble,
+        avg: unsafeLongAsDouble,
+      },
+      combined: { total: 1, sum: 12.5, avg: 12.5 },
+    })
+
+    const sums = [
+      snapshot.engagement.hotmart.sum,
+      snapshot.engagement.curseduca.sum,
+      snapshot.engagement.combined.sum,
+      publicResult.engagement.hotmart.sum,
+      publicResult.engagement.curseduca.sum,
+      publicResult.engagement.combined.sum,
+    ]
+    for (const sum of sums) {
+      expect(typeof sum).toBe('number')
+      expect(Number.isFinite(sum)).toBe(true)
+    }
+  })
+
+  it('includes both finite double extrema while combined keeps only the positive score', async () => {
+    await User.collection.insertMany([
+      {
+        email: 'positive-max-score@example.test',
+        name: 'Positive Max Score',
+        hotmart: {
+          hotmartUserId: 'hotmart-positive-max',
+          engagement: { engagementScore: Number.MAX_VALUE },
+        },
+      },
+      {
+        email: 'negative-max-score@example.test',
+        name: 'Negative Max Score',
+        curseduca: {
+          curseducaUserId: 'curseduca-negative-max',
+          engagement: { alternativeEngagement: -Number.MAX_VALUE },
+        },
+      },
+    ])
+    const reader = new MongooseMultiPlatformAnalyticsReader()
+
+    await expect(reader.read()).resolves.toMatchObject({
+      engagement: {
+        hotmart: { total: 1, sum: Number.MAX_VALUE },
+        curseduca: { total: 1, sum: -Number.MAX_VALUE },
+        combined: { total: 1, sum: Number.MAX_VALUE },
       },
     })
   })
