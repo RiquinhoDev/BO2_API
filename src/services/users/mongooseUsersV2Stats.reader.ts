@@ -63,6 +63,7 @@ export class MongooseUsersV2StatsReader implements UsersV2StatsReader {
       },
       {
         $project: {
+          _id: 0,
           userId: 1,
           productId: 1,
           platform: 1,

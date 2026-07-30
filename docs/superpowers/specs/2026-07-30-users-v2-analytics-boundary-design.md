@@ -154,7 +154,8 @@ Create `src/services/users/mongooseUsersV2Stats.reader.ts`.
 
 1. match `status: "ACTIVE"` using the existing status index;
 2. project only `userId`, `productId`, `platform`, `enrolledAt`,
-   `engagement.engagementScore`, and `progress.percentage`;
+   `engagement.engagementScore`, and `progress.percentage`, explicitly
+   excluding the implicitly included `_id`;
 3. look up only the user activity fields required by the existing inactivity
    rule;
 4. use a facet/group pipeline to compute all scalar and platform values;
