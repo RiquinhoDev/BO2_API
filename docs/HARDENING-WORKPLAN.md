@@ -983,8 +983,9 @@ Progresso controllers:
   composição runtime import-safe. `users.routes.ts` caiu de **570→315 linhas**. Stats passou de **2 queries e
   materialização em Node para 1 aggregation** com projeção, facet e `maxTimeMS`. Comparison passou de **3 reads**
   (incluindo o batch reader) e `products.map(enrollments.filter(...))` **O(P×E)** para **2 reads projetados** e
-  duas passagens sobre enrollments + uma sobre products, **O(E+P)**; os testes contam exactamente as duas
-  passagens e preservam utilizadores com média zero no denominador. Contratos, `totalStudents` por matrícula,
+  agrupamentos lineares sobre enrollments/utilizadores + uma passagem sobre products, **O(E+P)**; os testes
+  provam que os scans da fonte de enrollments não crescem com o número de produtos e preservam utilizadores
+  com média zero no denominador. Contratos, `totalStudents` por matrícula,
   bandas, desempate, `trend: 0` e paths foram mantidos.
 
   O catálogo e manifest permanecem **437/437**, só com evidências de linha actualizadas; contrato Front

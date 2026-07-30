@@ -62,6 +62,16 @@ export class MongooseUsersV2StatsReader implements UsersV2StatsReader {
         $match: { status: 'ACTIVE' },
       },
       {
+        $project: {
+          userId: 1,
+          productId: 1,
+          platform: 1,
+          enrolledAt: 1,
+          'engagement.engagementScore': 1,
+          'progress.percentage': 1,
+        },
+      },
+      {
         $lookup: {
           from: User.collection.name,
           let: { userId: '$userId' },
