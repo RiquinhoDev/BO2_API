@@ -3,6 +3,7 @@ import {
   UsersV2StatsService,
   type Clock,
   type UsersV2ComparisonEnrollment,
+  type UsersV2ComparisonProduct,
   type UsersV2ComparisonReader,
   type UsersV2ComparisonSnapshot,
   type UsersV2StatsReader,
@@ -319,8 +320,7 @@ describe('UsersV2ComparisonService', () => {
     ])
   })
 
-  it('reads enrollment elements exactly twice regardless of product count', async () => {
-    let elementReads = 0
+  it('keeps enrollment source scans independent of product count', async () => {
     const enrollments: UsersV2ComparisonEnrollment[] = [
       {
         userId: 'user-a',
@@ -341,27 +341,44 @@ describe('UsersV2ComparisonService', () => {
         engagement: { engagementScore: 100 },
       },
     ]
-    const countedEnrollments = new Proxy(enrollments, {
-      get(target, property, receiver) {
-        if (typeof property === 'string' && /^\d+$/.test(property)) {
-          elementReads += 1
-        }
-        return Reflect.get(target, property, receiver)
-      },
-    })
-    const harness = createComparisonHarness({
-      products: [
-        { id: 'product-a', name: 'A', platform: 'hotmart' },
-        { id: 'product-b', name: 'B', platform: 'curseduca' },
-        { id: 'product-c', name: 'C', platform: 'discord' },
-        { id: 'product-d', name: 'D', platform: 'hotmart' },
-        { id: 'product-e', name: 'E', platform: 'curseduca' },
-      ],
-      enrollments: countedEnrollments,
-    })
+    const baseProducts: UsersV2ComparisonProduct[] = [
+      { id: 'product-a', name: 'A', platform: 'hotmart' },
+      { id: 'product-b', name: 'B', platform: 'curseduca' },
+      { id: 'product-c', name: 'C', platform: 'discord' },
+    ]
+    const measureEnrollmentSourceReads = async (
+      products: UsersV2ComparisonProduct[],
+    ): Promise<number> => {
+      let elementReads = 0
+      const countedEnrollments = new Proxy(enrollments, {
+        get(target, property, receiver) {
+          if (typeof property === 'string' && /^\d+$/.test(property)) {
+            elementReads += 1
+          }
+          return Reflect.get(target, property, receiver)
+        },
+      })
+      const harness = createComparisonHarness({
+        products,
+        enrollments: countedEnrollments,
+      })
 
-    await harness.service.get()
+      await harness.service.get()
+      return elementReads
+    }
+    const readsWithThreeProducts = await measureEnrollmentSourceReads(
+      baseProducts,
+    )
+    const readsWithOneHundredProducts = await measureEnrollmentSourceReads([
+      ...baseProducts,
+      ...Array.from({ length: 97 }, (_, index) => ({
+        id: `empty-product-${index}`,
+        name: `Empty ${index}`,
+        platform: 'hotmart',
+      })),
+    ])
 
-    expect(elementReads).toBe(enrollments.length * 2)
+    expect(readsWithThreeProducts).toBeLessThanOrEqual(enrollments.length * 3)
+    expect(readsWithOneHundredProducts).toBe(readsWithThreeProducts)
   })
 })

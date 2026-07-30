@@ -488,11 +488,13 @@ const newCutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 Pipeline requirements:
 
 1. `$match: { status: 'ACTIVE' }`;
-2. `$lookup` from `User.collection.name`, matching `_id` to `userId`, with a
+2. `$project` containing only `userId`, `productId`, `platform`, `enrolledAt`,
+   `engagement.engagementScore`, and `progress.percentage`;
+3. `$lookup` from `User.collection.name`, matching `_id` to `userId`, with a
    projection containing only `discord.engagement.lastMessageDate`;
-3. `$set` numeric score/progress using `$isNumber` plus `$convert` to double;
-4. `$facet` scalar totals, distinct products, and platform groups;
-5. final `$project` into the exact snapshot fields.
+4. `$set` numeric score/progress using `$isNumber` plus `$convert` to double;
+5. `$facet` scalar totals, distinct products, and platform groups;
+6. final `$project` into the exact snapshot fields.
 
 Use `$lt` for inactivity and `$gte` for seven-day new enrollment. Missing user
 activity contributes zero. Treat missing platform as `unknown`.

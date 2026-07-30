@@ -231,8 +231,30 @@ describe('MongooseUsersV2StatsReader', () => {
     expect(userProductFind).not.toHaveBeenCalled()
     expect(userProductCount).not.toHaveBeenCalled()
     expect(userFind).not.toHaveBeenCalled()
-    expect(aggregate.mock.calls[0]?.[0]).toEqual(expect.arrayContaining([
+    const pipeline = aggregate.mock.calls[0]?.[0]
+    expect(pipeline).toHaveLength(6)
+    expect(pipeline?.map((stage) => Object.keys(stage))).toEqual([
+      ['$match'],
+      ['$project'],
+      ['$lookup'],
+      ['$set'],
+      ['$facet'],
+      ['$project'],
+    ])
+    expect(pipeline?.[0]).toEqual(
       { $match: { status: 'ACTIVE' } },
+    )
+    expect(pipeline?.[1]).toEqual({
+      $project: {
+        userId: 1,
+        productId: 1,
+        platform: 1,
+        enrolledAt: 1,
+        'engagement.engagementScore': 1,
+        'progress.percentage': 1,
+      },
+    })
+    expect(pipeline?.[2]).toEqual(
       {
         $lookup: {
           from: User.collection.name,
@@ -253,7 +275,110 @@ describe('MongooseUsersV2StatsReader', () => {
           as: 'user',
         },
       },
-    ]))
+    )
+    expect(pipeline?.[3]).toEqual({
+      $set: {
+        numericEngagement: expect.any(Object),
+        numericProgress: expect.any(Object),
+        lastMessageDate: {
+          $arrayElemAt: [
+            '$user.discord.engagement.lastMessageDate',
+            0,
+          ],
+        },
+        normalizedPlatform: {
+          $ifNull: ['$platform', 'unknown'],
+        },
+      },
+    })
+    expect(pipeline?.[4]).toEqual({
+      $facet: {
+        totals: [
+          {
+            $group: {
+              _id: null,
+              totalStudents: { $sum: 1 },
+              engagementSum: { $sum: '$numericEngagement' },
+              progressSum: { $sum: '$numericProgress' },
+              atRiskCount: { $sum: expect.any(Object) },
+              inactive30d: { $sum: expect.any(Object) },
+              new7d: { $sum: expect.any(Object) },
+            },
+          },
+        ],
+        products: [
+          {
+            $group: {
+              _id: '$productId',
+            },
+          },
+        ],
+        platforms: [
+          {
+            $group: {
+              _id: '$normalizedPlatform',
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $sort: { _id: 1 },
+          },
+        ],
+      },
+    })
+    expect(pipeline?.filter((stage) => '$facet' in stage)).toHaveLength(1)
+    expect(pipeline?.[5]).toEqual({
+      $project: {
+        _id: 0,
+        totalStudents: {
+          $ifNull: [
+            { $arrayElemAt: ['$totals.totalStudents', 0] },
+            0,
+          ],
+        },
+        engagementSum: {
+          $ifNull: [
+            { $arrayElemAt: ['$totals.engagementSum', 0] },
+            0,
+          ],
+        },
+        progressSum: {
+          $ifNull: [
+            { $arrayElemAt: ['$totals.progressSum', 0] },
+            0,
+          ],
+        },
+        atRiskCount: {
+          $ifNull: [
+            { $arrayElemAt: ['$totals.atRiskCount', 0] },
+            0,
+          ],
+        },
+        inactive30d: {
+          $ifNull: [
+            { $arrayElemAt: ['$totals.inactive30d', 0] },
+            0,
+          ],
+        },
+        new7d: {
+          $ifNull: [
+            { $arrayElemAt: ['$totals.new7d', 0] },
+            0,
+          ],
+        },
+        activeProducts: { $size: '$products' },
+        byPlatform: {
+          $map: {
+            input: '$platforms',
+            as: 'platform',
+            in: {
+              platform: '$$platform._id',
+              count: '$$platform.count',
+            },
+          },
+        },
+      },
+    })
   })
 
   it('returns an exact finite zero snapshot without fallback queries', async () => {
