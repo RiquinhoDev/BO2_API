@@ -43,19 +43,6 @@ export interface EngagementResult {
  * @returns Resultado completo do engagement
  */
 export function calculateCombinedEngagement(user: UserData): EngagementResult {
-  console.log("🔍 [BACKEND] Calculando engagement para utilizador:", {
-    id: user._id,
-    name: user.name,
-    email: user.email
-  });
-
-  // 🔍 DEBUG: Verificar dados de entrada
-  console.log("📋 [BACKEND] Dados recebidos:", {
-    engagement: user.engagement,
-    accessCount: user.accessCount,
-    progress: user?.progress?.completedPercentage
-  });
-
   // ✅ 1. CALCULAR SCORE DOS ACESSOS (40%)
   const accessScore = calculateAccessScore(user.accessCount || 0);
 
@@ -76,20 +63,11 @@ export function calculateCombinedEngagement(user: UserData): EngagementResult {
   const progressWeighted = progressScore * weights.progress;
   const engagementWeighted = engagementScore * weights.engagement;
 
-  console.log("⚖️ [BACKEND] Scores ponderados:", {
-    access: `${accessScore} * ${weights.access} = ${accessWeighted}`,
-    progress: `${progressScore} * ${weights.progress} = ${progressWeighted}`,
-    engagement: `${engagementScore} * ${weights.engagement} = ${engagementWeighted}`
-  });
-
   const finalScore = Math.round(accessWeighted + progressWeighted + engagementWeighted);
-  console.log("🎯 [BACKEND] Score Final:", finalScore);
 
   // ✅ 5. DETERMINAR NÍVEL E CARACTERÍSTICAS
   const level = determineEngagementLevel(finalScore);
   const { levelLabel, color, icon } = getEngagementCharacteristics(level);
-
-  console.log("🏆 [BACKEND] Nível determinado:", level, "-", levelLabel);
 
   return {
     score: finalScore,
@@ -110,32 +88,26 @@ export function calculateCombinedEngagement(user: UserData): EngagementResult {
  * 🎯 CALCULAR SCORE DOS ACESSOS (0-100)
  */
 function calculateAccessScore(accessCount: number): number {
-  console.log("🔄 [BACKEND] Calculando access score para", accessCount, "acessos");
-
   if (accessCount === 0) {
     return 0;
   }
 
   if (accessCount <= 5) {
     const score = Math.min(30, accessCount * 6);
-    console.log(`   → ${accessCount} acessos (≤5) = ${score}`);
     return score;
   }
 
   if (accessCount <= 15) {
     const score = 30 + ((accessCount - 5) * 3);
-    console.log(`   → ${accessCount} acessos (6-15) = ${score}`);
     return score;
   }
 
   if (accessCount <= 30) {
     const score = 60 + ((accessCount - 15) * 1.67);
-    console.log(`   → ${accessCount} acessos (16-30) = ${Math.round(score)}`);
     return Math.round(score);
   }
 
   const score = Math.min(100, 85 + ((accessCount - 30) * 0.5));
-  console.log(`   → ${accessCount} acessos (31+) = ${Math.round(score)}`);
   return Math.round(score);
 }
 
@@ -143,10 +115,7 @@ function calculateAccessScore(accessCount: number): number {
  * 📈 CALCULAR SCORE DO PROGRESSO (0-100) - ESCALA LINEAR
  */
 function calculateProgressScore(progress?: UserData['progress']): number {
-  console.log("🔄 [BACKEND] Calculando progress score para:", progress);
-
   if (!progress) {
-    console.log("   → Sem dados de progresso = 0 pontos");
     return 0;
   }
 
@@ -155,18 +124,14 @@ function calculateProgressScore(progress?: UserData['progress']): number {
   // ✅ Usar completedPercentage se disponível
   if (progress.completedPercentage !== undefined) {
     percentage = progress.completedPercentage;
-    console.log("   → Usando completedPercentage:", percentage, "%");
   }
   // ✅ Calcular baseado em completed/total
   else if (progress.completed !== undefined && progress.total !== undefined && progress.total > 0) {
     percentage = (progress.completed / progress.total) * 100;
-    console.log(`   → Calculado: (${progress.completed} / ${progress.total}) * 100 = ${percentage}%`);
   }
 
   // ✅ Escala linear simples
   const score = Math.min(100, Math.round(percentage));
-  console.log(`   → Score final do progresso: ${score}`);
-
   return score;
 }
 
@@ -174,10 +139,7 @@ function calculateProgressScore(progress?: UserData['progress']): number {
  * 💡 CALCULAR SCORE DO ENGAGEMENT EXISTENTE (0-100)
  */
 function calculateEngagementScore(engagement?: string): number {
-  console.log("🔄 [BACKEND] Calculando engagement score para:", engagement);
-
   if (!engagement) {
-    console.log("   → Sem engagement definido = 20 pontos (neutro)");
     return 20;
   }
 
@@ -213,11 +175,9 @@ function calculateEngagementScore(engagement?: string): number {
       break;
 
     default:
-      console.log(`   ⚠️ Engagement não reconhecido: "${engagement}" = 20 pontos (padrão)`);
       score = 20;
   }
 
-  console.log(`   → Engagement "${engagement}" = ${score} pontos`);
   return score;
 }
 

@@ -1423,9 +1423,6 @@
     }
   },
   "src/utils/engagementCalculator.ts": {
-    "no-console": {
-      "count": 19
-    },
     "no-useless-assignment": {
       "count": 1
     }
