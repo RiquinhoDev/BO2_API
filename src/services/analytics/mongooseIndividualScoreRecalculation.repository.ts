@@ -17,7 +17,13 @@ interface ScoreRecalculationProjection {
     engagement?: { level?: string }
     totalProgress?: number
   }
-  hotmart?: { engagement?: { accessCount?: number } }
+  hotmart?: {
+    engagement?: {
+      accessCount?: number
+      engagementLevel?: string
+    }
+  }
+  curseduca?: { engagement?: { engagementLevel?: string } }
 }
 
 const NOOP_OBSERVER: ScoreRecalculationObserver = {
@@ -29,8 +35,36 @@ function isRecord(value: unknown): value is Record<PropertyKey, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+function isNonEmptyWriteConcern(value: unknown): boolean {
+  if (value === undefined || value === null) return false
+  if (Array.isArray(value)) return value.length > 0
+  if (isRecord(value)) return Reflect.ownKeys(value).length > 0
+  return true
+}
+
+function hasWriteConcernAmbiguity(cause: Record<PropertyKey, unknown>): boolean {
+  if (
+    isNonEmptyWriteConcern(cause.writeConcernError)
+    || isNonEmptyWriteConcern(cause.writeConcernErrors)
+  ) {
+    return true
+  }
+
+  const result = cause.result
+  return isRecord(result)
+    && (
+      isNonEmptyWriteConcern(result.writeConcernError)
+      || isNonEmptyWriteConcern(result.writeConcernErrors)
+    )
+}
+
 function failedIndexes(cause: unknown, updateCount: number): ReadonlySet<number> | undefined {
-  if (!isRecord(cause) || !Array.isArray(cause.writeErrors) || cause.writeErrors.length === 0) {
+  if (
+    !isRecord(cause)
+    || hasWriteConcernAmbiguity(cause)
+    || !Array.isArray(cause.writeErrors)
+    || cause.writeErrors.length === 0
+  ) {
     return undefined
   }
 
@@ -71,6 +105,8 @@ implements ScoreRecalculationRepository {
         'combined.engagement.level': 1,
         'combined.totalProgress': 1,
         'hotmart.engagement.accessCount': 1,
+        'hotmart.engagement.engagementLevel': 1,
+        'curseduca.engagement.engagementLevel': 1,
       })
       .sort({ _id: 1 })
       .lean<ScoreRecalculationProjection>()
@@ -82,7 +118,9 @@ implements ScoreRecalculationRepository {
         name: document.name,
         email: document.email,
         currentScore: document.combined?.combinedEngagement,
-        currentLevel: document.combined?.engagement?.level,
+        currentLevel: document.combined?.engagement?.level
+          ?? document.hotmart?.engagement?.engagementLevel
+          ?? document.curseduca?.engagement?.engagementLevel,
         accessCount: document.hotmart?.engagement?.accessCount,
         totalProgress: document.combined?.totalProgress,
       }

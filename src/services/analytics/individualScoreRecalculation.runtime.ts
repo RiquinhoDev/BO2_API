@@ -1,28 +1,32 @@
 import { createIndividualScoreRecalculationController } from '../../controllers/analytics/individualScoreRecalculation.controller'
 import { calculateCombinedEngagement } from '../../utils/engagementCalculator'
-import logger from '../../utils/logger'
+import logger, { type AppLogger } from '../../utils/logger'
 import {
   IndividualScoreRecalculationService,
   type ScoreRecalculationObserver,
 } from './individualScoreRecalculation.service'
 import { MongooseIndividualScoreRecalculationRepository } from './mongooseIndividualScoreRecalculation.repository'
 
-const observer: ScoreRecalculationObserver = {
-  calculationFailed: ({ learnerId, cause }) => {
-    logger.error('Individual score calculation failed', {
-      learnerId,
-      error: cause,
-    })
-  },
-  writeFailed: ({ learnerIds, cause }) => {
-    logger.error('Individual score batch write failed', {
-      learnerIds,
-      failedCount: learnerIds.length,
-      error: cause,
-    })
-  },
+export function createScoreRecalculationObserver(
+  runtimeLogger: Pick<AppLogger, 'error'>,
+): ScoreRecalculationObserver {
+  return {
+    calculationFailed: ({ learnerId, cause }) => {
+      runtimeLogger.error('Individual score calculation failed', {
+        learnerId,
+        error: cause,
+      })
+    },
+    writeFailed: ({ learnerIds, cause }) => {
+      runtimeLogger.error('Individual score batch write failed', {
+        failedCount: learnerIds.length,
+        error: cause,
+      })
+    },
+  }
 }
 
+const observer = createScoreRecalculationObserver(logger)
 const repository = new MongooseIndividualScoreRecalculationRepository(observer)
 const service = new IndividualScoreRecalculationService(
   repository,

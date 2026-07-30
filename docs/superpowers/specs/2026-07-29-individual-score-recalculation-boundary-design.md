@@ -1,7 +1,7 @@
 # Individual Score Recalculation Boundary Design
 
 **Date:** 2026-07-29
-**Status:** approved design, pending implementation plan
+**Status:** implemented; final-review correction applied 2026-07-30
 **Scope:** `POST /api/analytics/class/:classId/recalculate-individual`
 
 ## 1. Objective
@@ -197,6 +197,8 @@ User.find({
     'combined.totalProgress': 1,
     'combined.engagement.level': 1,
     'hotmart.engagement.accessCount': 1,
+    'hotmart.engagement.engagementLevel': 1,
+    'curseduca.engagement.engagementLevel': 1,
   })
   .sort({ _id: 1 })
   .lean()
@@ -208,6 +210,18 @@ documents, while `discord.isDeleted` is the canonical current field; neither
 flag may be the sole guard. The stable `_id` order avoids ambiguous traversal.
 Updates only touch combined metrics and timestamps, so they do not move a
 document in the traversal key.
+
+The adapter maps `currentLevel` with the removed handler's exact nullish
+precedence:
+
+```ts
+combined.engagement.level
+  ?? hotmart.engagement.engagementLevel
+  ?? curseduca.engagement.engagementLevel
+```
+
+Empty strings and other non-nullish values therefore remain authoritative,
+matching the legacy behavior.
 
 The adapter persists up to 100 operations per `bulkWrite`, with
 `ordered: false`, setting:
@@ -221,17 +235,23 @@ The adapter persists up to 100 operations per `bulkWrite`, with
 The same injected timestamp is used for both timestamp fields in one learner
 update.
 
-For an unordered partial bulk error, the adapter narrows the unknown error
-structurally and maps driver write-error indices back to learner IDs. No
-`any`, assertion cast, non-null assertion, or raw driver message crosses the
-port. If an error cannot be classified by index, the whole submitted batch is
-reported failed. This is conservative and retry-safe because every write sets
-deterministic derived fields.
+For a pure unordered indexed-write error, the adapter narrows the unknown
+error structurally and maps driver write-error indices back to learner IDs.
+Indexed mapping is allowed only when neither the cause nor its result contains
+a non-empty `writeConcernError` or `writeConcernErrors`. A write-concern
+failure makes the committed subset unknowable, so the whole submitted batch is
+reported failed. The same fail-closed rule applies to every malformed or
+otherwise ambiguous structure. No `any`, assertion cast, non-null assertion,
+or raw driver message crosses the port. This is conservative and retry-safe
+because every write sets deterministic derived fields.
 
 No per-learner Mongo query is permitted.
 
 The adapter reports internal bulk error detail only through the observer. The
-event contains batch size and failed count, never learner names or emails.
+observer port retains learner IDs for internal failure mapping, but the runtime
+logger adapter emits only `failedCount` and the redacted cause for batch-write
+failures. Runtime batch logs never contain stable learner IDs, names, or
+emails.
 
 ### 4.5 Application service
 
@@ -386,8 +406,9 @@ required in this lot.
 
 ### 6.1 Characterization RED/GREEN for the shared formula
 
-Add direct unit tests for representative zero, boundary, and high-score
-inputs. Prove the tests detect mutations to:
+Add direct unit tests for representative zero, high-score, and every adjacent
+threshold pair: 14/15, 29/30, 49/50, and 69/70. Each pair asserts both the
+level enum and its Portuguese label. Prove the tests detect mutations to:
 
 - a formula weight;
 - a level threshold;
@@ -415,15 +436,25 @@ Use async-generator fakes and a typed repository fake to prove:
 MongoMemoryServer proves:
 
 - the projection plus canonical and defensive legacy deletion filters;
+- the exact combined -> Hotmart -> CursEduca nullish level precedence with
+  real stored Mongo fixtures;
 - top-level class membership remains intentionally supported;
 - Discord-deleted learners are excluded;
 - stable `_id` traversal;
 - 205 learners require one cursor plus three `bulkWrite` calls;
 - all five canonical fields are persisted;
-- unordered partial write-error narrowing has a direct unit-level adapter
-  test without relying on a real database fault.
+- pure unordered partial write-error narrowing has a direct unit-level adapter
+  test without relying on a real database fault;
+- combined indexed-write plus write-concern ambiguity fails the complete
+  submitted batch.
 
-### 6.4 Boundary and controller tests
+### 6.4 Runtime observer test
+
+Invoke the exported typed runtime observer factory with a recording logger.
+Prove a `writeFailed` event logs `failedCount` plus the redacted cause, while
+the logger metadata and its serialized form exclude every opaque learner ID.
+
+### 6.5 Boundary and controller tests
 
 Prove:
 
@@ -435,7 +466,7 @@ Prove:
 - partial errors remain public and stable;
 - unexpected error uses the central code, correlation ID, and redacted detail.
 
-### 6.5 Route and mutation tests
+### 6.6 Route and mutation tests
 
 Prove the real route uses the extracted boundary and rejects invalid input.
 Mutations must make focused tests RED when:

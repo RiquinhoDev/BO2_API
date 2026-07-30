@@ -120,9 +120,79 @@ describe('MongooseIndividualScoreRecalculationRepository', () => {
       'combined.engagement.level': 1,
       'combined.totalProgress': 1,
       'hotmart.engagement.accessCount': 1,
+      'hotmart.engagement.engagementLevel': 1,
+      'curseduca.engagement.engagementLevel': 1,
     })
     expect(sort).toHaveBeenCalledWith({ _id: 1 })
     expect(cursor).toHaveBeenCalledWith({ batchSize: 100 })
+  })
+
+  it('preserves combined then Hotmart then CursEduca level precedence from stored data', async () => {
+    const hotmartFallback = new mongoose.Types.ObjectId('000000000000000000000011')
+    const curseducaFallback = new mongoose.Types.ObjectId('000000000000000000000012')
+    const combinedPrecedence = new mongoose.Types.ObjectId('000000000000000000000013')
+    await User.collection.insertMany([
+      {
+        ...userFixture(11, 'level-fallbacks'),
+        _id: hotmartFallback,
+        combined: {
+          combinedEngagement: 0,
+          engagement: { level: null },
+          totalProgress: 0,
+        },
+        hotmart: {
+          engagement: {
+            accessCount: 0,
+            engagementLevel: 'ALTO',
+          },
+        },
+        curseduca: {
+          engagement: { engagementLevel: 'MEDIO' },
+        },
+      },
+      {
+        ...userFixture(12, 'level-fallbacks'),
+        _id: curseducaFallback,
+        combined: {
+          combinedEngagement: 0,
+          totalProgress: 0,
+        },
+        hotmart: { engagement: { accessCount: 0 } },
+        curseduca: {
+          engagement: { engagementLevel: 'MUITO_ALTO' },
+        },
+      },
+      {
+        ...userFixture(13, 'level-fallbacks'),
+        _id: combinedPrecedence,
+        combined: {
+          combinedEngagement: 0,
+          engagement: { level: '' },
+          totalProgress: 0,
+        },
+        hotmart: {
+          engagement: {
+            accessCount: 0,
+            engagementLevel: 'ALTO',
+          },
+        },
+        curseduca: {
+          engagement: { engagementLevel: 'MUITO_ALTO' },
+        },
+      },
+    ])
+    const repository = new MongooseIndividualScoreRecalculationRepository()
+
+    const levels = new Map<string, string | undefined>()
+    for await (const learner of repository.streamByClass('level-fallbacks')) {
+      levels.set(learner.id, learner.currentLevel)
+    }
+
+    expect(levels).toEqual(new Map([
+      [String(hotmartFallback), 'ALTO'],
+      [String(curseducaFallback), 'MUITO_ALTO'],
+      [String(combinedPrecedence), ''],
+    ]))
   })
 
   it('writes a batch with the canonical five-field update', async () => {
@@ -191,6 +261,41 @@ describe('MongooseIndividualScoreRecalculationRepository', () => {
     expect(observer.writeFailures).toEqual([{ learnerIds: ['second'], cause }])
     expect(JSON.stringify(outcome)).not.toContain('private database detail')
   })
+
+  it.each([
+    ['top-level singular', { writeConcernError: { code: 64, errmsg: 'ambiguous write concern' } }],
+    ['top-level plural', { writeConcernErrors: [{ code: 64, errmsg: 'ambiguous write concern' }] }],
+    ['result singular', { result: { writeConcernError: { code: 64, errmsg: 'ambiguous write concern' } } }],
+    ['result plural', { result: { writeConcernErrors: [{ code: 64, errmsg: 'ambiguous write concern' }] } }],
+  ])(
+    'fails the complete batch for indexed errors combined with %s write-concern ambiguity',
+    async (_description, writeConcernShape) => {
+      const observer = new RecordingObserver()
+      const repository = new MongooseIndividualScoreRecalculationRepository(observer)
+      const cause = {
+        writeErrors: [{ index: 1, errmsg: 'indexed private detail' }],
+        ...writeConcernShape,
+      }
+      jest.spyOn(User, 'bulkWrite').mockRejectedValueOnce(cause)
+
+      const outcome = await repository.persistBatch([
+        { learnerId: 'first', score: 42, level: 'MEDIO', calculatedAt: new Date() },
+        { learnerId: 'second', score: 15, level: 'BAIXO', calculatedAt: new Date() },
+      ])
+
+      expect(outcome).toEqual({
+        successfulIds: new Set<string>(),
+        failedIds: new Set(['first', 'second']),
+      })
+      expect(observer.writeFailures).toEqual([{
+        learnerIds: ['first', 'second'],
+        cause,
+      }])
+      expect(JSON.stringify(outcome)).not.toMatch(
+        /indexed private detail|ambiguous write concern/,
+      )
+    },
+  )
 
   it('fails every submitted learner when a bulk error cannot identify valid write indexes', async () => {
     const observer = new RecordingObserver()
