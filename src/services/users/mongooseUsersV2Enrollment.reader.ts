@@ -176,7 +176,6 @@ const buildUserLookupPipeline = (
 >[] => {
   const match: Record<string, unknown> = {
     isDeleted: { $ne: true },
-    'discord.isDeleted': { $ne: true },
   }
 
   if (filters.status === 'ACTIVE') {
