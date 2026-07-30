@@ -41,10 +41,10 @@
   },
   "src/controllers/analytics.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 3
+      "count": 1
     },
     "no-console": {
-      "count": 6
+      "count": 1
     }
   },
   "src/controllers/auth.controller.ts": {

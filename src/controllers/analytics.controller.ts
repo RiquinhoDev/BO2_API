@@ -1,7 +1,6 @@
 // src/controllers/analytics.controller.ts - VERSÃO COMPLETA FINAL MELHORADA
 import { Request, Response } from 'express'
 import User from '../models/user'
-import { calculateCombinedEngagement } from '../utils/engagementCalculator'
 import { getEngagementStatsByPlatform } from '../services/syncUtilizadoresServices/engagement/engagementService'
 
 interface MultiPlatformUserSources {
@@ -17,109 +16,6 @@ interface MultiPlatformUserSources {
   hotmartUserId?: string
   curseducaUserId?: string
   discordIds?: string[]
-}
-
-// ================================================================================================
-// 🚀 NOVOS ENDPOINTS PARA ADICIONAR AO analytics.controller.ts EXISTENTE
-// ================================================================================================
-
-// ✅ 1. ENDPOINT PARA RECALCULAR SCORES INDIVIDUAIS DOS ALUNOS
-export const recalculateIndividualScores = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { classId } = req.params
-    
-    console.log(`🔄 [CONTROLLER] Recalculando scores individuais para turma: ${classId}`)
-
-    // Buscar alunos da turma
-    const students = await User.find({ 
-      classId: classId,
-      isDeleted: { $ne: true }
-    })
-    
-    if (students.length === 0) {
-      res.status(404).json({
-        success: false,
-        message: 'Nenhum aluno encontrado na turma'
-      })
-      return
-    }
-    
-    let updated = 0
-    const results = []
-    const startTime = Date.now()
-    
-    for (const student of students) {
-      console.log(`📊 Recalculando para aluno: ${student.name || student.email}`)
-      
-      try {
-        const existingLevel = student.combined?.engagement?.level
-          ?? student.hotmart?.engagement?.engagementLevel
-          ?? student.curseduca?.engagement?.engagementLevel
-
-        // Calcular novo engagement score
-        const engagementResult = calculateCombinedEngagement({
-          engagement: existingLevel,
-          accessCount: student.hotmart?.engagement?.accessCount,
-          progress: {
-            completedPercentage: student.combined?.totalProgress ?? 0,
-          },
-        })
-        
-        // Atualizar na base de dados
-        await User.findByIdAndUpdate(student._id, {
-          'combined.combinedEngagement': engagementResult.score,
-          'combined.engagement.score': engagementResult.score,
-          'combined.engagement.level': engagementResult.level,
-          'combined.calculatedAt': new Date(),
-          'metadata.updatedAt': new Date(),
-        })
-        
-        updated++
-        results.push({
-          studentId: student._id,
-          name: student.name || student.email,
-          oldScore: student.combined?.combinedEngagement || 0,
-          newScore: engagementResult.score,
-          oldLevel: existingLevel || 'BAIXO',
-          newLevel: engagementResult.level
-        })
-        
-      } catch (error: any) {
-        console.error(`❌ Erro ao atualizar aluno ${student._id}:`, error)
-        results.push({
-          studentId: student._id,
-          name: student.name || student.email,
-          error: error.message
-        })
-      }
-    }
-    
-    const duration = Date.now() - startTime
-    
-    console.log(`✅ [CONTROLLER] Scores individuais recalculados: ${updated}/${students.length}`)
-
-    res.status(200).json({
-      success: true,
-      message: `Scores recalculados para ${updated} de ${students.length} alunos`,
-      data: {
-        classId,
-        totalStudents: students.length,
-        successfulUpdates: updated,
-        failedUpdates: students.length - updated,
-        calculationDuration: duration,
-        results: results
-      },
-      timestamp: new Date().toISOString()
-    })
-
-  } catch (error: any) {
-    console.error('❌ [CONTROLLER] Erro ao recalcular scores individuais:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao recalcular scores individuais da turma',
-      error: error.message
-    })
-  }
 }
 
 // ✅ NOVO: Endpoint para analytics multi-plataforma (Fase 5)
@@ -221,6 +117,5 @@ export const getMultiPlatformAnalytics = async (req: Request, res: Response) => 
 
 // ✅ EXPORTAR TODOS OS CONTROLADORES
 export const analyticsController = {
-  recalculateIndividualScores,
   getMultiPlatformAnalytics       // ✅ NOVO - Fase 5
 }

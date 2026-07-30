@@ -5,7 +5,6 @@ const mockCountDocuments = jest.fn()
 const mockLean = jest.fn()
 const mockSelect = jest.fn(() => ({ lean: mockLean }))
 const mockFind = jest.fn()
-const mockFindByIdAndUpdate = jest.fn()
 const mockGetEngagementStatsByPlatform = jest.fn()
 
 jest.mock('../../src/models/user', () => ({
@@ -13,7 +12,6 @@ jest.mock('../../src/models/user', () => ({
   default: {
     countDocuments: mockCountDocuments,
     find: mockFind,
-    findByIdAndUpdate: mockFindByIdAndUpdate,
   },
 }))
 
@@ -24,10 +22,7 @@ jest.mock(
   }),
 )
 
-import {
-  getMultiPlatformAnalytics,
-  recalculateIndividualScores,
-} from '../../src/controllers/analytics.controller'
+import { getMultiPlatformAnalytics } from '../../src/controllers/analytics.controller'
 
 describe('analytics multi-platform', () => {
   beforeEach(() => {
@@ -91,37 +86,5 @@ describe('analytics multi-platform', () => {
     expect(mockSelect).toHaveBeenCalledWith(
       'hotmart curseduca discord hotmartUserId curseducaUserId discordIds',
     )
-  })
-
-  it('persists recalculated scores in the canonical combined fields', async () => {
-    mockFind.mockResolvedValueOnce([{
-      _id: 'student-1',
-      email: 'student@example.test',
-      name: 'Student',
-      combined: {
-        combinedEngagement: 20,
-        totalProgress: 50,
-        engagement: { level: 'BAIXO' },
-      },
-      hotmart: {
-        engagement: { accessCount: 5 },
-      },
-    }])
-    mockFindByIdAndUpdate.mockResolvedValueOnce({})
-
-    const app = express()
-    app.post('/class/:classId/recalculate-individual', recalculateIndividualScores)
-
-    await request(app)
-      .post('/class/class-1/recalculate-individual?__bo2_offline_loopback=1')
-      .expect(200)
-
-    expect(mockFindByIdAndUpdate).toHaveBeenCalledWith('student-1', {
-      'combined.combinedEngagement': expect.any(Number),
-      'combined.engagement.score': expect.any(Number),
-      'combined.engagement.level': expect.any(String),
-      'combined.calculatedAt': expect.any(Date),
-      'metadata.updatedAt': expect.any(Date),
-    })
   })
 })
