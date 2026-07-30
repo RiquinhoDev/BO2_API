@@ -917,6 +917,22 @@ Progresso controllers:
   `Front/scripts/git-hooks/pre-commit` pré-existente permaneceu staged e fora do commit analytics.
   Specs: `docs/superpowers/specs/2026-07-29-analytics-benchmarks-boundary-design.md` e
   `docs/superpowers/plans/2026-07-29-analytics-benchmarks-boundary.md`.
+- [x] **ARCH-02 — recálculo individual por turma: boundary, streaming e escrita em lotes** (2026-07-30):
+  `POST /api/analytics/class/:classId/recalculate-individual` deixou o handler legado e agora passa por input
+  strict, controller injectável, serviço e adapter Mongoose. O controller legado `analytics.controller.ts` caiu
+  de **225 para 121 linhas físicas**; o seu `no-console` de **6 para 1** e `no-explicit-any` de **3 para 1**.
+  O calculador de engagement caiu de **19 para 0 `console.*`**. A leitura é um cursor Mongoose projetado e
+  ordenado; a escrita passou de **1 leitura + N writes** para **1 cursor + `ceil(N/100)` `bulkWrite` unordered**.
+  A rota e o catálogo continuam em **437/437**; o consumer do catálogo foi corrigido para `desconhecido`, pois o
+  Front tem wrapper/hook mas nenhum caller de componente. RED/GREEN e mutações cobriram batch 205→`[100,100,5]`,
+  falhas parciais sem mensagem privada, filtro de aluno apagado, ausência de writes por aluno, boundary hostil e
+  wiring da rota. A integração usou somente `MongoMemoryServer` com `MONGOMS_RUNTIME_DOWNLOAD=false`; não usou
+  Mongo ou integrações de produção. Gates frescos offline: API lint exit **0**, TS **0 erros/0 ficheiros**, Jest
+  **128 passed + 1 skipped suites; 555 passed + 2 skipped testes** (avisos preexistentes de índices Mongoose
+  duplicados e logs de modelos), build exit **0**; Front sem instalação: lint exit **0**, contrato **2/2 suites,
+  12/12 testes**, build exit **0** após permissão apenas para `.vite-temp` (avisos preexistentes de browsers,
+  classes Tailwind ambíguas e chunk >500 kB). Isto não fecha a matriz de papéis, idempotência/caps transversal,
+  o endpoint multi-plataforma nem o pilar ARCH-02 inteiro.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
