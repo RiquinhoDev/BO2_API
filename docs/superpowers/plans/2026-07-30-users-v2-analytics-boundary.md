@@ -489,7 +489,8 @@ Pipeline requirements:
 
 1. `$match: { status: 'ACTIVE' }`;
 2. `$project` containing only `userId`, `productId`, `platform`, `enrolledAt`,
-   `engagement.engagementScore`, and `progress.percentage`;
+   `engagement.engagementScore`, and `progress.percentage`, with `_id: 0` to
+   exclude MongoDB's implicitly included identifier;
 3. `$lookup` from `User.collection.name`, matching `_id` to `userId`, with a
    projection containing only `discord.engagement.lastMessageDate`;
 4. `$set` numeric score/progress using `$isNumber` plus `$convert` to double;

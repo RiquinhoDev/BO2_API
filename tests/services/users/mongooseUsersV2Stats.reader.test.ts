@@ -246,6 +246,7 @@ describe('MongooseUsersV2StatsReader', () => {
     )
     expect(pipeline?.[1]).toEqual({
       $project: {
+        _id: 0,
         userId: 1,
         productId: 1,
         platform: 1,
