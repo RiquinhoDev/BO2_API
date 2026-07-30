@@ -69,6 +69,12 @@ jest.mock(
   }),
 )
 
+jest.mock('../../src/services/users/usersV2Analytics.runtime', () => ({
+  __esModule: true,
+  getUsersV2Stats: jest.fn(),
+  getUsersV2Comparison: jest.fn(),
+}))
+
 import usersRouter from '../../src/routes/users.routes'
 
 const marker = { __bo2_offline_loopback: '1' }
