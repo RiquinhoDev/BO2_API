@@ -446,7 +446,9 @@ Seed multi-product and multi-platform users, uppercase active/inactive enrollmen
   platform totals but not to `totalProducts` or `byProduct`;
 - a joined historical product with missing/null name and platform still
   produces non-empty strings: `productId` is the name fallback and enrollment
-  platform (then `unknown`) is the platform fallback;
+  platform (then `unknown`) is the platform fallback; conflicting historical
+  enrollment platforms use the lexical minimum at both product grouping
+  levels, independent of insertion order;
 - one aggregate only, projected lookups, no fallback query;
 - the overview facet has no pre-group blocking sort and never `$push`es one
   progress row per user;
@@ -462,7 +464,9 @@ user's average, reduce immediately to scalar
 `userProgressSum`/`userProgressCount`; never return an `O(users)` intermediate
 array and do not add a pre-group blocking sort. Normalize historical null
 product metadata at the boundary. The reader returns a typed zero snapshot when
-the aggregate yields no row.
+the aggregate yields no row. Preserve canonical Product platform values; for
+incomplete products, use `$min` at both product grouping levels so fallback
+selection is deterministic.
 
 - [ ] **Step 5: Run GREEN and commit**
 

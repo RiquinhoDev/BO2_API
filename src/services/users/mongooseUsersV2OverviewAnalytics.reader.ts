@@ -200,7 +200,7 @@ export function buildUsersV2OverviewAnalyticsPipeline(
                 },
               },
               platform: {
-                $first: {
+                $min: {
                   $ifNull: ['$product.platform', '$normalizedPlatform'],
                 },
               },
@@ -223,7 +223,7 @@ export function buildUsersV2OverviewAnalyticsPipeline(
             $group: {
               _id: '$_id.productId',
               productName: { $first: '$productName' },
-              platform: { $first: '$platform' },
+              platform: { $min: '$platform' },
               totalUsers: { $sum: 1 },
               activeUsers: { $sum: '$hasActive' },
               progressSum: { $sum: '$progressSum' },
