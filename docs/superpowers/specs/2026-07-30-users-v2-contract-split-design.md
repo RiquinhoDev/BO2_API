@@ -345,13 +345,18 @@ Semantics:
   two values as the same metric;
 - `totalProducts` is the distinct joined product count;
 - overview `avgProgress` preserves equal user weighting: average each user's
-  finite enrollment progress values, then average users;
+  finite enrollment progress values, then aggregate those per-user averages
+  into scalar `userProgressSum`/`userProgressCount` values inside Mongo. The
+  internal snapshot never materializes an `O(users)` array;
 - platform counts are distinct users per platform, so a multi-platform user
   may appear in more than one platform group;
 - product counts are distinct users; the unique `(userId, productId)` index
   makes this equivalent to enrollment count for valid data;
 - product `activeUsers` uses canonical uppercase `ACTIVE`;
 - product average progress uses finite values clamped to `0..100`;
+- joined historical products with a missing/null name use their stable
+  `productId` string as the display fallback; a missing/null product platform
+  falls back to the enrollment platform and then `unknown`;
 - percentages and averages are finite zeros for empty inputs;
 - product rows sort by `totalUsers` descending, then `productId` ascending;
 - platform rows sort by `userCount` descending, then platform ascending.
@@ -363,8 +368,10 @@ The aggregation:
 3. looks up only product name/platform;
 4. normalizes BSON numeric progress safely;
 5. uses facets/groups for overview, platform and product data;
-6. returns a typed zero result without fallback queries;
-7. uses the project's bounded `maxTimeMS`.
+6. reduces overview progress to bounded scalar accumulators, without a
+   pre-group blocking sort or a `$push` of one row per user;
+7. returns a typed zero result without fallback queries;
+8. uses the project's bounded `maxTimeMS` with disk spill disabled.
 
 No external service or network dependency participates.
 

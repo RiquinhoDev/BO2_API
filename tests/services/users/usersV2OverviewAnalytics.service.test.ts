@@ -26,7 +26,8 @@ describe('UsersV2OverviewAnalyticsService', () => {
         totalUsers: 0,
         totalActiveUsers: 0,
         totalProducts: 0,
-        progressByUser: [],
+        userProgressSum: 0,
+        userProgressCount: 0,
       },
       byPlatform: [],
       byProduct: [],
@@ -54,12 +55,8 @@ describe('UsersV2OverviewAnalyticsService', () => {
         totalUsers: 4,
         totalActiveUsers: 3,
         totalProducts: 2,
-        progressByUser: [
-          { userId: 'user-a', averageProgress: 10 },
-          { userId: 'user-b', averageProgress: 80 },
-          { userId: 'user-c', averageProgress: 30 },
-          { userId: 'user-d', averageProgress: 20 },
-        ],
+        userProgressSum: 140,
+        userProgressCount: 4,
       },
       byPlatform: [
         { platform: 'hotmart', userCount: 2 },
@@ -94,11 +91,8 @@ describe('UsersV2OverviewAnalyticsService', () => {
         totalUsers: 3,
         totalActiveUsers: 2,
         totalProducts: 3,
-        progressByUser: [
-          { userId: 'user-a', averageProgress: Number.NaN },
-          { userId: 'user-b', averageProgress: Number.POSITIVE_INFINITY },
-          { userId: 'user-c', averageProgress: 60 },
-        ],
+        userProgressSum: Number.POSITIVE_INFINITY,
+        userProgressCount: 3,
       },
       byPlatform: [
         { platform: 'hotmart', userCount: Number.POSITIVE_INFINITY },
@@ -141,7 +135,7 @@ describe('UsersV2OverviewAnalyticsService', () => {
           totalUsers: 3,
           totalActiveUsers: 2,
           totalProducts: 3,
-          avgProgress: 20,
+          avgProgress: 0,
         },
         byPlatform: [
           { platform: 'hotmart', userCount: 0, percentage: 0 },
@@ -185,11 +179,8 @@ describe('UsersV2OverviewAnalyticsService', () => {
         totalUsers: 3,
         totalActiveUsers: 2,
         totalProducts: 2,
-        progressByUser: [
-          { userId: 'user-a', averageProgress: 10 },
-          { userId: 'user-b', averageProgress: 20 },
-          { userId: 'user-c', averageProgress: 30 },
-        ],
+        userProgressSum: 60,
+        userProgressCount: 3,
       },
       byPlatform: [
         { platform: 'hotmart', userCount: 2 },
