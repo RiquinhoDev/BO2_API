@@ -48,12 +48,47 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function templateSegmentRank(segment: string): number {
+  if (segment === '*' || segment.startsWith('*')) return 0
+  if (segment.startsWith(':')) return 1
+  return 2
+}
+
+export function compareRouteTemplateSpecificity(
+  left: string,
+  right: string,
+): number {
+  const leftSegments = normalizePath(left).split('/').filter(Boolean)
+  const rightSegments = normalizePath(right).split('/').filter(Boolean)
+  const sharedLength = Math.min(leftSegments.length, rightSegments.length)
+
+  for (let index = 0; index < sharedLength; index += 1) {
+    const rankDifference = templateSegmentRank(rightSegments[index])
+      - templateSegmentRank(leftSegments[index])
+    if (rankDifference !== 0) return rankDifference
+  }
+
+  const lengthDifference = rightSegments.length - leftSegments.length
+  return lengthDifference !== 0 ? lengthDifference : left.localeCompare(right)
+}
+
 function compileTemplate(template: string): RegExp {
   const pattern = normalizePath(template)
     .split('/')
-    .map((segment) => (segment.startsWith(':') ? '[^/]+' : escapeRegex(segment)))
+    .map((segment) => {
+      if (segment.startsWith(':')) return '[^/]+'
+      if (segment === '*' || segment.startsWith('*')) return '.+'
+      return escapeRegex(segment)
+    })
     .join('/')
   return new RegExp(`^${pattern}/?$`, 'i')
+}
+
+export function routeTemplateMatchesPath(
+  template: string,
+  actualPath: string,
+): boolean {
+  return compileTemplate(template).test(actualPath)
 }
 
 function buildRouteBuckets(catalog: CatalogRoute[]): Map<string, MatchedRoute[]> {
@@ -65,20 +100,8 @@ function buildRouteBuckets(catalog: CatalogRoute[]): Map<string, MatchedRoute[]>
     buckets.set(key, bucket)
   }
   for (const bucket of buckets.values()) {
-    bucket.sort((left, right) => {
-      const leftParameters = left.path.split('/').filter(segment =>
-        segment.startsWith(':')).length
-      const rightParameters = right.path.split('/').filter(segment =>
-        segment.startsWith(':')).length
-      const parameterDifference = leftParameters - rightParameters
-      if (parameterDifference !== 0) return parameterDifference
-
-      const segmentDifference = right.path.split('/').length
-        - left.path.split('/').length
-      return segmentDifference !== 0
-        ? segmentDifference
-        : left.path.localeCompare(right.path)
-    })
+    bucket.sort((left, right) =>
+      compareRouteTemplateSpecificity(left.path, right.path))
   }
   return buckets
 }

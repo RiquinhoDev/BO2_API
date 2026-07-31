@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { routeTemplateMatchesPath } from '../../src/observability/routeUsageInstrumentation'
 
 type ManifestRoute = { method: string; path: string }
 type CatalogRoute = ManifestRoute & {
@@ -21,6 +22,27 @@ const catalog = JSON.parse(
   fs.readFileSync(path.join(securityDir, 'route-catalog.json'), 'utf8'),
 ) as CatalogRoute[]
 const key = ({ method, path: routePath }: ManifestRoute) => `${method} ${routePath}`
+
+type SourceRoute = CatalogRoute & {
+  sourceFile: string
+  sourceLine: number
+}
+
+function sourceRoute(route: CatalogRoute): SourceRoute | undefined {
+  const match = route.evidence.match(/rota em (src\/.+):(\d+)$/)
+  if (!match) return undefined
+  return {
+    ...route,
+    sourceFile: match[1],
+    sourceLine: Number(match[2]),
+  }
+}
+
+function isLiteralPath(routePath: string): boolean {
+  return routePath
+    .split('/')
+    .every((segment) => !segment.startsWith(':') && !segment.startsWith('*'))
+}
 
 test('o catalogo cobre exatamente as 439 rotas do manifest', () => {
   expect(manifest).toHaveLength(439)
@@ -90,4 +112,35 @@ test('marca apenas cron-tags e o legacy users v2 como deprecated', () => {
     ],
   })
   expect(legacy).not.toHaveProperty('sunset')
+})
+
+test('nenhuma rota dinamica anterior sombreia uma rota literal posterior', () => {
+  const routes = catalog
+    .map(sourceRoute)
+    .filter((route): route is SourceRoute => Boolean(route))
+  const violations: string[] = []
+
+  for (const earlier of routes) {
+    if (isLiteralPath(earlier.path)) continue
+
+    for (const later of routes) {
+      if (
+        later.sourceFile !== earlier.sourceFile
+        || later.method !== earlier.method
+        || later.sourceLine <= earlier.sourceLine
+        || !isLiteralPath(later.path)
+      ) {
+        continue
+      }
+
+      if (routeTemplateMatchesPath(earlier.path, later.path)) {
+        violations.push(
+          `${earlier.method} ${earlier.path} (${earlier.sourceFile}:${earlier.sourceLine})`
+          + ` sombreia ${later.path} (:${later.sourceLine})`,
+        )
+      }
+    }
+  }
+
+  expect(violations).toEqual([])
 })
