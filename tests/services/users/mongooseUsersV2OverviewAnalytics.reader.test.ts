@@ -302,6 +302,67 @@ describe('MongooseUsersV2OverviewAnalyticsReader', () => {
     ])
   })
 
+  it('chooses the lexical minimum enrollment platform for an incomplete product', async () => {
+    const userA = new mongoose.Types.ObjectId()
+    const userB = new mongoose.Types.ObjectId()
+    const productId = new mongoose.Types.ObjectId()
+    const hotmartEnrollment = {
+      userId: userA,
+      productId,
+      platform: 'hotmart',
+      status: 'ACTIVE',
+      progress: { percentage: 25 },
+    }
+    const curseducaEnrollment = {
+      userId: userB,
+      productId,
+      platform: 'curseduca',
+      status: 'ACTIVE',
+      progress: { percentage: 75 },
+    }
+
+    await User.collection.insertMany([
+      {
+        _id: userA,
+        email: 'platform-fallback-a@example.test',
+        name: 'Platform Fallback A',
+      },
+      {
+        _id: userB,
+        email: 'platform-fallback-b@example.test',
+        name: 'Platform Fallback B',
+      },
+    ])
+    await Product.collection.insertOne({
+      _id: productId,
+      code: 'PLATFORM-FALLBACK',
+      name: 'Platform Fallback',
+      platform: null,
+    })
+    const reader = new MongooseUsersV2OverviewAnalyticsReader()
+
+    await UserProduct.collection.insertMany([
+      hotmartEnrollment,
+      curseducaEnrollment,
+    ])
+    const nonMinimumFirst = await reader.read()
+
+    await UserProduct.collection.deleteMany({})
+    await UserProduct.collection.insertMany([
+      curseducaEnrollment,
+      hotmartEnrollment,
+    ])
+    const minimumFirst = await reader.read()
+
+    expect(nonMinimumFirst.byProduct).toEqual([
+      expect.objectContaining({
+        productId: productId.toHexString(),
+        platform: 'curseduca',
+      }),
+    ])
+    expect(minimumFirst.byProduct).toEqual(nonMinimumFirst.byProduct)
+  })
+
   it('returns an exact typed zero snapshot when there are no enrollments', async () => {
     const reader = new MongooseUsersV2OverviewAnalyticsReader()
 
@@ -335,5 +396,7 @@ describe('MongooseUsersV2OverviewAnalyticsReader', () => {
     expect(serialized).not.toContain('"progressByUser"')
     expect(serialized).not.toContain('"$push"')
     expect(pipeline).not.toContainEqual({ $sort: { userId: 1 } })
+    expect(serialized.match(/"platform":\{"\$min":/g) ?? []).toHaveLength(2)
+    expect(serialized).not.toContain('"platform":{"$first"')
   })
 })

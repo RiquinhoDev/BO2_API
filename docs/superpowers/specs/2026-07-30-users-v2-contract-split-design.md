@@ -356,7 +356,9 @@ Semantics:
 - product average progress uses finite values clamped to `0..100`;
 - joined historical products with a missing/null name use their stable
   `productId` string as the display fallback; a missing/null product platform
-  falls back to the enrollment platform and then `unknown`;
+  falls back to the enrollment platform and then `unknown`. If inconsistent
+  historical enrollments provide more than one fallback platform for the same
+  product, the lexically smallest normalized value wins deterministically;
 - percentages and averages are finite zeros for empty inputs;
 - product rows sort by `totalUsers` descending, then `productId` ascending;
 - platform rows sort by `userCount` descending, then platform ascending.
