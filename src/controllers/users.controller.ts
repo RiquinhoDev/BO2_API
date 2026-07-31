@@ -8,14 +8,10 @@ import UserHistory, { type IUserHistory } from "../models/UserHistory"
 import StudentClassHistory, { type IStudentClassHistory } from "../models/StudentClassHistory"
 import { Class } from "../models/Class"
 import { cacheService } from "../services/cache.service"
-import { getUserCountsByPlatform, getUserCountsByProduct, getUsersForProduct, getUserWithProducts } from "../services/userProducts/userProductService"
+import { getUserCountsByPlatform, getUserCountsByProduct, getUserWithProducts } from "../services/userProducts/userProductService"
 import { UserProduct } from "../models"
 import type { IProduct } from "../models/product/Product"
 import type { IUserProduct } from "../models/UserProduct"
-import { usersV2LegacyInput } from '../security/usersV2ListInput'
-import { MongooseUsersV2EnrollmentReader } from '../services/users/mongooseUsersV2Enrollment.reader'
-import { UsersV2EnrollmentService } from '../services/users/usersV2Enrollment.service'
-import { UsersV2LegacyService } from '../services/users/usersV2Legacy.service'
 import type {
   UsersDeleteStudentInput,
 } from "../security/usersDestructiveInput"
@@ -2069,32 +2065,6 @@ export const getUserAllClasses = async (req: Request, res: Response): Promise<vo
 }
 
 
-/**
- * GET /api/users/v2
- * ✅ NOVO: Lista users com seus UserProducts
- * Suporta filtros avançados: platform, productId, status, search, progress, engagement
- */
-
-const usersV2LegacyService = new UsersV2LegacyService(
-  new UsersV2EnrollmentService(new MongooseUsersV2EnrollmentReader()),
-  { list: getUsersForProduct },
-)
-
-export const getUsers: RequestHandler = async (req, res) => {
-  try {
-    const input = usersV2LegacyInput.parse({
-      params: req.params,
-      query: req.query,
-      body: req.body ?? {},
-    })
-    const response = await usersV2LegacyService.list(input.query)
-
-    res.json(response)
-  } catch (error: unknown) {
-    console.error("❌ [V2] Erro em getUsers:", error)
-    res.status(500).json({ success: false, error: errorMessage(error) })
-  }
-}
 /**
  * GET /api/users/v2/:id
  * ✅ NOVO: Busca user com todos os UserProducts

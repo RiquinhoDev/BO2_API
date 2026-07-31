@@ -9,6 +9,7 @@ type CatalogRoute = {
   path: string
   deprecated?: boolean
   sunset?: string
+  successorLinks?: string[]
 }
 
 type MatchedRoute = CatalogRoute & { matcher: RegExp }
@@ -18,6 +19,7 @@ export interface RouteUsageLogEvent {
   route: string
   authenticated: boolean
   mount?: 'api' | 'app'
+  successorLinks?: string[]
 }
 
 export interface RouteUsageInstrumentation {
@@ -62,6 +64,22 @@ function buildRouteBuckets(catalog: CatalogRoute[]): Map<string, MatchedRoute[]>
     bucket.push({ ...route, matcher: compileTemplate(route.path) })
     buckets.set(key, bucket)
   }
+  for (const bucket of buckets.values()) {
+    bucket.sort((left, right) => {
+      const leftParameters = left.path.split('/').filter(segment =>
+        segment.startsWith(':')).length
+      const rightParameters = right.path.split('/').filter(segment =>
+        segment.startsWith(':')).length
+      const parameterDifference = leftParameters - rightParameters
+      if (parameterDifference !== 0) return parameterDifference
+
+      const segmentDifference = right.path.split('/').length
+        - left.path.split('/').length
+      return segmentDifference !== 0
+        ? segmentDifference
+        : left.path.localeCompare(right.path)
+    })
+  }
   return buckets
 }
 
@@ -74,6 +92,10 @@ function observableTemplate(template: string): string {
   return template.replace(/^\/api(?=\/|$)/i, '') || '/'
 }
 
+function catalogMount(routePath: string): 'api' | 'app' {
+  return routePath.startsWith('/api/') ? 'api' : 'app'
+}
+
 export function createRouteUsageInstrumentation(
   options: RouteUsageInstrumentationOptions = {},
 ): RouteUsageInstrumentation {
@@ -84,6 +106,9 @@ export function createRouteUsageInstrumentation(
     if (catalogRoute?.deprecated) {
       res.setHeader('Deprecation', 'true')
       if (catalogRoute.sunset) res.setHeader('Sunset', catalogRoute.sunset)
+      if (catalogRoute.successorLinks?.length) {
+        res.setHeader('Link', catalogRoute.successorLinks)
+      }
     }
 
     res.once('finish', () => {
@@ -94,7 +119,10 @@ export function createRouteUsageInstrumentation(
           : getRequestRouteTemplate(req),
         authenticated: Boolean(req.user),
         ...(catalogRoute?.deprecated
-          ? { mount: catalogRoute.path.startsWith('/api/') ? 'api' as const : 'app' as const }
+          ? { mount: catalogMount(catalogRoute.path) }
+          : {}),
+        ...(catalogRoute?.successorLinks?.length
+          ? { successorLinks: catalogRoute.successorLinks }
           : {}),
       }
       log.info('HTTP route usage', redactSensitiveData(event))

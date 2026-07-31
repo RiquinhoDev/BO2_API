@@ -24,6 +24,9 @@ function buildProbe(
       createRouteUsageInstrumentation: () => instrumentation,
       registerRoutes: (app) => {
         app.get('/api/users/by-email/:email', (_req, res) => res.sendStatus(204))
+        app.get('/api/users/v2', (_req, res) => res.sendStatus(204))
+        app.get('/api/users/v2/enrollments', (_req, res) => res.sendStatus(204))
+        app.get('/api/users/v2/analytics', (_req, res) => res.sendStatus(204))
         app.get('/api/cron/status', (_req, res) => res.sendStatus(204))
         app.get('/api/cron-tags/status', (_req, res) => res.sendStatus(204))
         app.get('/cron-tags/status', (_req, res) => res.sendStatus(204))
@@ -114,4 +117,46 @@ test('emite Deprecation nas 18 rotas cron-tags sem marcar a familia cron viva', 
 
   const live = await request(app).get('/api/cron/status').query(marker).expect(204)
   expect(live.headers.deprecation).toBeUndefined()
+})
+
+test('deriva do catalogo os headers de sucessao do legacy users v2', async () => {
+  const events: RouteUsageLogEvent[] = []
+  const response = await request(buildProbe(events).app)
+    .get('/api/users/v2')
+    .query({ ...marker, email: 'alice@example.test' })
+    .expect(204)
+
+  expect(response.headers.deprecation).toBe('true')
+  expect(response.headers.link).toBe([
+    '</api/users/v2/enrollments>; rel="successor-version"',
+    '</api/users/v2/analytics>; rel="alternate"',
+  ].join(', '))
+  expect(response.headers.link).not.toContain('alice')
+  expect(response.headers.sunset).toBeUndefined()
+  expect(events).toEqual([{
+    method: 'GET',
+    route: '/users/v2',
+    authenticated: false,
+    mount: 'api',
+    successorLinks: [
+      '</api/users/v2/enrollments>; rel="successor-version"',
+      '</api/users/v2/analytics>; rel="alternate"',
+    ],
+  }])
+})
+
+test('nao marca os dois recursos explicitos como deprecated', async () => {
+  for (const route of [
+    '/api/users/v2/enrollments',
+    '/api/users/v2/analytics',
+  ]) {
+    const response = await request(buildProbe([]).app)
+      .get(route)
+      .query(marker)
+      .expect(204)
+
+    expect(response.headers.deprecation).toBeUndefined()
+    expect(response.headers.link).toBeUndefined()
+    expect(response.headers.sunset).toBeUndefined()
+  }
 })

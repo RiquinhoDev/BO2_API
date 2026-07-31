@@ -1693,11 +1693,19 @@
   },
   {
     "method": "GET",
+    "path": "/api/users/v2/analytics"
+  },
+  {
+    "method": "GET",
     "path": "/api/users/v2/engagement/comparison"
   },
   {
     "method": "GET",
     "path": "/api/users/v2/engagement/heatmap"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/v2/enrollments"
   },
   {
     "method": "GET",

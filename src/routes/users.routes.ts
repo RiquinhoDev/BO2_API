@@ -12,6 +12,11 @@ import {
   usersV2StatsInput,
 } from "../security/usersV2AnalyticsInput"
 import {
+  usersV2EnrollmentInput,
+  usersV2LegacyInput,
+  usersV2OverviewAnalyticsInput,
+} from "../security/usersV2ListInput"
+import {
   userIdentityBulkMergeInput, userIdentityManualMatchInput, userIdentityMergeInput,
 } from "../security/userIdentityInput"
 import { usersSimpleListInput } from "../security/usersSimpleListInput"
@@ -37,7 +42,6 @@ import {
   getUserAllClasses,
   getUserProducts,
   getUserById,
-  getUsers,
   getUsersStats,
   searchStudent,
 } from "../controllers/users.controller"
@@ -52,6 +56,11 @@ import {
   getUsersV2Comparison,
   getUsersV2Stats,
 } from "../services/users/usersV2Analytics.runtime"
+import {
+  getUsersV2Enrollments,
+  getUsersV2Legacy,
+  getUsersV2OverviewAnalytics,
+} from "../services/users/usersV2List.runtime"
 import { getUserByEmail } from "../controllers/syncUtilizadoresControllers/curseduca.controller"
 
 const router = Router()
@@ -98,7 +107,23 @@ type HeatmapWeek = {
 // ═══════════════════════════════════════════════════════════════════════════
 // 🎯 FASE 4 & 5: ENDPOINT /v2 - FILTROS AVANÇADOS DASHBOARD V2 (OPTIMIZED)
 // ═══════════════════════════════════════════════════════════════════════════
-router.get('/v2', getUsers)
+router.get(
+  '/v2',
+  withValidatedInput(usersV2LegacyInput, getUsersV2Legacy),
+)
+
+router.get(
+  '/v2/enrollments',
+  withValidatedInput(usersV2EnrollmentInput, getUsersV2Enrollments),
+)
+
+router.get(
+  '/v2/analytics',
+  withValidatedInput(
+    usersV2OverviewAnalyticsInput,
+    getUsersV2OverviewAnalytics,
+  ),
+)
 
 router.get(
   '/v2/stats',
@@ -261,7 +286,10 @@ router.get("/student/:id/stats", getStudentStats)
 router.get("/student/:id/history", getStudentHistory)
 
 // 3️⃣ ROTAS GENÉRICAS COM APENAS PARÂMETRO - NO FINAL
-router.get('/', getUsers)
+router.get(
+  '/',
+  withValidatedInput(usersV2LegacyInput, getUsersV2Legacy),
+)
 router.get('/:id', getUserById)  // 🚨 ÚLTIMA ROTA GET!
 
 // 4️⃣ ROTAS POST/PUT/DELETE - Podem ficar em qualquer posição (não conflitam com GET)

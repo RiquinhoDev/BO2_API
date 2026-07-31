@@ -16,7 +16,7 @@ const FORBIDDEN_PROPERTY_NAMES = new Set([
 
 export type ValidatedRequest = Omit<Request, 'body' | 'params' | 'query'>
 
-export type ValidatedInputHandler<TSchema extends z.AnyZodObject> = (
+export type ValidatedInputHandler<TSchema extends z.ZodTypeAny> = (
   input: z.infer<TSchema>,
   req: ValidatedRequest,
   res: Response,
@@ -102,7 +102,7 @@ function invalidRequest(cause: unknown): HttpError {
   })
 }
 
-export function withValidatedInput<TSchema extends z.AnyZodObject>(
+export function withValidatedInput<TSchema extends z.ZodTypeAny>(
   schema: TSchema,
   handler: ValidatedInputHandler<TSchema>,
 ): RequestHandler {
