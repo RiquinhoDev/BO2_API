@@ -115,6 +115,29 @@ describe('users V2 enrollment input', () => {
     expect(parsed.query).not.toHaveProperty('benign')
   })
 
+  it('lets topPercentage override maxEngagement only in canonical filters', () => {
+    const parsed = usersV2LegacyInput.parse({
+      params: {},
+      query: {
+        maxEngagement: '80',
+        topPercentage: '10',
+      },
+      body: {},
+    })
+
+    expect(parsed.query).toEqual({
+      canonical: {
+        page: 1,
+        limit: 50,
+        minEngagement: 77,
+      },
+      responseFilters: {
+        maxEngagement: '80',
+        topPercentage: '10',
+      },
+    })
+  })
+
   it('ignores invalid legacy optional filters instead of rejecting the list', () => {
     const parsed = usersV2LegacyInput.parse({
       params: {},

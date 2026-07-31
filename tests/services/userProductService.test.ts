@@ -157,7 +157,7 @@ describe('getUsersForProduct', () => {
     expect(result[0].products).toEqual([
       {
         _id: missingProductEnrollmentId,
-        product: missingProductId,
+        product: null,
         platform: 'hotmart',
         status: 'ACTIVE',
         enrolledAt: undefined,
@@ -192,73 +192,98 @@ describe('getUsersForProduct', () => {
     ])
   })
 
-  it('loads all products for matched users with a constant number of reads', async () => {
+  it('returns only requested-product rows with a constant number of reads', async () => {
     const requestedProductId = new mongoose.Types.ObjectId('a'.repeat(24))
-    const firstProductId = new mongoose.Types.ObjectId('e'.repeat(24))
-    const secondProductId = new mongoose.Types.ObjectId('f'.repeat(24))
-    const userId = new mongoose.Types.ObjectId('d'.repeat(24))
-    const matchingQuery = projectedQuery([{
-      userId,
+    const unrelatedProductId = new mongoose.Types.ObjectId('f'.repeat(24))
+    const firstUserId = new mongoose.Types.ObjectId('d'.repeat(24))
+    const secondUserId = new mongoose.Types.ObjectId('e'.repeat(24))
+    const firstEnrollment = {
+      _id: new mongoose.Types.ObjectId('1'.repeat(24)),
+      userId: firstUserId,
       productId: requestedProductId,
-    }])
-    const userProductQuery = projectedQuery([
+      platform: 'hotmart',
+      status: 'ACTIVE',
+    }
+    const secondEnrollment = {
+      _id: new mongoose.Types.ObjectId('2'.repeat(24)),
+      userId: secondUserId,
+      productId: requestedProductId,
+      platform: 'hotmart',
+      status: 'ACTIVE',
+    }
+    const matchingQuery = projectedQuery([
+      firstEnrollment,
+      secondEnrollment,
+    ])
+    const unrelatedExpansionQuery = projectedQuery([
+      firstEnrollment,
+      secondEnrollment,
       {
-        _id: new mongoose.Types.ObjectId('1'.repeat(24)),
-        userId,
-        productId: firstProductId,
-        platform: 'hotmart',
-        status: 'ACTIVE',
-      },
-      {
-        _id: new mongoose.Types.ObjectId('2'.repeat(24)),
-        userId,
-        productId: secondProductId,
+        _id: new mongoose.Types.ObjectId('3'.repeat(24)),
+        userId: firstUserId,
+        productId: unrelatedProductId,
+        platform: 'curseduca',
         status: 'ACTIVE',
       },
     ])
-    const userQuery = projectedQuery([{
-      _id: userId,
-      name: 'Active',
-      email: 'active@example.test',
-      combined: { status: 'ACTIVE' },
-    }])
-    const firstProduct = {
-      _id: firstProductId,
-      name: 'First',
-      code: 'first',
+    const userQuery = projectedQuery([
+      {
+        _id: firstUserId,
+        name: 'First User',
+        email: 'first@example.test',
+        combined: { status: 'ACTIVE' },
+      },
+      {
+        _id: secondUserId,
+        name: 'Second User',
+        email: 'second@example.test',
+        combined: { status: 'ACTIVE' },
+      },
+    ])
+    const requestedProduct = {
+      _id: requestedProductId,
+      name: 'Requested',
+      code: 'requested',
       platform: 'hotmart',
     }
-    const secondProduct = {
-      _id: secondProductId,
-      name: 'Second',
-      code: 'second',
+    const unrelatedProduct = {
+      _id: unrelatedProductId,
+      name: 'Unrelated',
+      code: 'unrelated',
       platform: 'curseduca',
     }
-    const productQuery = projectedQuery([firstProduct, secondProduct])
+    const productQuery = projectedQuery([
+      requestedProduct,
+      unrelatedProduct,
+    ])
     mockFindUserProducts
       .mockReturnValueOnce(matchingQuery)
-      .mockReturnValueOnce(userProductQuery)
+      .mockReturnValueOnce(unrelatedExpansionQuery)
     mockFindUsers.mockReturnValue(userQuery)
     mockFindProducts.mockReturnValue(productQuery)
 
     const result = await getUsersForProduct(requestedProductId.toString())
 
-    expect(result).toHaveLength(1)
-    expect(result[0].products[0].product).toEqual(firstProduct)
-    expect(result[0].products[1].product).toEqual(secondProduct)
-    expect(result[0].products[0].platform).toBe('hotmart')
-    expect(result[0].products[1].platform).toBe('curseduca')
-    expect(mockFindUserProducts).toHaveBeenCalledTimes(2)
-    expect(mockFindUserProducts).toHaveBeenNthCalledWith(1, {
+    expect(result).toHaveLength(2)
+    expect(result[0].products).toEqual([
+      expect.objectContaining({
+        _id: firstEnrollment._id,
+        product: requestedProduct,
+      }),
+    ])
+    expect(result[1].products).toEqual([
+      expect.objectContaining({
+        _id: secondEnrollment._id,
+        product: requestedProduct,
+      }),
+    ])
+    expect(mockFindUserProducts).toHaveBeenCalledTimes(1)
+    expect(mockFindUserProducts).toHaveBeenCalledWith({
       productId: requestedProductId,
-    })
-    expect(mockFindUserProducts).toHaveBeenNthCalledWith(2, {
-      userId: { $in: [userId] },
     })
     expect(mockFindUsers).toHaveBeenCalledTimes(1)
     expect(mockFindProducts).toHaveBeenCalledTimes(1)
     expect(matchingQuery.select).toHaveBeenCalledTimes(1)
-    expect(userProductQuery.select).toHaveBeenCalledTimes(1)
     expect(userQuery.select).toHaveBeenCalledTimes(1)
     expect(productQuery.select).toHaveBeenCalledTimes(1)
   })
