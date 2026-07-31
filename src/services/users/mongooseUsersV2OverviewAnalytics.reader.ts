@@ -118,7 +118,6 @@ export function buildUsersV2OverviewAnalyticsPipeline(
     {
       $facet: {
         overview: [
-          { $sort: { userId: 1 } },
           {
             $group: {
               _id: '$userId',
@@ -140,7 +139,6 @@ export function buildUsersV2OverviewAnalyticsPipeline(
           {
             $project: {
               _id: 0,
-              userId: { $toString: '$_id' },
               hasActive: 1,
               averageProgress: {
                 $cond: [
@@ -151,18 +149,13 @@ export function buildUsersV2OverviewAnalyticsPipeline(
               },
             },
           },
-          { $sort: { userId: 1 } },
           {
             $group: {
               _id: null,
               totalUsers: { $sum: 1 },
               totalActiveUsers: { $sum: '$hasActive' },
-              progressByUser: {
-                $push: {
-                  userId: '$userId',
-                  averageProgress: '$averageProgress',
-                },
-              },
+              userProgressSum: { $sum: '$averageProgress' },
+              userProgressCount: { $sum: 1 },
             },
           },
         ],
@@ -198,8 +191,19 @@ export function buildUsersV2OverviewAnalyticsPipeline(
                 productId: '$product._id',
                 userId: '$userId',
               },
-              productName: { $first: '$product.name' },
-              platform: { $first: '$product.platform' },
+              productName: {
+                $first: {
+                  $ifNull: [
+                    '$product.name',
+                    { $toString: '$product._id' },
+                  ],
+                },
+              },
+              platform: {
+                $first: {
+                  $ifNull: ['$product.platform', '$normalizedPlatform'],
+                },
+              },
               hasActive: {
                 $max: {
                   $cond: [{ $eq: ['$status', 'ACTIVE'] }, 1, 0],
@@ -258,8 +262,11 @@ export function buildUsersV2OverviewAnalyticsPipeline(
                 $ifNull: ['$$aggregated.totalActiveUsers', 0],
               },
               totalProducts: { $size: '$products' },
-              progressByUser: {
-                $ifNull: ['$$aggregated.progressByUser', []],
+              userProgressSum: {
+                $ifNull: ['$$aggregated.userProgressSum', 0],
+              },
+              userProgressCount: {
+                $ifNull: ['$$aggregated.userProgressCount', 0],
               },
             },
           },
@@ -276,7 +283,8 @@ const zeroSnapshot = (): UsersV2OverviewAnalyticsSnapshot => ({
     totalUsers: 0,
     totalActiveUsers: 0,
     totalProducts: 0,
-    progressByUser: [],
+    userProgressSum: 0,
+    userProgressCount: 0,
   },
   byPlatform: [],
   byProduct: [],

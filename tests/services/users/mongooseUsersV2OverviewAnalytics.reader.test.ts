@@ -159,12 +159,8 @@ describe('MongooseUsersV2OverviewAnalyticsReader', () => {
         totalUsers: 4,
         totalActiveUsers: 4,
         totalProducts: 2,
-        progressByUser: [
-          { userId: userA.toHexString(), averageProgress: 50 },
-          { userId: userB.toHexString(), averageProgress: 50 },
-          { userId: orphanProductUser.toHexString(), averageProgress: 0 },
-          { userId: invalidProgressUser.toHexString(), averageProgress: 0 },
-        ].sort((left, right) => left.userId.localeCompare(right.userId)),
+        userProgressSum: 100,
+        userProgressCount: 4,
       },
       byPlatform: [
         { platform: 'curseduca', userCount: 3 },
@@ -267,6 +263,45 @@ describe('MongooseUsersV2OverviewAnalyticsReader', () => {
     expect(pipeline?.filter(stage => '$facet' in stage)).toHaveLength(1)
   })
 
+  it('uses stable string fallbacks for historical product metadata gaps', async () => {
+    const userId = new mongoose.Types.ObjectId()
+    const productId = new mongoose.Types.ObjectId()
+
+    await User.collection.insertOne({
+      _id: userId,
+      email: 'historical-product@example.test',
+      name: 'Historical Product',
+    })
+    await Product.collection.insertOne({
+      _id: productId,
+      code: 'HISTORICAL-PRODUCT',
+      name: null,
+      platform: null,
+    })
+    await UserProduct.collection.insertOne({
+      userId,
+      productId,
+      platform: 'discord',
+      status: 'ACTIVE',
+      progress: { percentage: 25 },
+    })
+    const reader = new MongooseUsersV2OverviewAnalyticsReader()
+
+    const result = await reader.read()
+
+    expect(result.byProduct).toEqual([
+      {
+        productId: productId.toHexString(),
+        productName: productId.toHexString(),
+        platform: 'discord',
+        totalUsers: 1,
+        activeUsers: 1,
+        progressSum: 25,
+        progressCount: 1,
+      },
+    ])
+  })
+
   it('returns an exact typed zero snapshot when there are no enrollments', async () => {
     const reader = new MongooseUsersV2OverviewAnalyticsReader()
 
@@ -275,7 +310,8 @@ describe('MongooseUsersV2OverviewAnalyticsReader', () => {
         totalUsers: 0,
         totalActiveUsers: 0,
         totalProducts: 0,
-        progressByUser: [],
+        userProgressSum: 0,
+        userProgressCount: 0,
       },
       byPlatform: [],
       byProduct: [],
@@ -296,5 +332,8 @@ describe('MongooseUsersV2OverviewAnalyticsReader', () => {
     expect(serialized).not.toContain('$where')
     expect(serialized).toContain('"userCount":-1')
     expect(serialized).toContain('"totalUsers":-1')
+    expect(serialized).not.toContain('"progressByUser"')
+    expect(serialized).not.toContain('"$push"')
+    expect(pipeline).not.toContainEqual({ $sort: { userId: 1 } })
   })
 })

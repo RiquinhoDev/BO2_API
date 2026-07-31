@@ -405,7 +405,8 @@ interface UsersV2OverviewAnalyticsSnapshot {
     totalUsers: number
     totalActiveUsers: number
     totalProducts: number
-    progressByUser: Array<{ userId: string; averageProgress: number }>
+    userProgressSum: number
+    userProgressCount: number
   }
   byPlatform: Array<{ platform: string; userCount: number }>
   byProduct: Array<{
@@ -422,7 +423,9 @@ interface UsersV2OverviewAnalyticsSnapshot {
 
 - [ ] **Step 1: Write pure-service RED tests**
 
-Prove zero result, equal-user-weight overview progress, finite/clamped product progress, distinct counts, finite percentages/rates, and deterministic product/platform ordering.
+Prove zero result, equal-user-weight overview progress from bounded scalar
+accumulators, finite/clamped product progress, distinct counts, finite
+percentages/rates, and deterministic product/platform ordering.
 
 - [ ] **Step 2: Run RED and implement service**
 
@@ -441,13 +444,25 @@ Seed multi-product and multi-platform users, uppercase active/inactive enrollmen
 - deleted users are excluded;
 - an enrollment whose product lookup is missing still contributes to user and
   platform totals but not to `totalProducts` or `byProduct`;
+- a joined historical product with missing/null name and platform still
+  produces non-empty strings: `productId` is the name fallback and enrollment
+  platform (then `unknown`) is the platform fallback;
 - one aggregate only, projected lookups, no fallback query;
+- the overview facet has no pre-group blocking sort and never `$push`es one
+  progress row per user;
 - zero output for an empty database;
 - stable ordering and `maxTimeMS=120_000`.
 
 - [ ] **Step 4: Implement the aggregate reader**
 
-Use one projected `UserProduct.aggregate()` with a narrow user-deletion lookup, narrow product lookup, safe `$convert` numeric normalization and `$facet` branches for overview, platform and product results. The reader returns a typed zero snapshot when the aggregate yields no row.
+Use one projected `UserProduct.aggregate()` with a narrow user-deletion lookup,
+narrow product lookup, safe `$convert` numeric normalization and `$facet`
+branches for overview, platform and product results. After computing each
+user's average, reduce immediately to scalar
+`userProgressSum`/`userProgressCount`; never return an `O(users)` intermediate
+array and do not add a pre-group blocking sort. Normalize historical null
+product metadata at the boundary. The reader returns a typed zero snapshot when
+the aggregate yields no row.
 
 - [ ] **Step 5: Run GREEN and commit**
 

@@ -3,10 +3,8 @@ export interface UsersV2OverviewAnalyticsSnapshot {
     totalUsers: number
     totalActiveUsers: number
     totalProducts: number
-    progressByUser: Array<{
-      userId: string
-      averageProgress: number
-    }>
+    userProgressSum: number
+    userProgressCount: number
   }
   byPlatform: Array<{
     platform: string
@@ -81,13 +79,14 @@ export class UsersV2OverviewAnalyticsService {
       snapshot.overview.totalActiveUsers,
     )
     const totalProducts = finiteCount(snapshot.overview.totalProducts)
-    const progressTotal = snapshot.overview.progressByUser.reduce(
-      (sum, user) => sum + finiteOrZero(user.averageProgress),
-      0,
+    const userProgressCount = finiteCount(
+      snapshot.overview.userProgressCount,
     )
-    const avgProgress = snapshot.overview.progressByUser.length === 0
+    const avgProgress = userProgressCount === 0
       ? 0
-      : rounded(progressTotal / snapshot.overview.progressByUser.length)
+      : rounded(
+        finiteOrZero(snapshot.overview.userProgressSum) / userProgressCount,
+      )
     const byPlatform = snapshot.byPlatform
       .map(({ platform, userCount: rawUserCount }) => {
         const userCount = finiteCount(rawUserCount)
