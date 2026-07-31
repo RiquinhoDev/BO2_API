@@ -31,8 +31,6 @@ jest.mock('../../src/controllers/users.controller', () => {
       name,
       jest.fn((_req: unknown, res: Response) => res.status(204).end()),
     ])),
-    getUsers: jest.fn((_req: unknown, res: Response) =>
-      res.status(200).json({ source: 'users-v2' })),
   }
 })
 
@@ -82,11 +80,32 @@ jest.mock('../../src/services/users/usersV2Analytics.runtime', () => ({
   ) => res.status(200).json({ source: 'comparison-runtime' })),
 }))
 
+jest.mock('../../src/services/users/usersV2List.runtime', () => ({
+  __esModule: true,
+  getUsersV2Legacy: jest.fn((_input: unknown, _req: unknown, res: Response) =>
+    res.status(200).json({ source: 'legacy-runtime' })),
+  getUsersV2Enrollments: jest.fn((
+    _input: unknown,
+    _req: unknown,
+    res: Response,
+  ) => res.status(200).json({ source: 'enrollment-runtime' })),
+  getUsersV2OverviewAnalytics: jest.fn((
+    _input: unknown,
+    _req: unknown,
+    res: Response,
+  ) => res.status(200).json({ source: 'overview-runtime' })),
+}))
+
 import usersRouter from '../../src/routes/users.routes'
 import {
   getUsersV2Comparison,
   getUsersV2Stats,
 } from '../../src/services/users/usersV2Analytics.runtime'
+import {
+  getUsersV2Enrollments,
+  getUsersV2Legacy,
+  getUsersV2OverviewAnalytics,
+} from '../../src/services/users/usersV2List.runtime'
 
 const marker = { __bo2_offline_loopback: '1' }
 const routeSource = fs.readFileSync(
@@ -113,6 +132,21 @@ beforeEach(() => {
 
 test.each([
   {
+    path: '/api/users/v2',
+    source: 'legacy-runtime',
+    handler: getUsersV2Legacy,
+  },
+  {
+    path: '/api/users/v2/enrollments',
+    source: 'enrollment-runtime',
+    handler: getUsersV2Enrollments,
+  },
+  {
+    path: '/api/users/v2/analytics',
+    source: 'overview-runtime',
+    handler: getUsersV2OverviewAnalytics,
+  },
+  {
     path: '/api/users/v2/stats',
     source: 'stats-runtime',
     handler: getUsersV2Stats,
@@ -138,6 +172,14 @@ test.each([
 
 test.each([
   {
+    path: '/api/users/v2/enrollments',
+    handler: getUsersV2Enrollments,
+  },
+  {
+    path: '/api/users/v2/analytics',
+    handler: getUsersV2OverviewAnalytics,
+  },
+  {
     path: '/api/users/v2/stats',
     handler: getUsersV2Stats,
   },
@@ -157,12 +199,25 @@ test.each([
   expect(handler).not.toHaveBeenCalled()
 })
 
-test('preserves the neighboring users v2 and heatmap routes', async () => {
+test('legacy accepts benign unknown query through its compatibility translator', async () => {
   await request(buildApp())
     .get('/api/users/v2')
-    .query(marker)
-    .expect(200, { source: 'users-v2' })
+    .query({ ...marker, ignored: 'legacy' })
+    .expect(200, { source: 'legacy-runtime' })
 
+  expect(getUsersV2Legacy).toHaveBeenCalledTimes(1)
+})
+
+test('registers explicit static resources before neighboring parameter routes', () => {
+  const legacy = routeSource.indexOf("  '/v2',")
+  const enrollments = routeSource.indexOf("'/v2/enrollments'")
+  const analytics = routeSource.indexOf("'/v2/analytics'")
+  const stats = routeSource.indexOf("'/v2/stats'")
+
+  expect(legacy).toBeGreaterThanOrEqual(0)
+  expect(enrollments).toBeGreaterThan(legacy)
+  expect(analytics).toBeGreaterThan(enrollments)
+  expect(stats).toBeGreaterThan(analytics)
   expect(routeSource).toContain(
     "router.get('/v2/engagement/heatmap', async (req, res) => {",
   )

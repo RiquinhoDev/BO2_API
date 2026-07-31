@@ -10,6 +10,7 @@ type CatalogRoute = ManifestRoute & {
   evidence: string
   deprecated?: boolean
   deprecatedReason?: string
+  successorLinks?: string[]
 }
 
 const securityDir = path.join(process.cwd(), 'src', 'security')
@@ -21,11 +22,11 @@ const catalog = JSON.parse(
 ) as CatalogRoute[]
 const key = ({ method, path: routePath }: ManifestRoute) => `${method} ${routePath}`
 
-test('o catalogo cobre exatamente as 437 rotas do manifest', () => {
-  expect(manifest).toHaveLength(437)
-  expect(catalog).toHaveLength(437)
-  expect(new Set(manifest.map(key)).size).toBe(437)
-  expect(new Set(catalog.map(key)).size).toBe(437)
+test('o catalogo cobre exatamente as 439 rotas do manifest', () => {
+  expect(manifest).toHaveLength(439)
+  expect(catalog).toHaveLength(439)
+  expect(new Set(manifest.map(key)).size).toBe(439)
+  expect(new Set(catalog.map(key)).size).toBe(439)
   expect(catalog.map(key).sort()).toEqual(manifest.map(key).sort())
 })
 
@@ -53,7 +54,7 @@ test('a superficie excecional fica curta e explicita', () => {
     'POST /api/webhooks/ac/link-clicked',
   ])
   expect(routesWith('dead')).toEqual([])
-  expect(routesWith('authenticated')).toHaveLength(432)
+  expect(routesWith('authenticated')).toHaveLength(434)
   expect(catalog.filter((route) => route.access === 'public').every((route) => route.evidence.startsWith('public:'))).toBe(true)
 })
 test('a evidencia aponta para a declaracao real da rota', () => {
@@ -67,15 +68,26 @@ test('a evidencia aponta para a declaracao real da rota', () => {
   }
 })
 
-test('marca apenas as 18 montagens cron-tags como deprecated', () => {
+test('marca apenas cron-tags e o legacy users v2 como deprecated', () => {
   const deprecated = catalog.filter((route) => route.deprecated)
 
-  expect(deprecated).toHaveLength(18)
+  expect(deprecated).toHaveLength(19)
   expect(
-    deprecated.every(
+    deprecated.filter((route) => route.path !== '/api/users/v2').every(
       (route) =>
         route.path.startsWith('/api/cron-tags/') || route.path.startsWith('/cron-tags/'),
     ),
   ).toBe(true)
   expect(deprecated.every((route) => Boolean(route.deprecatedReason?.trim()))).toBe(true)
+
+  const legacy = deprecated.find((route) => route.path === '/api/users/v2')
+  expect(legacy).toMatchObject({
+    deprecated: true,
+    deprecatedReason: 'Polymorphic Users V2 contract; use explicit resources',
+    successorLinks: [
+      '</api/users/v2/enrollments>; rel="successor-version"',
+      '</api/users/v2/analytics>; rel="alternate"',
+    ],
+  })
+  expect(legacy).not.toHaveProperty('sunset')
 })

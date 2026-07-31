@@ -21,7 +21,6 @@ jest.mock('../../src/controllers/users.controller', () => {
     'getUserAllClasses',
     'getUserProducts',
     'getUserById',
-    'getUsers',
     'getUsersStats',
     'searchStudent',
   ]
@@ -73,6 +72,13 @@ jest.mock('../../src/services/users/usersV2Analytics.runtime', () => ({
   __esModule: true,
   getUsersV2Stats: jest.fn(),
   getUsersV2Comparison: jest.fn(),
+}))
+
+jest.mock('../../src/services/users/usersV2List.runtime', () => ({
+  __esModule: true,
+  getUsersV2Legacy: jest.fn(),
+  getUsersV2Enrollments: jest.fn(),
+  getUsersV2OverviewAnalytics: jest.fn(),
 }))
 
 import usersRouter from '../../src/routes/users.routes'
