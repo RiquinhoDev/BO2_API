@@ -208,6 +208,24 @@ test('legacy accepts benign unknown query through its compatibility translator',
   expect(getUsersV2Legacy).toHaveBeenCalledTimes(1)
 })
 
+test('root users alias reaches the exact legacy adapter', async () => {
+  await request(buildApp())
+    .get('/api/users')
+    .query({ ...marker, ignored: 'legacy' })
+    .expect(200, { source: 'legacy-runtime' })
+
+  expect(getUsersV2Legacy).toHaveBeenCalledTimes(1)
+})
+
+test('root users alias rejects hostile input before the legacy runtime', async () => {
+  await request(buildApp())
+    .get('/api/users')
+    .query({ ...marker, '$where': 'return true' })
+    .expect(400)
+
+  expect(getUsersV2Legacy).not.toHaveBeenCalled()
+})
+
 test('registers explicit static resources before neighboring parameter routes', () => {
   const legacy = routeSource.indexOf("  '/v2',")
   const enrollments = routeSource.indexOf("'/v2/enrollments'")

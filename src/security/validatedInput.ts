@@ -13,15 +13,38 @@ const FORBIDDEN_PROPERTY_NAMES = new Set([
   'constructor',
   'prototype',
 ])
+const VALIDATED_INPUT_SCHEMA = Symbol('validatedInputSchema')
+
+type ValidatedInputSchemaBrand = {
+  readonly [VALIDATED_INPUT_SCHEMA]: true
+}
+type BrandedValidatedInputSchema = z.ZodTypeAny & ValidatedInputSchemaBrand
+type ValidatedInputEnvelope = {
+  params: object
+  query: object
+  body: object
+}
+
+export type ValidatedInputSchema =
+  | BrandedValidatedInputSchema
+  | z.ZodEffects<
+    BrandedValidatedInputSchema,
+    ValidatedInputEnvelope,
+    unknown
+  >
 
 export type ValidatedRequest = Omit<Request, 'body' | 'params' | 'query'>
 
-export type ValidatedInputHandler<TSchema extends z.ZodTypeAny> = (
+export type ValidatedInputHandler<TSchema extends ValidatedInputSchema> = (
   input: z.infer<TSchema>,
   req: ValidatedRequest,
   res: Response,
   next: NextFunction,
 ) => unknown | Promise<unknown>
+
+function validatedInputSchemaBrand(): ValidatedInputSchemaBrand {
+  return { [VALIDATED_INPUT_SCHEMA]: true }
+}
 
 export function validatedSchema<
   TParams extends z.ZodRawShape,
@@ -32,11 +55,14 @@ export function validatedSchema<
   query: TQuery
   body: TBody
 }) {
-  return z.object({
-    params: z.object(shapes.params).strict(),
-    query: z.object(shapes.query).strict(),
-    body: z.object(shapes.body).strict(),
-  }).strict()
+  return Object.assign(
+    z.object({
+      params: z.object(shapes.params).strict(),
+      query: z.object(shapes.query).strict(),
+      body: z.object(shapes.body).strict(),
+    }).strict(),
+    validatedInputSchemaBrand(),
+  )
 }
 
 function withoutOfflineLoopbackMarker(query: unknown): unknown {
@@ -102,7 +128,7 @@ function invalidRequest(cause: unknown): HttpError {
   })
 }
 
-export function withValidatedInput<TSchema extends z.ZodTypeAny>(
+export function withValidatedInput<TSchema extends ValidatedInputSchema>(
   schema: TSchema,
   handler: ValidatedInputHandler<TSchema>,
 ): RequestHandler {

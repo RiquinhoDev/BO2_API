@@ -3,7 +3,9 @@ import request from 'supertest'
 import { createApp } from '../../src/app'
 import * as redaction from '../../src/observability/redaction'
 import {
+  compareRouteTemplateSpecificity,
   createRouteUsageInstrumentation,
+  routeTemplateMatchesPath,
   type RouteUsageLogEvent,
 } from '../../src/observability/routeUsageInstrumentation'
 
@@ -159,4 +161,25 @@ test('nao marca os dois recursos explicitos como deprecated', async () => {
     expect(response.headers.link).toBeUndefined()
     expect(response.headers.sunset).toBeUndefined()
   }
+})
+
+test('ordena especificidade por segmento: literal, parametro, wildcard', () => {
+  const templates = [
+    '/api/files/*path',
+    '/api/files/:id',
+    '/api/files/stats',
+  ]
+
+  expect(templates.sort(compareRouteTemplateSpecificity)).toEqual([
+    '/api/files/stats',
+    '/api/files/:id',
+    '/api/files/*path',
+  ])
+})
+
+test.each([
+  ['/api/files/*', '/api/files/nested/report.csv'],
+  ['/api/files/*path', '/api/files/nested/report.csv'],
+])('reconhece wildcard futuro %s', (template, actualPath) => {
+  expect(routeTemplateMatchesPath(template, actualPath)).toBe(true)
 })

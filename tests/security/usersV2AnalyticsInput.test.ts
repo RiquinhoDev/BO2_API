@@ -7,19 +7,22 @@ import {
   usersV2StatsInput,
 } from '../../src/security/usersV2AnalyticsInput'
 import {
+  type ValidatedInputSchema,
   withValidatedInput,
   type ValidatedInputHandler,
+  validatedSchema,
 } from '../../src/security/validatedInput'
 
-const createTestApp = (
-  schema: typeof usersV2StatsInput,
-  handler: ValidatedInputHandler<typeof usersV2StatsInput> = (
-    input,
-    _req,
-    res,
-  ) => {
+function echoValidatedInput<TSchema extends ValidatedInputSchema>(
+): ValidatedInputHandler<TSchema> {
+  return (input, _req, res) => {
     res.status(200).json(input)
-  },
+  }
+}
+
+const createTestApp = <TSchema extends ValidatedInputSchema>(
+  schema: TSchema,
+  handler: ValidatedInputHandler<TSchema> = echoValidatedInput<TSchema>(),
 ) => {
   const app = express()
   const errors = createErrorHandling({
@@ -86,11 +89,13 @@ describe.each([
   })
 })
 
-it('keeps stats and comparison schemas independently extensible', async () => {
+it('keeps stats and comparison schemas independently configurable', async () => {
   expect(usersV2StatsInput).not.toBe(usersV2ComparisonInput)
 
-  const statsInputWithScope = usersV2StatsInput.extend({
-    query: z.object({ scope: z.literal('all') }).strict(),
+  const statsInputWithScope = validatedSchema({
+    params: {},
+    query: { scope: z.literal('all') },
+    body: {},
   })
   const statsResponse = await request(createTestApp(statsInputWithScope))
     .get('/users-v2?scope=all&__bo2_offline_loopback=1')

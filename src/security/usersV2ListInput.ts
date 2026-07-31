@@ -241,8 +241,67 @@ const legacyQuery = z.object({
   }
 })
 
-export const usersV2LegacyInput = z.object({
-  params: z.object({}).strict(),
-  query: legacyQuery,
-  body: z.object({}).strict(),
+const translatedLegacyInput = validatedSchema({
+  params: {},
+  query: {
+    canonical: z.object({
+      page: z.number().int().positive(),
+      limit: z.number().int().min(1).max(100),
+      platform: z.enum(['hotmart', 'curseduca', 'discord']).optional(),
+      productId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
+      status: status.optional(),
+      search: z.string().optional(),
+      progressLevel: progressLevel.optional(),
+      engagementLevel: z.array(z.enum([
+        'NONE',
+        'MUITO_BAIXO',
+        'BAIXO',
+        'MEDIO',
+        'ALTO',
+        'MUITO_ALTO',
+      ])).optional(),
+      minEngagement: z.number().min(0).max(100).optional(),
+      maxEngagement: z.number().min(0).max(100).optional(),
+      lastAccessBefore: z.string().datetime({ offset: true }).optional(),
+      enrolledAfter: z.string().datetime({ offset: true }).optional(),
+    }).strict(),
+    responseFilters: z.object({
+      platform: z.string().optional(),
+      productId: z.string().optional(),
+      status: z.string().optional(),
+      search: z.string().optional(),
+      progressLevel: z.string().optional(),
+      engagementLevel: z.string().optional(),
+      maxEngagement: z.string().optional(),
+      topPercentage: z.string().optional(),
+      lastAccessBefore: z.string().optional(),
+      enrolledAfter: z.string().optional(),
+    }).strict(),
+  },
+  body: {},
+})
+
+const legacyEnvelope = z.object({
+  params: z.unknown(),
+  query: z.unknown(),
+  body: z.unknown(),
 }).strict()
+
+function translateLegacyInput(value: unknown): unknown {
+  const envelope = legacyEnvelope.safeParse(value)
+  if (!envelope.success) return value
+
+  const query = legacyQuery.safeParse(envelope.data.query)
+  if (!query.success) return value
+
+  return {
+    params: envelope.data.params,
+    query: query.data,
+    body: envelope.data.body,
+  }
+}
+
+export const usersV2LegacyInput = z.preprocess(
+  translateLegacyInput,
+  translatedLegacyInput,
+)

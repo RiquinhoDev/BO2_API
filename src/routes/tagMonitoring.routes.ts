@@ -54,6 +54,9 @@ router.get('/critical-tags/stats', authenticate, criticalTagController.getCritic
 // Lista notificações
 router.get('/notifications', authenticate, tagNotificationController.getNotifications)
 
+// Estatisticas de notificacoes
+router.get('/notifications/stats', authenticate, tagNotificationController.getNotificationStats)
+
 // Busca notificação específica
 router.get('/notifications/:id', authenticate, tagNotificationController.getNotificationById)
 
@@ -91,9 +94,6 @@ router.patch(
   authenticate,
   tagNotificationController.markAllAsRead
 )
-
-// Estatísticas de notificações
-router.get('/notifications/stats', authenticate, tagNotificationController.getNotificationStats)
 
 // ═══════════════════════════════════════════════════════════
 // 👥 STUDENTS ROUTES
