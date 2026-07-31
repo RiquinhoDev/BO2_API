@@ -646,7 +646,9 @@ If no model change is justified, omit model files and state â€œno index changeâ€
 - Modify: `Front/src/pages/dashboard/DashboardMainPage.tsx`
 - Modify: `Front/src/pages/dashboard/__tests__/DashboardMainPage.test.tsx`
 - Modify: `Front/src/components/dashboard/QuickFilters.tsx`
+- Modify: `Front/src/components/dashboard/FiltersPanel.tsx`
 - Modify: `Front/src/components/dashboard/__tests__/dashboardPrimitives.test.tsx`
+- Modify: `Front/src/components/dashboard/__tests__/dashboardAnalytics.test.tsx`
 - Modify: `Front/src/types/dashboardTypes.ts`
 - Modify: `Front/src/features/activecampaign/activecampaign.api.ts`
 - Modify: `Front/src/features/activecampaign/activecampaign.schemas.ts`
@@ -695,25 +697,34 @@ Assert Dashboard requests `/users/v2/enrollments`, sends `minEngagement=77`, nev
 
 Replace raw URL construction with `listUsersV2Enrollments()`. Rename `FiltersState.topPercentage` to `minEngagement`. Preserve loading, error, empty, page and rendered student behavior.
 
-- [ ] **Step 5: Write and implement ActiveCampaign migration**
+- [ ] **Step 5: Remove the unsupported Dashboard status option**
+
+RED first against the real `FiltersPanel`: prove the visible status options are
+only the already-supported `ACTIVE`, `INACTIVE` and `CANCELLED` values, that
+`COMPLETED` is absent, and that selecting a supported value still dispatches
+`onFilterChange('status', value)`. Remove only the unsupported `COMPLETED`
+option. Do not expand the canonical backend/Front enum and do not remap it to a
+different status semantic.
+
+- [ ] **Step 6: Write and implement ActiveCampaign migration**
 
 RED first: embedded search calls `/users/v2/enrollments` with `{ search: email, limit: 1 }`, parses through the shared enrollment schema, and extracts the same flattened `userId`. Core mode behavior remains unchanged if it uses the email-specific path.
 
 Remove the duplicate `userProductsEnvelopeSchema` only after all imports move to the shared schema.
 
-- [ ] **Step 6: Run Front focused gates and commit in Front**
+- [ ] **Step 7: Run Front focused gates and commit in Front**
 
 ```powershell
 yarn.cmd format:check
 yarn.cmd lint
-yarn.cmd test --runInBand src/features/users-v2/__tests__/usersV2.api.test.ts src/pages/dashboard/__tests__/DashboardMainPage.test.tsx src/components/dashboard/__tests__/dashboardPrimitives.test.tsx src/features/activecampaign/__tests__/activecampaign.api.test.ts
+yarn.cmd test --runInBand src/features/users-v2/__tests__/usersV2.api.test.ts src/pages/dashboard/__tests__/DashboardMainPage.test.tsx src/components/dashboard/__tests__/dashboardPrimitives.test.tsx src/components/dashboard/__tests__/dashboardAnalytics.test.tsx src/features/activecampaign/__tests__/activecampaign.api.test.ts
 yarn.cmd build
 ```
 
 Commit from the Front repository:
 
 ```powershell
-git add src/features/users-v2 src/pages/dashboard/DashboardMainPage.tsx src/pages/dashboard/__tests__/DashboardMainPage.test.tsx src/components/dashboard/QuickFilters.tsx src/components/dashboard/__tests__/dashboardPrimitives.test.tsx src/types/dashboardTypes.ts src/features/activecampaign/activecampaign.api.ts src/features/activecampaign/activecampaign.schemas.ts src/features/activecampaign/__tests__/activecampaign.api.test.ts
+git add src/features/users-v2 src/pages/dashboard/DashboardMainPage.tsx src/pages/dashboard/__tests__/DashboardMainPage.test.tsx src/components/dashboard/QuickFilters.tsx src/components/dashboard/FiltersPanel.tsx src/components/dashboard/__tests__/dashboardPrimitives.test.tsx src/components/dashboard/__tests__/dashboardAnalytics.test.tsx src/types/dashboardTypes.ts src/features/activecampaign/activecampaign.api.ts src/features/activecampaign/activecampaign.schemas.ts src/features/activecampaign/__tests__/activecampaign.api.test.ts
 git commit -m "feat(users): consume v2 enrollments"
 ```
 
