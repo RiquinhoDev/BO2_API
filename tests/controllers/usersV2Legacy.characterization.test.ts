@@ -7,6 +7,7 @@ const mockUserProductAggregate = jest.fn()
 const mockUserProductFind = jest.fn()
 const mockProductFind = jest.fn()
 const mockGetUsersForProduct = jest.fn()
+const mockEnrollmentRead = jest.fn()
 
 jest.mock('../../src/models/user', () => ({
   __esModule: true,
@@ -35,6 +36,12 @@ jest.mock('../../src/services/userProducts/userProductService', () => ({
   getUserCountsByProduct: jest.fn(),
   getUsersForProduct: mockGetUsersForProduct,
   getUserWithProducts: jest.fn(),
+}))
+
+jest.mock('../../src/services/users/mongooseUsersV2Enrollment.reader', () => ({
+  MongooseUsersV2EnrollmentReader: jest.fn().mockImplementation(() => ({
+    read: mockEnrollmentRead,
+  })),
 }))
 
 import { getUsers } from '../../src/controllers/users.controller'
@@ -78,6 +85,39 @@ const enrollment = {
   },
 }
 
+const enrollmentRow = {
+  _id: 'enrollment-1',
+  userId: {
+    _id: 'user-1',
+    name: 'Alice',
+    email: 'alice@example.test',
+    averageEngagement: 77,
+    averageEngagementLevel: 'ALTO',
+  },
+  productId: {
+    _id: 'product-1',
+    name: 'Course One',
+    code: 'course-one',
+    platform: 'hotmart',
+  },
+  platform: 'hotmart',
+  status: 'ACTIVE',
+  enrolledAt: new Date('2026-07-30T12:00:00.000Z'),
+  isPrimary: true,
+  progress: {
+    percentage: 50,
+    progressPercentage: 50,
+    lastActivity: new Date('2026-07-29T12:00:00.000Z'),
+  },
+  engagement: {
+    score: 77,
+    level: 'ALTO',
+    lastAction: new Date('2026-07-28T12:00:00.000Z'),
+  },
+  averageEngagement: 77,
+  averageEngagementLevel: 'ALTO',
+}
+
 const product = {
   _id: 'product-1',
   name: 'Course One',
@@ -94,6 +134,10 @@ beforeEach(() => {
   mockUserProductAggregate.mockResolvedValue([
     { total: [{ count: 1 }], data: [{ _id: 'user-1' }] },
   ])
+  mockEnrollmentRead.mockResolvedValue({
+    totalUsers: 1,
+    rows: [enrollmentRow],
+  })
 })
 
 describe('legacy users V2 list handler', () => {
@@ -143,8 +187,14 @@ describe('legacy users V2 list handler', () => {
         page: 1,
         limit: 100,
       },
+      filters: {},
     })
     expect(response.body.filters).not.toHaveProperty('benign')
+    expect(mockEnrollmentRead).toHaveBeenCalledTimes(1)
+    expect(mockEnrollmentRead).toHaveBeenCalledWith({
+      page: 1,
+      limit: 100,
+    })
   })
 
   it('keeps the no-query legacy pagination default at 50', async () => {
@@ -165,13 +215,14 @@ describe('legacy users V2 list handler', () => {
       .get('/users?topPercentage=0&__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
-    expect(mockUserProductAggregate).toHaveBeenCalledWith(expect.arrayContaining([
-      expect.objectContaining({
-        $match: {
-          'engagement.engagementScore': { $gte: 77 },
-        },
-      }),
-    ]))
+    expect(mockEnrollmentRead).toHaveBeenCalledTimes(1)
+    expect(mockEnrollmentRead).toHaveBeenCalledWith({
+      page: 1,
+      limit: 50,
+      minEngagement: 77,
+    })
+    expect(response.body.filters).toEqual({ topPercentage: '0' })
+    expect(response.body.filters).not.toHaveProperty('minEngagement')
   })
 
   it('returns grouped product users with compatibility products and ignores other filters', async () => {
@@ -188,5 +239,22 @@ describe('legacy users V2 list handler', () => {
       pagination: { total: 1 },
       filters: { productId },
     })
+    expect(mockEnrollmentRead).not.toHaveBeenCalled()
+  })
+
+  it('ignores invalid optional and hostile query keys before delegation', async () => {
+    const response = await request(createApp())
+      .get(
+        '/users?platform=unknown&status=active&maxEngagement=101'
+        + '&%24where=x&filter.name=x&benign=x&__bo2_offline_loopback=1',
+      )
+
+    expect(response.status).toBe(200)
+    expect(mockEnrollmentRead).toHaveBeenCalledTimes(1)
+    expect(mockEnrollmentRead).toHaveBeenCalledWith({
+      page: 1,
+      limit: 50,
+    })
+    expect(response.body.filters).toEqual({})
   })
 })

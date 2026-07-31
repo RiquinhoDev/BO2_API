@@ -10,10 +10,12 @@ import { Class } from "../models/Class"
 import { cacheService } from "../services/cache.service"
 import { getUserCountsByPlatform, getUserCountsByProduct, getUsersForProduct, getUserWithProducts } from "../services/userProducts/userProductService"
 import { UserProduct } from "../models"
-import Product, { type IProduct } from "../models/product/Product"
+import type { IProduct } from "../models/product/Product"
 import type { IUserProduct } from "../models/UserProduct"
-import { ensureUsersV2Products } from "../contracts/usersV2"
-import { engagementLevelFromScore } from '../services/users/usersV2Enrollment.domain'
+import { usersV2LegacyInput } from '../security/usersV2ListInput'
+import { MongooseUsersV2EnrollmentReader } from '../services/users/mongooseUsersV2Enrollment.reader'
+import { UsersV2EnrollmentService } from '../services/users/usersV2Enrollment.service'
+import { UsersV2LegacyService } from '../services/users/usersV2Legacy.service'
 import type {
   UsersDeleteStudentInput,
 } from "../security/usersDestructiveInput"
@@ -70,7 +72,6 @@ interface UserClassView {
   curseducaUuid?: string
 }
 
-type UserSummary = Pick<UserListRecord, '_id' | 'name' | 'email' | 'combined'>
 type ProductSummary = Pick<IProduct, '_id' | 'name' | 'code' | 'platform'>
 
 interface UserProductRecord {
@@ -125,39 +126,6 @@ interface ActiveCampaignTagsView {
   productName: string
   tags: string[]
   lastSyncAt?: Date
-}
-
-interface UserIdFacet {
-  total: Array<{ count: number }>
-  data: Array<{ _id: mongoose.Types.ObjectId }>
-}
-
-interface UserProductResponse {
-  _id: mongoose.Types.ObjectId
-  userId: {
-    _id: mongoose.Types.ObjectId
-    name?: string
-    email?: string
-    averageEngagement: number
-    averageEngagementLevel: string
-  }
-  productId: ProductSummary | mongoose.Types.ObjectId
-  platform: IUserProduct['platform']
-  status: IUserProduct['status']
-  enrolledAt: Date
-  isPrimary: boolean
-  progress: {
-    percentage: number
-    progressPercentage: number
-    lastActivity?: Date
-  }
-  engagement: {
-    score: number
-    level: string
-    lastAction?: Date
-  }
-  averageEngagement: number
-  averageEngagementLevel: string
 }
 
 function errorMessage(error: unknown): string {
@@ -2107,349 +2075,21 @@ export const getUserAllClasses = async (req: Request, res: Response): Promise<vo
  * Suporta filtros avançados: platform, productId, status, search, progress, engagement
  */
 
+const usersV2LegacyService = new UsersV2LegacyService(
+  new UsersV2EnrollmentService(new MongooseUsersV2EnrollmentReader()),
+  { list: getUsersForProduct },
+)
+
 export const getUsers: RequestHandler = async (req, res) => {
-  console.log("⚡ [V2] === FUNÇÃO getUsers INICIADA ===")
   try {
-    const {
-      platform,
-      productId,
-      status,
-      search,
-      progressLevel,
-      engagementLevel,
-      maxEngagement,
-      topPercentage,
-      lastAccessBefore,
-      enrolledAfter,
-      page = "1",
-      limit = "50",
-    } = req.query as Record<string, string | undefined>
-
-    console.log("🔍 [V2] getUsers chamado com filtros:", {
-      platform,
-      productId,
-      status,
-      search,
-      progressLevel,
-      engagementLevel,
-      maxEngagement,
-      topPercentage,
-      lastAccessBefore,
-      enrolledAfter,
+    const input = usersV2LegacyInput.parse({
+      params: req.params,
+      query: req.query,
+      body: req.body ?? {},
     })
+    const response = await usersV2LegacyService.list(input.query)
 
-    // ✅ STRATEGY 1: Se filtrar por produto específico (query param)
-    if (productId) {
-      const usersWithProduct = await getUsersForProduct(productId)
-
-      res.json({
-        success: true,
-        data: ensureUsersV2Products(usersWithProduct),
-        pagination: { total: usersWithProduct.length },
-        filters: { productId },
-      })
-      return
-    }
-
-    // ✅ OPTIMIZED: Build UserProduct query first to filter at DB level
-    const userProductQuery: MongoFilter = {}
-
-    if (platform) {
-      userProductQuery.platform = platform.toLowerCase()
-    }
-
-    if (status) {
-      userProductQuery.status = status
-    }
-
-    if (maxEngagement) {
-      const max = parseInt(maxEngagement, 10)
-      if (!Number.isNaN(max)) {
-        userProductQuery["engagement.engagementScore"] = { $lte: max }
-      }
-    }
-
-    if (topPercentage) {
-      const threshold = 77
-      userProductQuery["engagement.engagementScore"] = { $gte: threshold }
-    }
-
-    if (lastAccessBefore) {
-      const cutoff = new Date(lastAccessBefore)
-      userProductQuery.$or = [
-        { "engagement.lastAction": { $exists: false } },
-        { "engagement.lastAction": null },
-        { "engagement.lastAction": { $lt: cutoff } },
-      ]
-    }
-
-    if (progressLevel) {
-      const ranges: Record<string, { min: number; max: number }> = {
-        MUITO_BAIXO: { min: 0, max: 25 },
-        BAIXO: { min: 25, max: 40 },
-        MEDIO: { min: 40, max: 60 },
-        ALTO: { min: 60, max: 80 },
-        MUITO_ALTO: { min: 80, max: 100 },
-      }
-
-      const range = ranges[progressLevel.toUpperCase()]
-      if (range) {
-        userProductQuery["progress.percentage"] = { $gte: range.min, $lt: range.max }
-      }
-    }
-
-    if (engagementLevel) {
-      const levels = engagementLevel.split(",").map((x) => x.trim())
-      userProductQuery["engagement.engagementLevel"] = { $in: levels }
-    }
-
-    // Paginação BEFORE queries (crucial!)
-    const pageNum = Math.max(1, parseInt(page, 10) || 1)
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50))
-
-    // ✅ OPTIMIZED: Get distinct userIds from UserProduct collection first
-    const hasProductFilters = Object.keys(userProductQuery).length > 0
-    let userIds: mongoose.Types.ObjectId[] = []
-    let totalCount = 0
-
-    if (hasProductFilters) {
-      console.log("🔍 [V2] Aplicando filtros de UserProduct na DB:", userProductQuery)
-      const startTime = Date.now()
-
-      // ✅ CRITICAL FIX: Use aggregation to get UNIQUE userIds with pagination
-      const aggregation = await UserProduct.aggregate<UserIdFacet>([
-        { $match: userProductQuery },
-        { $group: { _id: "$userId" } },
-        { $facet: {
-          total: [{ $count: "count" }],
-          data: [
-            { $skip: (pageNum - 1) * limitNum },
-            { $limit: limitNum }
-          ]
-        }}
-      ])
-
-      const queryTime = Date.now() - startTime
-      totalCount = aggregation[0].total[0]?.count || 0
-      userIds = aggregation[0].data.map(item => item._id)
-
-      console.log(`⚡ [V2] ${userIds.length} userIds (de ${totalCount} total) em ${queryTime}ms - página ${pageNum}`)
-
-      if (userIds.length === 0) {
-        // No users match the product filters
-        return res.json({
-          success: true,
-          data: [],
-          pagination: {
-            total: 0,
-            totalPages: 0,
-            page: 1,
-            limit: parseInt(limit, 10) || 50,
-          },
-          filters: {
-            platform,
-            productId,
-            status,
-            search,
-            progressLevel,
-            engagementLevel,
-            maxEngagement,
-            topPercentage,
-            lastAccessBefore,
-            enrolledAfter,
-          },
-        })
-      }
-    }
-
-    // Base user query
-    const userConditions: MongoFilter[] = [{
-      $or: [{ isDeleted: { $exists: false } }, { isDeleted: false }],
-    }]
-    const userQuery = { $and: userConditions }
-
-    // Add userIds filter if we have product filters
-    if (hasProductFilters && userIds.length > 0) {
-      userConditions.push({ _id: { $in: userIds } })
-    }
-
-    if (search) {
-      const searchRegex = new RegExp(search, "i")
-      userConditions.push({ $or: [{ name: searchRegex }, { email: searchRegex }] })
-    }
-
-    if (enrolledAfter) {
-      userConditions.push({ createdAt: { $gte: new Date(enrolledAfter) } })
-    }
-
-    if (status === "ACTIVE") {
-      userConditions.push({ "combined.status": "ACTIVE" })
-    }
-
-    // ✅ OPTIMIZED: Apply pagination at DB level for non-product-filter queries too
-    let users: UserSummary[] = []
-
-    if (!hasProductFilters) {
-      // Sem filtros de produto: paginar direto nos Users
-      const [usersData, usersTotalCount] = await Promise.all([
-        User.find(userQuery)
-          .select("_id name email combined.status")
-          .skip((pageNum - 1) * limitNum)
-          .limit(limitNum)
-          .lean<UserSummary[]>(),
-        User.countDocuments(userQuery)
-      ])
-      users = usersData
-      totalCount = usersTotalCount
-      console.log(`📊 [V2] ${users.length} users (de ${totalCount} total) sem filtros de produto - página ${pageNum}`)
-    } else {
-      // Com filtros de produto: buscar apenas os users dos userIds paginados
-      users = await User.find(userQuery)
-        .select("_id name email combined.status")
-        .lean<UserSummary[]>()
-      console.log(`📊 [V2] ${users.length} users encontrados com filtros de produto`)
-    }
-
-    // ✅ OPTIMIZED: Buscar TODOS os UserProducts de uma vez (não N queries!)
-    const userIdsToEnrich = users.map(user => user._id)
-    const upQuery: MongoFilter = {
-      userId: { $in: userIdsToEnrich },
-      ...userProductQuery
-    }
-
-    console.log(`📊 [V2] Buscando UserProducts para ${userIdsToEnrich.length} users`)
-    const startUpTime = Date.now()
-
-    const allUserProducts = await UserProduct.find(upQuery).lean<UserProductRecord[]>()
-
-    const upTime = Date.now() - startUpTime
-    console.log(`📊 [V2] ${allUserProducts.length} UserProducts encontrados em ${upTime}ms`)
-
-    // Buscar produtos únicos (sem populate - mais rápido!)
-    const uniqueProductIds = [...new Set(
-      allUserProducts.map(userProduct => userProduct.productId.toString())
-    )]
-    console.log(`📦 [V2] Buscando ${uniqueProductIds.length} produtos únicos`)
-
-    const startProdTime = Date.now()
-    const products = await Product.find({ _id: { $in: uniqueProductIds } })
-      .select("_id name code platform")
-      .lean<ProductSummary[]>()
-    const prodTime = Date.now() - startProdTime
-    console.log(`📦 [V2] ${products.length} produtos carregados em ${prodTime}ms`)
-
-    // Criar map de produtos
-    const productMap = new Map(products.map(product => [product._id.toString(), product]))
-
-    // Agrupar UserProducts por userId
-    const userProductsMap = new Map<string, UserProductRecord[]>()
-    for (const up of allUserProducts) {
-      const userId = up.userId.toString()
-      if (!userProductsMap.has(userId)) {
-        userProductsMap.set(userId, [])
-      }
-      userProductsMap.get(userId)!.push(up)
-    }
-
-    // ✅ Calculate average engagement per user
-    const userEngagementMap = new Map<string, { averageScore: number; level: string }>()
-
-    for (const user of users) {
-      const userId = user._id.toString()
-      const userProducts = userProductsMap.get(userId) || []
-
-      if (userProducts.length > 0) {
-        const totalScore = userProducts.reduce((sum, up) => {
-          return sum + (up.engagement?.engagementScore || 0)
-        }, 0)
-        const averageScore = Math.round(totalScore / userProducts.length)
-
-        // Calculate engagement level based on average score
-        const level = engagementLevelFromScore(averageScore)
-
-        userEngagementMap.set(userId, { averageScore, level })
-      }
-    }
-
-    // ✅ CRITICAL FIX: Transform data to match frontend expectations
-    // Frontend expects array of UserProducts, not array of Users with products
-    const userProductsFlattened: UserProductResponse[] = []
-
-    for (const user of users) {
-      const userId = user._id.toString()
-      const userProducts = userProductsMap.get(userId) || []
-
-      // Se há filtros de produto e o user não tem produtos, pular
-      if (hasProductFilters && userProducts.length === 0) {
-        continue
-      }
-
-      // Get average engagement for this user
-      const userEngagement = userEngagementMap.get(userId)
-
-      // Para cada UserProduct do user, criar um objeto compatível com o frontend
-      for (const up of userProducts) {
-        const productId = up.productId?.toString()
-        const product = productId ? productMap.get(productId) : null
-
-        userProductsFlattened.push({
-          _id: up._id,
-          userId: {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            averageEngagement: userEngagement?.averageScore || 0,
-            averageEngagementLevel: userEngagement?.level || "NONE",
-          },
-          productId: product || up.productId,
-          platform: up.platform,
-          status: up.status,
-          enrolledAt: up.enrolledAt,
-          isPrimary: up.isPrimary,
-          progress: {
-            percentage: up.progress?.percentage || 0,
-            progressPercentage: up.progress?.percentage || 0,
-            lastActivity: up.progress?.lastActivity,
-          },
-          engagement: {
-            score: up.engagement?.engagementScore || 0,
-            level: engagementLevelFromScore(up.engagement?.engagementScore || 0),
-            lastAction: up.engagement?.lastAction,
-          },
-          // Also add at root level for compatibility
-          averageEngagement: userEngagement?.averageScore || 0,
-          averageEngagementLevel: userEngagement?.level || "NONE",
-        })
-      }
-    }
-
-    console.log(`📊 [V2] ${userProductsFlattened.length} UserProducts após transformação`)
-
-    // ✅ OPTIMIZED: Pagination já foi feita na query, não precisamos fatiar
-    const paginatedUsers = userProductsFlattened // Já vem paginado!
-
-    res.json({
-      success: true,
-      data: ensureUsersV2Products(paginatedUsers),
-      pagination: {
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / limitNum),
-        page: pageNum,
-        limit: limitNum,
-      },
-      filters: {
-        platform,
-        productId,
-        status,
-        search,
-        progressLevel,
-        engagementLevel,
-        maxEngagement,
-        topPercentage,
-        lastAccessBefore,
-        enrolledAfter,
-      },
-    })
+    res.json(response)
   } catch (error: unknown) {
     console.error("❌ [V2] Erro em getUsers:", error)
     res.status(500).json({ success: false, error: errorMessage(error) })
