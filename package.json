@@ -63,6 +63,7 @@
     "check-ac-sync:verbose": "VERBOSE=true ts-node scripts/check-ac-sync.ts",
     "check-ac-sync:export": "EXPORT_JSON=true ts-node scripts/check-ac-sync.ts",
     "reengagement:indexes": "ts-node src/scripts/create-indexes.ts",
+    "maintenance:users-v2-indexes": "node dist/scripts/maintenance/ensure-users-v2-indexes.js",
     "reengagement:test": "ts-node src/scripts/test-models.ts",
     "reengagement:seed": "ts-node src/scripts/seed-product-profiles.ts",
     "seed:clareza-products": "ts-node scripts/seed-clareza-products.ts",

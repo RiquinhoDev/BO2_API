@@ -62,6 +62,12 @@ proved by the BEFORE/AFTER result. It adds one compound index to writes and
 storage, so it should be created and observed as an explicit deployment
 operation before relying on it under production load.
 
+`platform` is first intentionally. It preserves prefix utility for
+platform-only listing filters, while the existing `status_1` index remains
+available for status-only filters. With equality on both fields either order
+has the same bounds for the measured combined shape; there was no evidence for
+duplicating the index in the reverse order.
+
 The following alternatives were rejected:
 
 - no new product, engagement or progress indexes: their existing plans already
@@ -101,6 +107,53 @@ trigger is an approved normalized-search field plus backfill/index lifecycle,
 or a managed-search equivalent, with representative explain evidence showing
 bounded work. Until that trigger is met, search remains an explicit
 time-bounded scan rather than receiving a misleading speculative index.
+
+## Railway pre-deploy index verification
+
+The application does not run index maintenance at startup. Use the dedicated
+idempotent command as a Railway one-off against the intended service database.
+`MONGO_URI` must be supplied by Railway's secret environment and is never
+printed by the command. The package command executes the compiled
+`dist/scripts/maintenance/ensure-users-v2-indexes.js` artifact shipped by both
+Docker and Nixpacks, so it belongs in Railway's post-build/pre-deploy step.
+
+1. Inspect without mutation:
+
+   ```sh
+   npm run maintenance:users-v2-indexes
+   ```
+
+   An absent index reports `status: "missing"`. An exact existing index reports
+   `status: "verified"`. A conflicting name, key or option exits non-zero.
+
+2. If and only if the inspection reports `missing`, apply explicitly:
+
+   ```sh
+   USERS_V2_INDEX_APPLY=true npm run maintenance:users-v2-indexes
+   ```
+
+   The command lists indexes first, creates only
+   `users_v2_platform_status`, lists again, and exits successfully only after
+   verifying the exact key and safe options.
+
+3. Re-run the default inspection and require `status: "verified"`:
+
+   ```sh
+   npm run maintenance:users-v2-indexes
+   ```
+
+4. Deploy the application revision only after that verification. Observe index
+   build duration, database load and subsequent query telemetry through the
+   normal Railway/Mongo operational tooling.
+
+The current application does not set `autoIndex: false`; under the current
+Mongoose default that leaves `autoIndex: true`. This is a fallback risk, not a
+deployment guarantee: startup index creation can race traffic, fail because of
+existing conflicting declarations, or be disabled by environment policy. This
+change deliberately does not alter global `autoIndex`. The one-off
+inspect/apply/verify sequence must complete before the application deploy;
+automatic startup behavior must not be credited as proof that the index
+exists.
 
 ## Regression gate
 
