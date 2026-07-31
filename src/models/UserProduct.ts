@@ -398,6 +398,12 @@ UserProductSchema.index({ userId: 1, productId: 1 })
 // Buscar por plataforma
 UserProductSchema.index({ platform: 1, platformUserId: 1 })
 
+// Listagem Users V2: filtros combinados de plataforma e estado
+UserProductSchema.index(
+  { platform: 1, status: 1 },
+  { name: 'users_v2_platform_status' },
+)
+
 // Buscar por engagement
 UserProductSchema.index({ 'engagement.engagementScore': -1 })
 
