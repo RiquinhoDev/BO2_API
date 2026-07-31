@@ -767,9 +767,18 @@ Prove one analytics request, loading/error/refetch behavior, and rendering from:
 
 Assert the page does not call `useUsersV2`, does not inspect `products[]`, does not lowercase-check status, and does not aggregate only a page.
 
+Also prove that platform labels display the backend `percentage` rather than a
+pie library's slice percentage (for example, backend `50/50/25` must not become
+`40/40/20`) and that active/product labels explicitly describe enrollment
+semantics.
+
 - [ ] **Step 2: Implement hook and page migration**
 
 Replace the client user aggregation with analytics data. Keep `useDashboardV2` only for independently used sales/product controls until a separate contract replaces it. Refresh triggers both still-live resources.
+
+Keep pie values as `userCount`, but resolve displayed percentages from the
+server aggregate. Label `totalActiveUsers`, `totalProducts` and product
+`activeRate` as active-enrollment metrics.
 
 - [ ] **Step 3: Prove dead code before deleting**
 

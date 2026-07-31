@@ -401,6 +401,12 @@ No external service or network dependency participates.
 - Load `/users/v2/analytics` through a Zod-validated service/hook.
 - Render overview, product metrics and platform distribution from server
   aggregates.
+- Render each platform chart label from the server `percentage`; do not
+  recompute it from pie-slice proportions because users may belong to multiple
+  platforms.
+- Label `totalActiveUsers`, `totalProducts` and product `activeRate` as
+  enrollment metrics (`Com matrícula ativa`, `Produtos com matrículas` and
+  `Taxa de matrículas ativas`) rather than generic activity.
 - Remove client-side global aggregation helpers when negative-reference proof
   shows no remaining consumer.
 - Remove `useUsersV2`, `getUsers`, `getUsersByProduct` and related test-only
