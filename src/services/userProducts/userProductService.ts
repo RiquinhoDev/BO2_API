@@ -34,10 +34,6 @@ interface LegacyGroupedEnrollmentLean {
   }
 }
 
-interface LegacyGroupedMatchLean {
-  userId: mongoose.Types.ObjectId | null
-}
-
 interface LegacyGroupedUserLean {
   _id: mongoose.Types.ObjectId
   name?: string
@@ -438,20 +434,8 @@ export async function getUsersForProduct(
 ): Promise<UsersV2LegacyGroupedUser[]> {
   const productObjectId = new mongoose.Types.ObjectId(productId)
 
-  const matchingEnrollments = await UserProduct.find({
-    productId: productObjectId,
-  })
-    .select('userId')
-    .lean<LegacyGroupedMatchLean[]>()
-  const matchedUserIds = new Map<string, mongoose.Types.ObjectId>()
-  for (const enrollment of matchingEnrollments) {
-    if (enrollment.userId !== null) {
-      matchedUserIds.set(enrollment.userId.toString(), enrollment.userId)
-    }
-  }
-
   const userProducts = await UserProduct.find({
-    userId: { $in: [...matchedUserIds.values()] },
+    productId: productObjectId,
   })
     .select([
       '_id',
@@ -522,7 +506,7 @@ export async function getUsersForProduct(
       : productMap.get(userProduct.productId.toString())
     const groupedProduct: UsersV2LegacyGroupedProduct = {
       _id: userProduct._id,
-      product: product ?? userProduct.productId,
+      product: product ?? null,
       platform: userProduct.platform || product?.platform,
       status: userProduct.status,
       enrolledAt: userProduct.enrolledAt,

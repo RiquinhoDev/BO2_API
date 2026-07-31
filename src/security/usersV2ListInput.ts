@@ -227,7 +227,7 @@ const legacyQuery = z.object({
         : canonicalMinEngagement !== undefined
           ? { minEngagement: canonicalMinEngagement }
           : {}),
-      ...(canonicalMaxEngagement !== undefined
+      ...(rawTopPercentage === undefined && canonicalMaxEngagement !== undefined
         ? { maxEngagement: canonicalMaxEngagement }
         : {}),
       ...(canonicalLastAccessBefore !== undefined

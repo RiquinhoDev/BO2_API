@@ -136,7 +136,6 @@ describe('UsersV2LegacyService', () => {
       progressLevel: 'MEDIO',
       engagementLevel: ['NONE', 'ALTO'],
       minEngagement: 77,
-      maxEngagement: 80,
       lastAccessBefore: '2026-07-30T12:00:00.000Z',
       enrolledAfter: '2026-07-01T00:00:00.000Z',
     })
