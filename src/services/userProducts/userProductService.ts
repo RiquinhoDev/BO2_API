@@ -6,7 +6,54 @@
 import mongoose from 'mongoose'
 import User from '../../models/user'
 import Product from '../../models/product/Product'
-import UserProduct from '../../models/UserProduct'
+import UserProduct, {
+  type EnrollmentStatus,
+  type PlatformType,
+} from '../../models/UserProduct'
+import type {
+  UsersV2LegacyGroupedProduct,
+  UsersV2LegacyGroupedUser,
+} from '../../contracts/usersV2'
+
+interface LegacyGroupedEnrollmentLean {
+  _id: mongoose.Types.ObjectId
+  userId: mongoose.Types.ObjectId | null
+  productId: mongoose.Types.ObjectId | null
+  platform?: PlatformType
+  status?: EnrollmentStatus
+  enrolledAt?: Date
+  isPrimary?: boolean
+  progress?: {
+    percentage?: number
+    lastActivity?: Date
+  }
+  engagement?: {
+    engagementScore?: number
+    engagementLevel?: string
+    lastAction?: Date
+  }
+}
+
+interface LegacyGroupedMatchLean {
+  userId: mongoose.Types.ObjectId | null
+}
+
+interface LegacyGroupedUserLean {
+  _id: mongoose.Types.ObjectId
+  name?: string
+  email?: string
+  combined?: {
+    status?: string
+  }
+  isDeleted?: boolean
+}
+
+interface LegacyGroupedProductLean {
+  _id: mongoose.Types.ObjectId
+  name: string
+  code: string
+  platform: string
+}
 
 // ─────────────────────────────────────────────────────────────
 // BUSCAR USER COM PRODUTOS (DUAL READ)
@@ -386,55 +433,112 @@ export async function getUserCountsByProduct(): Promise<Array<{ _id: string; pro
   ])
 }
 
-export async function getUsersForProduct(productId: string) {
+export async function getUsersForProduct(
+  productId: string,
+): Promise<UsersV2LegacyGroupedUser[]> {
   const productObjectId = new mongoose.Types.ObjectId(productId)
 
-  // Buscar todos os registos user<->product desse produto e trazer o user + produto
-  const userProducts = await UserProduct.find({ productId: productObjectId })
-    .populate('userId', 'name email combined.status isDeleted')
-    .populate('productId', 'name code platform')
-    .lean()
+  const matchingEnrollments = await UserProduct.find({
+    productId: productObjectId,
+  })
+    .select('userId')
+    .lean<LegacyGroupedMatchLean[]>()
+  const matchedUserIds = new Map<string, mongoose.Types.ObjectId>()
+  for (const enrollment of matchingEnrollments) {
+    if (enrollment.userId !== null) {
+      matchedUserIds.set(enrollment.userId.toString(), enrollment.userId)
+    }
+  }
 
-  // Agrupar por user
-  const map = new Map<string, any>()
+  const userProducts = await UserProduct.find({
+    userId: { $in: [...matchedUserIds.values()] },
+  })
+    .select([
+      '_id',
+      'userId',
+      'productId',
+      'platform',
+      'status',
+      'enrolledAt',
+      'isPrimary',
+      'progress.percentage',
+      'progress.lastActivity',
+      'engagement.engagementScore',
+      'engagement.engagementLevel',
+      'engagement.lastAction',
+    ].join(' '))
+    .lean<LegacyGroupedEnrollmentLean[]>()
 
-  for (const up of userProducts as any[]) {
-    const user = up.userId
-    if (!user) continue
+  const userIds = new Map<string, mongoose.Types.ObjectId>()
+  const productIds = new Map<string, mongoose.Types.ObjectId>()
+  for (const userProduct of userProducts) {
+    if (userProduct.userId !== null) {
+      userIds.set(userProduct.userId.toString(), userProduct.userId)
+    }
+    if (userProduct.productId !== null) {
+      productIds.set(userProduct.productId.toString(), userProduct.productId)
+    }
+  }
 
-    // ignorar soft-deleted
+  const [users, products] = await Promise.all([
+    User.find({
+      _id: { $in: [...userIds.values()] },
+      isDeleted: { $ne: true },
+    })
+      .select('_id name email combined.status isDeleted')
+      .lean<LegacyGroupedUserLean[]>(),
+    Product.find({ _id: { $in: [...productIds.values()] } })
+      .select('_id name code platform')
+      .lean<LegacyGroupedProductLean[]>(),
+  ])
+
+  const userMap = new Map(users.map(user => [user._id.toString(), user]))
+  const productMap = new Map(
+    products.map(product => [product._id.toString(), product]),
+  )
+  const groupedUsers = new Map<string, UsersV2LegacyGroupedUser>()
+
+  for (const userProduct of userProducts) {
+    if (userProduct.userId === null) continue
+    const userId = userProduct.userId.toString()
+    const user = userMap.get(userId)
+    if (user === undefined) continue
     if (user.isDeleted === true) continue
 
-    const id = String(user._id)
-
-    if (!map.has(id)) {
-      map.set(id, {
+    let groupedUser = groupedUsers.get(userId)
+    if (groupedUser === undefined) {
+      groupedUser = {
         _id: user._id,
         name: user.name || '',
         email: user.email || '',
         status: user.combined?.status || 'ACTIVE',
-        products: []
-      })
+        products: [],
+      }
+      groupedUsers.set(userId, groupedUser)
     }
 
-    map.get(id).products.push({
-      _id: up._id,
-      product: up.productId,
-      platform: up.platform || up.productId?.platform, // fallback
-      status: up.status,
-      enrolledAt: up.enrolledAt,
-      isPrimary: up.isPrimary,
+    const product = userProduct.productId === null
+      ? undefined
+      : productMap.get(userProduct.productId.toString())
+    const groupedProduct: UsersV2LegacyGroupedProduct = {
+      _id: userProduct._id,
+      product: product ?? userProduct.productId,
+      platform: userProduct.platform || product?.platform,
+      status: userProduct.status,
+      enrolledAt: userProduct.enrolledAt,
+      isPrimary: userProduct.isPrimary,
       progress: {
-        percentage: up.progress?.percentage || 0,
-        lastActivity: up.progress?.lastActivity
+        percentage: userProduct.progress?.percentage ?? 0,
+        lastActivity: userProduct.progress?.lastActivity,
       },
       engagement: {
-        score: up.engagement?.engagementScore || 0,
-        level: up.engagement?.engagementLevel || 'NONE',
-        lastAction: up.engagement?.lastAction
-      }
-    })
+        score: userProduct.engagement?.engagementScore ?? 0,
+        level: userProduct.engagement?.engagementLevel || 'NONE',
+        lastAction: userProduct.engagement?.lastAction,
+      },
+    }
+    groupedUser.products.push(groupedProduct)
   }
 
-  return Array.from(map.values())
+  return [...groupedUsers.values()]
 }

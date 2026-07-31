@@ -86,24 +86,60 @@ describe('users V2 enrollment input', () => {
   it('defaults legacy pagination to the unchanged handler limit of 50', () => {
     const parsed = usersV2LegacyInput.parse(emptyInput)
 
-    expect(parsed.query).toEqual(expect.objectContaining({
-      page: 1,
-      limit: 50,
-    }))
+    expect(parsed.query).toEqual({
+      canonical: {
+        page: 1,
+        limit: 50,
+      },
+      responseFilters: {},
+    })
   })
 
-  it('caps legacy limits and translates any topPercentage to score 77', () => {
+  it('caps legacy limits while retaining the old topPercentage response name', () => {
     const parsed = usersV2LegacyInput.parse({
       params: {},
       query: { limit: '10000', topPercentage: '0', benign: 'x' },
       body: {},
     })
 
-    expect(parsed.query).toEqual(expect.objectContaining({
-      limit: 100,
-      minEngagement: 77,
-    }))
+    expect(parsed.query).toEqual({
+      canonical: {
+        page: 1,
+        limit: 100,
+        minEngagement: 77,
+      },
+      responseFilters: {
+        topPercentage: '0',
+      },
+    })
     expect(parsed.query).not.toHaveProperty('benign')
+  })
+
+  it('ignores invalid legacy optional filters instead of rejecting the list', () => {
+    const parsed = usersV2LegacyInput.parse({
+      params: {},
+      query: {
+        platform: 'unknown',
+        productId: 'not-an-object-id',
+        status: 'active',
+        search: '',
+        progressLevel: 'unknown',
+        engagementLevel: 'ALTO,unknown',
+        minEngagement: '101',
+        maxEngagement: '-1',
+        lastAccessBefore: '2026-07-30',
+        enrolledAfter: '2026-07-30T12:00:00',
+      },
+      body: {},
+    })
+
+    expect(parsed.query).toEqual({
+      canonical: {
+        page: 1,
+        limit: 50,
+      },
+      responseFilters: {},
+    })
   })
 
   it('rejects operator and dotted keys before legacy parsing', async () => {

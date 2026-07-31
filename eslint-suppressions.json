@@ -392,7 +392,7 @@
       "count": 3
     },
     "no-console": {
-      "count": 75
+      "count": 64
     }
   },
   "src/controllers/usersReviewLists.controller.ts": {
@@ -1380,7 +1380,7 @@
   },
   "src/services/userProducts/userProductService.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 11
+      "count": 9
     }
   },
   "src/types/analytics.types.ts": {
