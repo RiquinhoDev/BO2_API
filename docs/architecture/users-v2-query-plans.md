@@ -125,6 +125,10 @@ Docker and Nixpacks, so it belongs in Railway's post-build/pre-deploy step.
 
    An absent index reports `status: "missing"`. An exact existing index reports
    `status: "verified"`. A conflicting name, key or option exits non-zero.
+   On a first deployment where `userproducts` does not exist yet, only MongoDB
+   `NamespaceNotFound` is treated as an empty index catalog; inspect mode leaves
+   the collection absent. Authentication, connectivity and all other catalog
+   errors remain fatal.
 
 2. If and only if the inspection reports `missing`, apply explicitly:
 
@@ -134,7 +138,8 @@ Docker and Nixpacks, so it belongs in Railway's post-build/pre-deploy step.
 
    The command lists indexes first, creates only
    `users_v2_platform_status`, lists again, and exits successfully only after
-   verifying the exact key and safe options.
+   verifying the exact key and safe options. If the collection is absent,
+   MongoDB creates it as part of this explicitly gated index creation.
 
 3. Re-run the default inspection and require `status: "verified"`:
 

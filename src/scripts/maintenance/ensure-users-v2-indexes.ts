@@ -2,6 +2,7 @@ import {
   type Collection,
   type Document,
   MongoClient,
+  MongoServerError,
 } from 'mongodb'
 
 export const usersV2PlatformStatusIndex = {
@@ -142,7 +143,17 @@ export class MongoUsersV2IndexCatalog implements UsersV2IndexCatalog {
   constructor(private readonly collection: Collection<Document>) {}
 
   async list(): Promise<unknown[]> {
-    return this.collection.listIndexes().toArray()
+    try {
+      return await this.collection.listIndexes().toArray()
+    } catch (error) {
+      if (
+        error instanceof MongoServerError
+        && (error.code === 26 || error.codeName === 'NamespaceNotFound')
+      ) {
+        return []
+      }
+      throw error
+    }
   }
 
   async createExpected(): Promise<void> {

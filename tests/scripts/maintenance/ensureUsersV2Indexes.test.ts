@@ -70,6 +70,37 @@ describe('Users V2 index maintenance', () => {
     expect(createIndex).not.toHaveBeenCalled()
   })
 
+  it('reports an absent collection as missing without creating it', async () => {
+    await collection.drop()
+
+    await expect(ensureUsersV2Index(catalog(), { apply: false }))
+      .resolves.toEqual({
+        status: 'missing',
+        indexName: expectedIndexName,
+        mutated: false,
+      })
+    await expect(database.listCollections({ name: collectionName }).toArray())
+      .resolves.toHaveLength(0)
+  })
+
+  it('creates and verifies the index when the collection is absent', async () => {
+    await collection.drop()
+
+    await expect(ensureUsersV2Index(catalog(), { apply: true }))
+      .resolves.toEqual({
+        status: 'created',
+        indexName: expectedIndexName,
+        mutated: true,
+      })
+    const indexes = await collection.listIndexes().toArray()
+    expect(indexes).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: expectedIndexName,
+        key: { platform: 1, status: 1 },
+      }),
+    ]))
+  })
+
   it('creates and verifies the exact index only when apply is true', async () => {
     await expect(ensureUsersV2Index(catalog(), { apply: true }))
       .resolves.toEqual({
@@ -177,6 +208,20 @@ describe('Users V2 index maintenance', () => {
     await expect(runUsersV2IndexMaintenance(connection, { apply: false }))
       .rejects.toThrow('inspection failed')
     expect(closed).toBe(true)
+  })
+
+  it('rethrows an unrelated catalog list failure without creating', async () => {
+    const createExpected = jest.fn(async () => undefined)
+    const failingCatalog: UsersV2IndexCatalog = {
+      list: async () => {
+        throw new Error('authorization failed')
+      },
+      createExpected,
+    }
+
+    await expect(ensureUsersV2Index(failingCatalog, { apply: true }))
+      .rejects.toThrow('authorization failed')
+    expect(createExpected).not.toHaveBeenCalled()
   })
 
   it('has no connection side effect when the CLI module is imported', () => {
