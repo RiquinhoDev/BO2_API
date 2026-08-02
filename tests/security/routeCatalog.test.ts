@@ -144,3 +144,16 @@ test('nenhuma rota dinamica anterior sombreia uma rota literal posterior', () =>
 
   expect(violations).toEqual([])
 })
+
+test('os buckets de instrumentacao mantem os dois primeiros segmentos literais', () => {
+  const literalBucketSegment = /^[a-z0-9._~-]+$/i
+  const unsafeBuckets = catalog
+    .filter(({ path: routePath }) => routePath
+      .split('/')
+      .filter(Boolean)
+      .slice(0, 2)
+      .some((segment) => !literalBucketSegment.test(segment)))
+    .map(key)
+
+  expect(unsafeBuckets).toEqual([])
+})

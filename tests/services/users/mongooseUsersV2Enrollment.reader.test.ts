@@ -458,6 +458,26 @@ describe('MongooseUsersV2EnrollmentReader', () => {
   )
 
   it('includes missing, null and older last actions but excludes the cutoff and newer values', async () => {
+    const newerAccessUser = new mongoose.Types.ObjectId(
+      '00000000000000000000000f',
+    )
+    const newerAccessEnrollment = new mongoose.Types.ObjectId(
+      '200000000000000000000010',
+    )
+    await User.collection.insertOne(userDocument(
+      newerAccessUser,
+      'Newer Access',
+      'newer-access@example.test',
+    ))
+    await UserProduct.collection.insertOne(enrollmentDocument({
+      _id: newerAccessEnrollment,
+      userId: newerAccessUser,
+      productId: ids.productA,
+      engagement: {
+        engagementScore: 60,
+        lastAction: new Date('2026-07-20T00:00:00.001Z'),
+      },
+    }))
     const reader = new MongooseUsersV2EnrollmentReader()
 
     const result = await reader.read(baseFilters({
@@ -473,6 +493,77 @@ describe('MongooseUsersV2EnrollmentReader', () => {
       new mongoose.Types.ObjectId('200000000000000000000009'),
     )
     expect(enrollmentIds).not.toContainEqual(ids.enrollmentAFirst)
+    expect(enrollmentIds).not.toContainEqual(newerAccessEnrollment)
+  })
+
+  it('combines enrollment filters while preserving independent engagement and access alternatives', async () => {
+    const lowEngagementBranch = new mongoose.Types.ObjectId(
+      '200000000000000000000011',
+    )
+    const excludedMediumBranch = new mongoose.Types.ObjectId(
+      '200000000000000000000012',
+    )
+    const excludedNewerAccess = new mongoose.Types.ObjectId(
+      '200000000000000000000013',
+    )
+    await UserProduct.collection.insertMany([
+      enrollmentDocument({
+        _id: lowEngagementBranch,
+        userId: ids.userA,
+        productId: ids.productB,
+        platform: 'curseduca',
+        progress: { percentage: 80 },
+        engagement: {
+          engagementScore: 20,
+          lastAction: new Date('2026-07-19T00:00:00.000Z'),
+        },
+      }),
+      enrollmentDocument({
+        _id: excludedMediumBranch,
+        userId: ids.userA,
+        productId: ids.productB,
+        platform: 'curseduca',
+        progress: { percentage: 80 },
+        engagement: {
+          engagementScore: 40,
+          lastAction: new Date('2026-07-19T00:00:00.000Z'),
+        },
+      }),
+      enrollmentDocument({
+        _id: excludedNewerAccess,
+        userId: ids.userA,
+        productId: ids.productB,
+        platform: 'curseduca',
+        progress: { percentage: 80 },
+        engagement: {
+          engagementScore: 80,
+          lastAction: new Date('2026-07-20T00:00:00.001Z'),
+        },
+      }),
+    ])
+    const reader = new MongooseUsersV2EnrollmentReader()
+
+    const result = await reader.read(baseFilters({
+      search: 'Alpha User',
+      platform: 'curseduca',
+      status: 'ACTIVE',
+      progressLevel: 'MUITO_ALTO',
+      engagementLevel: ['BAIXO', 'MUITO_ALTO'],
+      lastAccessBefore: accessCutoff.toISOString(),
+      enrolledAfter: new Date('2026-07-15T00:00:00.000Z').toISOString(),
+    }))
+
+    expect(result.totalUsers).toBe(1)
+    expect(result.rows.map(row => row._id)).toEqual([
+      ids.enrollmentASecond,
+      lowEngagementBranch,
+    ])
+    expect(result.rows.map(row => row._id)).not.toContainEqual(
+      excludedMediumBranch,
+    )
+    expect(result.rows.map(row => row._id)).not.toContainEqual(
+      excludedNewerAccess,
+    )
   })
 
   it('filters exact progress and engagement boundaries from scores rather than a phantom level field', async () => {
@@ -709,6 +800,64 @@ describe('MongooseUsersV2EnrollmentReader', () => {
     expect(result.rows[0]).toMatchObject({
       averageEngagement: 21,
       userId: { averageEngagement: 21 },
+    })
+  })
+
+  it('normalizes Decimal128 and Long values and fails closed for infinite doubles', async () => {
+    const bsonUser = new mongoose.Types.ObjectId(
+      '700000000000000000000002',
+    )
+    await User.collection.insertOne(userDocument(
+      bsonUser,
+      'BSON Numeric User',
+      'bson-numeric@example.test',
+    ))
+    await UserProduct.collection.insertMany([
+      enrollmentDocument({
+        _id: new mongoose.Types.ObjectId('710000000000000000000003'),
+        userId: bsonUser,
+        productId: ids.productA,
+        progress: {
+          percentage: mongoose.mongo.Decimal128.fromString('12.5'),
+        },
+        engagement: {
+          engagementScore: mongoose.mongo.Decimal128.fromString('42.5'),
+        },
+      }),
+      enrollmentDocument({
+        _id: new mongoose.Types.ObjectId('710000000000000000000004'),
+        userId: bsonUser,
+        productId: ids.productB,
+        progress: { percentage: mongoose.mongo.Long.fromString('25') },
+        engagement: {
+          engagementScore: mongoose.mongo.Long.fromString('7'),
+        },
+      }),
+      enrollmentDocument({
+        _id: new mongoose.Types.ObjectId('710000000000000000000005'),
+        userId: bsonUser,
+        productId: ids.productC,
+        progress: { percentage: Number.POSITIVE_INFINITY },
+        engagement: { engagementScore: Number.NEGATIVE_INFINITY },
+      }),
+    ])
+    const reader = new MongooseUsersV2EnrollmentReader()
+
+    const result = await reader.read(baseFilters({
+      search: 'BSON Numeric User',
+    }))
+
+    expect(result.rows.map(row => ({
+      progress: row.progress.percentage,
+      engagement: row.engagement.score,
+    }))).toEqual([
+      { progress: 12.5, engagement: 42.5 },
+      { progress: 25, engagement: 7 },
+      { progress: 0, engagement: 0 },
+    ])
+    expect(result.rows[0]).toMatchObject({
+      averageEngagement: 17,
+      userId: { averageEngagement: 17 },
     })
   })
 
