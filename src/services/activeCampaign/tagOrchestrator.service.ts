@@ -35,6 +35,11 @@ function isBOTag(tagName: string): boolean {
   return nativeTagProtection.isBOTag(tagName)
 }
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  return 'Unknown error'
+}
+
 // ═══════════════════════════════════════════════════════════
 // INTERFACES
 // ═══════════════════════════════════════════════════════════
@@ -121,8 +126,8 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
           user.email,
           `TAG_ORCHESTRATOR_${productCode}`
         )
-      } catch (error: any) {
-        console.error(`[Orchestrator] ⚠️  Erro ao capturar tags nativas para ${user.email}:`, error.message)
+      } catch (error: unknown) {
+        console.error(`[Orchestrator] ⚠️  Erro ao capturar tags nativas para ${user.email}:`, errorMessage(error))
       }
     }
 
@@ -235,10 +240,11 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
 
     result.success = true
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = errorMessage(error)
     result.success = false
-    result.error = error.message
-    console.error(`❌ [Orchestrator] Erro ${result.productCode || 'unknown'}:`, error.message)
+    result.error = message
+    console.error(`❌ [Orchestrator] Erro ${result.productCode || 'unknown'}:`, message)
   }
 
   return result
@@ -297,8 +303,8 @@ private getProductTagPrefixes(productCode: string): string[] {
       await this.syncStudentStateOnApply(userId, productCode, fullTag, level, ctx)
 
       return { ok: true, fullTag }
-    } catch (error: any) {
-      console.error(`❌ [Orchestrator] Erro ao aplicar ${fullTag}:`, error.message)
+    } catch (error: unknown) {
+      console.error(`❌ [Orchestrator] Erro ao aplicar ${fullTag}:`, errorMessage(error))
       return { ok: false, fullTag }
     }
   }
@@ -323,8 +329,8 @@ private getProductTagPrefixes(productCode: string): string[] {
       await this.markLastCommunicationAsReturned(userId, productId, fullTag)
 
       return { ok: true, fullTag }
-    } catch (error: any) {
-      console.error(`❌ [Orchestrator] Erro ao remover ${fullTag}:`, error.message)
+    } catch (error: unknown) {
+      console.error(`❌ [Orchestrator] Erro ao remover ${fullTag}:`, errorMessage(error))
       return { ok: false, fullTag }
     }
   }
@@ -359,7 +365,7 @@ private getProductTagPrefixes(productCode: string): string[] {
           daysInactive: ctx.daysInactive
         }
       })
-    } catch (error: any) {
+    } catch {
       // Silent fail - não bloquear orquestração
     }
   }
@@ -537,7 +543,7 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
       try {
         const r = await this.orchestrateUserProduct(item.userId, item.productId)
         results.push(r)
-      } catch (error: any) {
+      } catch (error: unknown) {
         results.push({
           userId: item.userId,
           productId: item.productId,
@@ -546,7 +552,7 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
           tagsRemoved: [],
           communicationsTriggered: 0,
           success: false,
-          error: error.message
+          error: errorMessage(error)
         })
       }
     }
