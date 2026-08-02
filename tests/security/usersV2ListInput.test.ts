@@ -63,6 +63,17 @@ describe('users V2 enrollment input', () => {
   })
 
   it.each([
+    '1'.repeat(400),
+    '9007199254740992',
+  ])('rejects canonical pagination outside the safe integer range: %s', page => {
+    expect(usersV2EnrollmentInput.safeParse({
+      params: {},
+      query: { page },
+      body: {},
+    }).success).toBe(false)
+  })
+
+  it.each([
     [{ status: 'active' }],
     [{ progressLevel: 'baixo' }],
     [{ engagementLevel: 'ALTO,unknown' }],
