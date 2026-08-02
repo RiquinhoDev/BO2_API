@@ -485,7 +485,8 @@ const job = await CronJobConfig.create({
               result.stats,
               result.success ? 'success' : 'failed',
               duration,
-              'CRON'
+              'CRON',
+              result.errorMessage
             )
 
             // ✅ NOVO: Salvar no histórico
@@ -494,11 +495,17 @@ const job = await CronJobConfig.create({
               result.stats,
               result.success ? 'success' : 'error',
               duration,
-              'CRON'
+              'CRON',
+              result.errorMessage
             )
 
             if (job.notifications.enabled) {
-              await this.sendNotification(job, result.success, result.stats)
+              await this.sendNotification(
+                job,
+                result.success,
+                result.stats,
+                result.errorMessage
+              )
             }
           } catch (error: any) {
             console.error(`❌ Erro no job agendado: ${job.name}`, error)
