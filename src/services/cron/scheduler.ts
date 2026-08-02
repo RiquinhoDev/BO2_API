@@ -1057,23 +1057,14 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
     } else if (job.name.includes('RebuildDashboardStats')) {
       console.log('📊 Executando: RebuildDashboardStats (stats)')
       
-      // RebuildDashboardStats pode não ter job file, então usar serviço direto
-      try {
-        const jobModule = await import('../../jobs/rebuildDashboardStats.job')
-        if (jobModule.default?.run) {
-          result = await jobModule.default.run()
-        } else if (jobModule.rebuildDashboardStatsManual) {
-          await jobModule.rebuildDashboardStatsManual()
-          result = { success: true }
-        } else {
-          throw new Error('Método não encontrado')
-        }
-      } catch (importError) {
-        // Fallback: Chamar serviço diretamente
-        console.log('   ℹ️  Usando serviço diretamente')
-        const statsBuilder = await import('../../services/dashboardStatsBuilder.service')
-        await statsBuilder.buildDashboardStats()
-        result = { success: true, total: 0 }
+      const jobModule = await import('../../jobs/rebuildDashboardStats.job')
+      if (jobModule.default?.run) {
+        result = await jobModule.default.run()
+      } else if (jobModule.rebuildDashboardStatsManual) {
+        await jobModule.rebuildDashboardStatsManual()
+        result = { success: true }
+      } else {
+        throw new Error('Método não encontrado')
       }
       
     } else if (job.name.includes('CronExecutionCleanup')) {

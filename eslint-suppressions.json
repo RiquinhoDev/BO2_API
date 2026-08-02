@@ -1047,10 +1047,10 @@
       "count": 16
     },
     "@typescript-eslint/no-unused-vars": {
-      "count": 7
+      "count": 6
     },
     "no-console": {
-      "count": 70
+      "count": 69
     },
     "preserve-caught-error": {
       "count": 1
