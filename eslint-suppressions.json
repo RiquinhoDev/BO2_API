@@ -487,17 +487,8 @@
     }
   },
   "src/jobs/rebuildDashboardStats.job.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
     "no-console": {
       "count": 6
-    },
-    "preserve-caught-error": {
-      "count": 1
     }
   },
   "src/jobs/resetCounters.job.ts": {
