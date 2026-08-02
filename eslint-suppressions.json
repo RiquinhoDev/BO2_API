@@ -482,9 +482,6 @@
     }
   },
   "src/jobs/guruTrialCheck.job.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "no-console": {
       "count": 5
     }
