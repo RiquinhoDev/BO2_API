@@ -9,6 +9,10 @@ const positiveInteger = z.string()
   .regex(/^[1-9]\d*$/)
   .transform(value => Number(value))
 
+const safePositiveInteger = positiveInteger.pipe(
+  z.number().int().positive().safe(),
+)
+
 const integerPercent = z.string()
   .regex(/^\d+$/)
   .transform(value => Number(value))
@@ -51,7 +55,7 @@ const engagementLevel = z.preprocess(value => {
 ])).min(1))
 
 const canonicalQuery = {
-  page: positiveInteger.default('1'),
+  page: safePositiveInteger.default('1'),
   limit: positiveInteger.default('50').transform(value => Math.min(value, 200)),
   platform: platform.optional(),
   productId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
