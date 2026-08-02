@@ -7,8 +7,8 @@
 // ═══════════════════════════════════════════════════════════
 
 import UserProduct from '../../models/UserProduct'
-import Product from '../../models/product/Product'
-import User from '../../models/user'
+import Product, { type IProduct } from '../../models/product/Product'
+import User, { type IUser } from '../../models/user'
 import activeCampaignService from './activeCampaignService'
 import CommunicationHistory from '../../models/acTags/CommunicationHistory'
 
@@ -58,9 +58,19 @@ export interface OrchestrationResult {
   error?: string
 }
 
+export interface ExecutionStats {
+  total: number
+  successful: number
+  failed: number
+  successRate: string
+  appliedTotal: number
+  removedTotal: number
+  byProduct: Record<string, number>
+}
+
 type OrchestrationContext = {
-  user: any
-  product: any
+  user: IUser
+  product: IProduct
   lastActivity: Date | null
   daysInactive: number | null
 }
@@ -547,7 +557,7 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
   /**
    * Estatísticas de execução (equivalente ao getExecutionStats do V1)
    */
-  getExecutionStats(results: OrchestrationResult[]): any {
+  getExecutionStats(results: OrchestrationResult[]): ExecutionStats {
     const total = results.length
     const successful = results.filter(r => r.success).length
     const failed = results.filter(r => !r.success).length
