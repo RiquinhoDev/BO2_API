@@ -119,6 +119,10 @@ describe('TagOrchestrator activity signal', () => {
     mockIsBOTag.mockReturnValue(true)
   })
 
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
   it('does not persist a learner as inactive when there is no activity signal', async () => {
     // User with ONLY an account creation date — no real learner activity anywhere.
     mockFindUser.mockResolvedValue({
@@ -153,5 +157,75 @@ describe('TagOrchestrator activity signal', () => {
     expect(studentState.save).toHaveBeenCalled()
     expect(typeof studentState.daysSinceLastLogin).toBe('number')
     expect(studentState.daysSinceLastLogin).toBe(15)
+  })
+
+  it('returns a stable failure result when a dependency rejects with null', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockFindUserProduct.mockRejectedValueOnce(null)
+
+    await expect(tagOrchestratorV2.orchestrateUserProduct(
+      'user-1',
+      'product-1',
+    )).resolves.toMatchObject({
+      userId: 'user-1',
+      productId: 'product-1',
+      success: false,
+      error: 'Unknown error',
+    })
+  })
+
+  it.each([
+    ['string', 'token=super-secret'],
+    ['plain object', { message: 'Bearer super-secret' }],
+  ])('redacts a hostile %s dependency rejection', async (_kind, rejection) => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockFindUserProduct.mockRejectedValueOnce(rejection)
+
+    const result = await tagOrchestratorV2.orchestrateUserProduct(
+      'user-1',
+      'product-1',
+    )
+
+    expect(result.error).toBe('Unknown error')
+    expect(JSON.stringify(result)).not.toContain('super-secret')
+  })
+
+  it('continues after best-effort native tag capture rejects with null', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockFindUser.mockResolvedValue({
+      _id: 'user-1',
+      email: 'student@example.test',
+    })
+    mockCaptureNativeTags.mockRejectedValueOnce(null)
+
+    const result = await tagOrchestratorV2.orchestrateUserProduct(
+      'user-1',
+      'product-1',
+    )
+
+    expect(result).toMatchObject({
+      success: true,
+      tagsApplied: ['OGI_V1 - Engajado'],
+    })
+  })
+
+  it('keeps a null tag-application rejection inside the operation fallback', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockFindUser.mockResolvedValue({
+      _id: 'user-1',
+      email: 'student@example.test',
+    })
+    mockApplyTag.mockRejectedValueOnce(null)
+
+    const result = await tagOrchestratorV2.orchestrateUserProduct(
+      'user-1',
+      'product-1',
+    )
+
+    expect(result).toMatchObject({
+      success: true,
+      tagsApplied: [],
+    })
+    expect(mockUpdateUserProduct).not.toHaveBeenCalled()
   })
 })
