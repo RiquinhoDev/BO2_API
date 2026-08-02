@@ -7,8 +7,8 @@
 // ═══════════════════════════════════════════════════════════
 
 import UserProduct from '../../models/UserProduct'
-import Product, { type IProduct } from '../../models/product/Product'
-import User, { type IUser } from '../../models/user'
+import Product from '../../models/product/Product'
+import User from '../../models/user'
 import activeCampaignService from './activeCampaignService'
 import CommunicationHistory from '../../models/acTags/CommunicationHistory'
 
@@ -74,8 +74,7 @@ export interface ExecutionStats {
 }
 
 type OrchestrationContext = {
-  user: IUser
-  product: IProduct
+  productCode: string
   lastActivity: Date | null
   daysInactive: number | null
 }
@@ -114,7 +113,11 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
     const lastActivity = getLastLearnerActivityDate(user, product.code)
     const daysInactive = this.calculateDaysInactive(lastActivity)
 
-    const ctx: OrchestrationContext = { user, product, lastActivity, daysInactive }
+    const ctx: OrchestrationContext = {
+      productCode,
+      lastActivity,
+      daysInactive,
+    }
 
     // ═══════════════════════════════════════════════════════════
     // 1) 🛡️ CAPTURAR TAGS NATIVAS (PROTEÇÃO)
@@ -155,7 +158,7 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
 
     // Tags novas (do decision engine)
     const newBOTags = (decisions.tagsToApply || []).map((tag: string) => {
-      const { fullTag } = this.normalizeTagForProduct(tag, productCode)
+      const { fullTag } = this.normalizeTagForProduct(tag)
       return fullTag
     })
 
@@ -290,8 +293,8 @@ private getProductTagPrefixes(productCode: string): string[] {
     tag: string,
     ctx: OrchestrationContext
   ): Promise<{ ok: boolean; fullTag: string }> {
-    const productCode = String(ctx.product.code || '').toUpperCase()
-    const { rawTag, fullTag } = this.normalizeTagForProduct(tag, productCode)
+    const productCode = ctx.productCode
+    const { rawTag, fullTag } = this.normalizeTagForProduct(tag)
 
     try {
       const ok = await activeCampaignService.applyTagToUserProduct(userId, productId, rawTag)
@@ -315,8 +318,8 @@ private getProductTagPrefixes(productCode: string): string[] {
     tag: string,
     ctx: OrchestrationContext
   ): Promise<{ ok: boolean; fullTag: string }> {
-    const productCode = String(ctx.product.code || '').toUpperCase()
-    const { rawTag, fullTag } = this.normalizeTagForProduct(tag, productCode)
+    const productCode = ctx.productCode
+    const { rawTag, fullTag } = this.normalizeTagForProduct(tag)
 
     try {
       const ok = await activeCampaignService.removeTagFromUserProduct(userId, productId, rawTag)
@@ -516,7 +519,7 @@ private getProductTagPrefixes(productCode: string): string[] {
    * - input pode vir raw ("INATIVO_14D") ou full ("OGI_INATIVO_14D")
    * - ActiveCampaignService.applyTagToUserProduct/removeTagFromUserProduct EXPECTA raw (porque ele prefixa)
    */
-private normalizeTagForProduct(tag: string, productCode: string): { rawTag: string; fullTag: string } {
+private normalizeTagForProduct(tag: string): { rawTag: string; fullTag: string } {
   // ✅ As tags JÁ vêm com o prefixo correto do adapter (ex: "OGI_V1 - Inativo 7d")
   // O activeCampaignService NÃO adiciona mais prefixo
   // Então simplesmente retornamos a tag como está
@@ -636,8 +639,7 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
 
           const lastActivity = getLastLearnerActivityDate(user, product.code)
           const ctx: OrchestrationContext = {
-            user,
-            product,
+            productCode: String(product.code || '').toUpperCase(),
             lastActivity,
             daysInactive: this.calculateDaysInactive(lastActivity)
           }
@@ -684,8 +686,7 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
 
     const lastActivity = getLastLearnerActivityDate(user, product.code)
     const ctx: OrchestrationContext = {
-      user,
-      product,
+      productCode,
       lastActivity,
       daysInactive: this.calculateDaysInactive(lastActivity)
     }
