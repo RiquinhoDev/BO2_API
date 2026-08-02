@@ -73,15 +73,15 @@ router.get('/stats/v3', getDashboardStatsV3);
 router.post('/stats/v3/rebuild', async (req, res) => {
   try {
     console.log('🔨 [MANUAL] Iniciando rebuild de Dashboard Stats...');
-    rebuildDashboardStatsManual();
+    await rebuildDashboardStatsManual();
     res.json({
       success: true,
-      message: 'Rebuild iniciado em background. Aguarde ~60-90 segundos.'
+      message: 'Dashboard Stats reconstruídos com sucesso.'
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }
 });
@@ -119,4 +119,3 @@ router.get('/quick/engagement-heatmap', quickController.getEngagementHeatmap);
 router.get('/quick/products-breakdown', quickController.getProductsBreakdown);
 
 export default router;
-
