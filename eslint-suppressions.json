@@ -665,9 +665,6 @@
     }
   },
   "src/routes/dashboardRoutes.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "no-console": {
       "count": 1
     }
