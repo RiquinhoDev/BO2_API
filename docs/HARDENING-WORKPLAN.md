@@ -996,6 +996,48 @@ Progresso controllers:
   ausência dos dois handlers inline. O heatmap permanece **deliberadamente fora do corte**: continua com a
   única ocorrência de `Math.random` no router; essa lógica não foi alterada nem copiada.
 
+- [x] **ARCH-02/03 — contrato Users V2 separado e code-complete** (2026-08-02): o endpoint polimórfico
+  `GET /api/users/v2` ficou como adapter legado observável, enquanto as fontes canónicas são agora
+  `GET /api/users/v2/enrollments` (linhas de matrícula, paginação por utilizador) e
+  `GET /api/users/v2/analytics` (agregados completos no servidor). A API foi entregue no intervalo
+  `8bd2592..11c6177`, com correções de plano em `5bbfeb2` e `0cf849a`; o Front migrou em
+  `dc76bc1`, `6a97572`, `19eb220`, `5008494`, alinhou o manifest em `2b2b99a`, eliminou o último consumidor
+  legado ActiveCampaign em `c186e5d` e baixou o ratchet de chamadas **188→187** em `9be4fc2`.
+
+  O catálogo/manifest fecham em **439/439**, com **434 authenticated**, **19 deprecated** e as três rotas
+  Users V2 presentes. O manifest do Front foi regenerado exclusivamente por
+  `node scripts/gen-backend-routes.mjs ..\BO2_API`; o contract test ficou **10/10**. A varredura final em
+  `src/` não encontrou nenhuma chamada de produção direta a `/users/v2`: só permanecem os sucessores
+  `/users/v2/enrollments` e `/users/v2/analytics`. `userProductsEnvelopeSchema` continua vivo apenas no contrato
+  distinto `/users/:id/products`. Não entrou segunda implementação da query de matrículas, `populate`, N+1,
+  regex crua, PII em logs, suppression ou `any` de produção neste slice; nenhum lockfile mudou.
+
+  A prova de plano em `docs/architecture/users-v2-query-plans.md` mediu 1.200 matrículas em MongoMemoryServer
+  offline. A única deficiência seletiva foi `platform + status` (**300 docs/keys para 20 resultados**); o índice
+  evidenciado `users_v2_platform_status` reduziu para **20/20/20**, sem spill. Os restantes filtros seletivos
+  já examinavam 1 documento/chave por resultado; default e substring literal permanecem scans explicitamente
+  limitados por `maxTimeMS`. O deploy exige a sequência Railway one-off **inspect → apply só se missing →
+  inspect verified**, usando `npm run maintenance:users-v2-indexes` e, apenas no passo gated,
+  `USERS_V2_INDEX_APPLY=true npm run maintenance:users-v2-indexes`. Esta sequência **não foi executada** aqui.
+
+  Gates API offline: lint 0, TypeScript **0/0**, build 0, Jest **154 passed + 1 skipped suites / 780 passed +
+  2 skipped testes**; egress guard e sentinel Mongo passaram, com `MONGOMS_RUNTIME_DOWNLOAD=false`. Gates Front
+  finais após `c186e5d`: focal **5 suites/38 testes**, full Jest **201/201 suites e 917/917 testes**, ESLint 0,
+  `tsc --noEmit` 0, build Vite 0 (**4.021 módulos**) e Prettier dos ficheiros tocados 0.
+
+  **Follow-up ambiental para Claude/revisor:** o wrapper Yarn 1 não expôs os binários locais (`jest` não
+  reconhecido), por isso os gates usaram `node_modules/.bin`; o format global conserva o baseline vermelho de
+  **94 ficheiros** e não foi mass-formatado; o primeiro build Vite em sandbox bateu `EPERM` em
+  `node_modules/.vite-temp` e o rerun autorizado passou. Playwright correu **uma única vez**, serialmente:
+  **32 total, 30 failed + 2 skipped**, todos por ausência de
+  `chromium_headless_shell-1228/.../chrome-headless-shell.exe`; não houve download nem retry. Estes são
+  follow-ups de ambiente, não gates artificialmente verdes.
+
+  **Estado operacional ainda aberto:** nenhum deploy, API externa ou Mongo de produção foi contactado. O legado
+  só pode ser removido depois de (1) deploy coordenado dos dois `remake`, (2) índice inspecionado/aplicado e
+  verificado, (3) janela acordada de tráfego real sem chamadas inexplicadas a `/api/users/v2` e (4) remoção
+  coordenada no catálogo/manifest. Até essa observação, não existe `Sunset` e a rota deprecated permanece viva.
+
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
 - [ ] Sem artefactos locais commitados; imagens de compose fixadas por versão/digest, sem credenciais default.
