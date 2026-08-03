@@ -1106,8 +1106,8 @@ Progresso controllers:
 - [ ] **CORS** por `ALLOWED_ORIGINS`, fail-closed fora de local (SEC-11 — bloqueador D3 do deploy). *(Gap exacto: em produção ainda mistura defaults estáticos de localhost/produção e não exige `ALLOWED_ORIGINS` explícito.)*
 
 ### 6. Escalabilidade
-- [x] **Paginação canónica (ARCH-05 / F3.2):** helper único de listas HTTP, cap 200, cursor onde necessário e projeção explícita onde aplicável, cobrindo explicitamente as superfícies migradas `usersReviewLists`, `guruWebhookList`, `guruSubscriptionList` e `usersSimpleList` (controllers + `usersSimpleList` service/repository).
-- [ ] **Paginação restante:** inventário/allowlist machine-checked e migração das listagens HTTP não canónicas que bypassam `paginate` ou ultrapassam o cap 200 (ex.: `src/controllers/users.controller.ts:325`, `src/controllers/testimonials.controller.ts:788`, `src/routes/renewalAc.routes.ts:59`); scans operacionais exigem cursor/batch, e toda excepção `find({})` tem de ser bounded ou protegida por uma allowlist finita explícita e machine-checked, incluindo leituras deliberadamente pequenas de configuração/full-set.
+- [x] **Paginação canónica (ARCH-05 / F3.2):** helper único offset-based de listas HTTP, cap 200 e projeção explícita onde aplicável, cobrindo explicitamente as superfícies migradas `usersReviewLists`, `guruWebhookList`, `guruSubscriptionList` e `usersSimpleList` (controllers + `usersSimpleList` service/repository).
+- [ ] **Paginação restante:** avaliar e migrar para cursor as superfícies onde offset não é adequado; inventário/allowlist machine-checked e migração das listagens HTTP não canónicas que bypassam `paginate` ou ultrapassam o cap 200 (ex.: `src/controllers/users.controller.ts:325`, `src/controllers/testimonials.controller.ts:788`, `src/routes/renewalAc.routes.ts:59`); scans operacionais exigem cursor/batch, e toda excepção `find({})` tem de ser bounded ou protegida por uma allowlist finita explícita e machine-checked, incluindo leituras deliberadamente pequenas de configuração/full-set.
 - [ ] Idempotência e caps como **política transversal**, não caso-a-caso (OPS-02).
 
 ### 7. Contrato de resposta
