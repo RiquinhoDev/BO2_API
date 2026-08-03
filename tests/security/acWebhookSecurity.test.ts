@@ -10,14 +10,14 @@ function signature(body: string): string {
   return createHmac('sha256', SECRET).update(body).digest('hex')
 }
 
-function createProbe() {
+function createProbe(statusCode = 200) {
   const fingerprints = new Set<string>()
   const effects: string[] = []
   const replayStore = {
     claim: jest.fn(async (fingerprint: string) => {
-      if (fingerprints.has(fingerprint)) return false
+      if (fingerprints.has(fingerprint)) return undefined
       fingerprints.add(fingerprint)
-      return true
+      return { token: fingerprint }
     }),
     complete: jest.fn(async () => undefined),
     release: jest.fn(async (fingerprint: string) => {
@@ -30,7 +30,7 @@ function createProbe() {
     registerRoutes: (target: Application) => {
       target.post('/api/webhooks/ac/email-opened', (req, res) => {
         effects.push(req.body.contact.email)
-        res.json({ success: true })
+        res.status(statusCode).json({ success: statusCode < 400 })
       })
     },
   })
@@ -113,6 +113,27 @@ test('replay do mesmo evento nao repete o efeito', async () => {
   expect(replay.body).toEqual(expect.objectContaining({ duplicate: true }))
   expect(effects).toEqual(['alice@example.test'])
   expect(replayStore.claim).toHaveBeenCalledTimes(2)
+  expect(replayStore.complete).toHaveBeenCalledWith(
+    expect.any(String),
+    { token: expect.any(String) },
+  )
+})
+
+test('liberta apenas o claim atual quando o handler falha', async () => {
+  const body = JSON.stringify({ contact: { email: 'alice@example.test' } })
+  const { app, replayStore } = createProbe(500)
+
+  await request(app)
+    .post('/api/webhooks/ac/email-opened?__bo2_offline_loopback=1')
+    .set('Content-Type', 'application/json')
+    .set(HEADER, signature(body))
+    .send(body)
+    .expect(500)
+
+  expect(replayStore.release).toHaveBeenCalledWith(
+    expect.any(String),
+    { token: expect.any(String) },
+  )
 })
 
 test('limita o body do webhook antes do controller', async () => {

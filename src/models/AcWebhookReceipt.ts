@@ -3,7 +3,9 @@ import mongoose, { type Document, Schema, model } from 'mongoose'
 export interface IAcWebhookReceipt extends Document {
   fingerprint: string
   status: 'processing' | 'processed'
+  claimToken?: string
   receivedAt: Date
+  leaseExpiresAt?: Date
   processedAt?: Date
   expiresAt: Date
 }
@@ -11,7 +13,9 @@ export interface IAcWebhookReceipt extends Document {
 const acWebhookReceiptSchema = new Schema<IAcWebhookReceipt>({
   fingerprint: { type: String, required: true, unique: true, index: true },
   status: { type: String, enum: ['processing', 'processed'], required: true },
+  claimToken: { type: String },
   receivedAt: { type: Date, default: Date.now },
+  leaseExpiresAt: { type: Date },
   processedAt: { type: Date },
   expiresAt: {
     type: Date,
