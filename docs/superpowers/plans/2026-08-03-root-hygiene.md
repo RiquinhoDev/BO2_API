@@ -15,6 +15,8 @@
 - Preserve `RENOVACAO_*.md`, live runtime code, dependency versions, and sibling Front files.
 - Keep commits lowercase Conventional Commits and do not push.
 
+- Execution note (2026-08-03): `refs/remotes/origin/remake` advanced to `ced7b44` via an external push during execution. No controller/implementer `git push` command was run, and no authorship is inferred.
+
 ---
 
 ### Task 1: Root documentation lifecycle
@@ -27,12 +29,12 @@
 - Move: `TAG_MONITORING_SYSTEM_PLAN.md` -> `docs/archive/TAG_MONITORING_SYSTEM_PLAN.md`
 - Create: `docs/README.md`
 
-- [ ] Confirm every deleted document's named scripts/modules are absent or superseded.
-- [ ] Delete the six proven-obsolete documents.
-- [ ] Move the four live/historical documents and add explicit current/archive status notes without rewriting their history.
-- [ ] Add a concise documentation index with active, reference, archive, plan, and spec sections.
-- [ ] Run negative references, PII scan for deleted reports, `git diff --check`, and Markdown path checks.
-- [ ] Commit as `docs: clean root documentation`.
+- [x] Confirm every deleted document's named scripts/modules are absent or superseded.
+- [x] Delete the six proven-obsolete documents.
+- [x] Move the four live/historical documents and add explicit current/archive status notes without rewriting their history.
+- [x] Add a concise documentation index with active, reference, archive, plan, and spec sections.
+- [x] Run negative references, PII scan for deleted reports, `git diff --check`, and Markdown path checks.
+- [x] Commit as `docs: clean root documentation`.
 
 ### Task 2: Dead executable and package entrypoints
 
@@ -40,13 +42,13 @@
 - Delete: `scratch-carteira-harness.ts`, `scratch-clareza-harness.ts`
 - Modify: `package.json`
 
-- [ ] Re-run the static package-command target audit and record the 35 missing direct targets plus two affected composites.
-- [ ] Delete both unreferenced temporary harnesses without executing them.
-- [ ] Remove the 35 direct commands and `diagnose:all`.
-- [ ] Rewrite `validate:full` to `npm run build && npm run lint && npm test`.
-- [ ] Prove every remaining direct `node`/`ts-node` target exists and every `npm run` reference resolves.
-- [ ] Run registered-script tests, lint, TypeScript ratchet, and `git diff --check`.
-- [ ] Commit as `chore(scripts): remove dead entrypoints`.
+- [x] Re-run the static package-command target audit and record the 35 missing direct targets plus two affected composites.
+- [x] Delete both unreferenced temporary harnesses without executing them.
+- [x] Remove the 35 direct commands and `diagnose:all`.
+- [x] Rewrite `validate:full` to `npm run build && npm run lint && npm test`.
+- [x] Prove every remaining direct `node`/`ts-node` target exists and every `npm run` reference resolves.
+- [x] Run registered-script tests, lint, TypeScript ratchet, and `git diff --check`.
+- [x] Commit as `chore(scripts): remove dead entrypoints`.
 
 ### Task 3: npm authority and package metadata
 
@@ -54,20 +56,32 @@
 - Modify: `package.json`, `package-lock.json`, `nixpacks.toml`, `API_AUDIT.md`, `docs/HARDENING-WORKPLAN.md`, `docs/README.md`
 - Delete: `yarn.lock`
 
-- [ ] Set `name` to `bo2-api`, `main` to `dist/index.js`, `private` to `true`, and `packageManager` to the locally verified npm version.
-- [ ] Synchronize only the lockfile root package name/metadata; do not change dependency versions.
-- [ ] Change Nixpacks setup/install/build/start commands from Yarn to npm using `npm ci`, `npm run build`, and `npm start`.
-- [ ] Remove `yarn.lock` and update current audit/workplan text to record npm as authoritative.
-- [ ] Prove no active BO2_API build configuration uses Yarn; historical/sibling-Front plan commands are allowed.
-- [ ] Run lint, TypeScript ratchet, full offline Jest, build, and `git diff --check`.
-- [ ] Commit as `build: standardize on npm`.
+- [x] Set `name` to `bo2-api`, `main` to `dist/index.js`, `private` to `true`, and `packageManager` to the locally verified npm version.
+- [x] Synchronize only the lockfile root package name/metadata; do not change dependency versions.
+- [x] Change Nixpacks setup/install/build/start commands from Yarn to npm using `npm ci`, `npm run build`, and `npm start`.
+- [x] Remove `yarn.lock` and update current audit/workplan text to record npm as authoritative.
+- [x] Prove no active BO2_API build configuration uses Yarn; historical/sibling-Front plan commands are allowed.
+- [x] Run lint, TypeScript ratchet, full offline Jest, build, and `git diff --check`.
+- [x] Commit as `build: standardize on npm`.
 
 ### Task 4: Final review and workplan evidence
 
 **Files:**
 - Modify: `docs/HARDENING-WORKPLAN.md` only if measured evidence needs final correction.
 
-- [ ] Request independent review of each commit and the full range.
+- [x] Request independent review of each commit and the full range.
 - [ ] Fix and re-review every Critical or Important finding.
-- [ ] Record exact deletion counts, command counts, preserved live docs, package-manager proof, and final offline gates.
-- [ ] Re-run the full final gate on the final HEAD and verify a clean worktree.
+- [x] Record exact deletion counts, command counts, preserved live docs, package-manager proof, and final offline gates.
+- [x] Re-run the full final gate on the final HEAD and verify a clean worktree.
+
+> Pending independent scoped-review verdict: this checkbox remains unchecked until the root reviewer confirms that no Critical or Important finding remains.
+
+### Final-fix evidence (2026-08-03)
+
+- Static negative checks: `negative_checks=0 matches` for the removed seed command/path, direct configuration Mongo snippets, destructive fetch/reset rule, and stale npm permissions.
+- JSON audits: `.claude/settings.local.json : valid JSON`; `package.json : valid JSON`.
+- Package target audit: `scripts=17 missing_npm_refs=0 missing_direct_targets=0`.
+- Scoped Markdown link audit: `markdown_links=0_missing files=3` for the three touched Markdown files.
+- `git diff --check`: exit 0 (only the existing LF-to-CRLF working-copy warnings).
+- Offline gates, run serially through `npm.cmd` under PowerShell because direct npm invocation was ACL-blocked: lint exit 0; `types:check` reported `Ratchet TypeScript respeitado: 0 erros em 0 ficheiros: {}`; Jest with `MONGOMS_RUNTIME_DOWNLOAD=false` reported `1 skipped, 159 passed` suites and `2 skipped, 806 passed` tests; build (including prebuild ratchet) exit 0.
+- No seed, `npx`, install, network, API, or production database command was run. The final checkbox is checked only after rerunning these checks on this exact tree.
