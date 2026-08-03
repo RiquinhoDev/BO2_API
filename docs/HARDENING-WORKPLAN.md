@@ -251,8 +251,8 @@ carregado inteiro** e clamp cego parte-as em silêncio:
   `cronManagement.controller.ts:46` (`/cron/jobs` legacy completo), `routes/discordRenewal.routes.ts:115`
   (templates), `services/renewal/discordScheduledMessages.service.ts:212` (estado UI), `routes/users.routes.ts:241`
   (revisor confirmou: alimenta o cálculo de `/v2/engagement/comparison`, **não** é a lista de resposta).
-- **Falsos positivos (já limitados):** `scripts/diagnose-classes.ts:127` (`.limit(10)`),
-  `populateHistory.controller.ts:328` (`.limit(limit)` def 100), `contactTagReader.service.ts:264` (batch def 100),
+- **Falsos positivos (já limitados):** `populateHistory.controller.ts:328` (`.limit(limit)` def 100),
+  `contactTagReader.service.ts:264` (batch def 100),
   `routes/discordRenewal.routes.ts:163` (def 20, máx 100).
 
 **Regras do commit:** sort estável (`_id` desempate), projeção **explícita** com todos os campos atuais (inclui
