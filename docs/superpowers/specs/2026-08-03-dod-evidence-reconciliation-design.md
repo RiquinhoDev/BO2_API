@@ -17,7 +17,7 @@ Reconcile stale or compound open checkboxes in `docs/HARDENING-WORKPLAN.md` with
 - `redactSensitiveData` is the single generic redactor shared by Winston and the central error handler. ESLint plus its ratchet test rejects new console calls, while a large legacy console baseline still exists.
 - The central application JWT secret is mandatory, at least 32 characters, and configured before infrastructure. The checked slice does not establish global production debug gating: `/api/curseduca/debug` remains mounted at `src/routes/curseduca.routes.ts:50` without `localDebugOnly`. Secondary student/legacy JWT paths still bypass or fall back around that single authority.
 - CORS rejects unknown origins but always merges static localhost/production defaults; it does not require an explicit production allowlist and therefore does not satisfy fail-closed production configuration.
-- The canonical pagination helper caps HTTP list pages at 200, preserves cursor-where-needed and explicit projections on migrated surfaces, and has focused tests. Remaining noncanonical HTTP lists and `find({})` calls require migration/inventory; operational scans must use cursor/batch, and every exception must be bounded or covered by an explicit machine-checked finite-set allowlist.
+- The canonical offset-based pagination helper caps HTTP list pages at 200, preserves explicit projections on migrated surfaces, and has focused tests. Cursor suitability/migration remains open where offset is inadequate. Remaining noncanonical HTTP lists and `find({})` calls require migration/inventory; operational scans must use cursor/batch, and every exception must be bounded or covered by an explicit machine-checked finite-set allowlist.
 - The central error-handler implementation is mounted and tested, but live routes/controllers still emit ad hoc 500 shapes and at least one exposes `error.message`.
 
 ## Selected Approach
@@ -29,7 +29,7 @@ Split compound checkboxes into evidence-complete and still-open slices:
 3. Keep global central-error coverage open. Close the single-redactor/no-new-console guard while explicitly leaving legacy console migration to TOOL-02.
 4. Close primary app JWT startup validation and upload hardening only. Keep global production debug gating open (including the `/api/curseduca/debug` mount without `localDebugOnly`) and keep secondary JWT secret centralization and fallback removal open.
 5. Keep CORS open and record its production-default gap.
-6. Close canonical HTTP pagination on migrated surfaces (including cursor where needed, explicit projections, and zero 10,000 defaults). Keep noncanonical HTTP-list migration and a machine-checked inventory open; operational scans must use cursor/batch, and every `find({})` exception must be bounded or protected by an explicit machine-checked finite-set allowlist.
+6. Close canonical offset-based HTTP pagination on migrated surfaces (including explicit projections and zero 10,000 defaults). Keep cursor suitability/migration where offset is inadequate, noncanonical HTTP-list migration, and a machine-checked inventory open; operational scans must use cursor/batch, and every `find({})` exception must be bounded or protected by an explicit machine-checked finite-set allowlist.
 
 The resulting mechanical count is expected to move from `79/100` to `85/104` (`81.7%`). The denominator grows because hidden compound debt becomes explicit; the percentage is derived from Markdown checkboxes, not a subjective estimate.
 

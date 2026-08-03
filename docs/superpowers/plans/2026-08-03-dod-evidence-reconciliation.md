@@ -34,7 +34,7 @@
 - [ ] Mark the single-redactor/no-new-console guard checked; state that the legacy console baseline remains under TOOL-02.
 - [ ] Split the JWT/debug/upload compound into one checked primary/startup/upload slice and one open debug/global-gating plus secondary-secret/fallback slice; keep `/api/curseduca/debug` without `localDebugOnly` explicitly open.
 - [ ] Keep CORS open and state that static localhost/production defaults are still merged in production.
-- [ ] Split pagination into one checked canonical HTTP-list slice with cap 200, cursor where needed, and explicit projections on migrated surfaces, and one open slice requiring noncanonical HTTP-list migration plus a machine-checked inventory; operational scans must use cursor/batch, and every `find({})` exception must be bounded or protected by an explicit machine-checked finite-set allowlist.
+- [ ] Split pagination into one checked offset-based canonical HTTP-list slice with cap 200 and explicit projections on migrated surfaces, and one open slice requiring cursor suitability/migration where offset is inadequate, noncanonical HTTP-list migration, and a machine-checked inventory; operational scans must use cursor/batch, and every `find({})` exception must be bounded or protected by an explicit machine-checked finite-set allowlist.
 - [ ] Record the focused evidence: 14 suites/65 tests for perimeter/upload/observability/pagination and 5 suites/27 tests for JWT/CORS/Helmet.
 - [ ] Count checkboxes and require `checked=85`, `open=19`, `total=104`, `percent=81.7`.
 - [ ] Run `git diff --check` and commit as `docs: reconcile hardening evidence`.
