@@ -134,7 +134,7 @@
 
 ```bash
 npm run lint            # exit 0. NUNCA --pass-on-unpruned-suppressions
-npm run types:check     # ratchet TS: 182 erros / 44 ficheiros. SÓ pode descer
+npm run types:check     # direct tsc --noEmit --pretty false; exit 0 with zero diagnostics
 npx jest --ci           # verde, egress guard ativo
 npm run build           # exit 0
 ```
@@ -1118,7 +1118,7 @@ Progresso controllers:
   - O contrato de tooling fixa `types:check` em `tsc --noEmit --pretty false`, exige `strict:true`/`noEmitOnError:true` no `tsconfig.json` e impede o regresso do ratchet.
   - Gates offline finais (2026-08-03): lint exit 0; TypeScript directo exit 0; Jest com `MONGOMS_RUNTIME_DOWNLOAD=false` — 159 suites passed, 1 skipped; 801 testes passed, 2 skipped; build (`tsc`) exit 0; `git diff --check` exit 0.
   - Progresso mecânico do workplan após este fecho: `checked=86 open=18 total=104 percent=82.7`.
-- [ ] **ESLint** `--max-warnings=0`, baseline podada a zero; `no-explicit-any` ratchetado quando `strict` entrar (TOOL-02).
+- [ ] **ESLint** `--max-warnings=0`, baseline podada a zero; a dívida de `no-explicit-any` continua aberta sob `strict:true` (TOOL-02).
 - [x] **Um** package manager autoritativo — todas as configurações de build activas seleccionam npm; apenas `package.json` declara o esperado `npm@11.9.0`, enquanto `Dockerfile` e Nixpacks usam o npm fornecido pelo ambiente; `package-lock.json` é o único lockfile e `yarn.lock` foi removido (2026-08-03; TOOL-03).
 - [ ] Suites separadas unit/integration/load/e2e, mocks por defeito, **egress guard**; cobertura honesta e a subir (TEST-01/02).
 - [ ] Config validada e tipada com **fail-fast** no arranque (OPS-01).
