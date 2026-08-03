@@ -23,8 +23,8 @@ The runtime remains the authority. This page records verified source paths, requ
   - [tagNotification.controller.ts](../src/controllers/tagMonitoring/tagNotification.controller.ts) - notification requests.
 - Router and job:
   - [tagMonitoring.routes.ts](../src/routes/tagMonitoring.routes.ts) - authenticated route contract.
-  - [weeklyTagSnapshot.job.ts](../src/jobs/weeklyTagSnapshot.job.ts) - scheduled entry point.
-  - [scheduler.ts](../src/services/cron/scheduler.ts) - scheduler registration and dispatch.
+  - [weeklyTagSnapshot.job.ts](../src/jobs/weeklyTagSnapshot.job.ts) - job implementation and manual-run adapter; scheduler dispatch target.
+  - [scheduler.ts](../src/services/cron/scheduler.ts) - dispatch branch for named CronJobConfig jobs.
 
 ## Request/auth contract pointers
 
@@ -41,9 +41,9 @@ The two destructive request paths use `withValidatedInput(tagMonitoringDeleteInp
 
 ## Scheduled job
 
-[weeklyTagSnapshot.job.ts](../src/jobs/weeklyTagSnapshot.job.ts) declares `JOB_NAME = 'WeeklyTagSnapshot'` and `CRON_SCHEDULE = '0 2 * * 0'` (Sunday at 02:00). Its exported `run` entry point calls `weeklyTagMonitoringService.performWeeklySnapshot()` and adapts the result to the scheduler shape.
+[weeklyTagSnapshot.job.ts](../src/jobs/weeklyTagSnapshot.job.ts) declares `JOB_NAME = 'WeeklyTagSnapshot'` and an informational `CRON_SCHEDULE = '0 2 * * 0'` constant. The source does not consume that constant to provision a scheduler record. Its exported `run` entry point calls `weeklyTagMonitoringService.performWeeklySnapshot()` and adapts the result to the scheduler shape.
 
-[scheduler.ts](../src/services/cron/scheduler.ts) keeps `WeeklyTagSnapshot` in the specific-job list and dispatches it through the job module. Keep the job source and scheduler registration together when reviewing changes.
+[scheduler.ts](../src/services/cron/scheduler.ts) dispatches a pre-existing CronJobConfig whose name contains `WeeklyTagSnapshot` through the job module. Whether a matching record exists, is enabled, has the expected expression/timezone, or is registered at runtime is unverified here.
 
 ## Offline verification
 
