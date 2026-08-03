@@ -31,7 +31,7 @@
 - Consumes: repository `tsconfig.json` and local `typescript` binary.
 - Produces: `npm run types:check` as direct `tsc --noEmit --pretty false`; `npm run build` remains `tsc`.
 
-- [ ] **Step 1: Write the failing tooling contract test**
+- [x] **Step 1: Write the failing tooling contract test**
 
 Create a Jest test that loads `package.json`, parses `tsconfig.json` through the TypeScript API, and asserts these hand-written invariants:
 
@@ -45,7 +45,7 @@ expect(parsed.options.noEmitOnError).toBe(true)
 
 The break caught is reintroducing a debt-tolerating wrapper or disabling strict/no-emit-on-error compiler enforcement.
 
-- [ ] **Step 2: Run the test and verify RED**
+- [x] **Step 2: Run the test and verify RED**
 
 Run:
 
@@ -55,7 +55,7 @@ node_modules\.bin\jest.cmd --runInBand tests/tooling/typescriptCompilerGate.test
 
 Expected: FAIL because `types:check` still invokes `scripts/typecheck-ratchet.js`, `types:baseline:update` and `prebuild` still exist.
 
-- [ ] **Step 3: Apply the minimal tooling change**
+- [x] **Step 3: Apply the minimal tooling change**
 
 In `package.json`, set:
 
@@ -65,7 +65,7 @@ In `package.json`, set:
 
 Remove only `types:baseline:update` and `prebuild`. Delete the three ratchet-only files listed above. Do not change dependencies or `package-lock.json`.
 
-- [ ] **Step 4: Run focused GREEN and direct compiler proof**
+- [x] **Step 4: Run focused GREEN and direct compiler proof**
 
 Run:
 
@@ -76,7 +76,7 @@ npm.cmd run types:check
 
 Expected: 2 suites pass and direct TypeScript compilation exits 0 with no diagnostics.
 
-- [ ] **Step 5: Prove the deleted ratchet has no active references**
+- [x] **Step 5: Prove the deleted ratchet has no active references**
 
 Run:
 
@@ -86,7 +86,7 @@ rg -n "typecheck-ratchet|typescript-ratchet-baseline|types:baseline:update" --gl
 
 Expected: no matches and exit code 1 from `rg`.
 
-- [ ] **Step 6: Commit the tooling deletion**
+- [x] **Step 6: Commit the tooling deletion**
 
 Stage exactly the Task 1 files and commit:
 
@@ -105,11 +105,11 @@ chore: retire typescript debt ratchet
 - Consumes: Task 1 compiler/test evidence and final gate outputs.
 - Produces: an honest checked TOOL-01 criterion with `86/104` (`82.7%`) mechanical progress.
 
-- [ ] **Step 1: Update active documentation**
+- [x] **Step 1: Update active documentation**
 
 Mark the TOOL-01 checkbox complete only after Task 1 GREEN. Record that `strict`, `noEmitOnError`, direct no-emit compilation, and emitting build are the remaining authorities. Update the active `API_AUDIT.md` TOOL-01 row so it no longer describes the removed ratchet or an already-removed false-green build bypass.
 
-- [ ] **Step 2: Recalculate the workplan**
+- [x] **Step 2: Recalculate the workplan**
 
 Count Markdown checkboxes in `docs/HARDENING-WORKPLAN.md` and require:
 
@@ -117,7 +117,7 @@ Count Markdown checkboxes in `docs/HARDENING-WORKPLAN.md` and require:
 checked=86 open=18 total=104 percent=82.7
 ```
 
-- [ ] **Step 3: Run final offline gates**
+- [x] **Step 3: Run final offline gates**
 
 Run serially:
 
@@ -131,7 +131,7 @@ git diff --check
 
 Expected: every command exits 0; Jest uses only local cached MongoMemoryServer assets and no external APIs.
 
-- [ ] **Step 4: Commit documentation**
+- [x] **Step 4: Commit documentation**
 
 Stage exactly the Task 2 documentation files and commit:
 
@@ -139,6 +139,6 @@ Stage exactly the Task 2 documentation files and commit:
 docs: close typescript compiler gate
 ```
 
-- [ ] **Step 5: Final hygiene**
+- [x] **Step 5: Final hygiene**
 
 Require a clean tracked worktree, no push, no external-system access, and `HEAD` ahead of `origin/remake` only by the local commits created in this block.
