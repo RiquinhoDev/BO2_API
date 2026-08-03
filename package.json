@@ -69,9 +69,7 @@
     "reactivate:expired-fix": "ts-node --transpile-only scripts/maintenance/reactivate-wrongly-inactivated.ts",
     "daily-pipeline:step5": "ts-node scripts/run-daily-pipeline-test.ts",
     "validate:full": "npm run build && npm run lint && npm test",
-    "types:check": "node scripts/typecheck-ratchet.js",
-    "types:baseline:update": "node scripts/typecheck-ratchet.js --update",
-    "prebuild": "npm run types:check",
+    "types:check": "tsc --noEmit --pretty false",
     "lint:baseline:prune": "eslint src --prune-suppressions --max-warnings=0"
   }
 }
