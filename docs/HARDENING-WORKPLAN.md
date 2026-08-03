@@ -638,10 +638,6 @@ primeiro**, depois services, controllers por último.
   adicionados, 0 mudança runtime. Gate: lint 0, ratchet 173/39, jest 269/2, build 0.
 - [x] **scripts (1→0)** — feito (`963545a`); `import { User }` → `import User` (default export, que é o que
   `User.find()` usa). Revisor: 0 cast/suppression, só a linha do import. Ratchet 172/38.
-- [x] **jobs (1→0)** — feito (`73937eb`). `addTagsBatch` implementado (`tagBatch.ts` puro + DI, espelha
-  `removeTagBatch`, categoriza por `ACTagResponse.contactTag.id`); aplicação gated por `AC_TAG_APPLY_ENABLED`
-  (default OFF) no chamador; off = skip limpo sem `stats.errors++`; `.env.example` documentado. 3 testes
-  offline provam off (0 chamadas, 0 erros) / on (batches) / categorização. Revisor: 0 cast/suppression. Ratchet 171/37.
 
 ### ⚠️ utils (8→0) — passe caça-bugs (decisão user 2026-07-18: fazer agora). Plano grounded pelo revisor
 Todos em `studentDataConsolidator.ts` (usado por `studentCompleteService.ts`). Modelos já confirmados pelo revisor:
@@ -1038,12 +1034,16 @@ Progresso controllers:
   coordenada no catálogo/manifest. Até essa observação, não existe `Sunset` e a rota deprecated permanece viva.
 
 - [x] **Dead-code cleanup — módulos preservados apenas por testes removidos** (2026-08-03; commits
-  `3398350` + `753e5c0`): apagados exactamente **438 linhas de produção** (`applyTags.ts` 265 +
-  `engagementCalculator.service.ts` 173), **260 linhas de testes dedicados** (178 + 82) e **914 linhas de
-  documentação raiz obsoleta** (`INTEGRATION_PLAN.md` 468 + `TAG_SYSTEM_V2_IMPLEMENTATION.md` 446). O diff de
-  Users V2 retirou só o mock negativo do calculator (`mockEngagementCalculatorModuleLoaded`/`mockBatchAverage`)
-  e as duas asserções negativas; as asserções reais do `MongooseUsersV2ComparisonReader` (projecções, duas leituras,
-  sem `populate`) permanecem. A entrada de suppression correspondente também foi podada.
+  `3398350` + `753e5c0` + cauda transitiva): apagados exactamente **499 linhas de produção** (`applyTags.ts`
+  265 + `engagementCalculator.service.ts` 173 + `tagBatch.ts` 43 + o método `addTagsBatch` 17 + o import 1),
+  **260 linhas de testes dedicados** (178 + 82) e **914 linhas de documentação raiz obsoleta**
+  (`INTEGRATION_PLAN.md` 468 + `TAG_SYSTEM_V2_IMPLEMENTATION.md` 446). A cauda também removeu 3 linhas
+  de configuração sem consumidor (`AC_TAG_APPLY_ENABLED`) e 4 linhas do registo histórico deste workplan;
+  a instrução stale de rollback em `NATIVE_TAG_PROTECTION_SUMMARY.md` foi substituída one-for-one por
+  `activeCampaignService.addTag(email, tagName)`, sem alteração líquida de linhas. O diff de Users V2 retirou
+  só o mock negativo do calculator (`mockEngagementCalculatorModuleLoaded`/`mockBatchAverage`) e as duas asserções
+  negativas; as asserções reais do `MongooseUsersV2ComparisonReader` (projecções, duas leituras, sem `populate`)
+  permanecem. A entrada de suppression correspondente também foi podada.
 
   Sucessores vivos nomeados: `src/controllers/tagEvaluation.controller.ts`; avaliadores
   `src/jobs/dailyPipeline/tagEvaluation/evaluateStudentTags.ts` e `globalUserTags.ts`; `DecisionEngine` em

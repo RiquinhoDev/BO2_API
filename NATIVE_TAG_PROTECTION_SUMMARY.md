@@ -228,7 +228,7 @@ Se algo correr mal:
 ```javascript
 const snapshot = await ACNativeTagsSnapshot.findOne({ email: 'user@example.com' })
 // snapshot.nativeTags contém as tags originais
-// Adicionar de volta via activeCampaignService.addTagsBatch()
+// Re-adicionar cada tag aprovada pelo fluxo existente: activeCampaignService.addTag(email, tagName)
 ```
 
 2. **Histórico de mudanças:**
