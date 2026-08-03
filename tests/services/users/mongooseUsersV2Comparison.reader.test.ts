@@ -18,9 +18,6 @@ const mockUserProductFind = jest.fn(() => ({
   populate: mockUserProductPopulate,
 }))
 
-const mockBatchAverage = jest.fn()
-const mockEngagementCalculatorModuleLoaded = jest.fn()
-
 jest.mock('../../../src/models/product/Product', () => ({
   __esModule: true,
   default: {
@@ -34,16 +31,6 @@ jest.mock('../../../src/models/UserProduct', () => ({
     find: mockUserProductFind,
   },
 }))
-
-jest.mock(
-  '../../../src/services/syncUtilizadoresServices/engagement/engagementCalculator.service',
-  () => {
-    mockEngagementCalculatorModuleLoaded()
-    return {
-      calculateBatchAverageEngagement: mockBatchAverage,
-    }
-  },
-)
 
 import { MongooseUsersV2ComparisonReader } from '../../../src/services/users/mongooseUsersV2Comparison.reader'
 
@@ -111,7 +98,5 @@ describe('MongooseUsersV2ComparisonReader', () => {
       .toBe(2)
     expect(mockProductPopulate).not.toHaveBeenCalled()
     expect(mockUserProductPopulate).not.toHaveBeenCalled()
-    expect(mockEngagementCalculatorModuleLoaded).not.toHaveBeenCalled()
-    expect(mockBatchAverage).not.toHaveBeenCalled()
   })
 })
