@@ -1126,7 +1126,7 @@ Progresso controllers:
 ### Como se mede
 Cada caixa fecha com **prova contra o código** (comando/teste), não com report. O revisor regrava o estado
 aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → paginação (F3.2) → TS zero (F3.3)
-→ cirurgia de arquitectura (ARCH-01/02/03) → strict em ondas.** Correcção nunca cede a prazo.
+→ cirurgia de arquitectura (ARCH-01/02/03) → ESLint/no-explicit-any → suites separadas/egress guard → configuração tipada fail-fast.** Correcção nunca cede a prazo.
 
 ### [x] Task 1 - safe operational documentation surface (2026-08-03)
 
