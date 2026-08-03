@@ -1073,6 +1073,11 @@ Progresso controllers:
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
 - [ ] Sem artefactos locais commitados; imagens de compose fixadas por versão/digest, sem credenciais default.
+- [x] **Evidência root-hygiene (2026-08-03; Tasks 1–3):** seis documentos de raiz obsoletos/PII foram eliminados (**1,604 linhas**); quatro documentos live/históricos foram movidos para `docs/` com notas de estado; e `docs/README.md` foi criado com secções separadas **Active**, **Reference**, **Archive**, **Plans** e **Specs**.
+  - Os dois harnesses temporários rastreados foram eliminados (**85 linhas**). Foram removidos os **35** comandos directos de package com alvos ausentes e o `diagnose:all` quebrado; `validate:full` foi reparado para a sequência offline válida, e a auditoria dos alvos directos sobreviventes confirmou **10/10 existentes**.
+  - A autoridade npm foi estabelecida sem alterações ao grafo de dependências: `yarn.lock` foi eliminado (**4,961 linhas**); todas as configurações de build activas (`package.json`, `Dockerfile` e Nixpacks) seleccionam npm; apenas `package.json` declara o esperado `npm@11.9.0`, enquanto Docker/Nixpacks usam o npm fornecido pelo ambiente.
+  - Gates offline finais do Task 3: lint **0**, TypeScript **0/0**, Jest **159 passed + 1 skipped suites / 806 passed + 2 skipped tests**, build **0**. Esta evidência é estática/offline e não declara deploy nem observação operacional.
+  - **DOC-02 global permanece aberto:** continuam na raiz sete Markdown protegidos/activos (`API_AUDIT.md`, `COMPLETE_SECURITY_AUDIT.md`, `NATIVE_TAG_PROTECTION_SUMMARY.md`, `RENOVACAO_CONTEXTO_IA.md`, `RENOVACAO_DISCORD_CARGOS_PLAN.md`, `RENOVACAO_OGI_BO_PLAN.md`, `URGENT_KEY_REPLACEMENT.md`); a caixa DOC-02 acima permanece deliberadamente `[ ]`.
 
 ### 4. Middleware & funções
 - [ ] **Helmet + rate limiting** (login, webhooks, operações pesadas separados) + limites de body/upload + timeouts + container **não-root** (SEC-08).
@@ -1096,7 +1101,7 @@ Progresso controllers:
 ### 8. Metodologias 2026 (toolchain & qualidade)
 - [ ] **TypeScript `strict` a zero erros**, ratchet removido, `noEmitOnError:true`, sem `tsc || exit 0` (TOOL-01 / F3.3).
 - [ ] **ESLint** `--max-warnings=0`, baseline podada a zero; `no-explicit-any` ratchetado quando `strict` entrar (TOOL-02).
-- [x] **Um** package manager autoritativo — npm (`npm@11.9.0`) em `package.json`, `Dockerfile` e Nixpacks; `package-lock.json` único, `yarn.lock` removido (2026-08-03; TOOL-03).
+- [x] **Um** package manager autoritativo — todas as configurações de build activas seleccionam npm; apenas `package.json` declara o esperado `npm@11.9.0`, enquanto `Dockerfile` e Nixpacks usam o npm fornecido pelo ambiente; `package-lock.json` é o único lockfile e `yarn.lock` foi removido (2026-08-03; TOOL-03).
 - [ ] Suites separadas unit/integration/load/e2e, mocks por defeito, **egress guard**; cobertura honesta e a subir (TEST-01/02).
 - [ ] Config validada e tipada com **fail-fast** no arranque (OPS-01).
 
