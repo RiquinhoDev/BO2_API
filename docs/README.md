@@ -21,10 +21,14 @@ Este é um índice curado dos documentos mais úteis do BO2_API. Não é um inve
 - [Plano do sistema de tag monitoring](archive/TAG_MONITORING_SYSTEM_PLAN.md) — plano histórico arquivado, não instrução operacional atual.
 - [Migração automática Discord](archive/migrations/MIGRACAO_AUTOMATICA_DISCORD.md) — material histórico de migração.
 
-## Plans / Specs
+## Plans
 
 - [Plano root hygiene](superpowers/plans/2026-08-03-root-hygiene.md) — plano da limpeza documental e de tooling.
+- [Diretório de planos](superpowers/plans/) — restantes planos versionados.
+
+## Specs
+
 - [Design root hygiene](superpowers/specs/2026-08-03-root-hygiene-design.md) — decisão e limites aprovados para essa limpeza.
-- [Diretório de planos](superpowers/plans/) e [diretório de specs](superpowers/specs/) — restantes planos e especificações versionados.
+- [Diretório de specs](superpowers/specs/) — restantes especificações versionadas.
 
 Os handoffs `RENOVACAO_*.md` permanecem na raiz por serem documentação operacional protegida; não são duplicados neste índice.
