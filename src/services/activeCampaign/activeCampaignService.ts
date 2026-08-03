@@ -13,7 +13,6 @@ import {
   ACTagResponse 
 } from '../../types/activecampaign.types'
 import { User, UserProduct } from '../../models'
-import { addTagsInBatches } from './tagBatch'
 
 type ACContactTagLink = {
   id: string
@@ -242,23 +241,6 @@ class ActiveCampaignService {
       console.error(`❌ Erro ao criar/atualizar contacto ${contact.email}:`, this.formatError(error))
       throw error
     }
-  }
-
-  async addTagsBatch(
-    email: string,
-    tagNames: string[],
-    batchSize: number = 3
-  ): Promise<{
-    success: string[]
-    failed: string[]
-    total: number
-  }> {
-    return addTagsInBatches(
-      email,
-      tagNames,
-      (contactEmail, tag) => this.addTag(contactEmail, tag),
-      batchSize
-    )
   }
 
 /**
