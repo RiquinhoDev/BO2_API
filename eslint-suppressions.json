@@ -853,11 +853,6 @@
       "count": 50
     }
   },
-  "src/security/acWebhookSecurity.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/security/httpPerimeter.ts": {
     "no-console": {
       "count": 1

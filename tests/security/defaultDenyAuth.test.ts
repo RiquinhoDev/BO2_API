@@ -34,7 +34,7 @@ function buildCatalogProbe(authEnforce = true): Application {
     }),
     acWebhookSecret: AC_SECRET,
     acWebhookReplayStore: {
-      claim: async () => true,
+      claim: async () => ({ token: 'catalog-probe' }),
       complete: async () => undefined,
       release: async () => undefined,
     },

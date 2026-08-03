@@ -1,9 +1,11 @@
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import express, { type Request, type RequestHandler } from 'express'
 import { HttpError } from './errorHandling'
 import logger from '../utils/logger'
 
 export const AC_WEBHOOK_SIGNATURE_HEADER = 'x-activecampaign-signature'
+export const AC_WEBHOOK_PROCESSING_LEASE_MS = 10 * 60 * 1000
+const AC_WEBHOOK_RECEIPT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 export const AC_WEBHOOK_PATHS = [
   '/api/webhooks/ac/email-opened',
   '/api/webhooks/ac/link-clicked',
@@ -12,10 +14,14 @@ export const AC_WEBHOOK_PATHS = [
 const AC_WEBHOOK_BODY_LIMIT = '32kb'
 const verifiedFingerprints = new WeakMap<Request, string>()
 
+export interface AcWebhookClaim {
+  token: string
+}
+
 export interface AcWebhookReplayStore {
-  claim(fingerprint: string): Promise<boolean>
-  complete(fingerprint: string): Promise<void>
-  release(fingerprint: string): Promise<void>
+  claim(fingerprint: string): Promise<AcWebhookClaim | undefined>
+  complete(fingerprint: string, claim: AcWebhookClaim): Promise<void>
+  release(fingerprint: string, claim: AcWebhookClaim): Promise<void>
 }
 
 export interface AcWebhookSecurity {
@@ -78,24 +84,69 @@ export function createMongoAcWebhookReplayStore(): AcWebhookReplayStore {
     async claim(fingerprint) {
       const { default: AcWebhookReceipt } = await import('../models/AcWebhookReceipt')
       await AcWebhookReceipt.init()
+      const claimedAt = new Date()
+      const claimToken = randomUUID()
+      const leaseExpiresAt = new Date(claimedAt.getTime() + AC_WEBHOOK_PROCESSING_LEASE_MS)
+      const expiresAt = new Date(claimedAt.getTime() + AC_WEBHOOK_RECEIPT_RETENTION_MS)
+      const reclaimed = await AcWebhookReceipt.findOneAndUpdate(
+        {
+          fingerprint,
+          status: 'processing',
+          // Legacy receipts stay untouched until old workers are drained and
+          // an explicit migration gives them a fenced lease.
+          leaseExpiresAt: { $lte: claimedAt },
+        },
+        {
+          $set: {
+            claimToken,
+            leaseExpiresAt,
+            expiresAt,
+          },
+          $unset: { processedAt: 1 },
+        },
+        { new: true },
+      )
+      if (reclaimed) return { token: claimToken }
+
       try {
-        await AcWebhookReceipt.create({ fingerprint, status: 'processing' })
-        return true
-      } catch (error: any) {
-        if (error?.code === 11000) return false
-        throw error
+        await AcWebhookReceipt.create({
+          fingerprint,
+          status: 'processing',
+          claimToken,
+          receivedAt: claimedAt,
+          leaseExpiresAt,
+          expiresAt,
+        })
+        return { token: claimToken }
+      } catch (error: unknown) {
+        if (typeof error !== 'object' || error === null || Reflect.get(error, 'code') !== 11000) {
+          throw error
+        }
+        return undefined
       }
     },
-    async complete(fingerprint) {
+    async complete(fingerprint, claim) {
       const { default: AcWebhookReceipt } = await import('../models/AcWebhookReceipt')
+      const completedAt = new Date()
       await AcWebhookReceipt.updateOne(
-        { fingerprint },
-        { $set: { status: 'processed', processedAt: new Date() } },
+        { fingerprint, status: 'processing', claimToken: claim.token },
+        {
+          $set: {
+            status: 'processed',
+            processedAt: completedAt,
+            expiresAt: new Date(completedAt.getTime() + AC_WEBHOOK_RECEIPT_RETENTION_MS),
+          },
+          $unset: { leaseExpiresAt: 1 },
+        },
       )
     },
-    async release(fingerprint) {
+    async release(fingerprint, claim) {
       const { default: AcWebhookReceipt } = await import('../models/AcWebhookReceipt')
-      await AcWebhookReceipt.deleteOne({ fingerprint, status: 'processing' })
+      await AcWebhookReceipt.deleteOne({
+        fingerprint,
+        status: 'processing',
+        claimToken: claim.token,
+      })
     },
   }
 }
@@ -118,8 +169,8 @@ export function createAcWebhookSecurity(
     }
 
     try {
-      const claimed = await replayStore.claim(fingerprint)
-      if (!claimed) {
+      const claim = await replayStore.claim(fingerprint)
+      if (!claim) {
         return res.status(200).json({
           success: true,
           duplicate: true,
@@ -129,8 +180,8 @@ export function createAcWebhookSecurity(
 
       res.once('finish', () => {
         const settle = res.statusCode < 400
-          ? replayStore.complete(fingerprint)
-          : replayStore.release(fingerprint)
+          ? replayStore.complete(fingerprint, claim)
+          : replayStore.release(fingerprint, claim)
         void settle.catch((error) => logger.error('Falha ao fechar recibo de webhook', { error }))
       })
       return next()
