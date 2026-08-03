@@ -1201,7 +1201,7 @@ POST /api/tag-monitoring/snapshots/manual
 
 ### 1. Inicialização do Sistema
 
-> **AVISO: não executar a partir deste documento.** O seed da configuração é uma escrita de produção e exige um runbook de deployment mantido, um runner declarado, validação explícita do alvo com sentinel, backup e aprovação. Este documento não fornece comando de seed.
+> **AVISO: não executar a partir deste documento.** O seed da configuração é uma escrita de produção e exige um runbook de deployment mantido, um runner declarado, validação explícita da base de dados de destino e sentinel, backup e aprovação. Este documento não fornece comando de seed.
 
 > O estado esperado não é afirmado nem validado aqui; confirmar apenas pelo processo operacional aprovado.
 
