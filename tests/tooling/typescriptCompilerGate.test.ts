@@ -16,9 +16,11 @@ const parsed = ts.parseJsonConfigFileContent(configFile.config, ts.sys, reposito
 describe('TypeScript compiler gate', () => {
   it('keeps direct strict compilation enforced by package scripts and tsconfig', () => {
     expect(packageJson.scripts['types:check']).toBe('tsc --noEmit --pretty false')
+    expect(packageJson.scripts.build).toBe('tsc')
     expect(packageJson.scripts).not.toHaveProperty('types:baseline:update')
     expect(packageJson.scripts).not.toHaveProperty('prebuild')
     expect(parsed.options.strict).toBe(true)
     expect(parsed.options.noEmitOnError).toBe(true)
+    expect(parsed.options.noEmit).not.toBe(true)
   })
 })
