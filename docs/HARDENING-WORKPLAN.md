@@ -30,7 +30,7 @@
   Endpoints Clareza/OGI correm `evaluateAllUsersOfProduct(id, true)` e devolvem `{studentsEvaluated, proposedAdditions,
   proposedRemovals, errors}` reais. Front actualizou o schema (sem `tagsApplied` falso) — activecampaign 57/57, full
   893/893. "Aplicar" fica separado e desligado. Rotas inalteradas → catálogo intacto. Gate verde nos 2 repos. A mentira do UI acabou.
-- [ ] ~~DECISÃO PENDENTE~~ (resolvida acima). Os botões
+- [x] ~~DECISÃO PENDENTE~~ (resolvida acima). Os botões
   "Avaliar Regras" Clareza/OGI passam a ser **pré-visualização real** (dry-run), NÃO escrevem na AC/Mongo. Aplicação
   real fica numa acção **separada, destrutiva, com confirmação e `AC_TAG_APPLY_ENABLED=true`**. Revisor confirmou a
   viabilidade e a segurança:
@@ -792,6 +792,13 @@ Progresso controllers:
 > **Regra de ouro do alvo:** não se troca correcção por elegância. Cada critério entra por **refactor
 > incremental** atrás dos contratos vivos (Front, webhooks, CRON), com **characterization tests primeiro**.
 
+### Evidência focada (2026-08-03; offline)
+
+- Perímetro/upload/observabilidade/paginação: **14 suites / 65 testes**.
+- JWT/CORS/Helmet: **5 suites / 27 testes**.
+- Contradições ainda abertas: o error handler central convive com respostas 500 ad hoc e `events.routes` pode expor `error.message`; CORS ainda mistura defaults estáticos sem exigir `ALLOWED_ORIGINS`; e faltam store distribuído/429 central+correlation-aware/CSP final, autoridade `STUDENT_ACCESS_JWT_SECRET` (incluindo o fallback da API antiga), baseline legacy de console/suppressions e inventário/allowlist + scans `find({})` restantes.
+- Nenhum runtime nem sistema externo foi tocado; os resultados são focados e offline.
+
 ### 1. Arquitectura & bootstrap
 - [x] `src/index.ts` deixa de ser god-file: separado em `config`, `app`, `routes`, `database`, `jobs`, `server` (ARCH-01).
 - [x] `createApp(deps)` **puro** — não liga rede/BD nem arranca jobs no import; `bootstrap()` coordena as dependências explicitamente.
@@ -1079,19 +1086,23 @@ Progresso controllers:
   - **DOC-02 global permanece aberto:** continuam na raiz sete Markdown protegidos/activos (`API_AUDIT.md`, `COMPLETE_SECURITY_AUDIT.md`, `NATIVE_TAG_PROTECTION_SUMMARY.md`, `RENOVACAO_CONTEXTO_IA.md`, `RENOVACAO_DISCORD_CARGOS_PLAN.md`, `RENOVACAO_OGI_BO_PLAN.md`, `URGENT_KEY_REPLACEMENT.md`); a caixa DOC-02 acima permanece deliberadamente `[ ]`.
 
 ### 4. Middleware & funções
-- [ ] **Helmet + rate limiting** (login, webhooks, operações pesadas separados) + limites de body/upload + timeouts + container **não-root** (SEC-08).
-- [ ] **Error handler central** `(err,req,res,next)` — mensagem pública estável + correlation ID; detalhe só no logger redigido (SEC-10). *(base já entregue — validar cobertura em todas as rotas.)*
-- [ ] Redação PII/tokens **numa só função** partilhada (logger + error handler). Sem `console.*` novo (ESLint `no-console` global).
+- [x] **SEC-08 — baseline de instância única:** Helmet e rate limits separados para login, webhooks e operações pesadas foram entregues/verificados; o limite é explicitamente o baseline actual de **instância única**.
+- [x] **SEC-08 — payload/processo:** cap global JSON, upload endurecido, timeouts de headers/keep-alive do servidor e container **não-root** foram entregues/verificados.
+- [ ] **SEC-08 restante:** store distribuído do limiter, envelope 429 central/correlation-aware e política CSP final ainda por fechar.
+- [ ] **Error handler central** `(err,req,res,next)` — mensagem pública estável + correlation ID; detalhe só no logger redigido (SEC-10). *(base já entregue — validar cobertura em todas as rotas; respostas 500 ad hoc continuam com shapes diferentes e `events.routes` pode expor `error.message`.)*
+- [x] Redação PII/tokens **numa só função** partilhada (logger + error handler): `redactSensitiveData` é partilhada pelo logger e pelo error handler, e o ESLint ratchet rejeita novos `console` calls. A baseline legacy de console/suppressions continua aberta em TOOL-02.
 
 ### 5. Segurança & rotas protegidas
 - [x] **Default-deny** derivado do catálogo (SEC-01) — feito.
 - [ ] **Matriz de papéis** ADMIN/SUPER_ADMIN/só-consulta com `authorize(...)` por rota + audit log; gating equivalente no Front (fica **depois** da F3.1).
 - [ ] **Toda rota destrutiva:** auth + role + **validação de input strict** (F3.1) + **idempotência/cap/kill-switch/dry-run** onde escreve em sistemas externos (OPS-02).
-- [ ] JWT sem defaults, segredo forte validado no arranque (SEC-02). Debug routes fora de produção (SEC-03). Upload endurecido (SEC-05).
-- [ ] **CORS** por `ALLOWED_ORIGINS`, fail-closed fora de local (SEC-11 — bloqueador D3 do deploy).
+- [x] **JWT/debug/upload — corte principal:** JWT primário da app obrigatório com validação no arranque de segredo de 32 caracteres; debug proibido em produção; upload de importação de utilizadores endurecido (SEC-02/03/05).
+- [ ] **JWT/debug/upload — corte restante:** centralizar/validar `STUDENT_ACCESS_JWT_SECRET`, decidir/remover o fallback da API antiga para o JWT da app e adicionar testes focados.
+- [ ] **CORS** por `ALLOWED_ORIGINS`, fail-closed fora de local (SEC-11 — bloqueador D3 do deploy). *(Gap exacto: em produção ainda mistura defaults estáticos de localhost/produção e não exige `ALLOWED_ORIGINS` explícito.)*
 
 ### 6. Escalabilidade
-- [ ] **Helper único de paginação** (min/max, cursor onde precisa, projeção explícita). Zero defaults de 10 000, zero `find({})` sem limite (ARCH-05 / F3.2).
+- [x] **Paginação canónica (ARCH-05 / F3.2):** helper único de listas HTTP, cap 200 e zero default de 10 000, cobrindo as superfícies de listagem já migradas.
+- [ ] **Paginação restante:** inventário/allowlist machine-checked e tratamento bounded/streamed dos scans operacionais `find({})` que restam, preservando leituras deliberadamente pequenas de configuração/full-set.
 - [ ] Idempotência e caps como **política transversal**, não caso-a-caso (OPS-02).
 
 ### 7. Contrato de resposta
