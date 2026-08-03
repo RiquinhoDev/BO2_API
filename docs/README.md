@@ -2,6 +2,10 @@
 
 Este é um índice curado dos documentos mais úteis do BO2_API. Não é um inventário exaustivo: confirme sempre o código, os contratos e o estado operacional antes de executar qualquer instrução.
 
+## Build authority
+
+O BO2_API usa npm como package manager único: `package.json` fixa `npm@11.9.0`, `package-lock.json` é o lockfile sobrevivente e Docker/Nixpacks executam os comandos npm. Não recries `yarn.lock`.
+
 ## Documentação ativa
 
 - [Plano de endurecimento](HARDENING-WORKPLAN.md) — backlog, guardas e critérios de trabalho atuais.

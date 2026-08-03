@@ -1,7 +1,9 @@
 {
-  "name": "my-app-backend",
+  "name": "bo2-api",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "private": true,
+  "packageManager": "npm@11.9.0",
   "license": "MIT",
   "dependencies": {
     "@types/moment": "^2.13.0",
