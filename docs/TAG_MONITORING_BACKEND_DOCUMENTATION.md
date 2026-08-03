@@ -1201,22 +1201,11 @@ POST /api/tag-monitoring/snapshots/manual
 
 ### 1. Inicialização do Sistema
 
-```bash
-# Executar script de seed
-cd C:\Users\User\Documents\GitHub\Riquinho\api\Front\BO2_API
-npx tsx scripts/seedWeeklyTagMonitoringJob.ts
-```
+> **AVISO: não executar a partir deste documento.** O seed da configuração é uma escrita de produção e exige um runbook de deployment mantido, um runner declarado, validação explícita do alvo com sentinel, backup e aprovação. Este documento não fornece comando de seed.
 
-**Valida**:
-- ✅ Cria WeeklyTagMonitoringConfig
-- ✅ Scope: STUDENTS_ONLY
-- ✅ Enabled: true
+> O estado esperado não é afirmado nem validado aqui; confirmar apenas pelo processo operacional aprovado.
 
-**Verificar BD**:
-```javascript
-db.weekly_tag_monitoring_config.findOne()
-// Esperado: { scope: "STUDENTS_ONLY", enabled: true }
-```
+> A verificação directa na base de dados também fica fora deste documento; executar apenas pelo processo operacional aprovado.
 
 ---
 
@@ -1343,11 +1332,7 @@ curl -X PATCH http://localhost:3001/api/tag-monitoring/config/scope \
   -d '{"scope": "ALL_CONTACTS"}'
 ```
 
-**Verificar BD**:
-```javascript
-db.weekly_tag_monitoring_config.findOne()
-// Esperado: { scope: "ALL_CONTACTS", enabled: true }
-```
+> Consultar o estado apenas pela observabilidade/runbook aprovado; este documento não fornece snippet directo de BD para execução.
 
 **Próximo snapshot**: Processará todos os contactos da AC (~50k).
 
@@ -1360,11 +1345,7 @@ curl -X PATCH http://localhost:3001/api/tag-monitoring/config/toggle \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-**Verificar BD**:
-```javascript
-db.weekly_tag_monitoring_config.findOne()
-// Esperado: { enabled: false }
-```
+> Consultar o estado apenas pela observabilidade/runbook aprovado; este documento não fornece snippet directo de BD para execução.
 
 **Próximo snapshot CRON**: Não executará (retorna resultado vazio).
 
@@ -1432,10 +1413,7 @@ const jobs = await cronManagementService.getActiveJobs()
 **Causas Possíveis**:
 
 1. **Sistema desativado**
-   ```javascript
-   db.weekly_tag_monitoring_config.findOne()
-   // Se enabled: false
-   ```
+   > Consultar `enabled` apenas pela observabilidade/runbook aprovado; não executar snippet directo de BD deste documento.
    **Solução**: `PATCH /config/toggle`
 
 2. **Nenhum aluno tem produtos**
@@ -1714,7 +1692,7 @@ curl -X DELETE "http://localhost:3001/api/tag-monitoring/critical-tags/TAG_ID/pe
 ## ✅ Checklist de Deployment
 
 ### Antes de Deploy
-- [ ] Executar `seedWeeklyTagMonitoringJob.ts`
+- [ ] Confirmar no runbook de deployment aprovado o seed de produção (runner, alvo/sentinel, backup e aprovação); não executar a partir deste documento
 - [ ] Verificar índices criados em todas as collections
 - [ ] Testar snapshot manual
 - [ ] Adicionar pelo menos 1 tag crítica

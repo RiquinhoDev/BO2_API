@@ -110,8 +110,7 @@
 
 1. **Tudo offline.** NUNCA tocar nas APIs reais (Guru, Hotmart, ActiveCampaign, CursEduca, Discord) nem em
    Mongo de produção. Constrói e testa a fronteira; não chames o serviço real.
-2. **Antes de cada bloco:** `git fetch && git reset --hard origin/remake`. A história foi reescrita (scrub de
-   segredos) — **nunca merge/pull por cima**.
+2. **Antes de cada bloco:** faz apenas verificações de leitura — `git status -sb`, `git branch -vv` e um log curto decorado (`git log --oneline --decorate -5`). Se as histórias divergirem ou houver suspeita de reescrita, pára e obtém autorização explícita para recuperação. No default offline não é necessário `git fetch`.
 3. **Não corras `npm install`.** Se precisares mesmo de uma dependência nova, **pára e pede ao revisor** — ele
    instala e atualiza o único lockfile autoritativo (`package-lock.json`) com npm. O `yarn.lock` foi removido e
    Nixpacks usa `npm ci`; mexer apenas no `package.json` sem a correspondente revisão do lockfile parte o build.
