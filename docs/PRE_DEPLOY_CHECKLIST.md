@@ -28,7 +28,7 @@
 - [ ] Secrets em sistema seguro (AWS Secrets Manager, etc)
 
 ### Performance
-- [ ] Indexes MongoDB criados (`npm run maintenance:indexes`)
+- [ ] Indexes MongoDB criados — comando legacy removido (`npm run maintenance:indexes`); seguir runbook e comando feature-specific atualmente registado, com aprovação explícita para qualquer ação de produção
 - [ ] Connection pooling configurado
 - [ ] Query optimization verificada
 - [ ] Caching implementado (Redis - opcional)
@@ -101,7 +101,7 @@
 - [ ] Backup verificado (não corrompido)
 - [ ] Backup salvo em local seguro
 - [ ] Migração V2 executada
-- [ ] Verification script executado (`npm run migrate:verify`)
+- [ ] Verification script executado — comando legacy removido (`npm run migrate:verify`); seguir runbook e comando feature-specific atualmente registado, com aprovação explícita para qualquer ação de produção
 - [ ] Indexes criados
 - [ ] Disk space >20% livre
 - [ ] Slow queries identificadas e otimizadas
@@ -109,7 +109,7 @@
 ### Validação de Dados
 - [ ] Dados de teste removidos
 - [ ] Dados inconsistentes corrigidos
-- [ ] Script de diagnóstico executado (`npm run diagnose:all`)
+- [ ] Script de diagnóstico executado — comando legacy removido (`npm run diagnose:all`); seguir runbook e comando feature-specific atualmente registado, com aprovação explícita para qualquer ação de produção
 - [ ] Zero issues críticos encontrados
 
 ---
