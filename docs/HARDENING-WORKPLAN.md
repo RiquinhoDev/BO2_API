@@ -242,7 +242,7 @@ carregado inteiro** e clamp cego parte-as em silêncio:
   (`grep idsDiferentes|unmatchedUsers Front/src` = 0; catálogo `consumer:front` está **stale**). Ambos os
   modelos têm `detectedAt` **com índice** → sort `{ detectedAt: -1, _id: -1 }` é estável **e** index-backed.
   → **1º commit do Passo 2 (aprovado).**
-- **NÃO paginar — full-scan interno (cursor/batch, nunca `.limit(200)`):** `jobs/dailyPipeline/tagEvaluation/applyTags.ts:81`,
+- **NÃO paginar — full-scan interno (cursor/batch, nunca `.limit(200)`):**
   `services/analytics/analyticsCache.service.ts:288` (melhor → agregação/count no Mongo),
   `services/renewal/discordRolesSync.service.ts:203` (reconciliação — preservar deteção de remoções),
   `services/renewal/discordScheduledMessages.service.ts:138`, `services/renewal/renewalPerformance.service.ts:78`,
@@ -638,26 +638,9 @@ primeiro**, depois services, controllers por último.
   adicionados, 0 mudança runtime. Gate: lint 0, ratchet 173/39, jest 269/2, build 0.
 - [x] **scripts (1→0)** — feito (`963545a`); `import { User }` → `import User` (default export, que é o que
   `User.find()` usa). Revisor: 0 cast/suppression, só a linha do import. Ratchet 172/38.
-- [ ] **jobs (1→0)** ← **PRÓXIMO. Decisão do utilizador (2026-07-18): implementar, mas manter DESLIGADO atrás
-  de flag** (padrão OPS-02 kill-switch). Bug: `applyTags.ts:176` chama `addTagsBatch` inexistente → aplicação de
-  tags na AC falha em silêncio (está em try/catch). Spec:
-  - **Implementar `addTagsBatch(email, tagNames, batchSize=3)`** em `activeCampaignService`, **espelhando o
-    `removeTagBatch` existente** (:423): batches, `Promise.all(batch.map(t => this.addTag(email, t)))`, rate-limit
-    2000ms entre batches, devolve `{ success, failed, total }`. Adapta a categorização à resposta do `addTag`
-    (`ACTagResponse`, não booleano como o `removeTag`).
-  - **Gate a APLICAÇÃO atrás de `AC_TAG_APPLY_ENABLED` (default OFF)**, seguindo o idioma existente
-    `isMasterEnabled()`/`RENEWAL_AC_SYNC_ENABLED` (`renewalAcSync.service.ts:38`). Guarda no **caller** (`applyTags.ts`,
-    antes do `if (toAdd.length > 0)`) — o `addTagsBatch` fica primitivo. Só `applyTags:176` o chama.
-  - **Desligado = skip limpo:** quando off, **não chama a AC, não faz `stats.errors++`** (hoje o método em falta
-    inflaciona errors); loga uma vez ou conta `stats.skipped`. Isto **preserva o comportamento actual** (tags não
-    aplicadas) mas agora **intencional e sem spam de erro**, pronto a ligar quando o utilizador quiser.
-  - Documenta `AC_TAG_APPLY_ENABLED` no `.env.example`. **Offline:** testa os 2 caminhos com `addTag`/http mockado
-    — off ⇒ `addTag` **não** é chamado; on ⇒ batches chamam `addTag` correctamente. **Nunca** toca a AC real.
-  - Golden rule cumprida: o tipo compila porque o método **existe** (0 cast/suppression). `jobs 1→0`.
-
 - [x] **jobs (1→0)** — feito (`73937eb`). `addTagsBatch` implementado (`tagBatch.ts` puro + DI, espelha
   `removeTagBatch`, categoriza por `ACTagResponse.contactTag.id`); aplicação gated por `AC_TAG_APPLY_ENABLED`
-  (default OFF) no `applyTags`; off = skip limpo sem `stats.errors++`; `.env.example` documentado. 3 testes
+  (default OFF) no chamador; off = skip limpo sem `stats.errors++`; `.env.example` documentado. 3 testes
   offline provam off (0 chamadas, 0 erros) / on (batches) / categorização. Revisor: 0 cast/suppression. Ratchet 171/37.
 
 ### ⚠️ utils (8→0) — passe caça-bugs (decisão user 2026-07-18: fazer agora). Plano grounded pelo revisor
@@ -1053,6 +1036,39 @@ Progresso controllers:
   só pode ser removido depois de (1) deploy coordenado dos dois `remake`, (2) índice inspecionado/aplicado e
   verificado, (3) janela acordada de tráfego real sem chamadas inexplicadas a `/api/users/v2` e (4) remoção
   coordenada no catálogo/manifest. Até essa observação, não existe `Sunset` e a rota deprecated permanece viva.
+
+- [x] **Dead-code cleanup — módulos preservados apenas por testes removidos** (2026-08-03; commits
+  `3398350` + `753e5c0`): apagados exactamente **438 linhas de produção** (`applyTags.ts` 265 +
+  `engagementCalculator.service.ts` 173), **260 linhas de testes dedicados** (178 + 82) e **914 linhas de
+  documentação raiz obsoleta** (`INTEGRATION_PLAN.md` 468 + `TAG_SYSTEM_V2_IMPLEMENTATION.md` 446). O diff de
+  Users V2 retirou só o mock negativo do calculator (`mockEngagementCalculatorModuleLoaded`/`mockBatchAverage`)
+  e as duas asserções negativas; as asserções reais do `MongooseUsersV2ComparisonReader` (projecções, duas leituras,
+  sem `populate`) permanecem. A entrada de suppression correspondente também foi podada.
+
+  Sucessores vivos nomeados: `src/controllers/tagEvaluation.controller.ts`; avaliadores
+  `src/jobs/dailyPipeline/tagEvaluation/evaluateStudentTags.ts` e `globalUserTags.ts`; `DecisionEngine` em
+  `src/services/activeCampaign/decisionEngine.service.ts`; e `tagOrchestratorV2` em
+  `src/services/activeCampaign/tagOrchestrator.service.ts`. A normalização partilhada
+  `src/services/syncUtilizadoresServices/engagement/platformEngagementNormalizer.ts` continua consumida
+  directamente por `UsersV2ComparisonService` (`src/services/users/usersV2Analytics.service.ts`); os
+  consumidores/reader `MongooseUsersV2ComparisonReader` e `usersV2Analytics.runtime.ts` e o contrato Users V2
+  canónico (`/users/v2/enrollments`, `/users/v2/analytics`, `/users/v2/stats` e `/users/v2/engagement/comparison`)
+  permanecem vivos.
+
+  RED/GREEN focado medido nos dois cortes: a suite focada do `tagOrchestratorV2`/orquestrador ficou **1 suite / 7 testes
+  GREEN** antes e depois; a tentativa RED contra o módulo apagado falhou com **TS2307, 0 testes executados**.
+  O normalizer + reader + Users V2 overview ficou **3 suites / 41 testes GREEN** antes e depois; a tentativa RED
+  falhou com **TS2307/module-resolution do mock obsoleto, 0 testes executados**. A varredura final de produção e
+  testes encontrou **zero referências vivas** a `evaluateAndApplyTags`, `tagEvaluation/applyTags`,
+  `engagementCalculator.service`, `mockEngagementCalculatorModuleLoaded` ou `mockBatchAverage`; `git ls-files`
+  também não lista nenhum dos quatro módulos/documentos removidos.
+
+  Gates offline finais (seriais, `MONGOMS_RUNTIME_DOWNLOAD=false`): lint **exit 0**; TypeScript ratchet
+  **0 erros / 0 ficheiros**; Jest **159 suites passed + 1 skipped (160 total)** e **806 testes passed + 2 skipped
+  (808 total)**; build **exit 0** (incluindo prebuild ratchet 0/0). Os avisos preexistentes de logs do modelo/
+  registry, índices Mongoose e ActiveCampaign sem configuração foram mantidos como avisos. Não foi executada
+  qualquer função removida, Mongo de produção, ActiveCampaign, Discord, Guru, Hotmart, CursEduca ou rede externa;
+  os testes usaram apenas fixtures/`MongoMemoryServer` local e as guardas de egress/sentinel.
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
