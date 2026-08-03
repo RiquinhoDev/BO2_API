@@ -113,8 +113,8 @@
 2. **Antes de cada bloco:** `git fetch && git reset --hard origin/remake`. A história foi reescrita (scrub de
    segredos) — **nunca merge/pull por cima**.
 3. **Não corras `npm install`.** Se precisares mesmo de uma dependência nova, **pára e pede ao revisor** — ele
-   instala e atualiza os **dois** lockfiles (`package-lock.json` p/ `npm ci` do Dockerfile **e** `yarn.lock`
-   p/ `yarn --frozen-lockfile` do nixpacks). Mexer só num parte um dos caminhos de build.
+   instala e atualiza o único lockfile autoritativo (`package-lock.json`) com npm. O `yarn.lock` foi removido e
+   Nixpacks usa `npm ci`; mexer apenas no `package.json` sem a correspondente revisão do lockfile parte o build.
 4. **Não toques** em `scripts/git-hooks/`, `URGENT_KEY_REPLACEMENT.md` nem `RENOVACAO_*.md` — são de outra
    sessão de segurança.
 5. **Fonte única.** Reutiliza o que já existe; não cries uma segunda cópia de nada (redação, boundary de
@@ -1096,7 +1096,7 @@ Progresso controllers:
 ### 8. Metodologias 2026 (toolchain & qualidade)
 - [ ] **TypeScript `strict` a zero erros**, ratchet removido, `noEmitOnError:true`, sem `tsc || exit 0` (TOOL-01 / F3.3).
 - [ ] **ESLint** `--max-warnings=0`, baseline podada a zero; `no-explicit-any` ratchetado quando `strict` entrar (TOOL-02).
-- [ ] **Um** package manager autoritativo (decisão: npm; migrar Nixpacks num commit isolado) (TOOL-03).
+- [x] **Um** package manager autoritativo — npm (`npm@11.9.0`) em `package.json`, `Dockerfile` e Nixpacks; `package-lock.json` único, `yarn.lock` removido (2026-08-03; TOOL-03).
 - [ ] Suites separadas unit/integration/load/e2e, mocks por defeito, **egress guard**; cobertura honesta e a subir (TEST-01/02).
 - [ ] Config validada e tipada com **fail-fast** no arranque (OPS-01).
 
