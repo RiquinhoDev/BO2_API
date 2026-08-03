@@ -4,6 +4,8 @@
 **Data de Criação**: 2026-01-24
 **Status**: Aprovado para Implementação
 
+> **Estado (2026-08-03):** Documento arquivado/histórico; descreve um plano e não é uma instrução de operação atual.
+
 ---
 
 ## 📋 Índice

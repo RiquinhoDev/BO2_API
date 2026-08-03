@@ -1,5 +1,7 @@
 # 📸 Sistema de Snapshots - Guia de Uso
 
+> **Estado (2026-08-03):** Referência ao runtime vivo. Os comandos de scripts abaixo podem estar stale; confirme os entrypoints atuais antes de executar.
+
 ## 🎯 Objetivo
 
 O **Pipeline Snapshot Service** permite capturar o estado da BD antes e depois da execução do Daily Pipeline, comparar as mudanças e gerar relatórios detalhados.

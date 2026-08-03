@@ -1,5 +1,7 @@
 # Endpoint: Students by Priority
 
+> **Estado (2026-08-03):** Referência ativa do endpoint implementado; confirme o contrato atual na rota e no serviço antes de integrar.
+
 ## 📝 Descrição
 Endpoint para buscar alunos que possuem tags de determinadas prioridades (CRITICAL, MEDIUM, LOW).
 

@@ -1,5 +1,7 @@
 # 📚 Tag Monitoring System - Backend Documentation
 
+> **Estado (2026-08-03):** Referência operacional ligada ao runtime; o estado dos componentes e endpoints descritos deve ser validado antes de usar como runbook.
+
 ## 📋 Índice
 
 1. [Visão Geral](#visão-geral)
