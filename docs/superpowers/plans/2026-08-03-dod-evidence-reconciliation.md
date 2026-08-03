@@ -32,9 +32,9 @@
 - [ ] Replace SEC-08 with two checked slices (Helmet/segmented single-instance rate limiting; body/upload/timeouts/non-root) and one open slice for distributed state, normalized 429 correlation envelope, and final CSP policy.
 - [ ] Keep central-error global coverage open and add the concrete ad hoc response/detail gap.
 - [ ] Mark the single-redactor/no-new-console guard checked; state that the legacy console baseline remains under TOOL-02.
-- [ ] Split the JWT/debug/upload compound into one checked primary/startup/debug/upload slice and one open secondary-secret/fallback slice.
+- [ ] Split the JWT/debug/upload compound into one checked primary/startup/upload slice and one open debug/global-gating plus secondary-secret/fallback slice; keep `/api/curseduca/debug` without `localDebugOnly` explicitly open.
 - [ ] Keep CORS open and state that static localhost/production defaults are still merged in production.
-- [ ] Split pagination into one checked canonical HTTP-list slice and one open machine-checked inventory/bounded operational-scan slice.
+- [ ] Split pagination into one checked canonical HTTP-list slice with cap 200, cursor where needed, and explicit projections on migrated surfaces, and one open slice requiring noncanonical HTTP-list migration plus a machine-checked inventory; operational scans must use cursor/batch, and every `find({})` exception must be bounded or protected by an explicit machine-checked finite-set allowlist.
 - [ ] Record the focused evidence: 14 suites/65 tests for perimeter/upload/observability/pagination and 5 suites/27 tests for JWT/CORS/Helmet.
 - [ ] Count checkboxes and require `checked=85`, `open=19`, `total=104`, `percent=81.7`.
 - [ ] Run `git diff --check` and commit as `docs: reconcile hardening evidence`.
@@ -50,5 +50,5 @@
 
 - [ ] Review every new checked/open slice against source, wiring, focused tests, and named contradictions.
 - [ ] Fix and re-review every Critical or Important finding.
-- [ ] Run final checkbox count, `git diff --check`, lint, TypeScript ratchet, full offline Jest, and build.
+- Provenance: Task 1 uses the recorded focused runs (**14 suites / 65 tests** for perimeter/upload/observability/pagination and **5 suites / 27 tests** for JWT/CORS/Helmet). Task 2 full lint, TypeScript ratchet, full offline Jest, and build remain **unclaimed/unchecked** until the controller runs them after the final fix/re-review on final HEAD; these remain hard gates.
 - [ ] Confirm a clean worktree and no push/external-system use.

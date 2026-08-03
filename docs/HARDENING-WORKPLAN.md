@@ -35,8 +35,8 @@
   real fica numa acção **separada, destrutiva, com confirmação e `AC_TAG_APPLY_ENABLED=true`**. Revisor confirmou a
   viabilidade e a segurança:
   - **Reuso limpo do motor:** `decisionEngine.evaluateUserProduct` computa `tagsToApply`/`tagsToRemove`
-    (resolvidos, linha 452) **antes** do único write `executeDecisions()` (linha 455). → adicionar `dryRun` que
-    salta a 455 dá o preview real sem escrever. Sem rewrite.
+    (resolvidos em `src/services/activeCampaign/decisionEngine.service.ts:505-511`) **antes** do único write
+    `executeDecisions()`. → adicionar `dryRun` que salta esse write dá o preview real sem escrever. Sem rewrite.
   - **Porque NÃO re-apontar ao `test-cron`** (achados do Codex, válidos): processa **todos** os produtos (não
     só o curso); `executeDecisions()` **escreve** tags reais; esse caminho **não respeita `AC_TAG_APPLY_ENABLED`**;
     e a resposta não tem o contrato do Front (`tagsApplied`) → o Front mostraria `0` apesar de ter alterado.
@@ -56,7 +56,7 @@
 
 ### 🔧 Handoff — preview real por curso (Clareza/OGI) — par Front+Back
 1. **Motor:** adiciona `dryRun?: boolean` a `decisionEngine.evaluateUserProduct` — quando `true`, computa tudo mas
-   **salta `executeDecisions()` (linha 455)** e devolve o `DecisionResult` (com `tagsToApply`/`tagsToRemove`,
+   **salta `executeDecisions()`** e devolve o `DecisionResult` (com `tagsToApply`/`tagsToRemove`,
    `actionsExecuted:0`). NÃO escreve. Prova com teste: `dryRun` → `executeDecisions` não é chamado, mas
    `tagsToApply/Remove` vêm preenchidos.
 2. **Backend endpoints:** `evaluateClarezaRules`/`evaluateOGIRules` deixam de ser stubs — correm o dry-run **por
@@ -801,6 +801,7 @@ Progresso controllers:
   `npm.cmd test -- --runInBand tests/bootstrap/config.test.ts tests/bootstrap/bootstrap.test.ts tests/security/jwt.test.ts tests/security/cors.test.ts tests/security/httpPerimeter.test.ts`
   Resultado: **5 suites passed / 27 tests passed**.
 - Contradições ainda abertas: o error handler central convive com respostas 500 ad hoc e `events.routes` pode expor `error.message`; CORS ainda mistura defaults estáticos sem exigir `ALLOWED_ORIGINS`; e faltam store distribuído/429 central+correlation-aware/CSP final, autoridade `STUDENT_ACCESS_JWT_SECRET` (incluindo o fallback da API antiga), gating de `/api/curseduca/debug`, baseline legacy de console/suppressions e inventário/migração de listagens HTTP não canónicas + scans `find({})` restantes.
+- Proveniência de gates: Task 1 usa estas execuções focadas já registadas; a verificação final de Task 2 (lint, TypeScript ratchet, Jest offline completo e build) permanece **não reclamada/não verificada** até o controller a correr após a correcção final/re-review no HEAD final; estes gates continuam hard gates.
 - Nenhum runtime nem sistema externo foi tocado; os resultados são focados e offline.
 
 ### 1. Arquitectura & bootstrap
@@ -1105,8 +1106,8 @@ Progresso controllers:
 - [ ] **CORS** por `ALLOWED_ORIGINS`, fail-closed fora de local (SEC-11 — bloqueador D3 do deploy). *(Gap exacto: em produção ainda mistura defaults estáticos de localhost/produção e não exige `ALLOWED_ORIGINS` explícito.)*
 
 ### 6. Escalabilidade
-- [x] **Paginação canónica (ARCH-05 / F3.2):** helper único de listas HTTP, cap 200 e zero default de 10 000, cobrindo explicitamente as superfícies migradas `usersReviewLists`, `guruWebhookList`, `guruSubscriptionList` e `usersSimpleList` (controllers + `usersSimpleList` service/repository).
-- [ ] **Paginação restante:** inventário/allowlist machine-checked e migração das listagens HTTP não canónicas que bypassam `paginate` ou ultrapassam o cap 200 (ex.: `src/controllers/users.controller.ts:325`, `src/controllers/testimonials.controller.ts:788`, `src/routes/renewalAc.routes.ts:59`), além do tratamento bounded/streamed dos scans operacionais `find({})` que restam, preservando leituras deliberadamente pequenas de configuração/full-set.
+- [x] **Paginação canónica (ARCH-05 / F3.2):** helper único de listas HTTP, cap 200, cursor onde necessário e projeção explícita onde aplicável, cobrindo explicitamente as superfícies migradas `usersReviewLists`, `guruWebhookList`, `guruSubscriptionList` e `usersSimpleList` (controllers + `usersSimpleList` service/repository).
+- [ ] **Paginação restante:** inventário/allowlist machine-checked e migração das listagens HTTP não canónicas que bypassam `paginate` ou ultrapassam o cap 200 (ex.: `src/controllers/users.controller.ts:325`, `src/controllers/testimonials.controller.ts:788`, `src/routes/renewalAc.routes.ts:59`); scans operacionais exigem cursor/batch, e toda excepção `find({})` tem de ser bounded ou protegida por uma allowlist finita explícita e machine-checked, incluindo leituras deliberadamente pequenas de configuração/full-set.
 - [ ] Idempotência e caps como **política transversal**, não caso-a-caso (OPS-02).
 
 ### 7. Contrato de resposta
