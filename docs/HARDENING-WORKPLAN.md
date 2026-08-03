@@ -794,9 +794,13 @@ Progresso controllers:
 
 ### Evidência focada (2026-08-03; offline)
 
-- Perímetro/upload/observabilidade/paginação: **14 suites / 65 testes**.
-- JWT/CORS/Helmet: **5 suites / 27 testes**.
-- Contradições ainda abertas: o error handler central convive com respostas 500 ad hoc e `events.routes` pode expor `error.message`; CORS ainda mistura defaults estáticos sem exigir `ALLOWED_ORIGINS`; e faltam store distribuído/429 central+correlation-aware/CSP final, autoridade `STUDENT_ACCESS_JWT_SECRET` (incluindo o fallback da API antiga), baseline legacy de console/suppressions e inventário/allowlist + scans `find({})` restantes.
+- Perímetro/upload/observabilidade/paginação: **14 suites / 65 testes**. Command exacto do corte de controller:
+  `npm.cmd test -- --runInBand tests/security/httpPerimeter.test.ts tests/security/deploymentPerimeter.test.ts tests/security/usersImportUpload.test.ts tests/bootstrap/serverTimeouts.test.ts tests/security/redaction.test.ts tests/security/logger.test.ts tests/security/errorHandling.test.ts tests/utils/pagination.test.ts tests/controllers/usersReviewLists.controller.test.ts tests/controllers/guruWebhookList.controller.test.ts tests/controllers/guruSubscriptionList.controller.test.ts tests/controllers/usersSimpleList.controller.test.ts tests/services/users/usersSimpleList.service.test.ts tests/services/users/mongooseUsersSimpleList.repository.test.ts`
+  Resultado: **14 suites passed / 65 tests passed**.
+- JWT/CORS/Helmet: **5 suites / 27 testes**. Command exacto da auditoria Luna:
+  `npm.cmd test -- --runInBand tests/bootstrap/config.test.ts tests/bootstrap/bootstrap.test.ts tests/security/jwt.test.ts tests/security/cors.test.ts tests/security/httpPerimeter.test.ts`
+  Resultado: **5 suites passed / 27 tests passed**.
+- Contradições ainda abertas: o error handler central convive com respostas 500 ad hoc e `events.routes` pode expor `error.message`; CORS ainda mistura defaults estáticos sem exigir `ALLOWED_ORIGINS`; e faltam store distribuído/429 central+correlation-aware/CSP final, autoridade `STUDENT_ACCESS_JWT_SECRET` (incluindo o fallback da API antiga), gating de `/api/curseduca/debug`, baseline legacy de console/suppressions e inventário/migração de listagens HTTP não canónicas + scans `find({})` restantes.
 - Nenhum runtime nem sistema externo foi tocado; os resultados são focados e offline.
 
 ### 1. Arquitectura & bootstrap
@@ -1096,13 +1100,13 @@ Progresso controllers:
 - [x] **Default-deny** derivado do catálogo (SEC-01) — feito.
 - [ ] **Matriz de papéis** ADMIN/SUPER_ADMIN/só-consulta com `authorize(...)` por rota + audit log; gating equivalente no Front (fica **depois** da F3.1).
 - [ ] **Toda rota destrutiva:** auth + role + **validação de input strict** (F3.1) + **idempotência/cap/kill-switch/dry-run** onde escreve em sistemas externos (OPS-02).
-- [x] **JWT/debug/upload — corte principal:** JWT primário da app obrigatório com validação no arranque de segredo de 32 caracteres; debug proibido em produção; upload de importação de utilizadores endurecido (SEC-02/03/05).
-- [ ] **JWT/debug/upload — corte restante:** centralizar/validar `STUDENT_ACCESS_JWT_SECRET`, decidir/remover o fallback da API antiga para o JWT da app e adicionar testes focados.
+- [x] **JWT/upload — corte principal:** JWT primário da app obrigatório com validação no arranque de segredo de pelo menos 32 caracteres; upload de importação de utilizadores endurecido (SEC-02/05).
+- [ ] **JWT/debug/upload — corte restante:** centralizar/validar `STUDENT_ACCESS_JWT_SECRET`, decidir/remover o fallback da API antiga para o JWT da app e adicionar testes focados; o mount `/api/curseduca/debug` em `src/routes/curseduca.routes.ts:50` não usa `localDebugOnly`, pelo que a gating de debug em produção continua aberta (SEC-03).
 - [ ] **CORS** por `ALLOWED_ORIGINS`, fail-closed fora de local (SEC-11 — bloqueador D3 do deploy). *(Gap exacto: em produção ainda mistura defaults estáticos de localhost/produção e não exige `ALLOWED_ORIGINS` explícito.)*
 
 ### 6. Escalabilidade
-- [x] **Paginação canónica (ARCH-05 / F3.2):** helper único de listas HTTP, cap 200 e zero default de 10 000, cobrindo as superfícies de listagem já migradas.
-- [ ] **Paginação restante:** inventário/allowlist machine-checked e tratamento bounded/streamed dos scans operacionais `find({})` que restam, preservando leituras deliberadamente pequenas de configuração/full-set.
+- [x] **Paginação canónica (ARCH-05 / F3.2):** helper único de listas HTTP, cap 200 e zero default de 10 000, cobrindo explicitamente as superfícies migradas `usersReviewLists`, `guruWebhookList`, `guruSubscriptionList` e `usersSimpleList` (controllers + `usersSimpleList` service/repository).
+- [ ] **Paginação restante:** inventário/allowlist machine-checked e migração das listagens HTTP não canónicas que bypassam `paginate` ou ultrapassam o cap 200 (ex.: `src/controllers/users.controller.ts:325`, `src/controllers/testimonials.controller.ts:788`, `src/routes/renewalAc.routes.ts:59`), além do tratamento bounded/streamed dos scans operacionais `find({})` que restam, preservando leituras deliberadamente pequenas de configuração/full-set.
 - [ ] Idempotência e caps como **política transversal**, não caso-a-caso (OPS-02).
 
 ### 7. Contrato de resposta
