@@ -1108,3 +1108,12 @@ Progresso controllers:
 Cada caixa fecha com **prova contra o código** (comando/teste), não com report. O revisor regrava o estado
 aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → paginação (F3.2) → TS zero (F3.3)
 → cirurgia de arquitectura (ARCH-01/02/03) → strict em ondas.** Correcção nunca cede a prazo.
+
+### [x] Task 1 - safe operational documentation surface (2026-08-03)
+
+- Rewritten: `docs/TAG_MONITORING_BACKEND_DOCUMENTATION.md` (stable code-reference path).
+- Deleted: `docs/HANDOFF_SWEEP_CODIGO_MORTO.md` after a scoped inbound-reference check found no current documentation links.
+- Modified: `docs/README.md` (the tag page is indexed as a code reference, not an operational runbook) and this workplan.
+- Line counts measured from Git before this cleanup and from the final working tree: tag document `1,727 -> 60`; obsolete handoff `65 -> 0`; README `38 -> 38`; workplan `1,110 -> 1119`.
+- Focused forbidden-pattern scan was scoped to the touched current docs (`TAG_MONITORING_BACKEND_DOCUMENTATION.md` and `README.md`): `0` matches for `db.`, `reset --hard`, `git fetch`, `curl`, `npx`, `ACTIVECAMPAIGN`, `seedWeeklyTagMonitoringJob`, and `C:\Users\`.
+- No document command or external system was executed. Runtime source and the live scheduled job remain unchanged; this entry records documentation-only safety work.

@@ -16,7 +16,7 @@ O BO2_API usa npm como package manager único: `package.json` fixa `npm@11.9.0`,
 
 - [Guia do sistema de snapshots](SNAPSHOT_SYSTEM_GUIDE.md) — referência do serviço vivo; os comandos de scripts no texto podem estar stale.
 - [Students by priority](STUDENTS_BY_PRIORITY_ENDPOINT.md) — referência ativa da rota e do contrato documentado.
-- [Tag monitoring — backend](TAG_MONITORING_BACKEND_DOCUMENTATION.md) — referência operacional; valide o estado atual antes de usar como runbook.
+- [Tag monitoring - backend](TAG_MONITORING_BACKEND_DOCUMENTATION.md) - code reference only; confirm contracts in source before any operational decision.
 - [Auditoria estática da API](../API_AUDIT.md) — achados e recomendações da auditoria offline.
 - [Catálogo de rotas](../src/security/route-catalog.md) — catálogo de segurança versionado no código.
 
