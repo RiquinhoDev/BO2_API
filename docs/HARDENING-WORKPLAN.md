@@ -87,6 +87,23 @@
    Lista também o que o knip/ts-prune achou a mais.
 > **Não é teu:** regenerar `route-catalog.json` + manifest/contract do Front (deleções de rotas) — é do revisor.
 
+### [x] Dead one-off scripts — FEITO (2026-08-03)
+
+- Removidos os dezasseis programas top-level não registados de `src/scripts/` (1 789 linhas de código-fonte).
+  O directório top-level ficou vazio; `src/scripts/maintenance/` permaneceu inalterado e contém exactamente
+  `backfill-ac-webhook-receipt-leases.ts` e `ensure-users-v2-indexes.ts`.
+- Criado `tests/tooling/registeredScripts.test.ts`: cada `src/scripts/**/*.ts` tem de aparecer como caminho-fonte
+  ou caminho compilado em `package.json#scripts`. O RED listou exactamente os dezasseis candidatos; após a remoção,
+  GREEN passou. A mutação `&&`→`||` falhou listando os dois programas de maintenance; `&&` foi restaurado e GREEN
+  voltou a passar.
+- `npm run lint:baseline:prune` removeu apenas as suppressions dos dezasseis ficheiros apagados. Grep negativo dos
+  dezasseis caminhos em `src/`, `tests/`, `scripts/` e `package.json`: zero referências.
+- Gates frescos (seriais): `npm run lint` exit 0; `npm run types:check` ratchet 0 erros/0 ficheiros; com
+  `MONGOMS_RUNTIME_DOWNLOAD=false`, Jest `161 passed / 1 skipped` suites e `812 passed / 2 skipped` testes; build
+  exit 0.
+- Evidência offline: nenhum programa removido foi executado; nenhum Mongo de produção nem API externa
+  (ActiveCampaign, Discord, Guru, Hotmart ou CursEduca) foi contactado; o egress guard permaneceu activo.
+
 ---
 
 ## Regras a respeitar (não negociáveis)
@@ -225,8 +242,7 @@ carregado inteiro** e clamp cego parte-as em silêncio:
   (`grep idsDiferentes|unmatchedUsers Front/src` = 0; catálogo `consumer:front` está **stale**). Ambos os
   modelos têm `detectedAt` **com índice** → sort `{ detectedAt: -1, _id: -1 }` é estável **e** index-backed.
   → **1º commit do Passo 2 (aprovado).**
-- **NÃO paginar — full-scan interno (cursor/batch, nunca `.limit(200)`):** `scripts/fix-status-inconsistencies.ts:20`,
-  `scripts/sync-status-from-userproducts.ts:21`, `jobs/dailyPipeline/tagEvaluation/applyTags.ts:81`,
+- **NÃO paginar — full-scan interno (cursor/batch, nunca `.limit(200)`):** `jobs/dailyPipeline/tagEvaluation/applyTags.ts:81`,
   `services/analytics/analyticsCache.service.ts:288` (melhor → agregação/count no Mongo),
   `services/renewal/discordRolesSync.service.ts:203` (reconciliação — preservar deteção de remoções),
   `services/renewal/discordScheduledMessages.service.ts:138`, `services/renewal/renewalPerformance.service.ts:78`,
