@@ -32,9 +32,9 @@ Remove stale operational instructions that can mutate Git history, production Mo
 
 ## Verification
 
-- Static searches show zero `db.*`, `reset --hard`, `git fetch`, `curl`, `npx`, personal Windows paths, seed commands, and manual ActiveCampaign mutation instructions in the rewritten tag reference, documentation index, and active handoff surface.
-- The deleted handoff has zero inbound references and no longer exists.
-- Every path named by the concise tag reference exists, and the job is still registered in the scheduler.
+- Static searches show zero `db.*`, `reset --hard`, `git fetch`, `curl`, `npx`, personal Windows paths, seed commands, and manual ActiveCampaign mutation instructions in the rewritten tag reference and documentation index; historical plans, specs, and archives are records excluded from this current-document claim.
+- The deleted handoff no longer exists. A scoped active-document search found zero live Markdown links to it; the workplan and historical plans/specs are explicit records excluded from that link claim.
+- Every path named by the concise tag reference exists, and the scheduler contains the named-job dispatch branch; matching CronJobConfig provisioning, enabled state, expression/timezone, and runtime registration remain unverified.
 - Markdown links in the touched current documents resolve.
 - `git diff --check`, lint, TypeScript ratchet, offline Jest with `MONGOMS_RUNTIME_DOWNLOAD=false`, and build pass on the final tree.
 - Independent task and whole-range reviews find no Critical or Important issue.

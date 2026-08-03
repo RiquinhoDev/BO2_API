@@ -28,7 +28,7 @@
 - Modify: `docs/HARDENING-WORKPLAN.md`
 
 **Interfaces:**
-- Consumes: verified tag-monitoring paths under `src/models/tagMonitoring/`, `src/services/tagMonitoring/`, `src/controllers/tagMonitoring/`, `src/routes/tagMonitoring.routes.ts`, `src/jobs/weeklyTagSnapshot.job.ts`, and scheduler registration in `src/services/cron/scheduler.ts`.
+- Consumes: verified tag-monitoring paths under `src/models/tagMonitoring/`, `src/services/tagMonitoring/`, `src/controllers/tagMonitoring/`, `src/routes/tagMonitoring.routes.ts`, `src/jobs/weeklyTagSnapshot.job.ts`, and the scheduler dispatch branch for named CronJobConfig jobs in `src/services/cron/scheduler.ts`.
 - Produces: a stable, non-executable tag-monitoring reference and scoped hardening evidence with no destructive Git, direct database, seed, network, or real-integration instructions.
 
 - [ ] **Step 1: Capture the unsafe baseline without executing it**
@@ -46,11 +46,11 @@ Expected: non-zero matches, including `db.weekly_native_tag_snapshots.createInde
 Run:
 
 ```powershell
-rg -n --fixed-strings 'HANDOFF_SWEEP_CODIGO_MORTO.md' .
+rg -n --pcre2 '\[[^]]+\]\([^)]*HANDOFF_SWEEP_CODIGO_MORTO\.md[^)]*\)' docs -g '*.md' -g '!HARDENING-WORKPLAN.md' -g '!superpowers/plans/**' -g '!superpowers/specs/**'
 rg -n 'SWEEP|código morto|dead code' docs/HARDENING-WORKPLAN.md
 ```
 
-Expected: no inbound filename reference and current dead-code authority in the hardening workplan.
+Expected: no live Markdown-link match in the active docs search (no output, exit 1); the workplan remains the current dead-code authority, while workplan/plan/spec filename mentions are classified as records.
 
 - [ ] **Step 3: Rewrite the tag reference and delete the stale handoff**
 
@@ -66,12 +66,12 @@ Run:
 
 ```powershell
 rg -n 'db\.|reset --hard|git fetch|\bcurl\b|\bnpx\b|ACTIVECAMPAIGN|seedWeeklyTagMonitoringJob|C:\\Users\\' docs/TAG_MONITORING_BACKEND_DOCUMENTATION.md docs/README.md
-rg -n --fixed-strings 'HANDOFF_SWEEP_CODIGO_MORTO.md' .
+rg -n --pcre2 '\[[^]]+\]\([^)]*HANDOFF_SWEEP_CODIGO_MORTO\.md[^)]*\)' docs -g '*.md' -g '!HARDENING-WORKPLAN.md' -g '!superpowers/plans/**' -g '!superpowers/specs/**'
 rg -n 'WeeklyTagSnapshot' src/jobs/weeklyTagSnapshot.job.ts src/services/cron/scheduler.ts
 git diff --check
 ```
 
-Expected: the first two searches have zero matches, live job references remain, and `git diff --check` exits 0.
+Expected: the forbidden-pattern search has zero matches; the active-doc Markdown-link search has no output (exit 1); live job dispatch references remain, and `git diff --check` exits 0.
 
 - [ ] **Step 6: Run repository gates offline**
 
