@@ -109,3 +109,17 @@ no maintenance, root `scripts/`, runtime route, scheduled-job, or sibling Front 
 No removed program was executed. The Jest setup kept the egress guard active and the full gate used
 `MONGOMS_RUNTIME_DOWNLOAD=false`; no production MongoDB or ActiveCampaign, Discord, Guru, Hotmart, or CursEduca
 API was contacted. Any database exercised by tests was local/ephemeral only.
+
+## Round 1/5 review correction
+
+Review finding: `docs/HARDENING-WORKPLAN.md` still listed deleted `scripts/diagnose-classes.ts:127` as a live
+false positive. The stale entry was removed while retaining the remaining live false positives
+(`populateHistory.controller.ts`, `contactTagReader.service.ts`, and `routes/discordRenewal.routes.ts`). This
+matches the design requirement that the full-scan classification no longer names removed scripts.
+
+Checks after the correction:
+
+```text
+WORKPLAN_NEGATIVE_GREP=zero references for all 16 deleted names
+git diff --check: exit 0 (LF/CRLF normalization warning only)
+```
