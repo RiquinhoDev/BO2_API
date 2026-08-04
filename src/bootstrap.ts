@@ -55,6 +55,24 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
     if (config.nodeEnv === 'production' && !storeFactory) {
       throw new Error('CONFIG_INVALIDA: Redis rate-limit store factory obrigatoria em producao')
     }
+
+    const registerModels = await (options.loadModelRegistrar ?? defaultLoadModelRegistrar)()
+    await registerModels()
+
+    const registerRoutes = await (options.loadRouteRegistrar ?? defaultLoadRouteRegistrar)()
+    const app = createApp({
+      createHttpPerimeter: () => createHttpPerimeter({ storeFactory }),
+      registerRoutes,
+      allowedOrigins: config.allowedOrigins,
+      acWebhookSecret: config.acWebhookSecret,
+      authEnforce: config.authEnforce,
+    })
+
+    const startJobs = await (options.loadJobStarter ?? defaultLoadJobStarter)()
+    await startJobs(config)
+
+    const listen = await (options.loadListener ?? defaultLoadListener)()
+    return await listen(app, config.port)
   } catch (error) {
     try {
       await infrastructure.disconnect()
@@ -63,22 +81,4 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
     }
     throw error
   }
-
-  const registerModels = await (options.loadModelRegistrar ?? defaultLoadModelRegistrar)()
-  await registerModels()
-
-  const registerRoutes = await (options.loadRouteRegistrar ?? defaultLoadRouteRegistrar)()
-  const app = createApp({
-    createHttpPerimeter: () => createHttpPerimeter({ storeFactory }),
-    registerRoutes,
-    allowedOrigins: config.allowedOrigins,
-    acWebhookSecret: config.acWebhookSecret,
-    authEnforce: config.authEnforce,
-  })
-
-  const startJobs = await (options.loadJobStarter ?? defaultLoadJobStarter)()
-  await startJobs(config)
-
-  const listen = await (options.loadListener ?? defaultLoadListener)()
-  return listen(app, config.port)
 }
