@@ -42,7 +42,7 @@
 - `JwtConfiguration` requires `jwtSecret`, `oldApiJwtSecret`, and `studentAccessJwtSecret`.
 - Add `verifyStudentAccessToken<T extends JwtPayload = JwtPayload>(token: string): T`.
 
-- [ ] **Step 1: Write JWT/config RED tests**
+- [x] **Step 1: Write JWT/config RED tests**
 
 Add literals for three independent secrets and assert:
 
@@ -57,7 +57,7 @@ In `jwt.test.ts`, configure all three keys, sign one token per authority, and as
 
 Add a service-level assertion that `resolveStudentEmailFromToken` accepts a token signed with the configured student key and rejects a token signed with the app key. The expected email is the hand-written normalized literal `student@example.test`.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -67,7 +67,7 @@ node_modules\.bin\jest.cmd --runInBand tests/bootstrap/config.test.ts tests/boot
 
 Expected: failures because the dedicated secrets are optional/fallback-based and student verification is not exported centrally.
 
-- [ ] **Step 3: Implement minimal central authority**
+- [x] **Step 3: Implement minimal central authority**
 
 Make both dedicated secrets required through `parseStrongSecret(..., true)`, return them as non-optional `AppConfig` fields, require them in `JwtConfiguration`, remove `?? jwtSecret` from `signOldApiToken`, and add:
 
@@ -81,7 +81,7 @@ In `studentOgiSummary.service.ts`, remove the direct jsonwebtoken import and env
 
 Update every focused `configureJwt` and `loadConfig` fixture with explicit, distinct test-only keys. Mark both dedicated variables mandatory in `.env.example` without real values.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Run:
 
@@ -92,7 +92,7 @@ npm.cmd run types:check
 
 Expected: all focused suites pass and direct TypeScript emits zero diagnostics.
 
-- [ ] **Step 5: Negative scan and commit**
+- [x] **Step 5: Negative scan and commit**
 
 Require no `STUDENT_ACCESS_JWT_SECRET || JWT_SECRET`, no optional old-API secret, and no `jsonwebtoken` import in `studentOgiSummary.service.ts`. Commit:
 
@@ -117,7 +117,7 @@ security: centralize dedicated jwt secrets
 - `buildAllowedOrigins(value: string | undefined, nodeEnv: 'development' | 'test' | 'production'): string[]`
 - `createApp` fallback allowlist is `[]`.
 
-- [ ] **Step 1: Write CORS RED tests**
+- [x] **Step 1: Write CORS RED tests**
 
 Assert production missing/blank `ALLOWED_ORIGINS` throws, and:
 
@@ -130,7 +130,7 @@ expect(buildAllowedOrigins(undefined, 'test'))
 
 Assert the production list excludes localhost and every formerly hard-coded production domain unless explicitly configured. Add a Supertest probe proving `createApp` without `allowedOrigins` rejects `Origin: https://browser.example`, while the same endpoint without `Origin` succeeds.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -140,13 +140,13 @@ node_modules\.bin\jest.cmd --runInBand tests/security/cors.test.ts tests/bootstr
 
 Expected: production accepts missing configuration, merges implicit defaults, and `createApp` recreates them.
 
-- [ ] **Step 3: Implement environment-aware allowlists**
+- [x] **Step 3: Implement environment-aware allowlists**
 
 Keep only loopback constants in source. Normalize and deduplicate configured origins. Throw a configuration error that names `ALLOWED_ORIGINS` as mandatory in production when no configured origin exists. Production returns configured origins only; local environments merge loopback defaults.
 
 Pass the validated `nodeEnv` into `buildAllowedOrigins` from `loadConfig`. Change `createApp` to use `[]` when no allowlist is injected. Update `.env.example` to say production origins are mandatory and implicit defaults are not preserved.
 
-- [ ] **Step 4: Verify GREEN and compatibility**
+- [x] **Step 4: Verify GREEN and compatibility**
 
 Run:
 
@@ -157,13 +157,16 @@ npm.cmd run types:check
 
 Expected: all focused suites pass, server-to-server/no-Origin requests remain accepted, and TypeScript has zero diagnostics.
 
-- [ ] **Step 5: Negative scan and commit**
+- [x] **Step 5: Negative scan and commit**
 
 Require no hard-coded production hostname in `src/security/cors.ts` and no zero-argument `buildAllowedOrigins()` call. Commit:
 
 ```text
 security: fail closed production cors
 ```
+
+Task 1/2 evidence: dedicated JWT authorities and fail-closed CORS are covered by the focused bootstrap/JWT/CORS suites recorded in the workplan (**5 suites / 27 tests**) and by the final offline gates at `bdb59b9` (**160 suites passed + 1 skipped; 814 tests passed + 2 skipped**). The two commits are `25f8882`/`6e328ab` and `6cc1ce8`; production provisioning remains outside code evidence.
+
 
 ### Task 3: Gate the real debug route and close evidence
 
