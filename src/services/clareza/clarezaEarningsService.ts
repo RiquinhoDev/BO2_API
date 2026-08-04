@@ -2,6 +2,8 @@ import axios from 'axios'
 import { cacheService } from '../cache.service'
 import { fmpThrottle } from './fmpThrottle'
 import ClarezaEarningsData from '../../models/ClarezaEarningsData'
+import { getRuntimeConfig } from '../../config/runtimeConfig'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 
 // Limits concurrency without adding p-queue to this hot path.
 async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
@@ -135,11 +137,18 @@ type EarningsPayload = {
   earnings: EarningsEntry[]
 }
 
+function getFmpApiKey(): string {
+  const integration = getRuntimeConfig().integrations.fmp
+  if (!integration.configured) throw new IntegrationUnavailableError('fmp')
+  return integration.value.apiKey
+}
+
 async function fmpGet<T = any>(path: string, params: Record<string, string> = {}): Promise<T | null> {
+  const apiKey = getFmpApiKey()
   try {
     await fmpThrottle()
     const { data } = await axios.get(`${FMP_BASE}${path}`, {
-      params: { apikey: process.env.FMP_API_KEY, ...params },
+      params: { apikey: apiKey, ...params },
       timeout: 15000
     })
     if (!data || (!Array.isArray(data) && (data as any)['Error Message'])) return null
@@ -218,9 +227,7 @@ export async function fetchEarningsForTicker(
 }
 
 export async function refreshClarezaEarningsData(): Promise<{ total: number; errors: number }> {
-  if (!process.env.FMP_API_KEY) {
-    throw new Error('FMP_API_KEY nao configurada')
-  }
+  getFmpApiKey()
 
   console.log(`[ClarezaEarnings] Iniciando refresh de ${COMPANIES.length} tickers...`)
   let errors = 0

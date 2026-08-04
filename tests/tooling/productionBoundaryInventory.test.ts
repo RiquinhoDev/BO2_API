@@ -72,8 +72,6 @@ const BASELINE = {
     "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:451",
     "src/services/clareza/clarezaCarteiraService.ts:4511",
     "src/services/clareza/clarezaCarteiraService.ts:4658",
-    "src/services/clareza/clarezaEarningsService.ts:111",
-    "src/services/clareza/clarezaEarningsService.ts:190",
     "src/services/clareza/clarezaFmpService.ts:1055",
     "src/services/clareza/clarezaFmpService.ts:1071",
     "src/services/clareza/clarezaFmpService.ts:360",
