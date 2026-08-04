@@ -178,3 +178,90 @@ test('rollback disposer can leave cache to infrastructure cleanup', async () => 
   expect(signals.handlers.size).toBe(0)
   expect(events).toEqual(['monitor', 'scheduler'])
 })
+
+test('normal signal shutdown waits for warmups before stopping cache', async () => {
+  const signals = new InMemorySignalPort()
+  const events: string[] = []
+  const warmup = deferred<void>()
+  const register = createShutdownRegistrar({
+    signals,
+    stopSystemMonitor: () => events.push('monitor'),
+    stopScheduler: () => events.push('scheduler'),
+    stopCache: async () => { events.push('cache') },
+    exit: code => events.push('exit:' + code),
+    logError: message => events.push('error:' + message),
+    waitForWarmups: () => warmup.promise,
+  } as Parameters<typeof createShutdownRegistrar>[0])
+
+  register()
+  const shutdown = signals.handlers.get('SIGTERM')?.()
+  await Promise.resolve()
+
+  expect(events).toEqual(['monitor', 'scheduler'])
+
+  warmup.resolve()
+  await shutdown
+
+  expect(events).toEqual(['monitor', 'scheduler', 'cache', 'exit:0'])
+})
+
+test('startup disposer waits for warmups before returning to infrastructure cleanup', async () => {
+  const signals = new InMemorySignalPort()
+  const events: string[] = []
+  const warmup = deferred<void>()
+  const register = createShutdownRegistrar({
+    signals,
+    stopSystemMonitor: () => events.push('monitor'),
+    stopScheduler: () => events.push('scheduler'),
+    stopCache: async () => { events.push('cache') },
+    exit: code => events.push('exit:' + code),
+    logError: message => events.push('error:' + message),
+    waitForWarmups: () => warmup.promise,
+  } as Parameters<typeof createShutdownRegistrar>[0])
+
+  register()
+  const disposal = register.dispose({ stopCache: false })
+  await Promise.resolve()
+
+  expect(events).toEqual(['monitor', 'scheduler'])
+
+  warmup.resolve()
+  await disposal
+
+  expect(events).toEqual(['monitor', 'scheduler'])
+  expect(signals.handlers.size).toBe(0)
+})
+
+test('logs warmup shutdown failure and still settles cache cleanup and exit', async () => {
+  const signals = new InMemorySignalPort()
+  const events: string[] = []
+  const warmupError = new Error('warmup failed')
+  const register = createShutdownRegistrar({
+    signals,
+    stopSystemMonitor: () => events.push('monitor'),
+    stopScheduler: () => events.push('scheduler'),
+    stopCache: async () => { events.push('cache') },
+    exit: code => events.push('exit:' + code),
+    logError: message => events.push('error:' + message),
+    waitForWarmups: async () => { throw warmupError },
+  } as Parameters<typeof createShutdownRegistrar>[0])
+
+  register()
+  await signals.handlers.get('SIGINT')?.()
+
+  expect(events).toEqual([
+    'monitor',
+    'scheduler',
+    'error:Erro ao aguardar warm-ups',
+    'cache',
+    'exit:0',
+  ])
+})
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T | PromiseLike<T>) => void } {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  const promise = new Promise<T>(resolvePromise => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}

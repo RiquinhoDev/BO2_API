@@ -4,9 +4,22 @@ export interface JobRuntimeDependencies {
   initializeScheduler: () => Promise<void>
   ensureCronSeeds: () => Promise<void>
   startSystemMonitor: () => void
-  startWarmups: () => void
-  registerShutdownHandlers: () => JobDisposer | void
+  startWarmups: () => void | Promise<void>
+  registerShutdownHandlers: (warmupPromise: Promise<void>) => JobDisposer | void
   logError: (message: string, error: unknown) => void
+}
+
+const startWarmupLifecycle = (
+  dependencies: JobRuntimeDependencies,
+): Promise<void> => {
+  try {
+    return Promise.resolve(dependencies.startWarmups()).catch(error => {
+      dependencies.logError('Erro no warm-up', error)
+    })
+  } catch (error) {
+    dependencies.logError('Erro no warm-up', error)
+    return Promise.resolve()
+  }
 }
 
 export function createJobStarter(
@@ -28,7 +41,7 @@ export function createJobStarter(
       dependencies.startSystemMonitor()
     }
 
-    dependencies.startWarmups()
-    return dependencies.registerShutdownHandlers()
+    const warmupPromise = startWarmupLifecycle(dependencies)
+    return dependencies.registerShutdownHandlers(warmupPromise)
   }
 }
