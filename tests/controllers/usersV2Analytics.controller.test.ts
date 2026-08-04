@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import mongoose from 'mongoose'
 import request from 'supertest'
@@ -23,6 +24,8 @@ import type {
   UsersV2StatsResult,
   UsersV2StatsService,
 } from '../../src/services/users/usersV2Analytics.service'
+
+installTestRuntimeConfigHooks()
 
 type StatsService = Pick<UsersV2StatsService, 'get'>
 type ComparisonService = Pick<UsersV2ComparisonService, 'get'>

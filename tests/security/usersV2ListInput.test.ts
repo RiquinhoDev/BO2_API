@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
@@ -7,6 +8,8 @@ import {
   usersV2OverviewAnalyticsInput,
 } from '../../src/security/usersV2ListInput'
 import { withValidatedInput } from '../../src/security/validatedInput'
+
+installTestRuntimeConfigHooks()
 
 const emptyInput = {
   params: {},

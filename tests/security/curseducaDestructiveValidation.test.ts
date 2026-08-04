@@ -1,7 +1,10 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { configureDebugRoutes } from '../../src/security/debugRoutes'
 import { createErrorHandling } from '../../src/security/errorHandling'
+installTestRuntimeConfigHooks()
+
 
 const cleanupDuplicates = jest.fn((_input, res) => res.status(204).end())
 const noop = jest.fn((_req, res) => res.status(204).end())

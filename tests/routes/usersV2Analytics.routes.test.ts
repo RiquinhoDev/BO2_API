@@ -1,8 +1,11 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import fs from 'node:fs'
 import path from 'node:path'
 import express, { type Response } from 'express'
 import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
+installTestRuntimeConfigHooks()
+
 
 jest.mock('../../src/controllers/users.controller', () => {
   const names = [

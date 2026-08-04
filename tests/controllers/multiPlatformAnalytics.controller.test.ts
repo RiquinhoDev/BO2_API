@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createMultiPlatformAnalyticsController } from '../../src/controllers/analytics/multiPlatformAnalytics.controller'
@@ -8,6 +9,8 @@ import type {
   MultiPlatformAnalyticsResult,
   MultiPlatformAnalyticsService,
 } from '../../src/services/analytics/multiPlatformAnalytics.service'
+
+installTestRuntimeConfigHooks()
 
 type MultiPlatformService = Pick<MultiPlatformAnalyticsService, 'get'>
 

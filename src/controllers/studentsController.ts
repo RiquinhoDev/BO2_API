@@ -6,6 +6,7 @@
 import type { Request, Response } from 'express'
 import StudentCompleteService from '../services/studentCompleteService'
 import { StudentNotFoundError, StudentDataFetchError } from '../types/studentComplete'
+import { getRuntimeConfig } from '../config/runtimeConfig'
 
 // ═══════════════════════════════════════════════════════════════
 // GET /api/students/:userId/complete
@@ -59,7 +60,7 @@ export async function getStudentComplete(req: Request, res: Response) {
       return res.status(500).json({
         success: false,
         message: error.message,
-        details: process.env.NODE_ENV === 'development' ? error.originalError?.message : undefined,
+        details: getRuntimeConfig().core.nodeEnv === 'development' ? error.originalError?.message : undefined,
       })
     }
 
@@ -67,7 +68,7 @@ export async function getStudentComplete(req: Request, res: Response) {
     return res.status(500).json({
       success: false,
       message: 'Erro interno ao buscar dados do estudante',
-      details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
+      details: getRuntimeConfig().core.nodeEnv === 'development' ? (error as Error).message : undefined,
     })
   }
 }

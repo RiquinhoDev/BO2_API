@@ -6,6 +6,10 @@ import {
   validatedSchema,
   withValidatedInput,
 } from '../../src/security/validatedInput'
+import {
+  resetRuntimeConfigForTests,
+  useTestRuntimeConfig,
+} from '../support/runtimeConfig'
 
 const destructiveInput = validatedSchema({
   params: {},
@@ -34,6 +38,14 @@ function buildApp(onValidated = jest.fn()) {
 }
 
 const offlineMarker = { __bo2_offline_loopback: '1' }
+
+beforeEach(() => {
+  useTestRuntimeConfig()
+})
+
+afterEach(() => {
+  resetRuntimeConfigForTests()
+})
 
 test('validatedSchema makes every input shape strict centrally', () => {
   const schema = validatedSchema({

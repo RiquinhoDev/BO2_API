@@ -6,6 +6,7 @@ import type {
 } from 'express'
 import { z } from 'zod'
 import { HttpError } from './errorHandling'
+import { getRuntimeConfig } from '../config/runtimeConfig'
 
 const OFFLINE_LOOPBACK_MARKER = '__bo2_offline_loopback'
 const FORBIDDEN_PROPERTY_NAMES = new Set([
@@ -67,7 +68,7 @@ export function validatedSchema<
 
 function withoutOfflineLoopbackMarker(query: unknown): unknown {
   if (
-    process.env.NODE_ENV !== 'test'
+    getRuntimeConfig().core.nodeEnv !== 'test'
     || query === null
     || typeof query !== 'object'
     || Array.isArray(query)

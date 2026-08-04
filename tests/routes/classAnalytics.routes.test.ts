@@ -1,5 +1,8 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
+installTestRuntimeConfigHooks()
+
 
 const extractedHandler = (name: string) =>
   (input: { params: object; query: object }, _req: unknown, res: express.Response) => {

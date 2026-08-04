@@ -25,6 +25,7 @@ import {
   buildCurseducaEnrollment,
   isCurseducaEnrollmentActive,
 } from './curseducaServices/curseducaMemberships'
+import { getRuntimeConfig } from '../../config/runtimeConfig'
 
 // ═══════════════════════════════════════════════════════════
 // TYPE HELPERS
@@ -38,7 +39,6 @@ type LeanProduct = {
   platformData?: Record<string, unknown>
   name?: string
 }
-const LOG_LEVEL = process.env.LOG_LEVEL || 'info'
 
 type HotmartEnrollment = NonNullable<NonNullable<IUser['hotmart']>['enrolledClasses']>[number]
 type CurseducaEnrollment = NonNullable<NonNullable<IUser['curseduca']>['enrolledClasses']>[number]
@@ -62,7 +62,7 @@ interface NewUserProductInput {
 }
 
 function debugLog(...args: unknown[]) {
-  if (LOG_LEVEL === 'debug') {
+  if (getRuntimeConfig().observability.logLevel === 'debug') {
     console.log(...args)
   }
 }

@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createGlobalAnalyticsController } from '../../src/controllers/analytics/globalAnalytics.controller'
@@ -9,6 +10,8 @@ import type {
   GlobalAnalyticsResult,
   GlobalAnalyticsService,
 } from '../../src/services/analytics/globalAnalytics.service'
+
+installTestRuntimeConfigHooks()
 
 type GlobalService = Pick<GlobalAnalyticsService, 'get'>
 

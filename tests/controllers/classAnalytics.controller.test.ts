@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import {
@@ -12,6 +13,8 @@ import {
 import { createErrorHandling } from '../../src/security/errorHandling'
 import { withValidatedInput } from '../../src/security/validatedInput'
 import type { IClassAnalytics } from '../../src/types/analytics.types'
+
+installTestRuntimeConfigHooks()
 
 const createAnalytics = (): IClassAnalytics => ({
   classId: 'class-1',

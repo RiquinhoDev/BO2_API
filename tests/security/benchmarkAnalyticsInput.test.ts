@@ -1,8 +1,11 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { benchmarkAnalyticsInput } from '../../src/security/benchmarkAnalyticsInput'
 import { createErrorHandling } from '../../src/security/errorHandling'
 import { withValidatedInput } from '../../src/security/validatedInput'
+
+installTestRuntimeConfigHooks()
 
 const createTestApp = () => {
   const app = express()

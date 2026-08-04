@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createClassQuickStatsController } from '../../src/controllers/analytics/classQuickStats.controller'
@@ -5,6 +6,8 @@ import { createErrorHandling } from '../../src/security/errorHandling'
 import { classQuickStatsInput } from '../../src/security/classQuickStatsInput'
 import { withValidatedInput } from '../../src/security/validatedInput'
 import type { ClassQuickStatsService } from '../../src/services/analytics/classQuickStats.service'
+
+installTestRuntimeConfigHooks()
 
 type QuickStatsService = Pick<ClassQuickStatsService, 'get'>
 

@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
@@ -8,6 +9,8 @@ import User from '../../src/models/user'
 import { createErrorHandling } from '../../src/security/errorHandling'
 import { userIdentityMergeInput } from '../../src/security/userIdentityInput'
 import { withValidatedInput } from '../../src/security/validatedInput'
+
+installTestRuntimeConfigHooks()
 
 let mongoServer: MongoMemoryServer
 

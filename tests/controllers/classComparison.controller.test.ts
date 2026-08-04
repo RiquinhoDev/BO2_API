@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createClassComparisonController } from '../../src/controllers/analytics/classComparison.controller'
@@ -9,6 +10,8 @@ import type {
   ClassComparisonResult,
   ClassComparisonService,
 } from '../../src/services/analytics/classComparison.service'
+
+installTestRuntimeConfigHooks()
 
 type ComparisonService = Pick<ClassComparisonService, 'compare'>
 

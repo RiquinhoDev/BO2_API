@@ -12,6 +12,7 @@ import SyncReport, {
 } from '../../models/SyncModels/SyncReport'
 import { Types } from 'mongoose'
 import User from '../../models/user'
+import { getRuntimeConfig } from '../../config/runtimeConfig'
 
 // ═══════════════════════════════════════════════════════════
 // HELPER: CREATE SNAPSHOT
@@ -127,9 +128,9 @@ export const createSyncReport = async (
       },
       syncConfig: options.syncConfig,
       metadata: {
-        environment: process.env.NODE_ENV || 'development',
+        environment: getRuntimeConfig().core.nodeEnv,
         apiVersion: '3.0',  // ✅ Atualizado
-        serverVersion: process.env.npm_package_version
+        serverVersion: getRuntimeConfig().core.serverVersion
       }
     })
     

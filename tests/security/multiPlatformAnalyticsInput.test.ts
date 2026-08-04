@@ -1,8 +1,11 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createErrorHandling, type ErrorLogEvent } from '../../src/security/errorHandling'
 import { multiPlatformAnalyticsInput } from '../../src/security/multiPlatformAnalyticsInput'
 import { withValidatedInput } from '../../src/security/validatedInput'
+
+installTestRuntimeConfigHooks()
 
 const createTestApp = (logError: (event: ErrorLogEvent) => void = jest.fn()) => {
   const app = express()

@@ -8,6 +8,7 @@ import UserProduct from '../models/UserProduct'
 import type { IProduct } from '../models/product/Product'
 import activeCampaignService from '../services/activeCampaign/activeCampaignService'
 import mongoose, { FilterQuery, PipelineStage } from 'mongoose'
+import { getRuntimeConfig } from '../config/runtimeConfig'
 
 type TestimonialStatus = ITestimonial['status']
 type StatusCount = { _id: TestimonialStatus; count: number }
@@ -938,7 +939,7 @@ export const getAvailableStudents = async (req: Request, res: Response): Promise
     res.status(500).json({
       message: 'Erro ao buscar estudantes',
       details: errorMessage(error),
-      stack: process.env.NODE_ENV === 'development' ? errorStack(error) : undefined
+      stack: getRuntimeConfig().core.nodeEnv === 'development' ? errorStack(error) : undefined
     })
   }
 }

@@ -7,6 +7,7 @@ import UserHistory, { type IUserHistory } from "../models/UserHistory"
 
 import StudentClassHistory, { type IStudentClassHistory } from "../models/StudentClassHistory"
 import { Class } from "../models/Class"
+import { getRuntimeConfig } from "../config/runtimeConfig"
 import { cacheService } from "../services/cache.service"
 import { getUserCountsByPlatform, getUserCountsByProduct, getUserWithProducts } from "../services/userProducts/userProductService"
 import { UserProduct } from "../models"
@@ -1761,7 +1762,7 @@ export const getUsersInfinite = async (req: Request, res: Response): Promise<voi
     res.status(500).json({
       success: false,
       message: 'Erro ao carregar utilizadores',
-      error: process.env.NODE_ENV === 'development' ? errorMessage(error) : 'Internal server error',
+      error: getRuntimeConfig().core.nodeEnv === 'development' ? errorMessage(error) : 'Internal server error',
       timestamp: new Date().toISOString()
     })
   }

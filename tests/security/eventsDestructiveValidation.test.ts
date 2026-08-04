@@ -1,6 +1,9 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
+installTestRuntimeConfigHooks()
+
 
 const findByIdAndDelete = jest.fn(async () => ({ _id: '507f1f77bcf86cd799439011' }))
 

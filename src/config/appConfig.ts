@@ -509,6 +509,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     throw new Error('CONFIG_INVÁLIDA: NODE_ENV deve ser development, test ou production')
   }
   const nodeEnv = rawNodeEnv as NodeEnvironment
+  const serverVersion = env.npm_package_version?.trim() || undefined
 
   const authEnforce = parseBooleanFlag(env.AUTH_ENFORCE, 'AUTH_ENFORCE', true)
   const enableDebugRoutes = parseBooleanFlag(env.ENABLE_DEBUG_ROUTES, 'ENABLE_DEBUG_ROUTES')
@@ -525,6 +526,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   const core = {
     nodeEnv,
+    ...(serverVersion !== undefined ? { serverVersion } : {}),
     mongoUri,
     jwtSecret,
     oldApiJwtSecret,
