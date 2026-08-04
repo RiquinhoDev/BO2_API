@@ -1,5 +1,5 @@
 import request from 'supertest'
-import { MemoryStore } from 'express-rate-limit'
+import type { Options, Store } from 'express-rate-limit'
 import { createApp } from '../../src/app'
 import {
   DEFAULT_RATE_LIMITS,
@@ -11,6 +11,38 @@ import type { RateLimitStoreFactory } from '../../src/security/redisRateLimitSto
 import { createErrorHandling } from '../../src/security/errorHandling'
 
 const marker = { __bo2_offline_loopback: '1' }
+
+function createDeterministicStore(): Store {
+  const hits = new Map<string, number>()
+  let windowMs = 60_000
+
+  return {
+    localKeys: true,
+    init: (options: Options) => {
+      windowMs = options.windowMs
+    },
+    increment: (key: string) => {
+      const totalHits = (hits.get(key) ?? 0) + 1
+      hits.set(key, totalHits)
+      return {
+        totalHits,
+        resetTime: new Date(1_700_000_000_000 + windowMs),
+      }
+    },
+    decrement: (key: string) => {
+      const totalHits = hits.get(key) ?? 0
+      if (totalHits <= 1) hits.delete(key)
+      else hits.set(key, totalHits - 1)
+    },
+    resetKey: (key: string) => {
+      hits.delete(key)
+    },
+  }
+}
+
+function createDeterministicStoreFactory(): RateLimitStoreFactory {
+  return () => createDeterministicStore()
+}
 
 function buildApp(
   limits: Partial<HttpPerimeterLimits> = {},
@@ -25,7 +57,12 @@ function buildApp(
         generateCorrelationId: () => 'http-perimeter-correlation-id',
         logError: () => undefined,
       }),
-    createHttpPerimeter: () => createHttpPerimeter({ limits, onRateLimit, storeFactory }),
+    createHttpPerimeter: () =>
+      createHttpPerimeter({
+        limits,
+        onRateLimit,
+        storeFactory: storeFactory ?? createDeterministicStoreFactory(),
+      }),
     registerRoutes: (app) => {
       app.get('/probe', (_req, res) => res.sendStatus(204))
       app.post('/api/auth/login', (_req, res) => res.sendStatus(204))
@@ -38,7 +75,7 @@ function buildApp(
 
 test('usa a factory de stores para cada politica de rate limit', () => {
   const storeFactory = jest.fn<ReturnType<RateLimitStoreFactory>, Parameters<RateLimitStoreFactory>>(
-    () => new MemoryStore(),
+    () => createDeterministicStore(),
   )
 
   buildApp({}, jest.fn(), storeFactory)
@@ -48,13 +85,24 @@ test('usa a factory de stores para cada politica de rate limit', () => {
   expect(storeFactory).toHaveBeenCalledWith('heavy')
 })
 
-test('Helmet envia headers seguros sem CSP e permite recursos cross-origin', async () => {
+test('Helmet envia CSP explicita e permite recursos cross-origin', async () => {
   const response = await request(buildApp()).get('/probe').query(marker).expect(204)
 
   expect(response.headers['x-content-type-options']).toBe('nosniff')
   expect(response.headers['x-frame-options']).toBe('SAMEORIGIN')
   expect(response.headers['cross-origin-resource-policy']).toBe('cross-origin')
-  expect(response.headers['content-security-policy']).toBeUndefined()
+  expect(response.headers['content-security-policy']).toEqual(
+    expect.stringContaining("default-src 'none'"),
+  )
+  expect(response.headers['content-security-policy']).toEqual(
+    expect.stringContaining("base-uri 'none'"),
+  )
+  expect(response.headers['content-security-policy']).toEqual(
+    expect.stringContaining("frame-ancestors 'none'"),
+  )
+  expect(response.headers['content-security-policy']).toEqual(
+    expect.stringContaining("form-action 'none'"),
+  )
 })
 
 test('login devolve 429 depois do limite', async () => {
@@ -80,18 +128,27 @@ test('trust proxy 1 separa clientes por X-Forwarded-For', async () => {
   await attempt('198.51.100.11').expect(429)
 })
 
-test('webhook devolve 429 e regista o bloqueio', async () => {
+test('login devolve envelope 429 estavel e regista apenas a politica e correlacao', async () => {
   const onRateLimit = jest.fn()
-  const app = buildApp({ webhook: { limit: 1, windowMs: 60_000 } }, onRateLimit)
+  const app = buildApp({ login: { limit: 1, windowMs: 60_000 } }, onRateLimit)
   const attempt = () =>
-    request(app)
-      .post('/api/guru/webhook')
-      .set('X-Forwarded-For', '198.51.100.20')
-      .query(marker)
+    request(app).post('/api/auth/login').set('X-Request-ID', 'limiter-request-123').query(marker)
 
   await attempt().expect(204)
-  await attempt().expect(429)
-  expect(onRateLimit).toHaveBeenCalledWith({ policy: 'webhook' })
+  const response = await attempt().expect(429)
+
+  expect(response.headers['x-request-id']).toBe('limiter-request-123')
+  expect(response.body).toEqual({
+    success: false,
+    code: 'RATE_LIMITED',
+    message: 'Demasiados pedidos',
+    correlationId: 'limiter-request-123',
+  })
+  expect(onRateLimit).toHaveBeenCalledTimes(1)
+  expect(onRateLimit).toHaveBeenCalledWith({
+    policy: 'login',
+    correlationId: 'limiter-request-123',
+  })
 })
 
 test('operacao pesada devolve 429 depois do limite', async () => {

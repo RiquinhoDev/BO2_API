@@ -25,7 +25,7 @@ export interface HttpPerimeter {
 
 export interface HttpPerimeterOptions {
   limits?: Partial<HttpPerimeterLimits>
-  onRateLimit?: (event: { policy: RateLimitPolicyName }) => void
+  onRateLimit?: (event: { policy: RateLimitPolicyName; correlationId: string }) => void
   storeFactory?: RateLimitStoreFactory
 }
 
@@ -76,7 +76,7 @@ export const HEAVY_OPERATION_PATHS = [
 function createLimiter(
   policy: RateLimitPolicyName,
   settings: RateLimitPolicy,
-  onRateLimit: (event: { policy: RateLimitPolicyName }) => void,
+  onRateLimit: (event: { policy: RateLimitPolicyName; correlationId: string }) => void,
   storeFactory: RateLimitStoreFactory,
 ): RequestHandler {
   return rateLimit({
@@ -87,8 +87,15 @@ function createLimiter(
     identifier: policy,
     store: storeFactory(policy),
     handler: (_req, res) => {
-      onRateLimit({ policy })
-      res.status(429).json({ success: false, message: 'Demasiados pedidos' })
+      const correlationId = res.locals.correlationId as string
+      res.setHeader('X-Request-ID', correlationId)
+      onRateLimit({ policy, correlationId })
+      res.status(429).json({
+        success: false,
+        code: 'RATE_LIMITED',
+        message: 'Demasiados pedidos',
+        correlationId,
+      })
     },
   })
 }
@@ -103,11 +110,22 @@ export function createHttpPerimeter(options: HttpPerimeterOptions = {}): HttpPer
 
   const onRateLimit =
     options.onRateLimit ??
-    ((event) => console.warn('[RATE_LIMIT] pedido bloqueado', { policy: event.policy }))
+    ((event) =>
+      console.warn('[RATE_LIMIT] pedido bloqueado', {
+        policy: event.policy,
+        correlationId: event.correlationId,
+      }))
 
   return {
     helmet: helmet({
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'none'"],
+          baseUri: ["'none'"],
+          frameAncestors: ["'none'"],
+          formAction: ["'none'"],
+        },
+      },
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
     login: createLimiter('login', limits.login, onRateLimit, storeFactory),
