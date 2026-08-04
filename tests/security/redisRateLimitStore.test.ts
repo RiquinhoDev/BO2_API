@@ -1,6 +1,8 @@
 import type { Options, Store } from 'express-rate-limit'
 import {
   createRedisRateLimitStoreFactory,
+  REDIS_RATE_LIMIT_DECREMENT_SCRIPT,
+  REDIS_RATE_LIMIT_INCREMENT_SCRIPT,
   type RedisRateLimitCommandPort,
 } from '../../src/security/redisRateLimitStore'
 
@@ -138,5 +140,124 @@ test('cacheService.connect aceita config Redis e expõe uma porta vinculada', as
   } finally {
     connect.mockRestore()
     disconnect.mockRestore()
+  }
+})
+class StatefulFakeRedisRateLimitCommands implements RedisRateLimitCommandPort {
+  private now = 0
+  private readonly entries = new Map<string, { hits: number; expiresAt: number }>()
+
+  advance(ms: number): void {
+    this.now += ms
+  }
+
+  async evalIncrement(key: string, windowMs: number): Promise<readonly [number, number]> {
+    this.expire(key)
+    const entry = this.entries.get(key) ?? { hits: 0, expiresAt: this.now }
+    entry.hits += 1
+    if (entry.hits === 1) entry.expiresAt = this.now + windowMs
+    this.entries.set(key, entry)
+    return [entry.hits, entry.expiresAt - this.now]
+  }
+
+  async decrement(key: string): Promise<void> {
+    this.expire(key)
+    const entry = this.entries.get(key)
+    if (!entry) return
+    if (entry.hits <= 1) {
+      this.entries.delete(key)
+      return
+    }
+    entry.hits -= 1
+  }
+
+  async delete(key: string): Promise<void> {
+    this.entries.delete(key)
+  }
+
+  private expire(key: string): void {
+    const entry = this.entries.get(key)
+    if (entry && entry.expiresAt <= this.now) this.entries.delete(key)
+  }
+}
+
+test('decrement clamps to zero, does not create missing keys, and honors expiry', async () => {
+  const commands = new StatefulFakeRedisRateLimitCommands()
+  const store = createRedisRateLimitStoreFactory(commands, 'test')('login')
+  initialize(store, 1_000)
+
+  await store.decrement('missing')
+  await expect(store.increment('client')).resolves.toMatchObject({ totalHits: 1 })
+  await store.decrement('client')
+  await store.decrement('client')
+  await expect(store.increment('client')).resolves.toMatchObject({ totalHits: 1 })
+
+  commands.advance(1_000)
+  await store.decrement('client')
+  await expect(store.increment('client')).resolves.toMatchObject({ totalHits: 1 })
+})
+
+test('rejects an atomic increment result with zero hits', async () => {
+  const commands = new FakeRedisRateLimitCommands([0, 60_000])
+  const store = createRedisRateLimitStoreFactory(commands, 'test')('login')
+  initialize(store, 60_000)
+
+  await expect(store.increment('client')).rejects.toThrow('invalid hit count')
+})
+test('bound Redis command port executes atomic increment/decrement and exact delete calls', async () => {
+  const Redis = (await import('ioredis')).default
+  const { cacheService } = await import('../../src/services/cache.service')
+  const connect = jest.spyOn(Redis.prototype, 'connect').mockResolvedValue(undefined)
+  const evalCommand = jest.spyOn(Redis.prototype, 'eval').mockResolvedValue([3, 12_000])
+  const deleteCommand = jest.spyOn(Redis.prototype, 'del').mockResolvedValue(1)
+  const disconnect = jest.spyOn(Redis.prototype, 'disconnect').mockImplementation(() => undefined)
+
+  try {
+    await cacheService.connect({ host: 'redis.test', port: 6380, username: 'api' })
+    const commands = cacheService.getRateLimitCommandPort()
+
+    await expect(commands.evalIncrement('key', 60_000)).resolves.toEqual([3, 12_000])
+    await commands.decrement('key')
+    await commands.delete('key')
+
+    expect(evalCommand).toHaveBeenNthCalledWith(
+      1,
+      REDIS_RATE_LIMIT_INCREMENT_SCRIPT,
+      1,
+      'key',
+      60_000,
+    )
+    expect(evalCommand).toHaveBeenNthCalledWith(
+      2,
+      REDIS_RATE_LIMIT_DECREMENT_SCRIPT,
+      1,
+      'key',
+    )
+    expect(deleteCommand).toHaveBeenCalledWith('key')
+  } finally {
+    await cacheService.disconnect()
+    connect.mockRestore()
+    evalCommand.mockRestore()
+    deleteCommand.mockRestore()
+    disconnect.mockRestore()
+  }
+})
+
+test('cache connection rejection disconnects the client and resets the singleton', async () => {
+  const Redis = (await import('ioredis')).default
+  const { cacheService } = await import('../../src/services/cache.service')
+  const connectError = new Error('redis connect failed')
+  const connect = jest.spyOn(Redis.prototype, 'connect').mockRejectedValue(connectError)
+  const disconnect = jest.spyOn(Redis.prototype, 'disconnect').mockImplementation(() => undefined)
+
+  try {
+    await expect(
+      cacheService.connect({ host: 'redis.test', port: 6380, username: 'api' }),
+    ).rejects.toBe(connectError)
+    expect(disconnect).toHaveBeenCalledTimes(1)
+    expect(() => cacheService.getRateLimitCommandPort()).toThrow('not connected')
+  } finally {
+    connect.mockRestore()
+    disconnect.mockRestore()
+    await cacheService.disconnect()
   }
 })

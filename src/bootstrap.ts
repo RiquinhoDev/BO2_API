@@ -10,6 +10,7 @@ import logger, { type AppLogger } from './utils/logger'
 export interface Infrastructure {
   connectMongo: (config: AppConfig) => Promise<void>
   connectRedis: (config: AppConfig) => Promise<RateLimitStoreFactory | undefined>
+  disconnect: () => Promise<void>
 }
 
 export type ModelRegistrar = () => Promise<void>
@@ -47,10 +48,20 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
     log.error('AUTH_ENFORCE=false em producao: default-deny de autenticacao desligado')
   }
   const infrastructure = await (options.loadInfrastructure ?? defaultLoadInfrastructure)()
-  await infrastructure.connectMongo(config)
-  const storeFactory = await infrastructure.connectRedis(config)
-  if (config.nodeEnv === 'production' && !storeFactory) {
-    throw new Error('CONFIG_INVALIDA: Redis rate-limit store factory obrigatoria em producao')
+  let storeFactory: RateLimitStoreFactory | undefined
+  try {
+    await infrastructure.connectMongo(config)
+    storeFactory = await infrastructure.connectRedis(config)
+    if (config.nodeEnv === 'production' && !storeFactory) {
+      throw new Error('CONFIG_INVALIDA: Redis rate-limit store factory obrigatoria em producao')
+    }
+  } catch (error) {
+    try {
+      await infrastructure.disconnect()
+    } catch (cleanupError) {
+      log.error('Erro ao limpar infraestrutura apos falha de arranque', cleanupError)
+    }
+    throw error
   }
 
   const registerModels = await (options.loadModelRegistrar ?? defaultLoadModelRegistrar)()
