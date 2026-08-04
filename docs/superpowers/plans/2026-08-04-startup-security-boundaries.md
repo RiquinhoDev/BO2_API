@@ -28,6 +28,7 @@
 - Modify: `src/services/studentOgiSummary.service.ts`
 - Modify: `.env.example`
 - Modify: `tests/bootstrap/config.test.ts`
+- Modify: `tests/bootstrap/authStartupWarning.test.ts`
 - Modify: `tests/bootstrap/bootstrap.test.ts`
 - Modify: `tests/bootstrap/authConfig.test.ts`
 - Modify: `tests/bootstrap/authStartupWarning.test.ts`
@@ -109,6 +110,7 @@ security: centralize dedicated jwt secrets
 - Modify: `.env.example`
 - Modify: `tests/security/cors.test.ts`
 - Modify: `tests/bootstrap/config.test.ts`
+- Modify: `tests/bootstrap/authStartupWarning.test.ts`
 - Modify: `tests/security/httpPerimeter.test.ts` only if an existing CORS probe needs explicit origins.
 - Modify: `tests/security/defaultDenyAuth.test.ts` only if its preflight fixture needs explicit origins.
 
