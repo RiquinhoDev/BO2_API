@@ -23,6 +23,30 @@ const listTrackedFiles = (): string[] =>
     .split(/\r?\n/)
     .filter(Boolean)
 
+const renewalDocumentNames = [
+  ['CONTEXTO', 'IA'],
+  ['DISCORD', 'CARGOS_PLAN'],
+  ['OGI', 'BO_PLAN'],
+].map(([prefix, suffix]) => 'RENOVACAO_' + prefix + '_' + suffix + '.md')
+
+const staleRenewalDocumentReferencePattern = new RegExp(
+  '(?<!docs/reference/renewal/)(?:' +
+    renewalDocumentNames.map(name => name.replace(/\./g, '\\$&')).join('|') +
+    ')',
+  'g',
+)
+
+const staleRenewalDocumentReferences = (): string[] =>
+  listTrackedFiles()
+    .filter(relativePath => !relativePath.toLowerCase().endsWith('.md') && fs.existsSync(path.join(repositoryRoot, relativePath)))
+    .flatMap(relativePath => {
+      const source = fs.readFileSync(path.join(repositoryRoot, relativePath), 'utf8')
+      return Array.from(
+        source.matchAll(staleRenewalDocumentReferencePattern),
+        match => `${relativePath}: ${match[0]}`,
+      )
+    })
+
 const parseComposeImages = (source: string): string[] =>
   Array.from(
     source.matchAll(/^\s*image:\s*["']?([^\s"'#]+)["']?(?:\s+#.*)?$/gm),
@@ -178,6 +202,10 @@ describe('repository documentation hygiene', () => {
 
   it('keeps relative Markdown and data links in the index and moved documents resolvable', () => {
     expect(missingRelativeDocumentationLinks()).toEqual([])
+  })
+
+  it('anchors renewal document references in non-Markdown tracked text', () => {
+    expect(staleRenewalDocumentReferences()).toEqual([])
   })
 
   it('retains the package metadata contract', () => {

@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/models/discordRenewal.ts
 // Modelos do sistema de cargos de renovação no Discord (R. {Mês})
-// e das mensagens do bot. Ver RENOVACAO_DISCORD_CARGOS_PLAN.md.
+// e das mensagens do bot. Ver docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.
 //
 // Mesmo padrão do RenewalAcChange (sync AC): plano persistido e
 // revisável ANTES de qualquer execução; execução gated por switches.
@@ -188,7 +188,7 @@ const discordMessageLogSchema = new Schema<IDiscordMessageLog>(
 
 // ─────────────────────────────────────────────────────────────
 // 5. DiscordScheduledRule — regras de mensagens agendadas de renovação
-//    (plano na secção 12 do RENOVACAO_DISCORD_CARGOS_PLAN.md).
+//    (plano na secção 12 do docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md).
 //    O mês alvo NUNCA é guardado: é derivado na execução = mês anterior
 //    à data de envio → cargo R.{mêsAnterior}. Uma regra dispara 12×/ano.
 // ─────────────────────────────────────────────────────────────

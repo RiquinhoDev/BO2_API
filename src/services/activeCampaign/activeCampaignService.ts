@@ -540,7 +540,7 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
 }
 
   // ═══════════════════════════════════════════════════════════
-  // CUSTOM FIELDS (Renovação OGI — ver RENOVACAO_OGI_BO_PLAN.md)
+  // CUSTOM FIELDS (Renovação OGI — ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md)
   // ═══════════════════════════════════════════════════════════
 
   /**

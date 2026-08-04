@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/routes/discordRenewal.routes.ts
 // Gestão dos cargos de renovação Discord + mensagens do bot.
-// Ver RENOVACAO_DISCORD_CARGOS_PLAN.md.
+// Ver docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.
 //
 // Endpoints manuais do Backoffice. A execução contra o Discord exige
 // os switches DISCORD_* ligados (verificados em runtime no serviço).

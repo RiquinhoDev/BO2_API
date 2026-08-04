@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/routes/renewalAc.routes.ts
 // Gestão do sync Renovação OGI → ActiveCampaign (Fase B).
-// Ver RENOVACAO_OGI_BO_PLAN.md.
+// Ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md.
 //
 // Nada aqui corre sozinho: são endpoints manuais do Backoffice.
 // A execução contra a AC exige os switches RENEWAL_AC_* ligados

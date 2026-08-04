@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/renewal/renewalAcSync.service.ts
 // Fase B da Renovação OGI: BackOffice → ActiveCampaign.
-// Ver RENOVACAO_OGI_BO_PLAN.md (secções 11 e 13) — este ficheiro
+// Ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md (secções 11 e 13) — este ficheiro
 // implementa a safety net descrita lá (guards F1–F17).
 //
 // Fluxo em 2 passos SEPARADOS:
