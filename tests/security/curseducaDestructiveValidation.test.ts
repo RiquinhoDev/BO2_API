@@ -1,5 +1,6 @@
 import express from 'express'
 import request from 'supertest'
+import { configureDebugRoutes } from '../../src/security/debugRoutes'
 import { createErrorHandling } from '../../src/security/errorHandling'
 
 const cleanupDuplicates = jest.fn((_input, res) => res.status(204).end())
@@ -73,4 +74,12 @@ test('rejects an extra role field', async () => {
 
 test('rejects a nested Mongo operator', async () => {
   await callRoute({ filter: { $where: 'unsafe' } }).expect(400)
+})
+
+test('gates the mounted debug route behind the local debug flag', async () => {
+  configureDebugRoutes({ enableDebugRoutes: false })
+  await request(buildApp()).get('/api/curseduca/debug').query(marker).expect(404)
+
+  configureDebugRoutes({ enableDebugRoutes: true })
+  await request(buildApp()).get('/api/curseduca/debug').query(marker).expect(204)
 })

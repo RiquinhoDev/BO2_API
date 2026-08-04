@@ -27,6 +27,7 @@ import {
   getCurseducaSyncStatus
 } from '../controllers/syncUtilizadoresControllers/curseduca.controller'
 import { curseducaCleanupInput } from '../security/curseducaDestructiveInput'
+import { localDebugOnly } from '../security/debugRoutes'
 import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
@@ -47,7 +48,7 @@ router.get('/reports/access', getAccessReports)
 router.get('/users', getCurseducaUsers)
 
 // 🔧 DIAGNÓSTICOS AVANÇADOS
-router.get('/debug', debugCurseducaAPI)
+router.get('/debug', localDebugOnly, debugCurseducaAPI)
 
 // 🚀 FUTURO
 router.get('/report', getSyncReport)
