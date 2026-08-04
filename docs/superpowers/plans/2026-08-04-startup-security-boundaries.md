@@ -231,7 +231,7 @@ docs: close startup security boundaries
 
 Runtime commit: `2a3c8d1`; documentation commit: this commit.
 
-- [ ] **Step 5: Run final offline gates on final tracked HEAD and verify hygiene**
+- [x] **Step 5: Run final offline gates on final tracked HEAD and verify hygiene**
 
 Run serially after the final tracked commit:
 
@@ -244,3 +244,5 @@ git diff --check
 ```
 
 Expected: every command exits 0. Record exact suite/test totals in the ignored SDD report. Require a clean tracked worktree, no sibling Front modifications, no push, and no external-system access.
+
+Evidence at HEAD `bdb59b9`: lint, strict TypeScript, Jest, build, and `git diff --check` all exited 0; Jest reported **160 suites passed + 1 skipped / 161 total** and **814 tests passed + 2 skipped / 816 total**. The tracked worktree remained clean and no external system was contacted.
