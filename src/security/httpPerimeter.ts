@@ -119,6 +119,7 @@ export function createHttpPerimeter(options: HttpPerimeterOptions = {}): HttpPer
   return {
     helmet: helmet({
       contentSecurityPolicy: {
+        useDefaults: false,
         directives: {
           defaultSrc: ["'none'"],
           baseUri: ["'none'"],
