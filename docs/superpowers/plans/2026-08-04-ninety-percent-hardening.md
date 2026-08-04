@@ -45,7 +45,7 @@ expect(fs.existsSync('scripts/ts-debt-ratchet.mjs')).toBe(false)
 
 expect(syncRoutes).toContain("router.get('/stats'")
 expect(syncRoutes).toContain("router.get('/history'")
-expect(syncStatsRoutes).not.toMatch(/router\.get\(['"]\/(stats|history)/)
+expect(syncStatsRoutes).not.toMatch(/router\.get\(['"]\/(stats|history)['"]/)
 expect(syncStatsController).not.toMatch(/\b(getSyncStats|getSyncHistory)\b/)
 for (const handler of ['getSyncById', 'getConflictById', 'resolveConflict', 'ignoreConflict']) {
   expect(syncStatsController).toMatch(
