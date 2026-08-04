@@ -482,7 +482,7 @@ Commit:
 docs: close ninety-percent hardening block
 ```
 
-- [x] **Step 5: Run fresh final gates on the final tracked HEAD** — final HEAD `309984c`: lint exit 0; types exit 0; default unit+integration Jest (MONGOMS_RUNTIME_DOWNLOAD=false) **165/165 suites, 860/860 tests**; build exit 0; `git diff --check b9bb981..HEAD` exit 0. Load/E2E remain opt-in and were not executed.
+- [x] **Step 5: Run fresh final gates on the reviewed implementation HEAD** — implementation HEAD `3b22339`: lint exit 0; types exit 0; default unit+integration Jest (`MONGOMS_RUNTIME_DOWNLOAD=false`) **165/165 suites, 868/868 tests**; build exit 0; `git diff --check b9bb981..HEAD` exit 0. The bounded local load project passed **1 suite / 2 tests** with `RUN_LOAD_TESTS=true`; the deliberately empty E2E project exited 0 without Playwright, browser, or network.
 
 Run serially:
 
@@ -497,6 +497,6 @@ git status -sb
 
 Require zero failures, a clean tracked worktree, and no push. Review all changed paths against this plan.
 
-- [ ] **Step 6: Independent final review and Luna proof**
+- [x] **Step 6: Independent final review and Luna proof** — whole-range implementation re-review `b9bb981..3b22339` passed SPEC and QUALITY with no open Critical, Important, or Minor finding. Structured rollouts for Tasks 1–7 and the three final remediation executors all report `session_meta.payload.agent_role=executor_luna`; all **20/20** relevant `turn_context.payload.model` values are exactly `gpt-5.6-luna`.
 
 Request a whole-range review from `b9bb981..HEAD`, fix every Critical/Important finding, and re-review fixes. Before reporting completion, inspect each executor rollout and require `session_meta.payload.agent_role=executor_luna` plus every relevant `turn_context.payload.model=gpt-5.6-luna`.

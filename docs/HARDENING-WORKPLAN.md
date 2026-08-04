@@ -1088,7 +1088,7 @@ Progresso controllers:
 
 ### 3. Estrutura de pastas & higiene
 - [x] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
-  - Closeout proof (2026-08-04; offline): `repositoryHygiene.test.ts` passed **1 suite / 12 tests**. The suite verifies the root Markdown allowlist, indexed destinations and relative links, package metadata, tracked-artifact denylist, and fixed compose inputs.
+  - Closeout proof (2026-08-04; offline): `repositoryHygiene.test.ts` passed **1 suite / 13 tests**. The suite verifies the root Markdown allowlist, indexed destinations and relative links (including non-Markdown renewal references), package metadata, tracked-artifact denylist, and fixed compose inputs.
 - [x] Sem artefactos locais commitados; imagens de compose fixadas por versão/digest, sem credenciais default.
 - [x] **Evidência root-hygiene (2026-08-03; Tasks 1–3):** seis documentos de raiz obsoletos/PII foram eliminados (**1,604 linhas**); quatro documentos live/históricos foram movidos para `docs/` com notas de estado; e `docs/README.md` foi criado com secções separadas **Active**, **Reference**, **Archive**, **Plans** e **Specs**.
   - Os dois harnesses temporários rastreados foram eliminados (**85 linhas**). Foram removidos os **35** comandos directos de package com alvos ausentes e o `diagnose:all` quebrado; `validate:full` foi reparado para a sequência offline válida, e a auditoria dos alvos directos sobreviventes confirmou **10/10 existentes**.
@@ -1102,6 +1102,7 @@ Progresso controllers:
 - [x] **SEC-08 restante:** distributed limiter store, central correlation-aware 429 envelope, and final CSP policy are closed (2026-08-04) by the approved Task 5/6 commits.
   - Focused closeout proof (offline): **10 suites / 84 tests passed** across `repositoryHygiene`, `redisRateLimitStore`, `httpPerimeter`, config/bootstrap/startup, shutdown, auth, deployment perimeter, and CORS. Tests use local fakes and `MongoMemoryServer` only; no live Redis was contacted.
   - Production caveat: `REDIS_HOST` is required at startup for production distributed rate limiting; any non-default Redis port/username/password must be provisioned. No deployment, external API, production database, or sibling Front was exercised.
+  - Final review remediation (offline): Helmet now emits only the four explicit API CSP directives on success, preflight, and 429; shutdown/rollback await all warmups before cache/infrastructure teardown. The final default unit+integration gate passed **165/165 suites / 868/868 tests**; the bounded loopback load project passed **1 suite / 2 tests** and the empty E2E project exited 0 without a browser dependency.
 - [ ] **Error handler central** `(err,req,res,next)` — mensagem pública estável + correlation ID; detalhe só no logger redigido (SEC-10). *(base já entregue — validar cobertura em todas as rotas; respostas 500 ad hoc continuam com shapes diferentes e `events.routes` pode expor `error.message`.)*
 - [x] Redação PII/tokens **numa só função** partilhada (logger + error handler): `redactSensitiveData` é partilhada pelo logger e pelo error handler, e o ESLint ratchet rejeita novos `console` calls. A baseline legacy de console/suppressions continua aberta em TOOL-02.
 
@@ -1130,7 +1131,7 @@ Progresso controllers:
   - Progresso mecanico do workplan apos este fecho: `checked=94 open=10 total=104 percent=90.4`. The two closeout boxes are now checked; provisioning, deploy, and operational observation remain outside this cut.
 - [ ] **ESLint** `--max-warnings=0`, baseline podada a zero; a dívida de `no-explicit-any` continua aberta sob `strict:true` (TOOL-02).
 - [x] **Um** package manager autoritativo — todas as configurações de build activas seleccionam npm; apenas `package.json` declara o esperado `npm@11.9.0`, enquanto `Dockerfile` e Nixpacks usam o npm fornecido pelo ambiente; `package-lock.json` é o único lockfile e `yarn.lock` foi removido (2026-08-03; TOOL-03).
-- [x] Suites separadas unit/integration/load/e2e, mocks por defeito, **egress guard**; cobertura honesta e a subir (TEST-01/02). Task 4 (2026-08-04): baseline pré-change 163 suites − `tests/load/load.test.ts` = 162 seguras, + `tests/tooling/jestProjects.test.ts` = 163 finais (`unit` 140 + `integration` 23), sem sobreposição; `tests/e2e/products-dashboard.spec.ts` e `tests/sprint1/architecture.test.ts` ausentes. `test:load`/`test:e2e` não foram executados.
+- [x] Suites separadas unit/integration/load/e2e, mocks por defeito, **egress guard**; cobertura honesta e a subir (TEST-01/02). Task 4 (2026-08-04) established the non-overlapping topology; the final default inventory executes **165** unit+integration suites. The misplaced Front Playwright spec and its absent dependency were removed. `test:load` is an explicit opt-in bounded `127.0.0.1` Express/Supertest harness carrying the egress marker and passed **2/2** tests; `test:e2e` truthfully succeeds as an empty project with `--passWithNoTests`, without browser or network access.
 - [ ] Config validada e tipada com **fail-fast** no arranque (OPS-01).
 
 ### Como se mede
