@@ -7,6 +7,7 @@ const env = {
   OLD_API_JWT_SECRET: 'f2-auth-startup-old-api-secret-at-least-32-characters',
   STUDENT_ACCESS_JWT_SECRET: 'f2-auth-startup-student-secret-at-least-32-characters',
   AC_WEBHOOK_SECRET: 'f2-auth-startup-ac-secret-at-least-32-characters',
+  ALLOWED_ORIGINS: 'https://front.example',
   AUTH_ENFORCE: 'false',
 }
 

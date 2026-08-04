@@ -68,6 +68,14 @@ test('loadConfig exige segredos dedicados fortes para API antiga e acesso estuda
   )
 })
 
+test('loadConfig exige ALLOWED_ORIGINS explicita em producao', () => {
+  for (const value of [undefined, '', '   ', ',']) {
+    expect(() =>
+      loadConfig({ ...VALID_ENV, NODE_ENV: 'production', ALLOWED_ORIGINS: value }),
+    ).toThrow('ALLOWED_ORIGINS')
+  }
+})
+
 test.each(DUPLICATE_SECRET_CASES)('$name rejeita autoridades JWT duplicadas', ({ env, expected }) => {
   expect(() => loadConfig({ ...VALID_ENV, ...env })).toThrow(new RegExp(expected))
 })
@@ -109,11 +117,7 @@ test('loadConfig valida e tipa porta, JWT e Redis explicito', () => {
     acWebhookSecret: STRONG_AC_WEBHOOK_SECRET,
     authEnforce: true,
     enableDebugRoutes: false,
-    allowedOrigins: expect.arrayContaining([
-      'https://extra.example',
-      'https://backoffice.serriquinho.com',
-      'http://localhost:3000',
-    ]),
+    allowedOrigins: ['https://extra.example'],
     port: 4321,
     redis: {
       host: 'redis.internal',
@@ -122,6 +126,13 @@ test('loadConfig valida e tipa porta, JWT e Redis explicito', () => {
       password: 'secret',
     },
   })
+})
+
+test('loadConfig preserva defaults loopback apenas fora de producao', () => {
+  expect(loadConfig(VALID_ENV).allowedOrigins).toEqual(
+    expect.arrayContaining(['http://localhost:3000', 'http://127.0.0.1:5173']),
+  )
+  expect(loadConfig(VALID_ENV).allowedOrigins).not.toContain('https://backoffice.serriquinho.com')
 })
 
 test('debug routes exigem flag explicita e sao proibidas em producao', () => {
@@ -133,6 +144,7 @@ test('debug routes exigem flag explicita e sao proibidas em producao', () => {
       OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
       STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
       AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
+      ALLOWED_ORIGINS: 'https://front.example',
       ENABLE_DEBUG_ROUTES: 'true',
     }).enableDebugRoutes,
   ).toBe(true)
@@ -145,6 +157,7 @@ test('debug routes exigem flag explicita e sao proibidas em producao', () => {
       OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
       STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
       AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
+      ALLOWED_ORIGINS: 'https://front.example',
       ENABLE_DEBUG_ROUTES: 'true',
     }),
   ).toThrow('ENABLE_DEBUG_ROUTES')

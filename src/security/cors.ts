@@ -1,14 +1,10 @@
+export type CorsEnvironment = 'development' | 'test' | 'production'
+
 export const DEFAULT_ALLOWED_ORIGINS = Object.freeze([
-  'https://www.backoffice.serriquinho.com',
-  'https://backoffice.serriquinho.com',
-  'https://lp.serriquinho.com',
-  'https://osriquinhos.serriquinho.com',
-  'https://www.osriquinhos.serriquinho.com',
   'http://localhost:3000',
   'http://localhost:5173',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',
-  'https://comunidadelogin-production.up.railway.app',
 ])
 
 function normalizeOrigin(value: string): string {
@@ -21,13 +17,26 @@ function normalizeOrigin(value: string): string {
   }
 }
 
-export function buildAllowedOrigins(value?: string): string[] {
+function parseConfiguredOrigins(value: string | undefined): string[] {
   const configured = value
     ? value
         .split(',')
         .map((origin) => origin.trim())
         .filter(Boolean)
     : []
+
+  return [...new Set(configured.map(normalizeOrigin))]
+}
+
+export function buildAllowedOrigins(value: string | undefined, nodeEnv: CorsEnvironment): string[] {
+  const configured = parseConfiguredOrigins(value)
+
+  if (nodeEnv === 'production') {
+    if (configured.length === 0) {
+      throw new Error('CONFIG_INVÁLIDA: ALLOWED_ORIGINS é obrigatória em produção')
+    }
+    return configured
+  }
 
   return [...new Set([...DEFAULT_ALLOWED_ORIGINS, ...configured].map(normalizeOrigin))]
 }

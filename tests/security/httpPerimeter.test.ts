@@ -13,6 +13,7 @@ const marker = { __bo2_offline_loopback: '1' }
 function buildApp(limits: Partial<HttpPerimeterLimits> = {}, onRateLimit = jest.fn()) {
   return createApp({
     authEnforce: false,
+    allowedOrigins: ['http://localhost:3000'],
     createErrorHandling: () =>
       createErrorHandling({
         generateCorrelationId: () => 'http-perimeter-correlation-id',
