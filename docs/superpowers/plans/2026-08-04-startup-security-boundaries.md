@@ -31,7 +31,6 @@
 - Modify: `tests/bootstrap/authStartupWarning.test.ts`
 - Modify: `tests/bootstrap/bootstrap.test.ts`
 - Modify: `tests/bootstrap/authConfig.test.ts`
-- Modify: `tests/bootstrap/authStartupWarning.test.ts`
 - Modify: `tests/security/jwt.test.ts`
 - Create: `tests/services/studentOgiSummaryJwt.test.ts`
 - Modify: `tests/security/defaultDenyAuth.test.ts`
@@ -143,7 +142,7 @@ Expected: production accepts missing configuration, merges implicit defaults, an
 
 - [ ] **Step 3: Implement environment-aware allowlists**
 
-Keep only loopback constants in source. Normalize and deduplicate configured origins. Throw `CONFIG_INVÁLIDA: ALLOWED_ORIGINS é obrigatória em produção` when production has no configured origin. Production returns configured origins only; local environments merge loopback defaults.
+Keep only loopback constants in source. Normalize and deduplicate configured origins. Throw `CONFIG_INVÃLIDA: ALLOWED_ORIGINS Ã© obrigatÃ³ria em produÃ§Ã£o` when production has no configured origin. Production returns configured origins only; local environments merge loopback defaults.
 
 Pass the validated `nodeEnv` into `buildAllowedOrigins` from `loadConfig`. Change `createApp` to use `[]` when no allowlist is injected. Update `.env.example` to say production origins are mandatory and implicit defaults are not preserved.
 
