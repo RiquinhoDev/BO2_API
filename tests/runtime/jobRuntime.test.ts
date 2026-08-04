@@ -85,3 +85,18 @@ test('isolates scheduler startup failure without skipping safe runtime work', as
     'shutdown',
   ])
 })
+
+test('propagates the exact shutdown disposer from job startup', async () => {
+  const events: string[] = []
+  const disposer = jest.fn(async () => undefined)
+  const deps = dependencies(events)
+  deps.registerShutdownHandlers = () => {
+    events.push('shutdown')
+    return disposer
+  }
+
+  const returned = await createJobStarter(deps)(config('production'))
+
+  expect(returned).toBe(disposer)
+  expect(events).toEqual(['scheduler', 'seeds', 'monitor', 'warmups', 'shutdown'])
+})
