@@ -13,13 +13,38 @@ jest.mock('../../src/models', () => ({
   },
 }))
 
+import { initializeRuntimeConfig, resetRuntimeConfigForTests } from '../../src/config/runtimeConfig'
+import { createTestRuntimeConfig } from '../support/runtimeConfig'
 import { activeCampaignService } from '../../src/services/activeCampaign/activeCampaignService'
 
 describe('ActiveCampaignService UserProduct state', () => {
   beforeEach(() => {
+    const base = createTestRuntimeConfig()
+    initializeRuntimeConfig({
+      ...base,
+      integrations: {
+        ...base.integrations,
+        activeCampaign: {
+          configured: true,
+          value: {
+            apiUrl: 'https://ac.example.test/',
+            apiKey: 'test-api-key',
+            webhookSecret: 'test-webhook-secret',
+            debugEnabled: false,
+            verifyDeleteEnabled: false,
+            lists: {},
+          },
+        },
+      },
+    })
+
     jest.clearAllMocks()
   })
 
+
+  afterEach(() => {
+    resetRuntimeConfigForTests()
+  })
   afterAll(() => {
     consoleError.mockRestore()
     consoleWarn.mockRestore()

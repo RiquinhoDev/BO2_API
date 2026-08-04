@@ -11,8 +11,8 @@ import mongoose from 'mongoose'
 import '../src/models'
 import { Product, UserProduct, User, PipelineExecution } from '../src/models'
 import tagOrchestratorV2 from '../src/services/activeCampaign/tagOrchestrator.service'
-import activeCampaignService from '../src/services/activeCampaign/activeCampaignService'
-import { activeCampaignConfig, validateConfig } from '../src/config/activecampaign.config'
+import { loadConfig } from '../src/config/appConfig'
+import { initializeRuntimeConfig } from '../src/config/runtimeConfig'
 import fs from 'fs'
 import path from 'path'
 
@@ -27,32 +27,27 @@ async function main() {
   const startTime = Date.now()
 
   try {
+    const runtimeConfig = loadConfig(process.env)
+    initializeRuntimeConfig(runtimeConfig)
     // ═══════════════════════════════════════════════════════════
     // SETUP: Conectar BD
     // ═══════════════════════════════════════════════════════════
     console.log('[SETUP] Conectando à BD...')
-    const mongoUri = process.env.MONGODB_URI
-    if (!mongoUri) throw new Error('MONGO_URI não configurado')
-
-    await mongoose.connect(mongoUri)
+    await mongoose.connect(runtimeConfig.core.mongoUri)
     console.log('[SETUP] ✅ Conectado à BD\n')
 
     // ═══════════════════════════════════════════════════════════
     // VALIDAR CONFIGURAÇÃO DO ACTIVE CAMPAIGN
     // ═══════════════════════════════════════════════════════════
-    console.log('[AC CONFIG] Validando configuração...')
-    const configValid = validateConfig()
-    console.log('[AC CONFIG] validateConfig():', configValid)
-    console.log('[AC CONFIG] apiUrl:', activeCampaignConfig.apiUrl)
-    console.log('[AC CONFIG] hasApiKey:', Boolean(activeCampaignConfig.apiKey))
-    console.log('[AC CONFIG] axiosBaseURL:', activeCampaignService?.client?.defaults?.baseURL)
+    console.log('[AC CONFIG] Validating configuration...')
+    const activeCampaign = runtimeConfig.integrations.activeCampaign
+    console.log('[AC CONFIG] configured:', activeCampaign.configured)
 
-    if (!configValid) {
-      throw new Error('Configuração AC inválida! Verifique AC_BASE_URL e AC_API_KEY no .env')
+    if (!activeCampaign.configured) {
+      throw new Error('ActiveCampaign configuration is unavailable')
     }
-    console.log('[AC CONFIG] ✅ Configuração válida\n')
+    console.log('[AC CONFIG] configuration valid\n')
 
-    // ═══════════════════════════════════════════════════════════
     // STEP 5/5: EVALUATE TAG RULES
     // ═══════════════════════════════════════════════════════════
     console.log('[STEP 5] 🚀 Iniciando avaliação de Tag Rules...\n')

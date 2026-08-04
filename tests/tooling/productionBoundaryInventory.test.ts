@@ -46,11 +46,6 @@ function inventory(root = sourceRoot): Inventory {
 
 const BASELINE = {
   "rawEnvironmentRead": [
-    "src/config/activecampaign.config.ts:27",
-    "src/config/activecampaign.config.ts:31",
-    "src/config/activecampaign.config.ts:32",
-    "src/config/activecampaign.config.ts:8",
-    "src/config/activecampaign.config.ts:9",
     "src/controllers/clarezaController.ts:106",
     "src/controllers/clarezaController.ts:193",
     "src/controllers/clarezaController.ts:251",
@@ -75,8 +70,6 @@ const BASELINE = {
     "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:287",
     "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:326",
     "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:451",
-    "src/services/activeCampaign/activeCampaignService.ts:421",
-    "src/services/activeCampaign/activeCampaignService.ts:422",
     "src/services/clareza/clarezaCarteiraService.ts:4511",
     "src/services/clareza/clarezaCarteiraService.ts:4658",
     "src/services/clareza/clarezaEarningsService.ts:111",
