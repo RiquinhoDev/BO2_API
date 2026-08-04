@@ -394,3 +394,55 @@ test('bootstrap preserva erro de arranque quando cleanup falha', async () => {
 
   expect(log.error).toHaveBeenCalledWith(expect.stringContaining('limpar infraestrutura'), cleanupError)
 })
+
+test('bootstrap disposes jobs before infrastructure on listen rejection', async () => {
+  const events: string[] = []
+  const listenError = new Error('listen unavailable')
+  const disposeJobs = jest.fn(async () => { events.push('dispose-jobs') })
+  const storeFactory = jest.fn<ReturnType<RateLimitStoreFactory>, Parameters<RateLimitStoreFactory>>(
+    () => new MemoryStore(),
+  )
+
+  await expect(
+    bootstrap({
+      env: {
+        NODE_ENV: 'test',
+        MONGO_URI: 'mongodb://database.internal/bo2',
+        JWT_SECRET: STRONG_JWT_SECRET,
+        OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+        STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
+        AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
+      },
+      loadInfrastructure: async () => ({
+        connectMongo: async () => { events.push('mongo') },
+        connectRedis: async () => storeFactory,
+        disconnect: async () => { events.push('disconnect') },
+      }),
+      loadModelRegistrar: async () => async () => { events.push('register-models') },
+      loadRouteRegistrar: async () => (app: Application) => {
+        events.push('register-routes')
+        app.get('/health', (_req, res) => res.sendStatus(204))
+      },
+      loadJobStarter: async () => async () => {
+        events.push('start-jobs')
+        return disposeJobs
+      },
+      loadListener: async () => async () => {
+        events.push('listen')
+        throw listenError
+      },
+    }),
+  ).rejects.toBe(listenError)
+
+  expect(events).toEqual([
+    'mongo',
+    'register-models',
+    'register-routes',
+    'start-jobs',
+    'listen',
+    'dispose-jobs',
+    'disconnect',
+  ])
+  expect(disposeJobs).toHaveBeenCalledTimes(1)
+  expect(disposeJobs).toHaveBeenCalledWith({ stopCache: false })
+})

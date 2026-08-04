@@ -20,10 +20,13 @@ const ensureCronSeeds = createCronSeedProvisioner({
   logError,
 })
 
-const registerShutdownHandlers = createShutdownRegistrar({
+const shutdownRegistrar = createShutdownRegistrar({
   signals: {
     once: (signal, handler) => {
       process.once(signal, handler)
+    },
+    removeListener: (signal, handler) => {
+      process.removeListener(signal, handler)
     },
   },
   stopSystemMonitor: () => systemMonitor.stop(),
@@ -52,6 +55,9 @@ export const startJobs = createJobStarter({
   ensureCronSeeds,
   startSystemMonitor: () => systemMonitor.start(),
   startWarmups,
-  registerShutdownHandlers,
+  registerShutdownHandlers: () => {
+    shutdownRegistrar()
+    return shutdownRegistrar.dispose
+  },
   logError,
 })
