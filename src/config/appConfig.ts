@@ -30,6 +30,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     'STUDENT_ACCESS_JWT_SECRET',
     true,
   )
+  const jwtSecrets = [jwtSecret, oldApiJwtSecret, studentAccessJwtSecret]
+  if (new Set(jwtSecrets).size !== jwtSecrets.length) {
+    throw new Error(
+      'CONFIG_INVALIDA: JWT_SECRET, OLD_API_JWT_SECRET e STUDENT_ACCESS_JWT_SECRET devem ser distintos',
+    )
+  }
   const acWebhookSecret = parseStrongSecret(env.AC_WEBHOOK_SECRET, 'AC_WEBHOOK_SECRET', true)
   const nodeEnv = env.NODE_ENV || 'development'
   if (!['development', 'test', 'production'].includes(nodeEnv)) {
