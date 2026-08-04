@@ -175,3 +175,12 @@ test('loadConfig nao ativa Redis localhost por omissao', () => {
     }).redis,
   ).toBe(undefined)
 })
+test('loadConfig exige REDIS_HOST em producao para rate limiting distribuido', () => {
+  expect(() =>
+    loadConfig({
+      ...VALID_ENV,
+      NODE_ENV: 'production',
+      ALLOWED_ORIGINS: 'https://front.example',
+    }),
+  ).toThrow('CONFIG_INVALIDA: REDIS_HOST e obrigatoria em producao para rate limiting distribuido')
+})

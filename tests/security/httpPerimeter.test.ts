@@ -1,4 +1,5 @@
 import request from 'supertest'
+import { MemoryStore } from 'express-rate-limit'
 import { createApp } from '../../src/app'
 import {
   DEFAULT_RATE_LIMITS,
@@ -6,11 +7,16 @@ import {
   createHttpPerimeter,
   type HttpPerimeterLimits,
 } from '../../src/security/httpPerimeter'
+import type { RateLimitStoreFactory } from '../../src/security/redisRateLimitStore'
 import { createErrorHandling } from '../../src/security/errorHandling'
 
 const marker = { __bo2_offline_loopback: '1' }
 
-function buildApp(limits: Partial<HttpPerimeterLimits> = {}, onRateLimit = jest.fn()) {
+function buildApp(
+  limits: Partial<HttpPerimeterLimits> = {},
+  onRateLimit = jest.fn(),
+  storeFactory?: RateLimitStoreFactory,
+) {
   return createApp({
     authEnforce: false,
     allowedOrigins: ['http://localhost:3000'],
@@ -19,7 +25,7 @@ function buildApp(limits: Partial<HttpPerimeterLimits> = {}, onRateLimit = jest.
         generateCorrelationId: () => 'http-perimeter-correlation-id',
         logError: () => undefined,
       }),
-    createHttpPerimeter: () => createHttpPerimeter({ limits, onRateLimit }),
+    createHttpPerimeter: () => createHttpPerimeter({ limits, onRateLimit, storeFactory }),
     registerRoutes: (app) => {
       app.get('/probe', (_req, res) => res.sendStatus(204))
       app.post('/api/auth/login', (_req, res) => res.sendStatus(204))
@@ -29,6 +35,18 @@ function buildApp(limits: Partial<HttpPerimeterLimits> = {}, onRateLimit = jest.
     },
   })
 }
+
+test('usa a factory de stores para cada politica de rate limit', () => {
+  const storeFactory = jest.fn<ReturnType<RateLimitStoreFactory>, Parameters<RateLimitStoreFactory>>(
+    () => new MemoryStore(),
+  )
+
+  buildApp({}, jest.fn(), storeFactory)
+
+  expect(storeFactory).toHaveBeenCalledWith('login')
+  expect(storeFactory).toHaveBeenCalledWith('webhook')
+  expect(storeFactory).toHaveBeenCalledWith('heavy')
+})
 
 test('Helmet envia headers seguros sem CSP e permite recursos cross-origin', async () => {
   const response = await request(buildApp()).get('/probe').query(marker).expect(204)
