@@ -32,7 +32,7 @@
 - Consumes: `tsconfig.json`, `package.json`, `src/routes/sync.routes.ts`, `src/routes/syncUtilizadoresRoutes/syncStats.routes.ts`, `src/controllers/syncUtilizadoresControllers/syncStats.controller.ts`.
 - Produces: machine-checked evidence for the two stale workplan parent boxes; no runtime interface.
 
-- [ ] **Step 1: Write the characterization contract**
+- [x] **Step 1: Write the characterization contract**
 
 Create a test that reads tracked source as text and asserts the stronger final TypeScript invariant plus the surviving sync surface:
 
@@ -54,7 +54,7 @@ for (const handler of ['getSyncById', 'getConflictById', 'resolveConflict', 'ign
 }
 ```
 
-- [ ] **Step 2: Prove sensitivity, then run GREEN**
+- [x] **Step 2: Prove sensitivity, then run GREEN**
 
 Temporarily expect one removed handler to exist, run:
 
@@ -64,11 +64,11 @@ node_modules\.bin\jest.cmd --ci --runInBand tests/tooling/controllerClosureEvide
 
 Require RED on that assertion, restore the correct negative assertion, rerun, and require one passing suite.
 
-- [ ] **Step 3: Reconcile only the two existing boxes**
+- [x] **Step 3: Reconcile only the two existing boxes**
 
 Change workplan lines 751 and 755 from `[ ]` to `[x]`. Under line 751 explain that repository-wide strict/noEmitOnError/zero-error gates supersede the removed baseline workflow. Under line 755 retain `fe8c02f` evidence and add the fresh tooling-test result. Do not edit any other checkbox.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run:
 
@@ -104,7 +104,7 @@ docs: reconcile controller closure evidence
 - Consumes: the five-status-section contract in `docs/README.md` and current package metadata.
 - Produces: a root-document allowlist of zero Markdown files and indexed Active/Reference/Archive destinations.
 
-- [ ] **Step 1: Write the failing root-hygiene tests**
+- [x] **Step 1: Write the failing root-hygiene tests**
 
 Add tests that enumerate `*.md` directly under repository root and require `[]`, verify all seven destination files, verify `docs/README.md` links each destination with one of `ACTIVE`, `REFERENCE`, or `ARCHIVE`, and assert:
 
@@ -118,7 +118,7 @@ expect(packageJson).toMatchObject({
 
 Run the test and require RED listing the seven current root files.
 
-- [ ] **Step 2: Move without rewriting historical content**
+- [x] **Step 2: Move without rewriting historical content**
 
 Create `docs/active` and `docs/reference/renewal`, use `git mv` for all seven files, and add a short status banner only where classification is ambiguous:
 
@@ -128,11 +128,11 @@ Create `docs/active` and `docs/reference/renewal`, use `git mv` for all seven fi
 
 The urgent key rotation document stays ACTIVE. Renewal plans stay REFERENCE and retain their disabled/offline status.
 
-- [ ] **Step 3: Repair and machine-check links**
+- [x] **Step 3: Repair and machine-check links**
 
 Search all tracked Markdown for each old root path, repair relative links, update `docs/README.md`, then run a local link checker that resolves every relative `.md` target mentioned by changed files. No web-link validation is allowed.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run:
 
@@ -163,7 +163,7 @@ docs: complete repository documentation index
 - Consumes: `git ls-files`, `.gitignore`, active compose YAML.
 - Produces: a machine-checked denylist for tracked outputs and floating/default deployment inputs.
 
-- [ ] **Step 1: Extend the tooling test and prove RED sensitivity**
+- [x] **Step 1: Extend the tooling test and prove RED sensitivity**
 
 Add assertions that tracked paths contain none of:
 
@@ -181,15 +181,15 @@ const forbiddenTracked = [
 
 Parse compose image declarations and require either `@sha256:` or a non-`latest` tag. Require Grafana admin password to use `${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}` and reject literal/default admin passwords. Prove sensitivity with a temporary `image: example/service:latest` fixture, require RED, then restore.
 
-- [ ] **Step 2: Remove only verified ignored junk**
+- [x] **Step 2: Remove only verified ignored junk**
 
 For `nul`, each root `*.log`, and each `tmpclaude-*`, resolve the absolute path, verify its parent equals the repository root and `git check-ignore` succeeds, then delete the exact literal path. Do not delete `dist/`, `logs/`, or `uploads/` recursively.
 
-- [ ] **Step 3: Verify current compose inputs**
+- [x] **Step 3: Verify current compose inputs**
 
 Require the existing Prometheus, Grafana, and node-exporter fixed versions to pass. If implementation differs from this plan, change only floating tags or literal/default credentials; do not contact a registry and do not invent digests.
 
-- [ ] **Step 4: Close only the artifact box and commit**
+- [x] **Step 4: Close only the artifact box and commit**
 
 Mark workplan line 1091 checked with the tooling-test evidence. Run:
 
@@ -220,7 +220,7 @@ test: enforce repository artifact hygiene
 - Produces: `createJestProjects(rootDir): JestProject[]` and scripts `test`, `test:unit`, `test:integration`, `test:load`, `test:e2e`.
 - Consumes: universal setup files `tests/setupEnv.ts` and `tests/setup.ts`.
 
-- [ ] **Step 1: Capture the safe baseline inventory**
+- [x] **Step 1: Capture the safe baseline inventory**
 
 Run without executing load/E2E:
 
@@ -231,7 +231,7 @@ node_modules\.bin\jest.cmd --listTests --json
 
 Save only the count and sorted relative paths in the ignored task report. The current configuration lists `tests/load/load.test.ts` even though its body is opt-in/skip; remove that one path when defining the executable-safe baseline. Confirm `tests/e2e/products-dashboard.spec.ts` and `tests/sprint1/architecture.test.ts` are already absent. The final unit+integration inventory preserves the pre-change safe inventory (current inventory minus exactly `tests/load/load.test.ts`) and adds only `tests/tooling/jestProjects.test.ts`, the new topology contract.
 
-- [ ] **Step 2: Write the failing topology contract**
+- [x] **Step 2: Write the failing topology contract**
 
 The test must require four display names, exact script registration, universal `setupFiles: ['<rootDir>/tests/setupEnv.ts']`, and one classification for every discovered test except the documented `sprint1` exclusion. It must reject overlap and require the default npm `test` script to select only unit and integration.
 
@@ -243,7 +243,7 @@ rg -l "MongoMemoryServer|mongodb-memory-server|connectTestDatabase|testDatabase"
 
 The unit project includes remaining safe tests and ignores the explicit integration list plus `load`, `e2e`, and `sprint1`. The load and e2e projects match only their directories.
 
-- [ ] **Step 3: Implement shared projects**
+- [x] **Step 3: Implement shared projects**
 
 `scripts/test/jestProjects.cjs` exports shared ts-jest transform/setup and four project objects. `jest.config.js` consumes them and retains root-level coverage configuration. Set scripts exactly:
 
@@ -259,11 +259,11 @@ The unit project includes remaining safe tests and ignores the explicit integrat
 
 Do not run `test:load` or `test:e2e` in this block.
 
-- [ ] **Step 4: Reconcile inventories and prove egress inheritance**
+- [x] **Step 4: Reconcile inventories and prove egress inheritance**
 
 Run `jest --listTests --selectProjects unit integration --json`, sort relative paths, and require exact equality with the Step 1 executable-safe baseline plus only `tests/tooling/jestProjects.test.ts` (the old inventory minus `tests/load/load.test.ts`, plus the new topology contract). Add a topology assertion that every project uses `tests/setupEnv.ts`; retain the existing `f1OfflineGuard`/sentinel tests in the safe default.
 
-- [ ] **Step 5: Verify, close TEST-01/02, and commit**
+- [x] **Step 5: Verify, close TEST-01/02, and commit**
 
 Run:
 
@@ -306,7 +306,7 @@ test: separate offline jest projects
 - Produces: `RedisRateLimitCommandPort` with `evalIncrement`, `decrement`, and `delete` methods.
 - Changes: `Infrastructure.connectRedis(config): Promise<RateLimitStoreFactory | undefined>`.
 
-- [ ] **Step 1: Write RED store-contract tests**
+- [x] **Step 1: Write RED store-contract tests**
 
 Use a fake command port, never ioredis/network, and require:
 
@@ -317,7 +317,7 @@ await store.increment('client')
 
 Cover first-hit expiry, later increments preserving TTL, policy prefixes, `decrement`, `resetKey`, and rejected command propagation. Require compilation/test failure because the adapter and factory do not exist.
 
-- [ ] **Step 2: Implement the atomic Redis adapter**
+- [x] **Step 2: Implement the atomic Redis adapter**
 
 The real ioredis command port executes one Lua operation equivalent to:
 
@@ -330,7 +330,7 @@ return {current, ttl}
 
 The store namespace is `bo2:<nodeEnv>:rate-limit:<policy>:`. Never use `KEYS`; reset deletes one exact key. Use express-rate-limit's exported `Store`/client-info types and satisfy its `init`, `increment`, `decrement`, and `resetKey` contract.
 
-- [ ] **Step 3: Make cache connection typed and fail-fast**
+- [x] **Step 3: Make cache connection typed and fail-fast**
 
 Change `cacheService.connect()` to `connect(config: NonNullable<AppConfig['redis']>): Promise<void>`. Construct ioredis with `lazyConnect:true`, call/await `connect()`, remove the password-preview log, rethrow connection failure, expose only a bound `RedisRateLimitCommandPort`, and add `disconnect(): Promise<void>`.
 
@@ -338,7 +338,7 @@ Change `parseRedisConfig` so production without `REDIS_HOST` throws `CONFIG_INVA
 
 Update `.env.example` to state that `REDIS_HOST` (plus any non-default port/username/password) is mandatory for production distributed limiting. Update every production config fixture, including `authStartupWarning.test.ts`, with fake Redis values except the explicit missing-Redis RED case.
 
-- [ ] **Step 4: Wire the factory without polluting createApp**
+- [x] **Step 4: Wire the factory without polluting createApp**
 
 `runtime/infrastructure.connectRedis` returns `undefined` without configured Redis in development/test; otherwise it awaits the typed cache connection and returns `createRedisRateLimitStoreFactory(...)`. `bootstrap` captures the factory and injects:
 
@@ -348,11 +348,11 @@ createHttpPerimeter: () => createHttpPerimeter({ storeFactory })
 
 Production startup tests require the factory and fail before route registration/listen when Redis configuration is absent. Bootstrap tests inject a fake factory and do not open sockets.
 
-- [ ] **Step 5: Close the Redis lifecycle**
+- [x] **Step 5: Close the Redis lifecycle**
 
 Extend shutdown dependencies with `stopCache: () => Promise<void>`, make the signal handler await cache shutdown before `exit(0)`, and preserve scheduler-failure isolation. `startJobs` binds `cacheService.disconnect`. Tests require call order `stopSystemMonitor`, `stopScheduler`, `stopCache`, `exit`; cache rejection is logged and still exits.
 
-- [ ] **Step 6: Run GREEN and commit**
+- [x] **Step 6: Run GREEN and commit**
 
 Run:
 
@@ -384,7 +384,7 @@ security: add distributed rate-limit store
 - Produces: stable `RATE_LIMITED` JSON envelope and `X-Request-ID` response header.
 - Produces: explicit Helmet CSP directives.
 
-- [ ] **Step 1: Write RED HTTP assertions**
+- [x] **Step 1: Write RED HTTP assertions**
 
 For a request carrying `X-Request-ID: limiter-request-123`, exceed a focused fake-store limit and require:
 
@@ -405,7 +405,7 @@ expect(onRateLimit).toHaveBeenCalledWith({
 
 Require `Content-Security-Policy` to include `default-src 'none'` and `frame-ancestors 'none'`. Confirm RED because the current response lacks code/correlation and CSP is disabled.
 
-- [ ] **Step 2: Implement the public boundary**
+- [x] **Step 2: Implement the public boundary**
 
 Read correlation only from `res.locals.correlationId`, set `X-Request-ID`, and return the exact envelope above. Do not include IP, headers, body, token, store errors, or stack in the observability event.
 
@@ -424,7 +424,7 @@ contentSecurityPolicy: {
 
 Retain `crossOriginResourcePolicy: { policy: 'cross-origin' }` and verify preflight behavior remains unchanged.
 
-- [ ] **Step 3: Verify behavior and commit**
+- [x] **Step 3: Verify behavior and commit**
 
 Run:
 
@@ -453,15 +453,15 @@ security: finalize rate-limit response and csp
 - Consumes: approved commits and fresh final gate output.
 - Produces: exact 94/10/104/90.4 workplan status with operational caveats.
 
-- [ ] **Step 1: Close DOC-02 and SEC-08 only after proof**
+- [x] **Step 1: Close DOC-02 and SEC-08 only after proof** — both existing boxes are checked; no unrelated checkbox changed.
 
 Mark workplan line 1090 checked after root/link/package tests. Mark line 1101 checked after distributed-store, 429, CSP, startup, and shutdown tests. The other four target boxes must already have been checked by their owning tasks. Do not touch unrelated open boxes.
 
-- [ ] **Step 2: Record exact evidence and caveats**
+- [x] **Step 2: Record exact evidence and caveats** — focused closeout: **10 suites / 84 tests passed** offline; production requires `REDIS_HOST`; default Jest is unit+integration and load/E2E remain opt-in.
 
 Document focused suite/test totals, the production requirement for Redis configuration, default safe Jest projects, opt-in load/E2E status, and the fact that no deployment, live Redis, external API, or sibling Front was exercised.
 
-- [ ] **Step 3: Recount mechanically**
+- [x] **Step 3: Recount mechanically** — fresh workplan count: `checked=94 open=10 total=104 percent=90.4`.
 
 Use:
 
@@ -474,7 +474,7 @@ $open = @($lines | Where-Object { $_ -match '^\s*-\s+\[ \]\s' }).Count
 
 Require exactly `checked=94 open=10 total=104 percent=90.4`.
 
-- [ ] **Step 4: Commit tracked closeout**
+- [x] **Step 4: Commit tracked closeout** — commit subject: `docs: close ninety-percent hardening block`.
 
 Commit:
 
@@ -500,7 +500,3 @@ Require zero failures, a clean tracked worktree, and no push. Review all changed
 - [ ] **Step 6: Independent final review and Luna proof**
 
 Request a whole-range review from `b9bb981..HEAD`, fix every Critical/Important finding, and re-review fixes. Before reporting completion, inspect each executor rollout and require `session_meta.payload.agent_role=executor_luna` plus every relevant `turn_context.payload.model=gpt-5.6-luna`.
-
-
-
-
