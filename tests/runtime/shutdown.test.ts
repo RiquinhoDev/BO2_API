@@ -9,6 +9,10 @@ class InMemorySignalPort implements ProcessSignalPort {
   once(signal: NodeJS.Signals, handler: () => void | Promise<void>): void {
     this.handlers.set(signal, handler)
   }
+
+  removeListener(signal: NodeJS.Signals, handler: () => void | Promise<void>): void {
+    if (this.handlers.get(signal) === handler) this.handlers.delete(signal)
+  }
 }
 
 test('registers shutdown once and stops runtime resources before exiting', async () => {
@@ -134,4 +138,43 @@ test('isola falha do system monitor e continua shutdown', async () => {
     'cache',
     'exit:0',
   ])
+})
+
+test('startup disposer removes signal handlers and does not exit', async () => {
+  const signals = new InMemorySignalPort()
+  const events: string[] = []
+  const register = createShutdownRegistrar({
+    signals,
+    stopSystemMonitor: () => events.push('monitor'),
+    stopScheduler: () => events.push('scheduler'),
+    stopCache: async () => { events.push('cache') },
+    exit: code => events.push('exit:' + code),
+    logError: message => events.push('error:' + message),
+  })
+
+  register()
+  await register.dispose()
+  await register.dispose()
+
+  expect(signals.handlers.size).toBe(0)
+  expect(events).toEqual(['monitor', 'scheduler', 'cache'])
+})
+
+test('rollback disposer can leave cache to infrastructure cleanup', async () => {
+  const signals = new InMemorySignalPort()
+  const events: string[] = []
+  const register = createShutdownRegistrar({
+    signals,
+    stopSystemMonitor: () => events.push('monitor'),
+    stopScheduler: () => events.push('scheduler'),
+    stopCache: async () => { events.push('cache') },
+    exit: code => events.push('exit:' + code),
+    logError: message => events.push('error:' + message),
+  })
+
+  register()
+  await register.dispose({ stopCache: false })
+
+  expect(signals.handlers.size).toBe(0)
+  expect(events).toEqual(['monitor', 'scheduler'])
 })

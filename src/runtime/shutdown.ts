@@ -1,5 +1,13 @@
+import type { JobDisposeOptions } from '../bootstrap'
+
 export interface ProcessSignalPort {
   once(signal: NodeJS.Signals, handler: () => void | Promise<void>): void
+  removeListener(signal: NodeJS.Signals, handler: () => void | Promise<void>): void
+}
+
+export interface ShutdownRegistrar {
+  (): void
+  dispose: (options?: JobDisposeOptions) => Promise<void>
 }
 
 export interface ShutdownDependencies {
@@ -13,11 +21,13 @@ export interface ShutdownDependencies {
 
 export function createShutdownRegistrar(
   dependencies: ShutdownDependencies,
-): () => void {
+): ShutdownRegistrar {
   let registered = false
+  let disposed = false
+  let cleanupPromise: Promise<void> | undefined
   let shutdownPromise: Promise<void> | undefined
 
-  const runShutdown = async (): Promise<void> => {
+  const runCleanup = async (stopCache: boolean): Promise<void> => {
     try {
       dependencies.stopSystemMonitor()
     } catch (error) {
@@ -28,23 +38,38 @@ export function createShutdownRegistrar(
     } catch (error) {
       dependencies.logError('Erro ao parar scheduler', error)
     }
-    try {
-      await dependencies.stopCache()
-    } catch (error) {
-      dependencies.logError('Erro ao parar cache', error)
+    if (stopCache) {
+      try {
+        await dependencies.stopCache()
+      } catch (error) {
+        dependencies.logError('Erro ao parar cache', error)
+      }
     }
-    dependencies.exit(0)
   }
 
   const shutdown = (): Promise<void> => {
-    shutdownPromise ??= runShutdown()
+    shutdownPromise ??= (cleanupPromise ??= runCleanup(true)).then(() => dependencies.exit(0))
     return shutdownPromise
   }
 
-  return () => {
-    if (registered) return
+  const dispose = (options?: JobDisposeOptions): Promise<void> => {
+    if (disposed) return cleanupPromise ?? Promise.resolve()
+    disposed = true
+    if (registered) {
+      dependencies.signals.removeListener('SIGTERM', shutdown)
+      dependencies.signals.removeListener('SIGINT', shutdown)
+      registered = false
+    }
+    cleanupPromise ??= runCleanup(options?.stopCache !== false)
+    return cleanupPromise
+  }
+
+  const register = (() => {
+    if (registered || disposed) return
     registered = true
     dependencies.signals.once('SIGTERM', shutdown)
     dependencies.signals.once('SIGINT', shutdown)
-  }
+  }) as ShutdownRegistrar
+  register.dispose = dispose
+  return register
 }

@@ -15,7 +15,11 @@ export interface Infrastructure {
 
 export type ModelRegistrar = () => Promise<void>
 export type RouteRegistrar = CreateAppDependencies['registerRoutes']
-export type JobStarter = (config: AppConfig) => Promise<void>
+export interface JobDisposeOptions {
+  stopCache?: boolean
+}
+export type JobDisposer = (options?: JobDisposeOptions) => void | Promise<void>
+export type JobStarter = (config: AppConfig) => Promise<JobDisposer | void>
 export type AppListener = (app: Application, port: number) => Promise<unknown>
 
 export interface BootstrapOptions {
@@ -49,6 +53,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
   }
   const infrastructure = await (options.loadInfrastructure ?? defaultLoadInfrastructure)()
   let storeFactory: RateLimitStoreFactory | undefined
+  let disposeJobs: JobDisposer | undefined
   try {
     await infrastructure.connectMongo(config)
     storeFactory = await infrastructure.connectRedis(config)
@@ -69,11 +74,19 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
     })
 
     const startJobs = await (options.loadJobStarter ?? defaultLoadJobStarter)()
-    await startJobs(config)
+    const startedJobs = await startJobs(config)
+    if (startedJobs) disposeJobs = startedJobs
 
     const listen = await (options.loadListener ?? defaultLoadListener)()
     return await listen(app, config.port)
   } catch (error) {
+    if (disposeJobs) {
+      try {
+        await disposeJobs({ stopCache: false })
+      } catch (jobsCleanupError) {
+        log.error('Erro ao limpar jobs apos falha de arranque', jobsCleanupError)
+      }
+    }
     try {
       await infrastructure.disconnect()
     } catch (cleanupError) {
