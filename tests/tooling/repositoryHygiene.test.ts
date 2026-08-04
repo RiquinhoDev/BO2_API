@@ -31,7 +31,7 @@ const parseComposeImages = (source: string): string[] =>
 
 const imageInterpolationPattern = /\$\{[^}]*\}/
 const imageDigestPattern = /^[^@\s]+@sha256:[a-f0-9]{64}$/
-const imageTagPattern = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+const imageVersionTagPattern = /^v?\d+(?:\.\d+){1,3}(?:[-._][0-9A-Za-z.-]+)?$/
 
 const isPinnedImageReference = (imageReference: string): boolean => {
   if (imageInterpolationPattern.test(imageReference)) return false
@@ -43,7 +43,7 @@ const isPinnedImageReference = (imageReference: string): boolean => {
   if (tagSeparator <= pathSeparator) return false
 
   const tag = imageReference.slice(tagSeparator + 1)
-  return tag !== 'latest' && imageTagPattern.test(tag)
+  return tag !== 'latest' && imageVersionTagPattern.test(tag)
 }
 
 const parseGrafanaPasswordAssignments = (source: string): string[] =>
@@ -149,6 +149,9 @@ describe('repository artifact hygiene', () => {
     ['example/service:${TAG:-latest}', 'interpolated latest tag'],
     ['example/service@sha256:deadbeef', 'short digest'],
     ['example/service:latest', 'latest tag'],
+    ['example/service:stable', 'stable tag'],
+    ['example/service:edge', 'edge tag'],
+    ['example/service:current', 'current tag'],
   ])('rejects floating or malformed image reference (%s)', imageReference => {
     const fixture = 'image: ' + imageReference
 
