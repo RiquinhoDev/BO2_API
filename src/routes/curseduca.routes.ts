@@ -31,7 +31,6 @@ import { localDebugOnly } from '../security/debugRoutes'
 import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
-
 // ─────────────────────────────
 // V1 (base: /api/curseduca)
 // ─────────────────────────────
