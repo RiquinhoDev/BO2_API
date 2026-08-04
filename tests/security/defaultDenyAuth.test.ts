@@ -11,6 +11,8 @@ type Access = 'public' | 'authenticated' | 'signature' | 'dead'
 type CatalogRoute = { method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; access: Access }
 
 const JWT_SECRET = 'f2-default-deny-jwt-secret-at-least-32-characters'
+const OLD_API_JWT_SECRET = 'f2-default-deny-old-api-secret-at-least-32-characters'
+const STUDENT_ACCESS_JWT_SECRET = 'f2-default-deny-student-secret-at-least-32-characters'
 const AC_SECRET = 'f2-activecampaign-secret-at-least-32-characters'
 const AC_HEADER = 'X-ActiveCampaign-Signature'
 const marker = { __bo2_offline_loopback: '1' }
@@ -64,7 +66,13 @@ function unsignedRequest(app: Application, route: CatalogRoute) {
 
 jest.setTimeout(60_000)
 
-beforeEach(() => configureJwt({ jwtSecret: JWT_SECRET }))
+beforeEach(() =>
+  configureJwt({
+    jwtSecret: JWT_SECRET,
+    oldApiJwtSecret: OLD_API_JWT_SECRET,
+    studentAccessJwtSecret: STUDENT_ACCESS_JWT_SECRET,
+  }),
+)
 
 test('o catalogo inteiro aplica 401 ou bypass sem JWT conforme o access', async () => {
   const app = buildCatalogProbe()

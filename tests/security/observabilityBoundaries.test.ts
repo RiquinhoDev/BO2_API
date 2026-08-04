@@ -20,9 +20,15 @@ class MemoryTransport extends Transport {
 
 const marker = { __bo2_offline_loopback: '1' }
 const JWT_SECRET = 'f1-8-test-jwt-secret-with-at-least-32-characters'
+const OLD_API_JWT_SECRET = 'f1-8-old-api-jwt-secret-with-at-least-32-characters'
+const STUDENT_ACCESS_JWT_SECRET = 'f1-8-student-access-jwt-secret-with-at-least-32-characters'
 
 test('auth regista template de rota sem URL, email ou fragmento do token', async () => {
-  configureJwt({ jwtSecret: JWT_SECRET })
+  configureJwt({
+    jwtSecret: JWT_SECRET,
+    oldApiJwtSecret: OLD_API_JWT_SECRET,
+    studentAccessJwtSecret: STUDENT_ACCESS_JWT_SECRET,
+  })
   const transport = new MemoryTransport()
   const logger = createStructuredLogger({ level: 'debug', transports: [transport] })
   const authenticate = createAuthenticate(logger)

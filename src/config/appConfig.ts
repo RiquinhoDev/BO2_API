@@ -4,7 +4,8 @@ export interface AppConfig {
   nodeEnv: 'development' | 'test' | 'production'
   mongoUri: string
   jwtSecret: string
-  oldApiJwtSecret?: string
+  oldApiJwtSecret: string
+  studentAccessJwtSecret: string
   acWebhookSecret: string
   authEnforce: boolean
   enableDebugRoutes: boolean
@@ -23,7 +24,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (!mongoUri) throw new Error('CONFIG_INVÁLIDA: MONGO_URI é obrigatória')
 
   const jwtSecret = parseStrongSecret(env.JWT_SECRET, 'JWT_SECRET', true)
-  const oldApiJwtSecret = parseStrongSecret(env.OLD_API_JWT_SECRET, 'OLD_API_JWT_SECRET', false)
+  const oldApiJwtSecret = parseStrongSecret(env.OLD_API_JWT_SECRET, 'OLD_API_JWT_SECRET', true)
+  const studentAccessJwtSecret = parseStrongSecret(
+    env.STUDENT_ACCESS_JWT_SECRET,
+    'STUDENT_ACCESS_JWT_SECRET',
+    true,
+  )
   const acWebhookSecret = parseStrongSecret(env.AC_WEBHOOK_SECRET, 'AC_WEBHOOK_SECRET', true)
   const nodeEnv = env.NODE_ENV || 'development'
   if (!['development', 'test', 'production'].includes(nodeEnv)) {
@@ -44,9 +50,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     nodeEnv: nodeEnv as AppConfig['nodeEnv'],
     mongoUri,
     jwtSecret,
+    oldApiJwtSecret,
+    studentAccessJwtSecret,
     acWebhookSecret,
     authEnforce,
-    ...(oldApiJwtSecret ? { oldApiJwtSecret } : {}),
     enableDebugRoutes,
     allowedOrigins,
     port,

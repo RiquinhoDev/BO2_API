@@ -1,4 +1,3 @@
-import jwt from 'jsonwebtoken'
 import mongoose from 'mongoose'
 import Product from '../models/product/Product'
 import User from '../models/user'
@@ -11,6 +10,7 @@ import { findRenewalOffer } from './renewal/renewalMatcher.service'
 import { buildCheckoutLink } from './renewal/renewalSync.service'
 import { GENERIC_RENEWAL_OFFER_CODE } from './renewal/renewalConstants'
 import { parseTurmaName, resolveAccessEnd } from './renewal/turmaParser'
+import { verifyStudentAccessToken } from '../security/jwt'
 
 type MongooseReadModel = mongoose.Model<mongoose.Document>
 type StudentSummarySource = 'userProduct' | 'legacyHotmart' | 'none'
@@ -18,10 +18,6 @@ type StudentSummarySource = 'userProduct' | 'legacyHotmart' | 'none'
 const ProductReadModel = Product as unknown as MongooseReadModel
 const UserProductReadModel = UserProduct as unknown as MongooseReadModel
 const CourseLessonReadModel = CourseLesson as unknown as MongooseReadModel
-
-interface JwtStudentPayload {
-  email?: string
-}
 
 interface OgiModuleSummary {
   id: string
@@ -183,13 +179,7 @@ export function normalizeStudentEmail(email: string): string {
 }
 
 export function resolveStudentEmailFromToken(token: string): string {
-  const secret = process.env.STUDENT_ACCESS_JWT_SECRET || process.env.JWT_SECRET
-
-  if (!secret) {
-    throw new Error('STUDENT_ACCESS_JWT_SECRET_OR_JWT_SECRET_MISSING')
-  }
-
-  const payload = jwt.verify(token, secret) as JwtStudentPayload
+  const payload = verifyStudentAccessToken<{ email?: string }>(token)
   if (!payload.email) {
     throw new Error('STUDENT_TOKEN_EMAIL_MISSING')
   }

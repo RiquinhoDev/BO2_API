@@ -4,6 +4,8 @@ const BASE_ENV = {
   NODE_ENV: 'test',
   MONGO_URI: 'mongodb://database.internal/bo2',
   JWT_SECRET: 'f2-auth-config-jwt-secret-at-least-32-characters',
+  OLD_API_JWT_SECRET: 'f2-auth-config-old-api-secret-at-least-32-characters',
+  STUDENT_ACCESS_JWT_SECRET: 'f2-auth-config-student-secret-at-least-32-characters',
   AC_WEBHOOK_SECRET: 'f2-auth-config-ac-secret-at-least-32-characters',
 }
 
