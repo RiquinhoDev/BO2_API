@@ -1,10 +1,53 @@
 import fs from 'fs'
 import path from 'path'
+import { execFileSync } from 'child_process'
 
 import packageJson from '../../package.json'
 
 const repositoryRoot = path.resolve(__dirname, '../..')
 const documentationIndexPath = path.join(repositoryRoot, 'docs', 'README.md')
+const monitoringComposePath = path.join(repositoryRoot, 'docker-compose.monitoring.yml')
+
+const forbiddenTracked = [
+  /^dist\//,
+  /^logs\//,
+  /^uploads\//,
+  /(^|\/)coverage\//,
+  /(^|\/).*\.log$/,
+  /(^|\/)nul$/,
+  /(^|\/)tmpclaude-/,
+]
+
+const listTrackedFiles = (): string[] =>
+  String(execFileSync('git', ['ls-files'], { cwd: repositoryRoot, encoding: 'utf8' }))
+    .split(/\r?\n/)
+    .filter(Boolean)
+
+const parseComposeImages = (source: string): string[] =>
+  Array.from(
+    source.matchAll(/^\s*image:\s*["']?([^\s"'#]+)["']?(?:\s+#.*)?$/gm),
+    match => match[1],
+  )
+
+const isPinnedImageReference = (imageReference: string): boolean => {
+  if (imageReference.includes('@sha256:')) return true
+
+  const tagSeparator = imageReference.lastIndexOf(':')
+  const pathSeparator = imageReference.lastIndexOf('/')
+  if (tagSeparator <= pathSeparator) return false
+
+  const tag = imageReference.slice(tagSeparator + 1)
+  return tag.length > 0 && tag !== 'latest'
+}
+
+const parseGrafanaPasswordAssignments = (source: string): string[] =>
+  Array.from(
+    source.matchAll(/^\s*(?:-\s*)?GF_SECURITY_ADMIN_PASSWORD\s*(?:=|:)\s*(.*?)\s*$/gm),
+    match => match[1].replace(/^['"]|['"]$/g, ''),
+  )
+
+const requiredGrafanaPassword =
+  '${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}'
 
 const expectedDocuments = {
   'docs/archive/API_AUDIT_2026-07-15.md': 'ARCHIVE',
@@ -77,6 +120,25 @@ const missingRelativeDocumentationLinks = (): string[] => {
 
   return missing.sort()
 }
+
+describe('repository artifact hygiene', () => {
+  it('keeps generated and disposable artifacts out of the tracked tree', () => {
+    const trackedForbidden = listTrackedFiles().filter(relativePath =>
+      forbiddenTracked.some(pattern => pattern.test(relativePath)),
+    )
+
+    expect(trackedForbidden).toEqual([])
+  })
+
+  it('pins monitoring images and requires a non-default Grafana password', () => {
+    const compose = fs.readFileSync(monitoringComposePath, 'utf8')
+    const imageReferences = parseComposeImages(compose)
+
+    expect(imageReferences).toHaveLength(3)
+    expect(imageReferences.filter(reference => !isPinnedImageReference(reference))).toEqual([])
+    expect(parseGrafanaPasswordAssignments(compose)).toEqual([requiredGrafanaPassword])
+  })
+})
 
 describe('repository documentation hygiene', () => {
   it('keeps Markdown out of the repository root', () => {

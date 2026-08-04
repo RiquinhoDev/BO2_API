@@ -1088,7 +1088,7 @@ Progresso controllers:
 
 ### 3. Estrutura de pastas & higiene
 - [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
-- [ ] Sem artefactos locais commitados; imagens de compose fixadas por versão/digest, sem credenciais default.
+- [x] Sem artefactos locais commitados; imagens de compose fixadas por versão/digest, sem credenciais default.
 - [x] **Evidência root-hygiene (2026-08-03; Tasks 1–3):** seis documentos de raiz obsoletos/PII foram eliminados (**1,604 linhas**); quatro documentos live/históricos foram movidos para `docs/` com notas de estado; e `docs/README.md` foi criado com secções separadas **Active**, **Reference**, **Archive**, **Plans** e **Specs**.
   - Os dois harnesses temporários rastreados foram eliminados (**85 linhas**). Foram removidos os **35** comandos directos de package com alvos ausentes e o `diagnose:all` quebrado; `validate:full` foi reparado para a sequência offline válida, e a auditoria dos alvos directos sobreviventes confirmou **10/10 existentes**.
   - A autoridade npm foi estabelecida sem alterações ao grafo de dependências: `yarn.lock` foi eliminado (**4,961 linhas**); todas as configurações de build activas (`package.json`, `Dockerfile` e Nixpacks) seleccionam npm; apenas `package.json` declara o esperado `npm@11.9.0`, enquanto Docker/Nixpacks usam o npm fornecido pelo ambiente.
