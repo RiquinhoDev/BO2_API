@@ -346,6 +346,9 @@ test('configuredCredentialGroup rejects incomplete groups by variable name', () 
 })
 
 test('explicit malformed optional values fail even when their feature is disabled', () => {
+  expect(() => loadConfig({ ...VALID_ENV, AC_DEBUG: 'TRUE' })).toThrow('AC_DEBUG')
+  expect(() => loadConfig({ ...VALID_ENV, AC_DEBUG_VERIFY_DELETE: 'yes' })).toThrow('AC_DEBUG_VERIFY_DELETE')
+
   expect(() => loadConfig({ ...VALID_ENV, FMP_API_KEY: '   ' })).toThrow('FMP_API_KEY')
   expect(() => loadConfig({ ...VALID_ENV, SLACK_WEBHOOK_URL: 'ftp://invalid.test' })).toThrow(
     'SLACK_WEBHOOK_URL',
@@ -419,6 +422,8 @@ test('configured optional integrations receive typed values', () => {
     ...VALID_ENV,
     AC_API_URL: 'https://ac.example.test',
     AC_API_KEY: 'ac-key',
+    AC_DEBUG: 'true',
+    AC_DEBUG_VERIFY_DELETE: 'true',
     FMP_API_KEY: 'fmp-key',
     HOTMART_CLIENT_ID: 'hotmart-client',
     HOTMART_CLIENT_SECRET: 'hotmart-secret',
@@ -434,6 +439,8 @@ test('configured optional integrations receive typed values', () => {
       apiUrl: 'https://ac.example.test/',
       apiKey: 'ac-key',
       webhookSecret: STRONG_AC_WEBHOOK_SECRET,
+      debugEnabled: true,
+      verifyDeleteEnabled: true,
       lists: {},
     },
   })

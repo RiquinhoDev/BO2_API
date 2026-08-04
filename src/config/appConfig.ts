@@ -172,6 +172,8 @@ function parseActiveCampaign(
   env: NodeJS.ProcessEnv,
   webhookSecret: string,
 ): IntegrationConfig<ActiveCampaignIntegration> {
+  const debugEnabled = parseBooleanFlag(env.AC_DEBUG, 'AC_DEBUG')
+  const verifyDeleteEnabled = parseBooleanFlag(env.AC_DEBUG_VERIFY_DELETE, 'AC_DEBUG_VERIFY_DELETE')
   const names = ['AC_API_URL', 'AC_API_KEY', 'AC_LIST_CLAREZA', 'AC_LIST_OGI'] as const
   if (!hasAnyValue(env, names)) return { configured: false }
 
@@ -187,6 +189,8 @@ function parseActiveCampaign(
       apiUrl,
       apiKey,
       webhookSecret,
+      debugEnabled,
+      verifyDeleteEnabled,
       lists: {
         ...(clarezaList !== undefined ? { clareza: clarezaList } : {}),
         ...(ogiList !== undefined ? { ogi: ogiList } : {}),

@@ -4,7 +4,9 @@
 // ════════════════════════════════════════════════════════════
 
 import axios, { AxiosInstance } from 'axios'
-import { activeCampaignConfig, validateConfig } from '../../config/activecampaign.config'
+import { getRuntimeConfig } from '../../config/runtimeConfig'
+import type { ActiveCampaignIntegration } from '../../config/configTypes'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 import { 
   ACContact, 
   ACContactApi, 
@@ -13,6 +15,12 @@ import {
   ACTagResponse 
 } from '../../types/activecampaign.types'
 import { User, UserProduct } from '../../models'
+
+const AC_MAX_REQUESTS_PER_MINUTE = 280
+const AC_REQUEST_DELAY_MS = 200
+const AC_REQUEST_TIMEOUT_MS = 30_000
+const AC_MAX_RETRIES = 3
+const AC_RETRY_DELAY_MS = 2_000
 
 type ACContactTagLink = {
   id: string
@@ -60,41 +68,46 @@ type ACTagDetailResponse = {
 // ─────────────────────────────────────────────────────────────
 
 class ActiveCampaignService {
-  public client: AxiosInstance // Público para ser usado pelo ContactTagReader
+  private clientInstance: AxiosInstance | null = null
+  private clientConfigKey: string | null = null
   private requestCount: number = 0
   private lastResetTime: number = Date.now()
 
-  constructor() {
+  public get client(): AxiosInstance {
+    const integration = this.getIntegration()
+    const configKey = `${integration.apiUrl}\u0000${integration.apiKey}`
 
-
-
-    
-    // Validar configuração
-    if (!validateConfig()) {
-      console.warn('⚠️ Active Campaign não está configurado corretamente')
-      // Criar cliente dummy para evitar erros
-      this.client = axios.create()
-      return
+    if (this.clientInstance && this.clientConfigKey === configKey) {
+      return this.clientInstance
     }
 
-    // Criar cliente Axios
-    this.client = axios.create({
-      baseURL: activeCampaignConfig.apiUrl,
-      timeout: activeCampaignConfig.requestTimeout,
+    this.clientInstance = axios.create({
+      baseURL: integration.apiUrl,
+      timeout: AC_REQUEST_TIMEOUT_MS,
       headers: {
-        'Api-Token': activeCampaignConfig.apiKey,
+        'Api-Token': integration.apiKey,
         'Content-Type': 'application/json'
       }
     })
-
-    console.log('✅ Active Campaign Service inicializado')
+    this.clientConfigKey = configKey
+    return this.clientInstance
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // RATE LIMITING
-  // ═══════════════════════════════════════════════════════════
+  private getIntegration(): ActiveCampaignIntegration {
+    const integration = getRuntimeConfig().integrations.activeCampaign
+    if (!integration.configured) {
+      throw new IntegrationUnavailableError('activeCampaign')
+    }
+    return integration.value
+  }
+
+  private rethrowIntegrationUnavailable(error: unknown): void {
+    if (error instanceof IntegrationUnavailableError) throw error
+  }
 
   private async checkRateLimit(): Promise<void> {
+    this.getIntegration()
+
     const now = Date.now()
     const timeSinceReset = now - this.lastResetTime
 
@@ -105,7 +118,7 @@ class ActiveCampaignService {
     }
 
     // Verificar se excedeu limite
-    if (this.requestCount >= activeCampaignConfig.maxRequestsPerMinute) {
+    if (this.requestCount >= AC_MAX_REQUESTS_PER_MINUTE) {
       const waitTime = 60000 - timeSinceReset
       console.warn(`⏸️ Rate limit atingido. Aguardando ${waitTime}ms...`)
       await this.sleep(waitTime)
@@ -117,7 +130,7 @@ class ActiveCampaignService {
     
     // Delay entre requests
     if (this.requestCount > 1) {
-      await this.sleep(activeCampaignConfig.requestDelay)
+      await this.sleep(AC_REQUEST_DELAY_MS)
     }
   }
 
@@ -131,14 +144,16 @@ class ActiveCampaignService {
 
   public async retryRequest<T>(
     fn: () => Promise<T>,
-    retries: number = activeCampaignConfig.maxRetries
+    retries: number = AC_MAX_RETRIES
   ): Promise<T> {
+    this.getIntegration()
     try {
       return await fn()
     } catch (error) {
+      this.rethrowIntegrationUnavailable(error)
       if (retries > 0 && this.isRetryableError(error)) {
         console.warn(`⚠️ Erro na request. Tentando novamente... (${retries} tentativas restantes)`)
-        await this.sleep(activeCampaignConfig.retryDelay)
+        await this.sleep(AC_RETRY_DELAY_MS)
         return this.retryRequest(fn, retries - 1)
       }
       throw error
@@ -162,6 +177,7 @@ class ActiveCampaignService {
    * Buscar contacto por email
    */
   async getContactByEmail(email: string): Promise<ACContactResponse | null> {
+    this.getIntegration()
     await this.checkRateLimit()
 
     try {
@@ -181,12 +197,14 @@ class ActiveCampaignService {
 
       return null
     } catch (error) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`❌ Erro ao buscar contacto ${email}:`, this.formatError(error))
       throw error
     }
   }
 
   async getAllContacts(): Promise<ACContactApi[]> {
+    this.getIntegration()
     const contacts: ACContactApi[] = []
     const limit = 100
     let offset = 0
@@ -212,6 +230,7 @@ class ActiveCampaignService {
    * Criar ou atualizar contacto
    */
   async createOrUpdateContact(contact: ACContact): Promise<ACContactResponse> {
+    this.getIntegration()
     await this.checkRateLimit()
 
     try {
@@ -238,6 +257,7 @@ class ActiveCampaignService {
         })
       }
     } catch (error) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`❌ Erro ao criar/atualizar contacto ${contact.email}:`, this.formatError(error))
       throw error
     }
@@ -247,6 +267,7 @@ class ActiveCampaignService {
  * Encontrar ou criar contacto (retorna o contacto com id)
  */
 async findOrCreateContact(email: string, name?: string): Promise<ACContactApi> {
+  this.getIntegration()
   const existing = await this.getContactByEmail(email)
   if (existing?.contact) return existing.contact
 
@@ -280,6 +301,7 @@ async findOrCreateContact(email: string, name?: string): Promise<ACContactApi> {
  * @returns contactId do AC ou null
  */
 async getContactId(email: string, userId?: string): Promise<string | null> {
+  this.getIntegration()
   try {
     // Verificar cache na BD
     if (userId) {
@@ -307,6 +329,7 @@ async getContactId(email: string, userId?: string): Promise<string | null> {
     return contactId
 
   } catch (error) {
+    this.rethrowIntegrationUnavailable(error)
     console.error(`[AC Service] ❌ Erro ao buscar contactId para ${email}:`, this.formatError(error))
     return null
   }
@@ -320,6 +343,7 @@ async getContactId(email: string, userId?: string): Promise<string | null> {
    * Adicionar tag a um contacto
    */
   async addTag(email: string, tagName: string): Promise<ACTagResponse> {
+    this.getIntegration()
     await this.checkRateLimit()
     try {
       // 1. Garantir que contacto existe
@@ -361,6 +385,7 @@ async getContactId(email: string, userId?: string): Promise<string | null> {
       return response.data
 
     } catch (error) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`❌ [AC] Erro ao adicionar tag "${tagName}":`, this.formatError(error))
       throw error
     }
@@ -376,6 +401,7 @@ async getContactId(email: string, userId?: string): Promise<string | null> {
  * @returns Array de nomes de tags (strings simples: ["tag1", "tag2"])
  */
 async getContactTagsByEmail(email: string): Promise<string[]> {
+  this.getIntegration()
   try {
     const contact = await this.getContactByEmail(email)
 
@@ -393,6 +419,7 @@ async getContactTagsByEmail(email: string): Promise<string[]> {
     return tagNames
 
   } catch (error: unknown) {
+    this.rethrowIntegrationUnavailable(error)
     console.error(`❌ [AC] Erro ao buscar tags:`, this.formatError(error))
     return []
   }
@@ -418,8 +445,7 @@ async getContactTagsByEmail(email: string): Promise<string[]> {
  * @returns TRUE se removida, FALSE se falhou
  */
 async removeTag(email: string, tagName: string): Promise<boolean> {
-  const debug = process.env.AC_DEBUG === 'true'
-  const verify = process.env.AC_DEBUG_VERIFY_DELETE === 'true'
+  const { debugEnabled: debug, verifyDeleteEnabled: verify } = this.getIntegration()
 
   await this.checkRateLimit()
 
@@ -451,6 +477,7 @@ async removeTag(email: string, tagName: string): Promise<boolean> {
         })
         return false
       } catch (error: unknown) {
+        this.rethrowIntegrationUnavailable(error)
         if (axios.isAxiosError(error) && error.response?.status === 404) {
           return true
         }
@@ -460,6 +487,7 @@ async removeTag(email: string, tagName: string): Promise<boolean> {
 
     return true
   } catch (error: unknown) {
+    this.rethrowIntegrationUnavailable(error)
     // ⚠️ eu aqui NÃO tratava 404 como sucesso às cegas sem debug,
     // porque pode ser URL errada (/api/3 duplicado) ou ID errado.
     console.error(`❌ [AC] Erro ao remover tag "${tagName}":`, this.formatError(error))
@@ -494,6 +522,7 @@ async removeTagBatch(
       failed: string[]
       total: number
     }> {
+  this.getIntegration()
     const result = {
       success: [] as string[],
       failed: [] as string[],
@@ -536,6 +565,7 @@ async removeTagBatch(
  * Remover múltiplas tags (usa removeTagBatch)
  */
 async removeTags(email: string, tagNames: string[]): Promise<void> {
+  this.getIntegration()
   await this.removeTagBatch(email, tagNames)
 }
 
@@ -552,6 +582,7 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
     email: string,
     fieldId: number
   ): Promise<{ contactId: string; value: string | null } | null> {
+    this.getIntegration()
     await this.checkRateLimit()
     try {
       const contact = await this.getContactByEmail(email)
@@ -567,6 +598,7 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
 
       return { contactId, value: match?.value ?? null }
     } catch (error) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`❌ [AC] Erro ao ler field ${fieldId} de ${email}:`, this.formatError(error))
       throw error
     }
@@ -579,6 +611,7 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
    * este método nunca cria contactos. Devolve false se não existir.
    */
   async updateContactField(email: string, fieldId: number, value: string): Promise<boolean> {
+    this.getIntegration()
     await this.checkRateLimit()
     try {
       const contact = await this.getContactByEmail(email)
@@ -601,6 +634,7 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
 
       return true
     } catch (error) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`❌ [AC] Erro ao escrever field ${fieldId} de ${email}:`, this.formatError(error))
       throw error
     }
@@ -614,6 +648,7 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
    * Buscar ou criar tag (público para ser usado pelo tagPreCreation)
    */
   public async getOrCreateTag(tagName: string): Promise<string> {
+    this.getIntegration()
     await this.checkRateLimit()
 
     try {
@@ -635,6 +670,7 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
 
       return response.data.tag.id
     } catch (error) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`❌ Erro ao obter/criar tag "${tagName}":`, this.formatError(error))
       throw error
     }
@@ -659,6 +695,7 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
       
       return tag ? tag.id : null
     } catch (error) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`❌ Erro ao buscar tag "${tagName}":`, this.formatError(error))
       return null
     }
@@ -678,6 +715,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
     const match = contactTags.find(ct => String(ct.tag) === String(tagId))
     return match?.id || null
   } catch (error) {
+    this.rethrowIntegrationUnavailable(error)
     console.error(`[AC] findContactTag() ERROR:`, this.formatError(error))
     return null
   }
@@ -703,12 +741,14 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
    * Testar conexão com API
    */
   async testConnection(): Promise<boolean> {
+    this.getIntegration()
     try {
       await this.checkRateLimit()
       await this.client.get('/api/3/users/me')
       console.log('✅ Conexão AC testada com sucesso')
       return true
     } catch (error) {
+      this.rethrowIntegrationUnavailable(error)
       console.error('❌ Erro ao testar conexão AC:', this.formatError(error))
       return false
     }
@@ -724,6 +764,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
    * @returns Array de tags do contacto
    */
   async getContactTags(contactId: string): Promise<ACContactTag[]> {
+    this.getIntegration()
     try {
       await this.checkRateLimit()
 
@@ -753,6 +794,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
               seriesid: ct.seriesid
             }
           } catch (error) {
+            this.rethrowIntegrationUnavailable(error)
             return {
               id: ct.id,
               tag: ct.tag,
@@ -765,6 +807,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
 
       return tagsWithDetails
     } catch (error: unknown) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`[AC Service] Erro ao buscar tags: ${this.formatError(error)}`)
       throw error
     }
@@ -783,6 +826,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
     productId: string,
     tagName: string
   ): Promise<boolean> {
+    this.getIntegration()
     try {
       const User = (await import('../../models/user')).default
       const Product = (await import('../../models/product/Product')).default
@@ -816,6 +860,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
 
       return true
     } catch (error: unknown) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`[AC Service] Error applying tag: ${this.formatError(error)}`)
       return false
     }
@@ -829,6 +874,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
     productId: string,
     tagName: string
   ): Promise<boolean> {
+    this.getIntegration()
     try {
       const userProduct = await UserProduct.findOne({ userId, productId })
       if (!userProduct) {
@@ -858,6 +904,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
 
       return true
     } catch (error: unknown) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`[AC Service] Error removing tag: ${this.formatError(error)}`)
       return false
     }
@@ -871,6 +918,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
    * @returns Contacto sincronizado
    */
   async syncContactByProduct(userId: string, productId: string): Promise<ACContactResponse> {
+    this.getIntegration()
     try {
       const User = (await import('../../models/user')).default
       const Product = (await import('../../models/product/Product')).default
@@ -903,6 +951,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
 
       return contact
     } catch (error: unknown) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`[AC Service] Error syncing contact by product: ${this.formatError(error)}`)
       throw error
     }
@@ -915,6 +964,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
    * @returns Tags removidas com sucesso
    */
   async removeAllProductTags(userId: string, productId: string): Promise<boolean> {
+    this.getIntegration()
     try {
       const User = (await import('../../models/user')).default
       const Product = (await import('../../models/product/Product')).default
@@ -945,6 +995,7 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
 
       return true
     } catch (error: unknown) {
+      this.rethrowIntegrationUnavailable(error)
       console.error(`[AC Service] Error removing all product tags: ${this.formatError(error)}`)
       return false
     }

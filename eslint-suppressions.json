@@ -1,9 +1,4 @@
 {
-  "src/config/activecampaign.config.ts": {
-    "no-console": {
-      "count": 2
-    }
-  },
   "src/controllers/acTags/acReader.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 5
@@ -756,10 +751,10 @@
   },
   "src/services/activeCampaign/activeCampaignService.ts": {
     "@typescript-eslint/no-unused-vars": {
-      "count": 2
+      "count": 1
     },
     "no-console": {
-      "count": 23
+      "count": 21
     }
   },
   "src/services/activeCampaign/contactTagReader.service.ts": {
