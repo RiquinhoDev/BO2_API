@@ -14,6 +14,24 @@ const VALID_ENV = {
   AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
 }
 
+const DUPLICATE_SECRET_CASES = [
+  {
+    name: 'JWT_SECRET e OLD_API_JWT_SECRET',
+    env: { JWT_SECRET: STRONG_OLD_API_JWT_SECRET },
+    expected: 'JWT_SECRET.*OLD_API_JWT_SECRET',
+  },
+  {
+    name: 'JWT_SECRET e STUDENT_ACCESS_JWT_SECRET',
+    env: { JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET },
+    expected: 'JWT_SECRET.*STUDENT_ACCESS_JWT_SECRET',
+  },
+  {
+    name: 'OLD_API_JWT_SECRET e STUDENT_ACCESS_JWT_SECRET',
+    env: { OLD_API_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET },
+    expected: 'OLD_API_JWT_SECRET.*STUDENT_ACCESS_JWT_SECRET',
+  },
+] as const
+
 test('carregar o modulo de config nao valida process.env no import', () => {
   expect(loadConfig).toEqual(expect.any(Function))
 })
@@ -48,6 +66,10 @@ test('loadConfig exige segredos dedicados fortes para API antiga e acesso estuda
   expect(() => loadConfig({ ...VALID_ENV, STUDENT_ACCESS_JWT_SECRET: 'curto' })).toThrow(
     'STUDENT_ACCESS_JWT_SECRET deve ter pelo menos 32 caracteres',
   )
+})
+
+test.each(DUPLICATE_SECRET_CASES)('$name rejeita autoridades JWT duplicadas', ({ env, expected }) => {
+  expect(() => loadConfig({ ...VALID_ENV, ...env })).toThrow(new RegExp(expected))
 })
 
 test('loadConfig exige segredo forte para assinar webhooks AC', () => {
