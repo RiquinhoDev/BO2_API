@@ -1087,18 +1087,21 @@ Progresso controllers:
   os testes usaram apenas fixtures/`MongoMemoryServer` local e as guardas de egress/sentinel.
 
 ### 3. Estrutura de pastas & higiene
-- [ ] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
+- [x] Docs em `docs/` com índice/estado; raiz limpa (DOC-02). Metadata do `package.json` corrigida (`name`, `main`).
+  - Closeout proof (2026-08-04; offline): `repositoryHygiene.test.ts` passed **1 suite / 12 tests**. The suite verifies the root Markdown allowlist, indexed destinations and relative links, package metadata, tracked-artifact denylist, and fixed compose inputs.
 - [x] Sem artefactos locais commitados; imagens de compose fixadas por versão/digest, sem credenciais default.
 - [x] **Evidência root-hygiene (2026-08-03; Tasks 1–3):** seis documentos de raiz obsoletos/PII foram eliminados (**1,604 linhas**); quatro documentos live/históricos foram movidos para `docs/` com notas de estado; e `docs/README.md` foi criado com secções separadas **Active**, **Reference**, **Archive**, **Plans** e **Specs**.
   - Os dois harnesses temporários rastreados foram eliminados (**85 linhas**). Foram removidos os **35** comandos directos de package com alvos ausentes e o `diagnose:all` quebrado; `validate:full` foi reparado para a sequência offline válida, e a auditoria dos alvos directos sobreviventes confirmou **10/10 existentes**.
   - A autoridade npm foi estabelecida sem alterações ao grafo de dependências: `yarn.lock` foi eliminado (**4,961 linhas**); todas as configurações de build activas (`package.json`, `Dockerfile` e Nixpacks) seleccionam npm; apenas `package.json` declara o esperado `npm@11.9.0`, enquanto Docker/Nixpacks usam o npm fornecido pelo ambiente.
   - Gates offline finais do Task 3: lint **0**, TypeScript **0/0**, Jest **159 passed + 1 skipped suites / 806 passed + 2 skipped tests**, build **0**. Esta evidência é estática/offline e não declara deploy nem observação operacional.
-  - **DOC-02 global permanece aberto:** os sete Markdown anteriormente na raiz foram movidos para os destinos Active/Reference/Archive e indexados em `docs/README.md`; o fecho coordenado fica reservado ao closeout e a caixa DOC-02 acima permanece deliberadamente `[ ]`.
+  - **DOC-02 closeout (2026-08-04):** the seven Markdown files formerly at the root remain at their indexed Active/Reference/Archive destinations; the root/link/package proof above closes the box. This is repository evidence only and does not claim deployment or live observation.
 
 ### 4. Middleware & funções
 - [x] **SEC-08 — baseline de instância única:** Helmet e rate limits separados para login, webhooks e operações pesadas foram entregues/verificados; o limite é explicitamente o baseline actual de **instância única**.
 - [x] **SEC-08 — payload/processo:** cap global JSON, upload endurecido, timeouts de headers/keep-alive do servidor e container **não-root** foram entregues/verificados.
-- [ ] **SEC-08 restante:** store distribuído do limiter, envelope 429 central/correlation-aware e política CSP final ainda por fechar.
+- [x] **SEC-08 restante:** distributed limiter store, central correlation-aware 429 envelope, and final CSP policy are closed (2026-08-04) by the approved Task 5/6 commits.
+  - Focused closeout proof (offline): **10 suites / 84 tests passed** across `repositoryHygiene`, `redisRateLimitStore`, `httpPerimeter`, config/bootstrap/startup, shutdown, auth, deployment perimeter, and CORS. Tests use local fakes and `MongoMemoryServer` only; no live Redis was contacted.
+  - Production caveat: `REDIS_HOST` is required at startup for production distributed rate limiting; any non-default Redis port/username/password must be provisioned. No deployment, external API, production database, or sibling Front was exercised.
 - [ ] **Error handler central** `(err,req,res,next)` — mensagem pública estável + correlation ID; detalhe só no logger redigido (SEC-10). *(base já entregue — validar cobertura em todas as rotas; respostas 500 ad hoc continuam com shapes diferentes e `events.routes` pode expor `error.message`.)*
 - [x] Redação PII/tokens **numa só função** partilhada (logger + error handler): `redactSensitiveData` é partilhada pelo logger e pelo error handler, e o ESLint ratchet rejeita novos `console` calls. A baseline legacy de console/suppressions continua aberta em TOOL-02.
 
@@ -1124,7 +1127,7 @@ Progresso controllers:
 - [x] **TOOL-01 — TypeScript `strict` a zero erros** (2026-08-03; F3.3). O ratchet foi removido, `noEmitOnError:true` está activo e não existe `tsc || exit 0` (Task 1, `8ee1c7c`). As autoridades restantes são `strict`, `noEmitOnError`, a compilação directa sem emissão (`npm.cmd run types:check`) e o build emissor (`npm.cmd run build`).
   - O contrato de tooling fixa `types:check` em `tsc --noEmit --pretty false`, exige `strict:true`/`noEmitOnError:true` no `tsconfig.json` e impede o regresso do ratchet.
   - Gates offline finais (2026-08-03): lint exit 0; TypeScript directo exit 0; Jest com `MONGOMS_RUNTIME_DOWNLOAD=false` — 159 suites passed, 1 skipped; 801 testes passed, 2 skipped; build (`tsc`) exit 0; `git diff --check` exit 0.
-  - Progresso mecanico do workplan apos este fecho: `checked=88 open=16 total=104 percent=84.6`. A contagem fecha apenas as duas caixas deste corte; provisioning, deploy e observacao operacional continuam fora.
+  - Progresso mecanico do workplan apos este fecho: `checked=94 open=10 total=104 percent=90.4`. The two closeout boxes are now checked; provisioning, deploy, and operational observation remain outside this cut.
 - [ ] **ESLint** `--max-warnings=0`, baseline podada a zero; a dívida de `no-explicit-any` continua aberta sob `strict:true` (TOOL-02).
 - [x] **Um** package manager autoritativo — todas as configurações de build activas seleccionam npm; apenas `package.json` declara o esperado `npm@11.9.0`, enquanto `Dockerfile` e Nixpacks usam o npm fornecido pelo ambiente; `package-lock.json` é o único lockfile e `yarn.lock` foi removido (2026-08-03; TOOL-03).
 - [x] Suites separadas unit/integration/load/e2e, mocks por defeito, **egress guard**; cobertura honesta e a subir (TEST-01/02). Task 4 (2026-08-04): baseline pré-change 163 suites − `tests/load/load.test.ts` = 162 seguras, + `tests/tooling/jestProjects.test.ts` = 163 finais (`unit` 140 + `integration` 23), sem sobreposição; `tests/e2e/products-dashboard.spec.ts` e `tests/sprint1/architecture.test.ts` ausentes. `test:load`/`test:e2e` não foram executados.
