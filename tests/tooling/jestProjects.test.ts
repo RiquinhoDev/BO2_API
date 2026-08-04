@@ -94,11 +94,12 @@ describe('Jest project topology', () => {
       'test:unit': 'jest --selectProjects unit',
       'test:integration': 'jest --selectProjects integration',
       'test:load': 'jest --selectProjects load',
-      'test:e2e': 'jest --selectProjects e2e',
+      'test:e2e': 'jest --selectProjects e2e --passWithNoTests',
     })
   })
 
   it('keeps the scanned database manifest explicit and classifies each test once', () => {
+    expect(fs.existsSync(path.join(testsRoot, 'e2e/products-dashboard.spec.ts'))).toBe(false)
     expect([...INTEGRATION_TEST_FILES].sort()).toEqual(scanMongoTests())
 
     const rootPattern = toPosix(repositoryRoot)
