@@ -12,6 +12,33 @@ import { createErrorHandling } from '../../src/security/errorHandling'
 
 const marker = { __bo2_offline_loopback: '1' }
 
+const API_ONLY_CSP = {
+  'default-src': ["'none'"],
+  'base-uri': ["'none'"],
+  'frame-ancestors': ["'none'"],
+  'form-action': ["'none'"],
+}
+
+function parseCspDirectives(header: string | undefined): Record<string, string[]> {
+  if (!header) throw new Error('Content-Security-Policy header is missing')
+
+  const directives = header
+    .split(';')
+    .map((directive) => directive.trim())
+    .filter(Boolean)
+    .map((directive) => {
+      const [name, ...values] = directive.split(/\s+/)
+      return [name, values] as [string, string[]]
+    })
+
+  expect(new Set(directives.map(([name]) => name)).size).toBe(directives.length)
+  return Object.fromEntries(directives)
+}
+
+function expectApiOnlyCsp(header: string | undefined): void {
+  expect(parseCspDirectives(header)).toEqual(API_ONLY_CSP)
+}
+
 function createDeterministicStore(): Store {
   const hits = new Map<string, number>()
   let windowMs = 60_000
@@ -85,24 +112,35 @@ test('usa a factory de stores para cada politica de rate limit', () => {
   expect(storeFactory).toHaveBeenCalledWith('heavy')
 })
 
-test('Helmet envia CSP explicita e permite recursos cross-origin', async () => {
+test('Helmet envia apenas CSP API e permite recursos cross-origin em 204', async () => {
   const response = await request(buildApp()).get('/probe').query(marker).expect(204)
 
   expect(response.headers['x-content-type-options']).toBe('nosniff')
   expect(response.headers['x-frame-options']).toBe('SAMEORIGIN')
   expect(response.headers['cross-origin-resource-policy']).toBe('cross-origin')
-  expect(response.headers['content-security-policy']).toEqual(
-    expect.stringContaining("default-src 'none'"),
-  )
-  expect(response.headers['content-security-policy']).toEqual(
-    expect.stringContaining("base-uri 'none'"),
-  )
-  expect(response.headers['content-security-policy']).toEqual(
-    expect.stringContaining("frame-ancestors 'none'"),
-  )
-  expect(response.headers['content-security-policy']).toEqual(
-    expect.stringContaining("form-action 'none'"),
-  )
+  expectApiOnlyCsp(response.headers['content-security-policy'])
+})
+
+test('Helmet envia apenas CSP API no preflight OPTIONS', async () => {
+  const response = await request(buildApp())
+    .options('/probe')
+    .set('Origin', 'http://localhost:3000')
+    .set('Access-Control-Request-Method', 'GET')
+    .set('Access-Control-Request-Headers', 'Authorization')
+    .query(marker)
+    .expect(204)
+
+  expectApiOnlyCsp(response.headers['content-security-policy'])
+})
+
+test('Helmet envia apenas CSP API quando o limiter devolve 429', async () => {
+  const app = buildApp({ login: { limit: 1, windowMs: 60_000 } })
+  const attempt = () => request(app).post('/api/auth/login').query(marker)
+
+  await attempt().expect(204)
+  const response = await attempt().expect(429)
+
+  expectApiOnlyCsp(response.headers['content-security-policy'])
 })
 
 test('login devolve 429 depois do limite', async () => {
