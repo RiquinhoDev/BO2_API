@@ -2,6 +2,8 @@ import axios from 'axios'
 import { cacheService } from '../cache.service'
 import { fmpThrottle } from './fmpThrottle'
 import ClarezaTop10Data from '../../models/ClarezaTop10Data'
+import { getRuntimeConfig } from '../../config/runtimeConfig'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 
 // Limita concorrência sem depender de p-queue (ESM-only)
 async function runWithConcurrency<T>(
@@ -70,12 +72,20 @@ const WATCHLIST = [
 const isEmpty = (v: any) => v === null || v === undefined ||
   (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
 
+function getFmpApiKey(): string {
+  const integration = getRuntimeConfig().integrations.fmp
+  if (!integration.configured) throw new IntegrationUnavailableError('fmp')
+  return integration.value.apiKey
+}
+
+
 // Primeiro elemento — endpoints STABLE (?symbol=)
 async function fmpFirstStable<T = any>(path: string, params: Record<string, string> = {}): Promise<T | null> {
+  const apiKey = getFmpApiKey()
   try {
     await fmpThrottle()
     const { data } = await axios.get(`${FMP_STABLE}${path}`, {
-      params: { apikey: process.env.FMP_API_KEY, ...params },
+      params: { apikey: apiKey, ...params },
       timeout: 15000
     })
     if (!data || (data as any)['Error Message']) return null
@@ -88,10 +98,11 @@ async function fmpFirstStable<T = any>(path: string, params: Record<string, stri
 
 // Primeiro elemento — endpoints v3 (ticker no path)
 async function fmpFirstV3<T = any>(pathWithTicker: string): Promise<T | null> {
+  const apiKey = getFmpApiKey()
   try {
     await fmpThrottle()
     const { data } = await axios.get(`${FMP_V3}${pathWithTicker}`, {
-      params: { apikey: process.env.FMP_API_KEY },
+      params: { apikey: apiKey },
       timeout: 15000
     })
     if (!data || (data as any)['Error Message']) return null
@@ -131,11 +142,12 @@ function downsampleHistory(rows: Array<{ date: string; close: number }>): Array<
 
 // Histórico: STABLE light → fallback v3 historical-price-full → normalizado {date, close}
 async function fetchHistorical(ticker: string, from: string, to: string): Promise<Array<{ date: string; close: number }>> {
+  const apiKey = getFmpApiKey()
   let rows: any[] = []
   try {
     await fmpThrottle()
     const { data } = await axios.get(`${FMP_STABLE}/historical-price-eod/light`, {
-      params: { apikey: process.env.FMP_API_KEY, symbol: ticker, from, to },
+      params: { apikey: apiKey, symbol: ticker, from, to },
       timeout: 20000
     })
     if (Array.isArray(data)) rows = data
@@ -145,7 +157,7 @@ async function fetchHistorical(ticker: string, from: string, to: string): Promis
     try {
       await fmpThrottle()
       const { data } = await axios.get(`${FMP_V3}/historical-price-full/${ticker}`, {
-        params: { apikey: process.env.FMP_API_KEY, from, to },
+        params: { apikey: apiKey, from, to },
         timeout: 20000
       })
       if (data && Array.isArray(data.historical)) rows = data.historical
@@ -286,9 +298,7 @@ function privateStockPayload() {
 // ─────────────────────────────────────────────────────────────
 
 export async function refreshClarezaTop10Data(): Promise<{ total: number; errors: number }> {
-  if (!process.env.FMP_API_KEY) {
-    throw new Error('FMP_API_KEY nao configurada')
-  }
+  getFmpApiKey()
 
   console.log(`📈 [ClarezaTop10] Iniciando refresh de ${WATCHLIST.length} ações (${REVISION})...`)
 
