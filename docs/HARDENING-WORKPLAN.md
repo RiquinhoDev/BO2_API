@@ -748,11 +748,11 @@ Distribuição (revisor, `tsc --noEmit`, 2026-07-18):
   Investiga o que era pretendido, corrige. Nunca só apagar uma chave sem perceber qual é a correcta.
 - TS2345/TS2769 (argumento/overload): normalmente tipo mal-casado → corrige o tipo na fronteira.
 
-- [ ] 1 commit por ficheiro, `types:baseline:update` a cada, número no corpo (`controllers 115→N`), gate verde.
+- [x] 1 commit por ficheiro, `types:baseline:update` a cada, número no corpo (`controllers 115→N`), gate verde. O workflow de baseline removido e supersedido pelos gates repository-wide de strict/noEmitOnError e zero erros.
   Podes entregar vários ficheiros num report. Se um erro revelar um bug (esp. TS2339/TS1117), **corrige ou pergunta**.
 
 Progresso controllers:
-- [ ] **syncStats — rotas shadowed (regra #9, aprovado 2026-07-18):** `GET /api/sync/stats` e `/api/sync/history`
+- [x] **syncStats — rotas shadowed (regra #9, aprovado 2026-07-18):** `GET /api/sync/stats` e `/api/sync/history`
   são servidas pelo `sync.routes` (montado 1º, `index.ts:53`); as cópias no `syncStats.routes` (montado 2º, `:94`)
   são **inalcançáveis**. Revisor confirmou a ordem **e** que o `getSyncStats` do `guru.routes` vem de
   `guru.sync.controller` (colisão de nome, NÃO dependência) → apagar os do `syncStats.controller` é seguro. Aprovado:
@@ -761,7 +761,7 @@ Progresso controllers:
   Esperado: controllers **77→69**.
   - [x] FEITO (`fe8c02f`). Revisor: 2 rotas+handlers shadowed fora, 4 `:id` tipados sem cast, sync/guru/manifest
     intactos. Evidência do catálogo reapontada para as declarações vivas (`sync.routes.ts:50/60`) — **sem mudança
-    de count** (as rotas continuam a existir, só se deduplicou) → sem regen de manifest/contrato. Ratchet **69/20**.
+    de count** (as rotas continuam a existir, só se deduplicou) → sem regen de manifest/contrato. Ratchet **69/20**. Tooling evidence (fresh): `controllerClosureEvidence.test.ts` — 1 suite/1 test passed (GREEN).
 - [x] **analytics (115→102)** — feito (`183427e`). **3 bugs reais (9º/10º/11º):** `$ne` duplicado no mesmo literal
   (`{$ne:null, $ne:''}` → 2º sobrescrevia o 1º; só excluía `''`, não `null`) → `$nin:[null,'']`; `require` de
   path inexistente (`../services/engagementService`) → import correcto; `setInterval` sem ref prendia o Jest →
