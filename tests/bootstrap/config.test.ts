@@ -1,7 +1,18 @@
 import { loadConfig } from '../../src/config/appConfig'
 
 const STRONG_JWT_SECRET = 'test-only-jwt-secret-with-at-least-32-characters'
+const STRONG_OLD_API_JWT_SECRET = 'test-only-old-api-jwt-secret-at-least-32-characters'
+const STRONG_STUDENT_ACCESS_JWT_SECRET = 'test-only-student-access-jwt-secret-at-least-32-characters'
 const STRONG_AC_WEBHOOK_SECRET = 'test-only-ac-webhook-secret-at-least-32-characters'
+
+const VALID_ENV = {
+  NODE_ENV: 'test',
+  MONGO_URI: 'mongodb://database.internal/bo2',
+  JWT_SECRET: STRONG_JWT_SECRET,
+  OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+  STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
+  AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
+}
 
 test('carregar o modulo de config nao valida process.env no import', () => {
   expect(loadConfig).toEqual(expect.any(Function))
@@ -13,7 +24,12 @@ test('loadConfig exige MONGO_URI quando e chamada', () => {
 
 test('loadConfig exige JWT_SECRET forte no bootstrap', () => {
   expect(() =>
-    loadConfig({ NODE_ENV: 'test', MONGO_URI: 'mongodb://database.internal/bo2' }),
+    loadConfig({
+      NODE_ENV: 'test',
+      MONGO_URI: 'mongodb://database.internal/bo2',
+      OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+      STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
+    }),
   ).toThrow('JWT_SECRET')
 
   expect(() =>
@@ -21,8 +37,17 @@ test('loadConfig exige JWT_SECRET forte no bootstrap', () => {
       NODE_ENV: 'test',
       MONGO_URI: 'mongodb://database.internal/bo2',
       JWT_SECRET: 'curto',
+      OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+      STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
     }),
   ).toThrow('JWT_SECRET deve ter pelo menos 32 caracteres')
+})
+
+test('loadConfig exige segredos dedicados fortes para API antiga e acesso estudante', () => {
+  expect(() => loadConfig({ ...VALID_ENV, OLD_API_JWT_SECRET: undefined })).toThrow('OLD_API_JWT_SECRET')
+  expect(() => loadConfig({ ...VALID_ENV, STUDENT_ACCESS_JWT_SECRET: 'curto' })).toThrow(
+    'STUDENT_ACCESS_JWT_SECRET deve ter pelo menos 32 caracteres',
+  )
 })
 
 test('loadConfig exige segredo forte para assinar webhooks AC', () => {
@@ -31,6 +56,8 @@ test('loadConfig exige segredo forte para assinar webhooks AC', () => {
       NODE_ENV: 'test',
       MONGO_URI: 'mongodb://database.internal/bo2',
       JWT_SECRET: STRONG_JWT_SECRET,
+      OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+      STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
     }),
   ).toThrow('AC_WEBHOOK_SECRET')
 })
@@ -41,8 +68,9 @@ test('loadConfig valida e tipa porta, JWT e Redis explicito', () => {
       NODE_ENV: 'production',
       MONGO_URI: 'mongodb://database.internal/bo2',
       JWT_SECRET: STRONG_JWT_SECRET,
+      OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+      STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
       AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
-      OLD_API_JWT_SECRET: 'old-api-test-secret-with-at-least-32-characters',
       ALLOWED_ORIGINS: 'https://extra.example/app',
       PORT: '4321',
       REDIS_HOST: 'redis.internal',
@@ -54,9 +82,10 @@ test('loadConfig valida e tipa porta, JWT e Redis explicito', () => {
     nodeEnv: 'production',
     mongoUri: 'mongodb://database.internal/bo2',
     jwtSecret: STRONG_JWT_SECRET,
+    oldApiJwtSecret: STRONG_OLD_API_JWT_SECRET,
+    studentAccessJwtSecret: STRONG_STUDENT_ACCESS_JWT_SECRET,
     acWebhookSecret: STRONG_AC_WEBHOOK_SECRET,
     authEnforce: true,
-    oldApiJwtSecret: 'old-api-test-secret-with-at-least-32-characters',
     enableDebugRoutes: false,
     allowedOrigins: expect.arrayContaining([
       'https://extra.example',
@@ -79,6 +108,8 @@ test('debug routes exigem flag explicita e sao proibidas em producao', () => {
       NODE_ENV: 'development',
       MONGO_URI: 'mongodb://database.internal/bo2',
       JWT_SECRET: STRONG_JWT_SECRET,
+      OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+      STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
       AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
       ENABLE_DEBUG_ROUTES: 'true',
     }).enableDebugRoutes,
@@ -89,6 +120,8 @@ test('debug routes exigem flag explicita e sao proibidas em producao', () => {
       NODE_ENV: 'production',
       MONGO_URI: 'mongodb://database.internal/bo2',
       JWT_SECRET: STRONG_JWT_SECRET,
+      OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+      STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
       AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
       ENABLE_DEBUG_ROUTES: 'true',
     }),
@@ -101,6 +134,8 @@ test('loadConfig nao ativa Redis localhost por omissao', () => {
       NODE_ENV: 'test',
       MONGO_URI: 'mongodb://database.internal/bo2',
       JWT_SECRET: STRONG_JWT_SECRET,
+      OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+      STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
       AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
     }).redis,
   ).toBe(undefined)

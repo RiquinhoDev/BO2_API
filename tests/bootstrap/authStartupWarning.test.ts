@@ -4,6 +4,8 @@ const env = {
   NODE_ENV: 'production',
   MONGO_URI: 'mongodb://database.internal/bo2',
   JWT_SECRET: 'f2-auth-startup-jwt-secret-at-least-32-characters',
+  OLD_API_JWT_SECRET: 'f2-auth-startup-old-api-secret-at-least-32-characters',
+  STUDENT_ACCESS_JWT_SECRET: 'f2-auth-startup-student-secret-at-least-32-characters',
   AC_WEBHOOK_SECRET: 'f2-auth-startup-ac-secret-at-least-32-characters',
   AUTH_ENFORCE: 'false',
 }
