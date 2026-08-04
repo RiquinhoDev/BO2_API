@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/renewal/discordRolesSync.service.ts
 // Reconciliação nocturna dos cargos de renovação no Discord (R. {Mês})
-// + envio de mensagens do bot. Ver RENOVACAO_DISCORD_CARGOS_PLAN.md.
+// + envio de mensagens do bot. Ver docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.
 //
 // Regra de ouro (D3): o cargo espelha SEMPRE a turma actual na Hotmart.
 //   desejado  = mês do fim de acesso (parseTurmaName → accessEndOgi)

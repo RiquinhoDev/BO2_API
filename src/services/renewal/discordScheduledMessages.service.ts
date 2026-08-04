@@ -1,5 +1,5 @@
 // src/services/renewal/discordScheduledMessages.service.ts
-// Mensagens agendadas de renovação — plano na secção 12 do RENOVACAO_DISCORD_CARGOS_PLAN.md.
+// Mensagens agendadas de renovação — plano na secção 12 do docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.
 //
 // Cadência (confirmada pelo João 2026-07-11): a turma cujo acesso terminou no fim do mês M
 // tem o cargo R.{M}; a janela de renovação são os 15 dias de M+1. Cada dia tem a SUA mensagem:

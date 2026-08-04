@@ -5,7 +5,7 @@
 // Cada documento = UMA acção atómica na AC, planeada antes de ser
 // executada. O plano é gerado sem tocar na AC (dry-run persistido);
 // a execução é um passo separado, com guards e switches próprios.
-// Ver RENOVACAO_OGI_BO_PLAN.md (secções 11 e 13).
+// Ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md (secções 11 e 13).
 //
 // Ciclo de vida:
 //   PLANNED → APPROVED → APPLIED

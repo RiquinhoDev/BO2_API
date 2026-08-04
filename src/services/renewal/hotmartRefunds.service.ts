@@ -8,7 +8,7 @@
 //
 // ⚠️ Escreve APENAS na nossa BD — nunca toca na ActiveCampaign.
 // É invocado pelo RenewalAcSync (cron desligado por defeito) ou
-// manualmente via endpoint. Ver RENOVACAO_OGI_BO_PLAN.md (Gap A).
+// manualmente via endpoint. Ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md (Gap A).
 // ════════════════════════════════════════════════════════════
 
 import axios from 'axios'
