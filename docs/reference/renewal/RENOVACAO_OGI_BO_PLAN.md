@@ -208,7 +208,7 @@ Princípio: **o BO nunca escreve na AC sem deixar um rasto revisável e reversí
 
 ## 12. Auditoria read-only da AC (2026-07-09)
 
-Feita com a key do BO2_API, **apenas GETs**. Raw completo: [`docs/ac-audit-2026-07-09.json`](docs/ac-audit-2026-07-09.json) (fields + 650 tags + listas; re-gerável a qualquer momento).
+Feita com a key do BO2_API, **apenas GETs**. Raw completo: [`docs/ac-audit-2026-07-09.json`](../../ac-audit-2026-07-09.json) (fields + 650 tags + listas; re-gerável a qualquer momento).
 
 ### 12.1 Campos relevantes (IDs confirmados)
 

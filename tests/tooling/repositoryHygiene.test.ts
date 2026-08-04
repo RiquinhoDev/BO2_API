@@ -16,6 +16,8 @@ const expectedDocuments = {
   'docs/active/URGENT_KEY_REPLACEMENT.md': 'ACTIVE',
 } as const
 
+const indexedDocuments = ['docs/README.md', ...Object.keys(expectedDocuments)]
+
 const listRootMarkdown = (): string[] =>
   fs
     .readdirSync(repositoryRoot, { withFileTypes: true })
@@ -51,6 +53,31 @@ const indexedStatuses = (): Map<string, string> => {
   return statuses
 }
 
+const missingRelativeDocumentationLinks = (): string[] => {
+  const missing: string[] = []
+
+  for (const relativeFile of indexedDocuments) {
+    const absoluteFile = path.join(repositoryRoot, relativeFile)
+    const source = fs.readFileSync(absoluteFile, 'utf8')
+
+    for (const match of source.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
+      const target = match[1].split('#', 1)[0].trim()
+      if (
+        !target ||
+        /^(?:[a-z][a-z\d+.-]*:|\/)/i.test(target) ||
+        !/\.(?:md|json)$/i.test(target)
+      ) {
+        continue
+      }
+
+      const absoluteTarget = path.resolve(path.dirname(absoluteFile), target)
+      if (!fs.existsSync(absoluteTarget)) missing.push(`${relativeFile}: ${target}`)
+    }
+  }
+
+  return missing.sort()
+}
+
 describe('repository documentation hygiene', () => {
   it('keeps Markdown out of the repository root', () => {
     expect(listRootMarkdown()).toEqual([])
@@ -65,6 +92,10 @@ describe('repository documentation hygiene', () => {
     for (const [relativePath, expectedStatus] of Object.entries(expectedDocuments)) {
       expect(statuses.get(relativePath)).toBe(expectedStatus)
     }
+  })
+
+  it('keeps relative Markdown and data links in the index and moved documents resolvable', () => {
+    expect(missingRelativeDocumentationLinks()).toEqual([])
   })
 
   it('retains the package metadata contract', () => {
