@@ -2,7 +2,7 @@
 
 > **Codex: lê isto primeiro.** É a tua lista de trabalho e as regras. O contexto profundo (o porquê, o método
 > de revisão, o histórico) vive no repo **Front**, em `docs/superpowers/` — se tiveres acesso, lê o
-> `REVIEWER-PLAYBOOK.md` e o `CONTINUITY-front-remake-review.md` §7d. Auditoria local: `API_AUDIT.md` (raiz).
+> `REVIEWER-PLAYBOOK.md` e o `CONTINUITY-front-remake-review.md` §7d. Auditoria local: `archive/API_AUDIT_2026-07-15.md`.
 >
 > **Missão:** elevar esta API a arquitetura/segurança/código limpo/operacionalidade de alto nível, por
 > **refactor incremental (strangler), NÃO rewrite.** Trabalho na branch `remake`.
@@ -114,7 +114,7 @@
 3. **Não corras `npm install`.** Se precisares mesmo de uma dependência nova, **pára e pede ao revisor** — ele
    instala e atualiza o único lockfile autoritativo (`package-lock.json`) com npm. O `yarn.lock` foi removido e
    Nixpacks usa `npm ci`; mexer apenas no `package.json` sem a correspondente revisão do lockfile parte o build.
-4. **Não toques** em `scripts/git-hooks/`, `URGENT_KEY_REPLACEMENT.md` nem `RENOVACAO_*.md` — são de outra
+4. **Não toques** em `scripts/git-hooks/`, `active/URGENT_KEY_REPLACEMENT.md` nem `reference/renewal/RENOVACAO_*.md` — são de outra
    sessão de segurança.
 5. **Fonte única.** Reutiliza o que já existe; não cries uma segunda cópia de nada (redação, boundary de
    validação, decisão de CORS). Divergência entre duas cópias é a classe de bug que já mordeu este projeto.
@@ -1093,7 +1093,7 @@ Progresso controllers:
   - Os dois harnesses temporários rastreados foram eliminados (**85 linhas**). Foram removidos os **35** comandos directos de package com alvos ausentes e o `diagnose:all` quebrado; `validate:full` foi reparado para a sequência offline válida, e a auditoria dos alvos directos sobreviventes confirmou **10/10 existentes**.
   - A autoridade npm foi estabelecida sem alterações ao grafo de dependências: `yarn.lock` foi eliminado (**4,961 linhas**); todas as configurações de build activas (`package.json`, `Dockerfile` e Nixpacks) seleccionam npm; apenas `package.json` declara o esperado `npm@11.9.0`, enquanto Docker/Nixpacks usam o npm fornecido pelo ambiente.
   - Gates offline finais do Task 3: lint **0**, TypeScript **0/0**, Jest **159 passed + 1 skipped suites / 806 passed + 2 skipped tests**, build **0**. Esta evidência é estática/offline e não declara deploy nem observação operacional.
-  - **DOC-02 global permanece aberto:** continuam na raiz sete Markdown protegidos/activos (`API_AUDIT.md`, `COMPLETE_SECURITY_AUDIT.md`, `NATIVE_TAG_PROTECTION_SUMMARY.md`, `RENOVACAO_CONTEXTO_IA.md`, `RENOVACAO_DISCORD_CARGOS_PLAN.md`, `RENOVACAO_OGI_BO_PLAN.md`, `URGENT_KEY_REPLACEMENT.md`); a caixa DOC-02 acima permanece deliberadamente `[ ]`.
+  - **DOC-02 global permanece aberto:** os sete Markdown anteriormente na raiz foram movidos para os destinos Active/Reference/Archive e indexados em `docs/README.md`; o fecho coordenado fica reservado ao closeout e a caixa DOC-02 acima permanece deliberadamente `[ ]`.
 
 ### 4. Middleware & funções
 - [x] **SEC-08 — baseline de instância única:** Helmet e rate limits separados para login, webhooks e operações pesadas foram entregues/verificados; o limite é explicitamente o baseline actual de **instância única**.
