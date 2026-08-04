@@ -8,6 +8,8 @@ const config = (nodeEnv: AppConfig['nodeEnv']): AppConfig => ({
   nodeEnv,
   mongoUri: 'mongodb://127.0.0.1:27017/bo2_test',
   jwtSecret: 'j'.repeat(64),
+  oldApiJwtSecret: 'o'.repeat(64),
+  studentAccessJwtSecret: 's'.repeat(64),
   acWebhookSecret: 'a'.repeat(64),
   authEnforce: true,
   enableDebugRoutes: false,
