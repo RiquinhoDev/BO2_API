@@ -219,6 +219,8 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
     logLevel: 'info',
     metricsEnabled: false,
     logDirectory: expect.any(String),
+    fileLoggingEnabled: false,
+    consoleLoggingEnabled: false,
   })
   expect(config.integrations).toEqual({
     activeCampaign: { configured: false },
@@ -232,6 +234,21 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
   })
   expect(config.renewal.acSyncEnabled).toBe(false)
   expect(config.renewal.discordMessagesEnabled).toBe(false)
+})
+
+test.each([
+  ['test', false, false],
+  ['development', true, true],
+  ['production', true, false],
+] as const)('loadConfig derives logger transports for %s', (nodeEnv, fileLoggingEnabled, consoleLoggingEnabled) => {
+  const config = loadConfig({
+    ...VALID_ENV,
+    NODE_ENV: nodeEnv,
+    ...(nodeEnv === 'production' ? { ALLOWED_ORIGINS: 'https://front.example', ...FAKE_REDIS_ENV } : {}),
+  })
+
+  expect(config.observability.fileLoggingEnabled).toBe(fileLoggingEnabled)
+  expect(config.observability.consoleLoggingEnabled).toBe(consoleLoggingEnabled)
 })
 
 test.each([

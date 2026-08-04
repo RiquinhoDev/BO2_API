@@ -1,5 +1,6 @@
 import request from 'supertest'
 import { createApp } from '../../src/app'
+import { IntegrationUnavailableError } from '../../src/errors/integrationUnavailableError'
 import {
   HttpError,
   createErrorHandling,
@@ -31,6 +32,9 @@ function buildApp(logError: (event: ErrorLogEvent) => void) {
           }),
         )
       })
+      app.get('/integration', (_req, _res, next) => {
+        next(new IntegrationUnavailableError('activeCampaign', new Error('token=secret')))
+      })
     },
   })
 }
@@ -61,6 +65,37 @@ test('erro interno devolve envelope estável sem expor o detalhe cru', async () 
       detail: 'mongo falhou para [REDACTED_EMAIL] token=[REDACTED]',
     },
   ])
+})
+
+test('erro de integração devolve 503 estável sem expor identificador ou causa', async () => {
+  const events: ErrorLogEvent[] = []
+  const response = await request(buildApp((event) => events.push(event)))
+    .get('/integration')
+    .set('X-Request-ID', 'integration-request-123')
+    .query(marker)
+    .expect(503)
+
+  expect(response.body).toEqual({
+    success: false,
+    code: 'INTEGRATION_UNAVAILABLE',
+    message: 'Serviço temporariamente indisponível',
+    correlationId: 'integration-request-123',
+  })
+  expect(response.headers['x-request-id']).toBe('integration-request-123')
+  expect(response.text).not.toContain('activeCampaign')
+  expect(response.text).not.toContain('token=secret')
+  expect(events).toHaveLength(1)
+  expect(events[0]).toMatchObject({
+    correlationId: 'integration-request-123',
+    code: 'INTEGRATION_UNAVAILABLE',
+    status: 503,
+    integration: 'activeCampaign',
+  })
+  const serializedEvent = JSON.stringify(events[0])
+  expect(serializedEvent).toContain('INTEGRATION_UNAVAILABLE')
+  expect(serializedEvent).toContain('activeCampaign')
+  expect(serializedEvent).not.toContain('token=secret')
+  expect(serializedEvent).not.toContain('secret')
 })
 
 test('erro tipado preserva só a mensagem pública e redige a causa no log', async () => {

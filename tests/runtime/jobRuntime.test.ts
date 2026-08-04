@@ -31,6 +31,8 @@ const config = (nodeEnv: AppConfig['nodeEnv']): AppConfig => ({
     logLevel: 'info',
     metricsEnabled: false,
     logDirectory: 'logs',
+    fileLoggingEnabled: false,
+    consoleLoggingEnabled: false,
   },
   integrations: {
     activeCampaign: { configured: false },

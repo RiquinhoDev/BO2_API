@@ -1,6 +1,8 @@
 import type { Application } from 'express'
 import { MemoryStore } from 'express-rate-limit'
 import { bootstrap } from '../../src/bootstrap'
+import { getRuntimeConfig, resetRuntimeConfigForTests } from '../../src/config/runtimeConfig'
+import * as loggerModule from '../../src/utils/logger'
 import { createJobStarter } from '../../src/runtime/jobRuntime'
 import type { RateLimitStoreFactory } from '../../src/security/redisRateLimitStore'
 
@@ -8,6 +10,14 @@ const STRONG_JWT_SECRET = 'test-only-jwt-secret-with-at-least-32-characters'
 const STRONG_OLD_API_JWT_SECRET = 'test-only-old-api-jwt-secret-at-least-32-characters'
 const STRONG_STUDENT_ACCESS_JWT_SECRET = 'test-only-student-access-jwt-secret-at-least-32-characters'
 const STRONG_AC_WEBHOOK_SECRET = 'test-only-ac-webhook-secret-at-least-32-characters'
+
+beforeEach(() => {
+  resetRuntimeConfigForTests()
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
+})
 
 test('bootstrap falha na config antes de carregar infraestrutura', async () => {
   const loadInfrastructure = jest.fn()
@@ -120,6 +130,72 @@ test('bootstrap respeita config -> infra -> modelos -> rotas -> jobs -> listen',
     'listen:4321',
   ])
 })
+
+test('bootstrap inicializa runtime e logger antes dos componentes de runtime', async () => {
+  const events: string[] = []
+  const configureLogger = jest.spyOn(loggerModule, 'configureLogger').mockImplementation(config => {
+    events.push('configure-logger')
+    expect(config).toEqual({
+      logLevel: 'info',
+      metricsEnabled: false,
+      logDirectory: 'logs',
+      fileLoggingEnabled: false,
+      consoleLoggingEnabled: false,
+    })
+    expect(JSON.stringify(config)).not.toContain(STRONG_JWT_SECRET)
+    expect(JSON.stringify(config)).not.toContain(STRONG_AC_WEBHOOK_SECRET)
+  })
+
+  const env = {
+    NODE_ENV: 'test',
+    MONGO_URI: 'mongodb://database.internal/bo2',
+    JWT_SECRET: STRONG_JWT_SECRET,
+    OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+    STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
+    AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
+    PORT: '4321',
+  }
+
+  const result = await bootstrap({
+    env,
+    loadInfrastructure: async () => {
+      events.push('load-infrastructure')
+      expect(getRuntimeConfig().port).toBe(4321)
+      return {
+        connectMongo: async () => undefined,
+        connectRedis: async () => undefined,
+        disconnect: async () => undefined,
+      }
+    },
+    loadModelRegistrar: async () => {
+      events.push('load-models')
+      expect(getRuntimeConfig().core.jwtSecret).toBe(STRONG_JWT_SECRET)
+      return async () => undefined
+    },
+    loadRouteRegistrar: async () => {
+      events.push('load-routes')
+      expect(getRuntimeConfig().observability.logLevel).toBe('info')
+      return () => undefined
+    },
+    loadJobStarter: async () => {
+      events.push('load-jobs')
+      expect(getRuntimeConfig().renewal.maxChangesPerRun).toBe(50)
+      return async () => undefined
+    },
+    loadListener: async () => async () => ({ close: jest.fn() }),
+  })
+
+  expect(result).toEqual({ close: expect.any(Function) })
+  expect(configureLogger).toHaveBeenCalledTimes(1)
+  expect(events).toEqual([
+    'configure-logger',
+    'load-infrastructure',
+    'load-models',
+    'load-routes',
+    'load-jobs',
+  ])
+})
+
 test('bootstrap production aborta sem Redis antes de registar rotas ou listener', async () => {
   const loadInfrastructure = jest.fn()
   const loadRouteRegistrar = jest.fn()
