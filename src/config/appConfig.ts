@@ -111,10 +111,16 @@ function parsePort(value: string | undefined, fallback: number, name: string): n
 }
 
 function parseRedisConfig(env: NodeJS.ProcessEnv): AppConfig['redis'] {
+  const nodeEnv = env.NODE_ENV || 'development'
   const host = env.REDIS_HOST?.trim()
   const hasOtherRedisConfig = Boolean(env.REDIS_PORT || env.REDIS_USERNAME || env.REDIS_PASSWORD)
 
   if (!host) {
+    if (nodeEnv === 'production') {
+      throw new Error(
+        'CONFIG_INVALIDA: REDIS_HOST e obrigatoria em producao para rate limiting distribuido',
+      )
+    }
     if (hasOtherRedisConfig) {
       throw new Error('CONFIG_INVÁLIDA: REDIS_HOST é obrigatória quando Redis é configurado')
     }

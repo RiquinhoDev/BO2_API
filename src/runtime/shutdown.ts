@@ -1,11 +1,12 @@
 export interface ProcessSignalPort {
-  once(signal: NodeJS.Signals, handler: () => void): void
+  once(signal: NodeJS.Signals, handler: () => void | Promise<void>): void
 }
 
 export interface ShutdownDependencies {
   signals: ProcessSignalPort
   stopSystemMonitor: () => void
   stopScheduler: () => void
+  stopCache: () => Promise<void>
   exit: (code: number) => void
   logError: (message: string, error: unknown) => void
 }
@@ -15,12 +16,17 @@ export function createShutdownRegistrar(
 ): () => void {
   let registered = false
 
-  const shutdown = () => {
+  const shutdown = async () => {
     dependencies.stopSystemMonitor()
     try {
       dependencies.stopScheduler()
     } catch (error) {
       dependencies.logError('Erro ao parar scheduler', error)
+    }
+    try {
+      await dependencies.stopCache()
+    } catch (error) {
+      dependencies.logError('Erro ao parar cache', error)
     }
     dependencies.exit(0)
   }

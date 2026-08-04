@@ -1,5 +1,7 @@
 import type { Application } from 'express'
 import { createApp, type CreateAppDependencies } from './app'
+import { createHttpPerimeter } from './security/httpPerimeter'
+import type { RateLimitStoreFactory } from './security/redisRateLimitStore'
 import { loadConfig, type AppConfig } from './config/appConfig'
 import { configureJwt } from './security/jwt'
 import { configureDebugRoutes } from './security/debugRoutes'
@@ -7,7 +9,7 @@ import logger, { type AppLogger } from './utils/logger'
 
 export interface Infrastructure {
   connectMongo: (config: AppConfig) => Promise<void>
-  connectRedis: (config: AppConfig) => Promise<void>
+  connectRedis: (config: AppConfig) => Promise<RateLimitStoreFactory | undefined>
 }
 
 export type ModelRegistrar = () => Promise<void>
@@ -46,13 +48,17 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown
   }
   const infrastructure = await (options.loadInfrastructure ?? defaultLoadInfrastructure)()
   await infrastructure.connectMongo(config)
-  await infrastructure.connectRedis(config)
+  const storeFactory = await infrastructure.connectRedis(config)
+  if (config.nodeEnv === 'production' && !storeFactory) {
+    throw new Error('CONFIG_INVALIDA: Redis rate-limit store factory obrigatoria em producao')
+  }
 
   const registerModels = await (options.loadModelRegistrar ?? defaultLoadModelRegistrar)()
   await registerModels()
 
   const registerRoutes = await (options.loadRouteRegistrar ?? defaultLoadRouteRegistrar)()
   const app = createApp({
+    createHttpPerimeter: () => createHttpPerimeter({ storeFactory }),
     registerRoutes,
     allowedOrigins: config.allowedOrigins,
     acWebhookSecret: config.acWebhookSecret,

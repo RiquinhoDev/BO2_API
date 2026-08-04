@@ -1,4 +1,5 @@
 import analyticsCacheService from '../services/analytics/analyticsCache.service'
+import { cacheService } from '../services/cache.service'
 import syncSchedulerService from '../services/cron/scheduler'
 import { buildDashboardStats } from '../services/dashboardStatsBuilder.service'
 import systemMonitor from '../services/systemMonitor.service'
@@ -27,6 +28,7 @@ const registerShutdownHandlers = createShutdownRegistrar({
   },
   stopSystemMonitor: () => systemMonitor.stop(),
   stopScheduler: () => syncSchedulerService.stopScheduler(),
+  stopCache: () => cacheService.disconnect(),
   exit: code => process.exit(code),
   logError,
 })

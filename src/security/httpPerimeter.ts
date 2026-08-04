@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express'
 import helmet from 'helmet'
 import { MemoryStore, rateLimit } from 'express-rate-limit'
+import type { RateLimitStoreFactory } from './redisRateLimitStore'
 
 export interface RateLimitPolicy {
   limit: number
@@ -25,6 +26,7 @@ export interface HttpPerimeter {
 export interface HttpPerimeterOptions {
   limits?: Partial<HttpPerimeterLimits>
   onRateLimit?: (event: { policy: RateLimitPolicyName }) => void
+  storeFactory?: RateLimitStoreFactory
 }
 
 export const DEFAULT_RATE_LIMITS: HttpPerimeterLimits = {
@@ -75,6 +77,7 @@ function createLimiter(
   policy: RateLimitPolicyName,
   settings: RateLimitPolicy,
   onRateLimit: (event: { policy: RateLimitPolicyName }) => void,
+  storeFactory: RateLimitStoreFactory,
 ): RequestHandler {
   return rateLimit({
     windowMs: settings.windowMs,
@@ -82,7 +85,7 @@ function createLimiter(
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     identifier: policy,
-    store: new MemoryStore(),
+    store: storeFactory(policy),
     handler: (_req, res) => {
       onRateLimit({ policy })
       res.status(429).json({ success: false, message: 'Demasiados pedidos' })
@@ -96,6 +99,8 @@ export function createHttpPerimeter(options: HttpPerimeterOptions = {}): HttpPer
     webhook: options.limits?.webhook ?? DEFAULT_RATE_LIMITS.webhook,
     heavy: options.limits?.heavy ?? DEFAULT_RATE_LIMITS.heavy,
   }
+  const storeFactory = options.storeFactory ?? (() => new MemoryStore())
+
   const onRateLimit =
     options.onRateLimit ??
     ((event) => console.warn('[RATE_LIMIT] pedido bloqueado', { policy: event.policy }))
@@ -105,8 +110,8 @@ export function createHttpPerimeter(options: HttpPerimeterOptions = {}): HttpPer
       contentSecurityPolicy: false,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }),
-    login: createLimiter('login', limits.login, onRateLimit),
-    webhook: createLimiter('webhook', limits.webhook, onRateLimit),
-    heavy: createLimiter('heavy', limits.heavy, onRateLimit),
+    login: createLimiter('login', limits.login, onRateLimit, storeFactory),
+    webhook: createLimiter('webhook', limits.webhook, onRateLimit, storeFactory),
+    heavy: createLimiter('heavy', limits.heavy, onRateLimit, storeFactory),
   }
 }
