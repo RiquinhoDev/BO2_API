@@ -132,7 +132,7 @@ export function buildClassUserStatusUpdate(
 // /classes/inactivationLists/create da API antiga exige authenticateAdmin.
 // Esta delegação é máquina-a-máquina, por isso assinamos um JWT admin curto.
 // O segredo TEM de bater com o JWT_SECRET da API antiga em produção;
-// usa OLD_API_JWT_SECRET se for diferente do desta API.
+// usa a autoridade OLD_API_JWT_SECRET, obrigatoriamente distinta desta API.
 function buildOldApiHeaders(scope: string) {
   const token = signOldApiToken(
     { role: 'admin', service: 'BO2_API', scope },

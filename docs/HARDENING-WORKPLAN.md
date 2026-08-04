@@ -1107,7 +1107,7 @@ Progresso controllers:
 - [ ] **Matriz de papéis** ADMIN/SUPER_ADMIN/só-consulta com `authorize(...)` por rota + audit log; gating equivalente no Front (fica **depois** da F3.1).
 - [ ] **Toda rota destrutiva:** auth + role + **validação de input strict** (F3.1) + **idempotência/cap/kill-switch/dry-run** onde escreve em sistemas externos (OPS-02).
 - [x] **JWT/upload — corte principal:** JWT primário da app obrigatório com validação no arranque de segredo de pelo menos 32 caracteres; upload de importação de utilizadores endurecido (SEC-02/05).
-- [x] **JWT/debug/upload - corte fechado (SEC-03):** `JWT_SECRET`, `OLD_API_JWT_SECRET` e `STUDENT_ACCESS_JWT_SECRET` sao autoridades dedicadas, obrigatorias e separadas; o mount `/api/curseduca/debug` usa `localDebugOnly` e devolve 404 sem a flag local, mantendo o noop 204 apenas quando explicitamente habilitado.
+- [x] **JWT/debug/upload - corte fechado (SEC-03):** `JWT_SECRET`, `OLD_API_JWT_SECRET` e `STUDENT_ACCESS_JWT_SECRET` sao autoridades dedicadas, obrigatorias e separadas; `localDebugOnly` devolve 404 quando a flag esta desligada antes do handler, e o mount real em teste com a flag ligada chega ao noop mockado e devolve 204; o handler real deprecated `debugCurseducaAPI` continua a devolver 501.
   A prova e focada/offline; provisioning, deploy e observacao de producao continuam fora deste fecho.
 - [x] **CORS** por `ALLOWED_ORIGINS`, fail-closed fora de local (SEC-11 / bloqueador D3): producao exige origens HTTP(S) explicitas e normalizadas, sem defaults de localhost ou hosts de producao embutidos; `createApp` sem allowlist injeta lista vazia.
   O codigo esta fechado; a lista completa de origens ainda tem de ser provisionada no ambiente antes do deploy.
