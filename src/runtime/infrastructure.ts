@@ -17,4 +17,10 @@ export const infrastructure: Infrastructure = {
     await cacheService.connect(config.redis)
     return createRedisRateLimitStoreFactory(cacheService.getRateLimitCommandPort(), config.nodeEnv)
   },
+  async disconnect(): Promise<void> {
+    await Promise.allSettled([
+      cacheService.disconnect(),
+      mongoose.disconnect(),
+    ])
+  },
 }

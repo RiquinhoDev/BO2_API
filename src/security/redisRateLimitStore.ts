@@ -25,6 +25,13 @@ export const REDIS_RATE_LIMIT_INCREMENT_SCRIPT = [
   'return {current, ttl}',
 ].join('\n')
 
+export const REDIS_RATE_LIMIT_DECREMENT_SCRIPT = [
+  "local current = redis.call('GET', KEYS[1])",
+  "if not current then return 0 end",
+  'current = tonumber(current)',
+  "if current <= 1 then redis.call('DEL', KEYS[1]); return 0 end",
+  "return redis.call('DECR', KEYS[1])",
+].join('\n')
 export type RateLimitStoreFactory = (policy: RateLimitPolicyName) => Store
 
 const assertWindowMs = (windowMs: number | undefined): number => {
@@ -38,7 +45,7 @@ const assertIncrementResult = (
   result: readonly [number, number],
 ): readonly [number, number] => {
   const [totalHits, ttlMs] = result
-  if (!Number.isInteger(totalHits) || totalHits < 0) {
+  if (!Number.isInteger(totalHits) || totalHits < 1) {
     throw new Error('Redis rate-limit store returned an invalid hit count')
   }
   if (!Number.isInteger(ttlMs)) {

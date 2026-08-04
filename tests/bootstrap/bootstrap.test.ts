@@ -68,6 +68,9 @@ test('bootstrap respeita config -> infra -> modelos -> rotas -> jobs -> listen',
           events.push('connect-redis')
           return storeFactory
         },
+        disconnect: async () => {
+          events.push('disconnect')
+        },
       }
     },
     loadModelRegistrar: async () => {
@@ -141,4 +144,124 @@ test('bootstrap production aborta sem Redis antes de registar rotas ou listener'
   expect(loadInfrastructure).not.toHaveBeenCalled()
   expect(loadRouteRegistrar).not.toHaveBeenCalled()
   expect(loadListener).not.toHaveBeenCalled()
+})
+test('bootstrap limpa infraestrutura quando Redis falha antes de rotas e listener', async () => {
+  const events: string[] = []
+  const redisError = new Error('redis unavailable')
+  const loadModelRegistrar = jest.fn()
+  const loadRouteRegistrar = jest.fn()
+  const loadJobStarter = jest.fn()
+  const loadListener = jest.fn()
+
+  await expect(
+    bootstrap({
+      env: {
+        NODE_ENV: 'production',
+        MONGO_URI: 'mongodb://database.internal/bo2',
+        JWT_SECRET: STRONG_JWT_SECRET,
+        OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+        STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
+        AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
+        ALLOWED_ORIGINS: 'https://front.example',
+        REDIS_HOST: 'redis.test',
+        REDIS_PORT: '6379',
+        REDIS_USERNAME: 'api',
+        REDIS_PASSWORD: 'fake-redis-password',
+      },
+      loadInfrastructure: async () => ({
+        connectMongo: async () => { events.push('mongo') },
+        connectRedis: async () => {
+          events.push('redis')
+          throw redisError
+        },
+        disconnect: async () => { events.push('disconnect') },
+      }),
+      loadModelRegistrar,
+      loadRouteRegistrar,
+      loadJobStarter,
+      loadListener,
+    }),
+  ).rejects.toBe(redisError)
+
+  expect(events).toEqual(['mongo', 'redis', 'disconnect'])
+  expect(loadModelRegistrar).not.toHaveBeenCalled()
+  expect(loadRouteRegistrar).not.toHaveBeenCalled()
+  expect(loadJobStarter).not.toHaveBeenCalled()
+  expect(loadListener).not.toHaveBeenCalled()
+})
+
+test('bootstrap limpa infraestrutura quando factory Redis de producao falta', async () => {
+  const events: string[] = []
+  const loadModelRegistrar = jest.fn()
+  const loadRouteRegistrar = jest.fn()
+  const loadJobStarter = jest.fn()
+  const loadListener = jest.fn()
+
+  await expect(
+    bootstrap({
+      env: {
+        NODE_ENV: 'production',
+        MONGO_URI: 'mongodb://database.internal/bo2',
+        JWT_SECRET: STRONG_JWT_SECRET,
+        OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+        STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
+        AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
+        ALLOWED_ORIGINS: 'https://front.example',
+        REDIS_HOST: 'redis.test',
+        REDIS_PORT: '6379',
+        REDIS_USERNAME: 'api',
+        REDIS_PASSWORD: 'fake-redis-password',
+      },
+      loadInfrastructure: async () => ({
+        connectMongo: async () => { events.push('mongo') },
+        connectRedis: async () => { events.push('redis'); return undefined },
+        disconnect: async () => { events.push('disconnect') },
+      }),
+      loadModelRegistrar,
+      loadRouteRegistrar,
+      loadJobStarter,
+      loadListener,
+    }),
+  ).rejects.toThrow('store factory')
+
+  expect(events).toEqual(['mongo', 'redis', 'disconnect'])
+  expect(loadModelRegistrar).not.toHaveBeenCalled()
+  expect(loadRouteRegistrar).not.toHaveBeenCalled()
+  expect(loadJobStarter).not.toHaveBeenCalled()
+  expect(loadListener).not.toHaveBeenCalled()
+})
+
+test('bootstrap limpa infraestrutura quando Mongo falha e relanca o erro original', async () => {
+  const events: string[] = []
+  const mongoError = new Error('mongo unavailable')
+  const loadInfrastructure = jest.fn(async () => ({
+    connectMongo: async () => {
+      events.push('mongo')
+      throw mongoError
+    },
+    connectRedis: async () => {
+      events.push('redis')
+      return undefined
+    },
+    disconnect: async () => { events.push('disconnect') },
+  }))
+  const loadRouteRegistrar = jest.fn()
+
+  await expect(
+    bootstrap({
+      env: {
+        NODE_ENV: 'test',
+        MONGO_URI: 'mongodb://database.internal/bo2',
+        JWT_SECRET: STRONG_JWT_SECRET,
+        OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+        STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
+        AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
+      },
+      loadInfrastructure,
+      loadRouteRegistrar,
+    }),
+  ).rejects.toBe(mongoError)
+
+  expect(events).toEqual(['mongo', 'disconnect'])
+  expect(loadRouteRegistrar).not.toHaveBeenCalled()
 })

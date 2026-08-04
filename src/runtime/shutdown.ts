@@ -15,9 +15,14 @@ export function createShutdownRegistrar(
   dependencies: ShutdownDependencies,
 ): () => void {
   let registered = false
+  let shutdownPromise: Promise<void> | undefined
 
-  const shutdown = async () => {
-    dependencies.stopSystemMonitor()
+  const runShutdown = async (): Promise<void> => {
+    try {
+      dependencies.stopSystemMonitor()
+    } catch (error) {
+      dependencies.logError('Erro ao parar system monitor', error)
+    }
     try {
       dependencies.stopScheduler()
     } catch (error) {
@@ -29,6 +34,11 @@ export function createShutdownRegistrar(
       dependencies.logError('Erro ao parar cache', error)
     }
     dependencies.exit(0)
+  }
+
+  const shutdown = (): Promise<void> => {
+    shutdownPromise ??= runShutdown()
+    return shutdownPromise
   }
 
   return () => {

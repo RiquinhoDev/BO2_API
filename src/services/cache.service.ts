@@ -1,6 +1,7 @@
 import Redis from 'ioredis'
 import type { AppConfig } from '../config/appConfig'
 import {
+  REDIS_RATE_LIMIT_DECREMENT_SCRIPT,
   REDIS_RATE_LIMIT_INCREMENT_SCRIPT,
   type RedisRateLimitCommandPort,
 } from '../security/redisRateLimitStore'
@@ -77,7 +78,7 @@ class CacheService {
         return [totalHits, ttlMs] as const
       },
       decrement: async (key) => {
-        await redis.decr(key)
+        await redis.eval(REDIS_RATE_LIMIT_DECREMENT_SCRIPT, 1, key)
       },
       delete: async (key) => {
         await redis.del(key)

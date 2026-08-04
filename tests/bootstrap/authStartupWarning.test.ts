@@ -25,6 +25,7 @@ test('bootstrap regista error quando auth e desligada em producao', async () => 
     loadInfrastructure: async () => ({
       connectMongo: async () => undefined,
       connectRedis: async (): Promise<RateLimitStoreFactory> => () => new MemoryStore(),
+      disconnect: async () => undefined,
     }),
     loadModelRegistrar: async () => async () => undefined,
     loadRouteRegistrar: async () => () => undefined,

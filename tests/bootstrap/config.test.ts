@@ -5,6 +5,13 @@ const STRONG_OLD_API_JWT_SECRET = 'test-only-old-api-jwt-secret-at-least-32-char
 const STRONG_STUDENT_ACCESS_JWT_SECRET = 'test-only-student-access-jwt-secret-at-least-32-characters'
 const STRONG_AC_WEBHOOK_SECRET = 'test-only-ac-webhook-secret-at-least-32-characters'
 
+const FAKE_REDIS_ENV = {
+  REDIS_HOST: 'redis.test',
+  REDIS_PORT: '6379',
+  REDIS_USERNAME: 'api',
+  REDIS_PASSWORD: 'fake-redis-password',
+}
+
 const VALID_ENV = {
   NODE_ENV: 'test',
   MONGO_URI: 'mongodb://database.internal/bo2',
@@ -71,7 +78,7 @@ test('loadConfig exige segredos dedicados fortes para API antiga e acesso estuda
 test('loadConfig exige ALLOWED_ORIGINS explicita em producao', () => {
   for (const value of [undefined, '', '   ', ',']) {
     expect(() =>
-      loadConfig({ ...VALID_ENV, NODE_ENV: 'production', ALLOWED_ORIGINS: value }),
+      loadConfig({ ...VALID_ENV, ...FAKE_REDIS_ENV, NODE_ENV: 'production', ALLOWED_ORIGINS: value }),
     ).toThrow('ALLOWED_ORIGINS')
   }
 })
@@ -159,6 +166,7 @@ test('debug routes exigem flag explicita e sao proibidas em producao', () => {
       AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
       ALLOWED_ORIGINS: 'https://front.example',
       ENABLE_DEBUG_ROUTES: 'true',
+      ...FAKE_REDIS_ENV,
     }),
   ).toThrow('ENABLE_DEBUG_ROUTES')
 })
