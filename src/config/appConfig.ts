@@ -434,7 +434,10 @@ function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs):
   }
 }
 
-function parseObservability(env: NodeJS.ProcessEnv): ObservabilityConfig {
+function parseObservability(
+  env: NodeJS.ProcessEnv,
+  nodeEnv: NodeEnvironment,
+): ObservabilityConfig {
   const logLevel = env.LOG_LEVEL === undefined ? 'info' : env.LOG_LEVEL.trim()
   if (!LOG_LEVELS.has(logLevel)) {
     throw new Error('CONFIG_INVALIDA: LOG_LEVEL deve ser um nivel Winston valido')
@@ -445,7 +448,13 @@ function parseObservability(env: NodeJS.ProcessEnv): ObservabilityConfig {
     env.LOG_DIRECTORY === undefined ? DEFAULT_LOG_DIRECTORY : env.LOG_DIRECTORY.trim()
   if (!logDirectory) throw new Error('CONFIG_INVALIDA: LOG_DIRECTORY e obrigatorio')
 
-  return { logLevel, metricsEnabled, logDirectory }
+  return {
+    logLevel,
+    metricsEnabled,
+    logDirectory,
+    fileLoggingEnabled: nodeEnv !== 'test',
+    consoleLoggingEnabled: nodeEnv === 'development',
+  }
 }
 
 function parseRedisConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnvironment): RedisConfig | undefined {
@@ -510,7 +519,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const allowedOrigins = buildAllowedOrigins(env.ALLOWED_ORIGINS, nodeEnv)
   const port = parsePort(env.PORT, 3001, 'PORT')
   const redis = parseRedisConfig(env, nodeEnv)
-  const observability = parseObservability(env)
+  const observability = parseObservability(env, nodeEnv)
   const integrations = parseIntegrations(env, acWebhookSecret)
   const renewal = parseRenewal(env, integrations)
 

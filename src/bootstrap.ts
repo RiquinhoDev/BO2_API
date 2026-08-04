@@ -3,9 +3,10 @@ import { createApp, type CreateAppDependencies } from './app'
 import { createHttpPerimeter } from './security/httpPerimeter'
 import type { RateLimitStoreFactory } from './security/redisRateLimitStore'
 import { loadConfig, type AppConfig } from './config/appConfig'
+import { initializeRuntimeConfig } from './config/runtimeConfig'
 import { configureJwt } from './security/jwt'
 import { configureDebugRoutes } from './security/debugRoutes'
-import logger, { type AppLogger } from './utils/logger'
+import logger, { configureLogger, type AppLogger } from './utils/logger'
 
 export interface Infrastructure {
   connectMongo: (config: AppConfig) => Promise<void>
@@ -45,6 +46,8 @@ const defaultLoadListener = async (): Promise<AppListener> =>
 
 export async function bootstrap(options: BootstrapOptions = {}): Promise<unknown> {
   const config = loadConfig(options.env)
+  initializeRuntimeConfig(config)
+  configureLogger(config.observability)
   configureJwt(config)
   configureDebugRoutes(config)
   const log = options.log ?? logger

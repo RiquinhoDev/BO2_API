@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { ErrorRequestHandler, RequestHandler } from 'express'
 import { redactSensitiveData } from '../observability/redaction'
+import { IntegrationUnavailableError, type IntegrationName } from '../errors/integrationUnavailableError'
 import { logHttpError } from '../utils/logger'
 
 export interface HttpErrorOptions {
@@ -33,6 +34,7 @@ export interface ErrorLogEvent {
   method: string
   route: string
   detail: string
+  integration?: IntegrationName
 }
 
 export interface ErrorHandling {
@@ -48,6 +50,7 @@ export interface ErrorHandlingOptions {
 const SAFE_REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
 
 function getErrorDetail(error: unknown): string {
+  if (error instanceof IntegrationUnavailableError) return 'integration unavailable'
   if (error instanceof HttpError && error.internalCause instanceof Error) {
     return error.internalCause.message
   }
@@ -56,6 +59,13 @@ function getErrorDetail(error: unknown): string {
 }
 
 function classifyError(error: unknown): Pick<HttpErrorOptions, 'status' | 'code' | 'publicMessage'> {
+  if (error instanceof IntegrationUnavailableError) {
+    return {
+      status: 503,
+      code: 'INTEGRATION_UNAVAILABLE',
+      publicMessage: 'Serviço temporariamente indisponível',
+    }
+  }
   if (error instanceof HttpError) return error
   if (error instanceof Error && 'type' in error && error.type === 'entity.too.large') {
     return {
@@ -104,6 +114,9 @@ export function createErrorHandling(options: ErrorHandlingOptions = {}): ErrorHa
       method: req.method,
       route: typeof req.route?.path === 'string' ? req.route.path : '[unmatched]',
       detail: getErrorDetail(error).slice(0, 2_048),
+      ...(error instanceof IntegrationUnavailableError
+        ? { integration: error.integration }
+        : {}),
     }))
     res.status(status).json({ success: false, code, message, correlationId: correlation })
   }

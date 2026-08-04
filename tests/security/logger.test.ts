@@ -1,5 +1,8 @@
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import Transport from 'winston-transport'
-import { createStructuredLogger } from '../../src/utils/logger'
+import logger, { configureLogger, createStructuredLogger } from '../../src/utils/logger'
 
 class MemoryTransport extends Transport {
   readonly events: Array<Record<string, unknown>> = []
@@ -35,5 +38,41 @@ test('logger Winston aplica o redator único a todos os níveis e metadata', () 
     expect(JSON.stringify(symbolPayload)).not.toContain('alice%40example.test')
     expect(JSON.stringify(symbolPayload)).not.toContain('abc.def')
     expect(JSON.stringify(symbolPayload)).not.toContain('segredo')
+  }
+})
+
+test('logger não consulta variáveis de ambiente quando o transporte é injetado', () => {
+  const previousLevel = process.env.LOG_LEVEL
+  process.env.LOG_LEVEL = 'error'
+  try {
+    const transport = new MemoryTransport()
+    const logger = createStructuredLogger({ transports: [transport] })
+
+    logger.info('info deve permanecer ativo')
+
+    expect(transport.events).toHaveLength(1)
+    expect(transport.events[0].message).toBe('info deve permanecer ativo')
+  } finally {
+    if (previousLevel === undefined) delete process.env.LOG_LEVEL
+    else process.env.LOG_LEVEL = previousLevel
+  }
+})
+
+test('configureLogger mantém o logger de teste silencioso e sem transportes externos', () => {
+  const logDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'bo2-task2-logger-'))
+  try {
+    configureLogger({
+      logLevel: 'debug',
+      metricsEnabled: true,
+      logDirectory,
+      fileLoggingEnabled: false,
+      consoleLoggingEnabled: false,
+    })
+
+    logger.info('nao deve abrir transporte')
+
+    expect(fs.readdirSync(logDirectory)).toEqual([])
+  } finally {
+    fs.rmSync(logDirectory, { recursive: true, force: true })
   }
 })

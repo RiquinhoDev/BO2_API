@@ -146,11 +146,6 @@ const BASELINE = {
     "src/services/syncUtilizadoresServices/syncReports.service.ts:132",
     "src/services/syncUtilizadoresServices/universalSyncService.ts:41",
     "src/services/systemMonitor.service.ts:76",
-    "src/utils/logger.ts:38",
-    "src/utils/logger.ts:59",
-    "src/utils/logger.ts:67",
-    "src/utils/logger.ts:86",
-    "src/utils/logger.ts:87"
   ],
   "localHttp500": [
     "src/controllers/acTags/acReader.controller.ts:150",

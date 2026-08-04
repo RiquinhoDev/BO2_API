@@ -24,6 +24,8 @@ export interface ObservabilityConfig {
   readonly logLevel: string
   readonly metricsEnabled: boolean
   readonly logDirectory: string
+  readonly fileLoggingEnabled: boolean
+  readonly consoleLoggingEnabled: boolean
 }
 
 export type IntegrationConfig<T> =

@@ -2,11 +2,16 @@ import path from 'node:path'
 import winston from 'winston'
 import type Transport from 'winston-transport'
 import { redactSensitiveData } from '../observability/redaction'
+import type { ObservabilityConfig } from '../config/configTypes'
 
 export interface StructuredLoggerOptions {
   level?: string
   transports?: Transport[]
   silent?: boolean
+  logDirectory?: string
+  metricsEnabled?: boolean
+  fileLoggingEnabled?: boolean
+  consoleLoggingEnabled?: boolean
 }
 
 export type AppLogger = Pick<winston.Logger, 'debug' | 'info' | 'warn' | 'error'>
@@ -34,29 +39,39 @@ const consoleFormat = winston.format.combine(
   }),
 )
 
-function createRuntimeTransports(): Transport[] {
-  const logsDir = process.env.LOG_DIRECTORY || path.join(__dirname, '../../logs')
-  const transports: Transport[] = [
-    new winston.transports.File({
-      filename: path.join(logsDir, 'error.log'),
-      level: 'error',
-      maxsize: 5_242_880,
-      maxFiles: 5,
-    }),
-    new winston.transports.File({
-      filename: path.join(logsDir, 'combined.log'),
-      maxsize: 5_242_880,
-      maxFiles: 5,
-    }),
-    new winston.transports.File({
-      filename: path.join(logsDir, 'jobs.log'),
-      level: 'info',
-      maxsize: 5_242_880,
-      maxFiles: 5,
-    }),
-  ]
+const DEFAULT_LOG_DIRECTORY = path.join(__dirname, '../../logs')
 
-  if (process.env.NODE_ENV !== 'production') {
+function createRuntimeTransports(
+  logDirectory = DEFAULT_LOG_DIRECTORY,
+  fileLoggingEnabled = true,
+  consoleLoggingEnabled = true,
+): Transport[] {
+  const logsDir = logDirectory
+  const transports: Transport[] = []
+
+  if (fileLoggingEnabled) {
+    transports.push(
+      new winston.transports.File({
+        filename: path.join(logsDir, 'error.log'),
+        level: 'error',
+        maxsize: 5_242_880,
+        maxFiles: 5,
+      }),
+      new winston.transports.File({
+        filename: path.join(logsDir, 'combined.log'),
+        maxsize: 5_242_880,
+        maxFiles: 5,
+      }),
+      new winston.transports.File({
+        filename: path.join(logsDir, 'jobs.log'),
+        level: 'info',
+        maxsize: 5_242_880,
+        maxFiles: 5,
+      }),
+    )
+  }
+
+  if (consoleLoggingEnabled) {
     transports.push(new winston.transports.Console({ format: consoleFormat }))
   }
   return transports
@@ -64,9 +79,12 @@ function createRuntimeTransports(): Transport[] {
 
 export function createStructuredLogger(options: StructuredLoggerOptions = {}): winston.Logger {
   return winston.createLogger({
-    level: options.level || process.env.LOG_LEVEL || 'info',
+    level: options.level ?? 'info',
     silent: options.silent,
-    defaultMeta: { service: 'bo2-api' },
+    defaultMeta: {
+      service: 'bo2-api',
+      ...(options.metricsEnabled ? { metricsEnabled: true } : {}),
+    },
     format: winston.format.combine(
       winston.format.timestamp(),
       winston.format.errors({ stack: true }),
@@ -74,19 +92,40 @@ export function createStructuredLogger(options: StructuredLoggerOptions = {}): w
       redactFormat(),
       winston.format.json(),
     ),
-    transports: options.transports ?? createRuntimeTransports(),
+    transports:
+      options.transports ??
+      createRuntimeTransports(
+        options.logDirectory,
+        options.fileLoggingEnabled,
+        options.consoleLoggingEnabled,
+      ),
   })
 }
 
 let singleton: winston.Logger | undefined
+let singletonOptions: StructuredLoggerOptions = {
+  level: 'info',
+  silent: true,
+  transports: [],
+}
+
+export function configureLogger(config: ObservabilityConfig): void {
+  singletonOptions = {
+    level: config.logLevel,
+    logDirectory: config.logDirectory,
+    metricsEnabled: config.metricsEnabled,
+    fileLoggingEnabled: config.fileLoggingEnabled,
+    consoleLoggingEnabled: config.consoleLoggingEnabled,
+    silent: !config.fileLoggingEnabled && !config.consoleLoggingEnabled,
+  }
+  if (singleton) {
+    singleton.close()
+    singleton = undefined
+  }
+}
 
 function getLogger(): winston.Logger {
-  if (!singleton) {
-    singleton = createStructuredLogger({
-      silent: process.env.NODE_ENV === 'test',
-      transports: process.env.NODE_ENV === 'test' ? [] : undefined,
-    })
-  }
+  if (!singleton) singleton = createStructuredLogger(singletonOptions)
   return singleton
 }
 
