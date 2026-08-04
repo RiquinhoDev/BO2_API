@@ -800,7 +800,12 @@ Progresso controllers:
 - JWT/CORS/Helmet: **5 suites / 27 testes**. Command exacto da auditoria Luna:
   `npm.cmd test -- --runInBand tests/bootstrap/config.test.ts tests/bootstrap/bootstrap.test.ts tests/security/jwt.test.ts tests/security/cors.test.ts tests/security/httpPerimeter.test.ts`
   Resultado: **5 suites passed / 27 tests passed**.
-- Contradições ainda abertas: o error handler central convive com respostas 500 ad hoc e `events.routes` pode expor `error.message`; CORS ainda mistura defaults estáticos sem exigir `ALLOWED_ORIGINS`; e faltam store distribuído/429 central+correlation-aware/CSP final, autoridade `STUDENT_ACCESS_JWT_SECRET` (incluindo o fallback da API antiga), gating de `/api/curseduca/debug`, baseline legacy de console/suppressions e inventário/migração de listagens HTTP não canónicas + scans `find({})` restantes.
+- Startup security boundaries (2026-08-04; offline): dedicated `OLD_API_JWT_SECRET` and `STUDENT_ACCESS_JWT_SECRET` authorities are distinct and required; production CORS uses only the explicit normalized `ALLOWED_ORIGINS` list; and the real mounted `/api/curseduca/debug` route is gated by `localDebugOnly`.
+  Focused route evidence: `MONGOMS_RUNTIME_DOWNLOAD=false; node_modules\.bin\jest.cmd --ci --runInBand tests/security/curseducaDestructiveValidation.test.ts tests/security/debugRoutes.test.ts` - **2 suites passed / 6 tests passed**. The test mounts the real router and uses the existing mocked controller/noop boundary.
+  These slices are code-complete only: production still requires provisioning of all mandatory secrets and the complete origin list, followed by deployment and observation. No production system or external API was contacted.
+  OPS-01 remains open because configuration reads outside this boundary and operational provisioning are not closed by focused tests.
+
+- Contradicoes ainda abertas: o error handler central convive com respostas 500 ad hoc e `events.routes` pode expor `error.message`; faltam store distribuido/429 central+correlation-aware/CSP final, baseline legacy de console/suppressions e inventario/migracao de listagens HTTP nao canonicas + scans `find({})` restantes. As fronteiras JWT dedicado, CORS explicito e debug local estao fechadas no codigo, com o caveat operacional registado acima.
 - Proveniência de gates: Task 1 usa estas execuções focadas já registadas; a verificação final de Task 2 (lint, TypeScript ratchet, Jest offline completo e build) permanece **não reclamada/não verificada** até o controller a correr após a correcção final/re-review no HEAD final; estes gates continuam hard gates.
 - Nenhum runtime nem sistema externo foi tocado; os resultados são focados e offline.
 
@@ -1102,8 +1107,10 @@ Progresso controllers:
 - [ ] **Matriz de papéis** ADMIN/SUPER_ADMIN/só-consulta com `authorize(...)` por rota + audit log; gating equivalente no Front (fica **depois** da F3.1).
 - [ ] **Toda rota destrutiva:** auth + role + **validação de input strict** (F3.1) + **idempotência/cap/kill-switch/dry-run** onde escreve em sistemas externos (OPS-02).
 - [x] **JWT/upload — corte principal:** JWT primário da app obrigatório com validação no arranque de segredo de pelo menos 32 caracteres; upload de importação de utilizadores endurecido (SEC-02/05).
-- [ ] **JWT/debug/upload — corte restante:** centralizar/validar `STUDENT_ACCESS_JWT_SECRET`, decidir/remover o fallback da API antiga para o JWT da app e adicionar testes focados; o mount `/api/curseduca/debug` em `src/routes/curseduca.routes.ts:50` não usa `localDebugOnly`, pelo que a gating de debug em produção continua aberta (SEC-03).
-- [ ] **CORS** por `ALLOWED_ORIGINS`, fail-closed fora de local (SEC-11 — bloqueador D3 do deploy). *(Gap exacto: em produção ainda mistura defaults estáticos de localhost/produção e não exige `ALLOWED_ORIGINS` explícito.)*
+- [x] **JWT/debug/upload - corte fechado (SEC-03):** `JWT_SECRET`, `OLD_API_JWT_SECRET` e `STUDENT_ACCESS_JWT_SECRET` sao autoridades dedicadas, obrigatorias e separadas; o mount `/api/curseduca/debug` usa `localDebugOnly` e devolve 404 sem a flag local, mantendo o noop 204 apenas quando explicitamente habilitado.
+  A prova e focada/offline; provisioning, deploy e observacao de producao continuam fora deste fecho.
+- [x] **CORS** por `ALLOWED_ORIGINS`, fail-closed fora de local (SEC-11 / bloqueador D3): producao exige origens HTTP(S) explicitas e normalizadas, sem defaults de localhost ou hosts de producao embutidos; `createApp` sem allowlist injeta lista vazia.
+  O codigo esta fechado; a lista completa de origens ainda tem de ser provisionada no ambiente antes do deploy.
 
 ### 6. Escalabilidade
 - [x] **Paginação canónica (ARCH-05 / F3.2):** helper único offset-based de listas HTTP, cap 200 e projeção explícita onde aplicável, cobrindo explicitamente as superfícies migradas `usersReviewLists`, `guruWebhookList`, `guruSubscriptionList` e `usersSimpleList` (controllers + `usersSimpleList` service/repository).
@@ -1117,7 +1124,7 @@ Progresso controllers:
 - [x] **TOOL-01 — TypeScript `strict` a zero erros** (2026-08-03; F3.3). O ratchet foi removido, `noEmitOnError:true` está activo e não existe `tsc || exit 0` (Task 1, `8ee1c7c`). As autoridades restantes são `strict`, `noEmitOnError`, a compilação directa sem emissão (`npm.cmd run types:check`) e o build emissor (`npm.cmd run build`).
   - O contrato de tooling fixa `types:check` em `tsc --noEmit --pretty false`, exige `strict:true`/`noEmitOnError:true` no `tsconfig.json` e impede o regresso do ratchet.
   - Gates offline finais (2026-08-03): lint exit 0; TypeScript directo exit 0; Jest com `MONGOMS_RUNTIME_DOWNLOAD=false` — 159 suites passed, 1 skipped; 801 testes passed, 2 skipped; build (`tsc`) exit 0; `git diff --check` exit 0.
-  - Progresso mecânico do workplan após este fecho: `checked=86 open=18 total=104 percent=82.7`.
+  - Progresso mecanico do workplan apos este fecho: `checked=88 open=16 total=104 percent=84.6`. A contagem fecha apenas as duas caixas deste corte; provisioning, deploy e observacao operacional continuam fora.
 - [ ] **ESLint** `--max-warnings=0`, baseline podada a zero; a dívida de `no-explicit-any` continua aberta sob `strict:true` (TOOL-02).
 - [x] **Um** package manager autoritativo — todas as configurações de build activas seleccionam npm; apenas `package.json` declara o esperado `npm@11.9.0`, enquanto `Dockerfile` e Nixpacks usam o npm fornecido pelo ambiente; `package-lock.json` é o único lockfile e `yarn.lock` foi removido (2026-08-03; TOOL-03).
 - [ ] Suites separadas unit/integration/load/e2e, mocks por defeito, **egress guard**; cobertura honesta e a subir (TEST-01/02).

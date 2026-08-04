@@ -177,7 +177,7 @@ security: fail closed production cors
 - Existing `localDebugOnly` protects `router.get('/debug', ...)`.
 - Existing deprecated handler remains 501 only with local debug explicitly enabled.
 
-- [ ] **Step 1: Write the actual-mount RED test**
+- [x] **Step 1: Write the actual-mount RED test**
 
 Use the existing mocked CursEduca controller boundary, call `configureDebugRoutes`, mount the real `curseducaRouter`, and assert:
 
@@ -191,7 +191,7 @@ await request(buildApp()).get('/api/curseduca/debug').expect(204)
 
 The mocked handler remains the existing `noop`; the behavior under test is the real route/middleware composition.
 
-- [ ] **Step 2: Verify RED, implement, and verify GREEN**
+- [x] **Step 2: Verify RED, implement, and verify GREEN**
 
 Run the focused test, confirm disabled debug currently reaches 204, import `localDebugOnly`, add it before `debugCurseducaAPI`, then rerun:
 
@@ -201,7 +201,11 @@ node_modules\.bin\jest.cmd --runInBand tests/security/curseducaDestructiveValida
 
 Expected GREEN: both suites pass with no external calls.
 
-- [ ] **Step 3: Close only the proven workplan slices**
+RED: the new mounted probe failed with `expected 404 "Not Found", got 204 "No Content"` while debug was disabled.
+GREEN: `MONGOMS_RUNTIME_DOWNLOAD=false` plus Jest `--ci --runInBand` passed **2 suites / 6 tests**, with no external calls.
+The regression uses the repository's offline loopback query marker so Supertest remains inside the egress guard.
+
+- [x] **Step 3: Close only the proven workplan slices**
 
 Mark the JWT/debug/upload and CORS boxes checked. Record dedicated-secret separation, actual route gating, explicit production origins, and focused test evidence. Keep OPS-01 open and state that production deployment still requires secret/origin provisioning.
 
@@ -211,7 +215,7 @@ Recount and require:
 checked=88 open=16 total=104 percent=84.6
 ```
 
-- [ ] **Step 4: Commit tracked changes**
+- [x] **Step 4: Commit tracked changes**
 
 Commit tracked Task 3 files as:
 
@@ -224,6 +228,8 @@ If documentation is kept separate after the runtime commit, use:
 ```text
 docs: close startup security boundaries
 ```
+
+Runtime commit: `2a3c8d1`; documentation commit: this commit.
 
 - [ ] **Step 5: Run final offline gates on final tracked HEAD and verify hygiene**
 
