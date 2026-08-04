@@ -151,6 +151,32 @@ test('login devolve envelope 429 estavel e regista apenas a politica e correlaca
   })
 })
 
+test('429 usa correlacao gerada quando X-Request-ID e invalido e demasiado longo', async () => {
+  const onRateLimit = jest.fn()
+  const app = buildApp({ login: { limit: 1, windowMs: 60_000 } }, onRateLimit)
+  const rawRequestId = `raw-${'x'.repeat(130)}!`
+  const attempt = () =>
+    request(app)
+      .post('/api/auth/login')
+      .set('X-Request-ID', rawRequestId)
+      .query(marker)
+
+  await attempt().expect(204)
+  const response = await attempt().expect(429)
+  const correlationId = 'http-perimeter-correlation-id'
+
+  expect(response.headers['x-request-id']).toBe(correlationId)
+  expect(response.body).toEqual({
+    success: false,
+    code: 'RATE_LIMITED',
+    message: 'Demasiados pedidos',
+    correlationId,
+  })
+  expect(onRateLimit).toHaveBeenCalledWith({ policy: 'login', correlationId })
+  expect(response.headers['x-request-id']).not.toBe(rawRequestId)
+  expect(JSON.stringify(response.body)).not.toContain(rawRequestId)
+})
+
 test('operacao pesada devolve 429 depois do limite', async () => {
   const app = buildApp({ heavy: { limit: 1, windowMs: 60_000 } })
   const attempt = () =>
