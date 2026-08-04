@@ -29,15 +29,21 @@ const parseComposeImages = (source: string): string[] =>
     match => match[1],
   )
 
+const imageInterpolationPattern = /\$\{[^}]*\}/
+const imageDigestPattern = /^[^@\s]+@sha256:[a-f0-9]{64}$/
+const imageTagPattern = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+
 const isPinnedImageReference = (imageReference: string): boolean => {
-  if (imageReference.includes('@sha256:')) return true
+  if (imageInterpolationPattern.test(imageReference)) return false
+  if (imageDigestPattern.test(imageReference)) return true
+  if (imageReference.includes('@')) return false
 
   const tagSeparator = imageReference.lastIndexOf(':')
   const pathSeparator = imageReference.lastIndexOf('/')
   if (tagSeparator <= pathSeparator) return false
 
   const tag = imageReference.slice(tagSeparator + 1)
-  return tag.length > 0 && tag !== 'latest'
+  return tag !== 'latest' && imageTagPattern.test(tag)
 }
 
 const parseGrafanaPasswordAssignments = (source: string): string[] =>
@@ -137,6 +143,17 @@ describe('repository artifact hygiene', () => {
     expect(imageReferences).toHaveLength(3)
     expect(imageReferences.filter(reference => !isPinnedImageReference(reference))).toEqual([])
     expect(parseGrafanaPasswordAssignments(compose)).toEqual([requiredGrafanaPassword])
+  })
+
+  it.each([
+    ['example/service:${TAG:-latest}', 'interpolated latest tag'],
+    ['example/service@sha256:deadbeef', 'short digest'],
+    ['example/service:latest', 'latest tag'],
+  ])('rejects floating or malformed image reference (%s)', imageReference => {
+    const fixture = 'image: ' + imageReference
+
+    expect(parseComposeImages(fixture)).toEqual([imageReference])
+    expect(isPinnedImageReference(imageReference)).toBe(false)
   })
 })
 
