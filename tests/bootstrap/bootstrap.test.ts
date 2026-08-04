@@ -1,6 +1,7 @@
 import type { Application } from 'express'
 import { MemoryStore } from 'express-rate-limit'
 import { bootstrap } from '../../src/bootstrap'
+import { createJobStarter } from '../../src/runtime/jobRuntime'
 import type { RateLimitStoreFactory } from '../../src/security/redisRateLimitStore'
 
 const STRONG_JWT_SECRET = 'test-only-jwt-secret-with-at-least-32-characters'
@@ -446,3 +447,72 @@ test('bootstrap disposes jobs before infrastructure on listen rejection', async 
   expect(disposeJobs).toHaveBeenCalledTimes(1)
   expect(disposeJobs).toHaveBeenCalledWith({ stopCache: false })
 })
+
+test('bootstrap waits for warmups before infrastructure disconnect on listen rejection', async () => {
+  const events: string[] = []
+  const listenError = new Error('listen unavailable')
+  const warmup = deferred<void>()
+  const registerShutdownHandlers = jest.fn((warmupPromise?: Promise<void>) => (
+    jest.fn(async () => {
+      events.push('dispose-jobs')
+      if (!warmupPromise) {
+        await new Promise<void>(() => undefined)
+      }
+      await warmupPromise
+    })
+  ))
+  const startJobs = createJobStarter({
+    initializeScheduler: async () => undefined,
+    ensureCronSeeds: async () => undefined,
+    startSystemMonitor: () => undefined,
+    startWarmups: () => warmup.promise,
+    registerShutdownHandlers,
+    logError: message => events.push('error:' + message),
+  })
+  const storeFactory = jest.fn<ReturnType<RateLimitStoreFactory>, Parameters<RateLimitStoreFactory>>(
+    () => new MemoryStore(),
+  )
+
+  const bootstrapPromise = bootstrap({
+    env: {
+      NODE_ENV: 'test',
+      MONGO_URI: 'mongodb://database.internal/bo2',
+      JWT_SECRET: STRONG_JWT_SECRET,
+      OLD_API_JWT_SECRET: STRONG_OLD_API_JWT_SECRET,
+      STUDENT_ACCESS_JWT_SECRET: STRONG_STUDENT_ACCESS_JWT_SECRET,
+      AC_WEBHOOK_SECRET: STRONG_AC_WEBHOOK_SECRET,
+    },
+    loadInfrastructure: async () => ({
+      connectMongo: async () => { events.push('mongo') },
+      connectRedis: async () => storeFactory,
+      disconnect: async () => { events.push('disconnect') },
+    }),
+    loadModelRegistrar: async () => async () => undefined,
+    loadRouteRegistrar: async () => (_app: Application) => undefined,
+    loadJobStarter: async () => startJobs,
+    loadListener: async () => async () => {
+      events.push('listen')
+      throw listenError
+    },
+  })
+
+  for (let attempt = 0; attempt < 10 && !events.includes('dispose-jobs'); attempt += 1) {
+    await new Promise<void>(resolve => setImmediate(resolve))
+  }
+
+  expect(events).toContain('dispose-jobs')
+  expect(events).not.toContain('disconnect')
+  expect(registerShutdownHandlers).toHaveBeenCalledWith(expect.any(Promise))
+
+  warmup.resolve()
+  await expect(bootstrapPromise).rejects.toBe(listenError)
+  expect(events).toContain('disconnect')
+})
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T | PromiseLike<T>) => void } {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  const promise = new Promise<T>(resolvePromise => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}

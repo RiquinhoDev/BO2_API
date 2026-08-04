@@ -17,6 +17,7 @@ export interface ShutdownDependencies {
   stopCache: () => Promise<void>
   exit: (code: number) => void
   logError: (message: string, error: unknown) => void
+  waitForWarmups?: () => Promise<void>
 }
 
 export function createShutdownRegistrar(
@@ -37,6 +38,11 @@ export function createShutdownRegistrar(
       dependencies.stopScheduler()
     } catch (error) {
       dependencies.logError('Erro ao parar scheduler', error)
+    }
+    try {
+      await dependencies.waitForWarmups?.()
+    } catch (error) {
+      dependencies.logError('Erro ao aguardar warm-ups', error)
     }
     if (stopCache) {
       try {

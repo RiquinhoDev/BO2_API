@@ -20,34 +20,43 @@ const ensureCronSeeds = createCronSeedProvisioner({
   logError,
 })
 
-const shutdownRegistrar = createShutdownRegistrar({
-  signals: {
-    once: (signal, handler) => {
-      process.once(signal, handler)
-    },
-    removeListener: (signal, handler) => {
-      process.removeListener(signal, handler)
-    },
+const processSignals = {
+  once: (signal: NodeJS.Signals, handler: () => void | Promise<void>) => {
+    process.once(signal, handler)
   },
-  stopSystemMonitor: () => systemMonitor.stop(),
-  stopScheduler: () => syncSchedulerService.stopScheduler(),
-  stopCache: () => cacheService.disconnect(),
-  exit: code => process.exit(code),
-  logError,
-})
+  removeListener: (signal: NodeJS.Signals, handler: () => void | Promise<void>) => {
+    process.removeListener(signal, handler)
+  },
+}
 
-function startWarmups(): void {
-  void import('../services/clareza/clarezaTop10Service')
-    .then(({ getClarezaTop10Json }) => getClarezaTop10Json())
-    .catch(error => logError('Falha a aquecer cache Clareza Top10', error))
+const runWarmup = (
+  work: () => Promise<unknown>,
+  errorMessage: string,
+): Promise<void> =>
+  Promise.resolve()
+    .then(work)
+    .then(() => undefined)
+    .catch(error => {
+      logError(errorMessage, error)
+    })
 
-  void warmUpCache()
-    .then(() => buildDashboardStats())
-    .catch(error => logError('Erro no warm-up', error))
+function startWarmups(): Promise<void> {
+  const warmupPromises = [
+    runWarmup(async () => {
+      const { getClarezaTop10Json } = await import('../services/clareza/clarezaTop10Service')
+      await getClarezaTop10Json()
+    }, 'Falha a aquecer cache Clareza Top10'),
+    runWarmup(async () => {
+      await warmUpCache()
+      await buildDashboardStats()
+    }, 'Erro no warm-up'),
+    runWarmup(
+      () => analyticsCacheService.warmUpCache(),
+      'Erro ao aquecer cache de analytics',
+    ),
+  ]
 
-  void analyticsCacheService
-    .warmUpCache()
-    .catch(error => logError('Erro ao aquecer cache de analytics', error))
+  return Promise.all(warmupPromises).then(() => undefined)
 }
 
 export const startJobs = createJobStarter({
@@ -55,7 +64,16 @@ export const startJobs = createJobStarter({
   ensureCronSeeds,
   startSystemMonitor: () => systemMonitor.start(),
   startWarmups,
-  registerShutdownHandlers: () => {
+  registerShutdownHandlers: (warmupPromise) => {
+    const shutdownRegistrar = createShutdownRegistrar({
+      signals: processSignals,
+      stopSystemMonitor: () => systemMonitor.stop(),
+      stopScheduler: () => syncSchedulerService.stopScheduler(),
+      stopCache: () => cacheService.disconnect(),
+      waitForWarmups: () => warmupPromise,
+      exit: code => process.exit(code),
+      logError,
+    })
     shutdownRegistrar()
     return shutdownRegistrar.dispose
   },

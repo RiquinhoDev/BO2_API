@@ -100,3 +100,40 @@ test('propagates the exact shutdown disposer from job startup', async () => {
   expect(returned).toBe(disposer)
   expect(events).toEqual(['scheduler', 'seeds', 'monitor', 'warmups', 'shutdown'])
 })
+
+test('passes all warmup work to shutdown registration as one wait promise', async () => {
+  const events: string[] = []
+  const warmups = [
+    deferred<void>(),
+    deferred<void>(),
+    deferred<void>(),
+  ]
+  const disposer = jest.fn(async () => undefined)
+  const registerShutdownHandlers = jest.fn(() => disposer)
+  const deps = {
+    ...dependencies(events),
+    startWarmups: () => Promise.all(warmups.map(warmup => warmup.promise)).then(() => undefined),
+    registerShutdownHandlers,
+  }
+
+  await createJobStarter(deps)(config('test'))
+
+  expect(registerShutdownHandlers).toHaveBeenCalledWith(expect.any(Promise))
+  const warmupPromise = (registerShutdownHandlers.mock.calls[0] as unknown as [Promise<void>])[0]
+  let settled = false
+  void warmupPromise.then(() => { settled = true })
+  await Promise.resolve()
+  expect(settled).toBe(false)
+
+  warmups.forEach(warmup => warmup.resolve())
+  await warmupPromise
+  expect(settled).toBe(true)
+})
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T | PromiseLike<T>) => void } {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  const promise = new Promise<T>(resolvePromise => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
