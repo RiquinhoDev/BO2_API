@@ -229,7 +229,7 @@ $env:MONGOMS_RUNTIME_DOWNLOAD='false'
 node_modules\.bin\jest.cmd --listTests --json
 ```
 
-Save only the count and sorted relative paths in the ignored task report. The current configuration lists `tests/load/load.test.ts` even though its body is opt-in/skip; remove that one path when defining the executable-safe baseline. Confirm `tests/e2e/products-dashboard.spec.ts` and `tests/sprint1/architecture.test.ts` are already absent. The final unit+integration inventory must equal the current inventory minus exactly `tests/load/load.test.ts`.
+Save only the count and sorted relative paths in the ignored task report. The current configuration lists `tests/load/load.test.ts` even though its body is opt-in/skip; remove that one path when defining the executable-safe baseline. Confirm `tests/e2e/products-dashboard.spec.ts` and `tests/sprint1/architecture.test.ts` are already absent. The final unit+integration inventory preserves the pre-change safe inventory (current inventory minus exactly `tests/load/load.test.ts`) and adds only `tests/tooling/jestProjects.test.ts`, the new topology contract.
 
 - [ ] **Step 2: Write the failing topology contract**
 
@@ -261,7 +261,7 @@ Do not run `test:load` or `test:e2e` in this block.
 
 - [ ] **Step 4: Reconcile inventories and prove egress inheritance**
 
-Run `jest --listTests --selectProjects unit integration --json`, sort relative paths, and require exact equality with the Step 1 executable-safe baseline (the old inventory minus only `tests/load/load.test.ts`). Add a topology assertion that every project uses `tests/setupEnv.ts`; retain the existing `f1OfflineGuard`/sentinel tests in the safe default.
+Run `jest --listTests --selectProjects unit integration --json`, sort relative paths, and require exact equality with the Step 1 executable-safe baseline plus only `tests/tooling/jestProjects.test.ts` (the old inventory minus `tests/load/load.test.ts`, plus the new topology contract). Add a topology assertion that every project uses `tests/setupEnv.ts`; retain the existing `f1OfflineGuard`/sentinel tests in the safe default.
 
 - [ ] **Step 5: Verify, close TEST-01/02, and commit**
 
