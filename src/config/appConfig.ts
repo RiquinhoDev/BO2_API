@@ -41,19 +41,20 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (!['development', 'test', 'production'].includes(nodeEnv)) {
     throw new Error('CONFIG_INVÁLIDA: NODE_ENV deve ser development, test ou production')
   }
+  const validatedNodeEnv = nodeEnv as AppConfig['nodeEnv']
 
   const authEnforce = parseBooleanFlag(env.AUTH_ENFORCE, 'AUTH_ENFORCE', true)
   const enableDebugRoutes = parseBooleanFlag(env.ENABLE_DEBUG_ROUTES, 'ENABLE_DEBUG_ROUTES')
   if (nodeEnv === 'production' && enableDebugRoutes) {
     throw new Error('CONFIG_INVÁLIDA: ENABLE_DEBUG_ROUTES é proibida em produção')
   }
-  const allowedOrigins = buildAllowedOrigins(env.ALLOWED_ORIGINS)
+  const allowedOrigins = buildAllowedOrigins(env.ALLOWED_ORIGINS, validatedNodeEnv)
 
   const port = parsePort(env.PORT, 3001, 'PORT')
   const redis = parseRedisConfig(env)
 
   return {
-    nodeEnv: nodeEnv as AppConfig['nodeEnv'],
+    nodeEnv: validatedNodeEnv,
     mongoUri,
     jwtSecret,
     oldApiJwtSecret,

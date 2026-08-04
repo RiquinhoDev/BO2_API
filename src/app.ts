@@ -1,7 +1,7 @@
 import express, { type Application, type RequestHandler } from 'express'
 import compression from 'compression'
 import cors from 'cors'
-import { buildAllowedOrigins, isOriginAllowed } from './security/cors'
+import { isOriginAllowed } from './security/cors'
 import {
   AC_WEBHOOK_PATHS,
   createAcWebhookSecurity,
@@ -38,7 +38,7 @@ export interface CreateAppDependencies {
 
 export function createApp(_deps: CreateAppDependencies): Application {
   const app = express()
-  const allowedOrigins = _deps.allowedOrigins ?? buildAllowedOrigins()
+  const allowedOrigins = _deps.allowedOrigins ?? []
   const httpPerimeter = (_deps.createHttpPerimeter ?? createHttpPerimeter)()
   const errorHandling = (_deps.createErrorHandling ?? createErrorHandling)()
   const routeUsage = (

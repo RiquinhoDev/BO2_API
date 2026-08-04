@@ -27,6 +27,7 @@ function concretePath(routePath: string): string {
 function buildCatalogProbe(authEnforce = true): Application {
   return createApp({
     authEnforce,
+    allowedOrigins: ['http://localhost:3000'],
     createHttpPerimeter: () => createHttpPerimeter({
       limits: {
         login: { limit: 10_000, windowMs: 60_000 },
