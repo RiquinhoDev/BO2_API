@@ -1127,7 +1127,7 @@ Progresso controllers:
   - Progresso mecanico do workplan apos este fecho: `checked=88 open=16 total=104 percent=84.6`. A contagem fecha apenas as duas caixas deste corte; provisioning, deploy e observacao operacional continuam fora.
 - [ ] **ESLint** `--max-warnings=0`, baseline podada a zero; a dívida de `no-explicit-any` continua aberta sob `strict:true` (TOOL-02).
 - [x] **Um** package manager autoritativo — todas as configurações de build activas seleccionam npm; apenas `package.json` declara o esperado `npm@11.9.0`, enquanto `Dockerfile` e Nixpacks usam o npm fornecido pelo ambiente; `package-lock.json` é o único lockfile e `yarn.lock` foi removido (2026-08-03; TOOL-03).
-- [ ] Suites separadas unit/integration/load/e2e, mocks por defeito, **egress guard**; cobertura honesta e a subir (TEST-01/02).
+- [x] Suites separadas unit/integration/load/e2e, mocks por defeito, **egress guard**; cobertura honesta e a subir (TEST-01/02). Task 4 (2026-08-04): baseline pré-change 163 suites − `tests/load/load.test.ts` = 162 seguras, + `tests/tooling/jestProjects.test.ts` = 163 finais (`unit` 140 + `integration` 23), sem sobreposição; `tests/e2e/products-dashboard.spec.ts` e `tests/sprint1/architecture.test.ts` ausentes. `test:load`/`test:e2e` não foram executados.
 - [ ] Config validada e tipada com **fail-fast** no arranque (OPS-01).
 
 ### Como se mede

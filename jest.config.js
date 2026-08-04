@@ -1,17 +1,8 @@
-// =====================================================
-// 📁 jest.config.js
-// Configuração do Jest para testes
-// =====================================================
+const { createJestProjects } = require('./scripts/test/jestProjects.cjs')
 
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
-  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
-  testPathIgnorePatterns: ['<rootDir>/tests/e2e/', '<rootDir>/tests/sprint1/'],
-  transform: {
-    '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.jest.json' }],
-  },
+  rootDir: __dirname,
+  projects: createJestProjects(__dirname),
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
@@ -20,12 +11,7 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-  },
-  setupFiles: ['<rootDir>/tests/setupEnv.ts'],
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  testTimeout: 30000, // 30 segundos
+  testTimeout: 30000,
   verbose: true,
 }
 
