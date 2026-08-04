@@ -1,6 +1,9 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express, { type NextFunction, type Request, type Response } from 'express'
 import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
+installTestRuntimeConfigHooks()
+
 
 const mockControllerHandler = jest.fn((_input, res) => res.status(204).end())
 

@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createClassOpportunitiesController } from '../../src/controllers/analytics/classOpportunities.controller'
@@ -9,6 +10,8 @@ import type {
   ClassOpportunitiesResult,
   ClassOpportunitiesService,
 } from '../../src/services/analytics/classOpportunities.service'
+
+installTestRuntimeConfigHooks()
 
 type OpportunitiesService = Pick<ClassOpportunitiesService, 'getForClass'>
 

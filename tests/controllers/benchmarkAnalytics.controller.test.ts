@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createBenchmarkAnalyticsController } from '../../src/controllers/analytics/benchmarkAnalytics.controller'
@@ -10,6 +11,8 @@ import type {
   BenchmarksResult,
   EmptyBenchmarksResult,
 } from '../../src/services/analytics/benchmarkAnalytics.service'
+
+installTestRuntimeConfigHooks()
 
 type BenchmarkService = Pick<BenchmarkAnalyticsService, 'get'>
 

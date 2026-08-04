@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createUsersSimpleListController } from '../../src/controllers/usersSimpleList.controller'
@@ -5,6 +6,8 @@ import { createErrorHandling } from '../../src/security/errorHandling'
 import { usersSimpleListInput } from '../../src/security/usersSimpleListInput'
 import { withValidatedInput } from '../../src/security/validatedInput'
 import type { UsersSimpleListService } from '../../src/services/users/usersSimpleList.service'
+
+installTestRuntimeConfigHooks()
 
 const result = {
   users: [],

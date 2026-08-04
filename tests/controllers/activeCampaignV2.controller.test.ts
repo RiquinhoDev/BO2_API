@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { withValidatedInput } from '../../src/security/validatedInput'
@@ -51,6 +52,8 @@ import {
   getUsersWithTagsInProduct,
   syncProductTags,
 } from '../../src/controllers/acTags/activecampaign.controller'
+
+installTestRuntimeConfigHooks()
 
 function populatedQuery(rows: object[]) {
   return {

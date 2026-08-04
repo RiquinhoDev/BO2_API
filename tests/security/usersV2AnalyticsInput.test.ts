@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { z } from 'zod'
@@ -12,6 +13,8 @@ import {
   type ValidatedInputHandler,
   validatedSchema,
 } from '../../src/security/validatedInput'
+
+installTestRuntimeConfigHooks()
 
 function echoValidatedInput<TSchema extends ValidatedInputSchema>(
 ): ValidatedInputHandler<TSchema> {

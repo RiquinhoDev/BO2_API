@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
@@ -8,6 +9,8 @@ import {
   createCronManagementRouter,
 } from '../../src/routes/cron/createCronManagementRouter'
 import type { CronJobView } from '../../src/services/cron/cronTagsCompatibility.types'
+installTestRuntimeConfigHooks()
+
 
 const job: CronJobView = {
   _id: '507f1f77bcf86cd799439011',

@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createIndividualScoreRecalculationController } from '../../src/controllers/analytics/individualScoreRecalculation.controller'
@@ -11,6 +12,8 @@ import type {
   IndividualScoreRecalculationService,
   ScoreRecalculationOutcome,
 } from '../../src/services/analytics/individualScoreRecalculation.service'
+
+installTestRuntimeConfigHooks()
 
 type Recalculate = IndividualScoreRecalculationService['recalculate']
 

@@ -8,6 +8,7 @@ import mongoose from 'mongoose'
 import User from '../models/user'
 import { UserProduct } from '../models'
 import Product from '../models/product/Product'
+import { getRuntimeConfig } from '../config/runtimeConfig'
 import { evaluateStudentTags, getTagsToAdd, getTagsToRemove } from '../jobs/dailyPipeline/tagEvaluation/evaluateStudentTags'
 import { evaluateGlobalUserTags } from '../jobs/dailyPipeline/tagEvaluation/globalUserTags'
 import {
@@ -410,7 +411,7 @@ export const evaluateTags = async (req: Request, res: Response): Promise<void> =
     res.status(500).json({
       success: false,
       error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: getRuntimeConfig().core.nodeEnv === 'development' ? error.stack : undefined
     })
   }
 }

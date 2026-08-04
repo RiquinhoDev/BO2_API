@@ -9,6 +9,7 @@ export interface RedisConfig {
 
 export interface CoreConfig {
   readonly nodeEnv: NodeEnvironment
+  readonly serverVersion?: string
   readonly mongoUri: string
   readonly jwtSecret: string
   readonly oldApiJwtSecret: string

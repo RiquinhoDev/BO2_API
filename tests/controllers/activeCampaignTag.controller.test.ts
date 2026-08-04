@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { withValidatedInput } from '../../src/security/validatedInput'
@@ -54,6 +55,8 @@ jest.mock('../../src/services/activeCampaign/decisionEngine.service', () => ({
 }))
 
 import { applyTagToUserProduct } from '../../src/controllers/acTags/activecampaign.controller'
+
+installTestRuntimeConfigHooks()
 
 it('initializes the complete ActiveCampaign state when applying the first tag', async () => {
   const userId = '507f1f77bcf86cd799439011'

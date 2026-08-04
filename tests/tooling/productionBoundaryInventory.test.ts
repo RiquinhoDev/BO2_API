@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 
 const sourceRoot = path.resolve(__dirname, '../../src')
@@ -21,15 +22,15 @@ function sourceFiles(directory: string): string[] {
   })
 }
 
-function inventory(): Inventory {
+function inventory(root = sourceRoot): Inventory {
   const result: Inventory = {
     rawEnvironmentRead: [],
     localHttp500: [],
     publicErrorDetail: [],
   }
 
-  for (const filePath of sourceFiles(sourceRoot)) {
-    const relativePath = path.relative(sourceRoot, filePath).split(path.sep).join('/')
+  for (const filePath of sourceFiles(root)) {
+    const relativePath = path.relative(root, filePath).split(path.sep).join('/')
     const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/)
     lines.forEach((line, index) => {
       const location = `src/${relativePath}:${index + 1}`
@@ -64,8 +65,6 @@ const BASELINE = {
     "src/controllers/classes.controller.ts:561",
     "src/controllers/guru.sso.controller.ts:14",
     "src/controllers/guru.webhook.controller.ts:15",
-    "src/controllers/studentsController.ts:62",
-    "src/controllers/studentsController.ts:70",
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts:197",
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts:204",
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts:205",
@@ -76,10 +75,6 @@ const BASELINE = {
     "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:287",
     "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:326",
     "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:451",
-    "src/controllers/tagEvaluation.controller.ts:413",
-    "src/controllers/testimonials.controller.ts:941",
-    "src/controllers/users.controller.ts:1764",
-    "src/security/validatedInput.ts:70",
     "src/services/activeCampaign/activeCampaignService.ts:421",
     "src/services/activeCampaign/activeCampaignService.ts:422",
     "src/services/clareza/clarezaCarteiraService.ts:4511",
@@ -142,10 +137,6 @@ const BASELINE = {
     "src/services/syncUtilizadoresServices/hotmartServices/hotmart.helpers.ts:242",
     "src/services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService.ts:12",
     "src/services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService.ts:13",
-    "src/services/syncUtilizadoresServices/syncReports.service.ts:130",
-    "src/services/syncUtilizadoresServices/syncReports.service.ts:132",
-    "src/services/syncUtilizadoresServices/universalSyncService.ts:41",
-    "src/services/systemMonitor.service.ts:76",
   ],
   "localHttp500": [
     "src/controllers/acTags/acReader.controller.ts:150",
@@ -347,8 +338,8 @@ const BASELINE = {
     "src/controllers/renewal.controller.ts:81",
     "src/controllers/studentHistory.controller.ts:113",
     "src/controllers/studentHistory.controller.ts:194",
-    "src/controllers/studentsController.ts:59",
-    "src/controllers/studentsController.ts:67",
+    "src/controllers/studentsController.ts:60",
+    "src/controllers/studentsController.ts:68",
     "src/controllers/sync.controller.ts:121",
     "src/controllers/sync.controller.ts:176",
     "src/controllers/sync.controller.ts:242",
@@ -404,8 +395,8 @@ const BASELINE = {
     "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:463",
     "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:501",
     "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:72",
-    "src/controllers/tagEvaluation.controller.ts:410",
-    "src/controllers/tagEvaluation.controller.ts:559",
+    "src/controllers/tagEvaluation.controller.ts:411",
+    "src/controllers/tagEvaluation.controller.ts:560",
     "src/controllers/tagMonitoring/criticalTag.controller.ts:127",
     "src/controllers/tagMonitoring/criticalTag.controller.ts:169",
     "src/controllers/tagMonitoring/criticalTag.controller.ts:209",
@@ -435,38 +426,38 @@ const BASELINE = {
     "src/controllers/tagMonitoring/tagNotification.controller.ts:78",
     "src/controllers/testHistory.controller.ts:172",
     "src/controllers/testHistory.controller.ts:242",
-    "src/controllers/testimonials.controller.ts:1016",
-    "src/controllers/testimonials.controller.ts:1125",
-    "src/controllers/testimonials.controller.ts:1209",
-    "src/controllers/testimonials.controller.ts:360",
-    "src/controllers/testimonials.controller.ts:455",
-    "src/controllers/testimonials.controller.ts:543",
-    "src/controllers/testimonials.controller.ts:658",
-    "src/controllers/testimonials.controller.ts:737",
-    "src/controllers/testimonials.controller.ts:769",
-    "src/controllers/testimonials.controller.ts:938",
+    "src/controllers/testimonials.controller.ts:1017",
+    "src/controllers/testimonials.controller.ts:1126",
+    "src/controllers/testimonials.controller.ts:1210",
+    "src/controllers/testimonials.controller.ts:361",
+    "src/controllers/testimonials.controller.ts:456",
+    "src/controllers/testimonials.controller.ts:544",
+    "src/controllers/testimonials.controller.ts:659",
+    "src/controllers/testimonials.controller.ts:738",
+    "src/controllers/testimonials.controller.ts:770",
+    "src/controllers/testimonials.controller.ts:939",
     "src/controllers/userHistory.controller.ts:166",
     "src/controllers/userHistory.controller.ts:209",
     "src/controllers/userHistory.controller.ts:85",
-    "src/controllers/users.controller.ts:1108",
-    "src/controllers/users.controller.ts:1166",
-    "src/controllers/users.controller.ts:1216",
-    "src/controllers/users.controller.ts:1351",
-    "src/controllers/users.controller.ts:1379",
-    "src/controllers/users.controller.ts:1421",
-    "src/controllers/users.controller.ts:1761",
-    "src/controllers/users.controller.ts:1843",
-    "src/controllers/users.controller.ts:1914",
-    "src/controllers/users.controller.ts:2059",
-    "src/controllers/users.controller.ts:2087",
-    "src/controllers/users.controller.ts:2107",
-    "src/controllers/users.controller.ts:2137",
-    "src/controllers/users.controller.ts:2215",
-    "src/controllers/users.controller.ts:2239",
-    "src/controllers/users.controller.ts:2502",
-    "src/controllers/users.controller.ts:314",
-    "src/controllers/users.controller.ts:427",
-    "src/controllers/users.controller.ts:822",
+    "src/controllers/users.controller.ts:1109",
+    "src/controllers/users.controller.ts:1167",
+    "src/controllers/users.controller.ts:1217",
+    "src/controllers/users.controller.ts:1352",
+    "src/controllers/users.controller.ts:1380",
+    "src/controllers/users.controller.ts:1422",
+    "src/controllers/users.controller.ts:1762",
+    "src/controllers/users.controller.ts:1844",
+    "src/controllers/users.controller.ts:1915",
+    "src/controllers/users.controller.ts:2060",
+    "src/controllers/users.controller.ts:2088",
+    "src/controllers/users.controller.ts:2108",
+    "src/controllers/users.controller.ts:2138",
+    "src/controllers/users.controller.ts:2216",
+    "src/controllers/users.controller.ts:2240",
+    "src/controllers/users.controller.ts:2503",
+    "src/controllers/users.controller.ts:315",
+    "src/controllers/users.controller.ts:428",
+    "src/controllers/users.controller.ts:823",
     "src/controllers/usersReviewLists.controller.ts:38",
     "src/controllers/usersReviewLists.controller.ts:66",
     "src/controllers/webhooks.controller.ts:31",
@@ -508,8 +499,8 @@ const BASELINE = {
     "src/controllers/renewal.controller.ts:26",
     "src/controllers/renewal.controller.ts:81",
     "src/controllers/sync.controller.ts:711",
-    "src/controllers/users.controller.ts:1166",
-    "src/controllers/users.controller.ts:1421",
+    "src/controllers/users.controller.ts:1167",
+    "src/controllers/users.controller.ts:1422",
     "src/controllers/webhooks.controller.ts:31",
     "src/controllers/webhooks.controller.ts:52",
     "src/routes/achievements.routes.ts:118",
@@ -539,23 +530,31 @@ test('production boundary inventory matches the migration baseline', () => {
   expect(current.publicErrorDetail).toEqual(BASELINE.publicErrorDetail)
 })
 
-test('inventory detects temporary unsafe fixtures and leaves no fixture behind', () => {
-  const fixturePath = path.join(sourceRoot, '__task1_inventory_fixture.ts')
+test('inventory catches owned consumer mutations and restores every fixture', () => {
+  const sourceOwnedPath = path.join(sourceRoot, 'security/validatedInput.ts')
+  const originalOwnedConsumer = fs.readFileSync(sourceOwnedPath, 'utf8')
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bo2-inventory-'))
+  const ownedConsumerPath = path.join(tempRoot, 'security/validatedInput.ts')
+  const fixturePath = path.join(tempRoot, '__task1_inventory_fixture.ts')
+  const ownedMutation = `const __task3_inventory_mutation = process.env.NODE_ENV\n`
   const fixture = `const unsafe = process.env.UNSAFE_TEST\nconst fiveHundred = res.status(500)\nconst detail = res.json({ details: error.message })\n`
 
   try {
+    fs.mkdirSync(path.dirname(ownedConsumerPath), { recursive: true })
+    fs.writeFileSync(ownedConsumerPath, `${ownedMutation}${originalOwnedConsumer}`, 'utf8')
     fs.writeFileSync(fixturePath, fixture, 'utf8')
-    const mutated = inventory()
+    const mutated = inventory(tempRoot)
+    expect(mutated.rawEnvironmentRead).toContain('src/security/validatedInput.ts:1')
     expect(mutated.rawEnvironmentRead).toContain('src/__task1_inventory_fixture.ts:1')
     expect(mutated.localHttp500).toContain('src/__task1_inventory_fixture.ts:2')
     expect(mutated.publicErrorDetail).toContain('src/__task1_inventory_fixture.ts:3')
   } finally {
-    if (fs.existsSync(fixturePath)) fs.rmSync(fixturePath)
+    fs.rmSync(tempRoot, { recursive: true, force: true })
   }
 
   const restored = inventory()
   expect(restored.rawEnvironmentRead).toEqual(BASELINE.rawEnvironmentRead)
   expect(restored.localHttp500).toEqual(BASELINE.localHttp500)
   expect(restored.publicErrorDetail).toEqual(BASELINE.publicErrorDetail)
-  expect(fs.existsSync(fixturePath)).toBe(false)
+  expect(fs.existsSync(tempRoot)).toBe(false)
 })

@@ -3,6 +3,10 @@ import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
 import { usersV2LegacyInput } from '../../src/security/usersV2ListInput'
 import { withValidatedInput } from '../../src/security/validatedInput'
+import {
+  resetRuntimeConfigForTests,
+  useTestRuntimeConfig,
+} from '../support/runtimeConfig'
 
 const mockGetUsersForProduct = jest.fn()
 const mockEnrollmentRead = jest.fn()
@@ -76,11 +80,16 @@ const enrollmentRow = {
 }
 
 beforeEach(() => {
+  useTestRuntimeConfig()
   jest.clearAllMocks()
   mockEnrollmentRead.mockResolvedValue({
     totalUsers: 1,
     rows: [enrollmentRow],
   })
+})
+
+afterEach(() => {
+  resetRuntimeConfigForTests()
 })
 
 describe('legacy users V2 list boundary', () => {

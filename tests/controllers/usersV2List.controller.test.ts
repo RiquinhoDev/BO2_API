@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import type { RequestHandler } from 'express'
 import express from 'express'
 import mongoose from 'mongoose'
@@ -20,6 +21,8 @@ import { withValidatedInput } from '../../src/security/validatedInput'
 import type { UsersV2EnrollmentListResponse } from '../../src/services/users/usersV2Enrollment.service'
 import type { UsersV2LegacyResponse } from '../../src/contracts/usersV2'
 import type { UsersV2OverviewAnalyticsResponse } from '../../src/services/users/usersV2OverviewAnalytics.service'
+
+installTestRuntimeConfigHooks()
 
 const marker = { __bo2_offline_loopback: '1' }
 

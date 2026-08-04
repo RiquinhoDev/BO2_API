@@ -1,3 +1,4 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
@@ -8,6 +9,8 @@ import {
 import {
   createCronManagementRouter,
 } from '../../src/routes/cron/createCronManagementRouter'
+installTestRuntimeConfigHooks()
+
 
 const unusedAsyncUseCase = async (): Promise<never> => {
   throw new Error('execution aliases must not call a cron use case')

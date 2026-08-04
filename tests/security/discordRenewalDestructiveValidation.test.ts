@@ -1,6 +1,9 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
+installTestRuntimeConfigHooks()
+
 
 jest.mock('../../src/services/renewal/discordRolesSync.service', () => ({
   approveRoleChanges: jest.fn(async () => 0),

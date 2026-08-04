@@ -1,9 +1,12 @@
+import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import { z } from 'zod'
 import {
   type ValidatedInputHandler,
   type ValidatedInputSchema,
   validatedSchema,
 } from '../../src/security/validatedInput'
+
+installTestRuntimeConfigHooks()
 
 type Assert<T extends true> = T
 type AssertFalse<T extends false> = T
