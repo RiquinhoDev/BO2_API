@@ -1,5 +1,7 @@
 # 🛡️ AUDITORIA COMPLETA DE SEGURANÇA - SISTEMA DE PROTEÇÃO DE TAGS NATIVAS
 
+> **Status:** ARCHIVE snapshot; not current repository-wide security proof.
+
 ## 📅 Data: 2026-01-23
 ## ✅ Status: IMPLEMENTAÇÃO 100% COMPLETA
 
