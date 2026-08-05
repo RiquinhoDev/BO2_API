@@ -66,12 +66,19 @@ export class MongooseStudentSearchReader implements StudentSearchReader {
     return matchConditions
   }
 
+  /**
+   * The sort is what makes the cap meaningful: without a total order, which
+   * 200 of the matches survive `limit` is up to the query plan and can change
+   * between identical requests. `_id` is always indexed and unique, so it is a
+   * stable tiebreak that costs no extra index.
+   */
   async findStudents(
     criteria: StudentSearchCriteria,
     limit: number,
   ): Promise<UserTransformSource[]> {
     return User.find(this.buildFilter(criteria))
       .select(STUDENT_PROJECTION)
+      .sort({ _id: 1 })
       .limit(limit)
       .lean<UserTransformSource[]>()
   }
