@@ -25,6 +25,7 @@ import { listUsersSimple } from "../services/users/usersSimpleList.runtime"
 import { getStudentStats } from "../services/users/studentStats.runtime"
 import { getUserAllClasses } from "../services/users/studentClasses.runtime"
 import { getUserById, getUserProducts } from "../services/users/userLookup.runtime"
+import { getStudentHistory } from "../services/users/studentHistory.runtime"
 import {
   // Funções existentes (mantidas para compatibilidade)
   listUsers,
@@ -35,7 +36,6 @@ import {
 
   // 🆕 NOVAS FUNÇÕES PARA EDITOR DE ALUNOS
   editStudent,
-  getStudentHistory,
   syncSpecificStudent,
   deleteStudent,
   getUsersInfinite,

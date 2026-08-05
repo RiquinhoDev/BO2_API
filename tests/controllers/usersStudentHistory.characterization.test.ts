@@ -23,7 +23,8 @@ jest.mock('../../src/models/SyncHistory', () => ({
   default: { find: mockSyncHistoryFind },
 }))
 
-import { getStudentHistory } from '../../src/controllers/users.controller'
+import { createErrorHandling } from '../../src/security/errorHandling'
+import { getStudentHistory } from '../../src/services/users/studentHistory.runtime'
 
 const LOOPBACK = '__bo2_offline_loopback=1'
 const VALID_ID = '507f1f77bcf86cd799439011'
@@ -56,7 +57,13 @@ function student(overrides: Record<string, unknown> = {}) {
 
 function app(): express.Express {
   const instance = express()
+  const errorHandling = createErrorHandling({
+    generateCorrelationId: () => 'test-correlation-id',
+    logError: () => undefined,
+  })
+  instance.use(errorHandling.correlationId)
   instance.get('/users/:id/history', getStudentHistory)
+  instance.use(errorHandling.handler)
   return instance
 }
 
@@ -259,5 +266,24 @@ describe('getStudentHistory — characterization', () => {
 
     expect(response.body).toEqual({ message: 'Aluno não encontrado.' })
     expect(mockUserHistoryFind).not.toHaveBeenCalled()
+  })
+
+  // DELIBERATE CHANGE (SEC-10): the legacy 500 body carried `details` with the
+  // raw error message. A failure of the *student* lookup — the one read that is
+  // not degraded — now reaches the central boundary.
+  test('routes a student lookup failure through the central boundary', async () => {
+    mockFindById.mockRejectedValue(new Error('mongo exploded'))
+
+    const response = await request(app())
+      .get(`/users/${VALID_ID}/history?${LOOPBACK}`)
+      .expect(500)
+
+    expect(response.body).toEqual({
+      success: false,
+      code: 'STUDENT_HISTORY_FAILED',
+      message: 'Erro ao buscar histórico do aluno.',
+      correlationId: 'test-correlation-id',
+    })
+    expect(JSON.stringify(response.body)).not.toContain('mongo exploded')
   })
 })
