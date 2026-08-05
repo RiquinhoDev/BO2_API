@@ -307,33 +307,72 @@ describe('listUsers — filters', () => {
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  // BUG, characterised so the fix is visible as a fix.
-  //
-  // search, hasDiscord=false and hasHotmart=true each assign `matchStage.$or`
-  // outright. Combining them silently drops the earlier filter: the response
-  // still echoes every filter under `filters`, so the caller is told a filter
-  // was applied that never reached the query.
-  // ─────────────────────────────────────────────────────────────────────────
-  test('BUG: hasDiscard=false discards the search filter', async () => {
+  // DELIBERATE CHANGE: combined filters now narrow rows and count to every
+  // filter echoed to the Backoffice instead of silently dropping earlier ones.
+  // Reintroducing a direct `matchStage.$or = ...` assignment must make these tests RED.
+  test('composes search and hasDiscord=false without dropping either filter', async () => {
     const match = await matchFor('search=ana&hasDiscord=false')
 
-    expect(match.$or).toEqual([
-      { discordIds: { $exists: false } },
-      { discordIds: { $size: 0 } },
-    ])
-    // The search terms are gone from the query entirely.
-    expect(JSON.stringify(match)).not.toContain('ana')
+    expect(match).toEqual({
+      $and: [
+        {
+          $or: [
+            { name: { $regex: 'ana', $options: 'i' } },
+            { email: { $regex: 'ana', $options: 'i' } },
+            { username: { $regex: 'ana', $options: 'i' } },
+          ],
+        },
+        {
+          $or: [
+            { discordIds: { $exists: false } },
+            { discordIds: { $size: 0 } },
+          ],
+        },
+      ],
+    })
   })
 
-  test('BUG: hasHotmart=true discards both search and hasDiscord', async () => {
+  test('composes search, hasDiscord=false and hasHotmart=true', async () => {
     const match = await matchFor('search=ana&hasDiscord=false&hasHotmart=true')
 
-    expect(JSON.stringify(match)).not.toContain('ana')
-    expect(JSON.stringify(match)).not.toContain('discordIds')
-    expect(match.$or).toHaveLength(2)
+    expect(match).toEqual({
+      $and: [
+        {
+          $or: [
+            { name: { $regex: 'ana', $options: 'i' } },
+            { email: { $regex: 'ana', $options: 'i' } },
+            { username: { $regex: 'ana', $options: 'i' } },
+          ],
+        },
+        {
+          $or: [
+            { discordIds: { $exists: false } },
+            { discordIds: { $size: 0 } },
+          ],
+        },
+        {
+          $or: [
+            {
+              $and: [
+                { classId: { $exists: true } },
+                { classId: { $ne: null } },
+                { classId: { $ne: '' } },
+              ],
+            },
+            {
+              $and: [
+                { hotmartUserId: { $exists: true } },
+                { hotmartUserId: { $ne: null } },
+                { hotmartUserId: { $ne: '' } },
+              ],
+            },
+          ],
+        },
+      ],
+    })
   })
 
-  test('BUG: the response still reports the filters that were dropped', async () => {
+  test('applies every filter echoed to the caller', async () => {
     respondWith([], 0)
     const response = await request(app())
       .get(`/users/listUsers?search=ana&hasHotmart=true&${LOOPBACK}`)
@@ -341,16 +380,38 @@ describe('listUsers — filters', () => {
 
     expect(response.body.filters.search).toBe('ana')
     const match = (stage(pipelines().rows, '$match') as { $match: Record<string, unknown> }).$match
-    expect(JSON.stringify(match)).not.toContain('ana')
+    expect(JSON.stringify(match)).toContain('ana')
+    expect(JSON.stringify(match)).toContain('hotmartUserId')
   })
 
-  test('hasHotmart=false uses $and and therefore survives alongside search', async () => {
+  test('composes hasHotmart=false with search without changing either predicate', async () => {
     const match = await matchFor('search=ana&hasHotmart=false')
 
-    // The only branch that composes instead of overwriting.
-    expect(match.$or).toBeDefined()
-    expect(match.$and).toBeDefined()
-    expect(JSON.stringify(match.$or)).toContain('ana')
+    expect(match).toEqual({
+      $and: [
+        {
+          $or: [
+            { name: { $regex: 'ana', $options: 'i' } },
+            { email: { $regex: 'ana', $options: 'i' } },
+            { username: { $regex: 'ana', $options: 'i' } },
+          ],
+        },
+        {
+          $or: [
+            { classId: { $exists: false } },
+            { classId: null },
+            { classId: '' },
+          ],
+        },
+        {
+          $or: [
+            { hotmartUserId: { $exists: false } },
+            { hotmartUserId: null },
+            { hotmartUserId: '' },
+          ],
+        },
+      ],
+    })
   })
 })
 
