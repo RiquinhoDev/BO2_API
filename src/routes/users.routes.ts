@@ -22,6 +22,7 @@ import {
 import { usersSimpleListInput } from "../security/usersSimpleListInput"
 import { syncDiscordAndHotmart } from "../controllers/userDiscordImport.controller"
 import { listUsersSimple } from "../services/users/usersSimpleList.runtime"
+import { getStudentStats } from "../services/users/studentStats.runtime"
 import {
   // Funções existentes (mantidas para compatibilidade)
   listUsers,
@@ -32,7 +33,6 @@ import {
 
   // 🆕 NOVAS FUNÇÕES PARA EDITOR DE ALUNOS
   editStudent,
-  getStudentStats,
   getStudentHistory,
   syncSpecificStudent,
   deleteStudent,

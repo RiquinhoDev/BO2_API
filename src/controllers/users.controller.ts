@@ -1168,60 +1168,6 @@ export const editStudent = async (req: Request<UserIdParams>, res: Response): Pr
   }
 }
 // 📊 ESTATÍSTICAS DO ALUNO
-export const getStudentStats = async (req: Request, res: Response): Promise<void> => {
-  const { id } = req.params
-
-  try {
-    const student = await User.findById(id)
-    
-    if (!student) {
-      res.status(404).json({ message: "Aluno não encontrado." })
-      return
-    }
-
-const discordIds = student.discord?.discordIds || []
-const progressPercentage = student.combined?.totalProgress || 0
-const purchaseDate = student.hotmart?.purchaseDate
-const lastAccessDate = student.combined?.lastActivity
-  || student.hotmart?.lastAccessDate
-  || student.curseduca?.lastAccess
-const classId = student.combined?.classId || student.classId
-
-const stats = {
-  hasEmail: !!student.email,
-  hasName: !!student.name,
-  hasDiscordIds: discordIds.length > 0,
-  totalDiscordIds: discordIds.length,
-  isActive: student.combined?.status === 'ACTIVE',
-  hasProgress: progressPercentage > 0,
-  progressPercentage,
-  hasPurchaseDate: !!purchaseDate,
-  hasLastAccess: !!lastAccessDate,
-  daysSincePurchase: purchaseDate
-    ? Math.floor((Date.now() - new Date(purchaseDate).getTime()) / (1000 * 60 * 60 * 24))
-    : null,
-  daysSinceLastAccess: lastAccessDate
-    ? Math.floor((Date.now() - new Date(lastAccessDate).getTime()) / (1000 * 60 * 60 * 24))
-    : null,
-  hasClass: !!classId,
-  classId,
-  validationStatus: {
-    email: !!student.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(student.email),
-    discordIds: discordIds.every(discordId => /^\d{17,19}$/.test(discordId)),
-    name: !!student.name && student.name.trim().length > 0
-  }
-}
-
-    res.status(200).json(stats)
-  } catch (error: unknown) {
-    res.status(500).json({ 
-      message: "Erro ao calcular estatísticas do aluno.", 
-      details: errorMessage(error)
-    })
-  }
-}
-
-
 // 📋 HISTÓRICO DO ALUNO - CORRIGIDO PARA NOVA ESTRUTURA
 export const getStudentHistory = async (req: Request<UserIdParams>, res: Response): Promise<void> => {
   const { id } = req.params
