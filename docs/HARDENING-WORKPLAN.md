@@ -1049,6 +1049,14 @@ Progresso controllers:
   verificado, (3) janela acordada de tráfego real sem chamadas inexplicadas a `/api/users/v2` e (4) remoção
   coordenada no catálogo/manifest. Até essa observação, não existe `Sunset` e a rota deprecated permanece viva.
 
+  **`GET /api/users/unified` deprecated (2026-08-05):** varredura do Front não encontrou nenhuma chamada — a
+  única ocorrência é o manifesto gerado — e nenhum módulo do backend importa o handler além do router; a
+  evidência anterior do catálogo nomeava dois consumidores que já não existem. A rota **continua montada** e
+  pode ter clientes externos fora destes dois repositórios, por isso não foi apagada. Sem `Sunset` e sem
+  `successorLinks`: não há sucessor equivalente, e a remoção depende de **zero tráfego observado na Vaga 1**.
+  Atenção ao homónimo: `getAllUsersUnified` em `dualReadService.ts` é função interna viva e não tem relação
+  com este handler HTTP.
+
 - [x] **Dead-code cleanup — módulos preservados apenas por testes removidos** (2026-08-03; commits
   `3398350` + `753e5c0` + cauda transitiva): apagados exactamente **499 linhas de produção** (`applyTags.ts`
   265 + `engagementCalculator.service.ts` 173 + `tagBatch.ts` 43 + o método `addTagsBatch` 17 + o import 1),

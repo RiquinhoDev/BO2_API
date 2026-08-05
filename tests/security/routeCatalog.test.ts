@@ -90,12 +90,13 @@ test('a evidencia aponta para a declaracao real da rota', () => {
   }
 })
 
-test('marca apenas cron-tags e o legacy users v2 como deprecated', () => {
+test('marca apenas cron-tags, o legacy users v2 e a listagem unified como deprecated', () => {
   const deprecated = catalog.filter((route) => route.deprecated)
+  const namedDeprecations = ['/api/users/v2', '/api/users/unified']
 
-  expect(deprecated).toHaveLength(19)
+  expect(deprecated).toHaveLength(20)
   expect(
-    deprecated.filter((route) => route.path !== '/api/users/v2').every(
+    deprecated.filter((route) => !namedDeprecations.includes(route.path)).every(
       (route) =>
         route.path.startsWith('/api/cron-tags/') || route.path.startsWith('/cron-tags/'),
     ),
@@ -112,6 +113,17 @@ test('marca apenas cron-tags e o legacy users v2 como deprecated', () => {
     ],
   })
   expect(legacy).not.toHaveProperty('sunset')
+
+  // Deprecated for lack of a known consumer, not because a successor exists:
+  // no Sunset and no successorLinks until real traffic has been observed.
+  const unified = deprecated.find((route) => route.path === '/api/users/unified')
+  expect(unified).toMatchObject({
+    deprecated: true,
+    consumer: 'desconhecido',
+    deprecatedReason: 'no known repository consumer; observe real traffic before removal',
+  })
+  expect(unified).not.toHaveProperty('sunset')
+  expect(unified).not.toHaveProperty('successorLinks')
 })
 
 test('nenhuma rota dinamica anterior sombreia uma rota literal posterior', () => {
