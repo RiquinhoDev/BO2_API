@@ -1,20 +1,20 @@
 import type {
-  LegacyUserListCriteria,
-  LegacyUserListReader,
-  LegacyUserListResult,
-} from './legacyUserList.contract'
+  UserListCriteria,
+  UserListReader,
+  UserListResult,
+} from './userList.contract'
 
 export const DEFAULT_PAGE = 1
 export const DEFAULT_LIMIT = 50
 
-export class LegacyUserListService {
-  constructor(private readonly reader: LegacyUserListReader) {}
+export class UserListService {
+  constructor(private readonly reader: UserListReader) {}
 
   async list(
-    criteria: LegacyUserListCriteria,
+    criteria: UserListCriteria,
     page: number,
     limit: number,
-  ): Promise<LegacyUserListResult> {
+  ): Promise<UserListResult> {
     // One-based paging: the Backoffice sends page 1 for the first screen.
     const skip = (page - 1) * limit
 

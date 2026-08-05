@@ -9,7 +9,7 @@ jest.mock('../../src/models/user', () => ({
 }))
 
 import { createErrorHandling } from '../../src/security/errorHandling'
-import { listUsers } from '../../src/services/users/legacyUserList.runtime'
+import { listUsers } from '../../src/services/users/userList.runtime'
 
 const LOOPBACK = '__bo2_offline_loopback=1'
 

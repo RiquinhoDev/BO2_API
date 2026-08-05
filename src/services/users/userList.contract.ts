@@ -6,35 +6,35 @@
  * or paging without that client being migrated first.
  */
 
-export interface LegacyUserListCriteria {
+export interface UserListCriteria {
   search?: string
   status?: string
   hasDiscord?: string
   hasHotmart?: string
 }
 
-export interface LegacyUserListPagination {
+export interface UserListPagination {
   skip: number
   limit: number
 }
 
-export interface LegacyUserListPage {
+export interface UserListPage {
   rows: unknown[]
   total: number
 }
 
-export interface LegacyUserListReader {
+export interface UserListReader {
   /**
    * Runs the rows query and the count in parallel, as the legacy handler did.
    * Kept as one call so that concurrency stays a property of the adapter.
    */
   listAndCount(
-    criteria: LegacyUserListCriteria,
-    pagination: LegacyUserListPagination,
-  ): Promise<LegacyUserListPage>
+    criteria: UserListCriteria,
+    pagination: UserListPagination,
+  ): Promise<UserListPage>
 }
 
-export interface LegacyUserListResult {
+export interface UserListResult {
   users: unknown[]
   count: number
   page: number
