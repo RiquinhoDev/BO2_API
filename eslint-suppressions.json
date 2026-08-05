@@ -387,7 +387,7 @@
       "count": 3
     },
     "no-console": {
-      "count": 58
+      "count": 55
     }
   },
   "src/controllers/usersReviewLists.controller.ts": {
