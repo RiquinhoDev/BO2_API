@@ -1,11 +1,11 @@
 import type { RequestHandler } from 'express'
 import { HttpError } from '../../security/errorHandling'
-import type { LegacyUserListCriteria } from '../../services/users/legacyUserList.contract'
+import type { UserListCriteria } from '../../services/users/userList.contract'
 import {
   DEFAULT_LIMIT,
   DEFAULT_PAGE,
-  type LegacyUserListService,
-} from '../../services/users/legacyUserList.service'
+  type UserListService,
+} from '../../services/users/userList.service'
 
 /** Mirrors the legacy destructuring: absent means the default, anything else is coerced. */
 function readNumber(value: unknown, fallback: number): number {
@@ -16,8 +16,8 @@ function readText(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
-export function createLegacyUserListController(
-  service: Pick<LegacyUserListService, 'list'>,
+export function createUserListController(
+  service: Pick<UserListService, 'list'>,
 ): RequestHandler {
   return async (req, res, next) => {
     const query = req.query as Record<string, unknown>
@@ -30,7 +30,7 @@ export function createLegacyUserListController(
     const hasDiscord = readText(query.hasDiscord)
     const hasHotmart = readText(query.hasHotmart)
 
-    const criteria: LegacyUserListCriteria = { search, status, hasDiscord, hasHotmart }
+    const criteria: UserListCriteria = { search, status, hasDiscord, hasHotmart }
 
     try {
       const result = await service.list(criteria, page, limit)

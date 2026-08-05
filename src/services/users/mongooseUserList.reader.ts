@@ -1,11 +1,11 @@
 import type mongoose from 'mongoose'
 import User from '../../models/user'
 import type {
-  LegacyUserListCriteria,
-  LegacyUserListPage,
-  LegacyUserListPagination,
-  LegacyUserListReader,
-} from './legacyUserList.contract'
+  UserListCriteria,
+  UserListPage,
+  UserListPagination,
+  UserListReader,
+} from './userList.contract'
 
 type PipelineStage = mongoose.PipelineStage
 type MongoFilter = Record<string, unknown>
@@ -17,7 +17,7 @@ type MongoFilter = Record<string, unknown>
  * behaviour is pinned by tests named as bugs; fixing it is a separate slice,
  * because the Backoffice depends on the current results.
  */
-function buildMatch(criteria: LegacyUserListCriteria): MongoFilter {
+function buildMatch(criteria: UserListCriteria): MongoFilter {
   const matchStage: MongoFilter = {}
 
   if (criteria.search) {
@@ -82,7 +82,7 @@ function buildMatch(criteria: LegacyUserListCriteria): MongoFilter {
 
 function buildPipeline(
   matchStage: MongoFilter,
-  { skip, limit }: LegacyUserListPagination,
+  { skip, limit }: UserListPagination,
 ): PipelineStage[] {
   return [
     { $match: matchStage },
@@ -132,11 +132,11 @@ function buildPipeline(
   ]
 }
 
-export class MongooseLegacyUserListReader implements LegacyUserListReader {
+export class MongooseUserListReader implements UserListReader {
   async listAndCount(
-    criteria: LegacyUserListCriteria,
-    pagination: LegacyUserListPagination,
-  ): Promise<LegacyUserListPage> {
+    criteria: UserListCriteria,
+    pagination: UserListPagination,
+  ): Promise<UserListPage> {
     const matchStage = buildMatch(criteria)
 
     const [rows, countResult] = await Promise.all([

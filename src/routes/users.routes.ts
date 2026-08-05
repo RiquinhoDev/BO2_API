@@ -27,7 +27,7 @@ import { getUserAllClasses } from "../services/users/studentClasses.runtime"
 import { getUserById, getUserProducts } from "../services/users/userLookup.runtime"
 import { getStudentHistory } from "../services/users/studentHistory.runtime"
 import { searchStudent } from "../services/users/studentSearch.runtime"
-import { listUsers } from "../services/users/legacyUserList.runtime"
+import { listUsers } from "../services/users/userList.runtime"
 import {
   // Funções existentes (mantidas para compatibilidade)
   getUserStats,
