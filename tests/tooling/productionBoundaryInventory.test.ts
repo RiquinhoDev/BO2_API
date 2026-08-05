@@ -433,12 +433,10 @@ const BASELINE = {
     "src/controllers/users.controller.ts:1697",
     "src/controllers/users.controller.ts:1779",
     "src/controllers/users.controller.ts:1850",
-    "src/controllers/users.controller.ts:1935",
-    "src/controllers/users.controller.ts:1955",
-    "src/controllers/users.controller.ts:1985",
-    "src/controllers/users.controller.ts:2063",
-    "src/controllers/users.controller.ts:2087",
-    "src/controllers/users.controller.ts:2350",
+    "src/controllers/users.controller.ts:1938",
+    "src/controllers/users.controller.ts:2017",
+    "src/controllers/users.controller.ts:2041",
+    "src/controllers/users.controller.ts:2304",
     "src/controllers/users.controller.ts:304",
     "src/controllers/users.controller.ts:417",
     "src/controllers/users.controller.ts:812",
@@ -465,7 +463,7 @@ const BASELINE = {
     "src/routes/events.routes.ts:36",
     "src/routes/events.routes.ts:54",
     "src/routes/events.routes.ts:91",
-    "src/routes/users.routes.ts:255",
+    "src/routes/users.routes.ts:254",
     "src/routes/validationLogs.routes.ts:137",
     "src/routes/validationLogs.routes.ts:70"
   ],
@@ -516,7 +514,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 77,
-  "localHttp500": 343,
+  "localHttp500": 341,
   "publicErrorDetail": 33
 } as const
 
