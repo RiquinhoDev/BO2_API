@@ -3679,10 +3679,10 @@
     "method": "GET",
     "path": "/api/users/listUsers",
     "access": "authenticated",
-    "consumer": "front",
+    "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:271"
+    "evidence": "chamada do Backoffice legacy em <backoffice/src/components/bot/DiscordBot.jsx>, <backoffice/src/components/pages/HotmartSync.jsx>, presente no bundle compilado; nenhum consumidor no Front; rota em src/routes/users.routes.ts:271"
   },
   {
     "method": "GET",
