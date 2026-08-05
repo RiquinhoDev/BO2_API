@@ -20,6 +20,18 @@ export const STUDENT_SEARCH_CRITERIA = [
   'curseducaUserId',
 ] as const
 
+/** Longest accepted value for any single criterion, after trimming. */
+export const MAX_CRITERION_LENGTH = 256
+
+/** Most students ever returned in one response. */
+export const MAX_SEARCH_RESULTS = 200
+
+/**
+ * One row beyond the cap is read so truncation can be detected without a
+ * second count query over the same regex.
+ */
+export const SEARCH_FETCH_LIMIT = MAX_SEARCH_RESULTS + 1
+
 export type ProductSummary = Pick<IProduct, '_id' | 'name' | 'code' | 'platform'>
 
 export interface UserProductRecord {
@@ -78,10 +90,19 @@ export interface ActiveCampaignTagsView {
 
 export interface StudentSearchReader {
   /**
-   * Builds the Mongo filter from the criteria and runs the query. Regex
-   * construction lives here because it is a query detail; a term that is not a
-   * valid pattern therefore throws out of this call, exactly as before.
+   * Builds the Mongo filter from the criteria and runs the query, bounded by
+   * `limit`. Every term is matched literally: metacharacters are escaped, so no
+   * caller-supplied pattern can be executed as a regular expression.
    */
-  findStudents(criteria: StudentSearchCriteria): Promise<UserTransformSource[]>
+  findStudents(
+    criteria: StudentSearchCriteria,
+    limit: number,
+  ): Promise<UserTransformSource[]>
   findProducts(userIds: unknown[]): Promise<PopulatedUserProductRecord[]>
+}
+
+export interface StudentSearchOutcome<T> {
+  students: T[]
+  /** True when the query found more rows than the response is allowed to carry. */
+  truncated: boolean
 }

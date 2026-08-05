@@ -127,11 +127,11 @@ describe('searchStudent — query construction', () => {
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  // The two tests below pin behaviour that the follow-up security slice will
-  // deliberately change. They exist so that change is visible and reviewed,
-  // not so it is preserved.
+  // These two pinned the pre-hardening behaviour and were changed on purpose
+  // by the security slice. Full coverage of the new rules lives in
+  // tests/security/usersSearchHardening.test.ts.
   // ─────────────────────────────────────────────────────────────────────────
-  test('CURRENT: metacharacters in the term are interpreted, not escaped', async () => {
+  test('matches metacharacters literally instead of interpreting them', async () => {
     mockUserFind.mockReturnValue(chain([]))
 
     await request(app())
@@ -139,12 +139,12 @@ describe('searchStudent — query construction', () => {
       .expect(404)
 
     const pattern: RegExp = mockUserFind.mock.calls[0][0].email.$regex
-    // The dot is a wildcard today, so a literal search matches unrelated rows.
-    expect(pattern.test('aXb@x.com')).toBe(true)
-    expect(pattern.source).toBe('a.b@x.com')
+    // The dot used to be a wildcard; it now only matches a dot.
+    expect(pattern.test('aXb@x.com')).toBe(false)
+    expect(pattern.test('a.b@x.com')).toBe(true)
   })
 
-  test('CURRENT: the student query is unbounded — no limit and no cap', async () => {
+  test('bounds the student query instead of scanning without a cap', async () => {
     const query = chain([])
     mockUserFind.mockReturnValue(query)
 
@@ -152,7 +152,7 @@ describe('searchStudent — query construction', () => {
       .get(`/users/search?name=a&${LOOPBACK}`)
       .expect(404)
 
-    expect(query.limit).not.toHaveBeenCalled()
+    expect(query.limit).toHaveBeenCalledWith(201)
     expect(query.select).toHaveBeenCalledTimes(1)
   })
 })
@@ -365,17 +365,18 @@ describe('searchStudent — failure contract', () => {
     expect(JSON.stringify(response.body)).not.toContain('mongo exploded')
   })
 
-  // STILL CURRENT: the security slice will make this a normal search instead.
-  test('CURRENT: an invalid regex term still reaches the 500 path', async () => {
+  // DELIBERATE CHANGE: a bare bracket used to throw while the filter was built
+  // and surfaced as a 500. It is now an ordinary literal search.
+  test('an invalid regex term is a normal search, no longer a server error', async () => {
     mockUserFind.mockReturnValue(chain([]))
 
     const response = await request(app())
       .get(`/users/search?email=${encodeURIComponent('[')}&${LOOPBACK}`)
-      .expect(500)
+      .expect(404)
 
-    // `new RegExp('[')` throws while the filter is built, so a plain bracket in
-    // the search box is a server error today.
-    expect(response.body.code).toBe('STUDENT_SEARCH_FAILED')
-    expect(mockUserFind).not.toHaveBeenCalled()
+    expect(response.body).toEqual({
+      message: 'Nenhum aluno encontrado com os critérios fornecidos.',
+    })
+    expect(mockUserFind).toHaveBeenCalledTimes(1)
   })
 })

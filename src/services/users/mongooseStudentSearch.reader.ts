@@ -14,22 +14,28 @@ const STUDENT_PROJECTION =
 const PRODUCT_PROJECTION =
   'userId productId platform status classes enrolledAt isPrimary activeCampaignData'
 
+/** Escapes every character that carries meaning inside a regular expression. */
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 export class MongooseStudentSearchReader implements StudentSearchReader {
   /**
-   * The regexes are built from the raw term, unescaped and uncapped, exactly as
-   * the legacy handler did. An invalid pattern throws from here and surfaces as
-   * a 500, which is the current behaviour; hardening is a separate slice.
+   * Terms are escaped before they reach `RegExp`, so `.`, `*`, `+`, `?`, `(`,
+   * `[` and friends match themselves instead of being executed as a pattern.
+   * This removes the ReDoS surface and makes a bare bracket an ordinary search
+   * rather than a server error.
    */
   private buildFilter(criteria: StudentSearchCriteria): MongoFilter {
     const matchConditions: MongoFilter = {}
     const platformConditions: MongoFilter[] = []
 
     if (criteria.email) {
-      matchConditions.email = { $regex: new RegExp(criteria.email, 'i') }
+      matchConditions.email = { $regex: new RegExp(escapeRegex(criteria.email), 'i') }
     }
 
     if (criteria.name) {
-      matchConditions.name = { $regex: new RegExp(criteria.name, 'i') }
+      matchConditions.name = { $regex: new RegExp(escapeRegex(criteria.name), 'i') }
     }
 
     if (criteria.discordId) {
@@ -60,9 +66,13 @@ export class MongooseStudentSearchReader implements StudentSearchReader {
     return matchConditions
   }
 
-  async findStudents(criteria: StudentSearchCriteria): Promise<UserTransformSource[]> {
+  async findStudents(
+    criteria: StudentSearchCriteria,
+    limit: number,
+  ): Promise<UserTransformSource[]> {
     return User.find(this.buildFilter(criteria))
       .select(STUDENT_PROJECTION)
+      .limit(limit)
       .lean<UserTransformSource[]>()
   }
 
