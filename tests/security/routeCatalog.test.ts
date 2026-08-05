@@ -79,15 +79,103 @@ test('a superficie excecional fica curta e explicita', () => {
   expect(routesWith('authenticated')).toHaveLength(434)
   expect(catalog.filter((route) => route.access === 'public').every((route) => route.evidence.startsWith('public:'))).toBe(true)
 })
+/**
+ * Reads the route declaration that *starts* on `index`.
+ *
+ * The line must begin with the call itself — `router.get(`, `app.post(` or a
+ * sub-router such as `v2.get(` — which rules out an incidental `.get(` further
+ * inside an expression. The call is then accumulated until its parentheses
+ * balance, so a multi-line declaration is read whole and the scan can never
+ * fall through into the next one. Returning the method plus the first string
+ * literal of that same call makes the evidence prove route identity, not merely
+ * that some declaration of the right verb happens to sit on the line.
+ */
+function declarationAt(
+  lines: string[],
+  index: number,
+): { method: string; mount: string } | null {
+  const head = lines[index] ?? ''
+  const opener = head.match(/^\s*[A-Za-z_$][\w$]*\.(get|post|put|patch|delete)\(/)
+  if (!opener) return null
+
+  let depth = 0
+  let text = ''
+
+  for (let cursor = index; cursor < lines.length; cursor++) {
+    for (const character of lines[cursor]) {
+      text += character
+      if (character === '(') depth += 1
+      else if (character === ')') {
+        depth -= 1
+        if (depth === 0) {
+          const literal = text.match(/\(\s*(['"])(.*?)\1/)
+          return literal ? { method: opener[1], mount: literal[2] } : null
+        }
+      }
+    }
+    text += '\n'
+  }
+
+  return null
+}
+
+const USERS_ROUTES_FILE = 'src/routes/users.routes.ts'
+const USERS_ROUTES_MOUNT = '/api/users'
+
 test('a evidencia aponta para a declaracao real da rota', () => {
+  const unresolved: string[] = []
+  const mismatched: string[] = []
+
   for (const route of catalog) {
     const match = route.evidence.match(/rota em (src\/.+):(\d+)$/)
     expect(match).not.toBeNull()
 
     const sourcePath = path.join(process.cwd(), match![1])
-    const sourceLine = fs.readFileSync(sourcePath, 'utf8').split(/\r?\n/)[Number(match![2]) - 1]
-    expect(sourceLine).toContain(`.${route.method.toLowerCase()}(`)
+    const lines = fs.readFileSync(sourcePath, 'utf8').split(/\r?\n/)
+    const declaration = declarationAt(lines, Number(match![2]) - 1)
+
+    if (!declaration) {
+      unresolved.push(`${route.method} ${route.path} -> ${match![1]}:${match![2]}`)
+      continue
+    }
+
+    const sameMethod = declaration.method === route.method.toLowerCase()
+
+    // `users.routes.ts` has a single known mount, so its entries are held to
+    // exact equality: a suffix check lets `/student/:id/stats` be satisfied by
+    // the declaration of `/:id/stats`, which is how several wrong pointers
+    // stayed invisible. Other files still use the suffix rule because nested
+    // routers (CursEduca mounts a sub-router under `/v2`) would need the whole
+    // mount chain rebuilt before exact matching is meaningful there.
+    let sameRoute: boolean
+
+    if (match![1] === USERS_ROUTES_FILE) {
+      // Never slice a prefix that is not there: an entry pointing at this file
+      // while living under another mount is a defect, not something to coerce.
+      if (!route.path.startsWith(USERS_ROUTES_MOUNT)) {
+        mismatched.push(
+          `${route.method} ${route.path} -> ${match![1]}:${match![2]} is not mounted under ` +
+          USERS_ROUTES_MOUNT,
+        )
+        continue
+      }
+      sameRoute = declaration.mount === (route.path.slice(USERS_ROUTES_MOUNT.length) || '/')
+    } else {
+      sameRoute = route.path.endsWith(declaration.mount === '/' ? '' : declaration.mount)
+    }
+
+    if (!sameMethod || !sameRoute) {
+      mismatched.push(
+        `${route.method} ${route.path} -> ${match![1]}:${match![2]} declares ` +
+        `${declaration.method.toUpperCase()} ${declaration.mount}`,
+      )
+    }
   }
+
+  // Every entry must resolve to exactly one declaration; ambiguity is a defect
+  // in the evidence, not something the assertion may tolerate.
+  expect(unresolved).toEqual([])
+  expect(mismatched).toEqual([])
 })
 
 test('marca apenas cron-tags, o legacy users v2 e a listagem unified como deprecated', () => {
