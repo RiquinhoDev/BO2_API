@@ -1134,6 +1134,43 @@ Progresso controllers:
 - [x] Suites separadas unit/integration/load/e2e, mocks por defeito, **egress guard**; cobertura honesta e a subir (TEST-01/02). Task 4 (2026-08-04) established the non-overlapping topology; the final default inventory executes **165** unit+integration suites. The misplaced Front Playwright spec and its absent dependency were removed. `test:load` is an explicit opt-in bounded `127.0.0.1` Express/Supertest harness carrying the egress marker and passed **2/2** tests; `test:e2e` truthfully succeeds as an empty project with `--passWithNoTests`, without browser or network access.
 - [ ] Config validada e tipada com **fail-fast** no arranque (OPS-01).
 
+### Fecho offline, métricas e validação operacional
+
+O progresso `checked/total` mede apenas o fecho mecânico deste workplan. Mesmo `104/104` significa
+**hardening offline concluído**, não prontidão operacional nem equivalência em produção. O estado passa a
+ser comunicado em quatro eixos independentes: caixas do workplan; prontidão operacional; dívida objetiva
+(`no-explicit-any`, supressões, `res.status(500)`, leituras raw-env e maior ficheiro); e migração
+arquitetural (`modernized`, `legacy frozen` ou `scheduled`).
+
+Para reduzir overhead sem perder prova, lotes normais usam apenas RED/GREEN, commit convencional e uma
+linha curta no ledger ativo. Plano + spec + relatório extenso ficam reservados a autenticação, migrações de
+dados, operações destrutivas, mudanças de contrato e às superfícies de alto risco da Task 9. Não criar um
+novo documento quando este workplan ou o plano ativo puder receber a decisão de forma concisa.
+
+O desenvolvimento offline continua até `104/104`. A validação real acontece depois, numa janela de fim de
+semana, com stack legacy e stack `remake` em URLs distintas e promoção manual por três vagas:
+
+1. **Leitura real:** ambas as stacks podem ler a BD real e APIs externas em modo estritamente read-only.
+   Jobs, métodos e credenciais com capacidade de escrita ficam bloqueados. Comparar respostas, agregações,
+   índices, latência, CORS, Redis, logs e tráfego da rota legacy. Qualquer mutação aborta a vaga.
+2. **Criação/edição/atualização:** criar primeiro uma cópia isolada da BD real. A candidata escreve apenas
+   nessa cópia; a BD real e as APIs externas permanecem read-only. Validar transições, idempotência, retries,
+   caps, auditoria e ausência de alterações fora da cópia.
+3. **Eliminação:** novo snapshot da cópia antes da vaga; deletes apenas nessa cópia. Validar dry-run,
+   allowlists, cascatas, referências órfãs, repetição segura, audit log e recuperação. Nunca apagar na BD
+   real nem nos serviços externos.
+
+Antes de **cada** comando de teste live, o controller tem de parar e obter confirmação explícita e atual do
+utilizador sobre: vaga; URLs das duas stacks; hostname e nome da BD; classificação `real-read-only` ou
+`copy-write/delete`; APIs externas envolvidas e respetivo modo read-only; operações/métodos autorizados;
+snapshot/rollback; kill-switch; janela e stop conditions. Não inferir autorização de um `.env`, de uma
+aprovação antiga ou do nome da variável. Não imprimir nem persistir valores secretos; usar apenas nomes,
+hosts não sensíveis e fingerprints redigidos. Sem confirmação completa, nenhum teste live corre.
+
+Cada promoção exige aprovação manual, logs sem secrets, zero mutações fora do destino autorizado, rollback
+comprovado e zero findings Critical/Important abertos. A conclusão operacional só existe depois das três
+vagas; `104/104` por si só não a declara.
+
 ### Como se mede
 Cada caixa fecha com **prova contra o código** (comando/teste), não com report. O revisor regrava o estado
 aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → paginação (F3.2) → TS zero (F3.3)

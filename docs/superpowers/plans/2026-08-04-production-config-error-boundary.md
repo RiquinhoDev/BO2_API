@@ -541,3 +541,19 @@ git status -sb
 - [ ] **Step 6: Independent whole-range review and structured Luna proof**
 
 Fix every Critical/Important finding in one final wave and re-review it. Inspect every executor rollout and require `session_meta.payload.agent_role=executor_luna` plus every relevant `turn_context.payload.model=gpt-5.6-luna`. Delete only this plan's ignored SDD workspace after final approval.
+
+## Execution policy from 2026-08-05
+
+- Close this plan's Task 10 at its existing `96/104` target, then keep executing the remaining hardening work
+  offline until the workplan reaches `104/104`; both milestones are code/evidence completion only.
+- For ordinary remaining slices, tracked evidence is limited to RED/GREEN tests, a focused Conventional Commit,
+  and one concise ledger/workplan line. Do not create another tracked spec or plan when this plan already owns
+  the work. Keep full ceremony for Task 9, security, data migrations, destructive operations, and contract changes.
+- Promote objective debt metrics alongside the checkbox count: `no-explicit-any`, suppression count,
+  `res.status(500)`, raw environment reads, and largest production file.
+- Live validation is a separate weekend operation governed by the three-wave section in
+  `docs/HARDENING-WORKPLAN.md`: real read-only first; create/update only on a copied database; delete only on
+  a freshly snapshotted copy. External services remain read-only in every wave.
+- Before every live command, stop and obtain fresh explicit confirmation of the wave, both stack URLs,
+  database host/name and classification, external APIs and allowed methods, snapshot/rollback, kill-switch,
+  window, and stop conditions. Never infer authority from `.env` or earlier approval, and never print secrets.
