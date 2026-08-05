@@ -178,11 +178,23 @@ test('a evidencia aponta para a declaracao real da rota', () => {
   expect(mismatched).toEqual([])
 })
 
-test('marca apenas cron-tags, o legacy users v2 e a listagem unified como deprecated', () => {
-  const deprecated = catalog.filter((route) => route.deprecated)
-  const namedDeprecations = ['/api/users/v2', '/api/users/unified']
+/**
+ * Deprecated because no consumer could be found, not because a successor
+ * exists. They must never carry a Sunset or successor links until real traffic
+ * has been observed.
+ */
+const UNCONSUMED_DEPRECATIONS = [
+  '/api/users/unified',
+  '/api/users/users/listUsers',
+  '/api/users/infinite',
+  '/api/users/infiniteStats',
+] as const
 
-  expect(deprecated).toHaveLength(20)
+test('marca apenas cron-tags, o legacy users v2 e as listagens sem consumidor como deprecated', () => {
+  const deprecated = catalog.filter((route) => route.deprecated)
+  const namedDeprecations = ['/api/users/v2', ...UNCONSUMED_DEPRECATIONS]
+
+  expect(deprecated).toHaveLength(23)
   expect(
     deprecated.filter((route) => !namedDeprecations.includes(route.path)).every(
       (route) =>
@@ -202,16 +214,21 @@ test('marca apenas cron-tags, o legacy users v2 e a listagem unified como deprec
   })
   expect(legacy).not.toHaveProperty('sunset')
 
-  // Deprecated for lack of a known consumer, not because a successor exists:
-  // no Sunset and no successorLinks until real traffic has been observed.
-  const unified = deprecated.find((route) => route.path === '/api/users/unified')
-  expect(unified).toMatchObject({
-    deprecated: true,
-    consumer: 'desconhecido',
-    deprecatedReason: 'no known repository consumer; observe real traffic before removal',
-  })
-  expect(unified).not.toHaveProperty('sunset')
-  expect(unified).not.toHaveProperty('successorLinks')
+  for (const routePath of UNCONSUMED_DEPRECATIONS) {
+    const route = deprecated.find((candidate) => candidate.path === routePath)
+    expect(route).toMatchObject({
+      deprecated: true,
+      consumer: 'desconhecido',
+      deprecatedReason: 'no known repository consumer; observe real traffic before removal',
+    })
+    expect(route).not.toHaveProperty('sunset')
+    expect(route).not.toHaveProperty('successorLinks')
+  }
+
+  // listUsers has a proven consumer outside these repositories — the legacy
+  // Backoffice calls it from two rendered screens — so it must stay live.
+  const listUsers = catalog.find((route) => route.path === '/api/users/listUsers')
+  expect(listUsers).not.toHaveProperty('deprecated')
 })
 
 test('nenhuma rota dinamica anterior sombreia uma rota literal posterior', () => {

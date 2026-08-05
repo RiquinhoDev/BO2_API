@@ -3657,19 +3657,23 @@
     "method": "GET",
     "path": "/api/users/infinite",
     "access": "authenticated",
-    "consumer": "front",
+    "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:264"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:264",
+    "deprecated": true,
+    "deprecatedReason": "no known repository consumer; observe real traffic before removal"
   },
   {
     "method": "GET",
     "path": "/api/users/infiniteStats",
     "access": "authenticated",
-    "consumer": "front",
+    "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:265"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:265",
+    "deprecated": true,
+    "deprecatedReason": "no known repository consumer; observe real traffic before removal"
   },
   {
     "method": "GET",
@@ -3815,7 +3819,9 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:276"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:276",
+    "deprecated": true,
+    "deprecatedReason": "no known repository consumer; observe real traffic before removal"
   },
   {
     "method": "GET",
