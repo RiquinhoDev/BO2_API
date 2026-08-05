@@ -14,7 +14,8 @@ jest.mock('../../src/models', () => ({
   UserProduct: { find: mockUserProductFind },
 }))
 
-import { searchStudent } from '../../src/controllers/users.controller'
+import { createErrorHandling } from '../../src/security/errorHandling'
+import { searchStudent } from '../../src/services/users/studentSearch.runtime'
 
 const LOOPBACK = '__bo2_offline_loopback=1'
 
@@ -40,7 +41,13 @@ function chain<T>(rows: T[]): Chain {
 
 function app(): express.Express {
   const instance = express()
+  const errorHandling = createErrorHandling({
+    generateCorrelationId: () => 'test-correlation-id',
+    logError: () => undefined,
+  })
+  instance.use(errorHandling.correlationId)
   instance.get('/users/search', searchStudent)
+  instance.use(errorHandling.handler)
   return instance
 }
 
@@ -337,11 +344,10 @@ describe('searchStudent — legacy field transformation', () => {
   })
 })
 
-// DELIBERATE FUTURE CHANGE (SEC-10 + the security slice): this 500 leaks the
-// raw error message today. Both the boundary migration and the input hardening
-// will alter it.
-describe('searchStudent — current failure contract', () => {
-  test('CURRENT: the 500 body leaks the internal error message', async () => {
+describe('searchStudent — failure contract', () => {
+  // DELIBERATE CHANGE (SEC-10): the legacy body carried `details` with the raw
+  // error message; failures now reach the central boundary redacted.
+  test('routes failures through the central boundary without leaking detail', async () => {
     mockUserFind.mockImplementation(() => {
       throw new Error('mongo exploded')
     })
@@ -351,21 +357,25 @@ describe('searchStudent — current failure contract', () => {
       .expect(500)
 
     expect(response.body).toEqual({
+      success: false,
+      code: 'STUDENT_SEARCH_FAILED',
       message: 'Erro ao buscar aluno.',
-      details: 'mongo exploded',
+      correlationId: 'test-correlation-id',
     })
+    expect(JSON.stringify(response.body)).not.toContain('mongo exploded')
   })
 
-  test('CURRENT: an invalid regex term reaches the 500 path', async () => {
+  // STILL CURRENT: the security slice will make this a normal search instead.
+  test('CURRENT: an invalid regex term still reaches the 500 path', async () => {
     mockUserFind.mockReturnValue(chain([]))
 
     const response = await request(app())
       .get(`/users/search?email=${encodeURIComponent('[')}&${LOOPBACK}`)
       .expect(500)
 
-    // `new RegExp('[')` throws inside the try block, so a plain bracket in the
-    // search box is a server error today.
-    expect(response.body.message).toBe('Erro ao buscar aluno.')
+    // `new RegExp('[')` throws while the filter is built, so a plain bracket in
+    // the search box is a server error today.
+    expect(response.body.code).toBe('STUDENT_SEARCH_FAILED')
     expect(mockUserFind).not.toHaveBeenCalled()
   })
 })
