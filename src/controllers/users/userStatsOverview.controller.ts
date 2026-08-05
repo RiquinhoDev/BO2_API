@@ -1,9 +1,9 @@
 import type { RequestHandler } from 'express'
 import { HttpError } from '../../security/errorHandling'
-import type { StatsOverviewService } from '../../services/users/statsOverview.service'
+import type { UserStatsOverviewService } from '../../services/users/userStatsOverview.service'
 
-export function createStatsOverviewController(
-  service: Pick<StatsOverviewService, 'get'>,
+export function createUserStatsOverviewController(
+  service: Pick<UserStatsOverviewService, 'get'>,
 ): RequestHandler {
   return async (_req, res, next) => {
     try {

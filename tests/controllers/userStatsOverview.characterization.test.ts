@@ -6,7 +6,7 @@ import User from '../../src/models/user'
 import UserProduct from '../../src/models/UserProduct'
 import Product from '../../src/models/product/Product'
 import { HttpError } from '../../src/security/errorHandling'
-import { getUsersStatsOverview as extractedOverviewHandler } from '../../src/services/users/statsOverview.runtime'
+import { getUsersStatsOverview as extractedOverviewHandler } from '../../src/services/users/userStatsOverview.runtime'
 
 // The extracted handler is a RequestHandler; this narrows it to the awaited
 // shape the tests invoke and assert against.
@@ -29,9 +29,9 @@ type Captured = {
 }
 
 /**
- * Minimal Express double: records the single terminal write. `getUsersStats`
- * answers the happy path with `res.json`; the SEC-10 successor answers failure
- * with `next(HttpError)`, so both a `json`/`status` sink and a `next` spy are
+ * Minimal Express double: records the single terminal write. The handler
+ * answers the happy path with `res.json` and reports failure with
+ * `next(HttpError)`, so both a `json`/`status` sink and a `next` spy are
  * supplied and each test asserts which one fired.
  */
 function makeResponse(captured: Captured): Response {
@@ -62,10 +62,10 @@ beforeAll(async () => {
   process.env.MONGOMS_RUNTIME_DOWNLOAD = 'false'
   mongoServer = await MongoMemoryServer.create({
     binary: { version: '8.2.6' },
-    instance: { dbName: 'users_stats_overview_test' },
+    instance: { dbName: 'user_stats_overview_test' },
   })
   await mongoose.connect(
-    assertSafeTestMongoUri(mongoServer.getUri('users_stats_overview_test')),
+    assertSafeTestMongoUri(mongoServer.getUri('user_stats_overview_test')),
   )
 })
 
@@ -97,6 +97,7 @@ describe('GET /api/users/stats/overview — stats overview characterization', ()
     const userSoftDeleted = new mongoose.Types.ObjectId()
     const userCancelled = new mongoose.Types.ObjectId()
     const userParaInativar = new mongoose.Types.ObjectId()
+    const userQuarentena = new mongoose.Types.ObjectId()
     const userNoStatus = new mongoose.Types.ObjectId()
     const userOrphan = new mongoose.Types.ObjectId()
 
@@ -113,19 +114,23 @@ describe('GET /api/users/stats/overview — stats overview characterization', ()
       { _id: userSoftDeleted, name: 'Soft', email: 'soft@example.test', isDeleted: true },
       { _id: userCancelled, name: 'Cancelled', email: 'cancelled@example.test' },
       { _id: userParaInativar, name: 'ParaInativar', email: 'para@example.test' },
+      { _id: userQuarentena, name: 'Quarentena', email: 'quarentena@example.test' },
       { _id: userNoStatus, name: 'NoStatus', email: 'nostatus@example.test' },
       { _id: userOrphan, name: 'Orphan', email: 'orphan@example.test' },
     ])
 
-    // Six enrollment statuses represented so status independence is provable:
-    // ACTIVE, INACTIVE, SUSPENDED, CANCELLED, PARA_INATIVAR, and status absent.
+    // Six typed EnrollmentStatus values plus a seventh case with the field
+    // absent: ACTIVE, INACTIVE, SUSPENDED, CANCELLED, PARA_INATIVAR, QUARENTENA,
+    // and status absent. QUARENTENA is a typed value the schema enum omits, so
+    // it is inserted straight through the collection (validation bypassed).
     await UserProduct.collection.insertMany([
       { userId: userLive, productId: prodHotmartA, platform: 'hotmart', status: 'ACTIVE' },
       { userId: userLive, productId: prodHotmartB, platform: 'hotmart', status: 'INACTIVE' },
       { userId: userSoftDeleted, productId: prodCurseduca, platform: 'curseduca', status: 'SUSPENDED' },
       { userId: userCancelled, productId: prodDiscord, platform: 'discord', status: 'CANCELLED' },
       { userId: userParaInativar, productId: prodHotmartA, platform: 'hotmart', status: 'PARA_INATIVAR' },
-      { userId: userNoStatus, productId: prodCurseduca, platform: 'curseduca' }, // status absent
+      { userId: userQuarentena, productId: prodCurseduca, platform: 'curseduca', status: 'QUARENTENA' },
+      { userId: userNoStatus, productId: prodDiscord, platform: 'discord' }, // status absent
       { userId: userOrphan, productId: orphanProductId, platform: 'hotmart', status: 'ACTIVE' }, // orphan
     ])
 
@@ -147,15 +152,15 @@ describe('GET /api/users/stats/overview — stats overview characterization', ()
     expect(body.success).toBe(true)
     expect(body._v2Enabled).toBe(true)
 
-    // Soft-deleted user is included: six user documents, no isDeleted filter.
-    expect(body.data.totalUsers).toBe(6)
+    // Soft-deleted user is included: seven user documents, no isDeleted filter.
+    expect(body.data.totalUsers).toBe(7)
 
     // byPlatform over-counts: hotmart shows 3 enrollments though only two
     // distinct users are on hotmart — userLive alone contributes two products.
     const byPlatform = [...body.data.byPlatform].sort((a, b) => a._id.localeCompare(b._id))
     expect(byPlatform).toEqual([
       { _id: 'curseduca', count: 2 },
-      { _id: 'discord', count: 1 },
+      { _id: 'discord', count: 2 },
       { _id: 'hotmart', count: 3 },
     ])
 
@@ -166,17 +171,17 @@ describe('GET /api/users/stats/overview — stats overview characterization', ()
       .sort((a, b) => a.productName.localeCompare(b.productName))
     expect(byProduct).toEqual([
       { _id: String(prodCurseduca), productName: 'Curso Curseduca', count: 2 },
-      { _id: String(prodDiscord), productName: 'Curso Discord', count: 1 },
+      { _id: String(prodDiscord), productName: 'Curso Discord', count: 2 },
       { _id: String(prodHotmartA), productName: 'Curso Hotmart A', count: 2 },
       { _id: String(prodHotmartB), productName: 'Curso Hotmart B', count: 1 },
     ])
 
     // Orphan enrollment (no matching product) is dropped from both breakdowns:
-    // total counted enrollments = 6, not the 7 inserted.
+    // total counted enrollments = 7, not the 8 inserted.
     const platformTotal = byPlatform.reduce((sum, row) => sum + row.count, 0)
     const productTotal = byProduct.reduce((sum, row) => sum + row.count, 0)
-    expect(platformTotal).toBe(6)
-    expect(productTotal).toBe(6)
+    expect(platformTotal).toBe(7)
+    expect(productTotal).toBe(7)
 
     // Sequential access, never parallel: countDocuments, then platform, then
     // product. Two aggregations, neither of which filters status or user.

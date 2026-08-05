@@ -382,9 +382,6 @@ export async function getUsersByProduct(productId: string): Promise<any[]> {
   return Array.from(byUser.values())
 }
 
-// getUserCountsByPlatform / getUserCountsByProduct moved to the stats overview
-// vertical (src/services/users/mongooseStatsOverview.reader.ts).
-
 export async function getUsersForProduct(
   productId: string,
 ): Promise<UsersV2LegacyGroupedUser[]> {
