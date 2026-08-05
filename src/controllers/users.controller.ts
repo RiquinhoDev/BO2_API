@@ -9,7 +9,7 @@ import StudentClassHistory, { type IStudentClassHistory } from "../models/Studen
 import { Class } from "../models/Class"
 import { getRuntimeConfig } from "../config/runtimeConfig"
 import { cacheService } from "../services/cache.service"
-import { getUserCountsByPlatform, getUserCountsByProduct, getUserWithProducts } from "../services/userProducts/userProductService"
+import { getUserCountsByPlatform, getUserCountsByProduct } from "../services/userProducts/userProductService"
 import { UserProduct } from "../models"
 import type { IProduct } from "../models/product/Product"
 import type { IUserProduct } from "../models/UserProduct"
@@ -1913,110 +1913,10 @@ const recalculateCombinedData = async (userId: string): Promise<void> => {
 // ═
 
 
-/**
- * GET /api/users/v2/:id
- * ✅ NOVO: Busca user com todos os UserProducts
- */
-
-/**
- * GET /api/users/v2/by-email/:email
- * ✅ NOVO: Busca user por email com UserProducts
- */
-export const getUserByEmail = async (req: Request, res: Response) => {
-  try {
-    const { email } = req.params
-    
-    const user = await User.findOne({ email }).lean()
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' })
-    }
-    
-    const enriched = await getUserWithProducts(user._id.toString())
-    res.json({ success: true, data: enriched })
-  } catch (error: unknown) {
-    console.error('❌ Erro em getUserByEmail:', error)
-    res.status(500).json({ success: false, error: errorMessage(error) })
-  }
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 📊 ESTATÍSTICAS (CONSOLIDADO)
 // ═══════════════════════════════════════════════════════════════════════════
 
-/**
- * GET /api/users/v2/stats
- * ✅ CONSOLIDADO: Merge de getUserStats + getUsersStats
- */
-export const getStats = async (req: Request, res: Response) => {
-  try {
-    console.log('📊 Calculando estatísticas...')
-    
-    const baseQuery = { isDeleted: { $ne: true } }
-    
-    // Total de users
-    const totalUsers = await User.countDocuments(baseQuery)
-    
-    // Users ativos
-    const activeUsers = await User.countDocuments({
-      ...baseQuery,
-      $or: [
-        { 'combined.status': 'ACTIVE' },
-        { status: 'ACTIVE' }
-      ]
-    })
-    
-    // ✅ Estatísticas por plataforma (via UserProducts)
-    const byPlatform = await getUserCountsByPlatform()
-    const byProduct = await getUserCountsByProduct()
-    
-    // ✅ Engagement via agregação
-    const engagementAgg = await User.aggregate([
-      { $match: baseQuery },
-      {
-        $project: {
-          score: {
-            $ifNull: [
-              '$combined.combinedEngagement',
-              { $ifNull: ['$hotmart.engagement.engagementScore', 0] }
-            ]
-          }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          avgScore: { $avg: '$score' },
-          topPerformers: { $sum: { $cond: [{ $gte: ['$score', 50] }, 1, 0] } },
-          needsAttention: { $sum: { $cond: [{ $lt: ['$score', 30] }, 1, 0] } }
-        }
-      }
-    ])
-    
-    const engStats = engagementAgg[0] || {
-      avgScore: 0,
-      topPerformers: 0,
-      needsAttention: 0
-    }
-    
-    res.json({
-      success: true,
-      data: {
-        totalUsers,
-        activeUsers,
-        inactiveUsers: totalUsers - activeUsers,
-        averageEngagement: Math.round(engStats.avgScore * 100) / 100,
-        topPerformersCount: engStats.topPerformers,
-        needsAttentionCount: engStats.needsAttention,
-        byPlatform,
-        byProduct
-      }
-    })
-    
-  } catch (error: unknown) {
-    console.error('❌ Erro em getStats:', error)
-    res.status(500).json({ success: false, error: errorMessage(error) })
-  }
-}
 export const getUsersStats = async (req: Request, res: Response) => {
   try {
     const totalUsers = await User.countDocuments();

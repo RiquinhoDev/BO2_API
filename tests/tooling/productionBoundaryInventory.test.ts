@@ -433,10 +433,8 @@ const BASELINE = {
     "src/controllers/users.controller.ts:1697",
     "src/controllers/users.controller.ts:1779",
     "src/controllers/users.controller.ts:1850",
-    "src/controllers/users.controller.ts:1938",
-    "src/controllers/users.controller.ts:2017",
-    "src/controllers/users.controller.ts:2041",
-    "src/controllers/users.controller.ts:2304",
+    "src/controllers/users.controller.ts:1941",
+    "src/controllers/users.controller.ts:2204",
     "src/controllers/users.controller.ts:304",
     "src/controllers/users.controller.ts:417",
     "src/controllers/users.controller.ts:812",
@@ -514,7 +512,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 77,
-  "localHttp500": 341,
+  "localHttp500": 339,
   "publicErrorDetail": 33
 } as const
 
