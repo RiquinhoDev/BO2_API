@@ -36,12 +36,12 @@ import { getDashboardStats } from "../services/users/userDashboardStats.runtime"
 import { getUserStats } from "../services/users/userPlatformStats.runtime"
 
 import {
-  // Handlers ainda no controlador, a extrair
-
-  // 🆕 NOVAS FUNÇÕES PARA EDITOR DE ALUNOS
+  deleteStudent,
   editStudent,
   syncSpecificStudent,
-  deleteStudent,
+} from "../services/users/studentMutations.runtime"
+
+import {
   getUsersInfinite,
 } from "../controllers/users.controller"
 import {
@@ -328,14 +328,14 @@ router.delete(
 )
 router.delete(
   "/:id",
-  withValidatedInput(usersDeleteStudentInput, (input, _req, res) =>
-    deleteStudent(input, res)
+  withValidatedInput(usersDeleteStudentInput, (input, _req, res, next) =>
+    deleteStudent(input, res, next)
   )
 )
 router.delete(
   "/student/:id",
-  withValidatedInput(usersDeleteStudentInput, (input, _req, res) =>
-    deleteStudent(input, res)
+  withValidatedInput(usersDeleteStudentInput, (input, _req, res, next) =>
+    deleteStudent(input, res, next)
   )
 )
 

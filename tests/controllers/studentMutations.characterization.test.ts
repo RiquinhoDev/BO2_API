@@ -6,11 +6,12 @@ import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
 import User from '../../src/models/user'
 import StudentClassHistory from '../../src/models/StudentClassHistory'
+import { HttpError } from '../../src/security/errorHandling'
 import {
   editStudent as legacyEdit,
   syncSpecificStudent as legacySync,
   deleteStudent as legacyDelete,
-} from '../../src/controllers/users.controller'
+} from '../../src/services/users/studentMutations.runtime'
 
 type ReqHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>
 type DeleteInput = { params: { id: string }; query: { permanent?: 'true' | 'false' } }
@@ -118,12 +119,15 @@ describe('student mutations characterization', () => {
       expect(updateSpy.mock.calls[1]?.[1]).toHaveProperty('combined')
     })
 
-    it('answers a local 500 on failure', async () => {
+    it('reports failure through next(HttpError) with EDIT_STUDENT_FAILED', async () => {
       jest.spyOn(User, 'findById').mockImplementation((() => { throw new Error('boom') }) as never)
       const captured: Captured = {}
-      await editStudent({ params: { id: missingId() }, body: {} } as unknown as Request, makeResponse(captured), noop)
-      expect(captured.status).toBe(500)
-      expect(captured.body).toMatchObject({ message: 'Erro ao atualizar aluno' })
+      const next = jest.fn()
+      await editStudent({ params: { id: missingId() }, body: {} } as unknown as Request, makeResponse(captured), next as unknown as NextFunction)
+      expect(captured.body).toBeUndefined()
+      const error = next.mock.calls[0]?.[0] as HttpError
+      expect(error).toBeInstanceOf(HttpError)
+      expect(error).toMatchObject({ status: 500, code: 'EDIT_STUDENT_FAILED' })
     })
   })
 
@@ -152,12 +156,15 @@ describe('student mutations characterization', () => {
       })
     })
 
-    it('answers a local 500 on failure', async () => {
+    it('reports failure through next(HttpError) with SYNC_STUDENT_FAILED', async () => {
       jest.spyOn(User, 'findById').mockImplementation((() => { throw new Error('boom') }) as never)
       const captured: Captured = {}
-      await syncSpecificStudent({ params: { id: missingId() } } as unknown as Request, makeResponse(captured), noop)
-      expect(captured.status).toBe(500)
-      expect(captured.body).toMatchObject({ message: 'Erro ao sincronizar aluno.' })
+      const next = jest.fn()
+      await syncSpecificStudent({ params: { id: missingId() } } as unknown as Request, makeResponse(captured), next as unknown as NextFunction)
+      expect(captured.body).toBeUndefined()
+      const error = next.mock.calls[0]?.[0] as HttpError
+      expect(error).toBeInstanceOf(HttpError)
+      expect(error).toMatchObject({ status: 500, code: 'SYNC_STUDENT_FAILED' })
     })
   })
 
@@ -205,12 +212,15 @@ describe('student mutations characterization', () => {
       expect(captured.status).toBe(404)
     })
 
-    it('answers a local 500 on failure', async () => {
+    it('reports failure through next(HttpError) with DELETE_STUDENT_FAILED', async () => {
       jest.spyOn(User, 'findByIdAndUpdate').mockImplementation((() => { throw new Error('boom') }) as never)
       const captured: Captured = {}
-      await deleteStudent({ params: { id: missingId() }, query: {} }, makeResponse(captured), noop)
-      expect(captured.status).toBe(500)
-      expect(captured.body).toMatchObject({ message: 'Erro ao eliminar aluno' })
+      const next = jest.fn()
+      await deleteStudent({ params: { id: missingId() }, query: {} }, makeResponse(captured), next as unknown as NextFunction)
+      expect(captured.body).toBeUndefined()
+      const error = next.mock.calls[0]?.[0] as HttpError
+      expect(error).toBeInstanceOf(HttpError)
+      expect(error).toMatchObject({ status: 500, code: 'DELETE_STUDENT_FAILED' })
     })
   })
 })
