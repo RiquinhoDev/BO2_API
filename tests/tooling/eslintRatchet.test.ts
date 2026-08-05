@@ -7,7 +7,23 @@ const suppressions = require('../../eslint-suppressions.json')
 
 const root = path.resolve(__dirname, '../..')
 const cleanProbe = path.join(root, 'src', '__eslint_clean_probe__.ts')
-const dirtyFile = path.join(root, 'src', 'controllers', 'users.controller.ts')
+
+type Suppressions = Record<string, Record<string, { count: number }>>
+
+/**
+ * Picks any still-suppressed no-console fixture programmatically rather than
+ * hardcoding a specific file, so the ratchet survives that file being deleted
+ * or cleaned up.
+ */
+function pickSuppressedConsoleFixture(): { absolutePath: string; count: number } {
+  for (const [relativePath, rules] of Object.entries(suppressions as Suppressions)) {
+    const consoleRule = rules['no-console']
+    if (!consoleRule || consoleRule.count <= 0) continue
+    const absolutePath = path.join(root, relativePath)
+    if (fs.existsSync(absolutePath)) return { absolutePath, count: consoleRule.count }
+  }
+  throw new Error('No suppressed no-console fixture available for the ratchet test')
+}
 
 function createLinter() {
   return new ESLint({
@@ -34,15 +50,15 @@ describe('ESLint ratchet', () => {
   })
 
   test('rejeita o console seguinte num ficheiro já suprimido', async () => {
-    const source = fs.readFileSync(dirtyFile, 'utf8')
+    const fixture = pickSuppressedConsoleFixture()
+    const source = fs.readFileSync(fixture.absolutePath, 'utf8')
 
     const [result] = await createLinter().lintText(
       `${source}\nconsole.log('2682')\n`,
-      { filePath: dirtyFile },
+      { filePath: fixture.absolutePath },
     )
 
-    const baseline = suppressions['src/controllers/users.controller.ts']['no-console'].count
-    expect(result.errorCount).toBe(baseline + 1)
+    expect(result.errorCount).toBe(fixture.count + 1)
     expect(new Set(ruleIds(result))).toEqual(new Set(['no-console']))
   })
 
