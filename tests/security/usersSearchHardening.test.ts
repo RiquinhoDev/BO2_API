@@ -27,20 +27,28 @@ const LOOPBACK = '__bo2_offline_loopback=1'
 type Chain = {
   select: jest.Mock
   populate: jest.Mock
+  sort: jest.Mock
   limit: jest.Mock
   lean: jest.Mock
+  calls: string[]
 }
 
 function chain<T>(rows: T[]): Chain {
+  const calls: string[] = []
+  const record = (name: string) => jest.fn((...args: unknown[]) => {
+    calls.push(name)
+    void args
+    return query
+  })
+
   const query: Chain = {
-    select: jest.fn(),
-    populate: jest.fn(),
-    limit: jest.fn(),
+    select: record('select'),
+    populate: record('populate'),
+    sort: record('sort'),
+    limit: record('limit'),
     lean: jest.fn().mockResolvedValue(rows),
+    calls,
   }
-  query.select.mockReturnValue(query)
-  query.populate.mockReturnValue(query)
-  query.limit.mockReturnValue(query)
   return query
 }
 
@@ -195,6 +203,33 @@ describe('literal matching', () => {
     expect(pattern.source).toBe('\\(a\\+\\)\\+\\$')
     // Executed against a long hostile string it terminates immediately.
     expect(pattern.test('a'.repeat(200))).toBe(false)
+  })
+})
+
+describe('stable ordering', () => {
+  test('orders by _id so the capped window is deterministic', async () => {
+    const query = chain(students(5))
+    mockUserFind.mockReturnValue(query)
+
+    await request(app())
+      .get(`/users/search?name=Student&${LOOPBACK}`)
+      .expect(200)
+
+    expect(query.sort).toHaveBeenCalledWith({ _id: 1 })
+  })
+
+  test('sorts before limiting, so the cap takes the first rows of a total order', async () => {
+    const query = chain(students(5))
+    mockUserFind.mockReturnValue(query)
+
+    await request(app())
+      .get(`/users/search?name=Student&${LOOPBACK}`)
+      .expect(200)
+
+    // A limit applied before the sort would cap an arbitrary set and then
+    // order only that set, which is the bug this asserts against.
+    expect(query.calls.indexOf('sort')).toBeGreaterThan(-1)
+    expect(query.calls.indexOf('sort')).toBeLessThan(query.calls.indexOf('limit'))
   })
 })
 

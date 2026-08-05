@@ -22,6 +22,7 @@ const LOOPBACK = '__bo2_offline_loopback=1'
 type Chain = {
   select: jest.Mock
   populate: jest.Mock
+  sort: jest.Mock
   lean: jest.Mock
   limit: jest.Mock
 }
@@ -30,11 +31,13 @@ function chain<T>(rows: T[]): Chain {
   const query: Chain = {
     select: jest.fn(),
     populate: jest.fn(),
+    sort: jest.fn(),
     lean: jest.fn().mockResolvedValue(rows),
     limit: jest.fn(),
   }
   query.select.mockReturnValue(query)
   query.populate.mockReturnValue(query)
+  query.sort.mockReturnValue(query)
   query.limit.mockReturnValue(query)
   return query
 }
