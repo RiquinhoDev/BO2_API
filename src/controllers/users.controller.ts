@@ -57,17 +57,6 @@ interface UserListRecord {
   hasCurseduca?: boolean
 }
 
-interface UserClassView {
-  classId: string
-  className: string
-  source: 'hotmart' | 'curseduca'
-  isActive: boolean
-  enrolledAt?: Date
-  expiresAt?: Date
-  role?: string
-  curseducaId?: string
-  curseducaUuid?: string
-}
 
 type ProductSummary = Pick<IProduct, '_id' | 'name' | 'code' | 'platform'>
 
@@ -1922,94 +1911,6 @@ const recalculateCombinedData = async (userId: string): Promise<void> => {
 // ═══════════════════════════════════════════════════════════════════════════
 // 📋 LISTAGEM DE UTILIZADORES (V2 - COM USERPRODUCTS)
 // ═
-
-// 🆕 ENDPOINT: Obter todas as turmas de um utilizador (Hotmart + Curseduca)
-export const getUserAllClasses = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { userId } = req.params
-
-    if (!userId) {
-      res.status(400).json({
-        success: false,
-        message: 'ID de utilizador é obrigatório'
-      })
-      return
-    }
-
-    // Buscar utilizador
-    const user = await User.findById(userId).lean()
-
-    if (!user) {
-      res.status(404).json({
-        success: false,
-        message: 'Utilizador não encontrado'
-      })
-      return
-    }
-
-    // ✅ Agregar turmas de todas as plataformas
-    const allClasses: UserClassView[] = []
-
-    // Turmas da Hotmart
-    if (user.hotmart?.enrolledClasses && Array.isArray(user.hotmart.enrolledClasses)) {
-      user.hotmart.enrolledClasses.forEach(cls => {
-        allClasses.push({
-          classId: cls.classId,
-          className: cls.className,
-          source: 'hotmart',
-          isActive: cls.isActive,
-          enrolledAt: cls.enrolledAt,
-          role: 'student'
-        })
-      })
-    }
-
-    // Turmas da Curseduca
-    if (user.curseduca?.enrolledClasses && Array.isArray(user.curseduca.enrolledClasses)) {
-      user.curseduca.enrolledClasses.forEach(cls => {
-        allClasses.push({
-          classId: cls.classId,
-          className: cls.className,
-          source: 'curseduca',
-          isActive: cls.isActive,
-          enrolledAt: cls.enteredAt,
-          expiresAt: cls.expiresAt,
-          role: cls.role,
-          curseducaId: cls.curseducaId,
-          curseducaUuid: cls.curseducaUuid
-        })
-      })
-    }
-
-    // Turma primária (para compatibilidade)
-    const primaryClass = user.combined?.primaryClass || null
-
-    res.status(200).json({
-      success: true,
-      data: {
-        userId: user._id,
-        email: user.email,
-        name: user.name,
-        allClasses,
-        primaryClass,
-        stats: {
-          totalClasses: allClasses.length,
-          activeClasses: allClasses.filter(c => c.isActive).length,
-          hotmartClasses: allClasses.filter(c => c.source === 'hotmart').length,
-          curseducaClasses: allClasses.filter(c => c.source === 'curseduca').length
-        }
-      }
-    })
-
-  } catch (error: unknown) {
-    console.error('❌ Erro ao buscar turmas do utilizador:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar turmas do utilizador',
-      error: errorMessage(error)
-    })
-  }
-}
 
 
 /**
