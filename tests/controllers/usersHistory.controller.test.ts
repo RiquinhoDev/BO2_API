@@ -3,7 +3,7 @@ import User from '../../src/models/user'
 import UserHistory from '../../src/models/UserHistory'
 import StudentClassHistory from '../../src/models/StudentClassHistory'
 import SyncHistory from '../../src/models/SyncHistory'
-import { getStudentHistory } from '../../src/controllers/users.controller'
+import { getStudentHistory } from '../../src/services/users/studentHistory.runtime'
 
 function historyQuery<T>(rows: T[]) {
   const query = {
@@ -50,7 +50,8 @@ test('loads user history through the registered model export', async () => {
   const status = jest.fn().mockReturnValue({ json })
   await getStudentHistory(
     { params: { id }, query: {} } as unknown as Request<{ id: string }>,
-    { status } as unknown as Response
+    { status } as unknown as Response,
+    jest.fn()
   )
 
   expect(userHistoryFind).toHaveBeenCalledWith({

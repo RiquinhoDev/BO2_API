@@ -2,10 +2,9 @@
 import { Request, Response } from "express"
 import User, { type IUser } from "../models/user"
 import mongoose from "mongoose"
-import SyncHistory, { type ISyncHistory } from "../models/SyncHistory"
-import UserHistory, { type IUserHistory } from "../models/UserHistory"
+import SyncHistory from "../models/SyncHistory"
 
-import StudentClassHistory, { type IStudentClassHistory } from "../models/StudentClassHistory"
+import StudentClassHistory from "../models/StudentClassHistory"
 import { Class } from "../models/Class"
 import { getRuntimeConfig } from "../config/runtimeConfig"
 import { cacheService } from "../services/cache.service"
@@ -1157,140 +1156,6 @@ export const editStudent = async (req: Request<UserIdParams>, res: Response): Pr
   }
 }
 // 📊 ESTATÍSTICAS DO ALUNO
-// 📋 HISTÓRICO DO ALUNO - CORRIGIDO PARA NOVA ESTRUTURA
-export const getStudentHistory = async (req: Request<UserIdParams>, res: Response): Promise<void> => {
-  const { id } = req.params
-  const limit = parseInt(req.query.limit as string) || 50
-
-  try {
-    const student = await User.findById(id)
-    if (!student) {
-      res.status(404).json({ message: "Aluno não encontrado." })
-      return
-    }
-
-    const legacyDiscordIds: unknown = student.get("discordIds")
-    const legacyHotmartUserId: unknown = student.get("hotmartUserId")
-    const legacyCurseducaUserId: unknown = student.get("curseducaUserId")
-
-    // ✅ BUSCAR HISTÓRICO USANDO EMAIL E ID (nova estrutura)
-    let userHistory: IUserHistory[] = []
-    try {
-      userHistory = await UserHistory.find({
-        $or: [
-          { userId: new mongoose.Types.ObjectId(id) },
-          { userEmail: student.email }
-        ]
-      })
-      .sort({ changeDate: -1 })
-      .limit(limit)
-      .populate('syncId', 'startTime endTime status totalUsers source')
-      .lean<IUserHistory[]>()
-    } catch (userHistoryError) {
-      console.warn('⚠️ Erro ao buscar histórico do utilizador:', userHistoryError)
-    }
-
-    // ✅ BUSCAR HISTÓRICO DE MUDANÇAS DE TURMA
-    let classHistory: IStudentClassHistory[] = []
-    try {
-      classHistory = await StudentClassHistory.find({
-        studentId: student._id
-      })
-      .sort({ dateMoved: -1 })
-      .limit(20)
-      .lean<IStudentClassHistory[]>()
-    } catch (classHistoryError) {
-      console.warn('⚠️ Erro ao buscar histórico de turmas:', classHistoryError)
-    }
-
-    // ✅ BUSCAR HISTÓRICO DE SINCRONIZAÇÕES
-    let syncHistory: ISyncHistory[] = []
-    try {
-      syncHistory = await SyncHistory.find({
-        $or: [
-          { "metadata.affectedEmails": student.email },
-          { user: student.email }
-        ]
-      })
-      .sort({ startedAt: -1 })
-      .limit(10)
-      .select('type startedAt completedAt status stats source')
-      .lean<ISyncHistory[]>()
-    } catch (syncHistoryError) {
-      console.warn('⚠️ Erro ao buscar histórico de sincronizações:', syncHistoryError)
-    }
-
-    // ✅ COMBINAR E ORGANIZAR HISTÓRICO
-    const combinedHistory = [
-      ...userHistory.map(h => ({
-        ...h,
-        type: 'user_change',
-        date: h.changeDate,
-        source: h.source || 'MANUAL'
-      })),
-      ...classHistory.map(h => ({
-        ...h,
-        type: 'class_change',
-        date: h.dateMoved,
-        source: 'MANUAL'
-      })),
-      ...syncHistory.map(h => ({
-        ...h,
-        type: 'sync',
-        date: h.startedAt,
-        source: h.type
-      }))
-    ]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, limit)
-
-    // ✅ ESTATÍSTICAS DO HISTÓRICO
-    const historyStats = {
-      totalItems: combinedHistory.length,
-      userChanges: userHistory.length,
-      classChanges: classHistory.length,
-      syncEvents: syncHistory.length,
-      lastActivity: combinedHistory.length > 0 ? combinedHistory[0].date : null
-    }
-
-    res.status(200).json({
-      student: {
-        id: student._id,
-        email: student.email,
-        name: student.name,
-        // ✅ INCLUIR DADOS DAS PLATAFORMAS
-        platforms: {
-          discord: !!(
-            student.discord?.discordIds?.length ||
-            (Array.isArray(legacyDiscordIds) && legacyDiscordIds.length)
-          ),
-          hotmart: !!(
-            student.hotmart?.hotmartUserId ||
-            (typeof legacyHotmartUserId === "string" && legacyHotmartUserId)
-          ),
-          curseduca: !!(
-            student.curseduca?.curseducaUserId ||
-            (typeof legacyCurseducaUserId === "string" && legacyCurseducaUserId)
-          )
-        }
-      },
-      history: combinedHistory,
-      stats: historyStats,
-      // ✅ HISTÓRICO SEPARADO POR TIPO (compatibilidade)
-      userHistory,
-      classHistory,
-      syncHistory,
-      total: combinedHistory.length
-    })
-
-  } catch (error: unknown) {
-    res.status(500).json({ 
-      message: "Erro ao buscar histórico do aluno.", 
-      details: errorMessage(error)
-    })
-  }
-}
-
 
 // 🔄 SINCRONIZAR ALUNO ESPECÍFICO
 export const syncSpecificStudent = async (req: Request, res: Response): Promise<void> => {
