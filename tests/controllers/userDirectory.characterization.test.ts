@@ -3,10 +3,11 @@ import { MongoMemoryServer } from 'mongodb-memory-server'
 import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
 import User from '../../src/models/user'
-import { getAllUsersUnified as legacyHandler } from '../../src/controllers/users.controller'
+import { HttpError } from '../../src/security/errorHandling'
+import { getAllUsersUnified as extractedHandler } from '../../src/services/users/userDirectory.runtime'
 
 type DirectoryHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>
-const getAllUsersUnified = legacyHandler as unknown as DirectoryHandler
+const getAllUsersUnified = extractedHandler as unknown as DirectoryHandler
 
 type DirectoryBody = {
   success: boolean
@@ -144,15 +145,20 @@ describe('GET /api/users/unified — user directory characterization', () => {
     })
   })
 
-  // Current behaviour: a local 500 whose body leaks the raw error message.
-  // The extraction replaces this with the central handler (SEC-10).
-  it('answers failures with a local 500 envelope', async () => {
+  // SEC-10: failures now route through the central handler with a stable code
+  // and no leaked detail, replacing the legacy local-500 envelope.
+  it('reports failure through next(HttpError) with USER_DIRECTORY_FAILED', async () => {
     jest.spyOn(User, 'find').mockImplementation((() => { throw new Error('boom') }) as never)
 
     const captured: Captured = {}
-    await getAllUsersUnified(request({}), makeResponse(captured), jest.fn() as unknown as NextFunction)
+    const next = jest.fn()
+    await getAllUsersUnified(request({}), makeResponse(captured), next as unknown as NextFunction)
 
-    expect(captured.status).toBe(500)
-    expect(captured.body).toMatchObject({ success: false, message: 'Erro ao buscar utilizadores' })
+    expect(captured.body).toBeUndefined()
+    expect(next).toHaveBeenCalledTimes(1)
+    const error = next.mock.calls[0]?.[0] as HttpError
+    expect(error).toBeInstanceOf(HttpError)
+    expect(error).toMatchObject({ status: 500, code: 'USER_DIRECTORY_FAILED' })
+    expect(error.message).not.toContain('boom')
   })
 })
