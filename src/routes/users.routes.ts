@@ -24,6 +24,7 @@ import { syncDiscordAndHotmart } from "../controllers/userDiscordImport.controll
 import { listUsersSimple } from "../services/users/usersSimpleList.runtime"
 import { getStudentStats } from "../services/users/studentStats.runtime"
 import { getUserAllClasses } from "../services/users/studentClasses.runtime"
+import { getUserById, getUserProducts } from "../services/users/userLookup.runtime"
 import {
   // Funções existentes (mantidas para compatibilidade)
   listUsers,
@@ -40,8 +41,6 @@ import {
   getUsersInfinite,
   getUsersInfiniteStats,
   getProductStats,
-  getUserProducts,
-  getUserById,
   getUsersStats,
   searchStudent,
 } from "../controllers/users.controller"

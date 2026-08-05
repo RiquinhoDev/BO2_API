@@ -1,5 +1,5 @@
 // src/controllers/users.controller.ts - PARTE 1/3
-import { Request, RequestHandler, Response } from "express"
+import { Request, Response } from "express"
 import User, { type IUser } from "../models/user"
 import mongoose from "mongoose"
 import SyncHistory, { type ISyncHistory } from "../models/SyncHistory"
@@ -1918,23 +1918,6 @@ const recalculateCombinedData = async (userId: string): Promise<void> => {
  * ✅ NOVO: Busca user com todos os UserProducts
  */
 
-export const getUserById: RequestHandler<UserIdParams> = async (req, res) => {
-  try {
-    const { id } = req.params
-
-    const user = await getUserWithProducts(id)
-
-    if (!user) {
-      res.status(404).json({ success: false, message: "User not found" })
-      return
-    }
-
-    res.json({ success: true, data: user })
-  } catch (error: unknown) {
-    console.error("❌ Erro em getUserById:", error)
-    res.status(500).json({ success: false, error: errorMessage(error) })
-  }
-}
 /**
  * GET /api/users/v2/by-email/:email
  * ✅ NOVO: Busca user por email com UserProducts
@@ -1956,35 +1939,6 @@ export const getUserByEmail = async (req: Request, res: Response) => {
   }
 }
 
-/**
- * GET /api/users/v2/:userId/products
- * ✅ NOVO: Lista UserProducts de um user
- */
-export const getUserProducts: RequestHandler = async (req, res) => {
-  try {
-    const { userId } = req.params
-    
-    console.log(`🔍 [getUserProducts] Buscando UserProducts para userId: ${userId}`)
-    
-    // ✅ BUSCAR DIRETAMENTE (sem verificar se User existe)
-    const userProducts = await UserProduct.find({ userId })
-      .populate('productId', 'name code platform')
-      .populate('userId', 'name email')  // Popula user info se existir
-      .lean()
-    
-    console.log(`✅ [getUserProducts] ${userProducts.length} UserProducts encontrados`)
-    
-    // ✅ Retornar sempre 200 (mesmo se array vazio)
-    res.json({ 
-      success: true, 
-      data: userProducts, 
-      count: userProducts.length 
-    })
-  } catch (error: unknown) {
-    console.error('❌ Erro em getUserProducts:', error)
-    res.status(500).json({ success: false, error: errorMessage(error) })
-  }
-}
 // ═══════════════════════════════════════════════════════════════════════════
 // 📊 ESTATÍSTICAS (CONSOLIDADO)
 // ═══════════════════════════════════════════════════════════════════════════

@@ -23,12 +23,9 @@ jest.mock('../../src/services/userProducts/userProductService', () => ({
   getUserCountsByProduct: jest.fn(),
 }))
 
-import {
-  getUserById,
-  getUserProducts,
-} from '../../src/controllers/users.controller'
 import { createErrorHandling } from '../../src/security/errorHandling'
 import { getUserAllClasses } from '../../src/services/users/studentClasses.runtime'
+import { getUserById, getUserProducts } from '../../src/services/users/userLookup.runtime'
 
 const LOOPBACK = '?__bo2_offline_loopback=1'
 
@@ -238,9 +235,9 @@ describe('getUserAllClasses — characterization', () => {
 
 describe('getUserById — characterization', () => {
   function app(): express.Express {
-    const instance = express()
-    instance.get('/users/:id', getUserById)
-    return instance
+    return withCentralBoundary(instance => {
+      instance.get('/users/:id', getUserById)
+    })
   }
 
   test('delegates enrichment to getUserWithProducts and wraps it in the envelope', async () => {
@@ -266,13 +263,29 @@ describe('getUserById — characterization', () => {
 
     expect(response.body).toEqual({ success: false, message: 'User not found' })
   })
+
+  test('routes failures through the central boundary without leaking detail', async () => {
+    mockGetUserWithProducts.mockRejectedValue(new Error('mongo exploded'))
+
+    const response = await request(app())
+      .get(`/users/user-1${LOOPBACK}`)
+      .expect(500)
+
+    expect(response.body).toEqual({
+      success: false,
+      code: 'USER_LOOKUP_FAILED',
+      message: 'Erro ao buscar utilizador',
+      correlationId: 'test-correlation-id',
+    })
+    expect(JSON.stringify(response.body)).not.toContain('mongo exploded')
+  })
 })
 
 describe('getUserProducts — characterization', () => {
   function app(): express.Express {
-    const instance = express()
-    instance.get('/users/:userId/products', getUserProducts)
-    return instance
+    return withCentralBoundary(instance => {
+      instance.get('/users/:userId/products', getUserProducts)
+    })
   }
 
   test('returns 200 with a count even when the user owns no products', async () => {
@@ -302,5 +315,23 @@ describe('getUserProducts — characterization', () => {
       data: [{ _id: 'up-1' }],
       count: 1,
     })
+  })
+
+  test('routes failures through the central boundary without leaking detail', async () => {
+    const failing = populatedLean<never>([])
+    failing.lean.mockRejectedValue(new Error('mongo exploded'))
+    mockUserProductFind.mockReturnValue(failing)
+
+    const response = await request(app())
+      .get(`/users/user-1/products${LOOPBACK}`)
+      .expect(500)
+
+    expect(response.body).toEqual({
+      success: false,
+      code: 'USER_PRODUCTS_FAILED',
+      message: 'Erro ao buscar produtos do utilizador',
+      correlationId: 'test-correlation-id',
+    })
+    expect(JSON.stringify(response.body)).not.toContain('mongo exploded')
   })
 })
