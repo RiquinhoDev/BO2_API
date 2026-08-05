@@ -23,6 +23,7 @@ import { usersSimpleListInput } from "../security/usersSimpleListInput"
 import { syncDiscordAndHotmart } from "../controllers/userDiscordImport.controller"
 import { listUsersSimple } from "../services/users/usersSimpleList.runtime"
 import { getStudentStats } from "../services/users/studentStats.runtime"
+import { getUserAllClasses } from "../services/users/studentClasses.runtime"
 import {
   // Funções existentes (mantidas para compatibilidade)
   listUsers,
@@ -39,7 +40,6 @@ import {
   getUsersInfinite,
   getUsersInfiniteStats,
   getProductStats,
-  getUserAllClasses,
   getUserProducts,
   getUserById,
   getUsersStats,

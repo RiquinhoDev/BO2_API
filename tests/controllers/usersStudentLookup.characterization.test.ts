@@ -24,12 +24,27 @@ jest.mock('../../src/services/userProducts/userProductService', () => ({
 }))
 
 import {
-  getUserAllClasses,
   getUserById,
   getUserProducts,
 } from '../../src/controllers/users.controller'
+import { createErrorHandling } from '../../src/security/errorHandling'
+import { getUserAllClasses } from '../../src/services/users/studentClasses.runtime'
 
 const LOOPBACK = '?__bo2_offline_loopback=1'
+
+function withCentralBoundary(
+  mount: (app: express.Express) => void,
+): express.Express {
+  const app = express()
+  const errorHandling = createErrorHandling({
+    generateCorrelationId: () => 'test-correlation-id',
+    logError: () => undefined,
+  })
+  app.use(errorHandling.correlationId)
+  mount(app)
+  app.use(errorHandling.handler)
+  return app
+}
 
 function leanResult<T>(value: T) {
   return { lean: jest.fn().mockResolvedValue(value) }
@@ -52,9 +67,9 @@ beforeEach(() => {
 
 describe('getUserAllClasses — characterization', () => {
   function app(): express.Express {
-    const instance = express()
-    instance.get('/users/:userId/all-classes', getUserAllClasses)
-    return instance
+    return withCentralBoundary(instance => {
+      instance.get('/users/:userId/all-classes', getUserAllClasses)
+    })
   }
 
   test('merges hotmart and curseduca enrolments and derives the stats block', async () => {
@@ -87,7 +102,9 @@ describe('getUserAllClasses — characterization', () => {
             },
           ],
         },
-        combined: { primaryClass: 'h-1' },
+        combined: {
+          primaryClass: { classId: 'h-1', className: 'Hotmart One', source: 'hotmart' },
+        },
       }),
     )
 
@@ -123,7 +140,7 @@ describe('getUserAllClasses — characterization', () => {
             curseducaUuid: 'uuid-55',
           },
         ],
-        primaryClass: 'h-1',
+        primaryClass: { classId: 'h-1', className: 'Hotmart One', source: 'hotmart' },
         stats: {
           totalClasses: 2,
           activeClasses: 1,
@@ -181,10 +198,12 @@ describe('getUserAllClasses — characterization', () => {
     // guard is not silently dropped during extraction.
     const json = jest.fn()
     const status = jest.fn().mockReturnValue({ json })
+    const next = jest.fn()
 
     await getUserAllClasses(
       { params: {} } as unknown as Request,
       { status } as unknown as Response,
+      next,
     )
 
     expect(status).toHaveBeenCalledWith(400)
@@ -193,6 +212,27 @@ describe('getUserAllClasses — characterization', () => {
       message: 'ID de utilizador é obrigatório',
     })
     expect(mockFindById).not.toHaveBeenCalled()
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  // DELIBERATE CHANGE (SEC-10): the legacy 500 body carried
+  // `error: <raw error message>`; failures now reach the central boundary.
+  test('routes failures through the central boundary without leaking detail', async () => {
+    mockFindById.mockImplementation(() => {
+      throw new Error('mongo exploded')
+    })
+
+    const response = await request(app())
+      .get(`/users/user-1/all-classes${LOOPBACK}`)
+      .expect(500)
+
+    expect(response.body).toEqual({
+      success: false,
+      code: 'USER_CLASSES_FAILED',
+      message: 'Erro ao buscar turmas do utilizador',
+      correlationId: 'test-correlation-id',
+    })
+    expect(JSON.stringify(response.body)).not.toContain('mongo exploded')
   })
 })
 
