@@ -11,21 +11,22 @@ type PipelineStage = mongoose.PipelineStage
 type MongoFilter = Record<string, unknown>
 
 /**
- * Builds the `$match` exactly as the legacy handler did, including the flaw
- * that `search`, `hasDiscord=false` and `hasHotmart=true` each assign `$or`
- * outright and therefore discard whichever filter ran before them. The
- * behaviour is pinned by tests named as bugs; fixing it is a separate slice,
- * because the Backoffice depends on the current results.
+ * Composes independent filters without allowing one `$or` predicate to erase
+ * another. Single-predicate queries keep their previous top-level shape; only
+ * combinations require `$and`.
  */
 function buildMatch(criteria: UserListCriteria): MongoFilter {
   const matchStage: MongoFilter = {}
+  const predicates: MongoFilter[] = []
 
   if (criteria.search) {
-    matchStage.$or = [
-      { name: { $regex: criteria.search, $options: 'i' } },
-      { email: { $regex: criteria.search, $options: 'i' } },
-      { username: { $regex: criteria.search, $options: 'i' } },
-    ]
+    predicates.push({
+      $or: [
+        { name: { $regex: criteria.search, $options: 'i' } },
+        { email: { $regex: criteria.search, $options: 'i' } },
+        { username: { $regex: criteria.search, $options: 'i' } },
+      ],
+    })
   }
 
   if (criteria.status) {
@@ -35,46 +36,54 @@ function buildMatch(criteria: UserListCriteria): MongoFilter {
   if (criteria.hasDiscord === 'true') {
     matchStage.discordIds = { $exists: true, $not: { $size: 0 } }
   } else if (criteria.hasDiscord === 'false') {
-    matchStage.$or = [
-      { discordIds: { $exists: false } },
-      { discordIds: { $size: 0 } },
-    ]
+    predicates.push({
+      $or: [
+        { discordIds: { $exists: false } },
+        { discordIds: { $size: 0 } },
+      ],
+    })
   }
 
   if (criteria.hasHotmart === 'true') {
-    matchStage.$or = [
-      {
-        $and: [
-          { classId: { $exists: true } },
-          { classId: { $ne: null } },
-          { classId: { $ne: '' } },
-        ],
-      },
-      {
-        $and: [
-          { hotmartUserId: { $exists: true } },
-          { hotmartUserId: { $ne: null } },
-          { hotmartUserId: { $ne: '' } },
-        ],
-      },
-    ]
+    predicates.push({
+      $or: [
+        {
+          $and: [
+            { classId: { $exists: true } },
+            { classId: { $ne: null } },
+            { classId: { $ne: '' } },
+          ],
+        },
+        {
+          $and: [
+            { hotmartUserId: { $exists: true } },
+            { hotmartUserId: { $ne: null } },
+            { hotmartUserId: { $ne: '' } },
+          ],
+        },
+      ],
+    })
   } else if (criteria.hasHotmart === 'false') {
-    matchStage.$and = [
-      {
-        $or: [
-          { classId: { $exists: false } },
-          { classId: null },
-          { classId: '' },
-        ],
-      },
-      {
-        $or: [
-          { hotmartUserId: { $exists: false } },
-          { hotmartUserId: null },
-          { hotmartUserId: '' },
-        ],
-      },
-    ]
+    predicates.push({
+      $or: [
+        { classId: { $exists: false } },
+        { classId: null },
+        { classId: '' },
+      ],
+    })
+    predicates.push({
+      $or: [
+        { hotmartUserId: { $exists: false } },
+        { hotmartUserId: null },
+        { hotmartUserId: '' },
+      ],
+    })
+  }
+
+  if (predicates.length === 1) {
+    Object.assign(matchStage, predicates[0])
+  } else if (predicates.length > 1) {
+    matchStage.$and = predicates
   }
 
   return matchStage
