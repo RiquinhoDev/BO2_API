@@ -4,13 +4,11 @@ import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
 import User from '../../src/models/user'
 import { cacheService } from '../../src/services/cache.service'
-import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
-import { getUsersInfinite as legacyHandler } from '../../src/controllers/users.controller'
-
-installTestRuntimeConfigHooks()
+import { HttpError } from '../../src/security/errorHandling'
+import { getUsersInfinite as extractedHandler } from '../../src/services/users/userInfiniteListing.runtime'
 
 type Handler = (req: Request, res: Response, next: NextFunction) => Promise<void>
-const getUsersInfinite = legacyHandler as unknown as Handler
+const getUsersInfinite = extractedHandler as unknown as Handler
 
 type Body = Record<string, any>
 type Captured = { status?: number; body?: Body }
@@ -128,13 +126,18 @@ describe('GET /api/users/infinite — infinite listing characterization', () => 
     expect((captured.body as Body).success).toBe(true)
   })
 
-  // Current behaviour: a local 500 envelope with a guarded error field.
-  it('answers failures with a local 500 envelope', async () => {
+  // SEC-10: failures now route through the central handler with a stable code,
+  // replacing the legacy nodeEnv-branched local 500.
+  it('reports failure through next(HttpError) with USER_INFINITE_LISTING_FAILED', async () => {
     jest.spyOn(User, 'aggregate').mockImplementation((() => { throw new Error('boom') }) as never)
     const captured: Captured = {}
-    await getUsersInfinite(request({}), makeResponse(captured), jest.fn() as unknown as NextFunction)
+    const next = jest.fn()
+    await getUsersInfinite(request({}), makeResponse(captured), next as unknown as NextFunction)
 
-    expect(captured.status).toBe(500)
-    expect(captured.body).toMatchObject({ success: false, message: 'Erro ao carregar utilizadores' })
+    expect(captured.body).toBeUndefined()
+    const error = next.mock.calls[0]?.[0] as HttpError
+    expect(error).toBeInstanceOf(HttpError)
+    expect(error).toMatchObject({ status: 500, code: 'USER_INFINITE_LISTING_FAILED' })
+    expect(error.message).not.toContain('boom')
   })
 })

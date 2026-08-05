@@ -382,14 +382,6 @@
       "count": 1
     }
   },
-  "src/controllers/users.controller.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 3
-    },
-    "no-console": {
-      "count": 8
-    }
-  },
   "src/controllers/usersReviewLists.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
