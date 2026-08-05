@@ -19,8 +19,6 @@ jest.mock('../../src/models', () => ({
 jest.mock('../../src/services/userProducts/userProductService', () => ({
   __esModule: true,
   getUserWithProducts: mockGetUserWithProducts,
-  getUserCountsByPlatform: jest.fn(),
-  getUserCountsByProduct: jest.fn(),
 }))
 
 import { createErrorHandling } from '../../src/security/errorHandling'

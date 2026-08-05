@@ -35,8 +35,6 @@ jest.mock('../../src/models/Class', () => ({
 }))
 
 jest.mock('../../src/services/userProducts/userProductService', () => ({
-  getUserCountsByPlatform: jest.fn(),
-  getUserCountsByProduct: jest.fn(),
   getUserWithProducts: jest.fn(),
 }))
 
