@@ -9,6 +9,7 @@ const INTEGRATION_TEST_FILES = Object.freeze([
   'tests/controllers/classesStudentsByClass.controller.test.ts',
   'tests/controllers/guruSubscriptionList.controller.test.ts',
   'tests/controllers/guruWebhookList.controller.test.ts',
+  'tests/controllers/userDirectory.characterization.test.ts',
   'tests/controllers/userIdentityReconciliation.controller.test.ts',
   'tests/controllers/userStatsOverview.characterization.test.ts',
   'tests/runtime/mongooseCronSeed.repository.test.ts',
