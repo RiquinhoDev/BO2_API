@@ -8,7 +8,6 @@ import StudentClassHistory from "../models/StudentClassHistory"
 import { Class } from "../models/Class"
 import { getRuntimeConfig } from "../config/runtimeConfig"
 import { cacheService } from "../services/cache.service"
-import { getUserCountsByPlatform, getUserCountsByProduct } from "../services/userProducts/userProductService"
 import type {
   UsersDeleteStudentInput,
 } from "../security/usersDestructiveInput"
@@ -1562,32 +1561,8 @@ const recalculateCombinedData = async (userId: string): Promise<void> => {
 // ═══════════════════════════════════════════════════════════════════════════
 // 📊 ESTATÍSTICAS (CONSOLIDADO)
 // ═══════════════════════════════════════════════════════════════════════════
-
-export const getUsersStats = async (req: Request, res: Response) => {
-  try {
-    const totalUsers = await User.countDocuments();
-    
-    // Contar users por plataforma (usando agregação V2)
-    const usersByPlatform = await getUserCountsByPlatform();
-    
-    // Contar users por produto
-    const usersByProduct = await getUserCountsByProduct();
-    
-    res.json({ 
-      success: true, 
-      data: {
-        totalUsers,
-        byPlatform: usersByPlatform,
-        byProduct: usersByProduct
-      },
-      _v2Enabled: true 
-    });
-  } catch (error: unknown) {
-    console.error('Error in getUsersStats:', error);
-    res.status(500).json({ success: false, error: errorMessage(error) });
-  }
-};
-
+// getUsersStats extracted to the stats overview vertical
+// (src/services/users/statsOverview.runtime.ts -> getUsersStatsOverview).
 
 /**
  * Transforma dados segregados do modelo User para formato retrocompatível com o frontend

@@ -5,15 +5,13 @@ import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
 import User from '../../src/models/user'
 import UserProduct from '../../src/models/UserProduct'
 import Product from '../../src/models/product/Product'
-// The extraction moves this handler behind a runtime module; until then the
-// legacy controller export is the subject under characterization.
-import { getUsersStats } from '../../src/controllers/users.controller'
+import { HttpError } from '../../src/security/errorHandling'
+import { getUsersStatsOverview as extractedOverviewHandler } from '../../src/services/users/statsOverview.runtime'
 
-// Called with a `next` so the same invocation shape survives the SEC-10
-// successor, which reports failure through `next(HttpError)`; the legacy
-// handler simply ignores the extra argument.
+// The extracted handler is a RequestHandler; this narrows it to the awaited
+// shape the tests invoke and assert against.
 type OverviewHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>
-const getUsersStatsOverview = getUsersStats as unknown as OverviewHandler
+const getUsersStatsOverview = extractedOverviewHandler as unknown as OverviewHandler
 
 type StatsBody = {
   success: boolean
@@ -215,5 +213,33 @@ describe('GET /api/users/stats/overview — stats overview characterization', ()
       },
       _v2Enabled: true,
     })
+  })
+
+  // SEC-10: the legacy handler answered 500 with error.message in the body. The
+  // successor routes failure through the central handler with a stable code and
+  // never writes a response itself. This is a deliberate change of behaviour.
+  it('reports failure through next(HttpError) with USER_STATS_OVERVIEW_FAILED and leaks nothing', async () => {
+    jest.spyOn(User, 'countDocuments').mockImplementation(
+      (() => Promise.reject(new Error('boom'))) as never,
+    )
+
+    const captured: Captured = {}
+    const next = jest.fn()
+    await getUsersStatsOverview(
+      {} as Request,
+      makeResponse(captured),
+      next as unknown as NextFunction,
+    )
+
+    expect(captured.body).toBeUndefined()
+    expect(captured.status).toBeUndefined()
+    expect(next).toHaveBeenCalledTimes(1)
+    const error = next.mock.calls[0]?.[0] as HttpError
+    expect(error).toBeInstanceOf(HttpError)
+    expect(error).toMatchObject({
+      status: 500,
+      code: 'USER_STATS_OVERVIEW_FAILED',
+    })
+    expect(error.message).not.toContain('boom')
   })
 })

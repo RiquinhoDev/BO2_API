@@ -23,6 +23,7 @@ import { usersSimpleListInput } from "../security/usersSimpleListInput"
 import { syncDiscordAndHotmart } from "../controllers/userDiscordImport.controller"
 import { listUsersSimple } from "../services/users/usersSimpleList.runtime"
 import { getStudentStats } from "../services/users/studentStats.runtime"
+import { getUsersStatsOverview } from "../services/users/statsOverview.runtime"
 import { getUserAllClasses } from "../services/users/studentClasses.runtime"
 import { getUserById, getUserProducts } from "../services/users/userLookup.runtime"
 import { getStudentHistory } from "../services/users/studentHistory.runtime"
@@ -42,7 +43,6 @@ import {
   getUsersInfinite,
   getUsersInfiniteStats,
   getProductStats,
-  getUsersStats,
 } from "../controllers/users.controller"
 import {
   bulkDeleteIds, bulkDeleteUnmatchedUsers, bulkMergeIds,
@@ -265,7 +265,7 @@ router.get('/infinite', getUsersInfinite)
 router.get('/infiniteStats', getUsersInfiniteStats)
 router.get('/getProductStats', getProductStats)
 router.get('/stats', getUserStats)
-router.get('/stats/overview', getUsersStats)
+router.get('/stats/overview', getUsersStatsOverview)
 router.get('/search', searchStudent)
 
 router.get("/listUsers", listUsers)

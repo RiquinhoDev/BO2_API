@@ -382,52 +382,8 @@ export async function getUsersByProduct(productId: string): Promise<any[]> {
   return Array.from(byUser.values())
 }
 
-/**
- * Conta users por plataforma
- */
-export async function getUserCountsByPlatform(): Promise<Array<{ _id: string; count: number }>> {
-  return await UserProduct.aggregate([
-    {
-      $lookup: {
-        from: 'products',
-        localField: 'productId',
-        foreignField: '_id',
-        as: 'product'
-      }
-    },
-    { $unwind: '$product' },
-    {
-      $group: {
-        _id: '$product.platform',
-        count: { $sum: 1 }
-      }
-    }
-  ])
-}
-
-/**
- * Conta users por produto
- */
-export async function getUserCountsByProduct(): Promise<Array<{ _id: string; productName: string; count: number }>> {
-  return await UserProduct.aggregate([
-    {
-      $lookup: {
-        from: 'products',
-        localField: 'productId',
-        foreignField: '_id',
-        as: 'product'
-      }
-    },
-    { $unwind: '$product' },
-    {
-      $group: {
-        _id: '$product._id',
-        productName: { $first: '$product.name' },
-        count: { $sum: 1 }
-      }
-    }
-  ])
-}
+// getUserCountsByPlatform / getUserCountsByProduct moved to the stats overview
+// vertical (src/services/users/mongooseStatsOverview.reader.ts).
 
 export async function getUsersForProduct(
   productId: string,
