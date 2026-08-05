@@ -31,6 +31,7 @@ import { searchStudent } from "../services/users/studentSearch.runtime"
 import { listUsers } from "../services/users/userList.runtime"
 import { getAllUsersUnified } from "../services/users/userDirectory.runtime"
 import { getUsersInfiniteStats } from "../services/users/userListingStats.runtime"
+import { getProductStats } from "../services/users/userProductStats.runtime"
 import {
   // Funções existentes (mantidas para compatibilidade)
   getUserStats,
@@ -42,7 +43,6 @@ import {
   syncSpecificStudent,
   deleteStudent,
   getUsersInfinite,
-  getProductStats,
 } from "../controllers/users.controller"
 import {
   bulkDeleteIds, bulkDeleteUnmatchedUsers, bulkMergeIds,
