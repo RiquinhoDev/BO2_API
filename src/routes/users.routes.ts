@@ -32,11 +32,11 @@ import { listUsers } from "../services/users/userList.runtime"
 import { getAllUsersUnified } from "../services/users/userDirectory.runtime"
 import { getUsersInfiniteStats } from "../services/users/userListingStats.runtime"
 import { getProductStats } from "../services/users/userProductStats.runtime"
+import { getDashboardStats } from "../services/users/userDashboardStats.runtime"
+
 import {
-  // Funções existentes (mantidas para compatibilidade)
+  // Handlers ainda no controlador, a extrair
   getUserStats,
-  // ✅ NOVAS FUNÇÕES DA FASE 1
-  getDashboardStats,
 
   // 🆕 NOVAS FUNÇÕES PARA EDITOR DE ALUNOS
   editStudent,

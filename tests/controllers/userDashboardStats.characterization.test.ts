@@ -4,10 +4,11 @@ import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
 import User from '../../src/models/user'
 import SyncHistory from '../../src/models/SyncHistory'
-import { getDashboardStats as legacyHandler } from '../../src/controllers/users.controller'
+import { HttpError } from '../../src/security/errorHandling'
+import { getDashboardStats as extractedHandler } from '../../src/services/users/userDashboardStats.runtime'
 
 type Handler = (req: Request, res: Response, next: NextFunction) => Promise<void>
-const getDashboardStats = legacyHandler as unknown as Handler
+const getDashboardStats = extractedHandler as unknown as Handler
 
 type DashboardBody = {
   success: boolean
@@ -120,14 +121,19 @@ describe('GET /api/users/dashboard-stats — dashboard stats characterization', 
     })
   })
 
-  // Current behaviour: a local 500 envelope.
-  it('answers failures with a local 500 envelope', async () => {
+  // SEC-10: failures now route through the central handler with a stable code.
+  it('reports failure through next(HttpError) with USER_DASHBOARD_STATS_FAILED', async () => {
     jest.spyOn(User, 'countDocuments').mockImplementation((() => { throw new Error('boom') }) as never)
 
     const captured: Captured = {}
-    await getDashboardStats(req, makeResponse(captured), jest.fn() as unknown as NextFunction)
+    const next = jest.fn()
+    await getDashboardStats(req, makeResponse(captured), next as unknown as NextFunction)
 
-    expect(captured.status).toBe(500)
-    expect(captured.body).toMatchObject({ success: false })
+    expect(captured.body).toBeUndefined()
+    expect(next).toHaveBeenCalledTimes(1)
+    const error = next.mock.calls[0]?.[0] as HttpError
+    expect(error).toBeInstanceOf(HttpError)
+    expect(error).toMatchObject({ status: 500, code: 'USER_DASHBOARD_STATS_FAILED' })
+    expect(error.message).not.toContain('boom')
   })
 })
