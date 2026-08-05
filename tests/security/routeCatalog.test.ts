@@ -226,9 +226,12 @@ test('marca apenas cron-tags, o legacy users v2 e as listagens sem consumidor co
   }
 
   // listUsers has a proven consumer outside these repositories — the legacy
-  // Backoffice calls it from two rendered screens — so it must stay live.
+  // Backoffice calls it from two rendered screens — so it must stay live and
+  // is recorded as `externo`, not as a Front consumer and not as unknown.
   const listUsers = catalog.find((route) => route.path === '/api/users/listUsers')
   expect(listUsers).not.toHaveProperty('deprecated')
+  expect(listUsers?.consumer).toBe('externo')
+  expect(listUsers?.evidence).toContain('Backoffice legacy')
 })
 
 test('nenhuma rota dinamica anterior sombreia uma rota literal posterior', () => {

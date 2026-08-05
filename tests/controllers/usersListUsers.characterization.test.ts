@@ -8,15 +8,22 @@ jest.mock('../../src/models/user', () => ({
   default: { aggregate: mockAggregate },
 }))
 
-import { listUsers } from '../../src/controllers/users.controller'
+import { createErrorHandling } from '../../src/security/errorHandling'
+import { listUsers } from '../../src/services/users/legacyUserList.runtime'
 
 const LOOPBACK = '__bo2_offline_loopback=1'
 
 function app(): express.Express {
   const instance = express()
+  const errorHandling = createErrorHandling({
+    generateCorrelationId: () => 'test-correlation-id',
+    logError: () => undefined,
+  })
+  instance.use(errorHandling.correlationId)
   instance.get('/users/listUsers', listUsers)
   // The legacy Backoffice reaches the same handler through this second mount.
   instance.get('/users/users/listUsers', listUsers)
+  instance.use(errorHandling.handler)
   return instance
 }
 
@@ -347,8 +354,12 @@ describe('listUsers — filters', () => {
   })
 })
 
-describe('listUsers — current failure contract', () => {
-  test('CURRENT: the 500 body leaks the internal error message', async () => {
+describe('listUsers — failure contract', () => {
+  // DELIBERATE CHANGE (SEC-10): the legacy body carried `details` with the raw
+  // error message; failures now reach the central boundary redacted. The
+  // Backoffice only reads `data.users` on success, so its screens are
+  // unaffected — both bodies leave those fields absent.
+  test('routes failures through the central boundary without leaking detail', async () => {
     mockAggregate.mockRejectedValue(new Error('mongo exploded'))
 
     const response = await request(app())
@@ -356,8 +367,11 @@ describe('listUsers — current failure contract', () => {
       .expect(500)
 
     expect(response.body).toEqual({
+      success: false,
+      code: 'USER_LIST_FAILED',
       message: 'Erro ao buscar utilizadores',
-      details: 'mongo exploded',
+      correlationId: 'test-correlation-id',
     })
+    expect(JSON.stringify(response.body)).not.toContain('mongo exploded')
   })
 })
