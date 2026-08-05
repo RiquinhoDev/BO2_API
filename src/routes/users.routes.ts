@@ -43,7 +43,7 @@ import {
 
 import {
   getUsersInfinite,
-} from "../controllers/users.controller"
+} from "../services/users/userInfiniteListing.runtime"
 import {
   bulkDeleteIds, bulkDeleteUnmatchedUsers, bulkMergeIds,
   deleteIdsDiferentes, deleteUnmatchedUser, manualMatch,

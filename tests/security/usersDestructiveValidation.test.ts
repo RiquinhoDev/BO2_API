@@ -5,38 +5,6 @@ import { createErrorHandling } from '../../src/security/errorHandling'
 installTestRuntimeConfigHooks()
 
 
-jest.mock('../../src/controllers/users.controller', () => {
-  const names = [
-    'listUsers',
-    'syncDiscordAndHotmart',
-    'getUserStats',
-    'listUsersSimple',
-    'getAllUsersUnified',
-    'getDashboardStats',
-    'editStudent',
-    'getStudentStats',
-    'getStudentHistory',
-    'syncSpecificStudent',
-    'deleteStudent',
-    'getUsersInfinite',
-    'getUsersInfiniteStats',
-    'getProductStats',
-    'getUserAllClasses',
-    'getUserProducts',
-    'getUserById',
-    'getUsersStats',
-    'searchStudent',
-  ]
-
-  return {
-    __esModule: true,
-    ...Object.fromEntries(names.map((name) => [
-      name,
-      jest.fn((_input, res) => res.status(204).end()),
-    ])),
-  }
-})
-
 jest.mock('../../src/services/users/studentMutations.runtime', () => ({
   __esModule: true,
   editStudent: jest.fn((_req, res) => res.status(204).end()),

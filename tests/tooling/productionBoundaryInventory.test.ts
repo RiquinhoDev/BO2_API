@@ -425,7 +425,6 @@ const BASELINE = {
     "src/controllers/userHistory.controller.ts:166",
     "src/controllers/userHistory.controller.ts:209",
     "src/controllers/userHistory.controller.ts:85",
-    "src/controllers/users.controller.ts:417",
     "src/controllers/usersReviewLists.controller.ts:38",
     "src/controllers/usersReviewLists.controller.ts:66",
     "src/controllers/webhooks.controller.ts:31",
