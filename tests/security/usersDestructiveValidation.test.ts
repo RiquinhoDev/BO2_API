@@ -37,6 +37,13 @@ jest.mock('../../src/controllers/users.controller', () => {
   }
 })
 
+jest.mock('../../src/services/users/studentMutations.runtime', () => ({
+  __esModule: true,
+  editStudent: jest.fn((_req, res) => res.status(204).end()),
+  syncSpecificStudent: jest.fn((_req, res) => res.status(204).end()),
+  deleteStudent: jest.fn((_input, res) => res.status(204).end()),
+}))
+
 jest.mock('../../src/controllers/userIdentityReconciliation.controller', () => {
   const names = [
     'mergeDiscordId',
