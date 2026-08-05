@@ -10,6 +10,7 @@ const INTEGRATION_TEST_FILES = Object.freeze([
   'tests/controllers/guruSubscriptionList.controller.test.ts',
   'tests/controllers/guruWebhookList.controller.test.ts',
   'tests/controllers/userIdentityReconciliation.controller.test.ts',
+  'tests/controllers/usersStatsOverview.characterization.test.ts',
   'tests/runtime/mongooseCronSeed.repository.test.ts',
   'tests/scripts/maintenance/backfillAcWebhookReceiptLeases.test.ts',
   'tests/scripts/maintenance/ensureUsersV2Indexes.test.ts',
