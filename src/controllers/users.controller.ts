@@ -1558,12 +1558,6 @@ const recalculateCombinedData = async (userId: string): Promise<void> => {
 // ═
 
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 📊 ESTATÍSTICAS (CONSOLIDADO)
-// ═══════════════════════════════════════════════════════════════════════════
-// getUsersStats extracted to the stats overview vertical
-// (src/services/users/statsOverview.runtime.ts -> getUsersStatsOverview).
-
 /**
  * Transforma dados segregados do modelo User para formato retrocompatível com o frontend
  */

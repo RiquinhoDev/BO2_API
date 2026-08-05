@@ -3,8 +3,8 @@ import UserProduct from '../../models/UserProduct'
 import type {
   PlatformCount,
   ProductCount,
-  StatsOverviewReader,
-} from './statsOverview.contract'
+  UserStatsOverviewReader,
+} from './userStatsOverview.service'
 
 /**
  * Owns every Mongoose detail for the stats overview. The user count and the two
@@ -13,7 +13,7 @@ import type {
  * users included), enrollments are counted regardless of status, and product-orphan
  * enrollments fall out of the `$unwind`. Correcting any of that is separate work.
  */
-export class MongooseStatsOverviewReader implements StatsOverviewReader {
+export class MongooseUserStatsOverviewReader implements UserStatsOverviewReader {
   countUsers(): Promise<number> {
     return User.countDocuments()
   }
