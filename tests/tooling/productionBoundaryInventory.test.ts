@@ -122,7 +122,7 @@ const BASELINE = {
     "src/services/syncUtilizadoresServices/hotmartServices/hotmart.helpers.ts:176",
     "src/services/syncUtilizadoresServices/hotmartServices/hotmart.helpers.ts:242",
     "src/services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService.ts:12",
-    "src/services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService.ts:13",
+    "src/services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService.ts:13"
   ],
   "localHttp500": [
     "src/controllers/acTags/acReader.controller.ts:150",
@@ -427,20 +427,19 @@ const BASELINE = {
     "src/controllers/userHistory.controller.ts:85",
     "src/controllers/users.controller.ts:1109",
     "src/controllers/users.controller.ts:1167",
-    "src/controllers/users.controller.ts:1217",
-    "src/controllers/users.controller.ts:1352",
-    "src/controllers/users.controller.ts:1380",
-    "src/controllers/users.controller.ts:1422",
-    "src/controllers/users.controller.ts:1762",
-    "src/controllers/users.controller.ts:1844",
-    "src/controllers/users.controller.ts:1915",
-    "src/controllers/users.controller.ts:2060",
-    "src/controllers/users.controller.ts:2088",
-    "src/controllers/users.controller.ts:2108",
-    "src/controllers/users.controller.ts:2138",
-    "src/controllers/users.controller.ts:2216",
-    "src/controllers/users.controller.ts:2240",
-    "src/controllers/users.controller.ts:2503",
+    "src/controllers/users.controller.ts:1298",
+    "src/controllers/users.controller.ts:1326",
+    "src/controllers/users.controller.ts:1368",
+    "src/controllers/users.controller.ts:1708",
+    "src/controllers/users.controller.ts:1790",
+    "src/controllers/users.controller.ts:1861",
+    "src/controllers/users.controller.ts:2006",
+    "src/controllers/users.controller.ts:2034",
+    "src/controllers/users.controller.ts:2054",
+    "src/controllers/users.controller.ts:2084",
+    "src/controllers/users.controller.ts:2162",
+    "src/controllers/users.controller.ts:2186",
+    "src/controllers/users.controller.ts:2449",
     "src/controllers/users.controller.ts:315",
     "src/controllers/users.controller.ts:428",
     "src/controllers/users.controller.ts:823",
@@ -486,7 +485,7 @@ const BASELINE = {
     "src/controllers/renewal.controller.ts:81",
     "src/controllers/sync.controller.ts:711",
     "src/controllers/users.controller.ts:1167",
-    "src/controllers/users.controller.ts:1422",
+    "src/controllers/users.controller.ts:1368",
     "src/controllers/webhooks.controller.ts:31",
     "src/controllers/webhooks.controller.ts:52",
     "src/routes/achievements.routes.ts:118",
@@ -508,12 +507,39 @@ const BASELINE = {
   ]
 } as const
 
+/**
+ * Reviewable debt totals. The path lists above move whenever an unrelated edit
+ * shifts a line number, which makes a growing debt easy to miss in a large
+ * diff. These ceilings must only ever be lowered: a slice that resolves debt
+ * lowers the number, a slice that merely relocates it cannot hide behind the
+ * churn, and a slice that adds debt fails here even if the baseline was
+ * regenerated.
+ */
+const DEBT_CEILING = {
+  rawEnvironmentRead: 77,
+  localHttp500: 344,
+  publicErrorDetail: 33,
+} as const
+
 test('production boundary inventory matches the migration baseline', () => {
   const current = inventory()
 
   expect(current.rawEnvironmentRead).toEqual(BASELINE.rawEnvironmentRead)
   expect(current.localHttp500).toEqual(BASELINE.localHttp500)
   expect(current.publicErrorDetail).toEqual(BASELINE.publicErrorDetail)
+})
+
+test('production boundary debt never grows', () => {
+  const current = inventory()
+
+  expect(current.rawEnvironmentRead.length).toBeLessThanOrEqual(DEBT_CEILING.rawEnvironmentRead)
+  expect(current.localHttp500.length).toBeLessThanOrEqual(DEBT_CEILING.localHttp500)
+  expect(current.publicErrorDetail.length).toBeLessThanOrEqual(DEBT_CEILING.publicErrorDetail)
+
+  // The ceiling is only meaningful while it tracks the recorded baseline.
+  expect(BASELINE.rawEnvironmentRead.length).toBeLessThanOrEqual(DEBT_CEILING.rawEnvironmentRead)
+  expect(BASELINE.localHttp500.length).toBeLessThanOrEqual(DEBT_CEILING.localHttp500)
+  expect(BASELINE.publicErrorDetail.length).toBeLessThanOrEqual(DEBT_CEILING.publicErrorDetail)
 })
 
 test('inventory catches owned consumer mutations and restores every fixture', () => {

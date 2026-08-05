@@ -10,7 +10,7 @@ jest.mock('../../src/models/user', () => ({
   },
 }))
 
-import { getStudentStats } from '../../src/controllers/users.controller'
+import { getStudentStats } from '../../src/services/users/studentStats.runtime'
 
 test('reads student stats from the canonical platform fields', async () => {
   mockFindById.mockResolvedValue({

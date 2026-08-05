@@ -8,15 +8,23 @@ jest.mock('../../src/models/user', () => ({
   default: { findById: mockFindById },
 }))
 
-import { getStudentStats } from '../../src/controllers/users.controller'
+import { createErrorHandling } from '../../src/security/errorHandling'
+import { getStudentStats } from '../../src/services/users/studentStats.runtime'
 
 const LOOPBACK = '?__bo2_offline_loopback=1'
 const NOW = new Date('2026-08-05T00:00:00.000Z')
 
 function studentStatsApp(): express.Express {
   const app = express()
+  // Mirrors the real pipeline: correlation id in front, central boundary last.
+  const errorHandling = createErrorHandling({
+    generateCorrelationId: () => 'test-correlation-id',
+    logError: () => undefined,
+  })
+  app.use(errorHandling.correlationId)
   app.get('/users/:id/stats', getStudentStats)
   app.get('/users/student/:id/stats', getStudentStats)
+  app.use(errorHandling.handler)
   return app
 }
 
@@ -203,12 +211,13 @@ describe('getStudentStats — characterization of the legacy contract', () => {
   })
 
   // ─────────────────────────────────────────────────────────────────────────
-  // DELIBERATE FUTURE CHANGE (SEC-10): the 500 body below leaks `details`
-  // and is inventoried at productionBoundaryInventory. Phase 2 replaces it
-  // with the central `{ success:false, code:'INTERNAL_ERROR', ... }` envelope.
-  // This test pins TODAY's behaviour so the swap is deliberate, not silent.
+  // DELIBERATE CHANGE (SEC-10). The legacy handler answered 500 with
+  // `{ message, details: <raw error message> }`, leaking internal detail.
+  // The extracted controller forwards an HttpError to the central boundary,
+  // so the public body is now the redacted correlation-aware envelope.
+  // The 200 and 404 contracts above are unchanged.
   // ─────────────────────────────────────────────────────────────────────────
-  test('CURRENT 500 leaks error detail — to be replaced by the central envelope', async () => {
+  test('routes failures through the central boundary without leaking detail', async () => {
     mockFindById.mockRejectedValue(new Error('mongo exploded'))
 
     const response = await request(studentStatsApp())
@@ -216,8 +225,12 @@ describe('getStudentStats — characterization of the legacy contract', () => {
       .expect(500)
 
     expect(response.body).toEqual({
+      success: false,
+      code: 'STUDENT_STATS_FAILED',
       message: 'Erro ao calcular estatísticas do aluno.',
-      details: 'mongo exploded',
+      correlationId: 'test-correlation-id',
     })
+    expect(response.headers['x-request-id']).toBe('test-correlation-id')
+    expect(JSON.stringify(response.body)).not.toContain('mongo exploded')
   })
 })
