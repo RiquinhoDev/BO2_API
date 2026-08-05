@@ -3,10 +3,11 @@ import { MongoMemoryServer } from 'mongodb-memory-server'
 import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
 import User from '../../src/models/user'
-import { getUserStats as legacyHandler } from '../../src/controllers/users.controller'
+import { HttpError } from '../../src/security/errorHandling'
+import { getUserStats as extractedHandler } from '../../src/services/users/userPlatformStats.runtime'
 
 type Handler = (req: Request, res: Response, next: NextFunction) => Promise<void>
-const getUserStats = legacyHandler as unknown as Handler
+const getUserStats = extractedHandler as unknown as Handler
 
 type Captured = { status?: number; body?: Record<string, unknown> }
 
@@ -94,14 +95,20 @@ describe('GET /api/users/stats — user platform stats characterization', () => 
     })
   })
 
-  // Current behaviour: a local 500 envelope that leaks the error via `details`.
-  it('answers failures with a local 500 envelope', async () => {
+  // SEC-10: failures now route through the central handler with a stable code
+  // and no leaked detail, replacing the legacy details-leaking 500.
+  it('reports failure through next(HttpError) with USER_STATS_FAILED', async () => {
     jest.spyOn(User, 'countDocuments').mockImplementation((() => { throw new Error('boom') }) as never)
 
     const captured: Captured = {}
-    await getUserStats(req, makeResponse(captured), jest.fn() as unknown as NextFunction)
+    const next = jest.fn()
+    await getUserStats(req, makeResponse(captured), next as unknown as NextFunction)
 
-    expect(captured.status).toBe(500)
-    expect(captured.body).toMatchObject({ message: 'Erro ao obter estatísticas' })
+    expect(captured.body).toBeUndefined()
+    expect(next).toHaveBeenCalledTimes(1)
+    const error = next.mock.calls[0]?.[0] as HttpError
+    expect(error).toBeInstanceOf(HttpError)
+    expect(error).toMatchObject({ status: 500, code: 'USER_STATS_FAILED' })
+    expect(error.message).not.toContain('boom')
   })
 })
