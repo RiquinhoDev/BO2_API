@@ -1,0 +1,266 @@
+import express from 'express'
+import request from 'supertest'
+import type { Request, Response } from 'express'
+
+const mockFindById = jest.fn()
+const mockUserProductFind = jest.fn()
+const mockGetUserWithProducts = jest.fn()
+
+jest.mock('../../src/models/user', () => ({
+  __esModule: true,
+  default: { findById: mockFindById },
+}))
+
+jest.mock('../../src/models', () => ({
+  __esModule: true,
+  UserProduct: { find: mockUserProductFind },
+}))
+
+jest.mock('../../src/services/userProducts/userProductService', () => ({
+  __esModule: true,
+  getUserWithProducts: mockGetUserWithProducts,
+  getUserCountsByPlatform: jest.fn(),
+  getUserCountsByProduct: jest.fn(),
+}))
+
+import {
+  getUserAllClasses,
+  getUserById,
+  getUserProducts,
+} from '../../src/controllers/users.controller'
+
+const LOOPBACK = '?__bo2_offline_loopback=1'
+
+function leanResult<T>(value: T) {
+  return { lean: jest.fn().mockResolvedValue(value) }
+}
+
+function populatedLean<T>(rows: T[]) {
+  const query = {
+    populate: jest.fn(),
+    lean: jest.fn().mockResolvedValue(rows),
+  }
+  query.populate.mockReturnValue(query)
+  return query
+}
+
+beforeEach(() => {
+  mockFindById.mockReset()
+  mockUserProductFind.mockReset()
+  mockGetUserWithProducts.mockReset()
+})
+
+describe('getUserAllClasses — characterization', () => {
+  function app(): express.Express {
+    const instance = express()
+    instance.get('/users/:userId/all-classes', getUserAllClasses)
+    return instance
+  }
+
+  test('merges hotmart and curseduca enrolments and derives the stats block', async () => {
+    mockFindById.mockReturnValue(
+      leanResult({
+        _id: 'user-1',
+        email: 'user@example.test',
+        name: 'User',
+        hotmart: {
+          enrolledClasses: [
+            {
+              classId: 'h-1',
+              className: 'Hotmart One',
+              isActive: true,
+              enrolledAt: '2026-01-01',
+            },
+          ],
+        },
+        curseduca: {
+          enrolledClasses: [
+            {
+              classId: 'c-1',
+              className: 'Curseduca One',
+              isActive: false,
+              enteredAt: '2026-02-01',
+              expiresAt: '2026-12-01',
+              role: 'mentor',
+              curseducaId: 55,
+              curseducaUuid: 'uuid-55',
+            },
+          ],
+        },
+        combined: { primaryClass: 'h-1' },
+      }),
+    )
+
+    const response = await request(app())
+      .get(`/users/user-1/all-classes${LOOPBACK}`)
+      .expect(200)
+
+    expect(response.body).toEqual({
+      success: true,
+      data: {
+        userId: 'user-1',
+        email: 'user@example.test',
+        name: 'User',
+        allClasses: [
+          {
+            classId: 'h-1',
+            className: 'Hotmart One',
+            source: 'hotmart',
+            isActive: true,
+            enrolledAt: '2026-01-01',
+            role: 'student',
+          },
+          {
+            classId: 'c-1',
+            className: 'Curseduca One',
+            source: 'curseduca',
+            isActive: false,
+            // curseduca maps `enteredAt` onto the shared `enrolledAt` field.
+            enrolledAt: '2026-02-01',
+            expiresAt: '2026-12-01',
+            role: 'mentor',
+            curseducaId: 55,
+            curseducaUuid: 'uuid-55',
+          },
+        ],
+        primaryClass: 'h-1',
+        stats: {
+          totalClasses: 2,
+          activeClasses: 1,
+          hotmartClasses: 1,
+          curseducaClasses: 1,
+        },
+      },
+    })
+  })
+
+  test('returns an empty aggregate and a null primary class when nothing is enrolled', async () => {
+    mockFindById.mockReturnValue(leanResult({ _id: 'user-1', email: 'a@b.test', name: 'A' }))
+
+    const response = await request(app())
+      .get(`/users/user-1/all-classes${LOOPBACK}`)
+      .expect(200)
+
+    expect(response.body.data.allClasses).toEqual([])
+    expect(response.body.data.primaryClass).toBeNull()
+    expect(response.body.data.stats).toEqual({
+      totalClasses: 0,
+      activeClasses: 0,
+      hotmartClasses: 0,
+      curseducaClasses: 0,
+    })
+  })
+
+  test('ignores a non-array enrolledClasses instead of throwing', async () => {
+    mockFindById.mockReturnValue(
+      leanResult({ _id: 'user-1', hotmart: { enrolledClasses: 'corrupt' } }),
+    )
+
+    const response = await request(app())
+      .get(`/users/user-1/all-classes${LOOPBACK}`)
+      .expect(200)
+
+    expect(response.body.data.allClasses).toEqual([])
+  })
+
+  test('returns 404 with the success:false envelope when the user is missing', async () => {
+    mockFindById.mockReturnValue(leanResult(null))
+
+    const response = await request(app())
+      .get(`/users/missing/all-classes${LOOPBACK}`)
+      .expect(404)
+
+    expect(response.body).toEqual({
+      success: false,
+      message: 'Utilizador não encontrado',
+    })
+  })
+
+  test('returns 400 when the route supplies no userId', async () => {
+    // Unreachable through the mounted route; proven by direct invocation so the
+    // guard is not silently dropped during extraction.
+    const json = jest.fn()
+    const status = jest.fn().mockReturnValue({ json })
+
+    await getUserAllClasses(
+      { params: {} } as unknown as Request,
+      { status } as unknown as Response,
+    )
+
+    expect(status).toHaveBeenCalledWith(400)
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      message: 'ID de utilizador é obrigatório',
+    })
+    expect(mockFindById).not.toHaveBeenCalled()
+  })
+})
+
+describe('getUserById — characterization', () => {
+  function app(): express.Express {
+    const instance = express()
+    instance.get('/users/:id', getUserById)
+    return instance
+  }
+
+  test('delegates enrichment to getUserWithProducts and wraps it in the envelope', async () => {
+    mockGetUserWithProducts.mockResolvedValue({ _id: 'user-1', products: [] })
+
+    const response = await request(app())
+      .get(`/users/user-1${LOOPBACK}`)
+      .expect(200)
+
+    expect(mockGetUserWithProducts).toHaveBeenCalledWith('user-1')
+    expect(response.body).toEqual({
+      success: true,
+      data: { _id: 'user-1', products: [] },
+    })
+  })
+
+  test('returns 404 with the English legacy message when enrichment yields nothing', async () => {
+    mockGetUserWithProducts.mockResolvedValue(null)
+
+    const response = await request(app())
+      .get(`/users/missing${LOOPBACK}`)
+      .expect(404)
+
+    expect(response.body).toEqual({ success: false, message: 'User not found' })
+  })
+})
+
+describe('getUserProducts — characterization', () => {
+  function app(): express.Express {
+    const instance = express()
+    instance.get('/users/:userId/products', getUserProducts)
+    return instance
+  }
+
+  test('returns 200 with a count even when the user owns no products', async () => {
+    mockUserProductFind.mockReturnValue(populatedLean([]))
+
+    const response = await request(app())
+      .get(`/users/user-1/products${LOOPBACK}`)
+      .expect(200)
+
+    // Deliberate legacy behaviour: no 404 for an unknown user, always 200.
+    expect(response.body).toEqual({ success: true, data: [], count: 0 })
+  })
+
+  test('queries by userId and populates product and user projections', async () => {
+    const query = populatedLean([{ _id: 'up-1' }])
+    mockUserProductFind.mockReturnValue(query)
+
+    const response = await request(app())
+      .get(`/users/user-1/products${LOOPBACK}`)
+      .expect(200)
+
+    expect(mockUserProductFind).toHaveBeenCalledWith({ userId: 'user-1' })
+    expect(query.populate).toHaveBeenNthCalledWith(1, 'productId', 'name code platform')
+    expect(query.populate).toHaveBeenNthCalledWith(2, 'userId', 'name email')
+    expect(response.body).toEqual({
+      success: true,
+      data: [{ _id: 'up-1' }],
+      count: 1,
+    })
+  })
+})
