@@ -3,10 +3,11 @@ import { MongoMemoryServer } from 'mongodb-memory-server'
 import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
 import User from '../../src/models/user'
-import { getUsersInfiniteStats as legacyHandler } from '../../src/controllers/users.controller'
+import { HttpError } from '../../src/security/errorHandling'
+import { getUsersInfiniteStats as extractedHandler } from '../../src/services/users/userListingStats.runtime'
 
 type Handler = (req: Request, res: Response, next: NextFunction) => Promise<void>
-const getUsersInfiniteStats = legacyHandler as unknown as Handler
+const getUsersInfiniteStats = extractedHandler as unknown as Handler
 
 type StatsBody = {
   success: boolean
@@ -96,14 +97,19 @@ describe('GET /api/users/infiniteStats — listing stats characterization', () =
     })
   })
 
-  // Current behaviour: a local 500 whose body carries the raw error message.
-  it('answers failures with a local 500 envelope', async () => {
+  // SEC-10: failures now route through the central handler with a stable code.
+  it('reports failure through next(HttpError) with USER_LISTING_STATS_FAILED', async () => {
     jest.spyOn(User, 'aggregate').mockImplementation((() => { throw new Error('boom') }) as never)
 
     const captured: Captured = {}
-    await getUsersInfiniteStats(req, makeResponse(captured), jest.fn() as unknown as NextFunction)
+    const next = jest.fn()
+    await getUsersInfiniteStats(req, makeResponse(captured), next as unknown as NextFunction)
 
-    expect(captured.status).toBe(500)
-    expect(captured.body).toMatchObject({ success: false })
+    expect(captured.body).toBeUndefined()
+    expect(next).toHaveBeenCalledTimes(1)
+    const error = next.mock.calls[0]?.[0] as HttpError
+    expect(error).toBeInstanceOf(HttpError)
+    expect(error).toMatchObject({ status: 500, code: 'USER_LISTING_STATS_FAILED' })
+    expect(error.message).not.toContain('boom')
   })
 })
