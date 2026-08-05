@@ -29,11 +29,11 @@ import { getUserById, getUserProducts } from "../services/users/userLookup.runti
 import { getStudentHistory } from "../services/users/studentHistory.runtime"
 import { searchStudent } from "../services/users/studentSearch.runtime"
 import { listUsers } from "../services/users/userList.runtime"
+import { getAllUsersUnified } from "../services/users/userDirectory.runtime"
 import {
   // Funções existentes (mantidas para compatibilidade)
   getUserStats,
   // ✅ NOVAS FUNÇÕES DA FASE 1
-  getAllUsersUnified,
   getDashboardStats,
 
   // 🆕 NOVAS FUNÇÕES PARA EDITOR DE ALUNOS

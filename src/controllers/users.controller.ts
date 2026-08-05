@@ -14,7 +14,6 @@ import type {
 
 type PipelineStage = mongoose.PipelineStage
 type UserIdParams = { id: string }
-type MongoFilter = Record<string, unknown>
 
 interface UserListRecord {
   _id: mongoose.Types.ObjectId
@@ -85,120 +84,6 @@ interface CachedUsersData {
     }
   }
   cachedAt: number
-}
-// ✅ ADICIONAR: Função para listar TODOS os utilizadores
-export const getAllUsersUnified = async (req: Request, res: Response) => {
-  try {
-    const { 
-      page = 1, 
-      limit = 1000, 
-      status, 
-      platform,
-      search 
-    } = req.query
-
-    // Query base: todos os users não deletados
-    const query: MongoFilter = {
-      isDeleted: { $ne: true }
-    }
-
-    // Filtro por status (suporta ambas as estruturas)
-    if (status === 'active') {
-      query.$or = [
-        { 'combined.status': 'ACTIVE' },
-        { status: 'ACTIVE' },
-        { status: 'ativo' }
-      ]
-    } else if (status === 'inactive') {
-      query.$or = [
-        { 'combined.status': 'INACTIVE' },
-        { status: 'INACTIVE' },
-        { status: 'inativo' }
-      ]
-    }
-
-    // Filtro por plataforma (usando $nin em vez de múltiplos $ne)
-    if (platform) {
-      switch (platform) {
-        case 'hotmart':
-          query.$or = [
-            { 'hotmart.hotmartUserId': { $exists: true, $nin: [null, ''] } },
-            { hotmartUserId: { $exists: true, $nin: [null, ''] } }
-          ]
-          break
-        case 'curseduca':
-          query.$or = [
-            { 'curseduca.curseducaUserId': { $exists: true, $nin: [null, ''] } },
-            { curseducaUserId: { $exists: true, $nin: [null, ''] } }
-          ]
-          break
-        case 'discord':
-          query.$or = [
-            { 'discord.discordIds.0': { $exists: true } },
-            { 'discordIds.0': { $exists: true } }
-          ]
-          break
-      }
-    }
-
-    // Pesquisa por texto
-    if (search) {
-      const searchRegex = new RegExp(search as string, 'i')
-      // ⚠️ ATENÇÃO: Isto vai sobrescrever $or anterior se houver status ou platform
-      // Para manter ambos os filtros, precisa de usar $and
-      if (query.$or) {
-        // Se já existe $or (de status ou platform), combinar com $and
-        const previousOr = query.$or
-        delete query.$or
-        query.$and = [
-          { $or: previousOr },
-          { 
-            $or: [
-              { name: searchRegex },
-              { email: searchRegex },
-              { username: searchRegex }
-            ]
-          }
-        ]
-      } else {
-        // Se não há $or anterior, usar direto
-        query.$or = [
-          { name: searchRegex },
-          { email: searchRegex },
-          { username: searchRegex }
-        ]
-      }
-    }
-
-    // Executar query com paginação
-    const skip = (Number(page) - 1) * Number(limit)
-    const users = await User.find(query)
-      .select('name email username status combined hotmart curseduca discord discordIds hotmartUserId curseducaUserId')
-      .skip(skip)
-      .limit(Number(limit))
-      .lean()
-
-    const total = await User.countDocuments(query)
-
-    res.json({
-      success: true,
-      users,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit))
-      }
-    })
-
-  } catch (error: unknown) {
-    console.error('❌ Erro ao buscar utilizadores:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar utilizadores',
-      error: errorMessage(error)
-    })
-  }
 }
 
 export const getDashboardStats = async (req: Request, res: Response) => {
