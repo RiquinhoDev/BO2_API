@@ -4,11 +4,11 @@ import { getClassCompleteHistory, getClassHistory, getStudentHistoryByDiscord, g
 import { getStudentsByClass, searchStudents } from '../services/classes/classRoster.runtime'
 import { listClasses, listClassesSimple } from '../services/classes/classDirectory.runtime'
 import { fetchClassData, fetchClassDataPost, getClassDetails, getClassStats } from '../services/classes/classDetails.runtime'
+import { addOrEditClass, deleteClass } from '../services/classes/classMutations.runtime'
 import { classesDeleteInput } from '../security/classesDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
-
 // ⚠️ IMPORTANTE: Esta rota DEVE estar ANTES de todas as outras rotas específicas
 router.get('/', listClassesSimple)
 
@@ -16,7 +16,7 @@ router.get('/', listClassesSimple)
 router.get('/listClasses', listClasses)
 
 // POST /api/classes/addOrEditClass - Adiciona ou edita uma turma
-router.post('/addOrEditClass', classesController.addOrEditClass)
+router.post('/addOrEditClass', addOrEditClass)
 
 // POST /api/classes/syncHotmartClasses - Sincroniza turmas da Hotmart
 router.post('/syncHotmartClasses', classesController.syncHotmartClasses)
@@ -42,8 +42,8 @@ router.get('/:classId/details', getClassDetails)
 // DELETE /api/classes/:classId - Remove uma turma
 router.delete(
   '/:classId',
-  withValidatedInput(classesDeleteInput, (input, _req, res) =>
-    classesController.deleteClass(input, res)),
+  withValidatedInput(classesDeleteInput, (input, _req, res, next) =>
+    deleteClass(input, res, next)),
 )
 
 // ===== MOVIMENTAÇÃO DE ESTUDANTES =====

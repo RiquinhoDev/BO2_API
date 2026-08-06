@@ -1,8 +1,8 @@
 // src/controllers/classes.controller.ts - CORRIGIDO para evitar erros TypeScript
 import { Request, Response } from 'express'
 import type { FilterQuery, UpdateQuery } from 'mongoose'
-import type { ClassesDeleteInput } from '../security/classesDestructiveInput'
-import { classesService, studentService } from '../services/syncUtilizadoresServices/hotmartServices/classesService'
+import { studentService } from '../services/syncUtilizadoresServices/hotmartServices/classesService'
+import { upsertClass } from '../services/classes/classMutations.runtime'
 import SyncHistory from '../models/SyncHistory'
 
 import axios, { type AxiosResponse } from 'axios'
@@ -163,55 +163,6 @@ async function getHotmartAccessToken() {
 
 class ClassesController {
   // ===== GESTÃO DE TURMAS =====
-
-  addOrEditClass = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { classId, name, description, isActive = true, estado, source = 'manual' } = req.body
-
-      if (!classId || !name) {
-        res.status(400).json({
-          success: false,
-          message: 'classId e name são obrigatórios'
-        })
-        return
-      }
-
-      let finalEstado = estado
-      let finalIsActive = isActive
-      
-      if (estado) {
-        finalIsActive = estado === 'ativo'
-      } else {
-        finalEstado = isActive ? 'ativo' : 'inativo'
-      }
-
-      const classData = {
-        classId: classId.trim(),
-        name: name.trim(),
-        description: description?.trim(),
-        isActive: finalIsActive,
-        estado: finalEstado,
-        source
-      }
-
-      const result = await classesService.addOrEditClass(classData)
-
-      res.json({
-        success: true,
-        message: result.isNew ? 'Turma criada com sucesso' : 'Turma atualizada com sucesso',
-        class: result.class,
-        isNew: result.isNew,
-        timestamp: new Date().toISOString()
-      })
-    } catch (error) {
-      console.error('❌ Erro ao adicionar/editar turma:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao processar turma',
-        error: (error as Error).message
-      })
-    }
-  }
 
  syncHotmartClasses = async (req: Request, res: Response): Promise<void> => {
     let syncRecord: ISyncHistory | null = null;
@@ -619,44 +570,6 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
 
 
-  deleteClass = async (input: ClassesDeleteInput, res: Response): Promise<void> => {
-    try {
-      const { classId } = input.params
-
-      const classData = await classesService.getClassById(classId)
-      if (!classData) {
-        res.status(404).json({
-          success: false,
-          message: 'Turma não encontrada'
-        })
-        return
-      }
-
-      if (classData.studentCount > 0) {
-        res.status(400).json({
-          success: false,
-          message: `Não é possível remover turma com ${classData.studentCount} estudante(s). Mova os estudantes primeiro.`
-        })
-        return
-      }
-
-      await classesService.deleteClass(classId)
-
-      res.json({
-        success: true,
-        message: 'Turma removida com sucesso',
-        timestamp: new Date().toISOString()
-      })
-    } catch (error) {
-      console.error('❌ Erro ao remover turma:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao remover turma',
-        error: (error as Error).message
-      })
-    }
-  }
-
   // ===== MOVIMENTAÇÃO DE ESTUDANTES =====
 
   moveStudent = async (req: Request, res: Response): Promise<void> => {
@@ -884,7 +797,7 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
             return { classId: cId, success: false, error: 'Turma não encontrada' }
           }
 
-          const result = await classesService.addOrEditClass({
+          const result = await upsertClass({
             classId: cId,
             name: existingClass.name || cId,
             description: existingClass.description || '',
@@ -1222,7 +1135,7 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         }
       }
 
-      const result = await classesService.addOrEditClass({
+      const result = await upsertClass({
         classId,
         name: existingClass.name || classId,
         description: existingClass.description || '',
