@@ -6,6 +6,7 @@ const path = require('path')
  * fail the topology contract instead of silently running in the unit project.
  */
 const INTEGRATION_TEST_FILES = Object.freeze([
+  'tests/controllers/classDirectory.characterization.test.ts',
   'tests/controllers/classHistory.characterization.test.ts',
   'tests/controllers/classRoster.characterization.test.ts',
   'tests/controllers/classRoster.hardening.test.ts',
