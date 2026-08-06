@@ -2,18 +2,18 @@ import { Router } from 'express'
 import { classesController } from '../controllers/classes.controller'
 import { getClassCompleteHistory, getClassHistory, getStudentHistoryByDiscord, getStudentHistoryByEmail } from '../services/classes/classHistory.runtime'
 import { getStudentsByClass, searchStudents } from '../services/classes/classRoster.runtime'
+import { listClasses, listClassesSimple } from '../services/classes/classDirectory.runtime'
 import { classesDeleteInput } from '../security/classesDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
-// ===== GESTÃO DE TURMAS =====
 
 // 🆕 NOVA ROTA SIMPLES - GET /api/classes - Lista todas as turmas (para o frontend StudentEditor)
 // ⚠️ IMPORTANTE: Esta rota DEVE estar ANTES de todas as outras rotas específicas
-router.get('/', classesController.listClassesSimple)
+router.get('/', listClassesSimple)
 
 // GET /api/classes/listClasses - Lista todas as turmas (rota original)
-router.get('/listClasses', classesController.listClasses)
+router.get('/listClasses', listClasses)
 
 // POST /api/classes/addOrEditClass - Adiciona ou edita uma turma
 router.post('/addOrEditClass', classesController.addOrEditClass)
