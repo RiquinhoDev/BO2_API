@@ -1,11 +1,11 @@
 import { Router } from 'express'
 import { classesController } from '../controllers/classes.controller'
 import { getClassCompleteHistory, getClassHistory, getStudentHistoryByDiscord, getStudentHistoryByEmail } from '../services/classes/classHistory.runtime'
+import { getStudentsByClass, searchStudents } from '../services/classes/classRoster.runtime'
 import { classesDeleteInput } from '../security/classesDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
-
 // ===== GESTÃO DE TURMAS =====
 
 // 🆕 NOVA ROTA SIMPLES - GET /api/classes - Lista todas as turmas (para o frontend StudentEditor)
@@ -34,7 +34,7 @@ router.get('/stats', classesController.getClassStats)
 router.put('/updateStatus', classesController.updateClassStatus)
 
 // GET /api/classes/:classId/students - Lista estudantes de uma turma específica
-router.get('/:classId/students', classesController.getStudentsByClass)
+router.get('/:classId/students', getStudentsByClass)
 
 // GET /api/classes/:classId/details - Detalhes de uma turma específica
 router.get('/:classId/details', classesController.getClassDetails)
@@ -94,7 +94,7 @@ router.delete('/inactivationLists/:id', classesController.deleteInactivationList
 // ===== PESQUISA DE ESTUDANTES =====
 
 // GET /api/classes/users/search - Pesquisa estudantes por critérios
-router.get('/users/search', classesController.searchStudents)
+router.get('/users/search', searchStudents)
 
 router.post('/syncComplete', classesController.syncComplete)
 

@@ -2,7 +2,7 @@ import express from 'express'
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import request from 'supertest'
-import { classesController } from '../../src/controllers/classes.controller'
+import { getStudentsByClass } from '../../src/services/classes/classRoster.runtime'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
 import { Class } from '../../src/models/Class'
 import { User, UserProduct } from '../../src/models'
@@ -10,7 +10,7 @@ import { User, UserProduct } from '../../src/models'
 let mongoServer: MongoMemoryServer
 
 const app = express()
-app.get('/classes/:classId/students', classesController.getStudentsByClass)
+app.get('/classes/:classId/students', getStudentsByClass)
 
 const objectId = (suffix: number) =>
   new mongoose.Types.ObjectId(suffix.toString(16).padStart(24, '0'))

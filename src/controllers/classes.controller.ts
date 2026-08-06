@@ -1,6 +1,6 @@
 // src/controllers/classes.controller.ts - CORRIGIDO para evitar erros TypeScript
 import { Request, Response } from 'express'
-import type { FilterQuery, SortOrder, UpdateQuery } from 'mongoose'
+import type { FilterQuery, UpdateQuery } from 'mongoose'
 import type { ClassesDeleteInput } from '../security/classesDestructiveInput'
 import { classesService, studentService } from '../services/syncUtilizadoresServices/hotmartServices/classesService'
 import SyncHistory from '../models/SyncHistory'
@@ -14,7 +14,6 @@ import { User, UserProduct } from '../models'
 import type { IUser } from '../models/user'
 import UserHistory, { type IUserHistory } from '../models/UserHistory'
 import type { ISyncHistory } from '../models/SyncHistory'
-import { getLastLearnerActivityDate } from '../services/activity/learnerActivity'
 
 type ClassIdParams = {
   classId: string
@@ -100,11 +99,6 @@ function axiosErrorMessage(error: unknown): string {
     return data.message
   }
   return error.message
-}
-
-function errorStatus(error: unknown): number | undefined {
-  if (!error || typeof error !== 'object' || !('status' in error)) return undefined
-  return typeof error.status === 'number' ? error.status : undefined
 }
 
 export function buildClassUserStatusUpdate(
@@ -1774,205 +1768,6 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
       res.status(500).json({
         success: false,
         message: 'Erro ao atualizar status da turma',
-        error: (error as Error).message
-      })
-    }
-  }
-
-  // ===== ESTUDANTES POR TURMA =====
-
-  getStudentsByClass = async (
-    req: Request<ClassIdParams>,
-    res: Response,
-  ): Promise<void> => {
-    try {
-      const { classId } = req.params
-      const { 
-        includeInactive = 'false',
-        limit = 100, 
-        offset = 0,
-        sortBy = 'name',
-        sortOrder = 'asc'
-      } = req.query
-
-      if (!classId) {
-        res.status(400).json({
-          success: false,
-          message: 'classId é obrigatório'
-        })
-        return
-      }
-
-      // Verificar se a turma existe
-      const classData = await classesService.getClassById(classId)
-      if (!classData) {
-        res.status(404).json({
-          success: false,
-          message: 'Turma não encontrada'
-        })
-        return
-      }
-
-      // ✅ CORRIGIDO: Suportar turmas CursEduca e Hotmart
-      let filter: FilterQuery<IUser>
-
-      if (classData.source === 'curseduca_sync') {
-        const enrollmentFilter = {
-          platform: 'curseduca',
-          'classes.classId': String(classId),
-          ...(includeInactive !== 'true' ? { status: 'ACTIVE' } : {}),
-        }
-        const enrollments = await UserProduct.find(enrollmentFilter)
-          .select('userId')
-          .lean()
-
-        filter = {
-          _id: { $in: enrollments.map(enrollment => enrollment.userId) },
-        }
-      } else {
-        // Para turmas Hotmart e outras, buscar por classId
-        filter = {
-          classId,
-          'inactivation.isManuallyInactivated': { $ne: true }
-        }
-
-        // Por padrão, só mostrar estudantes ativos
-        if (includeInactive !== 'true') {
-          filter['combined.status'] = { $ne: 'INACTIVE' }
-        }
-      }
-
-      // Construir ordenação
-      const sortObj: Record<string, SortOrder> = {}
-      sortObj[sortBy as string] = sortOrder === 'desc' ? -1 : 1
-
-      // Buscar estudantes
-      const students = await User.find(filter)
-        .sort(sortObj)
-        .limit(Number(limit))
-        .skip(Number(offset))
-        .lean()
-
-      // Contar total
-      const totalStudents = await User.countDocuments(filter)
-
-      // Formatar dados dos estudantes
-      const formattedStudents = students.map(student => {
-        // ✅ CORRIGIDO: Suportar dados de ambas as plataformas
-        let joinedDate = student.hotmart?.purchaseDate || student.metadata.createdAt
-        const lastActivityDate = getLastLearnerActivityDate(student)
-        let studentStatus = student.combined?.status || student.hotmart?.status || 'ACTIVE'
-        
-        // Para CursEduca, usar campos específicos
-        if (classData.source === 'curseduca_sync') {
-          joinedDate = student.curseduca?.joinedDate || joinedDate
-          studentStatus = student.combined?.status || student.curseduca?.memberStatus || studentStatus
-        }
-        
-        return {
-          _id: student._id,
-          name: student.name || 'Nome não disponível',
-          email: student.email,
-          discordId: student.discord?.discordIds?.[0],
-          status: studentStatus,
-          estado: studentStatus === 'INACTIVE' ? 'inativo' : 'ativo',
-          joinedAt: joinedDate,
-          lastActivity: lastActivityDate,
-          // 🆕 Adicionar informações de plataforma
-          platform: classData.source === 'curseduca_sync' ? 'curseduca' : 'hotmart'
-        }
-      })
-
-      res.json({
-        success: true,
-        classId,
-        className: classData.name,
-        students: formattedStudents,
-        pagination: {
-          total: totalStudents,
-          limit: Number(limit),
-          offset: Number(offset),
-          hasMore: (Number(offset) + formattedStudents.length) < totalStudents
-        },
-        filters: {
-          includeInactive: includeInactive === 'true',
-          sortBy,
-          sortOrder
-        },
-        timestamp: new Date().toISOString()
-      })
-
-    } catch (error) {
-      console.error('❌ Erro ao buscar estudantes da turma:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar estudantes da turma',
-        error: (error as Error).message
-      })
-    }
-  }
-
-  // ===== PESQUISA DE ESTUDANTES =====
-
-  searchStudents = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const {
-        email,
-        name,
-        discordId,
-        classId,
-        status,
-        limit = 50,
-        offset = 0
-      } = req.query
-
-      if (!email && !name && !discordId && !classId) {
-        res.status(400).json({
-          success: false,
-          message: 'Pelo menos um critério de pesquisa é obrigatório'
-        })
-        return
-      }
-
-      const searchCriteria = {
-        email: email as string,
-        name: name as string,
-        discordId: discordId as string,
-        classId: classId as string,
-        status: status as string,
-        limit: Number(limit),
-        offset: Number(offset)
-      }
-
-      const result = await studentService.searchStudents(searchCriteria)
-
-      // Verificar se encontrou múltiplos ou único resultado
-      const multiple = result.students.length > 1
-      const response = multiple ? result : result.students[0]
-
-      res.json({
-        success: true,
-        multiple,
-        message: multiple 
-          ? `Encontrados ${result.students.length} estudantes`
-          : 'Estudante encontrado',
-        ...(multiple ? result : response),
-        timestamp: new Date().toISOString()
-      })
-    } catch (error) {
-      console.error('❌ Erro ao pesquisar estudantes:', error)
-      
-      if (errorStatus(error) === 404) {
-        res.status(404).json({
-          success: false,
-          message: 'Nenhum estudante encontrado com os critérios fornecidos'
-        })
-        return
-      }
-
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao pesquisar estudantes',
         error: (error as Error).message
       })
     }

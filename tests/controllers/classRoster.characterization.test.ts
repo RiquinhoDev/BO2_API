@@ -2,14 +2,14 @@ import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
-import { classesController } from '../../src/controllers/classes.controller'
+import { HttpError } from '../../src/security/errorHandling'
+import { getStudentsByClass as rtStudents, searchStudents as rtSearch } from '../../src/services/classes/classRoster.runtime'
 import { Class } from '../../src/models/Class'
 import { User, UserProduct } from '../../src/models'
 
 type AnyHandler = (req: Request, res: Response, next?: NextFunction) => Promise<void>
-const cc = classesController as unknown as Record<string, AnyHandler>
-const getStudentsByClass = cc.getStudentsByClass
-const searchStudents = cc.searchStudents
+const getStudentsByClass = rtStudents as unknown as AnyHandler
+const searchStudents = rtSearch as unknown as AnyHandler
 
 type Body = {
   success?: boolean
@@ -136,11 +136,16 @@ describe('classRoster characterization — getStudentsByClass', () => {
     expect(body.students![0]).toHaveProperty('lastActivity')
   })
 
-  it('reports failure through a local 500 envelope', async () => {
+  it('reports failure through next(HttpError) with CLASS_ROSTER_FAILED', async () => {
     jest.spyOn(User, 'countDocuments').mockImplementation((() => { throw new Error('boom') }) as never)
     const captured: Captured = {}
-    await getStudentsByClass(req({ classId: 'HOT' }), makeResponse(captured))
-    expect(captured.status).toBe(500)
+    const next = jest.fn()
+    await getStudentsByClass(req({ classId: 'HOT' }), makeResponse(captured), next as unknown as NextFunction)
+    expect(captured.body).toBeUndefined()
+    const error = next.mock.calls[0]?.[0] as HttpError
+    expect(error).toBeInstanceOf(HttpError)
+    expect(error).toMatchObject({ status: 500, code: 'CLASS_ROSTER_FAILED' })
+    expect(error.message).not.toContain('boom')
   })
 })
 
@@ -181,10 +186,15 @@ describe('classRoster characterization — searchStudents', () => {
     expect(body.students![0].className).toBe('Hotmart T')
   })
 
-  it('reports failure through a local 500 envelope', async () => {
+  it('reports failure through next(HttpError) with CLASS_STUDENT_SEARCH_FAILED', async () => {
     jest.spyOn(User, 'find').mockImplementation((() => { throw new Error('boom') }) as never)
     const captured: Captured = {}
-    await searchStudents(req({}, { email: 'ana@x.test' }), makeResponse(captured))
-    expect(captured.status).toBe(500)
+    const next = jest.fn()
+    await searchStudents(req({}, { email: 'ana@x.test' }), makeResponse(captured), next as unknown as NextFunction)
+    expect(captured.body).toBeUndefined()
+    const error = next.mock.calls[0]?.[0] as HttpError
+    expect(error).toBeInstanceOf(HttpError)
+    expect(error).toMatchObject({ status: 500, code: 'CLASS_STUDENT_SEARCH_FAILED' })
+    expect(error.message).not.toContain('boom')
   })
 })
