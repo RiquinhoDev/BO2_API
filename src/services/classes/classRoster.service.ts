@@ -105,9 +105,30 @@ export function sanitizeOffset(value: number): number {
   return Math.floor(value)
 }
 
-/** Restricts sortBy to a known set, defaulting to name. */
+/** Restricts sortBy to a known set of public keys, defaulting to name. */
 export function sanitizeSortBy(value: string): string {
   return ROSTER_SORT_ALLOWLIST.has(value) ? value : 'name'
+}
+
+/**
+ * Maps a public sort key to its real Mongo path. joinedAt is source-dependent,
+ * so it is resolved only after the class source is known. Unknown keys fall back
+ * to name (defence in depth; the controller already sanitizes).
+ */
+export function resolveSortPath(sortBy: string, isCurseduca: boolean): string {
+  switch (sortBy) {
+    case 'email':
+      return 'email'
+    case 'createdAt':
+      return 'metadata.createdAt'
+    case 'status':
+      return 'combined.status'
+    case 'joinedAt':
+      return isCurseduca ? 'curseduca.joinedDate' : 'hotmart.purchaseDate'
+    case 'name':
+    default:
+      return 'name'
+  }
 }
 
 function literalRegex(term: string): { $regex: string; $options: string } {
@@ -170,8 +191,10 @@ export class ClassRosterService {
       if (!opts.includeInactive) filter['combined.status'] = { $ne: 'INACTIVE' }
     }
 
-    // Total order with an _id tiebreak so pagination is stable across pages.
-    const sort: Record<string, 1 | -1> = { [opts.sortBy]: opts.sortOrder === 'desc' ? -1 : 1, _id: 1 }
+    // Map the public sort key to its real Mongo path, then add an _id tiebreak
+    // so the order is total and pagination stays stable across pages.
+    const sortPath = resolveSortPath(opts.sortBy, isCurseduca)
+    const sort: Record<string, 1 | -1> = { [sortPath]: opts.sortOrder === 'desc' ? -1 : 1, _id: 1 }
 
     // Sequential, matching the legacy handler: page first, then the count.
     const students = await this.reader.findStudents(filter, sort, opts.limit, opts.offset)
