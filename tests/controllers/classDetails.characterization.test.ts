@@ -2,19 +2,25 @@ import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
-import { classesController } from '../../src/controllers/classes.controller'
+import { HttpError } from '../../src/security/errorHandling'
+import {
+  fetchClassData as rtFetch,
+  fetchClassDataPost as rtFetchPost,
+  getClassDetails as rtDetails,
+  getClassStats as rtStats,
+} from '../../src/services/classes/classDetails.runtime'
 import { Class, InactivationList } from '../../src/models/Class'
 import { User } from '../../src/models'
 import StudentClassHistory from '../../src/models/StudentClassHistory'
 
 type AnyHandler = (req: Request, res: Response, next?: NextFunction) => Promise<void>
-const cc = classesController as unknown as Record<string, AnyHandler>
-const getClassStats = cc.getClassStats
-const getClassDetails = cc.getClassDetails
-const fetchClassData = cc.fetchClassData
-const fetchClassDataPost = cc.fetchClassDataPost
+const getClassStats = rtStats as unknown as AnyHandler
+const getClassDetails = rtDetails as unknown as AnyHandler
+const fetchClassData = rtFetch as unknown as AnyHandler
+const fetchClassDataPost = rtFetchPost as unknown as AnyHandler
 
-type Body = Record<string, any>
+type Body = Record<string, unknown>
+type Row = Record<string, unknown>
 type Captured = { status?: number; body?: Body }
 
 function makeResponse(captured: Captured): Response {
@@ -89,11 +95,13 @@ describe('classDetails characterization — getClassStats (GET /stats)', () => {
     expect(typeof body.timestamp).toBe('string')
   })
 
-  it('answers failures with a local 500', async () => {
+  it('reports failure through next(HttpError) with CLASS_STATS_FAILED', async () => {
     jest.spyOn(Class, 'countDocuments').mockImplementation((() => { throw new Error('boom') }) as never)
     const captured: Captured = {}
-    await getClassStats(req(), makeResponse(captured))
-    expect(captured.status).toBe(500)
+    const next = jest.fn()
+    await getClassStats(req(), makeResponse(captured), next as unknown as NextFunction)
+    expect(captured.body).toBeUndefined()
+    expect((next.mock.calls[0]?.[0] as HttpError)).toMatchObject({ status: 500, code: 'CLASS_STATS_FAILED' })
   })
 })
 
@@ -120,6 +128,14 @@ describe('classDetails characterization — getClassDetails (GET /:classId/detai
     expect(Array.isArray((withExtras.body as Body).students)).toBe(true)
     expect(Array.isArray((withExtras.body as Body).recentHistory)).toBe(true)
   })
+
+  it('reports failure through next(HttpError) with CLASS_DETAILS_FAILED', async () => {
+    jest.spyOn(Class, 'findOne').mockImplementation((() => { throw new Error('boom') }) as never)
+    const captured: Captured = {}
+    const next = jest.fn()
+    await getClassDetails(req({ classId: 'H' }), makeResponse(captured), next as unknown as NextFunction)
+    expect((next.mock.calls[0]?.[0] as HttpError)).toMatchObject({ status: 500, code: 'CLASS_DETAILS_FAILED' })
+  })
 })
 
 describe('classDetails characterization — fetchClassData (GET /fetchClassData)', () => {
@@ -129,15 +145,23 @@ describe('classDetails characterization — fetchClassData (GET /fetchClassData)
     const body = captured.body as Body
     expect(body.success).toBe(true)
     expect(body.count).toBe(2)
-    expect(body.classes.map((c: Body) => c.classId).sort()).toEqual(['C', 'H'])
-    expect(body.classes[0]).toHaveProperty('stats')
+    expect((body.classes as Row[]).map(c => c.classId).sort()).toEqual(['C', 'H'])
+    expect((body.classes as Row[])[0]).toHaveProperty('stats')
     expect(typeof body.timestamp).toBe('string')
   })
 
   it('fetches all active classes when no ids are given', async () => {
     const captured: Captured = {}
     await fetchClassData(req(), makeResponse(captured))
-    expect((captured.body as Body).classes.map((c: Body) => c.classId).sort()).toEqual(['C', 'H'])
+    expect(((captured.body as Body).classes as Row[]).map(c => c.classId).sort()).toEqual(['C', 'H'])
+  })
+
+  it('reports failure through next(HttpError) with CLASS_FETCH_FAILED', async () => {
+    jest.spyOn(Class, 'find').mockImplementation((() => { throw new Error('boom') }) as never)
+    const captured: Captured = {}
+    const next = jest.fn()
+    await fetchClassData(req(), makeResponse(captured), next as unknown as NextFunction)
+    expect((next.mock.calls[0]?.[0] as HttpError)).toMatchObject({ status: 500, code: 'CLASS_FETCH_FAILED' })
   })
 })
 
@@ -148,15 +172,28 @@ describe('classDetails characterization — fetchClassDataPost (POST /fetchClass
     expect(captured.status).toBe(400)
   })
 
-  it('returns a raw array of { className, students } and is read-only', async () => {
-    const insertSpy = jest.spyOn(Class.collection, 'insertMany')
+  it('returns a raw array of { className, students } and never mutates Class or User', async () => {
+    const MUTATORS = ['insertOne', 'insertMany', 'updateOne', 'updateMany', 'replaceOne', 'deleteOne', 'deleteMany', 'bulkWrite', 'findOneAndUpdate', 'findOneAndDelete', 'findOneAndReplace'] as const
+    const spies = [
+      ...MUTATORS.map(m => jest.spyOn(Class.collection, m as never)),
+      ...MUTATORS.map(m => jest.spyOn(User.collection, m as never)),
+    ]
+
     const captured: Captured = {}
     await fetchClassDataPost(req({}, {}, { classIds: ['H'] }), makeResponse(captured))
     const body = captured.body as Body
     expect(Array.isArray(body)).toBe(true)
-    expect(body[0]).toMatchObject({ className: 'Hotmart T' })
-    expect(Array.isArray(body[0].students)).toBe(true)
-    // Read-only: POST fetchClassData never writes.
-    expect(insertSpy).not.toHaveBeenCalled()
+    expect((body as unknown as Row[])[0]).toMatchObject({ className: 'Hotmart T' })
+    expect(Array.isArray((body as unknown as Row[])[0].students)).toBe(true)
+    // Read-only: POST fetchClassData never writes to Class or User.
+    for (const spy of spies) expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('reports failure through next(HttpError) with CLASS_FETCH_POST_FAILED', async () => {
+    jest.spyOn(Class, 'find').mockImplementation((() => { throw new Error('boom') }) as never)
+    const captured: Captured = {}
+    const next = jest.fn()
+    await fetchClassDataPost(req({}, {}, { classIds: ['H'] }), makeResponse(captured), next as unknown as NextFunction)
+    expect((next.mock.calls[0]?.[0] as HttpError)).toMatchObject({ status: 500, code: 'CLASS_FETCH_POST_FAILED' })
   })
 })
