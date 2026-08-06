@@ -5,10 +5,11 @@ import { getLastLearnerActivityDate, type LearnerActivitySource } from '../activ
  * owns every Mongoose read; the service holds the pure filter/query building and
  * formatting. A Clock is injected so timestamps are testable.
  *
- * Preserved verbatim as known legacy debt (hardening is separate): the raw regex
- * and uncapped limit/offset in search, the top-level `discordIds` search field,
- * the per-student N+1 className resolution, and the polymorphic single/multiple
- * search envelope.
+ * Hardened: search terms are escaped as literal regex and capped in length,
+ * limit/offset are validated and capped, sorts carry an _id tiebreak, the Discord
+ * search uses the canonical schema path, and class-name resolution is batched.
+ * The polymorphic single/multiple search envelope and the status-alone-400 gate
+ * are preserved.
  */
 
 export interface Clock {
@@ -58,7 +59,7 @@ export interface ClassRosterReader {
   countStudents(filter: Record<string, unknown>): Promise<number>
   searchStudents(query: Record<string, unknown>, limit: number, offset: number): Promise<RosterUser[]>
   countSearch(query: Record<string, unknown>): Promise<number>
-  resolveClassName(classId: string): Promise<string | null>
+  resolveClassNames(classIds: string[]): Promise<Map<string, string>>
 }
 
 export interface FormattedStudent {
@@ -82,6 +83,36 @@ export type SearchResult =
   | { kind: 'no_criteria' }
   | { kind: 'not_found' }
   | { kind: 'ok'; students: Array<Record<string, unknown>>; total: number; timestamp: string }
+
+const MAX_TERM_LENGTH = 256
+const MAX_RESULTS = 200
+const ROSTER_SORT_ALLOWLIST = new Set(['name', 'email', 'joinedAt', 'createdAt', 'status'])
+
+/** Escapes regex metacharacters so a search term matches literally. */
+export function escapeRegex(term: string): string {
+  return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** Clamps a limit to [1, MAX_RESULTS], falling back for invalid input. */
+export function sanitizeLimit(value: number, fallback: number): number {
+  if (!Number.isFinite(value) || value <= 0) return Math.min(fallback, MAX_RESULTS)
+  return Math.min(Math.floor(value), MAX_RESULTS)
+}
+
+/** Clamps an offset to a non-negative integer, falling back for invalid input. */
+export function sanitizeOffset(value: number): number {
+  if (!Number.isFinite(value) || value < 0) return 0
+  return Math.floor(value)
+}
+
+/** Restricts sortBy to a known set, defaulting to name. */
+export function sanitizeSortBy(value: string): string {
+  return ROSTER_SORT_ALLOWLIST.has(value) ? value : 'name'
+}
+
+function literalRegex(term: string): { $regex: string; $options: string } {
+  return { $regex: escapeRegex(term.slice(0, MAX_TERM_LENGTH)), $options: 'i' }
+}
 
 function formatStudent(student: RosterUser, isCurseduca: boolean): FormattedStudent {
   let joinedDate = student.hotmart?.purchaseDate || student.metadata?.createdAt
@@ -108,9 +139,9 @@ function formatStudent(student: RosterUser, isCurseduca: boolean): FormattedStud
 
 function buildSearchQuery(criteria: SearchCriteria): Record<string, unknown> {
   const query: Record<string, unknown> = {}
-  if (criteria.email) query.email = { $regex: criteria.email, $options: 'i' }
-  if (criteria.name) query.name = { $regex: criteria.name, $options: 'i' }
-  if (criteria.discordId) query.discordIds = criteria.discordId
+  if (criteria.email) query.email = literalRegex(criteria.email)
+  if (criteria.name) query.name = literalRegex(criteria.name)
+  if (criteria.discordId) query['discord.discordIds'] = criteria.discordId
   if (criteria.classId) query.classId = criteria.classId
   if (criteria.status) query.status = criteria.status
   return query
@@ -139,7 +170,8 @@ export class ClassRosterService {
       if (!opts.includeInactive) filter['combined.status'] = { $ne: 'INACTIVE' }
     }
 
-    const sort: Record<string, 1 | -1> = { [opts.sortBy]: opts.sortOrder === 'desc' ? -1 : 1 }
+    // Total order with an _id tiebreak so pagination is stable across pages.
+    const sort: Record<string, 1 | -1> = { [opts.sortBy]: opts.sortOrder === 'desc' ? -1 : 1, _id: 1 }
 
     // Sequential, matching the legacy handler: page first, then the count.
     const students = await this.reader.findStudents(filter, sort, opts.limit, opts.offset)
@@ -168,14 +200,14 @@ export class ClassRosterService {
 
     if (students.length === 0) return { kind: 'not_found' }
 
-    const withClassNames = await Promise.all(
-      students.map(async student => {
-        if (student.classId) {
-          const className = await this.reader.resolveClassName(student.classId)
-          return { ...student, className: className || student.classId }
-        }
-        return student
-      }),
+    // Batch class-name resolution: one read for every distinct classId.
+    const classIds = [...new Set(students.map(student => student.classId).filter((id): id is string => Boolean(id)))]
+    const nameByClassId = await this.reader.resolveClassNames(classIds)
+
+    const withClassNames = students.map(student =>
+      student.classId
+        ? { ...student, className: nameByClassId.get(student.classId) || student.classId }
+        : student,
     )
 
     return {
