@@ -14,6 +14,17 @@ export interface Clock {
   now(): Date
 }
 
+export type ClassHistorySource = 'movements' | 'changes' | 'syncs'
+
+/**
+ * Observability port for the complete-history partial success: when a source
+ * degrades, the failure is reported here (wired to the redacted logger) instead
+ * of vanishing into a silent catch. It never reaches the HTTP response.
+ */
+export interface ClassHistoryDegradationReporter {
+  report(source: ClassHistorySource, error: unknown): void
+}
+
 export interface ClassHistoryEntry {
   type: 'STUDENT_MOVEMENT' | 'USER_CHANGE' | 'SYNC'
   date: Date
@@ -156,6 +167,7 @@ export class ClassHistoryService {
   constructor(
     private readonly reader: ClassHistoryReader,
     private readonly clock: Clock,
+    private readonly degradation: ClassHistoryDegradationReporter,
   ) {}
 
   async listHistory(filters: HistoryFilters): Promise<{ history: HistoryRecord[]; total: number; filters: HistoryFilters; timestamp: string }> {
@@ -202,7 +214,7 @@ export class ClassHistoryService {
       try {
         const movements = await this.reader.listMovements(classId, limit, offset)
         for (const mov of movements) history.push(movementEntry(mov))
-      } catch { /* legacy: absorb a failing source and keep the rest */ }
+      } catch (error) { this.degradation.report('movements', error) }
     }
 
     if (!type || type === 'changes') {
@@ -213,14 +225,14 @@ export class ClassHistoryService {
           const changes = await this.reader.listUserChanges(studentIds, limit, offset)
           for (const change of changes) history.push(changeEntry(change))
         }
-      } catch { /* legacy: absorb a failing source and keep the rest */ }
+      } catch (error) { this.degradation.report('changes', error) }
     }
 
     if (!type || type === 'syncs') {
       try {
         const syncs = await this.reader.listSyncs(classId)
         for (const sync of syncs) history.push(syncEntry(sync))
-      } catch { /* legacy: absorb a failing source and keep the rest */ }
+      } catch (error) { this.degradation.report('syncs', error) }
     }
 
     history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
