@@ -3,12 +3,12 @@ import { classesController } from '../controllers/classes.controller'
 import { getClassCompleteHistory, getClassHistory, getStudentHistoryByDiscord, getStudentHistoryByEmail } from '../services/classes/classHistory.runtime'
 import { getStudentsByClass, searchStudents } from '../services/classes/classRoster.runtime'
 import { listClasses, listClassesSimple } from '../services/classes/classDirectory.runtime'
+import { fetchClassData, fetchClassDataPost, getClassDetails, getClassStats } from '../services/classes/classDetails.runtime'
 import { classesDeleteInput } from '../security/classesDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
 
-// 🆕 NOVA ROTA SIMPLES - GET /api/classes - Lista todas as turmas (para o frontend StudentEditor)
 // ⚠️ IMPORTANTE: Esta rota DEVE estar ANTES de todas as outras rotas específicas
 router.get('/', listClassesSimple)
 
@@ -22,13 +22,13 @@ router.post('/addOrEditClass', classesController.addOrEditClass)
 router.post('/syncHotmartClasses', classesController.syncHotmartClasses)
 
 // GET /api/classes/fetchClassData - Busca dados das turmas
-router.get('/fetchClassData', classesController.fetchClassData)
+router.get('/fetchClassData', fetchClassData)
 
 // POST /api/classes/fetchClassData - Busca dados das turmas (body com classIds array)
-router.post('/fetchClassData', classesController.fetchClassDataPost)
+router.post('/fetchClassData', fetchClassDataPost)
 
 // GET /api/classes/stats - Estatísticas das turmas
-router.get('/stats', classesController.getClassStats)
+router.get('/stats', getClassStats)
 
 // PUT /api/classes/updateStatus - Atualiza status da turma (ativa/inativa) 
 router.put('/updateStatus', classesController.updateClassStatus)
@@ -37,7 +37,7 @@ router.put('/updateStatus', classesController.updateClassStatus)
 router.get('/:classId/students', getStudentsByClass)
 
 // GET /api/classes/:classId/details - Detalhes de uma turma específica
-router.get('/:classId/details', classesController.getClassDetails)
+router.get('/:classId/details', getClassDetails)
 
 // DELETE /api/classes/:classId - Remove uma turma
 router.delete(

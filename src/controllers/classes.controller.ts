@@ -15,10 +15,6 @@ import type { IUser } from '../models/user'
 import UserHistory, { type IUserHistory } from '../models/UserHistory'
 import type { ISyncHistory } from '../models/SyncHistory'
 
-type ClassIdParams = {
-  classId: string
-}
-
 type HotmartStatus = 'ACTIVE' | 'INACTIVE'
 
 interface HotmartClubUser {
@@ -71,13 +67,6 @@ interface InactivationListView {
   executedDate: Date
   performedBy?: string
   platforms: string[]
-}
-
-interface FetchedClassStudent {
-  name?: string
-  email?: string
-  discordIds?: string[]
-  discord?: { discordIds?: string[] }
 }
 
 function errorMessage(error: unknown): string {
@@ -631,121 +620,6 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
 
 
-  fetchClassData = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { classIds, includeStudents = 'false', includeStats = 'true' } = req.query
-
-      const options = {
-        includeStudents: includeStudents === 'true',
-        includeStats: includeStats === 'true'
-      }
-
-      let result
-      if (classIds) {
-        const ids = (classIds as string).split(',').map(id => id.trim())
-        result = await classesService.fetchMultipleClassData(ids, options)
-      } else {
-        result = await classesService.fetchAllClassData(options)
-      }
-
-      res.json({
-        success: true,
-        classes: result,
-        count: result.length,
-        timestamp: new Date().toISOString()
-      })
-    } catch (error) {
-      console.error('❌ Erro ao buscar dados das turmas:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar dados das turmas',
-        error: (error as Error).message
-      })
-    }
-  }
-
-  // 🆕 POST version - Aceita classIds no body (para InactivationWizard)
-  fetchClassDataPost = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { classIds } = req.body
-
-      if (!classIds || !Array.isArray(classIds)) {
-        res.status(400).json({
-          success: false,
-          message: 'classIds é obrigatório e deve ser um array'
-        })
-        return
-      }
-
-      const result = await classesService.fetchMultipleClassData(classIds, {
-        includeStudents: true,
-        includeStats: false
-      })
-
-      // Transformar para o formato esperado pelo Frontend:
-      // [{ className: string, students: [...] }]
-      const formattedResult = result.map((classData) => ({
-        className: classData.name || classData.classId,
-        students: (classData.students || []).map((student: FetchedClassStudent) => ({
-          name: student.name || '',
-          email: student.email || '',
-          discordIds: student.discordIds || student.discord?.discordIds || []
-        }))
-      }))
-
-      res.json(formattedResult) // Array direto com formato específico
-    } catch (error) {
-      console.error('❌ Erro ao buscar dados das turmas (POST):', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar dados das turmas',
-        error: (error as Error).message
-      })
-    }
-  }
-
-  getClassStats = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { dateFrom, dateTo, classIds } = req.query
-
-      const filters = {
-        dateFrom: dateFrom as string,
-        dateTo: dateTo as string,
-        classIds: classIds ? (classIds as string).split(',') : undefined
-      }
-
-      const stats = await classesService.getClassStats(filters)
-
-      // Estatísticas de inativação. Havia dois modelos registados com o nome
-      // 'InactivationList': o de models/Class.ts apontava para a colecção
-      // 'inactivation_lists', que está vazia, e era esse que estava aqui — daí
-      // o "0 concluídas · 0 pendentes" no Backoffice. Quem grava é o de
-      // models/InactivationList.ts, na colecção 'inactivationlists'.
-      const { default: InactivationList } = await import('../models/InactivationList')
-      const [pendingLists, completedLists] = await Promise.all([
-        InactivationList.countDocuments({ status: { $in: ['PENDING', 'EXECUTING'] } }),
-        InactivationList.countDocuments({ status: 'COMPLETED' })
-      ])
-
-      res.json({
-        success: true,
-        ...stats,
-        inactivationStats: {
-          pendingLists,
-          completedLists
-        },
-        timestamp: new Date().toISOString()
-      })
-    } catch (error) {
-      console.error('❌ Erro ao buscar estatísticas:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar estatísticas',
-        error: (error as Error).message
-      })
-    }
-  }
-
   deleteClass = async (input: ClassesDeleteInput, res: Response): Promise<void> => {
     try {
       const { classId } = input.params
@@ -784,43 +658,6 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
     }
   }
 
-  getClassDetails = async (
-    req: Request<ClassIdParams>,
-    res: Response,
-  ): Promise<void> => {
-    try {
-      const { classId } = req.params
-      const { includeStudents = 'false', includeHistory = 'false' } = req.query
-
-      const options = {
-        includeStudents: includeStudents === 'true',
-        includeHistory: includeHistory === 'true'
-      }
-
-      const details = await classesService.getClassDetails(classId, options)
-
-      if (!details) {
-        res.status(404).json({
-          success: false,
-          message: 'Turma não encontrada'
-        })
-        return
-      }
-
-      res.json({
-        success: true,
-        ...details,
-        timestamp: new Date().toISOString()
-      })
-    } catch (error) {
-      console.error('❌ Erro ao buscar detalhes da turma:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar detalhes da turma',
-        error: (error as Error).message
-      })
-    }
-  }
   // ===== MOVIMENTAÇÃO DE ESTUDANTES =====
 
   moveStudent = async (req: Request, res: Response): Promise<void> => {
