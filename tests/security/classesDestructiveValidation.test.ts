@@ -34,7 +34,6 @@ jest.mock('../../src/controllers/classes.controller', () => ({
     searchStudents: noop,
     syncComplete: noop,
   },
-  bulkInactivateStudents: noop,
 }))
 
 import classesRouter from '../../src/routes/classes.routes'
