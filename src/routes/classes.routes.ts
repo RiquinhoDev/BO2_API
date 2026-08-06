@@ -1,6 +1,6 @@
 // src/routes/classes.routes.ts - SIMPLIFICADO sem validação
 import { Router } from 'express'
-import { classesController, bulkInactivateStudents } from '../controllers/classes.controller'
+import { classesController } from '../controllers/classes.controller'
 import { classesDeleteInput } from '../security/classesDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 

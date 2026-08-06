@@ -189,7 +189,6 @@ const BASELINE = {
     "src/controllers/classes.controller.ts:2050",
     "src/controllers/classes.controller.ts:222",
     "src/controllers/classes.controller.ts:2375",
-    "src/controllers/classes.controller.ts:2443",
     "src/controllers/classes.controller.ts:268",
     "src/controllers/classes.controller.ts:317",
     "src/controllers/classes.controller.ts:549",
