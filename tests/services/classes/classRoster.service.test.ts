@@ -1,6 +1,7 @@
 import {
   ClassRosterService,
   escapeRegex,
+  resolveSortPath,
   sanitizeLimit,
   sanitizeOffset,
   sanitizeSortBy,
@@ -52,6 +53,24 @@ describe('classRoster sanitizers', () => {
   })
 })
 
+describe('classRoster sort field mapping', () => {
+  it('maps each public key to its real Mongo path', () => {
+    expect(resolveSortPath('name', false)).toBe('name')
+    expect(resolveSortPath('email', false)).toBe('email')
+    expect(resolveSortPath('createdAt', false)).toBe('metadata.createdAt')
+    expect(resolveSortPath('status', false)).toBe('combined.status')
+  })
+
+  it('resolves joinedAt differently for CursEduca and Hotmart', () => {
+    expect(resolveSortPath('joinedAt', true)).toBe('curseduca.joinedDate')
+    expect(resolveSortPath('joinedAt', false)).toBe('hotmart.purchaseDate')
+  })
+
+  it('falls back an unknown key to name', () => {
+    expect(resolveSortPath('$where', false)).toBe('name')
+  })
+})
+
 describe('ClassRosterService', () => {
   it('stamps the injected clock exactly on the roster and the search', async () => {
     const service = new ClassRosterService(makeReader(), fixedClock)
@@ -64,11 +83,25 @@ describe('ClassRosterService', () => {
     if (search.kind === 'ok') expect(search.timestamp).toBe('2026-01-02T03:04:05.000Z')
   })
 
-  it('sorts the roster with an _id tiebreak', async () => {
+  it('sorts the roster by the mapped Mongo path with an _id tiebreak', async () => {
     const findStudents = jest.fn(async () => [] as RosterUser[])
     const service = new ClassRosterService(makeReader({ findStudents }), fixedClock)
-    await service.getStudents('C1', { includeInactive: false, limit: 100, offset: 0, sortBy: 'name', sortOrder: 'desc' })
-    expect(findStudents).toHaveBeenCalledWith(expect.anything(), { name: -1, _id: 1 }, 100, 0)
+    await service.getStudents('C1', { includeInactive: false, limit: 100, offset: 0, sortBy: 'createdAt', sortOrder: 'desc' })
+    expect(findStudents).toHaveBeenCalledWith(expect.anything(), { 'metadata.createdAt': -1, _id: 1 }, 100, 0)
+  })
+
+  it('maps joinedAt to the source-specific path', async () => {
+    const hotmartFind = jest.fn(async () => [] as RosterUser[])
+    await new ClassRosterService(makeReader({ findStudents: hotmartFind }), fixedClock)
+      .getStudents('C1', { includeInactive: false, limit: 100, offset: 0, sortBy: 'joinedAt', sortOrder: 'asc' })
+    expect(hotmartFind).toHaveBeenCalledWith(expect.anything(), { 'hotmart.purchaseDate': 1, _id: 1 }, 100, 0)
+
+    const cursFind = jest.fn(async () => [] as RosterUser[])
+    await new ClassRosterService(
+      makeReader({ getClassById: jest.fn(async () => ({ name: 'C', source: 'curseduca_sync' })), findStudents: cursFind }),
+      fixedClock,
+    ).getStudents('C1', { includeInactive: false, limit: 100, offset: 0, sortBy: 'joinedAt', sortOrder: 'asc' })
+    expect(cursFind).toHaveBeenCalledWith(expect.anything(), { 'curseduca.joinedDate': 1, _id: 1 }, 100, 0)
   })
 
   it('resolves class names in a single batch read, not per student (no N+1)', async () => {
