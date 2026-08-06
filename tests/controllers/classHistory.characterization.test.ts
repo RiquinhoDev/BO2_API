@@ -21,7 +21,18 @@ const getStudentHistoryByDiscord = rtByDiscord as unknown as AnyHandler
 const getStudentHistoryByEmail = rtByEmail as unknown as AnyHandler
 const getClassCompleteHistory = rtCompleteHistory as unknown as AnyHandler
 
-type Body = Record<string, any>
+type HistoryItem = { type?: string; dateMoved?: string | Date; [key: string]: unknown }
+type Body = {
+  success?: boolean
+  history?: HistoryItem[]
+  total?: number
+  filters?: Record<string, unknown>
+  student?: { email?: string; [key: string]: unknown }
+  className?: string
+  pagination?: Record<string, unknown>
+  timestamp?: unknown
+  message?: string
+}
 type Captured = { status?: number; body?: Body }
 
 function makeResponse(captured: Captured): Response {
@@ -94,8 +105,8 @@ describe('class history characterization', () => {
       expect(body.success).toBe(true)
       expect(body.total).toBe(2)
       expect(body.history).toHaveLength(2)
-      expect(new Date(body.history[0].dateMoved).getTime())
-        .toBeGreaterThan(new Date(body.history[1].dateMoved).getTime())
+      expect(new Date(body.history![0].dateMoved!).getTime())
+        .toBeGreaterThan(new Date(body.history![1].dateMoved!).getTime())
       expect(body.filters).toMatchObject({ classId: 'C1', limit: 50, offset: 0 })
       expect(typeof body.timestamp).toBe('string')
     })
@@ -130,6 +141,18 @@ describe('class history characterization', () => {
       expect(body.student).toMatchObject({ email: 's1@x.test' })
       expect(body.total).toBe(1)
     })
+
+    it('reports failure through next(HttpError) with STUDENT_HISTORY_BY_DISCORD_FAILED', async () => {
+      jest.spyOn(User, 'findOne').mockImplementation((() => { throw new Error('boom') }) as never)
+      const captured: Captured = {}
+      const next = jest.fn()
+      await getStudentHistoryByDiscord(req({ discordId: 'd-1' }), makeResponse(captured), next as unknown as NextFunction)
+      expect(captured.body).toBeUndefined()
+      const error = next.mock.calls[0]?.[0] as HttpError
+      expect(error).toBeInstanceOf(HttpError)
+      expect(error).toMatchObject({ status: 500, code: 'STUDENT_HISTORY_BY_DISCORD_FAILED' })
+      expect(error.message).not.toContain('boom')
+    })
   })
 
   describe('getStudentHistoryByEmail (GET /studentHistoryByEmail/:email)', () => {
@@ -147,6 +170,18 @@ describe('class history characterization', () => {
       expect(body.success).toBe(true)
       expect(body.student).toMatchObject({ email: 's1@x.test' })
       expect(body.total).toBe(1)
+    })
+
+    it('reports failure through next(HttpError) with STUDENT_HISTORY_BY_EMAIL_FAILED', async () => {
+      jest.spyOn(User, 'findOne').mockImplementation((() => { throw new Error('boom') }) as never)
+      const captured: Captured = {}
+      const next = jest.fn()
+      await getStudentHistoryByEmail(req({ email: 's1@x.test' }), makeResponse(captured), next as unknown as NextFunction)
+      expect(captured.body).toBeUndefined()
+      const error = next.mock.calls[0]?.[0] as HttpError
+      expect(error).toBeInstanceOf(HttpError)
+      expect(error).toMatchObject({ status: 500, code: 'STUDENT_HISTORY_BY_EMAIL_FAILED' })
+      expect(error.message).not.toContain('boom')
     })
   })
 
@@ -182,7 +217,7 @@ describe('class history characterization', () => {
       const body = captured.body as Body
       expect(body.success).toBe(true)
       expect(body.className).toBe('Turma 1')
-      expect(body.history.map((h: Body) => h.type)).toEqual(['SYNC', 'USER_CHANGE', 'STUDENT_MOVEMENT'])
+      expect(body.history!.map(h => h.type)).toEqual(['SYNC', 'USER_CHANGE', 'STUDENT_MOVEMENT'])
       expect(body.total).toBe(3)
       expect(typeof body.timestamp).toBe('string')
     })
@@ -194,7 +229,7 @@ describe('class history characterization', () => {
       await getClassCompleteHistory(req({ classId: 'C1' }), makeResponse(captured))
       const body = captured.body as Body
       expect(body.success).toBe(true)
-      expect(body.history.map((h: Body) => h.type)).toEqual(['SYNC', 'USER_CHANGE'])
+      expect(body.history!.map(h => h.type)).toEqual(['SYNC', 'USER_CHANGE'])
       expect(body.total).toBe(2)
     })
 
@@ -206,6 +241,18 @@ describe('class history characterization', () => {
       const body = captured.body as Body
       expect(body.history).toHaveLength(1)
       expect(body.pagination).toMatchObject({ limit: 1, offset: 0 })
+    })
+
+    it('reports failure through next(HttpError) with CLASS_COMPLETE_HISTORY_FAILED', async () => {
+      jest.spyOn(Class, 'findOne').mockImplementation((() => { throw new Error('boom') }) as never)
+      const captured: Captured = {}
+      const next = jest.fn()
+      await getClassCompleteHistory(req({ classId: 'C1' }), makeResponse(captured), next as unknown as NextFunction)
+      expect(captured.body).toBeUndefined()
+      const error = next.mock.calls[0]?.[0] as HttpError
+      expect(error).toBeInstanceOf(HttpError)
+      expect(error).toMatchObject({ status: 500, code: 'CLASS_COMPLETE_HISTORY_FAILED' })
+      expect(error.message).not.toContain('boom')
     })
   })
 })
