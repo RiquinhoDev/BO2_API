@@ -46,7 +46,7 @@ export class MongooseClassRosterReader implements ClassRosterReader {
     return User.find(query)
       .limit(limit)
       .skip(offset)
-      .sort({ name: 1 })
+      .sort({ name: 1, _id: 1 })
       .lean() as unknown as Promise<RosterUser[]>
   }
 
@@ -54,8 +54,16 @@ export class MongooseClassRosterReader implements ClassRosterReader {
     return User.countDocuments(query)
   }
 
-  async resolveClassName(classId: string): Promise<string | null> {
-    const cls = await Class.findOne({ classId }, { name: 1 }).lean<{ name?: string } | null>()
-    return cls?.name ?? null
+  async resolveClassNames(classIds: string[]): Promise<Map<string, string>> {
+    if (classIds.length === 0) return new Map()
+    const classes = await Class.find(
+      { classId: { $in: classIds } },
+      { classId: 1, name: 1 },
+    ).lean<Array<{ classId?: string; name?: string }>>()
+    const byId = new Map<string, string>()
+    for (const cls of classes) {
+      if (cls.classId && cls.name) byId.set(cls.classId, cls.name)
+    }
+    return byId
   }
 }

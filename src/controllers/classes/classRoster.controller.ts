@@ -1,6 +1,11 @@
 import type { RequestHandler } from 'express'
 import { HttpError } from '../../security/errorHandling'
-import type { ClassRosterService } from '../../services/classes/classRoster.service'
+import {
+  sanitizeLimit,
+  sanitizeOffset,
+  sanitizeSortBy,
+  type ClassRosterService,
+} from '../../services/classes/classRoster.service'
 
 type Service = Pick<ClassRosterService, 'getStudents' | 'search'>
 
@@ -11,9 +16,9 @@ export function createGetStudentsByClassController(service: Service): RequestHan
     try {
       const { classId } = req.params
       const includeInactive = (req.query.includeInactive ?? 'false') === 'true'
-      const limit = num(req.query.limit, 100)
-      const offset = num(req.query.offset, 0)
-      const sortBy = (req.query.sortBy ?? 'name') as string
+      const limit = sanitizeLimit(num(req.query.limit, 100), 100)
+      const offset = sanitizeOffset(num(req.query.offset, 0))
+      const sortBy = sanitizeSortBy((req.query.sortBy ?? 'name') as string)
       const sortOrder = (req.query.sortOrder ?? 'asc') as string
 
       const result = await service.getStudents(classId, { includeInactive, limit, offset, sortBy, sortOrder })
@@ -57,8 +62,8 @@ export function createSearchStudentsController(service: Service): RequestHandler
         discordId: discordId as string,
         classId: classId as string,
         status: status as string,
-        limit: num(req.query.limit, 50),
-        offset: num(req.query.offset, 0),
+        limit: sanitizeLimit(num(req.query.limit, 50), 50),
+        offset: sanitizeOffset(num(req.query.offset, 0)),
       })
 
       if (result.kind === 'no_criteria') {
