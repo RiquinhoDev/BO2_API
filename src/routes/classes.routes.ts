@@ -1,6 +1,6 @@
-// src/routes/classes.routes.ts - SIMPLIFICADO sem validação
 import { Router } from 'express'
 import { classesController } from '../controllers/classes.controller'
+import { getClassCompleteHistory, getClassHistory, getStudentHistoryByDiscord, getStudentHistoryByEmail } from '../services/classes/classHistory.runtime'
 import { classesDeleteInput } from '../security/classesDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 
@@ -57,19 +57,19 @@ router.post('/moveMultipleStudents', classesController.moveMultipleStudents)
 // ===== HISTÓRICO E TRACKING =====
 
 // GET /api/classes/:classId/complete-history - Histórico completo da turma (NOVO)
-router.get('/:classId/complete-history', classesController.getClassCompleteHistory)
+router.get('/:classId/complete-history', getClassCompleteHistory)
 
 // GET /api/classes/history - Histórico geral de turmas
-router.get('/history', classesController.getClassHistory)
+router.get('/history', getClassHistory)
 
 // POST /api/classes/checkAndUpdateClassHistory - Verifica e atualiza histórico
 router.post('/checkAndUpdateClassHistory', classesController.checkAndUpdateClassHistory)
 
 // GET /api/classes/studentHistory/:discordId - Histórico de um aluno por Discord ID
-router.get('/studentHistory/:discordId', classesController.getStudentHistoryByDiscord)
+router.get('/studentHistory/:discordId', getStudentHistoryByDiscord)
 
 // GET /api/classes/studentHistoryByEmail/:email - Histórico por email
-router.get('/studentHistoryByEmail/:email', classesController.getStudentHistoryByEmail)
+router.get('/studentHistoryByEmail/:email', getStudentHistoryByEmail)
 
 // ===== LISTAS DE INATIVAÇÃO =====
 

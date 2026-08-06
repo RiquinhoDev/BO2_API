@@ -1,20 +1,25 @@
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
-import { classesController } from '../../src/controllers/classes.controller'
+import { HttpError } from '../../src/security/errorHandling'
+import {
+  getClassCompleteHistory as rtCompleteHistory,
+  getClassHistory as rtClassHistory,
+  getStudentHistoryByDiscord as rtByDiscord,
+  getStudentHistoryByEmail as rtByEmail,
+} from '../../src/services/classes/classHistory.runtime'
 import { Class } from '../../src/models/Class'
 import { User } from '../../src/models'
 import StudentClassHistory from '../../src/models/StudentClassHistory'
 import UserHistory from '../../src/models/UserHistory'
 import SyncHistory from '../../src/models/SyncHistory'
 
-type AnyHandler = (req: Request, res: Response) => Promise<void>
-const cc = classesController as unknown as Record<string, AnyHandler>
-const getClassHistory = cc.getClassHistory
-const getStudentHistoryByDiscord = cc.getStudentHistoryByDiscord
-const getStudentHistoryByEmail = cc.getStudentHistoryByEmail
-const getClassCompleteHistory = cc.getClassCompleteHistory
+type AnyHandler = (req: Request, res: Response, next?: NextFunction) => Promise<void>
+const getClassHistory = rtClassHistory as unknown as AnyHandler
+const getStudentHistoryByDiscord = rtByDiscord as unknown as AnyHandler
+const getStudentHistoryByEmail = rtByEmail as unknown as AnyHandler
+const getClassCompleteHistory = rtCompleteHistory as unknown as AnyHandler
 
 type Body = Record<string, any>
 type Captured = { status?: number; body?: Body }
@@ -95,12 +100,16 @@ describe('class history characterization', () => {
       expect(typeof body.timestamp).toBe('string')
     })
 
-    it('answers failures with a local 500 envelope', async () => {
+    it('reports failure through next(HttpError) with CLASS_HISTORY_FAILED', async () => {
       jest.spyOn(StudentClassHistory, 'countDocuments').mockImplementation((() => { throw new Error('boom') }) as never)
       const captured: Captured = {}
-      await getClassHistory(req({}, {}), makeResponse(captured))
-      expect(captured.status).toBe(500)
-      expect(captured.body).toMatchObject({ success: false, message: 'Erro ao buscar histórico' })
+      const next = jest.fn()
+      await getClassHistory(req({}, {}), makeResponse(captured), next as unknown as NextFunction)
+      expect(captured.body).toBeUndefined()
+      const error = next.mock.calls[0]?.[0] as HttpError
+      expect(error).toBeInstanceOf(HttpError)
+      expect(error).toMatchObject({ status: 500, code: 'CLASS_HISTORY_FAILED' })
+      expect(error.message).not.toContain('boom')
     })
   })
 
