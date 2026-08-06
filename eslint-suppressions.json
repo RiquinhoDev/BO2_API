@@ -57,7 +57,7 @@
       "count": 3
     },
     "no-console": {
-      "count": 82
+      "count": 76
     },
     "prefer-const": {
       "count": 5
@@ -1106,16 +1106,13 @@
   },
   "src/services/syncUtilizadoresServices/hotmartServices/classesService.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 11
+      "count": 9
     },
     "@typescript-eslint/no-unused-vars": {
-      "count": 3
+      "count": 2
     },
     "no-console": {
-      "count": 20
-    },
-    "no-useless-assignment": {
-      "count": 1
+      "count": 16
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts": {

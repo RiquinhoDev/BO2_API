@@ -2,14 +2,14 @@ import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
-import { classesController } from '../../src/controllers/classes.controller'
+import { HttpError } from '../../src/security/errorHandling'
+import { listClasses as rtListClasses, listClassesSimple as rtSimple } from '../../src/services/classes/classDirectory.runtime'
 import { Class } from '../../src/models/Class'
 import { User } from '../../src/models'
 
 type AnyHandler = (req: Request, res: Response, next?: NextFunction) => Promise<void>
-const cc = classesController as unknown as Record<string, AnyHandler>
-const listClassesSimple = cc.listClassesSimple
-const listClasses = cc.listClasses
+const listClassesSimple = rtSimple as unknown as AnyHandler
+const listClasses = rtListClasses as unknown as AnyHandler
 
 type SimpleClass = { classId?: unknown; name?: string; isActive?: boolean; estado?: string; studentCount?: number; description?: string }
 type ListBody = {
@@ -64,11 +64,11 @@ beforeEach(async () => {
     { classId: 'Z', source: 'manual', isActive: true, code: 'Z' },
   ])
   await User.collection.insertMany([
-    { _id: oid(1), classId: 'B', status: 'ACTIVE' },
-    { _id: oid(2), classId: 'B', status: 'ACTIVE' },
-    { _id: oid(3), classId: 'B', status: 'INACTIVE' },
-    { _id: oid(4), curseduca: { groupCurseducaUuid: 'uuid-a' }, combined: { status: 'ACTIVE' } },
-    { _id: oid(5), curseduca: { groupCurseducaUuid: 'uuid-a' }, combined: { status: 'INACTIVE' } },
+    { _id: oid(1), email: 'u1@x.test', classId: 'B', status: 'ACTIVE' },
+    { _id: oid(2), email: 'u2@x.test', classId: 'B', status: 'ACTIVE' },
+    { _id: oid(3), email: 'u3@x.test', classId: 'B', status: 'INACTIVE' },
+    { _id: oid(4), email: 'u4@x.test', curseduca: { groupCurseducaUuid: 'uuid-a' }, combined: { status: 'ACTIVE' } },
+    { _id: oid(5), email: 'u5@x.test', curseduca: { groupCurseducaUuid: 'uuid-a' }, combined: { status: 'INACTIVE' } },
   ])
 })
 
@@ -94,11 +94,16 @@ describe('classDirectory characterization — listClassesSimple (GET /api/classe
     expect(byId(body, 'Z')).toEqual({ classId: 'Z', name: 'Z', isActive: true, estado: 'ativo', studentCount: 0, description: '' })
   })
 
-  it('answers failures with a local 500', async () => {
+  it('reports failure through next(HttpError) with CLASS_DIRECTORY_FAILED', async () => {
     jest.spyOn(Class, 'find').mockImplementation((() => { throw new Error('boom') }) as never)
     const captured: Captured = {}
-    await listClassesSimple(req(), makeResponse(captured))
-    expect(captured.status).toBe(500)
+    const next = jest.fn()
+    await listClassesSimple(req(), makeResponse(captured), next as unknown as NextFunction)
+    expect(captured.body).toBeUndefined()
+    const error = next.mock.calls[0]?.[0] as HttpError
+    expect(error).toBeInstanceOf(HttpError)
+    expect(error).toMatchObject({ status: 500, code: 'CLASS_DIRECTORY_FAILED' })
+    expect(error.message).not.toContain('boom')
   })
 })
 
@@ -140,10 +145,15 @@ describe('classDirectory characterization — listClasses (GET /api/classes/list
     expect((search.body as ListBody).data!.map(c => c.classId)).toEqual(['A'])
   })
 
-  it('answers failures with a local 500', async () => {
+  it('reports failure through next(HttpError) with CLASS_LIST_FAILED', async () => {
     jest.spyOn(Class, 'find').mockImplementation((() => { throw new Error('boom') }) as never)
     const captured: Captured = {}
-    await listClasses(req(), makeResponse(captured))
-    expect(captured.status).toBe(500)
+    const next = jest.fn()
+    await listClasses(req(), makeResponse(captured), next as unknown as NextFunction)
+    expect(captured.body).toBeUndefined()
+    const error = next.mock.calls[0]?.[0] as HttpError
+    expect(error).toBeInstanceOf(HttpError)
+    expect(error).toMatchObject({ status: 500, code: 'CLASS_LIST_FAILED' })
+    expect(error.message).not.toContain('boom')
   })
 })
