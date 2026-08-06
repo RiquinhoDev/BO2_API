@@ -751,7 +751,7 @@
     "path": "/api/classes/fetchClassData",
     "access": "authenticated",
     "consumer": "front",
-    "writes": true,
+    "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/features/inactivation/inactivation.api.ts>; rota em src/routes/classes.routes.ts:28"
   },
