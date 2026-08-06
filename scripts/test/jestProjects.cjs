@@ -7,6 +7,7 @@ const path = require('path')
  */
 const INTEGRATION_TEST_FILES = Object.freeze([
   'tests/controllers/classHistory.characterization.test.ts',
+  'tests/controllers/classRoster.characterization.test.ts',
   'tests/controllers/classesStudentsByClass.controller.test.ts',
   'tests/controllers/guruSubscriptionList.controller.test.ts',
   'tests/controllers/guruWebhookList.controller.test.ts',
