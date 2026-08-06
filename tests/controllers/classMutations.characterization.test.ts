@@ -4,17 +4,12 @@ import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
 import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
-import { classesController } from '../../src/controllers/classes.controller'
+import { addOrEditClass, deleteClass } from '../../src/services/classes/classMutations.runtime'
+import { HttpError } from '../../src/security/errorHandling'
 import { Class } from '../../src/models/Class'
 import { User } from '../../src/models'
 
-type EditHandler = (req: Request, res: Response, next?: NextFunction) => Promise<void>
 type DeleteInput = { params: { classId: string }; query: Record<string, unknown> }
-type DeleteHandler = (input: DeleteInput, res: Response, next?: NextFunction) => Promise<void>
-
-const cc = classesController as unknown as Record<string, unknown>
-const addOrEditClass = cc.addOrEditClass as EditHandler
-const deleteClass = cc.deleteClass as DeleteHandler
 
 type Body = Record<string, unknown>
 type Captured = { status?: number; body?: Body }
@@ -56,16 +51,19 @@ beforeEach(async () => {
   await Promise.all([Class.collection.deleteMany({}), User.collection.deleteMany({})])
 })
 
-describe('classMutations characterization — addOrEditClass (POST /addOrEditClass)', () => {
+describe('classMutations — addOrEditClass (POST /addOrEditClass)', () => {
   it('400s without classId or name', async () => {
     const captured: Captured = {}
-    await addOrEditClass(editReq({ name: 'Only name' }), makeResponse(captured))
+    const next = jest.fn() as unknown as NextFunction
+    await addOrEditClass(editReq({ name: 'Only name' }), makeResponse(captured), next)
     expect(captured.status).toBe(400)
+    expect(next).not.toHaveBeenCalled()
   })
 
   it('creates a new class with isNew true', async () => {
     const captured: Captured = {}
-    await addOrEditClass(editReq({ classId: 'new-class', name: 'New Class' }), makeResponse(captured))
+    const next = jest.fn() as unknown as NextFunction
+    await addOrEditClass(editReq({ classId: 'new-class', name: 'New Class' }), makeResponse(captured), next)
     const body = captured.body as Body
     expect(body.success).toBe(true)
     expect(body.isNew).toBe(true)
@@ -74,9 +72,10 @@ describe('classMutations characterization — addOrEditClass (POST /addOrEditCla
   })
 
   it('edits an existing class without changing its source, with isNew false', async () => {
-    await addOrEditClass(editReq({ classId: 'ex', name: 'Existing', source: 'curseduca_sync' }), makeResponse({}))
+    const noop = jest.fn() as unknown as NextFunction
+    await addOrEditClass(editReq({ classId: 'ex', name: 'Existing', source: 'curseduca_sync' }), makeResponse({}), noop)
     const captured: Captured = {}
-    await addOrEditClass(editReq({ classId: 'ex', name: 'Edited Name', source: 'manual' }), makeResponse(captured))
+    await addOrEditClass(editReq({ classId: 'ex', name: 'Edited Name', source: 'manual' }), makeResponse(captured), noop)
     const body = captured.body as Body
     expect(body.isNew).toBe(false)
     expect(body.message).toBe('Turma atualizada com sucesso')
@@ -85,22 +84,26 @@ describe('classMutations characterization — addOrEditClass (POST /addOrEditCla
     expect(stored?.name).toBe('Edited Name')
   })
 
-  it('rejects an invalid classId and a too-short name with a local 500', async () => {
-    const badId: Captured = {}
-    await addOrEditClass(editReq({ classId: 'bad id!', name: 'Valid Name' }), makeResponse(badId))
-    expect(badId.status).toBe(500)
+  it('routes an invalid classId and a too-short name through the SEC-10 boundary', async () => {
+    const badId = jest.fn()
+    await addOrEditClass(editReq({ classId: 'bad id!', name: 'Valid Name' }), makeResponse({}), badId as unknown as NextFunction)
+    expect((badId.mock.calls[0]?.[0] as HttpError)).toMatchObject({ status: 500, code: 'CLASS_UPSERT_FAILED' })
 
-    const shortName: Captured = {}
-    await addOrEditClass(editReq({ classId: 'okid', name: 'ab' }), makeResponse(shortName))
-    expect(shortName.status).toBe(500)
+    const shortName = jest.fn()
+    await addOrEditClass(editReq({ classId: 'okid', name: 'ab' }), makeResponse({}), shortName as unknown as NextFunction)
+    expect((shortName.mock.calls[0]?.[0] as HttpError)).toMatchObject({ status: 500, code: 'CLASS_UPSERT_FAILED' })
   })
 })
 
-describe('classMutations characterization — deleteClass (DELETE /:classId via withValidatedInput)', () => {
+describe('classMutations — deleteClass (DELETE /:classId via withValidatedInput)', () => {
   const del = (classId: string) => {
     const captured: Captured = {}
-    return deleteClass({ params: { classId }, query: {} }, makeResponse(captured)).then(() => captured)
+    const input: DeleteInput = { params: { classId }, query: {} }
+    const next = jest.fn() as unknown as NextFunction
+    return deleteClass(input, makeResponse(captured), next).then(() => captured)
   }
+  const seedClass = (classId: string, name: string) =>
+    addOrEditClass(editReq({ classId, name }), makeResponse({}), jest.fn() as unknown as NextFunction)
 
   it('is mounted behind the validated wrapper', () => {
     const routes = fs.readFileSync(path.join(process.cwd(), 'src/routes/classes.routes.ts'), 'utf8')
@@ -112,7 +115,7 @@ describe('classMutations characterization — deleteClass (DELETE /:classId via 
   })
 
   it('400s when the class still has active students (source-aware count)', async () => {
-    await addOrEditClass(editReq({ classId: 'full', name: 'Full Class' }), makeResponse({}))
+    await seedClass('full', 'Full Class')
     await User.collection.insertMany([
       { _id: oid(1), email: 'f1@x.test', classId: 'full', status: 'ACTIVE' },
       { _id: oid(2), email: 'f2@x.test', classId: 'full', status: 'ACTIVE' },
@@ -123,7 +126,7 @@ describe('classMutations characterization — deleteClass (DELETE /:classId via 
   })
 
   it('removes an empty class', async () => {
-    await addOrEditClass(editReq({ classId: 'empty', name: 'Empty Class' }), makeResponse({}))
+    await seedClass('empty', 'Empty Class')
     const captured = await del('empty')
     expect(captured.body).toMatchObject({ success: true, message: 'Turma removida com sucesso' })
     expect(await Class.findOne({ classId: 'empty' }).lean()).toBeNull()

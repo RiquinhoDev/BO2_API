@@ -8,30 +8,24 @@ installTestRuntimeConfigHooks()
 const deleteClass = jest.fn((_input, res) => res.status(204).end())
 const noop = jest.fn((_req, res) => res.status(204).end())
 
+// The DELETE /:classId route is served by the classMutations runtime handler,
+// which the validated wrapper invokes as deleteClass(input, res, next).
+jest.mock('../../src/services/classes/classMutations.runtime', () => ({
+  addOrEditClass: noop,
+  deleteClass,
+  upsertClass: jest.fn(),
+}))
+
 jest.mock('../../src/controllers/classes.controller', () => ({
   classesController: {
-    listClassesSimple: noop,
-    listClasses: noop,
-    addOrEditClass: noop,
     syncHotmartClasses: noop,
-    fetchClassData: noop,
-    fetchClassDataPost: noop,
-    getClassStats: noop,
     updateClassStatus: noop,
-    getStudentsByClass: noop,
-    getClassDetails: noop,
-    deleteClass,
     moveStudent: noop,
     moveMultipleStudents: noop,
-    getClassCompleteHistory: noop,
-    getClassHistory: noop,
     checkAndUpdateClassHistory: noop,
-    getStudentHistoryByDiscord: noop,
-    getStudentHistoryByEmail: noop,
     createInactivationList: noop,
     getInactivationLists: noop,
     revertInactivation: noop,
-    searchStudents: noop,
     syncComplete: noop,
   },
 }))
@@ -71,6 +65,7 @@ test('accepts a Hotmart string classId and forwards the DTO', async () => {
       query: {},
       body: {},
     }),
+    expect.anything(),
     expect.anything(),
   )
 })

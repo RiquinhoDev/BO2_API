@@ -57,7 +57,7 @@
       "count": 3
     },
     "no-console": {
-      "count": 72
+      "count": 70
     },
     "prefer-const": {
       "count": 5
@@ -1112,7 +1112,7 @@
       "count": 2
     },
     "no-console": {
-      "count": 9
+      "count": 6
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts": {
