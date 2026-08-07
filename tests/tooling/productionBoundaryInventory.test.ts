@@ -84,7 +84,7 @@ const BASELINE = {
     "src/services/clareza/clarezaRaioxService.ts:356",
     "src/services/clareza/clarezaRaioxService.ts:455",
     "src/services/clareza/clarezaRaioxService.ts:577",
-    "src/services/classes/discordInactivationDelegator.ts:40",
+    "src/services/classes/classInactivation.runtime.ts:17",
     "src/services/courseLessonCatalog.service.ts:124",
     "src/services/courseLessonCatalog.service.ts:126",
     "src/services/courseLessonCatalog.service.ts:127",

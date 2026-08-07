@@ -13,7 +13,8 @@ const clock: Clock = { now: () => new Date() }
 
 const service = new ClassInactivationService(
   new MongooseClassInactivationWriter(),
-  new AxiosDiscordInactivationDelegator(),
+  // Explicit URL, no real-tenant default: unset OLD_API_URL means fail-closed.
+  new AxiosDiscordInactivationDelegator(process.env.OLD_API_URL),
   { upsert: (input) => upsertClass(input) },
   clock,
 )

@@ -36,11 +36,20 @@ function buildOldApiHeaders(scope: string) {
 }
 
 export class AxiosDiscordInactivationDelegator implements DiscordInactivationDelegator {
+  // The base URL is injected explicitly (never defaulted). Discord role removal
+  // is destructive, so with no URL configured the adapter is fail-closed: it
+  // contacts no network and returns 0, keeping the best-effort contract.
+  constructor(private readonly baseUrl: string | undefined) {}
+
   async delegate(classIds: string[], scope: string): Promise<number> {
-    const oldApiUrl = process.env.OLD_API_URL || 'https://api.serriquinho.com'
+    if (!this.baseUrl) {
+      logger.warn('Discord: delegação desativada (OLD_API_URL não configurado)', { scope })
+      return 0
+    }
+
     try {
       const response = await axios.post<DiscordInactivationResponse>(
-        `${oldApiUrl}/classes/inactivationLists/create`,
+        `${this.baseUrl}/classes/inactivationLists/create`,
         { classIds, platforms: ['discord'] },
         { timeout: 120000, headers: buildOldApiHeaders(scope) },
       )
