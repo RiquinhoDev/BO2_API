@@ -40,7 +40,6 @@ export interface MoveManyResult {
 
 export interface StudentMovementWriter {
   moveStudent(input: MoveStudentInput, movedAt: Date): Promise<unknown>
-  moveMultipleStudents(input: MoveMultipleInput, movedAt: Date): Promise<MoveManyResult>
 }
 
 export class StudentMovementService {
@@ -57,8 +56,22 @@ export class StudentMovementService {
   }
 
   async moveMany(input: MoveMultipleInput): Promise<{ results: MoveManyResult; timestamp: string }> {
-    const now = this.clock.now()
-    const results = await this.writer.moveMultipleStudents(input, now)
-    return { results, timestamp: now.toISOString() }
+    const { studentIds, toClassId, reason, performedBy } = input
+
+    // Sequential, best-effort: each student gets its own instant (no shared
+    // batch timestamp), errors are captured per student, and there is no
+    // global rollback of the moves that already succeeded.
+    const results: MoveManyResult = { success: [], errors: [] }
+    for (const studentId of studentIds) {
+      try {
+        const movedAt = this.clock.now()
+        const movement = await this.writer.moveStudent({ studentId, toClassId, reason, performedBy }, movedAt)
+        results.success.push({ studentId, movement })
+      } catch (error) {
+        results.errors.push({ studentId, error: (error as Error).message })
+      }
+    }
+
+    return { results, timestamp: this.clock.now().toISOString() }
   }
 }
