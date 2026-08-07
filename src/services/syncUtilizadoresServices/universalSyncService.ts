@@ -26,6 +26,14 @@ import {
   isCurseducaEnrollmentActive,
 } from './curseducaServices/curseducaMemberships'
 import { getRuntimeConfig } from '../../config/runtimeConfig'
+import {
+  errorMessage,
+  getDocId,
+  mongoErrorCode,
+  normalizeEmail,
+  toDateOrNull,
+  toNumber,
+} from './universalSync/fieldUtils'
 
 // ═══════════════════════════════════════════════════════════
 // TYPE HELPERS
@@ -72,38 +80,6 @@ function debugLog(...args: unknown[]) {
 // HELPERS
 // ═══════════════════════════════════════════════════════════
 
-const normalizeEmail = (email: string) => email.trim().toLowerCase()
-
-const getDocId = (doc: unknown, label: string): string => {
-  const d = doc as { _id?: unknown; id?: unknown }
-  const raw = d?._id ?? d?.id
-
-  if (raw === undefined || raw === null) {
-    throw new Error(`${label} sem _id/id`)
-  }
-
-  return String(raw)
-}
-
-const toDateOrNull = (value: unknown): Date | null => {
-  if (!value) return null
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
-  if (typeof value === 'string' || typeof value === 'number') {
-    const d = new Date(value)
-    return Number.isNaN(d.getTime()) ? null : d
-  }
-  return null
-}
-
-const toNumber = (value: unknown, fallback = 0): number => {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback
-  if (typeof value === 'string') {
-    const n = Number(value)
-    return Number.isFinite(n) ? n : fallback
-  }
-  return fallback
-}
-
 /**
  * `$set` em caminhos irmãos não aplica defaults do schema a `combined.status`.
  * Toda actualização que reconstrói `combined.*` passa por esta guarda para que
@@ -118,13 +94,6 @@ export function garantirCombinedStatus(
     user.combined?.status ?? user.status ?? user.hotmart?.status ?? 'ACTIVE'
 }
 
-const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error)
-
-const mongoErrorCode = (error: unknown): number | undefined => {
-  if (!error || typeof error !== 'object' || !('code' in error)) return undefined
-  return typeof error.code === 'number' ? error.code : undefined
-}
 
 export const buildCanonicalActiveUserStatusUpdate = () => ({
   'combined.status': 'ACTIVE',
