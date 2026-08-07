@@ -8,6 +8,7 @@ const path = require('path')
 const INTEGRATION_TEST_FILES = Object.freeze([
   'tests/controllers/classDetails.characterization.test.ts',
   'tests/controllers/classDirectory.characterization.test.ts',
+  'tests/controllers/classInactivation.characterization.test.ts',
   'tests/controllers/classMutations.characterization.test.ts',
   'tests/controllers/classHistory.characterization.test.ts',
   'tests/controllers/classRoster.characterization.test.ts',
