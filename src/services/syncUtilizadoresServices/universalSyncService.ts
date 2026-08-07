@@ -34,19 +34,13 @@ import {
   toDateOrNull,
   toNumber,
 } from './universalSync/fieldUtils'
+import { productsCache, type LeanProduct } from './universalSync/productsCache'
+
+export { clearProductsCache } from './universalSync/productsCache'
 
 // ═══════════════════════════════════════════════════════════
 // TYPE HELPERS
 // ═══════════════════════════════════════════════════════════
-
-type LeanProduct = {
-  _id: mongoose.Types.ObjectId
-  code: string
-  platform: string
-  curseducaGroupId?: string
-  platformData?: Record<string, unknown>
-  name?: string
-}
 
 type HotmartEnrollment = NonNullable<NonNullable<IUser['hotmart']>['enrolledClasses']>[number]
 type CurseducaEnrollment = NonNullable<NonNullable<IUser['curseduca']>['enrolledClasses']>[number]
@@ -88,61 +82,6 @@ export const buildCanonicalActiveUserStatusUpdate = () => ({
 })
 
 // ═══════════════════════════════════════════════════════════
-// ✅ CACHE GLOBAL DE PRODUTOS (OTIMIZAÇÃO FASE 1)
-// ═══════════════════════════════════════════════════════════
-
-let PRODUCTS_CACHE: Map<string, LeanProduct> | null = null
-let PRODUCTS_CACHE_TIMESTAMP: number = 0
-const CACHE_TTL = 5 * 60 * 1000 // 5 minutos
-
-/**
- * Pre-load produtos no cache (chamado no início do sync)
- */
-async function preloadProductsCache(): Promise<void> {
-  const now = Date.now()
-
-  // Se cache válido, reutilizar
-  if (PRODUCTS_CACHE && (now - PRODUCTS_CACHE_TIMESTAMP) < CACHE_TTL) {
-    debugLog(`✅ [ProductCache] Cache válido (${Math.floor((now - PRODUCTS_CACHE_TIMESTAMP) / 1000)}s)`)
-    return
-  }
-
-  debugLog(`📦 [ProductCache] Carregando produtos...`)
-  const start = Date.now()
-
-  const products = await Product.find({ isActive: true })
-    .select('_id code platform curseducaGroupId platformData name')
-    .lean<LeanProduct[]>()
-
-  PRODUCTS_CACHE = new Map()
-
-  for (const p of products) {
-    // Key: code
-    PRODUCTS_CACHE.set(p.code, p)
-
-    // Key: platform:code
-    PRODUCTS_CACHE.set(`${p.platform}:${p.code}`, p)
-
-    // Key (CursEduca): group_{groupId}
-    if (p.platform === 'curseduca' && p.curseducaGroupId) {
-      PRODUCTS_CACHE.set(`group_${p.curseducaGroupId}`, p)
-    }
-  }
-
-  PRODUCTS_CACHE_TIMESTAMP = now
-
-  debugLog(`✅ [ProductCache] ${products.length} produtos carregados em ${Date.now() - start}ms`)
-}
-
-/**
- * Limpar cache (útil para testes)
- */
-export function clearProductsCache(): void {
-  PRODUCTS_CACHE = null
-  PRODUCTS_CACHE_TIMESTAMP = 0
-}
-
-// ═══════════════════════════════════════════════════════════
 // ✅ NOVO: MAPEAMENTO DINÂMICO DE PRODUTOS (COM CACHE!)
 // ═══════════════════════════════════════════════════════════
 
@@ -156,14 +95,14 @@ async function determineProductId(
 ): Promise<mongoose.Types.ObjectId | null> {
 
   // ✅ Usar cache se disponível
-  const useCache = PRODUCTS_CACHE !== null
+  const useCache = productsCache.isLoaded()
 
   if (syncType === 'hotmart') {
     const productCode = item.productCode || 'OGI_V1'
 
     // Cache lookup
     if (useCache) {
-      const cached = PRODUCTS_CACHE!.get(`hotmart:${productCode}`) || PRODUCTS_CACHE!.get(productCode)
+      const cached = productsCache.get(`hotmart:${productCode}`) || productsCache.get(productCode)
       if (cached) {
         debugLog(`✅ [ProductMapping] Produto Hotmart do cache: ${productCode}`)
         return cached._id
@@ -190,7 +129,7 @@ async function determineProductId(
     if (groupId) {
       // Cache lookup por groupId
       if (useCache) {
-        const cached = PRODUCTS_CACHE!.get(`group_${groupId}`)
+        const cached = productsCache.get(`group_${groupId}`)
         if (cached) {
           debugLog(`✅ [ProductMapping] Produto CursEduca do cache (groupId ${groupId}): ${cached.code}`)
           return cached._id
@@ -220,7 +159,7 @@ async function determineProductId(
       if (productCode) {
         // Cache lookup
         if (useCache) {
-          const cached = PRODUCTS_CACHE!.get(productCode)
+          const cached = productsCache.get(productCode)
           if (cached) {
             debugLog(`✅ [ProductMapping] Produto do cache (subscriptionType): ${productCode}`)
             return cached._id
@@ -259,7 +198,7 @@ async function determineProductId(
 
     // 4ª tentativa: default
     if (useCache) {
-      const allCurseduca = Array.from(PRODUCTS_CACHE!.values()).find(p => p.platform === 'curseduca')
+      const allCurseduca = Array.from(productsCache.values()).find(p => p.platform === 'curseduca')
       if (allCurseduca) {
         console.warn(`⚠️ [ProductMapping] Usando produto default CursEDuca: ${allCurseduca.code} (groupId: ${groupId})`)
         return allCurseduca._id
@@ -283,8 +222,8 @@ async function determineProductId(
   if (syncType === 'discord') {
     // Cache lookup
     if (useCache) {
-      const cached = PRODUCTS_CACHE!.get('DISCORD_COMMUNITY') ||
-                     Array.from(PRODUCTS_CACHE!.values()).find(p => p.platform === 'discord')
+      const cached = productsCache.get('DISCORD_COMMUNITY') ||
+                     Array.from(productsCache.values()).find(p => p.platform === 'discord')
       if (cached) {
         debugLog(`✅ [ProductMapping] Produto Discord do cache: ${cached.code}`)
         return cached._id
@@ -343,7 +282,8 @@ export const executeUniversalSync = async (
 
   try {
     // ✅ OTIMIZAÇÃO FASE 1: Pre-load cache de produtos
-    await preloadProductsCache()
+    debugLog('📦 [ProductCache] Carregando produtos...')
+    await productsCache.preload()
 
     // 🆕 Limpar lista de expirados (para sync Hotmart)
     if (config.syncType === 'hotmart') {
