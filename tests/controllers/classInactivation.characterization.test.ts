@@ -1,29 +1,20 @@
-// The Discord delegation posts to the old API over the network; mock axios so
-// the whole suite stays offline. The extraction replaces this with an injected
-// port, at which point tests will mock the port instead of global axios.
-jest.mock('axios', () => ({
-  __esModule: true,
-  default: {
-    post: jest.fn().mockRejectedValue(new Error('offline: discord delegation not called in tests')),
-    isAxiosError: () => false,
-  },
-}))
-
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, RequestHandler, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
-import { classesController } from '../../src/controllers/classes.controller'
+import {
+  createCreateInactivationListController,
+  createGetInactivationListsController,
+  createRevertInactivationController,
+  createUpdateClassStatusController,
+} from '../../src/controllers/classes/classInactivation.controller'
+import { ClassInactivationService, type Clock } from '../../src/services/classes/classInactivation.service'
+import { MongooseClassInactivationWriter } from '../../src/services/classes/mongooseClassInactivation.writer'
+import { upsertClass } from '../../src/services/classes/classMutations.runtime'
+import { HttpError } from '../../src/security/errorHandling'
 import { Class } from '../../src/models/Class'
 import { User, UserProduct } from '../../src/models'
 import UserHistory from '../../src/models/UserHistory'
-
-type Handler = (req: Request, res: Response) => Promise<void>
-const cc = classesController as unknown as Record<string, Handler>
-const createInactivationList = cc.createInactivationList
-const getInactivationLists = cc.getInactivationLists
-const revertInactivation = cc.revertInactivation
-const updateClassStatus = cc.updateClassStatus
 
 type Body = Record<string, unknown>
 type Captured = { status?: number; body?: Body }
@@ -47,7 +38,29 @@ const withParams = (params: Record<string, unknown>, body: Record<string, unknow
   ({ params, body, query: {} } as unknown as Request)
 const withQuery = (query: Record<string, unknown>): Request => ({ query, body: {}, params: {} } as unknown as Request)
 const oid = (n: number) => new mongoose.Types.ObjectId(n.toString(16).padStart(24, '0'))
+const noNext = jest.fn() as unknown as NextFunction
 
+// Injected Discord port — the real axios adapter is never constructed, so the
+// suite touches no network. The runtime is what wires the axios adapter.
+const discord = { delegate: jest.fn().mockResolvedValue(0) }
+const fixedClock: Clock = { now: () => new Date('2026-02-03T04:05:06.000Z') }
+
+function buildControllers() {
+  const service = new ClassInactivationService(
+    new MongooseClassInactivationWriter(),
+    discord,
+    { upsert: (input) => upsertClass(input) },
+    fixedClock,
+  )
+  return {
+    createInactivationList: createCreateInactivationListController(service),
+    getInactivationLists: createGetInactivationListsController(service),
+    revertInactivation: createRevertInactivationController(service),
+    updateClassStatus: createUpdateClassStatusController(service),
+  }
+}
+
+let controllers: ReturnType<typeof buildControllers>
 let mongoServer: MongoMemoryServer
 
 beforeAll(async () => {
@@ -57,6 +70,7 @@ beforeAll(async () => {
     instance: { dbName: 'class_inactivation_test' },
   })
   await mongoose.connect(assertSafeTestMongoUri(mongoServer.getUri('class_inactivation_test')))
+  controllers = buildControllers()
 })
 
 afterAll(async () => {
@@ -86,38 +100,35 @@ async function seedClass(classId: string, name: string, isActive = true) {
 }
 
 async function seedActiveStudent(id: number, email: string, classId: string) {
-  await User.collection.insertOne({
-    _id: oid(id),
-    email,
-    name: email,
-    classId,
-    combined: { status: 'ACTIVE' },
-  })
+  await User.collection.insertOne({ _id: oid(id), email, name: email, classId, combined: { status: 'ACTIVE' } })
 }
 
 describe('classInactivation characterization — createInactivationList', () => {
   it('400s without a classIds array', async () => {
     const captured: Captured = {}
-    await createInactivationList(withBody({ name: 'X' }), makeResponse(captured))
+    await controllers.createInactivationList(withBody({ name: 'X' }), makeResponse(captured), noNext)
     expect(captured.status).toBe(400)
   })
 
-  it('inactivates the class students and marks the class inactive', async () => {
+  it('inactivates the class students, marks the class inactive, and delegates Discord', async () => {
     await seedClass('c1', 'Class One')
     await seedActiveStudent(1, 's1@x.test', 'c1')
 
     const captured: Captured = {}
-    await createInactivationList(withBody({ classIds: ['c1'], userId: 'tester' }), makeResponse(captured))
+    await controllers.createInactivationList(withBody({ classIds: ['c1'], userId: 'tester' }), makeResponse(captured), noNext)
 
     const body = captured.body as Body
     expect(body.success).toBe(true)
     expect(body.message).toBe('Lista de inativação criada e turmas atualizadas')
     expect((body.list as Body).totalInactivated).toBe(1)
     expect((body.classUpdates as Body).successful).toBe(1)
+    expect(body.timestamp).toBe('2026-02-03T04:05:06.000Z')
+
+    // The injected Discord port is used with the bulk scope — no network.
+    expect(discord.delegate).toHaveBeenCalledWith(['c1'], 'discord-inactivation-bulk')
 
     const student = await User.findById(oid(1)).lean() as { combined?: { status?: string } } | null
     expect(student?.combined?.status).toBe('INACTIVE')
-
     const cls = await Class.findOne({ classId: 'c1' }).lean()
     expect(cls?.isActive).toBe(false)
     expect(cls?.estado).toBe('inativo')
@@ -131,7 +142,7 @@ describe('classInactivation characterization — getInactivationLists', () => {
     await UserHistory.createInactivationHistory(oid(1), 's1@x.test', ['all'], 'reason', 'tester')
 
     const captured: Captured = {}
-    await getInactivationLists(withQuery({}), makeResponse(captured))
+    await controllers.getInactivationLists(withQuery({}), makeResponse(captured), noNext)
 
     const body = captured.body as Body
     expect(body.success).toBe(true)
@@ -143,29 +154,23 @@ describe('classInactivation characterization — getInactivationLists', () => {
 describe('classInactivation characterization — revertInactivation', () => {
   it('400s without an id', async () => {
     const captured: Captured = {}
-    await revertInactivation(withParams({}), makeResponse(captured))
+    await controllers.revertInactivation(withParams({}), makeResponse(captured), noNext)
     expect(captured.status).toBe(400)
   })
 
   it('404s when the inactivation record is missing', async () => {
     const captured: Captured = {}
-    await revertInactivation(withParams({ id: oid(999).toString() }), makeResponse(captured))
+    await controllers.revertInactivation(withParams({ id: oid(999).toString() }), makeResponse(captured), noNext)
     expect(captured.status).toBe(404)
   })
 
   it('reactivates the user and logs a STATUS_CHANGE history', async () => {
-    await User.collection.insertOne({
-      _id: oid(1),
-      email: 's1@x.test',
-      name: 's1',
-      classId: 'c1',
-      combined: { status: 'INACTIVE' },
-    })
+    await User.collection.insertOne({ _id: oid(1), email: 's1@x.test', name: 's1', classId: 'c1', combined: { status: 'INACTIVE' } })
     const record = await UserHistory.createInactivationHistory(oid(1), 's1@x.test', ['all'], 'reason', 'tester')
     const recordId = (record as unknown as { _id: mongoose.Types.ObjectId })._id.toString()
 
     const captured: Captured = {}
-    await revertInactivation(withParams({ id: recordId }, { userId: 'tester' }), makeResponse(captured))
+    await controllers.revertInactivation(withParams({ id: recordId }, { userId: 'tester' }), makeResponse(captured), noNext)
 
     expect((captured.body as Body).success).toBe(true)
     const user = await User.findById(oid(1)).lean() as { combined?: { status?: string } } | null
@@ -177,27 +182,28 @@ describe('classInactivation characterization — revertInactivation', () => {
 describe('classInactivation characterization — updateClassStatus', () => {
   it('400s without classId or a boolean isActive', async () => {
     const captured: Captured = {}
-    await updateClassStatus(withBody({ classId: 'c1' }), makeResponse(captured))
+    await controllers.updateClassStatus(withBody({ classId: 'c1' }), makeResponse(captured), noNext)
     expect(captured.status).toBe(400)
   })
 
   it('404s when the class is missing', async () => {
     const captured: Captured = {}
-    await updateClassStatus(withBody({ classId: 'ghost', isActive: false }), makeResponse(captured))
+    await controllers.updateClassStatus(withBody({ classId: 'ghost', isActive: false }), makeResponse(captured), noNext)
     expect(captured.status).toBe(404)
   })
 
-  it('deactivating a class inactivates its active students', async () => {
+  it('deactivating inactivates active students and delegates Discord once', async () => {
     await seedClass('c1', 'Class One', true)
     await seedActiveStudent(1, 's1@x.test', 'c1')
 
     const captured: Captured = {}
-    await updateClassStatus(withBody({ classId: 'c1', isActive: false }), makeResponse(captured))
+    await controllers.updateClassStatus(withBody({ classId: 'c1', isActive: false }), makeResponse(captured), noNext)
 
     const body = captured.body as Body
     expect(body.success).toBe(true)
     expect(body.action).toBe('deactivated')
     expect(body.message).toContain('Turma inativada com sucesso')
+    expect(discord.delegate).toHaveBeenCalledWith(['c1'], 'discord-inactivation-single')
 
     const student = await User.findById(oid(1)).lean() as { combined?: { status?: string } } | null
     expect(student?.combined?.status).toBe('INACTIVE')
@@ -205,7 +211,7 @@ describe('classInactivation characterization — updateClassStatus', () => {
     expect(cls?.isActive).toBe(false)
   })
 
-  it('reactivating a class restores its manually-inactivated students', async () => {
+  it('reactivating restores manually-inactivated students without calling Discord', async () => {
     await seedClass('c1', 'Class One', false)
     await User.collection.insertOne({
       _id: oid(2),
@@ -217,13 +223,41 @@ describe('classInactivation characterization — updateClassStatus', () => {
     })
 
     const captured: Captured = {}
-    await updateClassStatus(withBody({ classId: 'c1', isActive: true }), makeResponse(captured))
+    await controllers.updateClassStatus(withBody({ classId: 'c1', isActive: true }), makeResponse(captured), noNext)
 
     const body = captured.body as Body
     expect(body.action).toBe('reactivated')
     expect(body.message).toContain('Turma ativada com sucesso')
+    expect(discord.delegate).not.toHaveBeenCalled()
 
     const student = await User.findById(oid(2)).lean() as { combined?: { status?: string } } | null
     expect(student?.combined?.status).toBe('ACTIVE')
   })
+})
+
+describe('classInactivation SEC-10 boundaries', () => {
+  const boundary = async (build: (svc: never) => RequestHandler, req: Request, code: string) => {
+    const failing = {
+      async createList() { throw new Error('boom') },
+      async listInactivations() { throw new Error('boom') },
+      async revert() { throw new Error('boom') },
+      async updateStatus() { throw new Error('boom') },
+    }
+    const handler = build(failing as never)
+    const next = jest.fn()
+    await handler(req, makeResponse({}), next as unknown as NextFunction)
+    expect((next.mock.calls[0]?.[0] as HttpError)).toMatchObject({ status: 500, code })
+  }
+
+  it('createInactivationList -> CLASS_INACTIVATION_CREATE_FAILED', () =>
+    boundary(createCreateInactivationListController, withBody({ classIds: ['c1'] }), 'CLASS_INACTIVATION_CREATE_FAILED'))
+
+  it('getInactivationLists -> CLASS_INACTIVATION_LIST_FAILED', () =>
+    boundary(createGetInactivationListsController, withQuery({}), 'CLASS_INACTIVATION_LIST_FAILED'))
+
+  it('revertInactivation -> CLASS_INACTIVATION_REVERT_FAILED', () =>
+    boundary(createRevertInactivationController, withParams({ id: 'x' }), 'CLASS_INACTIVATION_REVERT_FAILED'))
+
+  it('updateClassStatus -> CLASS_UPDATE_STATUS_FAILED', () =>
+    boundary(createUpdateClassStatusController, withBody({ classId: 'c1', isActive: false }), 'CLASS_UPDATE_STATUS_FAILED'))
 })

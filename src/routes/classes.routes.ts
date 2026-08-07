@@ -6,11 +6,11 @@ import { listClasses, listClassesSimple } from '../services/classes/classDirecto
 import { fetchClassData, fetchClassDataPost, getClassDetails, getClassStats } from '../services/classes/classDetails.runtime'
 import { addOrEditClass, deleteClass } from '../services/classes/classMutations.runtime'
 import { moveMultipleStudents, moveStudent } from '../services/classes/studentMovement.runtime'
+import { createInactivationList, getInactivationLists, revertInactivation, updateClassStatus } from '../services/classes/classInactivation.runtime'
 import { classesDeleteInput } from '../security/classesDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 const router = Router()
-// ⚠️ IMPORTANTE: Esta rota DEVE estar ANTES de todas as outras rotas específicas
-router.get('/', listClassesSimple)
+router.get('/', listClassesSimple) // ⚠️ DEVE estar ANTES de todas as outras rotas específicas
 
 // GET /api/classes/listClasses - Lista todas as turmas (rota original)
 router.get('/listClasses', listClasses)
@@ -31,7 +31,7 @@ router.post('/fetchClassData', fetchClassDataPost)
 router.get('/stats', getClassStats)
 
 // PUT /api/classes/updateStatus - Atualiza status da turma (ativa/inativa) 
-router.put('/updateStatus', classesController.updateClassStatus)
+router.put('/updateStatus', updateClassStatus)
 
 // GET /api/classes/:classId/students - Lista estudantes de uma turma específica
 router.get('/:classId/students', getStudentsByClass)
@@ -74,13 +74,13 @@ router.get('/studentHistoryByEmail/:email', getStudentHistoryByEmail)
 // ===== LISTAS DE INATIVAÇÃO =====
 
 // POST /api/classes/inactivationLists/create - Cria lista de inativação por turmas
-router.post('/inactivationLists/create', classesController.createInactivationList)
+router.post('/inactivationLists/create', createInactivationList)
 
 // GET /api/classes/inactivationLists - Lista as listas de inativação
-router.get('/inactivationLists', classesController.getInactivationLists)
+router.get('/inactivationLists', getInactivationLists)
 
 // POST /api/classes/inactivationLists/revert/:id - Reverte inativação
-router.post('/inactivationLists/revert/:id', classesController.revertInactivation)
+router.post('/inactivationLists/revert/:id', revertInactivation)
 
 // GET /api/classes/inactivationLists/:id/students - Alunos da lista, paginados
 router.get('/inactivationLists/:id/students', classesController.getInactivationListStudents)
