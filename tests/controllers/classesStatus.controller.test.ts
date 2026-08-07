@@ -1,4 +1,4 @@
-import { buildClassUserStatusUpdate } from '../../src/controllers/classes.controller'
+import { buildClassUserStatusUpdate } from '../../src/services/classes/classUserStatus'
 
 describe('class status user updates', () => {
   test.each([
