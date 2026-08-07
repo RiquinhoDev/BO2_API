@@ -19,9 +19,8 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000
  * Owns every Mongoose read for class details, migrated verbatim from
  * ClassesService (getClassStats/getClassDetails/getDetailedClassStats/
  * fetchMultipleClassData/fetchAllClassData plus the source/distribution
- * helpers). The class-with-studentCount lookup is replicated here (getClassById
- * stays in classesService for deleteClass); that duplication is removed when
- * classMutations is extracted.
+ * helpers). The class-with-studentCount lookup is owned here directly; the
+ * classMutations vertical keeps its own independent copy for the delete path.
  */
 export class MongooseClassDetailsReader implements ClassDetailsReader {
   async classStats(filters: StatsFilters): Promise<ClassStatsData> {

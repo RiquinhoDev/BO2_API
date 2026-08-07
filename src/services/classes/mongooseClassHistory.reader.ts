@@ -21,7 +21,7 @@ const USER_CHANGE_TYPES = ['EMAIL_CHANGE', 'PLATFORM_UPDATE', 'STATUS_CHANGE', '
 /**
  * Owns every Mongoose read for class history, moved verbatim from the legacy
  * handlers. getClassById migrates only the Class.findOne lookup the complete
- * history needs (no studentCount, no classesService wrapper).
+ * history needs (no studentCount, no wrapper over a shared service).
  */
 export class MongooseClassHistoryReader implements ClassHistoryReader {
   async getClassById(classId: string): Promise<ClassSummary | null> {

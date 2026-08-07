@@ -39,8 +39,8 @@ export interface MoveManyResult {
 }
 
 export interface StudentMovementWriter {
-  moveStudent(input: MoveStudentInput): Promise<unknown>
-  moveMultipleStudents(input: MoveMultipleInput): Promise<MoveManyResult>
+  moveStudent(input: MoveStudentInput, movedAt: Date): Promise<unknown>
+  moveMultipleStudents(input: MoveMultipleInput, movedAt: Date): Promise<MoveManyResult>
 }
 
 export class StudentMovementService {
@@ -50,12 +50,15 @@ export class StudentMovementService {
   ) {}
 
   async moveOne(input: MoveStudentInput): Promise<{ movement: unknown; timestamp: string }> {
-    const movement = await this.writer.moveStudent(input)
-    return { movement, timestamp: this.clock.now().toISOString() }
+    // One instant drives both the persisted dateMoved and the HTTP timestamp.
+    const now = this.clock.now()
+    const movement = await this.writer.moveStudent(input, now)
+    return { movement, timestamp: now.toISOString() }
   }
 
   async moveMany(input: MoveMultipleInput): Promise<{ results: MoveManyResult; timestamp: string }> {
-    const results = await this.writer.moveMultipleStudents(input)
-    return { results, timestamp: this.clock.now().toISOString() }
+    const now = this.clock.now()
+    const results = await this.writer.moveMultipleStudents(input, now)
+    return { results, timestamp: now.toISOString() }
   }
 }

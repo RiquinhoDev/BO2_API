@@ -11,8 +11,8 @@ import type {
   StudentMovementWriter,
 } from './studentMovement.service'
 
-export class MongooseStudentMovementReader implements StudentMovementWriter {
-  async moveStudent(input: MoveStudentInput): Promise<unknown> {
+export class MongooseStudentMovementWriter implements StudentMovementWriter {
+  async moveStudent(input: MoveStudentInput, movedAt: Date): Promise<unknown> {
     const { studentId, toClassId, reason, performedBy } = input
 
     const student = await User.findById(studentId)
@@ -48,7 +48,7 @@ export class MongooseStudentMovementReader implements StudentMovementWriter {
       action: 'MOVE',
       reason: reason || 'Movimentação via API',
       performedBy,
-      dateMoved: new Date(),
+      dateMoved: movedAt,
     })
 
     await historyEntry.save()
@@ -61,14 +61,14 @@ export class MongooseStudentMovementReader implements StudentMovementWriter {
     return historyEntry
   }
 
-  async moveMultipleStudents(input: MoveMultipleInput): Promise<MoveManyResult> {
+  async moveMultipleStudents(input: MoveMultipleInput, movedAt: Date): Promise<MoveManyResult> {
     const { studentIds, toClassId, reason, performedBy } = input
 
     const results: MoveManyResult = { success: [], errors: [] }
 
     for (const studentId of studentIds) {
       try {
-        const movement = await this.moveStudent({ studentId, toClassId, reason, performedBy })
+        const movement = await this.moveStudent({ studentId, toClassId, reason, performedBy }, movedAt)
         results.success.push({ studentId, movement })
       } catch (error) {
         results.errors.push({ studentId, error: (error as Error).message })
