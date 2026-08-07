@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { classesController } from '../controllers/classes.controller'
+import { checkAndUpdateClassHistory, syncComplete, syncHotmartClasses } from '../services/classes/hotmartClassSync.runtime'
 import { getClassCompleteHistory, getClassHistory, getStudentHistoryByDiscord, getStudentHistoryByEmail } from '../services/classes/classHistory.runtime'
 import { getStudentsByClass, searchStudents } from '../services/classes/classRoster.runtime'
 import { listClasses, listClassesSimple } from '../services/classes/classDirectory.runtime'
@@ -19,7 +19,7 @@ router.get('/listClasses', listClasses)
 router.post('/addOrEditClass', addOrEditClass)
 
 // POST /api/classes/syncHotmartClasses - Sincroniza turmas da Hotmart
-router.post('/syncHotmartClasses', classesController.syncHotmartClasses)
+router.post('/syncHotmartClasses', syncHotmartClasses)
 
 // GET /api/classes/fetchClassData - Busca dados das turmas
 router.get('/fetchClassData', fetchClassData)
@@ -63,7 +63,7 @@ router.get('/:classId/complete-history', getClassCompleteHistory)
 router.get('/history', getClassHistory)
 
 // POST /api/classes/checkAndUpdateClassHistory - Verifica e atualiza histórico
-router.post('/checkAndUpdateClassHistory', classesController.checkAndUpdateClassHistory)
+router.post('/checkAndUpdateClassHistory', checkAndUpdateClassHistory)
 
 // GET /api/classes/studentHistory/:discordId - Histórico de um aluno por Discord ID
 router.get('/studentHistory/:discordId', getStudentHistoryByDiscord)
@@ -96,6 +96,6 @@ router.delete('/inactivationLists/:id', classesController.deleteInactivationList
 // GET /api/classes/users/search - Pesquisa estudantes por critérios
 router.get('/users/search', searchStudents)
 
-router.post('/syncComplete', classesController.syncComplete)
+router.post('/syncComplete', syncComplete)
 
 export default router
