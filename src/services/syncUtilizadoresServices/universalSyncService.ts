@@ -41,6 +41,7 @@ import {
 } from './universalSync/hotmartExpiration'
 import { ExpiredStudentsCollector } from './universalSync/expiredStudentsCollector'
 import { calculateEngagementMetricsForUserProduct } from './universalSync/engagement/engagementMetrics'
+import { buildHotmartMutationPlan, hotmartPlanToUpdateFields, type HotmartClassEnrollment } from './universalSync/builders/hotmartMutationPlan'
 
 export { calculateEngagementMetricsForUserProduct } from './universalSync/engagement/engagementMetrics'
 
@@ -52,7 +53,6 @@ const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 // TYPE HELPERS
 // ═══════════════════════════════════════════════════════════
 
-type HotmartEnrollment = NonNullable<NonNullable<IUser['hotmart']>['enrolledClasses']>[number]
 type CurseducaEnrollment = NonNullable<NonNullable<IUser['curseduca']>['enrolledClasses']>[number]
 type CombinedClass = NonNullable<NonNullable<IUser['combined']>['allClasses']>[number]
 
@@ -964,7 +964,7 @@ const processSyncItem = async (
   // PREPARAR UPDATES DO USER
   // ═══════════════════════════════════════════════════════════
   const updateFields: Record<string, unknown> = {}
-  let pendingHotmartClasses: HotmartEnrollment[] | undefined
+  let pendingHotmartClasses: HotmartClassEnrollment[] | undefined
   let pendingCurseducaClasses: CurseducaEnrollment[] | undefined
   let needsUpdate = false
 
@@ -977,225 +977,67 @@ const processSyncItem = async (
   // ✅ HOTMART - VERSÃO COMPLETA (MANTÉM TUDO!)
   // ═══════════════════════════════════════════════════════════
   if (config.syncType === 'hotmart') {
-    // IDs
-    if (item.hotmartUserId) {
-      updateFields['hotmart.hotmartUserId'] = item.hotmartUserId
-      needsUpdate = true
-    }
+    // PREPARE: resolve the real class name (ensureClassExists stays out of the pure builder).
+    const realClassName = item.classId
+      ? await ensureClassExists(item.classId, item.className, 'hotmart')
+      : null
 
-    // ✅ DATAS (TODAS!)
-    const purchaseDate = toDateOrNull(item.purchaseDate)
-    const signupDate = toDateOrNull(item.signupDate)
-    const firstAccessDate = toDateOrNull(item.firstAccessDate)
-    const lastAccessDate = toDateOrNull(item.lastAccessDate)
+    // PURE BUILDER: item + current user state + resolved name -> explicit plan (no I/O).
+    const plan = buildHotmartMutationPlan({
+      item,
+      user: {
+        classId: user.classId,
+        hotmart: { enrolledClasses: user.hotmart?.enrolledClasses },
+        curseduca: { enrolledClasses: user.curseduca?.enrolledClasses },
+      },
+      isNew,
+      realClassName,
+      clock: { now: () => new Date() },
+    })
 
-    if (purchaseDate) {
-      updateFields['hotmart.purchaseDate'] = purchaseDate
-      needsUpdate = true
-    }
-    if (signupDate) {
-      updateFields['hotmart.signupDate'] = signupDate
-      needsUpdate = true
-    }
-    if (firstAccessDate) {
-      updateFields['hotmart.firstAccessDate'] = firstAccessDate
-      needsUpdate = true
-    }
-    if (lastAccessDate) {
-      updateFields['hotmart.lastAccessDate'] = lastAccessDate
-      needsUpdate = true
-    }
+    // EXECUTOR: apply the plan's field changes onto updateFields.
+    Object.assign(updateFields, hotmartPlanToUpdateFields(plan))
+    if (plan.needsUpdate) needsUpdate = true
+    // Expose the pending classes to the post-branch expiration check (shared contract).
+    pendingHotmartClasses = plan.hotmart.enrolledClasses
 
-    if (item.accessCount !== undefined) {
-      const accessCount = toNumber(item.accessCount, 0)
-      updateFields['hotmart.engagement.accessCount'] = accessCount
-      updateFields['hotmart.engagement.engagementScore'] = toNumber(
-        item.engagement?.engagementScore ?? accessCount,
-        0
-      )
-      updateFields['hotmart.engagement.calculatedAt'] = new Date()
-      updateFields['accessCount'] = accessCount
-      needsUpdate = true
-    }
-
-    if (item.engagementLevel) {
-      updateFields['hotmart.engagement.engagementLevel'] = item.engagementLevel
-      updateFields['hotmart.engagement.calculatedAt'] = new Date()
-      needsUpdate = true
-    }
-
-    // Status
-    if (item.plusAccess) {
-      updateFields['hotmart.plusAccess'] = item.plusAccess
-      needsUpdate = true
-    }
-
-    if (lastAccessDate) {
-      updateFields['hotmart.lastAccessDate'] = lastAccessDate
-      needsUpdate = true
-    }
-    // Turmas
-    // Se a Hotmart não devolveu class_id mas o user já tem uma turma ativa registada,
-    // garantir que o root classId está em sync com hotmart.enrolledClasses
-    if (!item.classId) {
-      const existingActiveClass = user.hotmart?.enrolledClasses?.find(c => c.isActive)
-      if (existingActiveClass && user.classId !== existingActiveClass.classId) {
-        updateFields['classId'] = existingActiveClass.classId
-        updateFields['className'] = existingActiveClass.className
-        needsUpdate = true
-      }
-    }
-
-    if (item.classId) {
-      // 🆕 DETECTAR MUDANÇA DE TURMA (CRÍTICO!)
-      const oldClassId = user.hotmart?.enrolledClasses?.[0]?.classId
-      const oldClassName = user.hotmart?.enrolledClasses?.[0]?.className
-      const hasClassChanged = oldClassId && oldClassId !== item.classId
-
-      // Buscar o nome real da BD (pode ter sido editado manualmente)
-      const realClassName = await ensureClassExists(item.classId, item.className, 'hotmart')
-
-      pendingHotmartClasses = [
-        {
-          classId: item.classId,
-          className: realClassName,
-          source: 'hotmart',
-          isActive: true,
-          enrolledAt: purchaseDate || new Date()
-        }
-      ]
-      updateFields['hotmart.enrolledClasses'] = pendingHotmartClasses
-      // Manter root classId sempre em sync com a Hotmart (campo usado por updateClassStatus)
-      updateFields['classId'] = item.classId
-      updateFields['className'] = realClassName
-      needsUpdate = true
-
-      // 🆕 REGISTRAR MUDANÇA DE TURMA OU PRIMEIRA INSCRIÇÃO
-      if (hasClassChanged) {
-        // Mudança de turma
-        try {
-          const StudentClassHistory = (await import('../../models/StudentClassHistory')).default
-          // Gravar o nome REAL, não o que vem da Hotmart.
-          //
-          // A Hotmart devolve item.className vazio em muitas turmas, e isto
-          // caía no fallback `Turma ${classId}` — daí o histórico estar cheio
-          // de entradas como "Turma vROxKGWK7D", que não dizem nada a ninguém.
-          // O nome bom já tinha sido resolvido acima em realClassName (via
-          // ensureClassExists, que devolve o nome da BD, incluindo nomes postos
-          // à mão no Backoffice); só não estava a ser usado aqui.
-          const previousClassNameReal =
-            oldClassName && !/^Turma [A-Za-z0-9]{6,}$/.test(oldClassName)
-              ? oldClassName
-              : (await (Class as any).findOne({ classId: oldClassId }).select('name').lean())?.name || oldClassName
+    // EXECUTOR: class-history side effect (non-fatal), driven by the plan event.
+    if (plan.classHistoryEvent) {
+      const ev = plan.classHistoryEvent
+      try {
+        const StudentClassHistory = (await import('../../models/StudentClassHistory')).default
+        if (ev.type === 'class-changed') {
           await StudentClassHistory.create({
             studentId: user._id,
-            classId: item.classId,
-            className: realClassName,
-            previousClassId: oldClassId,
-            previousClassName: previousClassNameReal,
-            dateMoved: new Date(),
+            classId: ev.classId,
+            className: ev.className,
+            previousClassId: ev.previousClassId,
+            previousClassName: ev.previousClassName,
+            dateMoved: ev.dateMoved,
             reason: 'Mudança detectada no sync Hotmart',
             movedBy: 'Sistema - Sync Automático'
           })
-          console.log(`   📝 [ClassChange] ${user.email}: "${previousClassNameReal}" → "${realClassName}"`)
-        } catch (error: unknown) {
-          console.warn(`   ⚠️ Erro ao registrar mudança de turma para ${user.email}:`, errorMessage(error))
-        }
-      } else if (!oldClassId && !isNew) {
-        // Primeira atribuição de turma (user já existia mas não tinha turma)
-        // Usar purchaseDate como data de inscrição
-        try {
-          const StudentClassHistory = (await import('../../models/StudentClassHistory')).default
+          console.log(`   📝 [ClassChange] ${user.email}: "${ev.previousClassName}" → "${ev.className}"`)
+        } else {
           await StudentClassHistory.create({
             studentId: user._id,
-            classId: item.classId,
-            className: realClassName,
-            dateMoved: purchaseDate || new Date(),
+            classId: ev.classId,
+            className: ev.className,
+            dateMoved: ev.dateMoved,
             reason: 'Primeira inscrição na turma (data de compra)',
             movedBy: 'Sistema - Sync Automático'
           })
-          console.log(`   ✨ [FirstEnrollment] ${user.email} inscrito em "${item.className || item.classId}" (${purchaseDate ? purchaseDate.toISOString().split('T')[0] : 'hoje'})`)
-        } catch (error: unknown) {
-          console.warn(`   ⚠️ Erro ao registrar primeira inscrição para ${user.email}:`, errorMessage(error))
+          console.log(`   ✨ [FirstEnrollment] ${user.email} inscrito em "${ev.className}"`)
         }
+      } catch (error: unknown) {
+        console.warn(`   ⚠️ Erro ao registrar histórico de turma para ${user.email}:`, errorMessage(error))
       }
     }
-
-    // ═══════════════════════════════════════════════════════════
-    // 🔥 FIX: Atualizar combined.allClasses e combined.primaryClass
-    // findByIdAndUpdate NÃO dispara pre('save'), por isso temos de
-    // recalcular combined manualmente aqui.
-    // ═══════════════════════════════════════════════════════════
-    const allClasses: CombinedClass[] = []
-
-    // Turmas Hotmart: usar os dados que vamos guardar (podem ter mudado)
-    if (pendingHotmartClasses) {
-      pendingHotmartClasses.forEach(cls => {
-        allClasses.push({
-          classId: cls.classId,
-          className: cls.className,
-          source: 'hotmart',
-          isActive: cls.isActive ?? true,
-          enrolledAt: cls.enrolledAt
-        })
-      })
-    } else if (user.hotmart?.enrolledClasses) {
-      // Sem alteração neste sync – manter as turmas existentes
-      user.hotmart.enrolledClasses.forEach(cls => {
-        allClasses.push({
-          classId: cls.classId,
-          className: cls.className,
-          source: 'hotmart',
-          isActive: cls.isActive ?? true,
-          enrolledAt: cls.enrolledAt
-        })
-      })
-    }
-
-    // Turmas CursEduca: manter as existentes (este é um sync Hotmart)
-    if (user.curseduca?.enrolledClasses) {
-      user.curseduca.enrolledClasses.forEach(cls => {
-        allClasses.push({
-          classId: cls.classId,
-          className: cls.className,
-          source: 'curseduca',
-          isActive: cls.isActive ?? true,
-          enrolledAt: cls.enteredAt,
-          role: cls.role
-        })
-      })
-    }
-
-    updateFields['combined.allClasses'] = allClasses
-
-    // Turma principal: prioridade Hotmart ativa > CursEduca ativa
-    const hotmartActive = allClasses.find(c => c.source === 'hotmart' && c.isActive)
-    const curseducaActive = allClasses.find(c => c.source === 'curseduca' && c.isActive)
-    const primary = hotmartActive || curseducaActive
-
-    if (primary) {
-      updateFields['combined.primaryClass'] = {
-        classId: primary.classId,
-        className: primary.className,
-        source: primary.source
-      }
-      updateFields['combined.classId'] = primary.classId
-      updateFields['combined.className'] = primary.className
-      // Manter root classId sempre em sync (usado por updateClassStatus e Re-verificação)
-      if (primary.source === 'hotmart') {
-        updateFields['classId'] = primary.classId
-        updateFields['className'] = primary.className
-      }
-    }
-
-    // Metadata
-    updateFields['hotmart.lastSyncAt'] = new Date()
-    updateFields['hotmart.syncVersion'] = '3.0'
-    updateFields['metadata.updatedAt'] = new Date()
-    updateFields['metadata.sources.hotmart.lastSync'] = new Date()
-    updateFields['metadata.sources.hotmart.version'] = '3.0'
-    needsUpdate = true
   }
+
+// ═══════════════════════════════════════════════════════════
+// ✅ CURSEDUCA - VERSÃO COMPLETA COM TODOS OS CAMPOS NOVOS
+// ═══════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════
 // ✅ CURSEDUCA - VERSÃO COMPLETA COM TODOS OS CAMPOS NOVOS
