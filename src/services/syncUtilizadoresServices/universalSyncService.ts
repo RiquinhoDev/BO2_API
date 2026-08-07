@@ -16,7 +16,6 @@ import type { IClassEnrollment, IEngagement, IProgress, IUserProduct } from '../
 import { ProcessItemResult, SyncError, SyncWarning, UniversalSourceItem, UniversalSyncConfig, UniversalSyncResult } from '../../types/universalSync.types'
 import { snapshotAndCompare } from '../snapshotServices/userSnapshot.service'
 import { planClassEnrollmentRole } from './classEnrollmentRole'
-import { parseTurmaName } from '../renewal/turmaParser'
 import {
   createUniversalSnapshotContext,
   type UniversalSnapshotContext,
@@ -35,8 +34,17 @@ import {
   toNumber,
 } from './universalSync/fieldUtils'
 import { productsCache, type LeanProduct } from './universalSync/productsCache'
+import {
+  EXPIRATION_DAYS,
+  HotmartExpirationPolicy,
+  formatDateOnly,
+  getActiveHotmartClassForExpiration,
+  type ExpiredStudent,
+} from './universalSync/hotmartExpiration'
 
 export { clearProductsCache } from './universalSync/productsCache'
+
+const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 
 // ═══════════════════════════════════════════════════════════
 // TYPE HELPERS
@@ -594,7 +602,7 @@ async function detectRenewal(
   }
 
   const activeClass = getActiveHotmartClassForExpiration(user)
-  const expiration = getExpirationEvaluation(purchaseDate, activeClass?.className)
+  const expiration = expirationPolicy.evaluate(purchaseDate, activeClass?.className)
   if (!expiration.canEvaluate) {
     return result
   }
@@ -662,154 +670,13 @@ async function applyAutoReactivation(
 // 🆕 NOVO: DETETAR E INATIVAR ALUNOS COM COMPRA > 380 DIAS
 // ═══════════════════════════════════════════════════════════
 
-const EXPIRATION_DAYS = 380 // Dias após compra para considerar expirado
 // ⛔ Inactivação automática DESLIGADA: a inactivação passa a ser SÓ manual,
 // pelo mecanismo do Backoffice. O automatismo por dias inactivava alunos
 // renovados indevidamente. Mudar para true só se se quiser voltar a ligar.
 const AUTO_INACTIVATION_ENABLED = false
 
-interface HotmartClassForExpiration {
-  classId?: string
-  className?: string
-}
-
-interface ExpiredStudent {
-  userId: string
-  email: string
-  name: string
-  classId?: string
-  className?: string
-  purchaseDate: Date | null
-  daysSincePurchase: number
-  accessEndOgi?: Date | null
-  expirationSource: 'turma' | 'purchaseDate'
-  expirationReason: string
-}
-
 // Lista global para coletar alunos expirados durante o sync
 let expiredStudentsList: ExpiredStudent[] = []
-
-function formatDateOnly(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
-
-function getDaysSincePurchase(purchaseDate: Date | null): number {
-  if (!purchaseDate) return 0
-  return Math.floor((Date.now() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24))
-}
-
-function getActiveHotmartClassForExpiration(
-  user: Pick<IUser, 'hotmart'>,
-  pendingHotmartClasses?: HotmartEnrollment[],
-  fallbackClassId?: string,
-  fallbackClassName?: string
-): HotmartClassForExpiration | null {
-  const candidates = [
-    ...(Array.isArray(pendingHotmartClasses) ? pendingHotmartClasses : []),
-    ...(Array.isArray(user?.hotmart?.enrolledClasses) ? user.hotmart.enrolledClasses : [])
-  ]
-
-  const activeClass = candidates.find(cls => cls.className && cls.isActive !== false)
-  const anyClass = candidates.find(cls => cls.className)
-
-  const selectedClass = activeClass ?? anyClass
-  if (selectedClass) {
-    return {
-      classId: selectedClass.classId,
-      className: selectedClass.className
-    }
-  }
-
-  if (fallbackClassName) {
-    return {
-      classId: fallbackClassId,
-      className: fallbackClassName
-    }
-  }
-
-  return null
-}
-
-function getExpirationEvaluation(
-  purchaseDate: Date | null,
-  className?: string
-): {
-  canEvaluate: boolean
-  isExpired: boolean
-  daysSincePurchase: number
-  accessEndOgi?: Date | null
-  expirationSource: 'turma' | 'purchaseDate'
-  expirationReason: string
-} {
-  const daysSincePurchase = getDaysSincePurchase(purchaseDate)
-
-  if (className) {
-    const parsed = parseTurmaName(className)
-    if (parsed.hasExpiry && parsed.accessEndOgi) {
-      const isExpired = parsed.accessEndOgi.getTime() < Date.now()
-      return {
-        canEvaluate: true,
-        isExpired,
-        daysSincePurchase,
-        accessEndOgi: parsed.accessEndOgi,
-        expirationSource: 'turma',
-        expirationReason: `Acesso expirado: ${formatDateOnly(parsed.accessEndOgi)}`
-      }
-    }
-  }
-
-  if (!purchaseDate) {
-    return {
-      canEvaluate: false,
-      isExpired: false,
-      daysSincePurchase,
-      accessEndOgi: null,
-      expirationSource: 'purchaseDate',
-      expirationReason: 'Sem data de compra para avaliar expiração'
-    }
-  }
-
-  return {
-    canEvaluate: true,
-    isExpired: daysSincePurchase > EXPIRATION_DAYS,
-    daysSincePurchase,
-    accessEndOgi: null,
-    expirationSource: 'purchaseDate',
-    expirationReason: `Compra expirada: ${daysSincePurchase} dias (limite: ${EXPIRATION_DAYS})`
-  }
-}
-
-/**
- * Verifica se um aluno expirou. Usa a expiração real da turma quando o nome
- * tem período YYMM; só cai no purchaseDate + 380 quando a turma não tem período.
- */
-function checkStudentExpiration(
-  userId: string,
-  email: string,
-  name: string,
-  purchaseDate: Date | null,
-  classId?: string,
-  className?: string
-): ExpiredStudent | null {
-  const expiration = getExpirationEvaluation(purchaseDate, className)
-
-  if (expiration.canEvaluate && expiration.isExpired) {
-    return {
-      userId,
-      email,
-      name,
-      classId,
-      className,
-      purchaseDate,
-      daysSincePurchase: expiration.daysSincePurchase,
-      accessEndOgi: expiration.accessEndOgi,
-      expirationSource: expiration.expirationSource,
-      expirationReason: expiration.expirationReason
-    }
-  }
-
-  return null
-}
 
 /**
  * Adiciona um aluno à lista de expirados (chamado durante processamento)
@@ -1678,7 +1545,7 @@ const processSyncItem = async (
       item.classId,
       item.className
     )
-    const expiration = getExpirationEvaluation(
+    const expiration = expirationPolicy.evaluate(
       purchaseDate,
       activeHotmartClass?.className
     )
@@ -1712,7 +1579,7 @@ const processSyncItem = async (
       item.classId,
       item.className
     )
-    const expiredStudent = checkStudentExpiration(
+    const expiredStudent = expirationPolicy.check(
       userIdStr,
       user.email,
       user.name,
