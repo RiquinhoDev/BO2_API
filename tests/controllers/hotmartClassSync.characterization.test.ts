@@ -55,6 +55,25 @@ function mockClubPage(users: Array<Record<string, unknown>>) {
   mockedGet.mockResolvedValue({ data: { users, items: users, page_info: {} } })
 }
 
+type Page = { users: Array<Record<string, unknown>>; nextToken?: string }
+
+// Sequential club pages: each resolves once, so the loop follows page_token
+// through to the last page (which carries no next token).
+function mockClubPages(pages: Page[]) {
+  mockedGet.mockReset()
+  for (const page of pages) {
+    mockedGet.mockResolvedValueOnce({
+      data: {
+        users: page.users,
+        items: page.users,
+        page_info: page.nextToken ? { next_page_token: page.nextToken } : {},
+      },
+    })
+  }
+}
+
+const getUrls = () => mockedGet.mock.calls.map((call) => String(call[0]))
+
 let mongoServer: MongoMemoryServer
 
 beforeAll(async () => {
@@ -73,10 +92,13 @@ afterAll(async () => {
   await mongoServer.stop()
   delete process.env.HOTMART_CLIENT_ID
   delete process.env.HOTMART_CLIENT_SECRET
+  delete process.env.subdomain
 })
 
 beforeEach(async () => {
   jest.clearAllMocks()
+  // Tests use only a synthetic tenant — never the real subdomain default.
+  process.env.subdomain = 'test-subdomain'
   mockedPost.mockResolvedValue({ data: { access_token: 'test-token' } })
   mockClubPage([])
   await Promise.all([
@@ -118,6 +140,22 @@ describe('hotmartClassSync characterization — syncHotmartClasses', () => {
     const record = await SyncHistory.findOne({ type: 'hotmart' }).sort({ startedAt: -1 }).lean()
     expect(record?.status).toBe('failed')
   })
+
+  it('follows the second page, encodes the page_token, and accumulates class ids', async () => {
+    mockClubPages([
+      { users: [{ email: 'p1@x.test', class_id: 'H1' }], nextToken: 'tok/2 +x' },
+      { users: [{ email: 'p2@x.test', class_id: 'H2' }] },
+    ])
+
+    const captured: Captured = {}
+    await syncHotmartClasses(emptyReq(), makeResponse(captured))
+
+    expect((captured.body as Body).classIds as string[]).toEqual(expect.arrayContaining(['H1', 'H2']))
+    expect(mockedGet).toHaveBeenCalledTimes(2)
+    const urls = getUrls()
+    expect(urls[0]).toContain('subdomain=test-subdomain')
+    expect(urls[1]).toContain('page_token=tok%2F2%20%2Bx')
+  })
 })
 
 describe('hotmartClassSync characterization — checkAndUpdateClassHistory', () => {
@@ -135,6 +173,32 @@ describe('hotmartClassSync characterization — checkAndUpdateClassHistory', () 
     const moved = await User.findById(oid(2)).lean()
     expect(moved?.classId).toBe('NEW')
     expect(await StudentClassHistory.countDocuments({ studentId: oid(2) })).toBe(1)
+  })
+
+  it('follows both pages and detects changes across them', async () => {
+    await User.collection.insertMany([
+      { _id: oid(10), email: 'u1@x.test', classId: 'OLD1' },
+      { _id: oid(11), email: 'u2@x.test', classId: 'OLD2' },
+    ])
+    mockClubPages([
+      { users: [{ email: 'u1@x.test', class_id: 'NEW1' }], nextToken: 'p2' },
+      { users: [{ email: 'u2@x.test', class_id: 'NEW2' }] },
+    ])
+
+    const captured: Captured = {}
+    await checkAndUpdateClassHistory(emptyReq(), makeResponse(captured))
+
+    const stats = (captured.body as Body).stats as Body
+    expect(stats.changesDetected).toBe(2)
+    expect(stats.pagesProcessed).toBe(2)
+    expect(mockedGet).toHaveBeenCalledTimes(2)
+  })
+
+  it('surfaces a token failure as a local 500', async () => {
+    mockedPost.mockRejectedValue(new Error('token boom'))
+    const captured: Captured = {}
+    await checkAndUpdateClassHistory(emptyReq(), makeResponse(captured))
+    expect(captured.status).toBe(500)
   })
 })
 
@@ -165,7 +229,34 @@ describe('hotmartClassSync characterization — syncComplete', () => {
     const cls = await Class.findOne({ classId: 'NEW' }).lean()
     expect(cls?.source).toBe('hotmart_sync')
     expect(await StudentClassHistory.countDocuments({ studentId: oid(3) })).toBe(1)
+  })
 
-    delete process.env.subdomain
+  it('follows both pages and syncs the classes from each', async () => {
+    await User.collection.insertMany([
+      { _id: oid(20), email: 's1@x.test', combined: { classId: 'OLD1' } },
+      { _id: oid(21), email: 's2@x.test', combined: { classId: 'OLD2' } },
+    ])
+    mockClubPages([
+      { users: [{ email: 's1@x.test', class_id: 'NEW1', status: 'ACTIVE' }], nextToken: 'p2' },
+      { users: [{ email: 's2@x.test', class_id: 'NEW2', status: 'ACTIVE' }] },
+    ])
+
+    const captured: Captured = {}
+    await syncComplete(emptyReq(), makeResponse(captured))
+
+    const body = captured.body as Body
+    expect(body.success).toBe(true)
+    expect((body.stats as Body).conflicts).toBe(2)
+    expect(mockedGet).toHaveBeenCalledTimes(2)
+    expect(await Class.countDocuments({ classId: { $in: ['NEW1', 'NEW2'] } })).toBe(2)
+  })
+
+  it('surfaces a token failure as a local 500 and marks the record failed', async () => {
+    mockedPost.mockRejectedValue(new Error('token boom'))
+    const captured: Captured = {}
+    await syncComplete(emptyReq(), makeResponse(captured))
+    expect(captured.status).toBe(500)
+    const record = await SyncHistory.findOne({ type: 'hotmart' }).sort({ startedAt: -1 }).lean()
+    expect(record?.status).toBe('failed')
   })
 })
