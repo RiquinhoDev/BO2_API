@@ -39,8 +39,8 @@ import {
   HotmartExpirationPolicy,
   formatDateOnly,
   getActiveHotmartClassForExpiration,
-  type ExpiredStudent,
 } from './universalSync/hotmartExpiration'
+import { ExpiredStudentsCollector } from './universalSync/expiredStudentsCollector'
 
 export { clearProductsCache } from './universalSync/productsCache'
 
@@ -307,10 +307,8 @@ export const executeUniversalSync = async (
     debugLog('📦 [ProductCache] Carregando produtos...')
     await productsCache.preload()
 
-    // 🆕 Limpar lista de expirados (para sync Hotmart)
-    if (config.syncType === 'hotmart') {
-      clearExpiredList()
-    }
+    // Coletor de expirados desta execução — isolado por run, sem estado global.
+    const expiredCollector = new ExpiredStudentsCollector()
 
     // ═══════════════════════════════════════════════════════════
     // STEP 1: CRIAR SYNCREPORT
@@ -397,7 +395,7 @@ export const executeUniversalSync = async (
         const item = batch[j]
 
         try {
-          const result = await processSyncItem(item, config, snapshotContext)
+          const result = await processSyncItem(item, config, snapshotContext, expiredCollector)
 
           if (result.action === 'inserted') stats.inserted++
           else if (result.action === 'updated') stats.updated++
@@ -466,7 +464,7 @@ export const executeUniversalSync = async (
     if (config.syncType === 'hotmart') {
       await syncReportsService.addReportLog(rid, 'info', 'Verificando alunos com compra expirada (> 380 dias)...')
 
-      expirationResult = await processExpiredStudentsInactivation()
+      expirationResult = await processExpiredStudentsInactivation(expiredCollector)
 
       if (expirationResult.totalInactivated > 0) {
         await syncReportsService.addReportLog(
@@ -675,38 +673,13 @@ async function applyAutoReactivation(
 // renovados indevidamente. Mudar para true só se se quiser voltar a ligar.
 const AUTO_INACTIVATION_ENABLED = false
 
-// Lista global para coletar alunos expirados durante o sync
-let expiredStudentsList: ExpiredStudent[] = []
-
-/**
- * Adiciona um aluno à lista de expirados (chamado durante processamento)
- */
-function addToExpiredList(student: ExpiredStudent): void {
-  // Evitar duplicados
-  if (!expiredStudentsList.find(s => s.userId === student.userId)) {
-    expiredStudentsList.push(student)
-  }
-}
-
-/**
- * Limpa a lista de alunos expirados (chamado no início do sync)
- */
-function clearExpiredList(): void {
-  expiredStudentsList = []
-}
-
-/**
- * Retorna a lista atual de alunos expirados
- */
-function getExpiredList(): ExpiredStudent[] {
-  return [...expiredStudentsList]
-}
-
 /**
  * Processa a inativação em lote de todos os alunos expirados
  * Chamado no final do sync Hotmart
  */
-async function processExpiredStudentsInactivation(): Promise<{
+async function processExpiredStudentsInactivation(
+  expiredCollector: ExpiredStudentsCollector,
+): Promise<{
   totalProcessed: number
   totalInactivated: number
   classesAffected: string[]
@@ -725,7 +698,7 @@ async function processExpiredStudentsInactivation(): Promise<{
     return result
   }
 
-  const expiredList = getExpiredList()
+  const expiredList = expiredCollector.all()
 
   if (expiredList.length === 0) {
     console.log(`✅ [ExpirationCheck] Nenhum aluno expirado encontrado`)
@@ -957,6 +930,7 @@ const processSyncItem = async (
   item: UniversalSourceItem,
   config: UniversalSyncConfig,
   snapshotContext: UniversalSnapshotContext,
+  expiredCollector: ExpiredStudentsCollector,
 ): Promise<ProcessItemResult> => {
   // ═══════════════════════════════════════════════════════════
   // VALIDAÇÃO INICIAL
@@ -1590,7 +1564,7 @@ const processSyncItem = async (
 
     if (expiredStudent) {
       // Adicionar à lista para processar no final do sync
-      addToExpiredList(expiredStudent)
+      expiredCollector.add(expiredStudent)
       debugLog(`   ⏰ [Expiration] ${user.email} marcado para inativação (${expiredStudent.expirationReason})`)
     }
   }
