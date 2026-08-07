@@ -16,20 +16,6 @@ jest.mock('../../src/services/classes/classMutations.runtime', () => ({
   upsertClass: jest.fn(),
 }))
 
-jest.mock('../../src/controllers/classes.controller', () => ({
-  classesController: {
-    syncHotmartClasses: noop,
-    updateClassStatus: noop,
-    moveStudent: noop,
-    moveMultipleStudents: noop,
-    checkAndUpdateClassHistory: noop,
-    createInactivationList: noop,
-    getInactivationLists: noop,
-    revertInactivation: noop,
-    syncComplete: noop,
-  },
-}))
-
 import classesRouter from '../../src/routes/classes.routes'
 
 const marker = { __bo2_offline_loopback: '1' }
