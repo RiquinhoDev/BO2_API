@@ -1,14 +1,63 @@
 import logger from '../../utils/logger'
-import { HotmartNotConfiguredError, type HotmartClubClient } from './hotmartClubClient'
+import { HotmartNotConfiguredError, type HotmartClubClient, type HotmartClubUser } from './hotmartClubClient'
 import type { Sleeper } from './sleeper'
-import type {
-  ClassUpsertOutcome,
-  MongooseHotmartClassSyncWriter,
-  SyncRecordRef,
-} from './mongooseHotmartClassSync.writer'
 
 export interface Clock {
   now(): Date
+}
+
+export interface SyncRecordRef {
+  id: unknown
+}
+
+export interface SyncStats {
+  total: number
+  added: number
+  updated: number
+  conflicts: number
+  errors: number
+}
+
+export interface LocalUserBasic {
+  _id: unknown
+  email?: string
+  classId?: string
+  combined?: { classId?: string; status?: string }
+}
+
+export interface CompleteLocalUser {
+  _id: unknown
+  email: string
+  classId?: string
+  combined?: { classId?: string; status?: string }
+  hotmart?: { hotmartUserId?: string; status?: string; purchaseDate?: Date }
+}
+
+export type ClassUpsertOutcome = 'created' | 'updated' | 'unchanged'
+
+/**
+ * Writer port for the vertical: the service depends on this interface, and
+ * MongooseHotmartClassSyncWriter implements it. Every method owns Mongoose I/O.
+ */
+export interface HotmartClassSyncWriter {
+  startClassSync(now: Date): Promise<SyncRecordRef>
+  updateSyncStep(ref: SyncRecordRef, step: string, progress: number): Promise<void>
+  upsertSyncedClass(classId: string, studentCount: number, now: Date): Promise<ClassUpsertOutcome>
+  recountClassStudents(classId: string, now: Date): Promise<void>
+  completeClassSync(ref: SyncRecordRef, stats: SyncStats, errors: string[], now: Date): Promise<void>
+  failClassSync(ref: SyncRecordRef, message: string, now: Date): Promise<void>
+  loadLocalUsersBasic(): Promise<LocalUserBasic[]>
+  moveUserAndLogHistory(localUser: LocalUserBasic, newClassId: string | null, now: Date): Promise<void>
+  startCompleteSync(now: Date): Promise<SyncRecordRef>
+  loadLocalUsersForCompleteSync(): Promise<Map<string, CompleteLocalUser>>
+  applyUserSync(
+    localUser: CompleteLocalUser,
+    hotmartUser: HotmartClubUser,
+    now: Date,
+  ): Promise<{ classChanged: boolean; errors: string[] }>
+  syncCompleteClass(classId: string, studentCount: number, now: Date): Promise<ClassUpsertOutcome>
+  completeCompleteSync(ref: SyncRecordRef, stats: SyncStats, errors: string[], now: Date): Promise<void>
+  failCompleteSync(ref: SyncRecordRef, message: string, now: Date): Promise<void>
 }
 
 const PAGE_DELAY_MS = 200
@@ -51,7 +100,7 @@ export interface CompleteSyncResult {
 
 export class HotmartClassSyncService {
   constructor(
-    private readonly writer: MongooseHotmartClassSyncWriter,
+    private readonly writer: HotmartClassSyncWriter,
     private readonly client: HotmartClubClient,
     private readonly sleeper: Sleeper,
     private readonly clock: Clock,

@@ -9,41 +9,20 @@ import { User } from '../../models'
 import type { IUser } from '../../models/user'
 import SyncHistory from '../../models/SyncHistory'
 import type { HotmartClubUser } from './hotmartClubClient'
+import type {
+  ClassUpsertOutcome,
+  CompleteLocalUser,
+  HotmartClassSyncWriter,
+  LocalUserBasic,
+  SyncRecordRef,
+  SyncStats,
+} from './hotmartClassSync.service'
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-export interface SyncRecordRef {
-  id: unknown
-}
-
-export interface SyncStats {
-  total: number
-  added: number
-  updated: number
-  conflicts: number
-  errors: number
-}
-
-export interface LocalUserBasic {
-  _id: IUser['_id']
-  email?: string
-  classId?: string
-  combined?: { classId?: string; status?: string }
-}
-
-export interface CompleteLocalUser {
-  _id: IUser['_id']
-  email: string
-  classId?: string
-  combined?: { classId?: string; status?: string }
-  hotmart?: { hotmartUserId?: string; status?: string; purchaseDate?: Date }
-}
-
-export type ClassUpsertOutcome = 'created' | 'updated' | 'unchanged'
-
-export class MongooseHotmartClassSyncWriter {
+export class MongooseHotmartClassSyncWriter implements HotmartClassSyncWriter {
   // ---------- syncHotmartClasses ----------
   async startClassSync(now: Date): Promise<SyncRecordRef> {
     const record = await SyncHistory.create({
