@@ -1,12 +1,11 @@
 // Mongoose writer for the studentMovement vertical. Every Class/User/ClassHistory
 // write behind POST /moveStudent and /moveMultipleStudents lives here, migrated
-// verbatim from the retired StudentService (moveStudent/moveMultipleStudents +
-// the private updateClassStudentCount count refresh).
+// verbatim from the retired StudentService (the single moveStudent write plus
+// the private updateClassStudentCount refresh). The bulk loop lives in the
+// service so each student is stamped with its own instant.
 import { Class, ClassHistory } from '../../models/Class'
 import User from '../../models/user'
 import type {
-  MoveManyResult,
-  MoveMultipleInput,
   MoveStudentInput,
   StudentMovementWriter,
 } from './studentMovement.service'
@@ -59,23 +58,6 @@ export class MongooseStudentMovementWriter implements StudentMovementWriter {
     await this.updateClassStudentCount(toClassId)
 
     return historyEntry
-  }
-
-  async moveMultipleStudents(input: MoveMultipleInput, movedAt: Date): Promise<MoveManyResult> {
-    const { studentIds, toClassId, reason, performedBy } = input
-
-    const results: MoveManyResult = { success: [], errors: [] }
-
-    for (const studentId of studentIds) {
-      try {
-        const movement = await this.moveStudent({ studentId, toClassId, reason, performedBy }, movedAt)
-        results.success.push({ studentId, movement })
-      } catch (error) {
-        results.errors.push({ studentId, error: (error as Error).message })
-      }
-    }
-
-    return results
   }
 
   private async updateClassStudentCount(classId: string): Promise<number> {
