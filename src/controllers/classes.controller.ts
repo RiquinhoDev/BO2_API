@@ -1,7 +1,6 @@
 // src/controllers/classes.controller.ts - CORRIGIDO para evitar erros TypeScript
 import { Request, Response } from 'express'
 import type { FilterQuery, UpdateQuery } from 'mongoose'
-import { studentService } from '../services/syncUtilizadoresServices/hotmartServices/classesService'
 import { upsertClass } from '../services/classes/classMutations.runtime'
 import SyncHistory from '../models/SyncHistory'
 
@@ -570,77 +569,6 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 };
 
 
-
-  // ===== MOVIMENTAÇÃO DE ESTUDANTES =====
-
-  moveStudent = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { studentId, fromClassId, toClassId, reason } = req.body
-
-      if (!studentId || !toClassId) {
-        res.status(400).json({
-          success: false,
-          message: 'studentId e toClassId são obrigatórios'
-        })
-        return
-      }
-
-      const result = await studentService.moveStudent({
-        studentId,
-        fromClassId,
-        toClassId,
-        reason: reason || 'Movimentação via API'
-      })
-
-      res.json({
-        success: true,
-        message: 'Estudante movido com sucesso',
-        movement: result,
-        timestamp: new Date().toISOString()
-      })
-    } catch (error) {
-      console.error('❌ Erro ao mover estudante:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao mover estudante',
-        error: (error as Error).message
-      })
-    }
-  }
-
-  moveMultipleStudents = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { studentIds, toClassId, reason } = req.body
-
-      if (!studentIds || !Array.isArray(studentIds) || !toClassId) {
-        res.status(400).json({
-          success: false,
-          message: 'studentIds (array) e toClassId são obrigatórios'
-        })
-        return
-      }
-
-      const results = await studentService.moveMultipleStudents({
-        studentIds,
-        toClassId,
-        reason: reason || 'Movimentação múltipla via API'
-      })
-
-      res.json({
-        success: true,
-        message: `Movimentação concluída: ${results.success.length} sucessos, ${results.errors.length} erros`,
-        results,
-        timestamp: new Date().toISOString()
-      })
-    } catch (error) {
-      console.error('❌ Erro ao mover múltiplos estudantes:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao mover estudantes',
-        error: (error as Error).message
-      })
-    }
-  }
 
   // ===== LISTAS DE INATIVAÇÃO =====
 
