@@ -1104,11 +1104,6 @@
       "count": 15
     }
   },
-  "src/services/syncUtilizadoresServices/hotmartServices/classesService.ts": {
-    "no-console": {
-      "count": 3
-    }
-  },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 8

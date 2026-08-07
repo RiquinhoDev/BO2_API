@@ -2,11 +2,11 @@ import {
   createAddOrEditClassController,
   createDeleteClassController,
 } from '../../controllers/classes/classMutations.controller'
-import { MongooseClassMutationsReader } from './mongooseClassMutations.reader'
+import { MongooseClassMutationsWriter } from './mongooseClassMutations.writer'
 import { ClassMutationsService, type ClassInput, type Clock } from './classMutations.service'
 
 const clock: Clock = { now: () => new Date() }
-const service = new ClassMutationsService(new MongooseClassMutationsReader(), clock)
+const service = new ClassMutationsService(new MongooseClassMutationsWriter(), clock)
 
 export const addOrEditClass = createAddOrEditClassController(service)
 export const deleteClass = createDeleteClassController(service)

@@ -12,7 +12,7 @@ interface EnrollmentIdLean {
 /**
  * Owns every Mongoose read for the class roster, moved verbatim from the legacy
  * handler and StudentService.searchStudents. getClassById migrates only the
- * light Class.findOne lookup (name/source), with no classesService wrapper.
+ * light Class.findOne lookup (name/source), with no wrapper over a shared service.
  */
 export class MongooseClassRosterReader implements ClassRosterReader {
   async getClassById(classId: string): Promise<ClassRosterSummary | null> {

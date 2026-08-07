@@ -3,6 +3,8 @@ import { MongoMemoryServer } from 'mongodb-memory-server'
 import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
 import { moveMultipleStudents, moveStudent } from '../../src/services/classes/studentMovement.runtime'
+import { StudentMovementService } from '../../src/services/classes/studentMovement.service'
+import { MongooseStudentMovementWriter } from '../../src/services/classes/mongooseStudentMovement.writer'
 import { HttpError } from '../../src/security/errorHandling'
 import { Class, ClassHistory } from '../../src/models/Class'
 import { User } from '../../src/models'
@@ -98,6 +100,20 @@ describe('studentMovement characterization — moveStudent (POST /moveStudent)',
     const fromClass = await Class.findOne({ classId: 'from' }).lean()
     expect(toClass?.studentCount).toBe(1)
     expect(fromClass?.studentCount).toBe(0)
+  })
+
+  it('stamps the persisted dateMoved from the injected clock', async () => {
+    await seedClass('from', 'From Class')
+    await seedClass('to', 'To Class')
+    await seedStudentInClass(5, 'd@x.test', 'from', 'From Class')
+
+    const fixed = new Date('2026-01-02T03:04:05.000Z')
+    const service = new StudentMovementService(new MongooseStudentMovementWriter(), { now: () => fixed })
+    const { timestamp } = await service.moveOne({ studentId: oid(5).toString(), toClassId: 'to' })
+
+    expect(timestamp).toBe(fixed.toISOString())
+    const history = await ClassHistory.findOne({ studentId: oid(5).toString() }).lean() as { dateMoved?: Date } | null
+    expect(history?.dateMoved ? new Date(history.dateMoved).toISOString() : undefined).toBe(fixed.toISOString())
   })
 
   it('routes a missing student through the SEC-10 boundary', async () => {

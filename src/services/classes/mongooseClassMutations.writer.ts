@@ -10,7 +10,7 @@ import type {
   UpsertResult,
 } from './classMutations.service'
 
-export class MongooseClassMutationsReader implements ClassMutationsWriter {
+export class MongooseClassMutationsWriter implements ClassMutationsWriter {
   async upsert(input: ClassInput): Promise<UpsertResult> {
     const { classId, name, description, isActive = true, estado, source = 'manual' } = input
 
