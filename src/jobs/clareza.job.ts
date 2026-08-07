@@ -1,7 +1,7 @@
 import { refreshClarezaData } from '../services/clareza/clarezaFmpService'
 import { refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
 import { refreshClarezaRaioxData } from '../services/clareza/clarezaRaioxService'
-import { refreshClarezaCarteiraData } from '../services/clareza/clarezaCarteiraService'
+import { refreshClarezaCarteiraData } from '../services/clareza/carteira/carteira.runtime'
 import { refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
 
 const clarezaJob = {
