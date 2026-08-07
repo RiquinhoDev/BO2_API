@@ -3,7 +3,13 @@ import { parseTurmaName } from '../../renewal/turmaParser'
 
 export const EXPIRATION_DAYS = 380 // Dias após compra para considerar expirado
 
-type HotmartEnrollment = NonNullable<NonNullable<IUser['hotmart']>['enrolledClasses']>[number]
+// Minimal structural shape the class selector needs — satisfied by both the
+// Mongoose enrolledClasses subdocs and the builder's plain enrollment DTOs.
+export interface HotmartClassCandidate {
+  classId?: string
+  className?: string
+  isActive?: boolean
+}
 
 export interface Clock {
   now(): Date
@@ -42,7 +48,7 @@ export function formatDateOnly(date: Date): string {
 
 export function getActiveHotmartClassForExpiration(
   user: Pick<IUser, 'hotmart'>,
-  pendingHotmartClasses?: HotmartEnrollment[],
+  pendingHotmartClasses?: HotmartClassCandidate[],
   fallbackClassId?: string,
   fallbackClassName?: string,
 ): HotmartClassForExpiration | null {
