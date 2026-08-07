@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, getStockAnalysis } from '../services/clareza/clarezaFmpService'
 import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
 import { getRaioxJson, searchRaiox, refreshClarezaRaioxData, diagnoseRaiox } from '../services/clareza/clarezaRaioxService'
-import { getClarezaCarteiraData, searchCarteira, refreshClarezaCarteiraData } from '../services/clareza/clarezaCarteiraService'
+import { getClarezaCarteiraData, searchCarteira, refreshClarezaCarteiraData } from '../services/clareza/carteira/carteira.runtime'
 import { getClarezaEarningsData, refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
 import {
   getComparadorSymbols,

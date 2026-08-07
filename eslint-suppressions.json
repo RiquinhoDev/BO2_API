@@ -814,14 +814,6 @@
       "count": 11
     }
   },
-  "src/services/clareza/clarezaCarteiraService.ts": {
-    "no-console": {
-      "count": 8
-    },
-    "no-useless-escape": {
-      "count": 1
-    }
-  },
   "src/services/clareza/clarezaEarningsService.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 6
