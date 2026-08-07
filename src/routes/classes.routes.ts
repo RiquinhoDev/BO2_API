@@ -5,9 +5,9 @@ import { getStudentsByClass, searchStudents } from '../services/classes/classRos
 import { listClasses, listClassesSimple } from '../services/classes/classDirectory.runtime'
 import { fetchClassData, fetchClassDataPost, getClassDetails, getClassStats } from '../services/classes/classDetails.runtime'
 import { addOrEditClass, deleteClass } from '../services/classes/classMutations.runtime'
+import { moveMultipleStudents, moveStudent } from '../services/classes/studentMovement.runtime'
 import { classesDeleteInput } from '../security/classesDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
-
 const router = Router()
 // ⚠️ IMPORTANTE: Esta rota DEVE estar ANTES de todas as outras rotas específicas
 router.get('/', listClassesSimple)
@@ -49,10 +49,10 @@ router.delete(
 // ===== MOVIMENTAÇÃO DE ESTUDANTES =====
 
 // POST /api/classes/moveStudent - Move um estudante entre turmas
-router.post('/moveStudent', classesController.moveStudent)
+router.post('/moveStudent', moveStudent)
 
 // POST /api/classes/moveMultipleStudents - Move múltiplos estudantes
-router.post('/moveMultipleStudents', classesController.moveMultipleStudents)
+router.post('/moveMultipleStudents', moveMultipleStudents)
 
 // ===== HISTÓRICO E TRACKING =====
 

@@ -1,15 +1,13 @@
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
-import { classesController } from '../../src/controllers/classes.controller'
+import { moveMultipleStudents, moveStudent } from '../../src/services/classes/studentMovement.runtime'
+import { HttpError } from '../../src/security/errorHandling'
 import { Class, ClassHistory } from '../../src/models/Class'
 import { User } from '../../src/models'
 
-type Handler = (req: Request, res: Response) => Promise<void>
-const cc = classesController as unknown as Record<string, unknown>
-const moveStudent = cc.moveStudent as Handler
-const moveMultipleStudents = cc.moveMultipleStudents as Handler
+const noNext = jest.fn() as unknown as NextFunction
 
 type Body = Record<string, unknown>
 type Captured = { status?: number; body?: Body }
@@ -73,7 +71,7 @@ async function seedClass(classId: string, name: string) {
 describe('studentMovement characterization — moveStudent (POST /moveStudent)', () => {
   it('400s without studentId or toClassId', async () => {
     const captured: Captured = {}
-    await moveStudent(req({ studentId: 's1' }), makeResponse(captured))
+    await moveStudent(req({ studentId: 's1' }), makeResponse(captured), noNext)
     expect(captured.status).toBe(400)
   })
 
@@ -83,7 +81,7 @@ describe('studentMovement characterization — moveStudent (POST /moveStudent)',
     await seedStudentInClass(1, 's1@x.test', 'from', 'From Class')
 
     const captured: Captured = {}
-    await moveStudent(req({ studentId: oid(1).toString(), toClassId: 'to', reason: 'promo' }), makeResponse(captured))
+    await moveStudent(req({ studentId: oid(1).toString(), toClassId: 'to', reason: 'promo' }), makeResponse(captured), noNext)
 
     const body = captured.body as Body
     expect(body.success).toBe(true)
@@ -102,18 +100,18 @@ describe('studentMovement characterization — moveStudent (POST /moveStudent)',
     expect(fromClass?.studentCount).toBe(0)
   })
 
-  it('surfaces a missing student as a local 500', async () => {
+  it('routes a missing student through the SEC-10 boundary', async () => {
     await seedClass('to', 'To Class')
-    const captured: Captured = {}
-    await moveStudent(req({ studentId: oid(99).toString(), toClassId: 'to' }), makeResponse(captured))
-    expect(captured.status).toBe(500)
+    const next = jest.fn()
+    await moveStudent(req({ studentId: oid(99).toString(), toClassId: 'to' }), makeResponse({}), next as unknown as NextFunction)
+    expect((next.mock.calls[0]?.[0] as HttpError)).toMatchObject({ status: 500, code: 'STUDENT_MOVE_FAILED' })
   })
 })
 
 describe('studentMovement characterization — moveMultipleStudents (POST /moveMultipleStudents)', () => {
   it('400s without a studentIds array or toClassId', async () => {
     const captured: Captured = {}
-    await moveMultipleStudents(req({ toClassId: 'to' }), makeResponse(captured))
+    await moveMultipleStudents(req({ toClassId: 'to' }), makeResponse(captured), noNext)
     expect(captured.status).toBe(400)
   })
 
@@ -125,6 +123,7 @@ describe('studentMovement characterization — moveMultipleStudents (POST /moveM
     await moveMultipleStudents(
       req({ studentIds: [oid(1).toString(), oid(98).toString()], toClassId: 'to' }),
       makeResponse(captured),
+      noNext,
     )
 
     const body = captured.body as Body
