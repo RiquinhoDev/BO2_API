@@ -8,13 +8,16 @@ import { MongooseHotmartClassSyncWriter } from './mongooseHotmartClassSync.write
 import { HotmartClassSyncService, type Clock } from './hotmartClassSync.service'
 import { RealSleeper } from './sleeper'
 
-// The only place Hotmart config is read from the environment. Missing any part
-// yields null -> the client is fail-closed and the handlers answer 503; there
-// is no fallback to a real tenant/subdomain.
-function resolveHotmartConfig(): HotmartClubConfig | null {
-  const subdomain = process.env.subdomain
-  const clientId = process.env.HOTMART_CLIENT_ID
-  const clientSecret = process.env.HOTMART_CLIENT_SECRET
+/**
+ * Resolves the canonical Hotmart config from the environment. Uses the typed
+ * canonical names (HOTMART_SUBDOMAIN / HOTMART_CLIENT_ID / HOTMART_CLIENT_SECRET)
+ * — no legacy lowercase `subdomain` and no real-tenant fallback. Missing any
+ * part yields null so the client is fail-closed and the handlers answer 503.
+ */
+export function resolveHotmartConfig(env: NodeJS.ProcessEnv): HotmartClubConfig | null {
+  const subdomain = env.HOTMART_SUBDOMAIN
+  const clientId = env.HOTMART_CLIENT_ID
+  const clientSecret = env.HOTMART_CLIENT_SECRET
   if (!subdomain || !clientId || !clientSecret) return null
   return { subdomain, clientId, clientSecret }
 }
@@ -23,7 +26,7 @@ const clock: Clock = { now: () => new Date() }
 
 const service = new HotmartClassSyncService(
   new MongooseHotmartClassSyncWriter(),
-  new AxiosHotmartClubClient(resolveHotmartConfig()),
+  new AxiosHotmartClubClient(resolveHotmartConfig(process.env)),
   new RealSleeper(),
   clock,
 )
