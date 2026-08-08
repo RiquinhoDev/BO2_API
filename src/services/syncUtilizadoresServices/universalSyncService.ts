@@ -7,12 +7,11 @@
 import syncReportsService from './syncReports.service'
 import SyncHistory from '../../models/SyncModels/SyncHistory'
 import User, { IUser } from '../../models/user'
-import type { SyncType, TriggerType } from '../../models/SyncModels/SyncReport'
 import mongoose, { type UpdateQuery } from 'mongoose'
 import { Product, UserProduct } from '../../models'
 import { Class, type IClass } from '../../models/Class'
 import type { IClassEnrollment, IEngagement, IProgress, IUserProduct } from '../../models/UserProduct'
-import { ProcessItemResult, SyncError, SyncWarning, UniversalSourceItem, UniversalSyncConfig, UniversalSyncResult } from '../../types/universalSync.types'
+import { ProcessItemResult, SyncError, SyncWarning, UniversalSourceItem, UniversalSyncConfig, UniversalSyncResult, UniversalSyncType } from '../../types/universalSync.types'
 import { snapshotAndCompare } from '../snapshotServices/userSnapshot.service'
 import { planClassEnrollmentRole } from './classEnrollmentRole'
 import {
@@ -110,7 +109,7 @@ export const buildCanonicalActiveUserStatusUpdate = () => ({
  */
 async function determineProductId(
   item: UniversalSourceItem,
-  syncType: SyncType
+  syncType: UniversalSyncType
 ): Promise<mongoose.Types.ObjectId | null> {
 
   // ✅ Usar cache se disponível
@@ -236,32 +235,6 @@ async function determineProductId(
 
     console.error(`❌ [ProductMapping] Nenhum produto CursEDuca ativo encontrado!`)
     return null
-  }
-
-  if (syncType === 'discord') {
-    // Cache lookup
-    if (useCache) {
-      const cached = productsCache.get('DISCORD_COMMUNITY') ||
-                     Array.from(productsCache.values()).find(p => p.platform === 'discord')
-      if (cached) {
-        debugLog(`✅ [ProductMapping] Produto Discord do cache: ${cached.code}`)
-        return cached._id
-      }
-    }
-
-    // Fallback: query BD
-    const product = await Product.findOne({
-      $or: [
-        { code: 'DISCORD_COMMUNITY' },
-        { platform: 'discord', isActive: true }
-      ]
-    }).select('_id code').lean() as LeanProduct | null
-
-    if (!product) {
-      console.warn(`⚠️ [ProductMapping] Produto Discord não encontrado`)
-    }
-
-    return product?._id || null
   }
 
   return null
@@ -1095,30 +1068,6 @@ const processSyncItem = async (
   }
 
   // ═══════════════════════════════════════════════════════════
-  // DISCORD - Schema Segregado
-  // ═══════════════════════════════════════════════════════════
-  if (config.syncType === 'discord') {
-    if (item.discordUserId) {
-      updateFields['discord.discordIds'] = [item.discordUserId]
-      needsUpdate = true
-    }
-
-    if (item.username) {
-      updateFields['discord.username'] = item.username
-      needsUpdate = true
-    }
-
-    if (item.roles) {
-      updateFields['discord.roles'] = item.roles
-      needsUpdate = true
-    }
-
-    updateFields['discord.lastSyncAt'] = new Date()
-    updateFields['metadata.updatedAt'] = new Date()
-    updateFields['metadata.sources.discord.lastSync'] = new Date()
-    needsUpdate = true
-  }
-
   if (
     Object.prototype.hasOwnProperty.call(updateFields, 'combined.allClasses') ||
     Object.prototype.hasOwnProperty.call(updateFields, 'combined.primaryClass')
@@ -1635,7 +1584,7 @@ const processSyncItem = async (
         userId: userIdStr,
         productId: productId,
         platform: config.syncType,
-        platformUserId: item.curseducaUserId || item.hotmartUserId || item.discordUserId || userIdStr,
+        platformUserId: item.curseducaUserId || item.hotmartUserId || userIdStr,
         platformUserUuid: item.curseducaUuid,  // Só Curseduca
         status: 'ACTIVE',
         source: 'PURCHASE',

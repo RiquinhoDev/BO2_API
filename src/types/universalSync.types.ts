@@ -3,9 +3,13 @@
 // Types universais para sincronização de todas as plataformas
 // ════════════════════════════════════════════════════════════
 
-import { SyncType, TriggerType } from "../models/SyncModels/SyncReport"
+import { TriggerType } from "../models/SyncModels/SyncReport"
 
-export type UniversalSyncType = Exclude<SyncType, 'all'>
+// Only hotmart and curseduca reach executeUniversalSync. The discord branch
+// was proven unreachable (no production call site passes syncType: 'discord';
+// the discord renewal/roles system is separate) and was removed, so this stays
+// a closed union rather than deriving from the broader SyncReport SyncType.
+export type UniversalSyncType = 'hotmart' | 'curseduca'
 
 export interface UniversalProgressModule {
   moduleId: string
@@ -128,13 +132,6 @@ export interface UniversalSourceItem {
   joinedDate?: Date | string | null
   lastLogin?: string | Date         // ✅ Último login real
   lastAccess?: string | Date        // ✅ Última atividade
-
-  // ═══════════════════════════════════════════════════════════
-  // DISCORD
-  // ═══════════════════════════════════════════════════════════
-  discordUserId?: string
-  username?: string
-  roles?: string[]
 
   // ═══════════════════════════════════════════════════════════
   // EXTRA (FLEXIBILIDADE PARA NOVAS PLATAFORMAS)
