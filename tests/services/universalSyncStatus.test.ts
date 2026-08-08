@@ -22,8 +22,8 @@ describe('universal sync canonical user status', () => {
 
     // currentModule is a UserProduct progress field, never a top-level User hotmart field.
     expect(processSyncItem).not.toContain("updateFields['hotmart.currentModule']")
-    // update path lives in the builder, create path stays inline in processSyncItem.
+    // both the update and create paths now live in the UserProduct builder.
     expect(userProductBuilder).toContain("fields['progress.currentModule']")
-    expect(processSyncItem).toContain('progressObj.currentModule')
+    expect(userProductBuilder).toContain('progressObj.currentModule')
   })
 })

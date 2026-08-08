@@ -1,10 +1,29 @@
+import type mongoose from 'mongoose'
 import type { UniversalSourceItem, UniversalSyncType } from '../../../../types/universalSync.types'
-import type { IClassEnrollment } from '../../../../models/UserProduct'
+import type { IClassEnrollment, IEngagement, IProgress, IUserProduct } from '../../../../models/UserProduct'
 import type { Clock, EngagementMetricsResult } from '../engagement/engagementMetrics'
 import { planClassEnrollmentRole } from '../../classEnrollmentRole'
 import { toDateOrNull, toNumber } from '../fieldUtils'
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
+
+/** The shape passed to UserProduct.create for a brand-new enrolment. */
+export interface NewUserProductInput {
+  userId: string
+  productId: mongoose.Types.ObjectId
+  platform: IUserProduct['platform']
+  platformUserId: string
+  platformUserUuid?: string
+  status: IUserProduct['status']
+  source: IUserProduct['source']
+  enrolledAt: Date
+  isPrimary: boolean
+  progress: IProgress
+  engagement: IEngagement
+  platformData?: Record<string, unknown>
+  classes: IClassEnrollment[]
+  metadata?: IUserProduct['metadata']
+}
 
 /** Current UserProduct state the update builder needs to decide diffs. */
 export interface UserProductUpdateExisting {
@@ -211,4 +230,152 @@ export function classIdFor(syncType: UniversalSyncType, item: UniversalSourceIte
   if (syncType === 'hotmart') return item.classId ?? null
   if (syncType === 'curseduca') return String(item.groupId)
   return null
+}
+
+export interface PrimaryReassignmentExisting {
+  enrolledAt?: Date | null
+  status: string
+}
+
+export interface PrimaryReassignmentPlan {
+  /** isPrimary the new UserProduct should carry. */
+  newIsPrimary: boolean
+  /** $set to demote (and possibly inactivate) the incumbent primary; absent when the new one stays secondary. */
+  demoteUpdate?: Record<string, unknown>
+}
+
+/**
+ * Pure decision for the curseduca "one primary" rule when a new primary product
+ * is synced: if the new enrolment is more recent, the incumbent is demoted (and
+ * inactivated only if it was ACTIVE/PARA_INATIVAR); otherwise the new one
+ * becomes secondary and the incumbent is left untouched.
+ */
+export function planPrimaryReassignment(
+  existing: PrimaryReassignmentExisting,
+  newEnrolledAt: Date,
+  clock: Clock,
+): PrimaryReassignmentPlan {
+  const existingDate = existing.enrolledAt ? new Date(existing.enrolledAt).getTime() : 0
+  const newDate = newEnrolledAt.getTime()
+
+  if (newDate > existingDate) {
+    const demoteUpdate: Record<string, unknown> = { isPrimary: false }
+    // Só inativar se ainda estiver ACTIVE ou PARA_INATIVAR — não tocar em já INACTIVE.
+    if (['ACTIVE', 'PARA_INATIVAR'].includes(existing.status)) {
+      demoteUpdate['status'] = 'INACTIVE'
+      demoteUpdate['metadata.inactivatedAt'] = clock.now()
+      demoteUpdate['metadata.inactivatedReason'] = 'Substituído por novo plano no sync (mudança de plano)'
+    }
+    return { newIsPrimary: true, demoteUpdate }
+  }
+
+  return { newIsPrimary: false }
+}
+
+export interface UserProductCreateInput {
+  item: UniversalSourceItem
+  syncType: UniversalSyncType
+  userId: string
+  productId: mongoose.Types.ObjectId
+  enrolledAt: Date
+  isPrimary: boolean
+  /** Precomputed by the caller (Product.findById + calculateEngagementMetrics); null when unavailable. */
+  metrics: EngagementMetricsResult | null
+  clock: Clock
+}
+
+/**
+ * Pure builder for the "create new UserProduct" branch. item + resolved
+ * ids/dates/primary + precomputed metrics -> the exact NewUserProductInput,
+ * including the Sprint-1.5B metrics merge (which overwrites totalLogins with
+ * `metrics.totalLogins || 0`, preserved as-is). No Mongoose, models, I/O or logs.
+ */
+export function buildUserProductCreatePlan(input: UserProductCreateInput): NewUserProductInput {
+  const { item, syncType, userId, productId, enrolledAt, isPrimary, metrics, clock } = input
+
+  const classId = classIdFor(syncType, item)
+  const rolePlan = classId ? planClassEnrollmentRole([], classId, item.role) : {}
+
+  // Não guardamos className no UserProduct — vem da tabela Class via lookup.
+  const classesArray: IClassEnrollment[] = classId
+    ? [{ classId, role: rolePlan.role, joinedAt: enrolledAt } as IClassEnrollment]
+    : []
+
+  const progressObj: IProgress = {
+    percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
+    lastActivity: toDateOrNull(item.lastAccessDate || item.lastLogin) || clock.now(),
+  }
+
+  if (syncType === 'hotmart') {
+    if (item.currentModule !== undefined) progressObj.currentModule = toNumber(item.currentModule, 0)
+    if (item.progress?.completed !== undefined) progressObj.completed = toNumber(item.progress.completed, 0)
+    if (item.progress?.total !== undefined) progressObj.total = toNumber(item.progress.total, 0)
+    if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
+      progressObj.lessonsCompleted = item.progress.lessons.flatMap((l) => (l.isCompleted && l.pageId ? [l.pageId] : []))
+    }
+    if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
+      progressObj.modulesCompleted = [...new Set(item.progress.lessons.flatMap((l) => (l.isCompleted && l.moduleName ? [l.moduleName] : [])))]
+    }
+  }
+
+  const lastActionDate = toDateOrNull(item.lastAccessDate || item.lastLogin) || clock.now()
+  const now = clock.now()
+  const daysInactive = Math.floor((now.getTime() - lastActionDate.getTime()) / MS_PER_DAY)
+
+  const engagementObj: IEngagement = {
+    engagementScore: item.engagement?.engagementScore ? toNumber(item.engagement.engagementScore, 0) : toNumber(item.accessCount, 0),
+    lastAction: lastActionDate,
+    daysInactive: Math.max(0, daysInactive),
+  }
+
+  if (syncType === 'hotmart') {
+    if (item.accessCount !== undefined) engagementObj.totalLogins = toNumber(item.accessCount, 0)
+    if (item.lastAccessDate) engagementObj.lastLogin = toDateOrNull(item.lastAccessDate) || undefined
+  }
+
+  if (syncType === 'curseduca') {
+    if (item.lastLogin) {
+      const curseducaLastAction = toDateOrNull(item.lastLogin)
+      engagementObj.lastAction = curseducaLastAction || undefined
+      if (curseducaLastAction) {
+        const curseducaDaysInactive = Math.floor((now.getTime() - curseducaLastAction.getTime()) / MS_PER_DAY)
+        engagementObj.daysInactive = Math.max(0, curseducaDaysInactive)
+      }
+    }
+    if (item.accessCount !== undefined) engagementObj.totalLogins = toNumber(item.accessCount, 0)
+  }
+
+  const newUserProduct: NewUserProductInput = {
+    userId,
+    productId,
+    platform: syncType,
+    platformUserId: item.curseducaUserId || item.hotmartUserId || userId,
+    platformUserUuid: item.curseducaUuid, // Só Curseduca
+    status: 'ACTIVE',
+    source: 'PURCHASE',
+    enrolledAt,
+    isPrimary,
+    progress: progressObj,
+    engagement: engagementObj,
+    platformData: item.platformData,
+    classes: classesArray,
+  }
+
+  if (metrics) {
+    newUserProduct.engagement = {
+      ...newUserProduct.engagement,
+      ...(metrics.engagement.daysSinceLastLogin !== null && { daysSinceLastLogin: metrics.engagement.daysSinceLastLogin }),
+      ...(metrics.engagement.daysSinceLastAction !== null && { daysSinceLastAction: metrics.engagement.daysSinceLastAction }),
+      totalLogins: metrics.engagement.totalLogins || 0,
+    }
+
+    newUserProduct.metadata = {
+      ...(newUserProduct.metadata ?? {}),
+      ...(metrics.metadata.purchaseDate !== null && { purchaseDate: metrics.metadata.purchaseDate }),
+      platform: metrics.metadata.platform,
+      ...(metrics.metadata.purchaseValue !== null && { purchaseValue: metrics.metadata.purchaseValue }),
+    }
+  }
+
+  return newUserProduct
 }

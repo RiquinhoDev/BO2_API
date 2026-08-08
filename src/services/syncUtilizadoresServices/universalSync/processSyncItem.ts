@@ -10,41 +10,22 @@ import mongoose, { type UpdateQuery } from 'mongoose'
 import User, { IUser } from '../../../models/user'
 import { Product, UserProduct } from '../../../models'
 import { Class, type IClass } from '../../../models/Class'
-import type { IClassEnrollment, IEngagement, IProgress, IUserProduct } from '../../../models/UserProduct'
 import type { ProcessItemResult, UniversalSourceItem, UniversalSyncConfig, UniversalSyncType } from '../../../types/universalSync.types'
 import { snapshotAndCompare } from '../../snapshotServices/userSnapshot.service'
-import { planClassEnrollmentRole } from '../classEnrollmentRole'
 import type { UniversalSnapshotContext } from '../universalSyncSnapshot'
 import { debugLog } from './debugLog'
 import { buildCanonicalActiveUserStatusUpdate } from './canonicalUserStatus'
-import { errorMessage, mongoErrorCode, normalizeEmail, toDateOrNull, toNumber } from './fieldUtils'
+import { errorMessage, mongoErrorCode, normalizeEmail, toDateOrNull } from './fieldUtils'
 import { productsCache, type LeanProduct } from './productsCache'
 import { EXPIRATION_DAYS, HotmartExpirationPolicy, formatDateOnly, getActiveHotmartClassForExpiration } from './hotmartExpiration'
 import { ExpiredStudentsCollector } from './expiredStudentsCollector'
 import { calculateEngagementMetricsForUserProduct, type EngagementMetricsResult } from './engagement/engagementMetrics'
 import { buildHotmartMutationPlan, hotmartPlanToUpdateFields, type HotmartClassEnrollment } from './builders/hotmartMutationPlan'
 import { buildCurseducaMutationPlan, curseducaPlanToUpdateFields } from './builders/curseducaMutationPlan'
-import { buildUserProductUpdatePlan } from './builders/userProductMutationPlan'
+import { buildUserProductUpdatePlan, buildUserProductCreatePlan, planPrimaryReassignment } from './builders/userProductMutationPlan'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 
-
-interface NewUserProductInput {
-  userId: string
-  productId: mongoose.Types.ObjectId
-  platform: IUserProduct['platform']
-  platformUserId: string
-  platformUserUuid?: string
-  status: IUserProduct['status']
-  source: IUserProduct['source']
-  enrolledAt: Date
-  isPrimary: boolean
-  progress: IProgress
-  engagement: IEngagement
-  platformData?: Record<string, unknown>
-  classes: IClassEnrollment[]
-  metadata?: IUserProduct['metadata']
-}
 
 interface RenewalDetectionResult {
   wasInactivated: boolean
@@ -666,9 +647,9 @@ export const processSyncItem = async (
                         toDateOrNull(item.joinedDate) ||
                         new Date()
 
-      // isPrimary logic
+      // PREPARE: isPrimary + the curseduca "one primary" reassignment (read, pure
+      // decision, then the demote write) — same order as before, before the create.
       let isPrimaryValue = item.platformData?.isPrimary ?? true
-
       if (config.syncType === 'curseduca' && isPrimaryValue === true) {
         const existingPrimary = await UserProduct.findOne({
           userId: userIdStr,
@@ -679,195 +660,43 @@ export const processSyncItem = async (
 
         if (existingPrimary) {
           console.log(`   🛡️ [Proteção] User ${item.email} já tem produto PRIMARY`)
-
-          const existingDate = existingPrimary.enrolledAt ? new Date(existingPrimary.enrolledAt).getTime() : 0
-          const newDate = enrolledAt.getTime()
-
-          if (newDate > existingDate) {
+          const reassign = planPrimaryReassignment(
+            { enrolledAt: existingPrimary.enrolledAt, status: existingPrimary.status },
+            enrolledAt,
+            { now: () => new Date() },
+          )
+          isPrimaryValue = reassign.newIsPrimary
+          if (reassign.demoteUpdate) {
             console.log(`      ✅ Novo produto mais recente → PRIMARY, antigo → INACTIVE`)
-            await UserProduct.updateOne(
-              { _id: existingPrimary._id },
-              {
-                $set: {
-                  isPrimary: false,
-                  // Só inativar se ainda estiver ACTIVE ou PARA_INATIVAR — não tocar em já INACTIVE
-                  ...((['ACTIVE', 'PARA_INATIVAR'].includes(existingPrimary.status)) && {
-                    status: 'INACTIVE',
-                    'metadata.inactivatedAt': new Date(),
-                    'metadata.inactivatedReason': 'Substituído por novo plano no sync (mudança de plano)'
-                  })
-                }
-              }
-            )
+            await UserProduct.updateOne({ _id: existingPrimary._id }, { $set: reassign.demoteUpdate })
           } else {
             console.log(`      🔻 Novo produto mais antigo → SECONDARY (antigo mantém-se PRIMARY)`)
-            isPrimaryValue = false
           }
         }
       }
 
-      // ═══════════════════════════════════════════════════════════
-      // 🚨 CRÍTICO: Preparar array de classes
-      // ═══════════════════════════════════════════════════════════
-      const classId = config.syncType === 'hotmart'
-        ? item.classId
-        : config.syncType === 'curseduca'
-          ? String(item.groupId)
-          : null
-      const rolePlan = classId
-        ? planClassEnrollmentRole([], classId, item.role)
-        : {}
-
-      // Não guardamos className no UserProduct - ele vem da tabela Class via lookup
-      const classesArray: IClassEnrollment[] = classId ? [{
-        classId,
-        role: rolePlan.role,
-        joinedAt: enrolledAt
-      }] : []
-
-      // ═══════════════════════════════════════════════════════════
-      // Construir objeto progress por plataforma
-      // ═══════════════════════════════════════════════════════════
-      const progressObj: IProgress = {
-        percentage: item.progress?.percentage ? toNumber(item.progress.percentage, 0) : 0,
-        lastActivity: toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
-      }
-
-      // 🔥 HOTMART - Adicionar campos específicos
-      if (config.syncType === 'hotmart') {
-        if (item.currentModule !== undefined) {
-          progressObj.currentModule = toNumber(item.currentModule, 0)
-        }
-
-        // ✅ CONTADORES DE LIÇÕES (completed/total)
-        if (item.progress?.completed !== undefined) {
-          progressObj.completed = toNumber(item.progress.completed, 0)
-        }
-        if (item.progress?.total !== undefined) {
-          progressObj.total = toNumber(item.progress.total, 0)
-        }
-
-        // lessonsCompleted - array de pageIds
-        if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
-          progressObj.lessonsCompleted = item.progress.lessons
-            .flatMap(l => l.isCompleted && l.pageId ? [l.pageId] : [])
-        }
-
-        // modulesCompleted - array de módulos únicos
-        if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
-          progressObj.modulesCompleted = [...new Set(
-            item.progress.lessons
-              .flatMap(l => l.isCompleted && l.moduleName ? [l.moduleName] : [])
-          )]
-        }
-      }
-
-      // ═══════════════════════════════════════════════════════════
-      // Construir objeto engagement por plataforma
-      // ═══════════════════════════════════════════════════════════
-      const lastActionDate = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
-      const now = new Date()
-      const daysInactive = Math.floor((now.getTime() - lastActionDate.getTime()) / (1000 * 60 * 60 * 24))
-
-      const engagementObj: IEngagement = {
-        engagementScore: item.engagement?.engagementScore
-          ? toNumber(item.engagement.engagementScore, 0)
-          : toNumber(item.accessCount, 0),
-        lastAction: lastActionDate,
-        daysInactive: Math.max(0, daysInactive)
-      }
-
-      // 🔥 HOTMART - Engagement baseado em logins
-      if (config.syncType === 'hotmart') {
-        if (item.accessCount !== undefined) {
-          engagementObj.totalLogins = toNumber(item.accessCount, 0)
-        }
-        if (item.lastAccessDate) {
-          engagementObj.lastLogin = toDateOrNull(item.lastAccessDate) || undefined
-        }
-      }
-
-      // 🎓 CURSEDUCA - Engagement baseado em ações
-      if (config.syncType === 'curseduca') {
-        if (item.lastLogin) {
-          const curseducaLastAction = toDateOrNull(item.lastLogin)
-          engagementObj.lastAction = curseducaLastAction || undefined
-          if (curseducaLastAction) {
-            const curseducaDaysInactive = Math.floor((now.getTime() - curseducaLastAction.getTime()) / (1000 * 60 * 60 * 24))
-            engagementObj.daysInactive = Math.max(0, curseducaDaysInactive)
-          }
-        }
-        if (item.accessCount !== undefined) {
-          engagementObj.totalLogins = toNumber(item.accessCount, 0)
-        }
-      }
-
-      // ═══════════════════════════════════════════════════════════
-      // Criar novo UserProduct com TODOS os campos
-      // ═══════════════════════════════════════════════════════════
-      const newUserProduct: NewUserProductInput = {
-        userId: userIdStr,
-        productId: productId,
-        platform: config.syncType,
-        platformUserId: item.curseducaUserId || item.hotmartUserId || userIdStr,
-        platformUserUuid: item.curseducaUuid,  // Só Curseduca
-        status: 'ACTIVE',
-        source: 'PURCHASE',
-        enrolledAt: enrolledAt,
-        isPrimary: isPrimaryValue,
-
-        progress: progressObj,
-        engagement: engagementObj,
-        platformData: item.platformData,
-        classes: classesArray  // 🚨 CRÍTICO - Array de turmas
-      }
-
-      // ════════════════════════════════════════════════════════════
-      // 🆕 SPRINT 1.5B: CALCULAR ENGAGEMENT METRICS (CRIAR)
-      // ════════════════════════════════════════════════════════════
+      // PREPARE: engagement metrics (tolerant read + pure calc).
+      let metrics: EngagementMetricsResult | null = null
       try {
         const product = await Product.findById(productId)
-
-        if (product) {
-          console.log(`   📊 [Sprint 1.5B] Calculando engagement metrics para novo UserProduct: ${user.email}`)
-
-          const metrics = calculateEngagementMetricsForUserProduct(user, product)
-
-          // Adicionar engagement metrics
-          newUserProduct.engagement = {
-            ...newUserProduct.engagement,
-            ...(metrics.engagement.daysSinceLastLogin !== null && {
-              daysSinceLastLogin: metrics.engagement.daysSinceLastLogin
-            }),
-            ...(metrics.engagement.daysSinceLastAction !== null && {
-              daysSinceLastAction: metrics.engagement.daysSinceLastAction
-            }),
-            totalLogins: metrics.engagement.totalLogins || 0
-          }
-
-          // Adicionar metadata
-          if (!newUserProduct.metadata) {
-            newUserProduct.metadata = {}
-          }
-
-          newUserProduct.metadata = {
-            ...newUserProduct.metadata,
-            ...(metrics.metadata.purchaseDate !== null && {
-              purchaseDate: metrics.metadata.purchaseDate
-            }),
-            platform: metrics.metadata.platform,
-            ...(metrics.metadata.purchaseValue !== null && {
-              purchaseValue: metrics.metadata.purchaseValue
-            })
-          }
-
-          console.log(`   ✅ [Sprint 1.5B] Engagement metrics adicionados ao novo UserProduct`)
-        }
+        if (product) metrics = calculateEngagementMetricsForUserProduct(user, product)
       } catch (metricsError: unknown) {
         console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, errorMessage(metricsError))
       }
 
-      // Dados específicos da plataforma
+      // PURE BUILDER: assemble the new UserProduct (progress/engagement/classes + metrics merge).
+      const newUserProduct = buildUserProductCreatePlan({
+        item,
+        syncType: config.syncType,
+        userId: userIdStr,
+        productId,
+        enrolledAt,
+        isPrimary: isPrimaryValue,
+        metrics,
+        clock: { now: () => new Date() },
+      })
+
+      // EXECUTOR: create.
       await UserProduct.create(newUserProduct)
       debugLog(`   ✨ UserProduct CRIADO: ${user.email} → ${config.syncType}`)
     }
