@@ -16,7 +16,7 @@ import { executeDailyPipeline } from './dailyPipeline.service'
 import { syncRenewalOffers } from '../renewal/renewalSync.service'
 import { evaluateAllAchievements } from '../achievements/achievementEvaluation.service'
 import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
-import universalSyncService from '../syncUtilizadoresServices/universalSyncService'
+import universalSyncService from '../syncUtilizadoresServices/universalSync'
 import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../types/cron.types'
 

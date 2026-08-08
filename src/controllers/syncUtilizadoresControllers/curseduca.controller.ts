@@ -16,7 +16,7 @@ import {
   getUsersByProduct as getUsersByProductService,
   getUserCountForProduct
 } from '../../services/userProducts/userProductService'
-import universalSyncService from '../../services/syncUtilizadoresServices/universalSyncService'
+import universalSyncService from '../../services/syncUtilizadoresServices/universalSync'
 import curseducaAdapter from '../../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 
 interface ProductUserView {

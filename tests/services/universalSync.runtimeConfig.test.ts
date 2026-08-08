@@ -34,7 +34,7 @@ jest.mock('../../src/models/UserSnapshot', () => ({
   default: {},
 }))
 
-import { executeUniversalSync } from '../../src/services/syncUtilizadoresServices/universalSyncService'
+import { executeUniversalSync } from '../../src/services/syncUtilizadoresServices/universalSync'
 import {
   resetRuntimeConfigForTests,
   useTestRuntimeConfig,

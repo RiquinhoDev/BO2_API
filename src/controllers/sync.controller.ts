@@ -12,7 +12,7 @@ import { Product, User, UserProduct } from '../models'
 
 // Services
 import { executeDailyPipeline } from '../services/cron/dailyPipeline.service'
-import universalSyncService from '../services/syncUtilizadoresServices/universalSyncService'
+import universalSyncService from '../services/syncUtilizadoresServices/universalSync'
 import hotmartAdapter from '../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import curseducaAdapter from '../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import type {
