@@ -119,6 +119,24 @@ describe('universalSync hotmart — class history', () => {
     expect(history?.previousClassName).toBe('Turma Antiga')
   })
 
+  it('stamps sync metadata after the class-history effect (temporal invariant)', async () => {
+    await User.collection.insertOne({ _id: oid(4), email: 'a@x.test', name: 'Ana', hotmart: {} })
+    let historyTime = 0
+    jest.spyOn(StudentClassHistory, 'create').mockImplementation((async () => {
+      await new Promise((r) => setTimeout(r, 15))
+      historyTime = Date.now()
+      return undefined
+    }) as never)
+
+    await runHotmart(baseItem()) // first enrollment triggers the class-history effect
+
+    const user = (await User.findOne({ email: 'a@x.test' }).lean()) as { hotmart?: { lastSyncAt?: Date } } | null
+    const lastSyncAt = user?.hotmart?.lastSyncAt
+    expect(historyTime).toBeGreaterThan(0)
+    expect(lastSyncAt).toBeInstanceOf(Date)
+    expect(lastSyncAt ? new Date(lastSyncAt).getTime() : 0).toBeGreaterThanOrEqual(historyTime)
+  })
+
   it('does not abort the sync when history creation fails', async () => {
     await User.collection.insertOne({ _id: oid(3), email: 'a@x.test', name: 'Ana', hotmart: {} })
     jest.spyOn(StudentClassHistory, 'create').mockRejectedValue(new Error('history down') as never)

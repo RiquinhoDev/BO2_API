@@ -5,45 +5,55 @@ export interface Clock {
   now(): Date
 }
 
-// Plain-data class shapes — the builder is decoupled from the Mongoose models.
-export interface HotmartClassEnrollment {
+export type ClassRole = 'student' | 'assistant' | 'teacher'
+
+// Loose shapes for READING the current user's existing enrollments.
+export interface HotmartUserEnrollment {
   classId?: string
   className?: string
-  source: string
   isActive?: boolean
   enrolledAt?: Date | null
 }
 
-export interface CurseducaClassEnrollment {
+export interface CurseducaUserEnrollment {
   classId?: string
   className?: string
   isActive?: boolean
   enteredAt?: Date | null
-  role?: string
+  role?: ClassRole
+}
+
+// Strict shape for a newly-resolved hotmart enrollment the plan WRITES.
+export interface HotmartClassEnrollment {
+  classId: string
+  className: string
+  source: 'hotmart'
+  isActive: boolean
+  enrolledAt: Date | null
 }
 
 export interface CombinedClassEntry {
   classId?: string
   className?: string
-  source: string
+  source: 'hotmart' | 'curseduca'
   isActive?: boolean
   enrolledAt?: Date | null
-  role?: string
+  role?: ClassRole
 }
 
 /** Plain-data slice of the current user the builder needs (no Mongoose doc). */
 export interface HotmartUserState {
   classId?: string
-  hotmart?: { enrolledClasses?: HotmartClassEnrollment[] }
-  curseduca?: { enrolledClasses?: CurseducaClassEnrollment[] }
+  hotmart?: { enrolledClasses?: HotmartUserEnrollment[] }
+  curseduca?: { enrolledClasses?: CurseducaUserEnrollment[] }
 }
 
 export interface HotmartMutationInput {
   item: UniversalSourceItem
   user: HotmartUserState
   isNew: boolean
-  /** Real class name resolved by ensureClassExists (prepare phase); null when the item carries no classId. */
-  realClassName: string | null
+  /** The class resolved by ensureClassExists (prepare phase); undefined when the item carries no classId. */
+  resolvedClass?: { classId: string; className: string }
   clock: Clock
 }
 
@@ -77,30 +87,30 @@ export interface HotmartMutationPlan {
     plusAccess?: string
     enrolledClasses?: HotmartClassEnrollment[]
     engagement?: HotmartEngagementPlan
-    lastSyncAt: Date
     syncVersion: string
   }
   combined: {
     allClasses: CombinedClassEntry[]
-    primaryClass?: { classId?: string; className?: string; source: string }
+    primaryClass?: { classId?: string; className?: string; source: 'hotmart' | 'curseduca' }
     classId?: string
     className?: string
   }
   metadata: {
-    updatedAt: Date
-    sources: { hotmart: { lastSync: Date; version: string } }
+    sources: { hotmart: { version: string } }
   }
   classHistoryEvent?: ClassHistoryEvent
 }
 
 /**
  * Pure builder for the hotmart branch mutation plan. No Mongoose, no models, no
- * I/O — it consumes the item, the current user state, and a resolved real class
- * name, and returns an explicit plan. The clock is injected and used at the same
- * logical points as the original branch.
+ * I/O — it consumes the item, the current user state, and a resolved class, and
+ * returns an explicit plan. The clock is injected. Sync timestamps
+ * (hotmart.lastSyncAt / metadata.updatedAt / sources.lastSync) are NOT here:
+ * they are stamped by the executor AFTER the history effect, preserving the
+ * original temporal order.
  */
 export function buildHotmartMutationPlan(input: HotmartMutationInput): HotmartMutationPlan {
-  const { item, user, isNew, realClassName, clock } = input
+  const { item, user, isNew, resolvedClass, clock } = input
 
   const purchaseDate = toDateOrNull(item.purchaseDate)
   const signupDate = toDateOrNull(item.signupDate)
@@ -109,15 +119,9 @@ export function buildHotmartMutationPlan(input: HotmartMutationInput): HotmartMu
 
   const plan: HotmartMutationPlan = {
     needsUpdate: false,
-    hotmart: {
-      lastSyncAt: clock.now(),
-      syncVersion: '3.0',
-    },
+    hotmart: { syncVersion: '3.0' },
     combined: { allClasses: [] },
-    metadata: {
-      updatedAt: clock.now(),
-      sources: { hotmart: { lastSync: clock.now(), version: '3.0' } },
-    },
+    metadata: { sources: { hotmart: { version: '3.0' } } },
   }
 
   if (item.hotmartUserId) {
@@ -156,7 +160,7 @@ export function buildHotmartMutationPlan(input: HotmartMutationInput): HotmartMu
 
   let pendingHotmartClasses: HotmartClassEnrollment[] | undefined
 
-  if (!item.classId) {
+  if (!resolvedClass) {
     const existingActiveClass = user.hotmart?.enrolledClasses?.find((c) => c.isActive)
     if (existingActiveClass && user.classId !== existingActiveClass.classId) {
       plan.rootClassId = existingActiveClass.classId
@@ -165,30 +169,30 @@ export function buildHotmartMutationPlan(input: HotmartMutationInput): HotmartMu
     }
   }
 
-  if (item.classId) {
+  if (resolvedClass) {
     const oldClassId = user.hotmart?.enrolledClasses?.[0]?.classId
     const oldClassName = user.hotmart?.enrolledClasses?.[0]?.className
-    const hasClassChanged = Boolean(oldClassId && oldClassId !== item.classId)
+    const hasClassChanged = Boolean(oldClassId && oldClassId !== resolvedClass.classId)
 
     pendingHotmartClasses = [
       {
-        classId: item.classId,
-        className: realClassName ?? undefined,
+        classId: resolvedClass.classId,
+        className: resolvedClass.className,
         source: 'hotmart',
         isActive: true,
         enrolledAt: purchaseDate || clock.now(),
       },
     ]
     plan.hotmart.enrolledClasses = pendingHotmartClasses
-    plan.rootClassId = item.classId
-    plan.rootClassName = realClassName ?? undefined
+    plan.rootClassId = resolvedClass.classId
+    plan.rootClassName = resolvedClass.className
     plan.needsUpdate = true
 
     if (hasClassChanged) {
       plan.classHistoryEvent = {
         type: 'class-changed',
-        classId: item.classId,
-        className: item.className || `Turma ${item.classId}`,
+        classId: resolvedClass.classId,
+        className: item.className || `Turma ${resolvedClass.classId}`,
         previousClassId: oldClassId,
         previousClassName: oldClassName,
         dateMoved: clock.now(),
@@ -196,8 +200,8 @@ export function buildHotmartMutationPlan(input: HotmartMutationInput): HotmartMu
     } else if (!oldClassId && !isNew) {
       plan.classHistoryEvent = {
         type: 'first-enrollment',
-        classId: item.classId,
-        className: item.className || `Turma ${item.classId}`,
+        classId: resolvedClass.classId,
+        className: item.className || `Turma ${resolvedClass.classId}`,
         dateMoved: purchaseDate || clock.now(),
       }
     }
@@ -206,7 +210,7 @@ export function buildHotmartMutationPlan(input: HotmartMutationInput): HotmartMu
   const allClasses: CombinedClassEntry[] = []
   if (pendingHotmartClasses) {
     pendingHotmartClasses.forEach((cls) => {
-      allClasses.push({ classId: cls.classId, className: cls.className, source: 'hotmart', isActive: cls.isActive ?? true, enrolledAt: cls.enrolledAt })
+      allClasses.push({ classId: cls.classId, className: cls.className, source: 'hotmart', isActive: cls.isActive, enrolledAt: cls.enrolledAt })
     })
   } else if (user.hotmart?.enrolledClasses) {
     user.hotmart.enrolledClasses.forEach((cls) => {
@@ -240,7 +244,10 @@ export function buildHotmartMutationPlan(input: HotmartMutationInput): HotmartMu
   return plan
 }
 
-/** Pure flatten of the plan into the exact dotted Mongo paths the branch wrote. */
+/**
+ * Pure flatten of the plan into the dotted Mongo paths the branch wrote (minus
+ * the sync timestamps, which the executor stamps after the history effect).
+ */
 export function hotmartPlanToUpdateFields(plan: HotmartMutationPlan): Record<string, unknown> {
   const fields: Record<string, unknown> = {}
 
@@ -269,10 +276,7 @@ export function hotmartPlanToUpdateFields(plan: HotmartMutationPlan): Record<str
   if (plan.combined.classId !== undefined) fields['combined.classId'] = plan.combined.classId
   if (plan.combined.className !== undefined) fields['combined.className'] = plan.combined.className
 
-  fields['hotmart.lastSyncAt'] = plan.hotmart.lastSyncAt
   fields['hotmart.syncVersion'] = plan.hotmart.syncVersion
-  fields['metadata.updatedAt'] = plan.metadata.updatedAt
-  fields['metadata.sources.hotmart.lastSync'] = plan.metadata.sources.hotmart.lastSync
   fields['metadata.sources.hotmart.version'] = plan.metadata.sources.hotmart.version
 
   return fields
