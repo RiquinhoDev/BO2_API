@@ -826,7 +826,7 @@ Progresso controllers:
 - [x] Modelos e jobs registados **explicitamente**, nunca por side-effect de import. Startup order e shutdown testáveis.
 
 ### 2. Ficheiros pequenos & módulos por domínio
-- [ ] **Nenhum ficheiro novo/tocado > ~400 linhas.** Os monstros existentes (`clarezaCarteiraService` 4692, `users.controller` 3649, `universalSyncService` 2585, `classes.controller` 2347) partidos **verticalmente por domínio** (use cases + adapters), não reorganização cosmética (ARCH-02).
+- [ ] **Nenhum ficheiro novo/tocado > ~400 linhas.** Os monstros existentes (`clarezaCarteiraService` 4692, `users.controller` 3649, `classes.controller` 2347) partidos **verticalmente por domínio** (use cases + adapters), não reorganização cosmética (ARCH-02). `universalSyncService` foi **dissolvido** (ficheiro apagado, `21b5430`), mas a decomposição deixou `universalSync/processSyncItem.ts` (~1127) e `universalSync/executeUniversalSync.ts` (~507) **ainda > 400** — alvos ARCH-02 remanescentes (decompor `processSyncItem` characterization-first).
 - [ ] Cada módulo tem uma responsabilidade clara; sem "controller-que-faz-tudo".
 - [x] **ARCH-02 — reconciliação de identidade Discord extraída** (2026-07-29): `users.controller.ts`
   **3688→3432** neste checkout. Os 7 handlers de merge/manual/bulk/delete passaram para controller fino +
