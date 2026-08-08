@@ -17,13 +17,13 @@ import { debugLog } from './debugLog'
 import { buildCanonicalActiveUserStatusUpdate } from './canonicalUserStatus'
 import { errorMessage, mongoErrorCode, normalizeEmail, toDateOrNull } from './fieldUtils'
 import { productsCache, type LeanProduct } from './productsCache'
-import { HotmartExpirationPolicy, formatDateOnly, getActiveHotmartClassForExpiration } from './hotmartExpiration'
+import { HotmartExpirationPolicy, getActiveHotmartClassForExpiration } from './hotmartExpiration'
 import { ExpiredStudentsCollector } from './expiredStudentsCollector'
 import { calculateEngagementMetricsForUserProduct, type EngagementMetricsResult } from './engagement/engagementMetrics'
 import { buildHotmartMutationPlan, hotmartPlanToUpdateFields, type HotmartClassEnrollment } from './builders/hotmartMutationPlan'
 import { buildCurseducaMutationPlan, curseducaPlanToUpdateFields } from './builders/curseducaMutationPlan'
 import { buildUserProductUpdatePlan, buildUserProductCreatePlan, planPrimaryReassignment } from './builders/userProductMutationPlan'
-import { detectRenewal, applyAutoReactivation } from './renewalPolicy'
+import { detectRenewal, applyAutoReactivation, planInactiveAutofix } from './renewalPolicy'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 
@@ -423,23 +423,16 @@ export const processSyncItem = async (
     config.syncType === 'hotmart' &&
     !renewalResult.shouldReactivate
   ) {
-    const isInactiveInDB = user.combined?.status === 'INACTIVE'
     const activeHotmartClass = getActiveHotmartClassForExpiration(
       user,
       pendingHotmartClasses,
       item.classId,
       item.className
     )
-    const expiration = expirationPolicy.evaluate(
-      purchaseDate,
-      activeHotmartClass?.className
-    )
+    const autofix = planInactiveAutofix(user, purchaseDate, activeHotmartClass?.className, expirationPolicy)
 
-    if (isInactiveInDB && expiration.canEvaluate && !expiration.isExpired) {
-      const validUntil = expiration.accessEndOgi
-        ? `acesso válido até ${formatDateOnly(expiration.accessEndOgi)}`
-        : `compra recente (${expiration.daysSincePurchase}d)`
-      console.log(`   🔄 [AutoFix] ${user.email} está INACTIVE mas tem ${validUntil} → reativando`)
+    if (autofix.reactivate) {
+      console.log(`   🔄 [AutoFix] ${user.email} está INACTIVE mas tem ${autofix.validUntil} → reativando`)
       Object.assign(updateFields, buildCanonicalActiveUserStatusUpdate())
       updateFields['inactivation.isManuallyInactivated'] = false
       updateFields['inactivation.reactivatedAt'] = new Date()

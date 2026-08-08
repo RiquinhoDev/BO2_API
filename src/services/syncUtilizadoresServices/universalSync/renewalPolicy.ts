@@ -71,6 +71,37 @@ export function detectRenewal(
   return result
 }
 
+export interface InactiveAutofixPlan {
+  reactivate: boolean
+  /** Human-readable validity reason for the reactivation log; set when reactivate is true. */
+  validUntil?: string
+}
+
+/**
+ * Pure decision for the "recent purchase but still INACTIVE" auto-fix: when
+ * detectRenewal did not already reactivate, a Hotmart user that is INACTIVE in
+ * the DB yet whose access is evaluable and not expired should be reactivated.
+ * No I/O — the caller resolves the active class name and applies the effects.
+ */
+export function planInactiveAutofix(
+  user: IUser,
+  purchaseDate: Date | null,
+  activeClassName: string | undefined,
+  policy: HotmartExpirationPolicy,
+): InactiveAutofixPlan {
+  const isInactiveInDB = user.combined?.status === 'INACTIVE'
+  const expiration = policy.evaluate(purchaseDate, activeClassName)
+
+  if (isInactiveInDB && expiration.canEvaluate && !expiration.isExpired) {
+    const validUntil = expiration.accessEndOgi
+      ? `acesso válido até ${formatDateOnly(expiration.accessEndOgi)}`
+      : `compra recente (${expiration.daysSincePurchase}d)`
+    return { reactivate: true, validUntil }
+  }
+
+  return { reactivate: false }
+}
+
 /**
  * Executor: applies the reactivation decided by detectRenewal — flips the User
  * back to the canonical ACTIVE status and reactivates its UserProducts.
