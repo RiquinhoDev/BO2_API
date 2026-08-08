@@ -39,6 +39,7 @@ beforeEach(async () => {
     SyncHistory.collection.deleteMany({}),
   ])
   await Product.collection.insertOne({ code: 'OGI_V1', platform: 'hotmart', name: 'OGI', courseId: 'course-ogi', isActive: true })
+  await Product.collection.insertOne({ _id: oid(31), code: 'CLAREZA', platform: 'curseduca', name: 'Clareza', courseId: 'course-clareza', isActive: true })
 })
 
 const oid = (n: number) => new mongoose.Types.ObjectId(n.toString(16).padStart(24, '0'))
@@ -160,6 +161,85 @@ describe('universalSync hotmart — expired collection stays passive', () => {
     const user = await User.findOne({ email: 'a@x.test' }).lean()
     // AUTO_INACTIVATION_ENABLED is false: the sync never flips the user to INACTIVE.
     expect(user?.combined?.status).not.toBe('INACTIVE')
+  })
+})
+
+describe('universalSync hotmart — renewal executors', () => {
+  async function seedInactiveUser(options: { manuallyInactivated: boolean; includeCurseducaProduct?: boolean }) {
+    const userId = oid(30)
+    const product = await Product.findOne({ code: 'OGI_V1' }).lean()
+    await User.collection.insertOne({
+      _id: userId,
+      email: 'a@x.test',
+      name: 'Ana',
+      combined: { status: 'INACTIVE' },
+      hotmart: { status: 'INACTIVE', enrolledClasses: [] },
+      curseduca: { memberStatus: 'INACTIVE' },
+      inactivation: { isManuallyInactivated: options.manuallyInactivated },
+    })
+    await UserProduct.collection.insertOne({
+      userId,
+      productId: product?._id,
+      platform: 'hotmart',
+      status: 'INACTIVE',
+      source: 'PURCHASE',
+      enrolledAt: new Date('2026-01-01T00:00:00.000Z'),
+      isPrimary: true,
+      progress: { percentage: 0 },
+      engagement: { engagementScore: 0 },
+      classes: [],
+    })
+    if (options.includeCurseducaProduct) {
+      await UserProduct.collection.insertOne({
+        userId,
+        productId: oid(31),
+        platform: 'curseduca',
+        status: 'INACTIVE',
+        source: 'PURCHASE',
+        enrolledAt: new Date('2026-01-01T00:00:00.000Z'),
+        isPrimary: false,
+        progress: { percentage: 0 },
+        engagement: { engagementScore: 0 },
+        classes: [],
+      })
+    }
+    return userId
+  }
+
+  it('applies a renewal decision to the canonical User fields and every UserProduct', async () => {
+    const userId = await seedInactiveUser({ manuallyInactivated: true, includeCurseducaProduct: true })
+    const recentPurchase = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+    await runHotmart(baseItem({ purchaseDate: recentPurchase }))
+
+    const user = await User.findById(userId).lean()
+    expect(user?.combined?.status).toBe('ACTIVE')
+    expect(user?.hotmart?.status).toBe('ACTIVE')
+    expect(user?.curseduca?.memberStatus).toBe('ACTIVE')
+    expect(user?.inactivation?.isManuallyInactivated).toBe(false)
+    expect(user?.inactivation?.reactivationReason).toBe('sync')
+    expect(user?.inactivation?.reactivatedAt).toBeInstanceOf(Date)
+    expect(await UserProduct.distinct('status', { userId })).toEqual(['ACTIVE'])
+  })
+
+  it('autofixes from the newly-synced class while reactivating only Hotmart UserProducts', async () => {
+    const userId = await seedInactiveUser({ manuallyInactivated: false, includeCurseducaProduct: true })
+
+    await runHotmart(baseItem({
+      className: 'Turma 10 [renov] | 9912',
+      purchaseDate: null,
+    }))
+
+    const user = await User.findById(userId).lean()
+    expect(user?.combined?.status).toBe('ACTIVE')
+    expect(user?.hotmart?.status).toBe('ACTIVE')
+    expect(user?.curseduca?.memberStatus).toBe('ACTIVE')
+    expect(user?.inactivation?.isManuallyInactivated).toBe(false)
+    expect(user?.inactivation?.reactivatedAt).toBeInstanceOf(Date)
+
+    const products = await UserProduct.find({ userId }).select('platform status').lean()
+    expect(products.find((product) => product.platform === 'hotmart')?.status).toBe('ACTIVE')
+    expect(products.find((product) => product.platform === 'curseduca')?.status).toBe('INACTIVE')
   })
 })
 
