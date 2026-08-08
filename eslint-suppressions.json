@@ -958,7 +958,7 @@
       "count": 7
     },
     "no-useless-assignment": {
-      "count": 2
+      "count": 1
     }
   },
   "src/services/renewal/discordScheduledMessages.service.ts": {

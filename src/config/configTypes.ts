@@ -100,6 +100,7 @@ export interface RenewalConfig {
   readonly autoExecute: boolean
   readonly expiryFieldId: number
   readonly maxChangesPerRun: number
+  readonly hotmartOgiProductId?: string
   readonly discordRolesSyncEnabled: boolean
   readonly discordRolesAutoExecute: boolean
   readonly discordMessagesEnabled: boolean

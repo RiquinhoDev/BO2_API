@@ -19,6 +19,7 @@
 // - Envio passa pelo sendDiscordMessage existente: allowlist dos 12 cargos R.*, allowlist de
 //   canais, switch DISCORD_MESSAGES_ENABLED, e registo em DiscordMessageLog.
 
+import { getRuntimeConfig } from '../../config/runtimeConfig'
 import {
   DiscordMessageTemplate,
   DiscordScheduledRule,
@@ -32,7 +33,7 @@ import {
 } from './discordRolesSync.service'
 
 export const isScheduledMessagesEnabled = () =>
-  process.env.DISCORD_SCHEDULED_MESSAGES_ENABLED === 'true'
+  getRuntimeConfig().renewal.discordScheduledMessagesEnabled
 
 const LISBON_TZ = 'Europe/Lisbon'
 
