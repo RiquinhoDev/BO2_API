@@ -37,6 +37,7 @@ const INTEGRATION_TEST_FILES = Object.freeze([
   'tests/services/syncUtilizadores/universalSyncCurseduca.characterization.test.ts',
   'tests/services/syncUtilizadores/universalSyncHotmart.characterization.test.ts',
   'tests/services/syncUtilizadores/universalSyncShared.characterization.test.ts',
+  'tests/services/syncUtilizadores/universalSyncUserProduct.characterization.test.ts',
   'tests/services/analytics/mongooseBenchmarkAnalytics.reader.test.ts',
   'tests/services/analytics/mongooseClassQuickStats.reader.test.ts',
   'tests/services/analytics/mongooseGlobalAnalytics.reader.test.ts',
