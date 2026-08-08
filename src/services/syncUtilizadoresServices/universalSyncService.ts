@@ -19,10 +19,6 @@ import {
   createUniversalSnapshotContext,
   type UniversalSnapshotContext,
 } from './universalSyncSnapshot'
-import {
-  buildCurseducaEnrollment,
-  isCurseducaEnrollmentActive,
-} from './curseducaServices/curseducaMemberships'
 import { getRuntimeConfig } from '../../config/runtimeConfig'
 import {
   errorMessage,
@@ -42,6 +38,7 @@ import {
 import { ExpiredStudentsCollector } from './universalSync/expiredStudentsCollector'
 import { calculateEngagementMetricsForUserProduct } from './universalSync/engagement/engagementMetrics'
 import { buildHotmartMutationPlan, hotmartPlanToUpdateFields, type HotmartClassEnrollment } from './universalSync/builders/hotmartMutationPlan'
+import { buildCurseducaMutationPlan, curseducaPlanToUpdateFields } from './universalSync/builders/curseducaMutationPlan'
 
 export { calculateEngagementMetricsForUserProduct } from './universalSync/engagement/engagementMetrics'
 
@@ -53,8 +50,6 @@ const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 // TYPE HELPERS
 // ═══════════════════════════════════════════════════════════
 
-type CurseducaEnrollment = NonNullable<NonNullable<IUser['curseduca']>['enrolledClasses']>[number]
-type CombinedClass = NonNullable<NonNullable<IUser['combined']>['allClasses']>[number]
 
 interface NewUserProductInput {
   userId: string
@@ -965,7 +960,6 @@ const processSyncItem = async (
   // ═══════════════════════════════════════════════════════════
   const updateFields: Record<string, unknown> = {}
   let pendingHotmartClasses: HotmartClassEnrollment[] | undefined
-  let pendingCurseducaClasses: CurseducaEnrollment[] | undefined
   let needsUpdate = false
 
   if (name && user.name !== name) {
@@ -1045,127 +1039,29 @@ const processSyncItem = async (
 // ✅ CURSEDUCA - VERSÃO COMPLETA COM TODOS OS CAMPOS NOVOS
 // ═══════════════════════════════════════════════════════════
   if (config.syncType === 'curseduca') {
-    // ═══════════════════════════════════════════════════════════
-    // IDs
-    // ═══════════════════════════════════════════════════════════
-    if (item.curseducaUserId && item.curseducaUserId !== user.curseduca?.curseducaUserId) {
-      updateFields['curseduca.curseducaUserId'] = item.curseducaUserId
-      needsUpdate = true
-    }
-
-    if (item.curseducaUuid) {
-      updateFields['curseduca.curseducaUuid'] = item.curseducaUuid
-      needsUpdate = true
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // 🆕 NOVO: enrollmentsCount (quantos produtos o user tem)
-    // ═══════════════════════════════════════════════════════════
-    if (item.platformData?.enrollmentsCount !== undefined) {
-      updateFields['curseduca.enrollmentsCount'] = item.platformData.enrollmentsCount
-      needsUpdate = true
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // GRUPOS
-    // ═══════════════════════════════════════════════════════════
+    // PREPARE: ensure the group's class exists (side effect only; groupId is the classId, never the student uuid).
     if (item.groupId) {
-      updateFields['curseduca.groupId'] = String(item.groupId)
-      needsUpdate = true
-
-      // ✅ CORRIGIDO: Usar SEMPRE groupId como classId, não curseducaUuid (que é do aluno!)
-      // groupId identifica o grupo/turma, curseducaUuid identifica o aluno
-      const classIdForCurseduca = String(item.groupId)
-      await ensureClassExists(
-        classIdForCurseduca,
-        item.groupName,
-        'curseduca',
-        String(item.groupId),
-        undefined // Não passar curseducaUuid aqui (é do aluno, não do grupo)
-      )
+      await ensureClassExists(String(item.groupId), item.groupName, 'curseduca', String(item.groupId), undefined)
     }
 
-    if (item.groupName) {
-      updateFields['curseduca.groupName'] = item.groupName
-      needsUpdate = true
-    }
+    // PURE BUILDER: item + current user state -> explicit plan (no I/O).
+    const plan = buildCurseducaMutationPlan({
+      item,
+      user: {
+        hotmart: { enrolledClasses: user.hotmart?.enrolledClasses },
+        curseduca: { curseducaUserId: user.curseduca?.curseducaUserId, enrolledClasses: user.curseduca?.enrolledClasses },
+      },
+      clock: { now: () => new Date() },
+    })
 
-    // ═══════════════════════════════════════════════════════════
-    // 🔥 CRITICAL FIX: POPULATE enrolledClasses ARRAY
-    // ═══════════════════════════════════════════════════════════
-    // This is the ROOT CAUSE of the bug - we were saving groupId but NOT enrolledClasses!
-    // Now we populate the enrolledClasses array from allCurseducaGroups
+    // EXECUTOR: apply the plan's field changes onto updateFields.
+    Object.assign(updateFields, curseducaPlanToUpdateFields(plan))
+    if (plan.needsUpdate) needsUpdate = true
 
-    // ✅ FIX: Processar TODOS os grupos do array allCurseducaGroups
-    const allCurseducaGroups = item.allCurseducaGroups
-
-    if (allCurseducaGroups && Array.isArray(allCurseducaGroups) && allCurseducaGroups.length > 0) {
-      // Processar TODOS os grupos de uma vez
-      const newEnrolledClasses: CurseducaEnrollment[] = []
-
-      for (const group of allCurseducaGroups) {
-        newEnrolledClasses.push(buildCurseducaEnrollment(group))
-      }
-
-      // Substituir TODO o array enrolledClasses de uma vez
-      // Isto garante que não há duplicações e que todos os grupos são salvos
-      pendingCurseducaClasses = newEnrolledClasses
-      updateFields['curseduca.enrolledClasses'] = pendingCurseducaClasses
-      needsUpdate = true
-
-      console.log(`   📚 [EnrolledClasses] Guardados ${newEnrolledClasses.length} grupos para ${user.email}:`)
-      newEnrolledClasses.forEach(ec => {
-        console.log(`      - ${ec.className} (ID: ${ec.curseducaId})`)
-      })
-
-    } else if (item.groupId) {
-      // ⚠️ FALLBACK: Se não há allCurseducaGroups, usar groupId (modo antigo)
-      // Isto só acontece se o adapter não foi atualizado ainda
-      const singleClass: CurseducaEnrollment = buildCurseducaEnrollment({
-        groupId: item.groupId,
-        groupName: item.groupName,
-        enrolledAt: item.enrolledAt,
-        expiresAt: item.expiresAt,
-        role: 'student',
-        situation: item.platformData?.situation,
-      })
-
-      pendingCurseducaClasses = [singleClass]
-      updateFields['curseduca.enrolledClasses'] = pendingCurseducaClasses
-      needsUpdate = true
-
-      console.log(`   ⚠️  [EnrolledClasses] FALLBACK: Guardado 1 grupo para ${user.email}`)
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // SUBSCRIPTION TYPE
-    // ═══════════════════════════════════════════════════════════
-    if (item.subscriptionType) {
-      updateFields['curseduca.subscriptionType'] = item.subscriptionType
-      needsUpdate = true
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // 🆕 NOVO: Situation (ACTIVE/INACTIVE/SUSPENDED)
-    // ═══════════════════════════════════════════════════════════
-    if (item.platformData?.situation) {
-      updateFields['curseduca.situation'] = item.platformData.situation
-      needsUpdate = true
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // MEMBER STATUS (baseado em situation)
-    // ═══════════════════════════════════════════════════════════
-    const situation = item.platformData?.situation || 'ACTIVE'
-    updateFields['curseduca.memberStatus'] = isCurseducaEnrollmentActive(situation) ? 'ACTIVE' : 'INACTIVE'
-    needsUpdate = true
-
-    // ═══════════════════════════════════════════════════════════
-    // 🆕 LIMPAR "PARA_INATIVAR" SE JÁ ESTÁ INACTIVE NO CURSEDUCA
-    // ═══════════════════════════════════════════════════════════
-    if (!isCurseducaEnrollmentActive(situation)) {
+    // EXECUTOR: reconcile a PARA_INATIVAR userproduct when the member is inactive
+    // (read + write kept together, non-fatal), matching the original flow.
+    if (plan.reconcileParaInativar) {
       try {
-        // Buscar UserProduct CursEduca deste user que esteja marcado PARA_INATIVAR
         const userProductToUpdate = await UserProduct.findOne({
           userId: userIdStr,
           platform: 'curseduca',
@@ -1173,7 +1069,6 @@ const processSyncItem = async (
         })
 
         if (userProductToUpdate) {
-          // User já está inativo no CursEduca! Atualizar status
           await UserProduct.findByIdAndUpdate(userProductToUpdate._id, {
             $set: {
               status: 'INACTIVE',
@@ -1193,116 +1088,11 @@ const processSyncItem = async (
       }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // DATAS
-    // ═══════════════════════════════════════════════════════════
-    
-    // lastAccess (retrocompatibilidade)
-    const lastAccess = toDateOrNull(item.lastAccess)
-    if (lastAccess) {
-      updateFields['curseduca.lastAccess'] = lastAccess
-      needsUpdate = true
-    }
-
-    // 🆕 NOVO: lastLogin (do endpoint /members/{id})
-    const lastLogin = toDateOrNull(item.lastLogin)
-    if (lastLogin) {
-      updateFields['curseduca.lastLogin'] = lastLogin
-      needsUpdate = true
-    }
-
-    // 🆕 NOVO: enrolledAt → joinedDate
-    const enrolledAt = toDateOrNull(item.enrolledAt)
-    if (enrolledAt) {
-      updateFields['curseduca.joinedDate'] = enrolledAt
-      needsUpdate = true
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // PROGRESSO
-    // ═══════════════════════════════════════════════════════════
-    if (item.progress?.percentage !== undefined) {
-      updateFields['curseduca.progress.estimatedProgress'] = toNumber(item.progress.percentage, 0)
-      needsUpdate = true
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // 🔥 FIX: Atualizar combined.allClasses e combined.primaryClass
-    // findByIdAndUpdate NÃO dispara pre('save'), por isso temos de
-    // recalcular combined manualmente aqui.
-    // ═══════════════════════════════════════════════════════════
-    const allClassesCE: CombinedClass[] = []
-
-    // Turmas Hotmart: manter as existentes (este é um sync CursEduca)
-    if (user.hotmart?.enrolledClasses) {
-      user.hotmart.enrolledClasses.forEach(cls => {
-        allClassesCE.push({
-          classId: cls.classId,
-          className: cls.className,
-          source: 'hotmart',
-          isActive: cls.isActive ?? true,
-          enrolledAt: cls.enrolledAt
-        })
-      })
-    }
-
-    // Turmas CursEduca: usar os dados que vamos guardar (podem ter mudado)
-    if (pendingCurseducaClasses) {
-      pendingCurseducaClasses.forEach(cls => {
-        allClassesCE.push({
-          classId: cls.classId,
-          className: cls.className,
-          source: 'curseduca',
-          isActive: cls.isActive ?? true,
-          enrolledAt: cls.enteredAt,
-          role: cls.role
-        })
-      })
-    } else if (user.curseduca?.enrolledClasses) {
-      user.curseduca.enrolledClasses.forEach(cls => {
-        allClassesCE.push({
-          classId: cls.classId,
-          className: cls.className,
-          source: 'curseduca',
-          isActive: cls.isActive ?? true,
-          enrolledAt: cls.enteredAt,
-          role: cls.role
-        })
-      })
-    }
-
-    updateFields['combined.allClasses'] = allClassesCE
-
-    // Turma principal: prioridade Hotmart ativa > CursEduca ativa
-    const hotmartActiveCE = allClassesCE.find(c => c.source === 'hotmart' && c.isActive)
-    const curseducaActiveCE = allClassesCE.find(c => c.source === 'curseduca' && c.isActive)
-    const primaryCE = hotmartActiveCE || curseducaActiveCE
-
-    if (primaryCE) {
-      updateFields['combined.primaryClass'] = {
-        classId: primaryCE.classId,
-        className: primaryCE.className,
-        source: primaryCE.source
-      }
-      updateFields['combined.classId'] = primaryCE.classId
-      updateFields['combined.className'] = primaryCE.className
-      // Só actualizar root classId se a turma principal vier da Hotmart
-      // (CursEduca não deve sobrescrever o root classId que é fonte da Hotmart)
-      if (primaryCE.source === 'hotmart') {
-        updateFields['classId'] = primaryCE.classId
-        updateFields['className'] = primaryCE.className
-      }
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // METADATA DE SYNC
-    // ═══════════════════════════════════════════════════════════
-    updateFields['curseduca.lastSyncAt'] = new Date()
-    updateFields['curseduca.syncVersion'] = '3.1'  // ✅ Versão atualizada
-    updateFields['metadata.updatedAt'] = new Date()
-    updateFields['metadata.sources.curseduca.lastSync'] = new Date()
-    updateFields['metadata.sources.curseduca.version'] = '3.1'
-    needsUpdate = true
+    // EXECUTOR: sync timestamps stamped AFTER the reconcile effect (temporal order).
+    const curseducaSyncAt = new Date()
+    updateFields['curseduca.lastSyncAt'] = curseducaSyncAt
+    updateFields['metadata.updatedAt'] = curseducaSyncAt
+    updateFields['metadata.sources.curseduca.lastSync'] = curseducaSyncAt
   }
 
   // ═══════════════════════════════════════════════════════════
