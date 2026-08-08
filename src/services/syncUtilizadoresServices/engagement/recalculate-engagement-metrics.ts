@@ -20,7 +20,7 @@
 
 import { Product, User, UserProduct } from "../../../models"
 import logger from "../../../utils/logger"
-import { calculateEngagementMetricsForUserProduct } from "../universalSyncService"
+import { calculateEngagementMetricsForUserProduct } from "../universalSync/engagement/engagementMetrics"
 
 
 // ═══════════════════════════════════════════════════════════

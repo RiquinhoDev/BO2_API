@@ -13,7 +13,7 @@ import { ensureUserHistoryModel } from '../../models/UserHistory'
 import { calculateCombinedEngagement } from '../../utils/engagementCalculator'
 import hotmartAdapter from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import { normalizeEngagementLevel } from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.helpers'
-import universalSyncService from '../../services/syncUtilizadoresServices/universalSyncService'
+import universalSyncService from '../../services/syncUtilizadoresServices/universalSync'
 import { SyncError, SyncProgress, SyncWarning } from '../../types/universalSync.types'
 
 type ProductUser = {

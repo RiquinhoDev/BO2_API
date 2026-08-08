@@ -18,7 +18,7 @@ import pipelineSnapshotService, {
 } from '../activeCampaign/pipelineSnapshot.service'
 
 // ✅ Adapters + Universal Sync
-import universalSyncService from '../syncUtilizadoresServices/universalSyncService'
+import universalSyncService from '../syncUtilizadoresServices/universalSync'
 import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import { DailyPipelineResult, PipelineStepResult } from '../../types/cron.types'

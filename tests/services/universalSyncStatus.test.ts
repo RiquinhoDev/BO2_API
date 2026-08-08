@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { buildCanonicalActiveUserStatusUpdate } from '../../src/services/syncUtilizadoresServices/universalSyncService'
+import { buildCanonicalActiveUserStatusUpdate } from '../../src/services/syncUtilizadoresServices/universalSync'
 
 describe('universal sync canonical user status', () => {
   it('updates only schema-backed status fields', () => {

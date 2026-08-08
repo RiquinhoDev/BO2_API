@@ -17,7 +17,7 @@ jest.mock('../../src/services/syncUtilizadoresServices/hotmartServices/hotmart.a
   default: { fetchHotmartDataForSync: jest.fn() }
 }))
 
-jest.mock('../../src/services/syncUtilizadoresServices/universalSyncService', () => ({
+jest.mock('../../src/services/syncUtilizadoresServices/universalSync', () => ({
   __esModule: true,
   default: { executeUniversalSync: jest.fn() }
 }))
@@ -25,7 +25,7 @@ jest.mock('../../src/services/syncUtilizadoresServices/universalSyncService', ()
 import { Product } from '../../src/models'
 import { getUsersByProduct } from '../../src/services/userProducts/userProductService'
 import hotmartAdapter from '../../src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
-import universalSyncService from '../../src/services/syncUtilizadoresServices/universalSyncService'
+import universalSyncService from '../../src/services/syncUtilizadoresServices/universalSync'
 import {
   getHotmartStats,
   syncHotmartUsersUniversal
