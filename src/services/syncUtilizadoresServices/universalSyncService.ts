@@ -18,7 +18,6 @@ import {
   createUniversalSnapshotContext,
   type UniversalSnapshotContext,
 } from './universalSyncSnapshot'
-import { getRuntimeConfig } from '../../config/runtimeConfig'
 import {
   errorMessage,
   getDocId,
@@ -38,10 +37,14 @@ import { ExpiredStudentsCollector } from './universalSync/expiredStudentsCollect
 import { calculateEngagementMetricsForUserProduct } from './universalSync/engagement/engagementMetrics'
 import { buildHotmartMutationPlan, hotmartPlanToUpdateFields, type HotmartClassEnrollment } from './universalSync/builders/hotmartMutationPlan'
 import { buildCurseducaMutationPlan, curseducaPlanToUpdateFields } from './universalSync/builders/curseducaMutationPlan'
+import { debugLog } from './universalSync/debugLog'
+import { buildCanonicalActiveUserStatusUpdate } from './universalSync/canonicalUserStatus'
 
 export { calculateEngagementMetricsForUserProduct } from './universalSync/engagement/engagementMetrics'
 
 export { clearProductsCache } from './universalSync/productsCache'
+
+export { buildCanonicalActiveUserStatusUpdate } from './universalSync/canonicalUserStatus'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 
@@ -67,23 +70,11 @@ interface NewUserProductInput {
   metadata?: IUserProduct['metadata']
 }
 
-function debugLog(...args: unknown[]) {
-  if (getRuntimeConfig().observability.logLevel === 'debug') {
-    console.log(...args)
-  }
-}
-
 
 // ═══════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════
 
-
-export const buildCanonicalActiveUserStatusUpdate = () => ({
-  'combined.status': 'ACTIVE',
-  'hotmart.status': 'ACTIVE',
-  'curseduca.memberStatus': 'ACTIVE',
-})
 
 // ═══════════════════════════════════════════════════════════
 // ✅ NOVO: MAPEAMENTO DINÂMICO DE PRODUTOS (COM CACHE!)
