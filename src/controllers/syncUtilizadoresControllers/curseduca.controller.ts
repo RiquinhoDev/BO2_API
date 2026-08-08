@@ -17,6 +17,7 @@ import {
   getUserCountForProduct
 } from '../../services/userProducts/userProductService'
 import universalSyncService from '../../services/syncUtilizadoresServices/universalSync'
+import { getOptionalCurseducaRuntimeSettings } from '../../services/requestDrivenRuntimeConfig'
 import curseducaAdapter from '../../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 
 interface ProductUserView {
@@ -194,16 +195,17 @@ export const syncCurseducaUsers = async (req: Request, res: SyncResponse): Promi
     
     logger.section('STEP 0: VALIDAR CREDENCIAIS')
     
-    if (!process.env.CURSEDUCA_API_URL || !process.env.CURSEDUCA_AccessToken || !process.env.CURSEDUCA_API_KEY) {
+    const curseducaSettings = getOptionalCurseducaRuntimeSettings()
+    if (!curseducaSettings) {
       logger.error('Credenciais não configuradas!')
       
       res.status(400).json({
         success: false,
-        message: 'Credenciais CursEduca não configuradas (.env)',
+        message: 'Credenciais CursEduca não configuradas no arranque',
         missingVars: [
-          !process.env.CURSEDUCA_API_URL && 'CURSEDUCA_API_URL',
-          !process.env.CURSEDUCA_AccessToken && 'CURSEDUCA_AccessToken',
-          !process.env.CURSEDUCA_API_KEY && 'CURSEDUCA_API_KEY'
+          'CURSEDUCA_API_URL',
+          'CURSEDUCA_AccessToken',
+          'CURSEDUCA_API_KEY'
         ].filter(Boolean)
       })
       return

@@ -5,19 +5,14 @@
 
 import axios from 'axios'
 
-interface SlackMessage {
-  text: string
-  color?: 'good' | 'warning' | 'danger'
-}
-
+import { getSlackWebhookUrl } from './requestDrivenRuntimeConfig'
 class NotificationService {
-  private slackWebhookUrl = process.env.SLACK_WEBHOOK_URL || ''
-
   /**
    * Enviar alerta para Slack
    */
   async sendSlackAlert(message: string, level: 'info' | 'warning' | 'error' = 'info') {
-    if (!this.slackWebhookUrl) {
+    const slackWebhookUrl = getSlackWebhookUrl()
+    if (!slackWebhookUrl) {
       console.warn('⚠️  Slack webhook não configurado')
       return
     }
@@ -29,7 +24,7 @@ class NotificationService {
     }
 
     try {
-      await axios.post(this.slackWebhookUrl, {
+      await axios.post(slackWebhookUrl, {
         attachments: [{
           color: colors[level],
           text: message,

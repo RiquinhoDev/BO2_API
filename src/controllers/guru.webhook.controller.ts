@@ -5,14 +5,13 @@ import GuruWebhook from '../models/GuruWebhook'
 import UserProduct from '../models/UserProduct'
 import { GuruWebhookPayload, GuruSubscriptionStatus } from '../types/guru.types'
 import { guruTokenDebugStatus } from '../security/debugRoutes'
+import { getGuruAccountToken } from '../services/requestDrivenRuntimeConfig'
 
 export { listGuruWebhooks } from './guruWebhookList.controller'
 
 // Status da Guru que indicam cancelamento
 const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
 
-// Token para validar webhooks (guardado em env vars)
-const GURU_ACCOUNT_TOKEN = process.env.GURU_ACCOUNT_TOKEN
 
 type GuruWebhookRequest = Pick<Request, 'body' | 'headers'>
 
@@ -77,15 +76,9 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response) 
     // ═══════════════════════════════════════════════════════════
     // 1. VALIDAR API TOKEN
     // ═══════════════════════════════════════════════════════════
-    if (!GURU_ACCOUNT_TOKEN) {
-      console.error('❌ [GURU] GURU_ACCOUNT_TOKEN não configurado')
-      return res.status(500).json({
-        success: false,
-        message: 'Configuração do servidor incompleta'
-      })
-    }
+    const guruAccountToken = getGuruAccountToken()
 
-    if (!payload.api_token || payload.api_token !== GURU_ACCOUNT_TOKEN) {
+    if (!payload.api_token || payload.api_token !== guruAccountToken) {
       console.error('❌ [GURU] Token inválido')
       return res.status(401).json({
         success: false,
@@ -461,7 +454,7 @@ export const getGuruStats = async (req: Request, res: Response) => {
  * GET /guru/debug/token
  */
 export const debugToken = async (req: Request, res: Response) => {
-  return res.json(guruTokenDebugStatus(GURU_ACCOUNT_TOKEN))
+  return res.json(guruTokenDebugStatus(getGuruAccountToken()))
 }
 
 // ═══════════════════════════════════════════════════════════

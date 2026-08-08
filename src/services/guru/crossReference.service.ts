@@ -7,13 +7,11 @@ import User, { IUser } from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import {
   getEffectiveStatus,
-  CURSEDUCA_API_URL,
-  CURSEDUCA_API_KEY,
-  CURSEDUCA_ACCESS_TOKEN,
   type GuruDateInfo
 } from './guru.constants'
 import { isCurseducaEnrollmentActive } from '../syncUtilizadoresServices/curseducaServices/curseducaMemberships'
 import type { FilterQuery } from 'mongoose'
+import { getOptionalCurseducaRuntimeSettings } from '../requestDrivenRuntimeConfig'
 
 // ═══════════════════════════════════════════════════════════
 // TIPOS
@@ -472,14 +470,15 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
       // Se BD diz ACTIVE, verificar API real (com budget limitado)
       if (curseducaStatus === 'ACTIVE' && apiCallsUsed < MAX_API_CALLS) {
         const memberId = up.platformUserId || user.curseduca?.curseducaUserId
-        if (memberId && CURSEDUCA_ACCESS_TOKEN && CURSEDUCA_API_KEY) {
+        const curseducaSettings = getOptionalCurseducaRuntimeSettings()
+        if (memberId && curseducaSettings) {
           try {
             const apiResp = await axios.get<CurseducaMemberResponse>(
-              `${CURSEDUCA_API_URL}/members/${memberId}`,
+              `${curseducaSettings.apiUrl}/members/${memberId}`,
               {
                 headers: {
-                  'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
-                  'api_key': CURSEDUCA_API_KEY
+                  'Authorization': `Bearer ${curseducaSettings.accessToken}`,
+                  'api_key': curseducaSettings.apiKey
                 },
                 timeout: 10000
               }
