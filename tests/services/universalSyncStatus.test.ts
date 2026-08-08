@@ -19,7 +19,7 @@ describe('universal sync canonical user status', () => {
     const source = fs.readFileSync(
       path.resolve(
         process.cwd(),
-        'src/services/syncUtilizadoresServices/universalSyncService.ts',
+        'src/services/syncUtilizadoresServices/universalSync/processSyncItem.ts',
       ),
       'utf8',
     )
