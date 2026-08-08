@@ -13,6 +13,7 @@
 
 import axios from 'axios'
 import mongoose from 'mongoose'
+import { getRuntimeConfig } from '../../config/runtimeConfig'
 import Product from '../../models/product/Product'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
@@ -120,7 +121,7 @@ async function resolveOgiProduct(): Promise<{ hotmartProductId: string; objectId
     .lean()
     .exec() as { _id: mongoose.Types.ObjectId; hotmartProductId?: string } | null
 
-  const envProductId = process.env.HOTMART_OGI_PRODUCT_ID?.trim()
+  const envProductId = getRuntimeConfig().renewal.hotmartOgiProductId
   const hotmartProductId = envProductId || ogiProduct?.hotmartProductId
 
   if (!ogiProduct?._id || !hotmartProductId) {

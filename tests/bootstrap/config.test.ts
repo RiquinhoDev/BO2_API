@@ -388,7 +388,59 @@ test('renewal refunds require Hotmart independently of ActiveCampaign', () => {
     }).renewal.processRefundsEnabled,
   ).toBe(true)
 })
+test('renewal settings are parsed once into the typed startup boundary', () => {
+  const config = loadConfig({
+    ...VALID_ENV,
+    RENEWAL_AC_SYNC_ENABLED: 'true',
+    RENEWAL_AC_WRITE_DATES: 'true',
+    RENEWAL_AC_WRITE_TAGS: 'true',
+    RENEWAL_AC_PROCESS_REFUNDS: 'true',
+    RENEWAL_AC_AUTO_EXECUTE: 'true',
+    RENEWAL_AC_EXPIRY_FIELD_ID: '777',
+    RENEWAL_AC_MAX_CHANGES_PER_RUN: '42',
+    AC_API_URL: 'https://ac.example.test',
+    AC_API_KEY: 'ac-key',
+    HOTMART_CLIENT_ID: 'hotmart-client',
+    HOTMART_CLIENT_SECRET: 'hotmart-secret',
+    HOTMART_OGI_PRODUCT_ID: 'ogi-product',
+    DISCORD_ROLES_SYNC_ENABLED: 'true',
+    DISCORD_ROLES_AUTO_EXECUTE: 'true',
+    DISCORD_MESSAGES_ENABLED: 'true',
+    DISCORD_SCHEDULED_MESSAGES_ENABLED: 'true',
+    DISCORD_ROLES_MAX_OPS_PER_RUN: '25',
+    DISCORD_BOT_URL: 'https://discord.example.test',
+    BOT_SHARED_SECRET: 'bot-secret',
+    DISCORD_MESSAGE_CHANNEL_ID: '123456789012345678',
+    DISCORD_MESSAGE_CHANNELS: '123456789012345678:alerts',
+  })
 
+  expect(config.renewal).toEqual({
+    acSyncEnabled: true,
+    writeDatesEnabled: true,
+    writeTagsEnabled: true,
+    processRefundsEnabled: true,
+    autoExecute: true,
+    expiryFieldId: 777,
+    maxChangesPerRun: 42,
+    hotmartOgiProductId: 'ogi-product',
+    discordRolesSyncEnabled: true,
+    discordRolesAutoExecute: true,
+    discordMessagesEnabled: true,
+    discordScheduledMessagesEnabled: true,
+    discordRolesMaxOpsPerRun: 25,
+    discordMessageChannelId: '123456789012345678',
+    discordMessageChannels: ['123456789012345678:alerts'],
+  })
+})
+
+test('renewal has no implicit production Discord destination', () => {
+  const config = loadConfig(VALID_ENV)
+
+  expect(config.integrations.discord).toEqual({ configured: false })
+  expect(config.renewal.discordMessageChannelId).toBeUndefined()
+  expect(config.renewal.discordMessageChannels).toEqual([])
+
+})
 test('ActiveCampaign list IDs are optional but blank supplied values fail', () => {
   const configured = loadConfig({
     ...VALID_ENV,

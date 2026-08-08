@@ -1,5 +1,6 @@
 import axios from 'axios'
 import mongoose from 'mongoose'
+import { getRuntimeConfig } from '../../config/runtimeConfig'
 import Product from '../../models/product/Product'
 import RenewalOffer, { type IRenewalOffer } from '../../models/RenewalOffer'
 import User from '../../models/user'
@@ -164,7 +165,7 @@ export function buildCheckoutLink(offerCode: string): string {
 }
 
 async function resolveOgiHotmartProductId(): Promise<string> {
-  const envProductId = process.env.HOTMART_OGI_PRODUCT_ID?.trim()
+  const envProductId = getRuntimeConfig().renewal.hotmartOgiProductId
   if (envProductId) return envProductId
 
   const ogiProduct = await Product.findOne({

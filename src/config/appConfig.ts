@@ -364,6 +364,7 @@ function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs):
     'RENEWAL_AC_MAX_CHANGES_PER_RUN',
     { min: 1, max: 10_000, defaultValue: 50 },
   )
+  const hotmartOgiProductId = readOptionalString(env, 'HOTMART_OGI_PRODUCT_ID')
 
   const discordRolesSyncEnabled = parseBooleanFlag(
     env.DISCORD_ROLES_SYNC_ENABLED,
@@ -428,6 +429,7 @@ function parseRenewal(env: NodeJS.ProcessEnv, integrations: IntegrationConfigs):
     autoExecute,
     expiryFieldId,
     maxChangesPerRun,
+    ...(hotmartOgiProductId ? { hotmartOgiProductId } : {}),
     discordRolesSyncEnabled,
     discordRolesAutoExecute,
     discordMessagesEnabled,
