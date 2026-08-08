@@ -21,9 +21,10 @@ import { errorMessage, mongoErrorCode, normalizeEmail, toDateOrNull, toNumber } 
 import { productsCache, type LeanProduct } from './productsCache'
 import { EXPIRATION_DAYS, HotmartExpirationPolicy, formatDateOnly, getActiveHotmartClassForExpiration } from './hotmartExpiration'
 import { ExpiredStudentsCollector } from './expiredStudentsCollector'
-import { calculateEngagementMetricsForUserProduct } from './engagement/engagementMetrics'
+import { calculateEngagementMetricsForUserProduct, type EngagementMetricsResult } from './engagement/engagementMetrics'
 import { buildHotmartMutationPlan, hotmartPlanToUpdateFields, type HotmartClassEnrollment } from './builders/hotmartMutationPlan'
 import { buildCurseducaMutationPlan, curseducaPlanToUpdateFields } from './builders/curseducaMutationPlan'
+import { buildUserProductUpdatePlan } from './builders/userProductMutationPlan'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 
@@ -624,248 +625,35 @@ export const processSyncItem = async (
     // CASO 1: ATUALIZAR USERPRODUCT EXISTENTE
     // ═══════════════════════════════════════════════════════════
     if (existingUP) {
-      const upUpdateFields: Record<string, unknown> = {}
-      let upNeedsUpdate = false
-
-      // isPrimary
-      if (item.platformData?.isPrimary !== undefined) {
-        debugLog(`   📌 Atualizando isPrimary: ${item.platformData.isPrimary} para ${item.email}`)
-        upUpdateFields['isPrimary'] = item.platformData.isPrimary
-        upNeedsUpdate = true
-      }
-
-      // ═══════════════════════════════════════════════════════════
-      // PROGRESS - Atualizar todos os campos disponíveis por plataforma
-      // ═══════════════════════════════════════════════════════════
-      if (item.progress?.percentage !== undefined) {
-        const newPercentage = toNumber(item.progress.percentage, 0)
-        if (existingUP.progress?.percentage !== newPercentage) {
-          upUpdateFields['progress.percentage'] = newPercentage
-          upUpdateFields['progress.lastActivity'] = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
-          upNeedsUpdate = true
-        }
-      }
-
-      // 🔥 HOTMART - Campos específicos de progresso
-      if (config.syncType === 'hotmart') {
-        // currentModule
-        if (item.currentModule !== undefined) {
-          upUpdateFields['progress.currentModule'] = toNumber(item.currentModule, 0)
-          upNeedsUpdate = true
-        }
-
-        // ✅ CONTADORES DE LIÇÕES (completed/total)
-        if (item.progress?.completed !== undefined) {
-          upUpdateFields['progress.completed'] = toNumber(item.progress.completed, 0)
-          upNeedsUpdate = true
-        }
-        if (item.progress?.total !== undefined) {
-          upUpdateFields['progress.total'] = toNumber(item.progress.total, 0)
-          upNeedsUpdate = true
-        }
-
-        // lessonsCompleted - array de pageIds das aulas completadas
-        if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
-          const completedLessons = item.progress.lessons
-            .flatMap(l => l.isCompleted && l.pageId ? [l.pageId] : [])
-
-          if (completedLessons.length > 0) {
-            upUpdateFields['progress.lessonsCompleted'] = completedLessons
-            upNeedsUpdate = true
-          }
-        }
-
-        // modulesCompleted - extrair módulos únicos das aulas completadas
-        if (item.progress?.lessons && Array.isArray(item.progress.lessons)) {
-          const completedModules = [...new Set(
-            item.progress.lessons
-              .flatMap(l => l.isCompleted && l.moduleName ? [l.moduleName] : [])
-          )]
-
-          if (completedModules.length > 0) {
-            upUpdateFields['progress.modulesCompleted'] = completedModules
-            upNeedsUpdate = true
-          }
-        }
-
-        // ✅ MÓDULOS - Lista completa com detalhes
-        if (item.progress?.modulesList && Array.isArray(item.progress.modulesList)) {
-          upUpdateFields['progress.modulesList'] = item.progress.modulesList
-          upNeedsUpdate = true
-        }
-
-        // ✅ MÓDULOS - Total de módulos
-        if (item.progress?.totalModules !== undefined) {
-          upUpdateFields['progress.totalModules'] = toNumber(item.progress.totalModules, 0)
-          upNeedsUpdate = true
-        }
-      }
-
-      // ═══════════════════════════════════════════════════════════
-      // ENGAGEMENT - Score e campos básicos
-      // ═══════════════════════════════════════════════════════════
-      if (item.engagement?.engagementScore !== undefined) {
-        const newScore = toNumber(item.engagement.engagementScore, 0)
-        if (existingUP.engagement?.engagementScore !== newScore) {
-          upUpdateFields['engagement.engagementScore'] = newScore
-          const lastActionDate = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
-          upUpdateFields['engagement.lastAction'] = lastActionDate
-          // Calcular daysInactive
-          const now = new Date()
-          const daysInactive = Math.floor((now.getTime() - lastActionDate.getTime()) / (1000 * 60 * 60 * 24))
-          upUpdateFields['engagement.daysInactive'] = Math.max(0, daysInactive)
-          upNeedsUpdate = true
-        }
-      } else if (item.accessCount !== undefined) {
-        const newScore = toNumber(item.accessCount, 0)
-        if (existingUP.engagement?.engagementScore !== newScore) {
-          upUpdateFields['engagement.engagementScore'] = newScore
-          const lastActionDate = toDateOrNull(item.lastAccessDate || item.lastLogin) || new Date()
-          upUpdateFields['engagement.lastAction'] = lastActionDate
-          // Calcular daysInactive
-          const now = new Date()
-          const daysInactive = Math.floor((now.getTime() - lastActionDate.getTime()) / (1000 * 60 * 60 * 24))
-          upUpdateFields['engagement.daysInactive'] = Math.max(0, daysInactive)
-          upNeedsUpdate = true
-        }
-      }
-
-      // 🔥 HOTMART - Engagement baseado em logins
-      if (config.syncType === 'hotmart') {
-        if (item.accessCount !== undefined) {
-          upUpdateFields['engagement.totalLogins'] = toNumber(item.accessCount, 0)
-          upNeedsUpdate = true
-        }
-
-        if (item.lastAccessDate) {
-          upUpdateFields['engagement.lastLogin'] = toDateOrNull(item.lastAccessDate)
-          upNeedsUpdate = true
-        }
-      }
-
-      // 🎓 CURSEDUCA - Engagement baseado em ações
-      if (config.syncType === 'curseduca') {
-        if (item.lastLogin) {
-          const lastActionDate = toDateOrNull(item.lastLogin)
-          upUpdateFields['engagement.lastAction'] = lastActionDate
-          // Calcular daysInactive
-          if (lastActionDate) {
-            const now = new Date()
-            const daysInactive = Math.floor((now.getTime() - lastActionDate.getTime()) / (1000 * 60 * 60 * 24))
-            upUpdateFields['engagement.daysInactive'] = Math.max(0, daysInactive)
-          }
-          upNeedsUpdate = true
-        }
-        if (item.accessCount !== undefined) {
-          upUpdateFields['engagement.totalLogins'] = toNumber(item.accessCount, 0)
-          upNeedsUpdate = true
-        }
-      }
-
-      if (item.platformData) {
-        upUpdateFields['platformData'] = item.platformData
-        upNeedsUpdate = true
-      }
-
-      // ═══════════════════════════════════════════════════════════
-      // 🚨 CRÍTICO: CLASSES - Popular array de turmas
-      // ═══════════════════════════════════════════════════════════
-      const classId = config.syncType === 'hotmart'
-        ? item.classId
-        : config.syncType === 'curseduca'
-          ? String(item.groupId)
-          : null
-
-      if (classId) {
-        const enrollmentDate = toDateOrNull(item.enrolledAt) ||
-                              toDateOrNull(item.purchaseDate) ||
-                              toDateOrNull(item.joinedDate) ||
-                              new Date()
-        const rolePlan = planClassEnrollmentRole(
-          existingUP.classes || [],
-          classId,
-          item.role
-        )
-
-        // Verificar se a turma já existe no array
-        const existingClassIndex = existingUP.classes?.findIndex(c => c.classId === classId) ?? -1
-
-        if (existingClassIndex === -1) {
-          // Adicionar nova turma ao array (SEM className - virá da tabela Class)
-          upUpdateFields['classes'] = [
-            ...(existingUP.classes || []),
-            {
-              classId,
-              role: rolePlan.role,
-              joinedAt: enrollmentDate,
-              leftAt: null
-            }
-          ]
-          upNeedsUpdate = true
-          console.log(`   📚 [Classes] Adicionada turma ${classId} para ${user.email}`)
-        } else if (rolePlan.update) {
-          upUpdateFields[rolePlan.update.path] = rolePlan.update.value
-          upNeedsUpdate = true
-        }
-        // Não atualizamos className porque ele vem da tabela Class, não do sync
-      }
-
-      // ════════════════════════════════════════════════════════════
-      // 🆕 SPRINT 1.5B: CALCULAR ENGAGEMENT METRICS (ATUALIZAR)
-      // ════════════════════════════════════════════════════════════
+      // PREPARE: engagement metrics (tolerant read + pure calc), matching the
+      // original inner try/catch so a metrics failure never blocks the update.
+      let metrics: EngagementMetricsResult | null = null
       try {
         const product = await Product.findById(productId)
-
-        if (product) {
-          debugLog(`   📊 [Sprint 1.5B] Calculando engagement metrics para ${user.email}`)
-
-          const metrics = calculateEngagementMetricsForUserProduct(user, product)
-
-          // Engagement fields
-          if (metrics.engagement.daysSinceLastLogin !== null) {
-            upUpdateFields['engagement.daysSinceLastLogin'] = metrics.engagement.daysSinceLastLogin
-            upNeedsUpdate = true
-          }
-
-          if (metrics.engagement.daysSinceLastAction !== null) {
-            upUpdateFields['engagement.daysSinceLastAction'] = metrics.engagement.daysSinceLastAction
-            upNeedsUpdate = true
-          }
-
-          if (metrics.engagement.totalLogins !== undefined) {
-            upUpdateFields['engagement.totalLogins'] = metrics.engagement.totalLogins
-            upNeedsUpdate = true
-          }
-
-          // Metadata fields
-          if (metrics.metadata.purchaseDate !== null) {
-            upUpdateFields['metadata.purchaseDate'] = metrics.metadata.purchaseDate
-            upNeedsUpdate = true
-          }
-
-          if (metrics.metadata.platform) {
-            upUpdateFields['metadata.platform'] = metrics.metadata.platform
-            upNeedsUpdate = true
-          }
-
-          if (metrics.metadata.purchaseValue !== null) {
-            upUpdateFields['metadata.purchaseValue'] = metrics.metadata.purchaseValue
-            upNeedsUpdate = true
-          }
-
-          debugLog(`   ✅ [Sprint 1.5B] Engagement metrics calculados e adicionados`)
-        }
+        if (product) metrics = calculateEngagementMetricsForUserProduct(user, product)
       } catch (metricsError: unknown) {
         console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, errorMessage(metricsError))
       }
 
-      // Nota: PARA_INATIVAR não é revertido pelo sync.
-      // É uma decisão de admin (via markDiscrepanciesForInactivation, que já valida a Guru API).
-      // Apenas revertInactivationMark o pode desfazer manualmente.
+      // PURE BUILDER: item + current UP state + metrics -> $set field map.
+      const plan = buildUserProductUpdatePlan({
+        item,
+        syncType: config.syncType,
+        existing: {
+          progressPercentage: existingUP.progress?.percentage,
+          engagementScore: existingUP.engagement?.engagementScore,
+          classes: existingUP.classes || [],
+        },
+        metrics,
+        clock: { now: () => new Date() },
+      })
 
-      // Aplicar updates
-      if (upNeedsUpdate) {
-        await UserProduct.findByIdAndUpdate(existingUP._id, { $set: upUpdateFields })
+      // EXECUTOR: apply the plan in a single write, preserving the class-added log.
+      if (plan.classAddedId) {
+        console.log(`   📚 [Classes] Adicionada turma ${plan.classAddedId} para ${user.email}`)
+      }
+      if (plan.needsUpdate) {
+        await UserProduct.findByIdAndUpdate(existingUP._id, { $set: plan.fields })
         debugLog(`   📦 UserProduct atualizado: ${user.email}`)
       }
 
