@@ -43,7 +43,7 @@ Aproveitar o **cron diário de sync Hotmart** que já actualiza os alunos:
 | Peça | Onde | Estado |
 |------|------|--------|
 | Cron diário Hotmart | `src/services/cron/scheduler.ts` (`executeHotmartSync`, ~linha 935) | ✅ operacional |
-| Detecção de mudança de turma | `src/services/syncUtilizadoresServices/universalSyncService.ts` (~linhas 1267–1303): guarda `oldClassName` → `newClassName`, histórico com `previousClassName`, log `[ClassChange]` | ✅ gancho pronto |
+| Detecção de mudança de turma | `src/services/syncUtilizadoresServices/universalSync/builders/hotmartMutationPlan.ts` (constrói `classHistoryEvent` com `previousClassName` quando a turma muda) → `universalSync/processSyncItem.ts` (escreve StudentClassHistory + log `[ClassChange]`) | ✅ gancho pronto |
 | Cálculo da data de fim de acesso | `src/services/renewal/turmaParser.ts` → `parseTurmaName()` / `resolveAccessEnd()` (nome "Turma 10 [renov] | 2505" → último dia do mês, +12/24 meses) | ✅ fonte canónica |
 | Tags AC (criar/aplicar/remover) | `src/services/activeCampaign/activeCampaignService.ts` → `addTag()` (linha ~257, cria tag se não existir, dedupe), `removeTag()` (~355), `removeTagBatch()`, com rate-limiting | ✅ |
 | Ofertas de renovação + vendas | `src/services/renewal/renewalSync.service.ts` (sales/history Hotmart, `buyerEmails` por oferta) | ✅ base para detecção de reembolsos |
