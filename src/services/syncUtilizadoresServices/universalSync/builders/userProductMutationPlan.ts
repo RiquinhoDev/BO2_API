@@ -295,11 +295,13 @@ export function buildUserProductCreatePlan(input: UserProductCreateInput): NewUs
   const { item, syncType, userId, productId, enrolledAt, isPrimary, metrics, clock } = input
 
   const classId = classIdFor(syncType, item)
-  const rolePlan = classId ? planClassEnrollmentRole([], classId, item.role) : {}
+  const role = classId
+    ? planClassEnrollmentRole([], classId, item.role).role
+    : undefined
 
   // Não guardamos className no UserProduct — vem da tabela Class via lookup.
   const classesArray: IClassEnrollment[] = classId
-    ? [{ classId, role: rolePlan.role, joinedAt: enrolledAt } as IClassEnrollment]
+    ? [{ classId, role, joinedAt: enrolledAt }]
     : []
 
   const progressObj: IProgress = {

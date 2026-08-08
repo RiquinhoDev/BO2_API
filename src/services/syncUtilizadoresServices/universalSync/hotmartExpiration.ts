@@ -1,4 +1,3 @@
-import type { IUser } from '../../../models/user'
 import { parseTurmaName } from '../../renewal/turmaParser'
 
 export const EXPIRATION_DAYS = 380 // Dias após compra para considerar expirado
@@ -18,6 +17,11 @@ export interface Clock {
 export interface HotmartClassForExpiration {
   classId?: string
   className?: string
+}
+
+/** Minimal structural holder of hotmart enrolments — satisfied by IUser and by the renewal state. */
+export interface HotmartEnrollmentHolder {
+  hotmart?: { enrolledClasses?: HotmartClassCandidate[] }
 }
 
 export interface ExpiredStudent {
@@ -47,7 +51,7 @@ export function formatDateOnly(date: Date): string {
 }
 
 export function getActiveHotmartClassForExpiration(
-  user: Pick<IUser, 'hotmart'>,
+  user: HotmartEnrollmentHolder,
   pendingHotmartClasses?: HotmartClassCandidate[],
   fallbackClassId?: string,
   fallbackClassName?: string,
