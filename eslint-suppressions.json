@@ -1134,12 +1134,17 @@
       "count": 1
     }
   },
+  "src/services/syncUtilizadoresServices/universalSync/processSyncItem.ts": {
+    "no-console": {
+      "count": 32
+    }
+  },
   "src/services/syncUtilizadoresServices/universalSyncService.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
     "no-console": {
-      "count": 57
+      "count": 25
     },
     "no-useless-assignment": {
       "count": 2
