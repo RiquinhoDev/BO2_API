@@ -5,11 +5,9 @@ import {
   type CurseducaUserState,
 } from '../../../src/services/syncUtilizadoresServices/universalSync/builders/curseducaMutationPlan'
 
-const clock = { now: () => new Date('2026-06-15T00:00:00.000Z') }
-
 function build(over: { item?: Partial<UniversalSourceItem>; user?: CurseducaUserState } = {}) {
   const item = { email: 'c@x.test', groupId: 'G1', groupName: 'Grupo Um', platformData: { situation: 'ACTIVE' }, ...over.item } as UniversalSourceItem
-  return buildCurseducaMutationPlan({ item, user: over.user ?? {}, clock })
+  return buildCurseducaMutationPlan({ item, user: over.user ?? {} })
 }
 
 describe('buildCurseducaMutationPlan — ids and group', () => {
