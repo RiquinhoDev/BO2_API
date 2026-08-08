@@ -1147,7 +1147,7 @@
   },
   "src/services/syncUtilizadoresServices/universalSync/processSyncItem.ts": {
     "no-console": {
-      "count": 24
+      "count": 10
     }
   },
   "src/services/systemMonitor.service.ts": {
