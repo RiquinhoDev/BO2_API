@@ -6,7 +6,6 @@ import {
 } from '../../curseducaServices/curseducaMemberships'
 import { toDateOrNull, toNumber } from '../fieldUtils'
 import type {
-  Clock,
   CombinedClassEntry,
   CurseducaUserEnrollment,
   HotmartUserEnrollment,
@@ -20,7 +19,6 @@ export interface CurseducaUserState {
 export interface CurseducaMutationInput {
   item: UniversalSourceItem
   user: CurseducaUserState
-  clock: Clock
 }
 
 export interface CurseducaMutationPlan {

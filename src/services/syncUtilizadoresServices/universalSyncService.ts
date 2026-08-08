@@ -1051,7 +1051,6 @@ const processSyncItem = async (
         hotmart: { enrolledClasses: user.hotmart?.enrolledClasses },
         curseduca: { curseducaUserId: user.curseduca?.curseducaUserId, enrolledClasses: user.curseduca?.enrolledClasses },
       },
-      clock: { now: () => new Date() },
     })
 
     // EXECUTOR: apply the plan's field changes onto updateFields.
