@@ -364,6 +364,17 @@ Progresso moagem:
 - [x] **universalSyncService (1700→1628)** — feito (`5a34d2a`). Tipos reais, 0 casts. Extraiu helper canónico
   `buildCanonicalActiveUserStatusUpdate()` (só escreve campos do schema, nunca `status`/`estado` fantasmas) + teste.
 
+- [x] **universalSyncService DISSOLVIDO (ficheiro apagado)** — missão terminal concluída. O monólito foi partido
+  verticalmente em `src/services/syncUtilizadoresServices/universalSync/*` (characterization-first, 100% offline via
+  MongoMemoryServer): `fieldUtils`, `productsCache`, `hotmartExpiration`, `expiredStudentsCollector`,
+  `engagement/engagementMetrics`, builders puros `builders/hotmartMutationPlan` + `builders/curseducaMutationPlan`
+  (item+estado → plano explícito, sem I/O), `debugLog`, `canonicalUserStatus`, `processSyncItem` (use case por item),
+  `executeUniversalSync` (orquestração) e o barril `index.ts`. O ramo Discord do universal sync provou-se **morto**
+  (regra #9) e foi removido; `UniversalSyncType` é agora união fechada `'hotmart' | 'curseduca'`. Todos os consumidores
+  (sync/curseduca/hotmart controllers, cron dailyPipeline/scheduler, recalculate-engagement-metrics) e testes passaram
+  a importar de `.../universalSync`; `universalSyncService.ts` ficou sem importadores e foi **apagado**. Gate final
+  verde: lint 0, types 0, `MONGOMS_RUNTIME_DOWNLOAD=false npm test` 225 suites/1302 testes, build 0, diff limpo.
+
 ---
 
 ## 🔎 CursEduca / UserProduct — desenho VALIDADO + o que está partido (revisor 2026-07-18)
