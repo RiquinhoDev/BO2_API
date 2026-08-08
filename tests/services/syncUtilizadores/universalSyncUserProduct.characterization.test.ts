@@ -217,6 +217,20 @@ describe('UserProduct create — curseduca primary reassignment', () => {
   })
 })
 
+describe('UserProduct create — missing curseduca groupId', () => {
+  it('does not create a phantom "undefined" class enrolment when groupId is absent', async () => {
+    // No groupId/groupName/subscriptionType -> determineProductId falls back to the
+    // default curseduca product, so a UserProduct is still created — but with no class.
+    await runCurseduca(curseducaItem({ groupId: undefined, groupName: undefined }))
+    const up = await upFor('c@x.test')
+
+    expect(up).not.toBeNull()
+    expect(up?.classes ?? []).toHaveLength(0)
+    expect((up?.classes ?? []).some((c) => c.classId === 'undefined')).toBe(false)
+    expect(await Class.findOne({ classId: 'undefined' }).lean()).toBeNull()
+  })
+})
+
 describe('UserProduct — partial failure tolerance', () => {
   it('syncs the user but creates no userproduct when no product matches, without erroring', async () => {
     const result = await runHotmart(hotmartItem({ productCode: 'DOES_NOT_EXIST' }))

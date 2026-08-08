@@ -228,7 +228,8 @@ function applyEngagementScore(
 /** The classId used for the enrolment array: item.classId (hotmart) or the group id (curseduca). */
 export function classIdFor(syncType: UniversalSyncType, item: UniversalSourceItem): string | null {
   if (syncType === 'hotmart') return item.classId ?? null
-  if (syncType === 'curseduca') return String(item.groupId)
+  // A missing groupId must NOT become the string "undefined" (phantom enrolment).
+  if (syncType === 'curseduca') return item.groupId == null ? null : String(item.groupId)
   return null
 }
 
