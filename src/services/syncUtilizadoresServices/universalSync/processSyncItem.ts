@@ -6,164 +6,25 @@
 // field mutations; this module owns the Mongo reads/writes and their order.
 // ════════════════════════════════════════════════════════════
 
-import mongoose, { type UpdateQuery } from 'mongoose'
+import type { UpdateQuery } from 'mongoose'
 import User from '../../../models/user'
-import { Product, UserProduct } from '../../../models'
+import { UserProduct } from '../../../models'
 import { Class, type IClass } from '../../../models/Class'
-import type { ProcessItemResult, UniversalSourceItem, UniversalSyncConfig, UniversalSyncType } from '../../../types/universalSync.types'
+import type { ProcessItemResult, UniversalSourceItem, UniversalSyncConfig } from '../../../types/universalSync.types'
 import { snapshotAndCompare } from '../../snapshotServices/userSnapshot.service'
 import type { UniversalSnapshotContext } from '../universalSyncSnapshot'
 import { debugLog } from './debugLog'
 import { buildCanonicalActiveUserStatusUpdate } from './canonicalUserStatus'
 import { errorMessage, mongoErrorCode, normalizeEmail, toDateOrNull } from './fieldUtils'
-import { productsCache, type LeanProduct } from './productsCache'
 import { HotmartExpirationPolicy, formatDateOnly, getActiveHotmartClassForExpiration } from './hotmartExpiration'
 import { ExpiredStudentsCollector } from './expiredStudentsCollector'
-import { calculateEngagementMetricsForUserProduct, type EngagementMetricsResult } from './engagement/engagementMetrics'
 import { buildHotmartMutationPlan, hotmartPlanToUpdateFields, type HotmartClassEnrollment } from './builders/hotmartMutationPlan'
 import { buildCurseducaMutationPlan, curseducaPlanToUpdateFields } from './builders/curseducaMutationPlan'
-import { buildUserProductUpdatePlan, buildUserProductCreatePlan, planPrimaryReassignment } from './builders/userProductMutationPlan'
 import { detectRenewal, planInactiveAutofix } from './renewalPolicy'
 import { applyAutoReactivation } from './renewalExecutor'
+import { persistUserProduct } from './userProductPersistence'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
-
-/**
- * Determina o produto correto baseado nos dados do item e na plataforma
- * ✅ OTIMIZADO: Usa cache quando disponível
- */
-async function determineProductId(
-  item: UniversalSourceItem,
-  syncType: UniversalSyncType
-): Promise<mongoose.Types.ObjectId | null> {
-
-  // ✅ Usar cache se disponível
-  const useCache = productsCache.isLoaded()
-
-  if (syncType === 'hotmart') {
-    const productCode = item.productCode || 'OGI_V1'
-
-    // Cache lookup
-    if (useCache) {
-      const cached = productsCache.get(`hotmart:${productCode}`) || productsCache.get(productCode)
-      if (cached) {
-        debugLog(`✅ [ProductMapping] Produto Hotmart do cache: ${productCode}`)
-        return cached._id
-      }
-    }
-
-    // Fallback: query BD
-    const product = await Product.findOne({
-      code: productCode,
-      platform: 'hotmart',
-      isActive: true
-    }).select('_id').lean() as LeanProduct | null
-
-    if (!product) {
-      console.warn(`⚠️ [ProductMapping] Produto Hotmart não encontrado: ${productCode}`)
-    }
-
-    return product?._id || null
-  }
-
-  if (syncType === 'curseduca') {
-    const groupId = String(item.groupId || '')
-
-    if (groupId) {
-      // Cache lookup por groupId
-      if (useCache) {
-        const cached = productsCache.get(`group_${groupId}`)
-        if (cached) {
-          debugLog(`✅ [ProductMapping] Produto CursEduca do cache (groupId ${groupId}): ${cached.code}`)
-          return cached._id
-        }
-      }
-
-      // Fallback: query BD
-      const product = await Product.findOne({
-        platform: 'curseduca',
-        curseducaGroupId: groupId,
-        isActive: true
-      }).select('_id code').lean() as LeanProduct | null
-
-      if (product) {
-        debugLog(`✅ [ProductMapping] Produto encontrado por groupId ${groupId}: ${product.code}`)
-        return product._id
-      }
-    }
-
-    // 2ª tentativa: subscriptionType
-    if (item.subscriptionType) {
-      const productCode =
-        item.subscriptionType === 'MONTHLY' ? 'CLAREZA_MENSAL' :
-        item.subscriptionType === 'ANNUAL' ? 'CLAREZA_ANUAL' :
-        null
-
-      if (productCode) {
-        // Cache lookup
-        if (useCache) {
-          const cached = productsCache.get(productCode)
-          if (cached) {
-            debugLog(`✅ [ProductMapping] Produto do cache (subscriptionType): ${productCode}`)
-            return cached._id
-          }
-        }
-
-        // Fallback: query BD
-        const product = await Product.findOne({
-          platform: 'curseduca',
-          code: productCode,
-          isActive: true
-        }).select('_id code').lean() as LeanProduct | null
-
-        if (product) {
-          debugLog(`✅ [ProductMapping] Produto encontrado por subscriptionType ${item.subscriptionType}: ${product.code}`)
-          return product._id
-        }
-
-        console.warn(`⚠️ [ProductMapping] Produto não encontrado para subscriptionType: ${item.subscriptionType} (${productCode})`)
-      }
-    }
-
-    // 3ª tentativa: groupName (não usa cache - query dinâmica)
-    if (item.groupName) {
-      const product = await Product.findOne({
-        platform: 'curseduca',
-        name: { $regex: new RegExp(item.groupName, 'i') },
-        isActive: true
-      }).select('_id code').lean() as LeanProduct | null
-
-      if (product) {
-        console.log(`✅ [ProductMapping] Produto encontrado por groupName "${item.groupName}": ${product.code}`)
-        return product._id
-      }
-    }
-
-    // 4ª tentativa: default
-    if (useCache) {
-      const allCurseduca = Array.from(productsCache.values()).find(p => p.platform === 'curseduca')
-      if (allCurseduca) {
-        console.warn(`⚠️ [ProductMapping] Usando produto default CursEDuca: ${allCurseduca.code} (groupId: ${groupId})`)
-        return allCurseduca._id
-      }
-    }
-
-    const defaultProduct = await Product.findOne({
-      platform: 'curseduca',
-      isActive: true
-    }).select('_id code').lean() as LeanProduct | null
-
-    if (defaultProduct) {
-      console.warn(`⚠️ [ProductMapping] Usando produto default CursEDuca: ${defaultProduct.code} (groupId: ${groupId})`)
-      return defaultProduct._id
-    }
-
-    console.error(`❌ [ProductMapping] Nenhum produto CursEDuca ativo encontrado!`)
-    return null
-  }
-
-  return null
-}
 
 /**
  * Cria ou atualiza uma turma na tabela Class
@@ -487,127 +348,18 @@ export const processSyncItem = async (
 
   // ═══════════════════════════════════════════════════════════
   // ✅ CRIAR/ATUALIZAR USERPRODUCT AUTOMATICAMENTE
-  // ═══════════════════════════════════════════════════════════
+  const userProductResult = await persistUserProduct({
+    item,
+    syncType: config.syncType,
+    user,
+    userId: userIdStr,
+  })
 
-  try {
-    // 1. Determinar productId usando função escalável
-    const productId = await determineProductId(item, config.syncType)
-
-    if (!productId) {
-      console.warn(`⚠️ [UniversalSync] Produto não encontrado para ${config.syncType} - user: ${user.email}`)
-      return {
-        action: isNew ? 'inserted' : (needsUpdate ? 'updated' : 'unchanged'),
-        userId: userIdStr
-      }
-    }
-
-    // 2. Verificar se UserProduct já existe
-    const existingUP = await UserProduct.findOne({
+  if (userProductResult.status === 'missing-product') {
+    return {
+      action: isNew ? 'inserted' : needsUpdate ? 'updated' : 'unchanged',
       userId: userIdStr,
-      productId: productId
-    })
-
-    // ═══════════════════════════════════════════════════════════
-    // CASO 1: ATUALIZAR USERPRODUCT EXISTENTE
-    // ═══════════════════════════════════════════════════════════
-    if (existingUP) {
-      // PREPARE: engagement metrics (tolerant read + pure calc), matching the
-      // original inner try/catch so a metrics failure never blocks the update.
-      let metrics: EngagementMetricsResult | null = null
-      try {
-        const product = await Product.findById(productId)
-        if (product) metrics = calculateEngagementMetricsForUserProduct(user, product)
-      } catch (metricsError: unknown) {
-        console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, errorMessage(metricsError))
-      }
-
-      // PURE BUILDER: item + current UP state + metrics -> $set field map.
-      const plan = buildUserProductUpdatePlan({
-        item,
-        syncType: config.syncType,
-        existing: {
-          progressPercentage: existingUP.progress?.percentage,
-          engagementScore: existingUP.engagement?.engagementScore,
-          classes: existingUP.classes || [],
-        },
-        metrics,
-        clock: { now: () => new Date() },
-      })
-
-      // EXECUTOR: apply the plan in a single write, preserving the class-added log.
-      if (plan.classAddedId) {
-        console.log(`   📚 [Classes] Adicionada turma ${plan.classAddedId} para ${user.email}`)
-      }
-      if (plan.needsUpdate) {
-        await UserProduct.findByIdAndUpdate(existingUP._id, { $set: plan.fields })
-        debugLog(`   📦 UserProduct atualizado: ${user.email}`)
-      }
-
-    // ═══════════════════════════════════════════════════════════
-    // CASO 2: CRIAR USERPRODUCT NOVO
-    // ═══════════════════════════════════════════════════════════
-    } else {
-      const enrolledAt = toDateOrNull(item.enrolledAt) ||
-                        toDateOrNull(item.purchaseDate) ||
-                        toDateOrNull(item.joinedDate) ||
-                        new Date()
-
-      // PREPARE: isPrimary + the curseduca "one primary" reassignment (read, pure
-      // decision, then the demote write) — same order as before, before the create.
-      let isPrimaryValue = item.platformData?.isPrimary ?? true
-      if (config.syncType === 'curseduca' && isPrimaryValue === true) {
-        const existingPrimary = await UserProduct.findOne({
-          userId: userIdStr,
-          platform: 'curseduca',
-          productId: { $ne: productId },
-          isPrimary: true
-        })
-
-        if (existingPrimary) {
-          console.log(`   🛡️ [Proteção] User ${item.email} já tem produto PRIMARY`)
-          const reassign = planPrimaryReassignment(
-            { enrolledAt: existingPrimary.enrolledAt, status: existingPrimary.status },
-            enrolledAt,
-            { now: () => new Date() },
-          )
-          isPrimaryValue = reassign.newIsPrimary
-          if (reassign.demoteUpdate) {
-            console.log(`      ✅ Novo produto mais recente → PRIMARY, antigo → INACTIVE`)
-            await UserProduct.updateOne({ _id: existingPrimary._id }, { $set: reassign.demoteUpdate })
-          } else {
-            console.log(`      🔻 Novo produto mais antigo → SECONDARY (antigo mantém-se PRIMARY)`)
-          }
-        }
-      }
-
-      // PREPARE: engagement metrics (tolerant read + pure calc).
-      let metrics: EngagementMetricsResult | null = null
-      try {
-        const product = await Product.findById(productId)
-        if (product) metrics = calculateEngagementMetricsForUserProduct(user, product)
-      } catch (metricsError: unknown) {
-        console.error(`   ❌ [Sprint 1.5B] Erro ao calcular engagement metrics:`, errorMessage(metricsError))
-      }
-
-      // PURE BUILDER: assemble the new UserProduct (progress/engagement/classes + metrics merge).
-      const newUserProduct = buildUserProductCreatePlan({
-        item,
-        syncType: config.syncType,
-        userId: userIdStr,
-        productId,
-        enrolledAt,
-        isPrimary: isPrimaryValue,
-        metrics,
-        clock: { now: () => new Date() },
-      })
-
-      // EXECUTOR: create.
-      await UserProduct.create(newUserProduct)
-      debugLog(`   ✨ UserProduct CRIADO: ${user.email} → ${config.syncType}`)
     }
-
-  } catch (upError: unknown) {
-    console.error(`❌ [UniversalSync] Erro ao criar/atualizar UserProduct para ${user.email}:`, errorMessage(upError))
   }
 
   // ═══════════════════════════════════════════════════════════

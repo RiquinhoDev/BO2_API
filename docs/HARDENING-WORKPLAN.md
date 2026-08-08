@@ -826,8 +826,11 @@ Progresso controllers:
 - [x] Modelos e jobs registados **explicitamente**, nunca por side-effect de import. Startup order e shutdown testáveis.
 
 ### 2. Ficheiros pequenos & módulos por domínio
-- [ ] **Nenhum ficheiro novo/tocado > ~400 linhas.** Os monstros existentes (`clarezaCarteiraService` 4692, `users.controller` 3649, `classes.controller` 2347) partidos **verticalmente por domínio** (use cases + adapters), não reorganização cosmética (ARCH-02). `universalSyncService` foi **dissolvido** (ficheiro apagado, `21b5430`), mas a decomposição deixou `universalSync/processSyncItem.ts` (~1127) e `universalSync/executeUniversalSync.ts` (~507) **ainda > 400** — alvos ARCH-02 remanescentes (decompor `processSyncItem` characterization-first).
+- [ ] **Nenhum ficheiro novo/tocado > ~400 linhas.** Os monstros existentes (`clarezaCarteiraService` 4692, `users.controller` 3649, `classes.controller` 2347) partidos **verticalmente por domínio** (use cases + adapters), não reorganização cosmética (ARCH-02). `universalSyncService` foi **dissolvido** (ficheiro apagado, `21b5430`), mas a decomposição deixou `universalSync/processSyncItem.ts` (~401) e `universalSync/executeUniversalSync.ts` (~507) **ainda > 400** — alvos ARCH-02 remanescentes (decompor `processSyncItem` characterization-first).
 - [ ] Cada módulo tem uma responsabilidade clara; sem "controller-que-faz-tudo".
+- [x] **ARCH-02 — persistência UserProduct extraída do universal sync (2026-08-08):** resolução de produto, métricas, create/update e reassignment CursEduca passaram para universalSync/userProductPersistence.ts (267 linhas), mantendo os builders puros e a ordem de efeitos. processSyncItem.ts caiu **649→401 linhas**;
+  no-console **1518→1504** sem suppressions novas. A caracterização pública provou create/update, dedup de turma, primary reassignment e missing-product; mutação removendo o $set deu RED (77 esperado, 10 recebido). Gate offline: 4 suites/34 testes focados, 227/227 suites e 1325/1325 testes totais, lint/types/build 0.
+
 - [x] **ARCH-02 — reconciliação de identidade Discord extraída** (2026-07-29): `users.controller.ts`
   **3688→3432** neste checkout. Os 7 handlers de merge/manual/bulk/delete passaram para controller fino +
   `UserIdentityReconciliationService` + port + adapter Mongoose; o import CSV consome o mesmo caso de uso
