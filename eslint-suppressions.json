@@ -1134,10 +1134,10 @@
       "count": 2
     },
     "no-console": {
-      "count": 62
+      "count": 59
     },
     "no-useless-assignment": {
-      "count": 19
+      "count": 5
     }
   },
   "src/services/systemMonitor.service.ts": {
