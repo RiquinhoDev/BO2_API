@@ -7,7 +7,7 @@
 // ════════════════════════════════════════════════════════════
 
 import mongoose, { type UpdateQuery } from 'mongoose'
-import User, { IUser } from '../../../models/user'
+import User from '../../../models/user'
 import { Product, UserProduct } from '../../../models'
 import { Class, type IClass } from '../../../models/Class'
 import type { ProcessItemResult, UniversalSourceItem, UniversalSyncConfig, UniversalSyncType } from '../../../types/universalSync.types'
@@ -17,24 +17,15 @@ import { debugLog } from './debugLog'
 import { buildCanonicalActiveUserStatusUpdate } from './canonicalUserStatus'
 import { errorMessage, mongoErrorCode, normalizeEmail, toDateOrNull } from './fieldUtils'
 import { productsCache, type LeanProduct } from './productsCache'
-import { EXPIRATION_DAYS, HotmartExpirationPolicy, formatDateOnly, getActiveHotmartClassForExpiration } from './hotmartExpiration'
+import { HotmartExpirationPolicy, formatDateOnly, getActiveHotmartClassForExpiration } from './hotmartExpiration'
 import { ExpiredStudentsCollector } from './expiredStudentsCollector'
 import { calculateEngagementMetricsForUserProduct, type EngagementMetricsResult } from './engagement/engagementMetrics'
 import { buildHotmartMutationPlan, hotmartPlanToUpdateFields, type HotmartClassEnrollment } from './builders/hotmartMutationPlan'
 import { buildCurseducaMutationPlan, curseducaPlanToUpdateFields } from './builders/curseducaMutationPlan'
 import { buildUserProductUpdatePlan, buildUserProductCreatePlan, planPrimaryReassignment } from './builders/userProductMutationPlan'
+import { detectRenewal, applyAutoReactivation } from './renewalPolicy'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
-
-
-interface RenewalDetectionResult {
-  wasInactivated: boolean
-  shouldReactivate: boolean
-  reactivationReason?: string
-  inactivatedAt?: Date
-  purchaseDate?: Date
-}
-
 
 /**
  * Determina o produto correto baseado nos dados do item e na plataforma
@@ -239,89 +230,6 @@ async function ensureClassExists(
   }
 }
 
-/**
- * Deteta se um utilizador foi inativado manualmente e se renovou a subscrição
- * Compara a data de compra com a data de inativação
- */
-async function detectRenewal(
-  user: IUser,
-  purchaseDate: Date | null,
-  config: UniversalSyncConfig
-): Promise<RenewalDetectionResult> {
-  const result: RenewalDetectionResult = {
-    wasInactivated: false,
-    shouldReactivate: false
-  }
-
-  // Só para Hotmart (turma OGI e purchaseDate são dados desta plataforma)
-  if (config.syncType !== 'hotmart') {
-    return result
-  }
-
-  const activeClass = getActiveHotmartClassForExpiration(user)
-  const expiration = expirationPolicy.evaluate(purchaseDate, activeClass?.className)
-  if (!expiration.canEvaluate) {
-    return result
-  }
-
-  const isInactiveInDB = user.combined?.status === 'INACTIVE'
-
-  if (purchaseDate) {
-    result.purchaseDate = purchaseDate
-  }
-
-  if (isInactiveInDB && !expiration.isExpired) {
-    // Está inativo na BD mas o acesso ainda é válido → renovou ou foi inativado indevidamente
-    result.wasInactivated = true
-    result.shouldReactivate = true
-    result.reactivationReason = 'sync'
-    console.log(`🔄 [RenewalDetection] REATIVAÇÃO AUTOMÁTICA!`)
-    console.log(`   📧 User: ${user.email}`)
-    if (expiration.accessEndOgi) {
-      console.log(`   📅 Acesso OGI: válido até ${formatDateOnly(expiration.accessEndOgi)} (${activeClass?.className || 'turma sem nome'})`)
-    } else if (purchaseDate) {
-      console.log(`   💳 Purchase: ${purchaseDate.toISOString().split('T')[0]} (${expiration.daysSincePurchase} dias, limite ${EXPIRATION_DAYS})`)
-    }
-  }
-
-  return result
-}
-
-/**
- * Aplica a reativação automática de um utilizador que renovou
- */
-async function applyAutoReactivation(
-  userId: string,
-  userEmail: string,
-  renewalResult: RenewalDetectionResult
-): Promise<void> {
-  console.log(`✅ [AutoReactivation] Reativando ${userEmail}...`)
-
-  // 1. Atualizar User
-  await User.findByIdAndUpdate(userId, {
-    $set: {
-      ...buildCanonicalActiveUserStatusUpdate(),
-      // Atualizar dados de inativação
-      'inactivation.isManuallyInactivated': false,
-      'inactivation.reactivatedAt': new Date(),
-      'inactivation.reactivatedBy': 'Sistema - Sync Automático',
-      'inactivation.reactivationReason': renewalResult.reactivationReason
-    }
-  })
-
-  // 2. Atualizar UserProduct
-  await UserProduct.updateMany(
-    { userId },
-    { $set: { status: 'ACTIVE' } }
-  )
-
-  // Nota (2026-07-11): a chamada legacy ao Discord (`${DISCORD_BOT_URL}/add-roles`)
-  // foi removida — esse endpoint nunca existiu no repo API (o fetch levava 404 e o log
-  // "Roles restaurados" era falso). Os cargos R.* de renovação são reconciliados de
-  // noite pelo DiscordRolesSync.
-
-  console.log(`✅ [AutoReactivation] ${userEmail} reativado com sucesso!`)
-}
 
 export const processSyncItem = async (
   item: UniversalSourceItem,
@@ -498,7 +406,7 @@ export const processSyncItem = async (
   // 🆕 DETETAR RENOVAÇÕES (antes de aplicar updates)
   // ═══════════════════════════════════════════════════════════
   const purchaseDate = toDateOrNull(item.purchaseDate)
-  const renewalResult = await detectRenewal(user, purchaseDate, config)
+  const renewalResult = detectRenewal(user, purchaseDate, config.syncType, expirationPolicy)
 
   if (renewalResult.shouldReactivate) {
     // Utilizador renovou! Aplicar reativação automática

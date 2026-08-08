@@ -1147,7 +1147,12 @@
   },
   "src/services/syncUtilizadoresServices/universalSync/processSyncItem.ts": {
     "no-console": {
-      "count": 30
+      "count": 24
+    }
+  },
+  "src/services/syncUtilizadoresServices/universalSync/renewalPolicy.ts": {
+    "no-console": {
+      "count": 6
     }
   },
   "src/services/systemMonitor.service.ts": {
