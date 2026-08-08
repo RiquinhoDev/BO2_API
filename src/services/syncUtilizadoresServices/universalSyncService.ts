@@ -977,12 +977,12 @@ const processSyncItem = async (
   // ✅ HOTMART - VERSÃO COMPLETA (MANTÉM TUDO!)
   // ═══════════════════════════════════════════════════════════
   if (config.syncType === 'hotmart') {
-    // PREPARE: resolve the real class name (ensureClassExists stays out of the pure builder).
-    const realClassName = item.classId
-      ? await ensureClassExists(item.classId, item.className, 'hotmart')
-      : null
+    // PREPARE: resolve the real class (ensureClassExists stays out of the pure builder).
+    const resolvedClass = item.classId
+      ? { classId: item.classId, className: await ensureClassExists(item.classId, item.className, 'hotmart') }
+      : undefined
 
-    // PURE BUILDER: item + current user state + resolved name -> explicit plan (no I/O).
+    // PURE BUILDER: item + current user state + resolved class -> explicit plan (no I/O).
     const plan = buildHotmartMutationPlan({
       item,
       user: {
@@ -991,7 +991,7 @@ const processSyncItem = async (
         curseduca: { enrolledClasses: user.curseduca?.enrolledClasses },
       },
       isNew,
-      realClassName,
+      resolvedClass,
       clock: { now: () => new Date() },
     })
 
@@ -1033,11 +1033,13 @@ const processSyncItem = async (
         console.warn(`   ⚠️ Erro ao registrar histórico de turma para ${user.email}:`, errorMessage(error))
       }
     }
-  }
 
-// ═══════════════════════════════════════════════════════════
-// ✅ CURSEDUCA - VERSÃO COMPLETA COM TODOS OS CAMPOS NOVOS
-// ═══════════════════════════════════════════════════════════
+    // EXECUTOR: sync timestamps stamped AFTER the history effect (temporal order).
+    const hotmartSyncAt = new Date()
+    updateFields['hotmart.lastSyncAt'] = hotmartSyncAt
+    updateFields['metadata.updatedAt'] = hotmartSyncAt
+    updateFields['metadata.sources.hotmart.lastSync'] = hotmartSyncAt
+  }
 
 // ═══════════════════════════════════════════════════════════
 // ✅ CURSEDUCA - VERSÃO COMPLETA COM TODOS OS CAMPOS NOVOS
