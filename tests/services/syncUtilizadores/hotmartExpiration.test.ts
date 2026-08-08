@@ -62,15 +62,6 @@ describe('HotmartExpirationPolicy.evaluate — turma period branch', () => {
   })
 })
 
-describe('HotmartExpirationPolicy.check', () => {
-  it('returns an ExpiredStudent only when expired', () => {
-    const expired = policy.check('u1', 'a@x.test', 'Ana', daysAgo(EXPIRATION_DAYS + 5), 'c1', 'Turma sem periodo')
-    expect(expired).toMatchObject({ userId: 'u1', email: 'a@x.test', expirationSource: 'purchaseDate' })
-
-    expect(policy.check('u2', 'b@x.test', 'Beto', daysAgo(10))).toBeNull()
-  })
-})
-
 describe('getActiveHotmartClassForExpiration', () => {
   const user = (rows: Array<{ classId?: string; className?: string; isActive?: boolean }>): UserPick =>
     ({ hotmart: { enrolledClasses: enrollments(rows) } } as unknown as UserPick)

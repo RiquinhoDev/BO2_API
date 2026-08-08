@@ -150,8 +150,8 @@ describe('universalSync hotmart — class history', () => {
   })
 })
 
-describe('universalSync hotmart — expired collection stays passive', () => {
-  it('collects an expired student but performs no auto-inactivation (feature off)', async () => {
+describe('universalSync hotmart — expired access stays manual-only', () => {
+  it('detects expired access without performing auto-inactivation', async () => {
     // Purchase > 380 days before the class has no YYMM period -> purchaseDate branch expires.
     const result = await runHotmart(
       baseItem({ classId: 'SEMPERIODO', className: 'Turma sem periodo', purchaseDate: new Date('2024-01-01T00:00:00.000Z') }),
@@ -159,7 +159,7 @@ describe('universalSync hotmart — expired collection stays passive', () => {
 
     expect(result.stats.total).toBe(1)
     const user = await User.findOne({ email: 'a@x.test' }).lean()
-    // AUTO_INACTIVATION_ENABLED is false: the sync never flips the user to INACTIVE.
+    // Expired Hotmart access is review-only: sync never flips the user to INACTIVE.
     expect(user?.combined?.status).not.toBe('INACTIVE')
   })
 })
