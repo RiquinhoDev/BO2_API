@@ -1,3 +1,5 @@
+import { timingSafeEqual } from 'node:crypto'
+import { getStudentSummaryToken } from './requestDrivenRuntimeConfig'
 import mongoose from 'mongoose'
 import Product from '../models/product/Product'
 import User from '../models/user'
@@ -188,8 +190,12 @@ export function resolveStudentEmailFromToken(token: string): string {
 }
 
 export function isValidSummaryAccessToken(token?: string): boolean {
-  const expectedToken = process.env.STUDENT_SUMMARY_TOKEN
-  return Boolean(expectedToken && token && token === expectedToken)
+  const expectedToken = getStudentSummaryToken()
+  if (!expectedToken || !token) return false
+
+  const expected = Buffer.from(expectedToken)
+  const received = Buffer.from(token)
+  return expected.length === received.length && timingSafeEqual(expected, received)
 }
 
 export interface StudentAccessResult {

@@ -15,11 +15,9 @@ import {
   getEffectiveStatus,
   getStatusPriority,
   verifyCurseducaMemberStatus,
-  CURSEDUCA_API_URL,
-  CURSEDUCA_API_KEY,
-  CURSEDUCA_ACCESS_TOKEN,
   type GuruDateInfo
 } from '../services/guru/guru.constants'
+import { getOptionalCurseducaRuntimeSettings } from '../services/requestDrivenRuntimeConfig'
 import { isCurseducaEnrollmentActive } from '../services/syncUtilizadoresServices/curseducaServices/curseducaMemberships'
 
 type CurseducaDetails = NonNullable<IUser['curseduca']>
@@ -724,14 +722,15 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
 
         // CASO 3: BD diz CursEduca ACTIVE mas verificar API real
         const memberId = userProduct.platformUserId || user?.curseduca?.curseducaUserId
-        if (memberId && CURSEDUCA_ACCESS_TOKEN && CURSEDUCA_API_KEY) {
+        const curseducaSettings = getOptionalCurseducaRuntimeSettings()
+        if (memberId && curseducaSettings) {
           try {
             const apiResp = await axios.get<CurseducaMemberResponse>(
-              `${CURSEDUCA_API_URL}/members/${memberId}`,
+              `${curseducaSettings.apiUrl}/members/${memberId}`,
               {
                 headers: {
-                  'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
-                  'api_key': CURSEDUCA_API_KEY
+                  'Authorization': `Bearer ${curseducaSettings.accessToken}`,
+                  'api_key': curseducaSettings.apiKey
                 },
                 timeout: 10000
               }

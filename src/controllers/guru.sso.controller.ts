@@ -4,6 +4,7 @@ import axios from 'axios'
 import User from '../models/user'
 import { GURU_SSO_ALLOWED_STATUSES } from '../types/guru.types'
 import { createListSubscriptions } from './guruSubscriptionList.controller'
+import { getGuruUserToken } from '../services/requestDrivenRuntimeConfig'
 
 export const listSubscriptions = createListSubscriptions({ model: User })
 
@@ -11,7 +12,6 @@ export const listSubscriptions = createListSubscriptions({ model: User })
 // NOTA: A API v2 é a atual, v1 foi descontinuada
 // Endpoint SSO MyOrders: POST /api/v2/myorders/auth/sso/{email}
 const GURU_API_BASE = 'https://digitalmanager.guru/api/v2'
-const GURU_USER_TOKEN = process.env.GURU_USER_TOKEN
 
 // ═══════════════════════════════════════════════════════════
 // SSO MYORDERS
@@ -85,13 +85,7 @@ export const ssoMyOrders = async (req: Request, res: Response) => {
     // ═══════════════════════════════════════════════════════════
     // 4. VERIFICAR CONFIGURAÇÃO
     // ═══════════════════════════════════════════════════════════
-    if (!GURU_USER_TOKEN) {
-      console.error('❌ [GURU SSO] GURU_USER_TOKEN não configurado')
-      return res.status(500).json({
-        success: false,
-        message: 'Configuração SSO incompleta'
-      })
-    }
+    const guruUserToken = getGuruUserToken()
 
     // ═══════════════════════════════════════════════════════════
     // 5. CHAMAR API GURU PARA SSO
@@ -105,7 +99,7 @@ export const ssoMyOrders = async (req: Request, res: Response) => {
       {},
       {
         headers: {
-          'Authorization': `Bearer ${GURU_USER_TOKEN}`,
+          'Authorization': `Bearer ${guruUserToken}`,
           'Content-Type': 'application/json'
         },
         timeout: 10000

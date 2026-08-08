@@ -9,13 +9,11 @@ import {
   getEffectiveStatus,
   lookupCurseducaUserIdByEmail,
   verifyCurseducaMemberStatus,
-  CURSEDUCA_API_URL,
-  CURSEDUCA_API_KEY,
-  CURSEDUCA_ACCESS_TOKEN,
   type GuruDateInfo
 } from '../services/guru/guru.constants'
 import { isCurseducaEnrollmentActive } from '../services/syncUtilizadoresServices/curseducaServices/curseducaMemberships'
 import { fetchContactByEmail, fetchContactSubscriptions } from '../services/guru/guruSync.service'
+import { getOptionalCurseducaRuntimeSettings } from '../services/requestDrivenRuntimeConfig'
 import type {
   GuruInactivationBulkInput,
   GuruInactivationSingleInput,
@@ -1015,14 +1013,15 @@ export const cleanupInactivationList = async (req: Request, res: Response) => {
       // CASO 3: BD diz CursEduca ACTIVE - verificar API real
       // ═══════════════════════════════════════════════════════════
       const memberId = userProduct.platformUserId || user.curseduca?.curseducaUserId
-      if (memberId && CURSEDUCA_ACCESS_TOKEN && CURSEDUCA_API_KEY) {
+      const cleanupSettings = getOptionalCurseducaRuntimeSettings()
+      if (memberId && cleanupSettings) {
         try {
           const apiResp = await axios.get(
-            `${CURSEDUCA_API_URL}/members/${memberId}`,
+            `${cleanupSettings.apiUrl}/members/${memberId}`,
             {
               headers: {
-                'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
-                'api_key': CURSEDUCA_API_KEY
+                'Authorization': `Bearer ${cleanupSettings.accessToken}`,
+                'api_key': cleanupSettings.apiKey
               },
               timeout: 10000
             }
@@ -1516,14 +1515,15 @@ export const diagnoseUsers = async (req: Request, res: Response) => {
       // 3. Chamar API CursEduca para ver estado real
       let curseducaApiStatus: CurseducaApiStatus | null = null
       const memberId = userProduct?.platformUserId || user.curseduca?.curseducaUserId
-      if (memberId && CURSEDUCA_API_KEY && CURSEDUCA_ACCESS_TOKEN) {
+      const diagnosticSettings = getOptionalCurseducaRuntimeSettings()
+      if (memberId && diagnosticSettings) {
         try {
           const apiResponse = await axios.get<CurseducaMemberPayload>(
-            `${CURSEDUCA_API_URL}/members/${memberId}`,
+            `${diagnosticSettings.apiUrl}/members/${memberId}`,
             {
               headers: {
-                'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
-                'api_key': CURSEDUCA_API_KEY
+                'Authorization': `Bearer ${diagnosticSettings.accessToken}`,
+                'api_key': diagnosticSettings.apiKey
               },
               timeout: 10000
             }
@@ -1586,14 +1586,15 @@ export const diagnoseUsers = async (req: Request, res: Response) => {
 
 async function callCurseducaInactivate(memberId: string | number): Promise<{ success: boolean; response?: unknown; error?: string }> {
   try {
-    if (!CURSEDUCA_API_KEY || !CURSEDUCA_ACCESS_TOKEN) {
+    const settings = getOptionalCurseducaRuntimeSettings()
+    if (!settings) {
       return { success: false, error: 'Credenciais CursEduca não configuradas (API_KEY ou ACCESS_TOKEN)' }
     }
 
     console.log(`   📡 [CursEduca API] PATCH /inactivate-member - member.id: ${memberId}`)
 
     const response = await axios.patch(
-      `${CURSEDUCA_API_URL}/inactivate-member`,
+      `${settings.apiUrl}/inactivate-member`,
       {
         member: {
           id: Number(memberId)
@@ -1602,8 +1603,8 @@ async function callCurseducaInactivate(memberId: string | number): Promise<{ suc
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
-          'api_key': CURSEDUCA_API_KEY
+          'Authorization': `Bearer ${settings.accessToken}`,
+          'api_key': settings.apiKey
         },
         timeout: 10000
       }

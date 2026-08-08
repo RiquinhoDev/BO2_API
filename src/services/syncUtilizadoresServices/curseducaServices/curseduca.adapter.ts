@@ -6,7 +6,7 @@
 //    1. /reports/group/members (lista + progresso)
 //    2. /members/{id} (lastLogin + situation + enrolledAt)
 //
-// ✅ Process.env para credenciais
+// ✅ Configuração runtime tipada para credenciais
 // ✅ Deduplicação inteligente
 // ✅ Concurrency controlada
 // ✅ Type-safe completo
@@ -25,15 +25,16 @@ import {
   CursEducaMemberWithMetadata
 } from '../../../types/curseduca.types'
 import { attachCurseducaMemberships } from './curseducaMemberships'
+import { getCurseducaRuntimeSettings } from '../../requestDrivenRuntimeConfig'
 
 // ═══════════════════════════════════════════════════════════
-// CREDENCIAIS (PROCESS.ENV)
+// CREDENCIAIS (RUNTIME CONFIG)
 // ═══════════════════════════════════════════════════════════
 
-const CURSEDUCA_API_URL="https://prof.curseduca.pro"
+const curseducaApiUrl = () => getCurseducaRuntimeSettings().apiUrl
 const CURSEDUCA_CONTENTS_API_URL="https://clas.curseduca.pro"
-const CURSEDUCA_API_KEY=process.env.CURSEDUCA_API_KEY
-const CURSEDUCA_ACCESS_TOKEN=process.env.CURSEDUCA_AccessToken
+const curseducaApiKey = () => getCurseducaRuntimeSettings().apiKey
+const curseducaAccessToken = () => getCurseducaRuntimeSettings().accessToken
 
 // ═══════════════════════════════════════════════════════════
 // HELPER: VALIDAR CREDENCIAIS
@@ -42,25 +43,25 @@ const CURSEDUCA_ACCESS_TOKEN=process.env.CURSEDUCA_AccessToken
 function getRequestHeaders(): Record<string, string> {
   const missing: string[] = []
   
-  if (!CURSEDUCA_API_URL) missing.push('CURSEDUCA_API_URL')
-  if (!CURSEDUCA_ACCESS_TOKEN) missing.push('CURSEDUCA_AccessToken')
-  if (!CURSEDUCA_API_KEY) missing.push('CURSEDUCA_API_KEY')
+  if (!curseducaApiUrl()) missing.push('CURSEDUCA_API_URL')
+  if (!curseducaAccessToken()) missing.push('CURSEDUCA_AccessToken')
+  if (!curseducaApiKey()) missing.push('CURSEDUCA_API_KEY')
   
   if (missing.length > 0) {
     throw new Error(
-      `❌ Credenciais CursEduca não configuradas no .env:\n` +
+      `❌ Credenciais CursEduca não configuradas no arranque:\n` +
       `   Faltam: ${missing.join(', ')}\n` +
-      `   Por favor, adicione no ficheiro .env`
+      `   Verifique a configuração do ambiente de arranque`
     )
   }
 
-  if (!CURSEDUCA_ACCESS_TOKEN || !CURSEDUCA_API_KEY) {
+  if (!curseducaAccessToken() || !curseducaApiKey()) {
     throw new Error('Credenciais CursEduca inválidas')
   }
 
   return {
-    'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
-    'api_key': CURSEDUCA_API_KEY,
+    'Authorization': `Bearer ${curseducaAccessToken()}`,
+    'api_key': curseducaApiKey(),
     'Content-Type': 'application/json'
   }
 }
@@ -331,7 +332,7 @@ async function fetchGroupMembersList(
     
     try {
       const response = await axios.get<CollectionPayload<CursEducaMemberFromReports>>(
-        `${CURSEDUCA_API_URL}/reports/group/members`,
+        `${curseducaApiUrl()}/reports/group/members`,
         {
           params: { group: groupId, groupId, limit, offset },
           headers,
@@ -410,7 +411,7 @@ async function fetchProgressReport(
 
     try {
       const response = await axios.get<CollectionPayload<CurseducaProgressReportItem>>(
-        `${CURSEDUCA_CONTENTS_API_URL || CURSEDUCA_API_URL}/reports/progress`,
+        `${CURSEDUCA_CONTENTS_API_URL}/reports/progress`,
         {
           params: { content: contentSlug, limit, offset },
           headers,
@@ -486,7 +487,7 @@ async function fetchAccessReport(
 
     try {
       const response = await axios.get<CollectionPayload<CurseducaAccessReportItem>>(
-        `${CURSEDUCA_API_URL}/reports/access`,
+        `${curseducaApiUrl()}/reports/access`,
         {
           params: { limit, offset },
           headers,
@@ -579,7 +580,7 @@ async function fetchAllMembersMap(
 
     for (let attempt = 1; attempt <= 3 && !pageDone; attempt++) {
       try {
-        const response = await axios.get<CollectionPayload<BulkCurseducaMember>>(`${CURSEDUCA_API_URL}/members`, {
+        const response = await axios.get<CollectionPayload<BulkCurseducaMember>>(`${curseducaApiUrl()}/members`, {
           params: { limit, offset },
           headers,
           timeout: 30000
@@ -715,7 +716,7 @@ export const fetchCurseducaDataForSync = async (
     
     console.log('📚 [CurseducaAdapter] Step 1/5: Buscando grupos...')
     
-    const groupsResponse = await axios.get<CollectionPayload<CursEducaGroup>>(`${CURSEDUCA_API_URL}/groups`, {
+    const groupsResponse = await axios.get<CollectionPayload<CursEducaGroup>>(`${curseducaApiUrl()}/groups`, {
       headers,
       timeout: 30000
     })
@@ -772,7 +773,7 @@ export const fetchCurseducaDataForSync = async (
         console.log(`   📡 1/2: Buscando lista via /groups/${group.id}/members...`)
 
         const groupMembersResponse = await axios.get<CollectionPayload<CursEducaRosterMember>>(
-          `${CURSEDUCA_API_URL}/groups/${group.id}/members`,
+          `${curseducaApiUrl()}/groups/${group.id}/members`,
           {
             headers,
             params: { limit: 1000 },
@@ -1001,7 +1002,7 @@ export const fetchCurseducaDataForSync = async (
     if (errorStatus(error) === 401) {
       throw new Error(
         `Adapter falhou: Autenticação inválida (401)\n` +
-        `Verifique CURSEDUCA_AccessToken e CURSEDUCA_API_KEY no .env`
+        `Verifique as credenciais CursEduca na configuração de arranque`
       )
     }
     
@@ -1027,7 +1028,7 @@ export const fetchSingleUserData = async (
 
     console.log(`   📡 Buscando dados básicos...`)
     const memberResponse = await axios.get<CursEducaMemberDetails>(
-      `${CURSEDUCA_API_URL}/members/${curseducaUserId}`,
+      `${curseducaApiUrl()}/members/${curseducaUserId}`,
       { headers, timeout: 15000 }
     )
 
@@ -1045,7 +1046,7 @@ export const fetchSingleUserData = async (
 
     try {
       const enrollmentsResponse = await axios.get<CollectionPayload<CurseducaEnrollment>>(
-        `${CURSEDUCA_API_URL}/api/reports/enrollments`,
+        `${curseducaApiUrl()}/api/reports/enrollments`,
         {
           params: { memberId: curseducaUserId, limit: 100 },
           headers,

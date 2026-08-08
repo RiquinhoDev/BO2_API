@@ -10,6 +10,7 @@ import {
   getEffectiveStatus,
   type GuruDateInfo
 } from './guru.constants'
+import { getGuruUserToken } from '../requestDrivenRuntimeConfig'
 
 // ═══════════════════════════════════════════════════════════
 // CONFIGURAÇÃO
@@ -17,11 +18,9 @@ import {
 
 // URL base para API de subscriptions (diferente do myorders)
 const GURU_SUBSCRIPTIONS_API_URL = 'https://digitalmanager.guru/api/v2'
-const GURU_USER_TOKEN = process.env.GURU_USER_TOKEN
 
 // Log de configuração no arranque
 console.log('🔧 [GURU CONFIG] Subscriptions API URL:', GURU_SUBSCRIPTIONS_API_URL)
-console.log('🔧 [GURU CONFIG] Token configurado:', GURU_USER_TOKEN ? 'SIM (' + GURU_USER_TOKEN.substring(0, 10) + '...)' : 'NÃO!')
 
 // Axios instance para API Guru (subscriptions/contacts)
 const guruApi = axios.create({
@@ -34,9 +33,7 @@ const guruApi = axios.create({
 
 // Adicionar token em cada request
 guruApi.interceptors.request.use((config) => {
-  if (GURU_USER_TOKEN) {
-    config.headers.Authorization = `Bearer ${GURU_USER_TOKEN}`
-  }
+  config.headers.Authorization = `Bearer ${getGuruUserToken()}`
   console.log(`📡 [GURU API] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`)
   return config
 })

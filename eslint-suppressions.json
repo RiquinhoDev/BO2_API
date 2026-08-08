@@ -140,7 +140,7 @@
       "count": 4
     },
     "no-console": {
-      "count": 13
+      "count": 12
     }
   },
   "src/controllers/guru.sync.controller.ts": {
@@ -167,7 +167,7 @@
       "count": 1
     },
     "no-console": {
-      "count": 18
+      "count": 17
     }
   },
   "src/controllers/guruSubscriptionList.controller.ts": {
@@ -920,7 +920,7 @@
   },
   "src/services/guru/guruSync.service.ts": {
     "no-console": {
-      "count": 57
+      "count": 56
     }
   },
   "src/services/guru/guruTrialService.ts": {
@@ -932,9 +932,6 @@
     }
   },
   "src/services/notification.service.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
     "no-console": {
       "count": 5
     }
