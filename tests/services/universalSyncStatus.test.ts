@@ -16,16 +16,14 @@ describe('universal sync canonical user status', () => {
   })
 
   it('keeps the Hotmart current module only in UserProduct', () => {
-    const source = fs.readFileSync(
-      path.resolve(
-        process.cwd(),
-        'src/services/syncUtilizadoresServices/universalSync/processSyncItem.ts',
-      ),
-      'utf8',
-    )
+    const base = 'src/services/syncUtilizadoresServices/universalSync'
+    const processSyncItem = fs.readFileSync(path.resolve(process.cwd(), `${base}/processSyncItem.ts`), 'utf8')
+    const userProductBuilder = fs.readFileSync(path.resolve(process.cwd(), `${base}/builders/userProductMutationPlan.ts`), 'utf8')
 
-    expect(source).not.toContain("updateFields['hotmart.currentModule']")
-    expect(source).toContain("upUpdateFields['progress.currentModule']")
-    expect(source).toContain('progressObj.currentModule')
+    // currentModule is a UserProduct progress field, never a top-level User hotmart field.
+    expect(processSyncItem).not.toContain("updateFields['hotmart.currentModule']")
+    // update path lives in the builder, create path stays inline in processSyncItem.
+    expect(userProductBuilder).toContain("fields['progress.currentModule']")
+    expect(processSyncItem).toContain('progressObj.currentModule')
   })
 })
