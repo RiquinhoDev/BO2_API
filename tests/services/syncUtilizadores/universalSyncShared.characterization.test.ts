@@ -95,7 +95,7 @@ describe('universalSync shared — callbacks', () => {
 })
 
 describe('universalSync shared — independent executions', () => {
-  it('does not leak state between two runs (fresh collector/stats each time)', async () => {
+  it('does not leak stats between two runs', async () => {
     const first = await run([valid('a@x.test')])
     const second = await run([valid('a@x.test')])
     expect(first.stats.inserted).toBe(1)

@@ -1135,11 +1135,8 @@
     }
   },
   "src/services/syncUtilizadoresServices/universalSync/executeUniversalSync.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
     "no-console": {
-      "count": 25
+      "count": 13
     },
     "no-useless-assignment": {
       "count": 2

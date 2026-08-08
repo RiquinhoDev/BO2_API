@@ -17,7 +17,6 @@ import { debugLog } from './debugLog'
 import { buildCanonicalActiveUserStatusUpdate } from './canonicalUserStatus'
 import { errorMessage, mongoErrorCode, normalizeEmail, toDateOrNull } from './fieldUtils'
 import { HotmartExpirationPolicy, formatDateOnly, getActiveHotmartClassForExpiration } from './hotmartExpiration'
-import { ExpiredStudentsCollector } from './expiredStudentsCollector'
 import { buildHotmartMutationPlan, hotmartPlanToUpdateFields, type HotmartClassEnrollment } from './builders/hotmartMutationPlan'
 import { buildCurseducaMutationPlan, curseducaPlanToUpdateFields } from './builders/curseducaMutationPlan'
 import { detectRenewal, planInactiveAutofix } from './renewalPolicy'
@@ -97,7 +96,6 @@ export const processSyncItem = async (
   item: UniversalSourceItem,
   config: UniversalSyncConfig,
   snapshotContext: UniversalSnapshotContext,
-  expiredCollector: ExpiredStudentsCollector,
 ): Promise<ProcessItemResult> => {
   // ═══════════════════════════════════════════════════════════
   // VALIDAÇÃO INICIAL
@@ -322,22 +320,17 @@ export const processSyncItem = async (
       item.classId,
       item.className
     )
-    const expiredStudent = expirationPolicy.check(
-      userIdStr,
-      user.email,
-      user.name,
+    const expiration = expirationPolicy.evaluate(
       purchaseDate,
-      activeHotmartClass?.classId || item.classId,
       activeHotmartClass?.className || item.className
     )
 
-    if (expiredStudent) {
-      // Adicionar à lista para processar no final do sync
-      expiredCollector.add(expiredStudent)
-      debugLog(`   ⏰ [Expiration] ${user.email} marcado para inativação (${expiredStudent.expirationReason})`)
+    if (expiration.canEvaluate && expiration.isExpired) {
+      debugLog(
+        `   ⏰ [Expiration] ${user.email} requer revisão manual (${expiration.expirationReason})`
+      )
     }
   }
-
   // ═══════════════════════════════════════════════════════════
   // APLICAR UPDATES NO USER
   // ═══════════════════════════════════════════════════════════

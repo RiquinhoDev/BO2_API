@@ -366,7 +366,7 @@ Progresso moagem:
 
 - [x] **universalSyncService DISSOLVIDO (ficheiro apagado)** — missão terminal concluída. O monólito foi partido
   verticalmente em `src/services/syncUtilizadoresServices/universalSync/*` (characterization-first, 100% offline via
-  MongoMemoryServer): `fieldUtils`, `productsCache`, `hotmartExpiration`, `expiredStudentsCollector`,
+  MongoMemoryServer): `fieldUtils`, `productsCache`, `hotmartExpiration`,
   `engagement/engagementMetrics`, builders puros `builders/hotmartMutationPlan` + `builders/curseducaMutationPlan`
   (item+estado → plano explícito, sem I/O), `debugLog`, `canonicalUserStatus`, `processSyncItem` (use case por item),
   `executeUniversalSync` (orquestração) e o barril `index.ts`. O ramo Discord do universal sync provou-se **morto**
@@ -826,10 +826,12 @@ Progresso controllers:
 - [x] Modelos e jobs registados **explicitamente**, nunca por side-effect de import. Startup order e shutdown testáveis.
 
 ### 2. Ficheiros pequenos & módulos por domínio
-- [ ] **Nenhum ficheiro novo/tocado > ~400 linhas.** Os monstros existentes (`clarezaCarteiraService` 4692, `users.controller` 3649, `classes.controller` 2347) partidos **verticalmente por domínio** (use cases + adapters), não reorganização cosmética (ARCH-02). `universalSyncService` foi **dissolvido** (ficheiro apagado, `21b5430`), mas a decomposição deixou `universalSync/processSyncItem.ts` (~401) e `universalSync/executeUniversalSync.ts` (~507) **ainda > 400** — alvos ARCH-02 remanescentes (decompor `processSyncItem` characterization-first).
+- [ ] **Nenhum ficheiro novo/tocado > ~400 linhas.** Os monstros existentes (`clarezaCarteiraService` 4692, `users.controller` 3649, `classes.controller` 2347) partidos **verticalmente por domínio** (use cases + adapters), não reorganização cosmética (ARCH-02). `universalSyncService` foi **dissolvido** (ficheiro apagado, `21b5430`); `universalSync/processSyncItem.ts` (394 linhas) e `universalSync/executeUniversalSync.ts` (287 linhas) ficaram ambos abaixo do alvo após extração vertical e remoção da auto-inativação inalcançável.
 - [ ] Cada módulo tem uma responsabilidade clara; sem "controller-que-faz-tudo".
 - [x] **ARCH-02 — persistência UserProduct extraída do universal sync (2026-08-08):** resolução de produto, métricas, create/update e reassignment CursEduca passaram para universalSync/userProductPersistence.ts (267 linhas), mantendo os builders puros e a ordem de efeitos. processSyncItem.ts caiu **649→401 linhas**;
   no-console **1518→1504** sem suppressions novas. A caracterização pública provou create/update, dedup de turma, primary reassignment e missing-product; mutação removendo o $set deu RED (77 esperado, 10 recebido). Gate offline: 4 suites/34 testes focados, 227/227 suites e 1325/1325 testes totais, lint/types/build 0.
+
+- [x] **ARCH-02/regra #9 — auto-inativação Hotmart morta removida (2026-08-08):** o executor estava permanentemente atrás de `const false`; o collector só alimentava esse ramo e não tinha saída operacional. A deteção de expiração e o log de revisão manual foram preservados, mas os writes inalcançáveis sobre User/UserProduct/Class/UserHistory, o collector e os testes órfãos foram apagados. `executeUniversalSync.ts` caiu **507→287 linhas** e `processSyncItem.ts` **401→394**; no-console do executor **25→13**. Mutação `false→true` deu RED ao inativar o aluno expirado; rede Hotmart/shared 2 suites/15 testes e gate maior: lint/types/build 0 e 226/226 suites, 1318/1318 testes.
 
 - [x] **ARCH-02 — reconciliação de identidade Discord extraída** (2026-07-29): `users.controller.ts`
   **3688→3432** neste checkout. Os 7 handlers de merge/manual/bulk/delete passaram para controller fino +

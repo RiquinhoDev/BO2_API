@@ -24,19 +24,6 @@ export interface HotmartEnrollmentHolder {
   hotmart?: { enrolledClasses?: HotmartClassCandidate[] }
 }
 
-export interface ExpiredStudent {
-  userId: string
-  email: string
-  name: string
-  classId?: string
-  className?: string
-  purchaseDate: Date | null
-  daysSincePurchase: number
-  accessEndOgi?: Date | null
-  expirationSource: 'turma' | 'purchaseDate'
-  expirationReason: string
-}
-
 export interface ExpirationEvaluation {
   canEvaluate: boolean
   isExpired: boolean
@@ -126,33 +113,5 @@ export class HotmartExpirationPolicy {
       expirationSource: 'purchaseDate',
       expirationReason: `Compra expirada: ${daysSincePurchase} dias (limite: ${EXPIRATION_DAYS})`,
     }
-  }
-
-  check(
-    userId: string,
-    email: string,
-    name: string,
-    purchaseDate: Date | null,
-    classId?: string,
-    className?: string,
-  ): ExpiredStudent | null {
-    const expiration = this.evaluate(purchaseDate, className)
-
-    if (expiration.canEvaluate && expiration.isExpired) {
-      return {
-        userId,
-        email,
-        name,
-        classId,
-        className,
-        purchaseDate,
-        daysSincePurchase: expiration.daysSincePurchase,
-        accessEndOgi: expiration.accessEndOgi,
-        expirationSource: expiration.expirationSource,
-        expirationReason: expiration.expirationReason,
-      }
-    }
-
-    return null
   }
 }
