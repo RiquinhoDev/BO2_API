@@ -83,13 +83,30 @@ The following alternatives were rejected:
   case-insensitive, unanchored literal substring contract cannot use it
   selectively.
 
-Existing duplicate-schema warnings for unrelated Product Guru indexes and the
-pre-existing duplicate `UserProduct { userId, productId }` declaration were
-observed but not changed. The explain fixture deduplicates equal declared keys
-only when constructing its ephemeral index set, preferring the unique
-declaration. That keeps the test deterministic without changing production
-schema behavior or widening this evidence-based task.
+The duplicate `UserProduct { userId, productId }` schema declaration was removed
+after the architecture contract and all write paths confirmed the canonical
+invariant: one enrollment per user and product. The remaining declaration is
+`unique: true`; schema regression tests require exactly one effective composite
+and zero duplicate-index warnings.
 
+This code change does not prove that existing production data satisfies the
+invariant. Before deploying a revision that can build or synchronize this unique
+index, operations must run a read-only duplicate preflight against
+`userproducts`, grouping by `{ userId, productId }`, and require zero groups with
+`count > 1`. Any result is a stop condition: reconcile those records deliberately,
+then repeat the preflight and inspect the final index catalog. Do not rely on
+application startup or `autoIndex` to discover duplicates under live traffic.
+No production database was inspected or mutated as part of this code change.
+
+Read-only preflight (must return no documents):
+
+```javascript
+db.userproducts.aggregate([
+  { $group: { _id: { userId: '$userId', productId: '$productId' }, count: { $sum: 1 } } },
+  { $match: { count: { $gt: 1 } } },
+  { $limit: 1 },
+])
+```
 ## Bounded scan exceptions
 
 The default listing is allowed to scan all 1,200 source documents because it

@@ -29,6 +29,7 @@ const ids = {
   productA: new mongoose.Types.ObjectId('100000000000000000000001'),
   productB: new mongoose.Types.ObjectId('100000000000000000000002'),
   productC: new mongoose.Types.ObjectId('100000000000000000000003'),
+  productD: new mongoose.Types.ObjectId('100000000000000000000004'),
   missingProduct: new mongoose.Types.ObjectId('100000000000000000000099'),
   enrollmentAFirst: new mongoose.Types.ObjectId('200000000000000000000001'),
   enrollmentASecond: new mongoose.Types.ObjectId('200000000000000000000002'),
@@ -150,6 +151,12 @@ const seedCoreFixture = async (): Promise<void> => {
       name: 'Product C',
       code: 'PRODUCT-C',
       platform: 'discord',
+    },
+    {
+      _id: ids.productD,
+      name: 'Product D',
+      code: 'PRODUCT-D',
+      platform: 'curseduca',
     },
   ])
   await UserProduct.collection.insertMany([
@@ -521,7 +528,7 @@ describe('MongooseUsersV2EnrollmentReader', () => {
       enrollmentDocument({
         _id: excludedMediumBranch,
         userId: ids.userA,
-        productId: ids.productB,
+        productId: ids.productC,
         platform: 'curseduca',
         progress: { percentage: 80 },
         engagement: {
@@ -532,7 +539,7 @@ describe('MongooseUsersV2EnrollmentReader', () => {
       enrollmentDocument({
         _id: excludedNewerAccess,
         userId: ids.userA,
-        productId: ids.productB,
+        productId: ids.productD,
         platform: 'curseduca',
         progress: { percentage: 80 },
         engagement: {

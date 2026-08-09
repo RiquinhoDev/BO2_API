@@ -414,8 +414,7 @@ UserProductSchema.index({ userId: 1, status: 1 })
 // Buscar todos os users de um produto
 UserProductSchema.index({ productId: 1, status: 1 })
 
-// Buscar enrollment específico
-UserProductSchema.index({ userId: 1, productId: 1 })
+// Buscar enrollment específico: coberto pelo índice único declarado abaixo.
 
 // Buscar por plataforma
 UserProductSchema.index({ platform: 1, platformUserId: 1 })
