@@ -2,23 +2,17 @@
 import { asyncRoute } from '../security/asyncRoute'
 import { Router } from 'express'
 import {
+  compareSyncMethods,
+  findHotmartUser,
   getHotmartProductBySubdomain,
   getHotmartProducts,
   getHotmartProductUsers,
-  getHotmartStats
-} from '../controllers/hotmart/hotmartCatalog.controller'
-import { syncProgressOnly } from '../controllers/hotmart/hotmartProgress.controller'
-import { syncHotmartUsers } from '../controllers/hotmart/hotmartLegacySync.controller'
-import {
-  // Legacy
-  findHotmartUser,
-
-  // Universal Sync
+  getHotmartStats,
+  syncHotmartUsers,
   syncHotmartUsersUniversal,
-  syncProgressOnlyUniversal,
-  compareSyncMethods
-} from '../controllers/syncUtilizadoresControllers/hotmart.controller'
-
+  syncProgressOnly,
+  syncProgressOnlyUniversal
+} from '../controllers/hotmart'
 
 const router = Router()
 

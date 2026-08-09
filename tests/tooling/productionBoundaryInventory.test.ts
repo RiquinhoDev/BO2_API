@@ -144,7 +144,11 @@ const BASELINE = {
     "src/controllers/hotmart/hotmartCatalog.controller.ts:36",
     "src/controllers/hotmart/hotmartCatalog.controller.ts:64",
     "src/controllers/hotmart/hotmartCatalog.controller.ts:73",
+    "src/controllers/hotmart/hotmartDiagnostics.controller.ts:36",
+    "src/controllers/hotmart/hotmartDiagnostics.controller.ts:82",
     "src/controllers/hotmart/hotmartLegacySync.controller.ts:469",
+    "src/controllers/hotmart/hotmartUniversalSync.controller.ts:159",
+    "src/controllers/hotmart/hotmartUniversalSync.controller.ts:92",
     "src/controllers/lessons.controller.ts:147",
     "src/controllers/lessons.controller.ts:200",
     "src/controllers/lessons.controller.ts:237",
@@ -221,11 +225,6 @@ const BASELINE = {
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts:720",
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts:746",
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts:806",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:172",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:249",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:302",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:48",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:73",
     "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:108",
     "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:40",
     "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:77",
@@ -327,7 +326,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 283,
+  "localHttp500": 282,
   "publicErrorDetail": 20
 } as const
 
