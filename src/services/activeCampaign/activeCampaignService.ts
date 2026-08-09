@@ -4,9 +4,8 @@
 // ════════════════════════════════════════════════════════════
 
 import axios, { AxiosInstance } from 'axios'
-import { getRuntimeConfig } from '../../config/runtimeConfig'
 import type { ActiveCampaignIntegration } from '../../config/configTypes'
-import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { ActiveCampaignTransport } from './activeCampaignTransport'
 import { 
   ACContact, 
   ACContactApi, 
@@ -15,12 +14,6 @@ import {
   ACTagResponse 
 } from '../../types/activecampaign.types'
 import { User, UserProduct } from '../../models'
-
-const AC_MAX_REQUESTS_PER_MINUTE = 280
-const AC_REQUEST_DELAY_MS = 200
-const AC_REQUEST_TIMEOUT_MS = 30_000
-const AC_MAX_RETRIES = 3
-const AC_RETRY_DELAY_MS = 2_000
 
 type ACContactTagLink = {
   id: string
@@ -68,111 +61,27 @@ type ACTagDetailResponse = {
 // ─────────────────────────────────────────────────────────────
 
 class ActiveCampaignService {
-  private clientInstance: AxiosInstance | null = null
-  private clientConfigKey: string | null = null
-  private requestCount: number = 0
-  private lastResetTime: number = Date.now()
+  private readonly transport = new ActiveCampaignTransport()
 
   public get client(): AxiosInstance {
-    const integration = this.getIntegration()
-    const configKey = `${integration.apiUrl}\u0000${integration.apiKey}`
-
-    if (this.clientInstance && this.clientConfigKey === configKey) {
-      return this.clientInstance
-    }
-
-    this.clientInstance = axios.create({
-      baseURL: integration.apiUrl,
-      timeout: AC_REQUEST_TIMEOUT_MS,
-      headers: {
-        'Api-Token': integration.apiKey,
-        'Content-Type': 'application/json'
-      }
-    })
-    this.clientConfigKey = configKey
-    return this.clientInstance
+    return this.transport.client
   }
 
   private getIntegration(): ActiveCampaignIntegration {
-    const integration = getRuntimeConfig().integrations.activeCampaign
-    if (!integration.configured) {
-      throw new IntegrationUnavailableError('activeCampaign')
-    }
-    return integration.value
+    return this.transport.ensureAvailable()
   }
 
   private rethrowIntegrationUnavailable(error: unknown): void {
-    if (error instanceof IntegrationUnavailableError) throw error
+    this.transport.rethrowIntegrationUnavailable(error)
   }
 
-  private async checkRateLimit(): Promise<void> {
-    this.getIntegration()
-
-    const now = Date.now()
-    const timeSinceReset = now - this.lastResetTime
-
-    // Reset contador a cada minuto
-    if (timeSinceReset >= 60000) {
-      this.requestCount = 0
-      this.lastResetTime = now
-    }
-
-    // Verificar se excedeu limite
-    if (this.requestCount >= AC_MAX_REQUESTS_PER_MINUTE) {
-      const waitTime = 60000 - timeSinceReset
-      console.warn(`⏸️ Rate limit atingido. Aguardando ${waitTime}ms...`)
-      await this.sleep(waitTime)
-      this.requestCount = 0
-      this.lastResetTime = Date.now()
-    }
-
-    this.requestCount++
-    
-    // Delay entre requests
-    if (this.requestCount > 1) {
-      await this.sleep(AC_REQUEST_DELAY_MS)
-    }
+  private checkRateLimit(): Promise<void> {
+    return this.transport.checkRateLimit()
   }
 
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
+  public retryRequest<T>(fn: () => Promise<T>, retries?: number): Promise<T> {
+    return this.transport.retryRequest(fn, retries)
   }
-
-  // ═══════════════════════════════════════════════════════════
-  // RETRY LOGIC
-  // ═══════════════════════════════════════════════════════════
-
-  public async retryRequest<T>(
-    fn: () => Promise<T>,
-    retries: number = AC_MAX_RETRIES
-  ): Promise<T> {
-    this.getIntegration()
-    try {
-      return await fn()
-    } catch (error) {
-      this.rethrowIntegrationUnavailable(error)
-      if (retries > 0 && this.isRetryableError(error)) {
-        console.warn(`⚠️ Erro na request. Tentando novamente... (${retries} tentativas restantes)`)
-        await this.sleep(AC_RETRY_DELAY_MS)
-        return this.retryRequest(fn, retries - 1)
-      }
-      throw error
-    }
-  }
-
-  private isRetryableError(error: unknown): boolean {
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status
-      // Retry em erros 5xx ou timeout
-      return !status || status >= 500 || error.code === 'ECONNABORTED'
-    }
-    return false
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // CONTACTOS
-  // ═══════════════════════════════════════════════════════════
-
   /**
    * Buscar contacto por email
    */
@@ -727,37 +636,12 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
   // ═══════════════════════════════════════════════════════════
 
   private formatError(error: unknown): string {
-    if (axios.isAxiosError(error)) {
-      return JSON.stringify({
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
-      }, null, 2)
-    }
-    return error instanceof Error ? error.message : 'Erro desconhecido'
+    return this.transport.formatError(error)
   }
 
-  /**
-   * Testar conexão com API
-   */
   async testConnection(): Promise<boolean> {
-    this.getIntegration()
-    try {
-      await this.checkRateLimit()
-      await this.client.get('/api/3/users/me')
-      console.log('✅ Conexão AC testada com sucesso')
-      return true
-    } catch (error) {
-      this.rethrowIntegrationUnavailable(error)
-      console.error('❌ Erro ao testar conexão AC:', this.formatError(error))
-      return false
-    }
+    return this.transport.testConnection()
   }
-
-  // ═══════════════════════════════════════════════════════════
-  // ✅ SPRINT 5: CONTACT TAG READER - NOVOS MÉTODOS
-  // ═══════════════════════════════════════════════════════════
-
   /**
    * Buscar tags de um contacto
    * @param contactId ID do contacto no AC
