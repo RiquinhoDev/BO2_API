@@ -15,6 +15,7 @@ const INTEGRATION_TEST_FILES = Object.freeze([
   'tests/controllers/classRoster.hardening.test.ts',
   'tests/controllers/classesStudentsByClass.controller.test.ts',
   'tests/controllers/guruSubscriptionList.controller.test.ts',
+  'tests/controllers/guruInactivationRead.characterization.test.ts',
   'tests/controllers/guruWebhookList.controller.test.ts',
   'tests/controllers/hotmartClassSync.characterization.test.ts',
   'tests/controllers/studentMovement.characterization.test.ts',
