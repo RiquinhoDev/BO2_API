@@ -12,6 +12,17 @@ jest.mock('../../src/controllers/acTags/activeCampaignCourse.controller', () => 
   getOGIStudents: jest.fn((_req, res) => res.status(204).end()),
   evaluateOGIRules: jest.fn((_req, res) => res.status(204).end()),
 }))
+
+jest.mock('../../src/controllers/acTags/activeCampaignHistoryList.controller', () => ({
+  __esModule: true,
+  getCommunicationHistory: jest.fn((_req, res) => res.status(204).end()),
+}))
+
+jest.mock('../../src/controllers/acTags/activeCampaignHistoryStats.controller', () => ({
+  __esModule: true,
+  getHistoryStats: jest.fn((_req, res) => res.status(204).end()),
+}))
+
 jest.mock('../../src/controllers/acTags/activecampaign.controller', () => {
   const names = [
     'testCron',
@@ -21,8 +32,6 @@ jest.mock('../../src/controllers/acTags/activecampaign.controller', () => {
     'createTagRule',
     'updateTagRule',
     'deleteTagRule',
-    'getHistoryStats',
-    'getCommunicationHistory',
     'applyTagToUserProduct',
     'removeTagFromUserProduct',
     'getUsersWithTagsInProduct',

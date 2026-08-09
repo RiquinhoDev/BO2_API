@@ -19,6 +19,8 @@ import {
   getOGIStudents,
   evaluateOGIRules,
 } from '../../controllers/acTags/activeCampaignCourse.controller'
+import { getCommunicationHistory } from '../../controllers/acTags/activeCampaignHistoryList.controller'
+import { getHistoryStats } from '../../controllers/acTags/activeCampaignHistoryStats.controller'
 
 import {
   // CRON
@@ -33,9 +35,6 @@ import {
   createTagRule,
   updateTagRule,
   deleteTagRule,
-getHistoryStats,
-  // Communication History
-  getCommunicationHistory,
 
   // V2 - Tags por Produto
   applyTagToUserProduct,
