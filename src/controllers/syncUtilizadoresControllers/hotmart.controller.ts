@@ -2,11 +2,9 @@
 // ✅ UNIFICADO: hotmart.controller.ts + hotmartV2.controller.ts + Universal Sync endpoints
 
 import { Request, Response } from 'express'
-import axios from 'axios'
-import { getHotmartCredentials, getHotmartSubdomain, isDevelopmentRuntime } from '../../services/requestDrivenRuntimeConfig'
+import { isDevelopmentRuntime } from '../../services/requestDrivenRuntimeConfig'
 import type { AnyBulkWriteOperation } from 'mongoose'
 import { Class, SyncHistory, User } from '../../models'
-import type { IUser } from '../../models/user'
 import type { IUserHistory } from '../../models/UserHistory'
 import type { ISyncHistory } from '../../models/SyncHistory'
 import { ensureUserHistoryModel } from '../../models/UserHistory'
@@ -15,32 +13,11 @@ import hotmartAdapter from '../../services/syncUtilizadoresServices/hotmartServi
 import { normalizeEngagementLevel } from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.helpers'
 import universalSyncService from '../../services/syncUtilizadoresServices/universalSync'
 import { SyncError, SyncProgress, SyncWarning } from '../../types/universalSync.types'
-
-type HotmartApiUser = {
-  email?: string
-  name?: string
-  id?: string
-  user_id?: string
-  uid?: string
-  code?: string
-  class_id?: string
-  purchase_date?: unknown
-  signup_date?: unknown
-  plus_access?: IUser['hotmart'] extends { plusAccess: infer T } ? T : string
-  first_access_date?: unknown
-  last_access_date?: unknown
-  access_count?: string | number
-  engagement?: string
-}
-
-type HotmartUsersResponse = {
-  users?: HotmartApiUser[]
-  items?: HotmartApiUser[]
-  data?: HotmartApiUser[]
-  page_info?: { next_page_token?: string }
-  pageInfo?: { nextPageToken?: string }
-  pagination?: { next_page_token?: string; nextPageToken?: string }
-}
+import {
+  hotmartLegacyClient,
+  type HotmartApiUser,
+  type HotmartLesson
+} from '../../services/hotmart/hotmartLegacyClient'
 
 type ProgressLesson = {
   pageId: string
@@ -83,93 +60,6 @@ function errorMessage(error: unknown): string {
 
 function errorStack(error: unknown): string | undefined {
   return error instanceof Error ? error.stack : undefined
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function axiosErrorData(error: unknown): unknown {
-  return axios.isAxiosError(error) ? error.response?.data : undefined
-}
-
-function axiosErrorDescription(error: unknown): string | undefined {
-  const data = axiosErrorData(error)
-  return isRecord(data) && typeof data.error_description === 'string'
-    ? data.error_description
-    : undefined
-}
-
-
-interface HotmartLesson {
-  page_id: string
-  page_name: string
-  module_name: string
-  is_module_extra: boolean
-  is_completed: boolean
-  completed_date?: number
-}
-
-async function getHotmartAccessToken(): Promise<string> {
-  const { clientId, clientSecret } = getHotmartCredentials()
-  try {
-
-    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-    console.log(`🔐 Gerando token com Basic Auth para client_id: ${clientId.substring(0, 10)}...`)
-
-    const response = await axios.post<{ access_token: string; expires_in?: number }>(
-      'https://api-sec-vlc.hotmart.com/security/oauth/token',
-      new URLSearchParams({ grant_type: 'client_credentials' }),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${basicAuth}`
-        }
-      }
-    )
-
-    if (!response.data.access_token) {
-      throw new Error('Access token não encontrado na resposta')
-    }
-
-    console.log(`✅ Token obtido com sucesso - Expira em: ${response.data.expires_in} segundos`)
-    return response.data.access_token
-  } catch (error: unknown) {
-    console.error('❌ Erro detalhado ao obter token Hotmart:')
-    console.error('📊 Status:', axios.isAxiosError(error) ? error.response?.status : undefined)
-    console.error('📄 Resposta:', axiosErrorData(error))
-    console.error('🔗 URL:', axios.isAxiosError(error) ? error.config?.url : undefined)
-    throw new Error(
-      `Falha ao obter token de acesso da Hotmart: ${axiosErrorDescription(error) || errorMessage(error)}`
-    )
-  }
-}
-
-const fetchUserLessons = async (userId: string, accessToken: string): Promise<HotmartLesson[]> => {
-  const subdomain = getHotmartSubdomain()
-  try {
-    console.log(`🔍 Buscando lições do utilizador ${userId}`)
-
-    const response = await axios.get<{ lessons?: HotmartLesson[] }>(
-      `https://developers.hotmart.com/club/api/v1/users/${userId}/lessons?subdomain=${subdomain}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    )
-
-    console.log(`📚 Resposta da API:`, {
-      hasLessons: 'lessons' in response.data,
-      lessonsCount: response.data.lessons?.length || 0
-    })
-
-    return response.data.lessons || []
-  } catch (error: unknown) {
-    console.error(`❌ Erro ao buscar lições do utilizador ${userId}:`, axiosErrorData(error) || errorMessage(error))
-    return []
-  }
 }
 
 const calculateProgress = (lessons: HotmartLesson[]): Omit<ProgressData, 'lastUpdated'> => {
@@ -252,7 +142,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
 
     console.log(`🚀 [${syncRecord._id}] Iniciando sincronização Hotmart com pré-cálculo de engagement...`)
 
-    const accessToken = await getHotmartAccessToken()
+    const accessToken = await hotmartLegacyClient.getAccessToken()
 
     await SyncHistory.findByIdAndUpdate(syncRecord._id, {
       'metadata.currentStep': 'Token de acesso obtido',
@@ -272,35 +162,14 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
         'metadata.progress': 10 + (pageCount * 2)
       })
 
-      const subdomain = getHotmartSubdomain()
-      let requestUrl = `https://developers.hotmart.com/club/api/v1/users?subdomain=${subdomain}`
-      if (nextPageToken) requestUrl += `&page_token=${encodeURIComponent(nextPageToken)}`
-
-      console.log(`🔗 [${syncRecord._id}] Requisição: ${requestUrl}`)
-
-      const response = await axios.get<HotmartUsersResponse>(requestUrl, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      console.log(`📋 [${syncRecord._id}] Estrutura da resposta:`, Object.keys(response.data))
-
-      const users = response.data.users || response.data.items || response.data.data || []
-
-      if (!Array.isArray(users)) {
-        throw new Error(`Resposta inválida da API: esperado array, recebido ${typeof users}`)
-      }
-
+      const page = await hotmartLegacyClient.listUsersPage(
+        accessToken,
+        nextPageToken || undefined
+      )
+      const users = page.users
       allUsers = allUsers.concat(users)
-      nextPageToken = response.data.page_info?.next_page_token
-        || response.data.pageInfo?.nextPageToken
-        || response.data.pagination?.next_page_token
-        || response.data.pagination?.nextPageToken
-        || null
+      nextPageToken = page.nextPageToken
 
-      console.log(`📄 [${syncRecord._id}] Página ${pageCount}: ${users.length} utilizadores`)
       await new Promise(resolve => setTimeout(resolve, 200))
 
     } while (nextPageToken)
@@ -378,7 +247,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
           }
 
           try {
-            const userLessons = await fetchUserLessons(hotmartId, accessToken)
+            const userLessons = await hotmartLegacyClient.listUserLessons(hotmartId, accessToken)
             if (userLessons.length > 0) {
               const calculated = calculateProgress(userLessons)
               progressData = {
@@ -664,7 +533,7 @@ export const syncProgressOnly = async (req: Request, res: Response): Promise<voi
       }
     })
 
-    const accessToken = await getHotmartAccessToken()
+    const accessToken = await hotmartLegacyClient.getAccessToken()
 
     const existingUsers = await User.find({
 'hotmart.hotmartUserId': { $exists: true, $nin: [null, ''] }
@@ -710,7 +579,7 @@ export const syncProgressOnly = async (req: Request, res: Response): Promise<voi
           continue
         }
 
-        const userLessons = await fetchUserLessons(hotmartUserId, accessToken)
+        const userLessons = await hotmartLegacyClient.listUserLessons(hotmartUserId, accessToken)
 
         if (userLessons.length > 0) {
           totalWithProgress++

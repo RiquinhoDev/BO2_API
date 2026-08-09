@@ -272,10 +272,7 @@
       "count": 2
     },
     "no-console": {
-      "count": 43
-    },
-    "preserve-caught-error": {
-      "count": 1
+      "count": 31
     }
   },
   "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts": {
