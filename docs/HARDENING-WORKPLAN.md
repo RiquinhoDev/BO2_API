@@ -1219,3 +1219,10 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - Line counts measured from Git before this cleanup and from the final working tree: tag document `1,727 -> 60`; obsolete handoff `65 -> 0`; README `38 -> 38`; workplan `1,110 -> 1119`.
 - Focused forbidden-pattern scan covered the two scanned current docs (`TAG_MONITORING_BACKEND_DOCUMENTATION.md` and `README.md`): `0` matches for `db.`, `reset --hard`, `git fetch`, `curl`, `npx`, `ACTIVECAMPAIGN`, `seedWeeklyTagMonitoringJob`, and `C:\Users\`.
 - No document command or external system was executed. The job implementation and scheduler dispatch branch remain unchanged; operational provisioning, enabled state, and scheduling are unverified. This entry records documentation-only safety work.
+### [x] ARCH-02 - extract ActiveCampaign condition evaluator (2026-08-09)
+
+- Extracted the condition language from `decisionEngine.service.ts` into three pure, typed modules: `decisionConditionEvaluator.ts`, `decisionMetricPredicates.ts`, and `decisionConditionTypes.ts`.
+- Preserved the exact compatibility grammar and precedence, including the narrower textual `AND` field set, fail-closed unknown expressions, legacy aliases/defaults, and the existing parenthesized-symbolic behavior.
+- Characterization added 18 unit tests; mutation proof changed symbolic `&&` aggregation from `every` to `some`, produced RED, and returned GREEN after restoration.
+- `decisionEngine.service.ts` measured `1,386 -> 890` lines. Its four `if (!dryRun)` guards, cooldown writes, decision execution, and external integration boundaries were not changed.
+- Pure-module scan found zero Mongoose/model/API/environment imports and zero `any`, casts, non-null assertions, or suppressions. ARCH-02 remains open because the residual 890-line engine is still above the small-module target.
