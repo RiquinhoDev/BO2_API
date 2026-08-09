@@ -267,11 +267,6 @@
       "count": 5
     }
   },
-  "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts": {
-    "no-console": {
-      "count": 16
-    }
-  },
   "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 4
