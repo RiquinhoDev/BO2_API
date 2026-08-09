@@ -17,9 +17,9 @@ import {
   createTagRule,
   deleteTagRule,
   getAllTagRules,
-  getCommunicationHistory,
   updateTagRule,
 } from '../controllers/acTags/activecampaign.controller'
+import { getCommunicationHistory } from '../controllers/acTags/activeCampaignHistoryList.controller'
 
 export const registerRoutes: RouteRegistrar = (app) => {
   app.use(metricsMiddleware)
