@@ -29,6 +29,12 @@ export class NoActiveCourseError extends Error {
   }
 }
 
+function isDuplicateKeyError(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && Reflect.get(error, 'code') === 11000
+}
+
 export type ConfigureDiscoveredProductResult =
   | { status: 'created'; product: IProduct; productProfile: IProductProfile }
   | { status: 'duplicate_code'; code: string }
@@ -98,6 +104,9 @@ export async function configureDiscoveredProduct(
     }
     if (error instanceof NoActiveCourseError) {
       return { status: 'no_active_course' }
+    }
+    if (isDuplicateKeyError(error)) {
+      return { status: 'duplicate_code', code: configData.productData.code }
     }
     throw error
   } finally {

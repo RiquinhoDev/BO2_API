@@ -104,7 +104,9 @@ describe('configureDiscoveredProduct — atomicity', () => {
 
   it('RED: rolls back the Product when ProductProfile.create fails (Error)', async () => {
     await seedActiveCourse()
-    jest.spyOn(ProductProfile, 'create').mockRejectedValueOnce(new Error('profile write failed') as never)
+    jest.spyOn(ProductProfile, 'create').mockImplementationOnce(() =>
+      Promise.reject(new Error('profile write failed')),
+    )
 
     await expect(configureDiscoveredProduct(validConfig())).rejects.toThrow('profile write failed')
 
@@ -115,7 +117,7 @@ describe('configureDiscoveredProduct — atomicity', () => {
 
   it('RED: rolls back even when the second write throws a non-Error value', async () => {
     await seedActiveCourse()
-    jest.spyOn(ProductProfile, 'create').mockRejectedValueOnce('kaboom' as never)
+    jest.spyOn(ProductProfile, 'create').mockImplementationOnce(() => Promise.reject('kaboom'))
 
     await expect(configureDiscoveredProduct(validConfig())).rejects.toBe('kaboom')
 
@@ -134,6 +136,19 @@ describe('configureDiscoveredProduct — atomicity', () => {
     expect(await ProductProfile.countDocuments({})).toBe(0)
   })
 
+  it('409: maps a concurrent unique-index conflict to duplicate_code', async () => {
+    await seedActiveCourse()
+    await Product.create({ code: 'NEWP', name: 'Concurrent', courseId: oid(1), platform: 'hotmart' })
+    jest.spyOn(Product, 'findOne').mockResolvedValueOnce(null)
+
+    await expect(configureDiscoveredProduct(validConfig())).resolves.toEqual({
+      status: 'duplicate_code',
+      code: 'newp',
+    })
+
+    expect(await Product.countDocuments({ code: 'NEWP' })).toBe(1)
+    expect(await ProductProfile.countDocuments({})).toBe(0)
+  })
   it('404: returns no_active_course and writes nothing when there is no active Course', async () => {
     // No active course seeded.
     const result: ConfigureDiscoveredProductResult = await configureDiscoveredProduct(validConfig())
