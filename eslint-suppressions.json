@@ -110,7 +110,7 @@
   },
   "src/controllers/guru.inactivation.controller.ts": {
     "no-console": {
-      "count": 42
+      "count": 21
     }
   },
   "src/controllers/guru.snapshot.controller.ts": {
