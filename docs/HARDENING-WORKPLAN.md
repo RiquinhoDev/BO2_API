@@ -1246,3 +1246,10 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - The compatibility facade preserved every public method and singleton export while falling from **1,010 -> 299 lines**; the extracted source files contain 150, 180 and 230 lines, all below the 500-line limit.
 - Focused characterization covers runtime client caching, retry classification, complete contact pagination, update-vs-create, custom-field no-create, idempotent tag association and absent-tag removal.
 - Controlled mutations proved RED for a 5xx retry regression, first-page truncation and duplicate tag association, then returned GREEN after restoration. No real integration or production datastore was contacted.
+
+### [x] ARCH-02 - extract ActiveCampaign product coordination (2026-08-09)
+
+- Extracted the four UserProduct coordination flows to `activeCampaignProductTags.service.ts` (167 lines) behind an explicit Mongoose repository and late-bound facade ports.
+- `activeCampaignService.ts` measured **299 -> 124 lines** and retains the complete singleton/public API. Three dynamic model imports and the remaining inline Mongo coordination were removed.
+- Characterization proves ActiveCampaign writes precede local persistence, existing local tags are not duplicated, absent enrollments do not call the external boundary, and the legacy facade spy still intercepts tag removal.
+- A controlled order mutation produced RED (`activecampaign,mongo -> mongo,activecampaign`) and returned GREEN after restoration. No real integration or production datastore was contacted.

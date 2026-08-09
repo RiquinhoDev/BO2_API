@@ -683,11 +683,6 @@
       "count": 1
     }
   },
-  "src/services/activeCampaign/activeCampaignService.ts": {
-    "no-console": {
-      "count": 4
-    }
-  },
   "src/services/activeCampaign/contactTagReader.service.ts": {
     "no-console": {
       "count": 13
