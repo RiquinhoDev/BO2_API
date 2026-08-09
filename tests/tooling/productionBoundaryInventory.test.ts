@@ -95,10 +95,6 @@ const BASELINE = {
     "src/controllers/auth.controller.ts:154",
     "src/controllers/auth.controller.ts:207",
     "src/controllers/auth.controller.ts:270",
-    "src/controllers/businessAnalytics.controller.ts:262",
-    "src/controllers/businessAnalytics.controller.ts:361",
-    "src/controllers/businessAnalytics.controller.ts:404",
-    "src/controllers/businessAnalytics.controller.ts:429",
     "src/controllers/clarezaController.ts:118",
     "src/controllers/clarezaController.ts:174",
     "src/controllers/clarezaController.ts:186",
@@ -389,7 +385,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 318,
+  "localHttp500": 314,
   "publicErrorDetail": 33
 } as const
 
