@@ -70,13 +70,13 @@
   },
   "src/controllers/dashboard.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 15
+      "count": 9
     },
     "@typescript-eslint/no-require-imports": {
       "count": 1
     },
     "no-console": {
-      "count": 12
+      "count": 6
     },
     "prefer-const": {
       "count": 1
