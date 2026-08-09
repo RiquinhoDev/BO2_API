@@ -31,6 +31,8 @@ export interface HotmartClubConfig {
   clientSecret: string
 }
 
+export type HotmartClubConfigProvider = () => HotmartClubConfig | null
+
 export class HotmartNotConfiguredError extends Error {
   constructor() {
     super('Hotmart sync não configurado')
@@ -55,15 +57,20 @@ interface HotmartUsersResponse {
 }
 
 export class AxiosHotmartClubClient implements HotmartClubClient {
-  constructor(private readonly config: HotmartClubConfig | null) {}
+  constructor(private readonly config: HotmartClubConfig | null | HotmartClubConfigProvider) {}
+
+  private resolveConfig(): HotmartClubConfig | null {
+    return typeof this.config === 'function' ? this.config() : this.config
+  }
 
   isConfigured(): boolean {
-    return this.config !== null
+    return this.resolveConfig() !== null
   }
 
   private requireConfig(): HotmartClubConfig {
-    if (!this.config) throw new HotmartNotConfiguredError()
-    return this.config
+    const config = this.resolveConfig()
+    if (!config) throw new HotmartNotConfiguredError()
+    return config
   }
 
   async getAccessToken(): Promise<string> {

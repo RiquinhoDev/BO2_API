@@ -4,9 +4,16 @@ import path from 'node:path'
 
 const sourceRoot = path.resolve(__dirname, '../../src')
 
-const rawEnvironmentRead = /\bprocess\.env(?:\.|\[)/
+const rawEnvironmentRead = /\bprocess\.env\b/
 const localFiveHundred = /\.status\(\s*500\s*\)/
 const publicErrorDetail = /\.json\([^\n]*(?:error\.message|details\s*:)/
+
+const RAW_ENV_COMPOSITION_ROOTS = new Set([
+  'config/appConfig.ts',
+  ['config/test', 'Database.ts'].join(''),
+  'scripts/maintenance/backfill-ac-webhook-receipt-leases.ts',
+  'scripts/maintenance/ensure-users-v2-indexes.ts',
+])
 
 type Inventory = {
   rawEnvironmentRead: string[]
@@ -34,7 +41,12 @@ function inventory(root = sourceRoot): Inventory {
     const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/)
     lines.forEach((line, index) => {
       const location = `src/${relativePath}:${index + 1}`
-      if (rawEnvironmentRead.test(line)) result.rawEnvironmentRead.push(location)
+      const trimmedLine = line.trimStart()
+      const executableLine = /^(?:\/\/|\/\*|\*)/.test(trimmedLine) ? '' : line
+      if (
+        !RAW_ENV_COMPOSITION_ROOTS.has(relativePath)
+        && rawEnvironmentRead.test(executableLine)
+      ) result.rawEnvironmentRead.push(location)
       if (localFiveHundred.test(line)) result.localHttp500.push(location)
       if (publicErrorDetail.test(line)) result.publicErrorDetail.push(location)
     })
@@ -45,16 +57,7 @@ function inventory(root = sourceRoot): Inventory {
 }
 
 const BASELINE = {
-  "rawEnvironmentRead": [
-    "src/controllers/clarezaController.ts:106",
-    "src/controllers/clarezaController.ts:193",
-    "src/controllers/clarezaController.ts:251",
-    "src/controllers/clarezaController.ts:269",
-    "src/controllers/clarezaController.ts:29",
-    "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts:418",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:1105",
-    "src/services/classes/classInactivation.runtime.ts:17"
-  ],
+  "rawEnvironmentRead": [],
   "localHttp500": [
     "src/controllers/acTags/acReader.controller.ts:150",
     "src/controllers/acTags/acReader.controller.ts:188",
@@ -96,16 +99,16 @@ const BASELINE = {
     "src/controllers/businessAnalytics.controller.ts:361",
     "src/controllers/businessAnalytics.controller.ts:404",
     "src/controllers/businessAnalytics.controller.ts:429",
-    "src/controllers/clarezaController.ts:119",
-    "src/controllers/clarezaController.ts:175",
-    "src/controllers/clarezaController.ts:187",
-    "src/controllers/clarezaController.ts:206",
-    "src/controllers/clarezaController.ts:220",
-    "src/controllers/clarezaController.ts:23",
-    "src/controllers/clarezaController.ts:231",
-    "src/controllers/clarezaController.ts:245",
-    "src/controllers/clarezaController.ts:264",
-    "src/controllers/clarezaController.ts:282",
+    "src/controllers/clarezaController.ts:118",
+    "src/controllers/clarezaController.ts:174",
+    "src/controllers/clarezaController.ts:186",
+    "src/controllers/clarezaController.ts:204",
+    "src/controllers/clarezaController.ts:218",
+    "src/controllers/clarezaController.ts:229",
+    "src/controllers/clarezaController.ts:24",
+    "src/controllers/clarezaController.ts:243",
+    "src/controllers/clarezaController.ts:261",
+    "src/controllers/clarezaController.ts:278",
     "src/controllers/clarezaController.ts:42",
     "src/controllers/clarezaController.ts:60",
     "src/controllers/cohortAnalytics.controller.ts:54",
@@ -401,7 +404,7 @@ const BASELINE = {
  * regenerated.
  */
 const DEBT_CEILING = {
-  "rawEnvironmentRead": 8,
+  "rawEnvironmentRead": 0,
   "localHttp500": 334,
   "publicErrorDetail": 33
 } as const
@@ -433,7 +436,7 @@ test('inventory catches owned consumer mutations and restores every fixture', ()
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bo2-inventory-'))
   const ownedConsumerPath = path.join(tempRoot, 'security/validatedInput.ts')
   const fixturePath = path.join(tempRoot, '__task1_inventory_fixture.ts')
-  const ownedMutation = `const __task3_inventory_mutation = process.env.NODE_ENV\n`
+  const ownedMutation = `const __task3_inventory_mutation = process.env\n`
   const fixture = `const unsafe = process.env.UNSAFE_TEST\nconst fiveHundred = res.status(500)\nconst detail = res.json({ details: error.message })\n`
 
   try {

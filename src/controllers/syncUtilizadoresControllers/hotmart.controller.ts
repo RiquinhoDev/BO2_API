@@ -3,7 +3,7 @@
 
 import { Request, Response } from 'express'
 import axios from 'axios'
-import { getHotmartCredentials, getHotmartSubdomain } from '../../services/requestDrivenRuntimeConfig'
+import { getHotmartCredentials, getHotmartSubdomain, isDevelopmentRuntime } from '../../services/requestDrivenRuntimeConfig'
 import type { AnyBulkWriteOperation, Types } from 'mongoose'
 import { Class, Product, SyncHistory, User } from '../../models'
 import type { IUser } from '../../models/user'
@@ -1102,7 +1102,7 @@ onWarning: (warning: SyncWarning) => {
       success: false,
       message: 'Erro ao executar sincronização via Universal Service',
       error: errorMessage(error),
-      stack: process.env.NODE_ENV === 'development' ? errorStack(error) : undefined
+      stack: isDevelopmentRuntime() ? errorStack(error) : undefined
     })
   }
 }

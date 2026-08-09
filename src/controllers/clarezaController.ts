@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { isClarezaRefreshAuthorized } from '../security/clarezaRefreshAuthorization'
 import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, getStockAnalysis } from '../services/clareza/clarezaFmpService'
 import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
 import { getRaioxJson, searchRaiox, refreshClarezaRaioxData, diagnoseRaiox } from '../services/clareza/clarezaRaioxService'
@@ -26,10 +27,9 @@ export const clarezaController = {
 
   async refresh(req: Request, res: Response) {
     try {
-      const expectedToken = process.env.CLAREZA_REFRESH_TOKEN
       const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
 
-      if (!expectedToken || providedToken !== expectedToken) {
+      if (!isClarezaRefreshAuthorized(providedToken)) {
         return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
       }
 
@@ -103,10 +103,9 @@ export const clarezaController = {
 
   async refreshTop10(req: Request, res: Response) {
     try {
-      const expectedToken = process.env.CLAREZA_REFRESH_TOKEN
       const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
 
-      if (!expectedToken || providedToken !== expectedToken) {
+      if (!isClarezaRefreshAuthorized(providedToken)) {
         return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
       }
 
@@ -190,10 +189,9 @@ export const clarezaController = {
 
   async refreshRaiox(req: Request, res: Response) {
     try {
-      const expectedToken = process.env.CLAREZA_REFRESH_TOKEN
       const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
 
-      if (!expectedToken || providedToken !== expectedToken) {
+      if (!isClarezaRefreshAuthorized(providedToken)) {
         return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
       }
 
@@ -248,10 +246,9 @@ export const clarezaController = {
 
   async refreshEarnings(req: Request, res: Response) {
     try {
-      const expectedToken = process.env.CLAREZA_REFRESH_TOKEN
       const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
 
-      if (!expectedToken || providedToken !== expectedToken) {
+      if (!isClarezaRefreshAuthorized(providedToken)) {
         return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
       }
 
@@ -266,10 +263,9 @@ export const clarezaController = {
   },
   async refreshCarteira(req: Request, res: Response) {
     try {
-      const expectedToken = process.env.CLAREZA_REFRESH_TOKEN
       const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
 
-      if (!expectedToken || providedToken !== expectedToken) {
+      if (!isClarezaRefreshAuthorized(providedToken)) {
         return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
       }
 

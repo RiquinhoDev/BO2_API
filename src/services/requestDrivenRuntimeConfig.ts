@@ -83,3 +83,31 @@ export function getHotmartSyncUserId(): string | undefined {
   const integration = getRuntimeConfig().integrations.hotmart
   return integration.configured ? integration.value.syncUserId : undefined
 }
+
+export interface HotmartClubRuntimeConfig extends HotmartCredentials {
+  readonly subdomain: string
+}
+
+export function getOptionalHotmartClubConfig(): HotmartClubRuntimeConfig | null {
+  const integration = getRuntimeConfig().integrations.hotmart
+  if (!integration.configured || !integration.value.subdomain) return null
+  return {
+    clientId: integration.value.clientId,
+    clientSecret: integration.value.clientSecret,
+    subdomain: integration.value.subdomain,
+  }
+}
+
+export function getClarezaRefreshToken(): string | undefined {
+  const integration = getRuntimeConfig().integrations.clareza
+  return integration.configured ? integration.value.refreshToken : undefined
+}
+
+export function getOptionalOldApiUrl(): string | undefined {
+  const integration = getRuntimeConfig().integrations.legacyApi
+  return integration.configured ? integration.value.apiUrl : undefined
+}
+
+export function isDevelopmentRuntime(): boolean {
+  return getRuntimeConfig().core.nodeEnv === 'development'
+}

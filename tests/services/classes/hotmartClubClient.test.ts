@@ -68,6 +68,22 @@ describe('AxiosHotmartClubClient.fetchUsersPage', () => {
   })
 })
 
+describe('AxiosHotmartClubClient runtime provider', () => {
+  it('resolves config at call time without capturing an ambient snapshot', async () => {
+    let runtimeConfig: typeof config | null = null
+    const client = new AxiosHotmartClubClient(() => runtimeConfig)
+
+    expect(client.isConfigured()).toBe(false)
+    await expect(client.getAccessToken()).rejects.toBeInstanceOf(HotmartNotConfiguredError)
+    expect(mockedPost).not.toHaveBeenCalled()
+
+    runtimeConfig = config
+    mockedPost.mockResolvedValue({ data: { access_token: 'runtime-token' } })
+    expect(client.isConfigured()).toBe(true)
+    await expect(client.getAccessToken()).resolves.toBe('runtime-token')
+    expect(mockedPost).toHaveBeenCalledTimes(1)
+  })
+})
 describe('AxiosHotmartClubClient fail-closed', () => {
   it('reports unconfigured and never contacts the network', async () => {
     const client = new AxiosHotmartClubClient(null)
