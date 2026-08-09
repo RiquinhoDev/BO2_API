@@ -7,7 +7,6 @@
   "src/controllers/sync.controller.ts": 713,
   "src/controllers/syncUtilizadoresControllers/cronManagement.controller.ts": 904,
   "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts": 974,
-  "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts": 1233,
   "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": 507,
   "src/controllers/tagEvaluation.controller.ts": 570,
   "src/controllers/testimonials.controller.ts": 1216,
