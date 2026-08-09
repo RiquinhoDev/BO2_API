@@ -22,27 +22,20 @@ import {
 import { getCommunicationHistory } from '../../controllers/acTags/activeCampaignHistoryList.controller'
 import { getHistoryStats } from '../../controllers/acTags/activeCampaignHistoryStats.controller'
 
+import { getCronLogs, getStats, testCron } from '../../controllers/acTags/activeCampaignOps.controller'
 import {
-  // CRON
-  testCron,
-  getCronLogs,
-
-  // Stats
-  getStats,
-
-  // Tag Rules (CRUD)
-  getAllTagRules,
   createTagRule,
-  updateTagRule,
   deleteTagRule,
-
-  // V2 - Tags por Produto
+  getAllTagRules,
+  updateTagRule,
+} from '../../controllers/acTags/activeCampaignLegacyTagRules.controller'
+import {
   applyTagToUserProduct,
-  removeTagFromUserProduct,
-  getUsersWithTagsInProduct,
   getACStats,
-  syncProductTags
-} from '../../controllers/acTags/activecampaign.controller'
+  getUsersWithTagsInProduct,
+  removeTagFromUserProduct,
+  syncProductTags,
+} from '../../controllers/acTags/activeCampaignProductTags.controller'
 
 
 type DebugUserProduct = {

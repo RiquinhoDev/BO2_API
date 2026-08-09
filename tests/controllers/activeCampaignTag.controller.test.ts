@@ -29,6 +29,17 @@ jest.mock('../../src/models/acTags/TagRule', () => ({
   default: {},
 }))
 
+
+jest.mock('../../src/models/product/Product', () => ({
+  __esModule: true,
+  default: { findById: mockFindProductById },
+}))
+
+jest.mock('../../src/models/UserProduct', () => ({
+  __esModule: true,
+  default: { findOne: mockFindUserProduct, create: mockCreateUserProduct },
+}))
+
 jest.mock('../../src/models', () => ({
   CommunicationHistory: {},
   Course: {},
@@ -54,7 +65,7 @@ jest.mock('../../src/services/activeCampaign/decisionEngine.service', () => ({
   default: {},
 }))
 
-import { applyTagToUserProduct } from '../../src/controllers/acTags/activecampaign.controller'
+import { applyTagToUserProduct } from '../../src/controllers/acTags/activeCampaignProductTags.controller'
 
 installTestRuntimeConfigHooks()
 

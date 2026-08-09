@@ -18,7 +18,7 @@ import {
   deleteTagRule,
   getAllTagRules,
   updateTagRule,
-} from '../controllers/acTags/activecampaign.controller'
+} from '../controllers/acTags/activeCampaignLegacyTagRules.controller'
 import { getCommunicationHistory } from '../controllers/acTags/activeCampaignHistoryList.controller'
 
 export const registerRoutes: RouteRegistrar = (app) => {
