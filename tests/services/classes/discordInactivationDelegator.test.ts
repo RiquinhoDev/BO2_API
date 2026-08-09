@@ -48,6 +48,18 @@ describe('AxiosDiscordInactivationDelegator', () => {
     expect(mockedPost).not.toHaveBeenCalled()
   })
 
+  it('resolves an injected URL provider at call time and stays fail-closed while absent', async () => {
+    let baseUrl: string | undefined
+    const delegator = new AxiosDiscordInactivationDelegator(() => baseUrl)
+
+    await expect(delegator.delegate(['c1'], 'scope')).resolves.toBe(0)
+    expect(mockedPost).not.toHaveBeenCalled()
+
+    baseUrl = 'https://old.example.test'
+    mockedPost.mockResolvedValue({ data: { discordUpdates: 2 } })
+    await expect(delegator.delegate(['c1'], 'scope')).resolves.toBe(2)
+    expect(mockedPost).toHaveBeenCalledTimes(1)
+  })
   it('is best-effort on failure: returns 0 and never throws or leaks', async () => {
     mockedPost.mockRejectedValue(new Error('network boom'))
     const delegator = new AxiosDiscordInactivationDelegator('https://old.example.test')

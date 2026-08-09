@@ -8,13 +8,14 @@ import { MongooseClassInactivationWriter } from './mongooseClassInactivation.wri
 import { AxiosDiscordInactivationDelegator } from './discordInactivationDelegator'
 import { ClassInactivationService, type Clock } from './classInactivation.service'
 import { upsertClass } from './classMutations.runtime'
+import { getOptionalOldApiUrl } from '../requestDrivenRuntimeConfig'
 
 const clock: Clock = { now: () => new Date() }
 
 const service = new ClassInactivationService(
   new MongooseClassInactivationWriter(),
-  // Explicit URL, no real-tenant default: unset OLD_API_URL means fail-closed.
-  new AxiosDiscordInactivationDelegator(process.env.OLD_API_URL),
+  // Runtime provider, no real-tenant default: unset OLD_API_URL remains fail-closed.
+  new AxiosDiscordInactivationDelegator(getOptionalOldApiUrl),
   { upsert: (input) => upsertClass(input) },
   clock,
 )

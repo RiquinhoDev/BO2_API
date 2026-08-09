@@ -17,7 +17,7 @@ import {
   getUserCountForProduct
 } from '../../services/userProducts/userProductService'
 import universalSyncService from '../../services/syncUtilizadoresServices/universalSync'
-import { getOptionalCurseducaRuntimeSettings } from '../../services/requestDrivenRuntimeConfig'
+import { getOptionalCurseducaRuntimeSettings, isDevelopmentRuntime } from '../../services/requestDrivenRuntimeConfig'
 import curseducaAdapter from '../../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 
 interface ProductUserView {
@@ -415,7 +415,7 @@ export const syncCurseducaUsers = async (req: Request, res: SyncResponse): Promi
       message: 'Erro ao executar sincronização',
       error: errorMessage(error),
       logFile: logger.getLogPath(),
-      stack: process.env.NODE_ENV === 'development' ? errorStack(error) : undefined
+      stack: isDevelopmentRuntime() ? errorStack(error) : undefined
     })
   }
 }

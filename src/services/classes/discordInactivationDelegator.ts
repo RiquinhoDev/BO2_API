@@ -39,17 +39,18 @@ export class AxiosDiscordInactivationDelegator implements DiscordInactivationDel
   // The base URL is injected explicitly (never defaulted). Discord role removal
   // is destructive, so with no URL configured the adapter is fail-closed: it
   // contacts no network and returns 0, keeping the best-effort contract.
-  constructor(private readonly baseUrl: string | undefined) {}
+  constructor(private readonly baseUrl: string | undefined | (() => string | undefined)) {}
 
   async delegate(classIds: string[], scope: string): Promise<number> {
-    if (!this.baseUrl) {
+    const baseUrl = typeof this.baseUrl === 'function' ? this.baseUrl() : this.baseUrl
+    if (!baseUrl) {
       logger.warn('Discord: delegação desativada (OLD_API_URL não configurado)', { scope })
       return 0
     }
 
     try {
       const response = await axios.post<DiscordInactivationResponse>(
-        `${this.baseUrl}/classes/inactivationLists/create`,
+        `${baseUrl}/classes/inactivationLists/create`,
         { classIds, platforms: ['discord'] },
         { timeout: 120000, headers: buildOldApiHeaders(scope) },
       )

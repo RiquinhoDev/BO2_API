@@ -3,6 +3,7 @@ import { freezeRecursively } from './runtimeConfig'
 import type {
   ActiveCampaignIntegration,
   AppConfig,
+  ClarezaIntegration,
   CurseducaIntegration,
   DiscordIntegration,
   FmpIntegration,
@@ -10,6 +11,7 @@ import type {
   HotmartIntegration,
   IntegrationConfig,
   IntegrationConfigs,
+  LegacyApiIntegration,
   NodeEnvironment,
   ObservabilityConfig,
   RedisConfig,
@@ -316,6 +318,18 @@ function parseStudentSummary(
   return token ? { configured: true, value: { token } } : { configured: false }
 }
 
+function parseClareza(env: NodeJS.ProcessEnv): IntegrationConfig<ClarezaIntegration> {
+  const refreshToken = readOptionalString(env, 'CLAREZA_REFRESH_TOKEN')
+  return refreshToken
+    ? { configured: true, value: { refreshToken } }
+    : { configured: false }
+}
+
+function parseLegacyApi(env: NodeJS.ProcessEnv): IntegrationConfig<LegacyApiIntegration> {
+  const apiUrl = parseOptionalUrl(env.OLD_API_URL, 'OLD_API_URL')
+  return apiUrl ? { configured: true, value: { apiUrl } } : { configured: false }
+}
+
 function parseIntegrations(
   env: NodeJS.ProcessEnv,
   webhookSecret: string,
@@ -329,6 +343,8 @@ function parseIntegrations(
     discord: parseDiscord(env),
     slack: parseSlack(env),
     studentSummary: parseStudentSummary(env),
+    clareza: parseClareza(env),
+    legacyApi: parseLegacyApi(env),
   }
 }
 
