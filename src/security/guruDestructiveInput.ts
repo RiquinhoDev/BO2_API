@@ -23,6 +23,14 @@ export const guruInactivationBulkInput = validatedSchema({
   },
 })
 
+export const guruMarkDiscrepanciesInput = validatedSchema({
+  params: {},
+  query: {},
+  body: {
+    emails: z.array(z.string().email()).optional(),
+  },
+})
+
 export const guruSnapshotDeleteInput = validatedSchema({
   params: { year, month },
   query: {},
@@ -37,5 +45,6 @@ export const guruEmptyInput = validatedSchema({
 
 export type GuruInactivationSingleInput = z.infer<typeof guruInactivationSingleInput>
 export type GuruInactivationBulkInput = z.infer<typeof guruInactivationBulkInput>
+export type GuruMarkDiscrepanciesInput = z.infer<typeof guruMarkDiscrepanciesInput>
 export type GuruSnapshotDeleteInput = z.infer<typeof guruSnapshotDeleteInput>
 export type GuruEmptyInput = z.infer<typeof guruEmptyInput>

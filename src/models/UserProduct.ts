@@ -129,6 +129,7 @@ export interface IUserProduct extends Document {
     platform?: string
     markedForInactivationAt?: Date
     markedForInactivationReason?: string
+    markedFromComparison?: boolean
     inactivatedAt?: Date
     inactivatedBy?: string
     inactivatedReason?: string
@@ -136,6 +137,7 @@ export interface IUserProduct extends Document {
     quarantineReason?: string
     revertedAt?: Date
     revertedBy?: string
+    revertReason?: string
     restoredAt?: Date
     restoredReason?: string
     fixedToActiveAt?: Date
@@ -382,6 +384,7 @@ const UserProductSchema = new Schema<IUserProduct>({
     platform: String,
     markedForInactivationAt: Date,
     markedForInactivationReason: String,
+    markedFromComparison: Boolean,
     inactivatedAt: Date,
     inactivatedBy: String,
     inactivatedReason: String,
@@ -389,6 +392,7 @@ const UserProductSchema = new Schema<IUserProduct>({
     quarantineReason: String,
     revertedAt: Date,
     revertedBy: String,
+    revertReason: String,
     restoredAt: Date,
     restoredReason: String,
     fixedToActiveAt: Date,

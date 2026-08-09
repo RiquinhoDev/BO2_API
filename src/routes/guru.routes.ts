@@ -7,6 +7,7 @@ import {
   guruEmptyInput,
   guruInactivationBulkInput,
   guruInactivationSingleInput,
+  guruMarkDiscrepanciesInput,
   guruSnapshotDeleteInput,
 } from '../security/guruDestructiveInput'
 import {
@@ -50,21 +51,21 @@ import {
   createHistoricalSnapshots
 } from '../controllers/guru.snapshot.controller'
 import {
-  listPendingInactivation,
-  inactivateSingle,
-  inactivateBulk,
-  revertInactivationMark,
   getInactivationStats,
-  markDiscrepanciesForInactivation,
-  cleanupInactivationList,
-  fixUsersToActive,
-  diagnoseUsers,
   listInactivated,
-  quarantineUser,
+  listPendingInactivation,
+} from '../controllers/guruInactivationRead.controller'
+import {
   cleanupDuplicateUserProducts,
+  fixUsersToActive,
+  markStaleInactive,
+  quarantineUser,
   restoreUserProducts,
-  markStaleInactive
-} from '../controllers/guru.inactivation.controller'
+  revertInactivationMark,
+} from '../controllers/guruInactivationMutation.controller'
+import { inactivateBulk, inactivateSingle } from '../controllers/guruInactivationExternal.controller'
+import { cleanupInactivationList, diagnoseUsers } from '../controllers/guruInactivationMaintenance.controller'
+import { markDiscrepanciesForInactivation } from '../controllers/guruDiscrepancy.controller'
 import {
   getTrials,
   getTrialsStats,
@@ -344,7 +345,13 @@ router.post('/inactivation/revert', asyncRoute(revertInactivationMark))
  * Marcar discrepâncias (Guru cancelado, Clareza ativo) para inativação
  * Body: { emails?: string[] } - se vazio, marca todas as discrepâncias
  */
-router.post('/inactivation/mark-discrepancies', asyncRoute(markDiscrepanciesForInactivation))
+router.post(
+  '/inactivation/mark-discrepancies',
+  withValidatedInput(
+    guruMarkDiscrepanciesInput,
+    (input, _req, res, next) => markDiscrepanciesForInactivation(input, res, next),
+  ),
+)
 
 /**
  * POST /guru/inactivation/cleanup
