@@ -1239,3 +1239,10 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - `decisionEngine.service.ts` measured **644 -> 447 lines**, below the approved 500-line limit. Its four `if (!dryRun)` guards, cooldown order, conflict resolution and tag execution remain in the engine.
 - Added 8 focused context/metric tests. Mutation `greaterThan >=` to `>` produced the expected RED and returned GREEN after restoration; the existing dry-run/level/condition network stayed green.
 - Added a fail-closed source-size ratchet with the exact remaining **38-file** debt baseline. It names new violations, rejects growth, and requires pruning when a file reaches 500 or fewer lines. No real integration was contacted.
+
+### [x] ARCH-02 - split ActiveCampaign transport, contacts and tags (2026-08-09)
+
+- Extracted the runtime/Axios boundary to `activeCampaignTransport.ts`, contact and custom-field operations to `activeCampaignContacts.service.ts`, and tag operations to `activeCampaignTags.service.ts`.
+- The compatibility facade preserved every public method and singleton export while falling from **1,010 -> 299 lines**; the extracted source files contain 150, 180 and 230 lines, all below the 500-line limit.
+- Focused characterization covers runtime client caching, retry classification, complete contact pagination, update-vs-create, custom-field no-create, idempotent tag association and absent-tag removal.
+- Controlled mutations proved RED for a 5xx retry regression, first-page truncation and duplicate tag association, then returned GREEN after restoration. No real integration or production datastore was contacted.
