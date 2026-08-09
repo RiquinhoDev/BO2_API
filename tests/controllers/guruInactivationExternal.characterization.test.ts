@@ -1,4 +1,4 @@
-import type { NextFunction, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import axios from 'axios'
 import mongoose from 'mongoose'
 import { MongoMemoryServer } from 'mongodb-memory-server'
@@ -34,6 +34,8 @@ jest.mock('../../src/services/requestDrivenRuntimeConfig', () => ({
 }))
 
 import {
+  cleanupInactivationList,
+  diagnoseUsers,
   inactivateBulk,
   inactivateSingle,
 } from '../../src/controllers/guru.inactivation.controller'
@@ -230,4 +232,62 @@ test('single rejects an empty selector before reading or calling CursEduca', asy
     message: 'Deve fornecer userProductId ou curseducaUserId',
   })
   expect(axios.patch).not.toHaveBeenCalled()
+})
+test('cleanup reconciles an API-inactive member and updates the stale user cache', async () => {
+  jest.mocked(axios.get).mockResolvedValue({
+    status: 200,
+    data: { situation: 'INACTIVE', name: 'Alice' },
+  })
+  const res = response()
+
+  await cleanupInactivationList({ body: {} } as Request, res.value, next())
+
+  expect(axios.get).toHaveBeenCalledWith(
+    'https://offline.invalid/members/101',
+    expect.objectContaining({ timeout: 10000 }),
+  )
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    success: true,
+    cleaned: { total: 1, curseducaInactive: 1, guruActive: 0 },
+    kept: 0,
+    total: 1,
+  }))
+  expect(await UserProduct.findById(userProductId).lean()).toMatchObject({
+    status: 'INACTIVE',
+    metadata: { inactivatedBy: 'cleanup_api_check' },
+  })
+  expect(await User.findById(userId).lean()).toMatchObject({
+    curseduca: { memberStatus: 'INACTIVE', situation: 'INACTIVE' },
+  })
+})
+
+test('diagnose combines database state with the mocked CursEduca member state', async () => {
+  jest.mocked(axios.get).mockResolvedValue({
+    status: 200,
+    data: { data: { situation: 'ACTIVE', name: 'Alice Remote' } },
+  })
+  const res = response()
+
+  await diagnoseUsers({ body: { emails: ['alice@example.test'] } } as Request, res.value, next())
+
+  expect(res.json).toHaveBeenCalledWith({
+    success: true,
+    results: [expect.objectContaining({
+      email: 'alice@example.test',
+      found: true,
+      db: expect.objectContaining({
+        curseducaMemberStatus: 'ACTIVE',
+        curseducaUserId: '101',
+      }),
+      userProduct: expect.objectContaining({
+        status: 'PARA_INATIVAR',
+        platformUserId: '101',
+      }),
+      curseducaApi: expect.objectContaining({
+        status: 200,
+        situation: 'ACTIVE',
+        name: 'Alice Remote',
+      }),
+    })],
+  })
 })
