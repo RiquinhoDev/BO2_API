@@ -7,10 +7,10 @@ import {
   getHotmartProductUsers,
   getHotmartStats
 } from '../controllers/hotmart/hotmartCatalog.controller'
+import { syncProgressOnly } from '../controllers/hotmart/hotmartProgress.controller'
 import {
   // Legacy
   syncHotmartUsers,
-  syncProgressOnly,
   findHotmartUser,
 
   // Universal Sync

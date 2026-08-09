@@ -15,24 +15,15 @@ import universalSyncService from '../../services/syncUtilizadoresServices/univer
 import { SyncError, SyncProgress, SyncWarning } from '../../types/universalSync.types'
 import {
   hotmartLegacyClient,
-  type HotmartApiUser,
-  type HotmartLesson
+  type HotmartApiUser
 } from '../../services/hotmart/hotmartLegacyClient'
-
-type ProgressLesson = {
-  pageId: string
-  pageName: string
-  moduleName: string
-  isModuleExtra: boolean
-  isCompleted: boolean
-  completedDate?: Date
-}
+import { calculateHotmartProgress, type HotmartProgressLesson } from '../../services/hotmart/hotmartProgress'
 
 type ProgressData = {
   completedPercentage: number
   total: number
   completed: number
-  lessons: ProgressLesson[]
+  lessons: HotmartProgressLesson[]
   lastUpdated: Date
 }
 
@@ -60,30 +51,6 @@ function errorMessage(error: unknown): string {
 
 function errorStack(error: unknown): string | undefined {
   return error instanceof Error ? error.stack : undefined
-}
-
-const calculateProgress = (lessons: HotmartLesson[]): Omit<ProgressData, 'lastUpdated'> => {
-  if (lessons.length === 0) {
-    return { completedPercentage: 0, total: 0, completed: 0, lessons: [] }
-  }
-
-  const completed = lessons.filter(lesson => lesson.is_completed).length
-  const total = lessons.length
-  const completedPercentage = Math.round((completed / total) * 100)
-
-  return {
-    completedPercentage,
-    total,
-    completed,
-    lessons: lessons.map(lesson => ({
-      pageId: lesson.page_id,
-      pageName: lesson.page_name,
-      moduleName: lesson.module_name,
-      isModuleExtra: lesson.is_module_extra,
-      isCompleted: lesson.is_completed,
-      completedDate: lesson.completed_date ? new Date(lesson.completed_date) : undefined
-    }))
-  }
 }
 
 function convertUnixTimestamp(timestamp: unknown): Date | null {
@@ -249,7 +216,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
           try {
             const userLessons = await hotmartLegacyClient.listUserLessons(hotmartId, accessToken)
             if (userLessons.length > 0) {
-              const calculated = calculateProgress(userLessons)
+              const calculated = calculateHotmartProgress(userLessons)
               progressData = {
                 completedPercentage: calculated.completedPercentage,
                 total: calculated.total,
@@ -514,131 +481,6 @@ console.log('✅ [HotmartUniversal] Stats atualizados!')
       error: errorMessage(error),
       details: errorStack(error)
     })
-  }
-}
-
-// ✅ SYNC apenas progresso (legacy)
-export const syncProgressOnly = async (req: Request, res: Response): Promise<void> => {
-  let syncRecord: ISyncHistory | null = null
-
-  try {
-    syncRecord = await SyncHistory.create({
-      type: 'hotmart',
-      status: 'running',
-      startedAt: new Date(),
-      metadata: {
-        includeProgress: true,
-        includeLessons: true,
-        syncType: 'progress_only'
-      }
-    })
-
-    const accessToken = await hotmartLegacyClient.getAccessToken()
-
-    const existingUsers = await User.find({
-'hotmart.hotmartUserId': { $exists: true, $nin: [null, ''] }
-
-    }).select('_id email name hotmart.hotmartUserId')
-
-    if (existingUsers.length === 0) {
-      await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-        status: 'completed',
-        completedAt: new Date(),
-        'metadata.currentStep': 'Nenhum utilizador com Hotmart ID encontrado',
-        'metadata.progress': 100,
-        stats: { total: 0, errors: 0 }
-      })
-
-      res.status(200).json({
-        message: 'Nenhum utilizador com Hotmart ID encontrado para sincronização de progresso',
-        stats: { total: 0, errors: 0 }
-      })
-      return
-    }
-
-    let totalProcessed = 0
-    let totalWithProgress = 0
-    let totalErrors = 0
-    const errors: string[] = []
-
-    for (const u of existingUsers) {
-      try {
-        const progressPercentage = (totalProcessed / existingUsers.length) * 100
-        await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-          'metadata.currentStep': `Atualizando progresso: ${u.email}`,
-          'metadata.progress': progressPercentage,
-          'metadata.processed': totalProcessed,
-          'metadata.withProgress': totalWithProgress
-        })
-
-        const hotmartUserId = u.hotmart?.hotmartUserId
-        if (!hotmartUserId) {
-          totalErrors++
-          errors.push(`User sem hotmartUserId: ${u.email}`)
-          totalProcessed++
-          continue
-        }
-
-        const userLessons = await hotmartLegacyClient.listUserLessons(hotmartUserId, accessToken)
-
-        if (userLessons.length > 0) {
-          totalWithProgress++
-          const progressData = calculateProgress(userLessons)
-
-          await User.findByIdAndUpdate(u._id, {
-            'hotmart.progress': {
-              totalTimeMinutes: 0,
-              completedLessons: progressData.completed,
-              lessonsData: progressData.lessons.map(lesson => ({
-                lessonId: lesson.pageId,
-                title: lesson.pageName,
-                completed: lesson.isCompleted,
-                completedAt: lesson.completedDate,
-                timeSpent: 0
-              })),
-              lastAccessDate: new Date()
-            },
-            'hotmart.lastSyncAt': new Date(),
-            'metadata.updatedAt': new Date(),
-            'metadata.sources.hotmart.lastSync': new Date()
-          })
-        }
-
-        totalProcessed++
-      } catch (userError: unknown) {
-        totalErrors++
-        errors.push(`Erro ao atualizar progresso de ${u.email}: ${errorMessage(userError)}`)
-        totalProcessed++
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 150))
-    }
-
-    await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-      status: 'completed',
-      completedAt: new Date(),
-      'metadata.progress': 100,
-      'metadata.currentStep': 'Sincronização de progresso concluída',
-      stats: { total: totalProcessed, errors: totalErrors },
-      errorDetails: errors.length > 0 ? errors : undefined
-    })
-
-    res.status(200).json({
-      message: 'Sincronização de progresso concluída!',
-      stats: { total: totalProcessed, withProgress: totalWithProgress, errors: totalErrors }
-    })
-
-  } catch (error: unknown) {
-    if (syncRecord) {
-      await SyncHistory.findByIdAndUpdate(syncRecord._id, {
-        status: 'failed',
-        completedAt: new Date(),
-        'metadata.currentStep': 'Erro na sincronização',
-        errorDetails: [errorMessage(error)]
-      })
-    }
-
-    res.status(500).json({ message: 'Erro na sincronização de progresso', error: errorMessage(error) })
   }
 }
 
