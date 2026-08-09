@@ -1,7 +1,8 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import CourseLesson from '../models/CourseLesson'
 import { syncCourseLessonCatalog } from '../services/courseLessonCatalog.service'
+import { internalError } from '../security/errorHandling'
 
 type MongooseReadModel = mongoose.Model<mongoose.Document>
 
@@ -27,7 +28,7 @@ interface CourseLessonModuleGroup {
   lessons: CourseLessonLean[]
 }
 
-export async function listCourseLessons(_req: Request, res: Response) {
+export async function listCourseLessons(_req: Request, res: Response, next: NextFunction) {
   try {
     const lessons = await CourseLessonReadModel.find({ isActive: true })
       .sort({ moduleSequence: 1, lessonSequence: 1 })
@@ -38,15 +39,12 @@ export async function listCourseLessons(_req: Request, res: Response) {
       modules: groupLessonsByModule(lessons),
       totalLessons: lessons.length
     })
-  } catch (error: any) {
-    res.status(500).json({
-      message: 'Erro ao listar aulas do curso.',
-      details: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao listar aulas do curso.', 'COURSE_LESSONS_LIST_FAILED', error))
   }
 }
 
-export async function updateCourseLessonUrl(req: Request, res: Response) {
+export async function updateCourseLessonUrl(req: Request, res: Response, next: NextFunction) {
   try {
     const { pageId } = req.params
     const { url } = req.body
@@ -71,26 +69,20 @@ export async function updateCourseLessonUrl(req: Request, res: Response) {
       lesson,
       message: 'Link da aula guardado com sucesso.'
     })
-  } catch (error: any) {
-    res.status(500).json({
-      message: 'Erro ao guardar link da aula.',
-      details: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao guardar link da aula.', 'COURSE_LESSON_UPDATE_FAILED', error))
   }
 }
 
-export async function syncCourseLessons(req: Request, res: Response) {
+export async function syncCourseLessons(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await syncCourseLessonCatalog()
     res.json({
       sync: result,
       message: 'Catalogo de aulas sincronizado com sucesso.'
     })
-  } catch (error: any) {
-    res.status(500).json({
-      message: 'Erro ao sincronizar catalogo de aulas.',
-      details: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao sincronizar catalogo de aulas.', 'COURSE_LESSONS_SYNC_FAILED', error))
   }
 }
 
