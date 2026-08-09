@@ -157,11 +157,6 @@ const BASELINE = {
     "src/controllers/guru.trials.controller.ts:51",
     "src/controllers/guru.trials.controller.ts:70",
     "src/controllers/guru.trials.controller.ts:89",
-    "src/controllers/guru.webhook.controller.ts:283",
-    "src/controllers/guru.webhook.controller.ts:360",
-    "src/controllers/guru.webhook.controller.ts:441",
-    "src/controllers/guru.webhook.controller.ts:490",
-    "src/controllers/guru.webhook.controller.ts:552",
     "src/controllers/guruSubscriptionList.controller.ts:126",
     "src/controllers/guruWebhookList.controller.ts:75",
     "src/controllers/health.controller.ts:56",
@@ -353,7 +348,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 294,
+  "localHttp500": 289,
   "publicErrorDetail": 20
 } as const
 
