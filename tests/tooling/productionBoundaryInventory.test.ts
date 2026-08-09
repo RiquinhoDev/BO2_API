@@ -144,6 +144,7 @@ const BASELINE = {
     "src/controllers/hotmart/hotmartCatalog.controller.ts:36",
     "src/controllers/hotmart/hotmartCatalog.controller.ts:64",
     "src/controllers/hotmart/hotmartCatalog.controller.ts:73",
+    "src/controllers/hotmart/hotmartLegacySync.controller.ts:469",
     "src/controllers/lessons.controller.ts:147",
     "src/controllers/lessons.controller.ts:200",
     "src/controllers/lessons.controller.ts:237",
@@ -220,13 +221,11 @@ const BASELINE = {
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts:720",
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts:746",
     "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts:806",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:512",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:641",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:674",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:699",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:798",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:875",
-    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:928",
+    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:172",
+    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:249",
+    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:302",
+    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:48",
+    "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts:73",
     "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:108",
     "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:40",
     "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:77",
@@ -328,7 +327,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 284,
+  "localHttp500": 283,
   "publicErrorDetail": 20
 } as const
 
