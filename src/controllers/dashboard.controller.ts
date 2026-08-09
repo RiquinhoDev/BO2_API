@@ -1,15 +1,16 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Product from '../models/product/Product';
 import UserProduct from '../models/UserProduct';
 import User from '../models/user';
 import { getAllUsersUnified } from '../services/syncUtilizadoresServices/dualReadService';
+import { HttpError, internalError } from '../security/errorHandling';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 📊 ENDPOINT 1: GET /api/dashboard/stats
 // Estatísticas gerais para substituir Visão Geral V1
 // ═══════════════════════════════════════════════════════════════════════════
-export const getDashboardStats = async (req: Request, res: Response) => {
+export const getDashboardStats = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { platform, productId, status, progressMin, progressMax, search } = req.query;
 
@@ -103,12 +104,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       data: response,
       filters: { platform, productId, status, progressMin, progressMax, search }
     });
-  } catch (error: any) {
-    console.error('❌ Erro em getDashboardStats:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao carregar estatisticas do dashboard', 'DASHBOARD_STATS_FAILED', error));
   }
 };
 
@@ -116,7 +113,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 // 📦 ENDPOINT 2: GET /api/dashboard/products
 // Breakdown de alunos por produto
 // ═══════════════════════════════════════════════════════════════════════════
-export const getProductsBreakdown = async (req: Request, res: Response) => {
+export const getProductsBreakdown = async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log('📦 [PRODUCTS BREAKDOWN - DUAL READ]');
     const { platforms } = req.query;
@@ -194,12 +191,8 @@ export const getProductsBreakdown = async (req: Request, res: Response) => {
       success: true,
       data: breakdown
     });
-  } catch (error: any) {
-    console.error('❌ [PRODUCTS BREAKDOWN] Erro:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao carregar produtos do dashboard', 'DASHBOARD_PRODUCTS_FAILED', error));
   }
 };
 
@@ -207,7 +200,7 @@ export const getProductsBreakdown = async (req: Request, res: Response) => {
 // 📈 ENDPOINT 3: GET /api/dashboard/engagement
 // Distribuição de engagement dos alunos
 // ═══════════════════════════════════════════════════════════════════════════
-export const getEngagementDistribution = async (req: Request, res: Response) => {
+export const getEngagementDistribution = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { productId } = req.query;
 
@@ -256,12 +249,8 @@ export const getEngagementDistribution = async (req: Request, res: Response) => 
       success: true,
       data: result
     });
-  } catch (error: any) {
-    console.error('❌ Erro em getEngagementDistribution:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao carregar distribuicao de engagement', 'DASHBOARD_ENGAGEMENT_FAILED', error));
   }
 };
 
@@ -269,7 +258,7 @@ export const getEngagementDistribution = async (req: Request, res: Response) => 
 // ⚖️ ENDPOINT 4: GET /api/dashboard/compare
 // Comparar 2 produtos lado a lado
 // ═══════════════════════════════════════════════════════════════════════════
-export const compareProducts = async (req: Request, res: Response) => {
+export const compareProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { productId1, productId2 } = req.query;
 
@@ -344,12 +333,8 @@ export const compareProducts = async (req: Request, res: Response) => {
         comparison
       }
     });
-  } catch (error: any) {
-    console.error('❌ [COMPARE] Erro:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao comparar produtos'
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao comparar produtos', 'DASHBOARD_COMPARISON_FAILED', error));
   }
 };
 
@@ -361,7 +346,7 @@ export const compareProducts = async (req: Request, res: Response) => {
  * 📊 GET DASHBOARD STATS V3 - VERSÃO CONSOLIDADA
  * Endpoint: GET /api/dashboard/stats/v3
  */
-export const getDashboardStatsV3 = async (req: Request, res: Response) => {
+export const getDashboardStatsV3 = async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log('\n📊 [STATS V3 - MATERIALIZED VIEW] Carregando stats pré-calculados...');
     const startTime = Date.now();
@@ -371,10 +356,12 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
     const stats = await getDashboardStats();
     
     if (!stats) {
-      return res.status(500).json({
-        success: false,
-        error: 'Dashboard Stats não disponíveis'
-      });
+      next(new HttpError({
+        status: 500,
+        code: 'DASHBOARD_STATS_UNAVAILABLE',
+        publicMessage: 'Estatisticas do dashboard indisponiveis',
+      }));
+      return;
     }
     
     const duration = Date.now() - startTime;
@@ -396,12 +383,8 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
       }
     });
     
-  } catch (error: any) {
-    console.error('❌ Erro em getDashboardStatsV3:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao buscar stats'
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao carregar estatisticas v3 do dashboard', 'DASHBOARD_STATS_V3_FAILED', error));
   }
 };
 
@@ -413,7 +396,7 @@ export const getDashboardStatsV3 = async (req: Request, res: Response) => {
  * 🔍 PESQUISA GLOBAL
  * Endpoint: GET /api/dashboard/search?q=termo
  */
-export const searchDashboard = async (req: Request, res: Response) => {
+export const searchDashboard = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { q } = req.query;
     if (!q || typeof q !== 'string') {
@@ -489,11 +472,7 @@ export const searchDashboard = async (req: Request, res: Response) => {
       }
     });
 
-  } catch (error: any) {
-    console.error('❌ [SEARCH] Erro:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao pesquisar no dashboard', 'DASHBOARD_SEARCH_FAILED', error));
   }
 };

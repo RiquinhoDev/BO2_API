@@ -117,13 +117,6 @@ const BASELINE = {
     "src/controllers/course.controller.ts:25",
     "src/controllers/course.controller.ts:64",
     "src/controllers/course.controller.ts:98",
-    "src/controllers/dashboard.controller.ts:108",
-    "src/controllers/dashboard.controller.ts:199",
-    "src/controllers/dashboard.controller.ts:261",
-    "src/controllers/dashboard.controller.ts:349",
-    "src/controllers/dashboard.controller.ts:374",
-    "src/controllers/dashboard.controller.ts:401",
-    "src/controllers/dashboard.controller.ts:494",
     "src/controllers/discovery.controller.ts:163",
     "src/controllers/discovery.controller.ts:49",
     "src/controllers/discovery.controller.ts:83",
@@ -396,7 +389,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 325,
+  "localHttp500": 318,
   "publicErrorDetail": 33
 } as const
 
