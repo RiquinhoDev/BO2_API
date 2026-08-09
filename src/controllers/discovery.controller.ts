@@ -2,7 +2,7 @@
  * 🎮 DISCOVERY CONTROLLER
  */
 
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import Product from '../models/product/Product';
 import ProductProfile from '../models/product/ProductProfile';
 import Course from '../models/Course';
@@ -10,12 +10,13 @@ import Course from '../models/Course';
 import hotmartDiscoveryService from '../services/discovery/hotmartDiscovery.service';
 import intelligentDefaultsService from '../services/discovery/intelligentDefaults.service';
 import { validateConfigurationData } from '../types/discovery.types';
+import { internalError } from '../security/errorHandling';
 
 /**
  * POST /api/discovery/run
  * Executar discovery completo
  */
-export const runDiscovery = async (req: Request, res: Response): Promise<void> => {
+export const runDiscovery = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const startTime = Date.now();
   
   try {
@@ -44,13 +45,8 @@ export const runDiscovery = async (req: Request, res: Response): Promise<void> =
       message: `Discovery completo: ${totalFound} produtos encontrados`
     });
 
-  } catch (error: any) {
-    console.error('❌ Erro no discovery:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro no discovery',
-      details: error.message
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao executar discovery', 'DISCOVERY_RUN_FAILED', error));
   }
 };
 
@@ -58,7 +54,7 @@ export const runDiscovery = async (req: Request, res: Response): Promise<void> =
  * POST /api/discovery/generate-config
  * Gerar configuração inteligente
  */
-export const generateConfig = async (req: Request, res: Response): Promise<void> => {
+export const generateConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { discoveredProduct } = req.body;
 
@@ -78,13 +74,8 @@ export const generateConfig = async (req: Request, res: Response): Promise<void>
       message: 'Configuração gerada com sucesso'
     });
 
-  } catch (error: any) {
-    console.error('❌ Erro ao gerar configuração:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao gerar configuração',
-      details: error.message
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao gerar configuracao', 'DISCOVERY_CONFIG_GENERATION_FAILED', error));
   }
 };
 
@@ -92,7 +83,7 @@ export const generateConfig = async (req: Request, res: Response): Promise<void>
  * POST /api/discovery/configure
  * Configurar produto descoberto
  */
-export const configureProduct = async (req: Request, res: Response): Promise<void> => {
+export const configureProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const configData = req.body;
 
@@ -158,12 +149,7 @@ export const configureProduct = async (req: Request, res: Response): Promise<voi
       data: { product, productProfile }
     });
 
-  } catch (error: any) {
-    console.error('❌ Erro ao configurar produto:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao configurar produto',
-      details: error.message
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao configurar produto', 'DISCOVERY_PRODUCT_CONFIGURATION_FAILED', error));
   }
 };
