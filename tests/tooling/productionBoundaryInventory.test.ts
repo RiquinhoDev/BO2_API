@@ -152,11 +152,6 @@ const BASELINE = {
     "src/controllers/guru.sso.controller.ts:156",
     "src/controllers/guru.sso.controller.ts:223",
     "src/controllers/guru.sso.controller.ts:303",
-    "src/controllers/guru.sync.controller.ts:126",
-    "src/controllers/guru.sync.controller.ts:186",
-    "src/controllers/guru.sync.controller.ts:237",
-    "src/controllers/guru.sync.controller.ts:313",
-    "src/controllers/guru.sync.controller.ts:65",
     "src/controllers/guru.trials.controller.ts:137",
     "src/controllers/guru.trials.controller.ts:37",
     "src/controllers/guru.trials.controller.ts:51",
@@ -358,7 +353,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 299,
+  "localHttp500": 294,
   "publicErrorDetail": 20
 } as const
 

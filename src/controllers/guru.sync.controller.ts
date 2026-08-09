@@ -1,5 +1,6 @@
 // src/controllers/guru.sync.controller.ts - Controller para sincronização com Guru (APENAS LEITURA)
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
+import { internalError } from '../security/errorHandling'
 import guruSyncService from '../services/guru/guruSync.service'
 import User from '../models/user'
 
@@ -19,7 +20,7 @@ type GuruSyncEmailParams = {
  * Nunca escreve, atualiza ou modifica dados na plataforma Guru.
  * Todos os dados são guardados apenas na nossa BD.
  */
-export const syncAllFromGuru = async (req: Request, res: Response) => {
+export const syncAllFromGuru = async (req: Request, res: Response, next: NextFunction) => {
   console.log('\n💰 [GURU SYNC] Pedido de sincronização completa recebido')
 
   try {
@@ -60,12 +61,8 @@ export const syncAllFromGuru = async (req: Request, res: Response) => {
       globalAny[lockKey] = false
     }
 
-  } catch (error: any) {
-    console.error('❌ [GURU SYNC] Erro na sincronização:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return next(internalError('Erro ao sincronizar subscrições Guru', 'GURU_SYNC_ALL_FAILED', error))
   }
 }
 
@@ -73,7 +70,7 @@ export const syncAllFromGuru = async (req: Request, res: Response) => {
  * Sincronizar um email específico (útil para debug ou sync individual)
  * GET /guru/sync/email/:email
  */
-export const syncEmailFromGuru = async (req: Request<GuruSyncEmailParams>, res: Response) => {
+export const syncEmailFromGuru = async (req: Request<GuruSyncEmailParams>, res: Response, next: NextFunction) => {
   const { email } = req.params
 
   if (!email) {
@@ -121,12 +118,8 @@ export const syncEmailFromGuru = async (req: Request<GuruSyncEmailParams>, res: 
       }
     })
 
-  } catch (error: any) {
-    console.error(`❌ [GURU SYNC] Erro ao sincronizar ${email}:`, error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return next(internalError('Erro ao sincronizar subscrição Guru', 'GURU_SYNC_EMAIL_FAILED', error))
   }
 }
 
@@ -138,7 +131,7 @@ export const syncEmailFromGuru = async (req: Request<GuruSyncEmailParams>, res: 
  * Obter estatísticas de sync
  * GET /guru/sync/stats
  */
-export const getSyncStats = async (req: Request, res: Response) => {
+export const getSyncStats = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Contar users com guru
     const usersWithGuru = await User.countDocuments({ guru: { $exists: true } })
@@ -181,12 +174,8 @@ export const getSyncStats = async (req: Request, res: Response) => {
       }
     })
 
-  } catch (error: any) {
-    console.error('❌ [GURU SYNC] Erro ao obter stats:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return next(internalError('Erro ao obter estatísticas Guru', 'GURU_SYNC_STATS_FAILED', error))
   }
 }
 
@@ -198,7 +187,7 @@ export const getSyncStats = async (req: Request, res: Response) => {
  * Preview do sync (não guarda, apenas mostra o que seria importado)
  * GET /guru/sync/preview
  */
-export const previewSync = async (req: Request, res: Response) => {
+export const previewSync = async (req: Request, res: Response, next: NextFunction) => {
   console.log('\n💰 [GURU SYNC] Executando preview (não guarda dados)')
 
   try {
@@ -232,12 +221,8 @@ export const previewSync = async (req: Request, res: Response) => {
       note: 'Este é apenas um preview. Nenhum dado foi guardado. Use GET /guru/sync/all para sincronizar.'
     })
 
-  } catch (error: any) {
-    console.error('❌ [GURU SYNC] Erro no preview:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return next(internalError('Erro ao gerar preview Guru', 'GURU_SYNC_PREVIEW_FAILED', error))
   }
 }
 
@@ -249,7 +234,7 @@ export const previewSync = async (req: Request, res: Response) => {
  * Listar todos os users com dados Guru
  * GET /guru/sync/users
  */
-export const listUsersWithGuru = async (req: Request, res: Response) => {
+export const listUsersWithGuru = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
       page = 1,
@@ -308,11 +293,7 @@ export const listUsersWithGuru = async (req: Request, res: Response) => {
       }
     })
 
-  } catch (error: any) {
-    console.error('❌ [GURU SYNC] Erro ao listar users:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return next(internalError('Erro ao listar utilizadores Guru', 'GURU_SYNC_USERS_FAILED', error))
   }
 }
