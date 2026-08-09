@@ -206,15 +206,26 @@ function parseFmp(env: NodeJS.ProcessEnv): IntegrationConfig<FmpIntegration> {
 
 function parseHotmart(env: NodeJS.ProcessEnv): IntegrationConfig<HotmartIntegration> {
   const credentialNames = ['HOTMART_CLIENT_ID', 'HOTMART_CLIENT_SECRET'] as const
-  const configuredNames = [...credentialNames, 'HOTMART_SUBDOMAIN'] as const
+  const configuredNames = [
+    ...credentialNames,
+    'HOTMART_SUBDOMAIN',
+    'COURSE_LESSON_SUBDOMAIN',
+    'COURSE_LESSON_SYNC_USER_ID',
+    'subdomain',
+  ] as const
   if (!hasAnyValue(env, configuredNames)) return { configured: false }
+
+  const subdomain =
+    readOptionalString(env, 'COURSE_LESSON_SUBDOMAIN')
+    || readOptionalString(env, 'HOTMART_SUBDOMAIN')
+    || readOptionalString(env, 'subdomain')
+  const syncUserId = readOptionalString(env, 'COURSE_LESSON_SYNC_USER_ID')
 
   const group = configuredCredentialGroup(env, credentialNames, (values) => ({
     clientId: values.HOTMART_CLIENT_ID,
     clientSecret: values.HOTMART_CLIENT_SECRET,
-    ...(readOptionalString(env, 'HOTMART_SUBDOMAIN')
-      ? { subdomain: readOptionalString(env, 'HOTMART_SUBDOMAIN') }
-      : {}),
+    ...(subdomain ? { subdomain } : {}),
+    ...(syncUserId ? { syncUserId } : {}),
   }))
 
   if (!group.configured) {

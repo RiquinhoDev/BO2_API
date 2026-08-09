@@ -53,6 +53,7 @@ export interface HotmartIntegration {
   readonly clientId: string
   readonly clientSecret: string
   readonly subdomain?: string
+  readonly syncUserId?: string
 }
 
 export interface CurseducaIntegration {
