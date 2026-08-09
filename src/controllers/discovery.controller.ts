@@ -3,12 +3,10 @@
  */
 
 import { NextFunction, Request, Response } from 'express';
-import Product from '../models/product/Product';
-import ProductProfile from '../models/product/ProductProfile';
-import Course from '../models/Course';
 
 import hotmartDiscoveryService from '../services/discovery/hotmartDiscovery.service';
 import intelligentDefaultsService from '../services/discovery/intelligentDefaults.service';
+import { configureDiscoveredProduct } from '../services/discovery/configureDiscoveredProduct.service';
 import { validateConfigurationData } from '../types/discovery.types';
 import { internalError } from '../security/errorHandling';
 
@@ -95,22 +93,18 @@ export const configureProduct = async (req: Request, res: Response, next: NextFu
       return;
     }
 
-    // Verificar se código já existe
-    const existingProduct = await Product.findOne({ 
-      code: configData.productData.code.toUpperCase() 
-    });
-    
-    if (existingProduct) {
+    // Criação atómica: verificação + course + Product + ProductProfile numa transação.
+    const result = await configureDiscoveredProduct(configData);
+
+    if (result.status === 'duplicate_code') {
       res.status(409).json({
         success: false,
-        error: `Produto com código "${configData.productData.code}" já existe`
+        error: `Produto com código "${result.code}" já existe`
       });
       return;
     }
 
-    // Buscar course padrão
-    const course = await Course.findOne({ isActive: true });
-    if (!course) {
+    if (result.status === 'no_active_course') {
       res.status(404).json({
         success: false,
         error: 'Nenhum course ativo encontrado'
@@ -118,35 +112,12 @@ export const configureProduct = async (req: Request, res: Response, next: NextFu
       return;
     }
 
-    // Criar Product
-    const product = await Product.create({
-      ...configData.productData,
-      code: configData.productData.code.toUpperCase(),
-      courseId: course._id,
-      activeCampaignConfig: {
-        ...configData.activeCampaignConfig,
-        tagPrefix: configData.activeCampaignConfig?.tagPrefix
-          || configData.productData.code.toUpperCase(),
-        listId: configData.activeCampaignConfig?.listId
-          || course.activeCampaignConfig?.listId
-          || '1'
-      },
-      launchDate: new Date()
-    });
-
-    // Criar ProductProfile
-    const productProfile = await ProductProfile.create({
-      ...configData.profileData,
-      createdAt: new Date(),
-      lastModified: new Date()
-    });
-
-    console.log(`✅ Produto "${product.name}" configurado com sucesso`);
+    console.log(`✅ Produto "${result.product.name}" configurado com sucesso`);
 
     res.status(201).json({
       success: true,
-      message: `Produto "${product.name}" configurado com sucesso`,
-      data: { product, productProfile }
+      message: `Produto "${result.product.name}" configurado com sucesso`,
+      data: { product: result.product, productProfile: result.productProfile }
     });
 
   } catch (error: unknown) {

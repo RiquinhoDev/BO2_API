@@ -28,6 +28,16 @@ jest.mock('../../src/models/Course', () => ({
   __esModule: true,
   default: { findOne: jest.fn() },
 }))
+// The configure use case runs inside a Mongoose transaction; this unit test has
+// no DB, so the session runs the callback inline (rollback itself is proven in
+// the MongoMemoryReplSet integration test).
+jest.mock('mongoose', () => {
+  const startSession = jest.fn(async () => ({
+    withTransaction: (fn: () => Promise<unknown>) => fn(),
+    endSession: jest.fn(),
+  }))
+  return { __esModule: true, default: { startSession }, startSession }
+})
 
 import discoveryRouter from '../../src/routes/discovery.routes'
 
@@ -65,8 +75,8 @@ beforeEach(() => {
   generate.mockReturnValue({ code: 'OGI' })
   findProduct.mockResolvedValue(null)
   findCourse.mockResolvedValue({ _id: 'course-1', activeCampaignConfig: { listId: '7' } })
-  createProduct.mockResolvedValue({ _id: 'product-1', name: 'OGI' })
-  createProfile.mockResolvedValue({ _id: 'profile-1' })
+  createProduct.mockResolvedValue([{ _id: 'product-1', name: 'OGI' }])
+  createProfile.mockResolvedValue([{ _id: 'profile-1' }])
 })
 afterEach(() => jest.restoreAllMocks())
 

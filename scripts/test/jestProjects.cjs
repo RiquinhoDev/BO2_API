@@ -34,6 +34,7 @@ const INTEGRATION_TEST_FILES = Object.freeze([
   'tests/security/f1OfflineGuard.test.ts',
   'tests/security/mongoMemoryOffline.test.ts',
   'tests/services/clareza/carteiraStore.test.ts',
+  'tests/services/discovery/configureDiscoveredProduct.service.test.ts',
   'tests/services/syncUtilizadores/universalSyncCurseduca.characterization.test.ts',
   'tests/services/syncUtilizadores/universalSyncHotmart.characterization.test.ts',
   'tests/services/syncUtilizadores/universalSyncShared.characterization.test.ts',
