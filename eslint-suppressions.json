@@ -129,10 +129,10 @@
   },
   "src/controllers/guru.sso.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 4
+      "count": 1
     },
     "no-console": {
-      "count": 12
+      "count": 8
     }
   },
   "src/controllers/guru.sync.controller.ts": {

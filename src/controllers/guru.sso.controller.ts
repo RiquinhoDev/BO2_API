@@ -1,5 +1,6 @@
 // src/controllers/guru.sso.controller.ts - Controller para SSO MyOrders da Guru
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
+import { internalError } from '../security/errorHandling'
 import axios from 'axios'
 import User from '../models/user'
 import { GURU_SSO_ALLOWED_STATUSES } from '../types/guru.types'
@@ -28,7 +29,7 @@ const GURU_API_BASE = 'https://digitalmanager.guru/api/v2'
  * 4. Chamar API Guru para gerar SSO
  * 5. Redirecionar (302) para URL retornada
  */
-export const ssoMyOrders = async (req: Request, res: Response) => {
+export const ssoMyOrders = async (req: Request, res: Response, next: NextFunction) => {
   const startTime = Date.now()
 
   try {
@@ -110,11 +111,7 @@ export const ssoMyOrders = async (req: Request, res: Response) => {
     const ssoUrl = ssoResponse.data?.redirect_url || ssoResponse.data?.url
 
     if (!ssoUrl) {
-      console.error('❌ [GURU SSO] URL não retornada pela API:', ssoResponse.data)
-      return res.status(500).json({
-        success: false,
-        message: 'Erro ao gerar link SSO'
-      })
+      return next(internalError('Erro ao gerar link SSO', 'GURU_SSO_LINK_FAILED', ssoResponse.data))
     }
 
     console.log(`✅ [GURU SSO] URL obtida: ${ssoUrl}`)
@@ -127,36 +124,32 @@ export const ssoMyOrders = async (req: Request, res: Response) => {
 
     return res.redirect(302, ssoUrl)
 
-  } catch (error: any) {
-    const duration = Date.now() - startTime
-    console.error(`❌ [GURU SSO] Erro (${duration}ms):`, error.response?.data || error.message)
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 404) {
+        return res.status(404).json({
+          success: false,
+          message: 'Email não encontrado na plataforma Guru'
+        })
+      }
 
-    // Tratar erros específicos da API Guru
-    if (error.response?.status === 404) {
-      return res.status(404).json({
-        success: false,
-        message: 'Email não encontrado na plataforma Guru'
-      })
+      if (error.response?.status === 401) {
+        return next(internalError(
+          'Erro de autenticação com a plataforma Guru',
+          'GURU_SSO_AUTH_FAILED',
+          error,
+        ))
+      }
+
+      if (error.code === 'ECONNABORTED') {
+        return res.status(504).json({
+          success: false,
+          message: 'Timeout na comunicação com a plataforma Guru'
+        })
+      }
     }
 
-    if (error.response?.status === 401) {
-      return res.status(500).json({
-        success: false,
-        message: 'Erro de autenticação com a plataforma Guru'
-      })
-    }
-
-    if (error.code === 'ECONNABORTED') {
-      return res.status(504).json({
-        success: false,
-        message: 'Timeout na comunicação com a plataforma Guru'
-      })
-    }
-
-    return res.status(500).json({
-      success: false,
-      message: 'Erro ao processar SSO'
-    })
+    return next(internalError('Erro ao processar SSO', 'GURU_SSO_FAILED', error))
   }
 }
 
@@ -168,7 +161,7 @@ export const ssoMyOrders = async (req: Request, res: Response) => {
  * Verificar status de subscrição de um email
  * GET /guru/status?email=xxx
  */
-export const getSubscriptionStatus = async (req: Request, res: Response) => {
+export const getSubscriptionStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email } = req.query
 
@@ -218,12 +211,12 @@ export const getSubscriptionStatus = async (req: Request, res: Response) => {
       canAccessSSO: GURU_SSO_ALLOWED_STATUSES.includes(user.guru.status)
     })
 
-  } catch (error: any) {
-    console.error('❌ [GURU] Erro ao verificar status:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return next(internalError(
+      'Erro ao verificar subscrição Guru',
+      'GURU_SUBSCRIPTION_STATUS_FAILED',
+      error,
+    ))
   }
 }
 
@@ -243,7 +236,7 @@ export const getSubscriptionStatus = async (req: Request, res: Response) => {
  * Endpoint de diagnóstico para debugging
  * GET /admin/guru/subscription?email=xxx
  */
-export const diagnosSubscription = async (req: Request, res: Response) => {
+export const diagnosSubscription = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email } = req.query
 
@@ -298,11 +291,11 @@ export const diagnosSubscription = async (req: Request, res: Response) => {
       }
     })
 
-  } catch (error: any) {
-    console.error('❌ [GURU] Erro no diagnóstico:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return next(internalError(
+      'Erro ao diagnosticar subscrição Guru',
+      'GURU_SUBSCRIPTION_DIAGNOSIS_FAILED',
+      error,
+    ))
   }
 }
