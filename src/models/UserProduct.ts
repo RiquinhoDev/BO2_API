@@ -132,6 +132,14 @@ export interface IUserProduct extends Document {
     inactivatedAt?: Date
     inactivatedBy?: string
     inactivatedReason?: string
+    quarantinedAt?: Date
+    quarantineReason?: string
+    revertedAt?: Date
+    revertedBy?: string
+    restoredAt?: Date
+    restoredReason?: string
+    fixedToActiveAt?: Date
+    fixedToActiveReason?: string
   }
 
   platformData?: Record<string, unknown>
@@ -373,7 +381,15 @@ const UserProductSchema = new Schema<IUserProduct>({
     markedForInactivationReason: String,
     inactivatedAt: Date,
     inactivatedBy: String,
-    inactivatedReason: String
+    inactivatedReason: String,
+    quarantinedAt: Date,
+    quarantineReason: String,
+    revertedAt: Date,
+    revertedBy: String,
+    restoredAt: Date,
+    restoredReason: String,
+    fixedToActiveAt: Date,
+    fixedToActiveReason: String
   },
 
   platformData: Schema.Types.Mixed
