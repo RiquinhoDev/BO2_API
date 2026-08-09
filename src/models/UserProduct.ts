@@ -140,6 +140,9 @@ export interface IUserProduct extends Document {
     restoredReason?: string
     fixedToActiveAt?: Date
     fixedToActiveReason?: string
+    curseducaResponse?: unknown
+    inactivationError?: string
+    inactivationAttemptAt?: Date
   }
 
   platformData?: Record<string, unknown>
@@ -389,7 +392,10 @@ const UserProductSchema = new Schema<IUserProduct>({
     restoredAt: Date,
     restoredReason: String,
     fixedToActiveAt: Date,
-    fixedToActiveReason: String
+    fixedToActiveReason: String,
+    curseducaResponse: Schema.Types.Mixed,
+    inactivationError: String,
+    inactivationAttemptAt: Date
   },
 
   platformData: Schema.Types.Mixed

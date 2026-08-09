@@ -8,30 +8,16 @@ import {
   GURU_ACTIVE_STATUSES,
   getEffectiveStatus,
   lookupCurseducaUserIdByEmail,
-  verifyCurseducaMemberStatus,
-  type GuruDateInfo
 } from '../services/guru/guru.constants'
 import { isCurseducaEnrollmentActive } from '../services/syncUtilizadoresServices/curseducaServices/curseducaMemberships'
 import { fetchContactByEmail, fetchContactSubscriptions } from '../services/guru/guruSync.service'
 import { getOptionalCurseducaRuntimeSettings } from '../services/requestDrivenRuntimeConfig'
-import type {
-  GuruInactivationBulkInput,
-  GuruInactivationSingleInput,
-} from '../security/guruDestructiveInput'
 
 type PopulatedUser = Pick<IUser, '_id' | 'email' | 'name' | 'guru' | 'curseduca'>
 type InactivationUserProduct = Pick<
   IUserProduct,
   '_id' | 'userId' | 'status' | 'platformUserId' | 'classes' | 'metadata'
 >
-
-interface BulkInactivationDetail {
-  userProductId: IUserProduct['_id']
-  email?: string
-  memberId?: string | number
-  success: boolean
-  error?: string
-}
 
 interface MarkedInactivationDetail {
   email: string
@@ -107,291 +93,6 @@ function axiosErrorDetails(error: unknown): {
   return { message: errorMessage(error) }
 }
 
-// ═══════════════════════════════════════════════════════════
-// INATIVAR UM ÚNICO USER
-// ═══════════════════════════════════════════════════════════
-
-/**
- * Inativar um único membro no CursEduca
- * POST /guru/inactivation/single
- * Body: { userProductId: string } ou { curseducaUserId: string }
- */
-export const inactivateSingle = async (input: GuruInactivationSingleInput, res: Response) => {
-  try {
-    const { userProductId, curseducaUserId } = input.body
-
-    if (!userProductId && !curseducaUserId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Deve fornecer userProductId ou curseducaUserId'
-      })
-    }
-
-    // Buscar UserProduct
-    let userProduct
-    if (userProductId) {
-      userProduct = await UserProduct.findById(userProductId)
-        .populate<{ userId: PopulatedUser }>('userId', 'email name curseduca')
-    } else {
-      userProduct = await UserProduct.findOne({
-        platform: 'curseduca',
-        platformUserId: curseducaUserId
-      }).populate<{ userId: PopulatedUser }>('userId', 'email name curseduca')
-    }
-
-    if (!userProduct) {
-      return res.status(404).json({
-        success: false,
-        message: 'UserProduct não encontrado'
-      })
-    }
-
-    const user = userProduct.userId
-    const memberId = userProduct.platformUserId || user?.curseduca?.curseducaUserId
-
-    if (!memberId) {
-      return res.status(400).json({
-        success: false,
-        message: 'curseducaUserId não encontrado para este user'
-      })
-    }
-
-    console.log(`🔴 [INATIVAÇÃO] Inativando membro ${memberId} (${user?.email})...`)
-
-    // Chamar API CursEduca
-    const result = await callCurseducaInactivate(memberId)
-
-    if (result.success) {
-      // Atualizar status do UserProduct
-      await UserProduct.findByIdAndUpdate(userProduct._id, {
-        $set: {
-          status: 'INACTIVE',
-          'metadata.inactivatedAt': new Date(),
-          'metadata.inactivatedBy': 'guru_integration',
-          'metadata.curseducaResponse': result.response
-        }
-      })
-
-      // Também atualizar user.curseduca se existir
-      if (user?.curseduca) {
-        await User.findByIdAndUpdate(user._id, {
-          $set: {
-            'curseduca.memberStatus': 'INACTIVE',
-            'curseduca.inactivatedAt': new Date()
-          }
-        })
-      }
-
-      console.log(`✅ [INATIVAÇÃO] Membro ${memberId} inativado com sucesso`)
-
-      return res.json({
-        success: true,
-        message: 'Membro inativado com sucesso',
-        memberId,
-        email: user?.email
-      })
-    } else {
-      console.error(`❌ [INATIVAÇÃO] Falha ao inativar ${memberId}:`, result.error)
-
-      // Guardar erro no metadata
-      await UserProduct.findByIdAndUpdate(userProduct._id, {
-        $set: {
-          'metadata.inactivationError': result.error,
-          'metadata.inactivationAttemptAt': new Date()
-        }
-      })
-
-      return res.status(500).json({
-        success: false,
-        message: 'Erro ao inativar no CursEduca',
-        error: result.error
-      })
-    }
-
-  } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('❌ [INATIVAÇÃO] Erro:', message)
-    return res.status(500).json({
-      success: false,
-      message
-    })
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// INATIVAR EM BLOCO
-// ═══════════════════════════════════════════════════════════
-
-/**
- * Inativar múltiplos membros no CursEduca
- * POST /guru/inactivation/bulk
- * Body: { userProductIds: string[] } ou { all: true }
- */
-export const inactivateBulk = async (input: GuruInactivationBulkInput, res: Response) => {
-  try {
-    const { userProductIds, all } = input.body
-
-    let userProducts
-    if (all === true) {
-      // Buscar todos os PARA_INATIVAR
-      userProducts = await UserProduct.find({
-        platform: 'curseduca',
-        status: 'PARA_INATIVAR'
-      }).populate<{ userId: PopulatedUser }>('userId', 'email name curseduca')
-    } else if (userProductIds && Array.isArray(userProductIds)) {
-      userProducts = await UserProduct.find({
-        _id: { $in: userProductIds }
-      }).populate<{ userId: PopulatedUser }>('userId', 'email name curseduca')
-    } else {
-      return res.status(400).json({
-        success: false,
-        message: 'Deve fornecer userProductIds ou all=true'
-      })
-    }
-
-    if (userProducts.length === 0) {
-      return res.json({
-        success: true,
-        message: 'Nenhum user para inativar',
-        processed: 0,
-        succeeded: 0,
-        failed: 0
-      })
-    }
-
-    // Deduplicar por platformUserId — mesmo membro com múltiplos UserProducts
-    // só processa 1 chamada ao CursEduca, marca todos os outros como INACTIVE direto
-    const seenMemberIds = new Set<string>()
-    const uniqueUserProducts: typeof userProducts = []
-    const dupUserProductIds: string[] = []
-
-    for (const up of userProducts) {
-      const user = up.userId
-      const memberId = up.platformUserId || user?.curseduca?.curseducaUserId
-      if (!memberId || !seenMemberIds.has(String(memberId))) {
-        if (memberId) seenMemberIds.add(String(memberId))
-        uniqueUserProducts.push(up)
-      } else {
-        dupUserProductIds.push(String(up._id))
-      }
-    }
-
-    // Marcar duplicados como INACTIVE sem chamar CursEduca
-    if (dupUserProductIds.length > 0) {
-      await UserProduct.updateMany(
-        { _id: { $in: dupUserProductIds } },
-        { $set: { status: 'INACTIVE', 'metadata.inactivatedAt': new Date(), 'metadata.inactivatedBy': 'bulk_dedup' } }
-      )
-      console.log(`♻️  [INATIVAÇÃO BULK] ${dupUserProductIds.length} duplicados marcados INACTIVE sem chamar CursEduca`)
-    }
-
-    console.log(`🔴 [INATIVAÇÃO BULK] Iniciando inativação de ${uniqueUserProducts.length} membros únicos (${userProducts.length} total, ${dupUserProductIds.length} dedup)...`)
-
-    const results: {
-      processed: number
-      succeeded: number
-      failed: number
-      details: BulkInactivationDetail[]
-    } = {
-      processed: 0,
-      succeeded: 0,
-      failed: 0,
-      details: []
-    }
-
-    // Processar um a um (com delay para não sobrecarregar a API)
-    for (const userProduct of uniqueUserProducts) {
-      const user = userProduct.userId
-      const memberId = userProduct.platformUserId || user?.curseduca?.curseducaUserId
-
-      results.processed++
-
-      if (!memberId) {
-        results.failed++
-        results.details.push({
-          userProductId: userProduct._id,
-          email: user?.email,
-          success: false,
-          error: 'curseducaUserId não encontrado'
-        })
-        continue
-      }
-
-      try {
-        const result = await callCurseducaInactivate(memberId)
-
-        if (result.success) {
-          // Atualizar status
-          await UserProduct.findByIdAndUpdate(userProduct._id, {
-            $set: {
-              status: 'INACTIVE',
-              'metadata.inactivatedAt': new Date(),
-              'metadata.inactivatedBy': 'guru_integration_bulk'
-            }
-          })
-
-          if (user?.curseduca) {
-            await User.findByIdAndUpdate(user._id, {
-              $set: {
-                'curseduca.memberStatus': 'INACTIVE',
-                'curseduca.inactivatedAt': new Date()
-              }
-            })
-          }
-
-          results.succeeded++
-          results.details.push({
-            userProductId: userProduct._id,
-            email: user?.email,
-            memberId,
-            success: true
-          })
-
-          console.log(`  ✅ ${results.processed}/${userProducts.length} - ${user?.email}`)
-        } else {
-          results.failed++
-          results.details.push({
-            userProductId: userProduct._id,
-            email: user?.email,
-            memberId,
-            success: false,
-            error: result.error
-          })
-
-          console.log(`  ❌ ${results.processed}/${userProducts.length} - ${user?.email}: ${result.error}`)
-        }
-
-        // Delay entre chamadas (500ms)
-        await new Promise(resolve => setTimeout(resolve, 500))
-
-      } catch (err: unknown) {
-        results.failed++
-        results.details.push({
-          userProductId: userProduct._id,
-          email: user?.email,
-          success: false,
-          error: errorMessage(err)
-        })
-      }
-    }
-
-    console.log(`🔴 [INATIVAÇÃO BULK] Concluído: ${results.succeeded} sucesso, ${results.failed} falhas, ${dupUserProductIds.length} dedup`)
-
-    return res.json({
-      success: true,
-      message: `Processados ${results.processed} membros`,
-      ...results
-    })
-
-  } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('❌ [INATIVAÇÃO BULK] Erro:', message)
-    return res.status(500).json({
-      success: false,
-      message
-    })
-  }
-}
 
 
 // ═══════════════════════════════════════════════════════════
@@ -604,7 +305,6 @@ export const markDiscrepanciesForInactivation = async (req: Request, res: Respon
       console.log(`   ✅ Marcado: ${user.email}`)
     }
 
-    const noUserProduct = skipped
 
     console.log(`\n🔴 [INATIVAÇÃO] Resultado:`)
     console.log(`   - Marcados: ${marked}`)
@@ -937,58 +637,6 @@ export const diagnoseUsers = async (req: Request, res: Response) => {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// FUNÇÃO AUXILIAR: CHAMAR API CURSEDUCA
-// ═══════════════════════════════════════════════════════════
-
-async function callCurseducaInactivate(memberId: string | number): Promise<{ success: boolean; response?: unknown; error?: string }> {
-  try {
-    const settings = getOptionalCurseducaRuntimeSettings()
-    if (!settings) {
-      return { success: false, error: 'Credenciais CursEduca não configuradas (API_KEY ou ACCESS_TOKEN)' }
-    }
-
-    console.log(`   📡 [CursEduca API] PATCH /inactivate-member - member.id: ${memberId}`)
-
-    const response = await axios.patch(
-      `${settings.apiUrl}/inactivate-member`,
-      {
-        member: {
-          id: Number(memberId)
-        }
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.accessToken}`,
-          'api_key': settings.apiKey
-        },
-        timeout: 10000
-      }
-    )
-
-    console.log(`   ✅ [CursEduca API] Resposta:`, response.status, response.data)
-
-    return {
-      success: true,
-      response: response.data
-    }
-
-  } catch (error: unknown) {
-    const details = axiosErrorDetails(error)
-    const responseData = details.data
-    const message = typeof responseData === 'object' && responseData !== null && 'message' in responseData
-      ? String(responseData.message)
-      : typeof responseData === 'object' && responseData !== null && 'error' in responseData
-        ? String(responseData.error)
-        : details.message
-    console.error(`   ❌ [CursEduca API] Erro:`, details.status, message)
-    return {
-      success: false,
-      error: message
-    }
-  }
-}
 export {
   getInactivationStats,
   listInactivated,
@@ -1003,3 +651,5 @@ export {
   restoreUserProducts,
   revertInactivationMark,
 } from './guruInactivationMutation.controller'
+
+export { inactivateBulk, inactivateSingle } from './guruInactivationExternal.controller'
