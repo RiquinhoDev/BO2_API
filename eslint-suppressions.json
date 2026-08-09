@@ -688,7 +688,7 @@
       "count": 1
     },
     "no-console": {
-      "count": 21
+      "count": 17
     }
   },
   "src/services/activeCampaign/contactTagReader.service.ts": {
