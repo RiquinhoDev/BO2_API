@@ -84,13 +84,13 @@
   },
   "src/controllers/dashboardQuick.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 6
+      "count": 3
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
     "no-console": {
-      "count": 9
+      "count": 6
     }
   },
   "src/controllers/discovery.controller.ts": {
