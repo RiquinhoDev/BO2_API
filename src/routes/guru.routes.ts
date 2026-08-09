@@ -1,5 +1,6 @@
 // src/routes/guru.routes.ts - Routes para integração Guru
-import { Router, RequestHandler } from 'express'
+import { asyncRoute } from '../security/asyncRoute'
+import { Router } from 'express'
 import { localDebugOnly } from '../security/debugRoutes'
 import { withValidatedInput } from '../security/validatedInput'
 import {
@@ -74,15 +75,6 @@ import {
 } from '../controllers/guru.trials.controller'
 
 const router = Router()
-
-// ═══════════════════════════════════════════════════════════
-// HELPER: Wrapper para async controllers
-// ═══════════════════════════════════════════════════════════
-const asyncRoute = (fn: any): RequestHandler => {
-  return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next)
-  }
-}
 
 // ═══════════════════════════════════════════════════════════
 // WEBHOOKS

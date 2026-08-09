@@ -634,22 +634,12 @@
   },
   "src/routes/discordRenewal.routes.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 2
+      "count": 1
     }
   },
   "src/routes/events.routes.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 13
-    }
-  },
-  "src/routes/guru.routes.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/routes/hotmart.routes.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "src/routes/products.routes.ts": {
@@ -659,7 +649,7 @@
   },
   "src/routes/renewalAc.routes.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 2
+      "count": 1
     }
   },
   "src/routes/users.routes.ts": {
