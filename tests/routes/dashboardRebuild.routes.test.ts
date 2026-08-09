@@ -1,5 +1,6 @@
 import express from 'express'
 import request from 'supertest'
+import { createErrorHandling } from '../../src/security/errorHandling'
 
 const mockRebuildDashboardStats = jest.fn()
 
@@ -27,7 +28,13 @@ import dashboardRouter from '../../src/routes/dashboardRoutes'
 
 function buildApp() {
   const app = express()
+  const errors = createErrorHandling({
+    generateCorrelationId: () => 'dashboard-rebuild-correlation-id',
+    logError: () => undefined,
+  })
+  app.use(errors.correlationId)
   app.use('/dashboard', dashboardRouter)
+  app.use(errors.handler)
   return app
 }
 
@@ -66,8 +73,11 @@ describe('POST /dashboard/stats/v3/rebuild', () => {
 
     expect(response.body).toEqual({
       success: false,
-      error: 'rebuild failed',
+      code: 'DASHBOARD_REBUILD_FAILED',
+      message: 'Erro ao reconstruir estatisticas do dashboard',
+      correlationId: 'dashboard-rebuild-correlation-id',
     })
+    expect(response.text).not.toContain('rebuild failed')
   })
 
   it('does not expose an arbitrary rejection value', async () => {
@@ -80,7 +90,10 @@ describe('POST /dashboard/stats/v3/rebuild', () => {
 
     expect(response.body).toEqual({
       success: false,
-      error: 'Erro desconhecido',
+      code: 'DASHBOARD_REBUILD_FAILED',
+      message: 'Erro ao reconstruir estatisticas do dashboard',
+      correlationId: 'dashboard-rebuild-correlation-id',
     })
+    expect(response.text).not.toContain('super-secret')
   })
 })

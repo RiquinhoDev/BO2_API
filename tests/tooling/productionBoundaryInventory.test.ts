@@ -124,9 +124,6 @@ const BASELINE = {
     "src/controllers/dashboard.controller.ts:374",
     "src/controllers/dashboard.controller.ts:401",
     "src/controllers/dashboard.controller.ts:494",
-    "src/controllers/dashboardQuick.controller.ts:143",
-    "src/controllers/dashboardQuick.controller.ts:217",
-    "src/controllers/dashboardQuick.controller.ts:310",
     "src/controllers/discovery.controller.ts:163",
     "src/controllers/discovery.controller.ts:49",
     "src/controllers/discovery.controller.ts:83",
@@ -338,7 +335,6 @@ const BASELINE = {
     "src/routes/achievements.routes.ts:164",
     "src/routes/achievements.routes.ts:47",
     "src/routes/achievements.routes.ts:71",
-    "src/routes/dashboardRoutes.ts:82",
     "src/routes/events.routes.ts:120",
     "src/routes/events.routes.ts:137",
     "src/routes/events.routes.ts:150",
@@ -400,7 +396,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 329,
+  "localHttp500": 325,
   "publicErrorDetail": 33
 } as const
 

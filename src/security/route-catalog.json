@@ -1392,7 +1392,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:56"
+    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:57"
   },
   {
     "method": "GET",
@@ -1401,7 +1401,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:47"
+    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:48"
   },
   {
     "method": "GET",
@@ -1410,7 +1410,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:38"
+    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:39"
   },
   {
     "method": "GET",
@@ -1419,7 +1419,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/components/dashboard/EngagementHeatmap.tsx>; rota em src/routes/dashboardRoutes.ts:113"
+    "evidence": "chamada do Front em <src/components/dashboard/EngagementHeatmap.tsx>; rota em src/routes/dashboardRoutes.ts:115"
   },
   {
     "method": "GET",
@@ -1428,7 +1428,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/components/dashboard/ProductComparison.tsx>; rota em src/routes/dashboardRoutes.ts:107"
+    "evidence": "chamada do Front em <src/components/dashboard/ProductComparison.tsx>; rota em src/routes/dashboardRoutes.ts:109"
   },
   {
     "method": "GET",
@@ -1437,7 +1437,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/dashboard/DashboardMainPage.tsx>; rota em src/routes/dashboardRoutes.ts:119"
+    "evidence": "chamada do Front em <src/pages/dashboard/DashboardMainPage.tsx>; rota em src/routes/dashboardRoutes.ts:121"
   },
   {
     "method": "GET",
@@ -1446,7 +1446,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:97"
+    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:99"
   },
   {
     "method": "GET",
@@ -1455,7 +1455,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:22"
+    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:23"
   },
   {
     "method": "GET",
@@ -1464,7 +1464,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/dashboard/DashboardMainPage.tsx>, <src/services/api.ts>; rota em src/routes/dashboardRoutes.ts:67"
+    "evidence": "chamada do Front em <src/pages/dashboard/DashboardMainPage.tsx>, <src/services/api.ts>; rota em src/routes/dashboardRoutes.ts:68"
   },
   {
     "method": "POST",
@@ -1473,7 +1473,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/dashboardRoutes.ts:73"
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/dashboardRoutes.ts:74"
   },
   {
     "method": "POST",

@@ -1,4 +1,5 @@
 import express from 'express';
+import { internalError } from '../security/errorHandling';
 // ✅ DASHBOARD V2 CONTROLLERS - Consolidado + Sprint 1 & 2
 import {
   getDashboardStats,
@@ -70,7 +71,7 @@ router.get('/stats/v3', getDashboardStatsV3);
  * POST /api/dashboard/stats/v3/rebuild
  * Rebuild manual dos Dashboard Stats (útil para debug)
  */
-router.post('/stats/v3/rebuild', async (req, res) => {
+router.post('/stats/v3/rebuild', async (req, res, next) => {
   try {
     console.log('🔨 [MANUAL] Iniciando rebuild de Dashboard Stats...');
     await rebuildDashboardStatsManual();
@@ -79,10 +80,11 @@ router.post('/stats/v3/rebuild', async (req, res) => {
       message: 'Dashboard Stats reconstruídos com sucesso.'
     });
   } catch (error: unknown) {
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Erro desconhecido'
-    });
+    next(internalError(
+      'Erro ao reconstruir estatisticas do dashboard',
+      'DASHBOARD_REBUILD_FAILED',
+      error,
+    ));
   }
 });
 
