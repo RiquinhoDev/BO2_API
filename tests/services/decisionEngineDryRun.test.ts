@@ -46,10 +46,11 @@ jest.mock('../../src/models/UserAction', () => ({
   },
 }))
 
-jest.mock('../../src/models', () => ({
-  Course: {
+jest.mock('../../src/models/Course', () => ({
+  __esModule: true,
+  default: {
     findOne: mockFindCourse,
-  },
+  }
 }))
 
 jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
