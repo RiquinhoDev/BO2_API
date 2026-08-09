@@ -268,11 +268,8 @@
     }
   },
   "src/controllers/syncUtilizadoresControllers/hotmart.controller.ts": {
-    "@typescript-eslint/no-require-imports": {
-      "count": 2
-    },
     "no-console": {
-      "count": 31
+      "count": 16
     }
   },
   "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts": {
