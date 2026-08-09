@@ -68,11 +68,6 @@
       "count": 8
     }
   },
-  "src/controllers/courseLessons.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
   "src/controllers/dashboard.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 15
