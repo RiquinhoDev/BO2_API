@@ -27,6 +27,14 @@ export class HttpError extends Error {
   }
 }
 
+export function internalError(
+  publicMessage: string,
+  code: string,
+  cause: unknown,
+): HttpError {
+  return new HttpError({ status: 500, code, publicMessage, cause })
+}
+
 export interface ErrorLogEvent {
   correlationId: string
   code: string

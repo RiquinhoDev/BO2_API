@@ -7,7 +7,8 @@
 // os switches DISCORD_* ligados (verificados em runtime no serviço).
 // ════════════════════════════════════════════════════════════
 
-import { Router, type Request, type RequestHandler, type Response } from 'express'
+import { asyncRoute } from '../security/asyncRoute'
+import { Router, type Request, type Response } from 'express'
 import { DiscordMessageLog, DiscordMessageTemplate, DiscordRoleChange } from '../models/discordRenewal'
 import CronJobConfig from '../models/SyncModels/CronJobConfig'
 import {
@@ -28,12 +29,6 @@ import {
 } from '../services/renewal/discordRolesSync.service'
 
 const router = Router()
-
-const asyncRoute = (fn: any): RequestHandler => {
-  return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next)
-  }
-}
 
 function actor(req: Pick<Request, 'user'>, validatedActor?: string): string {
   return req.user?.email || validatedActor || 'backoffice'
