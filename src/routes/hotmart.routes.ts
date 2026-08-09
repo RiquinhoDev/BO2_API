@@ -8,9 +8,9 @@ import {
   getHotmartStats
 } from '../controllers/hotmart/hotmartCatalog.controller'
 import { syncProgressOnly } from '../controllers/hotmart/hotmartProgress.controller'
+import { syncHotmartUsers } from '../controllers/hotmart/hotmartLegacySync.controller'
 import {
   // Legacy
-  syncHotmartUsers,
   findHotmartUser,
 
   // Universal Sync
