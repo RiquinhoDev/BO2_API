@@ -137,10 +137,10 @@
   },
   "src/controllers/guru.sync.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 11
+      "count": 6
     },
     "no-console": {
-      "count": 8
+      "count": 3
     }
   },
   "src/controllers/guru.trials.controller.ts": {
