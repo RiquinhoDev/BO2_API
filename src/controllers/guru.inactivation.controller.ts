@@ -116,96 +116,6 @@ function axiosErrorDetails(error: unknown): {
 }
 
 // ═══════════════════════════════════════════════════════════
-// LISTAR USERS PARA INATIVAR
-// ═══════════════════════════════════════════════════════════
-
-/**
- * Listar UserProducts marcados como PARA_INATIVAR
- * GET /guru/inactivation/pending
- *
- * IMPORTANTE: Filtra apenas users com Guru canceled/expired/refunded
- */
-export const listPendingInactivation = async (req: Request, res: Response) => {
-  try {
-    console.log('📋 [INATIVAÇÃO] Listando users para inativar...')
-
-    // Buscar UserProducts com status PARA_INATIVAR
-    // Deduplicar por platformUserId: se o mesmo CursEduca ID aparecer várias vezes,
-    // só mostrar 1 (o mais recente). Isto evita duplicados quando user mudou de plano.
-    const userProducts = await UserProduct.find({
-      platform: 'curseduca',
-      status: 'PARA_INATIVAR'
-    })
-      .populate<{ userId: PopulatedUser }>('userId', 'email name guru curseduca')
-      .sort({ 'metadata.markedForInactivationAt': -1 })
-      .lean()
-
-    console.log(`   📌 Total UserProducts PARA_INATIVAR: ${userProducts.length}`)
-
-    // Filtrar apenas os que têm Guru efetivamente cancelado (inclui pending stale)
-    const pendingList = userProducts
-      .filter(up => {
-        const user = up.userId
-        const guruStatus = user?.guru?.status
-
-        // Se não tem Guru status, manter (pode ser user só Clareza)
-        if (!guruStatus) return true
-
-        // Só inativar por cancelamento explícito — pending (stale) não conta
-        return GURU_CANCELED_STATUSES.includes(guruStatus)
-      })
-      .map(up => {
-        const user = up.userId
-        return {
-          userProductId: up._id,
-          userId: user?._id,
-          email: user?.email,
-          name: user?.name,
-          curseducaUserId: up.platformUserId || user?.curseduca?.curseducaUserId,
-          guruStatus: user?.guru?.status,
-          markedAt: up.metadata?.markedForInactivationAt,
-          reason: up.metadata?.markedForInactivationReason,
-          classes: up.classes?.map(c => ({
-            classId: c.classId,
-            className: c.className,
-            joinedAt: c.joinedAt
-          }))
-        }
-      })
-
-    // Deduplicar por curseducaUserId: mesmo membro com múltiplos UserProducts (mudança de plano)
-    // Manter apenas 1 registo por CursEduca ID (o mais recente = maior _id)
-    const seenCurseducaIds = new Set<string>()
-    const dedupedList = pendingList.filter(item => {
-      const cid = item.curseducaUserId
-      if (!cid) return true // sem ID → manter (será detetado como erro na inativação)
-      if (seenCurseducaIds.has(String(cid))) return false
-      seenCurseducaIds.add(String(cid))
-      return true
-    })
-
-    console.log(`📋 [INATIVAÇÃO] ${dedupedList.length} users únicos para inativar (${pendingList.length} antes de dedup, ${userProducts.length} total PARA_INATIVAR)`)
-
-    return res.json({
-      success: true,
-      count: dedupedList.length,
-      total: userProducts.length,
-      filtered: userProducts.length - pendingList.length,
-      deduplicated: pendingList.length - dedupedList.length,
-      pendingList: dedupedList
-    })
-
-  } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('❌ [INATIVAÇÃO] Erro ao listar:', message)
-    return res.status(500).json({
-      success: false,
-      message
-    })
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
 // INATIVAR UM ÚNICO USER
 // ═══════════════════════════════════════════════════════════
 
@@ -595,74 +505,6 @@ export const revertInactivationMark = async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message = errorMessage(error)
     console.error('❌ [INATIVAÇÃO] Erro ao reverter:', message)
-    return res.status(500).json({
-      success: false,
-      message
-    })
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// ESTATÍSTICAS DE INATIVAÇÃO
-// ═══════════════════════════════════════════════════════════
-
-/**
- * Obter estatísticas de inativação
- * GET /guru/inactivation/stats
- */
-export const getInactivationStats = async (req: Request, res: Response) => {
-  try {
-    const [
-      paraInativarUPs,
-      inativadosHoje,
-      totalInativados
-    ] = await Promise.all([
-      // Deduplicar por platformUserId (mesmo CursEduca ID = 1 inativação)
-      // Filtrar apenas com Guru efetivamente cancelado (mesma lógica do pending list)
-      UserProduct.find({ platform: 'curseduca', status: 'PARA_INATIVAR' })
-        .select('platformUserId userId')
-        .populate<{ userId: PopulatedUser }>('userId', 'email guru.status curseduca.curseducaUserId')
-        .lean(),
-      UserProduct.countDocuments({
-        platform: 'curseduca',
-        status: 'INACTIVE',
-        'metadata.inactivatedAt': {
-          $gte: new Date(new Date().setHours(0, 0, 0, 0))
-        }
-      }),
-      UserProduct.countDocuments({
-        platform: 'curseduca',
-        status: 'INACTIVE',
-        'metadata.inactivatedBy': { $regex: /^guru_integration/ }
-      })
-    ])
-
-    // Filtrar por Guru canceled e deduplicar por CursEduca ID
-    const filteredUPs = paraInativarUPs.filter(up => {
-      const guruStatus = up.userId?.guru?.status
-      if (!guruStatus) return true // sem Guru → manter
-      return GURU_CANCELED_STATUSES.includes(guruStatus)
-    })
-    const seenIds = new Set<string>()
-    for (const up of filteredUPs) {
-      const cid = up.platformUserId || up.userId?.curseduca?.curseducaUserId
-      if (cid) seenIds.add(String(cid))
-      else seenIds.add(String(up._id))
-    }
-
-    return res.json({
-      success: true,
-      stats: {
-        pendingInactivation: seenIds.size,
-        pendingInactivationTotal: paraInativarUPs.length,
-        inactivatedToday: inativadosHoje,
-        totalInactivatedByGuru: totalInativados
-      }
-    })
-
-  } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('❌ [INATIVAÇÃO] Erro nas estatísticas:', message)
     return res.status(500).json({
       success: false,
       message
@@ -1403,75 +1245,6 @@ export const fixUsersToActive = async (req: Request, res: Response) => {
 }
 
 // ═══════════════════════════════════════════════════════════
-// LISTAR USERS JÁ INATIVADOS (CONSULTA)
-// ═══════════════════════════════════════════════════════════
-
-/**
- * Listar UserProducts com status INACTIVE (já inativados)
- * GET /guru/inactivation/inactive
- * Query: ?page=1&limit=50&email=xxx
- */
-export const listInactivated = async (req: Request, res: Response) => {
-  try {
-    const page = Math.max(1, Number(req.query.page) || 1)
-    const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50))
-    const emailFilter = typeof req.query.email === 'string'
-      ? req.query.email.toLowerCase().trim()
-      : undefined
-
-    const userProducts = await UserProduct.find({
-      platform: 'curseduca',
-      status: 'INACTIVE'
-    })
-      .populate<{ userId: PopulatedUser }>('userId', 'email name guru curseduca')
-      .sort({ 'metadata.inactivatedAt': -1 })
-      .lean()
-
-    let list = userProducts
-      .filter(up => up.userId?.email)
-      .map(up => {
-        const user = up.userId
-        return {
-          userProductId: up._id,
-          email: user.email,
-          name: user.name,
-          curseducaUserId: up.platformUserId || user.curseduca?.curseducaUserId,
-          guruStatus: user.guru?.status || null,
-          curseducaStatus: user.curseduca?.memberStatus || null,
-          inactivatedAt: up.metadata?.inactivatedAt || null,
-          inactivatedBy: up.metadata?.inactivatedBy || null,
-          inactivatedReason: up.metadata?.inactivatedReason || null
-        }
-      })
-
-    // Filtro por email
-    if (emailFilter) {
-      list = list.filter(item =>
-        item.email?.toLowerCase().includes(emailFilter) ||
-        item.name?.toLowerCase().includes(emailFilter)
-      )
-    }
-
-    const total = list.length
-    const paginated = list.slice((page - 1) * limit, page * limit)
-
-    return res.json({
-      success: true,
-      total,
-      page,
-      limit,
-      pages: Math.ceil(total / limit),
-      inactivatedList: paginated
-    })
-
-  } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('❌ [INATIVAÇÃO] Erro ao listar inativados:', message)
-    return res.status(500).json({ success: false, message })
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
 // DIAGNÓSTICO DE USERS ESPECÍFICOS
 // ═══════════════════════════════════════════════════════════
 
@@ -1632,3 +1405,8 @@ async function callCurseducaInactivate(memberId: string | number): Promise<{ suc
     }
   }
 }
+export {
+  getInactivationStats,
+  listInactivated,
+  listPendingInactivation,
+} from './guruInactivationRead.controller'
