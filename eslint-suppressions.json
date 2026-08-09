@@ -12,7 +12,7 @@
       "count": 2
     },
     "no-console": {
-      "count": 60
+      "count": 46
     }
   },
   "src/controllers/acTags/tagRule.controller.ts": {

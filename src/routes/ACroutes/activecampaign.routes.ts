@@ -14,20 +14,19 @@ import {
   activeCampaignTagRuleDeleteInput,
 } from '../../security/activeCampaignDestructiveInput'
 import {
+  getClarezaStudents,
+  evaluateClarezaRules,
+  getOGIStudents,
+  evaluateOGIRules,
+} from '../../controllers/acTags/activeCampaignCourse.controller'
+
+import {
   // CRON
   testCron,
   getCronLogs,
 
   // Stats
   getStats,
-
-  // Courses: Clareza
-  getClarezaStudents,
-  evaluateClarezaRules,
-
-  // Courses: OGI
-  getOGIStudents,
-  evaluateOGIRules,
 
   // Tag Rules (CRUD)
   getAllTagRules,

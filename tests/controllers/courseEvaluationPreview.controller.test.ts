@@ -46,7 +46,7 @@ jest.mock('../../src/services/activeCampaign/decisionEngine.service', () => ({
 import {
   evaluateClarezaRules,
   evaluateOGIRules,
-} from '../../src/controllers/acTags/activecampaign.controller'
+} from '../../src/controllers/acTags/activeCampaignCourse.controller'
 
 const result = (
   userId: string,
@@ -73,14 +73,16 @@ describe.each([
     path: '/clareza/evaluate',
     handler: evaluateClarezaRules,
     course: { _id: 'course-clareza' },
+    lookup: { name: /^Clareza$/i },
   },
   {
     name: 'OGI',
     path: '/ogi/evaluate',
     handler: evaluateOGIRules,
     course: { _id: 'course-ogi' },
+    lookup: { code: /^OGI$/i },
   },
-])('$name course evaluation preview', ({ path, handler, course }) => {
+])('$name course evaluation preview', ({ path, handler, course, lookup }) => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockFindCourse.mockResolvedValue(course)
@@ -116,11 +118,90 @@ describe.each([
       proposedRemovals: 3,
       errors: 1,
     })
+    expect(mockFindCourse).toHaveBeenCalledWith(lookup)
     expect(mockFindProducts).toHaveBeenCalledWith({
       courseId: course._id,
       isActive: true,
     })
     expect(mockEvaluateProduct).toHaveBeenNthCalledWith(1, 'product-1', true)
     expect(mockEvaluateProduct).toHaveBeenNthCalledWith(2, 'product-2', true)
+  })
+
+  it('returns an empty preview when the course does not exist', async () => {
+    mockFindCourse.mockResolvedValue(null)
+
+    const app = express()
+    app.post(path, handler)
+
+    const response = await request(app)
+      .post(`${path}?__bo2_offline_loopback=1`)
+      .send({})
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({
+      success: true,
+      studentsEvaluated: 0,
+      proposedAdditions: 0,
+      proposedRemovals: 0,
+      errors: 0,
+    })
+    expect(mockFindProducts).not.toHaveBeenCalled()
+    expect(mockEvaluateProduct).not.toHaveBeenCalled()
+  })
+
+  it('returns an empty preview when the course has no active products', async () => {
+    mockFindProducts.mockReturnValue({
+      select: jest.fn().mockResolvedValue([]),
+    })
+
+    const app = express()
+    app.post(path, handler)
+
+    const response = await request(app)
+      .post(`${path}?__bo2_offline_loopback=1`)
+      .send({})
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({
+      success: true,
+      studentsEvaluated: 0,
+      proposedAdditions: 0,
+      proposedRemovals: 0,
+      errors: 0,
+    })
+    expect(mockEvaluateProduct).not.toHaveBeenCalled()
+  })
+
+  it('uses the stable fallback when the decision engine rejects with an empty Error', async () => {
+    mockEvaluateProduct.mockReset().mockRejectedValue(new Error(''))
+
+    const app = express()
+    app.post(path, handler)
+
+    const response = await request(app)
+      .post(`${path}?__bo2_offline_loopback=1`)
+      .send({})
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({
+      success: false,
+      error: 'Erro ao pré-visualizar regras',
+    })
+  })
+  it('preserves the public 500 contract when the decision engine rejects', async () => {
+    mockEvaluateProduct.mockReset().mockRejectedValue(new Error('engine unavailable'))
+
+    const app = express()
+    app.post(path, handler)
+
+    const response = await request(app)
+      .post(`${path}?__bo2_offline_loopback=1`)
+      .send({})
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({
+      success: false,
+      error: 'engine unavailable',
+    })
   })
 })

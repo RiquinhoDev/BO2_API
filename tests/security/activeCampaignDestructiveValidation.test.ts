@@ -5,15 +5,18 @@ import { createErrorHandling } from '../../src/security/errorHandling'
 installTestRuntimeConfigHooks()
 
 
+jest.mock('../../src/controllers/acTags/activeCampaignCourse.controller', () => ({
+  __esModule: true,
+  getClarezaStudents: jest.fn((_req, res) => res.status(204).end()),
+  evaluateClarezaRules: jest.fn((_req, res) => res.status(204).end()),
+  getOGIStudents: jest.fn((_req, res) => res.status(204).end()),
+  evaluateOGIRules: jest.fn((_req, res) => res.status(204).end()),
+}))
 jest.mock('../../src/controllers/acTags/activecampaign.controller', () => {
   const names = [
     'testCron',
     'getCronLogs',
     'getStats',
-    'getClarezaStudents',
-    'evaluateClarezaRules',
-    'getOGIStudents',
-    'evaluateOGIRules',
     'getAllTagRules',
     'createTagRule',
     'updateTagRule',
