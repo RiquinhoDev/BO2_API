@@ -8,18 +8,19 @@
 // =====================================================
 
 import UserProduct from '../../models/UserProduct'
-import Product from '../../models/product/Product'
-import User from '../../models/user'
-import TagRule from '../../models/acTags/TagRule'
 import UserAction from '../../models/UserAction'
 import activeCampaignService from './activeCampaignService'
-import { Course } from '../../models'
 import { getLastLearnerActivityDate } from '../activity/learnerActivity'
-import type { IUserProduct } from '../../models/UserProduct'
-import type { IUser } from '../../models/user'
-import type { IProduct } from '../../models/product/Product'
 import { evaluateDecisionCondition } from './decisionConditionEvaluator'
 import { buildDecisionLevelPlan, splitDecisionRules } from './decisionLevelPolicy'
+import { loadDecisionContext, mongooseDecisionContextRepositories } from './decisionContextLoader'
+import { calculateDecisionMetrics } from './decisionMetrics'
+import type {
+  DecisionContext,
+  DecisionMetrics,
+  DecisionUserProduct,
+  InternalRule
+} from './decisionContextTypes'
 
 // ─────────────────────────────────────────────────────────────
 // TIPOS
@@ -67,54 +68,6 @@ export interface DecisionResult {
   nextEvaluationDate?: Date
   metadata?: Record<string, unknown>
 }
-
-type DecisionUserProduct = IUserProduct & {
-  reengagement?: {
-    cooldownUntil?: Date | string | number
-    currentLevel?: number
-  }
-  cooldownUntil?: Date | string | number
-  activeCampaignData?: IUserProduct['activeCampaignData'] & {
-    cooldownUntil?: Date | string | number
-  }
-}
-
-type InternalRule = {
-  _id?: { toString(): string }
-  name: string
-  tagName?: string
-  tag?: string
-  tagAC?: string
-  action: DecisionAction
-  condition?: string
-  priority?: number
-  daysInactive?: number
-  daysInactiveThreshold?: number
-  level?: number
-  cooldownDays?: number
-}
-
-type DecisionMetrics = {
-  daysSinceLastLogin: number | null
-  daysSinceLastAction: number | null
-  daysSinceEnrollment: number
-  engagementScore: number
-  totalLogins: number
-  totalActions: number
-}
-
-export interface DecisionContext {
-  userId: string
-  productId: string
-  userProduct: DecisionUserProduct
-  user: IUser
-  product: IProduct
-  rules: InternalRule[]
-}
-
-// ─────────────────────────────────────────────────────────────
-// HELPERS (parsing / compat)
-// ─────────────────────────────────────────────────────────────
 
 const DEFAULT_COOLDOWN_DAYS = 3
 
@@ -182,12 +135,19 @@ async evaluateUserProduct(
     }
 
     try {
-      const context = await this.getContext(userId, productId)
+      const context = await loadDecisionContext(
+        userId,
+        productId,
+        mongooseDecisionContextRepositories
+      )
       result.productCode = context.product.code
 
       const { levelRules, regularRules } = splitDecisionRules(context.rules)
 
-      const metrics = await this.getMetrics(context)
+      const metrics = calculateDecisionMetrics(context.userProduct, {
+        now: nowUTC(),
+        getLastActivity: () => getLastLearnerActivityDate(context.user, context.product.code)
+      })
       const daysInactive = metrics.daysSinceLastLogin
 
       const cooldownUntil = getCooldownUntil(context.userProduct)
@@ -308,163 +268,6 @@ async evaluateUserProduct(
     // CONTEXT / METRICS
     // ───────────────────────────────────────────────────────────
 
-    private async getContext(userId: string, productId: string): Promise<DecisionContext> {
-      const userProduct = await UserProduct.findOne({ userId, productId })
-      const user = await User.findById(userId)
-      const product = await Product.findById(productId)
-
-      if (!userProduct || !user || !product) {
-        throw new Error('UserProduct, User ou Product não encontrado')
-      }
-
-    const course = await Course.findOne({
-      code: product.courseCode || product.code
-    })
-
-      if (!course) {
-        throw new Error(`Course não encontrado para product ${product.code}`)
-      }
-      
-      // ✅ BUSCAR REGRAS VIA courseId
-  const rules = await TagRule.find({
-    courseId: course._id,
-    isActive: true
-  }).sort({ priority: -1, name: 1 })
-
-  // ✅ CONVERTER TagRules para formato interno (sem adapter externo)
-  const adaptedRules: InternalRule[] = rules.map(tagRule => {
-    // Converter conditions para string (se necessário)
-    let conditionStr = tagRule.condition
-
-    if (!conditionStr && tagRule.conditions && Array.isArray(tagRule.conditions)) {
-      // Converter array de conditions para string simples
-      const opMap: Record<string, string> = {
-        'greaterThan': '>=',
-        'lessThan': '<',
-        'equals': '===',
-        'olderThan': '>=',
-        'newerThan': '<'
-      }
-
-      const parts = tagRule.conditions.map(cond => {
-        if (
-          cond.type === 'SIMPLE'
-          && cond.field
-          && cond.operator
-          && cond.value !== undefined
-        ) {
-          const op = opMap[cond.operator] || cond.operator
-          return `${cond.field} ${op} ${cond.value}`
-        } else if (cond.type === 'COMPOUND' && cond.subConditions && Array.isArray(cond.subConditions)) {
-          // Processar subConditions e combiná-las com logic (AND/OR)
-          const subParts = cond.subConditions.map(sub => {
-            const op = opMap[sub.operator] || sub.operator
-            return `${sub.field} ${op} ${sub.value}`
-          }).filter(Boolean)
-
-          if (subParts.length > 0) {
-            const logicOp = cond.logic === 'OR' ? '||' : '&&'
-            return subParts.length === 1 ? subParts[0] : `(${subParts.join(` ${logicOp} `)})`
-          }
-        }
-        return ''
-      }).filter(Boolean)
-
-      conditionStr = parts.join(' AND ')
-    }
-
-    const tagName = tagRule.actions?.addTag || ''
-
-    // Extrair daysInactive das conditions (se houver)
-    let daysInactive: number | undefined
-    if (tagRule.conditions && Array.isArray(tagRule.conditions)) {
-      for (const cond of tagRule.conditions) {
-        if (cond.type === 'SIMPLE' &&
-            (cond.field === 'daysSinceLastLogin' || cond.field === 'daysInactive') &&
-            cond.operator === 'greaterThan') {
-          daysInactive = cond.value
-          break
-        } else if (cond.type === 'COMPOUND' && cond.subConditions) {
-          // Procurar em subConditions
-          for (const sub of cond.subConditions) {
-            if ((sub.field === 'daysSinceLastLogin' || sub.field === 'daysInactive') &&
-                sub.operator === 'greaterThan') {
-              daysInactive = sub.value
-              break
-            }
-          }
-          if (daysInactive) break
-        }
-      }
-    }
-
-    return {
-      _id: tagRule._id,
-      name: tagRule.name,
-      tagName,
-      action: 'APPLY_TAG',
-      condition: conditionStr,
-      priority: tagRule.priority || 0,
-      daysInactive,
-      _original: tagRule
-    }
-  })
-
-    return { userId, productId, userProduct, user, product, rules: adaptedRules }
-  }
-
-private async getMetrics(context: DecisionContext): Promise<{
-  daysSinceLastLogin: number | null
-  daysSinceLastAction: number | null
-  daysSinceEnrollment: number  // 🆕 ADICIONADO!
-  engagementScore: number
-  totalLogins: number
-  totalActions: number
-}> {
-  const up = context.userProduct
-
-  // Preferir métricas já calculadas no UserProduct.engagement
-  const lastActivity = getLastLearnerActivityDate(context.user, context.product.code)
-  const fallbackDays = this.calculateDaysInactive(lastActivity)
-  const fallback = {
-    daysSinceLastLogin: fallbackDays,
-    daysSinceLastAction: fallbackDays,
-    daysSinceEnrollment: 999,  // 🆕 ADICIONADO!
-    engagementScore: 0,
-    totalLogins: 0,
-    totalActions: 0
-  }
-
-  const m = up?.engagement
-  
-  // 🔧 FIX: LER DIRETAMENTE DO ENGAGEMENT (SEMPRE!)
-  if (m) {
-    return {
-      daysSinceLastLogin: m.daysSinceLastLogin ?? fallback.daysSinceLastLogin,
-      daysSinceLastAction: m.daysSinceLastAction ?? fallback.daysSinceLastAction,
-      daysSinceEnrollment: m.daysSinceEnrollment ?? fallback.daysSinceEnrollment,  // 🆕 NOVA LINHA!
-      engagementScore: m.engagementScore ?? fallback.engagementScore,
-      totalLogins: m.totalLogins ?? fallback.totalLogins,
-      totalActions: fallback.totalActions
-    }
-  }
-
-  return {
-    ...fallback,
-    daysSinceLastLogin: fallbackDays,
-    daysSinceLastAction: fallbackDays
-    // daysSinceEnrollment mantém fallback 999 se não houver engagement
-  }
-}
-
-  private calculateDaysInactive(lastActivity: Date | null): number | null {
-    if (!lastActivity) return null
-    const diffMs = Date.now() - lastActivity.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-    return Math.max(0, diffDays)
-  }
-
-  // ───────────────────────────────────────────────────────────
   // RULE EVAL
   // ───────────────────────────────────────────────────────────
 
@@ -547,7 +350,7 @@ private evaluateCondition(
       currentModule: context.userProduct.progress?.currentModule
     },
     unknownCondition => {
-      console.warn(`[DecisionEngine] ⚠️ Condição não reconhecida: "${unknownCondition}"`)
+      console.warn(`[DecisionEngine] CondiÃ§Ã£o nÃ£o reconhecida: "${unknownCondition}"`)
     }
   )
 }
@@ -642,3 +445,4 @@ private evaluateCondition(
 
 export const decisionEngine = new DecisionEngine()
 export default decisionEngine
+
