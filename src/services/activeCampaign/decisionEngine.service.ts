@@ -19,6 +19,7 @@ import type { IUserProduct } from '../../models/UserProduct'
 import type { IUser } from '../../models/user'
 import type { IProduct } from '../../models/product/Product'
 import { evaluateDecisionCondition } from './decisionConditionEvaluator'
+import { buildDecisionLevelPlan, splitDecisionRules } from './decisionLevelPolicy'
 
 // ─────────────────────────────────────────────────────────────
 // TIPOS
@@ -115,125 +116,18 @@ export interface DecisionContext {
 // HELPERS (parsing / compat)
 // ─────────────────────────────────────────────────────────────
 
-type LevelRule = {
-  rule: InternalRule
-  level: number
-  daysInactive: number
-  tagName: string
-  cooldownDays?: number
-}
-
 const DEFAULT_COOLDOWN_DAYS = 3
 
 function nowUTC(): Date {
   return new Date()
 }
 
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date)
-  d.setDate(d.getDate() + days)
-  return d
-}
-
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Erro desconhecido'
 }
 
-/**
- * Tenta extrair um threshold de dias a partir de conditions tipo:
- *  - "daysSinceLastLogin >= 14"
- *  - "daysInactive >= 21"
- */
-function extractDaysThreshold(condition?: string): number | null {
-  if (!condition) return null
 
-  const normalized = condition.replace(/\s+/g, ' ').trim()
 
-  // Ex: daysSinceLastLogin >= 14
-  const m1 = normalized.match(/daysSinceLastLogin\s*>=\s*(\d+)/i)
-  if (m1?.[1]) return Number(m1[1])
-
-  // Ex: daysInactive >= 14
-  const m2 = normalized.match(/daysInactive\s*>=\s*(\d+)/i)
-  if (m2?.[1]) return Number(m2[1])
-
-  return null
-}
-
-/**
- * Detecta regras de nível (reengagement levels).
- * Suporta:
- * - rule.level + rule.daysInactive
- * - OU parse do condition (daysSinceLastLogin >= X / daysInactive >= X)
- *
- * Para evitar duplicação, tudo o que for "LevelRule" sai de "rules normais".
- */
-function splitRulesIntoLevelAndRegular(rules: InternalRule[]): {
-  levelRules: LevelRule[]
-  regularRules: InternalRule[]
-} {
-  const levelRules: LevelRule[] = []
-  const regularRules: InternalRule[] = []
-
-  for (const rule of rules) {
-    const tagName = rule.tagName || rule.tag || rule.tagAC
-    const action = rule.action
-
-    // Só faz sentido como nível se for APPLY_TAG e tiver tagName
-    if (action === 'APPLY_TAG' && tagName) {
-      const explicitLevel =
-        typeof rule.level === 'number' ? rule.level : null
-      const explicitDays =
-        typeof rule.daysInactive === 'number'
-          ? rule.daysInactive
-          : typeof rule.daysInactiveThreshold === 'number'
-            ? rule.daysInactiveThreshold
-            : null
-
-      const parsedDays = extractDaysThreshold(rule.condition)
-
-      // Regra de nível reconhecida se tiver dias (explicito ou parseado)
-      const daysInactive = explicitDays ?? parsedDays
-      if (typeof daysInactive === 'number' && daysInactive > 0) {
-        levelRules.push({
-          rule,
-          level: explicitLevel ?? -1, // vamos normalizar já a seguir
-          daysInactive,
-          tagName,
-          cooldownDays:
-            typeof rule.cooldownDays === 'number' ? rule.cooldownDays : undefined
-        })
-        continue
-      }
-    }
-
-    regularRules.push(rule)
-  }
-
-  // Normalizar níveis se vierem sem "level"
-  // Ordena por daysInactive asc e atribui 1..N se necessário
-  levelRules.sort((a, b) => a.daysInactive - b.daysInactive)
-
-  let autoLevel = 1
-  for (const lr of levelRules) {
-    if (lr.level === -1) {
-      lr.level = autoLevel
-      autoLevel++
-    } else {
-      autoLevel = Math.max(autoLevel, lr.level + 1)
-    }
-  }
-
-  // Ordenar por level asc para lógica
-  levelRules.sort((a, b) => a.level - b.level)
-
-  return { levelRules, regularRules }
-}
-
-/**
- * Lê cooldown guardado no UserProduct (compatível com vários formatos).
- * Escolhe 1 estrutura e usa-a sempre no update (ver setCooldown()).
- */
 function getCooldownUntil(userProduct: DecisionUserProduct): Date | undefined {
   const raw =
     userProduct?.reengagement?.cooldownUntil ??
@@ -257,50 +151,7 @@ async function setCooldown(userProductId: string, until?: Date): Promise<void> {
   )
 }
 
-/**
- * Tenta inferir o "currentLevel" via:
- * 1) userProduct.reengagement.currentLevel
- * 2) tags presentes em userProduct.activeCampaignData.tags comparando com levelRules
- */
-function inferCurrentLevel(userProduct: DecisionUserProduct, levelRules: LevelRule[]): number {
-  const stored = userProduct?.reengagement?.currentLevel
-  if (typeof stored === 'number') return stored
 
-  const tags: string[] = userProduct?.activeCampaignData?.tags || []
-  if (!Array.isArray(tags) || tags.length === 0) return 0
-
-  let max = 0
-  for (const lr of levelRules) {
-    if (tags.includes(lr.tagName)) {
-      max = Math.max(max, lr.level)
-    }
-  }
-  return max
-}
-
-/**
- * Encontra o "appropriateLevel" pelo maior threshold cumprido.
- */
-function determineAppropriateLevel(daysInactive: number, levelRules: LevelRule[]): number {
-  let lvl = 0
-  for (const lr of levelRules) {
-    if (daysInactive >= lr.daysInactive) lvl = lr.level
-  }
-  return lvl
-}
-
-/**
- * Confiança simples (podes sofisticar depois).
- */
-function confidenceForLevel(daysInactive: number, lr: LevelRule): number {
-  const over = daysInactive - lr.daysInactive
-  let c = 70
-  if (over >= 5) c += 20
-  else if (over >= 2) c += 10
-  else if (over >= 0) c += 5
-  if (lr.level >= 3) c += 5
-  return Math.min(100, c)
-}
 
 // ─────────────────────────────────────────────────────────────
 // ENGINE
@@ -334,163 +185,66 @@ async evaluateUserProduct(
       const context = await this.getContext(userId, productId)
       result.productCode = context.product.code
 
-      const { levelRules, regularRules } = splitRulesIntoLevelAndRegular(context.rules)
+      const { levelRules, regularRules } = splitDecisionRules(context.rules)
 
-        // ===== métricas base (preferência: UserProduct.engagement)
-        const metrics = await this.getMetrics(context)
-        const daysInactive = metrics.daysSinceLastLogin
+      const metrics = await this.getMetrics(context)
+      const daysInactive = metrics.daysSinceLastLogin
 
-        // ===== cooldown
-        const cooldownUntil = getCooldownUntil(context.userProduct)
-        if (cooldownUntil && nowUTC() < cooldownUntil) {
-          result.inCooldown = true
-          result.cooldownUntil = cooldownUntil
-          result.nextEvaluationDate = cooldownUntil
-          result.decisions.push({
-            source: 'SYSTEM',
-            ruleName: 'Cooldown',
-            action: 'NO_ACTION',
-            shouldExecute: false,
-            reason: `Em cooldown até ${cooldownUntil.toISOString()}`,
-            confidence: 100
-          })
-          return result
+      const cooldownUntil = getCooldownUntil(context.userProduct)
+      if (cooldownUntil && nowUTC() < cooldownUntil) {
+        result.inCooldown = true
+        result.cooldownUntil = cooldownUntil
+        result.nextEvaluationDate = cooldownUntil
+        result.decisions.push({
+          source: 'SYSTEM',
+          ruleName: 'Cooldown',
+          action: 'NO_ACTION',
+          shouldExecute: false,
+          reason: `Em cooldown até ${cooldownUntil.toISOString()}`,
+          confidence: 100
+        })
+        return result
+      }
+
+      const recentProgress = await this.checkRecentProgress(
+        userId,
+        context.product.code,
+        {
+          daysSinceLastLogin: metrics.daysSinceLastLogin,
+          daysSinceLastAction: metrics.daysSinceLastAction
         }
+      )
 
-        // ===== progresso recente (se houver)
-        const recentProgress = await this.checkRecentProgress(
-          userId,
-          context.product.code,
-          {
-            daysSinceLastLogin: metrics.daysSinceLastLogin,
-            daysSinceLastAction: metrics.daysSinceLastAction
-          }
-        )
+      const levelPlan = buildDecisionLevelPlan({
+        levelRules,
+        daysInactive,
+        storedCurrentLevel: context.userProduct.reengagement?.currentLevel,
+        existingTags: context.userProduct.activeCampaignData?.tags || [],
+        recentProgress,
+        now: nowUTC(),
+        defaultCooldownDays: DEFAULT_COOLDOWN_DAYS
+      })
 
-        // ===== níveis (escalonamento)
-        const currentLevel = inferCurrentLevel(context.userProduct, levelRules)
-        const appropriateLevel = daysInactive === null
-          ? 0
-          : determineAppropriateLevel(daysInactive, levelRules)
+      result.currentLevel = levelPlan.currentLevel
+      result.appropriateLevel = levelPlan.appropriateLevel
+      result.decisions.push(...levelPlan.decisions)
+      result.tagsToApply.push(...levelPlan.tagsToApply)
+      result.tagsToRemove.push(...levelPlan.tagsToRemove)
+      result.nextEvaluationDate = levelPlan.cooldownUntil
 
-        result.currentLevel = currentLevel
-        result.appropriateLevel = appropriateLevel
-
-        // 1) Se teve progresso recente e está em nível -> desescalar (remover tags de nível)
-        if (recentProgress && currentLevel > 0) {
-          const levelTags = levelRules.map(lr => lr.tagName)
-          result.tagsToRemove.push(...levelTags)
-
-          result.decisions.push({
-            source: 'LEVEL',
-            ruleName: 'Recent Progress',
-            action: 'DESESCALATE',
-            shouldExecute: true,
-            reason: `Progresso recente detectado: ${recentProgress.type} (${recentProgress.value})`,
-            confidence: 95
-          })
-
-          // aplica cooldown curto após retorno/progresso
-          const until = addDays(nowUTC(), 1)
-          if (!dryRun) {
-            await setCooldown(context.userProduct._id.toString(), until)
-          }
-          result.nextEvaluationDate = until
-        } else {
-          // 2) Se voltou a ativo (0 dias) e tem nível -> remover tags
-          if (daysInactive === 0 && currentLevel > 0) {
-            const levelTags = levelRules.map(lr => lr.tagName)
-            result.tagsToRemove.push(...levelTags)
-
-            result.decisions.push({
-              source: 'LEVEL',
-              ruleName: 'Back Active',
-              action: 'REMOVE_TAG',
-              shouldExecute: true,
-              reason: 'Aluno voltou a ser ativo (0 dias inativo)',
-              confidence: 100
-            })
-
-            const until = addDays(nowUTC(), 1)
-            if (!dryRun) {
-              await setCooldown(context.userProduct._id.toString(), until)
-            }
-            result.nextEvaluationDate = until
-          }
-
-          // 3) Se apropriado > atual -> aplicar/escalar para tag do nível apropriado
-          if (daysInactive !== null && appropriateLevel > currentLevel && levelRules.length > 0) {
-            const target = levelRules.find(lr => lr.level === appropriateLevel)
-
-            if (target) {
-              // remover outros níveis antes (evita tags conflitantes)
-              const otherLevelTags = levelRules
-                .filter(lr => lr.tagName !== target.tagName)
-                .map(lr => lr.tagName)
-
-              result.tagsToRemove.push(...otherLevelTags)
-              result.tagsToApply.push(target.tagName)
-
-              const action: DecisionAction = currentLevel === 0 ? 'APPLY_TAG' : 'ESCALATE'
-
-              result.decisions.push({
-                source: 'LEVEL',
-                ruleId: target.rule?._id?.toString?.(),
-                ruleName: `Level ${target.level}`,
-                condition: target.rule?.condition,
-                action,
-                tagName: target.tagName,
-                shouldExecute: true,
-                reason: `${daysInactive} dias inativo → ${action === 'APPLY_TAG' ? 'aplicar' : 'escalar'} para nível ${target.level}`,
-                confidence: confidenceForLevel(daysInactive, target)
-              })
-
-              // cooldown após escalonamento
-              const cdDays = target.cooldownDays ?? DEFAULT_COOLDOWN_DAYS
-              const until = addDays(nowUTC(), cdDays)
-              if (!dryRun) {
-                await setCooldown(context.userProduct._id.toString(), until)
-              }
-              result.nextEvaluationDate = until
-            }
-          }
-
-  // ✅ ADICIONAR ESTE BLOCO LOGO APÓS O BLOCO ACIMA:
-
-          // 3.5) Se apropriado == atual e apropriado > 0 → MANTER tag atual
-          else if (appropriateLevel === currentLevel && appropriateLevel > 0) {
-            const target = levelRules.find(lr => lr.level === currentLevel)
-            
-            if (target) {
-              // IMPORTANTE: Adicionar a tag atual a tagsToApply para evitar remoção
-              result.tagsToApply.push(target.tagName)
-              
-              // Remover outras tags de nível (caso existam por engano)
-              const otherLevelTags = levelRules
-                .filter(lr => lr.tagName !== target.tagName)
-                .map(lr => lr.tagName)
-              
-              if (otherLevelTags.length > 0) {
-                result.tagsToRemove.push(...otherLevelTags)
-              }
-
-              result.decisions.push({
-                source: 'LEVEL',
-                ruleId: target.rule?._id?.toString?.(),
-                ruleName: `Maintain Level ${currentLevel}`,
-                condition: target.rule?.condition,
-                action: 'NO_ACTION',
-                tagName: target.tagName,
-                shouldExecute: false,
-                reason: `User mantém nível ${currentLevel} (${daysInactive} dias inativo)`,
-                confidence: 100
-              })
-            }
-          }
-          // 4) Se apropriado < atual (e queres permitir) -> desescalar
-          // (opcional — por omissão só removemos com progresso/ativo)
+      if (levelPlan.transition === 'recent-progress') {
+        if (!dryRun && levelPlan.cooldownUntil) {
+          await setCooldown(context.userProduct._id.toString(), levelPlan.cooldownUntil)
         }
-
+      } else if (levelPlan.transition === 'back-active') {
+        if (!dryRun && levelPlan.cooldownUntil) {
+          await setCooldown(context.userProduct._id.toString(), levelPlan.cooldownUntil)
+        }
+      } else if (levelPlan.transition === 'escalate') {
+        if (!dryRun && levelPlan.cooldownUntil) {
+          await setCooldown(context.userProduct._id.toString(), levelPlan.cooldownUntil)
+        }
+      }
         // ===== regras "normais" (não-nível)
         for (const rule of regularRules) {
           const decision = await this.evaluateRule(rule, context, metrics)
