@@ -363,11 +363,6 @@
       "count": 1
     }
   },
-  "src/controllers/usersReviewLists.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/controllers/webhooks.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2

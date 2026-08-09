@@ -1,7 +1,8 @@
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import IdsDiferentes from '../models/IdsDiferentes'
 import UnmatchedUser from '../models/UnmatchedUser'
 import { paginate } from '../utils/pagination'
+import { internalError } from '../security/errorHandling'
 
 const IDS_DIFERENTES_PROJECTION =
   '_id email previousDiscordIds newDiscordId detectedAt createdAt updatedAt __v'
@@ -17,6 +18,7 @@ const STABLE_DETECTED_AT_SORT = {
 export const getIdsDiferentes = async (
   req: Request,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const pagination = paginate(req.query)
@@ -34,17 +36,15 @@ export const getIdsDiferentes = async (
       idsDiferentes,
       pagination: pagination.metadata(total),
     })
-  } catch (error: any) {
-    res.status(500).json({
-      message: 'Erro ao buscar IDs diferentes',
-      details: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar IDs diferentes', 'USERS_IDS_REVIEW_LIST_FAILED', error))
   }
 }
 
 export const getUnmatchedUsers = async (
   req: Request,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const pagination = paginate(req.query)
@@ -62,10 +62,7 @@ export const getUnmatchedUsers = async (
       unmatchedUsers,
       pagination: pagination.metadata(total),
     })
-  } catch (error: any) {
-    res.status(500).json({
-      message: 'Erro ao buscar utilizadores não correspondidos',
-      details: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar utilizadores não correspondidos', 'USERS_UNMATCHED_REVIEW_LIST_FAILED', error))
   }
 }
