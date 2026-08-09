@@ -23,30 +23,29 @@ jest.mock('../../src/controllers/acTags/activeCampaignHistoryStats.controller', 
   getHistoryStats: jest.fn((_req, res) => res.status(204).end()),
 }))
 
-jest.mock('../../src/controllers/acTags/activecampaign.controller', () => {
-  const names = [
-    'testCron',
-    'getCronLogs',
-    'getStats',
-    'getAllTagRules',
-    'createTagRule',
-    'updateTagRule',
-    'deleteTagRule',
-    'applyTagToUserProduct',
-    'removeTagFromUserProduct',
-    'getUsersWithTagsInProduct',
-    'getACStats',
-    'syncProductTags',
-  ]
+jest.mock('../../src/controllers/acTags/activeCampaignOps.controller', () => ({
+  __esModule: true,
+  testCron: jest.fn((_input, res) => res.status(204).end()),
+  getCronLogs: jest.fn((_req, res) => res.status(204).end()),
+  getStats: jest.fn((_req, res) => res.status(204).end()),
+}))
 
-  return {
-    __esModule: true,
-    ...Object.fromEntries(names.map((name) => [
-      name,
-      jest.fn((_input, res) => res.status(204).end()),
-    ])),
-  }
-})
+jest.mock('../../src/controllers/acTags/activeCampaignLegacyTagRules.controller', () => ({
+  __esModule: true,
+  getAllTagRules: jest.fn((_req, res) => res.status(204).end()),
+  createTagRule: jest.fn((_req, res) => res.status(204).end()),
+  updateTagRule: jest.fn((_req, res) => res.status(204).end()),
+  deleteTagRule: jest.fn((_input, res) => res.status(204).end()),
+}))
+
+jest.mock('../../src/controllers/acTags/activeCampaignProductTags.controller', () => ({
+  __esModule: true,
+  applyTagToUserProduct: jest.fn((_input, res) => res.status(204).end()),
+  removeTagFromUserProduct: jest.fn((_input, res) => res.status(204).end()),
+  getUsersWithTagsInProduct: jest.fn((_req, res) => res.status(204).end()),
+  getACStats: jest.fn((_req, res) => res.status(204).end()),
+  syncProductTags: jest.fn((_input, res) => res.status(204).end()),
+}))
 
 import activeCampaignRouter from '../../src/routes/ACroutes/activecampaign.routes'
 
