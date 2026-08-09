@@ -1689,7 +1689,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:100"
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:101"
   },
   {
     "method": "POST",
@@ -1698,7 +1698,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:125"
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:126"
   },
   {
     "method": "DELETE",
@@ -1707,7 +1707,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": true,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:155"
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:156"
   },
   {
     "method": "GET",
@@ -1716,7 +1716,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:41"
+    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:42"
   },
   {
     "method": "PUT",
@@ -1725,7 +1725,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:142"
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:143"
   },
   {
     "method": "POST",
@@ -1734,7 +1734,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:59"
+    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:60"
   },
   {
     "method": "PATCH",
@@ -1743,7 +1743,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:168"
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:169"
   },
   {
     "method": "POST",
@@ -1752,7 +1752,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:226"
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:227"
   },
   {
     "method": "POST",
@@ -1761,7 +1761,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:203"
+    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:204"
   },
   {
     "method": "PUT",
@@ -1770,7 +1770,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:213"
+    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:214"
   },
   {
     "method": "GET",
@@ -1779,7 +1779,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:194"
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:195"
   },
   {
     "method": "GET",
@@ -1788,7 +1788,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:19"
+    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:20"
   },
   {
     "method": "GET",

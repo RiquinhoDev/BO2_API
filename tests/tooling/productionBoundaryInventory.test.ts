@@ -113,9 +113,6 @@ const BASELINE = {
     "src/controllers/course.controller.ts:25",
     "src/controllers/course.controller.ts:64",
     "src/controllers/course.controller.ts:98",
-    "src/controllers/discovery.controller.ts:163",
-    "src/controllers/discovery.controller.ts:49",
-    "src/controllers/discovery.controller.ts:83",
     "src/controllers/engagement.controller.ts:294",
     "src/controllers/engagement.controller.ts:550",
     "src/controllers/engagement.controller.ts:573",
@@ -324,18 +321,6 @@ const BASELINE = {
     "src/routes/achievements.routes.ts:164",
     "src/routes/achievements.routes.ts:47",
     "src/routes/achievements.routes.ts:71",
-    "src/routes/events.routes.ts:120",
-    "src/routes/events.routes.ts:137",
-    "src/routes/events.routes.ts:150",
-    "src/routes/events.routes.ts:163",
-    "src/routes/events.routes.ts:186",
-    "src/routes/events.routes.ts:199",
-    "src/routes/events.routes.ts:209",
-    "src/routes/events.routes.ts:221",
-    "src/routes/events.routes.ts:348",
-    "src/routes/events.routes.ts:36",
-    "src/routes/events.routes.ts:54",
-    "src/routes/events.routes.ts:91",
     "src/routes/users.routes.ts:254",
     "src/routes/validationLogs.routes.ts:137",
     "src/routes/validationLogs.routes.ts:70"
@@ -360,18 +345,6 @@ const BASELINE = {
     "src/routes/achievements.routes.ts:164",
     "src/routes/achievements.routes.ts:47",
     "src/routes/achievements.routes.ts:71",
-    "src/routes/events.routes.ts:120",
-    "src/routes/events.routes.ts:137",
-    "src/routes/events.routes.ts:150",
-    "src/routes/events.routes.ts:163",
-    "src/routes/events.routes.ts:186",
-    "src/routes/events.routes.ts:199",
-    "src/routes/events.routes.ts:209",
-    "src/routes/events.routes.ts:221",
-    "src/routes/events.routes.ts:348",
-    "src/routes/events.routes.ts:36",
-    "src/routes/events.routes.ts:54",
-    "src/routes/events.routes.ts:91"
   ]
 } as const
 
@@ -385,8 +358,8 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 314,
-  "publicErrorDetail": 33
+  "localHttp500": 299,
+  "publicErrorDetail": 20
 } as const
 
 test('production boundary inventory matches the migration baseline', () => {
