@@ -18,7 +18,7 @@ import {
   evaluateClarezaRules,
   getOGIStudents, 
   evaluateOGIRules 
-} from '../controllers/acTags/activecampaign.controller'
+} from '../controllers/acTags/activeCampaignCourse.controller'
 
 const router = Router()
 
