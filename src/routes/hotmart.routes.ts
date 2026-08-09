@@ -2,17 +2,16 @@
 import { asyncRoute } from '../security/asyncRoute'
 import { Router } from 'express'
 import {
+  getHotmartProductBySubdomain,
+  getHotmartProducts,
+  getHotmartProductUsers,
+  getHotmartStats
+} from '../controllers/hotmart/hotmartCatalog.controller'
+import {
   // Legacy
   syncHotmartUsers,
   syncProgressOnly,
   findHotmartUser,
-
-
-  // V2
-  getHotmartProducts,
-  getHotmartProductBySubdomain,
-  getHotmartProductUsers,
-  getHotmartStats,
 
   // Universal Sync
   syncHotmartUsersUniversal,

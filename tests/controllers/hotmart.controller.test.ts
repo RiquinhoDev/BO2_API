@@ -26,10 +26,8 @@ import { Product } from '../../src/models'
 import { getUsersByProduct } from '../../src/services/userProducts/userProductService'
 import hotmartAdapter from '../../src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import universalSyncService from '../../src/services/syncUtilizadoresServices/universalSync'
-import {
-  getHotmartStats,
-  syncHotmartUsersUniversal
-} from '../../src/controllers/syncUtilizadoresControllers/hotmart.controller'
+import { getHotmartStats } from '../../src/controllers/hotmart/hotmartCatalog.controller'
+import { syncHotmartUsersUniversal } from '../../src/controllers/syncUtilizadoresControllers/hotmart.controller'
 
 test('returns the canonical top-level Hotmart subdomain in stats', async () => {
   const products = [{

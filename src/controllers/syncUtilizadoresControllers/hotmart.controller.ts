@@ -4,26 +4,17 @@
 import { Request, Response } from 'express'
 import axios from 'axios'
 import { getHotmartCredentials, getHotmartSubdomain, isDevelopmentRuntime } from '../../services/requestDrivenRuntimeConfig'
-import type { AnyBulkWriteOperation, Types } from 'mongoose'
-import { Class, Product, SyncHistory, User } from '../../models'
+import type { AnyBulkWriteOperation } from 'mongoose'
+import { Class, SyncHistory, User } from '../../models'
 import type { IUser } from '../../models/user'
 import type { IUserHistory } from '../../models/UserHistory'
 import type { ISyncHistory } from '../../models/SyncHistory'
-import { getUserCountForProduct, getUsersByProduct } from '../../services/userProducts/userProductService'
 import { ensureUserHistoryModel } from '../../models/UserHistory'
 import { calculateCombinedEngagement } from '../../utils/engagementCalculator'
 import hotmartAdapter from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import { normalizeEngagementLevel } from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.helpers'
 import universalSyncService from '../../services/syncUtilizadoresServices/universalSync'
 import { SyncError, SyncProgress, SyncWarning } from '../../types/universalSync.types'
-
-type ProductUser = {
-  products: Array<{
-    product: { _id: Types.ObjectId }
-    platformSpecificData?: { hotmart?: { status?: string } }
-    progress?: { progressPercentage?: number }
-  }>
-}
 
 type HotmartApiUser = {
   email?: string
@@ -107,169 +98,6 @@ function axiosErrorDescription(error: unknown): string | undefined {
   return isRecord(data) && typeof data.error_description === 'string'
     ? data.error_description
     : undefined
-}
-
-
-// ─────────────────────────────────────────────────────────────
-// V2 - PRODUCTS / USERS BY PRODUCT
-// ─────────────────────────────────────────────────────────────
-
-/**
- * GET /api/hotmart/v2/products
- * Lista todos os produtos Hotmart
- */
-export const getHotmartProducts = async (req: Request, res: Response) => {
-  try {
-    const products = await Product.find({ platform: 'hotmart' })
-      .select('name code platformData isActive')
-      .lean()
-
-    res.json({
-      success: true,
-      data: products,
-      count: products.length,
-      _v2Enabled: true
-    })
-  } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error) })
-  }
-}
-
-/**
- * GET /api/hotmart/v2/products/:subdomain
- * Busca produto Hotmart específico por subdomain
- */
-type LeanHotmartProduct = {
-  _id: Types.ObjectId
-  name?: string
-  platformData?: { subdomain?: string }
-} & Record<string, unknown>
-
-export const getHotmartProductBySubdomain = async (req: Request, res: Response) => {
-  try {
-    const { subdomain } = req.params
-
-    const product = await Product.findOne({
-      platform: 'hotmart',
-      'subdomain': subdomain
-    })
-      .lean<LeanHotmartProduct>()
-      .exec()
-
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: `Produto Hotmart não encontrado para subdomain: ${subdomain}`
-      })
-    }
-
-    const userCount = await getUserCountForProduct(product._id.toString())
-
-    return res.json({
-      success: true,
-      data: { ...product, userCount },
-      _v2Enabled: true
-    })
-  } catch (error: unknown) {
-    return res.status(500).json({ success: false, error: errorMessage(error) })
-  }
-}
-
-
-/**
- * GET /api/hotmart/v2/products/:subdomain/users
- * Lista users de um produto Hotmart específico
- */
-export const getHotmartProductUsers = async (req: Request, res: Response) => {
-  try {
-    const { subdomain } = req.params
-    const { status, minProgress } = req.query
-
-    const product = await Product.findOne({
-      platform: 'hotmart',
-      'subdomain': subdomain
-    })
-
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: `Produto Hotmart não encontrado para subdomain: ${subdomain}`
-      })
-    }
-
-    let users = await getUsersByProduct(product._id.toString())
-
-    if (status) {
-      users = users.filter(u =>
-        u.products.some((p: ProductUser['products'][number]) =>
-          p.product._id.toString() === product._id.toString() &&
-          p.platformSpecificData?.hotmart?.status === status
-        )
-      )
-    }
-
-    if (minProgress) {
-      const minProg = parseInt(String(minProgress), 10)
-      users = users.filter(u =>
-        u.products.some((p: ProductUser['products'][number]) =>
-          p.product._id.toString() === product._id.toString() &&
-          (p.progress?.progressPercentage || 0) >= minProg
-        )
-      )
-    }
-
-    res.json({
-      success: true,
-      data: users,
-      count: users.length,
-      filters: { status, minProgress },
-      _v2Enabled: true
-    })
-  } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error) })
-  }
-}
-
-/**
- * GET /api/hotmart/v2/stats
- * Estatísticas gerais dos produtos Hotmart
- */
-export const getHotmartStats = async (req: Request, res: Response) => {
-  try {
-    const products = await Product.find({ platform: 'hotmart' }).lean()
-
-    const stats = await Promise.all(
-      products.map(async (product) => {
-        const users = await getUsersByProduct(String(product._id))
-
-        return {
-          productId: product._id,
-          productName: product.name,
-          subdomain: product.subdomain,
-          totalUsers: users.length,
-          activeUsers: users.filter(u =>
-            u.products.some((p: ProductUser['products'][number]) =>
-              p.product._id.toString() === (String(product._id)) &&
-              p.platformSpecificData?.hotmart?.status === 'active'
-            )
-          ).length
-        }
-      })
-    )
-
-    res.json({
-      success: true,
-      data: stats,
-      summary: {
-        totalProducts: products.length,
-        totalUsers: stats.reduce((sum, s) => sum + s.totalUsers, 0),
-        totalActiveUsers: stats.reduce((sum, s) => sum + s.activeUsers, 0)
-      },
-      _v2Enabled: true
-    })
-  } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error) })
-  }
 }
 
 
