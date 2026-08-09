@@ -151,6 +151,37 @@ describe('DecisionEngine dry-run', () => {
     expect(mockUpdateUserProduct).not.toHaveBeenCalled()
   })
 
+  it('persists the planned cooldown before executing a non-dry-run transition', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-09T12:00:00.000Z'))
+    mockFindUserProduct.mockResolvedValue({
+      _id: { toString: () => 'user-product-1' },
+      engagement: {
+        daysSinceLastLogin: 0,
+        daysSinceLastAction: 15,
+      },
+      activeCampaignData: { tags: ['OGI_LEVEL_1'] },
+    })
+
+    try {
+      await decisionEngine.evaluateUserProduct('user-1', 'product-1', false)
+
+      expect(mockUpdateUserProduct).toHaveBeenCalledWith(
+        'user-product-1',
+        {
+          $set: {
+            'reengagement.cooldownUntil': new Date('2026-08-10T12:00:00.000Z'),
+          },
+        },
+        { new: false },
+      )
+      expect(mockRemoveTag).toHaveBeenCalled()
+      expect(mockUpdateUserProduct.mock.invocationCallOrder[0]).toBeLessThan(
+        mockRemoveTag.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER,
+      )
+    } finally {
+      jest.useRealTimers()
+    }
+  })
   it('previews only active UserProducts for one product', async () => {
     mockFindUserProducts.mockResolvedValue([
       { userId: { toString: () => 'student-1' } },
