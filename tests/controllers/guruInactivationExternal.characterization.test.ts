@@ -33,12 +33,8 @@ jest.mock('../../src/services/requestDrivenRuntimeConfig', () => ({
   })),
 }))
 
-import {
-  cleanupInactivationList,
-  diagnoseUsers,
-  inactivateBulk,
-  inactivateSingle,
-} from '../../src/controllers/guru.inactivation.controller'
+import { inactivateBulk, inactivateSingle } from '../../src/controllers/guruInactivationExternal.controller'
+import { cleanupInactivationList, diagnoseUsers } from '../../src/controllers/guruInactivationMaintenance.controller'
 
 let mongoServer: MongoMemoryServer
 let userId: mongoose.Types.ObjectId

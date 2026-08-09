@@ -33,11 +33,21 @@ jest.mock('../../src/controllers/guru.snapshot.controller', () => controllerModu
   'createSnapshot', 'updateSnapshot', 'listSnapshots', 'getSnapshot',
   'deleteSnapshot', 'deleteAllSnapshots', 'getChurnFromSnapshots', 'createHistoricalSnapshots',
 ]))
-jest.mock('../../src/controllers/guru.inactivation.controller', () => controllerModule([
-  'listPendingInactivation', 'inactivateSingle', 'inactivateBulk', 'revertInactivationMark',
-  'getInactivationStats', 'markDiscrepanciesForInactivation', 'cleanupInactivationList',
-  'fixUsersToActive', 'diagnoseUsers', 'listInactivated', 'quarantineUser',
+jest.mock('../../src/controllers/guruInactivationRead.controller', () => controllerModule([
+  'listPendingInactivation', 'getInactivationStats', 'listInactivated',
+]))
+jest.mock('../../src/controllers/guruInactivationMutation.controller', () => controllerModule([
+  'revertInactivationMark', 'fixUsersToActive', 'quarantineUser',
   'cleanupDuplicateUserProducts', 'restoreUserProducts', 'markStaleInactive',
+]))
+jest.mock('../../src/controllers/guruInactivationExternal.controller', () => controllerModule([
+  'inactivateSingle', 'inactivateBulk',
+]))
+jest.mock('../../src/controllers/guruInactivationMaintenance.controller', () => controllerModule([
+  'cleanupInactivationList', 'diagnoseUsers',
+]))
+jest.mock('../../src/controllers/guruDiscrepancy.controller', () => controllerModule([
+  'markDiscrepanciesForInactivation',
 ]))
 jest.mock('../../src/controllers/guru.trials.controller', () => controllerModule([
   'getTrials', 'getTrialsStats', 'checkExpired', 'syncTrials', 'revertTrialMark', 'inactivateTrial',
@@ -56,6 +66,12 @@ type DestructiveRoute = {
 }
 
 const routes: DestructiveRoute[] = [
+  {
+    name: 'mark Guru discrepancies',
+    method: 'post',
+    path: '/api/guru/inactivation/mark-discrepancies',
+    body: { emails: ['alice@example.test'] },
+  },
   {
     name: 'inactivate one member',
     method: 'post',

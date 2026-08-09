@@ -8,9 +8,11 @@ describe('UserProduct inactivation audit metadata', () => {
     const metadata = JSON.parse('{}')
     metadata.markedForInactivationAt = markedAt
     metadata.markedForInactivationReason = 'Guru canceled'
+    metadata.markedFromComparison = true
     metadata.inactivatedAt = inactivatedAt
     metadata.inactivatedBy = 'guru_integration'
     metadata.inactivatedReason = 'CursEduca access removed'
+    metadata.revertReason = 'Guru active'
 
     const userProduct = new UserProduct({
       userId: new mongoose.Types.ObjectId(),
