@@ -323,14 +323,14 @@ router.get('/inactivation/inactive', asyncRoute(listInactivated))
  * Inativar um único membro no CursEduca
  * Body: { userProductId: string } ou { curseducaUserId: string }
  */
-router.post('/inactivation/single', withValidatedInput(guruInactivationSingleInput, (input, _req, res) => inactivateSingle(input, res)))
+router.post('/inactivation/single', withValidatedInput(guruInactivationSingleInput, (input, _req, res, next) => inactivateSingle(input, res, next)))
 
 /**
  * POST /guru/inactivation/bulk
  * Inativar múltiplos membros no CursEduca
  * Body: { userProductIds: string[] } ou { all: true }
  */
-router.post('/inactivation/bulk', withValidatedInput(guruInactivationBulkInput, (input, _req, res) => inactivateBulk(input, res)))
+router.post('/inactivation/bulk', withValidatedInput(guruInactivationBulkInput, (input, _req, res, next) => inactivateBulk(input, res, next)))
 
 /**
  * POST /guru/inactivation/revert

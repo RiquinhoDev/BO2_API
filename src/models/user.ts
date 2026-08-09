@@ -114,6 +114,7 @@ curseduca?: {
   joinedDate: Date
   lastAccess: Date      // ✅ Mantido (retrocompatibilidade)
   lastLogin?: Date      // 🆕 Último login real (do /members/{id})
+  inactivatedAt?: Date
   
   // ═══════════════════════════════════════════════════════════
   // PROGRESSO
@@ -506,6 +507,7 @@ curseduca: {
   joinedDate: Date,
   lastAccess: Date,      // ✅ Mantido (retrocompatibilidade)
   lastLogin: Date,       // 🆕 Último login real
+  inactivatedAt: Date,
   
   // ═══════════════════════════════════════════════════════════
   // PROGRESSO
