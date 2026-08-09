@@ -1,6 +1,6 @@
 # ActiveCampaign Service Dissolution Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Dissolve `activeCampaignService.ts` into transport, contact, tag and product-coordination modules while preserving its complete public API.
 
@@ -27,11 +27,11 @@
 **Interfaces:**
 - Produces `ActiveCampaignTransport` with `client`, `ensureAvailable`, `checkRateLimit`, `retryRequest`, `rethrowIntegrationUnavailable`, `formatError`, and `testConnection`.
 
-- [ ] Add failing tests for client caching/config change, retryable/non-retryable failures and unavailable integration before Axios.
-- [ ] Confirm missing-module RED.
-- [ ] Implement transport with injected runtime reader, clock and sleep.
-- [ ] Mutate retry classification, confirm RED, restore GREEN.
-- [ ] Delegate façade transport surfaces and run focused configuration/service tests.
+- [x] Add failing tests for client caching/config change, retryable/non-retryable failures and unavailable integration before Axios.
+- [x] Confirm missing-module RED.
+- [x] Implement transport with injected runtime reader, clock and sleep.
+- [x] Mutate retry classification, confirm RED, restore GREEN.
+- [x] Delegate façade transport surfaces and run focused configuration/service tests.
 
 ### Task 2: Extract contacts and tags
 
@@ -46,11 +46,11 @@
 - Contacts produces the existing contact/custom-field methods.
 - Tags produces the existing tag/read/batch methods and consumes contacts.
 
-- [ ] Add failing tests for contact paging, create/update branching, cached ID, custom-field no-create, idempotent add and absent removal.
-- [ ] Implement the contact boundary with a narrow user metadata repository.
-- [ ] Implement the tag boundary with transport/contact ports.
-- [ ] Mutate paging termination and idempotent association separately; confirm RED and restore GREEN.
-- [ ] Rewire all façade methods without changing consumer imports.
+- [x] Add failing tests for contact paging, create/update branching, cached ID, custom-field no-create, idempotent add and absent removal.
+- [x] Implement the contact boundary with a narrow user metadata repository.
+- [x] Implement the tag boundary with transport/contact ports.
+- [x] Mutate paging termination and idempotent association separately; confirm RED and restore GREEN.
+- [x] Rewire all façade methods without changing consumer imports.
 
 ### Task 3: Extract product coordination and close
 
@@ -65,9 +65,9 @@
 - Product coordinator exposes `applyTagToUserProduct`, `removeTagFromUserProduct`, `syncContactByProduct`, and `removeAllProductTags`.
 - Façade late-bound ports preserve method spying/overrides.
 
-- [ ] Add failing tests for external-before-local order, missing records, dedup, save/update payloads and partial failure contracts.
-- [ ] Implement repository ports and Mongoose adapter without dynamic imports.
-- [ ] Rewire the façade and prove existing singleton spies still intercept tag calls.
-- [ ] Remove the 1,010-line baseline entry and prove source-size ratchet GREEN.
-- [ ] Run lint, strict TypeScript, focused tests, complete offline Jest, build, diff and lockfile checks.
-- [ ] Commit coherent lowercase Conventional Commits and push deliberately to `origin/remake`.
+- [x] Add failing tests for external-before-local order, missing records, dedup, save/update payloads and partial failure contracts.
+- [x] Implement repository ports and Mongoose adapter without dynamic imports.
+- [x] Rewire the façade and prove existing singleton spies still intercept tag calls.
+- [x] Remove the 1,010-line baseline entry and prove source-size ratchet GREEN.
+- [x] Run lint, strict TypeScript, focused tests, complete offline Jest, build, diff and lockfile checks.
+- [x] Commit coherent lowercase Conventional Commits and push deliberately to `origin/remake`.
