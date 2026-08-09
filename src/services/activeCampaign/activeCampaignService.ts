@@ -3,65 +3,23 @@
 // Serviço de integração com Active Campaign API
 // ════════════════════════════════════════════════════════════
 
-import axios, { AxiosInstance } from 'axios'
+import type { AxiosInstance } from 'axios'
 import type { ActiveCampaignIntegration } from '../../config/configTypes'
 import { ActiveCampaignTransport } from './activeCampaignTransport'
+import { ActiveCampaignContactsService } from './activeCampaignContacts.service'
+import { ActiveCampaignTagsService, type ActiveCampaignContactTag, type TagBatchResult } from './activeCampaignTags.service'
 import { 
   ACContact, 
   ACContactApi, 
   ACContactResponse, 
-  ACContactsResponse,
-  ACTagResponse 
+  ACTagResponse
 } from '../../types/activecampaign.types'
 import { User, UserProduct } from '../../models'
 
-type ACContactTagLink = {
-  id: string
-  tag: string
-  contact?: string
-  cdate?: string
-  seriesid?: string | null
-}
-
-type ACContactTagsResponse = {
-  contactTags?: ACContactTagLink[]
-}
-
-type ACContactTag = {
-  id: string
-  tag: string
-  cdate?: string
-  seriesid?: string | null
-}
-
-type ACFieldValueResponse = {
-  field: string | number
-  value?: string | null
-}
-
-type ACFieldValuesResponse = {
-  fieldValues?: ACFieldValueResponse[]
-}
-
-type ACTagSummary = {
-  id: string
-  tag: string
-}
-
-type ACTagsResponse = {
-  tags?: ACTagSummary[]
-}
-
-type ACTagDetailResponse = {
-  tag?: ACTagSummary
-}
-
-// ─────────────────────────────────────────────────────────────
-// CLASSE PRINCIPAL
-// ─────────────────────────────────────────────────────────────
-
 class ActiveCampaignService {
   private readonly transport = new ActiveCampaignTransport()
+  private readonly contacts = new ActiveCampaignContactsService(this.transport)
+  private readonly tags = new ActiveCampaignTagsService(this.transport, this.contacts)
 
   public get client(): AxiosInstance {
     return this.transport.client
@@ -82,601 +40,76 @@ class ActiveCampaignService {
   public retryRequest<T>(fn: () => Promise<T>, retries?: number): Promise<T> {
     return this.transport.retryRequest(fn, retries)
   }
-  /**
-   * Buscar contacto por email
-   */
   async getContactByEmail(email: string): Promise<ACContactResponse | null> {
-    this.getIntegration()
-    await this.checkRateLimit()
-
-    try {
-      const response = await this.retryRequest(async () => {
-        return await this.client.get<ACContactsResponse>('/api/3/contacts', {
-          params: { email },
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        })
-      })
-
-      if (response.data && response.data.contacts && response.data.contacts.length > 0) {
-        return { contact: response.data.contacts[0] }
-      }
-
-      return null
-    } catch (error) {
-      this.rethrowIntegrationUnavailable(error)
-      console.error(`❌ Erro ao buscar contacto ${email}:`, this.formatError(error))
-      throw error
-    }
+    return this.contacts.getContactByEmail(email)
   }
 
   async getAllContacts(): Promise<ACContactApi[]> {
-    this.getIntegration()
-    const contacts: ACContactApi[] = []
-    const limit = 100
-    let offset = 0
-
-    while (true) {
-      await this.checkRateLimit()
-      const response = await this.retryRequest(() =>
-        this.client.get<ACContactsResponse>('/api/3/contacts', {
-          params: { limit, offset },
-        })
-      )
-      const page = response.data.contacts || []
-      contacts.push(...page)
-
-      if (page.length < limit) {
-        return contacts
-      }
-      offset += limit
-    }
+    return this.contacts.getAllContacts()
   }
 
-  /**
-   * Criar ou atualizar contacto
-   */
   async createOrUpdateContact(contact: ACContact): Promise<ACContactResponse> {
-    this.getIntegration()
-    await this.checkRateLimit()
-
-    try {
-      // Verificar se contacto já existe
-      const existing = await this.getContactByEmail(contact.email)
-
-      if (existing) {
-        // Atualizar contacto existente
-        return await this.retryRequest(async () => {
-          const response = await this.client.put<ACContactResponse>(
-            `/api/3/contacts/${existing.contact.id}`,
-            { contact }
-          )
-          return response.data
-        })
-      } else {
-        // Criar novo contacto
-        return await this.retryRequest(async () => {
-          const response = await this.client.post<ACContactResponse>(
-            '/api/3/contacts',
-            { contact }
-          )
-          return response.data
-        })
-      }
-    } catch (error) {
-      this.rethrowIntegrationUnavailable(error)
-      console.error(`❌ Erro ao criar/atualizar contacto ${contact.email}:`, this.formatError(error))
-      throw error
-    }
+    return this.contacts.createOrUpdateContact(contact)
   }
 
-/**
- * Encontrar ou criar contacto (retorna o contacto com id)
- */
-async findOrCreateContact(email: string, name?: string): Promise<ACContactApi> {
-  this.getIntegration()
-  const existing = await this.getContactByEmail(email)
-  if (existing?.contact) return existing.contact
-
-  const parts = (name || '').trim().split(/\s+/).filter(Boolean)
-  const firstName = parts[0] || ''
-  const lastName = parts.slice(1).join(' ') || ''
-
-  const created = await this.createOrUpdateContact({
-    email,
-    ...(firstName ? { firstName } : {}),
-    ...(lastName ? { lastName } : {})
-  })
-
-  return created.contact
-}
-
-/**
- * 🔑 Buscar contactId do Active Campaign (com cache na BD)
- *
- * ⚠️ IMPORTANTE: Esta função APENAS lê contactos, NUNCA cria/atualiza!
- * Active Campaign é READ-ONLY exceto para operações de tags do BO.
- *
- * Fluxo:
- * 1. Verifica se user.metadata.activeCampaignId já existe na BD
- * 2. Se não, busca via API: GET /api/3/contacts?filters[email]=...
- * 3. Guarda contactId na BD para futuras operações
- * 4. Retorna contactId ou null se não existir
- *
- * @param email Email do user
- * @param userId MongoDB _id do user (opcional, para guardar na BD)
- * @returns contactId do AC ou null
- */
-async getContactId(email: string, userId?: string): Promise<string | null> {
-  this.getIntegration()
-  try {
-    // Verificar cache na BD
-    if (userId) {
-      const user = await User.findById(userId).select('metadata.activeCampaignId')
-      if (user?.metadata?.activeCampaignId) {
-        return user.metadata.activeCampaignId
-      }
-    }
-
-    // Buscar contacto via email
-    const contact = await this.getContactByEmail(email)
-    if (!contact) {
-      return null
-    }
-
-    const contactId = contact.contact.id
-
-    // Guardar na BD para cache
-    if (userId && contactId) {
-      await User.findByIdAndUpdate(userId, {
-        $set: { 'metadata.activeCampaignId': contactId }
-      })
-    }
-
-    return contactId
-
-  } catch (error) {
-    this.rethrowIntegrationUnavailable(error)
-    console.error(`[AC Service] ❌ Erro ao buscar contactId para ${email}:`, this.formatError(error))
-    return null
+  async findOrCreateContact(email: string, name?: string): Promise<ACContactApi> {
+    return this.contacts.findOrCreateContact(email, name)
   }
-}
 
-  // ═══════════════════════════════════════════════════════════
-  // TAGS
-  // ═══════════════════════════════════════════════════════════
-
-  /**
-   * Adicionar tag a um contacto
-   */
-  async addTag(email: string, tagName: string): Promise<ACTagResponse> {
-    this.getIntegration()
-    await this.checkRateLimit()
-    try {
-      // 1. Garantir que contacto existe
-      let contact = await this.getContactByEmail(email)
-
-      if (!contact) {
-        contact = await this.createOrUpdateContact({ email })
-      }
-
-      // 2. Buscar ou criar tag
-      const tagId = await this.getOrCreateTag(tagName)
-
-      // ✅ FIX: Verificar se associação JÁ EXISTE (evitar duplicados!)
-      const existingContactTag = await this.findContactTag(contact.contact.id, tagId)
-
-      if (existingContactTag) {
-        // Tag já aplicada
-        return {
-          contactTag: {
-            id: existingContactTag,
-            contact: contact.contact.id,
-            tag: tagId
-          }
-        }
-      }
-
-      // 3. Aplicar tag ao contacto (só se NÃO existir)
-      const payload = {
-        contactTag: {
-          contact: contact.contact.id,
-          tag: tagId
-        }
-      }
-
-      const response = await this.retryRequest(async () => {
-        return await this.client.post<ACTagResponse>('/api/3/contactTags', payload)
-      })
-
-      return response.data
-
-    } catch (error) {
-      this.rethrowIntegrationUnavailable(error)
-      console.error(`❌ [AC] Erro ao adicionar tag "${tagName}":`, this.formatError(error))
-      throw error
-    }
+  async getContactId(email: string, userId?: string): Promise<string | null> {
+    return this.contacts.getContactId(email, userId)
   }
-/**
- * ✅ Buscar tags de um contacto pelo EMAIL (wrapper do método existente)
- * 
- * Este método é um wrapper do getContactTags(contactId) existente
- * que aceita email em vez de contactId. Útil para o tagOrchestrator
- * que só tem acesso ao email do user.
- * 
- * @param email Email do contacto
- * @returns Array de nomes de tags (strings simples: ["tag1", "tag2"])
- */
-async getContactTagsByEmail(email: string): Promise<string[]> {
-  this.getIntegration()
-  try {
-    const contact = await this.getContactByEmail(email)
 
-    if (!contact) {
-      return []
-    }
-
-    const contactId = contact.contact.id
-    const contactTagsObjects = await this.getContactTags(contactId)
-
-    const tagNames = contactTagsObjects
-      .map(ct => ct.tag)
-      .filter(Boolean)
-
-    return tagNames
-
-  } catch (error: unknown) {
-    this.rethrowIntegrationUnavailable(error)
-    console.error(`❌ [AC] Erro ao buscar tags:`, this.formatError(error))
-    return []
-  }
-}
-
-/**
- * ✅ REMOVE TAG DO CONTACTO (versão otimizada - sem verificação pós-delete)
- *
- * Fluxo:
- * 1. Busca contacto por email
- * 2. Busca ID da tag por nome
- * 3. Verifica se tag está aplicada
- * 4. Remove tag via DELETE /api/3/contactTags/{contactTagId}
- *
- * ⚡ OTIMIZAÇÃO: Remove tag e retorna imediatamente
- *
- * MOTIVO: Active Campaign tem cache no endpoint de listagem que pode demorar
- * minutos a atualizar. O DELETE funciona corretamente (confirmado por testes),
- * mas a verificação via getContactTags() pode dar falso positivo devido ao cache.
- *
- * @param email Email do contacto
- * @param tagName Nome da tag a remover
- * @returns TRUE se removida, FALSE se falhou
- */
-async removeTag(email: string, tagName: string): Promise<boolean> {
-  const { debugEnabled: debug, verifyDeleteEnabled: verify } = this.getIntegration()
-
-  await this.checkRateLimit()
-
-  try {
-    const contact = await this.getContactByEmail(email)
-    if (!contact) return false
-
-    const contactId = contact.contact.id
-
-    const tagId = await this.findTagByName(tagName)
-    if (!tagId) return true // tag não existe => já removida
-
-    // ✅ ID CERTO: vem do endpoint do contacto
-    const contactTagId = await this.findContactTagIdFromContact(contactId, tagId)
-    if (!contactTagId) return true // associação não existe => já removida
-
-    // DELETE real
-    await this.retryRequest(async () => {
-      return await this.client.delete(`/api/3/contactTags/${contactTagId}`, {
-        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
-      })
-    })
-
-    // Verificação opcional por ID
-    if (verify) {
-      try {
-        await this.client.get(`/api/3/contactTags/${contactTagId}`, {
-          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
-        })
-        return false
-      } catch (error: unknown) {
-        this.rethrowIntegrationUnavailable(error)
-        if (axios.isAxiosError(error) && error.response?.status === 404) {
-          return true
-        }
-        return true
-      }
-    }
-
-    return true
-  } catch (error: unknown) {
-    this.rethrowIntegrationUnavailable(error)
-    // ⚠️ eu aqui NÃO tratava 404 como sucesso às cegas sem debug,
-    // porque pode ser URL errada (/api/3 duplicado) ou ID errado.
-    console.error(`❌ [AC] Erro ao remover tag "${tagName}":`, this.formatError(error))
-    return false
-  }
-}
-private async findContactTagIdFromContact(
-  contactId: string,
-  tagId: string
-): Promise<string | null> {
-  await this.checkRateLimit()
-
-  const resp = await this.retryRequest(async () => {
-    return await this.client.get<ACContactTagsResponse>(`/api/3/contacts/${contactId}/contactTags`, {
-      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
-    })
-  })
-
-  const contactTags = resp.data?.contactTags || []
-  const match = contactTags.find(ct => String(ct.tag) === String(tagId))
-
-  return match?.id || null
-}
-
-
-async removeTagBatch(
-    email: string,
-    tagNames: string[],
-    batchSize: number = 3
-    ): Promise<{
-      success: string[]
-      failed: string[]
-      total: number
-    }> {
-  this.getIntegration()
-    const result = {
-      success: [] as string[],
-      failed: [] as string[],
-      total: tagNames.length
-    }
-
-    // Processar em batches
-    for (let i = 0; i < tagNames.length; i += batchSize) {
-      const batch = tagNames.slice(i, i + batchSize)
-
-      // Processar batch em paralelo
-      const promises = batch.map(tag => this.removeTag(email, tag))
-      const results = await Promise.all(promises)
-
-      // Categorizar resultados
-      batch.forEach((tag, idx) => {
-        if (results[idx]) {
-          result.success.push(tag)
-        } else {
-          result.failed.push(tag)
-        }
-      })
-
-      // Rate limit entre batches
-      if (i + batchSize < tagNames.length) {
-        await new Promise(resolve => setTimeout(resolve, 2000))
-      }
-    }
-
-    return result
-}
-
-
-  // ═══════════════════════════════════════════════════════════
-
-  // ATUALIZAR MÉTODO removeTags() PARA USAR removeTagBatch()
-// ═══════════════════════════════════════════════════════════
-
-/**
- * Remover múltiplas tags (usa removeTagBatch)
- */
-async removeTags(email: string, tagNames: string[]): Promise<void> {
-  this.getIntegration()
-  await this.removeTagBatch(email, tagNames)
-}
-
-  // ═══════════════════════════════════════════════════════════
-  // CUSTOM FIELDS (Renovação OGI — ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md)
-  // ═══════════════════════════════════════════════════════════
-
-  /**
-   * Ler o valor actual de um custom field de um contacto.
-   * Devolve null se o contacto não existir na AC.
-   * Usado para o diff "só escrever se mudou" antes de qualquer escrita.
-   */
   async getContactFieldValue(
     email: string,
-    fieldId: number
+    fieldId: number,
   ): Promise<{ contactId: string; value: string | null } | null> {
-    this.getIntegration()
-    await this.checkRateLimit()
-    try {
-      const contact = await this.getContactByEmail(email)
-      if (!contact) return null
-
-      const contactId = contact.contact.id
-      const resp = await this.retryRequest(async () => {
-        return await this.client.get<ACFieldValuesResponse>(`/api/3/contacts/${contactId}/fieldValues`)
-      })
-
-      const fieldValues = resp.data?.fieldValues || []
-      const match = fieldValues.find(fv => String(fv.field) === String(fieldId))
-
-      return { contactId, value: match?.value ?? null }
-    } catch (error) {
-      this.rethrowIntegrationUnavailable(error)
-      console.error(`❌ [AC] Erro ao ler field ${fieldId} de ${email}:`, this.formatError(error))
-      throw error
-    }
+    return this.contacts.getContactFieldValue(email, fieldId)
   }
 
-  /**
-   * Ler vários custom fields de um contacto numa só chamada de fieldValues.
-   * Usa getContactId (cache em User.metadata.activeCampaignId) — só bate
-   * na AC para resolver o contacto da 1ª vez, depois é leitura local.
-   * Devolve null se o contacto não existir na AC.
-   */
   async getContactFieldValues(
     email: string,
     userId: string | undefined,
-    fieldIds: number[]
+    fieldIds: number[],
   ): Promise<{ contactId: string; values: Record<number, string | null> } | null> {
-    await this.checkRateLimit()
-    try {
-      const contactId = await this.getContactId(email, userId)
-      if (!contactId) return null
-
-      const resp = await this.retryRequest(async () => {
-        return await this.client.get(`/api/3/contacts/${contactId}/fieldValues`)
-      })
-
-      const fieldValues = resp.data?.fieldValues || []
-      const values: Record<number, string | null> = {}
-      for (const fieldId of fieldIds) {
-        const match = fieldValues.find((fv: any) => String(fv.field) === String(fieldId))
-        values[fieldId] = match?.value ?? null
-      }
-
-      return { contactId, values }
-    } catch (error) {
-      console.error(`❌ [AC] Erro ao ler fieldValues de ${email}:`, this.formatError(error))
-      throw error
-    }
+    return this.contacts.getContactFieldValues(email, userId, fieldIds)
   }
 
-  /**
-   * Escrever um custom field de um contacto (upsert por contacto+field).
-   *
-   * REGRA (guard F7 do plano): o contacto TEM de já existir na AC —
-   * este método nunca cria contactos. Devolve false se não existir.
-   */
   async updateContactField(email: string, fieldId: number, value: string): Promise<boolean> {
-    this.getIntegration()
-    await this.checkRateLimit()
-    try {
-      const contact = await this.getContactByEmail(email)
-      if (!contact) {
-        console.warn(`⚠️ [AC] updateContactField: contacto ${email} não existe — a não criar (guard F7)`)
-        return false
-      }
-
-      const payload = {
-        fieldValue: {
-          contact: contact.contact.id,
-          field: String(fieldId),
-          value
-        }
-      }
-
-      await this.retryRequest(async () => {
-        return await this.client.post('/api/3/fieldValues', payload)
-      })
-
-      return true
-    } catch (error) {
-      this.rethrowIntegrationUnavailable(error)
-      console.error(`❌ [AC] Erro ao escrever field ${fieldId} de ${email}:`, this.formatError(error))
-      throw error
-    }
+    return this.contacts.updateContactField(email, fieldId, value)
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // HELPERS - TAGS
-  // ═══════════════════════════════════════════════════════════
-
-  /**
-   * Buscar ou criar tag (público para ser usado pelo tagPreCreation)
-   */
-  public async getOrCreateTag(tagName: string): Promise<string> {
-    this.getIntegration()
-    await this.checkRateLimit()
-
-    try {
-      // Tentar buscar tag existente
-      const existingTagId = await this.findTagByName(tagName)
-      if (existingTagId) {
-        return existingTagId
-      }
-
-      // Criar nova tag
-      const response = await this.retryRequest(async () => {
-        return await this.client.post<{ tag: ACTagSummary }>('/api/3/tags', {
-          tag: {
-            tag: tagName,
-            tagType: 'contact'
-          }
-        })
-      })
-
-      return response.data.tag.id
-    } catch (error) {
-      this.rethrowIntegrationUnavailable(error)
-      console.error(`❌ Erro ao obter/criar tag "${tagName}":`, this.formatError(error))
-      throw error
-    }
+  async addTag(email: string, tagName: string): Promise<ACTagResponse> {
+    return this.tags.addTag(email, tagName)
   }
 
-  private async findTagByName(tagName: string): Promise<string | null> {
-    await this.checkRateLimit()
-
-    try {
-      const response = await this.retryRequest(async () => {
-        return await this.client.get<ACTagsResponse>('/api/3/tags', {
-          params: { search: tagName },
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        })
-      })
-
-      const tags = response.data.tags || []
-      const tag = tags.find(t => t.tag === tagName)
-      
-      return tag ? tag.id : null
-    } catch (error) {
-      this.rethrowIntegrationUnavailable(error)
-      console.error(`❌ Erro ao buscar tag "${tagName}":`, this.formatError(error))
-      return null
-    }
+  async getContactTagsByEmail(email: string): Promise<string[]> {
+    return this.tags.getContactTagsByEmail(email)
   }
 
-  /**
-   * Consulta uma tag sem a criar. Os escritores usam esta confirmação antes
-   * de aplicar tags de percurso; `getOrCreateTag` não é seguro para esse
-   * caminho porque tem autorização para criar.
-   */
-  public async findExistingTagByName(tagName: string): Promise<string | null> {
-    return this.findTagByName(tagName)
+  async removeTag(email: string, tagName: string): Promise<boolean> {
+    return this.tags.removeTag(email, tagName)
   }
 
-private async findContactTag(contactId: string, tagId: string): Promise<string | null> {
-  await this.checkRateLimit()
-
-  try {
-    const response = await this.retryRequest(async () => {
-      return await this.client.get<ACContactTagsResponse>(`/api/3/contacts/${contactId}/contactTags`, {
-        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
-      })
-    })
-
-    const contactTags = response.data.contactTags || []
-    const match = contactTags.find(ct => String(ct.tag) === String(tagId))
-    return match?.id || null
-  } catch (error) {
-    this.rethrowIntegrationUnavailable(error)
-    console.error(`[AC] findContactTag() ERROR:`, this.formatError(error))
-    return null
+  async removeTagBatch(email: string, tagNames: string[], batchSize = 3): Promise<TagBatchResult> {
+    return this.tags.removeTagBatch(email, tagNames, batchSize)
   }
-}
 
+  async removeTags(email: string, tagNames: string[]): Promise<void> {
+    return this.tags.removeTags(email, tagNames)
+  }
 
-  // ═══════════════════════════════════════════════════════════
-  // UTILITIES
-  // ═══════════════════════════════════════════════════════════
+  async findExistingTagByName(tagName: string): Promise<string | null> {
+    return this.tags.findExistingTagByName(tagName)
+  }
+
+  async getOrCreateTag(tagName: string): Promise<string> {
+    return this.tags.getOrCreateTag(tagName)
+  }
+
+  async getContactTags(contactId: string): Promise<ActiveCampaignContactTag[]> {
+    return this.tags.getContactTags(contactId)
+  }
 
   private formatError(error: unknown): string {
     return this.transport.formatError(error)
@@ -685,65 +118,6 @@ private async findContactTag(contactId: string, tagId: string): Promise<string |
   async testConnection(): Promise<boolean> {
     return this.transport.testConnection()
   }
-  /**
-   * Buscar tags de um contacto
-   * @param contactId ID do contacto no AC
-   * @returns Array de tags do contacto
-   */
-  async getContactTags(contactId: string): Promise<ACContactTag[]> {
-    this.getIntegration()
-    try {
-      await this.checkRateLimit()
-
-      const response = await this.client.get<ACContactTagsResponse>(`/api/3/contacts/${contactId}/contactTags`, {
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      })
-
-      const contactTags = response.data.contactTags || []
-
-      const tagsWithDetails = await Promise.all(
-        contactTags.map(async ct => {
-          try {
-            const tagResponse = await this.client.get<ACTagDetailResponse>(`/api/3/tags/${ct.tag}`, {
-              headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-              }
-            })
-
-            return {
-              id: ct.id,
-              tag: tagResponse.data.tag?.tag || ct.tag,
-              cdate: ct.cdate,
-              seriesid: ct.seriesid
-            }
-          } catch (error) {
-            this.rethrowIntegrationUnavailable(error)
-            return {
-              id: ct.id,
-              tag: ct.tag,
-              cdate: ct.cdate,
-              seriesid: ct.seriesid
-            }
-          }
-        })
-      )
-
-      return tagsWithDetails
-    } catch (error: unknown) {
-      this.rethrowIntegrationUnavailable(error)
-      console.error(`[AC Service] Erro ao buscar tags: ${this.formatError(error)}`)
-      throw error
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // ✅ CORREÇÃO ISSUE #1: AC TAGS POR PRODUTO
-  // ═══════════════════════════════════════════════════════════
-
 /**
  * Aplicar tag a um UserProduct específico (não ao user global)
  * ✅ SEM DOUBLE PREFIX - Tag já vem formatada do DecisionEngine
