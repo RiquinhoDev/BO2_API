@@ -14,7 +14,7 @@
 - Remain offline: no Hotmart API, production MongoDB, Redis, or other real integration.
 - Do not run `npm ci`, delete `node_modules`, or alter either lockfile.
 - Keep every handwritten TypeScript file at or below 500 lines.
-- Preserve all eleven mounted route contracts and methods exactly.
+- Preserve all ten mounted route contracts and methods exactly.
 - No `any`, `@ts-ignore`, non-null assertions, casts used to silence types, or new ESLint suppressions.
 - Apply rule #9 before extraction: prove each export is mounted or consumed; remove only code proven dead.
 - Use RED/GREEN for every characterization or extracted interface; mutation must fail for the intended reason.
@@ -32,7 +32,7 @@
 - `src/controllers/hotmart/hotmartLegacySync.controller.ts`: `syncHotmartUsers` HTTP adapter.
 - `src/services/hotmart/hotmartProgressSync.service.ts`: legacy progress-only synchronization.
 - `src/controllers/hotmart/hotmartProgress.controller.ts`: `syncProgressOnly` HTTP adapter.
-- `src/controllers/hotmart/hotmartDiagnostics.controller.ts`: `findHotmartUser`, `testDatabaseConnection`, and `compareSyncMethods`.
+- `src/controllers/hotmart/hotmartDiagnostics.controller.ts`: `findHotmartUser` and `compareSyncMethods`; the unmounted `testDatabaseConnection` export is removed as proven dead code.
 - `src/controllers/hotmart/hotmartUniversalSync.controller.ts`: `syncHotmartUsersUniversal` and `syncProgressOnlyUniversal`.
 - `src/controllers/hotmart/index.ts`: stable barrel used only by `hotmart.routes.ts`.
 - `tests/controllers/hotmartCatalog.controller.test.ts`: exact HTTP envelopes and failures.
@@ -136,10 +136,10 @@
 - Modify: `src/controllers/syncUtilizadoresControllers/hotmart.controller.ts`
 
 **Interfaces:**
-- Produces: `findHotmartUser`, `testDatabaseConnection`, `compareSyncMethods`.
+- Produces: `findHotmartUser`, `compareSyncMethods`.
 - Produces: `syncHotmartUsersUniversal`, `syncProgressOnlyUniversal`.
 
-- [ ] Characterize lookup hit/miss, database ping success/failure, compare response, authenticated principal forwarding, progress/error callbacks, adapter fetch failure, and exact Universal Sync envelopes.
+- [ ] Characterize lookup hit/miss, compare response, authenticated principal forwarding, progress/error callbacks, adapter fetch failure, and exact Universal Sync envelopes; prove `testDatabaseConnection` has no route or consumer before removing it.
 - [ ] Mutate actor forwarding and verify RED against the authenticated principal assertion.
 - [ ] Restore the mutation and move the handlers without modifying the Universal Sync engine or its dry-run semantics.
 - [ ] Rewire the five routes and remove their old definitions/imports.
@@ -171,7 +171,7 @@
 
 ## Self-Review
 
-- Spec coverage: all eleven mounted handlers, route preservation, offline containment, file-size ceiling, dead-code proof, and terminal deletion have explicit tasks.
+- Spec coverage: all ten mounted handlers, route preservation, offline containment, file-size ceiling, dead-code proof, and terminal deletion have explicit tasks.
 - Placeholder scan: no deferred implementation placeholders remain; business behavior is preservation-only.
 - Type consistency: Task 2 client feeds Tasks 3 and 4; Tasks 1, 3, 4, and 5 export handlers collected by Task 6.
 
