@@ -3,6 +3,7 @@
 
 import { Request, Response } from 'express'
 import axios from 'axios'
+import { getHotmartCredentials, getHotmartSubdomain } from '../../services/requestDrivenRuntimeConfig'
 import type { AnyBulkWriteOperation, Types } from 'mongoose'
 import { Class, Product, SyncHistory, User } from '../../models'
 import type { IUser } from '../../models/user'
@@ -282,13 +283,8 @@ interface HotmartLesson {
 }
 
 async function getHotmartAccessToken(): Promise<string> {
+  const { clientId, clientSecret } = getHotmartCredentials()
   try {
-    const clientId = process.env.HOTMART_CLIENT_ID
-    const clientSecret = process.env.HOTMART_CLIENT_SECRET
-
-    if (!clientId || !clientSecret) {
-      throw new Error('HOTMART_CLIENT_ID e HOTMART_CLIENT_SECRET são obrigatórios')
-    }
 
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
     console.log(`🔐 Gerando token com Basic Auth para client_id: ${clientId.substring(0, 10)}...`)
@@ -322,8 +318,8 @@ async function getHotmartAccessToken(): Promise<string> {
 }
 
 const fetchUserLessons = async (userId: string, accessToken: string): Promise<HotmartLesson[]> => {
+  const subdomain = getHotmartSubdomain()
   try {
-    const subdomain = process.env.subdomain || 'ograndeinvestimento-bomrmk'
     console.log(`🔍 Buscando lições do utilizador ${userId}`)
 
     const response = await axios.get<{ lessons?: HotmartLesson[] }>(
@@ -448,7 +444,7 @@ export const syncHotmartUsers = async (req: Request, res: Response): Promise<voi
         'metadata.progress': 10 + (pageCount * 2)
       })
 
-      const subdomain = process.env.subdomain || 'ograndeinvestimento-bomrmk'
+      const subdomain = getHotmartSubdomain()
       let requestUrl = `https://developers.hotmart.com/club/api/v1/users?subdomain=${subdomain}`
       if (nextPageToken) requestUrl += `&page_token=${encodeURIComponent(nextPageToken)}`
 

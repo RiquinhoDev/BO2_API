@@ -362,6 +362,41 @@ test('explicit malformed optional values fail even when their feature is disable
   ).toThrow('DISCORD_MESSAGE_CHANNELS')
 })
 
+test('Hotmart aliases are normalized once with explicit priority and no default subdomain', () => {
+  const config = loadConfig({
+    ...VALID_ENV,
+    HOTMART_CLIENT_ID: 'hotmart-client',
+    HOTMART_CLIENT_SECRET: 'hotmart-secret',
+    HOTMART_SUBDOMAIN: 'canonical-subdomain',
+    COURSE_LESSON_SUBDOMAIN: 'lesson-subdomain',
+    COURSE_LESSON_SYNC_USER_ID: 'sync-user',
+    subdomain: 'legacy-subdomain',
+  })
+
+  expect(config.integrations.hotmart).toEqual({
+    configured: true,
+    value: {
+      clientId: 'hotmart-client',
+      clientSecret: 'hotmart-secret',
+      subdomain: 'lesson-subdomain',
+      syncUserId: 'sync-user',
+    },
+  })
+
+  expect(
+    loadConfig({
+      ...VALID_ENV,
+      HOTMART_CLIENT_ID: 'hotmart-client',
+      HOTMART_CLIENT_SECRET: 'hotmart-secret',
+    }).integrations.hotmart,
+  ).toEqual({
+    configured: true,
+    value: {
+      clientId: 'hotmart-client',
+      clientSecret: 'hotmart-secret',
+    },
+  })
+})
 test('enabled renewal features require their complete integration group', () => {
   expect(() =>
     loadConfig({

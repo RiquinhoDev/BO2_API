@@ -3,6 +3,7 @@ import { cacheService } from '../cache.service'
 import { fmpThrottle } from './fmpThrottle'
 import { normalizeTicker, isValidTicker } from './tickerUtils'
 import ClarezaMarketData from '../../models/ClarezaMarketData'
+import { getFmpApiKey } from '../requestDrivenRuntimeConfig'
 
 type FmpNumericField =
   | 'price'
@@ -357,7 +358,7 @@ async function fmpGet(path: string, params: Record<string, string> = {}): Promis
   try {
     await fmpThrottle()
     const { data } = await axios.get<unknown>(`${FMP_BASE}${path}`, {
-      params: { apikey: process.env.FMP_API_KEY, ...params },
+      params: { apikey: getFmpApiKey(), ...params },
       timeout: 15000
     })
     return firstRecord(data)
@@ -454,9 +455,7 @@ async function fetchStock(ticker: string, isReit: boolean) {
 // ─────────────────────────────────────────────────────────────
 
 export async function refreshClarezaData(): Promise<{ total: number; errors: number }> {
-  if (!process.env.FMP_API_KEY) {
-    throw new Error('FMP_API_KEY nao configurada')
-  }
+  getFmpApiKey()
 
   console.log(`📈 [Clareza] Iniciando refresh de ${UNIVERSE.length} ações...`)
 
@@ -542,7 +541,7 @@ async function fmpGetArray(path: string, params: Record<string, string> = {}): P
   try {
     await fmpThrottle()
     const { data } = await axios.get<unknown>(`${FMP_BASE}${path}`, {
-      params: { apikey: process.env.FMP_API_KEY, ...params },
+      params: { apikey: getFmpApiKey(), ...params },
       timeout: 15000
     })
     return recordArray(data)
@@ -699,7 +698,7 @@ function mapClarezaToStock(entry: ClarezaStockEntry) {
 }
 
 export async function getReitAnalysis(rawTicker: string) {
-  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+  getFmpApiKey()
 
   const ticker = normalizeTicker(rawTicker)
   if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
@@ -728,7 +727,7 @@ export async function getReitAnalysis(rawTicker: string) {
     try {
       await fmpThrottle()
       const { data } = await axios.get<unknown>(`${FMP_BASE}/profile`, {
-        params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
+        params: { apikey: getFmpApiKey(), symbol: ticker },
         timeout: 15000
       })
       profile = firstRecord(data)
@@ -815,7 +814,7 @@ export async function getReitAnalysis(rawTicker: string) {
 }
 
 export async function getReitValuation(rawTicker: string) {
-  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+  getFmpApiKey()
 
   const ticker = normalizeTicker(rawTicker)
   if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
@@ -829,7 +828,7 @@ export async function getReitValuation(rawTicker: string) {
     try {
       await fmpThrottle()
       const { data } = await axios.get<unknown>(`${FMP_BASE}/profile`, {
-        params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
+        params: { apikey: getFmpApiKey(), symbol: ticker },
         timeout: 15000
       })
       profile = firstRecord(data)
@@ -1052,7 +1051,7 @@ export async function getReitValuation(rawTicker: string) {
 }
 
 export async function getStockAnalysis(rawTicker: string) {
-  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+  getFmpApiKey()
 
   const ticker = normalizeTicker(rawTicker)
   if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
@@ -1068,7 +1067,7 @@ export async function getStockAnalysis(rawTicker: string) {
     try {
       await fmpThrottle()
       const { data } = await axios.get<unknown>(`${FMP_BASE}/profile`, {
-        params: { apikey: process.env.FMP_API_KEY, symbol: ticker },
+        params: { apikey: getFmpApiKey(), symbol: ticker },
         timeout: 15000
       })
       profile = firstRecord(data)

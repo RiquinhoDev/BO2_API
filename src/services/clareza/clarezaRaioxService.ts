@@ -4,6 +4,7 @@ import { UNIVERSE } from './clarezaFmpService'
 import { fmpThrottle } from './fmpThrottle'
 import { normalizeTicker, isValidTicker } from './tickerUtils'
 import ClarezaRaioxData from '../../models/ClarezaRaioxData'
+import { getFmpApiKey, getOptionalFmpApiKey } from '../requestDrivenRuntimeConfig'
 
 // ─────────────────────────────────────────────────────────────
 // RAIO-X DA AÇÃO — versão Node (migrada do clareza-raiox.php)
@@ -118,12 +119,13 @@ async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurrency: n
 // Todas as chamadas passam pelo limitador global partilhado (fmpThrottle),
 // comum às 3 ferramentas Clareza → a soma nunca passa do limite do plano.
 async function fmpRaw(path: string, params: Record<string, string> = {}): Promise<unknown> {
-  if (!process.env.FMP_API_KEY) return null
+  const apiKey = getOptionalFmpApiKey()
+  if (!apiKey) return null
   for (let attempt = 0; attempt < 3; attempt++) {
     await fmpThrottle()
     try {
       const { data } = await axios.get<unknown>(`${FMP_STABLE}${path}`, {
-        params: { apikey: process.env.FMP_API_KEY, ...params },
+        params: { apikey: apiKey, ...params },
         timeout: 15000
       })
       if (!data) return null
@@ -353,7 +355,7 @@ async function pruneStaleRaiox(): Promise<void> {
 // ─────────────────────────────────────────────────────────────
 
 export async function refreshClarezaRaioxData(): Promise<{ total: number; errors: number }> {
-  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+  getFmpApiKey()
 
   console.log(`📊 [Raiox] Iniciando refresh de ${RAIOX_UNIVERSE.length} ações...`)
 
@@ -452,7 +454,7 @@ async function getSectorPe(): Promise<unknown[]> {
 }
 
 export async function getRaioxAnalysis(rawTicker: string): Promise<RaioxPayload & { sectorPe: unknown[] }> {
-  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+  getFmpApiKey()
 
   const ticker = normalizeTicker(rawTicker)
   if (!isValidTicker(ticker)) throw new Error('Ticker invalido')
@@ -574,7 +576,7 @@ const DIAGNOSE_TICKERS = [
 ]
 
 export async function diagnoseRaiox(): Promise<RaioxDiagnosis> {
-  if (!process.env.FMP_API_KEY) throw new Error('FMP_API_KEY nao configurada')
+  getFmpApiKey()
 
   const results: Array<JsonObject & { ticker: string; ok: boolean }> = []
 

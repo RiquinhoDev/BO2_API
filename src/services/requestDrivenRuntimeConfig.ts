@@ -41,3 +41,45 @@ export function getStudentSummaryToken(): string | undefined {
   const integration = getRuntimeConfig().integrations.studentSummary
   return integration.configured ? integration.value.token : undefined
 }
+
+export function getOptionalFmpApiKey(): string | undefined {
+  const integration = getRuntimeConfig().integrations.fmp
+  return integration.configured ? integration.value.apiKey : undefined
+}
+
+export function getFmpApiKey(): string {
+  const integration = getRuntimeConfig().integrations.fmp
+  if (!integration.configured) throw new IntegrationUnavailableError('fmp')
+  return integration.value.apiKey
+}
+
+export interface HotmartCredentials {
+  readonly clientId: string
+  readonly clientSecret: string
+}
+
+export function getHotmartCredentials(): HotmartCredentials {
+  const integration = getRuntimeConfig().integrations.hotmart
+  if (!integration.configured) throw new IntegrationUnavailableError('hotmart')
+  return {
+    clientId: integration.value.clientId,
+    clientSecret: integration.value.clientSecret,
+  }
+}
+
+export function getHotmartSubdomain(): string {
+  const integration = getRuntimeConfig().integrations.hotmart
+  const subdomain = integration.configured ? integration.value.subdomain : undefined
+  if (!subdomain) throw new IntegrationUnavailableError('hotmart')
+  return subdomain
+}
+
+export function getOptionalHotmartSubdomain(): string | undefined {
+  const integration = getRuntimeConfig().integrations.hotmart
+  return integration.configured ? integration.value.subdomain : undefined
+}
+
+export function getHotmartSyncUserId(): string | undefined {
+  const integration = getRuntimeConfig().integrations.hotmart
+  return integration.configured ? integration.value.syncUserId : undefined
+}

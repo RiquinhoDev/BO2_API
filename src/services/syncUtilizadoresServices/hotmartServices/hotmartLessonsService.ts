@@ -1,5 +1,6 @@
 // src/services/hotmartLessonsService.ts
 import axios from 'axios'
+import { getHotmartCredentials } from '../../requestDrivenRuntimeConfig'
 import { HotmartLessonsResponse, HotmartLesson, LessonProgress, UserLessonsData, LessonStats } from '../../../types/lesson.types'
 import logger from '../../../utils/logger'
 
@@ -8,17 +9,7 @@ class HotmartLessonsService {
   
   // 🔑 Configurar token de acesso (usando as mesmas variáveis do projeto)
   private async getAuthHeaders() {
-    // ✅ USAR AS MESMAS VARIÁVEIS QUE O PROJETO JÁ USA
-    const clientId = process.env.HOTMART_CLIENT_ID
-    const clientSecret = process.env.HOTMART_CLIENT_SECRET
-    
-    logger.debug('Credenciais Hotmart avaliadas', {
-      configured: Boolean(clientId && clientSecret),
-    })
-    
-    if (!clientId || !clientSecret) {
-      throw new Error('HOTMART_CLIENT_ID e HOTMART_CLIENT_SECRET não configurados nas variáveis de ambiente')
-    }
+    const { clientId, clientSecret } = getHotmartCredentials()
 
     // ✅ OBTER TOKEN USANDO O MESMO MÉTODO DO PROJETO
     try {
@@ -70,10 +61,9 @@ class HotmartLessonsService {
 
   // 📚 Buscar lições de um utilizador específico
   async getUserLessons(userId: string, subdomain: string): Promise<HotmartLessonsResponse> {
+    const headers = await this.getAuthHeaders()
     try {
       console.log(`🔍 Buscando lições do utilizador ${userId} no subdomínio ${subdomain}`)
-      
-      const headers = await this.getAuthHeaders() // ✅ CORRIGIDO: await para obter token
       
       // 🧪 DEBUG: Log da requisição completa
       const requestUrl = `${this.baseURL}/users/${userId}/lessons`
