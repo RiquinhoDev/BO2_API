@@ -189,6 +189,12 @@ async function gatherRaiox(ticker: string, concurrent: boolean): Promise<Record<
     km:      ['/key-metrics-ttm', { symbol: ticker }],
     inc:     ['/income-statement', { symbol: ticker, period: 'annual', limit: '8' }],
     cf:      ['/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '8' }],
+    // Os mesmos por trimestre (~2 anos) — alimentam o toggle Anual/Trimestral.
+    incQ:    ['/income-statement', { symbol: ticker, period: 'quarter', limit: '8' }],
+    cfQ:     ['/cash-flow-statement', { symbol: ticker, period: 'quarter', limit: '8' }],
+    // Segmentação de receita do último trimestre reportado. Nem todas as
+    // empresas têm — o front-end trata o vazio.
+    seg:     ['/revenue-product-segmentation', { symbol: ticker, period: 'quarter', limit: '1' }],
     ra:      ['/ratios', { symbol: ticker, period: 'annual', limit: '8' }],
     gr:      ['/grades-consensus', { symbol: ticker }],
     pt:      ['/price-target-consensus', { symbol: ticker }],
@@ -254,6 +260,12 @@ async function fetchCompanyRaiox(
     km:  fmpFirst(raw.km) ?? {},
     inc: raw.inc ?? [],
     cf:  raw.cf ?? [],
+    incQ: raw.incQ ?? [],
+    cfQ:  raw.cfQ ?? [],
+    // A FMP ignora o limit=1 nesta rota e devolve o histórico todo (~45
+    // trimestres). O HTML só lê a posição 0, por isso cortamos aqui — guardar
+    // o resto multiplicaria o payload em Redis/Mongo por nada.
+    seg: Array.isArray(raw.seg) ? raw.seg.slice(0, 1) : [],
     ra:  raw.ra ?? [],
     gr:  fmpFirst(raw.gr) ?? {},
     pt:  fmpFirst(raw.pt) ?? {},
