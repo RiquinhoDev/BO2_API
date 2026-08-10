@@ -3,18 +3,19 @@
 // Controller para popular histórico retroativo dos alunos
 // ══════════════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import type { TestHistoryDeleteEventsInput } from '../security/testHistoryDestructiveInput'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import UserHistory from '../models/UserHistory'
 import mongoose from 'mongoose'
+import { internalError } from '../security/errorHandling'
 
 /**
  * POST /api/test/history/populate-retroactive
  * Popula histórico retroativo baseado nos dados existentes dos produtos
  */
-export const populateRetroactiveHistory = async (req: Request, res: Response) => {
+export const populateRetroactiveHistory = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, userId } = req.body
 
@@ -252,13 +253,13 @@ export const populateRetroactiveHistory = async (req: Request, res: Response) =>
         }))
       }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[POPULATE] Erro:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao popular histórico retroativo',
-      message: error.message
-    })
+    next(internalError(
+      'Erro ao popular histórico retroativo',
+      'HISTORY_RETROACTIVE_POPULATE_FAILED',
+      error,
+    ))
   }
 }
 
@@ -269,6 +270,7 @@ export const populateRetroactiveHistory = async (req: Request, res: Response) =>
 export const deleteTestEvents = async (
   input: TestHistoryDeleteEventsInput,
   res: Response,
+  next: NextFunction,
 ) => {
   try {
     const { email } = input.body
@@ -305,13 +307,13 @@ export const deleteTestEvents = async (
         deletedCount: result.deletedCount
       }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[DELETE] Erro:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao apagar eventos de teste',
-      message: error.message
-    })
+    next(internalError(
+      'Erro ao apagar eventos de teste',
+      'HISTORY_TEST_EVENTS_DELETE_FAILED',
+      error,
+    ))
   }
 }
 
@@ -319,7 +321,7 @@ export const deleteTestEvents = async (
  * POST /api/test/history/populate-all-users
  * Popula histórico retroativo para TODOS os users (usa com cuidado!)
  */
-export const populateAllUsersHistory = async (req: Request, res: Response) => {
+export const populateAllUsersHistory = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { limit = 100 } = req.body
 
@@ -362,12 +364,12 @@ export const populateAllUsersHistory = async (req: Request, res: Response) => {
         totalRecords
       }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[POPULATE ALL] Erro:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao popular histórico de todos os users',
-      message: error.message
-    })
+    next(internalError(
+      'Erro ao popular histórico de todos os users',
+      'HISTORY_ALL_USERS_POPULATE_FAILED',
+      error,
+    ))
   }
 }
