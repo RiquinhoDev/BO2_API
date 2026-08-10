@@ -5,10 +5,9 @@
 // ════════════════════════════════════════════════════════════
 
 import mongoose from 'mongoose'
-import schedule, { RecurrenceRule } from 'node-schedule'
+import schedule from 'node-schedule'
 import CronJobConfig, {
   ICronJobConfig,
-  ILastRunStats,
   SyncType
 } from '../../models/SyncModels/CronJobConfig'
 import { CronExecution } from '../../models'
@@ -16,6 +15,9 @@ import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../t
 import { SchedulerRegistry } from './scheduler/registry'
 import { cronExpressionService } from './scheduler/cronExpression'
 import { cronJobDispatcher } from './scheduler/jobDispatcher'
+import { CronJobExecutor } from './scheduler/jobExecution'
+import { createLoggingCronNotification } from './scheduler/notificationPort'
+import logger from '../../utils/logger'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
 const RENEWAL_OFFER_SYNC_JOB_NAME = 'RenewalOfferSync'
@@ -34,12 +36,37 @@ const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('0000000000000000000000
 // ─────────────────────────────────────────────────────────────
 
 const registry = new SchedulerRegistry()
+const notificationPort = createLoggingCronNotification(logger)
+const defaultCronJobExecutor = new CronJobExecutor({
+  dispatch: job => cronJobDispatcher.execute(job),
+  saveHistory: async entry => {
+    const completedAt = new Date()
+    const startedAt = new Date(completedAt.getTime() - entry.duration * 1000)
+    await CronExecution.create({
+      cronName: entry.jobName,
+      executionType: entry.triggeredBy === 'MANUAL' ? 'manual' : 'automatic',
+      status: entry.status,
+      startTime: startedAt,
+      endTime: completedAt,
+      duration: entry.duration * 1000,
+      tagsApplied: 0,
+      emailsSynced: 0,
+      studentsProcessed: entry.stats.total,
+      errorMessage: entry.errorMessage
+    })
+  },
+  notify: (job, success, stats, errorMessage) =>
+    notificationPort.notify(job, success, stats, errorMessage),
+  now: Date.now,
+  reportError: (message, error) => logger.error(message, error)
+})
 
 // ─────────────────────────────────────────────────────────────
 // SERVICE CLASS
 // ─────────────────────────────────────────────────────────────
 
 export class CronManagementService {
+  constructor(private readonly jobExecutor = defaultCronJobExecutor) {}
   private isProtectedJob(job: ICronJobConfig): boolean {
     return PROTECTED_JOB_NAMES.has(job.name)
   }
@@ -237,157 +264,21 @@ const job = await CronJobConfig.create({
   // SAVE EXECUTION HISTORY
   // ═══════════════════════════════════════════════════════════
 
-  private async saveExecutionHistory(
-    job: ICronJobConfig,
-    stats: ILastRunStats,
-    status: 'success' | 'error',
-    duration: number,
-    triggeredBy: 'CRON' | 'MANUAL',
-    errorMessage?: string
-  ): Promise<void> {
-    try {
-      const startedAt = new Date(Date.now() - duration * 1000)
-      const completedAt = new Date()
-
-      await CronExecution.create({
-        cronName: job.name,
-        executionType: triggeredBy === 'MANUAL' ? 'manual' : 'automatic',
-        status: status === 'success' ? 'success' : 'error',
-        startTime: startedAt,
-        endTime: completedAt,
-        duration: duration * 1000, // Converter para ms
-        tagsApplied: 0, // CRON jobs não aplicam tags diretamente
-        emailsSynced: 0,
-        studentsProcessed: stats.total,
-        errorMessage
-      })
-
-      console.log(`💾 Histórico salvo: ${job.name} (${status})`)
-    } catch (error: any) {
-      console.error(`⚠️ Erro ao salvar histórico para ${job.name}:`, error.message)
-      // Não lançar erro para não quebrar execução do job
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // EXECUTE MANUALLY
-  // ═══════════════════════════════════════════════════════════
-
   async executeJobManually(
     jobId: mongoose.Types.ObjectId,
     _triggeredBy: mongoose.Types.ObjectId
   ): Promise<CronExecutionResult> {
-    console.log(`▶️ Executando job manualmente: ${jobId}`)
-
     const job = await CronJobConfig.findById(jobId)
-    if (!job) {
-      throw new Error('Job não encontrado')
-    }
-
+    if (!job) throw new Error('Job não encontrado')
     if (this.isProtectedJob(job)) {
       throw new Error('Job protegido: ClarezaRefresh nao permite execucao manual')
     }
 
-    const startTime = Date.now()
-
-    try {
-      // Executar sync
-      const result = await cronJobDispatcher.execute(job)
-
-      const duration = Math.round((Date.now() - startTime) / 1000)
-
-      // Registrar execução no job (não deixar falhar a resposta da API)
-      try {
-        await job.recordExecution(
-          result.stats,
-          result.success ? 'success' : 'failed',
-          duration,
-          'MANUAL',
-          result.errorMessage
-        )
-      } catch (recordError: any) {
-        console.error(
-          `⚠️ Erro ao gravar recordExecution para ${job.name}:`,
-          recordError?.message || recordError
-        )
-      }
-
-      // ✅ NOVO: Salvar no histórico
-      await this.saveExecutionHistory(
-        job,
-        result.stats,
-        result.success ? 'success' : 'error',
-        duration,
-        'MANUAL',
-        result.errorMessage
-      )
-
-      // Notificar se configurado
-      if (job.notifications.enabled) {
-        await this.sendNotification(
-          job,
-          result.success,
-          result.stats,
-          result.errorMessage
-        )
-      }
-
-      console.log(`✅ Job executado com sucesso: ${job.name}`)
-
-      return {
-        success: result.success,
-        duration,
-        stats: result.stats,
-        errorMessage: result.errorMessage
-      }
-    } catch (error: any) {
-      const duration = Math.round((Date.now() - startTime) / 1000)
-
-      const stats: ILastRunStats = {
-        total: 0,
-        inserted: 0,
-        updated: 0,
-        errors: 1,
-        skipped: 0
-      }
-
-      try {
-        await job.recordExecution(
-          stats,
-          'failed',
-          duration,
-          'MANUAL',
-          error.message
-        )
-      } catch (recordError: any) {
-        console.error(
-          `⚠️ Erro ao gravar recordExecution (erro) para ${job.name}:`,
-          recordError?.message || recordError
-        )
-      }
-
-      // ✅ NOVO: Salvar erro no histórico
-      await this.saveExecutionHistory(
-        job,
-        stats,
-        'error',
-        duration,
-        'MANUAL',
-        error.message
-      )
-
-      console.error(`❌ Erro ao executar job: ${job.name}`, error)
-
-      return {
-        success: false,
-        duration,
-        stats,
-        errorMessage: error.message
-      }
-    }
+    return this.jobExecutor.execute(job, {
+      triggeredBy: 'MANUAL',
+      isolateRecordFailure: true
+    })
   }
-
-  // ═══════════════════════════════════════════════════════════
   // GET JOBS
   // ═══════════════════════════════════════════════════════════
 
@@ -437,71 +328,16 @@ const job = await CronJobConfig.create({
       const scheduledJob = schedule.scheduleJob(
         job.schedule.cronExpression,
         async () => {
-          console.log(`🕐 CRON trigger: ${job.name}`)
-          
-          const startTime = Date.now()
-
-          try {
-            const result = await cronJobDispatcher.execute(job)
-
-            const duration = Math.round((Date.now() - startTime) / 1000)
-
-            await job.recordExecution(
-              result.stats,
-              result.success ? 'success' : 'failed',
-              duration,
-              'CRON',
-              result.errorMessage
-            )
-
-            // ✅ NOVO: Salvar no histórico
-            await this.saveExecutionHistory(
-              job,
-              result.stats,
-              result.success ? 'success' : 'error',
-              duration,
-              'CRON',
-              result.errorMessage
-            )
-
-            if (job.notifications.enabled) {
-              await this.sendNotification(
-                job,
-                result.success,
-                result.stats,
-                result.errorMessage
-              )
-            }
-          } catch (error: any) {
-            console.error(`❌ Erro no job agendado: ${job.name}`, error)
-
-            const duration = Math.round((Date.now() - startTime) / 1000)
-
-            await job.recordExecution(
-              { total: 0, inserted: 0, updated: 0, errors: 1, skipped: 0 },
-              'failed',
-              duration,
-              'CRON',
-              error.message
-            )
-
-            // ✅ NOVO: Salvar erro no histórico
-            await this.saveExecutionHistory(
-              job,
-              { total: 0, inserted: 0, updated: 0, errors: 1, skipped: 0 },
-              'error',
-              duration,
-              'CRON',
-              error.message
-            )
-          }
+          await this.jobExecutor.execute(job, {
+            triggeredBy: 'CRON',
+            isolateRecordFailure: false
+          })
         }
       )
 
       if (!scheduledJob) {
         throw new Error('Falha ao agendar job - cron expression inválida')
       }
-
       registry.register(jobId, scheduledJob)
 
       console.log(
@@ -919,43 +755,6 @@ const job = await CronJobConfig.create({
 
   isSchedulerActive(): boolean {
     return registry.getAll().size > 0
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // EXECUTION LOGIC
-  // ═══════════════════════════════════════════════════════════
-
-  // NOTIFICATIONS
-  // ═══════════════════════════════════════════════════════════
-
-  private async sendNotification(
-    job: ICronJobConfig,
-    success: boolean,
-    stats: ILastRunStats,
-    errorMessage?: string
-  ): Promise<void> {
-    console.log(`📧 Enviando notificação: ${job.name}`)
-
-    const shouldNotify = success
-      ? job.notifications.emailOnSuccess
-      : job.notifications.emailOnFailure
-
-    if (!shouldNotify) {
-      return
-    }
-
-    // TODO: Implementar envio de email real
-    console.log('Email recipients:', job.notifications.recipients)
-    console.log('Success:', success)
-    console.log('Stats:', stats)
-    if (errorMessage) {
-      console.log('Error:', errorMessage)
-    }
-
-    // TODO: Implementar webhook se configurado
-    if (job.notifications.webhookUrl) {
-      console.log('Webhook URL:', job.notifications.webhookUrl)
-    }
   }
 
   // ═══════════════════════════════════════════════════════════
