@@ -58,6 +58,7 @@ test('accepts an ObjectId and forwards the DTO', async () => {
       body: {},
     }),
     expect.anything(),
+    expect.anything(),
   )
 })
 

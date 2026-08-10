@@ -1,15 +1,15 @@
-import { Request, Response } from 'express'
+import { type NextFunction, type Request, type Response } from 'express'
+import { internalError } from '../../security/errorHandling'
 import mongoose, { FilterQuery, PipelineStage } from 'mongoose'
 import { Testimonial, ITestimonial } from '../../models/Testimonial'
 import {
   ensureTestimonialModel,
-  errorMessage,
   queryString
 } from './testimonialControllerSupport'
 
 type TestimonialStatus = ITestimonial['status']
 type StatusCount = { _id: TestimonialStatus; count: number }
-export const getTestimonialStats = async (req: Request, res: Response): Promise<void> => {
+export const getTestimonialStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const TestimonialModel = ensureTestimonialModel()
     
@@ -85,16 +85,12 @@ export const getTestimonialStats = async (req: Request, res: Response): Promise<
     })
 
   } catch (error: unknown) {
-    console.error('Erro ao buscar estatÃ­sticas de testemunhos:', error)
-    res.status(500).json({
-      message: 'Erro ao buscar estatÃ­sticas',
-      details: errorMessage(error)
-    })
+    next(internalError('Erro ao buscar estatísticas', 'TESTIMONIAL_STATS_READ_FAILED', error))
   }
 }
 
 // ðŸ“‹ LISTAR TESTEMUNHOS
-export const listTestimonials = async (req: Request, res: Response): Promise<void> => {
+export const listTestimonials = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const TestimonialModel = ensureTestimonialModel()
     
@@ -180,17 +176,13 @@ export const listTestimonials = async (req: Request, res: Response): Promise<voi
     })
 
   } catch (error: unknown) {
-    console.error('Erro ao listar testemunhos:', error)
-    res.status(500).json({
-      message: 'Erro ao listar testemunhos',
-      details: errorMessage(error)
-    })
+    next(internalError('Erro ao listar testemunhos', 'TESTIMONIAL_LIST_FAILED', error))
   }
 }
 
 // âž• CRIAR SOLICITAÃ‡ÃƒO DE TESTEMUNHO
 // âž• CRIAR NOVO TESTEMUNHO VIA WIZARD
-export const getTestimonialReport = async (req: Request, res: Response): Promise<void> => {
+export const getTestimonialReport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { startDate, endDate, groupBy = 'month' } = req.query
 
@@ -258,16 +250,12 @@ export const getTestimonialReport = async (req: Request, res: Response): Promise
     })
 
   } catch (error: unknown) {
-    console.error('Erro ao gerar relatÃ³rio:', error)
-    res.status(500).json({
-      message: 'Erro ao gerar relatÃ³rio',
-      details: errorMessage(error)
-    })
+    next(internalError('Erro ao gerar relatório', 'TESTIMONIAL_REPORT_READ_FAILED', error))
   }
 }
 
 // ðŸŽ¯ BUSCAR MELHORES CANDIDATOS PARA TESTEMUNHOS
-export const getStudentTestimonials = async (req: Request, res: Response): Promise<void> => {
+export const getStudentTestimonials = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { studentId, email } = req.query
     
@@ -320,11 +308,6 @@ export const getStudentTestimonials = async (req: Request, res: Response): Promi
     })
 
   } catch (error: unknown) {
-    console.error('âŒ Erro ao buscar testemunhos do estudante:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar testemunhos do estudante',
-      details: errorMessage(error)
-    })
+    next(internalError('Erro ao buscar testemunhos do estudante', 'TESTIMONIAL_STUDENT_READ_FAILED', error))
   }
 }

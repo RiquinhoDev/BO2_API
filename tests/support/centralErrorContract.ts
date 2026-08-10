@@ -1,7 +1,7 @@
 import express, { type Router } from 'express'
 import type request from 'supertest'
 import { asyncRoute, type AsyncRouteHandler } from '../../src/security/asyncRoute'
-import { createErrorHandling } from '../../src/security/errorHandling'
+import { createErrorHandling, type ErrorLogEvent } from '../../src/security/errorHandling'
 
 export interface ExpectedCentralError {
   code: string
@@ -45,11 +45,12 @@ export type CentralErrorRoute =
 export function appForCentralError(
   route: CentralErrorRoute,
   correlationId = 'sec10-request',
+  logError: (event: ErrorLogEvent) => void = jest.fn(),
 ): express.Express {
   const app = express()
   const errors = createErrorHandling({
     generateCorrelationId: () => correlationId,
-    logError: jest.fn(),
+    logError,
   })
 
   app.use(express.json())

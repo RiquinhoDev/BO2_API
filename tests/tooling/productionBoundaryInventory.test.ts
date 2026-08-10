@@ -99,16 +99,6 @@ const BASELINE = {
     "src/controllers/tagEvaluation.controller.ts:457",
     "src/controllers/testHistory.controller.ts:172",
     "src/controllers/testHistory.controller.ts:242",
-    "src/controllers/testimonials/testimonialCandidates.controller.ts:178",
-    "src/controllers/testimonials/testimonialCandidates.controller.ts:288",
-    "src/controllers/testimonials/testimonialCommands.controller.ts:102",
-    "src/controllers/testimonials/testimonialCommands.controller.ts:217",
-    "src/controllers/testimonials/testimonialCommands.controller.ts:296",
-    "src/controllers/testimonials/testimonialCommands.controller.ts:328",
-    "src/controllers/testimonials/testimonialQueries.controller.ts:184",
-    "src/controllers/testimonials/testimonialQueries.controller.ts:262",
-    "src/controllers/testimonials/testimonialQueries.controller.ts:324",
-    "src/controllers/testimonials/testimonialQueries.controller.ts:89",
     "src/controllers/userHistory.controller.ts:166",
     "src/controllers/userHistory.controller.ts:209",
     "src/controllers/userHistory.controller.ts:85",
@@ -132,7 +122,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 58,
+  "localHttp500": 48,
   "publicErrorDetail": 0
 } as const
 

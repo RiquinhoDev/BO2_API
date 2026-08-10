@@ -1,4 +1,5 @@
-import { Request, Response } from 'express'
+import { type NextFunction, type Request, type Response } from 'express'
+import { internalError } from '../../security/errorHandling'
 import mongoose from 'mongoose'
 import type { TestimonialsDeleteInput } from '../../security/testimonialsDestructiveInput'
 import { Testimonial } from '../../models/Testimonial'
@@ -20,7 +21,7 @@ type RequestCreated = {
 }
 type RequestSkipped = { studentId: string; studentName: string; reason: string }
 type RequestFailure = { studentId: string; error: string }
-export const createTestimonial = async (req: Request, res: Response): Promise<void> => {
+export const createTestimonial = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const {
       studentId,
@@ -98,15 +99,11 @@ export const createTestimonial = async (req: Request, res: Response): Promise<vo
     })
 
   } catch (error: unknown) {
-    console.error('Erro ao criar testemunho:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'TESTIMONIAL_CREATE_FAILED', error))
   }
 }
 
-export const createTestimonialRequest = async (req: Request, res: Response): Promise<void> => {
+export const createTestimonialRequest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const {
       studentIds,
@@ -213,16 +210,12 @@ export const createTestimonialRequest = async (req: Request, res: Response): Pro
     })
 
   } catch (error: unknown) {
-    console.error('Erro ao criar solicitaÃ§Ãµes de testemunho:', error)
-    res.status(500).json({
-      message: 'Erro ao criar solicitaÃ§Ãµes',
-      details: errorMessage(error)
-    })
+    next(internalError('Erro ao criar solicitações', 'TESTIMONIAL_REQUEST_CREATE_FAILED', error))
   }
 }
 
 // âœï¸ ATUALIZAR STATUS DO TESTEMUNHO
-export const updateTestimonialStatus = async (req: Request, res: Response): Promise<void> => {
+export const updateTestimonialStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params
     const {
@@ -292,11 +285,7 @@ export const updateTestimonialStatus = async (req: Request, res: Response): Prom
     })
 
   } catch (error: unknown) {
-    console.error('Erro ao atualizar testemunho:', error)
-    res.status(500).json({
-      message: 'Erro ao atualizar testemunho',
-      details: errorMessage(error)
-    })
+    next(internalError('Erro ao atualizar testemunho', 'TESTIMONIAL_UPDATE_FAILED', error))
   }
 }
 
@@ -304,6 +293,7 @@ export const updateTestimonialStatus = async (req: Request, res: Response): Prom
 export const deleteTestimonial = async (
   input: TestimonialsDeleteInput,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = input.params
@@ -324,11 +314,7 @@ export const deleteTestimonial = async (
     })
 
   } catch (error: unknown) {
-    console.error('Erro ao remover testemunho:', error)
-    res.status(500).json({
-      message: 'Erro ao remover testemunho',
-      details: errorMessage(error)
-    })
+    next(internalError('Erro ao remover testemunho', 'TESTIMONIAL_DELETE_FAILED', error))
   }
 }
 

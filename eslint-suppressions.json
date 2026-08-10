@@ -361,17 +361,12 @@
   },
   "src/controllers/testimonials/testimonialCandidates.controller.ts": {
     "no-console": {
-      "count": 9
+      "count": 7
     }
   },
   "src/controllers/testimonials/testimonialCommands.controller.ts": {
     "no-console": {
-      "count": 14
-    }
-  },
-  "src/controllers/testimonials/testimonialQueries.controller.ts": {
-    "no-console": {
-      "count": 4
+      "count": 10
     }
   },
   "src/controllers/testimonials/testimonialTags.service.ts": {

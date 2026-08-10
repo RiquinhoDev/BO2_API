@@ -38,7 +38,7 @@ afterEach(() => {
   mockUserFind.mockReset()
 })
 
-test('testimonials controller uses typed node environment for development error stacks', async () => {
+test('testimonials controller forwards failures without a development stack response', async () => {
   useTestRuntimeConfig({ nodeEnv: 'development' })
   const previousNodeEnv = process.env.NODE_ENV
   process.env.NODE_ENV = 'test'
@@ -51,12 +51,15 @@ test('testimonials controller uses typed node environment for development error 
   }
   jest.spyOn(console, 'error').mockImplementation(() => undefined)
   jest.spyOn(console, 'log').mockImplementation(() => undefined)
+  const next = jest.fn()
 
   try {
-    await getAvailableStudents({ query: {} } as never, response as never)
+    await Reflect.apply(getAvailableStudents, undefined, [{ query: {} }, response, next])
 
-    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
-      stack: expect.any(String),
+    expect(response.json).not.toHaveBeenCalled()
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'TESTIMONIAL_AVAILABLE_STUDENTS_READ_FAILED',
+      publicMessage: 'Erro ao buscar estudantes',
     }))
   } finally {
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV
