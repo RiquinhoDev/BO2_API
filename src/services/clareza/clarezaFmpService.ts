@@ -217,6 +217,30 @@ export const UNIVERSE = [
   { ticker: 'SAF.PA',    name: 'Safran',              type: 'value',  sector: 'Industrials' },
   { ticker: 'RHM.DE',    name: 'Rheinmetall',         type: 'value',  sector: 'Industrials' },
   { ticker: 'DG.PA',     name: 'Vinci',               type: 'value',  sector: 'Industrials' },
+  // EXTRA — alinhamento com o Comparador de Ações
+  { ticker: 'NET',       name: 'Cloudflare',          type: 'growth', sector: 'Technology' },
+  { ticker: 'FIG',       name: 'Figma',               type: 'growth', sector: 'Technology' },
+  { ticker: 'S',         name: 'SentinelOne',         type: 'growth', sector: 'Technology' },
+  { ticker: 'SNDK',      name: 'Sandisk',             type: 'growth', sector: 'Technology' },
+  { ticker: 'NBIS',      name: 'Nebius Group',        type: 'growth', sector: 'Technology' },
+  { ticker: 'SPCX',      name: 'SpaceX',              type: 'growth', sector: 'Industrials' },
+  { ticker: 'VRT',       name: 'Vertiv',              type: 'growth', sector: 'Industrials' },
+  { ticker: 'VST',       name: 'Vistra',              type: 'value',  sector: 'Utilities' },
+  { ticker: 'BE',        name: 'Bloom Energy',        type: 'growth', sector: 'Industrials' },
+  { ticker: 'TE',        name: 'T1 Energy',           type: 'growth', sector: 'Energy' },
+  { ticker: 'BIP',       name: 'Brookfield Infrastructure', type: 'value', sector: 'Industrials' },
+  { ticker: 'DPZ',       name: "Domino's Pizza",      type: 'value',  sector: 'Consumer' },
+  { ticker: 'MDLZ',      name: 'Mondelez International', type: 'value', sector: 'Consumer' },
+  { ticker: 'CTRE',      name: 'CareTrust REIT',      type: 'reit',   sector: 'REIT' },
+  { ticker: 'ISP.MI',    name: 'Intesa Sanpaolo',     type: 'value',  sector: 'Finance' },
+  { ticker: 'TTE.PA',    name: 'TotalEnergies',       type: 'value',  sector: 'Energy' },
+  { ticker: 'IBE.MC',    name: 'Iberdrola',           type: 'value',  sector: 'Utilities' },
+  { ticker: 'ALV.DE',    name: 'Allianz',             type: 'value',  sector: 'Finance' },
+  { ticker: 'NDA-FI.HE', name: 'Nordea Bank',         type: 'value',  sector: 'Finance' },
+  { ticker: 'DPLM.L',    name: 'Diploma PLC',         type: 'growth', sector: 'Industrials' },
+  { ticker: 'THEON.AS',  name: 'Theon International', type: 'growth', sector: 'Industrials' },
+  { ticker: 'DGE.L',     name: 'Diageo',              type: 'value',  sector: 'Consumer' },
+  { ticker: 'ULVR.L',    name: 'Unilever',            type: 'value',  sector: 'Consumer' },
 ]
 
 // ─────────────────────────────────────────────────────────────
@@ -257,6 +281,8 @@ async function fetchStock(ticker: string, isReit: boolean) {
   const p = await fmpGet('/profile', { symbol: ticker })
   const r = await fmpGet('/ratios-ttm', { symbol: ticker })
   const m = await fmpGet('/key-metrics-ttm', { symbol: ticker })
+  // 1D/5D/1M — alimenta o Mapa de Calor do Mercado
+  const pc = await fmpGet('/stock-price-change', { symbol: ticker })
 
   const price  = p?.price            ?? null
   const change = p?.changePercentage ?? null
@@ -299,6 +325,13 @@ async function fetchStock(ticker: string, isReit: boolean) {
     price,
     change,
     perf12m,
+    // Mapa de Calor do Mercado — variação diária/semanal/mensal.
+    // Se a /stock-price-change falhar, o diário cai para o "change" do profile.
+    chgDay:         pc?.['1D'] ?? change,
+    chgWeek:        pc?.['5D'] ?? null,
+    chgMonth:       pc?.['1M'] ?? null,
+    marketCap:      p?.marketCap ?? null,
+    industry:       p?.industry  ?? null, // Mapa de Calor — agrupar por setor + indústria
     pe:             r?.priceToEarningsRatioTTM                                         ?? null,
     peg:            r?.forwardPriceToEarningsGrowthRatioTTM ?? r?.priceToEarningsGrowthRatioTTM ?? null,
     ps:             r?.priceToSalesRatioTTM                                             ?? null,
@@ -353,16 +386,26 @@ export async function refreshClarezaData(): Promise<{ total: number; errors: num
     12
   )
 
+  // Empresas sem preço não entram no output — mesmo critério do PHP original.
+  // Sem isto o HTML recebe uma entrada com todos os campos a null, o scoring cai
+  // nos defaults e o termómetro mostra um card "NEUTRO" com "—" em tudo.
+  const stocks  = results.filter(s => s.data?.price != null)
+  const skipped = results.length - stocks.length
+  if (skipped > 0) {
+    const names = results.filter(s => s.data?.price == null).map(s => s.ticker).join(', ')
+    console.warn(`⚠️ [Clareza] ${skipped} sem preço, fora do output: ${names}`)
+  }
+
   // Guardar em Redis
-  await cacheService.set(CLAREZA_CACHE_KEY, results, CACHE_TTL)
+  await cacheService.set(CLAREZA_CACHE_KEY, stocks, CACHE_TTL)
 
   // Guardar em MongoDB (persistência durável — mesmo se Redis reiniciar)
   try {
     await ClarezaMarketData.create({
       fetchedAt:  new Date(),
-      stockCount: UNIVERSE.length - errors,
-      errors,
-      stocks: results
+      stockCount: stocks.length,
+      errors:     errors + skipped,
+      stocks
     })
     // Manter apenas os últimos 5 snapshots
     const all = await ClarezaMarketData.find({}, '_id fetchedAt').sort({ fetchedAt: -1 }).lean()
@@ -375,9 +418,9 @@ export async function refreshClarezaData(): Promise<{ total: number; errors: num
     console.error('⚠️ [Clareza] Erro ao guardar snapshot na BD:', err.message)
   }
 
-  console.log(`✅ [Clareza] Refresh completo — ${UNIVERSE.length - errors} ok, ${errors} erros`)
+  console.log(`✅ [Clareza] Refresh completo — ${stocks.length} ok, ${errors + skipped} erros (de ${UNIVERSE.length})`)
 
-  return { total: UNIVERSE.length, errors }
+  return { total: stocks.length, errors: errors + skipped }
 }
 
 // ─────────────────────────────────────────────────────────────
