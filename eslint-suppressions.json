@@ -90,9 +90,24 @@
       "count": 2
     }
   },
-  "src/controllers/engagement.controller.ts": {
+  "src/controllers/engagement/details.controller.ts": {
     "no-console": {
-      "count": 20
+      "count": 4
+    }
+  },
+  "src/controllers/engagement/stats.controller.ts": {
+    "no-console": {
+      "count": 4
+    }
+  },
+  "src/controllers/engagement/summary.controller.ts": {
+    "no-console": {
+      "count": 7
+    }
+  },
+  "src/controllers/engagement/users.controller.ts": {
+    "no-console": {
+      "count": 5
     }
   },
   "src/controllers/guru.snapshot.controller.ts": {
