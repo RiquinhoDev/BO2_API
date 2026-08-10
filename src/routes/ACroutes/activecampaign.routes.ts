@@ -5,6 +5,7 @@
 // =====================================================
 
 import { Router } from 'express'
+import { asyncRoute } from '../../security/asyncRoute'
 import { localDebugOnly } from '../../security/debugRoutes'
 import { withValidatedInput } from '../../security/validatedInput'
 import {
@@ -21,7 +22,6 @@ import {
 } from '../../controllers/acTags/activeCampaignCourse.controller'
 import { getCommunicationHistory } from '../../controllers/acTags/activeCampaignHistoryList.controller'
 import { getHistoryStats } from '../../controllers/acTags/activeCampaignHistoryStats.controller'
-
 import { getCronLogs, getStats, testCron } from '../../controllers/acTags/activeCampaignOps.controller'
 import {
   createTagRule,
@@ -53,10 +53,10 @@ const router = Router()
 // ─────────────────────────────────────────────────────────────
 
 // POST /api/activecampaign/test-cron
-router.post('/test-cron', withValidatedInput(activeCampaignEmptyInput, (input, _req, res) => testCron(input, res)))
+router.post('/test-cron', withValidatedInput(activeCampaignEmptyInput, (input, req, res, next) => testCron(input, req, res, next)))
 
 // GET /api/activecampaign/cron-logs
-router.get('/cron-logs', getCronLogs)
+router.get('/cron-logs', asyncRoute(getCronLogs))
 
 
 // ─────────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ router.get('/cron-logs', getCronLogs)
 // ─────────────────────────────────────────────────────────────
 
 // GET /api/activecampaign/stats
-router.get('/stats', getStats)
+router.get('/stats', asyncRoute(getStats))
 
 
 // ─────────────────────────────────────────────────────────────
@@ -72,16 +72,16 @@ router.get('/stats', getStats)
 // ─────────────────────────────────────────────────────────────
 
 // GET /api/activecampaign/courses/clareza/students
-router.get('/courses/clareza/students', getClarezaStudents)
+router.get('/courses/clareza/students', asyncRoute(getClarezaStudents))
 
 // POST /api/activecampaign/courses/clareza/evaluate
-router.post('/courses/clareza/evaluate', evaluateClarezaRules)
+router.post('/courses/clareza/evaluate', asyncRoute(evaluateClarezaRules))
 
 // GET /api/activecampaign/courses/ogi/students
-router.get('/courses/ogi/students', getOGIStudents)
+router.get('/courses/ogi/students', asyncRoute(getOGIStudents))
 
 // POST /api/activecampaign/courses/ogi/evaluate
-router.post('/courses/ogi/evaluate', evaluateOGIRules)
+router.post('/courses/ogi/evaluate', asyncRoute(evaluateOGIRules))
 
 
 // ─────────────────────────────────────────────────────────────
@@ -89,16 +89,16 @@ router.post('/courses/ogi/evaluate', evaluateOGIRules)
 // ─────────────────────────────────────────────────────────────
 
 // GET /api/activecampaign/tag-rules
-router.get('/tag-rules', getAllTagRules)
+router.get('/tag-rules', asyncRoute(getAllTagRules))
 
 // POST /api/activecampaign/tag-rules
-router.post('/tag-rules', createTagRule)
+router.post('/tag-rules', asyncRoute(createTagRule))
 
 // PUT /api/activecampaign/tag-rules/:id
-router.put('/tag-rules/:id', updateTagRule)
+router.put('/tag-rules/:id', asyncRoute(updateTagRule))
 
 // DELETE /api/activecampaign/tag-rules/:id
-router.delete('/tag-rules/:id', withValidatedInput(activeCampaignTagRuleDeleteInput, (input, _req, res) => deleteTagRule(input, res)))
+router.delete('/tag-rules/:id', withValidatedInput(activeCampaignTagRuleDeleteInput, (input, req, res, next) => deleteTagRule(input, req, res, next)))
 
 
 // ─────────────────────────────────────────────────────────────
@@ -106,26 +106,26 @@ router.delete('/tag-rules/:id', withValidatedInput(activeCampaignTagRuleDeleteIn
 // ─────────────────────────────────────────────────────────────
 
 // GET /api/activecampaign/communication-history
-router.get('/communication-history', getCommunicationHistory)
-router.get('/history/stats', getHistoryStats)
+router.get('/communication-history', asyncRoute(getCommunicationHistory))
+router.get('/history/stats', asyncRoute(getHistoryStats))
 // ─────────────────────────────────────────────────────────────
 // V2 - TAGS POR PRODUTO
 // ─────────────────────────────────────────────────────────────
 
 // POST /api/activecampaign/v2/tag/apply
-router.post('/v2/tag/apply', withValidatedInput(activeCampaignTagMutationInput, (input, _req, res) => applyTagToUserProduct(input, res)))
+router.post('/v2/tag/apply', withValidatedInput(activeCampaignTagMutationInput, (input, req, res, next) => applyTagToUserProduct(input, req, res, next)))
 
 // POST /api/activecampaign/v2/tag/remove
-router.post('/v2/tag/remove', withValidatedInput(activeCampaignTagMutationInput, (input, _req, res) => removeTagFromUserProduct(input, res)))
+router.post('/v2/tag/remove', withValidatedInput(activeCampaignTagMutationInput, (input, req, res, next) => removeTagFromUserProduct(input, req, res, next)))
 
 // GET /api/activecampaign/v2/products/:productId/tagged?tag=...
-router.get('/v2/products/:productId/tagged', getUsersWithTagsInProduct)
+router.get('/v2/products/:productId/tagged', asyncRoute(getUsersWithTagsInProduct))
 
 // GET /api/activecampaign/v2/stats
-router.get('/v2/stats', getACStats)
+router.get('/v2/stats', asyncRoute(getACStats))
 
 // POST /api/activecampaign/v2/sync/:productId
-router.post('/v2/sync/:productId', withValidatedInput(activeCampaignProductSyncInput, (input, _req, res) => syncProductTags(input, res)))
+router.post('/v2/sync/:productId', withValidatedInput(activeCampaignProductSyncInput, (input, req, res, next) => syncProductTags(input, req, res, next)))
 
 // ─────────────────────────────────────────────────────────────
 // DEBUG - TEMPORARY

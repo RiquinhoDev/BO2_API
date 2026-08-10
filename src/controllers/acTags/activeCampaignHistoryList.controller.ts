@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { internalError } from '../../security/errorHandling'
 import type { FilterQuery, Types } from 'mongoose'
 
 import User from '../../models/user'
@@ -32,10 +33,6 @@ type CommunicationHistoryRecord = {
   userStateSnapshot?: ICommunicationHistory['userStateSnapshot']
 }
 
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback
-}
-
 function queryString(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback
 }
@@ -59,7 +56,7 @@ function isPopulatedRule(
 /**
  * GET /api/communication-history
  */
-export const getCommunicationHistory: RequestHandler = async (req, res) => {
+export const getCommunicationHistory: RequestHandler = async (req, res, next) => {
   try {
     logger.info('📜 Buscando histórico de comunicações...')
 
@@ -188,10 +185,7 @@ export const getCommunicationHistory: RequestHandler = async (req, res) => {
     return
   } catch (error: unknown) {
     logger.error('❌ Erro ao buscar histórico:', error)
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro ao buscar histórico')
-    })
+    next(internalError('Erro ao buscar histórico', 'AC_HISTORY_LIST_FAILED', error))
     return
   }
 }

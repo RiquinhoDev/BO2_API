@@ -1,11 +1,8 @@
 import type { RequestHandler } from 'express'
+import { internalError } from '../../security/errorHandling'
 
 import CommunicationHistory from '../../models/acTags/CommunicationHistory'
 import logger from '../../utils/logger'
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback
-}
 
 function queryString(value: unknown, fallback: string): string {
   return typeof value === 'string' ? value : fallback
@@ -15,7 +12,7 @@ function queryString(value: unknown, fallback: string): string {
  * GET /api/activecampaign/history/stats
  * Retorna estatísticas agregadas do histórico
  */
-export const getHistoryStats: RequestHandler = async (req, res) => {
+export const getHistoryStats: RequestHandler = async (req, res, next) => {
   try {
     logger.info('📊 Calculando estatísticas do histórico...')
 
@@ -192,10 +189,7 @@ export const getHistoryStats: RequestHandler = async (req, res) => {
     return
   } catch (error: unknown) {
     logger.error('❌ Erro ao calcular stats:', error)
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro ao calcular estatísticas')
-    })
+    next(internalError('Erro ao calcular estatísticas', 'AC_HISTORY_STATS_FAILED', error))
     return
   }
 }

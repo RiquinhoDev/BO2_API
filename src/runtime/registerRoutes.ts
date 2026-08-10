@@ -1,4 +1,5 @@
 import type { RouteRegistrar } from '../bootstrap'
+import { asyncRoute } from '../security/asyncRoute'
 import router from '../routes'
 import metricsMiddleware from '../middleware/metrics.middleware'
 import metricsRoutes from '../routes/metrics.routes'
@@ -20,7 +21,6 @@ import {
   updateTagRule,
 } from '../controllers/acTags/activeCampaignLegacyTagRules.controller'
 import { getCommunicationHistory } from '../controllers/acTags/activeCampaignHistoryList.controller'
-
 export const registerRoutes: RouteRegistrar = (app) => {
   app.use(metricsMiddleware)
   app.use('/api', router)
@@ -33,11 +33,11 @@ export const registerRoutes: RouteRegistrar = (app) => {
   app.use('/api/activecampaign', activecampaignRoutes)
   app.use('/api/webhooks', webhooksRoutes)
   app.use('/api/form', validationLogsRoutes)
-  app.get('/api/tag-rules', getAllTagRules)
-  app.post('/api/tag-rules', createTagRule)
-  app.put('/api/tag-rules/:id', updateTagRule)
-  app.delete('/api/tag-rules/:id', deleteTagRule)
-  app.get('/api/communication-history', getCommunicationHistory)
+  app.get('/api/tag-rules', asyncRoute(getAllTagRules))
+  app.post('/api/tag-rules', asyncRoute(createTagRule))
+  app.put('/api/tag-rules/:id', asyncRoute(updateTagRule))
+  app.delete('/api/tag-rules/:id', asyncRoute((req, res, next) => deleteTagRule({ params: { id: req.params.id as string }, query: {}, body: {} }, req, res, next)))
+  app.get('/api/communication-history', asyncRoute(getCommunicationHistory))
   app.use('/cron-tags', cronManagementRoutes)
   app.use('/api/test/history', localDebugOnly, testHistoryRoutes)
 }

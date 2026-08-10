@@ -156,9 +156,15 @@ describe('ActiveCampaign communication history boundary', () => {
   it('uses the stable fallback when history fails with an empty Error message', async () => {
     historyFindMock.mockImplementation(() => { throw new Error('') })
     const res = response()
-    await getCommunicationHistory({ query: {} } as never, res as never, jest.fn())
-    expect(res.status).toHaveBeenCalledWith(500)
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Erro ao buscar histórico' })
+    const next = jest.fn()
+    await getCommunicationHistory({ query: {} } as never, res as never, next)
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
+      status: 500,
+      code: 'AC_HISTORY_LIST_FAILED',
+      publicMessage: 'Erro ao buscar histórico',
+    }))
+    expect(res.status).not.toHaveBeenCalled()
+    expect(res.json).not.toHaveBeenCalled()
   })
 
   it('preserves the timestamp aggregation and zero-total envelope', async () => {
@@ -190,8 +196,14 @@ describe('ActiveCampaign communication history boundary', () => {
   it('uses the stable fallback when aggregation fails with an empty Error message', async () => {
     aggregateMock.mockRejectedValue(new Error(''))
     const res = response()
-    await getHistoryStats({ query: {} } as never, res as never, jest.fn())
-    expect(res.status).toHaveBeenCalledWith(500)
-    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Erro ao calcular estatísticas' })
+    const next = jest.fn()
+    await getHistoryStats({ query: {} } as never, res as never, next)
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
+      status: 500,
+      code: 'AC_HISTORY_STATS_FAILED',
+      publicMessage: 'Erro ao calcular estatísticas',
+    }))
+    expect(res.status).not.toHaveBeenCalled()
+    expect(res.json).not.toHaveBeenCalled()
   })
 })

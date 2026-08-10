@@ -112,7 +112,7 @@ it('fails a sync item without calling ActiveCampaign when its user has no email'
     '/sync/:productId',
     withValidatedInput(
       activeCampaignProductSyncInput,
-      (input, _req, res) => syncProductTags(input, res),
+      (input, req, res, next) => syncProductTags(input, req, res, next),
     ),
   )
 

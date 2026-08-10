@@ -1,14 +1,13 @@
-import type { RequestHandler, Response } from 'express'
+import type { NextFunction, RequestHandler, Response } from 'express'
 
 import TagRule from '../../models/acTags/TagRule'
 import type { ActiveCampaignTagRuleDeleteInput } from '../../security/activeCampaignDestructiveInput'
+import { internalError } from '../../security/errorHandling'
+import type { ValidatedRequest } from '../../security/validatedInput'
 import logger from '../../utils/logger'
 
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback
-}
 
-export const getAllTagRules: RequestHandler = async (_req, res) => {
+export const getAllTagRules: RequestHandler = async (_req, res, next) => {
   try {
     logger.info('🏷️ Buscando tag rules...')
 
@@ -26,17 +25,14 @@ export const getAllTagRules: RequestHandler = async (_req, res) => {
     return
   } catch (error: unknown) {
     logger.error('❌ Erro ao buscar tag rules:', error)
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro ao buscar regras')
-    })
+    next(internalError('Erro ao buscar regras', 'AC_LEGACY_TAG_RULE_LIST_FAILED', error))
     return
   }
 }
 /**
  * POST /api/tag-rules
  */
-export const createTagRule: RequestHandler = async (req, res) => {
+export const createTagRule: RequestHandler = async (req, res, next) => {
   try {
     logger.info('➕ Criando tag rule:', req.body)
 
@@ -49,10 +45,7 @@ export const createTagRule: RequestHandler = async (req, res) => {
     return
   } catch (error: unknown) {
     logger.error('❌ Erro ao criar tag rule:', error)
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro ao criar regra')
-    })
+    next(internalError('Erro ao criar regra', 'AC_LEGACY_TAG_RULE_CREATE_FAILED', error))
     return
   }
 }
@@ -60,7 +53,7 @@ export const createTagRule: RequestHandler = async (req, res) => {
 /**
  * PUT /api/tag-rules/:id
  */
-export const updateTagRule: RequestHandler = async (req, res) => {
+export const updateTagRule: RequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params
     logger.info(`🔄 Atualizando tag rule: ${id}`)
@@ -78,10 +71,7 @@ export const updateTagRule: RequestHandler = async (req, res) => {
     return
   } catch (error: unknown) {
     logger.error('❌ Erro ao atualizar tag rule:', error)
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro ao atualizar regra')
-    })
+    next(internalError('Erro ao atualizar regra', 'AC_LEGACY_TAG_RULE_UPDATE_FAILED', error))
     return
   }
 }
@@ -89,7 +79,12 @@ export const updateTagRule: RequestHandler = async (req, res) => {
 /**
  * DELETE /api/tag-rules/:id
  */
-export const deleteTagRule = async (input: ActiveCampaignTagRuleDeleteInput, res: Response): Promise<void> => {
+export const deleteTagRule = async (
+  input: ActiveCampaignTagRuleDeleteInput,
+  _req: ValidatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const { id } = input.params
     logger.info(`🗑️ Deletando tag rule: ${id}`)
@@ -107,10 +102,7 @@ export const deleteTagRule = async (input: ActiveCampaignTagRuleDeleteInput, res
     return
   } catch (error: unknown) {
     logger.error('❌ Erro ao deletar tag rule:', error)
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro ao deletar regra')
-    })
+    next(internalError('Erro ao deletar regra', 'AC_LEGACY_TAG_RULE_DELETE_FAILED', error))
     return
   }
 }

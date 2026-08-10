@@ -95,7 +95,7 @@ it('initializes the complete ActiveCampaign state when applying the first tag', 
     '/apply',
     withValidatedInput(
       activeCampaignTagMutationInput,
-      (input, _req, res) => applyTagToUserProduct(input, res),
+      (input, req, res, next) => applyTagToUserProduct(input, req, res, next),
     ),
   )
 
@@ -140,7 +140,7 @@ it('creates a missing UserProduct with canonical status and progress', async () 
     '/apply',
     withValidatedInput(
       activeCampaignTagMutationInput,
-      (input, _req, res) => applyTagToUserProduct(input, res),
+      (input, req, res, next) => applyTagToUserProduct(input, req, res, next),
     ),
   )
 

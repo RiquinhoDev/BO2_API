@@ -1,4 +1,4 @@
-import type { RequestHandler, Response } from 'express'
+import type { NextFunction, RequestHandler, Response } from 'express'
 import type { FilterQuery, Types } from 'mongoose'
 
 import User from '../../models/user'
@@ -10,6 +10,8 @@ import type {
   ActiveCampaignProductSyncInput,
   ActiveCampaignTagMutationInput,
 } from '../../security/activeCampaignDestructiveInput'
+import { internalError } from '../../security/errorHandling'
+import type { ValidatedRequest } from '../../security/validatedInput'
 import logger from '../../utils/logger'
 
 type PopulatedUser = {
@@ -48,7 +50,12 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
-export const applyTagToUserProduct = async (input: ActiveCampaignTagMutationInput, res: Response): Promise<void> => {
+export const applyTagToUserProduct = async (
+  input: ActiveCampaignTagMutationInput,
+  _req: ValidatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const { userId, productId, tagName } = input.body
 
@@ -117,13 +124,18 @@ export const applyTagToUserProduct = async (input: ActiveCampaignTagMutationInpu
     return
   } catch (error: unknown) {
     logger.error('[AC TAG APPLY ERROR]', error)
-    res.status(500).json({ success: false, error: errorMessage(error, 'Erro ao aplicar tag') })
+    next(internalError('Erro ao aplicar tag', 'AC_PRODUCT_TAG_APPLY_FAILED', error))
     return
   }
 }
 
 
-export const removeTagFromUserProduct = async (input: ActiveCampaignTagMutationInput, res: Response): Promise<void> => {
+export const removeTagFromUserProduct = async (
+  input: ActiveCampaignTagMutationInput,
+  _req: ValidatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const { userId, productId, tagName } = input.body
 
@@ -171,7 +183,7 @@ export const removeTagFromUserProduct = async (input: ActiveCampaignTagMutationI
     return
   } catch (error: unknown) {
     logger.error('[AC TAG REMOVE ERROR]', error)
-    res.status(500).json({ success: false, error: errorMessage(error, 'Erro ao remover tag') })
+    next(internalError('Erro ao remover tag', 'AC_PRODUCT_TAG_REMOVE_FAILED', error))
     return
   }
 }
@@ -179,7 +191,7 @@ export const removeTagFromUserProduct = async (input: ActiveCampaignTagMutationI
 /**
  * GET /api/activecampaign/v2/products/:productId/tagged
  */
-export const getUsersWithTagsInProduct: RequestHandler = async (req, res) => {
+export const getUsersWithTagsInProduct: RequestHandler = async (req, res, next) => {
   try {
     const { productId } = req.params
     const { tag } = req.query
@@ -215,7 +227,7 @@ export const getUsersWithTagsInProduct: RequestHandler = async (req, res) => {
     })
     return
   } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error, 'Erro ao buscar tags do produto') })
+    next(internalError('Erro ao buscar tags do produto', 'AC_PRODUCT_TAGGED_USERS_READ_FAILED', error))
     return
   }
 }
@@ -223,7 +235,7 @@ export const getUsersWithTagsInProduct: RequestHandler = async (req, res) => {
 /**
  * GET /api/activecampaign/v2/stats
  */
-export const getACStats: RequestHandler = async (_req, res) => {
+export const getACStats: RequestHandler = async (_req, res, next) => {
   try {
     const products = await Product.find().lean()
 
@@ -260,7 +272,7 @@ export const getACStats: RequestHandler = async (_req, res) => {
     })
     return
   } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error, 'Erro ao buscar estatísticas AC') })
+    next(internalError('Erro ao buscar estatísticas AC', 'AC_PRODUCT_TAG_STATS_READ_FAILED', error))
     return
   }
 }
@@ -268,7 +280,12 @@ export const getACStats: RequestHandler = async (_req, res) => {
 /**
  * POST /api/activecampaign/v2/sync/:productId
  */
-export const syncProductTags = async (input: ActiveCampaignProductSyncInput, res: Response): Promise<void> => {
+export const syncProductTags = async (
+  input: ActiveCampaignProductSyncInput,
+  _req: ValidatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const { productId } = input.params
 
@@ -320,7 +337,7 @@ export const syncProductTags = async (input: ActiveCampaignProductSyncInput, res
     })
     return
   } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error, 'Erro ao sincronizar tags') })
+    next(internalError('Erro ao sincronizar tags', 'AC_PRODUCT_TAG_SYNC_FAILED', error))
     return
   }
 }
