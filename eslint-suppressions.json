@@ -95,11 +95,6 @@
       "count": 20
     }
   },
-  "src/controllers/guru.analytics.controller.ts": {
-    "no-console": {
-      "count": 36
-    }
-  },
   "src/controllers/guru.snapshot.controller.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -144,6 +139,21 @@
     },
     "no-console": {
       "count": 13
+    }
+  },
+  "src/controllers/guruAnalytics/churn.controller.ts": {
+    "no-console": {
+      "count": 5
+    }
+  },
+  "src/controllers/guruAnalytics/comparison.controller.ts": {
+    "no-console": {
+      "count": 22
+    }
+  },
+  "src/controllers/guruAnalytics/subscriptionRepair.controller.ts": {
+    "no-console": {
+      "count": 9
     }
   },
   "src/controllers/guruSubscriptionList.controller.ts": {
