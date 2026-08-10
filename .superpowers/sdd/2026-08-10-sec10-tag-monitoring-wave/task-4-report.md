@@ -13,7 +13,7 @@
 
 RED before production edits:
 
-MONGOMS_RUNTIME_DOWNLOAD=false npx.cmd jest --ci --runInBand tests/controllers/tagMonitoringErrorContract.test.ts
+$env:MONGOMS_RUNTIME_DOWNLOAD='false'; npx.cmd jest --ci --runInBand tests/controllers/tagMonitoringErrorContract.test.ts
 
 Result: 1 suite failed; 9 expected legacy failures (the existing list sentinel plus eight table cases) and 47 passed. Each failure exposed the secret local error field and lacked stable code/correlation ID.
 
