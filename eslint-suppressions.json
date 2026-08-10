@@ -1146,7 +1146,7 @@
   },
   "src/services/syncUtilizadoresServices/activitySnapshot.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
+      "count": 6
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 4

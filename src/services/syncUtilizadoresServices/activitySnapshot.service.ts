@@ -5,65 +5,18 @@
 // ════════════════════════════════════════════════════════════
 
 import mongoose from 'mongoose'
-import ActivitySnapshot, { IActivitySnapshot, Platform, SnapshotSource } from '../../models/SyncModels/ActivitySnapshot'
+import ActivitySnapshot, { IActivitySnapshot, Platform } from '../../models/SyncModels/ActivitySnapshot'
 import { User } from '../../models'
+import { calculateSnapshotEngagementScore, normalizeSnapshotMonth } from './activitySnapshot/metrics'
+import type { CohortRetentionData, CreateSnapshotDTO, MonthlyBatchDTO } from './activitySnapshot/contracts'
 
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────
 
-interface CreateSnapshotDTO {
-  userId: mongoose.Types.ObjectId
-  platform: Platform
-  month: Date
-  wasActive: boolean
-  hadLogin: boolean
-  hadActivity: boolean
-  loginCount?: number
-  activityCount?: number
-  engagementScore?: number
-  progress?: {
-    completedLessons: number
-    totalLessons: number
-    percentage: number
-  }
-  platformSpecific?: any
-  source?: SnapshotSource
-  syncHistoryId?: mongoose.Types.ObjectId
-}
-
-interface MonthlyBatchDTO {
-  month: Date
-  platform: Platform
-  userActivities: Array<{
-    userId: mongoose.Types.ObjectId
-    wasActive: boolean
-    hadLogin: boolean
-    hadActivity: boolean
-    loginCount: number
-    activityCount: number
-    progress?: {
-      completedLessons: number
-      totalLessons: number
-      percentage: number
-    }
-  }>
-  source?: SnapshotSource
-}
-
-interface CohortRetentionData {
-  cohortMonth: Date
-  platform: Platform
-  milestones: Array<{
-    month: number
-    total: number
-    active: number
-    rate: number
-  }>
-}
-
 // ─────────────────────────────────────────────────────────────
+
 // SERVICE CLASS
 // ─────────────────────────────────────────────────────────────
 
@@ -77,10 +30,10 @@ export class ActivitySnapshotService {
     console.log(`📸 Criando snapshot: User ${dto.userId} | Platform ${dto.platform}`)
 
     // Normalizar mês para primeiro dia
-    const normalizedMonth = this.normalizeMonth(dto.month)
+    const normalizedMonth = normalizeSnapshotMonth(dto.month)
 
     // Calcular engagement score se não fornecido
-    const engagementScore = dto.engagementScore ?? this.calculateEngagementScore({
+    const engagementScore = dto.engagementScore ?? calculateSnapshotEngagementScore({
       hadLogin: dto.hadLogin,
       hadActivity: dto.hadActivity,
       loginCount: dto.loginCount || 0,
@@ -150,7 +103,7 @@ export class ActivitySnapshotService {
   }> {
     console.log(`📸 Criando batch snapshots: ${dto.userActivities.length} users`)
 
-    const normalizedMonth = this.normalizeMonth(dto.month)
+    const normalizedMonth = normalizeSnapshotMonth(dto.month)
     
     let created = 0
     let updated = 0
@@ -163,7 +116,7 @@ export class ActivitySnapshotService {
       const batch = dto.userActivities.slice(i, i + batchSize)
       
       const operations = batch.map(activity => {
-        const engagementScore = this.calculateEngagementScore(activity)
+        const engagementScore = calculateSnapshotEngagementScore(activity)
         
         return {
           updateOne: {
@@ -221,7 +174,7 @@ export class ActivitySnapshotService {
     
     console.log(`📸 Criando snapshots mensais: ${month.toISOString().slice(0, 7)}`)
 
-    const normalizedMonth = this.normalizeMonth(month)
+    const normalizedMonth = normalizeSnapshotMonth(month)
     const platforms: Platform[] = platform ? [platform] : ['HOTMART', 'CURSEDUCA', 'DISCORD']
     
     let totalProcessed = 0
@@ -368,37 +321,6 @@ export class ActivitySnapshotService {
   // UTILITIES
   // ═══════════════════════════════════════════════════════════
   
-  private normalizeMonth(date: Date): Date {
-    return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0)
-  }
-
-  private calculateEngagementScore(activity: {
-    hadLogin: boolean
-    hadActivity: boolean
-    loginCount: number
-    activityCount: number
-  }): number {
-    let score = 0
-    
-    // Login contribui 20%
-    if (activity.hadLogin) {
-      score += 20
-    }
-    
-    // Atividade contribui 30%
-    if (activity.hadActivity) {
-      score += 30
-    }
-    
-    // Número de logins (até 20%)
-    score += Math.min(activity.loginCount * 2, 20)
-    
-    // Número de atividades (até 30%)
-    score += Math.min(activity.activityCount * 3, 30)
-    
-    return Math.min(score, 100)
-  }
-
   private async getActiveUsersForPlatform(
     platform: Platform,
     month: Date
@@ -513,7 +435,7 @@ export class ActivitySnapshotService {
     for (let i = months - 1; i >= 0; i--) {
       const month = new Date()
       month.setMonth(month.getMonth() - i)
-      const normalizedMonth = this.normalizeMonth(month)
+      const normalizedMonth = normalizeSnapshotMonth(month)
 
       const stats = await ActivitySnapshot.getMonthlyStats(normalizedMonth, platform)
       
