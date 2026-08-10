@@ -1,7 +1,8 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import { weeklyTagMonitoringService } from '../../services/tagMonitoring'
 import { WeeklyNativeTagSnapshot, WeeklyTagMonitoringConfig } from '../../models/tagMonitoring'
 import logger from '../../utils/logger'
+import { internalError } from '../../security/errorHandling'
 
 type SnapshotEmailParams = {
   email: string
@@ -11,7 +12,11 @@ type SnapshotEmailParams = {
  * GET /api/tag-monitoring/snapshots
  * Lista snapshots recentes
  */
-export const getSnapshots = async (req: Request, res: Response) => {
+export const getSnapshots = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { limit, weekNumber, year } = req.query
 
@@ -29,13 +34,8 @@ export const getSnapshots = async (req: Request, res: Response) => {
       data: snapshots,
       count: snapshots.length,
     })
-  } catch (error: any) {
-    logger.error('Erro ao listar snapshots:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao listar snapshots',
-      error: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao listar snapshots', 'TAG_MONITORING_SNAPSHOT_LIST_FAILED', error))
   }
 }
 
@@ -43,7 +43,11 @@ export const getSnapshots = async (req: Request, res: Response) => {
  * GET /api/tag-monitoring/snapshots/user/:email
  * Histórico de snapshots de um aluno específico
  */
-export const getSnapshotsByEmail = async (req: Request<SnapshotEmailParams>, res: Response) => {
+export const getSnapshotsByEmail = async (
+  req: Request<SnapshotEmailParams>,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { email } = req.params
     const { limit } = req.query
@@ -66,13 +70,12 @@ export const getSnapshotsByEmail = async (req: Request<SnapshotEmailParams>, res
       count: snapshots.length,
       email,
     })
-  } catch (error: any) {
-    logger.error('Erro ao buscar snapshots por email:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar snapshots',
-      error: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError(
+      'Erro ao buscar snapshots',
+      'TAG_MONITORING_SNAPSHOT_EMAIL_LIST_FAILED',
+      error,
+    ))
   }
 }
 
@@ -80,7 +83,11 @@ export const getSnapshotsByEmail = async (req: Request<SnapshotEmailParams>, res
  * GET /api/tag-monitoring/snapshots/compare
  * Compara dois snapshots (semanas diferentes)
  */
-export const compareSnapshots = async (req: Request, res: Response) => {
+export const compareSnapshots = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { email, week1, year1, week2, year2 } = req.query
 
@@ -131,13 +138,12 @@ export const compareSnapshots = async (req: Request, res: Response) => {
         changes,
       },
     })
-  } catch (error: any) {
-    logger.error('Erro ao comparar snapshots:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao comparar snapshots',
-      error: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError(
+      'Erro ao comparar snapshots',
+      'TAG_MONITORING_SNAPSHOT_COMPARE_FAILED',
+      error,
+    ))
   }
 }
 
@@ -145,7 +151,11 @@ export const compareSnapshots = async (req: Request, res: Response) => {
  * POST /api/tag-monitoring/snapshots/manual
  * Executa um snapshot manual (fora do CRON)
  */
-export const executeManualSnapshot = async (req: Request, res: Response) => {
+export const executeManualSnapshot = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     logger.info('🚀 Snapshot manual solicitado pelo admin')
 
@@ -156,13 +166,12 @@ export const executeManualSnapshot = async (req: Request, res: Response) => {
       message: 'Snapshot manual executado com sucesso',
       data: result,
     })
-  } catch (error: any) {
-    logger.error('Erro ao executar snapshot manual:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao executar snapshot manual',
-      error: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError(
+      'Erro ao executar snapshot manual',
+      'TAG_MONITORING_SNAPSHOT_MANUAL_FAILED',
+      error,
+    ))
   }
 }
 
@@ -170,7 +179,11 @@ export const executeManualSnapshot = async (req: Request, res: Response) => {
  * GET /api/tag-monitoring/stats
  * Estatísticas globais do sistema
  */
-export const getStats = async (req: Request, res: Response) => {
+export const getStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const stats = await weeklyTagMonitoringService.getSnapshotStats()
 
@@ -178,13 +191,12 @@ export const getStats = async (req: Request, res: Response) => {
       success: true,
       data: stats,
     })
-  } catch (error: any) {
-    logger.error('Erro ao obter estatísticas:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao obter estatísticas',
-      error: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError(
+      'Erro ao obter estatísticas',
+      'TAG_MONITORING_STATS_FAILED',
+      error,
+    ))
   }
 }
 
@@ -192,7 +204,11 @@ export const getStats = async (req: Request, res: Response) => {
  * GET /api/tag-monitoring/stats/weekly
  * Estatísticas semanais
  */
-export const getWeeklyStats = async (req: Request, res: Response) => {
+export const getWeeklyStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { weekNumber, year } = req.query
 
@@ -221,13 +237,12 @@ export const getWeeklyStats = async (req: Request, res: Response) => {
         avgTagsPerStudent: avgTagsPerStudent.toFixed(2),
       },
     })
-  } catch (error: any) {
-    logger.error('Erro ao obter estatísticas semanais:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao obter estatísticas semanais',
-      error: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError(
+      'Erro ao obter estatísticas semanais',
+      'TAG_MONITORING_WEEKLY_STATS_FAILED',
+      error,
+    ))
   }
 }
 
@@ -235,7 +250,11 @@ export const getWeeklyStats = async (req: Request, res: Response) => {
  * GET /api/tag-monitoring/config/scope
  * Busca configuração atual do scope
  */
-export const getScopeConfig = async (req: Request, res: Response) => {
+export const getScopeConfig = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const config = await WeeklyTagMonitoringConfig.getConfig()
 
@@ -246,13 +265,12 @@ export const getScopeConfig = async (req: Request, res: Response) => {
         enabled: config.enabled,
       },
     })
-  } catch (error: any) {
-    logger.error('Erro ao buscar configuração de scope:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar configuração',
-      error: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError(
+      'Erro ao buscar configuração',
+      'TAG_MONITORING_SCOPE_CONFIG_GET_FAILED',
+      error,
+    ))
   }
 }
 
@@ -260,7 +278,11 @@ export const getScopeConfig = async (req: Request, res: Response) => {
  * PATCH /api/tag-monitoring/config/scope
  * Atualiza configuração do scope
  */
-export const updateScopeConfig = async (req: Request, res: Response) => {
+export const updateScopeConfig = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { scope } = req.body
 
@@ -283,13 +305,12 @@ export const updateScopeConfig = async (req: Request, res: Response) => {
         enabled: config.enabled,
       },
     })
-  } catch (error: any) {
-    logger.error('Erro ao atualizar configuração de scope:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao atualizar configuração',
-      error: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError(
+      'Erro ao atualizar configuração',
+      'TAG_MONITORING_SCOPE_CONFIG_UPDATE_FAILED',
+      error,
+    ))
   }
 }
 
@@ -297,7 +318,11 @@ export const updateScopeConfig = async (req: Request, res: Response) => {
  * PATCH /api/tag-monitoring/config/toggle
  * Ativa/desativa o sistema de monitorização
  */
-export const toggleMonitoring = async (req: Request, res: Response) => {
+export const toggleMonitoring = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const config = await WeeklyTagMonitoringConfig.toggleEnabled()
 
@@ -311,13 +336,12 @@ export const toggleMonitoring = async (req: Request, res: Response) => {
         enabled: config.enabled,
       },
     })
-  } catch (error: any) {
-    logger.error('Erro ao alternar sistema de monitorização:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao alternar sistema',
-      error: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError(
+      'Erro ao alternar sistema',
+      'TAG_MONITORING_TOGGLE_FAILED',
+      error,
+    ))
   }
 }
 
@@ -325,7 +349,11 @@ export const toggleMonitoring = async (req: Request, res: Response) => {
  * GET /api/tag-monitoring/students-by-priority
  * Busca alunos que possuem tags de determinadas prioridades
  */
-export const getStudentsByPriority = async (req: Request, res: Response) => {
+export const getStudentsByPriority = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { priorities, tagName, limit, skip } = req.query
 
@@ -352,12 +380,11 @@ export const getStudentsByPriority = async (req: Request, res: Response) => {
       success: true,
       data: result,
     })
-  } catch (error: any) {
-    logger.error('Erro ao buscar alunos por prioridade:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar alunos por prioridade',
-      error: error.message,
-    })
+  } catch (error: unknown) {
+    next(internalError(
+      'Erro ao buscar alunos por prioridade',
+      'TAG_MONITORING_STUDENTS_BY_PRIORITY_FAILED',
+      error,
+    ))
   }
 }

@@ -247,16 +247,6 @@ const BASELINE = {
     "src/controllers/tagMonitoring/criticalTag.controller.ts:285",
     "src/controllers/tagMonitoring/criticalTag.controller.ts:307",
     "src/controllers/tagMonitoring/criticalTag.controller.ts:88",
-    "src/controllers/tagMonitoring/tagMonitoring.controller.ts:136",
-    "src/controllers/tagMonitoring/tagMonitoring.controller.ts:161",
-    "src/controllers/tagMonitoring/tagMonitoring.controller.ts:183",
-    "src/controllers/tagMonitoring/tagMonitoring.controller.ts:226",
-    "src/controllers/tagMonitoring/tagMonitoring.controller.ts:251",
-    "src/controllers/tagMonitoring/tagMonitoring.controller.ts:288",
-    "src/controllers/tagMonitoring/tagMonitoring.controller.ts:316",
-    "src/controllers/tagMonitoring/tagMonitoring.controller.ts:34",
-    "src/controllers/tagMonitoring/tagMonitoring.controller.ts:357",
-    "src/controllers/tagMonitoring/tagMonitoring.controller.ts:71",
     "src/controllers/tagMonitoring/tagNotification.controller.ts:113",
     "src/controllers/tagMonitoring/tagNotification.controller.ts:156",
     "src/controllers/tagMonitoring/tagNotification.controller.ts:199",
@@ -326,7 +316,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 282,
+  "localHttp500": 272,
   "publicErrorDetail": 20
 } as const
 
@@ -338,13 +328,13 @@ test('production boundary inventory matches the migration baseline', () => {
   expect(current.publicErrorDetail).toEqual(BASELINE.publicErrorDetail)
 })
 
-test('records the complete Tag Monitoring local 500 wave', () => {
+test('records the remaining Tag Monitoring local 500 debt', () => {
   const tagMonitoringDebt = BASELINE.localHttp500.filter((entry) =>
     entry.startsWith('src/controllers/tagMonitoring/'),
   )
 
-  expect(tagMonitoringDebt).toHaveLength(27)
-  expect(tagMonitoringDebt.filter((entry) => entry.includes('tagMonitoring.controller.ts'))).toHaveLength(10)
+  expect(tagMonitoringDebt).toHaveLength(17)
+  expect(tagMonitoringDebt.filter((entry) => entry.includes('tagMonitoring.controller.ts'))).toHaveLength(0)
   expect(tagMonitoringDebt.filter((entry) => entry.includes('tagNotification.controller.ts'))).toHaveLength(9)
   expect(tagMonitoringDebt.filter((entry) => entry.includes('criticalTag.controller.ts'))).toHaveLength(8)
 })

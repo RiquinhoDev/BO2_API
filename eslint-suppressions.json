@@ -389,7 +389,7 @@
   },
   "src/controllers/tagMonitoring/tagMonitoring.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 11
+      "count": 1
     }
   },
   "src/controllers/tagMonitoring/tagNotification.controller.ts": {
