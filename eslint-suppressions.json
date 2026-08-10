@@ -1171,15 +1171,34 @@
       "count": 1
     }
   },
-  "src/services/syncUtilizadoresServices/hotmartServices/hotmart.helpers.ts": {
+  "src/services/syncUtilizadoresServices/hotmartServices/hotmart/modules.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
+      "count": 1
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
     "no-console": {
-      "count": 26
+      "count": 5
+    }
+  },
+  "src/services/syncUtilizadoresServices/hotmartServices/hotmart/processing.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/services/syncUtilizadoresServices/hotmartServices/hotmart/transport.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "count": 3
+    },
+    "no-console": {
+      "count": 20
     },
     "preserve-caught-error": {
       "count": 2
