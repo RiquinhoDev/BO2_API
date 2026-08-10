@@ -63,18 +63,6 @@ const BASELINE = {
     "src/controllers/auth.controller.ts:154",
     "src/controllers/auth.controller.ts:207",
     "src/controllers/auth.controller.ts:270",
-    "src/controllers/clarezaController.ts:118",
-    "src/controllers/clarezaController.ts:174",
-    "src/controllers/clarezaController.ts:186",
-    "src/controllers/clarezaController.ts:204",
-    "src/controllers/clarezaController.ts:218",
-    "src/controllers/clarezaController.ts:229",
-    "src/controllers/clarezaController.ts:24",
-    "src/controllers/clarezaController.ts:243",
-    "src/controllers/clarezaController.ts:261",
-    "src/controllers/clarezaController.ts:278",
-    "src/controllers/clarezaController.ts:42",
-    "src/controllers/clarezaController.ts:60",
     "src/controllers/cohortAnalytics.controller.ts:54",
     "src/controllers/course.controller.ts:135",
     "src/controllers/course.controller.ts:178",
@@ -144,7 +132,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 70,
+  "localHttp500": 58,
   "publicErrorDetail": 0
 } as const
 

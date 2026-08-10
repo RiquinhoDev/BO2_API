@@ -1,4 +1,5 @@
-import { Request, Response } from 'express'
+import { type NextFunction, type Request, type Response } from 'express'
+import { internalError } from '../security/errorHandling'
 import { isClarezaRefreshAuthorized } from '../security/clarezaRefreshAuthorization'
 import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, getStockAnalysis } from '../services/clareza/clarezaFmpService'
 import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
@@ -11,7 +12,7 @@ function errorMessage(error: unknown): string {
 }
 
 export const clarezaController = {
-  async getData(req: Request, res: Response) {
+  async getData(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await getClarezaData()
       if (!data) {
@@ -20,12 +21,12 @@ export const clarezaController = {
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
     } catch (error: unknown) {
-      console.error('❌ [GET /api/clareza/data]', errorMessage(error))
-      return res.status(500).json({ error: 'Erro interno do servidor' })
+      next(internalError('Erro interno do servidor', 'CLAREZA_DATA_READ_FAILED', error))
+      return
     }
   },
 
-  async refresh(req: Request, res: Response) {
+  async refresh(req: Request, res: Response, next: NextFunction) {
     try {
       const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
 
@@ -37,14 +38,13 @@ export const clarezaController = {
       const result = await refreshClarezaData()
       return res.json({ success: true, ...result })
     } catch (error: unknown) {
-      const message = errorMessage(error)
-      console.error('❌ [POST /api/clareza/refresh]', message)
-      return res.status(500).json({ error: message })
+      next(internalError('Erro interno do servidor', 'CLAREZA_DATA_REFRESH_FAILED', error))
+      return
     }
   },
 
   // ── TOP 10 AÇÕES DA EQUIPA ──────────────────────────────────
-  async getTop10(req: Request, res: Response) {
+  async getTop10(req: Request, res: Response, next: NextFunction) {
     try {
       const json = await getClarezaTop10Json()
       if (!json) {
@@ -56,52 +56,58 @@ export const clarezaController = {
       // Envia a string já serializada (gzip aplicado pelo middleware compression). Sem res.json → sem stringify.
       return res.send(json)
     } catch (error: unknown) {
-      console.error('❌ [GET /api/clareza/top10]', errorMessage(error))
-      return res.status(500).json({ error: 'Erro interno do servidor' })
+      next(internalError('Erro interno do servidor', 'CLAREZA_TOP10_READ_FAILED', error))
+      return
     }
   },
 
   // ── ANÁLISE REIT POR TICKER (live FMP) ──────────────────────
-  async getReit(req: Request, res: Response) {
+  async getReit(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await getReitAnalysis(String(req.params.ticker || ''))
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
     } catch (error: unknown) {
-      const msg = errorMessage(error) || 'Erro interno do servidor'
-      const status = /invalido|nao encontrado/i.test(msg) ? 400 : 500
-      if (status === 500) console.error('❌ [GET /api/clareza/reit/:ticker]', msg)
-      return res.status(status).json({ error: msg })
+      const message = errorMessage(error) || 'Erro interno do servidor'
+      if (/invalido|nao encontrado/i.test(message)) {
+        return res.status(400).json({ error: message })
+      }
+      next(internalError('Erro interno do servidor', 'CLAREZA_REIT_READ_FAILED', error))
+      return
     }
   },
 
-  async getReitValuation(req: Request, res: Response) {
+  async getReitValuation(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await getReitValuation(String(req.params.ticker || ''))
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
     } catch (error: unknown) {
-      const msg = errorMessage(error) || 'Erro interno do servidor'
-      const status = /invalido|nao encontrado/i.test(msg) ? 400 : 500
-      if (status === 500) console.error('[GET /api/clareza/reit-valuation/:ticker]', msg)
-      return res.status(status).json({ error: msg })
+      const message = errorMessage(error) || 'Erro interno do servidor'
+      if (/invalido|nao encontrado/i.test(message)) {
+        return res.status(400).json({ error: message })
+      }
+      next(internalError('Erro interno do servidor', 'CLAREZA_REIT_VALUATION_READ_FAILED', error))
+      return
     }
   },
 
-  async getStock(req: Request, res: Response) {
+  async getStock(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await getStockAnalysis(String(req.params.ticker || ''))
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
     } catch (error: unknown) {
-      const msg = errorMessage(error) || 'Erro interno do servidor'
-      const status = /invalido|nao encontrado/i.test(msg) ? 400 : 500
-      if (status === 500) console.error('❌ [GET /api/clareza/stock/:ticker]', msg)
-      return res.status(status).json({ error: msg })
+      const message = errorMessage(error) || 'Erro interno do servidor'
+      if (/invalido|nao encontrado/i.test(message)) {
+        return res.status(400).json({ error: message })
+      }
+      next(internalError('Erro interno do servidor', 'CLAREZA_STOCK_READ_FAILED', error))
+      return
     }
   },
 
-  async refreshTop10(req: Request, res: Response) {
+  async refreshTop10(req: Request, res: Response, next: NextFunction) {
     try {
       const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
 
@@ -113,14 +119,13 @@ export const clarezaController = {
       const result = await refreshClarezaTop10Data()
       return res.json({ success: true, ...result })
     } catch (error: unknown) {
-      const message = errorMessage(error)
-      console.error('❌ [POST /api/clareza/top10/refresh]', message)
-      return res.status(500).json({ error: message })
+      next(internalError('Erro interno do servidor', 'CLAREZA_TOP10_REFRESH_FAILED', error))
+      return
     }
   },
 
   // ── RAIO-X DA AÇÃO POR TICKER (cache-first: Redis → Mongo → FMP) ──
-  async getRaiox(req: Request, res: Response) {
+  async getRaiox(req: Request, res: Response, next: NextFunction) {
     try {
       // String já serializada no Redis → send direto, sem stringify por pedido.
       const json = await getRaioxJson(String(req.params.ticker || ''))
@@ -128,17 +133,19 @@ export const clarezaController = {
       res.type('application/json')
       return res.send(json)
     } catch (error: unknown) {
-      const msg = errorMessage(error) || 'Erro interno do servidor'
-      const status = /invalido|nao encontrado/i.test(msg) ? 404 : 500
-      if (status === 500) console.error('❌ [GET /api/clareza/raiox/:ticker]', msg)
-      return res.status(status).json({ error: msg })
+      const message = errorMessage(error) || 'Erro interno do servidor'
+      if (/invalido|nao encontrado/i.test(message)) {
+        return res.status(404).json({ error: message })
+      }
+      next(internalError('Erro interno do servidor', 'CLAREZA_RAIOX_READ_FAILED', error))
+      return
     }
   },
 
   // ── RAIO-X POR QUERY STRING (compat com o contrato do PHP original:
   //    ?symbol=AAPL ou ?search=apple no mesmo URL) — o HTML de raio-x-acao
   //    em produção já chama assim, não `/raiox/:ticker`.
-  async getRaioxByQuery(req: Request, res: Response) {
+  async getRaioxByQuery(req: Request, res: Response, next: NextFunction) {
     try {
       if (req.query.search !== undefined) {
         const data = await searchRaiox(String(req.query.search || ''))
@@ -156,38 +163,43 @@ export const clarezaController = {
       res.type('application/json')
       return res.send(json)
     } catch (error: unknown) {
-      const msg = errorMessage(error) || 'Erro interno do servidor'
-      const status = /invalido|nao encontrado/i.test(msg) ? 404 : 500
-      if (status === 500) console.error('❌ [GET /api/clareza/raiox?symbol=]', msg)
-      return res.status(status).json({ error: msg })
+      const message = errorMessage(error) || 'Erro interno do servidor'
+      if (/invalido|nao encontrado/i.test(message)) {
+        return res.status(404).json({ error: message })
+      }
+      if (req.query.search !== undefined) {
+        next(internalError('Erro interno do servidor', 'CLAREZA_RAIOX_SEARCH_FAILED', error))
+      } else {
+        next(internalError('Erro interno do servidor', 'CLAREZA_RAIOX_READ_FAILED', error))
+      }
+      return
     }
   },
 
   // ── PESQUISA / AUTOCOMPLETE DO RAIO-X (só cache) ──
-  async searchRaiox(req: Request, res: Response) {
+  async searchRaiox(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await searchRaiox(String(req.query.q || req.query.search || ''))
       res.setHeader('Cache-Control', 'public, max-age=600')
       return res.json(data)
     } catch (error: unknown) {
-      console.error('❌ [GET /api/clareza/raiox-search]', errorMessage(error))
-      return res.status(500).json({ error: 'Erro interno do servidor' })
+      next(internalError('Erro interno do servidor', 'CLAREZA_RAIOX_SEARCH_FAILED', error))
+      return
     }
   },
 
   // ── DIAGNÓSTICO: testa só os tickers internacionais novos contra a FMP ──
-  async diagnoseRaiox(req: Request, res: Response) {
+  async diagnoseRaiox(req: Request, res: Response, next: NextFunction) {
     try {
       const result = await diagnoseRaiox()
       return res.json(result)
     } catch (error: unknown) {
-      const message = errorMessage(error)
-      console.error('❌ [GET /api/clareza/raiox-diagnose]', message)
-      return res.status(500).json({ error: message })
+      next(internalError('Erro interno do servidor', 'CLAREZA_RAIOX_DIAGNOSE_FAILED', error))
+      return
     }
   },
 
-  async refreshRaiox(req: Request, res: Response) {
+  async refreshRaiox(req: Request, res: Response, next: NextFunction) {
     try {
       const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
 
@@ -199,13 +211,12 @@ export const clarezaController = {
       const result = await refreshClarezaRaioxData()
       return res.json({ success: true, ...result })
     } catch (error: unknown) {
-      const message = errorMessage(error)
-      console.error('❌ [POST /api/clareza/raiox/refresh]', message)
-      return res.status(500).json({ error: message })
+      next(internalError('Erro interno do servidor', 'CLAREZA_RAIOX_REFRESH_FAILED', error))
+      return
     }
   },
 
-  async getCarteira(req: Request, res: Response) {
+  async getCarteira(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await getClarezaCarteiraData()
       if (!data) {
@@ -214,23 +225,23 @@ export const clarezaController = {
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
     } catch (error: unknown) {
-      console.error('[GET /api/clareza/carteira/data]', errorMessage(error))
-      return res.status(500).json({ error: 'Erro interno do servidor' })
+      next(internalError('Erro interno do servidor', 'CLAREZA_CARTEIRA_READ_FAILED', error))
+      return
     }
   },
 
-  async searchCarteira(req: Request, res: Response) {
+  async searchCarteira(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await searchCarteira(String(req.query.q || req.query.search || ''))
       res.setHeader('Cache-Control', 'public, max-age=600')
       return res.json(data)
     } catch (error: unknown) {
-      console.error('[GET /api/clareza/carteira-search]', errorMessage(error))
-      return res.status(500).json({ error: 'Erro interno do servidor' })
+      next(internalError('Erro interno do servidor', 'CLAREZA_CARTEIRA_SEARCH_FAILED', error))
+      return
     }
   },
 
-  async getEarnings(req: Request, res: Response) {
+  async getEarnings(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await getClarezaEarningsData()
       if (!data) {
@@ -239,12 +250,12 @@ export const clarezaController = {
       res.setHeader('Cache-Control', 'public, max-age=3600')
       return res.json(data)
     } catch (error: unknown) {
-      console.error('[GET /api/clareza/earnings/data]', errorMessage(error))
-      return res.status(500).json({ error: 'Erro interno do servidor' })
+      next(internalError('Erro interno do servidor', 'CLAREZA_EARNINGS_READ_FAILED', error))
+      return
     }
   },
 
-  async refreshEarnings(req: Request, res: Response) {
+  async refreshEarnings(req: Request, res: Response, next: NextFunction) {
     try {
       const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
 
@@ -256,12 +267,11 @@ export const clarezaController = {
       const result = await refreshClarezaEarningsData()
       return res.json({ success: true, ...result })
     } catch (error: unknown) {
-      const message = errorMessage(error)
-      console.error('[POST /api/clareza/earnings/refresh]', message)
-      return res.status(500).json({ error: message })
+      next(internalError('Erro interno do servidor', 'CLAREZA_EARNINGS_REFRESH_FAILED', error))
+      return
     }
   },
-  async refreshCarteira(req: Request, res: Response) {
+  async refreshCarteira(req: Request, res: Response, next: NextFunction) {
     try {
       const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
 
@@ -273,9 +283,8 @@ export const clarezaController = {
       const result = await refreshClarezaCarteiraData()
       return res.json({ success: true, ...result })
     } catch (error: unknown) {
-      const message = errorMessage(error)
-      console.error('[POST /api/clareza/carteira/refresh]', message)
-      return res.status(500).json({ error: message })
+      next(internalError('Erro interno do servidor', 'CLAREZA_CARTEIRA_REFRESH_FAILED', error))
+      return
     }
   }
 }
