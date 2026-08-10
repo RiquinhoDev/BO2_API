@@ -13,7 +13,6 @@
   "src/services/guru/crossReference.service.ts": 548,
   "src/services/productSalesStatsBuilder.ts": 521,
   "src/services/renewal/discordRolesSync.service.ts": 687,
-  "src/services/renewal/renewalAcSync.service.ts": 731,
   "src/services/studentOgiSummary.service.ts": 539,
   "src/services/syncUtilizadoresServices/activitySnapshot.service.ts": 538,
   "src/services/syncUtilizadoresServices/conflictDetection.service.ts": 547,

@@ -978,6 +978,25 @@
       "count": 25
     }
   },
+  "src/services/renewal/activeCampaign/execution.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 6
+    }
+  },
+  "src/services/renewal/activeCampaign/planning.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 10
+    },
+    "no-console": {
+      "count": 2
+    }
+  },
   "src/services/renewal/discordRolesSync.service.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 6
@@ -1003,17 +1022,6 @@
     },
     "no-console": {
       "count": 2
-    }
-  },
-  "src/services/renewal/renewalAcSync.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 16
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 8
     }
   },
   "src/services/renewal/renewalCoverage.service.ts": {
