@@ -551,14 +551,6 @@
       "count": 1
     }
   },
-  "src/models/Class.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
-    "no-useless-assignment": {
-      "count": 1
-    }
-  },
   "src/models/ClassAnalytics.ts": {
     "no-console": {
       "count": 3
@@ -623,6 +615,32 @@
   "src/models/acTags/CommunicationHistory.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 5
+    }
+  },
+  "src/models/class/Class.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/models/class/ClassHistory.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "src/models/class/InactivationList.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/models/class/Student.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
     }
   },
   "src/models/cron/CronExecutionLog.ts": {
