@@ -10,43 +10,42 @@ import { withValidatedInput } from '../security/validatedInput'
 import { asyncRoute } from '../security/asyncRoute'
 
 const router = Router()
-
 // ═══════════════════════════════════════════════════════════
 // 🏷️ CRITICAL TAGS ROUTES
 // ═══════════════════════════════════════════════════════════
 
 // Lista tags críticas
-router.get('/critical-tags', authenticate, criticalTagController.getCriticalTags)
+router.get('/critical-tags', authenticate, asyncRoute(criticalTagController.getCriticalTags))
 
 // Adiciona tag crítica
-router.post('/critical-tags', authenticate, criticalTagController.addCriticalTag)
+router.post('/critical-tags', authenticate, asyncRoute(criticalTagController.addCriticalTag))
 
 // Remove tag crítica (soft delete)
-router.delete('/critical-tags/:id', authenticate, criticalTagController.removeCriticalTag)
+router.delete('/critical-tags/:id', authenticate, asyncRoute(criticalTagController.removeCriticalTag))
 
 // Remove tag crítica permanentemente
 router.delete(
   '/critical-tags/:id/permanent',
   authenticate,
-  withValidatedInput(tagMonitoringDeleteInput, (input, _req, res) =>
-    criticalTagController.deleteCriticalTag(input, res)),
+  withValidatedInput(tagMonitoringDeleteInput, (input, _req, res, next) =>
+    criticalTagController.deleteCriticalTag(input, res, next)),
 )
 
 // Alterna estado ativo/inativo
-router.patch('/critical-tags/:id/toggle', authenticate, criticalTagController.toggleCriticalTag)
+router.patch('/critical-tags/:id/toggle', authenticate, asyncRoute(criticalTagController.toggleCriticalTag))
 
 // Atualiza prioridade
-router.patch('/critical-tags/:id/priority', authenticate, criticalTagController.updateCriticalTagPriority)
+router.patch('/critical-tags/:id/priority', authenticate, asyncRoute(criticalTagController.updateCriticalTagPriority))
 
 // Descobre tags nativas disponíveis
 router.get(
   '/critical-tags/available-native-tags',
   authenticate,
-  criticalTagController.getAvailableNativeTags
+  asyncRoute(criticalTagController.getAvailableNativeTags)
 )
 
 // Estatísticas de tags críticas
-router.get('/critical-tags/stats', authenticate, criticalTagController.getCriticalTagsStats)
+router.get('/critical-tags/stats', authenticate, asyncRoute(criticalTagController.getCriticalTagsStats))
 
 // ═══════════════════════════════════════════════════════════
 // 🔔 NOTIFICATIONS ROUTES

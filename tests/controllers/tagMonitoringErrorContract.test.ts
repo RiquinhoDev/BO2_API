@@ -23,6 +23,13 @@ jest.mock('../../src/middleware/auth.middleware', () => ({
 jest.mock('../../src/services/tagMonitoring', () => ({
   criticalTagManagementService: {
     getCriticalTags: jest.fn(),
+    addCriticalTag: jest.fn(),
+    removeCriticalTag: jest.fn(),
+    deleteCriticalTag: jest.fn(),
+    toggleCriticalTag: jest.fn(),
+    updatePriority: jest.fn(),
+    discoverNativeTagsFromSnapshots: jest.fn(),
+    getStats: jest.fn(),
   },
   tagNotificationService: {
     getNotifications: jest.fn(),
@@ -95,6 +102,19 @@ type MonitoringConfigModelMock = {
   updateScope: jest.Mock<Promise<MonitoringConfigFixture>, [MonitoringConfigFixture['scope']]>
   toggleEnabled: jest.Mock<Promise<MonitoringConfigFixture>, []>
 }
+type CriticalTagServiceMock = {
+  getCriticalTags: jest.Mock<Promise<unknown[]>, [boolean?]>
+  addCriticalTag: jest.Mock<Promise<unknown>, [string, string, string?, string?]>
+  removeCriticalTag: jest.Mock<Promise<void>, [string]>
+  deleteCriticalTag: jest.Mock<Promise<void>, [string]>
+  toggleCriticalTag: jest.Mock<Promise<{ isActive: boolean }>, [string]>
+  updatePriority: jest.Mock<Promise<unknown>, [string, string]>
+  discoverNativeTagsFromSnapshots: jest.Mock<Promise<string[]>, [number?]>
+  getStats: jest.Mock<Promise<unknown>, []>
+}
+const { criticalTagManagementService: criticalTagServiceMock } = jest.requireMock<{
+  criticalTagManagementService: CriticalTagServiceMock
+}>('../../src/services/tagMonitoring')
 type NotificationServiceMock = {
   getNotifications: jest.Mock<Promise<unknown[]>, [Record<string, unknown>?]>
   getNotificationById: jest.Mock<Promise<unknown | null>, [string]>
@@ -226,6 +246,15 @@ function buildApp() {
 
   app.use(errors.correlationId)
   app.use(express.json())
+  app.use((req, _res, next) => {
+    req.user = {
+      id: 'admin-1',
+      email: 'admin@example.test',
+      role: 'ADMIN',
+      permissions: [],
+    }
+    next()
+  })
   app.use('/api/tag-monitoring', tagMonitoringRouter)
   app.use(errors.handler)
   return app
@@ -342,6 +371,176 @@ test('critical tag list failures use the central redacted error contract', async
   )
   expectRedacted(response)
 })
+const criticalTagFailureCases = [
+  ['add', 'post', '/api/tag-monitoring/critical-tags', { tagName: 'vip' }, criticalTagServiceMock.addCriticalTag, 'CRITICAL_TAG_ADD_FAILED', 'Erro ao adicionar tag crítica'],
+  ['soft delete', 'delete', '/api/tag-monitoring/critical-tags/tag-1', undefined, criticalTagServiceMock.removeCriticalTag, 'CRITICAL_TAG_REMOVE_FAILED', 'Erro ao remover tag crítica'],
+  ['permanent delete', 'delete', '/api/tag-monitoring/critical-tags/507f1f77bcf86cd799439011/permanent', undefined, criticalTagServiceMock.deleteCriticalTag, 'CRITICAL_TAG_DELETE_FAILED', 'Erro ao deletar tag crítica'],
+  ['toggle', 'patch', '/api/tag-monitoring/critical-tags/tag-1/toggle', undefined, criticalTagServiceMock.toggleCriticalTag, 'CRITICAL_TAG_TOGGLE_FAILED', 'Erro ao alternar tag crítica'],
+  ['priority', 'patch', '/api/tag-monitoring/critical-tags/tag-1/priority', { priority: 'CRITICAL' }, criticalTagServiceMock.updatePriority, 'CRITICAL_TAG_PRIORITY_UPDATE_FAILED', 'Erro ao atualizar prioridade'],
+  ['native tags', 'get', '/api/tag-monitoring/critical-tags/available-native-tags', undefined, criticalTagServiceMock.discoverNativeTagsFromSnapshots, 'CRITICAL_TAG_NATIVE_TAGS_FAILED', 'Erro ao descobrir tags nativas'],
+  ['stats', 'get', '/api/tag-monitoring/critical-tags/stats', undefined, criticalTagServiceMock.getStats, 'CRITICAL_TAG_STATS_FAILED', 'Erro ao obter estatísticas'],
+] as const
+
+test.each(criticalTagFailureCases)(
+  'critical tag $name failures use the central redacted error contract',
+  async (_name, method, routePath, body, dependency, code, message) => {
+    dependency.mockRejectedValueOnce(new Error('secret alice@example.test token=hidden'))
+    let pending = request(buildApp())[method](routePath).query(offlineMarker)
+    if (body) pending = pending.send(body)
+    const response = await pending
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual(expectedError(code, message))
+    expectRedacted(response)
+  },
+)
+
+test('critical tag list and create preserve filters, arguments and envelopes', async () => {
+  const tags = [{ id: 'tag-1', tagName: 'vip', isActive: true }]
+  criticalTagServiceMock.getCriticalTags.mockResolvedValueOnce(tags)
+  const listed = await request(buildApp())
+    .get('/api/tag-monitoring/critical-tags')
+    .query({ ...offlineMarker, onlyActive: 'true' })
+  expect(listed.status).toBe(200)
+  expect(listed.body).toEqual({ success: true, data: tags, count: 1 })
+  expect(criticalTagServiceMock.getCriticalTags).toHaveBeenCalledWith(true)
+
+  const tag = { id: 'tag-2', tagName: 'risk', priority: 'CRITICAL' }
+  criticalTagServiceMock.addCriticalTag.mockResolvedValueOnce(tag)
+  const created = await request(buildApp())
+    .post('/api/tag-monitoring/critical-tags')
+    .query(offlineMarker)
+    .send({ tagName: 'risk', description: 'important', priority: 'CRITICAL' })
+  expect(created.status).toBe(201)
+  expect(created.body).toEqual({
+    success: true,
+    message: 'Tag crítica adicionada com sucesso',
+    data: tag,
+  })
+  expect(criticalTagServiceMock.addCriticalTag).toHaveBeenCalledWith(
+    'risk', 'admin-1', 'important', 'CRITICAL',
+  )
+})
+
+test('critical tag create preserves validation and conflict contracts', async () => {
+  const missing = await request(buildApp())
+    .post('/api/tag-monitoring/critical-tags').query(offlineMarker).send({})
+  expect(missing.status).toBe(400)
+  expect(missing.body).toEqual({ success: false, message: 'Nome da tag é obrigatório' })
+
+  const invalid = await request(buildApp())
+    .post('/api/tag-monitoring/critical-tags')
+    .query(offlineMarker)
+    .send({ tagName: 'vip', priority: 'HIGH' })
+  expect(invalid.status).toBe(400)
+  expect(invalid.body).toEqual({
+    success: false,
+    message: 'Prioridade inválida. Use: CRITICAL, MEDIUM ou LOW',
+  })
+
+  criticalTagServiceMock.addCriticalTag.mockRejectedValueOnce(
+    new Error('Tag "vip" já está marcada como crítica'),
+  )
+  const conflict = await request(buildApp())
+    .post('/api/tag-monitoring/critical-tags').query(offlineMarker).send({ tagName: 'vip' })
+  expect(conflict.status).toBe(409)
+  expect(conflict.body).toEqual({
+    success: false,
+    message: 'Tag "vip" já está marcada como crítica',
+  })
+})
+
+test('critical tag soft and permanent delete preserve IDs, semantics and order', async () => {
+  criticalTagServiceMock.removeCriticalTag.mockResolvedValueOnce()
+  const soft = await request(buildApp())
+    .delete('/api/tag-monitoring/critical-tags/tag-soft').query(offlineMarker)
+  expect(soft.status).toBe(200)
+  expect(soft.body).toEqual({ success: true, message: 'Tag crítica removida com sucesso' })
+  expect(criticalTagServiceMock.removeCriticalTag).toHaveBeenCalledWith('tag-soft')
+
+  criticalTagServiceMock.deleteCriticalTag.mockResolvedValueOnce()
+  const permanent = await request(buildApp())
+    .delete('/api/tag-monitoring/critical-tags/507f1f77bcf86cd799439011/permanent')
+    .query(offlineMarker)
+  expect(permanent.status).toBe(200)
+  expect(permanent.body).toEqual({
+    success: true,
+    message: 'Tag crítica deletada permanentemente',
+  })
+  expect(criticalTagServiceMock.deleteCriticalTag).toHaveBeenCalledWith(
+    '507f1f77bcf86cd799439011',
+  )
+  expect(criticalTagServiceMock.removeCriticalTag.mock.invocationCallOrder[0])
+    .toBeLessThan(criticalTagServiceMock.deleteCriticalTag.mock.invocationCallOrder[0])
+})
+
+test('critical tag mutations preserve validation, IDs and response envelopes', async () => {
+  const invalid = await request(buildApp())
+    .patch('/api/tag-monitoring/critical-tags/tag-1/priority')
+    .query(offlineMarker).send({ priority: 'HIGH' })
+  expect(invalid.status).toBe(400)
+  expect(invalid.body).toEqual({
+    success: false,
+    message: 'Prioridade inválida. Use: CRITICAL, MEDIUM ou LOW',
+  })
+
+  criticalTagServiceMock.toggleCriticalTag.mockResolvedValueOnce({ isActive: false })
+  const toggled = await request(buildApp())
+    .patch('/api/tag-monitoring/critical-tags/tag-1/toggle').query(offlineMarker)
+  expect(toggled.body).toEqual({
+    success: true,
+    message: 'Tag crítica desativada com sucesso',
+    data: { isActive: false },
+  })
+  expect(criticalTagServiceMock.toggleCriticalTag).toHaveBeenCalledWith('tag-1')
+
+  const updatedTag = { id: 'tag-1', priority: 'MEDIUM' }
+  criticalTagServiceMock.updatePriority.mockResolvedValueOnce(updatedTag)
+  const updated = await request(buildApp())
+    .patch('/api/tag-monitoring/critical-tags/tag-1/priority')
+    .query(offlineMarker).send({ priority: 'MEDIUM' })
+  expect(updated.body).toEqual({
+    success: true,
+    message: 'Prioridade atualizada para MEDIUM',
+    data: updatedTag,
+  })
+  expect(criticalTagServiceMock.updatePriority).toHaveBeenCalledWith('tag-1', 'MEDIUM')
+})
+
+test('critical tag reads preserve query parsing and response envelopes', async () => {
+  criticalTagServiceMock.discoverNativeTagsFromSnapshots.mockResolvedValueOnce(['a', 'b'])
+  const available = await request(buildApp())
+    .get('/api/tag-monitoring/critical-tags/available-native-tags')
+    .query({ ...offlineMarker, weeksBack: '6' })
+  expect(available.body).toEqual({
+    success: true,
+    data: ['a', 'b'],
+    count: 2,
+    weeksAnalyzed: 6,
+  })
+  expect(criticalTagServiceMock.discoverNativeTagsFromSnapshots).toHaveBeenCalledWith(6)
+
+  const stats = { total: 4, active: 3, inactive: 1 }
+  criticalTagServiceMock.getStats.mockResolvedValueOnce(stats)
+  const response = await request(buildApp())
+    .get('/api/tag-monitoring/critical-tags/stats').query(offlineMarker)
+  expect(response.body).toEqual({ success: true, data: stats })
+})
+
+test.each([
+  ['soft delete', criticalTagServiceMock.removeCriticalTag, '/api/tag-monitoring/critical-tags/tag-1', 'delete'],
+  ['permanent delete', criticalTagServiceMock.deleteCriticalTag, '/api/tag-monitoring/critical-tags/507f1f77bcf86cd799439011/permanent', 'delete'],
+  ['toggle', criticalTagServiceMock.toggleCriticalTag, '/api/tag-monitoring/critical-tags/tag-1/toggle', 'patch'],
+  ['priority', criticalTagServiceMock.updatePriority, '/api/tag-monitoring/critical-tags/tag-1/priority', 'patch'],
+] as const)('critical tag %s preserves the not-found contract', async (_name, dependency, routePath, method) => {
+  dependency.mockRejectedValueOnce(new Error('Tag crítica não encontrada'))
+  let pending = request(buildApp())[method](routePath).query(offlineMarker)
+  if (routePath.endsWith('/priority')) pending = pending.send({ priority: 'LOW' })
+  const response = await pending
+  expect(response.status).toBe(404)
+  expect(response.body).toEqual({ success: false, message: 'Tag crítica não encontrada' })
+})
+
 test('snapshot list preserves filters, explicit limit and count envelope', async () => {
   const snapshots = [{ snapshotId: 'snapshot-1' }, { snapshotId: 'snapshot-2' }]
   const query = snapshotFindResult(snapshots)
