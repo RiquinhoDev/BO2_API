@@ -12,14 +12,9 @@ jest.mock('../../../src/services/dashboardStatsBuilder.service', () => ({
 }))
 
 import { CronManagementService } from '../../../src/services/cron/scheduler'
+import { cronJobDispatcher } from '../../../src/services/cron/scheduler/jobDispatcher'
 import schedule from 'node-schedule'
 import { CronExecution } from '../../../src/models'
-
-type SpecificJobResult = {
-  success: boolean
-  stats: { errors: number }
-  errorMessage?: string
-}
 
 describe('CronManagementService dashboard rebuild execution', () => {
   beforeEach(() => {
@@ -34,12 +29,12 @@ describe('CronManagementService dashboard rebuild execution', () => {
 
   it('does not retry through the builder when the loaded job fails', async () => {
     mockRebuildDashboardStats.mockRejectedValueOnce(new Error('rebuild failed'))
-    const service = new CronManagementService()
-    const executeSpecificJob = Reflect.get(service, 'executeSpecificJob').bind(service) as (
-      job: { name: string },
-    ) => Promise<SpecificJobResult>
 
-    const result = await executeSpecificJob({ name: 'RebuildDashboardStats' })
+    const result = await cronJobDispatcher.execute({
+      _id: { toString: () => 'dashboard-stats-job' },
+      name: 'RebuildDashboardStats',
+      syncType: 'hotmart',
+    })
 
     expect(mockRebuildDashboardStats).toHaveBeenCalledTimes(1)
     expect(mockBuildDashboardStats).not.toHaveBeenCalled()
@@ -49,7 +44,6 @@ describe('CronManagementService dashboard rebuild execution', () => {
       errorMessage: 'rebuild failed',
     })
   })
-
   it('persists the returned failure message for a scheduled run', async () => {
     mockRebuildDashboardStats.mockRejectedValueOnce(new Error('rebuild failed'))
     let scheduledCallback: (() => Promise<void>) | undefined
