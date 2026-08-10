@@ -13,10 +13,7 @@ export const getJobHistory = async (
 ): Promise<void> => {
   try {
     const { id } = req.params
-    const requestedLimit = req.query.limit
-    const limit = typeof requestedLimit === 'string'
-      ? parseInt(requestedLimit, 10) || 20
-      : 20
+    const limit = parseInt(String(req.query.limit), 10) || 20
 
     console.log(`📊 Buscando histórico do job: ${id} (limit: ${limit})`)
 

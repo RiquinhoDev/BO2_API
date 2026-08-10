@@ -7,7 +7,6 @@
 import { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import SyncHistory from '../../models/SyncModels/SyncHistory'
-import type { Platform } from '../../models/SyncModels/ActivitySnapshot'
 import { internalError } from '../../security/errorHandling'
 
 import type { ISyncConflict } from '../../models/SyncModels/SyncConflict'
@@ -92,20 +91,16 @@ res.status(200).json({
 
 export const getSnapshotStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const requestedMonth = req.query.month
-    const requestedPlatform = req.query.platform
-    const platform: Platform | undefined =
-      requestedPlatform === 'HOTMART' || requestedPlatform === 'CURSEDUCA' || requestedPlatform === 'DISCORD'
-        ? requestedPlatform
-        : undefined
+    const { month, platform } = req.query
 
-    const targetMonth = typeof requestedMonth === 'string'
-      ? new Date(requestedMonth)
+    const targetMonth = month
+      ? new Date(String(month))
       : new Date()
 
+    // Legacy raw-query compatibility: invalid/repeated platform values reached the model filter unchanged.
     const stats = await activitySnapshotService.getMonthlyStats(
       targetMonth,
-      platform
+      platform as any,
     )
 
     res.status(200).json({

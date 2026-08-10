@@ -107,7 +107,7 @@ productionBoundaryInventory.test.ts: 5/5 passed
 Sync Utilizadores baseline membership: 0
 ```
 
-Only the obsolete `@typescript-eslint/no-explicit-any` suppression counts were removed from `syncReports.controller.ts` (4) and `syncStats.controller.ts` (3). Their existing `no-console` counts remain 6 and 2. No new suppression was added.
+Only obsolete catch-`any` suppressions were removed: three from `syncReports.controller.ts` and two from `syncStats.controller.ts`. Each file retains one ratcheted `no-explicit-any` for its legacy raw-query compatibility seam; existing `no-console` counts remain 6 and 2.
 
 ## Full Wave B gate
 
@@ -166,3 +166,51 @@ Per the task brief's pre-authorization, only those owned files used narrowly sco
 ## Concerns
 
 No functional blocker remains. Existing Mongoose reserved-pathname/duplicate-index warnings and legacy model-initialization console output remain outside this slice; they did not affect the focused or full gates.
+## Review fix round 1 — legacy raw-query success contracts
+
+Review found that the type-safe query guards introduced success-contract drift for invalid or repeated Express query values. Exact comparison with base `635a9c2` confirmed that legacy code forwarded raw `syncType`/`platform` values and relied on JavaScript coercion for repeated `limit`, `days`, and `month` values.
+
+Nine real-route characterizations were added before the fix. On Task 4 HEAD they failed exactly at the changed boundaries:
+
+```text
+npm.cmd run test:unit -- --runInBand tests/controllers/syncUtilizadoresErrorContract.test.ts \
+  -t "legacy coercion|legacy .* boundary|legacy forwarding|legacy invalid date"
+1 suite failed
+9 tests failed, 30 skipped, 39 total
+exit 1
+Time: 27.801s (29.6s wall)
+```
+
+The initial RED took approximately 20 extra seconds because the incorrect cron fallback reached Mongoose's buffered `CronConfig.find`. The test now mocks only that DB seam; it still proves that invalid/repeated raw values reach the scheduler/service boundary unchanged.
+
+The minimal fix restores legacy coercion via `String(...)` for repeated numeric/date queries. It does not widen any public service type. Two unavoidable raw-query seams remain explicitly named in code: one `as any` in sync reports and one in sync stats. Cron retains its narrower pre-existing `as SyncType` compatibility assertion.
+
+```text
+Focused regression selection: 1 suite, 9/9 passed, exit 0, 11.6s wall
+
+Focused Wave B gate:
+9 suites passed, 9 total
+82 tests passed, 82 total
+exit 0
+Time: 17.114s (19.3s wall)
+
+npm.cmd run lint
+exit 0
+
+npm.cmd run types:check
+exit 0
+
+npm.cmd run build
+exit 0
+Time: 16.5s wall
+```
+
+The complete 322-suite Jest gate was not repeated for this review fix: the change is limited to four query-normalization sites, and the focused real-route suite covers all nine invalid/repeated success branches plus the original 30 error/invariant contracts. Related topology, destructive-validation, inventory and ESLint-ratchet suites are included in the 82-test gate.
+
+Final suppression state is exact: `syncReports.controller.ts` retains `no-explicit-any: 1` and `no-console: 6`; `syncStats.controller.ts` retains `no-explicit-any: 1` and `no-console: 2`. Thus only the five obsolete catch-`any` suppressions were pruned, not seven.
+
+Review-fix commit subject:
+
+```text
+fix(sync): preserve legacy query semantics
+```

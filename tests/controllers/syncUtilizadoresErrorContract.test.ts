@@ -11,6 +11,7 @@ type ValueMock = jest.Mock<unknown, unknown[]>
 
 const mockSchedulerGetAllJobs: AsyncMock = jest.fn()
 const mockSchedulerGetActiveJobs: AsyncMock = jest.fn()
+const mockSchedulerGetJobsByType: AsyncMock = jest.fn()
 const mockSchedulerGetJobById: AsyncMock = jest.fn()
 const mockSchedulerCreateJob: AsyncMock = jest.fn()
 const mockSchedulerUpdateJob: AsyncMock = jest.fn()
@@ -19,6 +20,7 @@ const mockSchedulerToggleJob: AsyncMock = jest.fn()
 const mockSchedulerExecuteJobManually: AsyncMock = jest.fn()
 const mockSchedulerGetNextExecutions: ValueMock = jest.fn()
 const mockCronExecutionFind: ValueMock = jest.fn()
+const mockCronConfigFind: ValueMock = jest.fn()
 const mockProductFind: ValueMock = jest.fn()
 const mockProductFindOne: ValueMock = jest.fn()
 const mockUserFind: ValueMock = jest.fn()
@@ -47,6 +49,7 @@ jest.mock('../../src/services/cron/scheduler', () => ({
   default: {
     getAllJobs: mockSchedulerGetAllJobs,
     getActiveJobs: mockSchedulerGetActiveJobs,
+    getJobsByType: mockSchedulerGetJobsByType,
     getJobById: mockSchedulerGetJobById,
     createJob: mockSchedulerCreateJob,
     updateJob: mockSchedulerUpdateJob,
@@ -67,6 +70,10 @@ jest.mock('../../src/models', () => ({
   },
 }))
 
+jest.mock('../../src/models/cron/CronConfig', () => ({
+  __esModule: true,
+  default: { find: mockCronConfigFind },
+}))
 jest.mock('../../src/models/product/Product', () => ({
   __esModule: true,
   default: {
@@ -318,6 +325,7 @@ const cases: ErrorRouteCase[] = [
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockCronConfigFind.mockReturnValue(resolvingChain([], 'lean'))
   jest.spyOn(console, 'error').mockImplementation(() => undefined)
   jest.spyOn(console, 'log').mockImplementation(() => undefined)
   jest.spyOn(console, 'warn').mockImplementation(() => undefined)
@@ -419,6 +427,128 @@ test('cron history preserves manual and scheduled distinctions with error counte
   })
 })
 
+test('cron history preserves legacy coercion for a repeated limit query', async () => {
+  mockSchedulerGetJobById.mockResolvedValueOnce({
+    _id: objectId,
+    name: 'offline-job',
+    totalRuns: 0,
+    successfulRuns: 0,
+    failedRuns: 0,
+    getSuccessRate: () => 0,
+  })
+  mockCronExecutionFind.mockReturnValueOnce(resolvingChain([], 'sort', 'limit', 'lean'))
+
+  const response = await request(appForCentralError({
+    kind: 'router',
+    mountPath: '/api/cron',
+    router: cronRouter,
+  })).get(`/api/cron/jobs/${objectId}/history`).query({
+    limit: ['2', '9'],
+    __bo2_offline_loopback: '1',
+  })
+
+  expect(response.status).toBe(200)
+  expect(response.body.data.limit).toBe(2)
+})
+
+test.each([
+  { label: 'invalid', syncType: 'unsupported' },
+  { label: 'repeated', syncType: ['hotmart', 'curseduca'] },
+])('cron jobs preserve the legacy $label syncType filter boundary', async ({ label, syncType }) => {
+  const jobs = [{ _id: `filtered-${label}` }]
+  mockSchedulerGetJobsByType.mockResolvedValueOnce(jobs)
+  mockSchedulerGetAllJobs.mockResolvedValueOnce([{ _id: 'unfiltered' }])
+
+  const response = await request(appForCentralError({
+    kind: 'router',
+    mountPath: '/api/cron',
+    router: cronRouter,
+  })).get('/api/cron/jobs').query({ syncType, __bo2_offline_loopback: '1' })
+
+  expect(response.status).toBe(200)
+  expect(response.body.data).toEqual({ total: 1, jobs, systemJobs: [] })
+  expect(mockSchedulerGetJobsByType).toHaveBeenCalledWith(syncType)
+})
+
+test.each([
+  {
+    label: 'invalid sync type',
+    query: { syncType: 'unsupported' },
+    expectedLimit: 20,
+    expectedSyncType: 'unsupported',
+  },
+  {
+    label: 'repeated limit and sync type',
+    query: { limit: ['4', '9'], syncType: ['hotmart', 'curseduca'] },
+    expectedLimit: 4,
+    expectedSyncType: ['hotmart', 'curseduca'],
+  },
+])('sync reports preserve legacy forwarding for $label', async ({ query, expectedLimit, expectedSyncType }) => {
+  mockGetReports.mockResolvedValueOnce([])
+
+  const response = await request(appForCentralError({
+    kind: 'router',
+    mountPath: '/api/sync/reports',
+    router: syncReportsRouter,
+  })).get('/api/sync/reports').query({ ...query, __bo2_offline_loopback: '1' })
+
+  expect(response.status).toBe(200)
+  expect(mockGetReports).toHaveBeenCalledWith(expectedLimit, expectedSyncType)
+})
+
+test('sync report stats preserve legacy coercion for repeated days', async () => {
+  mockGetAggregatedStats.mockResolvedValueOnce({ totalSyncs: 0 })
+
+  const response = await request(appForCentralError({
+    kind: 'router',
+    mountPath: '/api/sync/reports',
+    router: syncReportsRouter,
+  })).get('/api/sync/reports/stats').query({
+    days: ['7', '30'],
+    __bo2_offline_loopback: '1',
+  })
+
+  expect(response.status).toBe(200)
+  expect(mockGetAggregatedStats).toHaveBeenCalledWith(7)
+})
+
+test.each([
+  { label: 'invalid', platform: 'BROKEN' },
+  { label: 'repeated', platform: ['HOTMART', 'DISCORD'] },
+])('snapshot stats preserve the legacy $label platform boundary', async ({ platform }) => {
+  mockGetMonthlyStats.mockResolvedValueOnce({ totalSnapshots: 0 })
+
+  const response = await request(appForCentralError({
+    kind: 'router',
+    mountPath: '/api/sync',
+    router: syncStatsRouter,
+  })).get('/api/sync/snapshots/stats').query({ platform, __bo2_offline_loopback: '1' })
+
+  expect(response.status).toBe(200)
+  expect(response.body.data.platform).toEqual(platform)
+  expect(mockGetMonthlyStats).toHaveBeenCalledWith(expect.any(Date), platform)
+})
+
+test('snapshot stats preserves the legacy invalid date from a repeated month query', async () => {
+  mockGetMonthlyStats.mockResolvedValueOnce({ totalSnapshots: 0 })
+
+  const response = await request(appForCentralError({
+    kind: 'router',
+    mountPath: '/api/sync',
+    router: syncStatsRouter,
+  })).get('/api/sync/snapshots/stats').query({
+    month: ['2026-03', '2026-04'],
+    __bo2_offline_loopback: '1',
+  })
+
+  expectCentralError(response, {
+    code: 'SYNC_SNAPSHOT_STATS_FAILED',
+    message: 'Erro ao buscar estatísticas',
+  })
+  const targetMonth = mockGetMonthlyStats.mock.calls[0]?.[0]
+  if (!(targetMonth instanceof Date)) throw new Error('Expected the snapshot month boundary to receive a Date')
+  expect(Number.isNaN(targetMonth.getTime())).toBe(true)
+})
 test('CursEduca product envelopes preserve product and membership cardinality', async () => {
   const products = [
     { _id: 'product-1', name: 'One', curseducaGroupId: 'group-1' },
