@@ -1,15 +1,16 @@
-import { Request } from 'express'
+import { NextFunction, Request } from 'express'
 import type { CrossReferenceResult } from '../../../services/guru/crossReference.service'
 import type { SyncError, SyncProgress, SyncWarning } from '../../../types/universalSync.types'
 import User from '../../../models/user'
 import Product from '../../../models/product/Product'
 import { UserProduct } from '../../../models'
 import universalSyncService from '../../../services/syncUtilizadoresServices/universalSync'
-import { getOptionalCurseducaRuntimeSettings, isDevelopmentRuntime } from '../../../services/requestDrivenRuntimeConfig'
+import { getOptionalCurseducaRuntimeSettings } from '../../../services/requestDrivenRuntimeConfig'
 import curseducaAdapter from '../../../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
+import { internalError } from '../../../security/errorHandling'
 import { SyncLogger, errorMessage, errorStack, type SyncResponse } from './support'
 
-export const syncCurseducaUsers = async (req: Request, res: SyncResponse): Promise<void> => {
+export const syncCurseducaUsers = async (req: Request, res: SyncResponse, next: NextFunction): Promise<void> => {
   const logger = new SyncLogger()
   
   try {
@@ -234,13 +235,7 @@ export const syncCurseducaUsers = async (req: Request, res: SyncResponse): Promi
     logger.error(`Erro fatal: ${errorMessage(error)}`)
     logger.log(errorStack(error) || '')
     
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao executar sincronização',
-      error: errorMessage(error),
-      logFile: logger.getLogPath(),
-      stack: isDevelopmentRuntime() ? errorStack(error) : undefined
-    })
+    next(internalError('Erro ao executar sincronização CursEduca', 'CURSEDUCA_SYNC_FAILED', error))
   }
 }
 

@@ -128,31 +128,6 @@ const BASELINE = {
     "src/controllers/syncStats/conflicts.controller.ts:352",
     "src/controllers/syncStats/conflicts.controller.ts:384",
     "src/controllers/syncStats/conflicts.controller.ts:75",
-    "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:155",
-    "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:194",
-    "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:244",
-    "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:296",
-    "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:85",
-    "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:142",
-    "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:190",
-    "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:256",
-    "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:84",
-    "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:115",
-    "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:57",
-    "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts:18",
-    "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:112",
-    "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:162",
-    "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:26",
-    "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:62",
-    "src/controllers/syncUtilizadoresControllers/curseduca/sync.controller.ts:237",
-    "src/controllers/syncUtilizadoresControllers/curseduca/users.controller.ts:109",
-    "src/controllers/syncUtilizadoresControllers/curseduca/users.controller.ts:23",
-    "src/controllers/syncUtilizadoresControllers/curseduca/users.controller.ts:49",
-    "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:108",
-    "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:40",
-    "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:77",
-    "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:119",
-    "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:77",
     "src/controllers/tagEvaluation.controller.ts:308",
     "src/controllers/tagEvaluation.controller.ts:457",
     "src/controllers/testHistory.controller.ts:172",
@@ -190,7 +165,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 116,
+  "localHttp500": 91,
   "publicErrorDetail": 0
 } as const
 
@@ -211,6 +186,13 @@ test('records the closed Tag Monitoring local 500 debt', () => {
   expect(tagMonitoringDebt.filter((entry) => entry.includes('tagMonitoring.controller.ts'))).toHaveLength(0)
   expect(tagMonitoringDebt.filter((entry) => entry.includes('tagNotification.controller.ts'))).toHaveLength(0)
   expect(tagMonitoringDebt.filter((entry) => entry.includes('criticalTag.controller.ts'))).toHaveLength(0)
+})
+test('records the closed Sync Utilizadores local 500 debt', () => {
+  const syncUtilizadoresDebt = BASELINE.localHttp500.filter((entry) =>
+    entry.startsWith('src/controllers/syncUtilizadoresControllers/'),
+  )
+
+  expect(syncUtilizadoresDebt).toHaveLength(0)
 })
 test('production boundary debt never grows', () => {
   const current = inventory()

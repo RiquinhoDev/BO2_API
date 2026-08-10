@@ -3,7 +3,9 @@
 // Controller: Sync Reports API
 // ════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
+import type { SyncType } from '../../models/SyncModels/SyncReport'
+import { internalError } from '../../security/errorHandling'
 import syncReportsService from '../../services/syncUtilizadoresServices/syncReports.service'
 
 type SyncReportParams = {
@@ -15,16 +17,22 @@ type SyncReportParams = {
 // GET /api/sync/reports
 // ═══════════════════════════════════════════════════════════
 
-export const getAllReports = async (req: Request, res: Response): Promise<void> => {
+export const getAllReports = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { limit, syncType } = req.query
+    const requestedLimit = req.query.limit
+    const requestedSyncType = req.query.syncType
+    const syncType: SyncType | undefined =
+      requestedSyncType === 'hotmart' || requestedSyncType === 'curseduca' ||
+      requestedSyncType === 'discord' || requestedSyncType === 'all'
+        ? requestedSyncType
+        : undefined
     
     console.log('📋 [ReportsController] Buscando reports...')
     
-    const reports = await syncReportsService.getReports(
-      limit ? parseInt(limit as string) : 20,
-      syncType as any
-    )
+    const limit = typeof requestedLimit === 'string'
+      ? parseInt(requestedLimit, 10)
+      : 20
+    const reports = await syncReportsService.getReports(limit, syncType)
     
     res.status(200).json({
       success: true,
@@ -35,13 +43,9 @@ export const getAllReports = async (req: Request, res: Response): Promise<void> 
       }
     })
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [ReportsController] Erro ao buscar reports:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar reports',
-      error: error.message
-    })
+    next(internalError('Erro ao buscar reports', 'SYNC_REPORT_LIST_FAILED', error))
   }
 }
 
@@ -50,7 +54,7 @@ export const getAllReports = async (req: Request, res: Response): Promise<void> 
 // GET /api/sync/reports/:id
 // ═══════════════════════════════════════════════════════════
 
-export const getReportById = async (req: Request<SyncReportParams>, res: Response): Promise<void> => {
+export const getReportById = async (req: Request<SyncReportParams>, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params
     
@@ -72,13 +76,9 @@ export const getReportById = async (req: Request<SyncReportParams>, res: Respons
       data: { report }
     })
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [ReportsController] Erro ao buscar report:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar report',
-      error: error.message
-    })
+    next(internalError('Erro ao buscar report', 'SYNC_REPORT_READ_FAILED', error))
   }
 }
 
@@ -87,15 +87,16 @@ export const getReportById = async (req: Request<SyncReportParams>, res: Respons
 // GET /api/sync/reports/stats
 // ═══════════════════════════════════════════════════════════
 
-export const getAggregatedStats = async (req: Request, res: Response): Promise<void> => {
+export const getAggregatedStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { days } = req.query
+    const requestedDays = req.query.days
+    const days = typeof requestedDays === 'string'
+      ? parseInt(requestedDays, 10)
+      : 30
     
     console.log('📊 [ReportsController] Buscando stats agregados...')
     
-    const stats = await syncReportsService.getAggregatedStats(
-      days ? parseInt(days as string) : 30
-    )
+    const stats = await syncReportsService.getAggregatedStats(days)
     
     res.status(200).json({
       success: true,
@@ -103,13 +104,9 @@ export const getAggregatedStats = async (req: Request, res: Response): Promise<v
       data: { stats }
     })
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [ReportsController] Erro ao buscar stats:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar stats agregados',
-      error: error.message
-    })
+    next(internalError('Erro ao buscar stats agregados', 'SYNC_REPORT_STATS_FAILED', error))
   }
 }
 

@@ -1,17 +1,25 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
-import { SyncType } from '../../../models/SyncModels/CronJobConfig'
+import type { SyncType } from '../../../models/SyncModels/CronJobConfig'
 import syncSchedulerService from '../../../services/cron/scheduler'
+import { internalError } from '../../../security/errorHandling'
 import { type JobIdParams, type LegacyCronConfig, type SystemJob, errorMessage } from './support'
 
-export const getAllJobs = async (req: Request, res: Response): Promise<void> => {
+export const getAllJobs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { syncType, active } = req.query
+    const { active } = req.query
+    const requestedSyncType = req.query.syncType
+    const syncType: SyncType | undefined =
+      requestedSyncType === 'hotmart' || requestedSyncType === 'curseduca' ||
+      requestedSyncType === 'discord' || requestedSyncType === 'all' ||
+      requestedSyncType === 'pipeline' || requestedSyncType === 'clareza' || requestedSyncType === 'guru'
+        ? requestedSyncType
+        : undefined
 
     let jobs
 
     if (syncType) {
-      jobs = await syncSchedulerService.getJobsByType(syncType as SyncType)
+      jobs = await syncSchedulerService.getJobsByType(syncType)
     } else if (active === 'true') {
       jobs = await syncSchedulerService.getActiveJobs()
     } else {
@@ -54,11 +62,7 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
 
   } catch (error: unknown) {
     console.error('�?� Erro ao buscar jobs:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar jobs',
-      error: errorMessage(error)
-    })
+    next(internalError('Erro ao buscar jobs', 'CRON_JOB_LIST_FAILED', error))
   }
 }
 
@@ -70,6 +74,7 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
 export const getJobById = async (
   req: Request<JobIdParams>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = req.params
@@ -112,11 +117,7 @@ export const getJobById = async (
 
   } catch (error: unknown) {
     console.error('�?� Erro ao buscar job:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar job',
-      error: errorMessage(error)
-    })
+    next(internalError('Erro ao buscar job', 'CRON_JOB_READ_FAILED', error))
   }
 }
 /**

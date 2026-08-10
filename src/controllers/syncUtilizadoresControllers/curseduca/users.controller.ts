@@ -1,9 +1,9 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import User from '../../../models/user'
 import { SyncHistory } from '../../../models'
-import { errorMessage } from './support'
+import { internalError } from '../../../security/errorHandling'
 
-export const getUsersWithClasses = async (req: Request, res: Response): Promise<void> => {
+export const getUsersWithClasses = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const users = await User.find({
       'curseduca.curseducaUserId': { $exists: true }
@@ -20,7 +20,7 @@ export const getUsersWithClasses = async (req: Request, res: Response): Promise<
 
     res.json({ success: true, users, stats })
   } catch (error: unknown) {
-    res.status(500).json({ success: false, message: errorMessage(error) })
+    next(internalError('Erro ao buscar utilizadores CursEduca', 'CURSEDUCA_USERS_READ_FAILED', error))
   }
 }
 
@@ -28,7 +28,7 @@ export const getUsersWithClasses = async (req: Request, res: Response): Promise<
  * PATCH /api/curseduca/users/:userId/classes
  * Atualizar turmas de um user
  */
-export const updateUserClasses = async (req: Request, res: Response): Promise<void> => {
+export const updateUserClasses = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userId } = req.params
     const { enrolledClasses } = req.body
@@ -46,7 +46,7 @@ export const updateUserClasses = async (req: Request, res: Response): Promise<vo
 
     res.json({ success: true, user })
   } catch (error: unknown) {
-    res.status(500).json({ success: false, message: errorMessage(error) })
+    next(internalError('Erro ao atualizar turmas CursEduca', 'CURSEDUCA_USER_CLASSES_UPDATE_FAILED', error))
   }
 }
 
@@ -54,7 +54,7 @@ export const updateUserClasses = async (req: Request, res: Response): Promise<vo
  * GET /api/curseduca/sync/compare
  * Comparar sync history
  */
-export const compareSyncMethods = async (req: Request, res: Response): Promise<void> => {
+export const compareSyncMethods = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const SyncReport = (await import('../../../models/SyncModels/SyncReport')).default
 
@@ -106,7 +106,7 @@ export const compareSyncMethods = async (req: Request, res: Response): Promise<v
       }
     })
   } catch (error: unknown) {
-    res.status(500).json({ success: false, message: errorMessage(error) })
+    next(internalError('Erro ao comparar sincronizações CursEduca', 'CURSEDUCA_SYNC_COMPARISON_FAILED', error))
   }
 }
 
