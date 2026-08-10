@@ -306,9 +306,19 @@
       "count": 2
     }
   },
-  "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts": {
+  "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts": {
     "no-console": {
-      "count": 5
+      "count": 3
+    }
+  },
+  "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/controllers/syncUtilizadoresControllers/curseduca/support.ts": {
+    "no-console": {
+      "count": 1
     }
   },
   "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts": {
