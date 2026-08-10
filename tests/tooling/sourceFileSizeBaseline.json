@@ -1,6 +1,5 @@
 {
   "src/config/appConfig.ts": 584,
-  "src/controllers/engagement.controller.ts": 966,
   "src/controllers/guru.snapshot.controller.ts": 944,
   "src/controllers/guru.webhook.controller.ts": 540,
   "src/controllers/sync.controller.ts": 713,
