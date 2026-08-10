@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express, { type NextFunction, type Request, type Response } from 'express'
 import request from 'supertest'
@@ -33,40 +35,30 @@ import tagMonitoringRouter from '../../src/routes/tagMonitoring.routes'
 
 const correlationId = 'tag-monitoring-request'
 const privateHandlerNames = new Set<string>()
-const mountedHandlerNames = new Set([
-  'criticalTagController.getCriticalTags',
-  'criticalTagController.addCriticalTag',
-  'criticalTagController.removeCriticalTag',
-  'criticalTagController.deleteCriticalTag',
-  'criticalTagController.toggleCriticalTag',
-  'criticalTagController.updateCriticalTagPriority',
-  'criticalTagController.getAvailableNativeTags',
-  'criticalTagController.getCriticalTagsStats',
-  'tagNotificationController.getNotifications',
-  'tagNotificationController.getNotificationStats',
-  'tagNotificationController.getNotificationById',
-  'tagNotificationController.getNotificationDetails',
-  'tagNotificationController.markAsRead',
-  'tagNotificationController.markAsUnread',
-  'tagNotificationController.dismissNotification',
-  'tagNotificationController.getUnreadCount',
-  'tagNotificationController.markAllAsRead',
-  'tagMonitoringController.getStudentsByPriority',
-  'tagMonitoringController.getSnapshots',
-  'tagMonitoringController.getSnapshotsByEmail',
-  'tagMonitoringController.compareSnapshots',
-  'tagMonitoringController.executeManualSnapshot',
-  'tagMonitoringController.getStats',
-  'tagMonitoringController.getWeeklyStats',
-  'tagMonitoringController.getScopeConfig',
-  'tagMonitoringController.updateScopeConfig',
-  'tagMonitoringController.toggleMonitoring',
-])
+const tagMonitoringRouteSourcePath = path.resolve(
+  __dirname,
+  '../../src/routes/tagMonitoring.routes.ts',
+)
+const controllerHandlerReference = /\b(criticalTagController|tagNotificationController|tagMonitoringController)\.([A-Za-z0-9_]+)/g
 
 const controllerFamilies = {
   criticalTagController,
   tagNotificationController,
   tagMonitoringController,
+}
+
+function exportedControllerHandlerNames(): string[] {
+  return Object.entries(controllerFamilies)
+    .flatMap(([family, handlers]) => Object.keys(handlers).map((handler) => `${family}.${handler}`))
+    .sort()
+}
+
+function routedControllerHandlerNames(routeSource: string): string[] {
+  const routedHandlerNames = new Set<string>()
+  for (const match of routeSource.matchAll(controllerHandlerReference)) {
+    routedHandlerNames.add(`${match[1]}.${match[2]}`)
+  }
+  return [...routedHandlerNames].sort()
 }
 
 function buildApp() {
@@ -104,17 +96,23 @@ beforeEach(() => {
 })
 
 test('every exported Tag Monitoring controller handler is mounted or intentionally private', () => {
-  const exportedHandlerNames = Object.entries(controllerFamilies)
-    .flatMap(([family, handlers]) => Object.keys(handlers).map((handler) => `${family}.${handler}`))
-    .sort()
+  const exportedHandlerNames = exportedControllerHandlerNames()
+  const routeSource = fs.readFileSync(tagMonitoringRouteSourcePath, 'utf8')
+  const routedHandlerNames = routedControllerHandlerNames(routeSource)
+  const publiclyMountedHandlerNames = exportedHandlerNames.filter(
+    (name) => !privateHandlerNames.has(name),
+  )
 
-  const accountedHandlerNames = new Set([
-    ...mountedHandlerNames,
-    ...privateHandlerNames,
-  ])
+  expect(routedHandlerNames).toEqual(publiclyMountedHandlerNames)
+  expect(exportedHandlerNames.filter((name) => !routedHandlerNames.includes(name) && !privateHandlerNames.has(name))).toEqual([])
+  const removedHandler = 'tagNotificationController.dismissNotification'
+  const mutatedRouteSource = routeSource.replace(removedHandler, '/* removed handler */')
 
-  expect(exportedHandlerNames).toEqual([...accountedHandlerNames].sort())
-  expect(exportedHandlerNames.filter((name) => !accountedHandlerNames.has(name))).toEqual([])
+  expect(routeSource).toContain(removedHandler)
+  expect(routedControllerHandlerNames(mutatedRouteSource)).not.toContain(removedHandler)
+  expect(routedControllerHandlerNames(mutatedRouteSource)).not.toEqual(
+    exportedControllerHandlerNames(),
+  )
 })
 
 test('monitoring stats failures use the central redacted error contract', async () => {
@@ -128,7 +126,7 @@ test('monitoring stats failures use the central redacted error contract', async 
 
   expect(response.status).toBe(500)
   expect(response.body).toEqual(
-    expectedError('TAG_MONITORING_STATS_FAILED', 'Erro ao obter estatÃ­sticas'),
+    expectedError('TAG_MONITORING_STATS_FAILED', 'Erro ao obter estat\u00edsticas'),
   )
   expectRedacted(response)
 })
@@ -145,7 +143,7 @@ test('notification list failures use the central redacted error contract', async
   expect(response.status).toBe(500)
 
   expect(response.body).toEqual(
-    expectedError('TAG_NOTIFICATION_LIST_FAILED', 'Erro ao listar notificaÃ§Ãµes'),
+    expectedError('TAG_NOTIFICATION_LIST_FAILED', 'Erro ao listar notifica\u00e7\u00f5es'),
   )
   expectRedacted(response)
 })
@@ -161,7 +159,7 @@ test('critical tag list failures use the central redacted error contract', async
 
   expect(response.status).toBe(500)
   expect(response.body).toEqual(
-    expectedError('CRITICAL_TAG_LIST_FAILED', 'Erro ao listar tags crÃ­ticas'),
+    expectedError('CRITICAL_TAG_LIST_FAILED', 'Erro ao listar tags cr\u00edticas'),
   )
   expectRedacted(response)
 })
