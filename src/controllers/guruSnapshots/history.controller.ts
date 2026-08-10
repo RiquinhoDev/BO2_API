@@ -1,9 +1,24 @@
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { internalError } from '../../security/errorHandling'
 import GuruMonthlySnapshot from '../../models/GuruMonthlySnapshot'
 import { type GuruSubscription } from '../../services/guru/guruSync.service'
 import { type SnapshotStatus, type SnapshotBuildResult, errorMessage } from './support'
 
-export const createHistoricalSnapshots = async (req: Request, res: Response) => {
+function forwardGuruSnapshotError(
+  next: NextFunction,
+  error: unknown,
+  publicMessage: string,
+  code: string,
+): void {
+  if (error instanceof IntegrationUnavailableError) {
+    next(error)
+    return
+  }
+  next(internalError(publicMessage, code, error))
+}
+
+export const createHistoricalSnapshots = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const now = new Date()
     const {
@@ -141,12 +156,7 @@ export const createHistoricalSnapshots = async (req: Request, res: Response) => 
     })
 
   } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('âŒ [HISTORICAL] Erro fatal:', message)
-    return res.status(500).json({
-      success: false,
-      message
-    })
+    forwardGuruSnapshotError(next, error, 'Erro ao criar snapshots históricos', 'GURU_SNAPSHOT_HISTORICAL_CREATE_FAILED')
   }
 }
 

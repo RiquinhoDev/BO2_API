@@ -15,17 +15,57 @@ const mockACContactStateFindOne: AsyncBoundaryMock = jest.fn()
 const mockACContactStateDeleteMany: AsyncBoundaryMock = jest.fn()
 const mockCourseFindOne: AsyncBoundaryMock = jest.fn()
 const mockCourseFindById: AsyncBoundaryMock = jest.fn()
+const mockDirectCourseFindById: AsyncBoundaryMock = jest.fn()
 const mockTagRuleFind: ChainBoundaryMock = jest.fn()
 const mockTagRuleFindById: HybridBoundaryMock = jest.fn()
 const mockTagRuleFindByIdAndUpdate: AsyncBoundaryMock = jest.fn()
 const mockIndexedUserProductFind: ChainBoundaryMock = jest.fn()
 const mockIndexedUserProductCountDocuments: AsyncBoundaryMock = jest.fn()
-const mockUserFindOne: ChainBoundaryMock = jest.fn()
+const mockUserFindOne: HybridBoundaryMock = jest.fn()
 const mockUserFindById: AsyncBoundaryMock = jest.fn()
+const mockUserFind: ChainBoundaryMock = jest.fn()
 const mockUserCountDocuments: AsyncBoundaryMock = jest.fn()
 const mockProductFind: ChainBoundaryMock = jest.fn()
-const mockProductFindById: AsyncBoundaryMock = jest.fn()
+const mockProductFindOne: AsyncBoundaryMock = jest.fn()
+const mockProductFindById: HybridBoundaryMock = jest.fn()
+const mockProductFindByIdAndUpdate: ChainBoundaryMock = jest.fn()
+const mockProductCreate: AsyncBoundaryMock = jest.fn()
+const mockDirectUserProductFind: ChainBoundaryMock = jest.fn()
 const mockUserProductFindOne: AsyncBoundaryMock = jest.fn()
+const mockDirectUserProductCountDocuments: AsyncBoundaryMock = jest.fn()
+const mockDirectUserProductAggregate: AsyncBoundaryMock = jest.fn()
+const mockProductProfileFind: ChainBoundaryMock = jest.fn()
+const mockProductProfileFindOne: AsyncBoundaryMock = jest.fn()
+const mockProductProfileCreate: AsyncBoundaryMock = jest.fn()
+const mockProductProfileFindOneAndUpdate: AsyncBoundaryMock = jest.fn()
+const mockProductProfileFindOneAndDelete: AsyncBoundaryMock = jest.fn()
+const mockStudentEngagementStateCountDocuments: AsyncBoundaryMock = jest.fn()
+const mockStudentEngagementStateAggregate: AsyncBoundaryMock = jest.fn()
+const mockProductSalesStatsFind: ChainBoundaryMock = jest.fn()
+const mockProductSalesStatsFindOne: ChainBoundaryMock = jest.fn()
+const mockGetAllProductsStats: AsyncBoundaryMock = jest.fn()
+const mockGetProductStats: AsyncBoundaryMock = jest.fn()
+const mockGetEngagementStatsByPlatform: AsyncBoundaryMock = jest.fn()
+const mockBuildProductSalesStats: AsyncBoundaryMock = jest.fn()
+const mockGetProductSalesStats: AsyncBoundaryMock = jest.fn()
+const mockListHotmartProducts: AsyncBoundaryMock = jest.fn()
+const mockFindHotmartProductBySubdomain: AsyncBoundaryMock = jest.fn()
+const mockListHotmartProductUsers: AsyncBoundaryMock = jest.fn()
+const mockGetHotmartStatsSnapshot: AsyncBoundaryMock = jest.fn()
+const mockSyncHistoryFind: ChainBoundaryMock = jest.fn()
+const mockSyncHistoryCreate: AsyncBoundaryMock = jest.fn()
+const mockSyncHistoryFindByIdAndUpdate: AsyncBoundaryMock = jest.fn()
+const mockSyncReportFind: ChainBoundaryMock = jest.fn()
+const mockFetchHotmartDataForSync: AsyncBoundaryMock = jest.fn()
+const mockFetchProgressForExistingUsers: AsyncBoundaryMock = jest.fn()
+const mockExecuteUniversalSync: AsyncBoundaryMock = jest.fn()
+const mockGuruSnapshotFind: ChainBoundaryMock = jest.fn()
+const mockGuruSnapshotFindOne: AsyncBoundaryMock = jest.fn()
+const mockGuruSnapshotFindOneAndDelete: AsyncBoundaryMock = jest.fn()
+const mockGuruSnapshotDeleteMany: AsyncBoundaryMock = jest.fn()
+const mockGuruSnapshotCreate: AsyncBoundaryMock = jest.fn()
+const mockFetchSubscriptionsByMonth: AsyncBoundaryMock = jest.fn()
+const mockFetchAllSubscriptionsComplete: AsyncBoundaryMock = jest.fn()
 const mockHistoryFind: ChainBoundaryMock = jest.fn()
 const mockHistoryCountDocuments: AsyncBoundaryMock = jest.fn()
 const mockHistoryAggregate: AsyncBoundaryMock = jest.fn()
@@ -55,7 +95,17 @@ jest.mock('../../src/models', () => ({
     findOne: mockCourseFindOne,
     findById: mockCourseFindById,
   },
+  Class: {},
   Product: { findOne: jest.fn(), findById: jest.fn(), find: jest.fn() },
+  SyncHistory: {
+    find: mockSyncHistoryFind,
+    create: mockSyncHistoryCreate,
+    findByIdAndUpdate: mockSyncHistoryFindByIdAndUpdate,
+  },
+  User: {
+    findOne: mockUserFindOne,
+    find: mockUserFind,
+  },
   TagRule: {
     find: mockTagRuleFind,
     findById: mockTagRuleFindById,
@@ -75,6 +125,7 @@ jest.mock('../../src/models/user', () => ({
   default: {
     findOne: mockUserFindOne,
     findById: mockUserFindById,
+    find: mockUserFind,
     countDocuments: mockUserCountDocuments,
   },
 }))
@@ -82,19 +133,64 @@ jest.mock('../../src/models/user', () => ({
 jest.mock('../../src/models/product/Product', () => ({
   __esModule: true,
   default: {
-    findOne: jest.fn(),
+    findOne: mockProductFindOne,
     findById: mockProductFindById,
     find: mockProductFind,
+    findByIdAndUpdate: mockProductFindByIdAndUpdate,
+    create: mockProductCreate,
   },
+}))
+
+jest.mock('../../src/models/Course', () => ({
+  __esModule: true,
+  default: { findById: mockDirectCourseFindById },
 }))
 
 jest.mock('../../src/models/UserProduct', () => ({
   __esModule: true,
   default: {
     findOne: mockUserProductFindOne,
-    find: jest.fn(),
-    countDocuments: jest.fn(),
-    aggregate: jest.fn(),
+    find: mockDirectUserProductFind,
+    countDocuments: mockDirectUserProductCountDocuments,
+    aggregate: mockDirectUserProductAggregate,
+  },
+}))
+
+jest.mock('../../src/models/product/ProductProfile', () => ({
+  __esModule: true,
+  default: {
+    find: mockProductProfileFind,
+    findOne: mockProductProfileFindOne,
+    create: mockProductProfileCreate,
+    findOneAndUpdate: mockProductProfileFindOneAndUpdate,
+    findOneAndDelete: mockProductProfileFindOneAndDelete,
+  },
+}))
+
+jest.mock('../../src/models/StudentEngagementState', () => ({
+  __esModule: true,
+  default: {
+    countDocuments: mockStudentEngagementStateCountDocuments,
+    aggregate: mockStudentEngagementStateAggregate,
+  },
+}))
+
+jest.mock('../../src/models/product/ProductSalesStats', () => ({
+  __esModule: true,
+  default: {
+    find: mockProductSalesStatsFind,
+    findOne: mockProductSalesStatsFindOne,
+  },
+}))
+
+jest.mock('../../src/models/GuruMonthlySnapshot', () => ({
+  __esModule: true,
+  default: {
+    find: mockGuruSnapshotFind,
+    findOne: mockGuruSnapshotFindOne,
+    findOneAndDelete: mockGuruSnapshotFindOneAndDelete,
+    deleteMany: mockGuruSnapshotDeleteMany,
+    create: mockGuruSnapshotCreate,
   },
 }))
 
@@ -105,6 +201,51 @@ jest.mock('../../src/models/acTags/CommunicationHistory', () => ({
     countDocuments: mockHistoryCountDocuments,
     aggregate: mockHistoryAggregate,
   },
+}))
+
+jest.mock('../../src/models/SyncModels/SyncReport', () => ({
+  __esModule: true,
+  default: { find: mockSyncReportFind },
+}))
+
+jest.mock('../../src/services/userProducts/productService', () => ({
+  KNOWN_PRODUCTS: { PRODUCT_ONE: { id: 'product-1' } },
+  getAllProductsStats: mockGetAllProductsStats,
+  getProductStats: mockGetProductStats,
+}))
+
+jest.mock('../../src/services/syncUtilizadoresServices/engagement/engagementService', () => ({
+  getEngagementStatsByPlatform: mockGetEngagementStatsByPlatform,
+}))
+
+jest.mock('../../src/services/productSalesStatsBuilder', () => ({
+  buildProductSalesStats: mockBuildProductSalesStats,
+  getProductSalesStats: mockGetProductSalesStats,
+}))
+
+jest.mock('../../src/services/hotmart/hotmartCatalog.service', () => ({
+  listHotmartProducts: mockListHotmartProducts,
+  findHotmartProductBySubdomain: mockFindHotmartProductBySubdomain,
+  listHotmartProductUsers: mockListHotmartProductUsers,
+  getHotmartStatsSnapshot: mockGetHotmartStatsSnapshot,
+}))
+
+jest.mock('../../src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter', () => ({
+  __esModule: true,
+  default: {
+    fetchHotmartDataForSync: mockFetchHotmartDataForSync,
+    fetchProgressForExistingUsers: mockFetchProgressForExistingUsers,
+  },
+}))
+
+jest.mock('../../src/services/syncUtilizadoresServices/universalSync', () => ({
+  __esModule: true,
+  default: { executeUniversalSync: mockExecuteUniversalSync },
+}))
+
+jest.mock('../../src/services/guru/guruSync.service', () => ({
+  fetchSubscriptionsByMonth: mockFetchSubscriptionsByMonth,
+  fetchAllSubscriptionsComplete: mockFetchAllSubscriptionsComplete,
 }))
 
 jest.mock('../../src/models/acTags/TagRule', () => ({
@@ -181,6 +322,60 @@ import {
   getAvailableFields,
   previewAffectedUsers,
 } from '../../src/controllers/acTags/tagRuleEstimate.controller'
+import { IntegrationUnavailableError } from '../../src/errors/integrationUnavailableError'
+import {
+  createProduct,
+  deleteProduct,
+  getAllProducts as getAllProductsV2,
+  getProductAnalytics,
+  getProductById as getProductByIdV2,
+  getProductStudents,
+  updateProduct,
+} from '../../src/controllers/products/product.controller'
+import {
+  createProductProfile,
+  deleteProductProfile,
+  duplicateProductProfile,
+  getAllProductProfiles,
+  getProductProfileByCode,
+  getProductProfileStats,
+  updateProductProfile,
+} from '../../src/controllers/products/productProfile.controller'
+import {
+  getEngagementStats,
+  getProductById as getLegacyProductById,
+  getProductUsers,
+  getProducts as getLegacyProducts,
+} from '../../src/controllers/products/products.controller'
+import {
+  compareProducts,
+  getAllProductSalesStats,
+  getProductSalesByPeriod,
+  getProductSalesStatsByProduct,
+  rebuildProductSalesStatsEndpoint,
+} from '../../src/controllers/products/productSalesStats.controller'
+import {
+  getHotmartProductBySubdomain,
+  getHotmartProducts,
+  getHotmartProductUsers,
+  getHotmartStats,
+} from '../../src/controllers/hotmart/hotmartCatalog.controller'
+import { compareSyncMethods, findHotmartUser } from '../../src/controllers/hotmart/hotmartDiagnostics.controller'
+import { syncHotmartUsers } from '../../src/controllers/hotmart/hotmartLegacySync.controller'
+import {
+  syncHotmartUsersUniversal,
+  syncProgressOnlyUniversal,
+} from '../../src/controllers/hotmart/hotmartUniversalSync.controller'
+import { getChurnFromSnapshots } from '../../src/controllers/guruSnapshots/analytics.controller'
+import {
+  createSnapshot,
+  deleteAllSnapshots,
+  deleteSnapshot,
+  getSnapshot,
+  listSnapshots,
+  updateSnapshot,
+} from '../../src/controllers/guruSnapshots/crud.controller'
+import { createHistoricalSnapshots } from '../../src/controllers/guruSnapshots/history.controller'
 import {
   appForCentralError,
   expectCentralError,
@@ -580,5 +775,444 @@ describe('SEC-10 ActiveCampaign and tag-controller wave', () => {
       .send(body ?? {})
 
     expectCentralError(response, expected)
+  })
+})
+type Sec10BoundaryOperation = {
+  family: 'products' | 'hotmart' | 'guru'
+  name: string
+  route: CentralErrorRoute
+  arrange: (failure: unknown) => void
+  expected: ExpectedCentralError
+  body?: object
+  requestPath?: string
+}
+
+const parameterizedHandler = <Params extends Record<string, string>>(
+  handler: AsyncRouteHandler<Params>,
+  path: string,
+): CentralErrorRoute => {
+  const router = Router()
+  router.post(path, asyncRoute(handler))
+  return { kind: 'router', mountPath: '/', router }
+}
+
+const productOperations: Sec10BoundaryOperation[] = [
+  {
+    family: 'products',
+    name: 'list products',
+    route: requestHandler(getAllProductsV2),
+    arrange: (failure) => {
+      mockProductFind.mockReturnValue({
+        populate: jest.fn().mockReturnValue({ sort: jest.fn().mockRejectedValue(failure) }),
+      })
+    },
+    expected: { code: 'PRODUCT_LIST_FAILED', message: 'Erro ao buscar produtos' },
+  },
+  {
+    family: 'products',
+    name: 'read product',
+    route: parameterizedHandler(getProductByIdV2, '/target/:id'),
+    arrange: (failure) => {
+      mockProductFindById.mockReturnValue({ populate: jest.fn().mockRejectedValue(failure) })
+    },
+    expected: { code: 'PRODUCT_READ_FAILED', message: 'Erro ao buscar produto' },
+    requestPath: '/target/product-1',
+  },
+  {
+    family: 'products',
+    name: 'create product',
+    route: requestHandler(createProduct),
+    arrange: (failure) => { mockDirectCourseFindById.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_CREATE_FAILED', message: 'Erro ao criar produto' },
+    body: { code: 'P1', name: 'Product One', platform: 'hotmart', courseId: 'course-1' },
+  },
+  {
+    family: 'products',
+    name: 'update product',
+    route: parameterizedHandler(updateProduct, '/target/:id'),
+    arrange: (failure) => {
+      mockProductFindByIdAndUpdate.mockReturnValue({ populate: jest.fn().mockRejectedValue(failure) })
+    },
+    expected: { code: 'PRODUCT_UPDATE_FAILED', message: 'Erro ao atualizar produto' },
+    requestPath: '/target/product-1',
+  },
+  {
+    family: 'products',
+    name: 'delete product',
+    route: parameterizedHandler(deleteProduct, '/target/:id'),
+    arrange: (failure) => { mockDirectUserProductCountDocuments.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_DELETE_FAILED', message: 'Erro ao remover produto' },
+    requestPath: '/target/product-1',
+  },
+  {
+    family: 'products',
+    name: 'list product students',
+    route: parameterizedHandler(getProductStudents, '/target/:id'),
+    arrange: (failure) => {
+      const chain = {
+        populate: jest.fn(), sort: jest.fn(), skip: jest.fn(), limit: jest.fn(),
+      }
+      chain.populate.mockReturnValue(chain)
+      chain.sort.mockReturnValue(chain)
+      chain.skip.mockReturnValue(chain)
+      chain.limit.mockRejectedValue(failure)
+      mockDirectUserProductFind.mockReturnValue(chain)
+      mockDirectUserProductCountDocuments.mockResolvedValue(0)
+    },
+    expected: { code: 'PRODUCT_STUDENTS_READ_FAILED', message: 'Erro ao buscar estudantes' },
+    requestPath: '/target/product-1',
+  },
+  {
+    family: 'products',
+    name: 'read product analytics',
+    route: parameterizedHandler(getProductAnalytics, '/target/:id'),
+    arrange: (failure) => { mockProductFindById.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_ANALYTICS_READ_FAILED', message: 'Erro ao buscar analytics' },
+    requestPath: '/target/product-1',
+  },
+  {
+    family: 'products',
+    name: 'list legacy products',
+    route: requestHandler(getLegacyProducts),
+    arrange: (failure) => { mockGetAllProductsStats.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_LEGACY_LIST_FAILED', message: 'Erro ao buscar produtos' },
+  },
+  {
+    family: 'products',
+    name: 'list product users',
+    route: requestHandler(getProductUsers),
+    arrange: (failure) => {
+      mockUserFind.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          limit: jest.fn().mockReturnValue({ lean: jest.fn().mockRejectedValue(failure) }),
+        }),
+      })
+    },
+    expected: { code: 'PRODUCT_USERS_READ_FAILED', message: 'Erro ao buscar utilizadores' },
+  },
+  {
+    family: 'products',
+    name: 'read legacy product',
+    route: parameterizedHandler(getLegacyProductById, '/target/:productId'),
+    arrange: (failure) => { mockGetProductStats.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_LEGACY_READ_FAILED', message: 'Erro ao buscar produto' },
+    requestPath: '/target/product-1',
+  },
+  {
+    family: 'products',
+    name: 'read product engagement stats',
+    route: requestHandler(getEngagementStats),
+    arrange: (failure) => { mockGetEngagementStatsByPlatform.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_ENGAGEMENT_STATS_READ_FAILED', message: 'Erro ao buscar estatísticas de engagement' },
+  },
+  {
+    family: 'products',
+    name: 'list product sales stats',
+    route: requestHandler(getAllProductSalesStats),
+    arrange: (failure) => { mockGetProductSalesStats.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_SALES_STATS_LIST_FAILED', message: 'Erro ao buscar estatísticas' },
+  },
+  {
+    family: 'products',
+    name: 'read product sales stats',
+    route: parameterizedHandler(getProductSalesStatsByProduct, '/target/:productId'),
+    arrange: (failure) => {
+      mockProductSalesStatsFindOne.mockReturnValue({ lean: jest.fn().mockRejectedValue(failure) })
+    },
+    expected: { code: 'PRODUCT_SALES_STATS_READ_FAILED', message: 'Erro ao buscar estatísticas' },
+    requestPath: '/target/product-1',
+  },
+  {
+    family: 'products',
+    name: 'read product sales period',
+    route: requestHandler(getProductSalesByPeriod),
+    arrange: (failure) => {
+      mockProductSalesStatsFind.mockReturnValue({ lean: jest.fn().mockRejectedValue(failure) })
+    },
+    expected: { code: 'PRODUCT_SALES_PERIOD_READ_FAILED', message: 'Erro ao buscar estatísticas' },
+    requestPath: '/target?startDate=2026-01-01&endDate=2026-01-31',
+  },
+  {
+    family: 'products',
+    name: 'start product sales rebuild',
+    route: requestHandler(rebuildProductSalesStatsEndpoint),
+    arrange: (failure) => { consoleLogSpy.mockImplementationOnce(() => { throw failure }) },
+    expected: { code: 'PRODUCT_SALES_REBUILD_FAILED', message: 'Erro ao iniciar rebuild' },
+  },
+  {
+    family: 'products',
+    name: 'compare product sales',
+    route: requestHandler(compareProducts),
+    arrange: (failure) => {
+      mockProductSalesStatsFind.mockReturnValue({ lean: jest.fn().mockRejectedValue(failure) })
+    },
+    expected: { code: 'PRODUCT_SALES_COMPARE_FAILED', message: 'Erro ao comparar produtos' },
+    body: { productIds: ['product-1'] },
+  },
+  {
+    family: 'products',
+    name: 'list product profiles',
+    route: requestHandler(getAllProductProfiles),
+    arrange: (failure) => {
+      mockProductProfileFind.mockReturnValue({ sort: jest.fn().mockRejectedValue(failure) })
+    },
+    expected: { code: 'PRODUCT_PROFILE_LIST_FAILED', message: 'Erro ao buscar perfis de produto' },
+  },
+  {
+    family: 'products',
+    name: 'read product profile',
+    route: parameterizedHandler(getProductProfileByCode, '/target/:code'),
+    arrange: (failure) => { mockProductProfileFindOne.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_PROFILE_READ_FAILED', message: 'Erro ao buscar perfil de produto' },
+    requestPath: '/target/P1',
+  },
+  {
+    family: 'products',
+    name: 'create product profile',
+    route: requestHandler(createProductProfile),
+    arrange: (failure) => { mockProductProfileFindOne.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_PROFILE_CREATE_FAILED', message: 'Erro ao criar perfil de produto' },
+    body: { name: 'Profile One', code: 'P1', reengagementLevels: [{ level: 1 }] },
+  },
+  {
+    family: 'products',
+    name: 'update product profile',
+    route: parameterizedHandler(updateProductProfile, '/target/:code'),
+    arrange: (failure) => { mockProductProfileFindOneAndUpdate.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_PROFILE_UPDATE_FAILED', message: 'Erro ao atualizar perfil de produto' },
+    requestPath: '/target/P1',
+  },
+  {
+    family: 'products',
+    name: 'delete product profile',
+    route: requestHandler((_req, res, next) => Reflect.apply(deleteProductProfile, undefined, [
+      { params: { code: 'P1' }, query: { hardDelete: 'false' }, body: {} }, res, next,
+    ])),
+    arrange: (failure) => { mockProductProfileFindOneAndUpdate.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_PROFILE_DELETE_FAILED', message: 'Erro ao deletar perfil de produto' },
+  },
+  {
+    family: 'products',
+    name: 'read product profile stats',
+    route: parameterizedHandler(getProductProfileStats, '/target/:code'),
+    arrange: (failure) => { mockProductProfileFindOne.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_PROFILE_STATS_READ_FAILED', message: 'Erro ao buscar estatísticas' },
+    requestPath: '/target/P1',
+  },
+  {
+    family: 'products',
+    name: 'duplicate product profile',
+    route: parameterizedHandler(duplicateProductProfile, '/target/:code'),
+    arrange: (failure) => { mockProductProfileFindOne.mockRejectedValueOnce(failure) },
+    expected: { code: 'PRODUCT_PROFILE_DUPLICATE_FAILED', message: 'Erro ao duplicar perfil de produto' },
+    requestPath: '/target/P1',
+    body: { newCode: 'P2', newName: 'Profile Two' },
+  },
+]
+
+const hotmartOperations: Sec10BoundaryOperation[] = [
+  {
+    family: 'hotmart', name: 'list Hotmart products', route: requestHandler(getHotmartProducts),
+    arrange: (failure) => { mockListHotmartProducts.mockRejectedValueOnce(failure) },
+    expected: { code: 'HOTMART_PRODUCT_LIST_FAILED', message: 'Erro ao buscar produtos Hotmart' },
+  },
+  {
+    family: 'hotmart', name: 'read Hotmart product',
+    route: parameterizedHandler(getHotmartProductBySubdomain, '/target/:subdomain'),
+    arrange: (failure) => { mockFindHotmartProductBySubdomain.mockRejectedValueOnce(failure) },
+    expected: { code: 'HOTMART_PRODUCT_READ_FAILED', message: 'Erro ao buscar produto Hotmart' },
+    requestPath: '/target/product-one',
+  },
+  {
+    family: 'hotmart', name: 'list Hotmart product users',
+    route: parameterizedHandler(getHotmartProductUsers, '/target/:subdomain'),
+    arrange: (failure) => { mockListHotmartProductUsers.mockRejectedValueOnce(failure) },
+    expected: { code: 'HOTMART_PRODUCT_USERS_READ_FAILED', message: 'Erro ao buscar utilizadores Hotmart' },
+    requestPath: '/target/product-one',
+  },
+  {
+    family: 'hotmart', name: 'read Hotmart stats', route: requestHandler(getHotmartStats),
+    arrange: (failure) => { mockGetHotmartStatsSnapshot.mockRejectedValueOnce(failure) },
+    expected: { code: 'HOTMART_STATS_READ_FAILED', message: 'Erro ao buscar estatísticas Hotmart' },
+  },
+  {
+    family: 'hotmart', name: 'find Hotmart user', route: requestHandler(findHotmartUser),
+    arrange: (failure) => { mockUserFindOne.mockRejectedValueOnce(failure) },
+    expected: { code: 'HOTMART_USER_READ_FAILED', message: 'Erro ao buscar utilizador' },
+    requestPath: '/target?email=alice@example.test',
+  },
+  {
+    family: 'hotmart', name: 'compare Hotmart sync methods', route: requestHandler(compareSyncMethods),
+    arrange: (failure) => {
+      const chain = {
+        sort: jest.fn(), limit: jest.fn(), select: jest.fn(), lean: jest.fn(),
+      }
+      chain.sort.mockReturnValue(chain)
+      chain.limit.mockReturnValue(chain)
+      chain.select.mockReturnValue(chain)
+      chain.lean.mockRejectedValue(failure)
+      mockSyncHistoryFind.mockReturnValue(chain)
+    },
+    expected: { code: 'HOTMART_SYNC_COMPARISON_FAILED', message: 'Erro ao comparar sincronizações Hotmart' },
+  },
+  {
+    family: 'hotmart', name: 'run legacy Hotmart sync', route: requestHandler(syncHotmartUsers),
+    arrange: (failure) => { mockSyncHistoryCreate.mockRejectedValueOnce(failure) },
+    expected: { code: 'HOTMART_LEGACY_SYNC_FAILED', message: 'Erro crítico na sincronização com Hotmart' },
+  },
+  {
+    family: 'hotmart', name: 'run universal Hotmart sync', route: requestHandler(syncHotmartUsersUniversal),
+    arrange: (failure) => { mockFetchHotmartDataForSync.mockRejectedValueOnce(failure) },
+    expected: { code: 'HOTMART_UNIVERSAL_SYNC_FAILED', message: 'Erro ao executar sincronização via Universal Service' },
+  },
+  {
+    family: 'hotmart', name: 'run universal Hotmart progress sync', route: requestHandler(syncProgressOnlyUniversal),
+    arrange: (failure) => {
+      mockUserFind.mockReturnValue({ select: jest.fn().mockReturnValue({ lean: jest.fn().mockRejectedValue(failure) }) })
+    },
+    expected: { code: 'HOTMART_PROGRESS_SYNC_FAILED', message: 'Erro ao sincronizar progresso Hotmart' },
+  },
+]
+
+const guruOperations: Sec10BoundaryOperation[] = [
+  {
+    family: 'guru', name: 'read snapshot churn', route: requestHandler(getChurnFromSnapshots),
+    arrange: (failure) => {
+      mockGuruSnapshotFind.mockReturnValue({
+        sort: jest.fn().mockReturnValue({ lean: jest.fn().mockRejectedValue(failure) }),
+      })
+    },
+    expected: { code: 'GURU_SNAPSHOT_CHURN_READ_FAILED', message: 'Erro ao calcular churn dos snapshots' },
+  },
+  {
+    family: 'guru', name: 'create snapshot', route: requestHandler(createSnapshot),
+    arrange: (failure) => { mockGuruSnapshotFindOne.mockRejectedValueOnce(failure) },
+    expected: { code: 'GURU_SNAPSHOT_CREATE_FAILED', message: 'Erro ao criar snapshot' },
+    body: { year: 2026, month: 1, source: 'guru_api' },
+  },
+  {
+    family: 'guru', name: 'update snapshot',
+    route: parameterizedHandler(updateSnapshot, '/target/:year/:month'),
+    arrange: (failure) => { mockFetchAllSubscriptionsComplete.mockRejectedValueOnce(failure) },
+    expected: { code: 'GURU_SNAPSHOT_UPDATE_FAILED', message: 'Erro ao atualizar snapshot' },
+    requestPath: '/target/2026/1',
+  },
+  {
+    family: 'guru', name: 'list snapshots', route: requestHandler(listSnapshots),
+    arrange: (failure) => {
+      mockGuruSnapshotFind.mockReturnValue({
+        sort: jest.fn().mockReturnValue({ lean: jest.fn().mockRejectedValue(failure) }),
+      })
+    },
+    expected: { code: 'GURU_SNAPSHOT_LIST_FAILED', message: 'Erro ao listar snapshots' },
+  },
+  {
+    family: 'guru', name: 'read snapshot',
+    route: parameterizedHandler(getSnapshot, '/target/:year/:month'),
+    arrange: (failure) => { mockGuruSnapshotFindOne.mockRejectedValueOnce(failure) },
+    expected: { code: 'GURU_SNAPSHOT_READ_FAILED', message: 'Erro ao obter snapshot' },
+    requestPath: '/target/2026/1',
+  },
+  {
+    family: 'guru', name: 'delete snapshot',
+    route: requestHandler((_req, res, next) => Reflect.apply(deleteSnapshot, undefined, [
+      { params: { year: '2026', month: '1' }, query: {}, body: {} }, res, next,
+    ])),
+    arrange: (failure) => { mockGuruSnapshotFindOneAndDelete.mockRejectedValueOnce(failure) },
+    expected: { code: 'GURU_SNAPSHOT_DELETE_FAILED', message: 'Erro ao apagar snapshot' },
+  },
+  {
+    family: 'guru', name: 'delete all snapshots',
+    route: requestHandler((_req, res, next) => Reflect.apply(deleteAllSnapshots, undefined, [
+      { params: {}, query: {}, body: {} }, res, next,
+    ])),
+    arrange: (failure) => { mockGuruSnapshotDeleteMany.mockRejectedValueOnce(failure) },
+    expected: { code: 'GURU_SNAPSHOT_DELETE_ALL_FAILED', message: 'Erro ao apagar snapshots' },
+  },
+  {
+    family: 'guru', name: 'create historical snapshots', route: requestHandler(createHistoricalSnapshots),
+    arrange: (failure) => { mockFetchAllSubscriptionsComplete.mockRejectedValueOnce(failure) },
+    expected: { code: 'GURU_SNAPSHOT_HISTORICAL_CREATE_FAILED', message: 'Erro ao criar snapshots históricos' },
+  },
+]
+
+const sec10Operations = [...productOperations, ...hotmartOperations, ...guruOperations]
+
+function offlinePath(path: string): string {
+  const separator = path.includes('?') ? '&' : '?'
+  return `${path}${separator}__bo2_offline_loopback=1`
+}
+
+async function requestBoundary(operation: Sec10BoundaryOperation): Promise<request.Response> {
+  operation.arrange(secret)
+  return request(appForCentralError(operation.route))
+    .post(offlinePath(operation.requestPath ?? '/target'))
+    .send(operation.body ?? {})
+}
+
+describe('SEC-10 products, Hotmart and Guru snapshot wave', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined)
+    jest.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('contains the exact 40-site migration membership', () => {
+    expect(sec10Operations).toHaveLength(40)
+    expect(productOperations).toHaveLength(23)
+    expect(hotmartOperations).toHaveLength(9)
+    expect(guruOperations).toHaveLength(8)
+    expect(new Set(sec10Operations.map(({ expected }) => expected.code)).size).toBe(40)
+  })
+
+  it.each(sec10Operations)('$name returns its stable redacted central envelope', async (operation) => {
+    const response = await requestBoundary(operation)
+    expectCentralError(response, operation.expected)
+  })
+
+  it.each([
+    { family: 'products', operation: productOperations[0], failure: 'product rejection' },
+    { family: 'hotmart', operation: hotmartOperations[0], failure: 'hotmart rejection' },
+    { family: 'guru', operation: guruOperations[0], failure: 'guru rejection' },
+  ])('normalizes a non-Error $family rejection', async ({ operation, failure }) => {
+    operation.arrange(failure)
+    const response = await request(appForCentralError(operation.route))
+      .post(offlinePath(operation.requestPath ?? '/target'))
+      .send(operation.body ?? {})
+
+    expectCentralError(response, operation.expected)
+  })
+
+  it.each([
+    {
+      family: 'Hotmart',
+      route: requestHandler(getHotmartProducts),
+      arrange: () => { mockListHotmartProducts.mockRejectedValueOnce(new IntegrationUnavailableError('hotmart')) },
+      body: {},
+    },
+    {
+      family: 'Guru',
+      route: requestHandler(createSnapshot),
+      arrange: () => {
+        mockGuruSnapshotFindOne.mockResolvedValueOnce(null)
+        mockFetchSubscriptionsByMonth.mockRejectedValueOnce(new IntegrationUnavailableError('guru'))
+      },
+      body: { year: 2026, month: 1, source: 'guru_api' },
+    },
+  ])('preserves $family runtime-unavailable classification', async ({ route, arrange, body }) => {
+    arrange()
+    const response = await request(appForCentralError(route)).post('/target' + offline).send(body)
+
+    expect(response.status).toBe(503)
+    expect(response.body).toEqual({
+      success: false,
+      code: 'INTEGRATION_UNAVAILABLE',
+      message: 'Serviço temporariamente indisponível',
+      correlationId: 'sec10-request',
+    })
   })
 })

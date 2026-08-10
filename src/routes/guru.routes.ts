@@ -276,7 +276,7 @@ router.get('/snapshots/churn', asyncRoute(getChurnFromSnapshots))
  * Apagar TODOS os snapshots (para recriação)
  * NOTA: Deve vir ANTES das routes com parâmetros
  */
-router.delete('/snapshots/all', withValidatedInput(guruEmptyInput, (input, _req, res) => deleteAllSnapshots(input, res)))
+router.delete('/snapshots/all', withValidatedInput(guruEmptyInput, (input, _req, res, next) => deleteAllSnapshots(input, res, next)))
 
 /**
  * GET /guru/snapshots/:year/:month
@@ -294,7 +294,7 @@ router.put('/snapshots/:year/:month', asyncRoute(updateSnapshot))
  * DELETE /guru/snapshots/:year/:month
  * Apagar snapshot
  */
-router.delete('/snapshots/:year/:month', withValidatedInput(guruSnapshotDeleteInput, (input, _req, res) => deleteSnapshot(input, res)))
+router.delete('/snapshots/:year/:month', withValidatedInput(guruSnapshotDeleteInput, (input, _req, res, next) => deleteSnapshot(input, res, next)))
 
 // ═══════════════════════════════════════════════════════════
 // INATIVAÇÃO CURSEDUCA

@@ -1,12 +1,27 @@
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { internalError } from '../../security/errorHandling'
 import GuruMonthlySnapshot from '../../models/GuruMonthlySnapshot'
 import User from '../../models/user'
 import { fetchSubscriptionsByMonth } from '../../services/guru/guruSync.service'
 import type { GuruEmptyInput, GuruSnapshotDeleteInput } from '../../security/guruDestructiveInput'
-import { type SnapshotPeriodParams, type SnapshotSubscription, errorMessage } from './support'
+import { type SnapshotPeriodParams, type SnapshotSubscription } from './support'
 import { createSnapshotFromSubscriptions, isAnnualPlan, mapStatus, parseGuruDate } from './history.controller'
 
-export const createSnapshot = async (req: Request, res: Response) => {
+function forwardGuruSnapshotError(
+  next: NextFunction,
+  error: unknown,
+  publicMessage: string,
+  code: string,
+): void {
+  if (error instanceof IntegrationUnavailableError) {
+    next(error)
+    return
+  }
+  next(internalError(publicMessage, code, error))
+}
+
+export const createSnapshot = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { year, month, source = 'guru_api' } = req.body
 
@@ -200,12 +215,7 @@ export const createSnapshot = async (req: Request, res: Response) => {
     })
 
   } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('âŒ [SNAPSHOT] Erro ao criar snapshot:', message)
-    return res.status(500).json({
-      success: false,
-      message
-    })
+    forwardGuruSnapshotError(next, error, 'Erro ao criar snapshot', 'GURU_SNAPSHOT_CREATE_FAILED')
   }
 }
 
@@ -218,7 +228,7 @@ export const createSnapshot = async (req: Request, res: Response) => {
  * Apaga o existente e recria com dados atuais da API Guru
  * PUT /guru/snapshots/:year/:month
  */
-export const updateSnapshot = async (req: Request<SnapshotPeriodParams>, res: Response) => {
+export const updateSnapshot = async (req: Request<SnapshotPeriodParams>, res: Response, next: NextFunction) => {
   try {
     const { year, month } = req.params
 
@@ -279,12 +289,7 @@ export const updateSnapshot = async (req: Request<SnapshotPeriodParams>, res: Re
     })
 
   } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('âŒ [SNAPSHOT] Erro ao atualizar snapshot:', message)
-    return res.status(500).json({
-      success: false,
-      message
-    })
+    forwardGuruSnapshotError(next, error, 'Erro ao atualizar snapshot', 'GURU_SNAPSHOT_UPDATE_FAILED')
   }
 }
 
@@ -296,7 +301,7 @@ export const updateSnapshot = async (req: Request<SnapshotPeriodParams>, res: Re
  * Listar todos os snapshots existentes
  * GET /guru/snapshots
  */
-export const listSnapshots = async (req: Request, res: Response) => {
+export const listSnapshots = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const snapshots = await GuruMonthlySnapshot.find()
       .sort({ year: -1, month: -1 })
@@ -309,12 +314,7 @@ export const listSnapshots = async (req: Request, res: Response) => {
     })
 
   } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('âŒ [SNAPSHOT] Erro ao listar snapshots:', message)
-    return res.status(500).json({
-      success: false,
-      message
-    })
+    forwardGuruSnapshotError(next, error, 'Erro ao listar snapshots', 'GURU_SNAPSHOT_LIST_FAILED')
   }
 }
 
@@ -326,7 +326,7 @@ export const listSnapshots = async (req: Request, res: Response) => {
  * Obter snapshot especÃ­fico
  * GET /guru/snapshots/:year/:month
  */
-export const getSnapshot = async (req: Request<SnapshotPeriodParams>, res: Response) => {
+export const getSnapshot = async (req: Request<SnapshotPeriodParams>, res: Response, next: NextFunction) => {
   try {
     const { year, month } = req.params
 
@@ -348,12 +348,7 @@ export const getSnapshot = async (req: Request<SnapshotPeriodParams>, res: Respo
     })
 
   } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('âŒ [SNAPSHOT] Erro ao obter snapshot:', message)
-    return res.status(500).json({
-      success: false,
-      message
-    })
+    forwardGuruSnapshotError(next, error, 'Erro ao obter snapshot', 'GURU_SNAPSHOT_READ_FAILED')
   }
 }
 
@@ -365,7 +360,7 @@ export const getSnapshot = async (req: Request<SnapshotPeriodParams>, res: Respo
  * Apagar snapshot
  * DELETE /guru/snapshots/:year/:month
  */
-export const deleteSnapshot = async (input: GuruSnapshotDeleteInput, res: Response) => {
+export const deleteSnapshot = async (input: GuruSnapshotDeleteInput, res: Response, next: NextFunction) => {
   try {
     const { year, month } = input.params
 
@@ -387,12 +382,7 @@ export const deleteSnapshot = async (input: GuruSnapshotDeleteInput, res: Respon
     })
 
   } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('âŒ [SNAPSHOT] Erro ao apagar snapshot:', message)
-    return res.status(500).json({
-      success: false,
-      message
-    })
+    forwardGuruSnapshotError(next, error, 'Erro ao apagar snapshot', 'GURU_SNAPSHOT_DELETE_FAILED')
   }
 }
 
@@ -409,7 +399,7 @@ export const deleteSnapshot = async (input: GuruSnapshotDeleteInput, res: Respon
  * Em vez de tentar recalcular comparando snapshots consecutivos
  */
 
-export const deleteAllSnapshots = async (_input: GuruEmptyInput, res: Response) => {
+export const deleteAllSnapshots = async (_input: GuruEmptyInput, res: Response, next: NextFunction) => {
   try {
     console.log('ðŸ—‘ï¸ [SNAPSHOT] Apagando todos os snapshots...')
 
@@ -424,12 +414,7 @@ export const deleteAllSnapshots = async (_input: GuruEmptyInput, res: Response) 
     })
 
   } catch (error: unknown) {
-    const message = errorMessage(error)
-    console.error('âŒ [SNAPSHOT] Erro ao apagar snapshots:', message)
-    return res.status(500).json({
-      success: false,
-      message
-    })
+    forwardGuruSnapshotError(next, error, 'Erro ao apagar snapshots', 'GURU_SNAPSHOT_DELETE_ALL_FAILED')
   }
 }
 
