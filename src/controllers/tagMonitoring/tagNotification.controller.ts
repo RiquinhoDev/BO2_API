@@ -1,17 +1,21 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import { tagNotificationService } from '../../services/tagMonitoring'
-import logger from '../../utils/logger'
+import { internalError } from '../../security/errorHandling'
 import type { TagMonitoringDeleteInput } from '../../security/tagMonitoringDestructiveInput'
 
 type NotificationIdParams = {
   id: string
 }
 
+function errorMessage(cause: unknown): string | undefined {
+  return cause instanceof Error ? cause.message : undefined
+}
+
 /**
  * GET /api/tag-monitoring/notifications
  * Lista notificações com filtros opcionais
  */
-export const getNotifications = async (req: Request, res: Response) => {
+export const getNotifications = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { isRead, limit, skip, weekNumber, year, tagName } = req.query
 
@@ -32,13 +36,8 @@ export const getNotifications = async (req: Request, res: Response) => {
       count: notifications.length,
       filters,
     })
-  } catch (error: any) {
-    logger.error('Erro ao listar notificações:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao listar notificações',
-      error: error.message,
-    })
+  } catch (cause: unknown) {
+    next(internalError('Erro ao listar notificações', 'TAG_NOTIFICATION_LIST_FAILED', cause))
   }
 }
 
@@ -49,6 +48,7 @@ export const getNotifications = async (req: Request, res: Response) => {
 export const getNotificationById = async (
   req: Request<NotificationIdParams>,
   res: Response,
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params
@@ -73,13 +73,8 @@ export const getNotificationById = async (
       success: true,
       data: notification,
     })
-  } catch (error: any) {
-    logger.error('Erro ao buscar notificação:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar notificação',
-      error: error.message,
-    })
+  } catch (cause: unknown) {
+    next(internalError('Erro ao buscar notificação', 'TAG_NOTIFICATION_DETAIL_FAILED', cause))
   }
 }
 
@@ -90,6 +85,7 @@ export const getNotificationById = async (
 export const getNotificationDetails = async (
   req: Request<NotificationIdParams>,
   res: Response,
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params
@@ -108,13 +104,8 @@ export const getNotificationDetails = async (
       data: details,
       count: details.length,
     })
-  } catch (error: any) {
-    logger.error('Erro ao buscar detalhes da notificação:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar detalhes',
-      error: error.message,
-    })
+  } catch (cause: unknown) {
+    next(internalError('Erro ao buscar detalhes', 'TAG_NOTIFICATION_DETAILS_FAILED', cause))
   }
 }
 
@@ -125,6 +116,7 @@ export const getNotificationDetails = async (
 export const markAsRead = async (
   req: Request<NotificationIdParams>,
   res: Response,
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params
@@ -143,21 +135,12 @@ export const markAsRead = async (
       message: 'Notificação marcada como lida',
       data: notification,
     })
-  } catch (error: any) {
-    logger.error('Erro ao marcar notificação como lida:', error)
-
-    if (error.message.includes('não encontrada')) {
-      return res.status(404).json({
-        success: false,
-        message: error.message,
-      })
+  } catch (cause: unknown) {
+    const message = errorMessage(cause)
+    if (message?.includes('não encontrada')) {
+      return res.status(404).json({ success: false, message })
     }
-
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao marcar como lida',
-      error: error.message,
-    })
+    next(internalError('Erro ao marcar como lida', 'TAG_NOTIFICATION_MARK_READ_FAILED', cause))
   }
 }
 
@@ -168,6 +151,7 @@ export const markAsRead = async (
 export const markAsUnread = async (
   req: Request<NotificationIdParams>,
   res: Response,
+  next: NextFunction,
 ) => {
   try {
     const { id } = req.params
@@ -186,21 +170,12 @@ export const markAsUnread = async (
       message: 'Notificação marcada como não lida',
       data: notification,
     })
-  } catch (error: any) {
-    logger.error('Erro ao marcar notificação como não lida:', error)
-
-    if (error.message.includes('não encontrada')) {
-      return res.status(404).json({
-        success: false,
-        message: error.message,
-      })
+  } catch (cause: unknown) {
+    const message = errorMessage(cause)
+    if (message?.includes('não encontrada')) {
+      return res.status(404).json({ success: false, message })
     }
-
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao marcar como não lida',
-      error: error.message,
-    })
+    next(internalError('Erro ao marcar como não lida', 'TAG_NOTIFICATION_MARK_UNREAD_FAILED', cause))
   }
 }
 
@@ -211,6 +186,7 @@ export const markAsUnread = async (
 export const dismissNotification = async (
   input: TagMonitoringDeleteInput,
   res: Response,
+  next: NextFunction,
 ) => {
   try {
     const { id } = input.params
@@ -228,21 +204,12 @@ export const dismissNotification = async (
       success: true,
       message: 'Notificação removida com sucesso',
     })
-  } catch (error: any) {
-    logger.error('Erro ao remover notificação:', error)
-
-    if (error.message.includes('não encontrada')) {
-      return res.status(404).json({
-        success: false,
-        message: error.message,
-      })
+  } catch (cause: unknown) {
+    const message = errorMessage(cause)
+    if (message?.includes('não encontrada')) {
+      return res.status(404).json({ success: false, message })
     }
-
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao remover notificação',
-      error: error.message,
-    })
+    next(internalError('Erro ao remover notificação', 'TAG_NOTIFICATION_DISMISS_FAILED', cause))
   }
 }
 
@@ -250,7 +217,7 @@ export const dismissNotification = async (
  * GET /api/tag-monitoring/notifications/unread/count
  * Obtém contagem de notificações não lidas
  */
-export const getUnreadCount = async (req: Request, res: Response) => {
+export const getUnreadCount = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const count = await tagNotificationService.getUnreadCount()
 
@@ -258,13 +225,8 @@ export const getUnreadCount = async (req: Request, res: Response) => {
       success: true,
       data: { count },
     })
-  } catch (error: any) {
-    logger.error('Erro ao obter contagem de não lidas:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao obter contagem',
-      error: error.message,
-    })
+  } catch (cause: unknown) {
+    next(internalError('Erro ao obter contagem', 'TAG_NOTIFICATION_UNREAD_COUNT_FAILED', cause))
   }
 }
 
@@ -272,7 +234,7 @@ export const getUnreadCount = async (req: Request, res: Response) => {
  * PATCH /api/tag-monitoring/notifications/mark-all-read
  * Marca todas as notificações como lidas
  */
-export const markAllAsRead = async (req: Request, res: Response) => {
+export const markAllAsRead = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const count = await tagNotificationService.markAllAsRead()
 
@@ -281,13 +243,8 @@ export const markAllAsRead = async (req: Request, res: Response) => {
       message: `${count} notificações marcadas como lidas`,
       data: { count },
     })
-  } catch (error: any) {
-    logger.error('Erro ao marcar todas como lidas:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao marcar todas como lidas',
-      error: error.message,
-    })
+  } catch (cause: unknown) {
+    next(internalError('Erro ao marcar todas como lidas', 'TAG_NOTIFICATION_MARK_ALL_READ_FAILED', cause))
   }
 }
 
@@ -295,7 +252,7 @@ export const markAllAsRead = async (req: Request, res: Response) => {
  * GET /api/tag-monitoring/notifications/stats
  * Estatísticas de notificações
  */
-export const getNotificationStats = async (req: Request, res: Response) => {
+export const getNotificationStats = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const stats = await tagNotificationService.getStats()
 
@@ -303,12 +260,7 @@ export const getNotificationStats = async (req: Request, res: Response) => {
       success: true,
       data: stats,
     })
-  } catch (error: any) {
-    logger.error('Erro ao obter estatísticas de notificações:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao obter estatísticas',
-      error: error.message,
-    })
+  } catch (cause: unknown) {
+    next(internalError('Erro ao obter estatísticas', 'TAG_NOTIFICATION_STATS_FAILED', cause))
   }
 }

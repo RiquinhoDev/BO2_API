@@ -392,11 +392,6 @@
       "count": 1
     }
   },
-  "src/controllers/tagMonitoring/tagNotification.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 9
-    }
-  },
   "src/controllers/testHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 7

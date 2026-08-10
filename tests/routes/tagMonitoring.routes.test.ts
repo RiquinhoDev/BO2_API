@@ -28,7 +28,7 @@ jest.mock('../../src/controllers/tagMonitoring', () => ({
     markAsRead: jest.fn(),
     markAsUnread: jest.fn(),
     dismissNotification: jest.fn(),
-    getUnreadCount: jest.fn(),
+    getUnreadCount: responseHandler('notification-unread-count'),
     markAllAsRead: jest.fn(),
     getNotificationStats: responseHandler('notification-stats'),
   },
@@ -63,5 +63,16 @@ test('dispatches notification stats to the static handler', async () => {
 
   expect(response.body).toEqual({ source: 'notification-stats' })
   expect(tagNotificationController.getNotificationStats).toHaveBeenCalledTimes(1)
+  expect(tagNotificationController.getNotificationById).not.toHaveBeenCalled()
+})
+
+test('dispatches notification unread count to the static handler', async () => {
+  const response = await request(buildApp())
+    .get('/api/tag-monitoring/notifications/unread/count')
+    .query({ __bo2_offline_loopback: '1' })
+    .expect(200)
+
+  expect(response.body).toEqual({ source: 'notification-unread-count' })
+  expect(tagNotificationController.getUnreadCount).toHaveBeenCalledTimes(1)
   expect(tagNotificationController.getNotificationById).not.toHaveBeenCalled()
 })
