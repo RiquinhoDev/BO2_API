@@ -1,5 +1,4 @@
 {
-  "src/controllers/guru.webhook.controller.ts": 540,
   "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": 507,
   "src/models/SyncModels/ActivitySnapshot.ts": 503,
   "src/models/SyncModels/SyncReport.ts": 538,

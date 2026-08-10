@@ -142,7 +142,7 @@
       "count": 1
     },
     "no-console": {
-      "count": 13
+      "count": 10
     }
   },
   "src/controllers/guruAnalytics/churn.controller.ts": {
@@ -181,6 +181,11 @@
   "src/controllers/guruSubscriptionList.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
+    }
+  },
+  "src/controllers/guruWebhookAdmin.controller.ts": {
+    "no-console": {
+      "count": 3
     }
   },
   "src/controllers/guruWebhookList.controller.ts": {
