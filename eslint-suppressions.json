@@ -286,12 +286,24 @@
       "count": 11
     }
   },
-  "src/controllers/syncUtilizadoresControllers/cronManagement.controller.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
+  "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts": {
     "no-console": {
-      "count": 26
+      "count": 8
+    }
+  },
+  "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts": {
+    "no-console": {
+      "count": 13
+    }
+  },
+  "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "src/controllers/syncUtilizadoresControllers/cronManagement/tagRules.controller.ts": {
+    "no-console": {
+      "count": 2
     }
   },
   "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts": {
