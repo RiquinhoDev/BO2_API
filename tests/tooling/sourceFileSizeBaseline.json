@@ -1,8 +1,1 @@
-{
-  "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": 507,
-  "src/models/SyncModels/ActivitySnapshot.ts": 503,
-  "src/services/productSalesStatsBuilder.ts": 521,
-  "src/services/syncUtilizadoresServices/engagement/recalculate-engagement-metrics.ts": 507,
-  "src/types/analytics.types.ts": 536,
-  "src/utils/studentDataConsolidator.ts": 501
-}
+﻿{}

@@ -307,6 +307,14 @@
       "count": 1
     }
   },
+  "src/controllers/syncStats/conflicts.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
+    },
+    "no-console": {
+      "count": 7
+    }
+  },
   "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts": {
     "no-console": {
       "count": 8
@@ -352,10 +360,10 @@
   },
   "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 12
+      "count": 3
     },
     "no-console": {
-      "count": 9
+      "count": 2
     }
   },
   "src/controllers/tagEvaluation.controller.ts": {
@@ -582,9 +590,6 @@
     }
   },
   "src/models/SyncModels/ActivitySnapshot.ts": {
-    "@typescript-eslint/no-empty-object-type": {
-      "count": 1
-    },
     "@typescript-eslint/no-explicit-any": {
       "count": 2
     }
@@ -604,6 +609,11 @@
   },
   "src/models/SyncModels/SyncReport.ts": {
     "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/models/SyncModels/activitySnapshot/contracts.ts": {
+    "@typescript-eslint/no-empty-object-type": {
       "count": 1
     }
   },
@@ -1040,10 +1050,13 @@
   },
   "src/services/productSalesStatsBuilder.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 3
+      "count": 1
     },
     "no-console": {
-      "count": 25
+      "count": 23
+    },
+    "no-irregular-whitespace": {
+      "count": 1
     }
   },
   "src/services/renewal/activeCampaign/execution.ts": {
@@ -1206,7 +1219,7 @@
   },
   "src/services/syncUtilizadoresServices/engagement/recalculate-engagement-metrics.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 15
+      "count": 12
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts": {
@@ -1331,9 +1344,14 @@
       "count": 9
     }
   },
-  "src/types/analytics.types.ts": {
+  "src/types/analytics/core.types.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 3
+      "count": 1
+    }
+  },
+  "src/types/analytics/presentation.types.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
     }
   },
   "src/types/cron.types.ts": {
