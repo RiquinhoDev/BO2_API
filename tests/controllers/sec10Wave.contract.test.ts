@@ -1,39 +1,97 @@
-import type { NextFunction, Request, Response } from 'express'
+import type { NextFunction, Response } from 'express'
 import { Router } from 'express'
 import request from 'supertest'
+import { asyncRoute, type AsyncRouteHandler } from '../../src/security/asyncRoute'
+import type { ValidatedRequest } from '../../src/security/validatedInput'
+
+type AsyncBoundaryMock = jest.Mock<Promise<unknown>, unknown[]>
+type ChainBoundaryMock = jest.Mock<Record<string, unknown>, unknown[]>
+type HybridBoundaryMock = jest.Mock<
+  Promise<unknown> | Record<string, unknown>,
+  unknown[]
+>
+
+const mockACContactStateFindOne: AsyncBoundaryMock = jest.fn()
+const mockACContactStateDeleteMany: AsyncBoundaryMock = jest.fn()
+const mockCourseFindOne: AsyncBoundaryMock = jest.fn()
+const mockCourseFindById: AsyncBoundaryMock = jest.fn()
+const mockTagRuleFind: ChainBoundaryMock = jest.fn()
+const mockTagRuleFindById: HybridBoundaryMock = jest.fn()
+const mockTagRuleFindByIdAndUpdate: AsyncBoundaryMock = jest.fn()
+const mockIndexedUserProductFind: ChainBoundaryMock = jest.fn()
+const mockIndexedUserProductCountDocuments: AsyncBoundaryMock = jest.fn()
+const mockUserFindOne: ChainBoundaryMock = jest.fn()
+const mockUserFindById: AsyncBoundaryMock = jest.fn()
+const mockUserCountDocuments: AsyncBoundaryMock = jest.fn()
+const mockProductFind: ChainBoundaryMock = jest.fn()
+const mockProductFindById: AsyncBoundaryMock = jest.fn()
+const mockUserProductFindOne: AsyncBoundaryMock = jest.fn()
+const mockHistoryFind: ChainBoundaryMock = jest.fn()
+const mockHistoryCountDocuments: AsyncBoundaryMock = jest.fn()
+const mockHistoryAggregate: AsyncBoundaryMock = jest.fn()
+const mockLegacyTagRuleFind: ChainBoundaryMock = jest.fn()
+const mockLegacyTagRuleFindByIdAndUpdate: AsyncBoundaryMock = jest.fn()
+const mockLegacyTagRuleFindByIdAndDelete: AsyncBoundaryMock = jest.fn()
+const mockLegacyTagRuleSave: AsyncBoundaryMock = jest.fn()
+const mockLegacyTagRule = Object.assign(
+  jest.fn<Record<string, unknown>, [unknown]>(),
+  {
+    find: mockLegacyTagRuleFind,
+    findByIdAndUpdate: mockLegacyTagRuleFindByIdAndUpdate,
+    findByIdAndDelete: mockLegacyTagRuleFindByIdAndDelete,
+  },
+)
+mockLegacyTagRule.prototype.save = mockLegacyTagRuleSave
+const mockCronExecutionLogFind: ChainBoundaryMock = jest.fn()
+const mockCronExecutionLogCreate: AsyncBoundaryMock = jest.fn()
+const mockContactTagReaderGetTags: AsyncBoundaryMock = jest.fn()
 
 jest.mock('../../src/models', () => ({
-  ACContactState: { findOne: jest.fn(), deleteMany: jest.fn() },
-  Course: { findOne: jest.fn(), findById: jest.fn() },
+  ACContactState: {
+    findOne: mockACContactStateFindOne,
+    deleteMany: mockACContactStateDeleteMany,
+  },
+  Course: {
+    findOne: mockCourseFindOne,
+    findById: mockCourseFindById,
+  },
   Product: { findOne: jest.fn(), findById: jest.fn(), find: jest.fn() },
   TagRule: {
-    find: jest.fn(),
-    findById: jest.fn(),
+    find: mockTagRuleFind,
+    findById: mockTagRuleFindById,
     create: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
+    findByIdAndUpdate: mockTagRuleFindByIdAndUpdate,
   },
   UserProduct: {
     findOne: jest.fn(),
-    find: jest.fn(),
-    countDocuments: jest.fn(),
+    find: mockIndexedUserProductFind,
+    countDocuments: mockIndexedUserProductCountDocuments,
     aggregate: jest.fn(),
   },
 }))
 
 jest.mock('../../src/models/user', () => ({
   __esModule: true,
-  default: { findOne: jest.fn(), findById: jest.fn(), countDocuments: jest.fn() },
+  default: {
+    findOne: mockUserFindOne,
+    findById: mockUserFindById,
+    countDocuments: mockUserCountDocuments,
+  },
 }))
 
 jest.mock('../../src/models/product/Product', () => ({
   __esModule: true,
-  default: { findOne: jest.fn(), findById: jest.fn(), find: jest.fn() },
+  default: {
+    findOne: jest.fn(),
+    findById: mockProductFindById,
+    find: mockProductFind,
+  },
 }))
 
 jest.mock('../../src/models/UserProduct', () => ({
   __esModule: true,
   default: {
-    findOne: jest.fn(),
+    findOne: mockUserProductFindOne,
     find: jest.fn(),
     countDocuments: jest.fn(),
     aggregate: jest.fn(),
@@ -42,27 +100,29 @@ jest.mock('../../src/models/UserProduct', () => ({
 
 jest.mock('../../src/models/acTags/CommunicationHistory', () => ({
   __esModule: true,
-  default: { find: jest.fn(), countDocuments: jest.fn(), aggregate: jest.fn() },
+  default: {
+    find: mockHistoryFind,
+    countDocuments: mockHistoryCountDocuments,
+    aggregate: mockHistoryAggregate,
+  },
 }))
 
-jest.mock('../../src/models/acTags/TagRule', () => {
-  const model = Object.assign(jest.fn(), {
-    find: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
-    findByIdAndDelete: jest.fn(),
-  })
-  model.prototype.save = jest.fn()
-  return { __esModule: true, default: model }
-})
+jest.mock('../../src/models/acTags/TagRule', () => ({
+  __esModule: true,
+  default: mockLegacyTagRule,
+}))
 
 jest.mock('../../src/models/cron/CronExecutionLog', () => ({
   __esModule: true,
-  default: { find: jest.fn(), create: jest.fn() },
+  default: {
+    find: mockCronExecutionLogFind,
+    create: mockCronExecutionLogCreate,
+  },
 }))
 
 jest.mock('../../src/services/activeCampaign/contactTagReader.service', () => ({
   __esModule: true,
-  default: { getContactTags: jest.fn() },
+  default: { getContactTags: mockContactTagReaderGetTags },
 }))
 
 jest.mock('../../src/services/activeCampaign/decisionEngine.service', () => ({
@@ -79,20 +139,6 @@ jest.mock('../../src/utils/logger', () => ({
   __esModule: true,
   default: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }))
-import {
-  ACContactState,
-  Course,
-  Product as IndexedProduct,
-  TagRule as IndexedTagRule,
-  UserProduct as IndexedUserProduct,
-} from '../../src/models'
-import User from '../../src/models/user'
-import Product from '../../src/models/product/Product'
-import UserProduct from '../../src/models/UserProduct'
-import CommunicationHistory from '../../src/models/acTags/CommunicationHistory'
-import LegacyTagRule from '../../src/models/acTags/TagRule'
-import CronExecutionLog from '../../src/models/cron/CronExecutionLog'
-import contactTagReaderService from '../../src/services/activeCampaign/contactTagReader.service'
 import {
   batchSyncContacts,
   clearACCache,
@@ -191,35 +237,52 @@ describe('SEC-10 central error contract harness', () => {
 })
 
 type HandlerRoute = Extract<CentralErrorRoute, { kind: 'handler' }>
-type ValidatedController = (
-  input: object,
-  req: Request,
+type ValidatedInput = {
+  params: object
+  query: object
+  body: object
+}
+type ValidatedController<TInput extends ValidatedInput> = (
+  input: TInput,
+  req: ValidatedRequest,
   res: Response,
   next: NextFunction,
 ) => Promise<void>
 type WaveOperation = {
   name: string
-  route: HandlerRoute
+  route: CentralErrorRoute
   arrange: () => void
   expected: ExpectedCentralError
   body?: object
+  path?: string
 }
 
-const requestHandler = (handler: unknown): HandlerRoute => ({
+const requestHandler = (handler: AsyncRouteHandler): HandlerRoute => ({
   kind: 'handler',
   method: 'post',
-  handler: handler as HandlerRoute['handler'],
+  handler,
 })
 
-const validatedHandler = (handler: unknown, input: object): HandlerRoute =>
-  requestHandler((req: Request, res: Response, next: NextFunction) =>
-    (handler as ValidatedController)(input, req, res, next),
-  )
+const validatedHandler = <TInput extends ValidatedInput>(
+  handler: ValidatedController<TInput>,
+  input: TInput,
+): HandlerRoute =>
+  requestHandler((req, res, next) => handler(input, req, res, next))
 
-const rejectSelectedLean = (model: typeof User): void => {
-  jest.spyOn(model, 'findOne').mockReturnValue({
-    select: jest.fn().mockReturnValue({ lean: jest.fn().mockRejectedValue(secret) }),
-  } as never)
+const contactHandler = (
+  handler: AsyncRouteHandler<{ email: string }>,
+): CentralErrorRoute => {
+  const router = Router()
+  router.post('/target/:email', asyncRoute(handler))
+  return { kind: 'router', mountPath: '/', router }
+}
+
+const rejectSelectedLean = (): void => {
+  mockUserFindOne.mockReturnValue({
+    select: jest.fn().mockReturnValue({
+      lean: jest.fn().mockRejectedValue(secret),
+    }),
+  })
 }
 
 let consoleLogSpy: jest.SpiedFunction<typeof console.log>
@@ -227,58 +290,60 @@ let consoleLogSpy: jest.SpiedFunction<typeof console.log>
 const operations: WaveOperation[] = [
   {
     name: 'read contact tags',
-    route: requestHandler(getContactTags),
-    arrange: () => { jest.spyOn(ACContactState, 'findOne').mockRejectedValueOnce(secret) },
+    route: contactHandler(getContactTags),
+    arrange: () => { mockACContactStateFindOne.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_CONTACT_TAGS_READ_FAILED', message: 'Erro interno do servidor' },
+    path: '/target/alice@example.test',
   },
   {
     name: 'sync contact tags',
-    route: requestHandler(syncContactTags),
-    arrange: () => rejectSelectedLean(User),
+    route: contactHandler(syncContactTags),
+    arrange: () => rejectSelectedLean(),
     expected: { code: 'AC_CONTACT_TAGS_SYNC_FAILED', message: 'Erro interno do servidor' },
+    path: '/target/alice@example.test',
   },
   {
     name: 'batch read contact tags',
     route: requestHandler(getBatchContactTags),
-    arrange: () => { jest.spyOn(contactTagReaderService, 'getContactTags').mockRejectedValueOnce(secret) },
+    arrange: () => { mockContactTagReaderGetTags.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_CONTACT_TAGS_BATCH_READ_FAILED', message: 'Erro interno do servidor' },
     body: { emails: ['alice@example.test'] },
   },
   {
     name: 'batch sync contact tags',
     route: requestHandler(batchSyncContacts),
-    arrange: () => rejectSelectedLean(User),
+    arrange: () => rejectSelectedLean(),
     expected: { code: 'AC_CONTACT_TAGS_BATCH_SYNC_FAILED', message: 'Erro interno do servidor' },
     body: { emails: ['alice@example.test'] },
   },
   {
     name: 'clear contact cache',
     route: requestHandler(clearACCache),
-    arrange: () => { jest.spyOn(ACContactState, 'deleteMany').mockRejectedValueOnce(secret) },
+    arrange: () => { mockACContactStateDeleteMany.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_CONTACT_CACHE_CLEAR_FAILED', message: 'Erro interno do servidor' },
   },
   {
     name: 'read Clareza students',
     route: requestHandler(getClarezaStudents),
-    arrange: () => { jest.spyOn(Course, 'findOne').mockRejectedValueOnce(secret) },
+    arrange: () => { mockCourseFindOne.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_CLAREZA_STUDENTS_READ_FAILED', message: 'Erro ao buscar alunos' },
   },
   {
     name: 'preview Clareza rules',
     route: requestHandler(evaluateClarezaRules),
-    arrange: () => { jest.spyOn(Course, 'findOne').mockRejectedValueOnce(secret) },
+    arrange: () => { mockCourseFindOne.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_CLAREZA_RULES_PREVIEW_FAILED', message: 'Erro ao pré-visualizar regras' },
   },
   {
     name: 'read OGI students',
     route: requestHandler(getOGIStudents),
-    arrange: () => { jest.spyOn(Course, 'findOne').mockRejectedValueOnce(secret) },
+    arrange: () => { mockCourseFindOne.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_OGI_STUDENTS_READ_FAILED', message: 'Erro ao buscar alunos' },
   },
   {
     name: 'preview OGI rules',
     route: requestHandler(evaluateOGIRules),
-    arrange: () => { jest.spyOn(Course, 'findOne').mockRejectedValueOnce(secret) },
+    arrange: () => { mockCourseFindOne.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_OGI_RULES_PREVIEW_FAILED', message: 'Erro ao pré-visualizar regras' },
   },
   {
@@ -293,37 +358,39 @@ const operations: WaveOperation[] = [
       chain.sort.mockReturnValue(chain)
       chain.skip.mockReturnValue(chain)
       chain.limit.mockReturnValue(chain)
-      jest.spyOn(CommunicationHistory, 'find').mockReturnValue(chain as never)
-      jest.spyOn(CommunicationHistory, 'countDocuments').mockResolvedValue(0)
+      mockHistoryFind.mockReturnValue(chain)
+      mockHistoryCountDocuments.mockResolvedValue(0)
     },
     expected: { code: 'AC_HISTORY_LIST_FAILED', message: 'Erro ao buscar histórico' },
   },
   {
     name: 'read communication history stats',
     route: requestHandler(getHistoryStats),
-    arrange: () => { jest.spyOn(CommunicationHistory, 'aggregate').mockRejectedValueOnce(secret) },
+    arrange: () => { mockHistoryAggregate.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_HISTORY_STATS_FAILED', message: 'Erro ao calcular estatísticas' },
   },
   {
     name: 'list legacy tag rules',
     route: requestHandler(getAllTagRules),
     arrange: () => {
-      jest.spyOn(LegacyTagRule, 'find').mockReturnValue({
-        populate: jest.fn().mockReturnValue({ sort: jest.fn().mockRejectedValue(secret) }),
-      } as never)
+      mockLegacyTagRuleFind.mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          sort: jest.fn().mockRejectedValue(secret),
+        }),
+      })
     },
     expected: { code: 'AC_LEGACY_TAG_RULE_LIST_FAILED', message: 'Erro ao buscar regras' },
   },
   {
     name: 'create legacy tag rule',
     route: requestHandler(createTagRule),
-    arrange: () => { jest.spyOn(LegacyTagRule.prototype, 'save').mockRejectedValueOnce(secret) },
+    arrange: () => { mockLegacyTagRuleSave.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_LEGACY_TAG_RULE_CREATE_FAILED', message: 'Erro ao criar regra' },
   },
   {
     name: 'update legacy tag rule',
     route: requestHandler(updateTagRule),
-    arrange: () => { jest.spyOn(LegacyTagRule, 'findByIdAndUpdate').mockRejectedValueOnce(secret) },
+    arrange: () => { mockLegacyTagRuleFindByIdAndUpdate.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_LEGACY_TAG_RULE_UPDATE_FAILED', message: 'Erro ao atualizar regra' },
   },
   {
@@ -331,17 +398,17 @@ const operations: WaveOperation[] = [
     route: validatedHandler(deleteTagRule, {
       params: { id: '507f1f77bcf86cd799439011' }, query: {}, body: {},
     }),
-    arrange: () => { jest.spyOn(LegacyTagRule, 'findByIdAndDelete').mockRejectedValueOnce(secret) },
+    arrange: () => { mockLegacyTagRuleFindByIdAndDelete.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_LEGACY_TAG_RULE_DELETE_FAILED', message: 'Erro ao deletar regra' },
   },
   {
     name: 'run manual ActiveCampaign evaluation',
     route: validatedHandler(testCron, { params: {}, query: {}, body: {} }),
     arrange: () => {
-      jest.spyOn(Product, 'find').mockReturnValue({
+      mockProductFind.mockReturnValue({
         populate: jest.fn().mockRejectedValue(secret),
-      } as never)
-      jest.spyOn(CronExecutionLog, 'create').mockResolvedValue({} as never)
+      })
+      mockCronExecutionLogCreate.mockResolvedValue({})
     },
     expected: { code: 'AC_MANUAL_EVALUATION_FAILED', message: 'Erro na avaliação manual' },
   },
@@ -349,16 +416,18 @@ const operations: WaveOperation[] = [
     name: 'list ActiveCampaign cron logs',
     route: requestHandler(getCronLogs),
     arrange: () => {
-      jest.spyOn(CronExecutionLog, 'find').mockReturnValue({
-        sort: jest.fn().mockReturnValue({ limit: jest.fn().mockRejectedValue(secret) }),
-      } as never)
+      mockCronExecutionLogFind.mockReturnValue({
+        sort: jest.fn().mockReturnValue({
+          limit: jest.fn().mockRejectedValue(secret),
+        }),
+      })
     },
     expected: { code: 'AC_CRON_LOGS_READ_FAILED', message: 'Erro ao buscar cron logs' },
   },
   {
     name: 'read ActiveCampaign stats',
     route: requestHandler(getStats),
-    arrange: () => { jest.spyOn(User, 'countDocuments').mockRejectedValueOnce(secret) },
+    arrange: () => { mockUserCountDocuments.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_STATS_READ_FAILED', message: 'Erro ao buscar estatísticas' },
   },
   {
@@ -370,7 +439,7 @@ const operations: WaveOperation[] = [
         tagName: 'TAG',
       },
     }),
-    arrange: () => { jest.spyOn(User, 'findById').mockRejectedValueOnce(secret) },
+    arrange: () => { mockUserFindById.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_PRODUCT_TAG_APPLY_FAILED', message: 'Erro ao aplicar tag' },
   },
   {
@@ -382,20 +451,22 @@ const operations: WaveOperation[] = [
         tagName: 'TAG',
       },
     }),
-    arrange: () => { jest.spyOn(UserProduct, 'findOne').mockRejectedValueOnce(secret) },
+    arrange: () => { mockUserProductFindOne.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_PRODUCT_TAG_REMOVE_FAILED', message: 'Erro ao remover tag' },
   },
   {
     name: 'read product tagged users',
     route: requestHandler(getUsersWithTagsInProduct),
-    arrange: () => { jest.spyOn(Product, 'findById').mockRejectedValueOnce(secret) },
+    arrange: () => { mockProductFindById.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_PRODUCT_TAGGED_USERS_READ_FAILED', message: 'Erro ao buscar tags do produto' },
   },
   {
     name: 'read product tag stats',
     route: requestHandler(getACStats),
     arrange: () => {
-      jest.spyOn(Product, 'find').mockReturnValue({ lean: jest.fn().mockRejectedValue(secret) } as never)
+      mockProductFind.mockReturnValue({
+        lean: jest.fn().mockRejectedValue(secret),
+      })
     },
     expected: { code: 'AC_PRODUCT_TAG_STATS_READ_FAILED', message: 'Erro ao buscar estatísticas AC' },
   },
@@ -404,16 +475,18 @@ const operations: WaveOperation[] = [
     route: validatedHandler(syncProductTags, {
       params: { productId: '507f191e810c19729de860ea' }, query: {}, body: {},
     }),
-    arrange: () => { jest.spyOn(Product, 'findById').mockRejectedValueOnce(secret) },
+    arrange: () => { mockProductFindById.mockRejectedValueOnce(secret) },
     expected: { code: 'AC_PRODUCT_TAG_SYNC_FAILED', message: 'Erro ao sincronizar tags' },
   },
   {
     name: 'list tag rules',
     route: requestHandler(getAllRules),
     arrange: () => {
-      jest.spyOn(IndexedTagRule, 'find').mockReturnValue({
-        populate: jest.fn().mockReturnValue({ sort: jest.fn().mockRejectedValue(secret) }),
-      } as never)
+      mockTagRuleFind.mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          sort: jest.fn().mockRejectedValue(secret),
+        }),
+      })
     },
     expected: { code: 'TAG_RULE_LIST_FAILED', message: 'Erro interno do servidor' },
   },
@@ -421,40 +494,40 @@ const operations: WaveOperation[] = [
     name: 'read tag rule',
     route: requestHandler(getRuleById),
     arrange: () => {
-      jest.spyOn(IndexedTagRule, 'findById').mockReturnValue({
+      mockTagRuleFindById.mockReturnValue({
         populate: jest.fn().mockRejectedValue(secret),
-      } as never)
+      })
     },
     expected: { code: 'TAG_RULE_READ_FAILED', message: 'Erro interno do servidor' },
   },
   {
     name: 'create tag rule',
     route: requestHandler(createRule),
-    arrange: () => { jest.spyOn(Course, 'findById').mockRejectedValueOnce(secret) },
+    arrange: () => { mockCourseFindById.mockRejectedValueOnce(secret) },
     expected: { code: 'TAG_RULE_CREATE_FAILED', message: 'Erro interno do servidor' },
   },
   {
     name: 'update tag rule',
     route: requestHandler(updateRule),
-    arrange: () => { jest.spyOn(IndexedTagRule, 'findByIdAndUpdate').mockRejectedValueOnce(secret) },
+    arrange: () => { mockTagRuleFindByIdAndUpdate.mockRejectedValueOnce(secret) },
     expected: { code: 'TAG_RULE_UPDATE_FAILED', message: 'Erro interno do servidor' },
   },
   {
     name: 'delete tag rule',
     route: requestHandler(deleteRule),
-    arrange: () => { jest.spyOn(IndexedTagRule, 'findByIdAndUpdate').mockRejectedValueOnce(secret) },
+    arrange: () => { mockTagRuleFindByIdAndUpdate.mockRejectedValueOnce(secret) },
     expected: { code: 'TAG_RULE_DELETE_FAILED', message: 'Erro interno do servidor' },
   },
   {
     name: 'test tag rule dry-run',
     route: requestHandler(testRule),
-    arrange: () => { jest.spyOn(IndexedTagRule, 'findById').mockRejectedValueOnce(secret) },
+    arrange: () => { mockTagRuleFindById.mockRejectedValueOnce(secret) },
     expected: { code: 'TAG_RULE_TEST_FAILED', message: 'Erro interno do servidor' },
   },
   {
     name: 'estimate affected tag-rule users',
     route: requestHandler(estimateAffectedUsers),
-    arrange: () => { jest.spyOn(IndexedUserProduct, 'countDocuments').mockRejectedValueOnce(secret) },
+    arrange: () => { mockIndexedUserProductCountDocuments.mockRejectedValueOnce(secret) },
     expected: { code: 'TAG_RULE_ESTIMATE_FAILED', message: 'Erro interno do servidor' },
     body: { conditions: { source: 'USERPRODUCT', rules: [] } },
   },
@@ -466,7 +539,7 @@ const operations: WaveOperation[] = [
       chain.limit.mockReturnValue(chain)
       chain.populate.mockReturnValue(chain)
       chain.sort.mockRejectedValue(secret)
-      jest.spyOn(IndexedUserProduct, 'find').mockReturnValue(chain as never)
+      mockIndexedUserProductFind.mockReturnValue(chain)
     },
     expected: { code: 'TAG_RULE_PREVIEW_FAILED', message: 'Erro interno do servidor' },
     body: { conditions: { source: 'USERPRODUCT', rules: [] } },
@@ -499,10 +572,11 @@ describe('SEC-10 ActiveCampaign and tag-controller wave', () => {
     arrange,
     expected,
     body,
+    path,
   }) => {
     arrange()
     const response = await request(appForCentralError(route))
-      .post('/target' + offline)
+      .post((path ?? '/target') + offline)
       .send(body ?? {})
 
     expectCentralError(response, expected)

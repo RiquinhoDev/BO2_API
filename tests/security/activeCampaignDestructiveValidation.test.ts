@@ -47,7 +47,14 @@ jest.mock('../../src/controllers/acTags/activeCampaignProductTags.controller', (
   syncProductTags: jest.fn((_input, _req, res) => res.status(204).end()),
 }))
 
+jest.mock('../../src/routes', () => {
+  const { Router } = jest.requireActual<typeof import('express')>('express')
+  return { __esModule: true, default: Router() }
+})
+
+import { deleteTagRule } from '../../src/controllers/acTags/activeCampaignLegacyTagRules.controller'
 import activeCampaignRouter from '../../src/routes/ACroutes/activecampaign.routes'
+import { registerRoutes } from '../../src/runtime/registerRoutes'
 
 const marker = { __bo2_offline_loopback: '1' }
 const objectId = '507f1f77bcf86cd799439011'
@@ -107,6 +114,20 @@ function buildApp() {
   return app
 }
 
+function buildRuntimeApp() {
+  const app = express()
+  const errors = createErrorHandling({
+    generateCorrelationId: () => 'activecampaign-runtime-validation-id',
+    logError: () => undefined,
+  })
+
+  app.use(errors.correlationId)
+  app.use(express.json())
+  registerRoutes(app)
+  app.use(errors.handler)
+  return app
+}
+
 function callRoute(route: DestructiveRoute, body: Record<string, unknown>) {
   const pending = request(buildApp())[route.method](route.path).query(marker)
   return Object.keys(body).length > 0 ? pending.send(body) : pending
@@ -128,4 +149,16 @@ test.each(routes)('$name rejects a nested Mongo operator', async (route) => {
     ...route.body,
     filter: { $where: 'unsafe' },
   }).expect(400)
+})
+
+test('direct legacy delete rejects an invalid ObjectId before its controller', async () => {
+  const deleteController = jest.mocked(deleteTagRule)
+  deleteController.mockClear()
+
+  await request(buildRuntimeApp())
+    .delete('/api/tag-rules/not-an-object-id')
+    .query(marker)
+    .expect(400)
+
+  expect(deleteController).not.toHaveBeenCalled()
 })
