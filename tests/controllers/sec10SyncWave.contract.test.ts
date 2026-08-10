@@ -427,6 +427,8 @@ describe('SEC-10 sync, conflict and history boundary wave', () => {
       ...operation.expected,
       correlationId: 'sec10-sync-request',
     })
+    expect(observed.logError).toHaveBeenCalledTimes(1)
+    expect(console.error).not.toHaveBeenCalled()
     expect(mockAsyncRouteInvocations).toHaveBeenCalledTimes(operation.validated ? 0 : 1)
   })
 
@@ -470,8 +472,15 @@ describe('SEC-10 sync, conflict and history boundary wave', () => {
     mockExecuteDailyPipeline.mockResolvedValueOnce({
       success: false,
       duration: 17,
-      errors: ['secret alice@example.test token=hidden'],
-      steps: { syncHotmart: { success: false, duration: 4, stats: { failed: 2 } } },
+      errors: [secretValue],
+      steps: {
+        syncHotmart: {
+          success: false,
+          duration: 4,
+          stats: { failed: 2, secretValue },
+          error: secretValue,
+        },
+      },
     })
     const route = syncRoute('post', '/execute-pipeline')
     const { observed, response } = callRoute(route)
@@ -487,8 +496,14 @@ describe('SEC-10 sync, conflict and history boundary wave', () => {
     expect(observed.logError).toHaveBeenCalledTimes(1)
     expect(observed.logError).toHaveBeenCalledWith(expect.objectContaining({
       code: 'SYNC_PIPELINE_COMPLETED_WITH_ERRORS',
-      detail: expect.stringContaining('"duration":17'),
+      detail: JSON.stringify({
+        duration: 17,
+        errorCount: 1,
+        steps: [{ name: 'syncHotmart', success: false, duration: 4 }],
+      }),
     }))
+    expect(console.error).not.toHaveBeenCalled()
+    expect(JSON.stringify(result.body)).not.toContain(secretValue)
     expect(JSON.stringify(observed.logError.mock.calls)).not.toMatch(
       /secret|alice@example\.test|token=hidden/,
     )

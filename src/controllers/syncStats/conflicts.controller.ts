@@ -72,7 +72,6 @@ export const getConflicts = async (req: Request, res: Response, next: NextFuncti
     })
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao buscar conflitos:', error)
     next(internalError('Erro ao buscar conflitos', 'SYNC_CONFLICT_LIST_FAILED', error))
   }
 }
@@ -117,7 +116,6 @@ export const getConflictById = async (
     })
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao buscar conflito:', error)
     next(internalError('Erro ao buscar conflito', 'SYNC_CONFLICT_READ_FAILED', error))
   }
 }
@@ -180,7 +178,6 @@ export const resolveConflict = async (
     })
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao resolver conflito:', error)
     next(internalError('Erro ao resolver conflito', 'SYNC_CONFLICT_RESOLVE_FAILED', error))
   }
 }
@@ -244,7 +241,6 @@ export const bulkResolveConflicts = async (req: Request, res: Response, next: Ne
     })
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao resolver conflitos em bulk:', error)
     next(internalError(
       'Erro ao resolver conflitos',
       'SYNC_CONFLICT_BULK_RESOLVE_FAILED',
@@ -293,7 +289,6 @@ export const autoResolveConflicts = async (req: Request, res: Response, next: Ne
     })
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao auto-resolver conflitos:', error)
     next(internalError(
       'Erro ao auto-resolver conflitos',
       'SYNC_CONFLICT_AUTO_RESOLVE_FAILED',
@@ -340,7 +335,6 @@ export const ignoreConflict = async (
     })
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao ignorar conflito:', error)
     next(internalError('Erro ao ignorar conflito', 'SYNC_CONFLICT_IGNORE_FAILED', error))
   }
 }
@@ -368,7 +362,6 @@ export const getCriticalConflicts = async (req: Request, res: Response, next: Ne
     })
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao buscar conflitos críticos:', error)
     next(internalError(
       'Erro ao buscar conflitos críticos',
       'SYNC_CONFLICT_CRITICAL_LIST_FAILED',
