@@ -815,10 +815,10 @@
   },
   "src/services/analytics/analyticsCalculator.service.ts": {
     "@typescript-eslint/no-unused-vars": {
-      "count": 5
+      "count": 4
     },
     "no-console": {
-      "count": 8
+      "count": 4
     }
   },
   "src/services/analytics/analyticsService.ts": {
@@ -830,6 +830,14 @@
     },
     "no-console": {
       "count": 9
+    }
+  },
+  "src/services/analytics/calculator/timeSeries.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 4
     }
   },
   "src/services/analytics/cohortAnalytics.service.ts": {

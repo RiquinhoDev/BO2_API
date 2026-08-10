@@ -6,7 +6,6 @@
   "src/models/Class.ts": 599,
   "src/models/SyncModels/ActivitySnapshot.ts": 503,
   "src/models/SyncModels/SyncReport.ts": 538,
-  "src/services/analytics/analyticsCalculator.service.ts": 606,
   "src/services/guru/crossReference.service.ts": 548,
   "src/services/productSalesStatsBuilder.ts": 521,
   "src/services/studentOgiSummary.service.ts": 539,
