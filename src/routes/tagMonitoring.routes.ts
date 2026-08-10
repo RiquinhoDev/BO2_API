@@ -7,6 +7,7 @@ import {
 } from '../controllers/tagMonitoring'
 import { tagMonitoringDeleteInput } from '../security/tagMonitoringDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
+import { asyncRoute } from '../security/asyncRoute'
 
 const router = Router()
 
@@ -100,45 +101,45 @@ router.patch(
 // ═══════════════════════════════════════════════════════════
 
 // Busca alunos por prioridade de tags
-router.get('/students-by-priority', authenticate, tagMonitoringController.getStudentsByPriority)
+router.get('/students-by-priority', authenticate, asyncRoute(tagMonitoringController.getStudentsByPriority))
 
 // ═══════════════════════════════════════════════════════════
 // 📸 SNAPSHOTS ROUTES
 // ═══════════════════════════════════════════════════════════
 
 // Lista snapshots
-router.get('/snapshots', authenticate, tagMonitoringController.getSnapshots)
+router.get('/snapshots', authenticate, asyncRoute(tagMonitoringController.getSnapshots))
 
 // Histórico de snapshots de um aluno
-router.get('/snapshots/user/:email', authenticate, tagMonitoringController.getSnapshotsByEmail)
+router.get('/snapshots/user/:email', authenticate, asyncRoute(tagMonitoringController.getSnapshotsByEmail))
 
 // Compara dois snapshots
-router.get('/snapshots/compare', authenticate, tagMonitoringController.compareSnapshots)
+router.get('/snapshots/compare', authenticate, asyncRoute(tagMonitoringController.compareSnapshots))
 
 // Executa snapshot manual
-router.post('/snapshots/manual', authenticate, tagMonitoringController.executeManualSnapshot)
+router.post('/snapshots/manual', authenticate, asyncRoute(tagMonitoringController.executeManualSnapshot))
 
 // ═══════════════════════════════════════════════════════════
 // 📊 STATS ROUTES
 // ═══════════════════════════════════════════════════════════
 
 // Estatísticas globais
-router.get('/stats', authenticate, tagMonitoringController.getStats)
+router.get('/stats', authenticate, asyncRoute(tagMonitoringController.getStats))
 
 // Estatísticas semanais
-router.get('/stats/weekly', authenticate, tagMonitoringController.getWeeklyStats)
+router.get('/stats/weekly', authenticate, asyncRoute(tagMonitoringController.getWeeklyStats))
 
 // ═══════════════════════════════════════════════════════════
 // ⚙️ CONFIG ROUTES
 // ═══════════════════════════════════════════════════════════
 
 // Busca configuração de scope
-router.get('/config/scope', authenticate, tagMonitoringController.getScopeConfig)
+router.get('/config/scope', authenticate, asyncRoute(tagMonitoringController.getScopeConfig))
 
 // Atualiza configuração de scope
-router.patch('/config/scope', authenticate, tagMonitoringController.updateScopeConfig)
+router.patch('/config/scope', authenticate, asyncRoute(tagMonitoringController.updateScopeConfig))
 
 // Ativa/desativa sistema de monitorização
-router.patch('/config/toggle', authenticate, tagMonitoringController.toggleMonitoring)
+router.patch('/config/toggle', authenticate, asyncRoute(tagMonitoringController.toggleMonitoring))
 
 export default router

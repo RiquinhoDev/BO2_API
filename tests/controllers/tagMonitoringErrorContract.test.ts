@@ -6,6 +6,10 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
 import {
+  WeeklyNativeTagSnapshot,
+  WeeklyTagMonitoringConfig,
+} from '../../src/models/tagMonitoring'
+import {
   criticalTagManagementService,
   tagNotificationService,
   weeklyTagMonitoringService,
@@ -28,13 +32,41 @@ jest.mock('../../src/services/tagMonitoring', () => ({
     getNotifications: jest.fn(),
   },
   weeklyTagMonitoringService: {
+    performWeeklySnapshot: jest.fn(),
     getSnapshotStats: jest.fn(),
+    getStudentsByPriority: jest.fn(),
+  },
+}))
+
+jest.mock('../../src/models/tagMonitoring', () => ({
+  WeeklyNativeTagSnapshot: {
+    find: jest.fn(),
+    findByEmail: jest.fn(),
+    findOne: jest.fn(),
+    findByWeek: jest.fn(),
+  },
+  WeeklyTagMonitoringConfig: {
+    getConfig: jest.fn(),
+    updateScope: jest.fn(),
+    toggleEnabled: jest.fn(),
   },
 }))
 
 import tagMonitoringRouter from '../../src/routes/tagMonitoring.routes'
 
 const correlationId = 'tag-monitoring-request'
+const offlineMarker = { __bo2_offline_loopback: '1' }
+const snapshotsModel = WeeklyNativeTagSnapshot as unknown as {
+  find: jest.Mock
+  findByEmail: jest.Mock
+  findOne: jest.Mock
+  findByWeek: jest.Mock
+}
+const monitoringConfigModel = WeeklyTagMonitoringConfig as unknown as {
+  getConfig: jest.Mock
+  updateScope: jest.Mock
+  toggleEnabled: jest.Mock
+}
 const privateHandlerNames = new Set<string>()
 const tagMonitoringRouteSourcePath = path.resolve(
   __dirname,
@@ -166,6 +198,23 @@ function expectRedacted(response: request.Response) {
   expect(JSON.stringify(response.body)).not.toContain('token=hidden')
 }
 
+function snapshotFindResult(snapshots: unknown[]) {
+  const lean = jest.fn().mockResolvedValue(snapshots)
+  const limit = jest.fn().mockReturnValue({ lean })
+  const sort = jest.fn().mockReturnValue({ limit })
+  snapshotsModel.find.mockReturnValueOnce({ sort })
+  return { sort, limit, lean }
+}
+
+function directResponse() {
+  const response = {
+    status: jest.fn(),
+    json: jest.fn(),
+  }
+  response.status.mockReturnValue(response)
+  return response
+}
+
 beforeEach(() => {
   jest.clearAllMocks()
 })
@@ -248,5 +297,438 @@ test('critical tag list failures use the central redacted error contract', async
   expect(response.body).toEqual(
     expectedError('CRITICAL_TAG_LIST_FAILED', 'Erro ao listar tags cr\u00edticas'),
   )
+  expectRedacted(response)
+})
+test('snapshot list preserves filters, explicit limit and count envelope', async () => {
+  const snapshots = [{ snapshotId: 'snapshot-1' }, { snapshotId: 'snapshot-2' }]
+  const query = snapshotFindResult(snapshots)
+
+  const response = await request(buildApp())
+    .get('/api/tag-monitoring/snapshots')
+    .query({ ...offlineMarker, weekNumber: '32', year: '2026', limit: '7' })
+
+  expect(response.status).toBe(200)
+  expect(response.body).toEqual({ success: true, data: snapshots, count: 2 })
+  expect(snapshotsModel.find).toHaveBeenCalledWith({ weekNumber: 32, year: 2026 })
+  expect(query.sort).toHaveBeenCalledWith({ capturedAt: -1 })
+  expect(query.limit).toHaveBeenCalledWith(7)
+  expect(query.lean).toHaveBeenCalledTimes(1)
+})
+
+test('snapshot list preserves the default limit', async () => {
+  const query = snapshotFindResult([])
+
+  const response = await request(buildApp())
+    .get('/api/tag-monitoring/snapshots')
+    .query(offlineMarker)
+
+  expect(response.status).toBe(200)
+  expect(response.body).toEqual({ success: true, data: [], count: 0 })
+  expect(snapshotsModel.find).toHaveBeenCalledWith({})
+  expect(query.limit).toHaveBeenCalledWith(100)
+})
+
+test('snapshot email history preserves its default limit, count and email', async () => {
+  const snapshots = [{ snapshotId: 'snapshot-email' }]
+  snapshotsModel.findByEmail.mockResolvedValueOnce(snapshots)
+
+  const response = await request(buildApp())
+    .get('/api/tag-monitoring/snapshots/user/alice%40example.test')
+    .query(offlineMarker)
+
+  expect(response.status).toBe(200)
+  expect(response.body).toEqual({
+    success: true,
+    data: snapshots,
+    count: 1,
+    email: 'alice@example.test',
+  })
+  expect(snapshotsModel.findByEmail).toHaveBeenCalledWith('alice@example.test', 10)
+})
+
+test('snapshot email history preserves its missing-email validation body', async () => {
+  const response = directResponse()
+  const handler = tagMonitoringController.getSnapshotsByEmail as unknown as (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => Promise<unknown>
+
+  await handler(
+    { params: {}, query: {} } as Request,
+    response as unknown as Response,
+    jest.fn(),
+  )
+
+  expect(response.status).toHaveBeenCalledWith(400)
+  expect(response.json).toHaveBeenCalledWith({
+    success: false,
+    message: 'Email \u00e9 obrigat\u00f3rio',
+  })
+  expect(snapshotsModel.findByEmail).not.toHaveBeenCalled()
+})
+
+test('snapshot comparison preserves its query, snapshots and changes envelope', async () => {
+  const changes = { added: ['new-tag'], removed: ['old-tag'] }
+  const snapshot1 = {
+    weekNumber: 30,
+    year: 2026,
+    nativeTags: ['old-tag'],
+    capturedAt: '2026-07-20T00:00:00.000Z',
+  }
+  const snapshot2 = {
+    weekNumber: 31,
+    year: 2026,
+    nativeTags: ['new-tag'],
+    capturedAt: '2026-07-27T00:00:00.000Z',
+    compareWith: jest.fn().mockReturnValue(changes),
+  }
+  snapshotsModel.findOne
+    .mockResolvedValueOnce(snapshot1)
+    .mockResolvedValueOnce(snapshot2)
+
+  const response = await request(buildApp())
+    .get('/api/tag-monitoring/snapshots/compare')
+    .query({
+      ...offlineMarker,
+      email: 'alice@example.test',
+      week1: '30',
+      year1: '2026',
+      week2: '31',
+      year2: '2026',
+    })
+
+  expect(response.status).toBe(200)
+  expect(response.body).toEqual({
+    success: true,
+    data: {
+      snapshot1: {
+        week: 30,
+        year: 2026,
+        tags: ['old-tag'],
+        capturedAt: '2026-07-20T00:00:00.000Z',
+      },
+      snapshot2: {
+        week: 31,
+        year: 2026,
+        tags: ['new-tag'],
+        capturedAt: '2026-07-27T00:00:00.000Z',
+      },
+      changes,
+    },
+  })
+  expect(snapshotsModel.findOne).toHaveBeenNthCalledWith(1, {
+    email: 'alice@example.test',
+    weekNumber: 30,
+    year: 2026,
+  })
+  expect(snapshotsModel.findOne).toHaveBeenNthCalledWith(2, {
+    email: 'alice@example.test',
+    weekNumber: 31,
+    year: 2026,
+  })
+  expect(snapshot2.compareWith).toHaveBeenCalledWith(snapshot1)
+})
+
+test('snapshot comparison preserves validation and missing-snapshot bodies', async () => {
+  const invalid = await request(buildApp())
+    .get('/api/tag-monitoring/snapshots/compare')
+    .query(offlineMarker)
+
+  expect(invalid.status).toBe(400)
+  expect(invalid.body).toEqual({
+    success: false,
+    message: 'Email, week1, year1, week2 e year2 s\u00e3o obrigat\u00f3rios',
+  })
+
+  snapshotsModel.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null)
+  const missing = await request(buildApp())
+    .get('/api/tag-monitoring/snapshots/compare')
+    .query({
+      ...offlineMarker,
+      email: 'alice@example.test',
+      week1: '30',
+      year1: '2026',
+      week2: '31',
+      year2: '2026',
+    })
+
+  expect(missing.status).toBe(404)
+  expect(missing.body).toEqual({
+    success: false,
+    message: 'Um ou ambos os snapshots n\u00e3o foram encontrados',
+  })
+})
+
+test('manual snapshot preserves the service result envelope', async () => {
+  const result = { processed: 12, notifications: 3 }
+  jest.mocked(weeklyTagMonitoringService.performWeeklySnapshot).mockResolvedValueOnce(
+    result as never,
+  )
+
+  const response = await request(buildApp())
+    .post('/api/tag-monitoring/snapshots/manual')
+    .query(offlineMarker)
+
+  expect(response.status).toBe(200)
+  expect(response.body).toEqual({
+    success: true,
+    message: 'Snapshot manual executado com sucesso',
+    data: result,
+  })
+  expect(weeklyTagMonitoringService.performWeeklySnapshot).toHaveBeenCalledTimes(1)
+})
+test('global stats preserve the service result envelope', async () => {
+  const stats = { totalSnapshots: 42, activeStudents: 9 }
+  jest.mocked(weeklyTagMonitoringService.getSnapshotStats).mockResolvedValueOnce(stats as never)
+
+  const response = await request(buildApp())
+    .get('/api/tag-monitoring/stats')
+    .query(offlineMarker)
+
+  expect(response.status).toBe(200)
+  expect(response.body).toEqual({ success: true, data: stats })
+})
+
+test('weekly stats preserve numeric parsing and derived values', async () => {
+  snapshotsModel.findByWeek.mockResolvedValueOnce([
+    { nativeTags: ['tag-1', 'tag-2'] },
+    { nativeTags: ['tag-3'] },
+  ])
+
+  const response = await request(buildApp())
+    .get('/api/tag-monitoring/stats/weekly')
+    .query({ ...offlineMarker, weekNumber: '32', year: '2026' })
+
+  expect(response.status).toBe(200)
+  expect(response.body).toEqual({
+    success: true,
+    data: {
+      weekNumber: 32,
+      year: 2026,
+      totalSnapshots: 2,
+      totalTags: 3,
+      avgTagsPerStudent: '1.50',
+    },
+  })
+  expect(snapshotsModel.findByWeek).toHaveBeenCalledWith(32, 2026)
+})
+
+test('weekly stats preserve the missing-query validation body', async () => {
+  const response = await request(buildApp())
+    .get('/api/tag-monitoring/stats/weekly')
+    .query(offlineMarker)
+
+  expect(response.status).toBe(400)
+  expect(response.body).toEqual({
+    success: false,
+    message: 'weekNumber e year s\u00e3o obrigat\u00f3rios',
+  })
+  expect(snapshotsModel.findByWeek).not.toHaveBeenCalled()
+})
+
+test('scope config preserves its response envelope', async () => {
+  monitoringConfigModel.getConfig.mockResolvedValueOnce({
+    scope: 'STUDENTS_ONLY',
+    enabled: true,
+    privateField: 'not-public',
+  })
+
+  const response = await request(buildApp())
+    .get('/api/tag-monitoring/config/scope')
+    .query(offlineMarker)
+
+  expect(response.status).toBe(200)
+  expect(response.body).toEqual({
+    success: true,
+    data: { scope: 'STUDENTS_ONLY', enabled: true },
+  })
+})
+
+test('scope update preserves validation, service input and response envelope', async () => {
+  const invalid = await request(buildApp())
+    .patch('/api/tag-monitoring/config/scope')
+    .query(offlineMarker)
+    .send({ scope: 'INVALID' })
+
+  expect(invalid.status).toBe(400)
+  expect(invalid.body).toEqual({
+    success: false,
+    message: 'Scope inv\u00e1lido. Use STUDENTS_ONLY ou ALL_CONTACTS',
+  })
+
+  monitoringConfigModel.updateScope.mockResolvedValueOnce({
+    scope: 'ALL_CONTACTS',
+    enabled: false,
+  })
+  const updated = await request(buildApp())
+    .patch('/api/tag-monitoring/config/scope')
+    .query(offlineMarker)
+    .send({ scope: 'ALL_CONTACTS' })
+
+  expect(updated.status).toBe(200)
+  expect(updated.body).toEqual({
+    success: true,
+    message: 'Configura\u00e7\u00e3o atualizada com sucesso',
+    data: { scope: 'ALL_CONTACTS', enabled: false },
+  })
+  expect(monitoringConfigModel.updateScope).toHaveBeenCalledWith('ALL_CONTACTS')
+})
+
+test('monitoring toggle preserves its dynamic message and config envelope', async () => {
+  monitoringConfigModel.toggleEnabled.mockResolvedValueOnce({
+    scope: 'STUDENTS_ONLY',
+    enabled: false,
+  })
+
+  const response = await request(buildApp())
+    .patch('/api/tag-monitoring/config/toggle')
+    .query(offlineMarker)
+
+  expect(response.status).toBe(200)
+  expect(response.body).toEqual({
+    success: true,
+    message: 'Sistema desativado com sucesso',
+    data: { scope: 'STUDENTS_ONLY', enabled: false },
+  })
+})
+
+test('students by priority preserves array parsing and pagination defaults', async () => {
+  const result = { students: [{ email: 'alice@example.test' }], total: 1 }
+  jest.mocked(weeklyTagMonitoringService.getStudentsByPriority).mockResolvedValueOnce(
+    result as never,
+  )
+
+  const response = await request(buildApp())
+    .get('/api/tag-monitoring/students-by-priority')
+    .query({
+      ...offlineMarker,
+      priorities: ['CRITICAL', 'LOW'],
+      tagName: 'vip',
+    })
+
+  expect(response.status).toBe(200)
+  expect(response.body).toEqual({ success: true, data: result })
+  expect(weeklyTagMonitoringService.getStudentsByPriority).toHaveBeenCalledWith({
+    priorities: ['CRITICAL', 'LOW'],
+    tagName: 'vip',
+    limit: 20,
+    skip: 0,
+  })
+})
+test.each([
+  {
+    name: 'snapshot list',
+    reject: () => snapshotsModel.find.mockImplementationOnce(() => {
+      throw new Error('secret alice@example.test token=hidden')
+    }),
+    call: () => request(buildApp()).get('/api/tag-monitoring/snapshots').query(offlineMarker),
+    code: 'TAG_MONITORING_SNAPSHOT_LIST_FAILED',
+    message: 'Erro ao listar snapshots',
+  },
+  {
+    name: 'snapshot email history',
+    reject: () => snapshotsModel.findByEmail.mockRejectedValueOnce(
+      new Error('secret alice@example.test token=hidden'),
+    ),
+    call: () => request(buildApp())
+      .get('/api/tag-monitoring/snapshots/user/alice%40example.test')
+      .query(offlineMarker),
+    code: 'TAG_MONITORING_SNAPSHOT_EMAIL_LIST_FAILED',
+    message: 'Erro ao buscar snapshots',
+  },
+  {
+    name: 'snapshot comparison',
+    reject: () => snapshotsModel.findOne.mockRejectedValueOnce(
+      new Error('secret alice@example.test token=hidden'),
+    ),
+    call: () => request(buildApp())
+      .get('/api/tag-monitoring/snapshots/compare')
+      .query({
+        ...offlineMarker,
+        email: 'alice@example.test',
+        week1: '30',
+        year1: '2026',
+        week2: '31',
+        year2: '2026',
+      }),
+    code: 'TAG_MONITORING_SNAPSHOT_COMPARE_FAILED',
+    message: 'Erro ao comparar snapshots',
+  },
+  {
+    name: 'manual snapshot',
+    reject: () => jest.mocked(weeklyTagMonitoringService.performWeeklySnapshot).mockRejectedValueOnce(
+      new Error('secret alice@example.test token=hidden'),
+    ),
+    call: () => request(buildApp())
+      .post('/api/tag-monitoring/snapshots/manual')
+      .query(offlineMarker),
+    code: 'TAG_MONITORING_SNAPSHOT_MANUAL_FAILED',
+    message: 'Erro ao executar snapshot manual',
+  },
+  {
+    name: 'weekly stats',
+    reject: () => snapshotsModel.findByWeek.mockRejectedValueOnce(
+      new Error('secret alice@example.test token=hidden'),
+    ),
+    call: () => request(buildApp())
+      .get('/api/tag-monitoring/stats/weekly')
+      .query({ ...offlineMarker, weekNumber: '32', year: '2026' }),
+    code: 'TAG_MONITORING_WEEKLY_STATS_FAILED',
+    message: 'Erro ao obter estat\u00edsticas semanais',
+  },
+  {
+    name: 'scope config read',
+    reject: () => monitoringConfigModel.getConfig.mockRejectedValueOnce(
+      new Error('secret alice@example.test token=hidden'),
+    ),
+    call: () => request(buildApp()).get('/api/tag-monitoring/config/scope').query(offlineMarker),
+    code: 'TAG_MONITORING_SCOPE_CONFIG_GET_FAILED',
+    message: 'Erro ao buscar configura\u00e7\u00e3o',
+  },
+  {
+    name: 'scope config update',
+    reject: () => monitoringConfigModel.updateScope.mockRejectedValueOnce(
+      new Error('secret alice@example.test token=hidden'),
+    ),
+    call: () => request(buildApp())
+      .patch('/api/tag-monitoring/config/scope')
+      .query(offlineMarker)
+      .send({ scope: 'ALL_CONTACTS' }),
+    code: 'TAG_MONITORING_SCOPE_CONFIG_UPDATE_FAILED',
+    message: 'Erro ao atualizar configura\u00e7\u00e3o',
+  },
+  {
+    name: 'monitoring toggle',
+    reject: () => monitoringConfigModel.toggleEnabled.mockRejectedValueOnce(
+      new Error('secret alice@example.test token=hidden'),
+    ),
+    call: () => request(buildApp()).patch('/api/tag-monitoring/config/toggle').query(offlineMarker),
+    code: 'TAG_MONITORING_TOGGLE_FAILED',
+    message: 'Erro ao alternar sistema',
+  },
+  {
+    name: 'students by priority',
+    reject: () => jest.mocked(weeklyTagMonitoringService.getStudentsByPriority).mockRejectedValueOnce(
+      new Error('secret alice@example.test token=hidden'),
+    ),
+    call: () => request(buildApp())
+      .get('/api/tag-monitoring/students-by-priority')
+      .query(offlineMarker),
+    code: 'TAG_MONITORING_STUDENTS_BY_PRIORITY_FAILED',
+    message: 'Erro ao buscar alunos por prioridade',
+  },
+])('$name failures use a distinct central redacted error contract', async ({
+  reject,
+  call,
+  code,
+  message,
+}) => {
+  reject()
+
+  const response = await call()
+
+  expect(response.status).toBe(500)
+  expect(response.body).toEqual(expectedError(code, message))
   expectRedacted(response)
 })
