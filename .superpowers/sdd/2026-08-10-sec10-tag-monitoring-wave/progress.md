@@ -4,3 +4,4 @@ Task 1: fix round 2/5 (AST route membership and production mount chain added; co
 Task 1: complete (commits eb34e2e..ac6efc2, review clean)
 Task 3: implemented awaiting review (17 -> 8 local Tag Monitoring 500 sites)
 Task 4: implemented awaiting review (critical 8 -> 0; Tag Monitoring wave 27 -> 0; full gate 318/318 suites, 1734/1734 tests)
+Task 4: review fix P1 (global inventory corrected 233 -> 206; Task 4 214 -> 206; ratchet ceiling 206)
