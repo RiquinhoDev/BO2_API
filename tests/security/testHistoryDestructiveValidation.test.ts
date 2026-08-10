@@ -54,6 +54,7 @@ test('accepts an email and forwards the DTO', async () => {
       body: { email: 'alice@example.test' },
     }),
     expect.anything(),
+    expect.any(Function),
   )
 })
 

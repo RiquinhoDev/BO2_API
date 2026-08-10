@@ -202,7 +202,7 @@
   },
   "src/controllers/populateHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 6
+      "count": 3
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -263,7 +263,7 @@
   },
   "src/controllers/sync/history.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 6
+      "count": 1
     },
     "no-console": {
       "count": 5
@@ -271,7 +271,7 @@
   },
   "src/controllers/sync/operations.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 9
+      "count": 4
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
@@ -282,7 +282,7 @@
   },
   "src/controllers/syncStats/conflicts.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 9
+      "count": 2
     },
     "no-console": {
       "count": 7

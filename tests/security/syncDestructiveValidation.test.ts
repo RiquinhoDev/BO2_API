@@ -107,6 +107,7 @@ test('clean history forwards a numeric days query to the handler', async () => {
       query: { days: '30' },
     }),
     expect.anything(),
+    expect.any(Function),
   )
 })
 

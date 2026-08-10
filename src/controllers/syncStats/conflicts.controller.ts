@@ -1,9 +1,10 @@
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import type { ConflictSeverity, ConflictType, ResolutionAction } from '../../models/SyncModels/SyncConflict'
 import conflictDetectionService from '../../services/syncUtilizadoresServices/conflictDetection.service'
+import { internalError } from '../../security/errorHandling'
 
-export const getConflicts = async (req: Request, res: Response): Promise<void> => {
+export const getConflicts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const {
       status = 'PENDING',
@@ -70,13 +71,9 @@ export const getConflicts = async (req: Request, res: Response): Promise<void> =
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar conflitos:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar conflitos',
-      error: error.message
-    })
+    next(internalError('Erro ao buscar conflitos', 'SYNC_CONFLICT_LIST_FAILED', error))
   }
 }
 
@@ -88,6 +85,7 @@ export const getConflicts = async (req: Request, res: Response): Promise<void> =
 export const getConflictById = async (
   req: Request<{ id: string }>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = req.params
@@ -118,13 +116,9 @@ export const getConflictById = async (
       data: { conflict }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar conflito:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar conflito',
-      error: error.message
-    })
+    next(internalError('Erro ao buscar conflito', 'SYNC_CONFLICT_READ_FAILED', error))
   }
 }
 
@@ -136,6 +130,7 @@ export const getConflictById = async (
 export const resolveConflict = async (
   req: Request<{ id: string }>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = req.params
@@ -184,13 +179,9 @@ export const resolveConflict = async (
       data: { conflict }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao resolver conflito:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao resolver conflito',
-      error: error.message
-    })
+    next(internalError('Erro ao resolver conflito', 'SYNC_CONFLICT_RESOLVE_FAILED', error))
   }
 }
 
@@ -199,7 +190,7 @@ export const resolveConflict = async (
 // POST /api/sync/conflicts/bulk-resolve
 // ═══════════════════════════════════════════════════════════
 
-export const bulkResolveConflicts = async (req: Request, res: Response): Promise<void> => {
+export const bulkResolveConflicts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { conflictIds, action, notes } = req.body
 
@@ -252,13 +243,13 @@ export const bulkResolveConflicts = async (req: Request, res: Response): Promise
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao resolver conflitos em bulk:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao resolver conflitos',
-      error: error.message
-    })
+    next(internalError(
+      'Erro ao resolver conflitos',
+      'SYNC_CONFLICT_BULK_RESOLVE_FAILED',
+      error,
+    ))
   }
 }
 
@@ -267,7 +258,7 @@ export const bulkResolveConflicts = async (req: Request, res: Response): Promise
 // POST /api/sync/conflicts/auto-resolve
 // ═══════════════════════════════════════════════════════════
 
-export const autoResolveConflicts = async (req: Request, res: Response): Promise<void> => {
+export const autoResolveConflicts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { conflictIds } = req.body
 
@@ -301,13 +292,13 @@ export const autoResolveConflicts = async (req: Request, res: Response): Promise
       data: result
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao auto-resolver conflitos:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao auto-resolver conflitos',
-      error: error.message
-    })
+    next(internalError(
+      'Erro ao auto-resolver conflitos',
+      'SYNC_CONFLICT_AUTO_RESOLVE_FAILED',
+      error,
+    ))
   }
 }
 
@@ -319,6 +310,7 @@ export const autoResolveConflicts = async (req: Request, res: Response): Promise
 export const ignoreConflict = async (
   req: Request<{ id: string }>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = req.params
@@ -347,13 +339,9 @@ export const ignoreConflict = async (
       data: { conflict }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao ignorar conflito:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao ignorar conflito',
-      error: error.message
-    })
+    next(internalError('Erro ao ignorar conflito', 'SYNC_CONFLICT_IGNORE_FAILED', error))
   }
 }
 
@@ -362,7 +350,7 @@ export const ignoreConflict = async (
 // GET /api/sync/conflicts/critical
 // ═══════════════════════════════════════════════════════════
 
-export const getCriticalConflicts = async (req: Request, res: Response): Promise<void> => {
+export const getCriticalConflicts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { limit = '20' } = req.query
 
@@ -379,13 +367,13 @@ export const getCriticalConflicts = async (req: Request, res: Response): Promise
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar conflitos críticos:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar conflitos críticos',
-      error: error.message
-    })
+    next(internalError(
+      'Erro ao buscar conflitos críticos',
+      'SYNC_CONFLICT_CRITICAL_LIST_FAILED',
+      error,
+    ))
   }
 }
 

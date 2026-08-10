@@ -1,6 +1,7 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import SyncHistory from '../../models/SyncHistory'
+import { internalError } from '../../security/errorHandling'
 import type { SyncCleanHistoryInput } from '../../security/syncDestructiveInput'
 
 type PipelineStage = mongoose.PipelineStage
@@ -8,7 +9,7 @@ type PipelineStage = mongoose.PipelineStage
  * GET /api/sync/history
  * Buscar histórico de sincronizações
  */
-export const getSyncHistory = async (req: Request, res: Response): Promise<void> => {
+export const getSyncHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const { 
     page = 1, 
     limit = 10, 
@@ -96,12 +97,13 @@ export const getSyncHistory = async (req: Request, res: Response): Promise<void>
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao buscar histórico:", error)
-    res.status(500).json({ 
-      message: "Erro ao buscar histórico de sincronizações", 
-      details: error.message 
-    })
+    next(internalError(
+      "Erro ao buscar histórico de sincronizações",
+      'SYNC_HISTORY_LIST_FAILED',
+      error,
+    ))
   }
 }
 
@@ -109,7 +111,7 @@ export const getSyncHistory = async (req: Request, res: Response): Promise<void>
  * GET /api/sync/stats
  * Estatísticas de sincronização
  */
-export const getSyncStats = async (req: Request, res: Response): Promise<void> => {
+export const getSyncStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const totalSyncs = await SyncHistory.countDocuments()
     const completedSyncs = await SyncHistory.countDocuments({ status: "completed" })
@@ -200,12 +202,13 @@ export const getSyncStats = async (req: Request, res: Response): Promise<void> =
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao buscar estatísticas:", error)
-    res.status(500).json({ 
-      message: "Erro ao buscar estatísticas de sincronização", 
-      details: error.message 
-    })
+    next(internalError(
+      "Erro ao buscar estatísticas de sincronização",
+      'SYNC_STATS_READ_FAILED',
+      error,
+    ))
   }
 }
 
@@ -216,6 +219,7 @@ export const getSyncStats = async (req: Request, res: Response): Promise<void> =
 export const cleanOldHistory = async (
   input: SyncCleanHistoryInput,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   const { days = 90 } = input.query
 
@@ -234,12 +238,9 @@ export const cleanOldHistory = async (
       cutoffDate: cutoffDate.toISOString()
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao limpar histórico:", error)
-    res.status(500).json({ 
-      message: "Erro ao limpar histórico", 
-      details: error.message 
-    })
+    next(internalError('Erro ao limpar histórico', 'SYNC_HISTORY_CLEAN_FAILED', error))
   }
 }
 
@@ -247,7 +248,7 @@ export const cleanOldHistory = async (
  * POST /api/sync/history/:syncId/retry
  * Retry sincronização falhada
  */
-export const retrySyncOperation = async (req: Request, res: Response): Promise<void> => {
+export const retrySyncOperation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const { syncId } = req.params
 
   try {
@@ -282,12 +283,13 @@ export const retrySyncOperation = async (req: Request, res: Response): Promise<v
       newStatus: "pending"
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao fazer retry:", error)
-    res.status(500).json({ 
-      message: "Erro ao fazer retry da sincronização", 
-      details: error.message 
-    })
+    next(internalError(
+      "Erro ao fazer retry da sincronização",
+      'SYNC_HISTORY_RETRY_FAILED',
+      error,
+    ))
   }
 }
 
@@ -295,7 +297,7 @@ export const retrySyncOperation = async (req: Request, res: Response): Promise<v
  * POST /api/sync/history
  * Criar registo de sincronização
  */
-export const createSyncRecord = async (req: Request, res: Response): Promise<void> => {
+export const createSyncRecord = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const { type, user, metadata } = req.body
 
   if (!type || !["hotmart", "curseduca", "discord", "csv"].includes(type)) {
@@ -318,12 +320,13 @@ export const createSyncRecord = async (req: Request, res: Response): Promise<voi
       syncRecord
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao criar registo:", error)
-    res.status(500).json({ 
-      message: "Erro ao criar registo de sincronização", 
-      details: error.message 
-    })
+    next(internalError(
+      "Erro ao criar registo de sincronização",
+      'SYNC_HISTORY_CREATE_FAILED',
+      error,
+    ))
   }
 }
 

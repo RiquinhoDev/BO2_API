@@ -5,6 +5,7 @@
 // ══════════════════════════════════════════════════════════════════════
 
 import express from 'express'
+import { asyncRoute } from '../security/asyncRoute'
 import * as testHistoryController from '../controllers/testHistory.controller'
 import * as populateHistoryController from '../controllers/populateHistory.controller'
 import { testHistoryDeleteEventsInput } from '../security/testHistoryDestructiveInput'
@@ -31,7 +32,7 @@ router.post('/revert-changes', testHistoryController.revertTestChanges)
  * Popula histórico retroativo baseado nos dados existentes dos produtos
  * Body: { email: "user@example.com" } OU { userId: "123..." }
  */
-router.post('/populate-retroactive', populateHistoryController.populateRetroactiveHistory)
+router.post('/populate-retroactive', asyncRoute(populateHistoryController.populateRetroactiveHistory))
 
 /**
  * POST /api/test/history/delete-test-events
@@ -40,8 +41,8 @@ router.post('/populate-retroactive', populateHistoryController.populateRetroacti
  */
 router.post(
   '/delete-test-events',
-  withValidatedInput(testHistoryDeleteEventsInput, (input, _req, res) =>
-    populateHistoryController.deleteTestEvents(input, res)),
+  withValidatedInput(testHistoryDeleteEventsInput, (input, _req, res, next) =>
+    populateHistoryController.deleteTestEvents(input, res, next)),
 )
 
 /**
@@ -49,6 +50,6 @@ router.post(
  * Popula histórico retroativo para TODOS os users (usa com cuidado!)
  * Body: { limit: 100 } (opcional, default 100)
  */
-router.post('/populate-all-users', populateHistoryController.populateAllUsersHistory)
+router.post('/populate-all-users', asyncRoute(populateHistoryController.populateAllUsersHistory))
 
 export default router

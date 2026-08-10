@@ -5,6 +5,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
+import { asyncRoute } from '../../security/asyncRoute'
 import * as syncStatsController from '../../controllers/syncUtilizadoresControllers/syncStats.controller'
 
 const router = Router()
@@ -54,7 +55,7 @@ router.get('/history/:id', syncStatsController.getSyncById)
  * @query   limit? - Limite de resultados (default: 50)
  * @access  Private (Admin)
  */
-router.get('/conflicts', syncStatsController.getConflicts)
+router.get('/conflicts', asyncRoute(syncStatsController.getConflicts))
 
 /**
  * @route   GET /api/sync/conflicts/critical
@@ -62,14 +63,14 @@ router.get('/conflicts', syncStatsController.getConflicts)
  * @query   limit? - Limite de resultados (default: 20)
  * @access  Private (Admin)
  */
-router.get('/conflicts/critical', syncStatsController.getCriticalConflicts)
+router.get('/conflicts/critical', asyncRoute(syncStatsController.getCriticalConflicts))
 
 /**
  * @route   GET /api/sync/conflicts/:id
  * @desc    Detalhes de conflito específico
  * @access  Private (Admin)
  */
-router.get('/conflicts/:id', syncStatsController.getConflictById)
+router.get('/conflicts/:id', asyncRoute(syncStatsController.getConflictById))
 
 /**
  * @route   POST /api/sync/conflicts/:id/resolve
@@ -77,7 +78,7 @@ router.get('/conflicts/:id', syncStatsController.getConflictById)
  * @body    { action: 'MERGED' | 'KEPT_EXISTING' | 'USED_NEW' | 'MANUAL' | 'IGNORED', notes?, appliedChanges? }
  * @access  Private (Admin)
  */
-router.post('/conflicts/:id/resolve', syncStatsController.resolveConflict)
+router.post('/conflicts/:id/resolve', asyncRoute(syncStatsController.resolveConflict))
 
 /**
  * @route   POST /api/sync/conflicts/:id/ignore
@@ -85,7 +86,7 @@ router.post('/conflicts/:id/resolve', syncStatsController.resolveConflict)
  * @body    { reason? }
  * @access  Private (Admin)
  */
-router.post('/conflicts/:id/ignore', syncStatsController.ignoreConflict)
+router.post('/conflicts/:id/ignore', asyncRoute(syncStatsController.ignoreConflict))
 
 /**
  * @route   POST /api/sync/conflicts/bulk-resolve
@@ -93,7 +94,7 @@ router.post('/conflicts/:id/ignore', syncStatsController.ignoreConflict)
  * @body    { conflictIds: string[], action: ResolutionAction, notes? }
  * @access  Private (Admin)
  */
-router.post('/conflicts/bulk-resolve', syncStatsController.bulkResolveConflicts)
+router.post('/conflicts/bulk-resolve', asyncRoute(syncStatsController.bulkResolveConflicts))
 
 /**
  * @route   POST /api/sync/conflicts/auto-resolve
@@ -101,7 +102,7 @@ router.post('/conflicts/bulk-resolve', syncStatsController.bulkResolveConflicts)
  * @body    { conflictIds: string[] }
  * @access  Private (Admin)
  */
-router.post('/conflicts/auto-resolve', syncStatsController.autoResolveConflicts)
+router.post('/conflicts/auto-resolve', asyncRoute(syncStatsController.autoResolveConflicts))
 
 // ═══════════════════════════════════════════════════════════
 // ACTIVITY SNAPSHOTS

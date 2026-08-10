@@ -26,17 +26,17 @@ const router = Router()
 // Pipeline completo (4 steps: Sync Hotmart → Sync CursEduca → Recalc Engagement → Tag Rules)
 router.post(
   '/execute-pipeline',
-  withValidatedInput(syncExecutePipelineInput, (input, _req, res) =>
-    syncController.executePipeline(input, res)),
+  withValidatedInput(syncExecutePipelineInput, (input, _req, res, next) =>
+    syncController.executePipeline(input, res, next)),
 )
 
 // Hotmart sync
-router.post('/hotmart', syncController.syncHotmartEndpoint)
-router.post('/hotmart/batch', syncController.syncHotmartBatchEndpoint)
+router.post('/hotmart', asyncRoute(syncController.syncHotmartEndpoint))
+router.post('/hotmart/batch', asyncRoute(syncController.syncHotmartBatchEndpoint))
 
 // CursEduca sync
-router.post('/curseduca', syncController.syncCurseducaEndpoint)
-router.post('/curseduca/batch', syncController.syncCurseducaBatchEndpoint)
+router.post('/curseduca', asyncRoute(syncController.syncCurseducaEndpoint))
+router.post('/curseduca/batch', asyncRoute(syncController.syncCurseducaBatchEndpoint))
 
 // Discord sync
 router.post('/discord', syncController.syncDiscordEndpoint)
@@ -48,17 +48,17 @@ router.post('/discord/batch', syncController.syncDiscordBatchEndpoint)
 // ═══════════════════════════════════════════════════════════
 
 // Histórico
-router.get('/history', syncController.getSyncHistory)
-router.post('/history', syncController.createSyncRecord)
-router.post('/history/:syncId/retry', syncController.retrySyncOperation)
+router.get('/history', asyncRoute(syncController.getSyncHistory))
+router.post('/history', asyncRoute(syncController.createSyncRecord))
+router.post('/history/:syncId/retry', asyncRoute(syncController.retrySyncOperation))
 router.delete(
   '/history/clean',
-  withValidatedInput(syncCleanHistoryInput, (input, _req, res) =>
-    syncController.cleanOldHistory(input, res)),
+  withValidatedInput(syncCleanHistoryInput, (input, _req, res, next) =>
+    syncController.cleanOldHistory(input, res, next)),
 )
 
 // Estatísticas
-router.get('/stats', syncController.getSyncStats)
+router.get('/stats', asyncRoute(syncController.getSyncStats))
 router.get('/status', asyncRoute(syncController.getSyncStatus))
 
 export default router

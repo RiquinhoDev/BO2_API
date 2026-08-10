@@ -1,9 +1,24 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import { executeDailyPipeline } from '../../services/cron/dailyPipeline.service'
 import universalSyncService from '../../services/syncUtilizadoresServices/universalSync'
 import hotmartAdapter from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import curseducaAdapter from '../../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { internalError } from '../../security/errorHandling'
 import type { SyncExecutePipelineInput } from '../../security/syncDestructiveInput'
+
+function forwardSyncFailure(
+  error: unknown,
+  next: NextFunction,
+  publicMessage: string,
+  code: string,
+): void {
+  if (error instanceof IntegrationUnavailableError) {
+    next(error)
+    return
+  }
+  next(internalError(publicMessage, code, error))
+}
 /**
  * POST /api/sync/execute-pipeline
  * Executar pipeline diário completo
@@ -11,6 +26,7 @@ import type { SyncExecutePipelineInput } from '../../security/syncDestructiveInp
 export const executePipeline = async (
   _input: SyncExecutePipelineInput,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const result = await executeDailyPipeline()
@@ -24,21 +40,25 @@ export const executePipeline = async (
         steps: result.steps
       })
     } else {
-      res.status(500).json({
-        success: false,
-        message: 'Pipeline executado com erros',
+      const cause = new Error(JSON.stringify({
         duration: result.duration,
-        errors: result.errors,
-        steps: result.steps
-      })
+        errors: result.errors.length,
+        steps: result.steps,
+      }))
+      next(internalError(
+        'Pipeline executado com erros',
+        'SYNC_PIPELINE_COMPLETED_WITH_ERRORS',
+        cause,
+      ))
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] ❌ Erro ao executar pipeline:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro fatal ao executar pipeline',
-      error: error.message
-    })
+    forwardSyncFailure(
+      error,
+      next,
+      'Erro fatal ao executar pipeline',
+      'SYNC_PIPELINE_EXECUTION_FAILED',
+    )
   }
 }
 
@@ -50,7 +70,7 @@ export const executePipeline = async (
  * POST /api/sync/hotmart
  * Sincronizar user Hotmart individual via Universal Sync
  */
-export const syncHotmartEndpoint = async (req: Request, res: Response): Promise<void> => {
+export const syncHotmartEndpoint = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { email, subdomain, name, status, progress, lastAccess, classes } = req.body
     
@@ -94,12 +114,9 @@ export const syncHotmartEndpoint = async (req: Request, res: Response): Promise<
       stats: result.stats,
       reportId: result.reportId
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] ❌ Erro ao sincronizar Hotmart:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+    forwardSyncFailure(error, next, 'Erro ao sincronizar Hotmart', 'SYNC_HOTMART_USER_FAILED')
   }
 }
 
@@ -107,7 +124,7 @@ export const syncHotmartEndpoint = async (req: Request, res: Response): Promise<
  * POST /api/sync/hotmart/batch
  * Sincronizar múltiplos users Hotmart via Universal Sync
  */
-export const syncHotmartBatchEndpoint = async (req: Request, res: Response): Promise<void> => {
+export const syncHotmartBatchEndpoint = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { subdomain } = req.body
     
@@ -149,12 +166,9 @@ export const syncHotmartBatchEndpoint = async (req: Request, res: Response): Pro
       reportId: result.reportId,
       duration: result.duration
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] ❌ Erro ao sincronizar Hotmart batch:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+    forwardSyncFailure(error, next, 'Erro ao sincronizar Hotmart batch', 'SYNC_HOTMART_BATCH_FAILED')
   }
 }
 
@@ -166,7 +180,7 @@ export const syncHotmartBatchEndpoint = async (req: Request, res: Response): Pro
  * POST /api/sync/curseduca
  * Sincronizar user CursEduca individual via Universal Sync
  */
-export const syncCurseducaEndpoint = async (req: Request, res: Response): Promise<void> => {
+export const syncCurseducaEndpoint = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { email, groupId } = req.body
     
@@ -215,12 +229,9 @@ export const syncCurseducaEndpoint = async (req: Request, res: Response): Promis
       stats: result.stats,
       reportId: result.reportId
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] ❌ Erro ao sincronizar CursEduca:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+    forwardSyncFailure(error, next, 'Erro ao sincronizar CursEduca', 'SYNC_CURSEDUCA_USER_FAILED')
   }
 }
 
@@ -228,7 +239,7 @@ export const syncCurseducaEndpoint = async (req: Request, res: Response): Promis
  * POST /api/sync/curseduca/batch
  * Sincronizar múltiplos users CursEduca via Universal Sync
  */
-export const syncCurseducaBatchEndpoint = async (req: Request, res: Response): Promise<void> => {
+export const syncCurseducaBatchEndpoint = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { groupId } = req.body
     
@@ -267,12 +278,9 @@ export const syncCurseducaBatchEndpoint = async (req: Request, res: Response): P
       reportId: result.reportId,
       duration: result.duration
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API] ❌ Erro ao sincronizar CursEduca batch:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+    forwardSyncFailure(error, next, 'Erro ao sincronizar CursEduca batch', 'SYNC_CURSEDUCA_BATCH_FAILED')
   }
 }
 
