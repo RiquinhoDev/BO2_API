@@ -808,13 +808,13 @@
   },
   "src/services/cron/scheduler.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 16
+      "count": 7
     },
     "@typescript-eslint/no-unused-vars": {
-      "count": 4
+      "count": 2
     },
     "no-console": {
-      "count": 68
+      "count": 39
     }
   },
   "src/services/dashboardStatsBuilder.service.ts": {
