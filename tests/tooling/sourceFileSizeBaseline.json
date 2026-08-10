@@ -9,7 +9,6 @@
   "src/controllers/syncUtilizadoresControllers/curseduca.controller.ts": 974,
   "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": 507,
   "src/controllers/tagEvaluation.controller.ts": 570,
-  "src/controllers/testimonials.controller.ts": 1216,
   "src/models/Class.ts": 599,
   "src/models/SyncModels/ActivitySnapshot.ts": 503,
   "src/models/SyncModels/SyncReport.ts": 538,
