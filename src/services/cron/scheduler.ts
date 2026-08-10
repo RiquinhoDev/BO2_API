@@ -17,15 +17,10 @@ import { cronExpressionService } from './scheduler/cronExpression'
 import { cronJobDispatcher } from './scheduler/jobDispatcher'
 import { CronJobExecutor } from './scheduler/jobExecution'
 import { createLoggingCronNotification } from './scheduler/notificationPort'
+import { CronJobProvisioner } from './scheduler/jobProvisioning'
 import logger from '../../utils/logger'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
-const RENEWAL_OFFER_SYNC_JOB_NAME = 'RenewalOfferSync'
-const ACHIEVEMENT_EVALUATION_JOB_NAME = 'AchievementEvaluation'
-const RENEWAL_AC_SYNC_JOB_NAME = 'RenewalAcSync'
-const DISCORD_ROLES_SYNC_JOB_NAME = 'DiscordRolesSync'
-const DISCORD_SCHEDULED_MESSAGES_JOB_NAME = 'DiscordScheduledMessages'
-const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('000000000000000000000001')
 
 // ─────────────────────────────────────────────────────────────
 // IN-MEMORY SCHEDULER REGISTRY
@@ -56,6 +51,13 @@ const defaultCronJobExecutor = new CronJobExecutor({
   now: Date.now,
   reportError: (message, error) => logger.error(message, error)
 })
+const systemJobProvisioner = new CronJobProvisioner(
+  {
+    findByName: name => CronJobConfig.findOne({ name }),
+    create: seed => CronJobConfig.create(seed)
+  },
+  expression => cronExpressionService.calculateNextRun(expression)
+)
 
 // ─────────────────────────────────────────────────────────────
 // SERVICE CLASS
@@ -346,236 +348,13 @@ const job = await CronJobConfig.create({
   // SCHEDULER INITIALIZATION
   // ═══════════════════════════════════════════════════════════
 
-  private async ensureRenewalOfferSyncJob(): Promise<void> {
-    const cronExpression = '0 5 * * *' // diário às 05:00
-
-    const existingJob = await CronJobConfig.findOne({ name: RENEWAL_OFFER_SYNC_JOB_NAME })
-    if (existingJob) {
-      // actualizar o agendamento se mudou (ex: era semanal, passou a diário)
-      if (existingJob.schedule?.cronExpression !== cronExpression) {
-        existingJob.schedule.cronExpression = cronExpression
-        existingJob.nextRun = this.calculateNextRun(cronExpression)
-        await existingJob.save()
-        console.log('[RenewalOfferSync] Cron actualizado para diário (05:00 Lisboa)')
-      }
-      return
-    }
-
-    await CronJobConfig.create({
-      name: RENEWAL_OFFER_SYNC_JOB_NAME,
-      description: 'Sincroniza diariamente ofertas de renovação OGI a partir da Hotmart',
-      syncType: 'hotmart',
-      schedule: {
-        cronExpression,
-        timezone: 'Europe/Lisbon',
-        enabled: true
-      },
-      syncConfig: {
-        fullSync: false,
-        includeProgress: false,
-        includeTags: false,
-        batchSize: 100
-      },
-      tagRules: [],
-      tagRuleOptions: {
-        enabled: false,
-        executeAllRules: false,
-        runInParallel: false,
-        stopOnError: false
-      },
-      notifications: {
-        enabled: false,
-        emailOnSuccess: false,
-        emailOnFailure: true,
-        recipients: []
-      },
-      retryPolicy: {
-        maxRetries: 2,
-        retryDelayMinutes: 30,
-        exponentialBackoff: true
-      },
-      nextRun: this.calculateNextRun(cronExpression),
-      createdBy: SYSTEM_CRON_ADMIN_ID,
-      isActive: true,
-      totalRuns: 0,
-      successfulRuns: 0,
-      failedRuns: 0
-    })
-
-    console.log('[RenewalOfferSync] Cron diário criado (05:00 Lisboa)')
-  }
-
-  private async ensureAchievementEvaluationJob(): Promise<void> {
-    const cronExpression = '30 4 * * *' // diário às 04:30
-
-    const existingJob = await CronJobConfig.findOne({ name: ACHIEVEMENT_EVALUATION_JOB_NAME })
-    if (existingJob) {
-      if (existingJob.schedule?.cronExpression !== cronExpression) {
-        existingJob.schedule.cronExpression = cronExpression
-        existingJob.nextRun = this.calculateNextRun(cronExpression)
-        await existingJob.save()
-        console.log('[AchievementEvaluation] Cron atualizado para diário (04:30 Lisboa)')
-      }
-      return
-    }
-
-    await CronJobConfig.create({
-      name: ACHIEVEMENT_EVALUATION_JOB_NAME,
-      description: 'Avalia diariamente conquistas OGI para manter o cache atualizado',
-      syncType: 'hotmart',
-      schedule: {
-        cronExpression,
-        timezone: 'Europe/Lisbon',
-        enabled: true
-      },
-      syncConfig: {
-        fullSync: false,
-        includeProgress: false,
-        includeTags: false,
-        batchSize: 100
-      },
-      tagRules: [],
-      tagRuleOptions: {
-        enabled: false,
-        executeAllRules: false,
-        runInParallel: false,
-        stopOnError: false
-      },
-      notifications: {
-        enabled: false,
-        emailOnSuccess: false,
-        emailOnFailure: true,
-        recipients: []
-      },
-      retryPolicy: {
-        maxRetries: 2,
-        retryDelayMinutes: 30,
-        exponentialBackoff: true
-      },
-      nextRun: this.calculateNextRun(cronExpression),
-      createdBy: SYSTEM_CRON_ADMIN_ID,
-      isActive: true,
-      totalRuns: 0,
-      successfulRuns: 0,
-      failedRuns: 0
-    })
-
-    console.log('[AchievementEvaluation] Cron diário criado (04:30 Lisboa)')
-  }
-
-  /**
-   * Cron da Fase B (Renovação OGI → AC). NASCE DESLIGADO e o seed é
-   * create-only: NUNCA altera enabled/isActive de um job existente —
-   * ligar/desligar é decisão exclusiva da UI/BD (kill switch, 13.2/13.3).
-   */
-  private async ensureRenewalAcSyncJob(): Promise<void> {
-    const existingJob = await CronJobConfig.findOne({ name: RENEWAL_AC_SYNC_JOB_NAME })
-    if (existingJob) return
-
-    await CronJobConfig.create({
-      name: RENEWAL_AC_SYNC_JOB_NAME,
-      description: 'Renovação OGI → ActiveCampaign (Fase B): gera plano de alterações (data de expiração + tags de turma + reversões por reembolso) e, só com os switches RENEWAL_AC_* ligados, executa-o. Ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md.',
-      syncType: 'hotmart',
-      schedule: {
-        cronExpression: '30 7 * * *', // 07:30 Lisboa — 3h30 depois do sync "1º" (04:00)
-        timezone: 'Europe/Lisbon',
-        enabled: false // ⛔ nasce DESLIGADO — ligar é acção manual na UI
-      },
-      syncConfig: { fullSync: false, includeProgress: false, includeTags: false, batchSize: 100 },
-      tagRules: [],
-      tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
-      notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: true, recipients: [] },
-      retryPolicy: { maxRetries: 1, retryDelayMinutes: 30, exponentialBackoff: false },
-      nextRun: this.calculateNextRun('30 7 * * *'),
-      createdBy: SYSTEM_CRON_ADMIN_ID,
-      isActive: true,
-      totalRuns: 0,
-      successfulRuns: 0,
-      failedRuns: 0
-    })
-
-    console.log('[RenewalAcSync] Cron criado DESLIGADO (07:30 Lisboa) — ligar manualmente na UI quando a feature for activada')
-  }
-
-  /**
-   * Cron dos cargos de renovação Discord. NASCE DESLIGADO; seed
-   * create-only (nunca altera enabled/isActive — kill switch respeitado).
-   */
-  private async ensureDiscordRolesSyncJob(): Promise<void> {
-    const existingJob = await CronJobConfig.findOne({ name: DISCORD_ROLES_SYNC_JOB_NAME })
-    if (existingJob) return
-
-    await CronJobConfig.create({
-      name: DISCORD_ROLES_SYNC_JOB_NAME,
-      description: 'Reconciliação nocturna dos cargos de renovação Discord (R. Janeiro…R. Dezembro) com base na turma Hotmart de cada aluno. Gera plano revisável; só executa com os switches DISCORD_ROLES_* ligados. Ver docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.',
-      syncType: 'hotmart',
-      schedule: {
-        cronExpression: '30 5 * * *', // 05:30 Lisboa — depois do sync "1º" (04:00)
-        timezone: 'Europe/Lisbon',
-        enabled: false // ⛔ nasce DESLIGADO — ligar é acção manual na UI
-      },
-      syncConfig: { fullSync: false, includeProgress: false, includeTags: false, batchSize: 100 },
-      tagRules: [],
-      tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
-      notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: true, recipients: [] },
-      retryPolicy: { maxRetries: 1, retryDelayMinutes: 30, exponentialBackoff: false },
-      nextRun: this.calculateNextRun('30 5 * * *'),
-      createdBy: SYSTEM_CRON_ADMIN_ID,
-      isActive: true,
-      totalRuns: 0,
-      successfulRuns: 0,
-      failedRuns: 0
-    })
-
-    console.log('[DiscordRolesSync] Cron criado DESLIGADO (05:30 Lisboa) — ligar manualmente na UI quando a feature for activada')
-  }
-
-  /**
-   * Cron das mensagens agendadas de renovação (dia 8 lembrete + dia 15 último aviso
-   * ao cargo R.{mês anterior}). NASCE DESLIGADO; seed create-only. Corre DIARIAMENTE
-   * às 10:00 Lisboa — é o próprio job que verifica se hoje é dia de alguma regra.
-   * Ver secção 12 do docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.
-   */
-  private async ensureDiscordScheduledMessagesJob(): Promise<void> {
-    const existingJob = await CronJobConfig.findOne({ name: DISCORD_SCHEDULED_MESSAGES_JOB_NAME })
-    if (existingJob) return
-
-    await CronJobConfig.create({
-      name: DISCORD_SCHEDULED_MESSAGES_JOB_NAME,
-      description: 'Mensagens agendadas de renovação no Discord: dia 8 lembrete e dia 15 último aviso, mencionando o cargo R.{mês anterior}. Só envia com DISCORD_SCHEDULED_MESSAGES_ENABLED=true + regra ligada; salta meses sem renovações (cargo sem membros). Ver secção 12 do docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.',
-      syncType: 'hotmart',
-      schedule: {
-        cronExpression: '0 10 * * *', // 10:00 Lisboa, diário — o job decide se hoje há mensagem
-        timezone: 'Europe/Lisbon',
-        enabled: false // ⛔ nasce DESLIGADO — ligar é acção manual na UI
-      },
-      syncConfig: { fullSync: false, includeProgress: false, includeTags: false, batchSize: 100 },
-      tagRules: [],
-      tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
-      notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: true, recipients: [] },
-      retryPolicy: { maxRetries: 1, retryDelayMinutes: 30, exponentialBackoff: false },
-      nextRun: this.calculateNextRun('0 10 * * *'),
-      createdBy: SYSTEM_CRON_ADMIN_ID,
-      isActive: true,
-      totalRuns: 0,
-      successfulRuns: 0,
-      failedRuns: 0
-    })
-
-    console.log('[DiscordScheduledMessages] Cron criado DESLIGADO (10:00 Lisboa, diário) — ligar manualmente na UI quando a feature for activada')
-  }
-
   async initializeScheduler(): Promise<void> {
     console.log('🚀 Inicializando scheduler...')
 
     // Limpar registry
     registry.clear()
 
-    await this.ensureRenewalOfferSyncJob()
-    await this.ensureAchievementEvaluationJob()
-    await this.ensureRenewalAcSyncJob()
-    await this.ensureDiscordRolesSyncJob()
-    await this.ensureDiscordScheduledMessagesJob()
+    await systemJobProvisioner.ensureSystemJobs()
 
     // Carregar todos os jobs ativos
     const activeJobs = await CronJobConfig.getActiveJobs()

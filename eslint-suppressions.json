@@ -814,7 +814,7 @@
       "count": 1
     },
     "no-console": {
-      "count": 24
+      "count": 17
     }
   },
   "src/services/dashboardStatsBuilder.service.ts": {
