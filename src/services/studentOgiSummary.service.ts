@@ -1,5 +1,3 @@
-import { timingSafeEqual } from 'node:crypto'
-import { getStudentSummaryToken } from './requestDrivenRuntimeConfig'
 import mongoose from 'mongoose'
 import Product from '../models/product/Product'
 import User from '../models/user'
@@ -12,7 +10,15 @@ import { findRenewalOffer } from './renewal/renewalMatcher.service'
 import { buildCheckoutLink } from './renewal/renewalSync.service'
 import { GENERIC_RENEWAL_OFFER_CODE } from './renewal/renewalConstants'
 import { parseTurmaName, resolveAccessEnd } from './renewal/turmaParser'
-import { verifyStudentAccessToken } from '../security/jwt'
+import { getActiveHotmartClassName, normalizeStudentEmail } from './studentOgiSummary/access'
+
+export {
+  getStudentAccess,
+  isValidSummaryAccessToken,
+  normalizeStudentEmail,
+  resolveStudentEmailFromToken
+} from './studentOgiSummary/access'
+export type { StudentAccessResult } from './studentOgiSummary/access'
 
 type MongooseReadModel = mongoose.Model<mongoose.Document>
 type StudentSummarySource = 'userProduct' | 'legacyHotmart' | 'none'
@@ -174,81 +180,6 @@ interface CourseLessonLean {
   moduleSequence: number
   lessonSequence: number
   url?: string
-}
-
-export function normalizeStudentEmail(email: string): string {
-  return email.trim().toLowerCase()
-}
-
-export function resolveStudentEmailFromToken(token: string): string {
-  const payload = verifyStudentAccessToken<{ email?: string }>(token)
-  if (!payload.email) {
-    throw new Error('STUDENT_TOKEN_EMAIL_MISSING')
-  }
-
-  return normalizeStudentEmail(payload.email)
-}
-
-export function isValidSummaryAccessToken(token?: string): boolean {
-  const expectedToken = getStudentSummaryToken()
-  if (!expectedToken || !token) return false
-
-  const expected = Buffer.from(expectedToken)
-  const received = Buffer.from(token)
-  return expected.length === received.length && timingSafeEqual(expected, received)
-}
-
-export interface StudentAccessResult {
-  found: boolean
-  email: string
-  name?: string
-  active: boolean
-  expiresAt: Date | null
-  className: string | null
-  purchaseDate: Date | null
-  manuallyInactivated: boolean
-  reason: 'OK' | 'INACTIVATED' | 'EXPIRED' | 'NO_DATA'
-  source: 'bo2'
-}
-
-/**
- * Decisão de acesso LEVE (sem efeitos secundários: não avalia achievements
- * nem regista streak). Usada pela API legacy no gate de login — fonte única
- * da regra de acesso (2 camadas: compra + nome da turma, via resolveAccessEnd)
- * + inativação manual do Backoffice.
- */
-export async function getStudentAccess(email: string): Promise<StudentAccessResult | null> {
-  const normalizedEmail = normalizeStudentEmail(email)
-  const user = await User.findOne({ email: normalizedEmail })
-    .select('name email hotmart.enrolledClasses hotmart.purchaseDate hotmart.signupDate inactivation')
-    .lean()
-    .exec() as StudentLean | null
-
-  if (!user) return null
-
-  const activeClassName = getActiveHotmartClassName(user)
-  const purchaseDate = user.hotmart?.purchaseDate || user.hotmart?.signupDate || null
-  const expiresAt = resolveAccessEnd(purchaseDate, activeClassName)
-  const manuallyInactivated = Boolean(user.inactivation?.isManuallyInactivated)
-  const dateValid = Boolean(expiresAt && expiresAt.getTime() >= Date.now())
-
-  let reason: StudentAccessResult['reason'] = 'OK'
-  if (manuallyInactivated) reason = 'INACTIVATED'
-  else if (!expiresAt) reason = 'NO_DATA'
-  else if (!dateValid) reason = 'EXPIRED'
-
-  return {
-    found: true,
-    email: user.email,
-    name: user.name,
-    active: !manuallyInactivated && dateValid,
-    expiresAt: expiresAt ?? null,
-    className: activeClassName ?? null,
-    purchaseDate: purchaseDate ?? null,
-    manuallyInactivated,
-    reason,
-    source: 'bo2'
-  }
 }
 
 export async function getStudentOgiSummary(email: string): Promise<StudentOgiSummary | null> {
@@ -457,14 +388,6 @@ function getSummarySource(user: StudentLean, userProduct: UserProductLean | null
   if (userProduct) return 'userProduct'
   if (user.hotmart) return 'legacyHotmart'
   return 'none'
-}
-
-function getActiveHotmartClassName(user: StudentLean): string | undefined {
-  const classes = user.hotmart?.enrolledClasses || []
-  const activeClass = classes.find((classItem) => classItem.className && classItem.isActive !== false)
-    || classes.find((classItem) => classItem.className)
-
-  return activeClass?.className
 }
 
 function getTotalLessons(
