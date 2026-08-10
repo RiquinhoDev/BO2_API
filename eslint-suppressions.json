@@ -578,15 +578,22 @@
       "count": 4
     }
   },
-  "src/models/user.ts": {
+  "src/models/user.behavior.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 8
-    },
+      "count": 3
+    }
+  },
+  "src/models/user.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
     "no-console": {
       "count": 2
+    }
+  },
+  "src/models/user.types.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
     }
   },
   "src/routes/ACroutes/activecampaign.routes.ts": {
