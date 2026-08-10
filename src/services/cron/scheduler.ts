@@ -20,6 +20,7 @@ import universalSyncService from '../syncUtilizadoresServices/universalSync'
 import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../types/cron.types'
 import { SchedulerRegistry } from './scheduler/registry'
+import { cronExpressionService } from './scheduler/cronExpression'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
 const RENEWAL_OFFER_SYNC_JOB_NAME = 'RenewalOfferSync'
@@ -1228,89 +1229,15 @@ private async executePipelineJob(job: ICronJobConfig): Promise<{
   // ═══════════════════════════════════════════════════════════
 
   private validateCronExpression(expression: string): void {
-    // Validação básica de formato cron (5 ou 6 campos)
-    const parts = expression.trim().split(/\s+/)
-    
-    if (parts.length < 5 || parts.length > 6) {
-      throw new Error(
-        `Cron expression inválida: "${expression}". Deve ter 5 ou 6 campos.`
-      )
-    }
-
-    // Tentar agendar um teste (node-schedule valida automaticamente)
-    try {
-      const testJob = schedule.scheduleJob(expression, () => {})
-      if (!testJob) {
-        throw new Error('Expressão inválida')
-      }
-      testJob.cancel()
-    } catch (error) {
-      throw new Error(`Cron expression inválida: "${expression}"`)
-    }
+    cronExpressionService.validate(expression)
   }
 
   private calculateNextRun(expression: string): Date {
-    // Criar um job temporário para obter a próxima execução
-    const testJob = schedule.scheduleJob(expression, () => {})
-    
-    if (!testJob) {
-      // Fallback: próxima hora
-      const next = new Date()
-      next.setHours(next.getHours() + 1, 0, 0, 0)
-      return next
-    }
-
-    const nextRun = testJob.nextInvocation()
-    testJob.cancel()
-    
-    if (!nextRun) {
-      // Fallback: próxima hora
-      const next = new Date()
-      next.setHours(next.getHours() + 1, 0, 0, 0)
-      return next
-    }
-    
-    return nextRun
+    return cronExpressionService.calculateNextRun(expression)
   }
 
-  getNextExecutions(
-    expression: string,
-    count: number = 5
-  ): Date[] {
-    const executions: Date[] = []
-    
-    try {
-      // O node-schedule não tem uma forma direta de obter múltiplas execuções
-      // Vamos calcular manualmente baseado no primeiro next
-      const testJob = schedule.scheduleJob(expression, () => {})
-      
-      if (!testJob) {
-        return executions
-      }
-
-      const firstNext = testJob.nextInvocation()
-      testJob.cancel()
-      
-      if (!firstNext) {
-        return executions
-      }
-
-      // Adicionar a primeira execução
-      executions.push(firstNext)
-      
-      // Para as próximas, vamos apenas adicionar intervalos estimados
-      // (Isto é uma simplificação - o ideal seria usar cron-parser aqui,
-      // mas para evitar problemas de import, fazemos uma aproximação)
-      
-      // Se for um cron simples (ex: "0 2 * * *"), podemos estimar
-      // Por agora, retornamos apenas a próxima execução
-      // TODO: Implementar cálculo de múltiplas execuções se necessário
-      
-    } catch (error) {
-      console.error('Erro ao calcular próximas execuções:', error)
-    }
-
-    return executions
+  getNextExecutions(expression: string, count = 5): Date[] {
+    return cronExpressionService.getNextExecutions(expression, count)
   }
 }
 

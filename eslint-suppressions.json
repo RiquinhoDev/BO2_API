@@ -811,13 +811,10 @@
       "count": 16
     },
     "@typescript-eslint/no-unused-vars": {
-      "count": 6
+      "count": 4
     },
     "no-console": {
-      "count": 69
-    },
-    "preserve-caught-error": {
-      "count": 1
+      "count": 68
     }
   },
   "src/services/dashboardStatsBuilder.service.ts": {
