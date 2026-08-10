@@ -42,19 +42,13 @@
     }
   },
   "src/controllers/cohortAnalytics.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "no-console": {
-      "count": 2
+      "count": 1
     }
   },
   "src/controllers/course.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    },
     "no-console": {
-      "count": 8
+      "count": 3
     }
   },
   "src/controllers/dashboard.controller.ts": {
@@ -89,22 +83,22 @@
   },
   "src/controllers/engagement/details.controller.ts": {
     "no-console": {
-      "count": 4
+      "count": 3
     }
   },
   "src/controllers/engagement/stats.controller.ts": {
     "no-console": {
-      "count": 4
+      "count": 3
     }
   },
   "src/controllers/engagement/summary.controller.ts": {
     "no-console": {
-      "count": 7
+      "count": 5
     }
   },
   "src/controllers/engagement/users.controller.ts": {
     "no-console": {
-      "count": 5
+      "count": 4
     }
   },
   "src/controllers/guru.sso.controller.ts": {
@@ -188,11 +182,8 @@
     }
   },
   "src/controllers/lessons.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    },
     "no-console": {
-      "count": 9
+      "count": 4
     }
   },
   "src/controllers/metrics.controller.ts": {

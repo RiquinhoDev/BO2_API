@@ -1,8 +1,8 @@
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
-import { type EngagementStats, errorMessage, statsCache } from './support'
+import { type EngagementStats, forwardEngagementError, statsCache } from './support'
 
-export const getGlobalEngagementStats = async (req: Request, res: Response): Promise<void> => {
+export const getGlobalEngagementStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const cacheKey = 'global-engagement-stats'
     const startTime = Date.now()
@@ -180,19 +180,14 @@ export const getGlobalEngagementStats = async (req: Request, res: Response): Pro
     })
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao calcular estatísticas de engagement:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao calcular estatísticas de engagement',
-      details: errorMessage(error)
-    })
+    forwardEngagementError(next, error, 'Erro ao calcular estatísticas de engagement', 'ENGAGEMENT_SUMMARY_READ_FAILED')
   }
 }
 
 // ✅ CONTROLADOR PARA DETALHES DE UTILIZADORES - VERSÃO OTIMIZADA COM AGREGAÇÃO
 // 🚀 Esta versão usa MongoDB Aggregation Pipeline para máxima performance e escalabilidade
 
-export const clearEngagementCache = async (req: Request, res: Response): Promise<void> => {
+export const clearEngagementCache = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const sizeBefore = statsCache.getSize()
     statsCache.clear()
@@ -205,12 +200,7 @@ export const clearEngagementCache = async (req: Request, res: Response): Promise
       clearedItems: sizeBefore
     })
   } catch (error: unknown) {
-    console.error('❌ Error clearing engagement cache:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao limpar cache',
-      details: errorMessage(error)
-    })
+    forwardEngagementError(next, error, 'Erro ao limpar cache', 'ENGAGEMENT_CACHE_CLEAR_FAILED')
   }
 }
 

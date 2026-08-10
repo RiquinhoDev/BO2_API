@@ -1,8 +1,8 @@
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
-import { errorMessage } from './support'
+import { forwardEngagementError } from './support'
 
-export const getEngagementStats = async (req: Request, res: Response): Promise<void> => {
+export const getEngagementStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     console.log('📊 GET /api/engagement/stats - Calculando estatísticas...')
     
@@ -186,12 +186,7 @@ export const getEngagementStats = async (req: Request, res: Response): Promise<v
     })
 
   } catch (error: unknown) {
-    console.error('❌ Erro getEngagementStats:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao calcular estatísticas',
-      error: errorMessage(error)
-    })
+    forwardEngagementError(next, error, 'Erro ao calcular estatísticas', 'ENGAGEMENT_STATS_READ_FAILED')
   }
 }
 

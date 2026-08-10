@@ -3,6 +3,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
+import { asyncRoute } from '../security/asyncRoute'
 import cohortAnalyticsController from '../controllers/cohortAnalytics.controller'
 
 const router = Router()
@@ -11,7 +12,7 @@ const router = Router()
 // Query params: productId, platform, startDate, endDate, selectedCohort
 router.get(
   '/',
-  cohortAnalyticsController.getCohortAnalysis
+  asyncRoute(cohortAnalyticsController.getCohortAnalysis)
 )
 
 export default router

@@ -63,17 +63,6 @@ const BASELINE = {
     "src/controllers/auth.controller.ts:154",
     "src/controllers/auth.controller.ts:207",
     "src/controllers/auth.controller.ts:270",
-    "src/controllers/cohortAnalytics.controller.ts:54",
-    "src/controllers/course.controller.ts:135",
-    "src/controllers/course.controller.ts:178",
-    "src/controllers/course.controller.ts:25",
-    "src/controllers/course.controller.ts:64",
-    "src/controllers/course.controller.ts:98",
-    "src/controllers/engagement/details.controller.ts:188",
-    "src/controllers/engagement/stats.controller.ts:190",
-    "src/controllers/engagement/summary.controller.ts:184",
-    "src/controllers/engagement/summary.controller.ts:209",
-    "src/controllers/engagement/users.controller.ts:252",
     "src/controllers/guruAnalytics/churn.controller.ts:110",
     "src/controllers/guruAnalytics/churn.controller.ts:268",
     "src/controllers/guruAnalytics/churn.controller.ts:306",
@@ -83,11 +72,6 @@ const BASELINE = {
     "src/controllers/guruSubscriptionList.controller.ts:126",
     "src/controllers/guruWebhookList.controller.ts:75",
     "src/controllers/health.controller.ts:56",
-    "src/controllers/lessons.controller.ts:147",
-    "src/controllers/lessons.controller.ts:200",
-    "src/controllers/lessons.controller.ts:237",
-    "src/controllers/lessons.controller.ts:49",
-    "src/controllers/lessons.controller.ts:95",
     "src/controllers/metrics.controller.ts:26",
     "src/controllers/metrics.controller.ts:47",
     "src/controllers/metrics.controller.ts:83",
@@ -122,7 +106,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 48,
+  "localHttp500": 32,
   "publicErrorDetail": 0
 } as const
 
