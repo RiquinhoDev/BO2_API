@@ -1,11 +1,12 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import { TagRule } from '../../../models'
 import syncSchedulerService from '../../../services/cron/scheduler'
 import type { CronJobIdInput } from '../../../security/cronDestructiveInput'
-import { type JobIdParams, errorMessage } from './support'
+import { internalError } from '../../../security/errorHandling'
+import { type JobIdParams } from './support'
 
-export const createJob = async (req: Request, res: Response): Promise<void> => {
+export const createJob = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const {
       name,
@@ -82,11 +83,7 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
 
   } catch (error: unknown) {
     console.error('�?� Erro ao criar job:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao criar job',
-      error: errorMessage(error)
-    })
+    next(internalError('Erro ao criar job', 'CRON_JOB_CREATE_FAILED', error))
   }
 }
 
@@ -98,6 +95,7 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
 export const updateJob = async (
   req: Request<JobIdParams>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = req.params
@@ -152,11 +150,7 @@ export const updateJob = async (
 
   } catch (error: unknown) {
     console.error('�?� Erro ao atualizar job:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao atualizar job',
-      error: errorMessage(error)
-    })
+    next(internalError('Erro ao atualizar job', 'CRON_JOB_UPDATE_FAILED', error))
   }
 }
 
@@ -168,6 +162,7 @@ export const updateJob = async (
 export const deleteJob = async (
   input: CronJobIdInput,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = input.params
@@ -191,11 +186,7 @@ export const deleteJob = async (
 
   } catch (error: unknown) {
     console.error('�?� Erro ao deletar job:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao deletar job',
-      error: errorMessage(error)
-    })
+    next(internalError('Erro ao deletar job', 'CRON_JOB_DELETE_FAILED', error))
   }
 }
 
@@ -207,6 +198,7 @@ export const deleteJob = async (
 export const toggleJob = async (
   req: Request<JobIdParams>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = req.params
@@ -241,11 +233,7 @@ export const toggleJob = async (
 
   } catch (error: unknown) {
     console.error('�?� Erro ao toggle job:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao toggle job',
-      error: errorMessage(error)
-    })
+    next(internalError('Erro ao toggle job', 'CRON_JOB_TOGGLE_FAILED', error))
   }
 }
 
@@ -257,6 +245,7 @@ export const toggleJob = async (
 export const triggerJob = async (
   input: CronJobIdInput,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = input.params
@@ -293,11 +282,7 @@ export const triggerJob = async (
 
   } catch (error: unknown) {
     console.error('�?� Erro ao executar job:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao executar job',
-      error: errorMessage(error)
-    })
+    next(internalError('Erro ao executar job', 'CRON_JOB_TRIGGER_FAILED', error))
   }
 }
 

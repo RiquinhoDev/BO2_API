@@ -4,9 +4,11 @@
 // Endpoints para estatísticas de sync e gestão de conflitos
 // ════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import SyncHistory from '../../models/SyncModels/SyncHistory'
+import type { Platform } from '../../models/SyncModels/ActivitySnapshot'
+import { internalError } from '../../security/errorHandling'
 
 import type { ISyncConflict } from '../../models/SyncModels/SyncConflict'
 import activitySnapshotService from '../../services/syncUtilizadoresServices/activitySnapshot.service'
@@ -26,6 +28,7 @@ export {
 export const getSyncById = async (
   req: Request<{ id: string }>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = req.params
@@ -72,13 +75,9 @@ res.status(200).json({
   }
 })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar sync:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar sync',
-      error: error.message
-    })
+    next(internalError('Erro ao buscar sync', 'SYNC_HISTORY_READ_FAILED', error))
   }
 }
 
@@ -91,17 +90,22 @@ res.status(200).json({
 // GET /api/sync/snapshots/stats
 // ═══════════════════════════════════════════════════════════
 
-export const getSnapshotStats = async (req: Request, res: Response): Promise<void> => {
+export const getSnapshotStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { month, platform } = req.query
+    const requestedMonth = req.query.month
+    const requestedPlatform = req.query.platform
+    const platform: Platform | undefined =
+      requestedPlatform === 'HOTMART' || requestedPlatform === 'CURSEDUCA' || requestedPlatform === 'DISCORD'
+        ? requestedPlatform
+        : undefined
 
-    const targetMonth = month 
-      ? new Date(month as string)
+    const targetMonth = typeof requestedMonth === 'string'
+      ? new Date(requestedMonth)
       : new Date()
 
     const stats = await activitySnapshotService.getMonthlyStats(
       targetMonth,
-      platform as any
+      platform
     )
 
     res.status(200).json({
@@ -114,12 +118,8 @@ export const getSnapshotStats = async (req: Request, res: Response): Promise<voi
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar estatísticas de snapshots:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar estatísticas',
-      error: error.message
-    })
+    next(internalError('Erro ao buscar estatísticas', 'SYNC_SNAPSHOT_STATS_FAILED', error))
   }
 }

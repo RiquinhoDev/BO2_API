@@ -1,17 +1,22 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import { CronExecution } from '../../../models'
 import syncSchedulerService from '../../../services/cron/scheduler'
 import type { CronEmptyInput } from '../../../security/cronDestructiveInput'
+import { internalError } from '../../../security/errorHandling'
 import { type JobIdParams, errorMessage } from './support'
 
 export const getJobHistory = async (
   req: Request<JobIdParams>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { id } = req.params
-    const limit = parseInt(req.query.limit as string) || 20
+    const requestedLimit = req.query.limit
+    const limit = typeof requestedLimit === 'string'
+      ? parseInt(requestedLimit, 10) || 20
+      : 20
 
     console.log(`📊 Buscando histórico do job: ${id} (limit: ${limit})`)
 
@@ -81,11 +86,7 @@ export const getJobHistory = async (
 
   } catch (error: unknown) {
     console.error('�?� Erro ao buscar histórico:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar histórico',
-      error: errorMessage(error)
-    })
+    next(internalError('Erro ao buscar histórico', 'CRON_JOB_HISTORY_FAILED', error))
   }
 }
 
@@ -96,7 +97,7 @@ export const getJobHistory = async (
 // POST /api/cron/validate
 // �?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
 
-export const validateCronExpression = async (req: Request, res: Response): Promise<void> => {
+export const validateCronExpression = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { cronExpression, timezone = 'Europe/Lisbon' } = req.body
 
@@ -139,11 +140,7 @@ export const validateCronExpression = async (req: Request, res: Response): Promi
 
   } catch (error: unknown) {
     console.error('�?� Erro ao validar cron expression:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao validar cron expression',
-      error: errorMessage(error)
-    })
+    next(internalError('Erro ao validar cron expression', 'CRON_EXPRESSION_VALIDATION_FAILED', error))
   }
 }
 
@@ -152,7 +149,7 @@ export const validateCronExpression = async (req: Request, res: Response): Promi
 // GET /api/cron/status
 // �?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?
 
-export const getSchedulerStatus = async (req: Request, res: Response): Promise<void> => {
+export const getSchedulerStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const activeJobs = await syncSchedulerService.getActiveJobs()
 
@@ -187,11 +184,7 @@ export const getSchedulerStatus = async (req: Request, res: Response): Promise<v
 
   } catch (error: unknown) {
     console.error('�?� Erro ao buscar status:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar status',
-      error: errorMessage(error)
-    })
+    next(internalError('Erro ao buscar status', 'CRON_SCHEDULER_STATUS_FAILED', error))
   }
 }
 
@@ -203,6 +196,7 @@ export const getSchedulerStatus = async (req: Request, res: Response): Promise<v
 export const triggerTagRulesOnly = async (
   _input: CronEmptyInput,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   console.log('�?'.repeat(60))
   console.log('�?��?  [TAG-RULES-ONLY] Endpoint chamado!')
@@ -253,10 +247,6 @@ export const triggerTagRulesOnly = async (
 
   } catch (error: unknown) {
     console.error('�?� Erro ao executar Tag Rules Only:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao executar Tag Rules Only',
-      error: errorMessage(error)
-    })
+    next(internalError('Erro ao executar Tag Rules Only', 'CRON_TAG_RULES_TRIGGER_FAILED', error))
   }
 }

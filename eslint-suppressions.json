@@ -324,17 +324,11 @@
     }
   },
   "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    },
     "no-console": {
       "count": 6
     }
   },
   "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
     "no-console": {
       "count": 2
     }

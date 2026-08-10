@@ -57,8 +57,8 @@ router.put('/jobs/:id', cronController.updateJob)
  */
 router.delete(
   '/jobs/:id',
-  withValidatedInput(cronJobIdInput, (input, _req, res) =>
-    cronController.deleteJob(input, res)),
+  withValidatedInput(cronJobIdInput, (input, _req, res, next) =>
+    cronController.deleteJob(input, res, next)),
 )
 
 /**
@@ -76,8 +76,8 @@ router.post('/jobs/:id/toggle', cronController.toggleJob)
  */
 router.post(
   '/jobs/:id/trigger',
-  withValidatedInput(cronJobIdInput, (input, _req, res) =>
-    cronController.triggerJob(input, res)),
+  withValidatedInput(cronJobIdInput, (input, _req, res, next) =>
+    cronController.triggerJob(input, res, next)),
 )
 
 /**
@@ -117,8 +117,8 @@ router.get('/tag-rules', cronController.getAvailableTagRules)
  */
 router.post(
   '/tag-rules-only',
-  withValidatedInput(cronEmptyInput, (input, _req, res) =>
-    cronController.triggerTagRulesOnly(input, res)),
+  withValidatedInput(cronEmptyInput, (input, _req, res, next) =>
+    cronController.triggerTagRulesOnly(input, res, next)),
 )
 
 export default router

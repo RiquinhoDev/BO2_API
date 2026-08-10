@@ -1,10 +1,11 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import User from '../../../models/user'
 import Product from '../../../models/product/Product'
 import { UserProduct } from '../../../models'
+import { internalError } from '../../../security/errorHandling'
 import { errorMessage } from './support'
 
-export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
+export const getDashboardStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const stats = await getCurseducaDashboardStats()
     
@@ -15,11 +16,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       timestamp: new Date().toISOString()
     })
   } catch (error: unknown) {
-    res.status(500).json({
-      success: false,
-      message: `Erro interno: ${errorMessage(error)}`,
-      timestamp: new Date().toISOString()
-    })
+    next(internalError('Erro ao carregar dashboard CursEduca', 'CURSEDUCA_DASHBOARD_FAILED', error))
   }
 }
 

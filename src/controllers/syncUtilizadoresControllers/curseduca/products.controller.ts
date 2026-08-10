@@ -1,7 +1,7 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import Product from '../../../models/product/Product'
 import { getUsersByProduct as getUsersByProductService, getUserCountForProduct } from '../../../services/userProducts/userProductService'
-import { errorMessage } from './support'
+import { internalError } from '../../../security/errorHandling'
 
 interface ProductUserView {
   products?: Array<{
@@ -10,7 +10,7 @@ interface ProductUserView {
   }>
 }
 
-export const getCurseducaProducts = async (req: Request, res: Response) => {
+export const getCurseducaProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const products = await Product.find({ platform: 'curseduca' })
       .select('name code curseducaGroupId curseducaGroupUuid isActive')
@@ -23,7 +23,7 @@ export const getCurseducaProducts = async (req: Request, res: Response) => {
       _v2Enabled: true
     })
   } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error) })
+    next(internalError('Erro ao buscar produtos CursEduca', 'CURSEDUCA_PRODUCT_LIST_FAILED', error))
   }
 }
 
@@ -31,7 +31,7 @@ export const getCurseducaProducts = async (req: Request, res: Response) => {
  * GET /api/curseduca/v2/products/:groupId
  * Buscar produto por groupId
  */
-export const getCurseducaProductByGroupId = async (req: Request, res: Response): Promise<void> => {
+export const getCurseducaProductByGroupId = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { groupId } = req.params
 
@@ -59,7 +59,7 @@ export const getCurseducaProductByGroupId = async (req: Request, res: Response):
       _v2Enabled: true
     })
   } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error) })
+    next(internalError('Erro ao buscar produto CursEduca', 'CURSEDUCA_PRODUCT_READ_FAILED', error))
   }
 }
 
@@ -67,7 +67,7 @@ export const getCurseducaProductByGroupId = async (req: Request, res: Response):
  * GET /api/curseduca/v2/products/:groupId/users?minProgress=XX
  * Buscar users de um produto com filtro de progresso
  */
-export const getCurseducaProductUsers = async (req: Request, res: Response): Promise<void> => {
+export const getCurseducaProductUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { groupId } = req.params
     const minProgress = typeof req.query.minProgress === 'string' ? req.query.minProgress : undefined
@@ -109,7 +109,7 @@ export const getCurseducaProductUsers = async (req: Request, res: Response): Pro
       _v2Enabled: true
     })
   } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error) })
+    next(internalError('Erro ao buscar utilizadores do produto CursEduca', 'CURSEDUCA_PRODUCT_USERS_READ_FAILED', error))
   }
 }
 
@@ -117,7 +117,7 @@ export const getCurseducaProductUsers = async (req: Request, res: Response): Pro
  * GET /api/curseduca/v2/stats
  * Estatísticas gerais dos produtos CursEduca
  */
-export const getCurseducaStats = async (req: Request, res: Response) => {
+export const getCurseducaStats = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const products = await Product.find({ platform: 'curseduca' }).lean()
 
@@ -159,7 +159,7 @@ export const getCurseducaStats = async (req: Request, res: Response) => {
       _v2Enabled: true
     })
   } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error) })
+    next(internalError('Erro ao buscar estatísticas CursEduca', 'CURSEDUCA_STATS_READ_FAILED', error))
   }
 }
 

@@ -1,4 +1,4 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import type { CurseducaCleanupInput } from '../../../security/curseducaDestructiveInput'
 import { syncCurseducaUsers } from './sync.controller'
 import { errorMessage, type SyncResponse } from './support'
@@ -135,9 +135,13 @@ export const syncCurseducaUsersStart = async (req: Request, res: Response): Prom
     }
   }
 
+  const captureBackgroundFailure: NextFunction = (error) => {
+    global.__curseducaSyncError = errorMessage(error)
+  }
+
   // fire-and-forget — o processo Railway mantém o event loop vivo
   Promise.resolve()
-    .then(() => syncCurseducaUsers(req, fakeRes))
+    .then(() => syncCurseducaUsers(req, fakeRes, captureBackgroundFailure))
     .catch((error: unknown) => { global.__curseducaSyncError = errorMessage(error) })
     .finally(() => {
       global.__curseducaSyncRunning = false
