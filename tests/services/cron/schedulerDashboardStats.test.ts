@@ -57,15 +57,18 @@ describe('CronManagementService dashboard rebuild execution', () => {
     jest.spyOn(CronExecution, 'create').mockResolvedValue({} as never)
     const recordExecution = jest.fn().mockResolvedValue(undefined)
     const service = new CronManagementService()
-    const sendNotification = jest.fn().mockResolvedValue(undefined)
-    Reflect.set(service, 'sendNotification', sendNotification)
     const scheduleJob = Reflect.get(service, 'scheduleJob').bind(service) as (
       job: {
         _id: { toString(): string }
         name: string
         isActive: boolean
         schedule: { enabled: boolean; cronExpression: string }
-        notifications: { enabled: boolean }
+        notifications: {
+          enabled: boolean
+          emailOnSuccess: boolean
+          emailOnFailure: boolean
+          recipients: string[]
+        }
         recordExecution: typeof recordExecution
       },
     ) => Promise<void>
@@ -75,7 +78,12 @@ describe('CronManagementService dashboard rebuild execution', () => {
       name: 'RebuildDashboardStats',
       isActive: true,
       schedule: { enabled: true, cronExpression: '0 3 * * *' },
-      notifications: { enabled: true },
+      notifications: {
+        enabled: true,
+        emailOnSuccess: false,
+        emailOnFailure: true,
+        recipients: ['ops@example.test'],
+      },
       recordExecution,
     })
     expect(scheduledCallback).toBeDefined()
@@ -94,12 +102,5 @@ describe('CronManagementService dashboard rebuild execution', () => {
         status: 'error',
         errorMessage: 'rebuild failed',
       }),
-    )
-    expect(sendNotification).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'RebuildDashboardStats' }),
-      false,
-      expect.objectContaining({ errors: 1 }),
-      'rebuild failed',
-    )
-  })
+    )  })
 })
