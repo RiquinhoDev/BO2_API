@@ -254,7 +254,6 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
       }
     })
   } catch (error: unknown) {
-    console.error('[POPULATE] Erro:', error)
     next(internalError(
       'Erro ao popular histórico retroativo',
       'HISTORY_RETROACTIVE_POPULATE_FAILED',
@@ -308,7 +307,6 @@ export const deleteTestEvents = async (
       }
     })
   } catch (error: unknown) {
-    console.error('[DELETE] Erro:', error)
     next(internalError(
       'Erro ao apagar eventos de teste',
       'HISTORY_TEST_EVENTS_DELETE_FAILED',
@@ -365,7 +363,6 @@ export const populateAllUsersHistory = async (req: Request, res: Response, next:
       }
     })
   } catch (error: unknown) {
-    console.error('[POPULATE ALL] Erro:', error)
     next(internalError(
       'Erro ao popular histórico de todos os users',
       'HISTORY_ALL_USERS_POPULATE_FAILED',

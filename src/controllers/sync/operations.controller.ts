@@ -42,8 +42,12 @@ export const executePipeline = async (
     } else {
       const cause = new Error(JSON.stringify({
         duration: result.duration,
-        errors: result.errors.length,
-        steps: result.steps,
+        errorCount: result.errors.length,
+        steps: Object.entries(result.steps).map(([name, step]) => ({
+          name,
+          success: step.success,
+          duration: step.duration,
+        })),
       }))
       next(internalError(
         'Pipeline executado com erros',
@@ -52,7 +56,6 @@ export const executePipeline = async (
       ))
     }
   } catch (error: unknown) {
-    console.error('[API] ❌ Erro ao executar pipeline:', error)
     forwardSyncFailure(
       error,
       next,
@@ -115,7 +118,6 @@ export const syncHotmartEndpoint = async (req: Request, res: Response, next: Nex
       reportId: result.reportId
     })
   } catch (error: unknown) {
-    console.error('[API] ❌ Erro ao sincronizar Hotmart:', error)
     forwardSyncFailure(error, next, 'Erro ao sincronizar Hotmart', 'SYNC_HOTMART_USER_FAILED')
   }
 }
@@ -167,7 +169,6 @@ export const syncHotmartBatchEndpoint = async (req: Request, res: Response, next
       duration: result.duration
     })
   } catch (error: unknown) {
-    console.error('[API] ❌ Erro ao sincronizar Hotmart batch:', error)
     forwardSyncFailure(error, next, 'Erro ao sincronizar Hotmart batch', 'SYNC_HOTMART_BATCH_FAILED')
   }
 }
@@ -230,7 +231,6 @@ export const syncCurseducaEndpoint = async (req: Request, res: Response, next: N
       reportId: result.reportId
     })
   } catch (error: unknown) {
-    console.error('[API] ❌ Erro ao sincronizar CursEduca:', error)
     forwardSyncFailure(error, next, 'Erro ao sincronizar CursEduca', 'SYNC_CURSEDUCA_USER_FAILED')
   }
 }
@@ -279,7 +279,6 @@ export const syncCurseducaBatchEndpoint = async (req: Request, res: Response, ne
       duration: result.duration
     })
   } catch (error: unknown) {
-    console.error('[API] ❌ Erro ao sincronizar CursEduca batch:', error)
     forwardSyncFailure(error, next, 'Erro ao sincronizar CursEduca batch', 'SYNC_CURSEDUCA_BATCH_FAILED')
   }
 }

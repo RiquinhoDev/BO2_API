@@ -98,7 +98,6 @@ export const getSyncHistory = async (req: Request, res: Response, next: NextFunc
     })
 
   } catch (error: unknown) {
-    console.error("Erro ao buscar histórico:", error)
     next(internalError(
       "Erro ao buscar histórico de sincronizações",
       'SYNC_HISTORY_LIST_FAILED',
@@ -203,7 +202,6 @@ export const getSyncStats = async (req: Request, res: Response, next: NextFuncti
     })
 
   } catch (error: unknown) {
-    console.error("Erro ao buscar estatísticas:", error)
     next(internalError(
       "Erro ao buscar estatísticas de sincronização",
       'SYNC_STATS_READ_FAILED',
@@ -239,7 +237,6 @@ export const cleanOldHistory = async (
     })
 
   } catch (error: unknown) {
-    console.error("Erro ao limpar histórico:", error)
     next(internalError('Erro ao limpar histórico', 'SYNC_HISTORY_CLEAN_FAILED', error))
   }
 }
@@ -284,7 +281,6 @@ export const retrySyncOperation = async (req: Request, res: Response, next: Next
     })
 
   } catch (error: unknown) {
-    console.error("Erro ao fazer retry:", error)
     next(internalError(
       "Erro ao fazer retry da sincronização",
       'SYNC_HISTORY_RETRY_FAILED',
@@ -321,7 +317,6 @@ export const createSyncRecord = async (req: Request, res: Response, next: NextFu
     })
 
   } catch (error: unknown) {
-    console.error("Erro ao criar registo:", error)
     next(internalError(
       "Erro ao criar registo de sincronização",
       'SYNC_HISTORY_CREATE_FAILED',

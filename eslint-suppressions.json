@@ -208,7 +208,7 @@
       "count": 1
     },
     "no-console": {
-      "count": 14
+      "count": 11
     },
     "prefer-const": {
       "count": 1
@@ -264,9 +264,6 @@
   "src/controllers/sync/history.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    },
-    "no-console": {
-      "count": 5
     }
   },
   "src/controllers/sync/operations.controller.ts": {
@@ -275,17 +272,11 @@
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
-    },
-    "no-console": {
-      "count": 5
     }
   },
   "src/controllers/syncStats/conflicts.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
-    },
-    "no-console": {
-      "count": 7
     }
   },
   "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts": {
