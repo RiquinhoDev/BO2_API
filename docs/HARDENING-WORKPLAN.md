@@ -1283,3 +1283,12 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - Every extracted production TypeScript file is at or below 500 physical lines. The fail-closed source-size baseline fell from **26 to 16 files above 500** in this batch.
 - Final offline gate: lint and TypeScript clean, **301 suites / 1,645 tests** green, build green and both ratcheted inventories green. Jest emitted the known rare parallel-worker shutdown warning; prior --runInBand --detectOpenHandles investigation found zero open handles.
 - No external API, production MongoDB, Redis instance, Discord bot, scheduler or deployment was contacted.
+
+### [x] ARCH-02 - split ten medium monoliths (2026-08-10)
+
+- Reduced ten remaining files above 500 lines through cohesive, contract-preserving splits: analytics calculator **606 -> 480**, Class facade **599 -> 5**, app config **584 -> 460**, tag evaluation **570 -> 467**, Guru cross-reference **548 -> 463**, conflict detection **547 -> 492**, Guru webhook **540 -> 489**, student OGI summary **539 -> 462**, activity snapshot service **538 -> 460**, and SyncReport model **538 -> 347**.
+- Extracted pure time-series, configuration parsing, mapping, reconciliation policy, conflict-resolution policy and snapshot metric units; isolated model contracts, class entities, webhook administration and OGI access behind stable compatibility exports.
+- Added a RED topology or behavioral characterization before each production split. Preserved model/singleton identity, public exports, HTTP envelopes, typed runtime boundaries and effect ordering; no real integration or production datastore was contacted.
+- The fail-closed source-size baseline fell from **16 to 6 files above 500** in this batch (**62.5%**), and from the original **39 to 6** (**84.6% eliminated**). The six named residual files remain ratcheted and cannot grow or migrate silently.
+- Final offline gate: lint and TypeScript clean, **311 suites / 1,660 tests** green, build green, size and production-boundary inventories green, diff checks clean, and lockfiles unchanged. Jest emitted the previously investigated rare parallel-worker shutdown warning; the existing run-in-band open-handle investigation found no leaked handles.
+- ARCH-02 remains open until the six-file baseline reaches zero. Response-contract normalization remains a separate ARCH-03 phase and was intentionally not mixed into this behavior-preserving decomposition batch.
