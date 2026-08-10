@@ -787,7 +787,7 @@
       "count": 2
     }
   },
-  "src/services/activeCampaign/tagOrchestrator.service.ts": {
+  "src/services/activeCampaign/tagOrchestrator/core.ts": {
     "no-console": {
       "count": 6
     }
