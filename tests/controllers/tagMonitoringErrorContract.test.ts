@@ -26,6 +26,14 @@ jest.mock('../../src/services/tagMonitoring', () => ({
   },
   tagNotificationService: {
     getNotifications: jest.fn(),
+    getNotificationById: jest.fn(),
+    getNotificationDetails: jest.fn(),
+    markAsRead: jest.fn(),
+    markAsUnread: jest.fn(),
+    dismissNotification: jest.fn(),
+    getUnreadCount: jest.fn(),
+    markAllAsRead: jest.fn(),
+    getStats: jest.fn(),
   },
   weeklyTagMonitoringService: {
     performWeeklySnapshot: jest.fn(),
@@ -87,6 +95,20 @@ type MonitoringConfigModelMock = {
   updateScope: jest.Mock<Promise<MonitoringConfigFixture>, [MonitoringConfigFixture['scope']]>
   toggleEnabled: jest.Mock<Promise<MonitoringConfigFixture>, []>
 }
+type NotificationServiceMock = {
+  getNotifications: jest.Mock<Promise<unknown[]>, [Record<string, unknown>?]>
+  getNotificationById: jest.Mock<Promise<unknown | null>, [string]>
+  getNotificationDetails: jest.Mock<Promise<unknown[]>, [string]>
+  markAsRead: jest.Mock<Promise<unknown>, [string]>
+  markAsUnread: jest.Mock<Promise<unknown>, [string]>
+  dismissNotification: jest.Mock<Promise<void>, [string]>
+  getUnreadCount: jest.Mock<Promise<number>, []>
+  markAllAsRead: jest.Mock<Promise<number>, []>
+  getStats: jest.Mock<Promise<unknown>, []>
+}
+const { tagNotificationService: notificationServiceMock } = jest.requireMock<{
+  tagNotificationService: NotificationServiceMock
+}>('../../src/services/tagMonitoring')
 const {
   WeeklyNativeTagSnapshot: snapshotsModel,
   WeeklyTagMonitoringConfig: monitoringConfigModel,
@@ -766,4 +788,144 @@ test.each([
   expect(response.status).toBe(500)
   expect(response.body).toEqual(expectedError(code, message))
   expectRedacted(response)
+})
+
+const notificationFailureCases = [
+  {
+    name: 'detail',
+    reject: (cause: Error) => notificationServiceMock.getNotificationById.mockRejectedValueOnce(cause),
+    send: () => request(buildApp()).get('/api/tag-monitoring/notifications/n-1').query(offlineMarker),
+    code: 'TAG_NOTIFICATION_DETAIL_FAILED',
+    message: 'Erro ao buscar notifica\u00e7\u00e3o',
+  },
+  {
+    name: 'details',
+    reject: (cause: Error) => notificationServiceMock.getNotificationDetails.mockRejectedValueOnce(cause),
+    send: () => request(buildApp()).get('/api/tag-monitoring/notifications/n-1/details').query(offlineMarker),
+    code: 'TAG_NOTIFICATION_DETAILS_FAILED',
+    message: 'Erro ao buscar detalhes',
+  },
+  {
+    name: 'read',
+    reject: (cause: Error) => notificationServiceMock.markAsRead.mockRejectedValueOnce(cause),
+    send: () => request(buildApp()).patch('/api/tag-monitoring/notifications/n-1/read').query(offlineMarker),
+    code: 'TAG_NOTIFICATION_MARK_READ_FAILED',
+    message: 'Erro ao marcar como lida',
+  },
+  {
+    name: 'unread',
+    reject: (cause: Error) => notificationServiceMock.markAsUnread.mockRejectedValueOnce(cause),
+    send: () => request(buildApp()).patch('/api/tag-monitoring/notifications/n-1/unread').query(offlineMarker),
+    code: 'TAG_NOTIFICATION_MARK_UNREAD_FAILED',
+    message: 'Erro ao marcar como n\u00e3o lida',
+  },
+  {
+    name: 'dismiss',
+    reject: (cause: Error) => notificationServiceMock.dismissNotification.mockRejectedValueOnce(cause),
+    send: () => request(buildApp()).delete('/api/tag-monitoring/notifications/507f1f77bcf86cd799439011').query(offlineMarker),
+    code: 'TAG_NOTIFICATION_DISMISS_FAILED',
+    message: 'Erro ao remover notifica\u00e7\u00e3o',
+  },
+  {
+    name: 'unread count',
+    reject: (cause: Error) => notificationServiceMock.getUnreadCount.mockRejectedValueOnce(cause),
+    send: () => request(buildApp()).get('/api/tag-monitoring/notifications/unread/count').query(offlineMarker),
+    code: 'TAG_NOTIFICATION_UNREAD_COUNT_FAILED',
+    message: 'Erro ao obter contagem',
+  },
+  {
+    name: 'mark all read',
+    reject: (cause: Error) => notificationServiceMock.markAllAsRead.mockRejectedValueOnce(cause),
+    send: () => request(buildApp()).patch('/api/tag-monitoring/notifications/mark-all-read').query(offlineMarker),
+    code: 'TAG_NOTIFICATION_MARK_ALL_READ_FAILED',
+    message: 'Erro ao marcar todas como lidas',
+  },
+  {
+    name: 'stats',
+    reject: (cause: Error) => notificationServiceMock.getStats.mockRejectedValueOnce(cause),
+    send: () => request(buildApp()).get('/api/tag-monitoring/notifications/stats').query(offlineMarker),
+    code: 'TAG_NOTIFICATION_STATS_FAILED',
+    message: 'Erro ao obter estat\u00edsticas',
+  },
+]
+
+test.each(notificationFailureCases)(
+  'notification $name failures use the central redacted error contract',
+  async ({ reject, send, code, message }) => {
+    reject(new Error('secret alice@example.test token=hidden'))
+    const response = await send()
+
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual(expectedError(code, message))
+    expectRedacted(response)
+  },
+)
+
+test('notification outcomes preserve success and not-found contracts', async () => {
+  const notification = { id: 'n-1', tagName: 'vip', isRead: false }
+  const details = [{ id: 'd-1', email: 'student@example.test' }]
+  const stats = { total: 3, unread: 2, byType: { added: 2, removed: 1 } }
+
+  notificationServiceMock.getNotifications.mockResolvedValueOnce([notification])
+  notificationServiceMock.getNotificationById
+    .mockResolvedValueOnce(notification)
+    .mockResolvedValueOnce(null)
+  notificationServiceMock.getNotificationDetails.mockResolvedValueOnce(details)
+  notificationServiceMock.markAsRead.mockResolvedValueOnce({ ...notification, isRead: true })
+  notificationServiceMock.markAsUnread.mockResolvedValueOnce(notification)
+  notificationServiceMock.dismissNotification.mockResolvedValueOnce()
+  notificationServiceMock.getUnreadCount.mockResolvedValueOnce(2)
+  notificationServiceMock.markAllAsRead.mockResolvedValueOnce(2)
+  notificationServiceMock.getStats.mockResolvedValueOnce(stats)
+
+  const app = buildApp()
+  const list = await request(app).get('/api/tag-monitoring/notifications').query({
+    ...offlineMarker,
+    isRead: 'false',
+    limit: '7',
+    skip: '2',
+    weekNumber: '32',
+    year: '2026',
+    tagName: 'vip',
+  })
+  const detail = await request(app).get('/api/tag-monitoring/notifications/n-1').query(offlineMarker)
+  const missing = await request(app).get('/api/tag-monitoring/notifications/missing').query(offlineMarker)
+  const detailList = await request(app).get('/api/tag-monitoring/notifications/n-1/details').query(offlineMarker)
+  const read = await request(app).patch('/api/tag-monitoring/notifications/n-1/read').query(offlineMarker)
+  const unread = await request(app).patch('/api/tag-monitoring/notifications/n-1/unread').query(offlineMarker)
+  const dismissed = await request(app).delete('/api/tag-monitoring/notifications/507f1f77bcf86cd799439011').query(offlineMarker)
+  const unreadCount = await request(app).get('/api/tag-monitoring/notifications/unread/count').query(offlineMarker)
+  const allRead = await request(app).patch('/api/tag-monitoring/notifications/mark-all-read').query(offlineMarker)
+  const statsResponse = await request(app).get('/api/tag-monitoring/notifications/stats').query(offlineMarker)
+
+  expect(list.body).toEqual({
+    success: true,
+    data: [notification],
+    count: 1,
+    filters: { isRead: false, limit: 7, skip: 2, weekNumber: 32, year: 2026, tagName: 'vip' },
+  })
+  expect(detail.body).toEqual({ success: true, data: notification })
+  expect(missing.status).toBe(404)
+  expect(missing.body).toEqual({ success: false, message: 'Notifica\u00e7\u00e3o n\u00e3o encontrada' })
+  expect(detailList.body).toEqual({ success: true, data: details, count: 1 })
+  expect(read.body).toEqual({ success: true, message: 'Notifica\u00e7\u00e3o marcada como lida', data: { ...notification, isRead: true } })
+  expect(unread.body).toEqual({ success: true, message: 'Notifica\u00e7\u00e3o marcada como n\u00e3o lida', data: notification })
+  expect(dismissed.body).toEqual({ success: true, message: 'Notifica\u00e7\u00e3o removida com sucesso' })
+  expect(unreadCount.body).toEqual({ success: true, data: { count: 2 } })
+  expect(allRead.body).toEqual({ success: true, message: '2 notifica\u00e7\u00f5es marcadas como lidas', data: { count: 2 } })
+  expect(statsResponse.body).toEqual({ success: true, data: stats })
+})
+
+test.each([
+  ['read', () => notificationServiceMock.markAsRead.mockRejectedValueOnce(new Error('Notifica\u00e7\u00e3o n\u00e3o encontrada')), 'patch', '/api/tag-monitoring/notifications/n-1/read'],
+  ['unread', () => notificationServiceMock.markAsUnread.mockRejectedValueOnce(new Error('Notifica\u00e7\u00e3o n\u00e3o encontrada')), 'patch', '/api/tag-monitoring/notifications/n-1/unread'],
+  ['dismiss', () => notificationServiceMock.dismissNotification.mockRejectedValueOnce(new Error('Notifica\u00e7\u00e3o n\u00e3o encontrada')), 'delete', '/api/tag-monitoring/notifications/507f1f77bcf86cd799439011'],
+])('notification %s preserves its not-found response', async (_name, reject, method, url) => {
+  reject()
+  const response = method === 'patch'
+    ? await request(buildApp()).patch(url).query(offlineMarker)
+    : await request(buildApp()).delete(url).query(offlineMarker)
+
+  expect(response.status).toBe(404)
+  expect(response.body).toEqual({ success: false, message: 'Notifica\u00e7\u00e3o n\u00e3o encontrada' })
 })

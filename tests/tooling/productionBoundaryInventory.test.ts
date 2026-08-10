@@ -247,15 +247,6 @@ const BASELINE = {
     "src/controllers/tagMonitoring/criticalTag.controller.ts:285",
     "src/controllers/tagMonitoring/criticalTag.controller.ts:307",
     "src/controllers/tagMonitoring/criticalTag.controller.ts:88",
-    "src/controllers/tagMonitoring/tagNotification.controller.ts:113",
-    "src/controllers/tagMonitoring/tagNotification.controller.ts:156",
-    "src/controllers/tagMonitoring/tagNotification.controller.ts:199",
-    "src/controllers/tagMonitoring/tagNotification.controller.ts:241",
-    "src/controllers/tagMonitoring/tagNotification.controller.ts:263",
-    "src/controllers/tagMonitoring/tagNotification.controller.ts:286",
-    "src/controllers/tagMonitoring/tagNotification.controller.ts:308",
-    "src/controllers/tagMonitoring/tagNotification.controller.ts:37",
-    "src/controllers/tagMonitoring/tagNotification.controller.ts:78",
     "src/controllers/testHistory.controller.ts:172",
     "src/controllers/testHistory.controller.ts:242",
     "src/controllers/testimonials/testimonialCandidates.controller.ts:178",
@@ -316,7 +307,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 272,
+  "localHttp500": 263,
   "publicErrorDetail": 20
 } as const
 
@@ -333,9 +324,9 @@ test('records the remaining Tag Monitoring local 500 debt', () => {
     entry.startsWith('src/controllers/tagMonitoring/'),
   )
 
-  expect(tagMonitoringDebt).toHaveLength(17)
+  expect(tagMonitoringDebt).toHaveLength(8)
   expect(tagMonitoringDebt.filter((entry) => entry.includes('tagMonitoring.controller.ts'))).toHaveLength(0)
-  expect(tagMonitoringDebt.filter((entry) => entry.includes('tagNotification.controller.ts'))).toHaveLength(9)
+  expect(tagMonitoringDebt.filter((entry) => entry.includes('tagNotification.controller.ts'))).toHaveLength(0)
   expect(tagMonitoringDebt.filter((entry) => entry.includes('criticalTag.controller.ts'))).toHaveLength(8)
 })
 test('production boundary debt never grows', () => {

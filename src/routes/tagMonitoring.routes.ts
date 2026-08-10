@@ -53,47 +53,47 @@ router.get('/critical-tags/stats', authenticate, criticalTagController.getCritic
 // ═══════════════════════════════════════════════════════════
 
 // Lista notificações
-router.get('/notifications', authenticate, tagNotificationController.getNotifications)
+router.get('/notifications', authenticate, asyncRoute(tagNotificationController.getNotifications))
 
 // Estatisticas de notificacoes
-router.get('/notifications/stats', authenticate, tagNotificationController.getNotificationStats)
+router.get('/notifications/stats', authenticate, asyncRoute(tagNotificationController.getNotificationStats))
 
 // Busca notificação específica
-router.get('/notifications/:id', authenticate, tagNotificationController.getNotificationById)
+router.get('/notifications/:id', authenticate, asyncRoute(tagNotificationController.getNotificationById))
 
 // Busca detalhes de uma notificação
 router.get(
   '/notifications/:id/details',
   authenticate,
-  tagNotificationController.getNotificationDetails
+  asyncRoute(tagNotificationController.getNotificationDetails)
 )
 
 // Marca notificação como lida
-router.patch('/notifications/:id/read', authenticate, tagNotificationController.markAsRead)
+router.patch('/notifications/:id/read', authenticate, asyncRoute(tagNotificationController.markAsRead))
 
 // Marca notificação como não lida
-router.patch('/notifications/:id/unread', authenticate, tagNotificationController.markAsUnread)
+router.patch('/notifications/:id/unread', authenticate, asyncRoute(tagNotificationController.markAsUnread))
 
 // Remove notificação
 router.delete(
   '/notifications/:id',
   authenticate,
-  withValidatedInput(tagMonitoringDeleteInput, (input, _req, res) =>
-    tagNotificationController.dismissNotification(input, res)),
+  withValidatedInput(tagMonitoringDeleteInput, (input, _req, res, next) =>
+    tagNotificationController.dismissNotification(input, res, next)),
 )
 
 // Contagem de notificações não lidas
 router.get(
   '/notifications/unread/count',
   authenticate,
-  tagNotificationController.getUnreadCount
+  asyncRoute(tagNotificationController.getUnreadCount)
 )
 
 // Marca todas como lidas
 router.patch(
   '/notifications/mark-all-read',
   authenticate,
-  tagNotificationController.markAllAsRead
+  asyncRoute(tagNotificationController.markAllAsRead)
 )
 
 // ═══════════════════════════════════════════════════════════
