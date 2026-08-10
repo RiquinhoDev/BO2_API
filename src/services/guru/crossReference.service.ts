@@ -5,13 +5,15 @@
 import axios from 'axios'
 import User, { IUser } from '../../models/user'
 import UserProduct from '../../models/UserProduct'
-import {
-  getEffectiveStatus,
-  type GuruDateInfo
-} from './guru.constants'
-import { isCurseducaEnrollmentActive } from '../syncUtilizadoresServices/curseducaServices/curseducaMemberships'
 import type { FilterQuery } from 'mongoose'
 import { getOptionalCurseducaRuntimeSettings } from '../requestDrivenRuntimeConfig'
+import { isCurseducaEnrollmentActive } from '../syncUtilizadoresServices/curseducaServices/curseducaMemberships'
+import {
+  determineCrossReferenceAction,
+  type CrossReferenceAction
+} from './crossReference/policy'
+
+export { determineCrossReferenceAction } from './crossReference/policy'
 
 // ═══════════════════════════════════════════════════════════
 // TIPOS
@@ -27,11 +29,6 @@ export interface CrossReferenceResult {
   reconciledStale: number
   details: Array<{ email: string; action: string; reason: string }>
   duration: number
-}
-
-interface CrossReferenceAction {
-  action: 'mark_para_inativar' | 'revert_to_active' | 'confirm_inactive' | 'skip'
-  reason: string
 }
 
 type CurseducaSituation = NonNullable<NonNullable<IUser['curseduca']>['situation']>
@@ -55,88 +52,6 @@ function requestErrorMessage(error: unknown): string {
 // ═══════════════════════════════════════════════════════════
 // CORE: Determinar ação para um único utilizador
 // ═══════════════════════════════════════════════════════════
-
-export function determineCrossReferenceAction(
-  guruStatus: string | null | undefined,
-  curseducaMemberStatus: string | null | undefined,
-  curseducaSituation: string | null | undefined,
-  userProductStatus: string | null | undefined,
-  guruDates?: GuruDateInfo | null
-): CrossReferenceAction {
-  // Sem dados guru → skip
-  if (!guruStatus) {
-    return { action: 'skip', reason: 'Sem dados Guru' }
-  }
-
-  // Só cancelamentos explícitos justificam inativação — pending (stale) não conta
-  const STRICT_CANCELED = ['canceled', 'expired', 'refunded']
-  const guruIsCanceled = STRICT_CANCELED.includes((guruStatus || '').toLowerCase())
-  const effective = getEffectiveStatus(guruStatus, guruDates)
-  const guruIsActive = effective.isActive
-  const statusLabel = guruStatus
-
-  const curseducaIsActive =
-    curseducaSituation === 'ACTIVE' || curseducaMemberStatus === 'ACTIVE'
-
-  const curseducaIsInactive =
-    curseducaMemberStatus === 'INACTIVE' ||
-    !isCurseducaEnrollmentActive(curseducaSituation)
-
-  // UserProduct INACTIVE na BD:
-  // - Se Guru cancelado MAS CursEduca ainda ACTIVE → discrepância real
-  //   (inativação nunca chegou a ser feita no CursEduca, ou o aluno voltou
-  //   a entrar). Tem de voltar para a lista PARA_INATIVAR.
-  // - Caso contrário → já finalizado, skip.
-  if (userProductStatus === 'INACTIVE') {
-    if (guruIsCanceled && curseducaIsActive) {
-      return {
-        action: 'mark_para_inativar',
-        reason: `Discrepância: Guru ${statusLabel}, CursEduca ACTIVE (re-detetado de INACTIVE)`
-      }
-    }
-    return { action: 'skip', reason: 'Já INACTIVE' }
-  }
-
-  // CASO 1: Guru active + UserProduct PARA_INATIVAR → reverter
-  if (guruIsActive && userProductStatus === 'PARA_INATIVAR') {
-    return {
-      action: 'revert_to_active',
-      reason: `Guru ${statusLabel} - não justifica inativação`
-    }
-  }
-
-  // CASO 2: Guru canceled + CursEduca inactive + PARA_INATIVAR → confirmar
-  if (guruIsCanceled && curseducaIsInactive && userProductStatus === 'PARA_INATIVAR') {
-    return {
-      action: 'confirm_inactive',
-      reason: `Guru ${statusLabel} + CursEduca INACTIVE (confirmado)`
-    }
-  }
-
-  // CASO 3: Guru canceled + CursEduca inactive + ACTIVE → confirmar direto
-  if (guruIsCanceled && curseducaIsInactive && userProductStatus === 'ACTIVE') {
-    return {
-      action: 'confirm_inactive',
-      reason: `Guru ${statusLabel} + CursEduca INACTIVE (API confirma)`
-    }
-  }
-
-  // CASO 4: Guru canceled + UserProduct ACTIVE → marcar para inativar
-  if (guruIsCanceled && userProductStatus === 'ACTIVE') {
-    return {
-      action: 'mark_para_inativar',
-      reason: `Discrepância: Guru ${statusLabel}, CursEduca ACTIVE`
-    }
-  }
-
-  // CASO 5: Guru canceled + já PARA_INATIVAR → skip
-  if (guruIsCanceled && userProductStatus === 'PARA_INATIVAR') {
-    return { action: 'skip', reason: 'Já marcado PARA_INATIVAR' }
-  }
-
-  // Tudo resto → skip (consistente)
-  return { action: 'skip', reason: 'Consistente' }
-}
 
 // ═══════════════════════════════════════════════════════════
 // APLICAR AÇÃO NA BD
