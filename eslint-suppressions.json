@@ -275,15 +275,31 @@
       "count": 3
     }
   },
-  "src/controllers/sync.controller.ts": {
+  "src/controllers/sync/history.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 16
+      "count": 6
+    },
+    "no-console": {
+      "count": 5
+    }
+  },
+  "src/controllers/sync/operations.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
     },
     "no-console": {
-      "count": 11
+      "count": 5
+    }
+  },
+  "src/controllers/sync/status.controller.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 1
     }
   },
   "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts": {
