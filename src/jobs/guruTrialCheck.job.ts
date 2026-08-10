@@ -49,8 +49,9 @@ const guruTrialCheckJob = {
         markedForInactivation: checkResult.markedForInactivation,
         converted: checkResult.converted,
       }
-    } catch (error: any) {
-      console.error('❌ [GuruTrialCheck] Erro:', error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido'
+      console.error('❌ [GuruTrialCheck] Erro:', message)
       return {
         success: false,
         total: 0,

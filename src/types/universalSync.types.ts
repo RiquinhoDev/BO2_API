@@ -3,7 +3,25 @@
 // Types universais para sincronização de todas as plataformas
 // ════════════════════════════════════════════════════════════
 
-import { SyncType, TriggerType } from "../models/SyncModels/SyncReport"
+import { TriggerType } from "../models/SyncModels/SyncReport"
+
+// Only hotmart and curseduca reach executeUniversalSync. The discord branch
+// was proven unreachable (no production call site passes syncType: 'discord';
+// the discord renewal/roles system is separate) and was removed, so this stays
+// a closed union rather than deriving from the broader SyncReport SyncType.
+export type UniversalSyncType = 'hotmart' | 'curseduca'
+
+export interface UniversalProgressModule {
+  moduleId: string
+  name: string
+  sequence: number
+  totalPages: number
+  completedPages: number
+  isCompleted: boolean
+  isExtra: boolean
+  progressPercentage: number
+  lastCompletedDate?: number
+}
 
 
 
@@ -73,9 +91,14 @@ export interface UniversalSourceItem {
     lessons?: Array<{
       pageId?: string
       pageName?: string
+      moduleName?: string
       isCompleted?: boolean
       completedDate?: Date | string | null
     }>
+    modulesList?: UniversalProgressModule[]
+    totalModules?: number
+    modulesCompleted?: string[]
+    currentModule?: number
   }
   
   // ═══════════════════════════════════════════════════════════
@@ -95,18 +118,20 @@ export interface UniversalSourceItem {
   curseducaUuid?: string
   groupId?: string | number
   groupName?: string
+  allCurseducaGroups?: Array<{
+    groupId: string | number
+    groupName?: string
+    enrolledAt?: Date | string | null
+    expiresAt?: Date | string | null
+    role?: 'student' | 'assistant' | 'teacher'
+    situation?: string
+  }>
   subscriptionType?: 'MONTHLY' | 'ANNUAL'
   enrolledAt?: Date | string | null
+  expiresAt?: Date | string | null
   joinedDate?: Date | string | null
   lastLogin?: string | Date         // ✅ Último login real
   lastAccess?: string | Date        // ✅ Última atividade
-
-  // ═══════════════════════════════════════════════════════════
-  // DISCORD
-  // ═══════════════════════════════════════════════════════════
-  discordUserId?: string
-  username?: string
-  roles?: string[]
 
   // ═══════════════════════════════════════════════════════════
   // EXTRA (FLEXIBILIDADE PARA NOVAS PLATAFORMAS)
@@ -120,7 +145,7 @@ export interface UniversalSourceItem {
 
 export interface UniversalSyncConfig {
   // Identificação
-  syncType: SyncType
+  syncType: UniversalSyncType
   jobName: string
   jobId?: string
 

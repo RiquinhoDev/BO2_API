@@ -15,15 +15,73 @@
 // - ✅ CORRIGIDO: Usa campos corretos (lastLogin, situation, etc)
 // ═══════════════════════════════════════════════════════════════════════════
 
-import User from '../../models/user'
+import User, { type IUser } from '../../models/user'
 import UserProduct from '../../models/UserProduct'
-import Product from '../../models/product/Product'
+import Product, { type PlatformType as ProductPlatform } from '../../models/product/Product'
+import { isCurseducaEnrollmentActive } from './curseducaServices/curseducaMemberships'
+
+type DataRecord = Readonly<Record<string, unknown>>
+type DateValue = Date | string | number
+
+interface Stringifiable {
+  toString(): string
+}
+
+interface LegacyUserRecord {
+  _id: Stringifiable
+  name: string
+  email: string
+  createdAt?: Date
+  metadata?: Pick<IUser['metadata'], 'createdAt'>
+  hotmart?: IUser['hotmart']
+  curseduca?: IUser['curseduca']
+  discord?: IUser['discord']
+}
+
+interface ProductRecord {
+  _id: Stringifiable
+  name: string
+  code: string
+  platform: ProductPlatform
+  isActive: boolean
+}
+
+interface PopulatedUser {
+  _id: Stringifiable
+  name?: string
+  email?: string
+}
+
+export interface UnifiedUserProduct {
+  _id: Stringifiable | string
+  userId: PopulatedUser
+  productId: ProductRecord
+  platform: string
+  platformUserId: string
+  status: string
+  progress?: {
+    percentage?: number
+    lastActivity?: DateValue | null
+  }
+  engagement?: {
+    engagementScore?: number
+    engagementLevel?: string
+    lastAction?: DateValue
+  }
+  enrolledAt?: DateValue
+  source?: string
+  isPrimary?: boolean
+  _isV1?: boolean
+  _platform?: string
+  _hasNestedData?: boolean
+  _schemaVersion?: string
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🔥 CACHE COM WARM-UP E BACKGROUND REFRESH
 // ═══════════════════════════════════════════════════════════════════════════
 interface CacheEntry {
-  data: any[]
+  data: UnifiedUserProduct[]
   timestamp: number
   isWarming: boolean
   stats: {
@@ -55,9 +113,36 @@ interface PlatformMapping {
   dataPath: string                 // Caminho para os dados nested
   engagementPath: string           // Caminho para engagement
   progressPath: string             // Caminho para progresso
-  statusLogic?: (data: any) => string      // Lógica custom de status
-  progressLogic?: (data: any) => number    // Lógica custom de progresso
-  engagementScoreLogic?: (data: any) => number  // ✅ NOVO: Engagement score
+  statusLogic?: (data: DataRecord) => string      // Lógica custom de status
+  progressLogic?: (data: DataRecord) => number    // Lógica custom de progresso
+  engagementScoreLogic?: (data: DataRecord) => number  // ✅ NOVO: Engagement score
+}
+
+function isRecord(value: unknown): value is DataRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function asRecord(value: unknown): DataRecord | undefined {
+  return isRecord(value) ? value : undefined
+}
+
+function asFiniteNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function toTimestamp(value: unknown): number | undefined {
+  if (value instanceof Date) return value.getTime()
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined
+  return new Date(value).getTime()
+}
+
+function calculateHotmartLessonProgress(data: DataRecord): number {
+  const progress = asRecord(data.progress)
+  const lessons = progress?.lessonsData
+  if (!Array.isArray(lessons) || lessons.length === 0) return 0
+
+  const completed = lessons.filter(lesson => asRecord(lesson)?.completed === true).length
+  return Math.round((completed / lessons.length) * 100)
 }
 
 const PLATFORM_MAPPINGS: PlatformMapping[] = [
@@ -71,33 +156,23 @@ const PLATFORM_MAPPINGS: PlatformMapping[] = [
     engagementPath: 'hotmart.engagement',
     progressPath: 'hotmart.progress',
     
-    statusLogic: (data: any) => {
+    statusLogic: (data) => {
       // ✅ HOTMART = LOGIN-BASED
       // Usar lastAccessDate (não lastLogin, Hotmart não tem esse campo)
-      const lastAccessDate = data?.progress?.lastAccessDate
-      if (!lastAccessDate) return 'INACTIVE'
+      const progress = asRecord(data.progress)
+      const lastAccessTimestamp = toTimestamp(progress?.lastAccessDate)
+      if (lastAccessTimestamp === undefined) return 'INACTIVE'
       
-      const daysSince = (Date.now() - new Date(lastAccessDate).getTime()) / (1000 * 60 * 60 * 24)
+      const daysSince = (Date.now() - lastAccessTimestamp) / (1000 * 60 * 60 * 24)
       return daysSince > 30 ? 'INACTIVE' : 'ACTIVE'
     },
     
-    progressLogic: (data: any) => {
-      // ✅ CORRIGIDO: Usar totalProgress do schema
-      if (data?.progress?.totalProgress !== undefined) {
-        return Math.min(Math.max(data.progress.totalProgress, 0), 100)
-      }
-      
-      // Fallback: currentModule (assumindo 10 módulos total)
-      if (data?.currentModule !== undefined) {
-        return Math.min((data.currentModule / 10) * 100, 100)
-      }
-      
-      return 0
-    },
+    progressLogic: calculateHotmartLessonProgress,
     
-    engagementScoreLogic: (data: any) => {
+    engagementScoreLogic: (data) => {
       // ✅ Usar accessCount do engagement
-      return data?.engagement?.accessCount || 0
+      const engagement = asRecord(data.engagement)
+      return asFiniteNumber(engagement?.accessCount) ?? 0
     }
   },
   
@@ -111,29 +186,31 @@ const PLATFORM_MAPPINGS: PlatformMapping[] = [
     engagementPath: 'curseduca.progress',  // ✅ CORRIGIDO (curseduca não tem .engagement)
     progressPath: 'curseduca.progress',
     
-    statusLogic: (data: any) => {
+    statusLogic: (data) => {
       // ✅ CURSEDUCA = ACTION-BASED
       // 1. Verificar situation (ACTIVE/INACTIVE/SUSPENDED)
-      if (data?.situation === 'INACTIVE' || data?.situation === 'SUSPENDED') {
+      if (!isCurseducaEnrollmentActive(data.situation)) {
         return 'INACTIVE'
       }
       
       // 2. Verificar lastLogin (se >30 dias = INACTIVE)
-      const lastLogin = data?.lastLogin
-      if (!lastLogin) return 'INACTIVE'
+      const lastLoginTimestamp = toTimestamp(data.lastLogin)
+      if (lastLoginTimestamp === undefined) return 'INACTIVE'
       
-      const daysSince = (Date.now() - new Date(lastLogin).getTime()) / (1000 * 60 * 60 * 24)
+      const daysSince = (Date.now() - lastLoginTimestamp) / (1000 * 60 * 60 * 24)
       return daysSince > 30 ? 'INACTIVE' : 'ACTIVE'
     },
     
-    progressLogic: (data: any) => {
+    progressLogic: (data) => {
       // ✅ Usar estimatedProgress
-      return data?.progress?.estimatedProgress || 0
+      const progress = asRecord(data.progress)
+      return asFiniteNumber(progress?.estimatedProgress) ?? 0
     },
     
-    engagementScoreLogic: (data: any) => {
+    engagementScoreLogic: (data) => {
       // ✅ CursEduca não tem engagement direto, calcular baseado em progresso
-      const progress = data?.progress?.estimatedProgress || 0
+      const progressData = asRecord(data.progress)
+      const progress = asFiniteNumber(progressData?.estimatedProgress) ?? 0
       return Math.min(100, progress * 2) // Progresso de 50% = engagement de 100
     }
   },
@@ -148,8 +225,8 @@ const PLATFORM_MAPPINGS: PlatformMapping[] = [
     engagementPath: 'discord',
     progressPath: 'discord',
     
-    statusLogic: (data: any) => {
-      return data?.isDeleted ? 'INACTIVE' : 'ACTIVE'
+    statusLogic: (data) => {
+      return data.isDeleted ? 'INACTIVE' : 'ACTIVE'
     },
     
     progressLogic: () => 0,  // Discord não tem progresso mensurável
@@ -165,8 +242,49 @@ const PLATFORM_MAPPINGS: PlatformMapping[] = [
 /**
  * Helper: Obter valor de campo nested usando path
  */
-function getNestedValue(obj: any, path: string): any {
-  return path.split('.').reduce((current, key) => current?.[key], obj)
+function getNestedValue(obj: unknown, path: string): unknown {
+  let current = obj
+  for (const key of path.split('.')) {
+    const record = asRecord(current)
+    if (!record) return undefined
+    current = record[key]
+  }
+  return current
+}
+
+function stringifyId(value: unknown): string | undefined {
+  if (typeof value === 'string' || typeof value === 'number') return String(value)
+
+  const record = asRecord(value)
+  if (record?._id !== undefined) return stringifyId(record._id)
+
+  if (
+    typeof value === 'object'
+    && value !== null
+    && 'toString' in value
+    && typeof value.toString === 'function'
+  ) {
+    return value.toString()
+  }
+
+  return undefined
+}
+
+function firstFiniteNumber(...values: unknown[]): number {
+  for (const value of values) {
+    const number = asFiniteNumber(value)
+    if (number !== undefined && number !== 0) return number
+  }
+  return 0
+}
+
+function firstDateValue(...values: unknown[]): DateValue | undefined {
+  for (const value of values) {
+    if (value instanceof Date) return value
+    if (typeof value === 'string' && value !== '') return value
+    if (typeof value === 'number' && value !== 0) return value
+  }
+  return undefined
 }
 
 /**
@@ -198,7 +316,7 @@ async function buildUnifiedCache() {
   // ========================================================================
   const users = await User.find({ 
     isDeleted: { $ne: true } 
-  }).lean() as any[]
+  }).lean<LegacyUserRecord[]>()
   
   console.log(`   ✅ ${users.length} users encontrados na BD`)
 
@@ -208,23 +326,22 @@ async function buildUnifiedCache() {
   const userProducts = await UserProduct.find()
     .populate('userId', 'name email')
     .populate('productId', 'name code platform')
-    .lean()
+    .lean<UnifiedUserProduct[]>()
   
   console.log(`   ✅ ${userProducts.length} UserProducts V2 encontrados`)
 
   // ========================================================================
   // 3. MAPEAR USERPRODUCTS V2 POR USERID
   // ========================================================================
-  const userProductsByUserId = new Map<string, any[]>()
+  const userProductsByUserId = new Map<string, UnifiedUserProduct[]>()
   let validV2Count = 0
   
   userProducts.forEach(up => {
-    if (!up.userId || !up.productId) {
+    const userId = stringifyId(up.userId)
+    if (!userId || !up.productId) {
       console.warn(`   ⚠️ UserProduct ${up._id} sem populate (ignorado)`)
       return
     }
-    
-    const userId = (up.userId as any)._id?.toString() || up.userId.toString()
     
     if (!userProductsByUserId.has(userId)) {
       userProductsByUserId.set(userId, [])
@@ -239,10 +356,10 @@ async function buildUnifiedCache() {
   // ========================================================================
   // 4. BUSCAR TODOS OS PRODUTOS DA BD (DINÂMICO!)
   // ========================================================================
-  const products = await Product.find({ isActive: true }).lean() as any[]
+  const products = await Product.find({ isActive: true }).lean<ProductRecord[]>()
   
   // Mapear produtos por plataforma
-  const productsByPlatform = new Map<string, any>()
+  const productsByPlatform = new Map<string, ProductRecord>()
   products.forEach(product => {
     const platform = product.platform.toLowerCase()
     if (!productsByPlatform.has(platform)) {
@@ -262,7 +379,7 @@ async function buildUnifiedCache() {
   // ========================================================================
   // 5. CONVERTER DADOS V1 → V2 (ESCALÁVEL!)
   // ========================================================================
-  const unifiedUserProducts: any[] = []
+  const unifiedUserProducts: UnifiedUserProduct[] = []
   const conversionStats = new Map<string, number>()
   const warnedPlatforms = new Set<string>()
   let v2Used = 0
@@ -306,21 +423,15 @@ async function buildUnifiedCache() {
       // ──────────────────────────────────────────────────────────
       let platformUserId: string | null = null
       
-      if (mapping.userIdField.includes('.')) {
-        // Campo nested (ex: discord.discordIds, curseduca.curseducaUserId)
-        const value = getNestedValue(user, mapping.userIdField)
-        
-        if (Array.isArray(value) && value.length > 0) {
-          platformUserId = value[0]
-        } else if (value && typeof value === 'string' && value.trim() !== '') {
-          platformUserId = value
-        }
-      } else {
-        // Campo direto
-        const value = user[mapping.userIdField]
-        if (value && typeof value === 'string' && value.trim() !== '') {
-          platformUserId = value
-        }
+      const platformIdValue = getNestedValue(user, mapping.userIdField)
+      if (
+        Array.isArray(platformIdValue)
+        && typeof platformIdValue[0] === 'string'
+        && platformIdValue[0].trim() !== ''
+      ) {
+        platformUserId = platformIdValue[0]
+      } else if (typeof platformIdValue === 'string' && platformIdValue.trim() !== '') {
+        platformUserId = platformIdValue
       }
 
       // ❌ Sem ID válido → skip
@@ -337,15 +448,15 @@ async function buildUnifiedCache() {
       }
 
       // 3️⃣ Buscar dados nested
-      const platformData = getNestedValue(user, mapping.dataPath) || {}
-      const hasData = platformData && Object.keys(platformData).length > 0
+      const platformData = asRecord(getNestedValue(user, mapping.dataPath)) ?? {}
+      const hasData = Object.keys(platformData).length > 0
       
       const engagementData = hasData 
-        ? (getNestedValue(user, mapping.engagementPath) || {})
+        ? (asRecord(getNestedValue(user, mapping.engagementPath)) ?? {})
         : {}
       
       const progressData = hasData
-        ? (getNestedValue(user, mapping.progressPath) || {})
+        ? (asRecord(getNestedValue(user, mapping.progressPath)) ?? {})
         : {}
 
       // 4️⃣ Calcular status
@@ -370,29 +481,34 @@ async function buildUnifiedCache() {
         engagementScore = mapping.engagementScoreLogic(platformData)
       } else {
         // Fallback genérico
-        engagementScore = 
-          engagementData.engagementScore || 
-          engagementData.alternativeEngagement || 
-          engagementData.accessCount ||
-          0
+        engagementScore = firstFiniteNumber(
+          engagementData.engagementScore,
+          engagementData.alternativeEngagement,
+          engagementData.accessCount,
+        )
       }
 
       // 7️⃣ Extrair datas
-      const enrolledAt = 
-        platformData.signupDate || 
-        platformData.joinedDate || 
-        platformData.purchaseDate ||
-        platformData.createdAt || 
-        user.metadata?.createdAt ||
-        user.createdAt || 
-        new Date()
+      const enrolledAt = firstDateValue(
+        platformData.signupDate,
+        platformData.joinedDate,
+        platformData.purchaseDate,
+        platformData.createdAt,
+        user.metadata?.createdAt,
+        user.createdAt,
+      ) ?? new Date()
       
-      const lastActivity = 
-        progressData.lastAccessDate || 
-        progressData.lastActivity ||
-        platformData.lastLogin ||
-        platformData.lastAccess ||
-        null
+      const lastActivity = firstDateValue(
+        progressData.lastAccessDate,
+        progressData.lastActivity,
+        platformData.lastLogin,
+        platformData.lastAccess,
+      ) ?? null
+
+      const engagementLevel = typeof engagementData.engagementLevel === 'string'
+        && engagementData.engagementLevel !== ''
+        ? engagementData.engagementLevel
+        : calculateEngagementLevel(engagementScore)
 
       // 8️⃣ CRIAR USERPRODUCT CONVERTIDO
       unifiedUserProducts.push({
@@ -412,7 +528,7 @@ async function buildUnifiedCache() {
         },
         engagement: {
           engagementScore,
-          engagementLevel: engagementData.engagementLevel || calculateEngagementLevel(engagementScore)
+          engagementLevel,
         },
         enrolledAt: enrolledAt,
         source: 'MIGRATION',
@@ -432,8 +548,8 @@ async function buildUnifiedCache() {
   // 6. STATS FINAIS
   // ========================================================================
   const duration = Date.now() - startTime
-  const v1Count = unifiedUserProducts.filter((up: any) => up._isV1).length
-  const v2Count = unifiedUserProducts.filter((up: any) => !up._isV1).length
+  const v1Count = unifiedUserProducts.filter(up => up._isV1).length
+  const v2Count = unifiedUserProducts.filter(up => !up._isV1).length
 
   console.log(`\n   ✅ CONVERSÃO COMPLETA em ${duration}ms`)
   console.log(`   ════════════════════════════════════════`)
@@ -594,16 +710,14 @@ export async function getAllUsersUnified() {
 /**
  * Buscar users únicos dos UserProducts unificados
  */
-export async function getUniqueUsersFromUnified(unifiedUserProducts: any[]) {
+export async function getUniqueUsersFromUnified(
+  unifiedUserProducts: UnifiedUserProduct[],
+): Promise<string[]> {
   const uniqueUserIds = [...new Set(
     unifiedUserProducts
       .filter(up => up.userId)
-      .map(up => {
-        const userId = up.userId
-        return typeof userId === 'object' && userId._id 
-          ? userId._id.toString() 
-          : userId.toString()
-      })
+      .map(up => stringifyId(up.userId))
+      .filter((userId): userId is string => userId !== undefined)
   )]
 
   return uniqueUserIds

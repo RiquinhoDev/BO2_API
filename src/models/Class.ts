@@ -1,5 +1,9 @@
 // src/models/Class.ts
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, {
+  Schema,
+  Document,
+  type HydratedDocument,
+} from 'mongoose'
 
 export interface IClass extends Document {
   classId: string
@@ -231,12 +235,11 @@ ClassSchema.pre('save', function(next) {
   next()
 })
 
-export const Class = mongoose.models.Class || mongoose.model<IClass>('Class', ClassSchema)
+export const Class: mongoose.Model<IClass> = mongoose.models.Class || mongoose.model<IClass>('Class', ClassSchema)
 
 // ===== MODELO DE ESTUDANTE =====
 
-export interface IStudent extends Document {
-  _id: string
+export interface IStudent {
   name: string
   email: string
   classId?: string
@@ -250,6 +253,8 @@ export interface IStudent extends Document {
   createdAt: Date
   updatedAt: Date
 }
+
+export type StudentDocument = HydratedDocument<IStudent>
 
 const StudentSchema = new Schema<IStudent>({
   name: {
@@ -405,7 +410,7 @@ ClassHistorySchema.index({ studentEmail: 1, dateMoved: -1 })
 ClassHistorySchema.index({ dateMoved: -1 })
 ClassHistorySchema.index({ action: 1, dateMoved: -1 })
 
-export const ClassHistory = mongoose.models.ClassHistory || mongoose.model<IClassHistory>('ClassHistory', ClassHistorySchema)
+export const ClassHistory: mongoose.Model<IClassHistory> = mongoose.models.ClassHistory || mongoose.model<IClassHistory>('ClassHistory', ClassHistorySchema)
 
 // ===== MODELO DE LISTAS DE INATIVAÇÃO =====
 

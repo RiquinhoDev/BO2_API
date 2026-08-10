@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/renewal/renewalAcSync.service.ts
 // Fase B da Renovação OGI: BackOffice → ActiveCampaign.
-// Ver RENOVACAO_OGI_BO_PLAN.md (secções 11 e 13) — este ficheiro
+// Ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md (secções 11 e 13) — este ficheiro
 // implementa a safety net descrita lá (guards F1–F17).
 //
 // Fluxo em 2 passos SEPARADOS:
@@ -20,6 +20,7 @@
 //   RENEWAL_AC_PROCESS_REFUNDS   permite detecção de reembolsos (só BD)
 //   RENEWAL_AC_AUTO_EXECUTE      cron executa sem aprovação manual
 // ════════════════════════════════════════════════════════════
+import { getRuntimeConfig } from '../../config/runtimeConfig'
 
 import mongoose from 'mongoose'
 import RenewalAcChange, { IRenewalAcChange } from '../../models/RenewalAcChange'
@@ -32,17 +33,19 @@ import { detectHotmartRefunds, RefundDetectionReport } from './hotmartRefunds.se
 import { parseTurmaName, resolveAccessEnd } from './turmaParser'
 
 // ─────────────────────────────────────────────────────────────
-// SWITCHES E CONFIG (lidos em runtime, nunca cacheados no boot)
+// SWITCHES E CONFIG (validados no boot; consultados em runtime)
 // ─────────────────────────────────────────────────────────────
 
-export const isMasterEnabled = () => process.env.RENEWAL_AC_SYNC_ENABLED === 'true'
-export const isWriteDatesEnabled = () => process.env.RENEWAL_AC_WRITE_DATES === 'true'
-export const isWriteTagsEnabled = () => process.env.RENEWAL_AC_WRITE_TAGS === 'true'
-export const isProcessRefundsEnabled = () => process.env.RENEWAL_AC_PROCESS_REFUNDS === 'true'
-export const isAutoExecuteEnabled = () => process.env.RENEWAL_AC_AUTO_EXECUTE === 'true'
+const renewalConfig = () => getRuntimeConfig().renewal
 
-const expiryFieldId = () => Number(process.env.RENEWAL_AC_EXPIRY_FIELD_ID || 332)
-const maxChangesPerRun = () => Number(process.env.RENEWAL_AC_MAX_CHANGES_PER_RUN || 50)
+export const isMasterEnabled = () => renewalConfig().acSyncEnabled
+export const isWriteDatesEnabled = () => renewalConfig().writeDatesEnabled
+export const isWriteTagsEnabled = () => renewalConfig().writeTagsEnabled
+export const isProcessRefundsEnabled = () => renewalConfig().processRefundsEnabled
+export const isAutoExecuteEnabled = () => renewalConfig().autoExecute
+
+const expiryFieldId = () => renewalConfig().expiryFieldId
+const maxChangesPerRun = () => renewalConfig().maxChangesPerRun
 
 // Frescura: PLANNED expira em 24h; APPROVED (revisto por humano) em 48h.
 const PLANNED_TTL_HOURS = 24

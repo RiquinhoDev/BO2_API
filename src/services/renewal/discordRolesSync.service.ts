@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/renewal/discordRolesSync.service.ts
 // Reconciliação nocturna dos cargos de renovação no Discord (R. {Mês})
-// + envio de mensagens do bot. Ver RENOVACAO_DISCORD_CARGOS_PLAN.md.
+// + envio de mensagens do bot. Ver docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.
 //
 // Regra de ouro (D3): o cargo espelha SEMPRE a turma actual na Hotmart.
 //   desejado  = mês do fim de acesso (parseTurmaName → accessEndOgi)
@@ -17,6 +17,8 @@
 
 import axios from 'axios'
 import mongoose from 'mongoose'
+import { getRuntimeConfig } from '../../config/runtimeConfig'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 import {
   DiscordMessageLog,
   DiscordMessageTemplate,
@@ -31,15 +33,28 @@ import { parseTurmaName } from './turmaParser'
 // SWITCHES E CONFIG (runtime)
 // ─────────────────────────────────────────────────────────────
 
-export const isRolesSyncEnabled = () => process.env.DISCORD_ROLES_SYNC_ENABLED === 'true'
-export const isRolesAutoExecuteEnabled = () => process.env.DISCORD_ROLES_AUTO_EXECUTE === 'true'
-export const isMessagesEnabled = () => process.env.DISCORD_MESSAGES_ENABLED === 'true'
+const renewalConfig = () => getRuntimeConfig().renewal
+const discordIntegration = () => getRuntimeConfig().integrations.discord
 
-const botUrl = () => (process.env.DISCORD_BOT_URL || 'https://api.serriquinho.com').replace(/\/$/, '')
-const maxOpsPerRun = () => Number(process.env.DISCORD_ROLES_MAX_OPS_PER_RUN || 100)
+export const isRolesSyncEnabled = () => renewalConfig().discordRolesSyncEnabled
+export const isRolesAutoExecuteEnabled = () => renewalConfig().discordRolesAutoExecute
+export const isMessagesEnabled = () => renewalConfig().discordMessagesEnabled
+
+const configuredBotUrl = (): string | null => {
+  const integration = discordIntegration()
+  return integration.configured ? integration.value.botUrl.replace(/\/$/, '') : null
+}
+const botUrl = () => {
+  const url = configuredBotUrl()
+  if (!url) throw new IntegrationUnavailableError('discord')
+  return url
+}
+const maxOpsPerRun = () => renewalConfig().discordRolesMaxOpsPerRun
 const botHeaders = () => {
+  const integration = discordIntegration()
+  if (!integration.configured) throw new IntegrationUnavailableError('discord')
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (process.env.BOT_SHARED_SECRET) headers['X-Bot-Auth'] = process.env.BOT_SHARED_SECRET
+  if (integration.value.sharedSecret) headers['X-Bot-Auth'] = integration.value.sharedSecret
   return headers
 }
 
@@ -66,15 +81,14 @@ export const RENEWAL_ROLES: Record<number, { roleId: string; roleName: string }>
 export const ALL_RENEWAL_ROLE_IDS = Object.values(RENEWAL_ROLES).map((r) => r.roleId)
 const ROLE_NAME_BY_ID = new Map(Object.values(RENEWAL_ROLES).map((r) => [r.roleId, r.roleName]))
 
-export const DEFAULT_MESSAGE_CHANNEL_ID = process.env.DISCORD_MESSAGE_CHANNEL_ID || '1182457352012697671'
+export const getDefaultMessageChannelId = (): string | undefined =>
+  renewalConfig().discordMessageChannelId
 
 // Canais onde o BO pode publicar comunicados: "id:nome,id:nome".
 // ⚠️ Ao acrescentar um canal aqui, acrescentar o ID também no env
 // RENEWAL_MESSAGE_CHANNEL_IDS do serviço do bot (allowlist do lado de lá).
 export function getMessageChannels(): Array<{ channelId: string; name: string }> {
-  const raw = process.env.DISCORD_MESSAGE_CHANNELS || `${DEFAULT_MESSAGE_CHANNEL_ID}:🗣📢︱anúncios-alunos`
-  return raw
-    .split(',')
+  return renewalConfig().discordMessageChannels
     .map((entry) => {
       const [channelId, ...nameParts] = entry.trim().split(':')
       return { channelId: (channelId || '').trim(), name: nameParts.join(':').trim() || channelId }
@@ -553,7 +567,10 @@ export async function sendDiscordMessage(params: {
     return { success: false, message: 'mentionRoleIds contém cargos fora da allowlist R.*' }
   }
 
-  const channelId = params.channelId || DEFAULT_MESSAGE_CHANNEL_ID
+  const channelId = params.channelId || getDefaultMessageChannelId()
+  if (!channelId) {
+    return { success: false, message: 'DISCORD_MESSAGE_CHANNEL_ID not configured' }
+  }
   const allowedChannels = getMessageChannels()
   if (!allowedChannels.some((c) => c.channelId === channelId)) {
     return { success: false, message: 'Canal fora da lista de canais permitidos (DISCORD_MESSAGE_CHANNELS)' }
@@ -602,12 +619,15 @@ export async function getDiscordRenewalStatus() {
   const statesCount = await DiscordRoleState.countDocuments({})
   const lastPlanned = await DiscordRoleChange.findOne({}).sort({ plannedAt: -1 }).select('planBatchId plannedAt').lean().exec() as { planBatchId?: string; plannedAt?: Date } | null
 
-  let botHealth: any = null
-  try {
-    const resp = await axios.get(`${botUrl()}/renewal/health`, { headers: botHeaders(), timeout: 8000 })
-    botHealth = resp.data
-  } catch (error: any) {
-    botHealth = { ok: false, error: error.response?.status || error.message }
+  const configuredUrl = configuredBotUrl()
+  let botHealth: any = { ok: false, error: 'DISCORD_NOT_CONFIGURED' }
+  if (configuredUrl) {
+    try {
+      const resp = await axios.get(`${configuredUrl}/renewal/health`, { headers: botHeaders(), timeout: 8000 })
+      botHealth = resp.data
+    } catch (error: any) {
+      botHealth = { ok: false, error: error.response?.status || error.message }
+    }
   }
 
   return {
@@ -617,9 +637,9 @@ export async function getDiscordRenewalStatus() {
       messagesEnabled: isMessagesEnabled()
     },
     config: {
-      botUrl: botUrl(),
+      botUrl: configuredUrl,
       maxOpsPerRun: maxOpsPerRun(),
-      defaultChannelId: DEFAULT_MESSAGE_CHANNEL_ID,
+      defaultChannelId: getDefaultMessageChannelId() || null,
       channels: getMessageChannels(),
       roles: RENEWAL_ROLES
     },

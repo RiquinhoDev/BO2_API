@@ -2,20 +2,19 @@
  * 🎮 DISCOVERY CONTROLLER
  */
 
-import { Request, Response } from 'express';
-import Product from '../models/product/Product';
-import ProductProfile from '../models/product/ProductProfile';
-import Course from '../models/Course';
+import { NextFunction, Request, Response } from 'express';
 
 import hotmartDiscoveryService from '../services/discovery/hotmartDiscovery.service';
 import intelligentDefaultsService from '../services/discovery/intelligentDefaults.service';
+import { configureDiscoveredProduct } from '../services/discovery/configureDiscoveredProduct.service';
 import { validateConfigurationData } from '../types/discovery.types';
+import { internalError } from '../security/errorHandling';
 
 /**
  * POST /api/discovery/run
  * Executar discovery completo
  */
-export const runDiscovery = async (req: Request, res: Response): Promise<void> => {
+export const runDiscovery = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const startTime = Date.now();
   
   try {
@@ -44,13 +43,8 @@ export const runDiscovery = async (req: Request, res: Response): Promise<void> =
       message: `Discovery completo: ${totalFound} produtos encontrados`
     });
 
-  } catch (error: any) {
-    console.error('❌ Erro no discovery:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro no discovery',
-      details: error.message
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao executar discovery', 'DISCOVERY_RUN_FAILED', error));
   }
 };
 
@@ -58,7 +52,7 @@ export const runDiscovery = async (req: Request, res: Response): Promise<void> =
  * POST /api/discovery/generate-config
  * Gerar configuração inteligente
  */
-export const generateConfig = async (req: Request, res: Response): Promise<void> => {
+export const generateConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { discoveredProduct } = req.body;
 
@@ -78,13 +72,8 @@ export const generateConfig = async (req: Request, res: Response): Promise<void>
       message: 'Configuração gerada com sucesso'
     });
 
-  } catch (error: any) {
-    console.error('❌ Erro ao gerar configuração:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao gerar configuração',
-      details: error.message
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao gerar configuracao', 'DISCOVERY_CONFIG_GENERATION_FAILED', error));
   }
 };
 
@@ -92,7 +81,7 @@ export const generateConfig = async (req: Request, res: Response): Promise<void>
  * POST /api/discovery/configure
  * Configurar produto descoberto
  */
-export const configureProduct = async (req: Request, res: Response): Promise<void> => {
+export const configureProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const configData = req.body;
 
@@ -104,22 +93,18 @@ export const configureProduct = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Verificar se código já existe
-    const existingProduct = await Product.findOne({ 
-      code: configData.productData.code.toUpperCase() 
-    });
-    
-    if (existingProduct) {
+    // Criação atómica: verificação + course + Product + ProductProfile numa transação.
+    const result = await configureDiscoveredProduct(configData);
+
+    if (result.status === 'duplicate_code') {
       res.status(409).json({
         success: false,
-        error: `Produto com código "${configData.productData.code}" já existe`
+        error: `Produto com código "${result.code}" já existe`
       });
       return;
     }
 
-    // Buscar course padrão
-    const course = await Course.findOne({ isActive: true });
-    if (!course) {
+    if (result.status === 'no_active_course') {
       res.status(404).json({
         success: false,
         error: 'Nenhum course ativo encontrado'
@@ -127,41 +112,15 @@ export const configureProduct = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Criar Product
-    const product = await Product.create({
-      ...configData.productData,
-      code: configData.productData.code.toUpperCase(),
-      courseId: course._id,
-      activeCampaignConfig: {
-        tagPrefix: configData.productData.code.toUpperCase(),
-        listId: course.activeCampaignConfig?.listId || '1',
-        ...configData.activeCampaignConfig
-      },
-      launchDate: new Date()
-    });
-
-    // Criar ProductProfile
-    const productProfile = await ProductProfile.create({
-      ...configData.profileData,
-      createdAt: new Date(),
-      lastModified: new Date()
-    });
-
-    console.log(`✅ Produto "${product.name}" configurado com sucesso`);
+    console.log(`✅ Produto "${result.product.name}" configurado com sucesso`);
 
     res.status(201).json({
       success: true,
-      message: `Produto "${product.name}" configurado com sucesso`,
-      data: { product, productProfile }
+      message: `Produto "${result.product.name}" configurado com sucesso`,
+      data: { product: result.product, productProfile: result.productProfile }
     });
 
-  } catch (error: any) {
-    console.error('❌ Erro ao configurar produto:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao configurar produto',
-      details: error.message
-    });
+  } catch (error: unknown) {
+    next(internalError('Erro ao configurar produto', 'DISCOVERY_PRODUCT_CONFIGURATION_FAILED', error));
   }
 };
-

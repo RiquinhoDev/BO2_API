@@ -15,9 +15,21 @@ export interface ITagChangeNotification extends Document {
   isRead: boolean
   createdAt: Date
   detailsIds: mongoose.Types.ObjectId[]
+  markAsRead(): Promise<ITagChangeNotification>
+  markAsUnread(): Promise<ITagChangeNotification>
 }
 
-const TagChangeNotificationSchema = new Schema<ITagChangeNotification>(
+export interface ITagChangeNotificationModel extends mongoose.Model<ITagChangeNotification> {
+  findUnread(limit?: number): Promise<ITagChangeNotification[]>
+  getUnreadCount(): Promise<number>
+  findByWeek(weekNumber: number, year: number): Promise<ITagChangeNotification[]>
+  findByTag(tagName: string): Promise<ITagChangeNotification[]>
+}
+
+const TagChangeNotificationSchema = new Schema<
+  ITagChangeNotification,
+  ITagChangeNotificationModel
+>(
   {
     tagName: {
       type: String,
@@ -136,7 +148,10 @@ TagChangeNotificationSchema.statics.findByTag = function (tagName: string) {
 TagChangeNotificationSchema.set('toJSON', { virtuals: true })
 TagChangeNotificationSchema.set('toObject', { virtuals: true })
 
-const TagChangeNotification = mongoose.model<ITagChangeNotification>(
+const TagChangeNotification = mongoose.model<
+  ITagChangeNotification,
+  ITagChangeNotificationModel
+>(
   'TagChangeNotification',
   TagChangeNotificationSchema
 )

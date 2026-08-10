@@ -20,7 +20,21 @@ export interface TagChanges {
   unchanged: string[]
 }
 
-const WeeklyNativeTagSnapshotSchema = new Schema<IWeeklyNativeTagSnapshot>(
+export interface IWeeklyNativeTagSnapshotModel
+  extends mongoose.Model<IWeeklyNativeTagSnapshot> {
+  findByEmail(email: string, limit?: number): Promise<IWeeklyNativeTagSnapshot[]>
+  findByWeek(weekNumber: number, year: number): Promise<IWeeklyNativeTagSnapshot[]>
+  findPreviousSnapshot(
+    email: string,
+    currentWeek: number,
+    currentYear: number
+  ): Promise<IWeeklyNativeTagSnapshot | null>
+}
+
+const WeeklyNativeTagSnapshotSchema = new Schema<
+  IWeeklyNativeTagSnapshot,
+  IWeeklyNativeTagSnapshotModel
+>(
   {
     email: {
       type: String,
@@ -69,6 +83,7 @@ WeeklyNativeTagSnapshotSchema.index({ capturedAt: 1 }, { expireAfterSeconds: 157
 
 // Método para comparar com snapshot anterior
 WeeklyNativeTagSnapshotSchema.methods.compareWith = function (
+  this: IWeeklyNativeTagSnapshot,
   previousSnapshot: IWeeklyNativeTagSnapshot
 ): TagChanges {
   const currentTags = new Set(this.nativeTags)
@@ -118,7 +133,10 @@ WeeklyNativeTagSnapshotSchema.statics.findPreviousSnapshot = async function (
   })
 }
 
-const WeeklyNativeTagSnapshot = mongoose.model<IWeeklyNativeTagSnapshot>(
+const WeeklyNativeTagSnapshot = mongoose.model<
+  IWeeklyNativeTagSnapshot,
+  IWeeklyNativeTagSnapshotModel
+>(
   'WeeklyNativeTagSnapshot',
   WeeklyNativeTagSnapshotSchema
 )

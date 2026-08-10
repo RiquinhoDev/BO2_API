@@ -3,14 +3,12 @@
 // TODAS as classificações de status devem vir daqui - NUNCA definir localmente
 
 import axios from 'axios'
+import { getOptionalCurseducaRuntimeSettings } from '../requestDrivenRuntimeConfig'
 
 // ═══════════════════════════════════════════════════════════
 // CONFIGURAÇÃO CURSEDUCA (centralizada)
 // ═══════════════════════════════════════════════════════════
 
-export const CURSEDUCA_API_URL = process.env.CURSEDUCA_API_URL || 'https://prof.curseduca.pro'
-export const CURSEDUCA_API_KEY = process.env.CURSEDUCA_API_KEY || process.env.CURSEDUCA_API_KEY
-export const CURSEDUCA_ACCESS_TOKEN = process.env.CURSEDUCA_AccessToken
 
 // ═══════════════════════════════════════════════════════════
 // STATUS GURU
@@ -184,13 +182,14 @@ export async function verifyCurseducaMemberStatus(memberId: string | number): Pr
   name?: string
   email?: string
 } | null> {
-  if (!CURSEDUCA_ACCESS_TOKEN || !CURSEDUCA_API_KEY) return null
+  const settings = getOptionalCurseducaRuntimeSettings()
+  if (!settings) return null
 
   try {
-    const resp = await axios.get(`${CURSEDUCA_API_URL}/members/${memberId}`, {
+    const resp = await axios.get(`${settings.apiUrl}/members/${memberId}`, {
       headers: {
-        'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
-        'api_key': CURSEDUCA_API_KEY
+        'Authorization': `Bearer ${settings.accessToken}`,
+        'api_key': settings.apiKey
       },
       timeout: 10000
     })
@@ -215,16 +214,17 @@ export async function lookupCurseducaUserIdByEmail(email: string): Promise<{
   situation: string
   name?: string
 } | null> {
-  if (!CURSEDUCA_ACCESS_TOKEN || !CURSEDUCA_API_KEY) return null
+  const settings = getOptionalCurseducaRuntimeSettings()
+  if (!settings) return null
 
   const emailLower = email.toLowerCase().trim()
 
   try {
     // Pesquisar diretamente na lista de membros (endpoint /members com filtro)
-    const resp = await axios.get(`${CURSEDUCA_API_URL}/members`, {
+    const resp = await axios.get(`${settings.apiUrl}/members`, {
       headers: {
-        'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
-        'api_key': CURSEDUCA_API_KEY
+        'Authorization': `Bearer ${settings.accessToken}`,
+        'api_key': settings.apiKey
       },
       params: {
         email: emailLower,
@@ -256,10 +256,10 @@ export async function lookupCurseducaUserIdByEmail(email: string): Promise<{
       try {
         const CLAREZA_GROUP_IDS = ['6', '7'] // IDs dos grupos Clareza
         for (const groupId of CLAREZA_GROUP_IDS) {
-          const groupResp = await axios.get(`${CURSEDUCA_API_URL}/groups/${groupId}/members`, {
+          const groupResp = await axios.get(`${settings.apiUrl}/groups/${groupId}/members`, {
             headers: {
-              'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN}`,
-              'api_key': CURSEDUCA_API_KEY
+              'Authorization': `Bearer ${settings.accessToken}`,
+              'api_key': settings.apiKey
             },
             params: { per_page: 500 },
             timeout: 30000

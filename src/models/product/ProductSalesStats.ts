@@ -230,7 +230,7 @@ ProductSalesStatsSchema.methods.getGrowthRate = function(months: number = 6): nu
 // EXPORT
 // ─────────────────────────────────────────────────────────────
 
-const ProductSalesStats = mongoose.models.ProductSalesStats || 
+const ProductSalesStats: mongoose.Model<IProductSalesStats> = mongoose.models.ProductSalesStats ||
   mongoose.model<IProductSalesStats>('ProductSalesStats', ProductSalesStatsSchema)
 
 export default ProductSalesStats

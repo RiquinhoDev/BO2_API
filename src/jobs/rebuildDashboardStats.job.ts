@@ -10,8 +10,21 @@
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
-import cron from 'node-cron';
 import { buildDashboardStats } from '../services/dashboardStatsBuilder.service';
+
+class DashboardStatsRebuildError extends Error {
+  readonly cause!: Error | undefined
+
+  constructor(message: string, cause?: Error) {
+    super(message)
+    this.name = 'DashboardStatsRebuildError'
+    Object.defineProperty(this, 'cause', {
+      value: cause,
+      enumerable: false,
+      configurable: true,
+    })
+  }
+}
 
 /**
  * 🚀 Rebuild manual (após syncs)
@@ -36,11 +49,16 @@ export async function rebuildDashboardStatsManual() {
       message: 'Dashboard Stats reconstruídos com sucesso'
     }
     
-  } catch (error: any) {
-    console.error('❌ MANUAL: Erro ao reconstruir:', error, '\n');
+  } catch (error: unknown) {
+    const cause = error instanceof Error ? error : undefined
+    const message = cause?.message ?? 'Erro desconhecido'
+    console.error('❌ MANUAL: Erro ao reconstruir:', message, '\n');
     
     // ✅ CORRIGIDO: Lançar erro para CRON system capturar
-    throw new Error(`Erro ao rebuild dashboard stats: ${error.message}`)
+    throw new DashboardStatsRebuildError(
+      `Erro ao rebuild dashboard stats: ${message}`,
+      cause,
+    )
   }
 }
 

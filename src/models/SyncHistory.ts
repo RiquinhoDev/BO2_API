@@ -75,4 +75,6 @@ syncHistorySchema.index({ type: 1, startedAt: -1 })
 syncHistorySchema.index({ status: 1 })
 syncHistorySchema.index({ user: 1 })
 
-export default mongoose.models.SyncHistory || model<ISyncHistory>("SyncHistory", syncHistorySchema)
+const SyncHistory: mongoose.Model<ISyncHistory> = mongoose.models.SyncHistory || model<ISyncHistory>("SyncHistory", syncHistorySchema)
+
+export default SyncHistory

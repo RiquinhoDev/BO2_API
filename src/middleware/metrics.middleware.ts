@@ -4,6 +4,8 @@
 // =====================================================
 
 import { Request, Response, NextFunction } from 'express'
+import { getRequestRouteTemplate } from '../observability/requestRoute'
+import logger, { type AppLogger } from '../utils/logger'
 
 interface RequestMetrics {
   method: string
@@ -17,6 +19,8 @@ class MetricsMiddleware {
   private requestMetrics: RequestMetrics[] = []
   private maxMetricsSize = 1000
 
+  constructor(private readonly log: AppLogger = logger) {}
+
   /**
    * Middleware para tracking de requisições
    */
@@ -29,7 +33,7 @@ class MetricsMiddleware {
 
       const metric: RequestMetrics = {
         method: req.method,
-        path: req.path,
+        path: getRequestRouteTemplate(req),
         statusCode: res.statusCode,
         responseTime,
         timestamp: new Date()
@@ -45,7 +49,11 @@ class MetricsMiddleware {
 
       // Log de requisições lentas (> 1s)
       if (responseTime > 1000) {
-        console.warn(`⚠️  Requisição lenta: ${req.method} ${req.path} - ${responseTime}ms`)
+        this.log.warn('Requisição lenta', {
+          method: req.method,
+          route: metric.path,
+          responseTime,
+        })
       }
     })
 

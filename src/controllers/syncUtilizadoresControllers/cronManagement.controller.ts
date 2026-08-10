@@ -9,8 +9,84 @@ import mongoose from 'mongoose'
 
 import { SyncType } from '../../models/SyncModels/CronJobConfig'
 import { CronExecution, Product, TagRule } from '../../models'
+import type {
+  ICondition,
+  RuleCategory,
+} from '../../models/acTags/TagRule'
 import syncSchedulerService from '../../services/cron/scheduler'
+import type {
+  CronEmptyInput,
+  CronJobIdInput,
+} from '../../security/cronDestructiveInput'
 
+type JobIdParams = {
+  id: string
+}
+
+type LegacyCronConfig = {
+  name: string
+  cronExpression: string
+  isActive: boolean
+  nextRun?: Date
+  lastRun?: Date
+}
+
+type SystemJob = {
+  source: 'legacy-tag-cron'
+  name: string
+  description: string
+  cronExpression: string
+  isActive: boolean
+  scheduledAtRuntime: false
+  nextRun: Date | null
+  lastRun: Date | null
+}
+
+type PopulatedCourse = {
+  _id: mongoose.Types.ObjectId
+  name: string
+  code: string
+}
+
+type PopulatedTagRule = {
+  _id: mongoose.Types.ObjectId
+  name: string
+  description?: string
+  category: RuleCategory
+  priority: number
+  conditions?: ICondition[]
+  actions?: {
+    addTag?: string
+  }
+  isActive: boolean
+  courseId?: PopulatedCourse | null
+}
+
+type TagRuleSummary = {
+  _id: mongoose.Types.ObjectId
+  name: string
+  tagName: string
+  description: string
+  category: RuleCategory
+  priority: number
+  course: PopulatedCourse
+  conditions: ICondition[]
+  estimatedStudents: number
+  isActive: boolean
+}
+
+type CourseRuleGroup = {
+  courseName: string
+  courseId: string
+  courseCode: string
+  platform: SyncType
+  rules: TagRuleSummary[]
+  totalRules: number
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 // ═══════════════════════════════════════════════════════════
 // GET ALL JOBS
@@ -35,12 +111,12 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
     // aqui para que TODOS os crons apareçam listados no Backoffice.
     // TAG_RULES_SYNC (TagCronManagement/CronConfig) não é agendado no arranque
     // actual (initializeCronJobs não é invocado no index.ts) — daí scheduledAtRuntime.
-    let systemJobs: any[] = []
+    let systemJobs: SystemJob[] = []
     if (!syncType && active !== 'true') {
       try {
         const CronConfig = (await import('../../models/cron/CronConfig')).default
-        const legacyConfigs = await CronConfig.find({}).lean()
-        systemJobs = legacyConfigs.map((cfg: any) => ({
+        const legacyConfigs = await CronConfig.find({}).lean<LegacyCronConfig[]>()
+        systemJobs = legacyConfigs.map(cfg => ({
           source: 'legacy-tag-cron',
           name: cfg.name,
           description: 'Sistema legacy de tags AC (colecção cronconfigs) — gerido fora do scheduler principal',
@@ -50,8 +126,8 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
           nextRun: cfg.nextRun || null,
           lastRun: cfg.lastRun || null
         }))
-      } catch (legacyError: any) {
-        console.warn('⚠️ Não foi possível ler jobs legacy (cronconfigs):', legacyError.message)
+      } catch (legacyError: unknown) {
+        console.warn('⚠️ Não foi possível ler jobs legacy (cronconfigs):', errorMessage(legacyError))
       }
     }
 
@@ -65,12 +141,12 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar jobs:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar jobs',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -80,7 +156,10 @@ export const getAllJobs = async (req: Request, res: Response): Promise<void> => 
 // GET /api/cron/jobs/:id
 // ═══════════════════════════════════════════════════════════
 
-export const getJobById = async (req: Request, res: Response): Promise<void> => {
+export const getJobById = async (
+  req: Request<JobIdParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
 
@@ -120,12 +199,12 @@ export const getJobById = async (req: Request, res: Response): Promise<void> => 
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar job:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar job',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -154,15 +233,25 @@ export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
     let courseIds: mongoose.Types.ObjectId[] = []
 
     if (syncType === 'all') {
-      const courses = await Course.find({ isActive: true }).select('_id').lean()
+      const courses = await Course.find({ isActive: true })
+        .select('_id')
+        .lean<Array<{ _id: mongoose.Types.ObjectId }>>()
       courseIds = courses.map(c => new mongoose.Types.ObjectId(String(c._id)))
     } else {
       const products = await Product.find({
         platform: syncType,
         isActive: true
-      }).select('courseId').lean()
+      })
+        .select('courseId')
+        .lean<Array<{ courseId?: mongoose.Types.ObjectId }>>()
 
-      const uniqueIds = [...new Set(products.map(p => p.courseId?.toString()).filter(Boolean) as string[])]
+      const uniqueIds = products.reduce<string[]>((ids, product) => {
+        const courseId = product.courseId?.toString()
+        if (courseId && !ids.includes(courseId)) {
+          ids.push(courseId)
+        }
+        return ids
+      }, [])
       courseIds = uniqueIds.map(id => new mongoose.Types.ObjectId(id))
     }
 
@@ -183,9 +272,9 @@ export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
     })
       .populate('courseId', 'name code trackingType')
       .sort({ priority: -1, createdAt: -1 })
-      .lean()
+      .lean<PopulatedTagRule[]>()
 
-    const groupedByCourse = rules.reduce((acc: any[], rule: any) => {
+    const groupedByCourse = rules.reduce<CourseRuleGroup[]>((acc, rule) => {
       if (!rule.courseId) return acc
 
       const course = rule.courseId
@@ -227,7 +316,7 @@ export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
       success: true,
       message: `${rules.length} Tag Rules encontradas`,
       data: {
-        rules: rules.map((rule: any) => ({
+        rules: rules.map(rule => ({
           _id: rule._id,
           name: rule.name,
           tagName: rule.actions?.addTag || 'N/A',
@@ -251,29 +340,6 @@ export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
 }
 
 
-
-/**
- * Helper: Agrupar regras por curso
- */
-function groupRulesByCourse(rules: any[]) {
-  const grouped: Record<string, any[]> = {}
-
-  rules.forEach(rule => {
-    const courseName = rule.product?.name || 'Sem Curso'
-    if (!grouped[courseName]) {
-      grouped[courseName] = []
-    }
-    grouped[courseName].push(rule)
-  })
-
-  return Object.entries(grouped).map(([courseName, rules]) => ({
-    courseName,
-    courseId: rules[0]?.product?._id,
-    platform: rules[0]?.product?.platform,
-    rules: rules,
-    totalRules: rules.length
-  }))
-}
 
 // ═══════════════════════════════════════════════════════════
 // CREATE JOB
@@ -355,12 +421,12 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao criar job:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao criar job',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -370,7 +436,10 @@ export const createJob = async (req: Request, res: Response): Promise<void> => {
 // PUT /api/cron/jobs/:id
 // ═══════════════════════════════════════════════════════════
 
-export const updateJob = async (req: Request, res: Response): Promise<void> => {
+export const updateJob = async (
+  req: Request<JobIdParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
     const updates = req.body
@@ -422,12 +491,12 @@ export const updateJob = async (req: Request, res: Response): Promise<void> => {
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao atualizar job:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao atualizar job',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -437,9 +506,12 @@ export const updateJob = async (req: Request, res: Response): Promise<void> => {
 // DELETE /api/cron/jobs/:id
 // ═══════════════════════════════════════════════════════════
 
-export const deleteJob = async (req: Request, res: Response): Promise<void> => {
+export const deleteJob = async (
+  input: CronJobIdInput,
+  res: Response,
+): Promise<void> => {
   try {
-    const { id } = req.params
+    const { id } = input.params
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({
@@ -458,12 +530,12 @@ export const deleteJob = async (req: Request, res: Response): Promise<void> => {
       message: 'Job deletado com sucesso'
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao deletar job:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao deletar job',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -473,7 +545,10 @@ export const deleteJob = async (req: Request, res: Response): Promise<void> => {
 // POST /api/cron/jobs/:id/toggle
 // ═══════════════════════════════════════════════════════════
 
-export const toggleJob = async (req: Request, res: Response): Promise<void> => {
+export const toggleJob = async (
+  req: Request<JobIdParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
     const { enabled } = req.body
@@ -505,12 +580,12 @@ export const toggleJob = async (req: Request, res: Response): Promise<void> => {
       data: { job }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao toggle job:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao toggle job',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -520,9 +595,12 @@ export const toggleJob = async (req: Request, res: Response): Promise<void> => {
 // POST /api/cron/jobs/:id/trigger
 // ═══════════════════════════════════════════════════════════
 
-export const triggerJob = async (req: Request, res: Response): Promise<void> => {
+export const triggerJob = async (
+  input: CronJobIdInput,
+  res: Response,
+): Promise<void> => {
   try {
-    const { id } = req.params
+    const { id } = input.params
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({
@@ -554,12 +632,12 @@ export const triggerJob = async (req: Request, res: Response): Promise<void> => 
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao executar job:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao executar job',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -569,7 +647,10 @@ export const triggerJob = async (req: Request, res: Response): Promise<void> => 
 // GET /api/cron/jobs/:id/history
 // ═══════════════════════════════════════════════════════════
 
-export const getJobHistory = async (req: Request, res: Response): Promise<void> => {
+export const getJobHistory = async (
+  req: Request<JobIdParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
     const limit = parseInt(req.query.limit as string) || 20
@@ -640,12 +721,12 @@ export const getJobHistory = async (req: Request, res: Response): Promise<void> 
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar histórico:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar histórico',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -686,24 +767,24 @@ export const validateCronExpression = async (req: Request, res: Response): Promi
         }
       })
 
-    } catch (validationError: any) {
+    } catch (validationError: unknown) {
       res.status(400).json({
         success: false,
         message: 'Cron expression inválida',
         data: {
           cronExpression,
           isValid: false,
-          error: validationError.message
+          error: errorMessage(validationError)
         }
       })
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao validar cron expression:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao validar cron expression',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -746,12 +827,12 @@ export const getSchedulerStatus = async (req: Request, res: Response): Promise<v
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar status:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar status',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -761,7 +842,10 @@ export const getSchedulerStatus = async (req: Request, res: Response): Promise<v
 // POST /api/cron/tag-rules-only
 // ═══════════════════════════════════════════════════════════
 
-export const triggerTagRulesOnly = async (req: Request, res: Response): Promise<void> => {
+export const triggerTagRulesOnly = async (
+  _input: CronEmptyInput,
+  res: Response,
+): Promise<void> => {
   console.log('━'.repeat(60))
   console.log('🏷️  [TAG-RULES-ONLY] Endpoint chamado!')
   console.log('🏷️  [TAG-RULES-ONLY] Timestamp:', new Date().toISOString())
@@ -809,12 +893,12 @@ export const triggerTagRulesOnly = async (req: Request, res: Response): Promise<
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao executar Tag Rules Only:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao executar Tag Rules Only',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }

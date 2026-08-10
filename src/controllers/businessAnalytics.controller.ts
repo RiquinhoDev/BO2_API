@@ -5,11 +5,12 @@
 // Separado do analytics.controller.ts existente (que foca em turmas)
 // ════════════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import analyticsCacheService from '../services/analytics/analyticsCache.service'
 import analyticsCalculatorService from '../services/analytics/analyticsCalculator.service'
 import Product from '../models/product/Product'
 import UserProduct from '../models/UserProduct'
+import { internalError } from '../security/errorHandling'
 
 // ═══════════════════════════════════════════════════════════════════
 // BUSINESS ANALYTICS CONTROLLER
@@ -25,7 +26,7 @@ class BusinessAnalyticsController {
    * Overview de negócio: KPIs + Time Series + Breakdown
    * Foco em vendas, receita, crescimento
    */
-  async getBusinessOverview(req: Request, res: Response) {
+  async getBusinessOverview(req: Request, res: Response, next: NextFunction) {
     try {
       console.log('💼 [Business Analytics] GET /overview')
       const startTime = Date.now()
@@ -257,13 +258,8 @@ class BusinessAnalyticsController {
       
       console.log(`✅ [Business Analytics] Overview gerado em ${duration}ms`)
       
-    } catch (error: any) {
-      console.error('❌ [Business Analytics] Erro em getBusinessOverview:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro ao gerar overview de analytics de negócio',
-        details: error.message
-      })
+    } catch (error: unknown) {
+      next(internalError('Erro ao gerar overview de analytics de negocio', 'BUSINESS_ANALYTICS_OVERVIEW_FAILED', error))
     }
   }
   
@@ -271,7 +267,7 @@ class BusinessAnalyticsController {
   // GET /api/business-analytics/products/comparison
   // ═════════════════════════════════════════════════════════════════
   
-  async getProductComparison(req: Request, res: Response) {
+  async getProductComparison(req: Request, res: Response, next: NextFunction) {
     try {
       console.log('💼 [Business Analytics] GET /products/comparison')
       const startTime = Date.now()
@@ -356,13 +352,8 @@ class BusinessAnalyticsController {
       
       console.log(`✅ [Business Analytics] Comparação gerada em ${duration}ms`)
       
-    } catch (error: any) {
-      console.error('❌ [Business Analytics] Erro em getProductComparison:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro ao gerar comparação de produtos',
-        details: error.message
-      })
+    } catch (error: unknown) {
+      next(internalError('Erro ao gerar comparacao de produtos', 'BUSINESS_ANALYTICS_COMPARISON_FAILED', error))
     }
   }
   
@@ -370,7 +361,7 @@ class BusinessAnalyticsController {
   // POST /api/business-analytics/cache/invalidate
   // ═════════════════════════════════════════════════════════════════
   
-  async invalidateCache(req: Request, res: Response) {
+  async invalidateCache(req: Request, res: Response, next: NextFunction) {
     try {
       console.log('🗑️ [Business Analytics] POST /cache/invalidate')
       
@@ -399,13 +390,8 @@ class BusinessAnalyticsController {
         }
       })
       
-    } catch (error: any) {
-      console.error('❌ [Business Analytics] Erro em invalidateCache:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro ao invalidar cache',
-        details: error.message
-      })
+    } catch (error: unknown) {
+      next(internalError('Erro ao invalidar cache de analytics', 'BUSINESS_ANALYTICS_CACHE_INVALIDATION_FAILED', error))
     }
   }
   
@@ -413,7 +399,7 @@ class BusinessAnalyticsController {
   // GET /api/business-analytics/cache/stats
   // ═════════════════════════════════════════════════════════════════
   
-  async getCacheStats(req: Request, res: Response) {
+  async getCacheStats(req: Request, res: Response, next: NextFunction) {
     try {
       console.log('📊 [Business Analytics] GET /cache/stats')
       
@@ -424,13 +410,8 @@ class BusinessAnalyticsController {
         data: stats
       })
       
-    } catch (error: any) {
-      console.error('❌ [Business Analytics] Erro em getCacheStats:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Erro ao buscar estatísticas de cache',
-        details: error.message
-      })
+    } catch (error: unknown) {
+      next(internalError('Erro ao carregar estatisticas do cache', 'BUSINESS_ANALYTICS_CACHE_STATS_FAILED', error))
     }
   }
   

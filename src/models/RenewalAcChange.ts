@@ -5,7 +5,7 @@
 // Cada documento = UMA acção atómica na AC, planeada antes de ser
 // executada. O plano é gerado sem tocar na AC (dry-run persistido);
 // a execução é um passo separado, com guards e switches próprios.
-// Ver RENOVACAO_OGI_BO_PLAN.md (secções 11 e 13).
+// Ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md (secções 11 e 13).
 //
 // Ciclo de vida:
 //   PLANNED → APPROVED → APPLIED
@@ -127,9 +127,9 @@ renewalAcChangeSchema.index({ email: 1, action: 1, status: 1 })
 // dedupe: a mesma origem não gera a mesma acção duas vezes enquanto viva
 renewalAcChangeSchema.index({ sourceRef: 1, action: 1 })
 
-// Cast explícito: o padrão `models.X || model(...)` produz um union type
+// Tipo explícito: o padrão `models.X || model(...)` produz um union type
 // que o TS não considera "callable" (problema sistémico do projecto).
-const RenewalAcChange = (mongoose.models.RenewalAcChange ||
-  mongoose.model<IRenewalAcChange>('RenewalAcChange', renewalAcChangeSchema)) as mongoose.Model<IRenewalAcChange>
+const RenewalAcChange: mongoose.Model<IRenewalAcChange> = mongoose.models.RenewalAcChange ||
+  mongoose.model<IRenewalAcChange>('RenewalAcChange', renewalAcChangeSchema)
 
 export default RenewalAcChange

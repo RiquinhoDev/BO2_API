@@ -1,4 +1,6 @@
 import mongoose from 'mongoose'
+import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
+import { getHotmartSyncUserId, getOptionalHotmartSubdomain } from './requestDrivenRuntimeConfig'
 import CourseLesson from '../models/CourseLesson'
 import Product from '../models/product/Product'
 import UserProduct from '../models/UserProduct'
@@ -120,21 +122,17 @@ async function findOgiProduct(): Promise<ProductLean | null> {
 }
 
 function resolveSubdomain(product: ProductLean | null): string {
-  return (
-    process.env.COURSE_LESSON_SUBDOMAIN
-    || product?.subdomain
-    || process.env.subdomain
-    || process.env.HOTMART_SUBDOMAIN
-    || 'ograndeinvestimento-bomrmk'
-  )
+  const configuredSubdomain = getOptionalHotmartSubdomain()
+  const subdomain = configuredSubdomain || product?.subdomain
+  if (!subdomain) throw new IntegrationUnavailableError('hotmart')
+  return subdomain
 }
 
 async function resolveRepresentativeUserId(
   productId?: mongoose.Types.ObjectId
 ): Promise<string> {
-  if (process.env.COURSE_LESSON_SYNC_USER_ID) {
-    return process.env.COURSE_LESSON_SYNC_USER_ID
-  }
+  const configuredUserId = getHotmartSyncUserId()
+  if (configuredUserId) return configuredUserId
 
   const query: Record<string, unknown> = {
     platform: 'hotmart',

@@ -42,7 +42,7 @@ export interface IStudentEngagementState extends Document {
   // LOST: Atingiu último nível e não retornou
   
   // ===== ATIVIDADE =====
-  daysSinceLastLogin: number            // Dias desde último login
+  daysSinceLastLogin?: number | null    // Ausente/null quando não há sinal de atividade
   lastLogin?: Date                      // Data do último login
   lastProgress?: Date                   // Data da última ação de progresso
   lastProgressType?: string             // Tipo da última ação (LOGIN, REPORT_OPENED, etc)
@@ -145,7 +145,6 @@ const StudentEngagementStateSchema = new Schema<IStudentEngagementState>({
   // Atividade
   daysSinceLastLogin: {
     type: Number,
-    default: 0,
     min: 0
   },
   lastLogin: {
@@ -413,7 +412,7 @@ StudentEngagementStateSchema.pre('save', function(next) {
 /**
  * Exportar model
  */
-const StudentEngagementState = mongoose.models.StudentEngagementState || 
+const StudentEngagementState: mongoose.Model<IStudentEngagementState> = mongoose.models.StudentEngagementState ||
   mongoose.model<IStudentEngagementState>(
     'StudentEngagementState',
     StudentEngagementStateSchema

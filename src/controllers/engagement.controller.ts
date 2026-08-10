@@ -4,15 +4,15 @@
 // =====================================================
 
 import { Request, Response } from 'express'
-import { PipelineStage } from 'mongoose'
-import User from '../models/user'
+import { FilterQuery, PipelineStage } from 'mongoose'
+import User, { IUser } from '../models/user'
 
 // ✅ CACHE OTIMIZADO (NOVO) - apenas adiciona cache às funções existentes
-class EngagementStatsCache {
-  private cache = new Map<string, { data: any; timestamp: number }>()
+class EngagementStatsCache<T> {
+  private cache = new Map<string, { data: T; timestamp: number }>()
   private readonly TTL = 300000 // 5 minutos (increased since aggregation is fast)
 
-  get(key: string): any | null {
+  get(key: string): { data: T; timestamp: number } | null {
     const item = this.cache.get(key)
     if (!item) return null
 
@@ -21,10 +21,10 @@ class EngagementStatsCache {
       return null
     }
 
-    return item.data
+    return item
   }
 
-  set(key: string, data: any): void {
+  set(key: string, data: T): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now()
@@ -39,8 +39,6 @@ class EngagementStatsCache {
     return this.cache.size
   }
 }
-
-const statsCache = new EngagementStatsCache()
 
 // ✅ INTERFACE PARA ESTATÍSTICAS DE ENGAGEMENT (MANTIDA)
 interface EngagementStats {
@@ -64,88 +62,54 @@ interface EngagementStats {
   }
 }
 
-// ✅ FUNÇÃO PARA CALCULAR SCORE DE ENGAGEMENT (MANTIDA - já está corrigida)
-function calculateEngagementScore(user: any): number {
-  console.log("🔄 Calculando engagement score para:", user.name || user._id);
+type EngagementLevel = keyof EngagementStats['distribution']
 
-  // ✅ 1. SCORE DOS ACESSOS (40%) - ALGORITMO IGUAL AO FRONTEND
-  const accessCount = user.accessCount || 0;
-  let accessScore = 0;
-  
-  if (accessCount === 0) {
-    accessScore = 0;
-  } else if (accessCount <= 5) {
-    // Frontend: accessCount * 6 (máximo 30)
-    accessScore = Math.min(30, accessCount * 6);
-  } else if (accessCount <= 15) {
-    // Frontend: 30 + ((accessCount - 5) * 3)
-    accessScore = 30 + ((accessCount - 5) * 3);
-  } else if (accessCount <= 30) {
-    // Frontend: 60 + ((accessCount - 15) * 1.67)
-    accessScore = Math.round(60 + ((accessCount - 15) * 1.67));
-  } else {
-    // Frontend: Math.min(100, 85 + ((accessCount - 30) * 0.5))
-    accessScore = Math.min(100, 85 + ((accessCount - 30) * 0.5));
+interface EngagementUserDetails {
+  _id: unknown
+  name?: string
+  email?: string
+  status?: string
+  classId?: string
+  engagementScore: number
+  engagement: string
+  accessCount: number
+  progress: {
+    completed: number
+    total: number
+    completedPercentage: number
   }
-
-  console.log(`   → Acessos: ${accessCount} = ${accessScore}/100`);
-
-  // ✅ 2. SCORE DO PROGRESSO (40%) - ESCALA LINEAR DIRETA
-  const progressScore = user.progress?.completedPercentage || 0;
-  console.log(`   → Progresso: ${progressScore}% = ${progressScore}/100`);
-
-  // ✅ 3. SCORE DO ENGAGEMENT EXISTENTE (20%) - ALGORITMO IGUAL AO FRONTEND
-  const engagement = user.engagement?.toString().toLowerCase();
-  let engagementScore = 20; // Default para utilizadores sem engagement (igual ao frontend)
-  
-  switch (engagement) {
-    case 'muito_baixo':
-    case 'very_low':
-    case 'none':
-      engagementScore = 0; // Frontend usa 0
-      break;
-    case 'baixo':
-    case 'low':
-      engagementScore = 25; // Frontend usa 25
-      break;
-    case 'medio':
-    case 'medium':
-      engagementScore = 50; // Frontend usa 50
-      break;
-    case 'alto':
-    case 'high':
-      engagementScore = 75; // Frontend usa 75
-      break;
-    case 'muito_alto':
-    case 'very_high':
-    case 'excellent':
-      engagementScore = 100; // Frontend usa 100
-      break;
-    default:
-      engagementScore = 20; // Frontend usa 20 como padrão
-  }
-
-  console.log(`   → Engagement: "${engagement}" = ${engagementScore}/100`);
-
-  // ✅ 4. CÁLCULO FINAL: 40% acessos + 40% progresso + 20% engagement
-  const finalScore = Math.round(
-    (accessScore * 0.4) + (progressScore * 0.4) + (engagementScore * 0.2)
-  );
-
-  console.log(`   → Score final: (${accessScore}*0.4) + (${progressScore}*0.4) + (${engagementScore}*0.2) = ${finalScore}`);
-
-  return Math.min(100, Math.max(0, finalScore));
+  groupName?: string | null
+  hotmartUserId?: string | null
+  curseducaUserId?: string | null
+  lastAccessDate?: Date | string | null
+  discordIds?: string[]
+  discordUsername?: string | null
 }
 
-// ✅ FUNÇÃO PARA DETERMINAR NÍVEL DE ENGAGEMENT (MANTIDA - já está corrigida)
-function getEngagementLevel(score: number): keyof EngagementStats['distribution'] {
-  // ✅ RANGES IGUAIS AO FRONTEND:
-  if (score >= 80) return 'MUITO_ALTO';  // Frontend: score >= 80
-  if (score >= 60) return 'ALTO';        // Frontend: score >= 60 && < 80  
-  if (score >= 40) return 'MEDIO';       // Frontend: score >= 40 && < 60
-  if (score >= 25) return 'BAIXO';       // Frontend: score >= 25 && < 40 ✅ CORRIGIDO DE 20 PARA 25
-  return 'MUITO_BAIXO';                  // Frontend: score < 25
+interface EngagementFacetResult {
+  totalCount: Array<{ total: number }>
+  paginatedData: EngagementUserDetails[]
 }
+
+interface EngagementSummaryUser {
+  engagementScore: number
+}
+
+interface EngagementLevelStat {
+  _id: unknown
+  count: number
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function isEngagementLevel(value: unknown): value is EngagementLevel {
+  return typeof value === 'string'
+    && ['MUITO_ALTO', 'ALTO', 'MEDIO', 'BAIXO', 'MUITO_BAIXO'].includes(value)
+}
+
+const statsCache = new EngagementStatsCache<EngagementStats>()
 
 // ✅ CONTROLADOR PRINCIPAL - ESTATÍSTICAS GLOBAIS (MANTIDO - com cache adicionado)
 export const getGlobalEngagementStats = async (req: Request, res: Response): Promise<void> => {
@@ -154,16 +118,16 @@ export const getGlobalEngagementStats = async (req: Request, res: Response): Pro
     const startTime = Date.now()
 
     // ✅ Verificar cache primeiro (cache por 5 minutos)
-    const cachedStats = statsCache.get(cacheKey)
-    if (cachedStats) {
+    const cachedEntry = statsCache.get(cacheKey)
+    if (cachedEntry) {
       console.log('📦 Returning cached global engagement stats')
       
       res.status(200).json({
         success: true,
         data: {
-          ...cachedStats,
+          ...cachedEntry.data,
           cached: true,
-          cacheAge: Date.now() - cachedStats.timestamp
+          cacheAge: Date.now() - cachedEntry.timestamp
         },
         processingTime: Date.now() - startTime
       })
@@ -325,12 +289,12 @@ export const getGlobalEngagementStats = async (req: Request, res: Response): Pro
       processingTime: Date.now() - startTime
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao calcular estatísticas de engagement:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao calcular estatísticas de engagement',
-      details: error.message
+      details: errorMessage(error)
     })
   }
 }
@@ -350,7 +314,7 @@ export const getUsersEngagementDetails = async (req: Request, res: Response): Pr
     console.log(`🔍 Buscando utilizadores com score ${minScore}-${maxScore}, página ${page}`)
 
     // ✅ QUERY BASE PARA FILTRAR UTILIZADORES
-    const matchQuery: any = {}
+    const matchQuery: FilterQuery<IUser> = {}
     
     if (search && typeof search === 'string') {
       matchQuery.$or = [
@@ -365,7 +329,7 @@ export const getUsersEngagementDetails = async (req: Request, res: Response): Pr
     // ✅ NOVA ESTRATÉGIA: USAR AGREGAÇÃO MONGODB PARA PERFORMANCE OTIMIZADA
     // Esta abordagem é muito mais eficiente e escala para qualquer número de utilizadores
     
-    const pipeline: any[] = [
+    const pipeline: PipelineStage[] = [
       // Etapa 1: Match inicial
       { $match: matchQuery },
       
@@ -521,7 +485,7 @@ export const getUsersEngagementDetails = async (req: Request, res: Response): Pr
     const startTime = Date.now()
     
     // ✅ EXECUTAR AGREGAÇÃO
-    const [result] = await User.aggregate(pipeline).allowDiskUse(true)
+    const [result] = await User.aggregate<EngagementFacetResult>(pipeline).allowDiskUse(true)
     
     const executionTime = Date.now() - startTime
     console.log(`✅ Agregação completa em ${executionTime}ms`)
@@ -535,7 +499,7 @@ export const getUsersEngagementDetails = async (req: Request, res: Response): Pr
 
     // ✅ BUSCAR NOMES DAS TURMAS (se necessário)
     const usersWithClassNames = await Promise.all(
-      users.map(async (user: any) => {
+      users.map(async (user) => {
         if (user.classId) {
           try {
             // Cache de turmas para evitar múltiplas queries
@@ -581,212 +545,12 @@ export const getUsersEngagementDetails = async (req: Request, res: Response): Pr
       timestamp: new Date().toISOString()
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar detalhes de engagement:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar detalhes de engagement',
-      details: error.message
-    })
-  }
-}
-
-// ✅ VERSÃO ALTERNATIVA: Para bases MUITO grandes (milhões de utilizadores)
-// Esta versão usa contagem aproximada para melhor performance
-export const getUsersEngagementDetailsUltraScale = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { 
-      page = 1, 
-      limit = 50, 
-      minScore = 0,
-      maxScore = 100,
-      search = '',
-      fastMode = false // ✅ Modo rápido: usa estimativas
-    } = req.query
-
-    console.log(`🔍 Buscando utilizadores - Modo: ${fastMode ? 'RÁPIDO' : 'PRECISO'}`)
-
-    const matchQuery: any = {}
-    
-    if (search && typeof search === 'string') {
-      matchQuery.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ]
-    }
-
-    const targetLimit = +limit
-    const currentPage = +page
-    const skip = (currentPage - 1) * targetLimit
-
-    // ✅ CRIAR QUERY DE SCORE
-    const scoreQuery = {
-      $and: [
-        {
-          $or: [
-            { 'combined.engagement.score': { $gte: +minScore, $lte: +maxScore } },
-            { 'combined.combinedEngagement': { $gte: +minScore, $lte: +maxScore } },
-            { 'hotmart.engagement.engagementScore': { $gte: +minScore, $lte: +maxScore } },
-            { 'curseduca.engagement.alternativeEngagement': { $gte: +minScore, $lte: +maxScore } }
-          ]
-        }
-      ]
-    }
-
-    // Combinar queries
-    const finalQuery = {
-      ...matchQuery,
-      ...scoreQuery
-    }
-
-    // ✅ ESTRATÉGIA DUPLA: Contagem + Dados
-    let totalCount: number
-
-    if (String(fastMode) === 'true') {
-      // MODO RÁPIDO: Usar estimativa
-      console.log('⚡ Usando contagem estimada...')
-      const totalDocs = await User.estimatedDocumentCount()
-      const sampleCount = await User.countDocuments(finalQuery).limit(1000)
-      
-      // Estimar baseado em amostra
-      if (sampleCount < 1000) {
-        totalCount = sampleCount
-      } else {
-        // Usar estatísticas da coleção para estimar
-        const estimatedRatio = 0.8 // Assumir que 80% dos docs estão no range
-        totalCount = Math.floor(totalDocs * estimatedRatio)
-      }
-    } else {
-      // MODO PRECISO: Contar todos
-      console.log('📊 Contando total de utilizadores...')
-      totalCount = await User.countDocuments(finalQuery)
-    }
-
-    console.log(`📈 Total encontrado: ${totalCount} utilizadores`)
-
-    // ✅ BUSCAR DADOS PAGINADOS
-    const users = await User.find(
-      finalQuery,
-      {
-        _id: 1,
-        name: 1,
-        email: 1,
-        status: 1,
-        classId: 1,
-        
-        // Combined
-        'combined.engagement.score': 1,
-        'combined.engagement.level': 1,
-        'combined.combinedEngagement': 1,
-        
-        // Hotmart
-        'hotmart.engagement.engagementScore': 1,
-        'hotmart.engagement.engagementLevel': 1,
-        'hotmart.engagement.accessCount': 1,
-        'hotmart.progress.completedLessons': 1,
-        'hotmart.progress.lessonsData': 1,
-        'hotmart.hotmartUserId': 1,
-        'hotmart.lastAccessDate': 1,
-        
-        // CursEduca
-        'curseduca.engagement.alternativeEngagement': 1,
-        'curseduca.engagement.engagementLevel': 1,
-        'curseduca.progress.completedPercentage': 1,
-        'curseduca.progress.estimatedProgress': 1,
-        'curseduca.groupName': 1,
-        'curseduca.curseducaUserId': 1,
-        'curseduca.lastAccessDate': 1,
-        
-        // Discord
-        'discord.discordIds': 1,
-        'discord.username': 1,
-        
-        // Legacy
-        discordIds: 1,
-        lastAccessDate: 1,
-        hotmartUserId: 1,
-        curseducaUserId: 1
-      }
-    )
-    .sort({ 
-      'combined.engagement.score': -1,
-      'hotmart.engagement.engagementScore': -1 
-    })
-    .skip(skip)
-    .limit(targetLimit)
-    .lean()
-    .exec()
-
-    // ✅ PROCESSAR DADOS
-    const processedUsers = users.map((user: any) => {
-      const engagementScore = user.combined?.engagement?.score ||
-                              user.combined?.combinedEngagement ||
-                              user.hotmart?.engagement?.engagementScore ||
-                              user.curseduca?.engagement?.alternativeEngagement ||
-                              0
-      
-      const hotmartCompleted = user.hotmart?.progress?.completedLessons || 0
-      const hotmartTotal = user.hotmart?.progress?.lessonsData?.length || 0
-      const hotmartProgress = hotmartTotal > 0 ? 
-        Math.round((hotmartCompleted / hotmartTotal) * 100) : 0
-      
-      const curseducaProgress = user.curseduca?.progress?.completedPercentage || 
-                                user.curseduca?.progress?.estimatedProgress || 0
-      const finalProgress = hotmartProgress || curseducaProgress || 0
-      
-      return {
-        ...user,
-        engagementScore,
-        engagement: user.combined?.engagement?.level || 
-                   user.hotmart?.engagement?.engagementLevel ||
-                   user.curseduca?.engagement?.engagementLevel || 
-                   'NONE',
-        accessCount: user.hotmart?.engagement?.accessCount || 0,
-        progress: {
-          completed: hotmartCompleted,
-          total: hotmartTotal,
-          completedPercentage: finalProgress
-        },
-        groupName: user.curseduca?.groupName || null,
-        hotmartUserId: user.hotmart?.hotmartUserId || user.hotmartUserId || null,
-        curseducaUserId: user.curseduca?.curseducaUserId || user.curseducaUserId || null,
-        lastAccessDate: user.hotmart?.lastAccessDate || 
-                       user.curseduca?.lastAccessDate || 
-                       user.lastAccessDate || 
-                       null
-      }
-    })
-
-    const totalPages = Math.ceil(totalCount / targetLimit)
-
-    res.status(200).json({
-      success: true,
-      data: {
-        users: processedUsers,
-        pagination: {
-          currentPage: currentPage,
-          totalPages: totalPages,
-          totalItems: totalCount,
-          itemsPerPage: targetLimit,
-          hasNextPage: currentPage < totalPages,
-          hasPrevPage: currentPage > 1,
-          isEstimated: String(fastMode) === 'true'
-        },
-        performance: {
-          method: fastMode ? 'fast-estimation' : 'precise-count',
-          scoreRange: `${minScore}-${maxScore}`,
-          search: search || null
-        }
-      },
-      timestamp: new Date().toISOString()
-    })
-
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar detalhes de engagement:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar detalhes de engagement',
-      details: error.message
+      details: errorMessage(error)
     })
   }
 }
@@ -804,32 +568,12 @@ export const clearEngagementCache = async (req: Request, res: Response): Promise
       message: 'Cache de engagement limpo com sucesso',
       clearedItems: sizeBefore
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Error clearing engagement cache:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao limpar cache',
-      details: error.message
-    })
-  }
-}
-
-export const getEngagementCacheInfo = async (req: Request, res: Response): Promise<void> => {
-  try {
-    res.status(200).json({
-      success: true,
-      cacheInfo: {
-        size: statsCache.getSize(),
-        ttl: '30 seconds',
-        keys: ['global-engagement-stats']
-      }
-    })
-  } catch (error: any) {
-    console.error('❌ Error getting cache info:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao obter informações do cache',
-      details: error.message
+      details: errorMessage(error)
     })
   }
 }
@@ -1017,12 +761,12 @@ export const getEngagementStats = async (req: Request, res: Response): Promise<v
       timestamp: new Date().toISOString()
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro getEngagementStats:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao calcular estatísticas',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }
@@ -1047,20 +791,16 @@ export const getEngagementDetails = async (req: Request, res: Response): Promise
     console.log(`🔍 Filtros: score ${minScore}-${maxScore}, level: ${level || 'all'}, page: ${page}`)
     
     // Construir query
-    const matchQuery: any = {
-      $and: [
-        {
-          $or: [
-            { isDeleted: { $exists: false } },
-            { isDeleted: false }
-          ]
-        }
+    const matchConditions: FilterQuery<IUser>[] = [{
+      $or: [
+        { isDeleted: { $exists: false } },
+        { isDeleted: false }
       ]
-    }
+    }]
     
     // Filtro por score
     if (minScore > 0 || maxScore < 100) {
-      matchQuery.$and.push({
+      matchConditions.push({
         'preComputed.engagementScore': {
           $gte: minScore,
           $lte: maxScore
@@ -1070,10 +810,12 @@ export const getEngagementDetails = async (req: Request, res: Response): Promise
     
     // Filtro por nível
     if (level && level !== 'all') {
-      matchQuery.$and.push({
+      matchConditions.push({
         'preComputed.activityLevel': level
       })
     }
+
+    const matchQuery: FilterQuery<IUser> = { $and: matchConditions }
     
     // Pipeline de agregação
     const pipeline : PipelineStage[] = [
@@ -1147,10 +889,10 @@ export const getEngagementDetails = async (req: Request, res: Response): Promise
     ]
     
     // Executar agregação
-    const users = await User.aggregate(pipeline).allowDiskUse(true)
+    const users = await User.aggregate<EngagementSummaryUser>(pipeline).allowDiskUse(true)
     
     // Pipeline para contar total
-    const countPipeline = [
+    const countPipeline: PipelineStage[] = [
       { $match: matchQuery },
       { $count: 'total' }
     ]
@@ -1159,7 +901,7 @@ export const getEngagementDetails = async (req: Request, res: Response): Promise
     const totalCount = countResult[0]?.total || 0
     
     // Calcular estatísticas por nível
-    const levelStats = await User.aggregate([
+    const levelStats = await User.aggregate<EngagementLevelStat>([
       { $match: matchQuery },
       {
         $group: {
@@ -1171,7 +913,7 @@ export const getEngagementDetails = async (req: Request, res: Response): Promise
     ])
     
     // Organizar estatísticas
-    const distribution: any = {
+    const distribution: Record<EngagementLevel, number> = {
       MUITO_ALTO: 0,
       ALTO: 0,
       MEDIO: 0,
@@ -1180,7 +922,7 @@ export const getEngagementDetails = async (req: Request, res: Response): Promise
     }
     
     levelStats.forEach(stat => {
-      if (stat._id && distribution[stat._id] !== undefined) {
+      if (isEngagementLevel(stat._id)) {
         distribution[stat._id] = stat.count
       }
     })
@@ -1213,12 +955,12 @@ export const getEngagementDetails = async (req: Request, res: Response): Promise
       timestamp: new Date().toISOString()
     })
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro getEngagementDetails:', error)
     res.status(500).json({
       success: false,
       message: 'Erro ao buscar detalhes de engagement',
-      error: error.message
+      error: errorMessage(error)
     })
   }
 }

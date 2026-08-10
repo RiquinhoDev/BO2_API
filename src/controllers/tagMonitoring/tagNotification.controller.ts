@@ -1,6 +1,11 @@
 import { Request, Response } from 'express'
 import { tagNotificationService } from '../../services/tagMonitoring'
 import logger from '../../utils/logger'
+import type { TagMonitoringDeleteInput } from '../../security/tagMonitoringDestructiveInput'
+
+type NotificationIdParams = {
+  id: string
+}
 
 /**
  * GET /api/tag-monitoring/notifications
@@ -41,7 +46,10 @@ export const getNotifications = async (req: Request, res: Response) => {
  * GET /api/tag-monitoring/notifications/:id
  * Busca uma notificação específica com detalhes
  */
-export const getNotificationById = async (req: Request, res: Response) => {
+export const getNotificationById = async (
+  req: Request<NotificationIdParams>,
+  res: Response,
+) => {
   try {
     const { id } = req.params
 
@@ -79,7 +87,10 @@ export const getNotificationById = async (req: Request, res: Response) => {
  * GET /api/tag-monitoring/notifications/:id/details
  * Busca detalhes de uma notificação (lista de alunos afetados)
  */
-export const getNotificationDetails = async (req: Request, res: Response) => {
+export const getNotificationDetails = async (
+  req: Request<NotificationIdParams>,
+  res: Response,
+) => {
   try {
     const { id } = req.params
 
@@ -111,7 +122,10 @@ export const getNotificationDetails = async (req: Request, res: Response) => {
  * PATCH /api/tag-monitoring/notifications/:id/read
  * Marca uma notificação como lida
  */
-export const markAsRead = async (req: Request, res: Response) => {
+export const markAsRead = async (
+  req: Request<NotificationIdParams>,
+  res: Response,
+) => {
   try {
     const { id } = req.params
 
@@ -151,7 +165,10 @@ export const markAsRead = async (req: Request, res: Response) => {
  * PATCH /api/tag-monitoring/notifications/:id/unread
  * Marca uma notificação como não lida
  */
-export const markAsUnread = async (req: Request, res: Response) => {
+export const markAsUnread = async (
+  req: Request<NotificationIdParams>,
+  res: Response,
+) => {
   try {
     const { id } = req.params
 
@@ -191,9 +208,12 @@ export const markAsUnread = async (req: Request, res: Response) => {
  * DELETE /api/tag-monitoring/notifications/:id
  * Remove uma notificação
  */
-export const dismissNotification = async (req: Request, res: Response) => {
+export const dismissNotification = async (
+  input: TagMonitoringDeleteInput,
+  res: Response,
+) => {
   try {
-    const { id } = req.params
+    const { id } = input.params
 
     if (!id) {
       return res.status(400).json({

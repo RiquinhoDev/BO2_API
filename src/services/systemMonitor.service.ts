@@ -5,6 +5,7 @@
 
 import metricsService from './metrics.service'
 import notificationService from './notification.service'
+import { getRuntimeConfig } from '../config/runtimeConfig'
 
 class SystemMonitor {
   private monitorInterval: NodeJS.Timeout | null = null
@@ -73,7 +74,7 @@ class SystemMonitor {
       }
 
       // Log de métricas (opcional)
-      if (process.env.LOG_METRICS === 'true') {
+      if (getRuntimeConfig().observability.metricsEnabled) {
         console.log(`📊 Métricas: CPU ${metrics.cpu.usage.toFixed(1)}%, MEM ${metrics.memory.usagePercent.toFixed(1)}%`)
       }
     } catch (error) {

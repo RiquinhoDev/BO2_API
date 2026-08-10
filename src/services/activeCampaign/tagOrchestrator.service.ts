@@ -17,6 +17,7 @@ import ProductProfile, { IProductProfile, IReengagementLevel } from '../../model
 
 import StudentEngagementState from '../../models/StudentEngagementState'
 import decisionEngine from './decisionEngine.service'
+import { getLastLearnerActivityDate } from '../activity/learnerActivity'
 
 // 🛡️ SISTEMA DE PROTEÇÃO DE TAGS NATIVAS
 import nativeTagProtection from './nativeTagProtection.service'
@@ -32,6 +33,11 @@ import nativeTagProtection from './nativeTagProtection.service'
  */
 function isBOTag(tagName: string): boolean {
   return nativeTagProtection.isBOTag(tagName)
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  return 'Unknown error'
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -57,11 +63,20 @@ export interface OrchestrationResult {
   error?: string
 }
 
+export interface ExecutionStats {
+  total: number
+  successful: number
+  failed: number
+  successRate: string
+  appliedTotal: number
+  removedTotal: number
+  byProduct: Record<string, number>
+}
+
 type OrchestrationContext = {
-  user: any
-  product: any
-  lastActivity: Date
-  daysInactive: number
+  productCode: string
+  lastActivity: Date | null
+  daysInactive: number | null
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -95,10 +110,14 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
     const productCode = String(product.code || '').toUpperCase()
     result.productCode = productCode
 
-    const lastActivity = this.getUserLastActivity(user, productCode)
+    const lastActivity = getLastLearnerActivityDate(user, product.code)
     const daysInactive = this.calculateDaysInactive(lastActivity)
 
-    const ctx: OrchestrationContext = { user, product, lastActivity, daysInactive }
+    const ctx: OrchestrationContext = {
+      productCode,
+      lastActivity,
+      daysInactive,
+    }
 
     // ═══════════════════════════════════════════════════════════
     // 1) 🛡️ CAPTURAR TAGS NATIVAS (PROTEÇÃO)
@@ -110,8 +129,8 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
           user.email,
           `TAG_ORCHESTRATOR_${productCode}`
         )
-      } catch (error: any) {
-        console.error(`[Orchestrator] ⚠️  Erro ao capturar tags nativas para ${user.email}:`, error.message)
+      } catch (error: unknown) {
+        console.error(`[Orchestrator] ⚠️  Erro ao capturar tags nativas para ${user.email}:`, errorMessage(error))
       }
     }
 
@@ -139,7 +158,7 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
 
     // Tags novas (do decision engine)
     const newBOTags = (decisions.tagsToApply || []).map((tag: string) => {
-      const { fullTag } = this.normalizeTagForProduct(tag, productCode)
+      const { fullTag } = this.normalizeTagForProduct(tag)
       return fullTag
     })
 
@@ -224,10 +243,11 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
 
     result.success = true
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = errorMessage(error)
     result.success = false
-    result.error = error.message
-    console.error(`❌ [Orchestrator] Erro ${result.productCode || 'unknown'}:`, error.message)
+    result.error = message
+    console.error(`❌ [Orchestrator] Erro ${result.productCode || 'unknown'}:`, message)
   }
 
   return result
@@ -273,8 +293,8 @@ private getProductTagPrefixes(productCode: string): string[] {
     tag: string,
     ctx: OrchestrationContext
   ): Promise<{ ok: boolean; fullTag: string }> {
-    const productCode = String(ctx.product.code || '').toUpperCase()
-    const { rawTag, fullTag } = this.normalizeTagForProduct(tag, productCode)
+    const productCode = ctx.productCode
+    const { rawTag, fullTag } = this.normalizeTagForProduct(tag)
 
     try {
       const ok = await activeCampaignService.applyTagToUserProduct(userId, productId, rawTag)
@@ -286,8 +306,8 @@ private getProductTagPrefixes(productCode: string): string[] {
       await this.syncStudentStateOnApply(userId, productCode, fullTag, level, ctx)
 
       return { ok: true, fullTag }
-    } catch (error: any) {
-      console.error(`❌ [Orchestrator] Erro ao aplicar ${fullTag}:`, error.message)
+    } catch (error: unknown) {
+      console.error(`❌ [Orchestrator] Erro ao aplicar ${fullTag}:`, errorMessage(error))
       return { ok: false, fullTag }
     }
   }
@@ -298,8 +318,8 @@ private getProductTagPrefixes(productCode: string): string[] {
     tag: string,
     ctx: OrchestrationContext
   ): Promise<{ ok: boolean; fullTag: string }> {
-    const productCode = String(ctx.product.code || '').toUpperCase()
-    const { rawTag, fullTag } = this.normalizeTagForProduct(tag, productCode)
+    const productCode = ctx.productCode
+    const { rawTag, fullTag } = this.normalizeTagForProduct(tag)
 
     try {
       const ok = await activeCampaignService.removeTagFromUserProduct(userId, productId, rawTag)
@@ -312,8 +332,8 @@ private getProductTagPrefixes(productCode: string): string[] {
       await this.markLastCommunicationAsReturned(userId, productId, fullTag)
 
       return { ok: true, fullTag }
-    } catch (error: any) {
-      console.error(`❌ [Orchestrator] Erro ao remover ${fullTag}:`, error.message)
+    } catch (error: unknown) {
+      console.error(`❌ [Orchestrator] Erro ao remover ${fullTag}:`, errorMessage(error))
       return { ok: false, fullTag }
     }
   }
@@ -348,7 +368,7 @@ private getProductTagPrefixes(productCode: string): string[] {
           daysInactive: ctx.daysInactive
         }
       })
-    } catch (error: any) {
+    } catch {
       // Silent fail - não bloquear orquestração
     }
   }
@@ -395,7 +415,7 @@ private getProductTagPrefixes(productCode: string): string[] {
       const code = productCode.toUpperCase()
 
       // Buscar ou criar estado
-      let studentState: any = await StudentEngagementState.findOne({ userId, productCode: code })
+      let studentState = await StudentEngagementState.findOne({ userId, productCode: code })
 
       if (!studentState) {
         studentState = await StudentEngagementState.create({
@@ -439,7 +459,6 @@ private getProductTagPrefixes(productCode: string): string[] {
       }
 
 
-      studentState.lastActivityDate = ctx.lastActivity
       studentState.daysSinceLastLogin = ctx.daysInactive
 
       await studentState.save()
@@ -456,7 +475,7 @@ private getProductTagPrefixes(productCode: string): string[] {
   ): Promise<void> {
     try {
       const code = productCode.toUpperCase()
-      const studentState: any = await StudentEngagementState.findOne({ userId, productCode: code })
+      const studentState = await StudentEngagementState.findOne({ userId, productCode: code })
       if (!studentState) return
 
       if (typeof studentState.removeTag === 'function') {
@@ -466,7 +485,6 @@ private getProductTagPrefixes(productCode: string): string[] {
         studentState.markAsReturned()
       }
 
-      studentState.lastActivityDate = ctx.lastActivity
       studentState.daysSinceLastLogin = ctx.daysInactive
 
       await studentState.save()
@@ -479,17 +497,9 @@ private getProductTagPrefixes(productCode: string): string[] {
   // HELPERS (vindos do V1)
   // ─────────────────────────────────────────────────────────────
 
-  private getUserLastActivity(user: any, productCode: string): Date {
-    const byCourse = user?.communicationByCourse
-    const courseData =
-      typeof byCourse?.get === 'function' ? byCourse.get(productCode) : byCourse?.[productCode]
-
-    if (courseData?.lastActivityDate) return courseData.lastActivityDate
-    if (user?.lastLogin) return user.lastLogin
-    return user?.createdAt || new Date()
-  }
-
-  private calculateDaysInactive(lastActivity: Date): number {
+  private calculateDaysInactive(lastActivity: Date | null): number | null {
+    // Sem sinal de actividade = desconhecido, NÃO inactivo (mesma semântica do decisionEngine).
+    if (!lastActivity) return null
     const now = new Date()
     const diffMs = now.getTime() - lastActivity.getTime()
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
@@ -509,7 +519,7 @@ private getProductTagPrefixes(productCode: string): string[] {
    * - input pode vir raw ("INATIVO_14D") ou full ("OGI_INATIVO_14D")
    * - ActiveCampaignService.applyTagToUserProduct/removeTagFromUserProduct EXPECTA raw (porque ele prefixa)
    */
-private normalizeTagForProduct(tag: string, productCode: string): { rawTag: string; fullTag: string } {
+private normalizeTagForProduct(tag: string): { rawTag: string; fullTag: string } {
   // ✅ As tags JÁ vêm com o prefixo correto do adapter (ex: "OGI_V1 - Inativo 7d")
   // O activeCampaignService NÃO adiciona mais prefixo
   // Então simplesmente retornamos a tag como está
@@ -536,7 +546,7 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
       try {
         const r = await this.orchestrateUserProduct(item.userId, item.productId)
         results.push(r)
-      } catch (error: any) {
+      } catch (error: unknown) {
         results.push({
           userId: item.userId,
           productId: item.productId,
@@ -545,7 +555,7 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
           tagsRemoved: [],
           communicationsTriggered: 0,
           success: false,
-          error: error.message
+          error: errorMessage(error)
         })
       }
     }
@@ -556,7 +566,7 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
   /**
    * Estatísticas de execução (equivalente ao getExecutionStats do V1)
    */
-  getExecutionStats(results: OrchestrationResult[]): any {
+  getExecutionStats(results: OrchestrationResult[]): ExecutionStats {
     const total = results.length
     const successful = results.filter(r => r.success).length
     const failed = results.filter(r => !r.success).length
@@ -627,12 +637,11 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
           const product = await Product.findById(op.productId)
           if (!user || !product) return false
 
-          const productCode = String(product.code || '').toUpperCase()
+          const lastActivity = getLastLearnerActivityDate(user, product.code)
           const ctx: OrchestrationContext = {
-            user,
-            product,
-            lastActivity: this.getUserLastActivity(user, productCode),
-            daysInactive: this.calculateDaysInactive(this.getUserLastActivity(user, productCode))
+            productCode: String(product.code || '').toUpperCase(),
+            lastActivity,
+            daysInactive: this.calculateDaysInactive(lastActivity)
           }
 
           return op.action === 'APPLY'
@@ -675,11 +684,11 @@ private normalizeTagForProduct(tag: string, productCode: string): { rawTag: stri
       }
     }
 
+    const lastActivity = getLastLearnerActivityDate(user, product.code)
     const ctx: OrchestrationContext = {
-      user,
-      product,
-      lastActivity: this.getUserLastActivity(user, productCode),
-      daysInactive: this.calculateDaysInactive(this.getUserLastActivity(user, productCode))
+      productCode,
+      lastActivity,
+      daysInactive: this.calculateDaysInactive(lastActivity)
     }
 
     for (const t of tagsToRemove) {

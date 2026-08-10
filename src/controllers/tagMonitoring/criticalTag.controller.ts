@@ -1,6 +1,11 @@
 import { Request, Response } from 'express'
 import { criticalTagManagementService } from '../../services/tagMonitoring'
 import logger from '../../utils/logger'
+import type { TagMonitoringDeleteInput } from '../../security/tagMonitoringDestructiveInput'
+
+type CriticalTagParams = {
+  id: string
+}
 
 /**
  * GET /api/tag-monitoring/critical-tags
@@ -92,7 +97,7 @@ export const addCriticalTag = async (req: Request, res: Response) => {
  * DELETE /api/tag-monitoring/critical-tags/:id
  * Remove uma tag crítica (soft delete)
  */
-export const removeCriticalTag = async (req: Request, res: Response) => {
+export const removeCriticalTag = async (req: Request<CriticalTagParams>, res: Response) => {
   try {
     const { id } = req.params
 
@@ -131,9 +136,12 @@ export const removeCriticalTag = async (req: Request, res: Response) => {
  * DELETE /api/tag-monitoring/critical-tags/:id/permanent
  * Remove permanentemente uma tag crítica
  */
-export const deleteCriticalTag = async (req: Request, res: Response) => {
+export const deleteCriticalTag = async (
+  input: TagMonitoringDeleteInput,
+  res: Response,
+) => {
   try {
-    const { id } = req.params
+    const { id } = input.params
 
     if (!id) {
       return res.status(400).json({
@@ -170,7 +178,7 @@ export const deleteCriticalTag = async (req: Request, res: Response) => {
  * PATCH /api/tag-monitoring/critical-tags/:id/toggle
  * Alterna o estado ativo/inativo de uma tag crítica
  */
-export const toggleCriticalTag = async (req: Request, res: Response) => {
+export const toggleCriticalTag = async (req: Request<CriticalTagParams>, res: Response) => {
   try {
     const { id } = req.params
 
@@ -210,7 +218,7 @@ export const toggleCriticalTag = async (req: Request, res: Response) => {
  * PATCH /api/tag-monitoring/critical-tags/:id/priority
  * Atualiza a prioridade de uma tag crítica
  */
-export const updateCriticalTagPriority = async (req: Request, res: Response) => {
+export const updateCriticalTagPriority = async (req: Request<CriticalTagParams>, res: Response) => {
   try {
     const { id } = req.params
     const { priority } = req.body

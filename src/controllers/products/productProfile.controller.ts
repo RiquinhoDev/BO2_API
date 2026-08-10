@@ -4,9 +4,14 @@
 // ================================================================
 
 import { Request, Response } from 'express'
+import type { ProductProfilesDeleteInput } from '../../security/productProfilesDestructiveInput'
 import ProductProfile, { IReengagementLevel } from '../../models/product/ProductProfile'
 import StudentEngagementState from '../../models/StudentEngagementState'
 import CommunicationHistory from '../../models/acTags/CommunicationHistory'
+
+type ProductCodeParams = {
+  code: string
+}
 
 /**
  * GET /api/product-profiles
@@ -43,7 +48,10 @@ export const getAllProductProfiles = async (req: Request, res: Response): Promis
  * GET /api/product-profiles/:code
  * Buscar perfil específico por código
  */
-export const getProductProfileByCode = async (req: Request, res: Response): Promise<void> => {
+export const getProductProfileByCode = async (
+  req: Request<ProductCodeParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { code } = req.params
 
@@ -139,7 +147,10 @@ export const createProductProfile = async (req: Request, res: Response): Promise
  * PUT /api/product-profiles/:code
  * Atualizar perfil existente
  */
-export const updateProductProfile = async (req: Request, res: Response): Promise<void> => {
+export const updateProductProfile = async (
+  req: Request<ProductCodeParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { code } = req.params
     const updates = req.body
@@ -185,10 +196,13 @@ export const updateProductProfile = async (req: Request, res: Response): Promise
  * DELETE /api/product-profiles/:code
  * Deletar perfil (soft delete - apenas desativa)
  */
-export const deleteProductProfile = async (req: Request, res: Response): Promise<void> => {
+export const deleteProductProfile = async (
+  input: ProductProfilesDeleteInput,
+  res: Response,
+): Promise<void> => {
   try {
-    const { code } = req.params
-    const { hardDelete } = req.query
+    const { code } = input.params
+    const { hardDelete } = input.query
 
     if (hardDelete === 'true') {
       // Hard delete (remover completamente)
@@ -248,7 +262,10 @@ export const deleteProductProfile = async (req: Request, res: Response): Promise
  * GET /api/product-profiles/:code/stats
  * Obter estatísticas de um perfil
  */
-export const getProductProfileStats = async (req: Request, res: Response): Promise<void> => {
+export const getProductProfileStats = async (
+  req: Request<ProductCodeParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { code } = req.params
 
@@ -383,7 +400,10 @@ const levelMetrics = await Promise.all(
  * POST /api/product-profiles/:code/duplicate
  * Duplicar perfil existente
  */
-export const duplicateProductProfile = async (req: Request, res: Response): Promise<void> => {
+export const duplicateProductProfile = async (
+  req: Request<ProductCodeParams>,
+  res: Response,
+): Promise<void> => {
   try {
     const { code } = req.params
     const { newCode, newName } = req.body
@@ -448,4 +468,3 @@ export const duplicateProductProfile = async (req: Request, res: Response): Prom
     })
   }
 }
-

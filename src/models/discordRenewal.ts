@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/models/discordRenewal.ts
 // Modelos do sistema de cargos de renovação no Discord (R. {Mês})
-// e das mensagens do bot. Ver RENOVACAO_DISCORD_CARGOS_PLAN.md.
+// e das mensagens do bot. Ver docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.
 //
 // Mesmo padrão do RenewalAcChange (sync AC): plano persistido e
 // revisável ANTES de qualquer execução; execução gated por switches.
@@ -188,7 +188,7 @@ const discordMessageLogSchema = new Schema<IDiscordMessageLog>(
 
 // ─────────────────────────────────────────────────────────────
 // 5. DiscordScheduledRule — regras de mensagens agendadas de renovação
-//    (plano na secção 12 do RENOVACAO_DISCORD_CARGOS_PLAN.md).
+//    (plano na secção 12 do docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md).
 //    O mês alvo NUNCA é guardado: é derivado na execução = mês anterior
 //    à data de envio → cargo R.{mêsAnterior}. Uma regra dispara 12×/ano.
 // ─────────────────────────────────────────────────────────────
@@ -224,18 +224,18 @@ const discordScheduledRuleSchema = new Schema<IDiscordScheduledRule>(
   { timestamps: true, collection: 'discordscheduledrules' }
 )
 
-// Casts explícitos (padrão do projecto — evita o union type não-callable)
-export const DiscordRoleChange = (mongoose.models.DiscordRoleChange ||
-  mongoose.model<IDiscordRoleChange>('DiscordRoleChange', discordRoleChangeSchema)) as mongoose.Model<IDiscordRoleChange>
+// Tipos explícitos (padrão do projecto — evita o union type não-callable)
+export const DiscordRoleChange: mongoose.Model<IDiscordRoleChange> = mongoose.models.DiscordRoleChange ||
+  mongoose.model<IDiscordRoleChange>('DiscordRoleChange', discordRoleChangeSchema)
 
-export const DiscordRoleState = (mongoose.models.DiscordRoleState ||
-  mongoose.model<IDiscordRoleState>('DiscordRoleState', discordRoleStateSchema)) as mongoose.Model<IDiscordRoleState>
+export const DiscordRoleState: mongoose.Model<IDiscordRoleState> = mongoose.models.DiscordRoleState ||
+  mongoose.model<IDiscordRoleState>('DiscordRoleState', discordRoleStateSchema)
 
-export const DiscordMessageTemplate = (mongoose.models.DiscordMessageTemplate ||
-  mongoose.model<IDiscordMessageTemplate>('DiscordMessageTemplate', discordMessageTemplateSchema)) as mongoose.Model<IDiscordMessageTemplate>
+export const DiscordMessageTemplate: mongoose.Model<IDiscordMessageTemplate> = mongoose.models.DiscordMessageTemplate ||
+  mongoose.model<IDiscordMessageTemplate>('DiscordMessageTemplate', discordMessageTemplateSchema)
 
-export const DiscordMessageLog = (mongoose.models.DiscordMessageLog ||
-  mongoose.model<IDiscordMessageLog>('DiscordMessageLog', discordMessageLogSchema)) as mongoose.Model<IDiscordMessageLog>
+export const DiscordMessageLog: mongoose.Model<IDiscordMessageLog> = mongoose.models.DiscordMessageLog ||
+  mongoose.model<IDiscordMessageLog>('DiscordMessageLog', discordMessageLogSchema)
 
-export const DiscordScheduledRule = (mongoose.models.DiscordScheduledRule ||
-  mongoose.model<IDiscordScheduledRule>('DiscordScheduledRule', discordScheduledRuleSchema)) as mongoose.Model<IDiscordScheduledRule>
+export const DiscordScheduledRule: mongoose.Model<IDiscordScheduledRule> = mongoose.models.DiscordScheduledRule ||
+  mongoose.model<IDiscordScheduledRule>('DiscordScheduledRule', discordScheduledRuleSchema)

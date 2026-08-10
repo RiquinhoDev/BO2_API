@@ -8,11 +8,12 @@
 //
 // ⚠️ Escreve APENAS na nossa BD — nunca toca na ActiveCampaign.
 // É invocado pelo RenewalAcSync (cron desligado por defeito) ou
-// manualmente via endpoint. Ver RENOVACAO_OGI_BO_PLAN.md (Gap A).
+// manualmente via endpoint. Ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md (Gap A).
 // ════════════════════════════════════════════════════════════
 
 import axios from 'axios'
 import mongoose from 'mongoose'
+import { getRuntimeConfig } from '../../config/runtimeConfig'
 import Product from '../../models/product/Product'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
@@ -120,7 +121,7 @@ async function resolveOgiProduct(): Promise<{ hotmartProductId: string; objectId
     .lean()
     .exec() as { _id: mongoose.Types.ObjectId; hotmartProductId?: string } | null
 
-  const envProductId = process.env.HOTMART_OGI_PRODUCT_ID?.trim()
+  const envProductId = getRuntimeConfig().renewal.hotmartOgiProductId
   const hotmartProductId = envProductId || ogiProduct?.hotmartProductId
 
   if (!ogiProduct?._id || !hotmartProductId) {

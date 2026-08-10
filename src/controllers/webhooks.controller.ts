@@ -52,12 +52,3 @@ export const linkClicked = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: error.message })
   }
 }
-
-/**
- * Webhook: Test
- * Endpoint de teste para validar configuração
- */
-export const testWebhook = async (req: Request, res: Response) => {
-  console.log('🧪 Webhook de teste recebido:', req.body)
-  res.json({ success: true, message: 'Test webhook received', data: req.body })
-}

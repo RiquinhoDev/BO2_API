@@ -73,6 +73,7 @@ export interface IEngagement {
 export interface IClassEnrollment {
   classId: string
   className?: string  // ⚠️ DEPRECATED - Não guardado no sync! Use lookup na tabela Class
+  role?: string
   joinedAt: Date
   leftAt?: Date
 }
@@ -97,6 +98,9 @@ export interface IUserProduct extends Document {
   _id: mongoose.Types.ObjectId
   userId: mongoose.Types.ObjectId
   productId: mongoose.Types.ObjectId
+  // Campos desnormalizados presentes em documentos legados.
+  productCode?: string
+  productName?: string
 
   platform: PlatformType
   platformUserId: string
@@ -123,6 +127,24 @@ export interface IUserProduct extends Document {
     refundedAt?: Date
     notes?: string
     platform?: string
+    markedForInactivationAt?: Date
+    markedForInactivationReason?: string
+    markedFromComparison?: boolean
+    inactivatedAt?: Date
+    inactivatedBy?: string
+    inactivatedReason?: string
+    quarantinedAt?: Date
+    quarantineReason?: string
+    revertedAt?: Date
+    revertedBy?: string
+    revertReason?: string
+    restoredAt?: Date
+    restoredReason?: string
+    fixedToActiveAt?: Date
+    fixedToActiveReason?: string
+    curseducaResponse?: unknown
+    inactivationError?: string
+    inactivationAttemptAt?: Date
   }
 
   platformData?: Record<string, unknown>
@@ -285,6 +307,7 @@ const UserProductSchema = new Schema<IUserProduct>({
       required: true
     },
     className: String,
+    role: String,
     joinedAt: {
       type: Date,
       required: true
@@ -358,7 +381,25 @@ const UserProductSchema = new Schema<IUserProduct>({
     },
     refundedAt: Date,
     notes: String,
-    platform: String
+    platform: String,
+    markedForInactivationAt: Date,
+    markedForInactivationReason: String,
+    markedFromComparison: Boolean,
+    inactivatedAt: Date,
+    inactivatedBy: String,
+    inactivatedReason: String,
+    quarantinedAt: Date,
+    quarantineReason: String,
+    revertedAt: Date,
+    revertedBy: String,
+    revertReason: String,
+    restoredAt: Date,
+    restoredReason: String,
+    fixedToActiveAt: Date,
+    fixedToActiveReason: String,
+    curseducaResponse: Schema.Types.Mixed,
+    inactivationError: String,
+    inactivationAttemptAt: Date
   },
 
   platformData: Schema.Types.Mixed
@@ -377,11 +418,16 @@ UserProductSchema.index({ userId: 1, status: 1 })
 // Buscar todos os users de um produto
 UserProductSchema.index({ productId: 1, status: 1 })
 
-// Buscar enrollment específico
-UserProductSchema.index({ userId: 1, productId: 1 })
+// Buscar enrollment específico: coberto pelo índice único declarado abaixo.
 
 // Buscar por plataforma
 UserProductSchema.index({ platform: 1, platformUserId: 1 })
+
+// Listagem Users V2: filtros combinados de plataforma e estado
+UserProductSchema.index(
+  { platform: 1, status: 1 },
+  { name: 'users_v2_platform_status' },
+)
 
 // Buscar por engagement
 UserProductSchema.index({ 'engagement.engagementScore': -1 })
@@ -425,6 +471,6 @@ UserProductSchema.methods.getDaysSinceEnrollment = function(): number {
 // EXPORT
 // ─────────────────────────────────────────────────────────────
 
-const UserProduct = mongoose.models.UserProduct || mongoose.model<IUserProduct>('UserProduct', UserProductSchema)
+const UserProduct: mongoose.Model<IUserProduct> = mongoose.models.UserProduct || mongoose.model<IUserProduct>('UserProduct', UserProductSchema)
 
 export default UserProduct

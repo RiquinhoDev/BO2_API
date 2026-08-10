@@ -1,4 +1,5 @@
 import { DashboardStats } from '../models/DashboardStats'
+import { calculateHealthScore } from './analytics/healthScore'
 import { getAllUsersUnified } from './syncUtilizadoresServices/dualReadService'
 
 /**
@@ -276,27 +277,13 @@ export async function buildDashboardStats(): Promise<void> {
     
     console.log('💊 Calculando Health Score...')
     
-    const retention = Math.min(100, Math.round((activeCount / uniqueStudents) * 100))
-    const growth = Math.min(100, Math.round((newUsers7d / uniqueStudents) * 1000))
-    
-    const healthScore = Math.round(
-      (avgEngagement * 0.4) + 
-      (retention * 0.3) + 
-      (growth * 0.2) + 
-      (avgProgress * 0.1)
-    )
-    
-    const healthLevel = 
-      healthScore >= 85 ? 'EXCELENTE' :
-      healthScore >= 75 ? 'BOM' :
-      healthScore >= 60 ? 'RAZOÁVEL' : 'CRÍTICO'
-    
-    const healthBreakdown = {
-      engagement: avgEngagement,
-      retention: retention,
-      growth: growth,
-      progress: avgProgress
-    }
+    const { healthScore, healthLevel, healthBreakdown } = calculateHealthScore({
+      avgEngagement,
+      activeCount,
+      totalCount: uniqueStudents,
+      newLast7Days: newUsers7d,
+      avgProgress,
+    })
     
     console.log(`   ✅ Health Score: ${healthScore} (${healthLevel})`)
     

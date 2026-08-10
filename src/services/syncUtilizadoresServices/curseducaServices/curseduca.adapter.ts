@@ -6,7 +6,7 @@
 //    1. /reports/group/members (lista + progresso)
 //    2. /members/{id} (lastLogin + situation + enrolledAt)
 //
-// ✅ Process.env para credenciais
+// ✅ Configuração runtime tipada para credenciais
 // ✅ Deduplicação inteligente
 // ✅ Concurrency controlada
 // ✅ Type-safe completo
@@ -24,33 +24,45 @@ import {
   CursEducaMemberDetails,
   CursEducaMemberWithMetadata
 } from '../../../types/curseduca.types'
+import { attachCurseducaMemberships } from './curseducaMemberships'
+import { getCurseducaRuntimeSettings } from '../../requestDrivenRuntimeConfig'
 
 // ═══════════════════════════════════════════════════════════
-// CREDENCIAIS (PROCESS.ENV)
+// CREDENCIAIS (RUNTIME CONFIG)
 // ═══════════════════════════════════════════════════════════
 
-const CURSEDUCA_API_URL="https://prof.curseduca.pro"
+const curseducaApiUrl = () => getCurseducaRuntimeSettings().apiUrl
 const CURSEDUCA_CONTENTS_API_URL="https://clas.curseduca.pro"
-const CURSEDUCA_API_KEY=process.env.CURSEDUCA_API_KEY
-const CURSEDUCA_ACCESS_TOKEN=process.env.CURSEDUCA_AccessToken
+const curseducaApiKey = () => getCurseducaRuntimeSettings().apiKey
+const curseducaAccessToken = () => getCurseducaRuntimeSettings().accessToken
 
 // ═══════════════════════════════════════════════════════════
 // HELPER: VALIDAR CREDENCIAIS
 // ═══════════════════════════════════════════════════════════
 
-function validateCredentials(): void {
+function getRequestHeaders(): Record<string, string> {
   const missing: string[] = []
   
-  if (!CURSEDUCA_API_URL) missing.push('CURSEDUCA_API_URL')
-  if (!CURSEDUCA_ACCESS_TOKEN) missing.push('CURSEDUCA_AccessToken')
-  if (!CURSEDUCA_API_KEY) missing.push('CURSEDUCA_API_KEY')
+  if (!curseducaApiUrl()) missing.push('CURSEDUCA_API_URL')
+  if (!curseducaAccessToken()) missing.push('CURSEDUCA_AccessToken')
+  if (!curseducaApiKey()) missing.push('CURSEDUCA_API_KEY')
   
   if (missing.length > 0) {
     throw new Error(
-      `❌ Credenciais CursEduca não configuradas no .env:\n` +
+      `❌ Credenciais CursEduca não configuradas no arranque:\n` +
       `   Faltam: ${missing.join(', ')}\n` +
-      `   Por favor, adicione no ficheiro .env`
+      `   Verifique a configuração do ambiente de arranque`
     )
+  }
+
+  if (!curseducaAccessToken() || !curseducaApiKey()) {
+    throw new Error('Credenciais CursEduca inválidas')
+  }
+
+  return {
+    'Authorization': `Bearer ${curseducaAccessToken()}`,
+    'api_key': curseducaApiKey(),
+    'Content-Type': 'application/json'
   }
 }
 function toNumber(value: unknown, fallback = 0): number {
@@ -65,6 +77,76 @@ function toNumber(value: unknown, fallback = 0): number {
 function normalizeEmail(value: unknown): string {
   if (typeof value !== 'string') return ''
   return value.trim().toLowerCase()
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
+}
+
+function errorStatus(error: unknown): number | undefined {
+  return axios.isAxiosError(error) ? error.response?.status : undefined
+}
+
+interface CollectionMetadata {
+  hasMore?: boolean
+  hasmore?: boolean
+  totalCount?: number
+}
+
+interface CollectionResponse<T> {
+  data?: T[]
+  groups?: T[]
+  members?: T[]
+  metadata?: CollectionMetadata
+}
+
+type CollectionPayload<T> = T[] | CollectionResponse<T>
+
+function collectionItems<T>(payload: CollectionPayload<T>): T[] {
+  if (Array.isArray(payload)) return payload
+  return payload.data ?? payload.groups ?? payload.members ?? []
+}
+
+function collectionMetadata<T>(payload: CollectionPayload<T>): CollectionMetadata {
+  return Array.isArray(payload) ? {} : payload.metadata ?? {}
+}
+
+interface CursEducaRosterMember {
+  id: number
+  uuid: string
+  name: string
+  email: string
+  enteredAt?: string
+  expiresAt?: string | null
+}
+
+interface UnifiedCurseducaMember {
+  id: number
+  uuid: string
+  name: string
+  email: string
+  enteredAt?: string
+  expiresAt?: string | null
+  progress: number
+  enrollmentsCount: number
+  groups: CursEducaMemberFromReports['groups']
+  lastLogin?: string
+  lastAccess?: string
+  accessCount?: number
+}
+
+interface BulkCurseducaMember {
+  id?: number
+  situation?: string
+  lastAccess?: string
+  groups?: Array<{ groupId?: number }>
+}
+
+interface CurseducaEnrollment {
+  content?: { id?: number }
+  startedAt?: string
+  progress?: number
+  finishedAt?: string
 }
 
 
@@ -131,7 +213,7 @@ function deduplicateMembers(
 // HELPER: DETECTAR TIPO DE SUBSCRIÇÃO
 // ═══════════════════════════════════════════════════════════
 
-function detectSubscriptionType(groupName: string): 'MONTHLY' | 'ANNUAL' | undefined {
+function detectSubscriptionType(groupName: string): 'MONTHLY' | 'ANNUAL' {
   const nameLower = groupName.toLowerCase()
   
   if (nameLower.includes('mensal') || nameLower.includes('monthly')) {
@@ -142,14 +224,16 @@ function detectSubscriptionType(groupName: string): 'MONTHLY' | 'ANNUAL' | undef
     return 'ANNUAL'
   }
   
-  return undefined
+  return 'MONTHLY'
 }
 
 // ═══════════════════════════════════════════════════════════
 // HELPER: VALIDAR MEMBRO
 // ═══════════════════════════════════════════════════════════
 
-function validateCurseducaMember(member: CursEducaMemberFromReports): void {
+function validateCurseducaMember(
+  member: Pick<UnifiedCurseducaMember, 'id' | 'name' | 'email'>
+): void {
   if (!member.email || !member.email.trim()) {
     throw new Error('Email é obrigatório')
   }
@@ -247,8 +331,8 @@ async function fetchGroupMembersList(
     pageCount++
     
     try {
-      const response = await axios.get(
-        `${CURSEDUCA_API_URL}/reports/group/members`,
+      const response = await axios.get<CollectionPayload<CursEducaMemberFromReports>>(
+        `${curseducaApiUrl()}/reports/group/members`,
         {
           params: { group: groupId, groupId, limit, offset },
           headers,
@@ -256,8 +340,7 @@ async function fetchGroupMembersList(
         }
       )
 
-      const pageMembers: CursEducaMemberFromReports[] = 
-        response.data?.data || response.data || []
+      const pageMembers = collectionItems(response.data)
 
       console.log(`      Página ${pageCount}: ${pageMembers.length} membros`)
       
@@ -270,8 +353,8 @@ async function fetchGroupMembersList(
         await new Promise(resolve => setTimeout(resolve, 200))
       }
       
-    } catch (error: any) {
-      console.error(`   ❌ Erro na página ${pageCount}:`, error.message)
+    } catch (error: unknown) {
+      console.error(`   ❌ Erro na página ${pageCount}:`, errorMessage(error))
       throw error
     }
   }
@@ -327,8 +410,8 @@ async function fetchProgressReport(
     pageCount++
 
     try {
-      const response = await axios.get(
-        `${CURSEDUCA_CONTENTS_API_URL || CURSEDUCA_API_URL}/reports/progress`,
+      const response = await axios.get<CollectionPayload<CurseducaProgressReportItem>>(
+        `${CURSEDUCA_CONTENTS_API_URL}/reports/progress`,
         {
           params: { content: contentSlug, limit, offset },
           headers,
@@ -336,12 +419,8 @@ async function fetchProgressReport(
         }
       )
 
-      const data = response.data || {}
-      const items: CurseducaProgressReportItem[] = Array.isArray(data.data)
-        ? data.data
-        : Array.isArray(data)
-          ? data
-          : []
+      const data = response.data
+      const items = collectionItems(data)
 
       for (const item of items) {
         const memberId = item.member?.id
@@ -364,7 +443,7 @@ async function fetchProgressReport(
         }
       }
 
-      const metadata = data.metadata || {}
+      const metadata = collectionMetadata(data)
       if (typeof metadata.hasMore === 'boolean') {
         hasMore = metadata.hasMore
       } else {
@@ -376,8 +455,8 @@ async function fetchProgressReport(
       if (hasMore) {
         await new Promise(resolve => setTimeout(resolve, 200))
       }
-    } catch (error: any) {
-      console.error(`   Erro ao buscar /reports/progress:`, error.message)
+    } catch (error: unknown) {
+      console.error(`   Erro ao buscar /reports/progress:`, errorMessage(error))
       break
     }
   }
@@ -407,8 +486,8 @@ async function fetchAccessReport(
     pageCount++
 
     try {
-      const response = await axios.get(
-        `${CURSEDUCA_API_URL}/reports/access`,
+      const response = await axios.get<CollectionPayload<CurseducaAccessReportItem>>(
+        `${curseducaApiUrl()}/reports/access`,
         {
           params: { limit, offset },
           headers,
@@ -416,12 +495,8 @@ async function fetchAccessReport(
         }
       )
 
-      const data = response.data || {}
-      const items: CurseducaAccessReportItem[] = Array.isArray(data.data)
-        ? data.data
-        : Array.isArray(data)
-          ? data
-          : []
+      const data = response.data
+      const items = collectionItems(data)
 
       for (const item of items) {
         const email = normalizeEmail(item.member?.email)
@@ -444,7 +519,7 @@ async function fetchAccessReport(
         accessMap.set(email, existing)
       }
 
-      const metadata = data.metadata || {}
+      const metadata = collectionMetadata(data)
       if (typeof metadata.hasMore === 'boolean') {
         hasMore = metadata.hasMore
       } else if (typeof metadata.hasmore === 'boolean') {
@@ -458,8 +533,8 @@ async function fetchAccessReport(
       if (hasMore) {
         await new Promise(resolve => setTimeout(resolve, 200))
       }
-    } catch (error: any) {
-      console.error('   Erro ao buscar /reports/access:', error.message)
+    } catch (error: unknown) {
+      console.error('   Erro ao buscar /reports/access:', errorMessage(error))
       break
     }
   }
@@ -505,19 +580,15 @@ async function fetchAllMembersMap(
 
     for (let attempt = 1; attempt <= 3 && !pageDone; attempt++) {
       try {
-        const response = await axios.get(`${CURSEDUCA_API_URL}/members`, {
+        const response = await axios.get<CollectionPayload<BulkCurseducaMember>>(`${curseducaApiUrl()}/members`, {
           params: { limit, offset },
           headers,
           timeout: 30000
         })
 
-        const data = response.data || {}
-        const items: any[] = Array.isArray(data.data)
-          ? data.data
-          : Array.isArray(data)
-            ? data
-            : []
-        const meta = data.metadata || {}
+        const data = response.data
+        const items = collectionItems(data)
+        const meta = collectionMetadata(data)
         if (typeof meta.totalCount === 'number') total = meta.totalCount
 
         for (const m of items) {
@@ -526,7 +597,9 @@ async function fetchAllMembersMap(
             situation: m.situation,
             lastAccess: m.lastAccess,
             groupIds: Array.isArray(m.groups)
-              ? m.groups.map((g: any) => g?.groupId).filter((x: any) => x != null)
+              ? m.groups
+                .map(g => g.groupId)
+                .filter((groupId): groupId is number => groupId !== undefined)
               : []
           })
         }
@@ -542,8 +615,8 @@ async function fetchAllMembersMap(
           return map
         }
         offset += limit
-      } catch (error: any) {
-        console.warn(`   ⚠️ /members offset=${offset} tentativa ${attempt}/3 falhou: ${error.message}`)
+      } catch (error: unknown) {
+        console.warn(`   ⚠️ /members offset=${offset} tentativa ${attempt}/3 falhou: ${errorMessage(error)}`)
         if (attempt === 3) {
           // Desiste desta página mas continua — ids em falta caem no fallback 'ACTIVE'
           offset += limit
@@ -573,7 +646,7 @@ async function fetchAllMembersMap(
 //     roster e o bulk não confirma) -> evita produtos fantasma.
 
 function enrichMemberFromBulk(
-  member: any,
+  member: UnifiedCurseducaMember,
   groupId: number,
   groupName: string,
   bulkMap: Map<number, BulkMemberInfo>,
@@ -589,8 +662,8 @@ function enrichMemberFromBulk(
     return null
   }
 
-  const fallbackLastAccess = member.lastAccess as string | undefined
-  const fallbackLastLogin = member.lastLogin as string | undefined
+  const fallbackLastAccess = member.lastAccess
+  const fallbackLastLogin = member.lastLogin
 
   return {
     id: member.id,
@@ -609,108 +682,6 @@ function enrichMemberFromBulk(
     lastAccess: fallbackLastAccess || bulk?.lastAccess,
     accessCount: member.accessCount,
     isPrimary: true,  // ajustado na deduplicação
-    isDuplicate: false
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// FETCH: DETALHES DE UM MEMBRO
-// ═══════════════════════════════════════════════════════════
-// ⚠️ DEPRECADO no sync em massa (substituído por fetchAllMembersMap por
-// causa dos 504s). Mantido para fetchSingleUserData / sync por email.
-
-async function fetchMemberDetails(
-  memberId: number,
-  headers: Record<string, string>
-): Promise<CursEducaMemberDetails | null> {
-  try {
-    const response = await axios.get(
-      `${CURSEDUCA_API_URL}/members/${memberId}`,
-      {
-        headers,
-        timeout: 10000
-      }
-    )
-
-    return response.data as CursEducaMemberDetails
-    
-  } catch (error: any) {
-    console.warn(`   ⚠️ Detalhes do membro ${memberId} indisponíveis: ${error.message}`)
-    return null
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// ENRICH: COMBINAR DADOS DOS 2 ENDPOINTS (SIMPLIFICADO)
-// ═══════════════════════════════════════════════════════════
-// ✅ Retorna 1 objeto por user, usando o groupId do grupo sendo processado
-// ✅ Valida que o user REALMENTE pertence ao grupo antes de retornar
-
-async function enrichMemberWithDetails(
-  member: CursEducaMemberFromReports,
-  groupId: number,
-  groupName: string,
-  headers: Record<string, string>
-): Promise<CursEducaMemberWithMetadata | null> {
-
-  // Buscar detalhes completos do user (para lastLogin e situation)
-  const details = await fetchMemberDetails(member.id, headers)
-  const fallbackLastAccess = (member as any).lastAccess as string | undefined
-  const fallbackLastLogin = (member as any).lastLogin as string | undefined
-  const fallbackAccessCount = (member as any).accessCount as number | undefined
-
-  if (!details) {
-    // Se falhou, retornar com dados básicos do grupo atual
-    return {
-      id: member.id,
-      uuid: member.uuid,
-      name: member.name,
-      email: member.email,
-      progress: member.progress,
-      enrollmentsCount: member.enrollmentsCount,
-      groupId,
-      groupName,
-      subscriptionType: detectSubscriptionType(groupName),
-      enrolledAt: new Date().toISOString(),
-      expiresAt: member.expiresAt,
-      situation: 'ACTIVE',
-      lastLogin: fallbackLastLogin,
-      lastAccess: fallbackLastAccess,
-      accessCount: fallbackAccessCount,
-      isPrimary: true,
-      isDuplicate: false
-    }
-  }
-
-  // 🔥 CORREÇÃO: Verificar se o user REALMENTE está neste grupo específico
-  const groupEnrollment = details.groups.find(g => g.group.id === groupId)
-
-  // Se o user NÃO está neste grupo, retornar null para ignorar
-  if (!groupEnrollment) {
-    console.log(`   ⚠️  ${member.email} não pertence ao grupo ${groupId}, ignorando...`)
-    return null
-  }
-
-  const enrolledAt = groupEnrollment.createdAt || details.createdAt
-
-  // ✅ CORRETO: Retornar apenas 1 item com o groupId/groupName do grupo atual
-  return {
-    id: member.id,
-    uuid: member.uuid,
-    name: member.name,
-    email: member.email,
-    progress: member.progress,
-    enrollmentsCount: member.enrollmentsCount,
-    groupId,        // ✅ Usa o grupo sendo processado
-    groupName,      // ✅ Usa o grupo sendo processado
-    subscriptionType: detectSubscriptionType(groupName),
-    enrolledAt,
-    expiresAt: groupEnrollment.group.expiresAt || member.expiresAt,
-    situation: details.situation,
-    lastLogin: details.lastLogin || fallbackLastLogin,
-    lastAccess: fallbackLastAccess || details.lastLogin,
-    accessCount: fallbackAccessCount,
-    isPrimary: true,  // Será ajustado na deduplicação
     isDuplicate: false
   }
 }
@@ -736,30 +707,21 @@ export const fetchCurseducaDataForSync = async (
 
   try {
     // ✅ VALIDAR CREDENCIAIS
-    validateCredentials()
+    const headers = getRequestHeaders()
 
     // ✅ CRIAR HEADERS UMA ÚNICA VEZ
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN!}`,
-      'api_key': CURSEDUCA_API_KEY!,
-      'Content-Type': 'application/json'
-    }
-
     // ═══════════════════════════════════════════════════════════
     // STEP 1: BUSCAR GRUPOS
     // ═══════════════════════════════════════════════════════════
     
     console.log('📚 [CurseducaAdapter] Step 1/5: Buscando grupos...')
     
-    const groupsResponse = await axios.get(`${CURSEDUCA_API_URL}/groups`, {
+    const groupsResponse = await axios.get<CollectionPayload<CursEducaGroup>>(`${curseducaApiUrl()}/groups`, {
       headers,
       timeout: 30000
     })
     
-    let allGroups: CursEducaGroup[] = 
-      Array.isArray(groupsResponse.data) 
-        ? groupsResponse.data 
-        : groupsResponse.data?.data || groupsResponse.data?.groups || []
+    let allGroups = collectionItems(groupsResponse.data)
     
     allGroups = allGroups.filter(g => 
       g.name.toLowerCase().includes('clareza')
@@ -810,8 +772,8 @@ export const fetchCurseducaDataForSync = async (
         // STEP 1: Buscar lista completa via /groups/{id}/members
         console.log(`   📡 1/2: Buscando lista via /groups/${group.id}/members...`)
 
-        const groupMembersResponse = await axios.get(
-          `${CURSEDUCA_API_URL}/groups/${group.id}/members`,
+        const groupMembersResponse = await axios.get<CollectionPayload<CursEducaRosterMember>>(
+          `${curseducaApiUrl()}/groups/${group.id}/members`,
           {
             headers,
             params: { limit: 1000 },
@@ -819,9 +781,7 @@ export const fetchCurseducaDataForSync = async (
           }
         )
 
-        const allGroupMembers = Array.isArray(groupMembersResponse.data)
-          ? groupMembersResponse.data
-          : groupMembersResponse.data?.data || groupMembersResponse.data?.members || []
+        const allGroupMembers = collectionItems(groupMembersResponse.data)
 
         console.log(`   ✅ ${allGroupMembers.length} members encontrados`)
 
@@ -843,7 +803,7 @@ export const fetchCurseducaDataForSync = async (
         })
 
         const membersByEmail = new Set<string>()
-        const unifiedMembersList = allGroupMembers.map(gm => {
+        const unifiedMembersList: UnifiedCurseducaMember[] = allGroupMembers.map(gm => {
           const emailKey = normalizeEmail(gm.email)
           if (emailKey) membersByEmail.add(emailKey)
 
@@ -930,7 +890,9 @@ export const fetchCurseducaDataForSync = async (
 
           // Sem chamadas 1-a-1 -> sem 504s, sem espera por lotes.
           // Roster autoritativo deste grupo (para a regra de pertença).
-          const rosterIds = new Set<number>(allGroupMembers.map((gm: any) => gm.id))
+          const rosterIds = new Set<number>(
+            allGroupMembers.map((gm: CursEducaRosterMember) => gm.id)
+          )
 
           let enrichedCount = 0
           let skippedOtherGroup = 0
@@ -941,8 +903,8 @@ export const fetchCurseducaDataForSync = async (
               validateCurseducaMemberExtended(enriched)
               allMembersWithMetadata.push(enriched)
               enrichedCount++
-            } catch (error: any) {
-              errors.push(`${enriched.email}: ${error.message}`)
+            } catch (error: unknown) {
+              errors.push(`${enriched.email}: ${errorMessage(error)}`)
             }
           }
 
@@ -968,22 +930,22 @@ export const fetchCurseducaDataForSync = async (
                 enrolledAt: new Date().toISOString(),
                 expiresAt: member.expiresAt,
                 situation: 'ACTIVE',
-                lastLogin: (member as any).lastLogin,
-                lastAccess: (member as any).lastAccess,
-                accessCount: (member as any).accessCount
+                lastLogin: member.lastLogin,
+                lastAccess: member.lastAccess,
+                accessCount: member.accessCount
               })
 
-            } catch (error: any) {
-              errors.push(`${member.email || 'unknown'}: ${error.message}`)
+            } catch (error: unknown) {
+              errors.push(`${member.email || 'unknown'}: ${errorMessage(error)}`)
             }
           }
         }
         
         await new Promise(resolve => setTimeout(resolve, 1000))
         
-      } catch (error: any) {
-        console.error(`   ❌ Erro ao processar grupo ${group.name}:`, error.message)
-        errors.push(`Grupo ${group.name}: ${error.message}`)
+      } catch (error: unknown) {
+        console.error(`   ❌ Erro ao processar grupo ${group.name}:`, errorMessage(error))
+        errors.push(`Grupo ${group.name}: ${errorMessage(error)}`)
       }
     }
 
@@ -1014,7 +976,9 @@ export const fetchCurseducaDataForSync = async (
     
     console.log('🔄 [CurseducaAdapter] Step 5/5: Normalizando dados...')
     
-    const normalized = deduplicated.map(m => normalizeCurseducaMember(m))
+    const normalized = attachCurseducaMemberships(
+      deduplicated.map(m => normalizeCurseducaMember(m)),
+    )
 
     const duration = Math.floor((Date.now() - startTime) / 1000)
     
@@ -1032,17 +996,17 @@ export const fetchCurseducaDataForSync = async (
 
     return normalized
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [CurseducaAdapter] Erro fatal:', error)
     
-    if (error.response?.status === 401) {
+    if (errorStatus(error) === 401) {
       throw new Error(
         `Adapter falhou: Autenticação inválida (401)\n` +
-        `Verifique CURSEDUCA_AccessToken e CURSEDUCA_API_KEY no .env`
+        `Verifique as credenciais CursEduca na configuração de arranque`
       )
     }
     
-    throw new Error(`Adapter falhou: ${error.message}`)
+    throw new Error(`Adapter falhou: ${errorMessage(error)}`)
   }
 }
 
@@ -1056,25 +1020,19 @@ export const fetchSingleUserData = async (
   console.log(`🔍 [CurseducaAdapter] Buscando dados do user ${curseducaUserId}...`)
 
   try {
-    validateCredentials()
-
-    const headers: Record<string, string> = {
-      'Authorization': `Bearer ${CURSEDUCA_ACCESS_TOKEN!}`,
-      'api_key': CURSEDUCA_API_KEY!,
-      'Content-Type': 'application/json'
-    }
+    const headers = getRequestHeaders()
 
     // ═══════════════════════════════════════════════════════════
     // STEP 1: GET /members/{id} - Dados completos do user
     // ═══════════════════════════════════════════════════════════
 
     console.log(`   📡 Buscando dados básicos...`)
-    const memberResponse = await axios.get(
-      `${CURSEDUCA_API_URL}/members/${curseducaUserId}`,
+    const memberResponse = await axios.get<CursEducaMemberDetails>(
+      `${curseducaApiUrl()}/members/${curseducaUserId}`,
       { headers, timeout: 15000 }
     )
 
-    const memberData = memberResponse.data as CursEducaMemberDetails
+    const memberData = memberResponse.data
     console.log(`   ✅ User: ${memberData.email}`)
     console.log(`   📊 Groups: ${memberData.groups.length}`)
 
@@ -1084,11 +1042,11 @@ export const fetchSingleUserData = async (
 
     console.log(`   📡 Buscando enrollments...`)
 
-    let enrollments: any[] = []
+    let enrollments: CurseducaEnrollment[] = []
 
     try {
-      const enrollmentsResponse = await axios.get(
-        `${CURSEDUCA_API_URL}/api/reports/enrollments`,
+      const enrollmentsResponse = await axios.get<CollectionPayload<CurseducaEnrollment>>(
+        `${curseducaApiUrl()}/api/reports/enrollments`,
         {
           params: { memberId: curseducaUserId, limit: 100 },
           headers,
@@ -1096,11 +1054,11 @@ export const fetchSingleUserData = async (
         }
       )
 
-      enrollments = enrollmentsResponse.data?.data || []
+      enrollments = collectionItems(enrollmentsResponse.data)
       console.log(`   ✅ Enrollments: ${enrollments.length}`)
 
-    } catch (enrollmentError: any) {
-      if (enrollmentError.response?.status === 404) {
+    } catch (enrollmentError: unknown) {
+      if (errorStatus(enrollmentError) === 404) {
         console.log(`   ⚠️  Nenhum enrollment encontrado (404)`)
         console.log(`   ℹ️  Usando apenas dados dos groups (user pode ser admin)`)
         enrollments = []
@@ -1206,15 +1164,15 @@ export const fetchSingleUserData = async (
 
     return results
 
-  } catch (error: any) {
-    console.error(`❌ [CurseducaAdapter] Erro ao buscar user ${curseducaUserId}:`, error.message)
+  } catch (error: unknown) {
+    console.error(`❌ [CurseducaAdapter] Erro ao buscar user ${curseducaUserId}:`, errorMessage(error))
 
-    if (error.response?.status === 404) {
+    if (errorStatus(error) === 404) {
       console.error(`   User ${curseducaUserId} não encontrado no CursEduca`)
       return []
     }
 
-    throw new Error(`Erro ao buscar dados do user ${curseducaUserId}: ${error.message}`)
+    throw new Error(`Erro ao buscar dados do user ${curseducaUserId}: ${errorMessage(error)}`)
   }
 }
 

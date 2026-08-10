@@ -1,15 +1,24 @@
 // src/controllers/guru.webhook.controller.ts - Controller para webhooks da Guru
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
+import { internalError } from '../security/errorHandling'
 import User from '../models/user'
 import GuruWebhook from '../models/GuruWebhook'
 import UserProduct from '../models/UserProduct'
 import { GuruWebhookPayload, GuruSubscriptionStatus } from '../types/guru.types'
+import { guruTokenDebugStatus } from '../security/debugRoutes'
+import { getGuruAccountToken } from '../services/requestDrivenRuntimeConfig'
+
+export { listGuruWebhooks } from './guruWebhookList.controller'
 
 // Status da Guru que indicam cancelamento
 const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
 
-// Token para validar webhooks (guardado em env vars)
-const GURU_ACCOUNT_TOKEN = process.env.GURU_ACCOUNT_TOKEN
+function errorDetail(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+
+type GuruWebhookRequest = Pick<Request, 'body' | 'headers'>
 
 // ═══════════════════════════════════════════════════════════
 // WEBHOOK PRINCIPAL
@@ -19,7 +28,7 @@ const GURU_ACCOUNT_TOKEN = process.env.GURU_ACCOUNT_TOKEN
  * Receber e processar webhooks da Guru
  * POST /guru/webhook
  */
-export const handleGuruWebhook = async (req: Request, res: Response) => {
+export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, next: NextFunction) => {
   const startTime = Date.now()
   const requestId = (req.headers['x-request-id'] as string) || req.body.request_id || `guru_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
@@ -72,15 +81,9 @@ export const handleGuruWebhook = async (req: Request, res: Response) => {
     // ═══════════════════════════════════════════════════════════
     // 1. VALIDAR API TOKEN
     // ═══════════════════════════════════════════════════════════
-    if (!GURU_ACCOUNT_TOKEN) {
-      console.error('❌ [GURU] GURU_ACCOUNT_TOKEN não configurado')
-      return res.status(500).json({
-        success: false,
-        message: 'Configuração do servidor incompleta'
-      })
-    }
+    const guruAccountToken = getGuruAccountToken()
 
-    if (!payload.api_token || payload.api_token !== GURU_ACCOUNT_TOKEN) {
+    if (!payload.api_token || payload.api_token !== guruAccountToken) {
       console.error('❌ [GURU] Token inválido')
       return res.status(401).json({
         success: false,
@@ -264,29 +267,22 @@ export const handleGuruWebhook = async (req: Request, res: Response) => {
       duration
     })
 
-  } catch (error: any) {
-    const duration = Date.now() - startTime
-    console.error(`❌ [GURU] Erro no webhook (${duration}ms):`, error.message)
-
-    // Tentar guardar erro no webhook
+  } catch (error: unknown) {
+    // Preservar a compensação antes de entregar a causa original ao handler final.
     try {
       await GuruWebhook.findOneAndUpdate(
         { requestId },
         {
-          error: error.message,
+          error: errorDetail(error),
           processed: true,
           processedAt: new Date()
         }
       )
-    } catch (e) {
-      console.error('❌ [GURU] Erro ao guardar falha:', e)
+    } catch (compensationError) {
+      console.error('❌ [GURU] Erro ao guardar falha:', compensationError)
     }
 
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-      requestId
-    })
+    return next(internalError('Erro ao processar webhook Guru', 'GURU_WEBHOOK_PROCESSING_FAILED', error))
   }
 }
 
@@ -295,88 +291,10 @@ export const handleGuruWebhook = async (req: Request, res: Response) => {
 // ═══════════════════════════════════════════════════════════
 
 /**
- * Listar webhooks recebidos
- * GET /guru/webhooks
- */
-export const listGuruWebhooks = async (req: Request, res: Response) => {
-  try {
-    const {
-      page = 1,
-      limit = 10000,
-      email,
-      processed,
-      status,
-      event,
-      source,
-      year,
-      month
-    } = req.query
-
-    const query: any = {}
-
-    // Filtros
-    if (email) {
-      query.email = (email as string).toLowerCase().trim()
-    }
-    if (processed !== undefined) {
-      query.processed = processed === 'true'
-    }
-    if (status) {
-      query.status = status
-    }
-    if (event) {
-      query.event = event
-    }
-    if (source) {
-      query.source = source
-    }
-
-    // Filtro por ano/mês
-    if (year && month) {
-      const startDate = new Date(Number(year), Number(month) - 1, 1)
-      const endDate = new Date(Number(year), Number(month), 0, 23, 59, 59, 999)
-      query.receivedAt = { $gte: startDate, $lte: endDate }
-    } else if (year) {
-      const startDate = new Date(Number(year), 0, 1)
-      const endDate = new Date(Number(year), 11, 31, 23, 59, 59, 999)
-      query.receivedAt = { $gte: startDate, $lte: endDate }
-    }
-
-    const [webhooks, total] = await Promise.all([
-      GuruWebhook
-        .find(query)
-        .sort({ receivedAt: -1 })
-        .limit(Number(limit))
-        .skip((Number(page) - 1) * Number(limit))
-        .lean(),
-      GuruWebhook.countDocuments(query)
-    ])
-
-    return res.json({
-      success: true,
-      webhooks,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit))
-      }
-    })
-
-  } catch (error: any) {
-    console.error('❌ [GURU] Erro ao listar webhooks:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
-  }
-}
-
-/**
  * Listar webhooks agrupados por mês
  * GET /guru/webhooks/grouped-by-month
  */
-export const listWebhooksGroupedByMonth = async (req: Request, res: Response) => {
+export const listWebhooksGroupedByMonth = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { source } = req.query
 
@@ -435,12 +353,8 @@ export const listWebhooksGroupedByMonth = async (req: Request, res: Response) =>
       groupedByMonth: byYear
     })
 
-  } catch (error: any) {
-    console.error('❌ [GURU] Erro ao agrupar webhooks:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return next(internalError('Erro ao agrupar webhooks Guru', 'GURU_WEBHOOK_GROUPING_FAILED', error))
   }
 }
 
@@ -452,7 +366,7 @@ export const listWebhooksGroupedByMonth = async (req: Request, res: Response) =>
  * Obter estatísticas dos webhooks e subscrições
  * GET /guru/stats
  */
-export const getGuruStats = async (req: Request, res: Response) => {
+export const getGuruStats = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const now = new Date()
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -516,12 +430,8 @@ export const getGuruStats = async (req: Request, res: Response) => {
       }
     })
 
-  } catch (error: any) {
-    console.error('❌ [GURU] Erro ao obter estatísticas:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return next(internalError('Erro ao obter estatísticas Guru', 'GURU_WEBHOOK_STATS_FAILED', error))
   }
 }
 
@@ -534,31 +444,7 @@ export const getGuruStats = async (req: Request, res: Response) => {
  * GET /guru/debug/token
  */
 export const debugToken = async (req: Request, res: Response) => {
-  try {
-    const tokenFromEnv = GURU_ACCOUNT_TOKEN
-    const tokenLength = tokenFromEnv ? tokenFromEnv.length : 0
-    const hasQuotes = tokenFromEnv ? tokenFromEnv.startsWith('"') || tokenFromEnv.startsWith("'") : false
-
-    return res.json({
-      success: true,
-      debug: {
-        hasToken: !!tokenFromEnv,
-        tokenLength,
-        hasQuotes,
-        firstChar: tokenFromEnv ? tokenFromEnv[0] : null,
-        lastChar: tokenFromEnv ? tokenFromEnv[tokenFromEnv.length - 1] : null,
-        // Mostrar apenas primeiros e últimos 4 caracteres (segurança)
-        preview: tokenFromEnv
-          ? `${tokenFromEnv.substring(0, 4)}...${tokenFromEnv.substring(tokenFromEnv.length - 4)}`
-          : null
-      }
-    })
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
-  }
+  return res.json(guruTokenDebugStatus(getGuruAccountToken()))
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -569,7 +455,7 @@ export const debugToken = async (req: Request, res: Response) => {
  * Reprocessar um webhook falhado
  * POST /guru/webhooks/:id/reprocess
  */
-export const reprocessWebhook = async (req: Request, res: Response) => {
+export const reprocessWebhook = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
 
@@ -585,16 +471,13 @@ export const reprocessWebhook = async (req: Request, res: Response) => {
     const mockReq = {
       body: webhook.rawData,
       headers: { 'x-request-id': `reprocess_${webhook.requestId}` }
-    } as Request
+    }
 
     // Processar novamente
-    await handleGuruWebhook(mockReq, res)
+    await handleGuruWebhook(mockReq, res, next)
 
-  } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return next(internalError('Erro ao reprocessar webhook Guru', 'GURU_WEBHOOK_REPROCESS_FAILED', error))
   }
 }
 
@@ -606,7 +489,7 @@ export const reprocessWebhook = async (req: Request, res: Response) => {
  * Migrar webhooks antigos sem campo 'source' para 'manual'
  * POST /guru/webhooks/migrate-source
  */
-export const migrateWebhookSource = async (req: Request, res: Response) => {
+export const migrateWebhookSource = async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log('🔄 [GURU] Iniciando migração de webhooks antigos...')
 
@@ -651,11 +534,7 @@ export const migrateWebhookSource = async (req: Request, res: Response) => {
       matched: result.matchedCount
     })
 
-  } catch (error: any) {
-    console.error('❌ [GURU] Erro ao migrar webhooks:', error.message)
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return next(internalError('Erro ao migrar webhooks Guru', 'GURU_WEBHOOK_MIGRATION_FAILED', error))
   }
 }

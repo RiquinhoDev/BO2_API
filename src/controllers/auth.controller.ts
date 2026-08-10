@@ -1,9 +1,8 @@
 // src/controllers/auth.controller.ts
 import { Request, Response } from "express"
-import jwt from "jsonwebtoken"
 import Admin from "../models/Admin"
+import { signAppToken } from '../security/jwt'
 
-const JWT_SECRET = process.env.JWT_SECRET || "riquinho-secret-key-2024"
 const JWT_EXPIRES_IN = "7d"
 
 export const login = async (req: Request, res: Response) => {
@@ -79,14 +78,13 @@ export const login = async (req: Request, res: Response) => {
     await admin.save()
 
     // Generate JWT token
-    const token = jwt.sign(
+    const token = signAppToken(
       {
         id: admin._id,
         email: admin.email,
         role: admin.role,
         permissions: admin.permissions
       },
-      JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     )
 
@@ -114,8 +112,16 @@ export const login = async (req: Request, res: Response) => {
 }
 
 export const verify = async (req: Request, res: Response) => {
+  const user = req.user
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: "Não autenticado"
+    })
+  }
+
   try {
-    const admin = await Admin.findById(req.user.id).select("-password")
+    const admin = await Admin.findById(user.id).select("-password")
 
     if (!admin) {
       return res.status(404).json({
@@ -206,9 +212,17 @@ export const unlockAccount = async (req: Request, res: Response) => {
 }
 
 export const changePassword = async (req: Request, res: Response) => {
+  const user = req.user
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: "Não autenticado"
+    })
+  }
+
   try {
     const { currentPassword, newPassword } = req.body
-    const adminId = req.user.id
+    const adminId = user.id
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({

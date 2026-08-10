@@ -14,124 +14,14 @@ import  conflictDetectionService   from '../../services/syncUtilizadoresServices
 
 
 // ═══════════════════════════════════════════════════════════
-// GET SYNC STATS
-// GET /api/sync/stats
-// ═══════════════════════════════════════════════════════════
-
-export const getSyncStats = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { days = '30', syncType } = req.query
-
-    const stats = await SyncHistory.getSyncStats(
-      syncType as any,
-      parseInt(days as string)
-    )
-
-    // Buscar conflitos stats
-    const conflictStats = await conflictDetectionService.getConflictStats()
-
-    // Buscar últimos syncs
-    const recentSyncs = await SyncHistory.getRecentSyncs(
-      syncType as any,
-      5
-    )
-
-    res.status(200).json({
-      success: true,
-      message: 'Estatísticas recuperadas com sucesso',
-      data: {
-        period: {
-          days: parseInt(days as string),
-          syncType: syncType || 'all'
-        },
-        syncStats: stats,
-        conflictStats,
-        recentSyncs: recentSyncs.map(s => ({
-          id: s._id,
-          type: s.type,
-          status: s.status,
-          startedAt: s.startedAt,
-          completedAt: s.completedAt,
-          duration: s.metrics?.duration,
-          stats: s.stats,
-          triggeredBy: s.triggeredBy
-        }))
-      }
-    })
-
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar estatísticas:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar estatísticas',
-      error: error.message
-    })
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
-// GET SYNC HISTORY
-// GET /api/sync/history
-// ═══════════════════════════════════════════════════════════
-
-export const getSyncHistory = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const {
-      syncType,
-      status,
-      limit = '20',
-      triggeredBy
-    } = req.query
-
-    const query: any = {}
-
-    if (syncType) {
-      query.type = syncType
-    }
-
-    if (status) {
-      query.status = status
-    }
-
-    if (triggeredBy) {
-      query['triggeredBy.type'] = triggeredBy
-    }
-
-    const history = await SyncHistory.find(query)
-      .sort({ startedAt: -1 })
-      .limit(parseInt(limit as string))
-      .populate('triggeredBy.userId', 'name email')
-      .populate('triggeredBy.cronJobId', 'name')
-      .lean()
-
-    const total = await SyncHistory.countDocuments(query)
-
-    res.status(200).json({
-      success: true,
-      message: 'Histórico recuperado com sucesso',
-      data: {
-        total,
-        limit: parseInt(limit as string),
-        history
-      }
-    })
-
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar histórico:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar histórico',
-      error: error.message
-    })
-  }
-}
-
-// ═══════════════════════════════════════════════════════════
 // GET SYNC BY ID
 // GET /api/sync/history/:id
 // ═══════════════════════════════════════════════════════════
 
-export const getSyncById = async (req: Request, res: Response): Promise<void> => {
+export const getSyncById = async (
+  req: Request<{ id: string }>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
 
@@ -274,7 +164,10 @@ export const getConflicts = async (req: Request, res: Response): Promise<void> =
 // GET /api/sync/conflicts/:id
 // ═══════════════════════════════════════════════════════════
 
-export const getConflictById = async (req: Request, res: Response): Promise<void> => {
+export const getConflictById = async (
+  req: Request<{ id: string }>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
 
@@ -319,7 +212,10 @@ export const getConflictById = async (req: Request, res: Response): Promise<void
 // POST /api/sync/conflicts/:id/resolve
 // ═══════════════════════════════════════════════════════════
 
-export const resolveConflict = async (req: Request, res: Response): Promise<void> => {
+export const resolveConflict = async (
+  req: Request<{ id: string }>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
     const { action, notes, appliedChanges } = req.body
@@ -499,7 +395,10 @@ export const autoResolveConflicts = async (req: Request, res: Response): Promise
 // POST /api/sync/conflicts/:id/ignore
 // ═══════════════════════════════════════════════════════════
 
-export const ignoreConflict = async (req: Request, res: Response): Promise<void> => {
+export const ignoreConflict = async (
+  req: Request<{ id: string }>,
+  res: Response,
+): Promise<void> => {
   try {
     const { id } = req.params
     const { reason } = req.body

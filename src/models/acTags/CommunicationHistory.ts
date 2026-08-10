@@ -21,8 +21,8 @@ export type CommunicationStatus =
 export type CommunicationSource = 'AUTOMATIC' | 'MANUAL'
 
 export interface IUserStateSnapshot {
-  daysSinceLastAction?: number     // ✅ Opcional (ACTION_BASED)
-  daysSinceLastLogin?: number      // ✅ ADICIONAR (LOGIN_BASED)
+  daysSinceLastAction?: number | null     // ✅ Opcional (ACTION_BASED)
+  daysSinceLastLogin?: number | null      // ✅ ADICIONAR (LOGIN_BASED)
   currentProgress: number
   currentPhase: string
 }
@@ -396,7 +396,7 @@ CommunicationHistorySchema.statics.getAverageTimeToReturn = async function(
 // EXPORT
 // ─────────────────────────────────────────────────────────────
 
-const CommunicationHistory = mongoose.models.CommunicationHistory || 
+const CommunicationHistory: mongoose.Model<ICommunicationHistory> = mongoose.models.CommunicationHistory ||
   mongoose.model<ICommunicationHistory>('CommunicationHistory', CommunicationHistorySchema)
 
 export default CommunicationHistory

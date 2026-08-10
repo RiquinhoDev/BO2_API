@@ -3,15 +3,16 @@
 // Endpoints RÁPIDOS para dashboard usando agregação MongoDB
 // ══════════════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import UserProduct from '../models/UserProduct'
 import mongoose from 'mongoose'
+import { internalError } from '../security/errorHandling'
 
 /**
  * GET /api/dashboard/quick/product-comparison
  * Comparação rápida de produtos usando agregação MongoDB
  */
-export const getProductComparison = async (req: Request, res: Response) => {
+export const getProductComparison = async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log('\n📊 [Quick Comparison] Agregando dados por produto...')
 
@@ -138,13 +139,8 @@ export const getProductComparison = async (req: Request, res: Response) => {
         method: 'mongodb-aggregation'
       }
     })
-  } catch (error: any) {
-    console.error('[Quick Comparison] Erro:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao buscar comparação de produtos',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar comparação de produtos', 'DASHBOARD_QUICK_COMPARISON_FAILED', error))
   }
 }
 
@@ -152,7 +148,7 @@ export const getProductComparison = async (req: Request, res: Response) => {
  * GET /api/dashboard/quick/engagement-heatmap
  * Heatmap temporal simplificado (mock data por agora)
  */
-export const getEngagementHeatmap = async (req: Request, res: Response) => {
+export const getEngagementHeatmap = async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log('\n🔥 [Quick Heatmap] Gerando heatmap simplificado...')
 
@@ -212,13 +208,8 @@ export const getEngagementHeatmap = async (req: Request, res: Response) => {
         message: 'Dados simulados - implementar tracking temporal'
       }
     })
-  } catch (error: any) {
-    console.error('[Quick Heatmap] Erro:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao gerar heatmap',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao gerar heatmap', 'DASHBOARD_QUICK_HEATMAP_FAILED', error))
   }
 }
 
@@ -226,7 +217,7 @@ export const getEngagementHeatmap = async (req: Request, res: Response) => {
  * GET /api/dashboard/quick/products-breakdown
  * Breakdown rápido por produto usando agregação MongoDB
  */
-export const getProductsBreakdown = async (req: Request, res: Response) => {
+export const getProductsBreakdown = async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log('\n📦 [Quick Products] Agregando breakdown por produto...')
 
@@ -305,12 +296,7 @@ export const getProductsBreakdown = async (req: Request, res: Response) => {
         method: 'mongodb-aggregation'
       }
     })
-  } catch (error: any) {
-    console.error('[Quick Products] Erro:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao buscar breakdown de produtos',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar breakdown de produtos', 'DASHBOARD_QUICK_BREAKDOWN_FAILED', error))
   }
 }

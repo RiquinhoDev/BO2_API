@@ -233,9 +233,8 @@ ProductSchema.index({ courseId: 1, platform: 1 })
 ProductSchema.index({ platform: 1, isActive: 1 })
 ProductSchema.index({ code: 1, isActive: 1 })
 ProductSchema.index({ isActive: 1, launchDate: -1 })
-// 💰 Guru indexes
-ProductSchema.index({ guruProductId: 1 })
-ProductSchema.index({ guruOfferId: 1 })
+// 💰 Guru: guruProductId / guruOfferId são indexados na definição do campo
+// ({ sparse: true, index: true }); não redeclarar aqui para não duplicar o índice.
 
 // ─────────────────────────────────────────────────────────────
 // MÉTODOS
@@ -269,7 +268,7 @@ ProductSchema.methods.isAvailable = function(): boolean {
 // EXPORT
 // ─────────────────────────────────────────────────────────────
 
-const Product = mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)
+const Product: mongoose.Model<IProduct> = mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)
 
 export default Product
 

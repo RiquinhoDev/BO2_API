@@ -1,0 +1,158 @@
+import type {
+  NextFunction,
+  Request,
+  RequestHandler,
+  Response,
+} from 'express'
+import { z } from 'zod'
+import { HttpError } from './errorHandling'
+import { getRuntimeConfig } from '../config/runtimeConfig'
+
+const OFFLINE_LOOPBACK_MARKER = '__bo2_offline_loopback'
+const FORBIDDEN_PROPERTY_NAMES = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+])
+const VALIDATED_INPUT_SCHEMA = Symbol('validatedInputSchema')
+
+type ValidatedInputSchemaBrand = {
+  readonly [VALIDATED_INPUT_SCHEMA]: true
+}
+type BrandedValidatedInputSchema = z.ZodTypeAny & ValidatedInputSchemaBrand
+type ValidatedInputEnvelope = {
+  params: object
+  query: object
+  body: object
+}
+
+export type ValidatedInputSchema =
+  | BrandedValidatedInputSchema
+  | z.ZodEffects<
+    BrandedValidatedInputSchema,
+    ValidatedInputEnvelope,
+    unknown
+  >
+
+export type ValidatedRequest = Omit<Request, 'body' | 'params' | 'query'>
+
+export type ValidatedInputHandler<TSchema extends ValidatedInputSchema> = (
+  input: z.infer<TSchema>,
+  req: ValidatedRequest,
+  res: Response,
+  next: NextFunction,
+) => unknown | Promise<unknown>
+
+function validatedInputSchemaBrand(): ValidatedInputSchemaBrand {
+  return { [VALIDATED_INPUT_SCHEMA]: true }
+}
+
+export function validatedSchema<
+  TParams extends z.ZodRawShape,
+  TQuery extends z.ZodRawShape,
+  TBody extends z.ZodRawShape,
+>(shapes: {
+  params: TParams
+  query: TQuery
+  body: TBody
+}) {
+  return Object.assign(
+    z.object({
+      params: z.object(shapes.params).strict(),
+      query: z.object(shapes.query).strict(),
+      body: z.object(shapes.body).strict(),
+    }).strict(),
+    validatedInputSchemaBrand(),
+  )
+}
+
+function withoutOfflineLoopbackMarker(query: unknown): unknown {
+  if (
+    getRuntimeConfig().core.nodeEnv !== 'test'
+    || query === null
+    || typeof query !== 'object'
+    || Array.isArray(query)
+  ) {
+    return query
+  }
+
+  const source = query as Record<string, unknown>
+  const clean = Object.create(null) as Record<string, unknown>
+
+  for (const property of Object.getOwnPropertyNames(source)) {
+    if (property === OFFLINE_LOOPBACK_MARKER) continue
+    Object.defineProperty(clean, property, {
+      configurable: true,
+      enumerable: true,
+      value: source[property],
+      writable: true,
+    })
+  }
+
+  return clean
+}
+
+function unsafeProperty(property: string): boolean {
+  return (
+    property.startsWith('$')
+    || property.includes('.')
+    || FORBIDDEN_PROPERTY_NAMES.has(property)
+  )
+}
+
+function assertNoUnsafeProperties(
+  value: unknown,
+  path = 'input',
+  visited = new WeakSet<object>(),
+): void {
+  if (value === null || typeof value !== 'object' || visited.has(value)) return
+  visited.add(value)
+
+  for (const property of Object.getOwnPropertyNames(value)) {
+    if (unsafeProperty(property)) {
+      throw new Error(`unsafe input property at ${path}.${property}`)
+    }
+    assertNoUnsafeProperties(
+      (value as Record<string, unknown>)[property],
+      `${path}.${property}`,
+      visited,
+    )
+  }
+}
+
+function invalidRequest(cause: unknown): HttpError {
+  return new HttpError({
+    status: 400,
+    code: 'INVALID_REQUEST',
+    publicMessage: 'Pedido inválido',
+    cause,
+  })
+}
+
+export function withValidatedInput<TSchema extends ValidatedInputSchema>(
+  schema: TSchema,
+  handler: ValidatedInputHandler<TSchema>,
+): RequestHandler {
+  return (req, res, next) => {
+    const input = {
+      params: req.params,
+      query: withoutOfflineLoopbackMarker(req.query),
+      body: req.body ?? {},
+    }
+
+    let data: z.infer<TSchema>
+    try {
+      assertNoUnsafeProperties(input)
+      const parsed = schema.safeParse(input)
+      if (!parsed.success) throw parsed.error
+      data = parsed.data
+    } catch (error) {
+      next(invalidRequest(error))
+      return
+    }
+
+    void (async () => {
+      await handler(data, req, res, next)
+    })().catch(next)
+  }
+}

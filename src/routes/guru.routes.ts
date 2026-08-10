@@ -1,5 +1,15 @@
 // src/routes/guru.routes.ts - Routes para integração Guru
-import { Router, RequestHandler } from 'express'
+import { asyncRoute } from '../security/asyncRoute'
+import { Router } from 'express'
+import { localDebugOnly } from '../security/debugRoutes'
+import { withValidatedInput } from '../security/validatedInput'
+import {
+  guruEmptyInput,
+  guruInactivationBulkInput,
+  guruInactivationSingleInput,
+  guruMarkDiscrepanciesInput,
+  guruSnapshotDeleteInput,
+} from '../security/guruDestructiveInput'
 import {
   handleGuruWebhook,
   listGuruWebhooks,
@@ -41,21 +51,21 @@ import {
   createHistoricalSnapshots
 } from '../controllers/guru.snapshot.controller'
 import {
-  listPendingInactivation,
-  inactivateSingle,
-  inactivateBulk,
-  revertInactivationMark,
   getInactivationStats,
-  markDiscrepanciesForInactivation,
-  cleanupInactivationList,
-  fixUsersToActive,
-  diagnoseUsers,
   listInactivated,
-  quarantineUser,
+  listPendingInactivation,
+} from '../controllers/guruInactivationRead.controller'
+import {
   cleanupDuplicateUserProducts,
+  fixUsersToActive,
+  markStaleInactive,
+  quarantineUser,
   restoreUserProducts,
-  markStaleInactive
-} from '../controllers/guru.inactivation.controller'
+  revertInactivationMark,
+} from '../controllers/guruInactivationMutation.controller'
+import { inactivateBulk, inactivateSingle } from '../controllers/guruInactivationExternal.controller'
+import { cleanupInactivationList, diagnoseUsers } from '../controllers/guruInactivationMaintenance.controller'
+import { markDiscrepanciesForInactivation } from '../controllers/guruDiscrepancy.controller'
 import {
   getTrials,
   getTrialsStats,
@@ -66,15 +76,6 @@ import {
 } from '../controllers/guru.trials.controller'
 
 const router = Router()
-
-// ═══════════════════════════════════════════════════════════
-// HELPER: Wrapper para async controllers
-// ═══════════════════════════════════════════════════════════
-const asyncRoute = (fn: any): RequestHandler => {
-  return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next)
-  }
-}
 
 // ═══════════════════════════════════════════════════════════
 // WEBHOOKS
@@ -93,7 +94,7 @@ router.post('/webhook', asyncRoute(handleGuruWebhook))
  * GET /guru/debug/token
  * Endpoint de debug para verificar configuração do token
  */
-router.get('/debug/token', asyncRoute(debugToken))
+router.get('/debug/token', localDebugOnly, asyncRoute(debugToken))
 
 // ═══════════════════════════════════════════════════════════
 // SSO
@@ -275,7 +276,7 @@ router.get('/snapshots/churn', asyncRoute(getChurnFromSnapshots))
  * Apagar TODOS os snapshots (para recriação)
  * NOTA: Deve vir ANTES das routes com parâmetros
  */
-router.delete('/snapshots/all', asyncRoute(deleteAllSnapshots))
+router.delete('/snapshots/all', withValidatedInput(guruEmptyInput, (input, _req, res) => deleteAllSnapshots(input, res)))
 
 /**
  * GET /guru/snapshots/:year/:month
@@ -293,7 +294,7 @@ router.put('/snapshots/:year/:month', asyncRoute(updateSnapshot))
  * DELETE /guru/snapshots/:year/:month
  * Apagar snapshot
  */
-router.delete('/snapshots/:year/:month', asyncRoute(deleteSnapshot))
+router.delete('/snapshots/:year/:month', withValidatedInput(guruSnapshotDeleteInput, (input, _req, res) => deleteSnapshot(input, res)))
 
 // ═══════════════════════════════════════════════════════════
 // INATIVAÇÃO CURSEDUCA
@@ -323,14 +324,14 @@ router.get('/inactivation/inactive', asyncRoute(listInactivated))
  * Inativar um único membro no CursEduca
  * Body: { userProductId: string } ou { curseducaUserId: string }
  */
-router.post('/inactivation/single', asyncRoute(inactivateSingle))
+router.post('/inactivation/single', withValidatedInput(guruInactivationSingleInput, (input, _req, res, next) => inactivateSingle(input, res, next)))
 
 /**
  * POST /guru/inactivation/bulk
  * Inativar múltiplos membros no CursEduca
  * Body: { userProductIds: string[] } ou { all: true }
  */
-router.post('/inactivation/bulk', asyncRoute(inactivateBulk))
+router.post('/inactivation/bulk', withValidatedInput(guruInactivationBulkInput, (input, _req, res, next) => inactivateBulk(input, res, next)))
 
 /**
  * POST /guru/inactivation/revert
@@ -344,7 +345,13 @@ router.post('/inactivation/revert', asyncRoute(revertInactivationMark))
  * Marcar discrepâncias (Guru cancelado, Clareza ativo) para inativação
  * Body: { emails?: string[] } - se vazio, marca todas as discrepâncias
  */
-router.post('/inactivation/mark-discrepancies', asyncRoute(markDiscrepanciesForInactivation))
+router.post(
+  '/inactivation/mark-discrepancies',
+  withValidatedInput(
+    guruMarkDiscrepanciesInput,
+    (input, _req, res, next) => markDiscrepanciesForInactivation(input, res, next),
+  ),
+)
 
 /**
  * POST /guru/inactivation/cleanup

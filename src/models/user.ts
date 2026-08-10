@@ -5,6 +5,11 @@ export interface IUser extends Document {
   // 🔑 CAMPOS PRINCIPAIS (ÚNICOS E IMUTÁVEIS)
   email: string // Chave única para identificar o utilizador
   name: string  // Nome pode ser atualizado pela fonte mais recente
+  createdAt?: Date
+  updatedAt?: Date
+  // Compatibilidade com os fluxos legacy de gestão/movimento de turmas.
+  classId?: string
+  className?: string
   
   // 🎮 DADOS DO DISCORD (apenas Discord pode alterar)
   discord?: {
@@ -23,6 +28,7 @@ export interface IUser extends Document {
   // 🛒 DADOS DA HOTMART (apenas Hotmart pode alterar)
   hotmart?: {
     hotmartUserId: string
+    status?: 'ACTIVE' | 'INACTIVE'
     purchaseDate: Date
     signupDate: Date
     plusAccess: 'WITH_PLUS_ACCESS' | 'WITHOUT_PLUS_ACCESS'
@@ -108,6 +114,7 @@ curseduca?: {
   joinedDate: Date
   lastAccess: Date      // ✅ Mantido (retrocompatibilidade)
   lastLogin?: Date      // 🆕 Último login real (do /members/{id})
+  inactivatedAt?: Date
   
   // ═══════════════════════════════════════════════════════════
   // PROGRESSO
@@ -214,7 +221,7 @@ curseduca?: {
     
     // Metadados
     lastActivity?: Date
-    sourcesAvailable: ('discord' | 'hotmart' | 'curseduca')[]
+    sourcesAvailable: ('discord' | 'hotmart' | 'curseduca' | 'guru')[]
     dataQuality: 'EXCELLENT' | 'GOOD' | 'BASIC' | 'LIMITED'
     calculatedAt: Date
   }
@@ -336,6 +343,9 @@ const UserSchema: Schema = new Schema({
     required: true,
     trim: true
   },
+  // Compatibilidade com os fluxos legacy de gestão/movimento de turmas.
+  classId: { type: String, trim: true },
+  className: { type: String, trim: true },
   
   // Dados do Discord
   discord: {
@@ -362,6 +372,10 @@ const UserSchema: Schema = new Schema({
   // Dados da Hotmart
   hotmart: {
     hotmartUserId: { type: String },
+    status: {
+      type: String,
+      enum: ['ACTIVE', 'INACTIVE'],
+    },
     purchaseDate: Date,
     signupDate: Date,
     plusAccess: { 
@@ -493,6 +507,7 @@ curseduca: {
   joinedDate: Date,
   lastAccess: Date,      // ✅ Mantido (retrocompatibilidade)
   lastLogin: Date,       // 🆕 Último login real
+  inactivatedAt: Date,
   
   // ═══════════════════════════════════════════════════════════
   // PROGRESSO
@@ -1096,15 +1111,30 @@ UserSchema.statics.getEnhancedUsersList = async function(filters = {}) {
 UserSchema.index({ 'discord.discordIds': 1 })
 UserSchema.index({ 'hotmart.hotmartUserId': 1 })
 UserSchema.index({ 'curseduca.curseducaUserId': 1 })
-UserSchema.index({ 'curseduca.curseducaUuid': 1 })  // 🆕 UUID do membro
-UserSchema.index({ 'curseduca.groupCurseducaUuid': 1 })  // 🆕 UUID do grupo
-UserSchema.index({ 'curseduca.groupCurseducaId': 1 })  // 🆕 ID numérico do grupo
 UserSchema.index({ 'combined.dataQuality': 1 })
 UserSchema.index({ 'combined.combinedEngagement': -1 })
 UserSchema.index({ 'metadata.updatedAt': -1 })
+UserSchema.index({ classId: 1 }, { name: 'users_class_id' })
 // 💰 Índices para Guru
-UserSchema.index({ 'guru.guruContactId': 1 })
-UserSchema.index({ 'guru.subscriptionCode': 1 })
+const guruSubscriptionsOnly = {
+  partialFilterExpression: { guru: { $exists: true } },
+}
+UserSchema.index(
+  { email: 1, _id: 1 },
+  { ...guruSubscriptionsOnly, name: 'guru_subscriptions_email' },
+)
+UserSchema.index(
+  { name: 1, _id: 1 },
+  { ...guruSubscriptionsOnly, name: 'guru_subscriptions_name' },
+)
+UserSchema.index(
+  { 'guru.updatedAt': 1, _id: 1 },
+  { ...guruSubscriptionsOnly, name: 'guru_subscriptions_date' },
+)
+UserSchema.index(
+  { 'guru.status': 1, _id: 1 },
+  { ...guruSubscriptionsOnly, name: 'guru_subscriptions_status' },
+)
 
 // 🔧 VERIFICAR SE MODELO JÁ EXISTE ANTES DE CRIAR
 let UserModel: IUserModel

@@ -1,11 +1,11 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/services/cronManagement.service.ts
+// 📁 src/services/cron/scheduler.ts
 // Service: CRON Job Management
 // Gestão completa de jobs agendados (criar, executar, monitorar)
 // ════════════════════════════════════════════════════════════
 
 import mongoose from 'mongoose'
-import schedule, { Job, RecurrenceRule } from 'node-schedule'
+import schedule, { RecurrenceRule } from 'node-schedule'
 import CronJobConfig, {
   ICronJobConfig,
   ILastRunStats,
@@ -16,9 +16,11 @@ import { executeDailyPipeline } from './dailyPipeline.service'
 import { syncRenewalOffers } from '../renewal/renewalSync.service'
 import { evaluateAllAchievements } from '../achievements/achievementEvaluation.service'
 import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.adapter'
-import universalSyncService from '../syncUtilizadoresServices/universalSyncService'
+import universalSyncService from '../syncUtilizadoresServices/universalSync'
 import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../types/cron.types'
+import { SchedulerRegistry } from './scheduler/registry'
+import { cronExpressionService } from './scheduler/cronExpression'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
 const RENEWAL_OFFER_SYNC_JOB_NAME = 'RenewalOfferSync'
@@ -31,38 +33,6 @@ const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('0000000000000000000000
 // ─────────────────────────────────────────────────────────────
 // IN-MEMORY SCHEDULER REGISTRY
 // ─────────────────────────────────────────────────────────────
-
-class SchedulerRegistry {
-  private jobs: Map<string, Job> = new Map()
-
-  register(jobId: string, scheduledJob: Job): void {
-    // Cancelar job anterior se existir
-    if (this.jobs.has(jobId)) {
-      this.jobs.get(jobId)?.cancel()
-    }
-    this.jobs.set(jobId, scheduledJob)
-  }
-
-  unregister(jobId: string): void {
-    if (this.jobs.has(jobId)) {
-      this.jobs.get(jobId)?.cancel()
-      this.jobs.delete(jobId)
-    }
-  }
-
-  get(jobId: string): Job | undefined {
-    return this.jobs.get(jobId)
-  }
-
-  getAll(): Map<string, Job> {
-    return this.jobs
-  }
-
-  clear(): void {
-    this.jobs.forEach(job => job.cancel())
-    this.jobs.clear()
-  }
-}
 
 const registry = new SchedulerRegistry()
 
@@ -472,7 +442,8 @@ const job = await CronJobConfig.create({
               result.stats,
               result.success ? 'success' : 'failed',
               duration,
-              'CRON'
+              'CRON',
+              result.errorMessage
             )
 
             // ✅ NOVO: Salvar no histórico
@@ -481,11 +452,17 @@ const job = await CronJobConfig.create({
               result.stats,
               result.success ? 'success' : 'error',
               duration,
-              'CRON'
+              'CRON',
+              result.errorMessage
             )
 
             if (job.notifications.enabled) {
-              await this.sendNotification(job, result.success, result.stats)
+              await this.sendNotification(
+                job,
+                result.success,
+                result.stats,
+                result.errorMessage
+              )
             }
           } catch (error: any) {
             console.error(`❌ Erro no job agendado: ${job.name}`, error)
@@ -666,7 +643,7 @@ const job = await CronJobConfig.create({
 
     await CronJobConfig.create({
       name: RENEWAL_AC_SYNC_JOB_NAME,
-      description: 'Renovação OGI → ActiveCampaign (Fase B): gera plano de alterações (data de expiração + tags de turma + reversões por reembolso) e, só com os switches RENEWAL_AC_* ligados, executa-o. Ver RENOVACAO_OGI_BO_PLAN.md.',
+      description: 'Renovação OGI → ActiveCampaign (Fase B): gera plano de alterações (data de expiração + tags de turma + reversões por reembolso) e, só com os switches RENEWAL_AC_* ligados, executa-o. Ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md.',
       syncType: 'hotmart',
       schedule: {
         cronExpression: '30 7 * * *', // 07:30 Lisboa — 3h30 depois do sync "1º" (04:00)
@@ -699,7 +676,7 @@ const job = await CronJobConfig.create({
 
     await CronJobConfig.create({
       name: DISCORD_ROLES_SYNC_JOB_NAME,
-      description: 'Reconciliação nocturna dos cargos de renovação Discord (R. Janeiro…R. Dezembro) com base na turma Hotmart de cada aluno. Gera plano revisável; só executa com os switches DISCORD_ROLES_* ligados. Ver RENOVACAO_DISCORD_CARGOS_PLAN.md.',
+      description: 'Reconciliação nocturna dos cargos de renovação Discord (R. Janeiro…R. Dezembro) com base na turma Hotmart de cada aluno. Gera plano revisável; só executa com os switches DISCORD_ROLES_* ligados. Ver docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.',
       syncType: 'hotmart',
       schedule: {
         cronExpression: '30 5 * * *', // 05:30 Lisboa — depois do sync "1º" (04:00)
@@ -726,7 +703,7 @@ const job = await CronJobConfig.create({
    * Cron das mensagens agendadas de renovação (dia 8 lembrete + dia 15 último aviso
    * ao cargo R.{mês anterior}). NASCE DESLIGADO; seed create-only. Corre DIARIAMENTE
    * às 10:00 Lisboa — é o próprio job que verifica se hoje é dia de alguma regra.
-   * Ver secção 12 do RENOVACAO_DISCORD_CARGOS_PLAN.md.
+   * Ver secção 12 do docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.
    */
   private async ensureDiscordScheduledMessagesJob(): Promise<void> {
     const existingJob = await CronJobConfig.findOne({ name: DISCORD_SCHEDULED_MESSAGES_JOB_NAME })
@@ -734,7 +711,7 @@ const job = await CronJobConfig.create({
 
     await CronJobConfig.create({
       name: DISCORD_SCHEDULED_MESSAGES_JOB_NAME,
-      description: 'Mensagens agendadas de renovação no Discord: dia 8 lembrete e dia 15 último aviso, mencionando o cargo R.{mês anterior}. Só envia com DISCORD_SCHEDULED_MESSAGES_ENABLED=true + regra ligada; salta meses sem renovações (cargo sem membros). Ver secção 12 do RENOVACAO_DISCORD_CARGOS_PLAN.md.',
+      description: 'Mensagens agendadas de renovação no Discord: dia 8 lembrete e dia 15 último aviso, mencionando o cargo R.{mês anterior}. Só envia com DISCORD_SCHEDULED_MESSAGES_ENABLED=true + regra ligada; salta meses sem renovações (cargo sem membros). Ver secção 12 do docs/reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md.',
       syncType: 'hotmart',
       schedule: {
         cronExpression: '0 10 * * *', // 10:00 Lisboa, diário — o job decide se hoje há mensagem
@@ -790,6 +767,10 @@ const job = await CronJobConfig.create({
     console.log('🛑 Parando scheduler...')
     registry.clear()
     console.log('✅ Scheduler parado')
+  }
+
+  isSchedulerActive(): boolean {
+    return registry.getAll().size > 0
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -896,23 +877,14 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
     } else if (job.name.includes('RebuildDashboardStats')) {
       console.log('📊 Executando: RebuildDashboardStats (stats)')
       
-      // RebuildDashboardStats pode não ter job file, então usar serviço direto
-      try {
-        const jobModule = await import('../../jobs/rebuildDashboardStats.job')
-        if (jobModule.default?.run) {
-          result = await jobModule.default.run()
-        } else if (jobModule.rebuildDashboardStatsManual) {
-          await jobModule.rebuildDashboardStatsManual()
-          result = { success: true }
-        } else {
-          throw new Error('Método não encontrado')
-        }
-      } catch (importError) {
-        // Fallback: Chamar serviço diretamente
-        console.log('   ℹ️  Usando serviço diretamente')
-        const statsBuilder = await import('../../services/dashboardStatsBuilder.service')
-        await statsBuilder.buildDashboardStats()
-        result = { success: true, total: 0 }
+      const jobModule = await import('../../jobs/rebuildDashboardStats.job')
+      if (jobModule.default?.run) {
+        result = await jobModule.default.run()
+      } else if (jobModule.rebuildDashboardStatsManual) {
+        await jobModule.rebuildDashboardStatsManual()
+        result = { success: true }
+      } else {
+        throw new Error('Método não encontrado')
       }
       
     } else if (job.name.includes('CronExecutionCleanup')) {
@@ -1258,89 +1230,15 @@ private async executePipelineJob(job: ICronJobConfig): Promise<{
   // ═══════════════════════════════════════════════════════════
 
   private validateCronExpression(expression: string): void {
-    // Validação básica de formato cron (5 ou 6 campos)
-    const parts = expression.trim().split(/\s+/)
-    
-    if (parts.length < 5 || parts.length > 6) {
-      throw new Error(
-        `Cron expression inválida: "${expression}". Deve ter 5 ou 6 campos.`
-      )
-    }
-
-    // Tentar agendar um teste (node-schedule valida automaticamente)
-    try {
-      const testJob = schedule.scheduleJob(expression, () => {})
-      if (!testJob) {
-        throw new Error('Expressão inválida')
-      }
-      testJob.cancel()
-    } catch (error) {
-      throw new Error(`Cron expression inválida: "${expression}"`)
-    }
+    cronExpressionService.validate(expression)
   }
 
   private calculateNextRun(expression: string): Date {
-    // Criar um job temporário para obter a próxima execução
-    const testJob = schedule.scheduleJob(expression, () => {})
-    
-    if (!testJob) {
-      // Fallback: próxima hora
-      const next = new Date()
-      next.setHours(next.getHours() + 1, 0, 0, 0)
-      return next
-    }
-
-    const nextRun = testJob.nextInvocation()
-    testJob.cancel()
-    
-    if (!nextRun) {
-      // Fallback: próxima hora
-      const next = new Date()
-      next.setHours(next.getHours() + 1, 0, 0, 0)
-      return next
-    }
-    
-    return nextRun
+    return cronExpressionService.calculateNextRun(expression)
   }
 
-  getNextExecutions(
-    expression: string,
-    count: number = 5
-  ): Date[] {
-    const executions: Date[] = []
-    
-    try {
-      // O node-schedule não tem uma forma direta de obter múltiplas execuções
-      // Vamos calcular manualmente baseado no primeiro next
-      const testJob = schedule.scheduleJob(expression, () => {})
-      
-      if (!testJob) {
-        return executions
-      }
-
-      const firstNext = testJob.nextInvocation()
-      testJob.cancel()
-      
-      if (!firstNext) {
-        return executions
-      }
-
-      // Adicionar a primeira execução
-      executions.push(firstNext)
-      
-      // Para as próximas, vamos apenas adicionar intervalos estimados
-      // (Isto é uma simplificação - o ideal seria usar cron-parser aqui,
-      // mas para evitar problemas de import, fazemos uma aproximação)
-      
-      // Se for um cron simples (ex: "0 2 * * *"), podemos estimar
-      // Por agora, retornamos apenas a próxima execução
-      // TODO: Implementar cálculo de múltiplas execuções se necessário
-      
-    } catch (error) {
-      console.error('Erro ao calcular próximas execuções:', error)
-    }
-
-    return executions
+  getNextExecutions(expression: string, count = 5): Date[] {
+    return cronExpressionService.getNextExecutions(expression, count)
   }
 }
 

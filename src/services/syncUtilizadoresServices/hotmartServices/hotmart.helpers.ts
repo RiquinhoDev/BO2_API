@@ -5,6 +5,7 @@
 
 import axios from 'axios'
 import { HotmartModule, HotmartModuleProgress } from '../../../types/lesson.types'
+import { getHotmartCredentials, getHotmartSubdomain } from '../../requestDrivenRuntimeConfig'
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
@@ -122,13 +123,8 @@ export interface ProgressData {
  * @returns {Promise<string>} Access token válido
  */
 export const getHotmartAccessToken = async (): Promise<string> => {
+  const { clientId, clientSecret } = getHotmartCredentials()
   try {
-    const clientId = process.env.HOTMART_CLIENT_ID
-    const clientSecret = process.env.HOTMART_CLIENT_SECRET
-
-    if (!clientId || !clientSecret) {
-      throw new Error('HOTMART_CLIENT_ID e HOTMART_CLIENT_SECRET são obrigatórios')
-    }
 
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
 
@@ -173,7 +169,7 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
   let allUsers: HotmartUser[] = []
   let nextPageToken: string | null = null
   let pageCount = 0
-  const subdomain = process.env.subdomain || 'ograndeinvestimento-bomrmk'
+  const subdomain = getHotmartSubdomain()
 
   console.log(`📡 [HotmartFetch] Iniciando busca de utilizadores...`)
 
@@ -238,8 +234,8 @@ export const fetchUserLessons = async (
   userId: string,
   accessToken: string
 ): Promise<HotmartLesson[]> => {
+  const subdomain = getHotmartSubdomain()
   try {
-    const subdomain = process.env.subdomain || 'ograndeinvestimento-bomrmk'
 
 const response = await requestWithRetry(
   () =>

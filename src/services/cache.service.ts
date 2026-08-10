@@ -1,38 +1,97 @@
 import Redis from 'ioredis'
+import type { AppConfig } from '../config/appConfig'
+import {
+  REDIS_RATE_LIMIT_DECREMENT_SCRIPT,
+  REDIS_RATE_LIMIT_INCREMENT_SCRIPT,
+  type RedisRateLimitCommandPort,
+} from '../security/redisRateLimitStore'
 
 class CacheService {
   private redis: Redis | null = null
   private isConnected = false
 
-  public async connect() {
-    console.log('[Redis Config]', {
-      host: process.env.REDIS_HOST,
-      port: process.env.REDIS_PORT,
-      password: process.env.REDIS_PASSWORD?.slice(0, 5) + '...'
+  public async connect(
+    config: NonNullable<AppConfig['redis']>,
+  ): Promise<void> {
+    if (this.redis) await this.disconnect()
+
+    const redis = new Redis({
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      ...(config.password ? { password: config.password } : {}),
+      lazyConnect: true,
+      retryStrategy: (times) => Math.min(times * 50, 2000),
+      maxRetriesPerRequest: 3,
+    })
+    this.redis = redis
+    this.isConnected = false
+
+    redis.on('connect', () => {
+      console.log('✅ Redis connected')
+      this.isConnected = true
+    })
+
+    redis.on('error', (error) => {
+      console.error('❌ Redis error:', error)
+      this.isConnected = false
     })
 
     try {
-      this.redis = new Redis({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-        username: process.env.REDIS_USERNAME || 'default',
-        password: process.env.REDIS_PASSWORD,
-        retryStrategy: (times) => Math.min(times * 50, 2000),
-        maxRetriesPerRequest: 3
-      })
-
-      this.redis.on('connect', () => {
-        console.log('✅ Redis connected')
-        this.isConnected = true
-      })
-
-      this.redis.on('error', (err) => {
-        console.error('❌ Redis error:', err)
-        this.isConnected = false
-      })
+      await redis.connect()
+      this.isConnected = true
     } catch (error) {
-      console.error('❌ Failed to initialize Redis:', error)
+      this.isConnected = false
+      if (this.redis === redis) this.redis = null
+      try {
+        redis.disconnect()
+      } catch {
+        // Preserve the original connection failure.
+      }
+      console.error('❌ Failed to connect Redis:', error)
+      throw error
     }
+  }
+
+  public getRateLimitCommandPort(): RedisRateLimitCommandPort {
+    const redis = this.redis
+    if (!redis || !this.isConnected) {
+      throw new Error('Redis is not connected')
+    }
+
+    return {
+      evalIncrement: async (key, windowMs) => {
+        const result = await redis.eval(
+          REDIS_RATE_LIMIT_INCREMENT_SCRIPT,
+          1,
+          key,
+          windowMs,
+        )
+        if (!Array.isArray(result) || result.length < 2) {
+          throw new Error('Redis rate-limit increment returned an invalid result')
+        }
+        const totalHits = Number(result[0])
+        const ttlMs = Number(result[1])
+        if (!Number.isInteger(totalHits) || !Number.isInteger(ttlMs)) {
+          throw new Error('Redis rate-limit increment returned non-numeric values')
+        }
+        return [totalHits, ttlMs] as const
+      },
+      decrement: async (key) => {
+        await redis.eval(REDIS_RATE_LIMIT_DECREMENT_SCRIPT, 1, key)
+      },
+      delete: async (key) => {
+        await redis.del(key)
+      },
+    }
+  }
+
+  public async disconnect(): Promise<void> {
+    const redis = this.redis
+    this.redis = null
+    this.isConnected = false
+    if (!redis) return
+    redis.disconnect()
   }
 
   async get<T>(key: string): Promise<T | null> {

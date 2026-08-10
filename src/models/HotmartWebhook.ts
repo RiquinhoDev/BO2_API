@@ -33,4 +33,6 @@ const hotmartWebhookSchema = new Schema<IHotmartWebhook>({
   rawData: Object
 })
 
-export default mongoose.models.HotmartWebhook || model<IHotmartWebhook>("HotmartWebhook", hotmartWebhookSchema)
+const HotmartWebhook: mongoose.Model<IHotmartWebhook> = mongoose.models.HotmartWebhook || model<IHotmartWebhook>("HotmartWebhook", hotmartWebhookSchema)
+
+export default HotmartWebhook

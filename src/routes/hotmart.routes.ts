@@ -1,33 +1,20 @@
 // src/routes/hotmart.routes.ts
-import { Router, type RequestHandler } from 'express'
+import { asyncRoute } from '../security/asyncRoute'
+import { Router } from 'express'
 import {
-  // Legacy
-  syncHotmartUsers,
-  syncProgressOnly,
+  compareSyncMethods,
   findHotmartUser,
-
-
-  // V2
-  getHotmartProducts,
   getHotmartProductBySubdomain,
+  getHotmartProducts,
   getHotmartProductUsers,
   getHotmartStats,
-
-  // Universal Sync
+  syncHotmartUsers,
   syncHotmartUsersUniversal,
-  syncProgressOnlyUniversal,
-  compareSyncMethods
-} from '../controllers/syncUtilizadoresControllers/hotmart.controller'
-
+  syncProgressOnly,
+  syncProgressOnlyUniversal
+} from '../controllers/hotmart'
 
 const router = Router()
-
-// Wrapper para async controllers (evita o overload mismatch do Express)
-const asyncRoute = (fn: any): RequestHandler => {
-  return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next)
-  }
-}
 
 // ─────────────────────────────────────────────────────────────
 // LEGACY (mantém compatibilidade)

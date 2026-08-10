@@ -6,7 +6,6 @@ import hotmartRoutes from "./hotmart.routes"
 import curseducaRoutes from './curseduca.routes'
 import syncRoutes from "./sync.routes"
 import classesRoutes from "./classes.routes"
-import classManagementRoutes from "./classManagement.routes"
 import testimonialRoutes from "./testimonials.routes"
 import lessonsRoutes from "./lessons.routes"
 import engagementRoutes from './engagement.routes'
@@ -17,7 +16,6 @@ import courseRoutes from './course.routes'
 import tagRuleRoutes from './ACroutes/tagRule.routes'
 import dashboardRoutes from './dashboardRoutes'
 import productProfileRoutes from './productProfile.routes'
-import reengagementRoutes from './reengagement.routes'
 import discoveryRoutes from './discovery.routes'
 import acReaderRoutes from './ACroutes/acReader.routes'
 import studentsRoutes from './students'
@@ -56,7 +54,6 @@ router.use("/ac", acReaderRoutes)
 
 // 📚 GESTÃO DE TURMAS E CONTEÚDOS
 router.use("/classes", classesRoutes)
-router.use("/class-management", classManagementRoutes)
 router.use("/lessons", lessonsRoutes)
 
 // 👥 GESTÃO DE UTILIZADORES
@@ -84,7 +81,6 @@ router.get('/tag-rules/fields', getAvailableFields)
 router.use("/tag-rules", tagRuleRoutes)
 
 router.use("/product-profiles", productProfileRoutes)
-router.use("/reengagement", reengagementRoutes)
 router.use("/discovery", discoveryRoutes)
 
 // 📈 CLAREZA — Tremómetro de Ações
