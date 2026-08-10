@@ -1276,3 +1276,10 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - Corrected an extraction-only UTF-8 decoding issue before commit and removed newly exposed dead imports instead of suppressing them. Existing lint debt was relocated and pruned without increasing rule debt.
 - The fail-closed source-size baseline was pruned from **30 to 26 files above 500**. ARCH-02 remains open until this baseline reaches zero.
 - All verification was offline. No external API, production datastore, Redis instance, scheduler or deployment was contacted.
+### [x] ARCH-02 - split ten remaining monoliths (2026-08-10)
+
+- Decomposed ten files above 500 lines into compatibility facades and cohesive modules: CursEduca controller, Guru sync, dual-read sync, Renewal AC, sync API controller, tag orchestrator, Discord renewal, Hotmart helpers, weekly tag monitoring and Clareza Raio-X.
+- Preserved public exports, singleton identity, response contracts, runtime kill switches, dry-run boundaries, cache ownership and external-write ordering. Each split received a RED topology test before implementation plus its focused behavior/security coverage.
+- Every extracted production TypeScript file is at or below 500 physical lines. The fail-closed source-size baseline fell from **26 to 16 files above 500** in this batch.
+- Final offline gate: lint and TypeScript clean, **301 suites / 1,645 tests** green, build green and both ratcheted inventories green. Jest emitted the known rare parallel-worker shutdown warning; prior --runInBand --detectOpenHandles investigation found zero open handles.
+- No external API, production MongoDB, Redis instance, Discord bot, scheduler or deployment was contacted.
