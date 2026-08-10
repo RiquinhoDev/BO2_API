@@ -3,7 +3,8 @@
 // CONTROLLER: Gestão de Perfis de Produto (Re-engagement)
 // ================================================================
 
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
+import { internalError } from '../../security/errorHandling'
 import type { ProductProfilesDeleteInput } from '../../security/productProfilesDestructiveInput'
 import ProductProfile, { IReengagementLevel } from '../../models/product/ProductProfile'
 import StudentEngagementState from '../../models/StudentEngagementState'
@@ -17,7 +18,7 @@ type ProductCodeParams = {
  * GET /api/product-profiles
  * Buscar todos os perfis de produto
  */
-export const getAllProductProfiles = async (req: Request, res: Response): Promise<void> => {
+export const getAllProductProfiles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { isActive } = req.query
 
@@ -34,13 +35,8 @@ export const getAllProductProfiles = async (req: Request, res: Response): Promis
       count: profiles.length,
       data: profiles
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar perfis de produto:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao buscar perfis de produto',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar perfis de produto', 'PRODUCT_PROFILE_LIST_FAILED', error))
   }
 }
 
@@ -51,6 +47,7 @@ export const getAllProductProfiles = async (req: Request, res: Response): Promis
 export const getProductProfileByCode = async (
   req: Request<ProductCodeParams>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { code } = req.params
@@ -71,13 +68,8 @@ export const getProductProfileByCode = async (
       success: true,
       data: profile
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar perfil:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao buscar perfil de produto',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar perfil de produto', 'PRODUCT_PROFILE_READ_FAILED', error))
   }
 }
 
@@ -85,7 +77,7 @@ export const getProductProfileByCode = async (
  * POST /api/product-profiles
  * Criar novo perfil de produto
  */
-export const createProductProfile = async (req: Request, res: Response): Promise<void> => {
+export const createProductProfile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const profileData = req.body
 
@@ -133,13 +125,8 @@ export const createProductProfile = async (req: Request, res: Response): Promise
       data: profile,
       message: 'Perfil de produto criado com sucesso'
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao criar perfil:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao criar perfil de produto',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao criar perfil de produto', 'PRODUCT_PROFILE_CREATE_FAILED', error))
   }
 }
 
@@ -150,6 +137,7 @@ export const createProductProfile = async (req: Request, res: Response): Promise
 export const updateProductProfile = async (
   req: Request<ProductCodeParams>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { code } = req.params
@@ -182,13 +170,8 @@ export const updateProductProfile = async (
       data: profile,
       message: 'Perfil de produto atualizado com sucesso'
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao atualizar perfil:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao atualizar perfil de produto',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao atualizar perfil de produto', 'PRODUCT_PROFILE_UPDATE_FAILED', error))
   }
 }
 
@@ -199,6 +182,7 @@ export const updateProductProfile = async (
 export const deleteProductProfile = async (
   input: ProductProfilesDeleteInput,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { code } = input.params
@@ -248,13 +232,8 @@ export const deleteProductProfile = async (
         message: 'Perfil de produto desativado com sucesso'
       })
     }
-  } catch (error: any) {
-    console.error('❌ Erro ao deletar perfil:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao deletar perfil de produto',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao deletar perfil de produto', 'PRODUCT_PROFILE_DELETE_FAILED', error))
   }
 }
 
@@ -265,6 +244,7 @@ export const deleteProductProfile = async (
 export const getProductProfileStats = async (
   req: Request<ProductCodeParams>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { code } = req.params
@@ -386,13 +366,8 @@ const levelMetrics = await Promise.all(
         levelMetrics
       }
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar estatísticas:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao buscar estatísticas',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar estatísticas', 'PRODUCT_PROFILE_STATS_READ_FAILED', error))
   }
 }
 
@@ -403,6 +378,7 @@ const levelMetrics = await Promise.all(
 export const duplicateProductProfile = async (
   req: Request<ProductCodeParams>,
   res: Response,
+  next: NextFunction,
 ): Promise<void> => {
   try {
     const { code } = req.params
@@ -459,12 +435,7 @@ export const duplicateProductProfile = async (
       data: duplicate,
       message: 'Perfil duplicado com sucesso'
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao duplicar perfil:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao duplicar perfil de produto',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao duplicar perfil de produto', 'PRODUCT_PROFILE_DUPLICATE_FAILED', error))
   }
 }
