@@ -1,20 +1,25 @@
-import type { Request, Response } from 'express'
-import { isDevelopmentRuntime } from '../../services/requestDrivenRuntimeConfig'
+import type { NextFunction, Request, Response } from 'express'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { internalError } from '../../security/errorHandling'
 import { User } from '../../models'
 import hotmartAdapter from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import universalSyncService from '../../services/syncUtilizadoresServices/universalSync'
 import type { SyncError, SyncProgress, SyncWarning } from '../../types/universalSync.types'
 import logger from '../../utils/logger'
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+function forwardHotmartError(
+  next: NextFunction,
+  error: unknown,
+  publicMessage: string,
+  code: string,
+): void {
+  if (error instanceof IntegrationUnavailableError) {
+    next(error)
+    return
+  }
+  next(internalError(publicMessage, code, error))
 }
-
-function errorStack(error: unknown): string | undefined {
-  return error instanceof Error ? error.stack : undefined
-}
-
-export const syncHotmartUsersUniversal = async (req: Request, res: Response): Promise<void> => {
+export const syncHotmartUsersUniversal = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   logger.info('[HotmartUniversal] Iniciando sync via Universal Service')
 
   try {
@@ -88,17 +93,11 @@ export const syncHotmartUsersUniversal = async (req: Request, res: Response): Pr
       _version: '3.0'
     })
   } catch (error: unknown) {
-    logger.error('[HotmartUniversal] Erro fatal', { error })
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao executar sincronização via Universal Service',
-      error: errorMessage(error),
-      stack: isDevelopmentRuntime() ? errorStack(error) : undefined
-    })
+    forwardHotmartError(next, error, 'Erro ao executar sincronização via Universal Service', 'HOTMART_UNIVERSAL_SYNC_FAILED')
   }
 }
 
-export const syncProgressOnlyUniversal = async (req: Request, res: Response): Promise<void> => {
+export const syncProgressOnlyUniversal = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   logger.info('[HotmartProgress] Iniciando sync de progresso via Universal')
 
   try {
@@ -155,7 +154,6 @@ export const syncProgressOnlyUniversal = async (req: Request, res: Response): Pr
       _universalSync: true
     })
   } catch (error: unknown) {
-    logger.error('[HotmartProgress] Erro', { error })
-    res.status(500).json({ success: false, message: errorMessage(error) })
+    forwardHotmartError(next, error, 'Erro ao sincronizar progresso Hotmart', 'HOTMART_PROGRESS_SYNC_FAILED')
   }
 }

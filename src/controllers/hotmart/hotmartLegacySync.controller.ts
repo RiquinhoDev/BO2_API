@@ -1,4 +1,6 @@
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { internalError } from '../../security/errorHandling'
 import type { AnyBulkWriteOperation } from 'mongoose'
 import { Class, SyncHistory, User } from '../../models'
 import type { IUserHistory } from '../../models/UserHistory'
@@ -41,10 +43,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-function errorStack(error: unknown): string | undefined {
-  return error instanceof Error ? error.stack : undefined
-}
-
 function convertUnixTimestamp(timestamp: unknown): Date | null {
   if (!timestamp) return null
 
@@ -83,7 +81,7 @@ function convertUnixTimestamp(timestamp: unknown): Date | null {
 }
 
 // ✅ SYNC COMPLETO (legacy)
-export const syncHotmartUsers = async (req: Request, res: Response): Promise<void> => {
+export const syncHotmartUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   let syncRecord: ISyncHistory | null = null
 
   try {
@@ -466,10 +464,14 @@ logger.info('✅ [HotmartUniversal] Stats atualizados!')
       })
     }
 
-    res.status(500).json({
-      message: 'Erro crítico na sincronização com Hotmart',
-      error: errorMessage(error),
-      details: errorStack(error)
-    })
+    if (error instanceof IntegrationUnavailableError) {
+      next(error)
+      return
+    }
+    next(internalError(
+      'Erro crítico na sincronização com Hotmart',
+      'HOTMART_LEGACY_SYNC_FAILED',
+      error,
+    ))
   }
 }

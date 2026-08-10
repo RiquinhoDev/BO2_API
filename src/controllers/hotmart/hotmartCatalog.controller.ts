@@ -1,4 +1,6 @@
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { internalError } from '../../security/errorHandling'
 import {
   findHotmartProductBySubdomain,
   getHotmartStatsSnapshot,
@@ -6,20 +8,28 @@ import {
   listHotmartProductUsers
 } from '../../services/hotmart/hotmartCatalog.service'
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+function forwardHotmartError(
+  next: NextFunction,
+  error: unknown,
+  publicMessage: string,
+  code: string,
+): void {
+  if (error instanceof IntegrationUnavailableError) {
+    next(error)
+    return
+  }
+  next(internalError(publicMessage, code, error))
 }
-
-export async function getHotmartProducts(_req: Request, res: Response) {
+export async function getHotmartProducts(_req: Request, res: Response, next: NextFunction) {
   try {
     const products = await listHotmartProducts()
     res.json({ success: true, data: products, count: products.length, _v2Enabled: true })
   } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error) })
+    forwardHotmartError(next, error, 'Erro ao buscar produtos Hotmart', 'HOTMART_PRODUCT_LIST_FAILED')
   }
 }
 
-export async function getHotmartProductBySubdomain(req: Request<{ subdomain: string }>, res: Response) {
+export async function getHotmartProductBySubdomain(req: Request<{ subdomain: string }>, res: Response, next: NextFunction) {
   try {
     const { subdomain } = req.params
     const product = await findHotmartProductBySubdomain(subdomain)
@@ -33,11 +43,11 @@ export async function getHotmartProductBySubdomain(req: Request<{ subdomain: str
 
     return res.json({ success: true, data: product, _v2Enabled: true })
   } catch (error: unknown) {
-    return res.status(500).json({ success: false, error: errorMessage(error) })
+    forwardHotmartError(next, error, 'Erro ao buscar produto Hotmart', 'HOTMART_PRODUCT_READ_FAILED')
   }
 }
 
-export async function getHotmartProductUsers(req: Request<{ subdomain: string }>, res: Response) {
+export async function getHotmartProductUsers(req: Request<{ subdomain: string }>, res: Response, next: NextFunction) {
   try {
     const { subdomain } = req.params
     const status = typeof req.query.status === 'string' ? req.query.status : undefined
@@ -61,15 +71,15 @@ export async function getHotmartProductUsers(req: Request<{ subdomain: string }>
       _v2Enabled: true
     })
   } catch (error: unknown) {
-    return res.status(500).json({ success: false, error: errorMessage(error) })
+    forwardHotmartError(next, error, 'Erro ao buscar utilizadores Hotmart', 'HOTMART_PRODUCT_USERS_READ_FAILED')
   }
 }
 
-export async function getHotmartStats(_req: Request, res: Response) {
+export async function getHotmartStats(_req: Request, res: Response, next: NextFunction) {
   try {
     const { stats, summary } = await getHotmartStatsSnapshot()
     res.json({ success: true, data: stats, summary, _v2Enabled: true })
   } catch (error: unknown) {
-    res.status(500).json({ success: false, error: errorMessage(error) })
+    forwardHotmartError(next, error, 'Erro ao buscar estatísticas Hotmart', 'HOTMART_STATS_READ_FAILED')
   }
 }

@@ -1,4 +1,6 @@
 import type { Request, Response } from 'express'
+import request from 'supertest'
+import { appForCentralError, expectCentralError } from '../support/centralErrorContract'
 
 const mockProductFind = jest.fn()
 const mockProductFindOne = jest.fn()
@@ -45,7 +47,7 @@ test('lists Hotmart products with the exact V2 envelope and projection', async (
   mockProductFind.mockReturnValue({ select })
   const res = response()
 
-  await getHotmartProducts({} as Request, res as unknown as Response)
+  await getHotmartProducts({} as Request, res as unknown as Response, jest.fn())
 
   expect(mockProductFind).toHaveBeenCalledWith({ platform: 'hotmart' })
   expect(select).toHaveBeenCalledWith('name code platformData isActive')
@@ -62,7 +64,8 @@ test('returns the product with its user count for the exact subdomain lookup', a
 
   await getHotmartProductBySubdomain(
     { params: { subdomain: 'clareza' } } as unknown as Request<{ subdomain: string }>,
-    res as unknown as Response
+    res as unknown as Response,
+    jest.fn()
   )
 
   expect(mockProductFindOne).toHaveBeenCalledWith({ platform: 'hotmart', subdomain: 'clareza' })
@@ -81,7 +84,8 @@ test('keeps the product-not-found response contract', async () => {
 
   await getHotmartProductBySubdomain(
     { params: { subdomain: 'missing' } } as unknown as Request<{ subdomain: string }>,
-    res as unknown as Response
+    res as unknown as Response,
+    jest.fn()
   )
 
   expect(res.status).toHaveBeenCalledWith(404)
@@ -113,7 +117,8 @@ test('filters product users by status and minimum progress without changing the 
 
   await getHotmartProductUsers(
     { params: { subdomain: 'clareza' }, query: { status: 'active', minProgress: '50' } } as unknown as Request<{ subdomain: string }>,
-    res as unknown as Response
+    res as unknown as Response,
+    jest.fn()
   )
 
   expect(res.json).toHaveBeenCalledWith({
@@ -136,7 +141,7 @@ test('summarizes users and active users while preserving top-level subdomain', a
   ])
   const res = response()
 
-  await getHotmartStats({} as Request, res as unknown as Response)
+  await getHotmartStats({} as Request, res as unknown as Response, jest.fn())
 
   expect(res.json).toHaveBeenCalledWith({
     success: true,
@@ -146,12 +151,16 @@ test('summarizes users and active users while preserving top-level subdomain', a
   })
 })
 
-test('keeps the 500 error envelope', async () => {
+test('forwards failures to the central redacted envelope', async () => {
   mockProductFind.mockImplementation(() => { throw new Error('query failed') })
-  const res = response()
 
-  await getHotmartProducts({} as Request, res as unknown as Response)
+  const response = await request(appForCentralError({
+    kind: 'handler',
+    handler: getHotmartProducts,
+  })).get('/target?__bo2_offline_loopback=1')
 
-  expect(res.status).toHaveBeenCalledWith(500)
-  expect(res.json).toHaveBeenCalledWith({ success: false, error: 'query failed' })
+  expectCentralError(response, {
+    code: 'HOTMART_PRODUCT_LIST_FAILED',
+    message: 'Erro ao buscar produtos Hotmart',
+  })
 })

@@ -78,8 +78,9 @@ afterEach(() => jest.useRealTimers())
 test('marks an empty Hotmart response failed without writing users', async () => {
   mockListUsersPage.mockResolvedValue({ users: [], nextPageToken: null })
   const res = response()
+  const next = jest.fn()
 
-  const pending = syncHotmartUsers({} as Request, res as unknown as Response)
+  const pending = syncHotmartUsers({} as Request, res as unknown as Response, next)
   await jest.advanceTimersByTimeAsync(200)
   await pending
 
@@ -88,11 +89,14 @@ test('marks an empty Hotmart response failed without writing users', async () =>
     status: 'failed',
     errorDetails: ['Nenhum utilizador encontrado na API da Hotmart']
   }))
-  expect(res.status).toHaveBeenCalledWith(500)
-  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-    message: 'Erro crítico na sincronização com Hotmart',
-    error: 'Nenhum utilizador encontrado na API da Hotmart'
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({
+    code: 'HOTMART_LEGACY_SYNC_FAILED',
+    publicMessage: 'Erro crítico na sincronização com Hotmart',
   }))
+  expect(mockSyncUpdate.mock.invocationCallOrder.at(-1))
+    .toBeLessThan(next.mock.invocationCallOrder[0])
+  expect(res.status).not.toHaveBeenCalled()
+  expect(res.json).not.toHaveBeenCalled()
 })
 
 test('persists a valid learner, creates its class, rebuilds stats and reports exact counters', async () => {
@@ -122,8 +126,9 @@ test('persists a valid learner, creates its class, rebuilds stats and reports ex
   mockClassFindOne.mockResolvedValue(null)
   mockClassCreate.mockResolvedValue({ _id: 'class-db-id' })
   const res = response()
+  const next = jest.fn()
 
-  const pending = syncHotmartUsers({} as Request, res as unknown as Response)
+  const pending = syncHotmartUsers({} as Request, res as unknown as Response, next)
   await jest.advanceTimersByTimeAsync(1_000)
   await pending
 
