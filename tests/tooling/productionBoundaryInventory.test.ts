@@ -298,8 +298,6 @@ test('production boundary debt never grows', () => {
 })
 
 test('inventory catches owned consumer mutations and restores every fixture', () => {
-  const sourceOwnedPath = path.join(sourceRoot, 'security/validatedInput.ts')
-  const originalOwnedConsumer = fs.readFileSync(sourceOwnedPath, 'utf8')
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bo2-inventory-'))
   const ownedConsumerPath = path.join(tempRoot, 'security/validatedInput.ts')
   const fixturePath = path.join(tempRoot, '__task1_inventory_fixture.ts')
@@ -307,7 +305,12 @@ test('inventory catches owned consumer mutations and restores every fixture', ()
   const fixture = `const unsafe = process.env.UNSAFE_TEST\nconst fiveHundred = res.status(500)\nconst detail = res.json({ details: error.message })\n`
 
   try {
-    fs.mkdirSync(path.dirname(ownedConsumerPath), { recursive: true })
+    fs.cpSync(sourceRoot, tempRoot, { recursive: true })
+    const originalOwnedConsumer = fs.readFileSync(ownedConsumerPath, 'utf8')
+    const baseline = inventory(tempRoot)
+    expect(baseline.rawEnvironmentRead).toEqual(BASELINE.rawEnvironmentRead)
+    expect(baseline.localHttp500).toEqual(BASELINE.localHttp500)
+    expect(baseline.publicErrorDetail).toEqual(BASELINE.publicErrorDetail)
     fs.writeFileSync(ownedConsumerPath, `${ownedMutation}${originalOwnedConsumer}`, 'utf8')
     fs.writeFileSync(fixturePath, fixture, 'utf8')
     const mutated = inventory(tempRoot)
@@ -315,13 +318,17 @@ test('inventory catches owned consumer mutations and restores every fixture', ()
     expect(mutated.rawEnvironmentRead).toContain('src/__task1_inventory_fixture.ts:1')
     expect(mutated.localHttp500).toContain('src/__task1_inventory_fixture.ts:2')
     expect(mutated.publicErrorDetail).toContain('src/__task1_inventory_fixture.ts:3')
+
+    fs.writeFileSync(ownedConsumerPath, originalOwnedConsumer, 'utf8')
+    fs.rmSync(fixturePath)
+
+    const restored = inventory(tempRoot)
+    expect(restored.rawEnvironmentRead).toEqual(BASELINE.rawEnvironmentRead)
+    expect(restored.localHttp500).toEqual(BASELINE.localHttp500)
+    expect(restored.publicErrorDetail).toEqual(BASELINE.publicErrorDetail)
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true })
   }
 
-  const restored = inventory()
-  expect(restored.rawEnvironmentRead).toEqual(BASELINE.rawEnvironmentRead)
-  expect(restored.localHttp500).toEqual(BASELINE.localHttp500)
-  expect(restored.publicErrorDetail).toEqual(BASELINE.publicErrorDetail)
   expect(fs.existsSync(tempRoot)).toBe(false)
 })

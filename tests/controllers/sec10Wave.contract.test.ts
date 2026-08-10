@@ -1,4 +1,4 @@
-import express, { Router } from 'express'
+import { Router } from 'express'
 import request from 'supertest'
 import {
   appForCentralError,
@@ -13,7 +13,7 @@ describe('SEC-10 central error contract harness', () => {
   const routes: readonly [string, CentralErrorRoute, string][] = [
     [
       'an async handler',
-      { kind: 'handler', method: 'get', path: '/target', handler: () => { throw secret } },
+      { kind: 'handler', method: 'get', path: '/target', handler: async () => { throw secret } },
       '/target',
     ],
     [
@@ -43,7 +43,7 @@ describe('SEC-10 central error contract harness', () => {
   it('uses the supplied deterministic correlation ID', async () => {
     const response = await request(appForCentralError({
       kind: 'handler',
-      handler: () => { throw secret },
+      handler: async () => { throw secret },
     }, 'sec10-deterministic-request')).get('/target' + offline)
 
     expectCentralError(response, {
