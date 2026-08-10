@@ -1013,18 +1013,26 @@
       "count": 2
     }
   },
-  "src/services/renewal/discordRolesSync.service.ts": {
+  "src/services/renewal/discord/execution.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 6
+      "count": 5
     },
     "@typescript-eslint/no-unused-vars": {
-      "count": 1
+      "count": 5
     },
     "no-console": {
-      "count": 7
+      "count": 5
     },
     "no-useless-assignment": {
       "count": 1
+    }
+  },
+  "src/services/renewal/discord/planning.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 2
     }
   },
   "src/services/renewal/discordScheduledMessages.service.ts": {
