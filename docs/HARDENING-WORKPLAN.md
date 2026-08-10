@@ -1292,3 +1292,11 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - The fail-closed source-size baseline fell from **16 to 6 files above 500** in this batch (**62.5%**), and from the original **39 to 6** (**84.6% eliminated**). The six named residual files remain ratcheted and cannot grow or migrate silently.
 - Final offline gate: lint and TypeScript clean, **311 suites / 1,660 tests** green, build green, size and production-boundary inventories green, diff checks clean, and lockfiles unchanged. Jest emitted the previously investigated rare parallel-worker shutdown warning; the existing run-in-band open-handle investigation found no leaked handles.
 - ARCH-02 remains open until the six-file baseline reaches zero. Response-contract normalization remains a separate ARCH-03 phase and was intentionally not mixed into this behavior-preserving decomposition batch.
+
+### [x] ARCH-02 - close source-size debt (2026-08-10)
+
+- Closed the final six handwritten production TypeScript files above the approved 500-line limit: sync conflicts **507 -> 125**, ActivitySnapshot model **503 -> 406**, product sales stats builder **521 -> 339**, engagement recalculation **507 -> 414**, analytics contracts **536 -> 6**, and student data consolidator **501 -> 441**.
+- Extracted cohesive conflict handlers, ActivitySnapshot contracts, sale-date resolution, deterministic engagement policy, domain analytics contracts, and class consolidation. Compatibility exports, model identity, HTTP contracts, platform precedence and enrollment semantics remain characterized.
+- The fail-closed source-size baseline fell from **6 to 0 files above 500** and is now empty. New files above the limit, moved debt, baseline growth and obsolete entries continue to fail the tooling gate.
+- Final offline gate: lint and strict TypeScript clean; **317 suites / 1676 tests**; build clean; no lockfile changes and no real API, production datastore, Redis, Discord or scheduler access.
+- ARCH-02 is closed for the approved 500-line production-file threshold. Further sub-500 decomposition remains quality-driven rather than ratchet debt. ARCH-03 response-contract normalization remains separate and open.
