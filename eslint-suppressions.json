@@ -382,11 +382,6 @@
       "count": 4
     }
   },
-  "src/controllers/tagMonitoring/criticalTag.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 8
-    }
-  },
   "src/controllers/tagMonitoring/tagMonitoring.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1

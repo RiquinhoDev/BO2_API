@@ -1,11 +1,24 @@
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express, { type NextFunction, type Request, type Response } from 'express'
 import request from 'supertest'
-import { createErrorHandling } from '../../src/security/errorHandling'
+import { createErrorHandling, internalError } from '../../src/security/errorHandling'
 installTestRuntimeConfigHooks()
 
 
-const mockControllerHandler = jest.fn((_input, res) => res.status(204).end())
+let forwardCriticalDeleteFailure = false
+const mockControllerHandler = jest.fn(
+  (_input: unknown, res: Response, next: NextFunction) => {
+    if (forwardCriticalDeleteFailure) {
+      next(internalError(
+        'Erro ao deletar tag crítica',
+        'CRITICAL_TAG_DELETE_FAILED',
+        new Error('secret alice@example.test token=hidden'),
+      ))
+      return
+    }
+    res.status(204).end()
+  },
+)
 
 jest.mock('../../src/middleware/auth.middleware', () => ({
   authenticate: (_req: Request, _res: Response, next: NextFunction) => next(),
@@ -112,4 +125,25 @@ test.each([
     .delete(path)
     .query(marker)
     .expect(400)
+})
+test('permanent critical-tag delete forwards controller errors after strict validation', async () => {
+  forwardCriticalDeleteFailure = true
+  try {
+    const response = await request(buildApp())
+      .delete('/api/tag-monitoring/critical-tags/507f1f77bcf86cd799439011/permanent')
+      .query(marker)
+
+    expect(response.status).toBe(500)
+    expect(response.headers['x-request-id']).toBe('tag-monitoring-validation-id')
+    expect(response.body).toEqual({
+      success: false,
+      code: 'CRITICAL_TAG_DELETE_FAILED',
+      message: 'Erro ao deletar tag crítica',
+      correlationId: 'tag-monitoring-validation-id',
+    })
+    expect(JSON.stringify(response.body)).not.toContain('secret')
+    expect(JSON.stringify(response.body)).not.toContain('alice@example.test')
+  } finally {
+    forwardCriticalDeleteFailure = false
+  }
 })

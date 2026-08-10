@@ -239,14 +239,6 @@ const BASELINE = {
     "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:77",
     "src/controllers/tagEvaluation.controller.ts:308",
     "src/controllers/tagEvaluation.controller.ts:457",
-    "src/controllers/tagMonitoring/criticalTag.controller.ts:127",
-    "src/controllers/tagMonitoring/criticalTag.controller.ts:169",
-    "src/controllers/tagMonitoring/criticalTag.controller.ts:209",
-    "src/controllers/tagMonitoring/criticalTag.controller.ts:258",
-    "src/controllers/tagMonitoring/criticalTag.controller.ts:26",
-    "src/controllers/tagMonitoring/criticalTag.controller.ts:285",
-    "src/controllers/tagMonitoring/criticalTag.controller.ts:307",
-    "src/controllers/tagMonitoring/criticalTag.controller.ts:88",
     "src/controllers/testHistory.controller.ts:172",
     "src/controllers/testHistory.controller.ts:242",
     "src/controllers/testimonials/testimonialCandidates.controller.ts:178",
@@ -307,7 +299,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 263,
+  "localHttp500": 255,
   "publicErrorDetail": 20
 } as const
 
@@ -319,15 +311,15 @@ test('production boundary inventory matches the migration baseline', () => {
   expect(current.publicErrorDetail).toEqual(BASELINE.publicErrorDetail)
 })
 
-test('records the remaining Tag Monitoring local 500 debt', () => {
+test('records the closed Tag Monitoring local 500 debt', () => {
   const tagMonitoringDebt = BASELINE.localHttp500.filter((entry) =>
     entry.startsWith('src/controllers/tagMonitoring/'),
   )
 
-  expect(tagMonitoringDebt).toHaveLength(8)
+  expect(tagMonitoringDebt).toHaveLength(0)
   expect(tagMonitoringDebt.filter((entry) => entry.includes('tagMonitoring.controller.ts'))).toHaveLength(0)
   expect(tagMonitoringDebt.filter((entry) => entry.includes('tagNotification.controller.ts'))).toHaveLength(0)
-  expect(tagMonitoringDebt.filter((entry) => entry.includes('criticalTag.controller.ts'))).toHaveLength(8)
+  expect(tagMonitoringDebt.filter((entry) => entry.includes('criticalTag.controller.ts'))).toHaveLength(0)
 })
 test('production boundary debt never grows', () => {
   const current = inventory()
