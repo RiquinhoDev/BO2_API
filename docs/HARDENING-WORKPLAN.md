@@ -1269,3 +1269,10 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - Added topology characterization before each split and retained the existing focused behavioral suites. Existing ESLint suppressions were relocated without increasing rule debt; non-breaking whitespace exposed by extraction was removed instead of suppressed.
 - The fail-closed source-size baseline was pruned from **35 to 30 files above 500**. ARCH-02 remains open until that ratchet reaches zero; the largest remaining file is `guru.analytics.controller.ts` at 995 lines.
 - All verification was offline. No external API, production datastore, Redis instance, scheduler or deployment was contacted.
+### [x] ARCH-02 - split four large controllers (2026-08-10)
+
+- Replaced four controllers above 900 lines with stable compatibility facades and focused owners: Guru analytics `995 -> 3` (largest extracted module 428), engagement `966 -> 4` (largest 260), Guru snapshots `944 -> 3` (largest 442), and cron management `904 -> 4` (largest 308).
+- Preserved public exports, route contracts, shared cache identity, validation boundaries, response payloads and side-effect ordering. Added topology characterization for every facade and kept the relevant behavioral/security suites green.
+- Corrected an extraction-only UTF-8 decoding issue before commit and removed newly exposed dead imports instead of suppressing them. Existing lint debt was relocated and pruned without increasing rule debt.
+- The fail-closed source-size baseline was pruned from **30 to 26 files above 500**. ARCH-02 remains open until this baseline reaches zero.
+- All verification was offline. No external API, production datastore, Redis instance, scheduler or deployment was contacted.
