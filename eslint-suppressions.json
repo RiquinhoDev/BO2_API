@@ -1007,12 +1007,30 @@
       "count": 17
     }
   },
-  "src/services/syncUtilizadoresServices/curseducaServices/curseduca.adapter.ts": {
+  "src/services/syncUtilizadoresServices/curseducaServices/curseducaAdapterSupport.ts": {
     "no-console": {
-      "count": 73
+      "count": 5
+    }
+  },
+  "src/services/syncUtilizadoresServices/curseducaServices/curseducaBulkSync.adapter.ts": {
+    "no-console": {
+      "count": 37
     },
     "preserve-caught-error": {
-      "count": 3
+      "count": 2
+    }
+  },
+  "src/services/syncUtilizadoresServices/curseducaServices/curseducaReports.client.ts": {
+    "no-console": {
+      "count": 15
+    }
+  },
+  "src/services/syncUtilizadoresServices/curseducaServices/curseducaSingleUser.adapter.ts": {
+    "no-console": {
+      "count": 16
+    },
+    "preserve-caught-error": {
+      "count": 1
     }
   },
   "src/services/syncUtilizadoresServices/dualReadService.ts": {
