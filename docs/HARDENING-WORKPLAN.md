@@ -1261,3 +1261,11 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - Extracted registry, cron expressions, job dispatch, execution lifecycle, notification boundary and system-job provisioning into cohesive modules, all at or below 333 physical lines.
 - Characterization preserves manual versus scheduled persistence semantics, execution ordering, history isolation, disabled notification delivery, canonical schedule updates and create-only kill switches. Dispatch characterization also fixed the missing `DiscordScheduledMessages` route.
 - The source-size baseline was pruned from 36 to 35 files above 500. All verification was offline; no external API, production datastore or live scheduler was contacted.
+
+### [x] ARCH-02 - split five largest remaining modules (2026-08-10)
+
+- Replaced five files above 1,100 lines with compatibility facades and cohesive focused modules: testimonials `1,216 -> 3`, CursEduca adapter `1,200 -> 15`, Clareza FMP `1,184 -> 5`, User model `1,150 -> 53`, and daily pipeline `1,101 -> 8` lines.
+- Every extracted production module is at or below 442 physical lines. Public exports, model identity, route handlers, sync cardinality, pipeline ordering, partial-failure behavior, cache keys, formulas and external-boundary ordering were preserved.
+- Added topology characterization before each split and retained the existing focused behavioral suites. Existing ESLint suppressions were relocated without increasing rule debt; non-breaking whitespace exposed by extraction was removed instead of suppressed.
+- The fail-closed source-size baseline was pruned from **35 to 30 files above 500**. ARCH-02 remains open until that ratchet reaches zero; the largest remaining file is `guru.analytics.controller.ts` at 995 lines.
+- All verification was offline. No external API, production datastore, Redis instance, scheduler or deployment was contacted.
