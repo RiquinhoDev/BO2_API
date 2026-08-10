@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import type { RequestHandler } from 'express'
+import { internalError } from '../../security/errorHandling'
 import { ACContactState } from '../../models'
 import User from '../../models/user'
 import contactTagReaderService, {
@@ -106,7 +107,7 @@ const syncByEmail = async (
  * GET /api/ac/contact/:email/tags
  * Buscar todas as tags de um contacto
  */
-export const getContactTags: RequestHandler<ContactEmailParams> = async (req, res) => {
+export const getContactTags: RequestHandler<ContactEmailParams> = async (req, res, next) => {
   try {
     const { email } = req.params
     const forceRefresh = isTruthyQuery(req.query.forceRefresh)
@@ -146,11 +147,8 @@ export const getContactTags: RequestHandler<ContactEmailParams> = async (req, re
       fromCache: false
     })
     return
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro interno do servidor', 'AC_CONTACT_TAGS_READ_FAILED', error))
     return
   }
 }
@@ -159,7 +157,7 @@ export const getContactTags: RequestHandler<ContactEmailParams> = async (req, re
  * POST /api/ac/contact/:email/sync
  * Sincronizar tags AC → BO para um contacto (por email)
  */
-export const syncContactTags: RequestHandler<ContactEmailParams> = async (req, res) => {
+export const syncContactTags: RequestHandler<ContactEmailParams> = async (req, res, next) => {
   try {
     const { email } = req.params
 
@@ -183,12 +181,9 @@ export const syncContactTags: RequestHandler<ContactEmailParams> = async (req, r
       data: syncResult
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao sincronizar contacto:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'AC_CONTACT_TAGS_SYNC_FAILED', error))
     return
   }
 }
@@ -197,7 +192,7 @@ export const syncContactTags: RequestHandler<ContactEmailParams> = async (req, r
  * POST /api/ac/contacts/batch-tags
  * Buscar tags de múltiplos contactos
  */
-export const getBatchContactTags: RequestHandler = async (req, res) => {
+export const getBatchContactTags: RequestHandler = async (req, res, next) => {
   try {
     const { emails } = req.body as { emails?: unknown }
 
@@ -244,12 +239,9 @@ export const getBatchContactTags: RequestHandler = async (req, res) => {
       }
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro batch contact tags:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'AC_CONTACT_TAGS_BATCH_READ_FAILED', error))
     return
   }
 }
@@ -258,7 +250,7 @@ export const getBatchContactTags: RequestHandler = async (req, res) => {
  * POST /api/ac/contacts/batch-sync
  * Sincronizar múltiplos contactos AC → BO (por email)
  */
-export const batchSyncContacts: RequestHandler = async (req, res) => {
+export const batchSyncContacts: RequestHandler = async (req, res, next) => {
   try {
     const { emails } = req.body as { emails?: unknown }
 
@@ -288,12 +280,9 @@ export const batchSyncContacts: RequestHandler = async (req, res) => {
 
     res.json({ success: true, data: results, summary })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro batch sync contacts:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'AC_CONTACT_TAGS_BATCH_SYNC_FAILED', error))
     return
   }
 }
@@ -302,7 +291,7 @@ export const batchSyncContacts: RequestHandler = async (req, res) => {
  * DELETE /api/ac/cache/clear
  * Limpar cache de contactos AC
  */
-export const clearACCache: RequestHandler = async (req, res) => {
+export const clearACCache: RequestHandler = async (req, res, next) => {
   try {
     const olderThanDays =
       typeof req.body.olderThanDays === 'number' ? req.body.olderThanDays : 30
@@ -323,12 +312,9 @@ export const clearACCache: RequestHandler = async (req, res) => {
       }
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro clear AC cache:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'AC_CONTACT_CACHE_CLEAR_FAILED', error))
     return
   }
 }

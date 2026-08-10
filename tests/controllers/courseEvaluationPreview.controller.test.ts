@@ -1,5 +1,9 @@
 import express from 'express'
 import request from 'supertest'
+import {
+  appForCentralError,
+  expectCentralError,
+} from '../support/centralErrorContract'
 
 const mockFindCourse = jest.fn()
 const mockFindProducts = jest.fn()
@@ -72,6 +76,7 @@ describe.each([
     name: 'Clareza',
     path: '/clareza/evaluate',
     handler: evaluateClarezaRules,
+    code: 'AC_CLAREZA_RULES_PREVIEW_FAILED',
     course: { _id: 'course-clareza' },
     lookup: { name: /^Clareza$/i },
   },
@@ -79,10 +84,11 @@ describe.each([
     name: 'OGI',
     path: '/ogi/evaluate',
     handler: evaluateOGIRules,
+    code: 'AC_OGI_RULES_PREVIEW_FAILED',
     course: { _id: 'course-ogi' },
     lookup: { code: /^OGI$/i },
   },
-])('$name course evaluation preview', ({ path, handler, course, lookup }) => {
+])('$name course evaluation preview', ({ path, handler, code, course, lookup }) => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockFindCourse.mockResolvedValue(course)
@@ -175,33 +181,39 @@ describe.each([
   it('uses the stable fallback when the decision engine rejects with an empty Error', async () => {
     mockEvaluateProduct.mockReset().mockRejectedValue(new Error(''))
 
-    const app = express()
-    app.post(path, handler)
+    const app = appForCentralError({
+      kind: 'handler',
+      method: 'post',
+      path,
+      handler,
+    })
 
     const response = await request(app)
       .post(`${path}?__bo2_offline_loopback=1`)
       .send({})
 
-    expect(response.status).toBe(500)
-    expect(response.body).toEqual({
-      success: false,
-      error: 'Erro ao pré-visualizar regras',
+    expectCentralError(response, {
+      code,
+      message: 'Erro ao pré-visualizar regras',
     })
   })
-  it('preserves the public 500 contract when the decision engine rejects', async () => {
+  it('redacts decision-engine detail behind the central contract', async () => {
     mockEvaluateProduct.mockReset().mockRejectedValue(new Error('engine unavailable'))
 
-    const app = express()
-    app.post(path, handler)
+    const app = appForCentralError({
+      kind: 'handler',
+      method: 'post',
+      path,
+      handler,
+    })
 
     const response = await request(app)
       .post(`${path}?__bo2_offline_loopback=1`)
       .send({})
 
-    expect(response.status).toBe(500)
-    expect(response.body).toEqual({
-      success: false,
-      error: 'engine unavailable',
+    expectCentralError(response, {
+      code,
+      message: 'Erro ao pré-visualizar regras',
     })
   })
 })

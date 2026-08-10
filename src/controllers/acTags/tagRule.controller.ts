@@ -3,14 +3,15 @@
 // Controller CRUD para TagRules
 // ════════════════════════════════════════════════════════════
 
-import type { RequestHandler} from 'express'
+import type { RequestHandler } from 'express'
+import { internalError } from '../../security/errorHandling'
 import { Course, TagRule } from '../../models'
 
 // ─────────────────────────────────────────────────────────────
 // LISTAR TODAS AS REGRAS (com filtros)
 // ─────────────────────────────────────────────────────────────
 
-export const getAllRules: RequestHandler = async (req, res) => {
+export const getAllRules: RequestHandler = async (req, res, next) => {
   try {
     const { courseId, category, isActive } = req.query
 
@@ -29,12 +30,9 @@ export const getAllRules: RequestHandler = async (req, res) => {
       data: rules
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao listar regras:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'TAG_RULE_LIST_FAILED', error))
     return
   }
 }
@@ -43,7 +41,7 @@ export const getAllRules: RequestHandler = async (req, res) => {
 // BUSCAR REGRA POR ID
 // ─────────────────────────────────────────────────────────────
 
-export const getRuleById: RequestHandler = async (req, res) => {
+export const getRuleById: RequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params
 
@@ -62,12 +60,9 @@ export const getRuleById: RequestHandler = async (req, res) => {
       data: rule
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao buscar regra:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'TAG_RULE_READ_FAILED', error))
     return
   }
 }
@@ -76,7 +71,7 @@ export const getRuleById: RequestHandler = async (req, res) => {
 // CRIAR NOVA REGRA
 // ─────────────────────────────────────────────────────────────
 
-export const createRule: RequestHandler = async (req, res) => {
+export const createRule: RequestHandler = async (req, res, next) => {
   try {
     const ruleData = req.body
 
@@ -99,12 +94,9 @@ export const createRule: RequestHandler = async (req, res) => {
       data: rule
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao criar regra:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'TAG_RULE_CREATE_FAILED', error))
     return
   }
 }
@@ -113,7 +105,7 @@ export const createRule: RequestHandler = async (req, res) => {
 // ATUALIZAR REGRA
 // ─────────────────────────────────────────────────────────────
 
-export const updateRule: RequestHandler = async (req, res) => {
+export const updateRule: RequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params
     const updates = req.body
@@ -138,12 +130,9 @@ export const updateRule: RequestHandler = async (req, res) => {
       data: rule
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao atualizar regra:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'TAG_RULE_UPDATE_FAILED', error))
     return
   }
 }
@@ -152,7 +141,7 @@ export const updateRule: RequestHandler = async (req, res) => {
 // DELETAR REGRA (soft delete)
 // ─────────────────────────────────────────────────────────────
 
-export const deleteRule: RequestHandler = async (req, res) => {
+export const deleteRule: RequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params
 
@@ -173,12 +162,9 @@ export const deleteRule: RequestHandler = async (req, res) => {
       message: 'Regra desativada com sucesso'
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao deletar regra:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'TAG_RULE_DELETE_FAILED', error))
     return
   }
 }
@@ -187,7 +173,7 @@ export const deleteRule: RequestHandler = async (req, res) => {
 // TESTAR REGRA (dry run)
 // ─────────────────────────────────────────────────────────────
 
-export const testRule: RequestHandler = async (req, res) => {
+export const testRule: RequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params
     const { userId } = req.body as { userId?: string }
@@ -210,12 +196,9 @@ export const testRule: RequestHandler = async (req, res) => {
       message: 'Teste de regra (em desenvolvimento)'
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao testar regra:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'TAG_RULE_TEST_FAILED', error))
     return
   }
 }

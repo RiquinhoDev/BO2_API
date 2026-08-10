@@ -1,5 +1,6 @@
 // src/routes/index.ts - VERSÃO CORRIGIDA COM 2 SISTEMAS CRON
 import { Router } from "express"
+import { asyncRoute } from '../security/asyncRoute'
 import authRoutes from "./auth.routes"
 import userRoutes from "./users.routes"
 import hotmartRoutes from "./hotmart.routes"
@@ -38,7 +39,6 @@ import syncReports from './syncUtilizadoresRoutes/syncReports.routes'
 // ✅ CRON TAGS (Sistema das Tags AC)
 import cronManagementRoutes from './cron/cronManagement.routes'
 import { estimateAffectedUsers, getAvailableFields, previewAffectedUsers } from "../controllers/acTags/tagRuleEstimate.controller"
-
 const router = Router()
 
 // 🔐 AUTENTICAÇÃO
@@ -75,9 +75,9 @@ router.use("/analytics", analyticsRoutes)
 
 // 📧 ACTIVE CAMPAIGN & RE-ENGAGEMENT
 router.use("/courses", courseRoutes)
-router.post('/tag-rules/estimate', estimateAffectedUsers)
-router.post('/tag-rules/preview', previewAffectedUsers)
-router.get('/tag-rules/fields', getAvailableFields)
+router.post('/tag-rules/estimate', asyncRoute(estimateAffectedUsers))
+router.post('/tag-rules/preview', asyncRoute(previewAffectedUsers))
+router.get('/tag-rules/fields', asyncRoute(getAvailableFields))
 router.use("/tag-rules", tagRuleRoutes)
 
 router.use("/product-profiles", productProfileRoutes)

@@ -41,7 +41,7 @@ describe('ActiveCampaign operational boundary', () => {
     logCreateMock.mockResolvedValue(undefined)
     const res = response()
 
-    await testCron({ body: {}, params: {}, query: {} }, res as never)
+    await testCron({ body: {}, params: {}, query: {} }, {} as never, res as never, jest.fn())
 
     expect(evaluateMock).toHaveBeenNthCalledWith(1, 'user-ok', 'product-1')
     expect(evaluateMock).toHaveBeenNthCalledWith(2, 'user-fail', 'product-1')

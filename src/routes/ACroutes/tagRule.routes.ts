@@ -4,8 +4,8 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
+import { asyncRoute } from '../../security/asyncRoute'
 import { createRule, deleteRule, getAllRules, getRuleById, testRule, updateRule } from '../../controllers/acTags/tagRule.controller'
-
 
 const router = Router()
 
@@ -19,35 +19,35 @@ const router = Router()
  * @query   ?courseId=xxx&category=INACTIVITY&isActive=true
  * @access  Admin
  */
-router.get('/', getAllRules)
+router.get('/', asyncRoute(getAllRules))
 
 /**
  * @route   GET /api/tag-rules/:id
  * @desc    Buscar regra por ID
  * @access  Admin
  */
-router.get('/:id', getRuleById)
+router.get('/:id', asyncRoute(getRuleById))
 
 /**
  * @route   POST /api/tag-rules
  * @desc    Criar nova regra
  * @access  Admin
  */
-router.post('/', createRule)
+router.post('/', asyncRoute(createRule))
 
 /**
  * @route   PUT /api/tag-rules/:id
  * @desc    Atualizar regra
  * @access  Admin
  */
-router.put('/:id', updateRule)
+router.put('/:id', asyncRoute(updateRule))
 
 /**
  * @route   DELETE /api/tag-rules/:id
  * @desc    Desativar regra
  * @access  Admin
  */
-router.delete('/:id', deleteRule)
+router.delete('/:id', asyncRoute(deleteRule))
 
 // ─────────────────────────────────────────────────────────────
 // ROTAS ESPECIAIS
@@ -59,7 +59,7 @@ router.delete('/:id', deleteRule)
  * @body    { userId: "xxx" }
  * @access  Admin
  */
-router.post('/:id/test', testRule)
+router.post('/:id/test', asyncRoute(testRule))
 
 /**
  * @route   POST /api/tag-rules/execute

@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { asyncRoute } from '../../security/asyncRoute'
 import {
   clearACCache,
   getBatchContactTags,
@@ -6,16 +7,15 @@ import {
   syncContactTags,
   batchSyncContacts
 } from '../../controllers/acTags/acReader.controller'
-
 const router = Router()
 
 // CONTACTOS
-router.get('/contact/:email/tags', getContactTags)
-router.post('/contact/:email/sync', syncContactTags)
+router.get('/contact/:email/tags', asyncRoute(getContactTags))
+router.post('/contact/:email/sync', asyncRoute(syncContactTags))
 
-router.post('/contacts/batch-tags', getBatchContactTags)
-router.post('/contacts/batch-sync', batchSyncContacts)
+router.post('/contacts/batch-tags', asyncRoute(getBatchContactTags))
+router.post('/contacts/batch-sync', asyncRoute(batchSyncContacts))
 
-router.delete('/cache/clear', clearACCache)
+router.delete('/cache/clear', asyncRoute(clearACCache))
 
 export default router

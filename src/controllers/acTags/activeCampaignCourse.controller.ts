@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { internalError } from '../../security/errorHandling'
 
 import User from '../../models/user'
 import { Course, Product, UserProduct } from '../../models'
@@ -6,14 +7,11 @@ import decisionEngine from '../../services/activeCampaign/decisionEngine.service
 import type { DecisionResult } from '../../services/activeCampaign/decisionEngine.service'
 import logger from '../../utils/logger'
 
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback
-}
 /**
  * GET /api/courses/clareza/students
  * Buscar alunos do curso Clareza
  */
-export const getClarezaStudents: RequestHandler = async (_req, res) => {
+export const getClarezaStudents: RequestHandler = async (_req, res, next) => {
   try {
     logger.info('📚 [Clareza] Iniciando busca de alunos...')
 
@@ -129,10 +127,7 @@ export const getClarezaStudents: RequestHandler = async (_req, res) => {
     return
   } catch (error: unknown) {
     logger.error('❌ [Clareza] Erro ao buscar alunos:', error)
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro ao buscar alunos')
-    })
+    next(internalError('Erro ao buscar alunos', 'AC_CLAREZA_STUDENTS_READ_FAILED', error))
     return
   }
 }
@@ -140,17 +135,14 @@ export const getClarezaStudents: RequestHandler = async (_req, res) => {
 /**
  * POST /api/courses/clareza/evaluate
  */
-export const evaluateClarezaRules: RequestHandler = async (_req, res) => {
+export const evaluateClarezaRules: RequestHandler = async (_req, res, next) => {
   try {
     const preview = await previewCourseRules({ name: /^Clareza$/i })
     res.json({ success: true, ...preview })
     return
   } catch (error: unknown) {
     logger.error('❌ Erro ao pré-visualizar regras Clareza:', error)
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro ao pré-visualizar regras')
-    })
+    next(internalError('Erro ao pré-visualizar regras', 'AC_CLAREZA_RULES_PREVIEW_FAILED', error))
     return
   }
 }
@@ -158,7 +150,7 @@ export const evaluateClarezaRules: RequestHandler = async (_req, res) => {
 /**
  * GET /api/courses/ogi/students
  */
-export const getOGIStudents: RequestHandler = async (_req, res) => {
+export const getOGIStudents: RequestHandler = async (_req, res, next) => {
   try {
     logger.info('🎓 [OGI] Iniciando busca de alunos...')
 
@@ -274,10 +266,7 @@ export const getOGIStudents: RequestHandler = async (_req, res) => {
     return
   } catch (error: unknown) {
     logger.error('❌ [OGI] Erro ao buscar alunos:', error)
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro ao buscar alunos')
-    })
+    next(internalError('Erro ao buscar alunos', 'AC_OGI_STUDENTS_READ_FAILED', error))
     return
   }
 }
@@ -285,17 +274,14 @@ export const getOGIStudents: RequestHandler = async (_req, res) => {
 /**
  * POST /api/courses/ogi/evaluate
  */
-export const evaluateOGIRules: RequestHandler = async (_req, res) => {
+export const evaluateOGIRules: RequestHandler = async (_req, res, next) => {
   try {
     const preview = await previewCourseRules({ code: /^OGI$/i })
     res.json({ success: true, ...preview })
     return
   } catch (error: unknown) {
     logger.error('❌ Erro ao pré-visualizar regras OGI:', error)
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro ao pré-visualizar regras')
-    })
+    next(internalError('Erro ao pré-visualizar regras', 'AC_OGI_RULES_PREVIEW_FAILED', error))
     return
   }
 }

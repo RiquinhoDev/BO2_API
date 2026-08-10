@@ -1,4 +1,4 @@
-import type { RequestHandler, Response } from 'express'
+import type { NextFunction, RequestHandler, Response } from 'express'
 import type { Types } from 'mongoose'
 
 import User from '../../models/user'
@@ -7,6 +7,8 @@ import UserProduct from '../../models/UserProduct'
 import CronExecutionLog from '../../models/cron/CronExecutionLog'
 import decisionEngine from '../../services/activeCampaign/decisionEngine.service'
 import type { ActiveCampaignEmptyInput } from '../../security/activeCampaignDestructiveInput'
+import { internalError } from '../../security/errorHandling'
+import type { ValidatedRequest } from '../../security/validatedInput'
 import logger from '../../utils/logger'
 
 type EvaluationError = {
@@ -19,7 +21,12 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
-export const testCron = async (_input: ActiveCampaignEmptyInput, res: Response): Promise<void> => {
+export const testCron = async (
+  _input: ActiveCampaignEmptyInput,
+  _req: ValidatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   const startTime = Date.now()
   const executionId = `MANUAL_${Date.now()}`
 
@@ -156,10 +163,7 @@ export const testCron = async (_input: ActiveCampaignEmptyInput, res: Response):
       }
     })
 
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro na avaliação manual')
-    })
+    next(internalError('Erro na avaliação manual', 'AC_MANUAL_EVALUATION_FAILED', error))
     return
   }
 }
@@ -168,13 +172,13 @@ export const testCron = async (_input: ActiveCampaignEmptyInput, res: Response):
  * GET /api/activecampaign/cron-logs
  * Retorna histórico das últimas 20 execuções
  */
-export const getCronLogs: RequestHandler = async (_req, res) => {
+export const getCronLogs: RequestHandler = async (_req, res, next) => {
   try {
     const logs = await CronExecutionLog.find().sort({ startedAt: -1 }).limit(20)
     res.json({ success: true, logs })
     return
   } catch (error: unknown) {
-    res.status(500).json({ success: false, message: errorMessage(error, 'Erro ao buscar cron logs') })
+    next(internalError('Erro ao buscar cron logs', 'AC_CRON_LOGS_READ_FAILED', error))
     return
   }
 }
@@ -183,7 +187,7 @@ export const getCronLogs: RequestHandler = async (_req, res) => {
  * GET /api/activecampaign/stats
  * Estatísticas gerais do Active Campaign
  */
-export const getStats: RequestHandler = async (_req, res) => {
+export const getStats: RequestHandler = async (_req, res, next) => {
   try {
     logger.info('📊 Buscando stats do Active Campaign...')
 
@@ -212,10 +216,7 @@ export const getStats: RequestHandler = async (_req, res) => {
     return
   } catch (error: unknown) {
     logger.error('❌ Erro ao buscar stats:', error)
-    res.status(500).json({
-      success: false,
-      error: errorMessage(error, 'Erro ao buscar estatísticas')
-    })
+    next(internalError('Erro ao buscar estatísticas', 'AC_STATS_READ_FAILED', error))
     return
   }
 }

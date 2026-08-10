@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import type { RequestHandler } from 'express'
+import { internalError } from '../../security/errorHandling'
 import mongoose from 'mongoose'
 import { UserProduct, Product, Course } from '../../models'
 
@@ -54,7 +55,7 @@ interface IConditions {
 // Estimar quantos alunos serão afetados pela regra
 // ─────────────────────────────────────────────────────────────
 
-export const estimateAffectedUsers: RequestHandler = async (req, res) => {
+export const estimateAffectedUsers: RequestHandler = async (req, res, next) => {
   try {
     const { conditions, courseId } = req.body as {
       conditions: IConditions
@@ -118,12 +119,9 @@ export const estimateAffectedUsers: RequestHandler = async (req, res) => {
       }
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao estimar alunos:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'TAG_RULE_ESTIMATE_FAILED', error))
     return
   }
 }
@@ -133,7 +131,7 @@ export const estimateAffectedUsers: RequestHandler = async (req, res) => {
 // Preview de alunos específicos que serão afetados
 // ─────────────────────────────────────────────────────────────
 
-export const previewAffectedUsers: RequestHandler = async (req, res) => {
+export const previewAffectedUsers: RequestHandler = async (req, res, next) => {
   try {
     const { conditions, courseId, limit = 10 } = req.body as {
       conditions: IConditions
@@ -205,12 +203,9 @@ export const previewAffectedUsers: RequestHandler = async (req, res) => {
       }
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao fazer preview:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'TAG_RULE_PREVIEW_FAILED', error))
     return
   }
 }
@@ -220,7 +215,7 @@ export const previewAffectedUsers: RequestHandler = async (req, res) => {
 // Listar campos disponíveis por source
 // ─────────────────────────────────────────────────────────────
 
-export const getAvailableFields: RequestHandler = async (_req, res) => {
+export const getAvailableFields: RequestHandler = async (_req, res, next) => {
   try {
     console.log('📋 Listando campos disponíveis...')
 
@@ -297,12 +292,9 @@ export const getAvailableFields: RequestHandler = async (_req, res) => {
       data: fields
     })
     return
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Erro ao listar campos:', error)
-    res.status(500).json({
-      success: false,
-      error: error?.message || 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'TAG_RULE_FIELDS_READ_FAILED', error))
     return
   }
 }

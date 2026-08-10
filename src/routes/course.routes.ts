@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
+import { asyncRoute } from '../security/asyncRoute'
 import {
   getAllCourses,
   getCourseById,
@@ -19,7 +20,6 @@ import {
   getOGIStudents, 
   evaluateOGIRules 
 } from '../controllers/acTags/activeCampaignCourse.controller'
-
 const router = Router()
 
 // ─────────────────────────────────────────────────────────────
@@ -70,28 +70,28 @@ router.delete('/:id', deleteCourse)
  * @desc    Retorna lista e stats de alunos Clareza
  * @access  Admin
  */
-router.get('/clareza/students', getClarezaStudents)
+router.get('/clareza/students', asyncRoute(getClarezaStudents))
 
 /**
  * @route   POST /api/courses/clareza/evaluate
  * @desc    Força avaliação de regras Clareza
  * @access  Admin
  */
-router.post('/clareza/evaluate', evaluateClarezaRules)
+router.post('/clareza/evaluate', asyncRoute(evaluateClarezaRules))
 
 /**
  * @route   GET /api/courses/ogi/students
  * @desc    Retorna lista e stats de alunos OGI
  * @access  Admin
  */
-router.get('/ogi/students', getOGIStudents)
+router.get('/ogi/students', asyncRoute(getOGIStudents))
 
 /**
  * @route   POST /api/courses/ogi/evaluate
  * @desc    Força avaliação de regras OGI
  * @access  Admin
  */
-router.post('/ogi/evaluate', evaluateOGIRules)
+router.post('/ogi/evaluate', asyncRoute(evaluateOGIRules))
 
 export default router
 

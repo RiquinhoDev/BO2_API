@@ -1,15 +1,12 @@
 {
   "src/controllers/acTags/acReader.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    },
     "no-console": {
       "count": 8
     }
   },
   "src/controllers/acTags/tagRule.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
+      "count": 1
     },
     "no-console": {
       "count": 9
@@ -17,7 +14,7 @@
   },
   "src/controllers/acTags/tagRuleEstimate.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 15
+      "count": 12
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 2

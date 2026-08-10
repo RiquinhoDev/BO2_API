@@ -59,38 +59,6 @@ function inventory(root = sourceRoot): Inventory {
 const BASELINE = {
   "rawEnvironmentRead": [],
   "localHttp500": [
-    "src/controllers/acTags/acReader.controller.ts:150",
-    "src/controllers/acTags/acReader.controller.ts:188",
-    "src/controllers/acTags/acReader.controller.ts:249",
-    "src/controllers/acTags/acReader.controller.ts:293",
-    "src/controllers/acTags/acReader.controller.ts:328",
-    "src/controllers/acTags/activeCampaignCourse.controller.ts:132",
-    "src/controllers/acTags/activeCampaignCourse.controller.ts:150",
-    "src/controllers/acTags/activeCampaignCourse.controller.ts:277",
-    "src/controllers/acTags/activeCampaignCourse.controller.ts:295",
-    "src/controllers/acTags/activeCampaignHistoryList.controller.ts:191",
-    "src/controllers/acTags/activeCampaignHistoryStats.controller.ts:195",
-    "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:110",
-    "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:29",
-    "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:52",
-    "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:81",
-    "src/controllers/acTags/activeCampaignOps.controller.ts:159",
-    "src/controllers/acTags/activeCampaignOps.controller.ts:177",
-    "src/controllers/acTags/activeCampaignOps.controller.ts:215",
-    "src/controllers/acTags/activeCampaignProductTags.controller.ts:120",
-    "src/controllers/acTags/activeCampaignProductTags.controller.ts:174",
-    "src/controllers/acTags/activeCampaignProductTags.controller.ts:218",
-    "src/controllers/acTags/activeCampaignProductTags.controller.ts:263",
-    "src/controllers/acTags/activeCampaignProductTags.controller.ts:323",
-    "src/controllers/acTags/tagRule.controller.ts:104",
-    "src/controllers/acTags/tagRule.controller.ts:143",
-    "src/controllers/acTags/tagRule.controller.ts:178",
-    "src/controllers/acTags/tagRule.controller.ts:215",
-    "src/controllers/acTags/tagRule.controller.ts:34",
-    "src/controllers/acTags/tagRule.controller.ts:67",
-    "src/controllers/acTags/tagRuleEstimate.controller.ts:123",
-    "src/controllers/acTags/tagRuleEstimate.controller.ts:210",
-    "src/controllers/acTags/tagRuleEstimate.controller.ts:302",
     "src/controllers/auth.controller.ts:107",
     "src/controllers/auth.controller.ts:154",
     "src/controllers/auth.controller.ts:207",
@@ -262,7 +230,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 188,
+  "localHttp500": 156,
   "publicErrorDetail": 0
 } as const
 
