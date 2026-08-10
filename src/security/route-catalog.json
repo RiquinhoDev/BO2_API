@@ -402,7 +402,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/productSalesStats.routes.ts:22"
+    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/productSalesStats.routes.ts:23"
   },
   {
     "method": "GET",
@@ -411,7 +411,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productSalesStats.routes.ts:28"
+    "evidence": "consumer nao identificado; rota em src/routes/productSalesStats.routes.ts:29"
   },
   {
     "method": "POST",
@@ -420,7 +420,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productSalesStats.routes.ts:39"
+    "evidence": "consumer nao identificado; rota em src/routes/productSalesStats.routes.ts:40"
   },
   {
     "method": "GET",
@@ -429,7 +429,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productSalesStats.routes.ts:25"
+    "evidence": "consumer nao identificado; rota em src/routes/productSalesStats.routes.ts:26"
   },
   {
     "method": "POST",
@@ -438,7 +438,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/productSalesStats.routes.ts:35"
+    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/productSalesStats.routes.ts:36"
   },
   {
     "method": "POST",
@@ -2445,7 +2445,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:19"
+    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:20"
   },
   {
     "method": "POST",
@@ -2454,7 +2454,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:40"
+    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:41"
   },
   {
     "method": "DELETE",
@@ -2463,7 +2463,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:62"
+    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:63"
   },
   {
     "method": "GET",
@@ -2472,7 +2472,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:26"
+    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:27"
   },
   {
     "method": "PUT",
@@ -2481,7 +2481,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:54"
+    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:55"
   },
   {
     "method": "POST",
@@ -2490,7 +2490,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:47"
+    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:48"
   },
   {
     "method": "GET",
@@ -2499,7 +2499,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:33"
+    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:34"
   },
   {
     "method": "GET",
@@ -2508,7 +2508,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/pages/dashboard/DashboardMainPage.tsx>, <src/services/api.ts>; rota em src/routes/products.routes.ts:34"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/pages/dashboard/DashboardMainPage.tsx>, <src/services/api.ts>; rota em src/routes/products.routes.ts:35"
   },
   {
     "method": "POST",
@@ -2517,10 +2517,28 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:47"
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:48"
   },
   {
     "method": "DELETE",
+    "path": "/api/products/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:50"
+  },
+  {
+    "method": "GET",
+    "path": "/api/products/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:53"
+  },
+  {
+    "method": "PUT",
     "path": "/api/products/:id",
     "access": "authenticated",
     "consumer": "front",
@@ -2530,30 +2548,12 @@
   },
   {
     "method": "GET",
-    "path": "/api/products/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:52"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/products/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:48"
-  },
-  {
-    "method": "GET",
     "path": "/api/products/:id/analytics",
     "access": "authenticated",
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:54"
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:55"
   },
   {
     "method": "GET",
@@ -2562,7 +2562,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:53"
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:54"
   },
   {
     "method": "GET",
@@ -2571,7 +2571,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:37"
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:38"
   },
   {
     "method": "GET",
@@ -2580,7 +2580,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:40"
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:41"
   },
   {
     "method": "POST",

@@ -56,6 +56,7 @@ test('accepts a business code and forwards hardDelete', async () => {
       body: {},
     }),
     expect.anything(),
+    expect.anything(),
   )
 })
 

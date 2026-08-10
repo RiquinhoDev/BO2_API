@@ -154,19 +154,14 @@
       "count": 9
     }
   },
-  "src/controllers/guruSnapshots/analytics.controller.ts": {
-    "no-console": {
-      "count": 1
-    }
-  },
   "src/controllers/guruSnapshots/crud.controller.ts": {
     "no-console": {
-      "count": 28
+      "count": 22
     }
   },
   "src/controllers/guruSnapshots/history.controller.ts": {
     "no-console": {
-      "count": 22
+      "count": 21
     },
     "prefer-const": {
       "count": 1
@@ -221,34 +216,31 @@
   },
   "src/controllers/products/product.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 9
-    },
-    "no-console": {
-      "count": 7
+      "count": 2
     }
   },
   "src/controllers/products/productProfile.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 10
+      "count": 3
     },
     "no-console": {
-      "count": 12
+      "count": 5
     }
   },
   "src/controllers/products/productSalesStats.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 9
+      "count": 4
     },
     "no-console": {
-      "count": 8
+      "count": 3
     }
   },
   "src/controllers/products/products.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 5
+      "count": 1
     },
     "no-console": {
-      "count": 9
+      "count": 5
     }
   },
   "src/controllers/studentHistory.controller.ts": {
