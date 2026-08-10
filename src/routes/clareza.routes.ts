@@ -1,44 +1,45 @@
 import { Router } from 'express'
 import { clarezaController } from '../controllers/clarezaController'
+import { asyncRoute } from '../security/asyncRoute'
 
 const router = Router()
 
 // Endpoint público — chamado pelo tremómetro HTML
-router.get('/data', clarezaController.getData)
+router.get('/data', asyncRoute(clarezaController.getData))
 
 // Refresh manual — protegido por api_key no header (verificado via CORS + allowedHeaders)
-router.post('/refresh', clarezaController.refresh)
+router.post('/refresh', asyncRoute(clarezaController.refresh))
 
 // Endpoint público — análise REIT por ticker (live FMP, qualquer REIT)
-router.get('/reit-valuation/:ticker', clarezaController.getReitValuation)
-router.get('/reit/:ticker', clarezaController.getReit)
-router.get('/stock/:ticker', clarezaController.getStock)
+router.get('/reit-valuation/:ticker', asyncRoute(clarezaController.getReitValuation))
+router.get('/reit/:ticker', asyncRoute(clarezaController.getReit))
+router.get('/stock/:ticker', asyncRoute(clarezaController.getStock))
 
 // Endpoint público — chamado pelo HTML Top 10 Ações da Equipa
-router.get('/top10', clarezaController.getTop10)
+router.get('/top10', asyncRoute(clarezaController.getTop10))
 
 // Refresh manual do Top 10 — mesmo token que /refresh
-router.post('/top10/refresh', clarezaController.refreshTop10)
+router.post('/top10/refresh', asyncRoute(clarezaController.refreshTop10))
 
 // Endpoint público — Raio-X da Ação por ticker (cache-first) + pesquisa
 // /raiox?symbol=X ou /raiox?search=X — contrato compatível com o PHP original,
 // usado pelo HTML de produção (raio-x-acao.html).
-router.get('/raiox', clarezaController.getRaioxByQuery)
-router.get('/raiox-search', clarezaController.searchRaiox)
-router.get('/raiox-diagnose', clarezaController.diagnoseRaiox)
-router.get('/raiox/:ticker', clarezaController.getRaiox)
+router.get('/raiox', asyncRoute(clarezaController.getRaioxByQuery))
+router.get('/raiox-search', asyncRoute(clarezaController.searchRaiox))
+router.get('/raiox-diagnose', asyncRoute(clarezaController.diagnoseRaiox))
+router.get('/raiox/:ticker', asyncRoute(clarezaController.getRaiox))
 
 // Refresh manual do Raio-X — mesmo token que /refresh
-router.post('/raiox/refresh', clarezaController.refreshRaiox)
+router.post('/raiox/refresh', asyncRoute(clarezaController.refreshRaiox))
 
 
 // Endpoint publico - Raio-X da Carteira
-router.get('/carteira/data', clarezaController.getCarteira)
-router.get('/carteira-search', clarezaController.searchCarteira)
-router.post('/carteira/refresh', clarezaController.refreshCarteira)
+router.get('/carteira/data', asyncRoute(clarezaController.getCarteira))
+router.get('/carteira-search', asyncRoute(clarezaController.searchCarteira))
+router.post('/carteira/refresh', asyncRoute(clarezaController.refreshCarteira))
 // Endpoint publico - Calendario de Resultados
-router.get('/earnings/data', clarezaController.getEarnings)
-router.post('/earnings/refresh', clarezaController.refreshEarnings)
+router.get('/earnings/data', asyncRoute(clarezaController.getEarnings))
+router.post('/earnings/refresh', asyncRoute(clarezaController.refreshEarnings))
 
 // Endpoint publico — Comparador de Ações. Contrato igual ao PHP original:
 // ?symbols=AAPL,MSFT (máx. 4) compara, ?search=apple pesquisa.

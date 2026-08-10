@@ -38,7 +38,7 @@
   },
   "src/controllers/clarezaController.ts": {
     "no-console": {
-      "count": 22
+      "count": 5
     }
   },
   "src/controllers/cohortAnalytics.controller.ts": {
