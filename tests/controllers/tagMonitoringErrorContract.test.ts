@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import * as ts from 'typescript'
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express, { type NextFunction, type Request, type Response } from 'express'
 import request from 'supertest'
@@ -39,8 +40,14 @@ const tagMonitoringRouteSourcePath = path.resolve(
   __dirname,
   '../../src/routes/tagMonitoring.routes.ts',
 )
-const controllerHandlerReference = /\b(criticalTagController|tagNotificationController|tagMonitoringController)\.([A-Za-z0-9_]+)/g
-
+const routesIndexSourcePath = path.resolve(__dirname, '../../src/routes/index.ts')
+const registerRoutesSourcePath = path.resolve(__dirname, '../../src/runtime/registerRoutes.ts')
+const controllerObjectNames = new Set([
+  'criticalTagController',
+  'tagNotificationController',
+  'tagMonitoringController',
+])
+const routerMethodNames = new Set(['get', 'post', 'patch', 'delete'])
 const controllerFamilies = {
   criticalTagController,
   tagNotificationController,
@@ -53,12 +60,80 @@ function exportedControllerHandlerNames(): string[] {
     .sort()
 }
 
+function parseTypeScript(fileName: string, source: string): ts.SourceFile {
+  return ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+}
+
+function isRouterRouteCall(node: ts.CallExpression): boolean {
+  return ts.isPropertyAccessExpression(node.expression)
+    && ts.isIdentifier(node.expression.expression)
+    && node.expression.expression.text === 'router'
+    && routerMethodNames.has(node.expression.name.text)
+}
+
+function addControllerReferences(node: ts.Node, handlerNames: Set<string>) {
+  if (
+    ts.isPropertyAccessExpression(node)
+    && ts.isIdentifier(node.expression)
+    && controllerObjectNames.has(node.expression.text)
+  ) {
+    handlerNames.add(`${node.expression.text}.${node.name.text}`)
+  }
+  ts.forEachChild(node, (child) => addControllerReferences(child, handlerNames))
+}
+
 function routedControllerHandlerNames(routeSource: string): string[] {
   const routedHandlerNames = new Set<string>()
-  for (const match of routeSource.matchAll(controllerHandlerReference)) {
-    routedHandlerNames.add(`${match[1]}.${match[2]}`)
+  const sourceFile = parseTypeScript(tagMonitoringRouteSourcePath, routeSource)
+
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node) && isRouterRouteCall(node)) {
+      node.arguments.forEach((argument) => addControllerReferences(argument, routedHandlerNames))
+    }
+    ts.forEachChild(node, visit)
   }
+
+  visit(sourceFile)
   return [...routedHandlerNames].sort()
+}
+
+function hasDefaultImport(source: string, modulePath: string, localName: string): boolean {
+  const sourceFile = parseTypeScript(modulePath, source)
+  return sourceFile.statements.some((statement) =>
+    ts.isImportDeclaration(statement)
+      && ts.isStringLiteral(statement.moduleSpecifier)
+      && statement.moduleSpecifier.text === modulePath
+      && statement.importClause?.name?.text === localName,
+  )
+}
+
+function hasRouterUseMount(
+  source: string,
+  receiver: string,
+  mountedPath: string,
+  handler: string,
+): boolean {
+  const sourceFile = parseTypeScript(receiver, source)
+  let foundMount = false
+
+  function visit(node: ts.Node) {
+    if (
+      ts.isCallExpression(node)
+      && ts.isPropertyAccessExpression(node.expression)
+      && ts.isIdentifier(node.expression.expression)
+      && node.expression.expression.text === receiver
+      && node.expression.name.text === 'use'
+      && ts.isStringLiteral(node.arguments[0])
+      && node.arguments[0].text === mountedPath
+      && node.arguments.slice(1).some((argument) => ts.isIdentifier(argument) && argument.text === handler)
+    ) {
+      foundMount = true
+    }
+    ts.forEachChild(node, visit)
+  }
+
+  visit(sourceFile)
+  return foundMount
 }
 
 function buildApp() {
@@ -95,24 +170,36 @@ beforeEach(() => {
   jest.clearAllMocks()
 })
 
-test('every exported Tag Monitoring controller handler is mounted or intentionally private', () => {
+test('production API mounts every exported Tag Monitoring controller handler', () => {
   const exportedHandlerNames = exportedControllerHandlerNames()
   const routeSource = fs.readFileSync(tagMonitoringRouteSourcePath, 'utf8')
   const routedHandlerNames = routedControllerHandlerNames(routeSource)
   const publiclyMountedHandlerNames = exportedHandlerNames.filter(
     (name) => !privateHandlerNames.has(name),
   )
+  const removedHandler = 'tagNotificationController.dismissNotification'
+  const mutatedRouteSource = routeSource.replace(removedHandler, 'dismissNotification')
+  const commentOnlyRouteSource = `${mutatedRouteSource}\n// ${removedHandler}`
+  const routesIndexSource = fs.readFileSync(routesIndexSourcePath, 'utf8')
+  const registerRoutesSource = fs.readFileSync(registerRoutesSourcePath, 'utf8')
 
   expect(routedHandlerNames).toEqual(publiclyMountedHandlerNames)
   expect(exportedHandlerNames.filter((name) => !routedHandlerNames.includes(name) && !privateHandlerNames.has(name))).toEqual([])
-  const removedHandler = 'tagNotificationController.dismissNotification'
-  const mutatedRouteSource = routeSource.replace(removedHandler, '/* removed handler */')
 
   expect(routeSource).toContain(removedHandler)
   expect(routedControllerHandlerNames(mutatedRouteSource)).not.toContain(removedHandler)
   expect(routedControllerHandlerNames(mutatedRouteSource)).not.toEqual(
-    exportedControllerHandlerNames(),
+    publiclyMountedHandlerNames,
   )
+  expect(routedControllerHandlerNames(commentOnlyRouteSource)).toEqual(
+    routedControllerHandlerNames(mutatedRouteSource),
+  )
+  expect(routedControllerHandlerNames(commentOnlyRouteSource)).not.toContain(removedHandler)
+
+  expect(hasDefaultImport(routesIndexSource, './tagMonitoring.routes', 'tagMonitoringRoutes')).toBe(true)
+  expect(hasRouterUseMount(routesIndexSource, 'router', '/tag-monitoring', 'tagMonitoringRoutes')).toBe(true)
+  expect(hasDefaultImport(registerRoutesSource, '../routes', 'router')).toBe(true)
+  expect(hasRouterUseMount(registerRoutesSource, 'app', '/api', 'router')).toBe(true)
 })
 
 test('monitoring stats failures use the central redacted error contract', async () => {
