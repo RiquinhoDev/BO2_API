@@ -1,3 +1,7 @@
+import type { NextFunction } from 'express'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { internalError } from '../../security/errorHandling'
+
 // ✅ CACHE OTIMIZADO (NOVO) - apenas adiciona cache às funções existentes
 export class EngagementStatsCache<T> {
   private cache = new Map<string, { data: T; timestamp: number }>()
@@ -91,8 +95,17 @@ export interface EngagementLevelStat {
   count: number
 }
 
-export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+export function forwardEngagementError(
+  next: NextFunction,
+  error: unknown,
+  publicMessage: string,
+  code: string,
+): void {
+  if (error instanceof IntegrationUnavailableError) {
+    next(error)
+    return
+  }
+  next(internalError(publicMessage, code, error))
 }
 
 export function isEngagementLevel(value: unknown): value is EngagementLevel {

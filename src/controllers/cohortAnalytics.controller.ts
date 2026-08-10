@@ -2,9 +2,23 @@
 // 📊 COHORT ANALYTICS CONTROLLER
 // ════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
+import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
 import cohortAnalyticsService from '../services/analytics/cohortAnalytics.service'
 import { CohortAnalysisFilters } from '../types/cohortTypes'
+import { internalError } from '../security/errorHandling'
+
+function forwardCohortError(next: NextFunction, error: unknown): void {
+  if (error instanceof IntegrationUnavailableError) {
+    next(error)
+    return
+  }
+  next(internalError(
+    'Failed to fetch cohort analysis',
+    'COHORT_ANALYTICS_READ_FAILED',
+    error,
+  ))
+}
 
 class CohortAnalyticsController {
   
@@ -12,7 +26,7 @@ class CohortAnalyticsController {
   // GET COHORT ANALYSIS
   // ─────────────────────────────────────────────────────────
   
-  async getCohortAnalysis(req: Request, res: Response) {
+  async getCohortAnalysis(req: Request, res: Response, next: NextFunction) {
     try {
       const filters: CohortAnalysisFilters = {
         productId: req.query.productId as string,
@@ -49,12 +63,8 @@ class CohortAnalyticsController {
         }
       })
       
-    } catch (error: any) {
-      console.error('❌ [CohortAnalytics] Error:', error)
-      return res.status(500).json({
-        success: false,
-        error: error.message || 'Failed to fetch cohort analysis'
-      })
+    } catch (error: unknown) {
+      forwardCohortError(next, error)
     }
   }
 }

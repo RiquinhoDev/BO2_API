@@ -1,6 +1,21 @@
 // src/controllers/lessons.controller.ts
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
+import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
 import { hotmartLessonsService } from '../services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService'
+import { internalError } from '../security/errorHandling'
+
+function forwardLessonsError(
+  next: NextFunction,
+  error: unknown,
+  publicMessage: string,
+  code: string,
+): void {
+  if (error instanceof IntegrationUnavailableError) {
+    next(error)
+    return
+  }
+  next(internalError(publicMessage, code, error))
+}
 
 type UserLessonsParams = {
   userId: string
@@ -8,7 +23,7 @@ type UserLessonsParams = {
 
 class LessonsController {
   // 📚 Buscar lições de um utilizador específico
-  getUserLessons = async (req: Request<UserLessonsParams>, res: Response): Promise<void> => {
+  getUserLessons = async (req: Request<UserLessonsParams>, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { userId } = req.params
       const { subdomain, userEmail, userName } = req.query
@@ -44,19 +59,13 @@ class LessonsController {
         data: lessonsData,
         timestamp: new Date().toISOString()
       })
-    } catch (error: any) {
-      console.error('❌ Erro ao buscar lições do utilizador:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar lições do utilizador',
-        error: error.message,
-        timestamp: new Date().toISOString()
-      })
+    } catch (error: unknown) {
+      forwardLessonsError(next, error, 'Erro ao buscar lições do utilizador', 'LESSONS_USER_READ_FAILED')
     }
   }
 
   // 📊 Buscar lições de múltiplos utilizadores (para dashboard)
-  getMultipleUsersLessons = async (req: Request, res: Response): Promise<void> => {
+  getMultipleUsersLessons = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { userIds, subdomain } = req.body
 
@@ -90,19 +99,13 @@ class LessonsController {
         },
         timestamp: new Date().toISOString()
       })
-    } catch (error: any) {
-      console.error('❌ Erro ao buscar lições de múltiplos utilizadores:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar lições de múltiplos utilizadores',
-        error: error.message,
-        timestamp: new Date().toISOString()
-      })
+    } catch (error: unknown) {
+      forwardLessonsError(next, error, 'Erro ao buscar lições de múltiplos utilizadores', 'LESSONS_MULTIPLE_READ_FAILED')
     }
   }
 
   // 🎯 Buscar lições integradas com dados do utilizador do sistema
-  getUserLessonsIntegrated = async (req: Request<UserLessonsParams>, res: Response): Promise<void> => {
+  getUserLessonsIntegrated = async (req: Request<UserLessonsParams>, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { userId } = req.params
       const { subdomain } = req.query
@@ -142,19 +145,13 @@ class LessonsController {
         data: lessonsData,
         timestamp: new Date().toISOString()
       })
-    } catch (error: any) {
-      console.error('❌ Erro ao buscar lições integradas:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao buscar lições integradas',
-        error: error.message,
-        timestamp: new Date().toISOString()
-      })
+    } catch (error: unknown) {
+      forwardLessonsError(next, error, 'Erro ao buscar lições integradas', 'LESSONS_INTEGRATED_READ_FAILED')
     }
   }
 
   // 📈 Estatísticas de progresso das lições
-  getLessonsStats = async (req: Request, res: Response): Promise<void> => {
+  getLessonsStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { userIds, subdomain } = req.query
 
@@ -195,19 +192,13 @@ class LessonsController {
         },
         timestamp: new Date().toISOString()
       })
-    } catch (error: any) {
-      console.error('❌ Erro ao calcular estatísticas das lições:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro ao calcular estatísticas das lições',
-        error: error.message,
-        timestamp: new Date().toISOString()
-      })
+    } catch (error: unknown) {
+      forwardLessonsError(next, error, 'Erro ao calcular estatísticas das lições', 'LESSONS_STATS_READ_FAILED')
     }
   }
 
   // 🧪 Testar conexão com a API da Hotmart
-  testHotmartConnection = async (req: Request, res: Response): Promise<void> => {
+  testHotmartConnection = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { subdomain, testUserId } = req.query
 
@@ -232,14 +223,8 @@ class LessonsController {
         },
         timestamp: new Date().toISOString()
       })
-    } catch (error: any) {
-      console.error('❌ Erro no teste de conexão:', error)
-      res.status(500).json({
-        success: false,
-        message: 'Erro na conexão com Hotmart',
-        error: error.message,
-        timestamp: new Date().toISOString()
-      })
+    } catch (error: unknown) {
+      forwardLessonsError(next, error, 'Erro na conexão com Hotmart', 'LESSONS_INTEGRATION_TEST_FAILED')
     }
   }
 }

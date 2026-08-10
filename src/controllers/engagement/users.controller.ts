@@ -1,9 +1,9 @@
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
 import { FilterQuery, PipelineStage } from 'mongoose'
 import User, { IUser } from '../../models/user'
-import { type EngagementFacetResult, errorMessage } from './support'
+import { type EngagementFacetResult, forwardEngagementError } from './support'
 
-export const getUsersEngagementDetails = async (req: Request, res: Response): Promise<void> => {
+export const getUsersEngagementDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { 
       page = 1, 
@@ -248,12 +248,7 @@ export const getUsersEngagementDetails = async (req: Request, res: Response): Pr
     })
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao buscar detalhes de engagement:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar detalhes de engagement',
-      details: errorMessage(error)
-    })
+    forwardEngagementError(next, error, 'Erro ao buscar detalhes de engagement', 'ENGAGEMENT_USERS_READ_FAILED')
   }
 }
 

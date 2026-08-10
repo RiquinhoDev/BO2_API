@@ -31,35 +31,35 @@ const router = Router()
  * @desc    Listar todos os cursos
  * @access  Admin
  */
-router.get('/', getAllCourses)
+router.get('/', asyncRoute(getAllCourses))
 
 /**
  * @route   GET /api/courses/:id
  * @desc    Buscar curso por ID
  * @access  Admin
  */
-router.get('/:id', getCourseById)
+router.get('/:id', asyncRoute(getCourseById))
 
 /**
  * @route   POST /api/courses
  * @desc    Criar novo curso
  * @access  Admin
  */
-router.post('/', createCourse)
+router.post('/', asyncRoute(createCourse))
 
 /**
  * @route   PUT /api/courses/:id
  * @desc    Atualizar curso
  * @access  Admin
  */
-router.put('/:id', updateCourse)
+router.put('/:id', asyncRoute(updateCourse))
 
 /**
  * @route   DELETE /api/courses/:id
  * @desc    Desativar curso
  * @access  Admin
  */
-router.delete('/:id', deleteCourse)
+router.delete('/:id', asyncRoute(deleteCourse))
 
 // ─────────────────────────────────────────────────────────────
 // ✅ ACTIVE CAMPAIGN: ROTAS ESPECÍFICAS CLAREZA + OGI

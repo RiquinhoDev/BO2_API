@@ -3,15 +3,30 @@
 // Controller CRUD para Cursos
 // ════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
+import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
 import Course from '../models/Course'
 import TagRule from '../models/acTags/TagRule'
+import { internalError } from '../security/errorHandling'
+
+function forwardCourseError(
+  next: NextFunction,
+  error: unknown,
+  publicMessage: string,
+  code: string,
+): void {
+  if (error instanceof IntegrationUnavailableError) {
+    next(error)
+    return
+  }
+  next(internalError(publicMessage, code, error))
+}
 
 // ─────────────────────────────────────────────────────────────
 // LISTAR TODOS OS CURSOS
 // ─────────────────────────────────────────────────────────────
 
-export const getAllCourses = async (req: Request, res: Response) => {
+export const getAllCourses = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const courses = await Course.find().sort({ name: 1 })
     
@@ -20,12 +35,8 @@ export const getAllCourses = async (req: Request, res: Response) => {
       count: courses.length,
       data: courses
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao listar cursos:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+  } catch (error: unknown) {
+    forwardCourseError(next, error, 'Erro ao listar cursos', 'COURSE_LIST_FAILED')
   }
 }
 
@@ -33,7 +44,7 @@ export const getAllCourses = async (req: Request, res: Response) => {
 // BUSCAR CURSO POR ID
 // ─────────────────────────────────────────────────────────────
 
-export const getCourseById = async (req: Request, res: Response) => {
+export const getCourseById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
     
@@ -59,12 +70,8 @@ export const getCourseById = async (req: Request, res: Response) => {
         rulesCount: rules.length
       }
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar curso:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+  } catch (error: unknown) {
+    forwardCourseError(next, error, 'Erro ao buscar curso', 'COURSE_READ_FAILED')
   }
 }
 
@@ -72,7 +79,7 @@ export const getCourseById = async (req: Request, res: Response) => {
 // CRIAR NOVO CURSO
 // ─────────────────────────────────────────────────────────────
 
-export const createCourse = async (req: Request, res: Response) => {
+export const createCourse = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const courseData = req.body
     
@@ -93,12 +100,8 @@ export const createCourse = async (req: Request, res: Response) => {
       success: true,
       data: course
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao criar curso:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+  } catch (error: unknown) {
+    forwardCourseError(next, error, 'Erro ao criar curso', 'COURSE_CREATE_FAILED')
   }
 }
 
@@ -106,7 +109,7 @@ export const createCourse = async (req: Request, res: Response) => {
 // ATUALIZAR CURSO
 // ─────────────────────────────────────────────────────────────
 
-export const updateCourse = async (req: Request, res: Response) => {
+export const updateCourse = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
     const updates = req.body
@@ -130,12 +133,8 @@ export const updateCourse = async (req: Request, res: Response) => {
       success: true,
       data: course
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao atualizar curso:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+  } catch (error: unknown) {
+    forwardCourseError(next, error, 'Erro ao atualizar curso', 'COURSE_UPDATE_FAILED')
   }
 }
 
@@ -143,7 +142,7 @@ export const updateCourse = async (req: Request, res: Response) => {
 // DELETAR CURSO (soft delete)
 // ─────────────────────────────────────────────────────────────
 
-export const deleteCourse = async (req: Request, res: Response) => {
+export const deleteCourse = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
     
@@ -173,12 +172,8 @@ export const deleteCourse = async (req: Request, res: Response) => {
       success: true,
       message: 'Curso desativado com sucesso'
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao deletar curso:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+  } catch (error: unknown) {
+    forwardCourseError(next, error, 'Erro ao deletar curso', 'COURSE_DELETE_FAILED')
   }
 }
 
