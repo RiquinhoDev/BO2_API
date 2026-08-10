@@ -1,6 +1,6 @@
 # SEC-10 Closure and ARCH-03 Foundation Design
 
-**Date:** 2026-08-10  
+**Date:** 2026-08-10
 **Branch:** `remake`  
 **Scope:** BO2_API, with read-only Front inspection where consumer evidence is required
 
