@@ -338,6 +338,16 @@ test('production boundary inventory matches the migration baseline', () => {
   expect(current.publicErrorDetail).toEqual(BASELINE.publicErrorDetail)
 })
 
+test('records the complete Tag Monitoring local 500 wave', () => {
+  const tagMonitoringDebt = BASELINE.localHttp500.filter((entry) =>
+    entry.startsWith('src/controllers/tagMonitoring/'),
+  )
+
+  expect(tagMonitoringDebt).toHaveLength(27)
+  expect(tagMonitoringDebt.filter((entry) => entry.includes('tagMonitoring.controller.ts'))).toHaveLength(10)
+  expect(tagMonitoringDebt.filter((entry) => entry.includes('tagNotification.controller.ts'))).toHaveLength(9)
+  expect(tagMonitoringDebt.filter((entry) => entry.includes('criticalTag.controller.ts'))).toHaveLength(8)
+})
 test('production boundary debt never grows', () => {
   const current = inventory()
 
