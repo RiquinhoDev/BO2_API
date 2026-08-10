@@ -5,7 +5,7 @@
 // ════════════════════════════════════════════════════════════
 
 import mongoose from 'mongoose'
-import schedule, { Job, RecurrenceRule } from 'node-schedule'
+import schedule, { RecurrenceRule } from 'node-schedule'
 import CronJobConfig, {
   ICronJobConfig,
   ILastRunStats,
@@ -19,6 +19,7 @@ import hotmartAdapter from '../syncUtilizadoresServices/hotmartServices/hotmart.
 import universalSyncService from '../syncUtilizadoresServices/universalSync'
 import curseducaAdapter from '../syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../types/cron.types'
+import { SchedulerRegistry } from './scheduler/registry'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
 const RENEWAL_OFFER_SYNC_JOB_NAME = 'RenewalOfferSync'
@@ -35,38 +36,6 @@ const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('0000000000000000000000
 // ─────────────────────────────────────────────────────────────
 // IN-MEMORY SCHEDULER REGISTRY
 // ─────────────────────────────────────────────────────────────
-
-class SchedulerRegistry {
-  private jobs: Map<string, Job> = new Map()
-
-  register(jobId: string, scheduledJob: Job): void {
-    // Cancelar job anterior se existir
-    if (this.jobs.has(jobId)) {
-      this.jobs.get(jobId)?.cancel()
-    }
-    this.jobs.set(jobId, scheduledJob)
-  }
-
-  unregister(jobId: string): void {
-    if (this.jobs.has(jobId)) {
-      this.jobs.get(jobId)?.cancel()
-      this.jobs.delete(jobId)
-    }
-  }
-
-  get(jobId: string): Job | undefined {
-    return this.jobs.get(jobId)
-  }
-
-  getAll(): Map<string, Job> {
-    return this.jobs
-  }
-
-  clear(): void {
-    this.jobs.forEach(job => job.cancel())
-    this.jobs.clear()
-  }
-}
 
 const registry = new SchedulerRegistry()
 
