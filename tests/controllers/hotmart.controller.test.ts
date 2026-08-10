@@ -42,7 +42,8 @@ test('returns the canonical top-level Hotmart subdomain in stats', async () => {
   jest.mocked(getUsersByProduct).mockResolvedValue([])
 
   const json = jest.fn()
-  await getHotmartStats({} as Request, { json } as unknown as Response)
+  const next = jest.fn()
+  await getHotmartStats({} as Request, { json } as unknown as Response, next)
 
   expect(json).toHaveBeenCalledWith(expect.objectContaining({
     data: [expect.objectContaining({ subdomain: 'clareza' })]
@@ -69,7 +70,8 @@ test('forwards the authenticated principal id to universal sync', async () => {
   const json = jest.fn()
   const req = { user: { id: 'admin-id' } } as Request
 
-  await syncHotmartUsersUniversal(req, { status, json } as unknown as Response)
+  const next = jest.fn()
+  await syncHotmartUsersUniversal(req, { status, json } as unknown as Response, next)
 
   expect(universalSyncService.executeUniversalSync).toHaveBeenCalledWith(
     expect.objectContaining({ triggeredByUser: 'admin-id' })

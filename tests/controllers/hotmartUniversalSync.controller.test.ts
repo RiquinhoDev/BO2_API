@@ -50,7 +50,7 @@ describe('Hotmart Universal Sync controller', () => {
     jest.mocked(hotmartAdapter.fetchHotmartDataForSync).mockResolvedValue(sourceData)
     const { response, status, json } = responseHarness()
 
-    await syncHotmartUsersUniversal({ user: { id: 'admin-id' } } as Request, response)
+    await syncHotmartUsersUniversal({ user: { id: 'admin-id' } } as Request, response, jest.fn())
 
     expect(hotmartAdapter.fetchHotmartDataForSync).toHaveBeenCalledWith({
       includeProgress: true,
@@ -82,7 +82,7 @@ describe('Hotmart Universal Sync controller', () => {
     jest.mocked(hotmartAdapter.fetchHotmartDataForSync).mockResolvedValue([])
     const { response, status, json } = responseHarness()
 
-    await syncHotmartUsersUniversal({} as Request, response)
+    await syncHotmartUsersUniversal({} as Request, response, jest.fn())
 
     expect(universalSyncService.executeUniversalSync).not.toHaveBeenCalled()
     expect(status).toHaveBeenCalledWith(200)
@@ -113,7 +113,7 @@ describe('Hotmart Universal Sync controller', () => {
     )
     const { response, status, json } = responseHarness()
 
-    await syncProgressOnlyUniversal({ user: { id: 'admin-id' } } as Request, response)
+    await syncProgressOnlyUniversal({ user: { id: 'admin-id' } } as Request, response, jest.fn())
 
     expect(User.find).toHaveBeenCalledWith({
       'hotmart.hotmartUserId': { $exists: true, $nin: [null, ''] }
@@ -141,7 +141,7 @@ describe('Hotmart Universal Sync controller', () => {
     jest.mocked(User.find).mockReturnValue({ select } as unknown as ReturnType<typeof User.find>)
     const { response, status, json } = responseHarness()
 
-    await syncProgressOnlyUniversal({} as Request, response)
+    await syncProgressOnlyUniversal({} as Request, response, jest.fn())
 
     expect(hotmartAdapter.fetchProgressForExistingUsers).not.toHaveBeenCalled()
     expect(universalSyncService.executeUniversalSync).not.toHaveBeenCalled()

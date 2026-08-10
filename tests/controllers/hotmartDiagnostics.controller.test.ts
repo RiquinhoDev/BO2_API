@@ -37,7 +37,7 @@ describe('Hotmart diagnostics controller', () => {
   test('requires an email before querying the user', async () => {
     const { response, status, json } = responseHarness()
 
-    await findHotmartUser({ query: {} } as Request, response)
+    await findHotmartUser({ query: {} } as Request, response, jest.fn())
 
     expect(User.findOne).not.toHaveBeenCalled()
     expect(status).toHaveBeenCalledWith(400)
@@ -57,7 +57,7 @@ describe('Hotmart diagnostics controller', () => {
 
     await findHotmartUser(
       { query: { email: 'student@example.test' } } as unknown as Request,
-      response
+      response, jest.fn()
     )
 
     expect(User.findOne).toHaveBeenCalledWith({ email: 'student@example.test' })
@@ -81,7 +81,7 @@ describe('Hotmart diagnostics controller', () => {
 
     await findHotmartUser(
       { query: { email: 'missing@example.test' } } as unknown as Request,
-      response
+      response, jest.fn()
     )
 
     expect(status).toHaveBeenCalledWith(404)
@@ -104,7 +104,7 @@ describe('Hotmart diagnostics controller', () => {
     )
     const { response, json } = responseHarness()
 
-    await compareSyncMethods({} as Request, response)
+    await compareSyncMethods({} as Request, response, jest.fn())
 
     expect(SyncHistory.find).toHaveBeenCalledWith({ type: 'hotmart' })
     expect(legacyQuery.sort).toHaveBeenCalledWith({ startedAt: -1 })

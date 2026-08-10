@@ -1,11 +1,21 @@
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
+import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { internalError } from '../../security/errorHandling'
 import { SyncHistory, User } from '../../models'
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+function forwardHotmartError(
+  next: NextFunction,
+  error: unknown,
+  publicMessage: string,
+  code: string,
+): void {
+  if (error instanceof IntegrationUnavailableError) {
+    next(error)
+    return
+  }
+  next(internalError(publicMessage, code, error))
 }
-
-export const findHotmartUser = async (req: Request, res: Response): Promise<void> => {
+export const findHotmartUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { email } = req.query
 
@@ -33,11 +43,11 @@ export const findHotmartUser = async (req: Request, res: Response): Promise<void
       }
     })
   } catch (error: unknown) {
-    res.status(500).json({ message: 'Erro ao buscar utilizador', error: errorMessage(error) })
+    forwardHotmartError(next, error, 'Erro ao buscar utilizador', 'HOTMART_USER_READ_FAILED')
   }
 }
 
-export const compareSyncMethods = async (_req: Request, res: Response): Promise<void> => {
+export const compareSyncMethods = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const SyncReport = (await import('../../models/SyncModels/SyncReport')).default
     const legacyHistory = await SyncHistory.find({ type: 'hotmart' })
@@ -79,6 +89,6 @@ export const compareSyncMethods = async (_req: Request, res: Response): Promise<
       }
     })
   } catch (error: unknown) {
-    res.status(500).json({ success: false, message: errorMessage(error) })
+    forwardHotmartError(next, error, 'Erro ao comparar sincronizações Hotmart', 'HOTMART_SYNC_COMPARISON_FAILED')
   }
 }
