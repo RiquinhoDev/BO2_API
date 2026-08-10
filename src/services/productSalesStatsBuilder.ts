@@ -1,231 +1,48 @@
-// ════════════════════════════════════════════════════════════
-// 📁 src/services/productSalesStatsBuilder.service.ts
-// SERVICE: Construtor de Estatísticas de Vendas por Produto
-// ════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ðŸ“ src/services/productSalesStatsBuilder.service.ts
+// SERVICE: Construtor de EstatÃ­sticas de Vendas por Produto
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 import ProductSalesStats, { 
   IMonthlySales, 
   IYearlySales,
   IDateSourceBreakdown,
-  DateSourceType
 } from '../models/product/ProductSalesStats'
 import UserProduct from '../models/UserProduct'
 import Product from '../models/product/Product'
 import User from '../models/user'
 import mongoose from 'mongoose'
-
-// ─────────────────────────────────────────────────────────────
-// HELPER: REGISTAR PRIMEIRA ENTRADA NO SISTEMA
-// ─────────────────────────────────────────────────────────────
-
-async function ensureFirstSystemEntry(userId: mongoose.Types.ObjectId): Promise<Date> {
-  const user = await User.findById(userId)
-  
-  if (!user) {
-    console.warn(`⚠️ User ${userId} não encontrado`)
-    return new Date()
-  }
-  
-  // 🆕 SE JÁ TEM firstSystemEntry, retornar
-  if (user.metadata?.firstSystemEntry) {
-    return user.metadata.firstSystemEntry
-  }
-  
-  // 🆕 CALCULAR primeira entrada baseado em dados disponíveis
-  const possibleDates: Date[] = []
-  
-  // Hotmart
-  if (user.hotmart?.purchaseDate) possibleDates.push(new Date(user.hotmart.purchaseDate))
-  if (user.hotmart?.signupDate) possibleDates.push(new Date(user.hotmart.signupDate))
-  if (user.hotmart?.firstAccessDate) possibleDates.push(new Date(user.hotmart.firstAccessDate))
-  
-  // CursEduca
-  if (user.curseduca?.joinedDate) possibleDates.push(new Date(user.curseduca.joinedDate))
-  if (user.curseduca?.enrolledClasses?.[0]?.enteredAt) {
-    possibleDates.push(new Date(user.curseduca.enrolledClasses[0].enteredAt))
-  }
-  
-  // Discord
-  if (user.discord?.createdAt) possibleDates.push(new Date(user.discord.createdAt))
-  
-  // Metadata
-  if (user.metadata?.createdAt) possibleDates.push(new Date(user.metadata.createdAt))
-  
-  // UserProducts (buscar enrolledAt mais antigo)
-  const userProducts = await UserProduct.find({ userId }).sort({ enrolledAt: 1 }).limit(1)
-  if (userProducts.length > 0 && userProducts[0].enrolledAt) {
-    possibleDates.push(new Date(userProducts[0].enrolledAt))
-  }
-  
-  // 🆕 DETERMINAR a data MAIS ANTIGA
-  const firstEntry = possibleDates.length > 0
-    ? new Date(Math.min(...possibleDates.map(d => d.getTime())))
-    : new Date()
-  
-  // 🆕 GUARDAR no User
-  await User.updateOne(
-    { _id: userId },
-    {
-      $set: {
-        'metadata.firstSystemEntry': firstEntry
-      }
-    }
-  )
-  
-  console.log(`✅ Registada primeira entrada para user ${userId}: ${firstEntry.toISOString()}`)
-  
-  return firstEntry
-}
-
-// ─────────────────────────────────────────────────────────────
-// HELPER: DETERMINAR DATA DE COMPRA/ADESÃO
-// ─────────────────────────────────────────────────────────────
-
-async function determineSaleDate(
-  userProduct: any,
-  user: any
-): Promise<{ date: Date; source: DateSourceType }> {
-  const platform = userProduct.platform
-  
-  // HOTMART: purchaseDate > enrolledAt > signupDate > firstSystemEntry
-  if (platform === 'hotmart') {
-    if (user.hotmart?.purchaseDate) {
-      return {
-        date: new Date(user.hotmart.purchaseDate),
-        source: 'purchaseDate'
-      }
-    }
-    
-    if (userProduct.enrolledAt) {
-      return {
-        date: new Date(userProduct.enrolledAt),
-        source: 'enrolledAt'
-      }
-    }
-    
-    if (user.hotmart?.signupDate) {
-      return {
-        date: new Date(user.hotmart.signupDate),
-        source: 'purchaseDate' // Consideramos signup como compra
-      }
-    }
-    
-    // 🆕 FALLBACK: Primeira entrada no sistema
-    if (user.metadata?.firstSystemEntry) {
-      return {
-        date: new Date(user.metadata.firstSystemEntry),
-        source: 'firstSystemEntry'
-      }
-    }
-  }
-  
-  // CURSEDUCA: joinedDate > enrolledAt > enteredAt > firstSystemEntry
-  if (platform === 'curseduca') {
-    if (user.curseduca?.joinedDate) {
-      return {
-        date: new Date(user.curseduca.joinedDate),
-        source: 'joinedDate'
-      }
-    }
-    
-    if (userProduct.enrolledAt) {
-      return {
-        date: new Date(userProduct.enrolledAt),
-        source: 'enrolledAt'
-      }
-    }
-    
-    if (user.curseduca?.enrolledClasses?.[0]?.enteredAt) {
-      return {
-        date: new Date(user.curseduca.enrolledClasses[0].enteredAt),
-        source: 'joinedDate'
-      }
-    }
-    
-    // 🆕 FALLBACK: Primeira entrada no sistema
-    if (user.metadata?.firstSystemEntry) {
-      return {
-        date: new Date(user.metadata.firstSystemEntry),
-        source: 'firstSystemEntry'
-      }
-    }
-  }
-  
-  // DISCORD: enrolledAt > joinedServer > firstSystemEntry > createdAt
-  if (platform === 'discord') {
-    if (userProduct.enrolledAt) {
-      return {
-        date: new Date(userProduct.enrolledAt),
-        source: 'enrolledAt'
-      }
-    }
-    
-    // Discord joinedAt (entrada no servidor Discord)
-    if (user.discord?.joinedAt) {
-      return {
-        date: new Date(user.discord.joinedAt),
-        source: 'joinedServer'
-      }
-    }
-    
-    // 🆕 FALLBACK: Primeira entrada no sistema
-    if (user.metadata?.firstSystemEntry) {
-      return {
-        date: new Date(user.metadata.firstSystemEntry),
-        source: 'firstSystemEntry'
-      }
-    }
-    
-    if (user.discord?.createdAt) {
-      return {
-        date: new Date(user.discord.createdAt),
-        source: 'createdAt'
-      }
-    }
-  }
-  
-  // 🆕 FALLBACK UNIVERSAL: Registar e usar firstSystemEntry
-  const firstEntry = await ensureFirstSystemEntry(userProduct.userId)
-  
-  return {
-    date: firstEntry,
-    source: 'firstSystemEntry'
-  }
-}
-
-// ─────────────────────────────────────────────────────────────
-// MAIN: CONSTRUIR STATS DE VENDAS
-// ─────────────────────────────────────────────────────────────
+import { determineSaleDate } from './productSales/dateResolver'
 
 export async function buildProductSalesStats(): Promise<void> {
-  console.log('\n🏗️ ========================================')
-  console.log('🏗️ CONSTRUINDO PRODUCT SALES STATS')
-  console.log('🏗️ ========================================\n')
+  console.log('\nðŸ—ï¸ ========================================')
+  console.log('ðŸ—ï¸ CONSTRUINDO PRODUCT SALES STATS')
+  console.log('ðŸ—ï¸ ========================================\n')
   
   const startTime = Date.now()
   
   try {
     // 1. Buscar todos os produtos
     const products = await Product.find({ isActive: true })
-    console.log(`📦 ${products.length} produtos ativos encontrados\n`)
+    console.log(`ðŸ“¦ ${products.length} produtos ativos encontrados\n`)
     
     // 2. Processar cada produto
     for (const product of products) {
-      console.log(`\n📊 Processando produto: ${product.code} (${product.name})`)
+      console.log(`\nðŸ“Š Processando produto: ${product.code} (${product.name})`)
       
       // 2.1. Buscar UserProducts deste produto
       const userProducts = await UserProduct.find({ 
         productId: product._id 
       }).populate('userId').lean()
       
-      console.log(`   ✅ ${userProducts.length} UserProducts encontrados`)
+      console.log(`   âœ… ${userProducts.length} UserProducts encontrados`)
       
       if (userProducts.length === 0) {
-        console.log(`   ⏭️  Pulando produto sem vendas`)
+        console.log(`   â­ï¸  Pulando produto sem vendas`)
         continue
       }
       
-      // 2.2. Estruturas de agregação
+      // 2.2. Estruturas de agregaÃ§Ã£o
       const monthlyMap = new Map<string, IMonthlySales>()
       const yearlyMap = new Map<number, IYearlySales>()
       const overallSources: IDateSourceBreakdown = {
@@ -251,8 +68,8 @@ export async function buildProductSalesStats(): Promise<void> {
       const users = await User.find({ _id: { $in: userIds } }).lean()
       const userMap = new Map(users.map(u => [u._id.toString(), u]))
       
-      // 2.4. Determinar quais users são "novos" (primeiro produto)
-  const userFirstProducts = new Map<string, string>() // ✅ MUDANÇA: mongoose.Types.ObjectId → string
+      // 2.4. Determinar quais users sÃ£o "novos" (primeiro produto)
+  const userFirstProducts = new Map<string, string>() // âœ… MUDANÃ‡A: mongoose.Types.ObjectId â†’ string
       
       for (const up of userProducts) {
         const userId = (typeof up.userId === 'object' && up.userId._id 
@@ -266,7 +83,7 @@ export async function buildProductSalesStats(): Promise<void> {
           }).sort({ enrolledAt: 1 }).lean()
           
           if (allUserProducts.length > 0) {
-            // ✅ CORREÇÃO: Type assertion e conversão para string
+            // âœ… CORREÃ‡ÃƒO: Type assertion e conversÃ£o para string
             const firstProductId = (allUserProducts[0]._id as mongoose.Types.ObjectId).toString()
             userFirstProducts.set(userId, firstProductId)
           }
@@ -281,20 +98,20 @@ export async function buildProductSalesStats(): Promise<void> {
           ? up.userId._id 
           : up.userId).toString()
         
-        // ✅ CORREÇÃO: Type assertion para up._id
+        // âœ… CORREÃ‡ÃƒO: Type assertion para up._id
         const userProductId = (up._id as mongoose.Types.ObjectId).toString()
         
         const user = userMap.get(userId)
         
         if (!user) {
-          console.warn(`   ⚠️ User ${userId} não encontrado`)
+          console.warn(`   âš ï¸ User ${userId} nÃ£o encontrado`)
           recordsWithoutDates++
           overallSources.unknown++
           continue
         }
         
         try {
-          // 🆕 Determinar data de venda (com registro de firstSystemEntry)
+          // ðŸ†• Determinar data de venda (com registro de firstSystemEntry)
           const { date: saleDate, source } = await determineSaleDate(up, user)
           
           recordsWithValidDates++
@@ -306,18 +123,18 @@ export async function buildProductSalesStats(): Promise<void> {
           if (!oldestSale || saleDate < oldestSale) oldestSale = saleDate
           if (!newestSale || saleDate > newestSale) newestSale = saleDate
           
-          // Extrair ano e mês
+          // Extrair ano e mÃªs
           const year = saleDate.getFullYear()
           const month = saleDate.getMonth() + 1
           const monthKey = `${year}-${month.toString().padStart(2, '0')}`
           
-          // ✅ CORREÇÃO: Comparação usando strings
+          // âœ… CORREÃ‡ÃƒO: ComparaÃ§Ã£o usando strings
           const isNewStudent = userFirstProducts.get(userId) === userProductId
           
           
-          // ────────────────────────────────────────────────
-          // AGREGAR POR MÊS
-          // ────────────────────────────────────────────────
+          // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // AGREGAR POR MÃŠS
+          // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           
           if (!monthlyMap.has(monthKey)) {
             monthlyMap.set(monthKey, {
@@ -353,9 +170,9 @@ export async function buildProductSalesStats(): Promise<void> {
           if (saleDate < monthStats.oldestSale) monthStats.oldestSale = saleDate
           if (saleDate > monthStats.newestSale) monthStats.newestSale = saleDate
           
-          // ────────────────────────────────────────────────
+          // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           // AGREGAR POR ANO
-          // ────────────────────────────────────────────────
+          // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           
           if (!yearlyMap.has(year)) {
             yearlyMap.set(year, {
@@ -388,7 +205,7 @@ export async function buildProductSalesStats(): Promise<void> {
           }
           
         } catch (error) {
-          console.error(`   ❌ Erro ao processar UserProduct ${up._id}:`, error)
+          console.error(`   âŒ Erro ao processar UserProduct ${up._id}:`, error)
           recordsWithoutDates++
           overallSources.unknown++
         }
@@ -418,7 +235,7 @@ export async function buildProductSalesStats(): Promise<void> {
         currentMonth: 0
       }
       
-      // Calcular últimos N meses
+      // Calcular Ãºltimos N meses
       const sixMonthsAgo = new Date()
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
       
@@ -468,31 +285,31 @@ export async function buildProductSalesStats(): Promise<void> {
         { upsert: true, new: true }
       )
       
-      console.log(`   ✅ Stats guardados:`)
-      console.log(`      • Total vendas: ${totals.allTime}`)
-      console.log(`      • Registos processados: ${recordsProcessed}`)
-      console.log(`      • Com datas válidas: ${recordsWithValidDates}`)
-      console.log(`      • Sem datas: ${recordsWithoutDates}`)
-      console.log(`      • Fontes de dados:`)
+      console.log(`   âœ… Stats guardados:`)
+      console.log(`      â€¢ Total vendas: ${totals.allTime}`)
+      console.log(`      â€¢ Registos processados: ${recordsProcessed}`)
+      console.log(`      â€¢ Com datas vÃ¡lidas: ${recordsWithValidDates}`)
+      console.log(`      â€¢ Sem datas: ${recordsWithoutDates}`)
+      console.log(`      â€¢ Fontes de dados:`)
       console.log(`        - purchaseDate: ${overallSources.purchaseDate}`)
       console.log(`        - joinedDate: ${overallSources.joinedDate}`)
       console.log(`        - enrolledAt: ${overallSources.enrolledAt}`)
-      console.log(`        - 🆕 firstSystemEntry: ${overallSources.firstSystemEntry}`)
+      console.log(`        - ðŸ†• firstSystemEntry: ${overallSources.firstSystemEntry}`)
       console.log(`        - unknown: ${overallSources.unknown}`)
     }
     
     const duration = Math.round((Date.now() - startTime) / 1000)
-    console.log(`\n✅ Product Sales Stats construídos com sucesso em ${duration}s`)
+    console.log(`\nâœ… Product Sales Stats construÃ­dos com sucesso em ${duration}s`)
     
   } catch (error) {
-    console.error('❌ Erro ao construir Product Sales Stats:', error)
+    console.error('âŒ Erro ao construir Product Sales Stats:', error)
     throw error
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// HELPER: OBTER STATS (LEITURA RÁPIDA)
-// ─────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// HELPER: OBTER STATS (LEITURA RÃPIDA)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function getProductSalesStats(
   productId?: string
@@ -506,14 +323,14 @@ export async function getProductSalesStats(
     
     return stats
   } catch (error) {
-    console.error('❌ Erro ao buscar Product Sales Stats:', error)
+    console.error('âŒ Erro ao buscar Product Sales Stats:', error)
     throw error
   }
 }
 
-// ─────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // EXPORT
-// ─────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default {
   buildProductSalesStats,
