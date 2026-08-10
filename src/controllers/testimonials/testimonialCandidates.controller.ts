@@ -1,11 +1,10 @@
-import { Request, Response } from 'express'
+import { type NextFunction, type Request, type Response } from 'express'
+import { internalError } from '../../security/errorHandling'
 import { FilterQuery, PipelineStage } from 'mongoose'
 import { Testimonial } from '../../models/Testimonial'
 import User, { IUser } from '../../models/user'
-import { getRuntimeConfig } from '../../config/runtimeConfig'
 import {
   errorMessage,
-  errorStack,
   queryString
 } from './testimonialControllerSupport'
 
@@ -14,7 +13,7 @@ type Candidate = {
   hasTestimonial: boolean
   engagementLevel?: string
 }
-export const getAvailableStudents = async (req: Request, res: Response): Promise<void> => {
+export const getAvailableStudents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     console.log('ðŸ” getAvailableStudents chamado com query:', req.query)
 
@@ -174,17 +173,12 @@ export const getAvailableStudents = async (req: Request, res: Response): Promise
     })
 
   } catch (error: unknown) {
-    console.error('âŒ Erro ao buscar estudantes disponÃ­veis:', error)
-    res.status(500).json({
-      message: 'Erro ao buscar estudantes',
-      details: errorMessage(error),
-      stack: getRuntimeConfig().core.nodeEnv === 'development' ? errorStack(error) : undefined
-    })
+    next(internalError('Erro ao buscar estudantes', 'TESTIMONIAL_AVAILABLE_STUDENTS_READ_FAILED', error))
   }
 }
 
 // ðŸ“Š RELATÃ“RIO DE TESTEMUNHOS
-export const getBestCandidates = async (req: Request, res: Response): Promise<void> => {
+export const getBestCandidates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const {
       classId,
@@ -284,11 +278,7 @@ export const getBestCandidates = async (req: Request, res: Response): Promise<vo
       stats
     })
   } catch (error: unknown) {
-    console.error('Erro ao buscar melhores candidatos:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor'
-    })
+    next(internalError('Erro interno do servidor', 'TESTIMONIAL_CANDIDATES_READ_FAILED', error))
   }
 }
 
