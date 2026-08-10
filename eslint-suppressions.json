@@ -779,15 +779,22 @@
       "count": 8
     }
   },
-  "src/services/clareza/clarezaFmpService.ts": {
+  "src/services/clareza/clarezaFmpData.service.ts": {
     "no-console": {
       "count": 8
-    },
+    }
+  },
+  "src/services/clareza/clarezaFmpReit.service.ts": {
     "no-useless-assignment": {
       "count": 5
     },
     "preserve-caught-error": {
-      "count": 3
+      "count": 2
+    }
+  },
+  "src/services/clareza/clarezaFmpStock.service.ts": {
+    "preserve-caught-error": {
+      "count": 1
     }
   },
   "src/services/clareza/clarezaRaioxService.ts": {
