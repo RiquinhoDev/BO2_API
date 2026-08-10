@@ -806,7 +806,7 @@
       "count": 1
     }
   },
-  "src/services/cron/scheduler.ts": {
+  "src/services/cron/scheduler/service.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
     },

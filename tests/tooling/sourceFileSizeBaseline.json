@@ -19,7 +19,6 @@
   "src/services/clareza/clarezaFmpService.ts": 1184,
   "src/services/clareza/clarezaRaioxService.ts": 613,
   "src/services/cron/dailyPipeline.service.ts": 1101,
-  "src/services/cron/scheduler.ts": 1354,
   "src/services/guru/crossReference.service.ts": 548,
   "src/services/guru/guruSync.service.ts": 971,
   "src/services/productSalesStatsBuilder.ts": 521,

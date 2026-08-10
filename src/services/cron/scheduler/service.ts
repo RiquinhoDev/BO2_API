@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/services/cron/scheduler.ts
+// 📁 src/services/cron/scheduler/service.ts
 // Service: CRON Job Management
 // Gestão completa de jobs agendados (criar, executar, monitorar)
 // ════════════════════════════════════════════════════════════
@@ -9,16 +9,16 @@ import schedule from 'node-schedule'
 import CronJobConfig, {
   ICronJobConfig,
   SyncType
-} from '../../models/SyncModels/CronJobConfig'
-import { CronExecution } from '../../models'
-import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../types/cron.types'
-import { SchedulerRegistry } from './scheduler/registry'
-import { cronExpressionService } from './scheduler/cronExpression'
-import { cronJobDispatcher } from './scheduler/jobDispatcher'
-import { CronJobExecutor } from './scheduler/jobExecution'
-import { createLoggingCronNotification } from './scheduler/notificationPort'
-import { CronJobProvisioner } from './scheduler/jobProvisioning'
-import logger from '../../utils/logger'
+} from '../../../models/SyncModels/CronJobConfig'
+import { CronExecution } from '../../../models'
+import { CreateCronJobDTO, CronExecutionResult, UpdateCronJobDTO } from '../../../types/cron.types'
+import { SchedulerRegistry } from './registry'
+import { cronExpressionService } from './cronExpression'
+import { cronJobDispatcher } from './jobDispatcher'
+import { CronJobExecutor } from './jobExecution'
+import { createLoggingCronNotification } from './notificationPort'
+import { CronJobProvisioner } from './jobProvisioning'
+import logger from '../../../utils/logger'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
 
