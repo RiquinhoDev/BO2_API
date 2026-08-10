@@ -3,7 +3,8 @@
 // CONTROLLER: Product Sales Stats API
 // ════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
+import { internalError } from '../../security/errorHandling'
 
 import ProductSalesStats from '../../models/product/ProductSalesStats'
 import { buildProductSalesStats, getProductSalesStats } from '../../services/productSalesStatsBuilder'
@@ -11,7 +12,7 @@ import { buildProductSalesStats, getProductSalesStats } from '../../services/pro
 // GET ALL STATS
 // ─────────────────────────────────────────────────────────────
 
-export async function getAllProductSalesStats(req: Request, res: Response) {
+export async function getAllProductSalesStats(req: Request, res: Response, next: NextFunction) {
   try {
     const stats = await getProductSalesStats()
     
@@ -23,12 +24,8 @@ export async function getAllProductSalesStats(req: Request, res: Response) {
         timestamp: new Date()
       }
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar Product Sales Stats:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao buscar estatísticas'
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar estatísticas', 'PRODUCT_SALES_STATS_LIST_FAILED', error))
   }
 }
 
@@ -36,7 +33,7 @@ export async function getAllProductSalesStats(req: Request, res: Response) {
 // GET STATS POR PRODUTO
 // ─────────────────────────────────────────────────────────────
 
-export async function getProductSalesStatsByProduct(req: Request, res: Response) {
+export async function getProductSalesStatsByProduct(req: Request, res: Response, next: NextFunction) {
   try {
     const { productId } = req.params
     
@@ -53,12 +50,8 @@ export async function getProductSalesStatsByProduct(req: Request, res: Response)
       success: true,
       data: stats
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar stats do produto:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao buscar estatísticas'
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar estatísticas', 'PRODUCT_SALES_STATS_READ_FAILED', error))
   }
 }
 
@@ -66,7 +59,7 @@ export async function getProductSalesStatsByProduct(req: Request, res: Response)
 // GET STATS POR PERÍODO
 // ─────────────────────────────────────────────────────────────
 
-export async function getProductSalesByPeriod(req: Request, res: Response) {
+export async function getProductSalesByPeriod(req: Request, res: Response, next: NextFunction) {
   try {
     const { startDate, endDate, productId } = req.query
     
@@ -101,12 +94,8 @@ export async function getProductSalesByPeriod(req: Request, res: Response) {
         end: endDate
       }
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar stats por período:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao buscar estatísticas'
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar estatísticas', 'PRODUCT_SALES_PERIOD_READ_FAILED', error))
   }
 }
 
@@ -114,7 +103,7 @@ export async function getProductSalesByPeriod(req: Request, res: Response) {
 // REBUILD MANUAL
 // ─────────────────────────────────────────────────────────────
 
-export async function rebuildProductSalesStatsEndpoint(req: Request, res: Response) {
+export async function rebuildProductSalesStatsEndpoint(req: Request, res: Response, next: NextFunction) {
   try {
     console.log('🔄 Rebuild manual de Product Sales Stats iniciado...')
     
@@ -134,12 +123,8 @@ export async function rebuildProductSalesStatsEndpoint(req: Request, res: Respon
         console.error('❌ Erro no rebuild manual:', error)
       })
     
-  } catch (error: any) {
-    console.error('❌ Erro ao iniciar rebuild:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao iniciar rebuild'
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao iniciar rebuild', 'PRODUCT_SALES_REBUILD_FAILED', error))
   }
 }
 
@@ -147,7 +132,7 @@ export async function rebuildProductSalesStatsEndpoint(req: Request, res: Respon
 // COMPARAR PRODUTOS
 // ─────────────────────────────────────────────────────────────
 
-export async function compareProducts(req: Request, res: Response) {
+export async function compareProducts(req: Request, res: Response, next: NextFunction) {
   try {
     const { productIds } = req.body // Array de IDs
     
@@ -178,12 +163,8 @@ export async function compareProducts(req: Request, res: Response) {
       success: true,
       data: comparison
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao comparar produtos:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Erro ao comparar produtos'
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao comparar produtos', 'PRODUCT_SALES_COMPARE_FAILED', error))
   }
 }
 

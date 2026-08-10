@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
+import { asyncRoute } from '../security/asyncRoute'
 import {
   getAllProductSalesStats,
   getProductSalesStatsByProduct,
@@ -19,23 +20,23 @@ const router = Router()
 // ═══════════════════════════════════════════════════════════
 
 // GET /api/analytics/product-sales - Todos os produtos
-router.get('/', getAllProductSalesStats)
+router.get('/', asyncRoute(getAllProductSalesStats))
 
 // GET /api/analytics/product-sales/period?startDate=...&endDate=...&productId=...
-router.get('/period', getProductSalesByPeriod)
+router.get('/period', asyncRoute(getProductSalesByPeriod))
 
 // GET /api/analytics/product-sales/:productId - Stats de um produto específico
-router.get('/:productId', getProductSalesStatsByProduct)
+router.get('/:productId', asyncRoute(getProductSalesStatsByProduct))
 
 // ═══════════════════════════════════════════════════════════
 // OPERAÇÕES
 // ═══════════════════════════════════════════════════════════
 
 // POST /api/analytics/product-sales/rebuild - Rebuild manual
-router.post('/rebuild', rebuildProductSalesStatsEndpoint)
+router.post('/rebuild', asyncRoute(rebuildProductSalesStatsEndpoint))
 
 // POST /api/analytics/product-sales/compare - Comparar produtos
 // Body: { productIds: ["id1", "id2", "id3"] }
-router.post('/compare', compareProducts)
+router.post('/compare', asyncRoute(compareProducts))
 
 export default router

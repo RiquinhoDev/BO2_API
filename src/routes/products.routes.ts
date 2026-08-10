@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
+import { asyncRoute } from '../security/asyncRoute'
 
 // V1 - Legacy controllers (compatibilidade)
 import { 
@@ -31,26 +32,26 @@ const router = Router()
 // ═══════════════════════════════════════════════════════════
 
 // GET /api/products?legacy=true - Formato antigo
-router.get('/', getAllProducts)  // Suporta legacy=true query param
+router.get('/', asyncRoute(getAllProducts))  // Suporta legacy=true query param
 
 // GET /api/products/engagement-stats - Stats de engagement
-router.get('/engagement-stats', getEngagementStats)
+router.get('/engagement-stats', asyncRoute(getEngagementStats))
 
 // GET /api/products/users - Lista de users (para Products Tab)
-router.get('/users', getProductUsers) 
+router.get('/users', asyncRoute(getProductUsers))
 
 // ═══════════════════════════════════════════════════════════
 // ROTAS V2 - NOVOS ENDPOINTS
 // ═══════════════════════════════════════════════════════════
 
 // CRUD básico
-router.post('/', createProduct)           // Criar produto
-router.put('/:id', updateProduct)         // Atualizar produto
-router.delete('/:id', deleteProduct)      // Soft delete produto
+router.post('/', asyncRoute(createProduct))           // Criar produto
+router.put('/:id', asyncRoute(updateProduct))         // Atualizar produto
+router.delete('/:id', asyncRoute(deleteProduct))      // Soft delete produto
 
 // Analytics e dados
-router.get('/:id', getProductById)        // Get produto por ID
-router.get('/:id/students', getProductStudents)  // Estudantes do produto
-router.get('/:id/analytics', getProductAnalytics) // Analytics do produto
+router.get('/:id', asyncRoute(getProductById))        // Get produto por ID
+router.get('/:id/students', asyncRoute(getProductStudents))  // Estudantes do produto
+router.get('/:id/analytics', asyncRoute(getProductAnalytics)) // Analytics do produto
 
 export default router

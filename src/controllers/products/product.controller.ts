@@ -3,7 +3,8 @@
 // CRUD DE PRODUTOS - ARQUITETURA V2.0
 // ════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
+import { internalError } from '../../security/errorHandling'
 import Product from '../../models/product/Product'
 import UserProduct from '../../models/UserProduct'
 import Course from '../../models/Course'
@@ -14,7 +15,7 @@ import { getAllProductsStats as getLegacyStats } from '../../services/userProduc
 // GET /api/products
 // ─────────────────────────────────────────────────────────────
 
-export const getAllProducts = async (req: Request, res: Response) => {
+export const getAllProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { 
       platform, 
@@ -66,13 +67,8 @@ export const getAllProducts = async (req: Request, res: Response) => {
       _v2: true
     })
 
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar produtos:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar produtos',
-      error: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar produtos', 'PRODUCT_LIST_FAILED', error))
   }
 }
 
@@ -81,7 +77,7 @@ export const getAllProducts = async (req: Request, res: Response) => {
 // GET /api/products/:id
 // ─────────────────────────────────────────────────────────────
 
-export const getProductById = async (req: Request, res: Response) => {
+export const getProductById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
 
@@ -114,13 +110,8 @@ export const getProductById = async (req: Request, res: Response) => {
       stats
     })
 
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar produto:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar produto',
-      error: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar produto', 'PRODUCT_READ_FAILED', error))
   }
 }
 
@@ -129,7 +120,7 @@ export const getProductById = async (req: Request, res: Response) => {
 // POST /api/products
 // ─────────────────────────────────────────────────────────────
 
-export const createProduct = async (req: Request, res: Response) => {
+export const createProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
       code,
@@ -200,13 +191,8 @@ export const createProduct = async (req: Request, res: Response) => {
       product
     })
 
-  } catch (error: any) {
-    console.error('❌ Erro ao criar produto:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao criar produto',
-      error: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao criar produto', 'PRODUCT_CREATE_FAILED', error))
   }
 }
 
@@ -215,7 +201,7 @@ export const createProduct = async (req: Request, res: Response) => {
 // PUT /api/products/:id
 // ─────────────────────────────────────────────────────────────
 
-export const updateProduct = async (req: Request, res: Response) => {
+export const updateProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
     const updates = req.body
@@ -244,13 +230,8 @@ export const updateProduct = async (req: Request, res: Response) => {
       product
     })
 
-  } catch (error: any) {
-    console.error('❌ Erro ao atualizar produto:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao atualizar produto',
-      error: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao atualizar produto', 'PRODUCT_UPDATE_FAILED', error))
   }
 }
 
@@ -259,7 +240,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 // DELETE /api/products/:id
 // ─────────────────────────────────────────────────────────────
 
-export const deleteProduct = async (req: Request, res: Response) => {
+export const deleteProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
 
@@ -302,13 +283,8 @@ export const deleteProduct = async (req: Request, res: Response) => {
       product
     })
 
-  } catch (error: any) {
-    console.error('❌ Erro ao remover produto:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao remover produto',
-      error: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao remover produto', 'PRODUCT_DELETE_FAILED', error))
   }
 }
 
@@ -317,7 +293,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
 // GET /api/products/:id/students
 // ─────────────────────────────────────────────────────────────
 
-export const getProductStudents = async (req: Request, res: Response) => {
+export const getProductStudents = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
     const { 
@@ -349,13 +325,8 @@ export const getProductStudents = async (req: Request, res: Response) => {
       students: userProducts
     })
 
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar estudantes do produto:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar estudantes',
-      error: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar estudantes', 'PRODUCT_STUDENTS_READ_FAILED', error))
   }
 }
 
@@ -364,7 +335,7 @@ export const getProductStudents = async (req: Request, res: Response) => {
 // GET /api/products/:id/analytics
 // ─────────────────────────────────────────────────────────────
 
-export const getProductAnalytics = async (req: Request, res: Response) => {
+export const getProductAnalytics = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
 
@@ -460,13 +431,8 @@ export const getProductAnalytics = async (req: Request, res: Response) => {
       analytics: analytics[0]
     })
 
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar analytics:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar analytics',
-      error: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar analytics', 'PRODUCT_ANALYTICS_READ_FAILED', error))
   }
 }
 

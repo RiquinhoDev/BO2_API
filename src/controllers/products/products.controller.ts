@@ -1,10 +1,11 @@
 // src/controllers/products.controller.ts
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
+import { internalError } from '../../security/errorHandling'
 import { getAllProductsStats, getProductStats, KNOWN_PRODUCTS } from '../../services/userProducts/productService'
 import { getEngagementStatsByPlatform } from '../../services/syncUtilizadoresServices/engagement/engagementService'
 import UserModel from '../../models/user'
 
-export const getProducts = async (req: Request, res: Response) => {
+export const getProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const stats = await getAllProductsStats()
     
@@ -12,19 +13,14 @@ export const getProducts = async (req: Request, res: Response) => {
       success: true,
       ...stats
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar produtos:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar produtos',
-      error: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar produtos', 'PRODUCT_LEGACY_LIST_FAILED', error))
   }
 }
 // src/controllers/products.controller.ts
 
 // ✅ ADICIONAR: Endpoint para listar TODOS os users (para Products Tab)
-export const getProductUsers = async (req: Request, res: Response) => {
+export const getProductUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const baseQuery = { isDeleted: { $ne: true } }
 
@@ -111,20 +107,15 @@ export const getProductUsers = async (req: Request, res: Response) => {
         curseducaTotal: withCurseducaAny.length
       }
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar utilizadores para produtos:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar utilizadores',
-      error: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar utilizadores', 'PRODUCT_USERS_READ_FAILED', error))
   }
 }
 
 
 
 
-export const getProductById = async (req: Request, res: Response) => {
+export const getProductById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { productId } = req.params
     
@@ -145,18 +136,13 @@ export const getProductById = async (req: Request, res: Response) => {
       success: true,
       product: stats
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar produto:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar produto',
-      error: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar produto', 'PRODUCT_LEGACY_READ_FAILED', error))
   }
 }
 
 // ✅ NOVO: Endpoint para testar engagement por plataforma
-export const getEngagementStats = async (req: Request, res: Response) => {
+export const getEngagementStats = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const stats = await getEngagementStatsByPlatform()
     
@@ -164,12 +150,7 @@ export const getEngagementStats = async (req: Request, res: Response) => {
       success: true,
       engagementStats: stats
     })
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar stats de engagement:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar estatísticas de engagement',
-      error: error.message
-    })
+  } catch (error: unknown) {
+    next(internalError('Erro ao buscar estatísticas de engagement', 'PRODUCT_ENGAGEMENT_STATS_READ_FAILED', error))
   }
 }
