@@ -942,17 +942,27 @@
       "count": 4
     }
   },
-  "src/services/guru/guruSync.service.ts": {
-    "no-console": {
-      "count": 56
-    }
-  },
   "src/services/guru/guruTrialService.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 13
     },
     "no-console": {
       "count": 12
+    }
+  },
+  "src/services/guru/sync/client.ts": {
+    "no-console": {
+      "count": 25
+    }
+  },
+  "src/services/guru/sync/orchestration.ts": {
+    "no-console": {
+      "count": 27
+    }
+  },
+  "src/services/guru/sync/persistence.ts": {
+    "no-console": {
+      "count": 4
     }
   },
   "src/services/notification.service.ts": {
