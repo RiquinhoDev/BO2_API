@@ -299,7 +299,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 255,
+  "localHttp500": 206,
   "publicErrorDetail": 20
 } as const
 

@@ -38,7 +38,7 @@ Stable codes:
 
 - Task inventory: critical-tag local 500 sites 8 -> 0.
 - Whole wave: Tag Monitoring local 500 sites 27 -> 0.
-- Global SEC-10 inventory: 282 -> 255 (Task 4 checkpoint 263 -> 255).
+- Global SEC-10 inventory: 233 -> 206 (Task 4 checkpoint 214 -> 206).
 - no-explicit-any suppressions for criticalTag.controller.ts: 8 -> 0.
 - Literal grep for res.status(500)|error.message under the domain and route: zero results.
 - Inventory mutation/restoration test remains green.
@@ -57,4 +57,4 @@ No forceExit was used. Existing noisy console output occurred, but no worker-shu
 
 ## Closure boundary
 
-The Tag Monitoring domain is code-complete for this SEC-10 wave. SEC-10 remains globally open for 255 other local HTTP 500 sites, and operational deployment/observation was not performed.
+The Tag Monitoring domain is code-complete for this SEC-10 wave. SEC-10 remains globally open for 206 other local HTTP 500 sites, and operational deployment/observation was not performed.
