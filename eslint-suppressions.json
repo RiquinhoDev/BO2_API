@@ -827,10 +827,7 @@
       "count": 1
     }
   },
-  "src/services/cron/dailyPipeline.service.ts": {
-    "no-console": {
-      "count": 53
-    },
+  "src/services/cron/dailyPipelineSyncSteps.ts": {
     "prefer-const": {
       "count": 1
     }
@@ -844,6 +841,11 @@
     },
     "no-console": {
       "count": 17
+    }
+  },
+  "src/services/cron/tagRulesOnlyPipeline.service.ts": {
+    "no-console": {
+      "count": 53
     }
   },
   "src/services/dashboardStatsBuilder.service.ts": {

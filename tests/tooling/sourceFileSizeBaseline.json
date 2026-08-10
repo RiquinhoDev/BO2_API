@@ -15,7 +15,6 @@
   "src/services/activeCampaign/tagOrchestrator.service.ts": 707,
   "src/services/analytics/analyticsCalculator.service.ts": 606,
   "src/services/clareza/clarezaRaioxService.ts": 613,
-  "src/services/cron/dailyPipeline.service.ts": 1101,
   "src/services/guru/crossReference.service.ts": 548,
   "src/services/guru/guruSync.service.ts": 971,
   "src/services/productSalesStatsBuilder.ts": 521,
