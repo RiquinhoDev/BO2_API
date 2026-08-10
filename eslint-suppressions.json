@@ -1259,9 +1259,14 @@
       "count": 4
     }
   },
+  "src/services/tagMonitoring/weekly/studentsByPriority.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
   "src/services/tagMonitoring/weeklyTagMonitoring.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
+      "count": 5
     }
   },
   "src/services/userProducts/productService.ts": {
