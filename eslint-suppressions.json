@@ -110,17 +110,6 @@
       "count": 5
     }
   },
-  "src/controllers/guru.snapshot.controller.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 51
-    },
-    "prefer-const": {
-      "count": 1
-    }
-  },
   "src/controllers/guru.sso.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
@@ -169,6 +158,24 @@
   "src/controllers/guruAnalytics/subscriptionRepair.controller.ts": {
     "no-console": {
       "count": 9
+    }
+  },
+  "src/controllers/guruSnapshots/analytics.controller.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/controllers/guruSnapshots/crud.controller.ts": {
+    "no-console": {
+      "count": 28
+    }
+  },
+  "src/controllers/guruSnapshots/history.controller.ts": {
+    "no-console": {
+      "count": 22
+    },
+    "prefer-const": {
+      "count": 1
     }
   },
   "src/controllers/guruSubscriptionList.controller.ts": {
