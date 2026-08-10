@@ -1256,6 +1256,114 @@ export const STOCK_UNIVERSE: CarteiraUniverseItem[] = [
     "name": "Vinci",
     "type": "value",
     "sector": "Industrials"
+  },
+  {
+    "ticker": "NET",
+    "name": "Cloudflare",
+    "type": "growth",
+    "sector": "Technology"
+  },
+  {
+    "ticker": "FIG",
+    "name": "Figma",
+    "type": "growth",
+    "sector": "Technology"
+  },
+  {
+    "ticker": "S",
+    "name": "SentinelOne",
+    "type": "growth",
+    "sector": "Technology"
+  },
+  {
+    "ticker": "SPCX",
+    "name": "SpaceX",
+    "type": "growth",
+    "sector": "Industrials"
+  },
+  {
+    "ticker": "VRT",
+    "name": "Vertiv",
+    "type": "growth",
+    "sector": "Industrials"
+  },
+  {
+    "ticker": "TE",
+    "name": "T1 Energy",
+    "type": "growth",
+    "sector": "Energy"
+  },
+  {
+    "ticker": "BIP",
+    "name": "Brookfield Infrastructure",
+    "type": "value",
+    "sector": "Industrials"
+  },
+  {
+    "ticker": "DPZ",
+    "name": "Domino's Pizza",
+    "type": "value",
+    "sector": "Consumer"
+  },
+  {
+    "ticker": "MDLZ",
+    "name": "Mondelez International",
+    "type": "value",
+    "sector": "Consumer"
+  },
+  {
+    "ticker": "CTRE",
+    "name": "CareTrust REIT",
+    "type": "reit",
+    "sector": "REIT"
+  },
+  {
+    "ticker": "ISP.MI",
+    "name": "Intesa Sanpaolo",
+    "type": "value",
+    "sector": "Finance"
+  },
+  {
+    "ticker": "TTE.PA",
+    "name": "TotalEnergies",
+    "type": "value",
+    "sector": "Energy"
+  },
+  {
+    "ticker": "IBE.MC",
+    "name": "Iberdrola",
+    "type": "value",
+    "sector": "Utilities"
+  },
+  {
+    "ticker": "ALV.DE",
+    "name": "Allianz",
+    "type": "value",
+    "sector": "Finance"
+  },
+  {
+    "ticker": "NDA-FI.HE",
+    "name": "Nordea Bank",
+    "type": "value",
+    "sector": "Finance"
+  },
+  {
+    "ticker": "DPLM.L",
+    "name": "Diploma PLC",
+    "type": "growth",
+    "sector": "Industrials"
+  },
+  {
+    "ticker": "DGE.L",
+    "name": "Diageo",
+    "type": "value",
+    "sector": "Consumer"
+  },
+  {
+    "ticker": "ULVR.L",
+    "name": "Unilever",
+    "type": "value",
+    "sector": "Consumer"
   }
 ]
 
@@ -1953,6 +2061,12 @@ export const FUND_UNIVERSE: CarteiraUniverseItem[] = [
   {
     "ticker": "ECRP.L",
     "name": "Amundi Index Euro Corporate SRI UCITS ETF DR (C)",
+    "type": "etf",
+    "sector": "ETF"
+  },
+  {
+    "ticker": "EMEC.DE",
+    "name": "BNP Paribas Easy ECPI Circular Economy Leaders UCITS ETF EUR",
     "type": "etf",
     "sector": "ETF"
   },
@@ -3067,8 +3181,8 @@ export const FUND_UNIVERSE: CarteiraUniverseItem[] = [
     "sector": "ETF"
   },
   {
-    "ticker": "IUVF.L",
-    "name": "iShares Edge MSCI USA Value Factor UCITS ETF",
+    "ticker": "IUVD.L",
+    "name": "iShares Edge MSCI USA Value Factor UCITS ETF USD (Dist)",
     "type": "etf",
     "sector": "ETF"
   },
@@ -3421,6 +3535,12 @@ export const FUND_UNIVERSE: CarteiraUniverseItem[] = [
     "sector": "ETF"
   },
   {
+    "ticker": "QDVI.DE",
+    "name": "iShares Edge MSCI USA Value Factor UCITS ETF",
+    "type": "etf",
+    "sector": "ETF"
+  },
+  {
     "ticker": "QDVL.DE",
     "name": "iShares EUR Corporate Bond 0-3yr ESG SRI UCITS ETF EUR (Dist)",
     "type": "etf",
@@ -3441,6 +3561,12 @@ export const FUND_UNIVERSE: CarteiraUniverseItem[] = [
   {
     "ticker": "QDVW.DE",
     "name": "iShares MSCI World Quality Dividend Advanced UCITS ETF USD (Dist)",
+    "type": "etf",
+    "sector": "ETF"
+  },
+  {
+    "ticker": "QUTM.DE",
+    "name": "VanEck Quantum Computing UCITS ETF A",
     "type": "etf",
     "sector": "ETF"
   },
@@ -4323,6 +4449,12 @@ export const FUND_UNIVERSE: CarteiraUniverseItem[] = [
   {
     "ticker": "BTCW.SW",
     "name": "WisdomTree Physical Bitcoin",
+    "type": "cripto",
+    "sector": "Cripto"
+  },
+  {
+    "ticker": "DE000A28M8D0.AS",
+    "name": "VanEck Bitcoin ETN",
     "type": "cripto",
     "sector": "Cripto"
   }
