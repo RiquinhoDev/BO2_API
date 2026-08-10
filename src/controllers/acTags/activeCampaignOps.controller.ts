@@ -151,17 +151,21 @@ export const testCron = async (
   } catch (error: unknown) {
     logger.error('❌ Erro na avaliação manual:', error)
 
-    await CronExecutionLog.create({
-      executionId,
-      type: 'manual-trigger',
-      status: 'failed',
-      startedAt: new Date(startTime),
-      finishedAt: new Date(),
-      duration: Date.now() - startTime,
-      results: {
-        error: errorMessage(error, 'Erro na avaliação manual')
-      }
-    })
+    try {
+      await CronExecutionLog.create({
+        executionId,
+        type: 'manual-trigger',
+        status: 'failed',
+        startedAt: new Date(startTime),
+        finishedAt: new Date(),
+        duration: Date.now() - startTime,
+        results: {
+          error: errorMessage(error, 'Erro na avaliação manual')
+        }
+      })
+    } catch (auditError: unknown) {
+      logger.error('❌ Erro ao registar falha da avaliação manual:', auditError)
+    }
 
     next(internalError('Erro na avaliação manual', 'AC_MANUAL_EVALUATION_FAILED', error))
     return

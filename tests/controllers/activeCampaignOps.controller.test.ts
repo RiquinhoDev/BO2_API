@@ -4,6 +4,7 @@ const countDocumentsMock = jest.fn()
 const logCreateMock = jest.fn()
 const logFindMock = jest.fn()
 const evaluateMock = jest.fn()
+const loggerErrorMock = jest.fn()
 
 jest.mock('../../src/models/user', () => ({ __esModule: true, default: { countDocuments: countDocumentsMock } }))
 jest.mock('../../src/models/product/Product', () => ({ __esModule: true, default: { find: productFindMock } }))
@@ -16,14 +17,34 @@ jest.mock('../../src/services/activeCampaign/decisionEngine.service', () => ({
   __esModule: true,
   default: { evaluateUserProduct: evaluateMock },
 }))
+jest.mock('../../src/utils/logger', () => ({
+  __esModule: true,
+  default: { error: loggerErrorMock, info: jest.fn(), warn: jest.fn() },
+}))
 
+import request from 'supertest'
 import { getCronLogs, testCron } from '../../src/controllers/acTags/activeCampaignOps.controller'
+import {
+  appForCentralError,
+  expectCentralError,
+  type CentralErrorRoute,
+} from '../support/centralErrorContract'
 
-type MockResponse = { status: jest.Mock; json: jest.Mock }
-function response(): MockResponse {
-  const res: MockResponse = { status: jest.fn(), json: jest.fn() }
-  res.status.mockReturnValue(res)
-  return res
+const emptyInput = { body: {}, params: {}, query: {} }
+const testCronRoute = (onNext?: () => void): CentralErrorRoute => ({
+  kind: 'handler',
+  method: 'post',
+  handler: async (req, res, next) => {
+    await testCron(emptyInput, req, res, (error) => {
+      onNext?.()
+      next(error)
+    })
+  },
+})
+
+const cronLogsRoute: CentralErrorRoute = {
+  kind: 'handler',
+  handler: getCronLogs,
 }
 
 describe('ActiveCampaign operational boundary', () => {
@@ -39,9 +60,9 @@ describe('ActiveCampaign operational boundary', () => {
     ])
     evaluateMock.mockResolvedValueOnce({ actionsExecuted: 2, errors: [] }).mockRejectedValueOnce(new Error('falhou'))
     logCreateMock.mockResolvedValue(undefined)
-    const res = response()
-
-    await testCron({ body: {}, params: {}, query: {} }, {} as never, res as never, jest.fn())
+    const response = await request(appForCentralError(testCronRoute()))
+      .post('/target?__bo2_offline_loopback=1')
+      .send({})
 
     expect(evaluateMock).toHaveBeenNthCalledWith(1, 'user-ok', 'product-1')
     expect(evaluateMock).toHaveBeenNthCalledWith(2, 'user-fail', 'product-1')
@@ -57,7 +78,8 @@ describe('ActiveCampaign operational boundary', () => {
         errors: [expect.objectContaining({ userProductId: 'up-fail', error: 'falhou' })],
       }),
     }))
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual(expect.objectContaining({
       success: true,
       results: { totalProducts: 1, totalUserProducts: 2, decisionsEvaluated: 1, actionsExecuted: 2, errors: 1 },
     }))
@@ -69,10 +91,35 @@ describe('ActiveCampaign operational boundary', () => {
     const limit = jest.fn().mockResolvedValue(logs)
     const sort = jest.fn().mockReturnValue({ limit })
     logFindMock.mockReturnValue({ sort })
-    const res = response()
-    await getCronLogs({} as never, res as never, jest.fn())
+    const response = await request(appForCentralError(cronLogsRoute))
+      .get('/target?__bo2_offline_loopback=1')
     expect(sort).toHaveBeenCalledWith({ startedAt: -1 })
     expect(limit).toHaveBeenCalledWith(20)
-    expect(res.json).toHaveBeenCalledWith({ success: true, logs })
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ success: true, logs })
+  })
+
+  it('preserves the original central error when failed-run auditing also rejects', async () => {
+    const originalError = new Error('secret original evaluation failure')
+    const auditError = new Error('secondary audit failure')
+    const onNext = jest.fn()
+    productFindMock.mockReturnValue({
+      populate: jest.fn().mockRejectedValue(originalError),
+    })
+    logCreateMock.mockRejectedValue(auditError)
+
+    const response = await request(appForCentralError(testCronRoute(onNext)))
+      .post('/target?__bo2_offline_loopback=1')
+      .send({})
+
+    expectCentralError(response, {
+      code: 'AC_MANUAL_EVALUATION_FAILED',
+      message: 'Erro na avaliação manual',
+    })
+    expect(onNext).toHaveBeenCalledTimes(1)
+    expect(loggerErrorMock).toHaveBeenCalledWith(
+      '❌ Erro ao registar falha da avaliação manual:',
+      auditError,
+    )
   })
 })
