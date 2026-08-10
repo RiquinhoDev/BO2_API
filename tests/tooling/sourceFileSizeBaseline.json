@@ -1,5 +1,4 @@
 {
-  "src/config/appConfig.ts": 584,
   "src/controllers/guru.webhook.controller.ts": 540,
   "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": 507,
   "src/controllers/tagEvaluation.controller.ts": 570,
