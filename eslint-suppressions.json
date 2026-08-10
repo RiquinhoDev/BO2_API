@@ -317,9 +317,24 @@
       "count": 22
     }
   },
-  "src/controllers/testimonials.controller.ts": {
+  "src/controllers/testimonials/testimonialCandidates.controller.ts": {
     "no-console": {
-      "count": 48
+      "count": 9
+    }
+  },
+  "src/controllers/testimonials/testimonialCommands.controller.ts": {
+    "no-console": {
+      "count": 14
+    }
+  },
+  "src/controllers/testimonials/testimonialQueries.controller.ts": {
+    "no-console": {
+      "count": 4
+    }
+  },
+  "src/controllers/testimonials/testimonialTags.service.ts": {
+    "no-console": {
+      "count": 21
     }
   },
   "src/controllers/userHistory.controller.ts": {
