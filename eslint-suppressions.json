@@ -874,17 +874,28 @@
       "count": 1
     }
   },
-  "src/services/clareza/clarezaRaioxService.ts": {
-    "no-console": {
-      "count": 8
-    }
-  },
   "src/services/clareza/clarezaTop10Service.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 15
     },
     "no-console": {
       "count": 8
+    }
+  },
+  "src/services/clareza/raiox/data.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 3
+    },
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/services/clareza/raiox/runtime.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    },
+    "no-console": {
+      "count": 7
     }
   },
   "src/services/clareza/tickerUtils.ts": {
