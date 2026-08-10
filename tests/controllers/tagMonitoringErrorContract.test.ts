@@ -6,10 +6,6 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import request from 'supertest'
 import { createErrorHandling } from '../../src/security/errorHandling'
 import {
-  WeeklyNativeTagSnapshot,
-  WeeklyTagMonitoringConfig,
-} from '../../src/models/tagMonitoring'
-import {
   criticalTagManagementService,
   tagNotificationService,
   weeklyTagMonitoringService,
@@ -56,17 +52,48 @@ import tagMonitoringRouter from '../../src/routes/tagMonitoring.routes'
 
 const correlationId = 'tag-monitoring-request'
 const offlineMarker = { __bo2_offline_loopback: '1' }
-const snapshotsModel = WeeklyNativeTagSnapshot as unknown as {
-  find: jest.Mock
-  findByEmail: jest.Mock
-  findOne: jest.Mock
-  findByWeek: jest.Mock
+type SnapshotListFixture = { snapshotId: string }
+type WeeklyStatsSnapshotFixture = { nativeTags: string[] }
+type SnapshotChangesFixture = { added: string[]; removed: string[] }
+type SnapshotComparisonFixture = {
+  weekNumber: number
+  year: number
+  nativeTags: string[]
+  capturedAt: string
+  compareWith?: jest.Mock<SnapshotChangesFixture, [SnapshotComparisonFixture]>
 }
-const monitoringConfigModel = WeeklyTagMonitoringConfig as unknown as {
-  getConfig: jest.Mock
-  updateScope: jest.Mock
-  toggleEnabled: jest.Mock
+type SnapshotFindLeanMock = jest.Mock<Promise<SnapshotListFixture[]>, []>
+type SnapshotFindLimitMock = jest.Mock<{ lean: SnapshotFindLeanMock }, [number]>
+type SnapshotFindSortMock = jest.Mock<
+  { limit: SnapshotFindLimitMock },
+  [{ capturedAt: number }]
+>
+type SnapshotModelMock = {
+  find: jest.Mock<{ sort: SnapshotFindSortMock }, [Record<string, number>]>
+  findByEmail: jest.Mock<Promise<SnapshotListFixture[]>, [string, number?]>
+  findOne: jest.Mock<
+    Promise<SnapshotComparisonFixture | null>,
+    [{ email: string; weekNumber: number; year: number }]
+  >
+  findByWeek: jest.Mock<Promise<WeeklyStatsSnapshotFixture[]>, [number, number]>
 }
+type MonitoringConfigFixture = {
+  scope: 'STUDENTS_ONLY' | 'ALL_CONTACTS'
+  enabled: boolean
+  privateField?: string
+}
+type MonitoringConfigModelMock = {
+  getConfig: jest.Mock<Promise<MonitoringConfigFixture>, []>
+  updateScope: jest.Mock<Promise<MonitoringConfigFixture>, [MonitoringConfigFixture['scope']]>
+  toggleEnabled: jest.Mock<Promise<MonitoringConfigFixture>, []>
+}
+const {
+  WeeklyNativeTagSnapshot: snapshotsModel,
+  WeeklyTagMonitoringConfig: monitoringConfigModel,
+} = jest.requireMock<{
+  WeeklyNativeTagSnapshot: SnapshotModelMock
+  WeeklyTagMonitoringConfig: MonitoringConfigModelMock
+}>('../../src/models/tagMonitoring')
 const privateHandlerNames = new Set<string>()
 const tagMonitoringRouteSourcePath = path.resolve(
   __dirname,
@@ -198,21 +225,15 @@ function expectRedacted(response: request.Response) {
   expect(JSON.stringify(response.body)).not.toContain('token=hidden')
 }
 
-function snapshotFindResult(snapshots: unknown[]) {
-  const lean = jest.fn().mockResolvedValue(snapshots)
-  const limit = jest.fn().mockReturnValue({ lean })
-  const sort = jest.fn().mockReturnValue({ limit })
+function snapshotFindResult(snapshots: SnapshotListFixture[]) {
+  const lean = jest.fn<Promise<SnapshotListFixture[]>, []>().mockResolvedValue(snapshots)
+  const limit = jest.fn<{ lean: SnapshotFindLeanMock }, [number]>().mockReturnValue({ lean })
+  const sort = jest.fn<
+    { limit: SnapshotFindLimitMock },
+    [{ capturedAt: number }]
+  >().mockReturnValue({ limit })
   snapshotsModel.find.mockReturnValueOnce({ sort })
   return { sort, limit, lean }
-}
-
-function directResponse() {
-  const response = {
-    status: jest.fn(),
-    json: jest.fn(),
-  }
-  response.status.mockReturnValue(response)
-  return response
 }
 
 beforeEach(() => {
@@ -347,21 +368,15 @@ test('snapshot email history preserves its default limit, count and email', asyn
 })
 
 test('snapshot email history preserves its missing-email validation body', async () => {
-  const response = directResponse()
-  const handler = tagMonitoringController.getSnapshotsByEmail as unknown as (
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ) => Promise<unknown>
+  const app = express()
+  app.get<{ email: string }>('/missing-email', tagMonitoringController.getSnapshotsByEmail)
 
-  await handler(
-    { params: {}, query: {} } as Request,
-    response as unknown as Response,
-    jest.fn(),
-  )
+  const response = await request(app)
+    .get('/missing-email')
+    .query(offlineMarker)
 
-  expect(response.status).toHaveBeenCalledWith(400)
-  expect(response.json).toHaveBeenCalledWith({
+  expect(response.status).toBe(400)
+  expect(response.body).toEqual({
     success: false,
     message: 'Email \u00e9 obrigat\u00f3rio',
   })
@@ -461,10 +476,19 @@ test('snapshot comparison preserves validation and missing-snapshot bodies', asy
 })
 
 test('manual snapshot preserves the service result envelope', async () => {
-  const result = { processed: 12, notifications: 3 }
-  jest.mocked(weeklyTagMonitoringService.performWeeklySnapshot).mockResolvedValueOnce(
-    result as never,
-  )
+  const result: Awaited<
+    ReturnType<typeof weeklyTagMonitoringService.performWeeklySnapshot>
+  > = {
+    success: true,
+    totalStudents: 12,
+    snapshotsCreated: 12,
+    changesDetected: 3,
+    notificationsCreated: 3,
+    duration: '1s',
+    errors: 0,
+    mode: 'STUDENTS_ONLY',
+  }
+  jest.mocked(weeklyTagMonitoringService.performWeeklySnapshot).mockResolvedValueOnce(result)
 
   const response = await request(buildApp())
     .post('/api/tag-monitoring/snapshots/manual')
@@ -480,7 +504,7 @@ test('manual snapshot preserves the service result envelope', async () => {
 })
 test('global stats preserve the service result envelope', async () => {
   const stats = { totalSnapshots: 42, activeStudents: 9 }
-  jest.mocked(weeklyTagMonitoringService.getSnapshotStats).mockResolvedValueOnce(stats as never)
+  jest.mocked(weeklyTagMonitoringService.getSnapshotStats).mockResolvedValueOnce(stats)
 
   const response = await request(buildApp())
     .get('/api/tag-monitoring/stats')
@@ -594,10 +618,21 @@ test('monitoring toggle preserves its dynamic message and config envelope', asyn
 })
 
 test('students by priority preserves array parsing and pagination defaults', async () => {
-  const result = { students: [{ email: 'alice@example.test' }], total: 1 }
-  jest.mocked(weeklyTagMonitoringService.getStudentsByPriority).mockResolvedValueOnce(
-    result as never,
-  )
+  const result: Awaited<
+    ReturnType<typeof weeklyTagMonitoringService.getStudentsByPriority>
+  > = {
+    students: [{
+      _id: 'student-1',
+      name: 'Alice',
+      email: 'alice@example.test',
+      tags: [{ name: 'vip', priority: 'CRITICAL' }],
+      products: ['course-1'],
+    }],
+    total: 1,
+    page: 1,
+    totalPages: 1,
+  }
+  jest.mocked(weeklyTagMonitoringService.getStudentsByPriority).mockResolvedValueOnce(result)
 
   const response = await request(buildApp())
     .get('/api/tag-monitoring/students-by-priority')
