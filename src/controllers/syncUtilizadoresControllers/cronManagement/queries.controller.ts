@@ -7,19 +7,13 @@ import { type JobIdParams, type LegacyCronConfig, type SystemJob, errorMessage }
 
 export const getAllJobs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { active } = req.query
-    const requestedSyncType = req.query.syncType
-    const syncType: SyncType | undefined =
-      requestedSyncType === 'hotmart' || requestedSyncType === 'curseduca' ||
-      requestedSyncType === 'discord' || requestedSyncType === 'all' ||
-      requestedSyncType === 'pipeline' || requestedSyncType === 'clareza' || requestedSyncType === 'guru'
-        ? requestedSyncType
-        : undefined
+    const { syncType, active } = req.query
 
     let jobs
 
     if (syncType) {
-      jobs = await syncSchedulerService.getJobsByType(syncType)
+      // Legacy raw-query compatibility: invalid/repeated values reached the scheduler unchanged.
+      jobs = await syncSchedulerService.getJobsByType(syncType as SyncType)
     } else if (active === 'true') {
       jobs = await syncSchedulerService.getActiveJobs()
     } else {

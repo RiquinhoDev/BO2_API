@@ -4,7 +4,6 @@
 // ════════════════════════════════════════════════════════════
 
 import { NextFunction, Request, Response } from 'express'
-import type { SyncType } from '../../models/SyncModels/SyncReport'
 import { internalError } from '../../security/errorHandling'
 import syncReportsService from '../../services/syncUtilizadoresServices/syncReports.service'
 
@@ -19,20 +18,15 @@ type SyncReportParams = {
 
 export const getAllReports = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const requestedLimit = req.query.limit
-    const requestedSyncType = req.query.syncType
-    const syncType: SyncType | undefined =
-      requestedSyncType === 'hotmart' || requestedSyncType === 'curseduca' ||
-      requestedSyncType === 'discord' || requestedSyncType === 'all'
-        ? requestedSyncType
-        : undefined
+    const { limit, syncType } = req.query
     
     console.log('📋 [ReportsController] Buscando reports...')
     
-    const limit = typeof requestedLimit === 'string'
-      ? parseInt(requestedLimit, 10)
-      : 20
-    const reports = await syncReportsService.getReports(limit, syncType)
+    // Legacy raw-query compatibility: invalid/repeated syncType values reached the model filter unchanged.
+    const reports = await syncReportsService.getReports(
+      limit ? parseInt(String(limit), 10) : 20,
+      syncType as any,
+    )
     
     res.status(200).json({
       success: true,
@@ -89,14 +83,13 @@ export const getReportById = async (req: Request<SyncReportParams>, res: Respons
 
 export const getAggregatedStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const requestedDays = req.query.days
-    const days = typeof requestedDays === 'string'
-      ? parseInt(requestedDays, 10)
-      : 30
+    const { days } = req.query
     
     console.log('📊 [ReportsController] Buscando stats agregados...')
     
-    const stats = await syncReportsService.getAggregatedStats(days)
+    const stats = await syncReportsService.getAggregatedStats(
+      days ? parseInt(String(days), 10) : 30,
+    )
     
     res.status(200).json({
       success: true,
