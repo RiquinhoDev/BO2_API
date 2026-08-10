@@ -3,6 +3,7 @@ import { refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service
 import { refreshClarezaRaioxData } from '../services/clareza/clarezaRaioxService'
 import { refreshClarezaCarteiraData } from '../services/clareza/clarezaCarteiraService'
 import { refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
+import { refreshClarezaComparadorData } from '../services/clareza/clarezaComparadorService'
 
 const clarezaJob = {
   async run(): Promise<{ success: boolean; total: number; errors: number }> {
@@ -45,6 +46,15 @@ const clarezaJob = {
         console.log(`[ClarezaRefresh] Earnings atualizado - ${earnings.total} tickers, ${earnings.errors} erros`)
       } catch (earningsErr: any) {
         console.error('[ClarezaRefresh] Falha ao atualizar Earnings:', earningsErr.message)
+      }
+
+      // Comparador de Ações — mesmo agendamento (6h/12h/18h).
+      // Best-effort: não falha o job principal.
+      try {
+        const comparador = await refreshClarezaComparadorData()
+        console.log(`[ClarezaRefresh] Comparador atualizado - ${comparador.total} ações, ${comparador.errors} erros`)
+      } catch (comparadorErr: any) {
+        console.error('[ClarezaRefresh] Falha ao atualizar Comparador:', comparadorErr.message)
       }
       return { success: true, ...result }
     } catch (error: any) {

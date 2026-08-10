@@ -4,6 +4,12 @@ import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clarez
 import { getRaioxJson, searchRaiox, refreshClarezaRaioxData, diagnoseRaiox } from '../services/clareza/clarezaRaioxService'
 import { getClarezaCarteiraData, searchCarteira, refreshClarezaCarteiraData } from '../services/clareza/clarezaCarteiraService'
 import { getClarezaEarningsData, refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
+import {
+  getComparadorSymbols,
+  searchComparador,
+  refreshClarezaComparadorData,
+  refreshComparadorSymbols
+} from '../services/clareza/clarezaComparadorService'
 
 export const clarezaController = {
   async getData(req: Request, res: Response) {
@@ -255,6 +261,58 @@ export const clarezaController = {
       return res.status(500).json({ error: error.message })
     }
   },
+  // ── COMPARADOR DE AÇÕES ─────────────────────────────────────
+  // Endpoint único, com o mesmo contrato do clareza-comparador.php:
+  // ?symbols=AAPL,MSFT compara (máx. 4) e ?search=apple pesquisa.
+  // Assim o HTML só troca a constante PHP_URL por este URL.
+  async getComparador(req: Request, res: Response) {
+    try {
+      if (req.query.search !== undefined) {
+        const data = await searchComparador(String(req.query.search || ''))
+        res.setHeader('Cache-Control', 'public, max-age=600')
+        return res.json(data)
+      }
+
+      if (req.query.symbols !== undefined) {
+        const data = await getComparadorSymbols(String(req.query.symbols || ''))
+        res.setHeader('Cache-Control', 'public, max-age=3600')
+        return res.status(data.error ? 400 : 200).json(data)
+      }
+
+      return res.status(400).json({
+        error: 'Indica ?symbols=AAPL,MSFT para comparar ou ?search=apple para pesquisar.'
+      })
+    } catch (error: any) {
+      console.error('❌ [GET /api/clareza/comparador]', error.message)
+      return res.status(500).json({ error: 'Erro interno do servidor' })
+    }
+  },
+
+  async refreshComparador(req: Request, res: Response) {
+    try {
+      const expectedToken = process.env.CLAREZA_REFRESH_TOKEN
+      const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
+
+      if (!expectedToken || providedToken !== expectedToken) {
+        return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
+      }
+
+      // ?symbols=AAPL,MSFT → refresca só esses (máx. 10). Sem symbols → tudo.
+      if (req.query.symbols !== undefined) {
+        console.log('🔄 [POST /api/clareza/comparador/refresh] Refresh de símbolos específicos')
+        const result = await refreshComparadorSymbols(String(req.query.symbols || ''))
+        return res.status(result.error ? 400 : 200).json(result)
+      }
+
+      console.log('🔄 [POST /api/clareza/comparador/refresh] Refresh completo iniciado')
+      const result = await refreshClarezaComparadorData()
+      return res.json({ success: true, ...result })
+    } catch (error: any) {
+      console.error('❌ [POST /api/clareza/comparador/refresh]', error.message)
+      return res.status(500).json({ error: error.message })
+    }
+  },
+
   async refreshCarteira(req: Request, res: Response) {
     try {
       const expectedToken = process.env.CLAREZA_REFRESH_TOKEN

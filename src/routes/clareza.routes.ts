@@ -40,4 +40,10 @@ router.post('/carteira/refresh', clarezaController.refreshCarteira)
 router.get('/earnings/data', clarezaController.getEarnings)
 router.post('/earnings/refresh', clarezaController.refreshEarnings)
 
+// Endpoint publico — Comparador de Ações. Contrato igual ao PHP original:
+// ?symbols=AAPL,MSFT (máx. 4) compara, ?search=apple pesquisa.
+router.get('/comparador', clarezaController.getComparador)
+// Refresh manual — tudo, ou só ?symbols=AAPL,MSFT (máx. 10)
+router.post('/comparador/refresh', clarezaController.refreshComparador)
+
 export default router
