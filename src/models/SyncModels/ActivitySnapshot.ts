@@ -4,120 +4,23 @@
 // Snapshots mensais de atividade para Cohort Analysis perfeito
 // ════════════════════════════════════════════════════════════
 
-import mongoose, { Schema, Document, Model } from 'mongoose'
+import mongoose, { Schema } from 'mongoose'
+import type {
+  IActivitySnapshot,
+  IActivitySnapshotMethods,
+  IActivitySnapshotModel,
+  IProgressSnapshot,
+  Platform,
+} from './activitySnapshot/contracts'
 
-// ─────────────────────────────────────────────────────────────
-// INTERFACES
-// ─────────────────────────────────────────────────────────────
-
-export type Platform = 'HOTMART' | 'CURSEDUCA' | 'DISCORD'
-export type SnapshotSource = 'SYNC' | 'CRON' | 'MANUAL'
-
-export interface IProgressSnapshot {
-  completedLessons: number
-  totalLessons: number
-  percentage: number
-}
-
-export interface IActivitySnapshot extends Document {
-  _id: mongoose.Types.ObjectId
-  
-  // Referências
-  userId: mongoose.Types.ObjectId
-  platform: Platform
-  
-  // Período (sempre primeiro dia do mês)
-  snapshotMonth: Date             // 2025-12-01T00:00:00.000Z
-  
-  // Estado de atividade
-  wasActive: boolean              // User ativo neste mês?
-  hadLogin: boolean               // Fez login neste mês?
-  hadActivity: boolean            // Teve atividade (lições, mensagens)?
-  
-  // Métricas agregadas do mês
-  loginCount: number
-  activityCount: number           // Lições completadas ou mensagens enviadas
-  engagementScore: number         // 0-100
-  
-  // Progresso (snapshot do estado no final do mês)
-  progress?: IProgressSnapshot
-  
-  // Dados específicos por plataforma
-  platformSpecific?: {
-    // Hotmart
-    hotmart?: {
-      accessCount: number
-      lastAccessDate?: Date
-      completedLessonsInMonth: number
-    }
-    
-    // CursEduca
-    curseduca?: {
-      groupActivity: number
-      memberStatus: 'ACTIVE' | 'INACTIVE'
-    }
-    
-    // Discord
-    discord?: {
-      messageCount: number
-      voiceMinutes: number
-      reactionCount: number
-    }
-  }
-  
-  // Metadados
-  createdAt: Date
-  source: SnapshotSource          // Como foi criado?
-  syncHistoryId?: mongoose.Types.ObjectId  // Ref ao sync que criou
-}
-export interface IActivitySnapshotMethods {
-  calculateEngagementScore(): number
-  isOlderThan(months: number): boolean
-}
-
-export interface IActivitySnapshotModel
-  extends Model<IActivitySnapshot, {}, IActivitySnapshotMethods> {
-  getSnapshotForMonth(
-    userId: mongoose.Types.ObjectId,
-    platform: Platform,
-    month: Date
-  ): Promise<IActivitySnapshot | null>
-
-  getUserSnapshots(
-    userId: mongoose.Types.ObjectId,
-    startMonth: Date,
-    endMonth: Date,
-    platform?: Platform
-  ): Promise<IActivitySnapshot[]>
-
-  getActiveUsersInMonth(
-    month: Date,
-    platform: Platform
-  ): Promise<mongoose.Types.ObjectId[]>
-
-  getCohortRetention(
-    cohortMonth: Date,
-    platform: Platform,
-    milestone: number
-  ): Promise<{ total: number; active: number; rate: number }>
-
-  cleanupOldSnapshots(
-    olderThanMonths?: number
-  ): Promise<number>
-
-  getMonthlyStats(
-    month: Date,
-    platform?: Platform
-  ): Promise<{
-    totalSnapshots: number
-    activeUsers: number
-    avgEngagement: number
-    avgActivityCount: number
-  }>
-}
-// ─────────────────────────────────────────────────────────────
-// SUB-SCHEMAS
-// ─────────────────────────────────────────────────────────────
+export type {
+  IActivitySnapshot,
+  IActivitySnapshotMethods,
+  IActivitySnapshotModel,
+  IProgressSnapshot,
+  Platform,
+  SnapshotSource,
+} from './activitySnapshot/contracts'
 
 const ProgressSnapshotSchema = new Schema<IProgressSnapshot>({
   completedLessons: {
