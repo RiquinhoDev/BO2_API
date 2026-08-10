@@ -1302,3 +1302,11 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - The fail-closed source-size baseline fell from **6 to 0 files above 500** and is now empty. New files above the limit, moved debt, baseline growth and obsolete entries continue to fail the tooling gate.
 - Final offline gate: lint and strict TypeScript clean; **317 suites / 1676 tests**; build clean; no lockfile changes and no real API, production datastore, Redis, Discord or scheduler access.
 - ARCH-02 is closed for the approved 500-line production-file threshold. Further sub-500 decomposition remains quality-driven rather than ratchet debt. ARCH-03 response-contract normalization remains separate and open.
+
+### [x] SEC-10 - close public technical-error detail wave (2026-08-10)
+
+- Migrated Renewal (6), Guru Trials (6), Achievements (4), ActiveCampaign webhooks (2) and Sync Status (1) to the single central error boundary with stable public messages, machine-readable codes and correlation IDs; internal causes remain logger-only and pass through the canonical PII redaction.
+- Preserved existing validation, not-found, conflict and success contracts. Guru manual inactivation now distinguishes two typed domain failures (`TrialUserNotFoundError` and `TrialNotEndedError`) as stable 400 responses while unexpected failures use the central 500 boundary.
+- Added a focused real-Express contract suite covering all 19 public-detail sites, both webhook branches, the two Guru domain errors and representative 400/404 behavior. RED proved raw email/token leakage and missing codes/correlation IDs; GREEN closes those paths without touching external integrations.
+- Ratchets tightened from **206 -> 188** local HTTP 500 blocks and **19 -> 0** public `error.message`/`details` exposures. Removed obsolete lint suppressions for 15 explicit-`any` catches and 13 direct-console sites; route-catalog evidence was updated without changing the 439-route surface.
+- All work and verification remained offline. No real API, production MongoDB, Redis, scheduler or deployment was contacted.

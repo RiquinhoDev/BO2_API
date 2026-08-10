@@ -127,11 +127,8 @@
     }
   },
   "src/controllers/guru.trials.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
     "no-console": {
-      "count": 8
+      "count": 2
     }
   },
   "src/controllers/guru.webhook.controller.ts": {
@@ -257,11 +254,6 @@
       "count": 9
     }
   },
-  "src/controllers/renewal.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    }
-  },
   "src/controllers/studentHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 7
@@ -297,14 +289,6 @@
     },
     "no-console": {
       "count": 5
-    }
-  },
-  "src/controllers/sync/status.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 1
     }
   },
   "src/controllers/syncStats/conflicts.controller.ts": {
@@ -427,11 +411,8 @@
     }
   },
   "src/controllers/webhooks.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
     "no-console": {
-      "count": 4
+      "count": 2
     }
   },
   "src/index.ts": {
@@ -706,10 +687,7 @@
   },
   "src/routes/achievements.routes.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 8
-    },
-    "no-console": {
-      "count": 3
+      "count": 4
     }
   },
   "src/routes/dashboardRoutes.ts": {

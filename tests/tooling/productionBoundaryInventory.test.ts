@@ -118,11 +118,6 @@ const BASELINE = {
     "src/controllers/engagement/summary.controller.ts:184",
     "src/controllers/engagement/summary.controller.ts:209",
     "src/controllers/engagement/users.controller.ts:252",
-    "src/controllers/guru.trials.controller.ts:137",
-    "src/controllers/guru.trials.controller.ts:37",
-    "src/controllers/guru.trials.controller.ts:51",
-    "src/controllers/guru.trials.controller.ts:70",
-    "src/controllers/guru.trials.controller.ts:89",
     "src/controllers/guruAnalytics/churn.controller.ts:110",
     "src/controllers/guruAnalytics/churn.controller.ts:268",
     "src/controllers/guruAnalytics/churn.controller.ts:306",
@@ -183,12 +178,6 @@ const BASELINE = {
     "src/controllers/products/products.controller.ts:150",
     "src/controllers/products/products.controller.ts:169",
     "src/controllers/products/products.controller.ts:17",
-    "src/controllers/renewal.controller.ts:123",
-    "src/controllers/renewal.controller.ts:137",
-    "src/controllers/renewal.controller.ts:150",
-    "src/controllers/renewal.controller.ts:161",
-    "src/controllers/renewal.controller.ts:26",
-    "src/controllers/renewal.controller.ts:81",
     "src/controllers/studentHistory.controller.ts:113",
     "src/controllers/studentHistory.controller.ts:194",
     "src/controllers/studentsController.ts:60",
@@ -204,7 +193,6 @@ const BASELINE = {
     "src/controllers/sync/operations.controller.ts:272",
     "src/controllers/sync/operations.controller.ts:37",
     "src/controllers/sync/operations.controller.ts:99",
-    "src/controllers/sync/status.controller.ts:43",
     "src/controllers/syncStats/conflicts.controller.ts:123",
     "src/controllers/syncStats/conflicts.controller.ts:189",
     "src/controllers/syncStats/conflicts.controller.ts:257",
@@ -254,38 +242,13 @@ const BASELINE = {
     "src/controllers/userHistory.controller.ts:166",
     "src/controllers/userHistory.controller.ts:209",
     "src/controllers/userHistory.controller.ts:85",
-    "src/controllers/webhooks.controller.ts:31",
-    "src/controllers/webhooks.controller.ts:52",
     "src/middleware/auth.middleware.ts:76",
     "src/routes/ACroutes/activecampaign.routes.ts:196",
-    "src/routes/achievements.routes.ts:118",
-    "src/routes/achievements.routes.ts:164",
-    "src/routes/achievements.routes.ts:47",
-    "src/routes/achievements.routes.ts:71",
     "src/routes/users.routes.ts:254",
     "src/routes/validationLogs.routes.ts:137",
     "src/routes/validationLogs.routes.ts:70"
   ],
   "publicErrorDetail": [
-    "src/controllers/guru.trials.controller.ts:113",
-    "src/controllers/guru.trials.controller.ts:137",
-    "src/controllers/guru.trials.controller.ts:37",
-    "src/controllers/guru.trials.controller.ts:51",
-    "src/controllers/guru.trials.controller.ts:70",
-    "src/controllers/guru.trials.controller.ts:89",
-    "src/controllers/renewal.controller.ts:123",
-    "src/controllers/renewal.controller.ts:137",
-    "src/controllers/renewal.controller.ts:150",
-    "src/controllers/renewal.controller.ts:161",
-    "src/controllers/renewal.controller.ts:26",
-    "src/controllers/renewal.controller.ts:81",
-    "src/controllers/sync/status.controller.ts:43",
-    "src/controllers/webhooks.controller.ts:31",
-    "src/controllers/webhooks.controller.ts:52",
-    "src/routes/achievements.routes.ts:118",
-    "src/routes/achievements.routes.ts:164",
-    "src/routes/achievements.routes.ts:47",
-    "src/routes/achievements.routes.ts:71",
   ]
 } as const
 
@@ -299,8 +262,8 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 206,
-  "publicErrorDetail": 20
+  "localHttp500": 188,
+  "publicErrorDetail": 0
 } as const
 
 test('production boundary inventory matches the migration baseline', () => {
