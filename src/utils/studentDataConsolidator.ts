@@ -1,11 +1,11 @@
-// ══════════════════════════════════════════════════════════════════════
-// 📁 src/utils/studentDataConsolidator.ts
-// Utilitários para consolidar dados do estudante de múltiplas fontes
-// ══════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ðŸ“ src/utils/studentDataConsolidator.ts
+// UtilitÃ¡rios para consolidar dados do estudante de mÃºltiplas fontes
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-import type { IUserProduct } from '../models/UserProduct'
 import type { IUserHistory } from '../models/UserHistory'
-import type { IStudentEngagementState } from '../models/StudentEngagementState'
+import type { StudentEngagementStateData, StudentProductData, StudentStatsUser } from './studentData/contracts'
+export { consolidateClasses } from './studentData/consolidateClasses'
 import type {
   ConsolidatedClass,
   ProductProgress,
@@ -18,76 +18,13 @@ import type {
   StudentStats,
 } from '../types/studentComplete'
 
-// ═══════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // CONSOLIDAR TURMAS
-// ═══════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-interface StudentStatsUser {
-  createdAt?: Date
-  metadata: {
-    createdAt: Date
-  }
-  discord?: unknown
-}
-
-type StudentProductData = Pick<
-  IUserProduct,
-  | 'productId'
-  | 'productCode'
-  | 'productName'
-  | 'platform'
-  | 'enrolledAt'
-  | 'status'
-  | 'progress'
-  | 'engagement'
-  | 'classes'
-  | 'isPrimary'
-  | 'createdAt'
-  | 'updatedAt'
->
-
-type StudentEngagementStateData = Pick<
-  IStudentEngagementState,
-  | 'productCode'
-  | 'currentState'
-  | 'daysSinceLastLogin'
-  | 'currentLevel'
-  | 'currentTagAC'
-  | 'stats'
-  | 'totalEmailsSent'
-  | 'totalReturns'
->
-
-export function consolidateClasses(products: StudentProductData[]): ConsolidatedClass[] {
-  const classes: ConsolidatedClass[] = []
-  const seen = new Set<string>()
-
-  // Preferir UserProduct como fonte de verdade
-  products.forEach((product) => {
-    if (product.platform !== 'hotmart' && product.platform !== 'curseduca') return
-    const platform = product.platform
-    if (!Array.isArray(product.classes)) return
-    product.classes.forEach((cls) => {
-      const key = `${platform}:${cls.classId}`
-      if (seen.has(key)) return
-      seen.add(key)
-      classes.push({
-        classId: cls.classId,
-        className: cls.className || `Turma ${cls.classId}`,
-        platform,
-        source: platform === 'hotmart' ? 'hotmart_sync' : 'curseduca_sync',
-        isActive: product.status === 'ACTIVE',
-        enrolledAt: cls.joinedAt || product.enrolledAt || null,
-      })
-    })
-  })
-
-  return classes
-}
-
-// ═══════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // CONSOLIDAR PROGRESSO POR PRODUTO
-// ═══════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function consolidateProgressByProduct(
   products: StudentProductData[],
@@ -139,7 +76,7 @@ function calculateHotmartProgressFromProduct(
     (product.engagement?.lastLogin as any) ||
     null
 
-  // ✅ MÓDULOS - Extrair dados da BD
+  // âœ… MÃ“DULOS - Extrair dados da BD
   const modulesList = Array.isArray(product.progress?.modulesList)
     ? product.progress.modulesList
     : undefined
@@ -160,7 +97,7 @@ function calculateHotmartProgressFromProduct(
       totalTimeMinutes,
       lastAccessDate,
       recentLessons,
-      // ✅ MÓDULOS
+      // âœ… MÃ“DULOS
       modulesList,
       totalModules,
       modulesCompleted,
@@ -196,9 +133,9 @@ function calculateCurseducaProgress(product: StudentProductData): CurseducaProdu
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // CONSOLIDAR ENGAGEMENT
-// ═══════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function consolidateEngagement(
   products: StudentProductData[],
@@ -250,7 +187,7 @@ function calculateCurseducaEngagement(
   const progress =
     progressValues.reduce((sum, v) => sum + v, 0) / Math.max(progressValues.length, 1)
 
-  // Calcular enrollment duration (média de todos os produtos)
+  // Calcular enrollment duration (mÃ©dia de todos os produtos)
   const now = new Date().getTime()
   const enrollmentDurations = curseducaProducts.map((p) => {
     const start = p.enrolledAt || p.createdAt
@@ -262,7 +199,7 @@ function calculateCurseducaEngagement(
   // Taxa de progresso (% por dia)
   const progressRate = avgEnrollmentDuration > 0 ? progress / avgEnrollmentDuration : 0
 
-  // Nível baseado em taxa de progresso
+  // NÃ­vel baseado em taxa de progresso
   let level: 'ALTO' | 'MEDIO' | 'BAIXO' = 'BAIXO'
   if (progressRate > 2) {
     level = 'ALTO' // >2% por dia
@@ -298,11 +235,11 @@ function calculateOverallEngagement(
 
   if (curseduca) {
     platforms.push('curseduca')
-    // CursEduca não tem accessCount direto, inferir baseado em progresso
+    // CursEduca nÃ£o tem accessCount direto, inferir baseado em progresso
     totalAccessCount += Math.floor(curseduca.progress / 2) // Estimativa: 1 acesso por 2% de progresso
   }
 
-  // Calcular nível overall baseado em média
+  // Calcular nÃ­vel overall baseado em mÃ©dia
   const levels = []
   if (hotmart) {
     const hotmartLevel = mapHotmartLevel(hotmart.engagementLevel)
@@ -312,7 +249,7 @@ function calculateOverallEngagement(
     levels.push(curseduca.level)
   }
 
-  // Nível mais alto prevalece
+  // NÃ­vel mais alto prevalece
   let overallLevel: 'ALTO' | 'MEDIO' | 'BAIXO' = 'BAIXO'
   if (levels.includes('ALTO')) {
     overallLevel = 'ALTO'
@@ -335,9 +272,9 @@ function mapHotmartLevel(
   return 'BAIXO'
 }
 
-// ═══════════════════════════════════════════════════════════════
-// CALCULAR ESTATÍSTICAS
-// ═══════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// CALCULAR ESTATÃSTICAS
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function calculateStudentStats(
   user: StudentStatsUser,
@@ -377,7 +314,7 @@ export function calculateStudentStats(
     ? Math.floor((now.getTime() - new Date(lastAccessDate).getTime()) / (1000 * 60 * 60 * 24))
     : null
 
-  // Histórico
+  // HistÃ³rico
   const totalChanges = history.length
   const lastChange = history.length > 0 ? history[0].changeDate : null
 
