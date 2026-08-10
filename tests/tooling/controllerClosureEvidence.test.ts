@@ -26,6 +26,9 @@ describe('controller closure evidence', () => {
     const syncStatsController = readSource(
       'src/controllers/syncUtilizadoresControllers/syncStats.controller.ts',
     )
+    const syncConflictsController = readSource(
+      'src/controllers/syncStats/conflicts.controller.ts',
+    )
 
     expect(tsconfig.compilerOptions.strict).toBe(true)
     expect(tsconfig.compilerOptions.noEmitOnError).toBe(true)
@@ -38,8 +41,12 @@ describe('controller closure evidence', () => {
     expect(syncStatsRoutes).not.toMatch(/router\.get\(['\"]\/(stats|history)['\"]/)
     expect(syncStatsController).not.toMatch(/\b(getSyncStats|getSyncHistory)\b/)
 
-    for (const handler of ['getSyncById', 'getConflictById', 'resolveConflict', 'ignoreConflict']) {
-      expect(syncStatsController).toMatch(
+    expect(syncStatsController).toMatch(
+      /export const getSyncById = async \(\s*req: Request<\{ id: string \}>/,
+    )
+
+    for (const handler of ['getConflictById', 'resolveConflict', 'ignoreConflict']) {
+      expect(syncConflictsController).toMatch(
         new RegExp(`export const ${handler} = async \\(\\s*req: Request<\\{ id: string \\}>`),
       )
     }
