@@ -9,6 +9,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
+import { asyncRoute } from '../security/asyncRoute'
 import * as syncController from '../controllers/sync.controller'
 import {
   syncCleanHistoryInput,
@@ -58,6 +59,6 @@ router.delete(
 
 // Estatísticas
 router.get('/stats', syncController.getSyncStats)
-router.get('/status', syncController.getSyncStatus)
+router.get('/status', asyncRoute(syncController.getSyncStatus))
 
 export default router

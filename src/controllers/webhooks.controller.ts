@@ -3,14 +3,15 @@
 // Webhooks do Active Campaign
 // =====================================================
 
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
+import { internalError } from '../security/errorHandling'
 import User from '../models/user'
 
 /**
  * Webhook: Email Opened
  * Disparado quando um aluno abre um email
  */
-export const emailOpened = async (req: Request, res: Response) => {
+export const emailOpened = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { contact, date_time } = req.body
     
@@ -26,9 +27,8 @@ export const emailOpened = async (req: Request, res: Response) => {
     console.log(`📧 Email aberto: ${contact.email} em ${date_time}`)
     
     res.json({ success: true, message: 'Email opened registered' })
-  } catch (error: any) {
-    console.error('❌ Erro no webhook email-opened:', error)
-    res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro ao registar abertura de email', 'AC_WEBHOOK_EMAIL_OPENED_FAILED', error))
   }
 }
 
@@ -36,7 +36,7 @@ export const emailOpened = async (req: Request, res: Response) => {
  * Webhook: Link Clicked
  * Disparado quando um aluno clica num link do email
  */
-export const linkClicked = async (req: Request, res: Response) => {
+export const linkClicked = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { contact, link } = req.body
     
@@ -47,8 +47,7 @@ export const linkClicked = async (req: Request, res: Response) => {
     console.log(`🖱️  Link clicado: ${contact.email} - ${link}`)
     
     res.json({ success: true, message: 'Link click registered' })
-  } catch (error: any) {
-    console.error('❌ Erro no webhook link-clicked:', error)
-    res.status(500).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro ao registar clique em link', 'AC_WEBHOOK_LINK_CLICKED_FAILED', error))
   }
 }

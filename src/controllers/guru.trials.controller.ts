@@ -3,7 +3,9 @@
 // Endpoints para gestão de trials Guru
 // ════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
+import { internalError } from '../security/errorHandling'
+import { TrialNotEndedError, TrialUserNotFoundError } from '../services/guru/guruTrialErrors'
 import {
   listTrials,
   getTrialStats,
@@ -17,7 +19,7 @@ import {
  * GET /guru/trials
  * Listar todos os trials (activos, expirados, convertidos)
  */
-export async function getTrials(req: Request, res: Response) {
+export async function getTrials(req: Request, res: Response, next: NextFunction) {
   try {
     const trials = await listTrials()
 
@@ -32,9 +34,8 @@ export async function getTrials(req: Request, res: Response) {
       trials: filtered,
       total: filtered.length,
     })
-  } catch (error: any) {
-    console.error('❌ [GURU TRIALS] Erro ao listar:', error.message)
-    res.status(500).json({ success: false, message: 'Erro ao listar trials', details: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro ao listar trials', 'GURU_TRIAL_LIST_FAILED', error))
   }
 }
 
@@ -42,13 +43,12 @@ export async function getTrials(req: Request, res: Response) {
  * GET /guru/trials/stats
  * Estatísticas de trials
  */
-export async function getTrialsStats(req: Request, res: Response) {
+export async function getTrialsStats(req: Request, res: Response, next: NextFunction) {
   try {
     const stats = await getTrialStats()
     res.json({ success: true, stats })
-  } catch (error: any) {
-    console.error('❌ [GURU TRIALS] Erro nas stats:', error.message)
-    res.status(500).json({ success: false, message: 'Erro ao calcular estatísticas', details: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro ao calcular estatísticas', 'GURU_TRIAL_STATS_FAILED', error))
   }
 }
 
@@ -56,7 +56,7 @@ export async function getTrialsStats(req: Request, res: Response) {
  * POST /guru/trials/check-expired
  * Verificar trials expirados e marcar para inativação
  */
-export async function checkExpired(req: Request, res: Response) {
+export async function checkExpired(req: Request, res: Response, next: NextFunction) {
   try {
     console.log('⏳ [GURU TRIALS] Iniciando verificação de trials expirados...')
     const result = await checkExpiredTrials()
@@ -65,9 +65,8 @@ export async function checkExpired(req: Request, res: Response) {
       message: 'Verificação de trials concluída',
       result,
     })
-  } catch (error: any) {
-    console.error('❌ [GURU TRIALS] Erro ao verificar expirados:', error.message)
-    res.status(500).json({ success: false, message: 'Erro ao verificar trials expirados', details: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro ao verificar trials expirados', 'GURU_TRIAL_EXPIRED_CHECK_FAILED', error))
   }
 }
 
@@ -75,7 +74,7 @@ export async function checkExpired(req: Request, res: Response) {
  * POST /guru/trials/sync
  * Sincronizar trials da API Guru para a BD
  */
-export async function syncTrials(req: Request, res: Response) {
+export async function syncTrials(req: Request, res: Response, next: NextFunction) {
   try {
     console.log('🔄 [GURU TRIALS] Iniciando sync de trials da API Guru...')
     const result = await syncTrialsFromGuru()
@@ -84,9 +83,8 @@ export async function syncTrials(req: Request, res: Response) {
       message: `Sync concluído: ${result.synced} trials sincronizados`,
       result,
     })
-  } catch (error: any) {
-    console.error('❌ [GURU TRIALS] Erro no sync:', error.message)
-    res.status(500).json({ success: false, message: 'Erro ao sincronizar trials', details: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro ao sincronizar trials', 'GURU_TRIAL_SYNC_FAILED', error))
   }
 }
 
@@ -95,7 +93,7 @@ export async function syncTrials(req: Request, res: Response) {
  * Inativar manualmente um trial após os 7 dias (marca UserProducts PARA_INATIVAR)
  * Body: { email }
  */
-export async function inactivateTrial(req: Request, res: Response) {
+export async function inactivateTrial(req: Request, res: Response, next: NextFunction) {
   try {
     const { email } = req.body
     if (!email) {
@@ -108,9 +106,16 @@ export async function inactivateTrial(req: Request, res: Response) {
       message: `Trial de ${result.email} inativado (${result.marked} UserProducts marcados PARA_INATIVAR)`,
       result,
     })
-  } catch (error: any) {
-    console.error('❌ [GURU TRIALS] Erro ao inativar:', error.message)
-    res.status(400).json({ success: false, message: error.message })
+  } catch (error: unknown) {
+    if (error instanceof TrialUserNotFoundError) {
+      res.status(400).json({ success: false, message: 'Utilizador não encontrado' })
+      return
+    }
+    if (error instanceof TrialNotEndedError) {
+      res.status(400).json({ success: false, message: 'Trial ainda não terminou' })
+      return
+    }
+    next(internalError('Erro ao inativar trial', 'GURU_TRIAL_INACTIVATE_FAILED', error))
   }
 }
 
@@ -119,7 +124,7 @@ export async function inactivateTrial(req: Request, res: Response) {
  * Reverter trial — repõe UserProducts ACTIVE + flags trial (manual)
  * Body: { email }
  */
-export async function revertTrialMark(req: Request, res: Response) {
+export async function revertTrialMark(req: Request, res: Response, next: NextFunction) {
   try {
     const { email } = req.body
     if (!email) {
@@ -132,8 +137,7 @@ export async function revertTrialMark(req: Request, res: Response) {
       message: `Trial de ${result.email} revertido (${result.reverted} UserProducts repostos)`,
       result,
     })
-  } catch (error: any) {
-    console.error('❌ [GURU TRIALS] Erro ao reverter:', error.message)
-    res.status(500).json({ success: false, message: 'Erro ao reverter trial', details: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro ao reverter trial', 'GURU_TRIAL_REVERT_FAILED', error))
   }
 }

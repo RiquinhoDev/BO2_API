@@ -6,6 +6,7 @@
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { fetchAllSubscriptionsComplete, fetchSubscriptionById } from './guruSync.service'
+import { TrialNotEndedError, TrialUserNotFoundError } from './guruTrialErrors'
 
 // Fim do trial: usar o trial_finished_at da Guru (autoritativo). A Guru só o
 // devolve no endpoint POR SUBSCRIÇÃO (a lista omite-o), por isso o sync vai
@@ -314,7 +315,7 @@ export async function manuallyInactivateTrial(email: string): Promise<ManualInac
 
   const user = await User.findOne({ email: normalizedEmail })
   if (!user) {
-    throw new Error(`Utilizador ${normalizedEmail} não encontrado`)
+    throw new TrialUserNotFoundError()
   }
 
   // Validar que o trial já terminou (não inativar um trial a meio).
@@ -326,7 +327,7 @@ export async function manuallyInactivateTrial(email: string): Promise<ManualInac
     : (startMs != null ? startMs + TRIAL_WINDOW_DAYS * DAY_MS : null)
   const eligible = finishMs != null && Date.now() >= finishMs
   if (!eligible) {
-    throw new Error(`Trial de ${normalizedEmail} ainda não terminou — inativação não permitida.`)
+    throw new TrialNotEndedError()
   }
 
   // Mesmo efeito que o ramo "expirado sem conversão" do checkExpired.

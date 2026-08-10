@@ -1,10 +1,11 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
+import { internalError } from '../../security/errorHandling'
 import { Product, User, UserProduct } from '../../models'
 /**
  * GET /api/sync/status
  * Verificar status do sistema de sync
  */
-export const getSyncStatus = async (req: Request, res: Response): Promise<void> => {
+export const getSyncStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const totalUsers = await User.countDocuments()
     const totalProducts = await Product.countDocuments()
@@ -38,8 +39,7 @@ export const getSyncStatus = async (req: Request, res: Response): Promise<void> 
       }
     })
     
-  } catch (error: any) {
-    console.error('[SYNC STATUS ERROR]', error)
-    res.status(500).json({ success: false, error: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro ao obter estado da sincronização', 'SYNC_STATUS_FAILED', error))
   }
 }

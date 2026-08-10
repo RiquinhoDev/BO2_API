@@ -1,4 +1,6 @@
-import { Router, Request, Response } from 'express'
+import { NextFunction, Router, Request, Response } from 'express'
+import { asyncRoute } from '../security/asyncRoute'
+import { internalError } from '../security/errorHandling'
 import User from '../models/user'
 import {
   evaluateAllAchievements,
@@ -20,7 +22,7 @@ router.get('/definitions', (_req: Request, res: Response) => {
   })
 })
 
-router.post('/evaluate/:email', async (req: Request, res: Response) => {
+router.post('/evaluate/:email', asyncRoute(async (req: Request, res: Response, next: NextFunction) => {
   try {
     const email = (req.params.email as string)?.toLowerCase().trim()
     if (!email) {
@@ -42,13 +44,12 @@ router.post('/evaluate/:email', async (req: Request, res: Response) => {
       stats: result.stats,
       achievements: result.achievements,
     })
-  } catch (error: any) {
-    console.error('Erro ao avaliar conquistas:', error.message)
-    res.status(500).json({ message: 'Erro ao avaliar conquistas', details: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro ao avaliar conquistas', 'ACHIEVEMENTS_EVALUATE_FAILED', error))
   }
-})
+}))
 
-router.post('/evaluate-all', async (req: Request, res: Response) => {
+router.post('/evaluate-all', asyncRoute(async (req: Request, res: Response, next: NextFunction) => {
   try {
     const limit = parseInt(req.query.limit as string) || 0
     const result = await evaluateAllAchievements({
@@ -66,13 +67,12 @@ router.post('/evaluate-all', async (req: Request, res: Response) => {
       durationMs: result.durationMs,
       avgPerUser: result.total > 0 ? Math.round(result.durationMs / result.total) : 0,
     })
-  } catch (error: any) {
-    console.error('Erro na avaliação em massa:', error.message)
-    res.status(500).json({ message: 'Erro na avaliação em massa', details: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro na avaliação em massa', 'ACHIEVEMENTS_EVALUATE_ALL_FAILED', error))
   }
-})
+}))
 
-router.post('/mark-seen', async (req: Request, res: Response) => {
+router.post('/mark-seen', asyncRoute(async (req: Request, res: Response, next: NextFunction) => {
   try {
     const email = resolveEmailFromRequest(req)
     const ids = Array.isArray(req.body?.ids)
@@ -113,13 +113,12 @@ router.post('/mark-seen', async (req: Request, res: Response) => {
       message: 'Conquistas marcadas como vistas.',
       updated
     })
-  } catch (error: any) {
-    console.error('Erro ao marcar conquistas como vistas:', error.message)
-    res.status(500).json({ message: 'Erro ao marcar conquistas como vistas', details: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro ao marcar conquistas como vistas', 'ACHIEVEMENTS_MARK_SEEN_FAILED', error))
   }
-})
+}))
 
-router.get('/stats', async (_req: Request, res: Response) => {
+router.get('/stats', asyncRoute(async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const pipeline = [
       { $match: { 'achievementStats.lastEvaluatedAt': { $exists: true } } },
@@ -160,10 +159,10 @@ router.get('/stats', async (_req: Request, res: Response) => {
       leastCommon: sorted.slice(-5).reverse(),
       totalDefinitions: TOTAL_ACHIEVEMENTS,
     })
-  } catch (error: any) {
-    res.status(500).json({ message: 'Erro ao calcular estatísticas', details: error.message })
+  } catch (error: unknown) {
+    next(internalError('Erro ao calcular estatísticas', 'ACHIEVEMENTS_STATS_FAILED', error))
   }
-})
+}))
 
 function resolveEmailFromRequest(req: Request): string | null {
   if (typeof req.body?.token === 'string' && req.body.token.trim()) {

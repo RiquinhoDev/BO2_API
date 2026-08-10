@@ -1,4 +1,5 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
+import { internalError } from '../security/errorHandling'
 import RenewalOffer from '../models/RenewalOffer'
 import { syncRenewalOffers } from '../services/renewal/renewalSync.service'
 import { getTurmasWithCoverage } from '../services/renewal/renewalCoverage.service'
@@ -7,7 +8,7 @@ import { parseOfferName } from '../services/renewal/turmaParser'
 
 // GET /api/renewal/offers
 // Lista todas as ofertas de renovação com os dados da Hotmart + turma sugerida.
-export async function listOffers(req: Request, res: Response): Promise<void> {
+export async function listOffers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { isActive, isRenewal } = req.query
     const query: Record<string, unknown> = {}
@@ -22,8 +23,8 @@ export async function listOffers(req: Request, res: Response): Promise<void> {
       .exec()
 
     res.json({ total: offers.length, offers })
-  } catch (error: any) {
-    res.status(500).json({ message: error.message || 'Erro ao listar ofertas' })
+  } catch (error: unknown) {
+    next(internalError('Erro ao listar ofertas', 'RENEWAL_LIST_FAILED', error))
   }
 }
 
@@ -32,7 +33,7 @@ const CHECKOUT_BASE_URL = 'https://pay.hotmart.com/D61245882D'
 // POST /api/renewal/offers
 // Adiciona uma oferta à mão (códigos do dashboard Hotmart que não têm vendas
 // recentes e por isso o sync não descobre). Guarda como source='manual'.
-export async function createOffer(req: Request, res: Response): Promise<void> {
+export async function createOffer(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { offerCode, offerName, turmaNumbers, link, isActive } = req.body
 
@@ -77,15 +78,15 @@ export async function createOffer(req: Request, res: Response): Promise<void> {
     })
 
     res.status(201).json({ offer })
-  } catch (error: any) {
-    res.status(500).json({ message: error.message || 'Erro ao criar oferta' })
+  } catch (error: unknown) {
+    next(internalError('Erro ao criar oferta', 'RENEWAL_CREATE_FAILED', error))
   }
 }
 
 // PATCH /api/renewal/offers/:id
 // Edita a oferta no Backoffice (nome, turma(s), período, link, estado).
 // Marca isManuallyEdited=true para o sync não sobrescrever.
-export async function updateOffer(req: Request, res: Response): Promise<void> {
+export async function updateOffer(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params
     const { offerName, turmaNumbers, periodYYMM, isRenewal, isActive, link } = req.body
@@ -119,46 +120,46 @@ export async function updateOffer(req: Request, res: Response): Promise<void> {
     }
 
     res.json({ offer })
-  } catch (error: any) {
-    res.status(500).json({ message: error.message || 'Erro ao actualizar oferta' })
+  } catch (error: unknown) {
+    next(internalError('Erro ao actualizar oferta', 'RENEWAL_UPDATE_FAILED', error))
   }
 }
 
 // GET /api/renewal/turmas
 // Lista de turmas (nº + nº de alunos) com flag de cobertura, para o multi-select
 // do BO e o alerta de turmas sem oferta.
-export async function listTurmas(_req: Request, res: Response): Promise<void> {
+export async function listTurmas(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const turmas = await getTurmasWithCoverage()
     // alerta: só turmas que renovam ESTE ANO e ainda não têm oferta
     const uncovered = turmas.filter((t) => t.renewsThisYear && !t.hasActiveOffer)
     res.json({ turmas, uncovered })
-  } catch (error: any) {
-    res.status(500).json({ message: error.message || 'Erro ao listar turmas' })
+  } catch (error: unknown) {
+    next(internalError('Erro ao listar turmas', 'RENEWAL_CLASSES_FAILED', error))
   }
 }
 
 // GET /api/renewal/performance
 // Taxa de renovação por turma (vendas / base) vs meta de 20%.
-export async function performance(req: Request, res: Response): Promise<void> {
+export async function performance(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const yearRaw = Number(req.query.year)
     const year = Number.isInteger(yearRaw) && yearRaw > 2000 ? yearRaw : undefined
     const data = await getRenewalPerformance(year)
     res.json(data)
-  } catch (error: any) {
-    res.status(500).json({ message: error.message || 'Erro ao calcular desempenho' })
+  } catch (error: unknown) {
+    next(internalError('Erro ao calcular desempenho', 'RENEWAL_PERFORMANCE_FAILED', error))
   }
 }
 
 // POST /api/renewal/sync
 // Dispara a sincronização das ofertas a partir da Hotmart.
-export async function runSync(_req: Request, res: Response): Promise<void> {
+export async function runSync(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const report = await syncRenewalOffers()
     res.json({ report })
-  } catch (error: any) {
-    res.status(500).json({ message: error.message || 'Erro ao sincronizar ofertas' })
+  } catch (error: unknown) {
+    next(internalError('Erro ao sincronizar ofertas', 'RENEWAL_SYNC_FAILED', error))
   }
 }
 
