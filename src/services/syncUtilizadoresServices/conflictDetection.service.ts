@@ -7,6 +7,7 @@
 import mongoose from 'mongoose'
 import SyncConflict, { ConflictSeverity, ConflictType, ISyncConflict, ResolutionAction } from '../../models/SyncModels/SyncConflict'
 import { User } from '../../models'
+import { canAutoResolveConflict, getAutoResolutionPlan, getSuggestedConflictAction } from './conflictDetection/resolutionPolicy'
 
 
 // ─────────────────────────────────────────────────────────────
@@ -34,14 +35,6 @@ interface ResolveConflictDTO {
   adminId: mongoose.Types.ObjectId
   notes?: string
   appliedChanges?: any
-}
-
-interface AutoResolutionRule {
-  conflictType: ConflictType
-  conditions: (conflict: any) => boolean
-  action: ResolutionAction
-  confidence: number
-  reason: string
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -95,10 +88,10 @@ export class ConflictDetectionService {
 
     // Verificar se pode auto-resolver
     const canAutoResolve = conflicts.length > 0 && 
-      conflicts.every(c => this.canAutoResolveConflict(c))
+      conflicts.every(c => canAutoResolveConflict(c))
 
     const suggestedAction = canAutoResolve 
-      ? this.getSuggestedAction(conflicts[0])
+      ? getSuggestedConflictAction(conflicts[0])
       : undefined
 
     return {
@@ -308,52 +301,6 @@ export class ConflictDetectionService {
   // AUTO-RESOLUTION
   // ═══════════════════════════════════════════════════════════
   
-  private autoResolutionRules: AutoResolutionRule[] = [
-    {
-      conflictType: 'MISSING_DATA',
-      conditions: (conflict) => conflict.severity !== 'CRITICAL',
-      action: 'KEPT_EXISTING',
-      confidence: 80,
-      reason: 'Dados novos incompletos, mantendo existentes'
-    },
-    {
-      conflictType: 'CLASS_CONFLICT',
-      conditions: (conflict) => true,
-      action: 'USED_NEW',
-      confidence: 70,
-      reason: 'Usar turma mais recente da sincronização'
-    },
-    {
-      conflictType: 'PLATFORM_MISMATCH',
-      conditions: (conflict) => conflict.severity === 'LOW',
-      action: 'MERGED',
-      confidence: 90,
-      reason: 'Merge de dados multi-plataforma'
-    }
-  ]
-
-  private canAutoResolveConflict(conflict: ISyncConflict): boolean {
-    // Conflitos CRITICAL nunca são auto-resolvidos
-    if (conflict.severity === 'CRITICAL') {
-      return false
-    }
-
-    // Verificar se existe regra de auto-resolução
-    const rule = this.autoResolutionRules.find(
-      r => r.conflictType === conflict.conflictType && r.conditions(conflict)
-    )
-
-    return !!rule && rule.confidence >= 70
-  }
-
-  private getSuggestedAction(conflict: ISyncConflict): ResolutionAction {
-    const rule = this.autoResolutionRules.find(
-      r => r.conflictType === conflict.conflictType && r.conditions(conflict)
-    )
-
-    return rule?.action || 'MANUAL'
-  }
-
   async autoResolveConflicts(
     conflictIds: mongoose.Types.ObjectId[]
   ): Promise<{
@@ -376,15 +323,13 @@ export class ConflictDetectionService {
           continue
         }
 
-        if (!this.canAutoResolveConflict(conflict)) {
+        if (!canAutoResolveConflict(conflict)) {
           console.log(`⏭️ Conflito ${conflictId} não pode ser auto-resolvido`)
           skipped++
           continue
         }
 
-        const rule = this.autoResolutionRules.find(
-          r => r.conflictType === conflict.conflictType && r.conditions(conflict)
-        )
+        const rule = getAutoResolutionPlan(conflict)
 
         if (!rule) {
           skipped++

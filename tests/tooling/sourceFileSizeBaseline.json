@@ -6,7 +6,6 @@
   "src/services/productSalesStatsBuilder.ts": 521,
   "src/services/studentOgiSummary.service.ts": 539,
   "src/services/syncUtilizadoresServices/activitySnapshot.service.ts": 538,
-  "src/services/syncUtilizadoresServices/conflictDetection.service.ts": 547,
   "src/services/syncUtilizadoresServices/engagement/recalculate-engagement-metrics.ts": 507,
   "src/types/analytics.types.ts": 536,
   "src/utils/studentDataConsolidator.ts": 501
