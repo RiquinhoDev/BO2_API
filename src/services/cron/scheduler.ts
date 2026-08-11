@@ -27,6 +27,7 @@ const RENEWAL_AC_SYNC_JOB_NAME = 'RenewalAcSync'
 const DISCORD_ROLES_SYNC_JOB_NAME = 'DiscordRolesSync'
 const DISCORD_SCHEDULED_MESSAGES_JOB_NAME = 'DiscordScheduledMessages'
 const AC_EXPIRATION_SYNC_JOB_NAME = 'AcExpirationSync'
+const RENEWAL_PIPELINE_JOB_NAME = 'RenewalPipeline'
 const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('000000000000000000000001')
 
 // ─────────────────────────────────────────────────────────────
@@ -794,6 +795,46 @@ const job = await CronJobConfig.create({
     console.log('[AcExpirationSync] Cron criado DESLIGADO (08:00 Lisboa) — ligar manualmente na UI depois de validar localmente')
   }
 
+  /**
+   * Cadência sequencial de renovações: Sync Hotmart (vendas) → Sync AC
+   * (leitura) → Discord Roles, cada passo só arranca depois do anterior
+   * terminar (ver renewalPipeline.service.ts). Substitui a ideia de 3
+   * crons a horas fixas (04:00/05:30/07:30 etc.) que partem se um passo
+   * demorar mais que o previsto. NASCE DESLIGADO; seed create-only —
+   * ligar é acção manual na UI, só depois de validar localmente (pedido
+   * explícito, 11/08/2026). Enquanto estiver desligado, os 3 jobs
+   * individuais (RenewalAcSync / DiscordRolesSync, a horas fixas)
+   * continuam a ser a via normal se algum deles for ligado.
+   */
+  private async ensureRenewalPipelineJob(): Promise<void> {
+    const existingJob = await CronJobConfig.findOne({ name: RENEWAL_PIPELINE_JOB_NAME })
+    if (existingJob) return
+
+    await CronJobConfig.create({
+      name: RENEWAL_PIPELINE_JOB_NAME,
+      description: 'Cadência sequencial de renovações: Sync Hotmart (vendas) → Sync AC (leitura) → Discord Roles, cada passo só arranca depois do anterior terminar. Ver renewalPipeline.service.ts.',
+      syncType: 'hotmart',
+      schedule: {
+        cronExpression: '0 5 * * *', // 05:00 Lisboa — 1h depois do sync "1º" (04:00)
+        timezone: 'Europe/Lisbon',
+        enabled: false // ⛔ nasce DESLIGADO — ligar é acção manual na UI
+      },
+      syncConfig: { fullSync: false, includeProgress: false, includeTags: false, batchSize: 100 },
+      tagRules: [],
+      tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
+      notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: true, recipients: [] },
+      retryPolicy: { maxRetries: 1, retryDelayMinutes: 30, exponentialBackoff: false },
+      nextRun: this.calculateNextRun('0 5 * * *'),
+      createdBy: SYSTEM_CRON_ADMIN_ID,
+      isActive: true,
+      totalRuns: 0,
+      successfulRuns: 0,
+      failedRuns: 0
+    })
+
+    console.log('[RenewalPipeline] Cron criado DESLIGADO (05:00 Lisboa) — ligar manualmente na UI depois de validar localmente')
+  }
+
   async initializeScheduler(): Promise<void> {
     console.log('🚀 Inicializando scheduler...')
 
@@ -806,6 +847,7 @@ const job = await CronJobConfig.create({
     await this.ensureDiscordRolesSyncJob()
     await this.ensureDiscordScheduledMessagesJob()
     await this.ensureAcExpirationSyncJob()
+    await this.ensureRenewalPipelineJob()
 
     // Carregar todos os jobs ativos
     const activeJobs = await CronJobConfig.getActiveJobs()
@@ -858,7 +900,9 @@ private async executeSyncJob(job: ICronJobConfig): Promise<{
     ACHIEVEMENT_EVALUATION_JOB_NAME,
     RENEWAL_AC_SYNC_JOB_NAME,
     DISCORD_ROLES_SYNC_JOB_NAME,
-    DISCORD_SCHEDULED_MESSAGES_JOB_NAME
+    DISCORD_SCHEDULED_MESSAGES_JOB_NAME,
+    AC_EXPIRATION_SYNC_JOB_NAME,
+    RENEWAL_PIPELINE_JOB_NAME
   ]
 
   // Verificar se job atual tem lógica específica
@@ -1039,6 +1083,20 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
         errors: (report.execution?.failed || 0) + (report.plan.anomalyAborted ? 1 : 0),
         skipped: report.plan.blocked + report.plan.skippedDuplicates,
         errorMessage: report.plan.anomalyDetail
+      }
+
+    } else if (job.name.includes(RENEWAL_PIPELINE_JOB_NAME)) {
+      console.log('Executando: RenewalPipeline (Sync Hotmart → Sync AC → Discord Roles, sequencial)')
+      const { runRenewalPipeline } = await import('../renewal/renewalPipeline.service')
+      const report = await runRenewalPipeline()
+      result = {
+        success: report.success,
+        total: (report.hotmartSales.report?.totalActiveStudents || 0) + (report.acRenewalData.report?.totalActiveStudents || 0),
+        inserted: 0,
+        updated: (report.hotmartSales.report?.updated || 0) + (report.acRenewalData.report?.updated || 0) + (report.discordRoles.report?.execution?.applied || 0),
+        errors: [report.hotmartSales, report.acRenewalData, report.discordRoles].filter((s) => !s.success).length,
+        skipped: 0,
+        errorMessage: [report.hotmartSales.error, report.acRenewalData.error, report.discordRoles.error].filter(Boolean).join(' | ') || undefined
       }
 
     } else if (job.name.includes(ACHIEVEMENT_EVALUATION_JOB_NAME)) {
