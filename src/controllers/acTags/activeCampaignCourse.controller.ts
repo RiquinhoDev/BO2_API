@@ -21,14 +21,16 @@ export const getClarezaStudents: RequestHandler = async (_req, res, next) => {
       logger.info('⚠️ [Clareza] Curso não encontrado na BD')
       res.json({
         success: true,
-        stats: {
-          activeLogins: 0,
-          inactive14d: 0,
-          inactive21d: 0,
-          inactivePercentage: 0
+        data: {
+          stats: {
+            activeLogins: 0,
+            inactive14d: 0,
+            inactive21d: 0,
+            inactivePercentage: 0
+          },
+          students: []
         },
-        students: [],
-        warning: 'Curso Clareza não existe na BD. Execute seed para criar.'
+        meta: { warning: 'Curso Clareza não existe na BD. Execute seed para criar.' }
       })
       return
     }
@@ -94,14 +96,15 @@ export const getClarezaStudents: RequestHandler = async (_req, res, next) => {
 
     res.json({
       success: true,
-      stats: {
-        activeLogins,
-        inactive14d,
-        inactive21d,
-        inactivePercentage:
-          students.length > 0 ? ((inactive14d + inactive21d) / students.length) * 100 : 0
-      },
-      students: students.map(s => {
+      data: {
+        stats: {
+          activeLogins,
+          inactive14d,
+          inactive21d,
+          inactivePercentage:
+            students.length > 0 ? ((inactive14d + inactive21d) / students.length) * 100 : 0
+        },
+        students: students.map(s => {
         const bdTags = s.email ? (emailToBDTagsMap.get(s.email) || []) : []
         const acTags = s.email ? (emailToACTagsMap.get(s.email) || []) : []
         const isSynced = JSON.stringify(bdTags.sort()) === JSON.stringify(acTags.sort())
@@ -122,7 +125,8 @@ export const getClarezaStudents: RequestHandler = async (_req, res, next) => {
               ? 'Curseduca'
               : 'N/A'
         }
-      })
+        })
+      }
     })
     return
   } catch (error: unknown) {
@@ -158,14 +162,16 @@ export const getOGIStudents: RequestHandler = async (_req, res, next) => {
       logger.info('⚠️ [OGI] Curso não encontrado na BD')
       res.json({
         success: true,
-        stats: {
-          activeLogins: 0,
-          inactive10d: 0,
-          inactive21d: 0,
-          inactivePercentage: 0
+        data: {
+          stats: {
+            activeLogins: 0,
+            inactive10d: 0,
+            inactive21d: 0,
+            inactivePercentage: 0
+          },
+          students: []
         },
-        students: [],
-        warning: 'Curso OGI não existe na BD. Execute seed-ogi para criar.'
+        meta: { warning: 'Curso OGI não existe na BD. Execute seed-ogi para criar.' }
       })
       return
     }
@@ -231,14 +237,15 @@ export const getOGIStudents: RequestHandler = async (_req, res, next) => {
 
     res.json({
       success: true,
-      stats: {
-        activeLogins,
-        inactive10d,
-        inactive21d,
-        inactivePercentage:
-          students.length > 0 ? ((inactive10d + inactive21d) / students.length) * 100 : 0
-      },
-      students: students.map(s => {
+      data: {
+        stats: {
+          activeLogins,
+          inactive10d,
+          inactive21d,
+          inactivePercentage:
+            students.length > 0 ? ((inactive10d + inactive21d) / students.length) * 100 : 0
+        },
+        students: students.map(s => {
         const bdTags = s.email ? (emailToBDTagsMap.get(s.email) || []) : []
         const acTags = s.email ? (emailToACTagsMap.get(s.email) || []) : []
         const isSynced = JSON.stringify(bdTags.sort()) === JSON.stringify(acTags.sort())
@@ -259,7 +266,8 @@ export const getOGIStudents: RequestHandler = async (_req, res, next) => {
               ? 'Curseduca'
               : 'N/A'
         }
-      })
+        })
+      }
     })
     return
   } catch (error: unknown) {

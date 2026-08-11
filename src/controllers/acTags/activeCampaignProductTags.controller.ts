@@ -218,9 +218,11 @@ export const getUsersWithTagsInProduct: RequestHandler = async (req, res, next) 
     res.json({
       success: true,
       data: enrichedData,
-      count: enrichedData.length,
-      filters: { productId, tag },
-      _v2Enabled: true
+      meta: {
+        count: enrichedData.length,
+        filters: { productId, tag },
+        _v2Enabled: true
+      }
     })
     return
   } catch (error: unknown) {
