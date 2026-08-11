@@ -18,102 +18,74 @@ class CohortAnalyticsService {
   async calculateCohortRetention(
     filters: CohortAnalysisFilters
   ): Promise<CohortRetentionData[]> {
-    
-    // 1. Definir range de cohorts
-    const startDate = filters.startDate 
-      ? moment(filters.startDate) 
-      : moment().subtract(12, 'months')
-    
-    const endDate = filters.endDate 
-      ? moment(filters.endDate) 
-      : moment()
-    
-    const cohorts: CohortRetentionData[] = []
-    
-    // 2. Iterar por cada mês
-    let currentCohort = startDate.clone().startOf('month')
-    
-    while (currentCohort.isSameOrBefore(endDate)) {
-      const cohortMonth = currentCohort.format('YYYY-MM')
-      const cohortLabel = currentCohort.format('MMM YYYY')
-      
-      // 3. Query base para este cohort
-      const baseQuery: any = {
-        enrolledAt: {
-          $gte: currentCohort.toDate(),
-          $lt: currentCohort.clone().add(1, 'month').toDate()
-        },
-        status: { $ne: 'CANCELLED' }
+    const startDate = filters.startDate ? moment(filters.startDate) : moment().subtract(12, 'months')
+    const endDate = filters.endDate ? moment(filters.endDate) : moment()
+    const match: Record<string, unknown> = {
+      enrolledAt: {
+        $gte: startDate.clone().startOf('month').toDate(),
+        $lt: endDate.clone().add(1, 'month').startOf('month').toDate()
+      },
+      status: { $ne: 'CANCELLED' }
+    }
+    if (filters.productId) match.productId = filters.productId
+    if (filters.platform) match.platform = filters.platform
+
+    const milestones = [1, 2, 3, 6, 12]
+    const activeAt = (monthsAhead: number) => ({
+      $sum: {
+        $cond: [
+          {
+            $or: [
+              { $eq: ['$status', 'ACTIVE'] },
+              { $gte: ['$engagement.lastLogin', { $dateAdd: { startDate: '$cohortStart', unit: 'month', amount: monthsAhead } }] },
+              { $gte: ['$engagement.lastAction', { $dateAdd: { startDate: '$cohortStart', unit: 'month', amount: monthsAhead } }] }
+            ]
+          },
+          1,
+          0
+        ]
       }
-      
-      // Aplicar filtros adicionais
-      if (filters.productId) {
-        baseQuery.productId = filters.productId
-      }
-      if (filters.platform) {
-        baseQuery.platform = filters.platform
-      }
-      
-      // 4. Contar initial size
-      const initialSize = await UserProduct.countDocuments(baseQuery)
-      
-      if (initialSize === 0) {
-        currentCohort.add(1, 'month')
-        continue
-      }
-      
-      // 5. Calcular retenção para cada milestone
-      const retention: any = { month0: 100 }
-      const absoluteCounts: any = { month0: initialSize }
-      
-      const milestones = [1, 2, 3, 6, 12]
-      
+    })
+
+    const rows = await UserProduct.aggregate([
+      { $match: match },
+      { $set: { cohortStart: { $dateTrunc: { date: '$enrolledAt', unit: 'month' } } } },
+      {
+        $group: {
+          _id: '$cohortStart',
+          initialSize: { $sum: 1 },
+          month1: activeAt(1),
+          month2: activeAt(2),
+          month3: activeAt(3),
+          month6: activeAt(6),
+          month12: activeAt(12)
+        }
+      },
+      { $sort: { _id: -1 } }
+    ]).allowDiskUse(true)
+
+    return rows.map(row => {
+      const cohortDate = moment(row._id)
+      const retention: CohortRetentionData['retention'] = { month0: 100 }
+      const absoluteCounts: CohortRetentionData['absoluteCounts'] = { month0: row.initialSize }
       for (const monthsAhead of milestones) {
-        const milestoneDate = currentCohort.clone().add(monthsAhead, 'months')
-        
-        // Só calcular se milestone já passou
-        if (milestoneDate.isAfter(moment())) {
-          break
-        }
-        
-        // Query: users ainda ativos nesse mês
-        const activeQuery = {
-          ...baseQuery,
-          $or: [
-            // Ainda ativo
-            { status: 'ACTIVE' },
-            // Ou teve atividade recente
-            { 'engagement.lastLogin': { $gte: milestoneDate.toDate() } },
-            { 'engagement.lastAction': { $gte: milestoneDate.toDate() } }
-          ]
-        }
-        
-        const activeCount = await UserProduct.countDocuments(activeQuery)
-        const retentionPct = (activeCount / initialSize) * 100
-        
-        retention[`month${monthsAhead}`] = Math.round(retentionPct)
-        absoluteCounts[`month${monthsAhead}`] = activeCount
+        if (cohortDate.clone().add(monthsAhead, 'months').isAfter(moment())) break
+        const count = row['month' + monthsAhead]
+        if (monthsAhead === 1) { retention.month1 = Math.round((count / row.initialSize) * 100); absoluteCounts.month1 = count }
+        if (monthsAhead === 2) { retention.month2 = Math.round((count / row.initialSize) * 100); absoluteCounts.month2 = count }
+        if (monthsAhead === 3) { retention.month3 = Math.round((count / row.initialSize) * 100); absoluteCounts.month3 = count }
+        if (monthsAhead === 6) { retention.month6 = Math.round((count / row.initialSize) * 100); absoluteCounts.month6 = count }
+        if (monthsAhead === 12) { retention.month12 = Math.round((count / row.initialSize) * 100); absoluteCounts.month12 = count }
       }
-      
-      // 6. Adicionar cohort aos resultados
-      cohorts.push({
-        cohortMonth,
-        cohortLabel,
-        initialSize,
+      return {
+        cohortMonth: cohortDate.format('YYYY-MM'),
+        cohortLabel: cohortDate.format('MMM YYYY'),
+        initialSize: row.initialSize,
         retention,
         absoluteCounts
-      })
-      
-      currentCohort.add(1, 'month')
-    }
-    
-    return cohorts.reverse() // Mais recente primeiro
+      }
+    })
   }
-  
-  // ─────────────────────────────────────────────────────────
-  // CALCULAR MÉTRICAS DE UM COHORT ESPECÍFICO
-  // ─────────────────────────────────────────────────────────
-  
   async calculateCohortMetrics(
     cohortMonth: string,
     filters: CohortAnalysisFilters
@@ -164,7 +136,7 @@ class CohortAnalyticsService {
           }
         }
       }
-    ])
+    ]).allowDiskUse(true)
     
     if (result.length === 0) {
       throw new Error(`Cohort ${cohortMonth} not found`)

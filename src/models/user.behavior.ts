@@ -282,43 +282,41 @@ schema.statics.getSourceStatistics = async function() {
         limited: { $sum: { $cond: [{ $eq: ['$dataQuality', 'LIMITED'] }, 1, 0] } }
       }
     }
-  ])
+  ]).allowDiskUse(true)
 }
 
 schema.statics.getDataSourceStats = async function() {
-  const [hotmartStats, curseducaStats] = await Promise.all([
-    this.aggregate([
-      { $match: { hotmart: { $exists: true } } },
-      {
-        $group: {
-          _id: null,
-          totalUsers: { $sum: 1 },
-          activeUsers: { $sum: { $cond: [{ $eq: ['$combined.status', 'ACTIVE'] }, 1, 0] } },
-          averageEngagement: { $avg: '$hotmart.engagement.engagementScore' },
-          averageProgress: { $avg: '$combined.totalProgress' }
-        }
+  const [stats] = await this.aggregate([
+    {
+      $facet: {
+        hotmart: [
+          { $match: { hotmart: { $exists: true } } },
+          { $group: {
+            _id: null,
+            totalUsers: { $sum: 1 },
+            activeUsers: { $sum: { $cond: [{ $eq: ['$combined.status', 'ACTIVE'] }, 1, 0] } },
+            averageEngagement: { $avg: '$hotmart.engagement.engagementScore' },
+            averageProgress: { $avg: '$combined.totalProgress' }
+          } }
+        ],
+        curseduca: [
+          { $match: { curseduca: { $exists: true } } },
+          { $group: {
+            _id: null,
+            totalUsers: { $sum: 1 },
+            activeUsers: { $sum: { $cond: [{ $eq: ['$curseduca.memberStatus', 'ACTIVE'] }, 1, 0] } },
+            averageEstimatedProgress: { $avg: '$curseduca.progress.estimatedProgress' },
+            averageAlternativeEngagement: { $avg: '$curseduca.engagement.alternativeEngagement' }
+          } }
+        ]
       }
-    ]),
-    this.aggregate([
-      { $match: { curseduca: { $exists: true } } },
-      {
-        $group: {
-          _id: null,
-          totalUsers: { $sum: 1 },
-          activeUsers: { $sum: { $cond: [{ $eq: ['$curseduca.memberStatus', 'ACTIVE'] }, 1, 0] } },
-          averageEstimatedProgress: { $avg: '$curseduca.progress.estimatedProgress' },
-          averageAlternativeEngagement: { $avg: '$curseduca.engagement.alternativeEngagement' }
-        }
-      }
-    ])
-  ])
-  
+    }
+  ]).allowDiskUse(true)
   return {
-    hotmart: hotmartStats[0] || { totalUsers: 0, activeUsers: 0, averageEngagement: 0, averageProgress: 0 },
-    curseduca: curseducaStats[0] || { totalUsers: 0, activeUsers: 0, averageEstimatedProgress: 0, averageAlternativeEngagement: 0 }
+    hotmart: stats?.hotmart[0] || { totalUsers: 0, activeUsers: 0, averageEngagement: 0, averageProgress: 0 },
+    curseduca: stats?.curseduca[0] || { totalUsers: 0, activeUsers: 0, averageEstimatedProgress: 0, averageAlternativeEngagement: 0 }
   }
 }
-
 schema.statics.getEnhancedUsersList = async function(filters = {}) {
   const query = { ...filters }
   
