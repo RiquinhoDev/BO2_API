@@ -70,8 +70,9 @@ test('completes with the stable zero-user response and no user writes', async ()
   }))
   expect(res.status).toHaveBeenCalledWith(200)
   expect(res.json).toHaveBeenCalledWith({
-    message: 'Nenhum utilizador com Hotmart ID encontrado para sincronização de progresso',
-    stats: { total: 0, errors: 0 }
+    success: true,
+    data: { total: 0, errors: 0 },
+    meta: { message: 'Nenhum utilizador com Hotmart ID encontrado para sincronização de progresso' }
   })
 })
 
@@ -103,8 +104,9 @@ test('persists lesson progress and reports exact counters', async () => {
     })
   }))
   expect(res.json).toHaveBeenCalledWith({
-    message: 'Sincronização de progresso concluída!',
-    stats: { total: 1, withProgress: 1, errors: 0 }
+    success: true,
+    data: { total: 1, withProgress: 1, errors: 0 },
+    meta: { message: 'Sincronização de progresso concluída!' }
   })
 })
 

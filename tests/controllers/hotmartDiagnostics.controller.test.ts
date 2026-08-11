@@ -63,15 +63,16 @@ describe('Hotmart diagnostics controller', () => {
     expect(User.findOne).toHaveBeenCalledWith({ email: 'student@example.test' })
     expect(status).toHaveBeenCalledWith(200)
     expect(json).toHaveBeenCalledWith({
-      message: 'Utilizador encontrado',
-      user: {
+      success: true,
+      data: {
         id,
         email: 'student@example.test',
         name: 'Student',
         hotmartUserId: 'hotmart-id',
         status: 'ACTIVE',
         progress: 75
-      }
+      },
+      meta: { message: 'Utilizador encontrado' }
     })
   })
 
