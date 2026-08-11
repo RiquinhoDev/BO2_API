@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import { HttpError } from '../security/errorHandling'
 import { withUploadedFileCleanup } from '../security/usersImportUpload'
 import { discordIdentityImportService } from '../services/users/discordIdentityImport.runtime'
@@ -43,11 +44,9 @@ export function createUserDiscordImportController(
         }),
       )
 
-      res.json({
+      res.json(successResponse({ syncId: result.syncId, stats: result.stats }, {
         message: 'Sincronização concluída',
-        syncId: result.syncId,
-        stats: result.stats,
-      })
+      }))
     } catch (error) {
       next(importFailure(error))
     }

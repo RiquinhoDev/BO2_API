@@ -3,17 +3,16 @@ import User from '../../../models/user'
 import Product from '../../../models/product/Product'
 import { UserProduct } from '../../../models'
 import { internalError } from '../../../security/errorHandling'
+import { successResponse } from '../../../contracts/responseContract'
 
 export const getDashboardStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const stats = await getCurseducaDashboardStats()
 
-    res.status(200).json({
-      success: true,
+    res.status(200).json(successResponse(stats, {
       message: 'Dashboard carregado com sucesso',
-      ...stats,
       timestamp: new Date().toISOString()
-    })
+    }))
   } catch (error: unknown) {
     next(internalError('Erro ao carregar dashboard CursEduca', 'CURSEDUCA_DASHBOARD_FAILED', error))
   }

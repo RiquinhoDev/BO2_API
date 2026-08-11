@@ -9,6 +9,7 @@ import User from '../models/user'
 import { UserProduct } from '../models'
 import Product from '../models/product/Product'
 import { forwardApplicationError } from '../security/forwardApplicationError'
+import { successResponse } from '../contracts/responseContract'
 import { evaluateStudentTags } from '../jobs/dailyPipeline/tagEvaluation/evaluateStudentTags'
 import { evaluateGlobalUserTags } from '../jobs/dailyPipeline/tagEvaluation/globalUserTags'
 import { IProductForEvaluation } from '../jobs/dailyPipeline/tagEvaluation/types'
@@ -270,7 +271,6 @@ export const evaluateTags = async (req: Request, res: Response, next: NextFuncti
     const duration = Date.now() - startTime
 
     const response = {
-      success: true,
       dryRun,
       updatedLocalDB: updateLocalDB && !dryRun,
       user: {
@@ -301,7 +301,10 @@ export const evaluateTags = async (req: Request, res: Response, next: NextFuncti
       console.log('Ã¢â€¢Â'.repeat(60) + '\n')
     }
 
-    res.status(200).json(response)
+    res.status(200).json(successResponse(response, {
+      duration: `${duration}ms`,
+      timestamp: new Date().toISOString()
+    }))
 
   } catch (error: unknown) {
     forwardApplicationError(next, error, 'Erro ao avaliar tags', 'TAG_EVALUATION_FAILED')
@@ -401,7 +404,8 @@ export const evaluateTagsBatch = async (req: Request, res: Response, next: NextF
           status: (_code: number) => ({
             json: (data: any) => {
               if (data.success) {
-                results.push(data.user)
+                const payload = data.data ?? data
+                results.push(payload.user)
               } else {
                 errors.push({ email: user.email, error: data.error })
               }
@@ -425,8 +429,7 @@ export const evaluateTagsBatch = async (req: Request, res: Response, next: NextF
     const totalToAdd = results.reduce((sum, r) => sum + r.summary.totalToAdd, 0)
     const totalToRemove = results.reduce((sum, r) => sum + r.summary.totalToRemove, 0)
 
-    res.status(200).json({
-      success: true,
+    res.status(200).json(successResponse({
       dryRun,
       updatedLocalDB: updateLocalDB && !dryRun,
       results,
@@ -437,12 +440,11 @@ export const evaluateTagsBatch = async (req: Request, res: Response, next: NextF
         totalTagsToAdd: totalToAdd,
         totalTagsToRemove: totalToRemove
       },
-      errors: errors.length > 0 ? errors : undefined,
-      meta: {
-        duration: `${duration}ms`,
-        timestamp: new Date().toISOString()
-      }
-    })
+      errors: errors.length > 0 ? errors : undefined
+    }, {
+      duration: `${duration}ms`,
+      timestamp: new Date().toISOString()
+    }))
 
     console.log(`Ã¢Å“â€¦ AvaliaÃƒÂ§ÃƒÂ£o batch concluÃƒÂ­da: ${results.length}/${users.length} users (${duration}ms)`)
 
