@@ -7,6 +7,7 @@ import { type NextFunction, Request, Response } from 'express'
 import { internalError } from '../../security/errorHandling'
 
 import ProductSalesStats from '../../models/product/ProductSalesStats'
+import { boundedQueryLimit } from '../../utils/queryBounds'
 import { buildProductSalesStats, getProductSalesStats } from '../../services/productSalesStatsBuilder'
 // ─────────────────────────────────────────────────────────────
 // GET ALL STATS
@@ -14,7 +15,7 @@ import { buildProductSalesStats, getProductSalesStats } from '../../services/pro
 
 export async function getAllProductSalesStats(req: Request, res: Response, next: NextFunction) {
   try {
-    const stats = await getProductSalesStats()
+    const stats = await getProductSalesStats(req.query.limit)
     
     res.json({
       success: true,
@@ -75,7 +76,9 @@ export async function getProductSalesByPeriod(req: Request, res: Response, next:
     
     const query = productId ? { productId } : {}
     
-    const stats = await ProductSalesStats.find(query).lean()
+    const stats = await ProductSalesStats.find(query)
+      .sort({ productCode: 1, _id: 1 })
+      .limit(boundedQueryLimit(req.query.limit, 200)).lean()
     
     // Filtrar por período
     const filtered = stats.map(stat => ({

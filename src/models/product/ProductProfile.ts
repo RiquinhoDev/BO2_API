@@ -279,7 +279,8 @@ ProductProfileSchema.statics = {
    * Buscar todos os produtos ativos
    */
   async findAllActive() {
-    return this.find({ isActive: true }).sort({ name: 1 })
+    // Finite configuration catalog: profiles are admin-defined; 200 guards corrupted growth.
+    return this.find({ isActive: true }).sort({ name: 1, _id: 1 }).limit(200)
   }
 }
 

@@ -10,6 +10,7 @@ import { eventsDeleteInput } from '../security/eventsDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 import { internalError } from '../security/errorHandling'
 import { successResponse } from '../contracts/responseContract'
+import { boundedQueryLimit } from '../utils/queryBounds'
 
 const router = Router()
 
@@ -20,14 +21,14 @@ const router = Router()
 // GET /api/events/upcoming — Próximos eventos publicados
 router.get('/upcoming', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 6
+    const limit = boundedQueryLimit(req.query.limit, 6)
 
     const events = await Event.find({
       status: { $in: ['published', 'live'] },
       scheduledAt: { $gte: new Date() },
       isPublic: true,
     })
-      .sort({ scheduledAt: 1 })
+      .sort({ scheduledAt: 1, _id: 1 })
       .limit(limit)
       .select('-interestedUsers')  // Não enviar lista de emails para o frontend
       .lean()
@@ -101,7 +102,7 @@ router.post('/:id/interest', async (req: Request, res: Response, next: NextFunct
 // GET /api/events — Listar todos (com filtros)
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status, eventType, from, to } = req.query
+    const { status, eventType, from, to, limit } = req.query
     const query: any = {}
 
     if (status) query.status = status
@@ -113,7 +114,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     }
 
     const events = await Event.find(query)
-      .sort({ scheduledAt: -1 })
+      .sort({ scheduledAt: -1, _id: -1 })
+      .limit(boundedQueryLimit(limit, 200))
       .lean()
       .exec()
 
@@ -195,7 +197,11 @@ router.patch('/:id/status', async (req: Request, res: Response, next: NextFuncti
 
 router.get('/types/list', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const types = await EventType.find({ isActive: true }).sort({ label: 1 }).lean().exec()
+    // Finite configuration catalog: event types are admin-defined and must never grow into an unbounded response.
+    const types = await EventType.find({ isActive: true })
+      .sort({ label: 1, _id: 1 })
+      .limit(200)
+      .lean().exec()
     res.json(successResponse(types))
   } catch (error: unknown) {
     next(internalError('Erro ao listar tipos', 'EVENT_TYPES_LIST_FAILED', error))

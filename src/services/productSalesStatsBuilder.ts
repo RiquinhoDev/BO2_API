@@ -12,6 +12,7 @@ import UserProduct from '../models/UserProduct'
 import Product from '../models/product/Product'
 import User from '../models/user'
 import mongoose from 'mongoose'
+import { boundedQueryLimit } from '../utils/queryBounds'
 import { determineSaleDate } from './productSales/dateResolver'
 
 export async function buildProductSalesStats(): Promise<void> {
@@ -312,13 +313,15 @@ export async function buildProductSalesStats(): Promise<void> {
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function getProductSalesStats(
+  requestedLimit?: unknown,
   productId?: string
 ): Promise<any> {
   try {
     const query = productId ? { productId } : {}
     
     const stats = await ProductSalesStats.find(query)
-      .sort({ 'meta.calculatedAt': -1 })
+      .sort({ 'meta.calculatedAt': -1, _id: -1 })
+      .limit(boundedQueryLimit(requestedLimit, 200))
       .lean()
     
     return stats

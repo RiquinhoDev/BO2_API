@@ -28,8 +28,10 @@ export const getAllProductProfiles = async (req: Request, res: Response, next: N
       filter.isActive = isActive === 'true'
     }
 
+    // Finite configuration catalog: product profiles are admin-defined; 200 guards corrupted growth.
     const profiles = await ProductProfile.find(filter)
-      .sort({ name: 1 })
+      .sort({ name: 1, _id: 1 })
+      .limit(200)
 
     res.json(successResponse(profiles, { count: profiles.length }))
   } catch (error: unknown) {
