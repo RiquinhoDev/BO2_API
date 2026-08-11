@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import type { RequestHandler } from 'express'
 import { HttpError } from '../../security/errorHandling'
 import type { StudentMovementService } from '../../services/classes/studentMovement.service'
@@ -22,7 +23,10 @@ export function createMoveStudentController(service: MoveOneService): RequestHan
         reason: reason || 'Movimentação via API',
       })
 
-      res.json({ success: true, message: 'Estudante movido com sucesso', movement, timestamp })
+      res.json(successResponse(
+        movement,
+        { message: 'Estudante movido com sucesso', timestamp },
+      ))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'STUDENT_MOVE_FAILED', publicMessage: 'Erro ao mover estudante.', cause: error }))
     }
@@ -45,12 +49,13 @@ export function createMoveMultipleStudentsController(service: MoveManyService): 
         reason: reason || 'Movimentação múltipla via API',
       })
 
-      res.json({
-        success: true,
-        message: `Movimentação concluída: ${results.success.length} sucessos, ${results.errors.length} erros`,
+      res.json(successResponse(
         results,
-        timestamp,
-      })
+        {
+          message: `Movimentação concluída: ${results.success.length} sucessos, ${results.errors.length} erros`,
+          timestamp,
+        },
+      ))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'STUDENT_MOVE_MULTIPLE_FAILED', publicMessage: 'Erro ao mover estudantes.', cause: error }))
     }

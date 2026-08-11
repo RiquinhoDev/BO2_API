@@ -87,7 +87,8 @@ describe('studentMovement characterization — moveStudent (POST /moveStudent)',
 
     const body = captured.body as Body
     expect(body.success).toBe(true)
-    expect(body.message).toBe('Estudante movido com sucesso')
+    expect(body.data).toBeDefined()
+    expect(body).toHaveProperty('meta.message', 'Estudante movido com sucesso')
 
     const moved = await User.findById(oid(1)).lean()
     expect(moved?.classId).toBe('to')
@@ -143,10 +144,13 @@ describe('studentMovement characterization — moveMultipleStudents (POST /moveM
     )
 
     const body = captured.body as Body
-    expect(body.success).toBe(true)
-    const results = body.results as { success: unknown[]; errors: unknown[] }
-    expect(results.success).toHaveLength(1)
-    expect(results.errors).toHaveLength(1)
-    expect(body.message).toContain('1 sucessos, 1 erros')
+    expect(body).toMatchObject({
+      success: true,
+      data: {
+        success: [expect.any(Object)],
+        errors: [expect.any(Object)],
+      },
+      meta: expect.objectContaining({ message: expect.stringContaining('1 sucessos, 1 erros') }),
+    })
   })
 })

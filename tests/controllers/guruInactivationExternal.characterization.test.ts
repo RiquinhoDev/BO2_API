@@ -245,9 +245,13 @@ test('cleanup reconciles an API-inactive member and updates the stale user cache
   )
   expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
     success: true,
-    cleaned: { total: 1, curseducaInactive: 1, guruActive: 0 },
-    kept: 0,
-    total: 1,
+    data: {
+      cleaned: { total: 1, curseducaInactive: 1, guruActive: 0 },
+      kept: 0,
+      total: 1,
+      cleanedDetails: expect.any(Array),
+    },
+    meta: expect.objectContaining({ message: expect.any(String) }),
   }))
   expect(await UserProduct.findById(userProductId).lean()).toMatchObject({
     status: 'INACTIVE',
@@ -269,7 +273,7 @@ test('diagnose combines database state with the mocked CursEduca member state', 
 
   expect(res.json).toHaveBeenCalledWith({
     success: true,
-    results: [expect.objectContaining({
+    data: [expect.objectContaining({
       email: 'alice@example.test',
       found: true,
       db: expect.objectContaining({

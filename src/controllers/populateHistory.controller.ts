@@ -3,6 +3,7 @@
 // Controller para popular histórico retroativo dos alunos
 // ══════════════════════════════════════════════════════════════════════
 
+import { successResponse } from '../contracts/responseContract'
 import { NextFunction, Request, Response } from 'express'
 import type { TestHistoryDeleteEventsInput } from '../security/testHistoryDestructiveInput'
 import User from '../models/user'
@@ -238,10 +239,8 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
       console.log(`\n✅ [POPULATE] ${historyRecords.length} registos de histórico criados!`)
     }
 
-    return res.status(200).json({
-      success: true,
-      message: 'Histórico retroativo criado com sucesso',
-      data: {
+    return res.status(200).json(successResponse(
+      {
         userId: user._id,
         email: user.email,
         productsProcessed: products.length,
@@ -251,8 +250,9 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
           type: r.metadata.changeType,
           description: r.metadata.description
         }))
-      }
-    })
+      },
+      { message: 'Histórico retroativo criado com sucesso' },
+    ))
   } catch (error: unknown) {
     next(internalError(
       'Erro ao popular histórico retroativo',
@@ -299,13 +299,10 @@ export const deleteTestEvents = async (
 
     console.log(`✅ [DELETE] Nome do user revertido`)
 
-    return res.status(200).json({
-      success: true,
-      message: 'Eventos de teste apagados com sucesso',
-      data: {
-        deletedCount: result.deletedCount
-      }
-    })
+    return res.status(200).json(successResponse(
+      { deletedCount: result.deletedCount },
+      { message: 'Eventos de teste apagados com sucesso' },
+    ))
   } catch (error: unknown) {
     next(internalError(
       'Erro ao apagar eventos de teste',
@@ -354,14 +351,10 @@ export const populateAllUsersHistory = async (req: Request, res: Response, next:
       }
     }
 
-    return res.status(200).json({
-      success: true,
-      message: `Histórico retroativo criado para ${results.length} users`,
-      data: {
-        usersProcessed: results.length,
-        totalRecords
-      }
-    })
+    return res.status(200).json(successResponse(
+      { usersProcessed: results.length, totalRecords },
+      { message: `Histórico retroativo criado para ${results.length} users` },
+    ))
   } catch (error: unknown) {
     next(internalError(
       'Erro ao popular histórico de todos os users',
