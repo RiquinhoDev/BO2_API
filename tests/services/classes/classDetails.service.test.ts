@@ -1,5 +1,6 @@
 import {
   ClassDetailsService,
+  type ClassRecord,
   type ClassDetailsReader,
   type ClassStatsData,
   type Clock,
@@ -18,12 +19,23 @@ const EMPTY_STATS: ClassStatsData = {
   studentDistribution: [],
 }
 
+const CLASS_RECORD: ClassRecord = {
+  classId: 'H',
+  name: 'Turma H',
+  studentCount: 0,
+  isActive: true,
+  estado: 'ativo',
+  source: 'hotmart_sync',
+  createdAt: FIXED,
+  updatedAt: FIXED,
+}
+
 const reader: ClassDetailsReader = {
   classStats: jest.fn(async () => EMPTY_STATS),
   inactivationCounts: jest.fn(async () => ({ pendingLists: 0, completedLists: 0 })),
-  classDetails: jest.fn(async () => ({ classId: 'H' })),
-  fetchMultiple: jest.fn(async () => [{ classId: 'H' }]),
-  fetchAll: jest.fn(async () => [{ classId: 'H' }]),
+  classDetails: jest.fn(async () => CLASS_RECORD),
+  fetchMultiple: jest.fn(async () => [CLASS_RECORD]),
+  fetchAll: jest.fn(async () => [CLASS_RECORD]),
 }
 
 describe('ClassDetailsService', () => {
