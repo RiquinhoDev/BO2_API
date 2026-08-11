@@ -1,4 +1,6 @@
-import { getLastLearnerActivityDate, type LearnerActivitySource } from '../activity/learnerActivity'
+import type { Document } from 'mongoose'
+import type { IUser } from '../../models/user.types'
+import { getLastLearnerActivityDate } from '../activity/learnerActivity'
 
 /**
  * Class roster reads behind GET /:classId/students and /users/search. The reader
@@ -21,19 +23,19 @@ export interface ClassRosterSummary {
   source?: string
 }
 
-export interface RosterUser {
-  _id: unknown
-  name?: string
-  email?: string
-  classId?: string
-  hotmart?: { purchaseDate?: Date; status?: string; lastAccessDate?: unknown }
-  metadata?: { createdAt?: Date }
-  combined?: { status?: string }
-  curseduca?: { joinedDate?: Date; memberStatus?: string; lastLogin?: unknown; lastAccess?: unknown }
-  discord?: { discordIds?: string[] }
-  communicationByCourse?: LearnerActivitySource['communicationByCourse']
-}
+type RosterDocumentMethod =
+  | 'calculateCombinedData'
+  | 'getDisplayProgress'
+  | 'getDisplayEngagement'
+  | 'isDataEstimated'
+  | 'getDataSourceInfo'
 
+type RosterDocumentFields = Omit<IUser, keyof Document | RosterDocumentMethod>
+
+export type RosterUser = RosterDocumentFields & {
+  _id: IUser['_id']
+  __v?: number
+}
 export type SearchRosterStudent = RosterUser & {
   className?: string
 }
@@ -141,7 +143,7 @@ function literalRegex(term: string): { $regex: string; $options: string } {
 
 function formatStudent(student: RosterUser, isCurseduca: boolean): FormattedStudent {
   let joinedDate = student.hotmart?.purchaseDate || student.metadata?.createdAt
-  const lastActivity = getLastLearnerActivityDate(student as LearnerActivitySource)
+  const lastActivity = getLastLearnerActivityDate(student)
   let status = student.combined?.status || student.hotmart?.status || 'ACTIVE'
 
   if (isCurseduca) {

@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -18,7 +19,13 @@ function responseFixture() {
   }))
 }
 
-function runGenerator(mode: '--check' | '--write', catalogPath: string) {
+const sha256 = (value: string): string => createHash('sha256').update(value).digest('hex')
+
+function runGenerator(
+  mode: '--check' | '--write',
+  catalogPath: string,
+  extraEnv: NodeJS.ProcessEnv = {},
+) {
   return spawnSync(process.execPath, [generator, mode], {
     cwd: process.cwd(),
     encoding: 'utf8',
@@ -26,6 +33,7 @@ function runGenerator(mode: '--check' | '--write', catalogPath: string) {
       ...process.env,
       RESPONSE_CONTRACT_ROUTE_CATALOG: routeCatalogPath,
       RESPONSE_CONTRACT_CATALOG: catalogPath,
+      ...extraEnv,
     },
   })
 }
@@ -76,6 +84,7 @@ describe('response contract catalog', () => {
     )
 
     expect(result.status).toBe(0)
+    expect(result.stdout).toContain('219 Front calls; 194 consumers')
     expect(after).toBe(before)
   })
 
@@ -147,9 +156,10 @@ describe('response contract catalog', () => {
       'timestamp', 'updatedAt',
     ])
     expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/classes/users/search')?.shapeKeys).toEqual([
-      '_id', 'classId', 'className', 'combined', 'communicationByCourse', 'curseduca',
-      'discord', 'email', 'hotmart', 'message', 'metadata', 'multiple', 'name',
-      'students', 'success', 'timestamp', 'total',
+      '__v', '_id', 'achievementStats', 'achievements', 'classId', 'className',
+      'combined', 'communicationByCourse', 'createdAt', 'curseduca', 'discord',
+      'email', 'engagement', 'guru', 'hotmart', 'inactivation', 'message', 'metadata',
+      'multiple', 'name', 'students', 'success', 'timestamp', 'total', 'updatedAt',
     ])
     expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/users/search')?.shapeKeys).toEqual([
       '_id', 'acTagsByProduct', 'acceptedTerms', 'accessCount', 'classId', 'className',
@@ -211,6 +221,160 @@ describe('response contract catalog', () => {
     expect(consumer('POST /api/renewal-ac/execute')).toBe('src/services/renewalAcSync.service.ts')
   })
 
+  test('write mode rejects valid-family drift and preserves the reviewed catalog SHA', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-'))
+    const catalogPath = path.join(directory, 'catalog.json')
+    const fixture = responseFixture().map((decision, index) =>
+      index === 0 ? { ...decision, family: decision.family === 'raw-json' ? 'domain-envelope' : 'raw-json' } : decision)
+    const before = `${JSON.stringify(fixture, null, 2)}\n`
+
+    try {
+      fs.writeFileSync(catalogPath, before, 'utf8')
+      const result = runGenerator('--write', catalogPath)
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}${result.stderr}`).toContain(routeId(fixture[0]))
+      expect(sha256(fs.readFileSync(catalogPath, 'utf8'))).toBe(sha256(before))
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('write mode rejects producer drift and preserves the reviewed catalog SHA', () => {
+    const sourcePath = path.join(process.cwd(), 'src', 'services', 'users', 'usersV2OverviewAnalytics.service.ts')
+    const catalogPath = path.join(process.cwd(), 'src', 'contracts', 'response-contract-catalog.json')
+    const sourceBefore = fs.readFileSync(sourcePath, 'utf8')
+    const catalogBefore = fs.readFileSync(catalogPath, 'utf8')
+    const mutated = sourceBefore.replace(
+      '    return {\n      success: true,\n      data: {',
+      '    return {\n      success: true,\n      writeReviewMutation: null,\n      data: {',
+    )
+    expect(mutated).not.toBe(sourceBefore)
+
+    try {
+      fs.writeFileSync(sourcePath, mutated, 'utf8')
+      const result = spawnSync(process.execPath, [generator, '--write'], {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}${result.stderr}`).toContain('GET /api/users/v2/analytics')
+      expect(sha256(fs.readFileSync(catalogPath, 'utf8'))).toBe(sha256(catalogBefore))
+    } finally {
+      fs.writeFileSync(sourcePath, sourceBefore, 'utf8')
+      fs.writeFileSync(catalogPath, catalogBefore, 'utf8')
+    }
+  })
+
+  test.each([
+    ['unmatched', "void httpClient.get('/__missing-response-contract-route')", 'unmatched Front call'],
+    ['unresolved', 'declare function runtimePath(): string\nconst target = runtimePath()\nvoid httpClient.get(target)', 'unresolved Front call'],
+  ])('fails check and write for an %s productive Front call without writing', (_label, body, expectedError) => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-front-'))
+    const extraRoot = path.join(directory, 'src')
+    const extraFile = path.join(extraRoot, 'mutation.api.ts')
+    const catalogPath = path.join(process.cwd(), 'src', 'contracts', 'response-contract-catalog.json')
+    const before = fs.readFileSync(catalogPath, 'utf8')
+
+    try {
+      fs.mkdirSync(extraRoot, { recursive: true })
+      fs.writeFileSync(extraFile, `import { httpClient } from './services/httpClient'\n${body}\n`, 'utf8')
+      for (const mode of ['--check', '--write'] as const) {
+        const result = runGenerator(mode, catalogPath, {
+          RESPONSE_CONTRACT_FRONT_EXTRA_SOURCE: extraRoot,
+        })
+        expect(result.status).not.toBe(0)
+        expect(`${result.stdout}${result.stderr}`).toContain(expectedError)
+        expect(sha256(fs.readFileSync(catalogPath, 'utf8'))).toBe(sha256(before))
+      }
+    } finally {
+      fs.writeFileSync(catalogPath, before, 'utf8')
+      fs.rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('resolves an awaited Promise body before extracting response properties', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-await-'))
+    const routeFile = path.join(process.cwd(), 'src', '__responseContractAwaitFixture.ts')
+    const routeCatalogFixture = path.join(directory, 'routes.json')
+    const responseCatalogFixture = path.join(directory, 'responses.json')
+    const frontRoot = path.join(directory, 'Front')
+    const frontSrc = path.join(frontRoot, 'src')
+    const source = [
+      "import { Router } from 'express'",
+      'const router = Router()',
+      "router.get('/promise', async (_req, res) => {",
+      '  res.json(await Promise.resolve({ success: true, data: null }))',
+      '})',
+      'export default router',
+      '',
+    ].join('\n')
+    const routes = [{
+      method: 'GET',
+      path: '/api/__awaited-promise',
+      evidence: 'consumer nao identificado; rota em src/__responseContractAwaitFixture.ts:3',
+    }]
+    const responses = [{
+      method: 'GET',
+      path: '/api/__awaited-promise',
+      family: 'success-data',
+      shapeKeys: ['data', 'success'],
+      evidence: 'src/__responseContractAwaitFixture.ts:4',
+      frontConsumer: null,
+    }]
+
+    try {
+      fs.mkdirSync(frontSrc, { recursive: true })
+      fs.writeFileSync(path.join(frontRoot, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2022' }, include: ['src/**/*.ts'] }), 'utf8')
+      fs.writeFileSync(path.join(frontSrc, 'empty.ts'), 'export {}\n', 'utf8')
+      fs.writeFileSync(routeFile, source, 'utf8')
+      fs.writeFileSync(routeCatalogFixture, JSON.stringify(routes), 'utf8')
+      fs.writeFileSync(responseCatalogFixture, JSON.stringify(responses, null, 2) + '\n', 'utf8')
+
+      const result = runGenerator('--check', responseCatalogFixture, {
+        RESPONSE_CONTRACT_ROUTE_CATALOG: routeCatalogFixture,
+        RESPONSE_CONTRACT_FRONT_ROOT: frontRoot,
+      })
+      expect(result.stderr).toBe('')
+      expect(result.status).toBe(0)
+    } finally {
+      fs.rmSync(routeFile, { force: true })
+      fs.rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('classes users search includes the complete lean IUser surface', () => {
+    const shapeKeys = responseCatalog.find((entry) => routeId(entry) === 'GET /api/classes/users/search')?.shapeKeys
+    expect(shapeKeys).toEqual(expect.arrayContaining([
+      '__v', '_id', 'achievementStats', 'achievements', 'classId', 'className',
+      'combined', 'communicationByCourse', 'createdAt', 'curseduca', 'discord',
+      'email', 'engagement', 'guru', 'hotmart', 'inactivation', 'metadata', 'name',
+      'updatedAt',
+    ]))
+  })
+
+  test('a new IUser producer field invalidates the classes users search decision', () => {
+    const sourcePath = path.join(process.cwd(), 'src', 'models', 'user.types.ts')
+    const catalogPath = path.join(process.cwd(), 'src', 'contracts', 'response-contract-catalog.json')
+    const sourceBefore = fs.readFileSync(sourcePath, 'utf8')
+    const catalogBefore = fs.readFileSync(catalogPath, 'utf8')
+    const mutated = sourceBefore.replace('  email: string //', '  reviewMutation?: string\n  email: string //')
+    expect(mutated).not.toBe(sourceBefore)
+
+    try {
+      fs.writeFileSync(sourcePath, mutated, 'utf8')
+      const result = spawnSync(process.execPath, [generator, '--check'], {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      })
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}${result.stderr}`).toContain('GET /api/classes/users/search')
+      expect(sha256(fs.readFileSync(catalogPath, 'utf8'))).toBe(sha256(catalogBefore))
+    } finally {
+      fs.writeFileSync(sourcePath, sourceBefore, 'utf8')
+    }
+  })
   test('producer drift fails check without writing the reviewed catalog', () => {
     const sourcePath = path.join(process.cwd(), 'src', 'services', 'users', 'usersV2OverviewAnalytics.service.ts')
     const catalogPath = path.join(process.cwd(), 'src', 'contracts', 'response-contract-catalog.json')

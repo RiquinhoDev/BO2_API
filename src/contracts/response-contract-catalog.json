@@ -1157,15 +1157,22 @@
     "path": "/api/classes/users/search",
     "family": "domain-envelope",
     "shapeKeys": [
+      "__v",
       "_id",
+      "achievementStats",
+      "achievements",
       "classId",
       "className",
       "combined",
       "communicationByCourse",
+      "createdAt",
       "curseduca",
       "discord",
       "email",
+      "engagement",
+      "guru",
       "hotmart",
+      "inactivation",
       "message",
       "metadata",
       "multiple",
@@ -1173,7 +1180,8 @@
       "students",
       "success",
       "timestamp",
-      "total"
+      "total",
+      "updatedAt"
     ],
     "evidence": "src/controllers/classes/classRoster.controller.ts:81",
     "frontConsumer": null
