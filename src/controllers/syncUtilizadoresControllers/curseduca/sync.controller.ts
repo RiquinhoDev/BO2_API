@@ -8,7 +8,8 @@ import universalSyncService from '../../../services/syncUtilizadoresServices/uni
 import { getOptionalCurseducaRuntimeSettings } from '../../../services/requestDrivenRuntimeConfig'
 import curseducaAdapter from '../../../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import { internalError } from '../../../security/errorHandling'
-import { SyncLogger, errorMessage, errorStack, type SyncResponse } from './support'
+import canonicalLogger from '../../../utils/logger'
+import { SyncLogger, type SyncResponse } from './support'
 
 export const syncCurseducaUsers = async (req: Request, res: SyncResponse, next: NextFunction): Promise<void> => {
   const logger = new SyncLogger()
@@ -163,8 +164,8 @@ export const syncCurseducaUsers = async (req: Request, res: SyncResponse, next: 
       logger.log(`   🟢 Revertidos a ACTIVE: ${crossRefResult.revertedToActive}`)
       logger.log(`   ⚫ Confirmados INACTIVE: ${crossRefResult.confirmedInactive}`)
       logger.log(`   ⏭️ Ignorados: ${crossRefResult.skipped}`)
-    } catch (error: unknown) {
-      logger.warn(`Cross-reference falhou (não-fatal): ${errorMessage(error)}`)
+    } catch {
+      canonicalLogger.warn('Cross-reference CursEduca falhou; sincronização continua', { stage: 'cross-reference', status: 'ignored' })
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -185,8 +186,8 @@ export const syncCurseducaUsers = async (req: Request, res: SyncResponse, next: 
         await builder.buildDashboardStats()
         logger.success('Stats reconstruídos')
       }
-    } catch (error: unknown) {
-      logger.warn(`Falha ao rebuild stats (ignorado): ${errorMessage(error)}`)
+    } catch {
+      canonicalLogger.warn('Rebuild de stats CursEduca falhou; sincronização continua', { stage: 'dashboard-stats-rebuild', status: 'ignored' })
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -232,8 +233,6 @@ export const syncCurseducaUsers = async (req: Request, res: SyncResponse, next: 
       _version: '3.1'
     })
   } catch (error: unknown) {
-    logger.error(`Erro fatal: ${errorMessage(error)}`)
-    logger.log(errorStack(error) || '')
     
     next(internalError('Erro ao executar sincronização CursEduca', 'CURSEDUCA_SYNC_FAILED', error))
   }
@@ -345,8 +344,8 @@ async function validateUserProductsCreated(logger: SyncLogger, sampleSize = 5) {
       logger.success('✅ Todos os users com dados CursEduca têm UserProducts!')
     }
 
-  } catch (error: unknown) {
-    logger.error(`Erro na validação: ${errorMessage(error)}`)
+  } catch {
+    canonicalLogger.error('Validação pós-sync CursEduca falhou; sincronização preservada', { sampleSize, stage: 'post-sync-validation', status: 'ignored' })
   }
 }
 

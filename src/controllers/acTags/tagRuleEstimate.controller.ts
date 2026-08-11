@@ -120,7 +120,6 @@ export const estimateAffectedUsers: RequestHandler = async (req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro ao estimar alunos:', error)
     next(internalError('Erro interno do servidor', 'TAG_RULE_ESTIMATE_FAILED', error))
     return
   }
@@ -204,7 +203,6 @@ export const previewAffectedUsers: RequestHandler = async (req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro ao fazer preview:', error)
     next(internalError('Erro interno do servidor', 'TAG_RULE_PREVIEW_FAILED', error))
     return
   }
@@ -293,7 +291,6 @@ export const getAvailableFields: RequestHandler = async (_req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro ao listar campos:', error)
     next(internalError('Erro interno do servidor', 'TAG_RULE_FIELDS_READ_FAILED', error))
     return
   }

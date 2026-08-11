@@ -182,7 +182,6 @@ export const syncContactTags: RequestHandler<ContactEmailParams> = async (req, r
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro ao sincronizar contacto:', error)
     next(internalError('Erro interno do servidor', 'AC_CONTACT_TAGS_SYNC_FAILED', error))
     return
   }
@@ -240,7 +239,6 @@ export const getBatchContactTags: RequestHandler = async (req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro batch contact tags:', error)
     next(internalError('Erro interno do servidor', 'AC_CONTACT_TAGS_BATCH_READ_FAILED', error))
     return
   }
@@ -281,7 +279,6 @@ export const batchSyncContacts: RequestHandler = async (req, res, next) => {
     res.json({ success: true, data: results, summary })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro batch sync contacts:', error)
     next(internalError('Erro interno do servidor', 'AC_CONTACT_TAGS_BATCH_SYNC_FAILED', error))
     return
   }
@@ -313,7 +310,6 @@ export const clearACCache: RequestHandler = async (req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro clear AC cache:', error)
     next(internalError('Erro interno do servidor', 'AC_CONTACT_CACHE_CLEAR_FAILED', error))
     return
   }

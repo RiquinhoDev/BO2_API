@@ -31,7 +31,6 @@ export const getAllRules: RequestHandler = async (req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro ao listar regras:', error)
     next(internalError('Erro interno do servidor', 'TAG_RULE_LIST_FAILED', error))
     return
   }
@@ -61,7 +60,6 @@ export const getRuleById: RequestHandler = async (req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro ao buscar regra:', error)
     next(internalError('Erro interno do servidor', 'TAG_RULE_READ_FAILED', error))
     return
   }
@@ -95,7 +93,6 @@ export const createRule: RequestHandler = async (req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro ao criar regra:', error)
     next(internalError('Erro interno do servidor', 'TAG_RULE_CREATE_FAILED', error))
     return
   }
@@ -131,7 +128,6 @@ export const updateRule: RequestHandler = async (req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro ao atualizar regra:', error)
     next(internalError('Erro interno do servidor', 'TAG_RULE_UPDATE_FAILED', error))
     return
   }
@@ -163,7 +159,6 @@ export const deleteRule: RequestHandler = async (req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro ao deletar regra:', error)
     next(internalError('Erro interno do servidor', 'TAG_RULE_DELETE_FAILED', error))
     return
   }
@@ -197,7 +192,6 @@ export const testRule: RequestHandler = async (req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    console.error('❌ Erro ao testar regra:', error)
     next(internalError('Erro interno do servidor', 'TAG_RULE_TEST_FAILED', error))
     return
   }

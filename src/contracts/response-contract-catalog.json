@@ -7,7 +7,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:307",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:304",
     "frontConsumer": null
   },
   {
@@ -18,7 +18,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:101",
+    "evidence": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:98",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -52,7 +52,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:182",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:180",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -165,7 +165,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:160",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:156",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -292,7 +292,7 @@
       "success",
       "warning"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:161",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:159",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -303,7 +303,7 @@
       "logs",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:182",
+    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:181",
     "frontConsumer": null
   },
   {
@@ -342,7 +342,7 @@
       "stats",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:211",
+    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:210",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -368,7 +368,7 @@
       "filters",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:221",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:218",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -381,7 +381,7 @@
       "success",
       "summary"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:263",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:260",
     "frontConsumer": null
   },
   {
@@ -1255,7 +1255,7 @@
       "success",
       "warning"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:161",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:159",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -1337,7 +1337,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:102",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:101",
     "frontConsumer": null
   },
   {
@@ -1361,7 +1361,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:165",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:163",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1389,7 +1389,7 @@
       "totalUserProducts",
       "totalUsers"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts:12",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts:11",
     "frontConsumer": null
   },
   {
@@ -1530,7 +1530,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/sync.controller.ts:64",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/sync.controller.ts:65",
     "frontConsumer": null
   },
   {
@@ -2716,7 +2716,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:67",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:66",
     "frontConsumer": null
   },
   {
@@ -2728,7 +2728,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:94",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:92",
     "frontConsumer": null
   },
   {
@@ -2740,7 +2740,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:106",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:105",
     "frontConsumer": null
   },
   {
@@ -2961,7 +2961,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:58",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:57",
     "frontConsumer": null
   },
   {
@@ -2972,7 +2972,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRuleEstimate.controller.ts:290",
+    "evidence": "src/controllers/acTags/tagRuleEstimate.controller.ts:288",
     "frontConsumer": null
   },
   {
@@ -3709,7 +3709,7 @@
       "success",
       "summary"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:281",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:279",
     "frontConsumer": null
   },
   {
@@ -3721,7 +3721,7 @@
       "success",
       "summary"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:232",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:231",
     "frontConsumer": null
   },
   {
@@ -3774,7 +3774,7 @@
       "studentsEvaluated",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:141",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:140",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -3788,7 +3788,7 @@
       "studentsEvaluated",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:280",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:277",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -3799,7 +3799,7 @@
       "rule",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:44",
+    "evidence": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:43",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -3826,7 +3826,7 @@
       "productName",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:331",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:328",
     "frontConsumer": null
   },
   {
@@ -3838,7 +3838,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:113",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:112",
     "frontConsumer": null
   },
   {
@@ -3850,7 +3850,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:178",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:176",
     "frontConsumer": null
   },
   {
@@ -4168,7 +4168,7 @@
       "studentsEvaluated",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:141",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:140",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -4182,7 +4182,7 @@
       "studentsEvaluated",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:280",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:277",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -4243,7 +4243,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:228",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:225",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -4255,7 +4255,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:271",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:267",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -4267,7 +4267,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:213",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:210",
     "frontConsumer": null
   },
   {
@@ -4279,7 +4279,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:115",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:114",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -5099,7 +5099,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:92",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:90",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -5110,7 +5110,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:194",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:189",
     "frontConsumer": null
   },
   {
@@ -5132,7 +5132,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRuleEstimate.controller.ts:197",
+    "evidence": "src/controllers/acTags/tagRuleEstimate.controller.ts:196",
     "frontConsumer": null
   },
   {
@@ -5418,7 +5418,7 @@
       "rule",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:70",
+    "evidence": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:68",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -5479,7 +5479,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:141",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts:140",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -5572,7 +5572,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:128",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:125",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {

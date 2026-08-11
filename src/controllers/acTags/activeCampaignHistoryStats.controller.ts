@@ -188,7 +188,6 @@ export const getHistoryStats: RequestHandler = async (req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    logger.error('❌ Erro ao calcular stats:', error)
     next(internalError('Erro ao calcular estatísticas', 'AC_HISTORY_STATS_FAILED', error))
     return
   }

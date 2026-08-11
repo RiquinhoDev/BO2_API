@@ -118,8 +118,11 @@ describe('ActiveCampaign operational boundary', () => {
     })
     expect(onNext).toHaveBeenCalledTimes(1)
     expect(loggerErrorMock).toHaveBeenCalledWith(
-      '❌ Erro ao registar falha da avaliação manual:',
-      auditError,
+      'Falha ao registar auditoria da avaliação manual',
+      expect.objectContaining({ executionId: expect.any(String), status: 'failed' }),
+    )
+    expect(JSON.stringify(loggerErrorMock.mock.calls)).not.toMatch(
+      /original evaluation failure|secondary audit failure/,
     )
   })
 })

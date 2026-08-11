@@ -82,7 +82,6 @@ export const getJobHistory = async (
     })
 
   } catch (error: unknown) {
-    console.error('�?� Erro ao buscar histórico:', error)
     next(internalError('Erro ao buscar histórico', 'CRON_JOB_HISTORY_FAILED', error))
   }
 }
@@ -136,7 +135,6 @@ export const validateCronExpression = async (req: Request, res: Response, next: 
     }
 
   } catch (error: unknown) {
-    console.error('�?� Erro ao validar cron expression:', error)
     next(internalError('Erro ao validar cron expression', 'CRON_EXPRESSION_VALIDATION_FAILED', error))
   }
 }
@@ -180,7 +178,6 @@ export const getSchedulerStatus = async (req: Request, res: Response, next: Next
     })
 
   } catch (error: unknown) {
-    console.error('�?� Erro ao buscar status:', error)
     next(internalError('Erro ao buscar status', 'CRON_SCHEDULER_STATUS_FAILED', error))
   }
 }
@@ -243,7 +240,6 @@ export const triggerTagRulesOnly = async (
     })
 
   } catch (error: unknown) {
-    console.error('�?� Erro ao executar Tag Rules Only:', error)
     next(internalError('Erro ao executar Tag Rules Only', 'CRON_TAG_RULES_TRIGGER_FAILED', error))
   }
 }

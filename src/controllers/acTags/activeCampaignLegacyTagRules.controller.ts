@@ -24,7 +24,6 @@ export const getAllTagRules: RequestHandler = async (_req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    logger.error('❌ Erro ao buscar tag rules:', error)
     next(internalError('Erro ao buscar regras', 'AC_LEGACY_TAG_RULE_LIST_FAILED', error))
     return
   }
@@ -44,7 +43,6 @@ export const createTagRule: RequestHandler = async (req, res, next) => {
     res.json({ success: true, rule })
     return
   } catch (error: unknown) {
-    logger.error('❌ Erro ao criar tag rule:', error)
     next(internalError('Erro ao criar regra', 'AC_LEGACY_TAG_RULE_CREATE_FAILED', error))
     return
   }
@@ -70,7 +68,6 @@ export const updateTagRule: RequestHandler = async (req, res, next) => {
     res.json({ success: true, rule })
     return
   } catch (error: unknown) {
-    logger.error('❌ Erro ao atualizar tag rule:', error)
     next(internalError('Erro ao atualizar regra', 'AC_LEGACY_TAG_RULE_UPDATE_FAILED', error))
     return
   }
@@ -101,7 +98,6 @@ export const deleteTagRule = async (
     res.json({ success: true, message: 'Regra deletada com sucesso' })
     return
   } catch (error: unknown) {
-    logger.error('❌ Erro ao deletar tag rule:', error)
     next(internalError('Erro ao deletar regra', 'AC_LEGACY_TAG_RULE_DELETE_FAILED', error))
     return
   }

@@ -38,7 +38,6 @@ export const getAllReports = async (req: Request, res: Response, next: NextFunct
     })
     
   } catch (error: unknown) {
-    console.error('❌ [ReportsController] Erro ao buscar reports:', error)
     next(internalError('Erro ao buscar reports', 'SYNC_REPORT_LIST_FAILED', error))
   }
 }
@@ -71,7 +70,6 @@ export const getReportById = async (req: Request<SyncReportParams>, res: Respons
     })
     
   } catch (error: unknown) {
-    console.error('❌ [ReportsController] Erro ao buscar report:', error)
     next(internalError('Erro ao buscar report', 'SYNC_REPORT_READ_FAILED', error))
   }
 }
@@ -98,7 +96,6 @@ export const getAggregatedStats = async (req: Request, res: Response, next: Next
     })
     
   } catch (error: unknown) {
-    console.error('❌ [ReportsController] Erro ao buscar stats:', error)
     next(internalError('Erro ao buscar stats agregados', 'SYNC_REPORT_STATS_FAILED', error))
   }
 }

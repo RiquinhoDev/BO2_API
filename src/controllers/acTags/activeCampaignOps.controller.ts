@@ -149,7 +149,6 @@ export const testCron = async (
     })
     return
   } catch (error: unknown) {
-    logger.error('❌ Erro na avaliação manual:', error)
 
     try {
       await CronExecutionLog.create({
@@ -163,8 +162,8 @@ export const testCron = async (
           error: errorMessage(error, 'Erro na avaliação manual')
         }
       })
-    } catch (auditError: unknown) {
-      logger.error('❌ Erro ao registar falha da avaliação manual:', auditError)
+    } catch {
+      logger.error('Falha ao registar auditoria da avaliação manual', { executionId, status: 'failed' })
     }
 
     next(internalError('Erro na avaliação manual', 'AC_MANUAL_EVALUATION_FAILED', error))
@@ -219,7 +218,6 @@ export const getStats: RequestHandler = async (_req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    logger.error('❌ Erro ao buscar stats:', error)
     next(internalError('Erro ao buscar estatísticas', 'AC_STATS_READ_FAILED', error))
     return
   }

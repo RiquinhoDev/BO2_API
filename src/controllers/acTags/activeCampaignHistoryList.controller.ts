@@ -184,7 +184,6 @@ export const getCommunicationHistory: RequestHandler = async (req, res, next) =>
     })
     return
   } catch (error: unknown) {
-    logger.error('❌ Erro ao buscar histórico:', error)
     next(internalError('Erro ao buscar histórico', 'AC_HISTORY_LIST_FAILED', error))
     return
   }

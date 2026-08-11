@@ -3,6 +3,17 @@ import type { RequestHandler } from 'express'
 import request from 'supertest'
 import { appForCentralError, expectCentralError } from '../support/centralErrorContract'
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
+import canonicalLogger from '../../src/utils/logger'
+import { SyncLogger } from '../../src/controllers/syncUtilizadoresControllers/curseduca/support'
+
+jest.mock('../../src/utils/logger', () => {
+  const actual = jest.requireActual<typeof import('../../src/utils/logger')>('../../src/utils/logger')
+  return {
+    __esModule: true,
+    ...actual,
+    default: { debug: jest.fn(), error: jest.fn(), info: jest.fn(), warn: jest.fn() },
+  }
+})
 
 installTestRuntimeConfigHooks()
 
@@ -329,6 +340,7 @@ beforeEach(() => {
   jest.spyOn(console, 'error').mockImplementation(() => undefined)
   jest.spyOn(console, 'log').mockImplementation(() => undefined)
   jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+  jest.spyOn(SyncLogger.prototype, 'error')
   global.__curseducaSyncRunning = false
   global.__curseducaSyncStartedAt = undefined
   global.__curseducaSyncFinishedAt = null
@@ -342,11 +354,21 @@ afterEach(() => {
 
 test.each(cases)('$name uses the central redacted error contract', async (route) => {
   route.arrange()
-  const app = appForCentralError({ kind: 'router', mountPath: route.mountPath, router: route.router })
+  const centralLogger = jest.fn()
+  const app = appForCentralError(
+    { kind: 'router', mountPath: route.mountPath, router: route.router },
+    'sec10-request',
+    centralLogger,
+  )
   const pending = request(app)[route.method](route.path).query({ __bo2_offline_loopback: '1' })
   const response = route.body ? await pending.send(route.body) : await pending
 
   expectCentralError(response, route.expected)
+  expect(console.error).not.toHaveBeenCalled()
+  expect(SyncLogger.prototype.error).not.toHaveBeenCalled()
+  expect(centralLogger).toHaveBeenCalledTimes(1)
+  expect(centralLogger).toHaveBeenCalledWith(expect.objectContaining({ correlationId: 'sec10-request' }))
+  expect(JSON.stringify(centralLogger.mock.calls)).not.toMatch(/alice@example\.test|token=hidden/)
 })
 
 test('cron expression infrastructure failure uses the central redacted error contract', async () => {
@@ -594,7 +616,7 @@ test('CursEduca product envelopes preserve product and membership cardinality', 
   })
 })
 
-test('CursEduca manual sync preserves finalized report and error-count envelope', async () => {
+test('CursEduca manual sync preserves its envelope when cross-reference fails safely', async () => {
   const sourceData = [{ email: 'member@example.test', curseducaUserId: 'member-1' }]
   const products = [{ _id: 'product-1', code: 'P1', name: 'One' }]
   mockGetOptionalCurseducaRuntimeSettings.mockReturnValueOnce({
@@ -616,25 +638,17 @@ test('CursEduca manual sync preserves finalized report and error-count envelope'
   mockUserProductFind.mockReturnValueOnce(resolvingChain([], 'populate'))
   mockUserProductCountDocuments.mockResolvedValue(0)
   mockUserCountDocuments.mockResolvedValueOnce(0)
-  mockRunCrossReference.mockResolvedValueOnce({
-    processed: 1,
-    markedParaInativar: 0,
-    revertedToActive: 0,
-    confirmedInactive: 0,
-    reconciledStale: 0,
-    skipped: 1,
-    errors: 0,
-    details: [],
-    duration: 1,
-  })
+  mockRunCrossReference.mockRejectedValueOnce(secret)
   mockBuildDashboardStats.mockResolvedValueOnce(undefined)
 
+  const centralLogger = jest.fn()
   const response = await request(appForCentralError({
     kind: 'router',
     mountPath: '/api/curseduca',
     router: curseducaRouter,
-  })).get('/api/curseduca/sync/universal').query({ __bo2_offline_loopback: '1' })
+  }, 'sec10-request', centralLogger)).get('/api/curseduca/sync/universal').query({ __bo2_offline_loopback: '1' })
 
+  expect(centralLogger).not.toHaveBeenCalled()
   expect(response.status).toBe(200)
   expect(response.body).toMatchObject({
     success: false,
@@ -654,6 +668,11 @@ test('CursEduca manual sync preserves finalized report and error-count envelope'
     triggeredBy: 'MANUAL',
     sourceData,
   }))
+  expect(canonicalLogger.warn).toHaveBeenCalledTimes(1)
+  expect(canonicalLogger.warn).toHaveBeenCalledWith(
+    'Cross-reference CursEduca falhou; sincronização continua',
+    { stage: 'cross-reference', status: 'ignored' },
+  )
 })
 
 test('CursEduca credential kill switch returns before the adapter runs', async () => {
