@@ -1,0 +1,19 @@
+{
+  "documents": [
+    { "identity": "GET /api/clareza/data", "requestPath": "/data", "body": { "thermometer": { "score": 72, "label": "Calmo" } }, "cacheControl": "public, max-age=3600" },
+    { "identity": "GET /api/clareza/top10", "requestPath": "/top10", "body": { "updated": "2026-08-11T09:30:00.000Z", "stocks": [{ "ticker": "AAPL", "score": 9 }] }, "cacheControl": "public, max-age=3600" },
+    { "identity": "GET /api/clareza/reit-valuation/:ticker", "requestPath": "/reit-valuation/O", "body": { "ticker": "O", "pAffoAvg": 15.2, "cockpit": "value" }, "cacheControl": "public, max-age=3600" },
+    { "identity": "GET /api/clareza/reit/:ticker", "requestPath": "/reit/O", "body": { "ticker": "O", "ffoYearsUsed": 5, "metrics": { "pFfo": 13.4 } }, "cacheControl": "public, max-age=3600" },
+    { "identity": "GET /api/clareza/stock/:ticker", "requestPath": "/stock/AAPL", "body": { "ticker": "AAPL", "metrics": { "pe": 28.1 }, "source": "fmp" }, "cacheControl": "public, max-age=3600" },
+    { "identity": "GET /api/clareza/raiox/:ticker", "requestPath": "/raiox/AAPL", "body": { "ticker": "AAPL", "score": 82, "diagnosis": "quality" }, "cacheControl": "public, max-age=3600" },
+    { "identity": "GET /api/clareza/raiox", "requestPath": "/raiox?symbol=AAPL", "body": { "ticker": "AAPL", "score": 82, "diagnosis": "quality" }, "cacheControl": "public, max-age=3600" },
+    { "identity": "GET /api/clareza/raiox", "requestPath": "/raiox?search=apple", "body": { "query": "apple", "count": 1, "results": [{ "ticker": "AAPL", "name": "Apple Inc." }] }, "cacheControl": "public, max-age=600" },
+    { "identity": "GET /api/clareza/raiox-search", "requestPath": "/raiox-search?q=apple", "body": { "query": "apple", "count": 1, "results": [{ "ticker": "AAPL", "name": "Apple Inc." }] }, "cacheControl": "public, max-age=600" },
+    { "identity": "GET /api/clareza/raiox-diagnose", "requestPath": "/raiox-diagnose", "body": { "tested": 3, "ok": 2, "failed": 1, "results": [{ "ticker": "AAPL", "ok": true }] }, "cacheControl": null },
+    { "identity": "GET /api/clareza/carteira/data", "requestPath": "/carteira/data", "body": { "portfolio": [{ "ticker": "AAPL", "weight": 12.5 }] }, "cacheControl": "public, max-age=3600" },
+    { "identity": "GET /api/clareza/carteira-search", "requestPath": "/carteira-search?q=apple", "body": { "query": "apple", "count": 1, "results": [{ "ticker": "AAPL", "name": "Apple Inc." }] }, "cacheControl": "public, max-age=600" },
+    { "identity": "GET /api/clareza/earnings/data", "requestPath": "/earnings/data", "body": { "updated": "2026-08-11T09:30:00.000Z", "window": "week", "count": 1, "earnings": [{ "ticker": "AAPL", "date": "2026-08-12" }] }, "cacheControl": "public, max-age=3600" },
+    { "identity": "GET /api/clareza/comparador", "requestPath": "/comparador?symbols=AAPL,MSFT", "body": { "count": 2, "updated": "2026-08-11T09:30:00.000Z", "companies": [{ "ticker": "AAPL", "price": 100 }, { "ticker": "MSFT", "price": 200 }] }, "cacheControl": "public, max-age=3600" },
+    { "identity": "GET /api/clareza/comparador", "requestPath": "/comparador?search=apple", "body": { "query": "APPLE", "count": 1, "results": [{ "symbol": "AAPL", "name": "Apple Inc." }] }, "cacheControl": "public, max-age=600" }
+  ]
+}
