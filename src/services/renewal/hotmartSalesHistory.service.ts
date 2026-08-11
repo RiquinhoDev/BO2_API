@@ -30,6 +30,8 @@ const PAGE_DELAY_MS = 500
 export interface SalesHistorySyncReport {
   salesChecked: number
   pagesFetched: number
+  totalResultsReportedByHotmart: number | null
+  paginationComplete: boolean
   totalActiveStudents: number
   processed: number
   updated: number
@@ -194,12 +196,27 @@ interface BulkSalesResult {
   salesByEmail: Map<string, IHotmartSale[]>
   salesChecked: number
   pagesFetched: number
+  totalResultsReportedByHotmart: number | null
+  paginationComplete: boolean
+}
+
+function extractTotalResults(responseData: any): number | null {
+  const value = responseData?.page_info?.total_results
+    ?? responseData?.pageInfo?.totalResults
+    ?? responseData?.pagination?.total_results
+    ?? responseData?.pagination?.totalResults
+  return typeof value === 'number' ? value : null
 }
 
 /**
  * Varre TODO o sales/history uma vez (paginado, sem buyer_email — o
  * mesmo padrão já em produção) e agrupa por email do comprador, só
  * para o produto OGI. Uma passagem serve para todos os alunos.
+ *
+ * Autoverificação: a Hotmart devolve total_results logo na 1ª página —
+ * comparamos com quantas vendas realmente processámos no fim do loop.
+ * Se não bater certo, a paginação parou cedo (bug ou API mudou) —
+ * fica registado no report em vez de passar despercebido.
  */
 async function fetchAllOgiSalesGroupedByEmail(
   accessToken: string,
@@ -209,6 +226,7 @@ async function fetchAllOgiSalesGroupedByEmail(
   let pageToken: string | null = null
   let salesChecked = 0
   let pagesFetched = 0
+  let totalResultsReportedByHotmart: number | null = null
 
   const startDate = Date.now() - HOTMART_SALES_HISTORY_MAX_LOOKBACK_DAYS * 24 * 60 * 60 * 1000
 
@@ -220,7 +238,14 @@ async function fetchAllOgiSalesGroupedByEmail(
     })
     pagesFetched += 1
 
-    for (const item of extractSalesItems(response.data)) {
+    if (totalResultsReportedByHotmart === null) {
+      totalResultsReportedByHotmart = extractTotalResults(response.data)
+    }
+
+    const items = extractSalesItems(response.data)
+    console.log(`📄 [HotmartSalesSync] Página ${pagesFetched}: ${items.length} vendas (acumulado: ${salesChecked + items.length}${totalResultsReportedByHotmart !== null ? `/${totalResultsReportedByHotmart}` : ''})`)
+
+    for (const item of items) {
       salesChecked += 1
 
       const productId = extractProductIdFromSale(item)
@@ -243,7 +268,14 @@ async function fetchAllOgiSalesGroupedByEmail(
     sales.sort((a, b) => (b.approvedDate?.getTime() || 0) - (a.approvedDate?.getTime() || 0))
   }
 
-  return { salesByEmail, salesChecked, pagesFetched }
+  const paginationComplete = totalResultsReportedByHotmart === null || totalResultsReportedByHotmart === salesChecked
+  if (!paginationComplete) {
+    console.warn(`⚠️ [HotmartSalesSync] Hotmart reportou ${totalResultsReportedByHotmart} vendas mas só processámos ${salesChecked} em ${pagesFetched} páginas — paginação pode ter parado cedo!`)
+  } else {
+    console.log(`✅ [HotmartSalesSync] Paginação completa: ${pagesFetched} páginas, ${salesChecked} vendas confirmadas.`)
+  }
+
+  return { salesByEmail, salesChecked, pagesFetched, totalResultsReportedByHotmart, paginationComplete }
 }
 
 async function resolveOgiProduct(): Promise<{ hotmartProductId: string; objectId: mongoose.Types.ObjectId }> {
@@ -300,11 +332,14 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
 
   // uma única passagem por TODO o histórico de vendas OGI — não uma
   // chamada por aluno. O custo é do volume de vendas, não de alunos.
-  const { salesByEmail, salesChecked, pagesFetched } = await fetchAllOgiSalesGroupedByEmail(accessToken, hotmartProductId)
+  const { salesByEmail, salesChecked, pagesFetched, totalResultsReportedByHotmart, paginationComplete } =
+    await fetchAllOgiSalesGroupedByEmail(accessToken, hotmartProductId)
 
   const report: SalesHistorySyncReport = {
     salesChecked,
     pagesFetched,
+    totalResultsReportedByHotmart,
+    paginationComplete,
     totalActiveStudents: users.length,
     processed: 0,
     updated: 0,
