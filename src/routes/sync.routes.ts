@@ -38,11 +38,6 @@ router.post('/hotmart/batch', asyncRoute(syncController.syncHotmartBatchEndpoint
 router.post('/curseduca', asyncRoute(syncController.syncCurseducaEndpoint))
 router.post('/curseduca/batch', asyncRoute(syncController.syncCurseducaBatchEndpoint))
 
-// Discord sync
-router.post('/discord', syncController.syncDiscordEndpoint)
-router.post('/discord/csv', syncController.syncDiscordCSVEndpoint)
-router.post('/discord/batch', syncController.syncDiscordBatchEndpoint)
-
 // ═══════════════════════════════════════════════════════════
 // SYNC HISTORY & STATS
 // ═══════════════════════════════════════════════════════════

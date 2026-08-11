@@ -1,88 +1,25 @@
-import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
-import express from 'express'
-import request from 'supertest'
-import { configureDebugRoutes } from '../../src/security/debugRoutes'
-import { createErrorHandling } from '../../src/security/errorHandling'
-installTestRuntimeConfigHooks()
-
-
-const cleanupDuplicates = jest.fn((_input, res) => res.status(204).end())
-const noop = jest.fn((_req, res) => res.status(204).end())
-
-jest.mock('../../src/controllers/syncUtilizadoresControllers/curseduca.controller', () => ({
-  getDashboardStats: noop,
-  getGroups: noop,
-  getMembers: noop,
-  getMemberByEmail: noop,
-  getAccessReports: noop,
-  getCurseducaUsers: noop,
-  debugCurseducaAPI: noop,
-  getSyncReport: noop,
-  getUserByEmail: noop,
-  cleanupDuplicates,
-  getUsersWithClasses: noop,
-  updateUserClasses: noop,
-  getCurseducaProducts: noop,
-  getCurseducaProductByGroupId: noop,
-  getCurseducaProductUsers: noop,
-  getCurseducaStats: noop,
-  compareSyncMethods: noop,
-  syncCurseducaUsersUniversal: noop,
-  syncCurseducaUsersStart: noop,
-  getCurseducaSyncStatus: noop,
-}))
-
+import fs from 'node:fs'
+import path from 'node:path'
 import curseducaRouter from '../../src/routes/curseduca.routes'
+import syncRouter from '../../src/routes/sync.routes'
 
-const marker = { __bo2_offline_loopback: '1' }
-const path = '/api/curseduca/cleanup'
+const routePaths = (router: typeof curseducaRouter) => router.stack
+  .map((layer) => layer.route?.path)
+  .filter((value): value is string => typeof value === 'string')
 
-function buildApp() {
-  const app = express()
-  const errors = createErrorHandling({
-    generateCorrelationId: () => 'curseduca-validation-id',
-    logError: () => undefined,
-  })
-
-  app.use(errors.correlationId)
-  app.use(express.json())
-  app.use('/api/curseduca', curseducaRouter)
-  app.use(errors.handler)
-  return app
-}
-
-function callRoute(body: Record<string, unknown> = {}) {
-  const pending = request(buildApp()).post(path).query(marker)
-  return Object.keys(body).length > 0 ? pending.send(body) : pending
-}
-
-test('accepts empty input and forwards the DTO to the stub', async () => {
-  cleanupDuplicates.mockClear()
-
-  await callRoute().expect(204)
-
-  expect(cleanupDuplicates).toHaveBeenCalledWith(
-    expect.objectContaining({
-      params: {},
-      query: {},
-      body: {},
-    }),
-    expect.anything(),
-  )
+it('does not mount removed CursEduca placeholder capabilities', () => {
+  expect(routePaths(curseducaRouter)).not.toEqual(expect.arrayContaining([
+    '/debug', '/groups', '/members', '/members/by', '/report', '/reports/access', '/user', '/users', '/cleanup',
+  ]))
+  expect(routePaths(curseducaRouter)).toEqual(expect.arrayContaining([
+    '/dashboard', '/users-with-classes', '/user/:userId/classes', '/sync/universal', '/sync/status',
+  ]))
 })
 
-test('rejects an extra role field', async () => {
-  await callRoute({ role: 'SUPER_ADMIN' }).expect(400)
-})
-
-test('rejects a nested Mongo operator', async () => {
-  await callRoute({ filter: { $where: 'unsafe' } }).expect(400)
-})
-
-test('gates the mounted debug route behind the local debug flag', async () => {
-  configureDebugRoutes({ enableDebugRoutes: false })
-  await request(buildApp()).get('/api/curseduca/debug').query(marker).expect(404)
-
-  configureDebugRoutes({ enableDebugRoutes: true })
-  await request(buildApp()).get('/api/curseduca/debug').query(marker).expect(204)
+it('does not mount placeholder Discord sync while preserving the real import route', () => {
+  expect(routePaths(syncRouter)).not.toEqual(expect.arrayContaining([
+    '/discord', '/discord/batch', '/discord/csv',
+  ]))
+  const usersRoutes = fs.readFileSync(path.join(process.cwd(), 'src/routes/users.routes.ts'), 'utf8')
+  expect(usersRoutes).toContain('router.post("/syncDiscordAndHotmart", usersImportUpload, syncDiscordAndHotmart)')
 })

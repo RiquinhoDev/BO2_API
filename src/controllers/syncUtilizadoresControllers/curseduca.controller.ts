@@ -2,4 +2,4 @@ export { getDashboardStats, getCurseducaDashboardStats } from './curseduca/dashb
 export { syncCurseducaUsers } from './curseduca/sync.controller'
 export { getCurseducaProducts, getCurseducaProductByGroupId, getCurseducaProductUsers, getCurseducaStats } from './curseduca/products.controller'
 export { getUsersWithClasses, updateUserClasses, compareSyncMethods } from './curseduca/users.controller'
-export { getGroups, getMembers, getMemberByEmail, getAccessReports, getCurseducaUsers, debugCurseducaAPI, getSyncReport, getUserByEmail, cleanupDuplicates, syncCurseducaUsersUniversal, syncCurseducaUsersStart, getCurseducaSyncStatus } from './curseduca/legacy.controller'
+export { getUserByEmail, syncCurseducaUsersUniversal, syncCurseducaUsersStart, getCurseducaSyncStatus } from './curseduca/legacy.controller'
