@@ -4,15 +4,6 @@ import { Router } from 'express'
 import {
   // V1
   getDashboardStats,
-  getGroups,
-  getMembers,
-  getMemberByEmail,
-  getAccessReports,
-  getCurseducaUsers,
-  debugCurseducaAPI,
-  getSyncReport,
-  getUserByEmail,
-  cleanupDuplicates,
   getUsersWithClasses,
   updateUserClasses,
 
@@ -26,9 +17,6 @@ import {
   syncCurseducaUsersStart,
   getCurseducaSyncStatus
 } from '../controllers/syncUtilizadoresControllers/curseduca.controller'
-import { curseducaCleanupInput } from '../security/curseducaDestructiveInput'
-import { localDebugOnly } from '../security/debugRoutes'
-import { withValidatedInput } from '../security/validatedInput'
 
 const router = Router()
 // ─────────────────────────────
@@ -38,25 +26,6 @@ const router = Router()
 // 📊 ESTATÍSTICAS E DASHBOARD
 router.get('/dashboard', getDashboardStats)
 router.get('/stats', getDashboardStats) // alias
-
-// 📚 API CURSEDUCA (placeholders/compatibilidade)
-router.get('/groups', getGroups)
-router.get('/members', getMembers)
-router.get('/members/by', getMemberByEmail)
-router.get('/reports/access', getAccessReports)
-router.get('/users', getCurseducaUsers)
-
-// 🔧 DIAGNÓSTICOS AVANÇADOS
-router.get('/debug', localDebugOnly, debugCurseducaAPI)
-
-// 🚀 FUTURO
-router.get('/report', getSyncReport)
-router.get('/user', getUserByEmail)
-router.post(
-  '/cleanup',
-  withValidatedInput(curseducaCleanupInput, (input, _req, res) =>
-    cleanupDuplicates(input, res)),
-)
 
 router.get('/users-with-classes', getUsersWithClasses)
 router.put('/user/:userId/classes', updateUserClasses)

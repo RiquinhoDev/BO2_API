@@ -284,44 +284,5 @@ export const syncCurseducaBatchEndpoint = async (req: Request, res: Response, ne
 }
 
 // ═══════════════════════════════════════════════════════════
-// DISCORD ENDPOINTS (DEPRECADOS - A IMPLEMENTAR)
-// ═══════════════════════════════════════════════════════════
-
-/**
- * POST /api/sync/discord
- * ⚠️ A IMPLEMENTAR: Criar discord.adapter.ts primeiro
- */
-export const syncDiscordEndpoint = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Discord sync ainda não migrado para Universal Sync',
-    note: 'Implementar discord.adapter.ts + usar Universal Sync'
-  })
-}
-
-/**
- * POST /api/sync/discord/csv
- * ⚠️ A IMPLEMENTAR
- */
-export const syncDiscordCSVEndpoint = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Discord CSV sync ainda não migrado para Universal Sync',
-    note: 'Implementar adapter para processar CSV → UniversalSourceItem[]'
-  })
-}
-
-/**
- * POST /api/sync/discord/batch
- * ⚠️ A IMPLEMENTAR
- */
-export const syncDiscordBatchEndpoint = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Discord batch sync ainda não migrado para Universal Sync'
-  })
-}
-
-// ═══════════════════════════════════════════════════════════
 // SECTION 2: SYNC HISTORY & STATS (SEM ALTERAÇÕES)
 // ═══════════════════════════════════════════════════════════

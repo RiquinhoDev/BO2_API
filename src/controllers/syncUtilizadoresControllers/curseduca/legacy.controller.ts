@@ -1,84 +1,14 @@
 import { NextFunction, Request, Response } from 'express'
-import type { CurseducaCleanupInput } from '../../../security/curseducaDestructiveInput'
 import { syncCurseducaUsers } from './sync.controller'
 import { errorMessage, type SyncResponse } from '../../../services/curseducaServices/controllerSupport'
 
-export const getGroups = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint deprecado',
-    note: 'Use POST /api/curseduca/sync'
-  })
-}
-
-export const getMembers = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint deprecado',
-    note: 'Use POST /api/curseduca/sync'
-  })
-}
-
-export const getMemberByEmail = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint deprecado',
-    note: 'Use POST /api/curseduca/sync/email/:email'
-  })
-}
-
-export const getAccessReports = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint deprecado',
-    note: 'Use GET /api/curseduca/dashboard'
-  })
-}
-
-export const getCurseducaUsers = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint deprecado',
-    note: 'Use GET /api/users?source=CURSEDUCA'
-  })
-}
-
-export const debugCurseducaAPI = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint deprecado',
-    note: 'Use GET /api/curseduca/health (se disponível)'
-  })
-}
-
-
-export const getSyncReport = async (req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint deprecado',
-    note: 'Use GET /api/sync/reports/:reportId'
-  })
-}
-
-export const getUserByEmail = async (req: Request, res: Response): Promise<void> => {
+export const getUserByEmail = async (_req: Request, res: Response): Promise<void> => {
   res.status(501).json({
     success: false,
     message: 'Endpoint deprecado',
     note: 'Use GET /api/users?email=:email'
   })
 }
-
-export const cleanupDuplicates = async (
-  _input: CurseducaCleanupInput,
-  res: Response,
-): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Funcionalidade não implementada',
-    note: 'Deduplicação é feita automaticamente no sync'
-  })
-}
-
 // ✅ Alias para compatibilidade
 export const syncCurseducaUsersUniversal = syncCurseducaUsers
 
