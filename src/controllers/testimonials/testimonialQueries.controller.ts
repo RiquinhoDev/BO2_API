@@ -238,16 +238,7 @@ export const getTestimonialReport = async (req: Request, res: Response, next: Ne
       { $limit: 10 }
     ])
 
-    res.json({
-      timelineData,
-      topClasses,
-      period: {
-        startDate,
-        endDate,
-        groupBy
-      },
-      generatedAt: new Date()
-    })
+    res.json(successResponse({ timelineData, topClasses }, { period: { startDate, endDate, groupBy }, generatedAt: new Date() }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao gerar relatório', 'TESTIMONIAL_REPORT_READ_FAILED', error))

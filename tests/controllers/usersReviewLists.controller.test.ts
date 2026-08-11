@@ -90,13 +90,14 @@ test('getIdsDiferentes applies default pagination and preserves its envelope', a
   expect(query.skip).toHaveBeenCalledWith(0)
   expect(query.limit).toHaveBeenCalledWith(50)
   expect(json).toHaveBeenCalledWith({
-    idsDiferentes,
-    pagination: {
+    success: true,
+    data: idsDiferentes,
+    meta: { pagination: {
       page: 1,
       limit: 50,
       total: 101,
       pages: 3,
-    },
+    } },
   })
 })
 
@@ -123,13 +124,14 @@ test('getUnmatchedUsers clamps large limits and preserves its envelope', async (
   expect(query.limit).toHaveBeenCalledWith(200)
   expect(response.status).toHaveBeenCalledWith(200)
   expect(json).toHaveBeenCalledWith({
-    unmatchedUsers,
-    pagination: {
+    success: true,
+    data: unmatchedUsers,
+    meta: { pagination: {
       page: 2,
       limit: 200,
       total: 401,
       pages: 3,
-    },
+    } },
   })
 })
 

@@ -34,7 +34,7 @@ router.get('/upcoming', async (req: Request, res: Response, next: NextFunction) 
       .lean()
       .exec()
 
-    res.json({ events })
+    res.json(successResponse({ events }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar eventos', 'EVENTS_UPCOMING_FAILED', error))
   }
@@ -52,7 +52,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       return res.status(404).json({ message: 'Evento não encontrado.' })
     }
 
-    res.json({ event })
+    res.json(successResponse({ event }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar evento', 'EVENT_READ_FAILED', error))
   }
@@ -212,7 +212,7 @@ router.post('/types', async (req: Request, res: Response, next: NextFunction) =>
   try {
     const eventType = new EventType(req.body)
     await eventType.save()
-    res.status(201).json({ eventType, message: 'Tipo criado com sucesso.' })
+    res.status(201).json(successResponse({ eventType }, { message: 'Tipo criado com sucesso.' }))
   } catch (error: unknown) {
     next(internalError('Erro ao criar tipo', 'EVENT_TYPE_CREATE_FAILED', error))
   }
@@ -224,7 +224,7 @@ router.put('/types/:id', async (req: Request, res: Response, next: NextFunction)
     if (!eventType) {
       return res.status(404).json({ message: 'Tipo não encontrado.' })
     }
-    res.json({ eventType, message: 'Tipo actualizado com sucesso.' })
+    res.json(successResponse({ eventType }, { message: 'Tipo actualizado com sucesso.' }))
   } catch (error: unknown) {
     next(internalError('Erro ao actualizar tipo', 'EVENT_TYPE_UPDATE_FAILED', error))
   }
