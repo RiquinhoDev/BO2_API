@@ -508,6 +508,40 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
   }
 
   /**
+   * Ler vários custom fields de um contacto numa só chamada de fieldValues.
+   * Usa getContactId (cache em User.metadata.activeCampaignId) — só bate
+   * na AC para resolver o contacto da 1ª vez, depois é leitura local.
+   * Devolve null se o contacto não existir na AC.
+   */
+  async getContactFieldValues(
+    email: string,
+    userId: string | undefined,
+    fieldIds: number[]
+  ): Promise<{ contactId: string; values: Record<number, string | null> } | null> {
+    await this.checkRateLimit()
+    try {
+      const contactId = await this.getContactId(email, userId)
+      if (!contactId) return null
+
+      const resp = await this.retryRequest(async () => {
+        return await this.client.get(`/api/3/contacts/${contactId}/fieldValues`)
+      })
+
+      const fieldValues = resp.data?.fieldValues || []
+      const values: Record<number, string | null> = {}
+      for (const fieldId of fieldIds) {
+        const match = fieldValues.find((fv: any) => String(fv.field) === String(fieldId))
+        values[fieldId] = match?.value ?? null
+      }
+
+      return { contactId, values }
+    } catch (error) {
+      console.error(`❌ [AC] Erro ao ler fieldValues de ${email}:`, this.formatError(error))
+      throw error
+    }
+  }
+
+  /**
    * Escrever um custom field de um contacto (upsert por contacto+field).
    *
    * REGRA (guard F7 do plano): o contacto TEM de já existir na AC —
