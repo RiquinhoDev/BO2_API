@@ -61,9 +61,11 @@
     "path": "/api/events/:id",
     "family": "success-data",
     "shapeKeys": [
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/routes/events.routes.ts:162",
+    "evidence": "src/routes/events.routes.ts:163",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -130,10 +132,11 @@
     "path": "/api/tag-monitoring/critical-tags/:id",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:105",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:98",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -144,7 +147,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:145",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:135",
     "frontConsumer": null
   },
   {
@@ -152,10 +155,11 @@
     "path": "/api/tag-monitoring/notifications/:id",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:203",
+    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:187",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts"
   },
   {
@@ -389,10 +393,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "mixed success exits (domain-envelope, success-data); src/controllers/analytics/benchmarkAnalytics.controller.ts:15",
+    "evidence": "src/controllers/analytics/benchmarkAnalytics.controller.ts:17",
     "frontConsumer": "src/features/analytics/analytics.api.ts"
   },
   {
@@ -472,14 +476,11 @@
     "path": "/api/analytics/compare",
     "family": "success-data",
     "shapeKeys": [
-      "cacheAge",
-      "cached",
-      "calculationDuration",
       "data",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/analytics/classComparison.controller.ts:24",
+    "evidence": "src/controllers/analytics/classComparison.controller.ts:26",
     "frontConsumer": "src/features/analytics/analytics.api.ts"
   },
   {
@@ -487,14 +488,11 @@
     "path": "/api/analytics/global",
     "family": "success-data",
     "shapeKeys": [
-      "cacheAge",
-      "cached",
-      "calculationDuration",
       "data",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "mixed success exits (domain-envelope, success-data); src/controllers/analytics/globalAnalytics.controller.ts:16",
+    "evidence": "src/controllers/analytics/globalAnalytics.controller.ts:18",
     "frontConsumer": "src/features/analytics/analytics.api.ts"
   },
   {
@@ -526,10 +524,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/analytics/classOpportunities.controller.ts:23",
+    "evidence": "src/controllers/analytics/classOpportunities.controller.ts:24",
     "frontConsumer": "src/features/analytics/analytics.api.ts"
   },
   {
@@ -1004,15 +1002,11 @@
     "path": "/api/classes/:classId/complete-history",
     "family": "success-data",
     "shapeKeys": [
-      "classId",
-      "className",
-      "history",
-      "pagination",
-      "success",
-      "timestamp",
-      "total"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/classes/classHistory.controller.ts:77",
+    "evidence": "src/controllers/classes/classHistory.controller.ts:78",
     "frontConsumer": "src/pages/gerirAlunos/turmas/components/ClassHistoryDialog.tsx"
   },
   {
@@ -1084,7 +1078,7 @@
       "timestamp",
       "total"
     ],
-    "evidence": "src/controllers/classes/classHistory.controller.ts:21",
+    "evidence": "src/controllers/classes/classHistory.controller.ts:22",
     "frontConsumer": null
   },
   {
@@ -1146,7 +1140,7 @@
       "timestamp",
       "total"
     ],
-    "evidence": "src/controllers/classes/classHistory.controller.ts:36",
+    "evidence": "src/controllers/classes/classHistory.controller.ts:37",
     "frontConsumer": null
   },
   {
@@ -1160,7 +1154,7 @@
       "timestamp",
       "total"
     ],
-    "evidence": "src/controllers/classes/classHistory.controller.ts:51",
+    "evidence": "src/controllers/classes/classHistory.controller.ts:52",
     "frontConsumer": null
   },
   {
@@ -1331,10 +1325,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:47",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:48",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1346,7 +1340,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:101",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts:98",
     "frontConsumer": null
   },
   {
@@ -1355,10 +1349,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:68",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:69",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1367,10 +1361,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:163",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:156",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1379,10 +1373,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/tagRules.controller.ts:52",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/tagRules.controller.ts:53",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -1789,10 +1783,11 @@
     "path": "/api/events",
     "family": "success-data",
     "shapeKeys": [
-      "events",
-      "total"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/routes/events.routes.ts:119",
+    "evidence": "src/routes/events.routes.ts:120",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -1802,7 +1797,7 @@
     "shapeKeys": [
       "event"
     ],
-    "evidence": "src/routes/events.routes.ts:53",
+    "evidence": "src/routes/events.routes.ts:54",
     "frontConsumer": null
   },
   {
@@ -1810,9 +1805,10 @@
     "path": "/api/events/types/list",
     "family": "success-data",
     "shapeKeys": [
-      "types"
+      "data",
+      "success"
     ],
-    "evidence": "src/routes/events.routes.ts:198",
+    "evidence": "src/routes/events.routes.ts:199",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -1822,7 +1818,7 @@
     "shapeKeys": [
       "events"
     ],
-    "evidence": "src/routes/events.routes.ts:35",
+    "evidence": "src/routes/events.routes.ts:36",
     "frontConsumer": null
   },
   {
@@ -1830,12 +1826,11 @@
     "path": "/api/form/logs",
     "family": "success-data",
     "shapeKeys": [
-      "items",
-      "limit",
-      "page",
-      "total"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/routes/validationLogs.routes.ts:69",
+    "evidence": "src/routes/validationLogs.routes.ts:70",
     "frontConsumer": "src/services/validationLogs.service.ts"
   },
   {
@@ -1843,11 +1838,10 @@
     "path": "/api/form/logs/stats",
     "family": "success-data",
     "shapeKeys": [
-      "breakdown",
-      "daily",
-      "totals"
+      "data",
+      "success"
     ],
-    "evidence": "src/routes/validationLogs.routes.ts:137",
+    "evidence": "src/routes/validationLogs.routes.ts:138",
     "frontConsumer": "src/services/validationLogs.service.ts"
   },
   {
@@ -1965,14 +1959,10 @@
     "path": "/api/guru/inactivation/inactive",
     "family": "success-data",
     "shapeKeys": [
-      "inactivatedList",
-      "limit",
-      "page",
-      "pages",
-      "success",
-      "total"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/guruInactivationRead.controller.ts:48",
+    "evidence": "src/controllers/guruInactivationRead.controller.ts:49",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts"
   },
   {
@@ -1980,14 +1970,10 @@
     "path": "/api/guru/inactivation/pending",
     "family": "success-data",
     "shapeKeys": [
-      "count",
-      "deduplicated",
-      "filtered",
-      "pendingList",
-      "success",
-      "total"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/guruInactivationRead.controller.ts:20",
+    "evidence": "src/controllers/guruInactivationRead.controller.ts:21",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts"
   },
   {
@@ -1995,10 +1981,10 @@
     "path": "/api/guru/inactivation/stats",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guruInactivationRead.controller.ts:36",
+    "evidence": "src/controllers/guruInactivationRead.controller.ts:37",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts"
   },
   {
@@ -2606,7 +2592,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/studentHistory.controller.ts:90",
+    "evidence": "src/controllers/studentHistory.controller.ts:91",
     "frontConsumer": "src/components/student/StudentHistoryTimeline.tsx"
   },
   {
@@ -2617,7 +2603,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/studentHistory.controller.ts:189",
+    "evidence": "src/controllers/studentHistory.controller.ts:186",
     "frontConsumer": null
   },
   {
@@ -2763,7 +2749,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:261",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:249",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2771,11 +2757,11 @@
     "path": "/api/tag-monitoring/critical-tags",
     "family": "success-data",
     "shapeKeys": [
-      "count",
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:19",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:20",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2783,12 +2769,11 @@
     "path": "/api/tag-monitoring/critical-tags/available-native-tags",
     "family": "success-data",
     "shapeKeys": [
-      "count",
       "data",
-      "success",
-      "weeksAnalyzed"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:258",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:240",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2799,7 +2784,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:277",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:254",
     "frontConsumer": null
   },
   {
@@ -2807,12 +2792,11 @@
     "path": "/api/tag-monitoring/notifications",
     "family": "success-data",
     "shapeKeys": [
-      "count",
       "data",
-      "filters",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:33",
+    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:34",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts"
   },
   {
@@ -2823,7 +2807,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:72",
+    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:68",
     "frontConsumer": null
   },
   {
@@ -2831,11 +2815,11 @@
     "path": "/api/tag-monitoring/notifications/:id/details",
     "family": "success-data",
     "shapeKeys": [
-      "count",
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:102",
+    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:98",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts"
   },
   {
@@ -2846,7 +2830,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:259",
+    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:236",
     "frontConsumer": null
   },
   {
@@ -2857,7 +2841,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:224",
+    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:205",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts"
   },
   {
@@ -2865,11 +2849,11 @@
     "path": "/api/tag-monitoring/snapshots",
     "family": "success-data",
     "shapeKeys": [
-      "count",
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:32",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:33",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2880,7 +2864,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:123",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:115",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2888,12 +2872,11 @@
     "path": "/api/tag-monitoring/snapshots/user/:email",
     "family": "success-data",
     "shapeKeys": [
-      "count",
       "data",
-      "email",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:67",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:64",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2904,7 +2887,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:190",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:178",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2915,7 +2898,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:230",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:218",
     "frontConsumer": null
   },
   {
@@ -2926,7 +2909,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:379",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:353",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/hooks/useStudentsByPriority.ts"
   },
   {
@@ -2968,9 +2951,9 @@
     "path": "/api/testimonials",
     "family": "success-data",
     "shapeKeys": [
-      "filters",
-      "pagination",
-      "testimonials"
+      "data",
+      "meta",
+      "success"
     ],
     "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:163",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
@@ -2980,11 +2963,11 @@
     "path": "/api/testimonials/available-students",
     "family": "success-data",
     "shapeKeys": [
-      "excludedCount",
-      "students",
-      "total"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialCandidates.controller.ts:169",
+    "evidence": "src/controllers/testimonials/testimonialCandidates.controller.ts:170",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -2992,11 +2975,11 @@
     "path": "/api/testimonials/best-candidates",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
-      "students",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialCandidates.controller.ts:275",
+    "evidence": "src/controllers/testimonials/testimonialCandidates.controller.ts:272",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -3009,7 +2992,7 @@
       "timelineData",
       "topClasses"
     ],
-    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:241",
+    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:240",
     "frontConsumer": null
   },
   {
@@ -3017,12 +3000,11 @@
     "path": "/api/testimonials/stats",
     "family": "success-data",
     "shapeKeys": [
-      "clasStats",
-      "lastUpdated",
-      "overview",
-      "statusBreakdown"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:64",
+    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:65",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -3031,10 +3013,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:301",
+    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:300",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -3463,10 +3445,11 @@
     "path": "/api/events/:id/status",
     "family": "success-data",
     "shapeKeys": [
-      "event",
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/routes/events.routes.ts:185",
+    "evidence": "src/routes/events.routes.ts:186",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -3485,10 +3468,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:300",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:288",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -3497,10 +3480,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:331",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:312",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -3509,10 +3492,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:227",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:213",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -3521,10 +3504,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:181",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:171",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -3533,10 +3516,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:133",
+    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:125",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts"
   },
   {
@@ -3545,10 +3528,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:168",
+    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:156",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts"
   },
   {
@@ -3557,10 +3540,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:241",
+    "evidence": "src/controllers/tagMonitoring/tagNotification.controller.ts:222",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts"
   },
   {
@@ -3743,11 +3726,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/analytics/individualScoreRecalculation.controller.ts:25",
+    "evidence": "src/controllers/analytics/individualScoreRecalculation.controller.ts:26",
     "frontConsumer": "src/features/analytics/analytics.api.ts"
   },
   {
@@ -4151,7 +4133,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:210",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:199",
     "frontConsumer": null
   },
   {
@@ -4160,10 +4142,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:114",
+    "evidence": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts:111",
     "frontConsumer": "src/features/cron/cron.api.ts"
   },
   {
@@ -4328,10 +4310,11 @@
     "path": "/api/events",
     "family": "success-data",
     "shapeKeys": [
-      "event",
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/routes/events.routes.ts:136",
+    "evidence": "src/routes/events.routes.ts:137",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -4342,7 +4325,7 @@
       "interested",
       "interestedCount"
     ],
-    "evidence": "src/routes/events.routes.ts:87",
+    "evidence": "src/routes/events.routes.ts:88",
     "frontConsumer": null
   },
   {
@@ -4350,11 +4333,11 @@
     "path": "/api/events/seed",
     "family": "success-data",
     "shapeKeys": [
-      "eventsCreated",
-      "message",
-      "typesCreated"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/routes/events.routes.ts:343",
+    "evidence": "src/routes/events.routes.ts:344",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -4365,7 +4348,7 @@
       "eventType",
       "message"
     ],
-    "evidence": "src/routes/events.routes.ts:208",
+    "evidence": "src/routes/events.routes.ts:209",
     "frontConsumer": null
   },
   {
@@ -4954,10 +4937,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:68",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:65",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -4966,10 +4949,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:164",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:156",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -5386,10 +5369,11 @@
     "path": "/api/events/:id",
     "family": "success-data",
     "shapeKeys": [
-      "event",
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/routes/events.routes.ts:149",
+    "evidence": "src/routes/events.routes.ts:150",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -5400,7 +5384,7 @@
       "eventType",
       "message"
     ],
-    "evidence": "src/routes/events.routes.ts:220",
+    "evidence": "src/routes/events.routes.ts:221",
     "frontConsumer": null
   },
   {
