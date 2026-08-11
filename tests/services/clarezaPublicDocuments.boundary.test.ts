@@ -25,7 +25,7 @@ import { getReitAnalysis, getReitValuation } from '../../src/services/clareza/cl
 import { getStockAnalysis } from '../../src/services/clareza/clarezaFmpStock.service'
 import { getRaioxJson, searchRaiox } from '../../src/services/clareza/raiox/runtime'
 
-describe('Clareza public-document producer fixtures', () => {
+describe('Clareza public-document boundary fixtures', () => {
   test.each(publicDocumentFixtures.documents)(
     '$identity records a successful serialization mode and producer provenance',
     (fixture) => {
@@ -70,7 +70,7 @@ test('reconciles every fixed JSON top-level shape with the reviewed catalog and 
     expect(Array.isArray(document.body) ? [] : Object.keys(document.body).sort()).toEqual(catalog.shapeKeys)
   }
 })
-describe('cache-backed Clareza producers', () => {
+describe('cache-backed Clareza serialization boundaries', () => {
   beforeEach(() => {
     jest.resetAllMocks()
     resetRuntimeConfigForTests()

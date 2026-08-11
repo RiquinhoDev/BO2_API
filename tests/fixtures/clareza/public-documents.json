@@ -15,8 +15,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "getClarezaData cache-seeded passthrough",
+                                             "boundary":  "cache-seeded passthrough"
                                          },
                           "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
                       },
@@ -38,8 +38,8 @@
                           "rawBody":  "{\"updated\":\"2026-08-11T09:30:00.000Z\",\"stocks\":[{\"ticker\":\"AAPL\",\"score\":9}]}",
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "serialized-cache"
+                                             "producer":  "getClarezaTop10Json serialized cache",
+                                             "boundary":  "cache-seeded passthrough"
                                          },
                           "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
                       },
@@ -57,8 +57,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "getReitValuation cache",
+                                             "boundary":  "cache-seeded passthrough"
                                          },
                           "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
                       },
@@ -78,8 +78,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "getReitAnalysis cache",
+                                             "boundary":  "cache-seeded passthrough"
                                          },
                           "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
                       },
@@ -99,8 +99,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "getStockAnalysis cache",
+                                             "boundary":  "cache-seeded passthrough"
                                          },
                           "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
                       },
@@ -118,8 +118,8 @@
                           "rawBody":  "{\"ticker\":\"AAPL\",\"score\":82,\"diagnosis\":\"quality\"}",
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "serialized-cache"
+                                             "producer":  "getRaioxJson serialized cache",
+                                             "boundary":  "cache-seeded passthrough"
                                          },
                           "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
                       },
@@ -137,8 +137,8 @@
                           "rawBody":  "{\"ticker\":\"AAPL\",\"score\":82,\"diagnosis\":\"quality\"}",
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "serialized-cache"
+                                             "producer":  "getRaioxJson shared producer",
+                                             "boundary":  "shared producer"
                                          },
                           "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
                       },
@@ -166,8 +166,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "searchRaiox shared producer",
+                                             "boundary":  "shared producer"
                                          },
                           "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
                       },
@@ -195,8 +195,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "searchRaiox cached-index construction",
+                                             "boundary":  "derived Raio-X search"
                                          },
                           "dynamicRecordException":  null
                       },
@@ -220,8 +220,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "diagnoseRaiox",
+                                             "boundary":  "unexecuted slow diagnostic"
                                          },
                           "dynamicRecordException":  null
                       },
@@ -242,8 +242,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "ClarezaCarteiraService.getData",
+                                             "boundary":  "existing injected-port test"
                                          },
                           "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
                       },
@@ -266,8 +266,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "ClarezaCarteiraService.search",
+                                             "boundary":  "existing injected-port test"
                                          },
                           "dynamicRecordException":  null
                       },
@@ -291,8 +291,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "getClarezaEarningsData cache",
+                                             "boundary":  "cache-seeded passthrough"
                                          },
                           "dynamicRecordException":  null
                       },
@@ -319,8 +319,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "ComparadorService.getComparadorSymbols",
+                                             "boundary":  "existing injected-port test"
                                          },
                           "dynamicRecordException":  "Shared GET identity has query-selected public-document variants; the catalog stores their union."
                       },
@@ -343,8 +343,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "cache-backed Clareza producer characterization",
-                                             "boundary":  "cache-or-port"
+                                             "producer":  "ComparadorService.searchComparador",
+                                             "boundary":  "existing injected-port test"
                                          },
                           "dynamicRecordException":  "Shared GET identity has query-selected public-document variants; the catalog stores their union."
                       }

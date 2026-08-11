@@ -78,6 +78,14 @@
 - [ ] Prove byte/top-level shape compatibility against pre-migration fixtures and reject `success/data` wrapping on public documents.
 - [ ] Commit `test(clareza): protect public document contracts`.
 
+**Task 3 responsibility boundary:** this migration task owns the finite route membership,
+controller passthrough, status, cache headers, JSON versus raw serialization, and rejection of
+a canonical `{ success: true, data }` wrapper. It does not freeze universal financial payload
+values for dynamic/cache-backed Clareza records and makes no controller or service production
+change. Financial correctness and dynamic producer values remain owned by the existing
+per-service tests; Task 3 records their provenance without treating cache-seeded examples as
+universal producer snapshots.
+
 ### Task 4: Migrate identity, authentication, users, and dashboard domains
 
 **Files:**
