@@ -17,6 +17,7 @@ import {
   renewalAcRevertInput,
 } from '../security/renewalAcDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
+import { boundedQueryLimit } from '../utils/queryBounds'
 import { detectHotmartRefunds } from '../services/renewal/hotmartRefunds.service'
 import {
   approveChanges,
@@ -51,7 +52,6 @@ router.get('/status', asyncRoute(async (_req: Request, res: Response) => {
  */
 router.get('/changes', asyncRoute(async (req: Request, res: Response) => {
   const { status, batchId, email } = req.query
-  const limit = Math.min(Number(req.query.limit) || 200, 500)
 
   const query: any = {}
   if (status) query.status = status
@@ -59,8 +59,8 @@ router.get('/changes', asyncRoute(async (req: Request, res: Response) => {
   if (email) query.email = String(email).toLowerCase()
 
   const changes = await RenewalAcChange.find(query)
-    .sort({ plannedAt: -1 })
-    .limit(limit)
+    .sort({ plannedAt: -1, _id: -1 })
+    .limit(boundedQueryLimit(req.query.limit, 200))
     .lean()
     .exec()
 

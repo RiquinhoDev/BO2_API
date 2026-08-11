@@ -7,6 +7,7 @@ import { type NextFunction, Request, Response } from 'express'
 import { internalError } from '../../security/errorHandling'
 import Product from '../../models/product/Product'
 import UserProduct from '../../models/UserProduct'
+import { boundedQueryLimit } from '../../utils/queryBounds'
 import Course from '../../models/Course'
 import { getAllProductsStats as getLegacyStats } from '../../services/userProducts/productService'
 
@@ -43,7 +44,8 @@ export const getAllProducts = async (req: Request, res: Response, next: NextFunc
 
     const products = await Product.find(filters)
       .populate('courseId', 'name code trackingType')
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(boundedQueryLimit(req.query.limit, 200))
 
     // Buscar counts de cada produto
     const productsWithCounts = await Promise.all(

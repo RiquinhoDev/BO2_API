@@ -176,7 +176,8 @@ TagRuleSchema.statics.getActiveRulesByCourse = async function(
   return this.find({
     courseId,
     isActive: true
-  }).sort({ priority: -1 })
+  // Finite configuration catalog: rules per course are admin-defined; 200 guards corrupted growth.
+  }).sort({ priority: -1, _id: 1 }).limit(200)
 }
 
 // ─────────────────────────────────────────────────────────────

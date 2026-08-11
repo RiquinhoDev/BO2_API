@@ -29,7 +29,8 @@ function forwardCourseError(
 
 export const getAllCourses = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const courses = await Course.find().sort({ name: 1 })
+    // Finite configuration catalog: courses are admin-defined; 200 is a defensive corruption ceiling.
+    const courses = await Course.find().sort({ name: 1, _id: 1 }).limit(200)
     
     res.json(successResponse(courses, { count: courses.length }))
   } catch (error: unknown) {
@@ -58,7 +59,7 @@ export const getCourseById = async (req: Request, res: Response, next: NextFunct
     const rules = await TagRule.find({ 
       courseId: course._id,
       isActive: true 
-    }).sort({ priority: -1 })
+    }).sort({ priority: -1, _id: 1 }).limit(200)
 
     res.json({
       success: true,

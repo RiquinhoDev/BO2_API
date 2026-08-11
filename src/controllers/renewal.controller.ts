@@ -3,6 +3,7 @@ import { successResponse } from '../contracts/responseContract'
 import { internalError } from '../security/errorHandling'
 import RenewalOffer from '../models/RenewalOffer'
 import { syncRenewalOffers } from '../services/renewal/renewalSync.service'
+import { boundedQueryLimit } from '../utils/queryBounds'
 import { getTurmasWithCoverage } from '../services/renewal/renewalCoverage.service'
 import { getRenewalPerformance } from '../services/renewal/renewalPerformance.service'
 import { parseOfferName } from '../services/renewal/turmaParser'
@@ -19,7 +20,8 @@ export async function listOffers(req: Request, res: Response, next: NextFunction
     if (isRenewal === 'false') query.isRenewal = false
 
     const offers = await RenewalOffer.find(query)
-      .sort({ isRenewal: -1, salesCount: -1, offerCode: 1 })
+      .sort({ isRenewal: -1, salesCount: -1, offerCode: 1, _id: 1 })
+      .limit(boundedQueryLimit(req.query.limit, 200))
       .lean()
       .exec()
 
