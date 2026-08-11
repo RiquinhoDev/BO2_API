@@ -245,6 +245,10 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/comparador"
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/data"
   },
   {
@@ -274,6 +278,10 @@
   {
     "method": "POST",
     "path": "/api/clareza/raiox/refresh"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/comparador/refresh"
   },
   {
     "method": "POST",

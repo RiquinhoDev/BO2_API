@@ -3,55 +3,76 @@ import { refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service
 import { refreshClarezaRaioxData } from '../services/clareza/clarezaRaioxService'
 import { refreshClarezaCarteiraData } from '../services/clareza/carteira/carteira.runtime'
 import { refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
+import { refreshClarezaComparadorData } from '../services/clareza/comparador/comparador.runtime'
+import logger, { type AppLogger } from '../utils/logger'
 
-const clarezaJob = {
-  async run(): Promise<{ success: boolean; total: number; errors: number }> {
-    console.log('📈 [ClarezaRefresh] Iniciando...')
-    const startTime = Date.now()
+interface ClarezaRefreshResult {
+  readonly total: number
+  readonly errors: number
+}
 
-    try {
-      const result = await refreshClarezaData()
-      const duration = Math.round((Date.now() - startTime) / 1000)
-      console.log(`✅ [ClarezaRefresh] Concluído em ${duration}s — ${result.total} ações`)
+type ClarezaRefresh = () => Promise<ClarezaRefreshResult>
 
-      // Top 10 da equipa — mesmo agendamento. Best-effort: não falha o job principal.
-      try {
-        const top10 = await refreshClarezaTop10Data()
-        console.log(`✅ [ClarezaRefresh] Top10 atualizado — ${top10.total} ações, ${top10.errors} erros`)
-      } catch (top10Err: any) {
-        console.error('⚠️ [ClarezaRefresh] Falha ao atualizar Top10:', top10Err.message)
-      }
+export interface ClarezaJobDependencies {
+  readonly refreshClarezaData: ClarezaRefresh
+  readonly refreshClarezaTop10Data: ClarezaRefresh
+  readonly refreshClarezaRaioxData: ClarezaRefresh
+  readonly refreshClarezaCarteiraData: ClarezaRefresh
+  readonly refreshClarezaEarningsData: ClarezaRefresh
+  readonly refreshClarezaComparadorData: ClarezaRefresh
+  readonly logger: Pick<AppLogger, 'info' | 'error'>
+}
 
-      // Raio-X da Ação — mesmo agendamento, corre por último (é o mais pesado:
-      // ~14 chamadas FMP/empresa). Best-effort: não falha o job principal.
-      try {
-        const raiox = await refreshClarezaRaioxData()
-        console.log(`✅ [ClarezaRefresh] Raio-X atualizado — ${raiox.total} ações, ${raiox.errors} erros`)
-      } catch (raioxErr: any) {
-        console.error('⚠️ [ClarezaRefresh] Falha ao atualizar Raio-X:', raioxErr.message)
-      }
+function logCompletedRefresh(
+  loggerPort: Pick<AppLogger, 'info'>,
+  product: string,
+  result: ClarezaRefreshResult,
+): void {
+  loggerPort.info(`Clareza ${product} refresh completed`, { total: result.total, errors: result.errors })
+}
 
-      // Raio-X da Carteira - mesmo agendamento, depois do Raio-X da Acao.
-      // Best-effort: nao falha o job principal.
-      try {
-        const carteira = await refreshClarezaCarteiraData()
-        console.log(`[ClarezaRefresh] Carteira atualizada - ${carteira.total} ativos, ${carteira.errors} erros`)
-      } catch (carteiraErr: any) {
-        console.error('[ClarezaRefresh] Falha ao atualizar Carteira:', carteiraErr.message)
-      }
-
-      try {
-        const earnings = await refreshClarezaEarningsData()
-        console.log(`[ClarezaRefresh] Earnings atualizado - ${earnings.total} tickers, ${earnings.errors} erros`)
-      } catch (earningsErr: any) {
-        console.error('[ClarezaRefresh] Falha ao atualizar Earnings:', earningsErr.message)
-      }
-      return { success: true, ...result }
-    } catch (error: any) {
-      console.error('❌ [ClarezaRefresh] Erro:', error.message)
-      return { success: false, total: 0, errors: 1 }
-    }
+async function refreshBestEffort(
+  refresh: ClarezaRefresh,
+  product: string,
+  loggerPort: Pick<AppLogger, 'info' | 'error'>,
+): Promise<void> {
+  try {
+    logCompletedRefresh(loggerPort, product, await refresh())
+  } catch {
+    loggerPort.error(`Clareza ${product} refresh failed`, { total: 0, errors: 1 })
   }
 }
+
+export function createClarezaJob(dependencies: ClarezaJobDependencies) {
+  return {
+    async run(): Promise<{ success: boolean; total: number; errors: number }> {
+      try {
+        const result = await dependencies.refreshClarezaData()
+        logCompletedRefresh(dependencies.logger, 'market data', result)
+
+        await refreshBestEffort(dependencies.refreshClarezaTop10Data, 'Top10', dependencies.logger)
+        await refreshBestEffort(dependencies.refreshClarezaRaioxData, 'Raio-X', dependencies.logger)
+        await refreshBestEffort(dependencies.refreshClarezaCarteiraData, 'Carteira', dependencies.logger)
+        await refreshBestEffort(dependencies.refreshClarezaEarningsData, 'Earnings', dependencies.logger)
+        await refreshBestEffort(dependencies.refreshClarezaComparadorData, 'comparador', dependencies.logger)
+
+        return { success: true, ...result }
+      } catch {
+        dependencies.logger.error('Clareza market data refresh failed', { total: 0, errors: 1 })
+        return { success: false, total: 0, errors: 1 }
+      }
+    },
+  }
+}
+
+const clarezaJob = createClarezaJob({
+  refreshClarezaData,
+  refreshClarezaTop10Data,
+  refreshClarezaRaioxData,
+  refreshClarezaCarteiraData,
+  refreshClarezaEarningsData,
+  refreshClarezaComparadorData,
+  logger,
+})
 
 export default clarezaJob

@@ -40,5 +40,8 @@ router.post('/carteira/refresh', asyncRoute(clarezaController.refreshCarteira))
 // Endpoint publico - Calendario de Resultados
 router.get('/earnings/data', asyncRoute(clarezaController.getEarnings))
 router.post('/earnings/refresh', asyncRoute(clarezaController.refreshEarnings))
+router.get('/comparador', asyncRoute(clarezaController.getComparador))
+router.post('/comparador/refresh', asyncRoute(clarezaController.refreshComparador))
+
 
 export default router
