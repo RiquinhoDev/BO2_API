@@ -3,15 +3,16 @@
 // Controller para endpoints de métricas
 // =====================================================
 
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
 import metricsService from '../services/metrics.service'
 import CronExecutionLog from '../models/cron/CronExecutionLog'
+import { forwardApplicationError } from './forwardApplicationError'
 
 /**
  * GET /api/metrics
  * Retorna métricas do sistema
  */
-export const getMetrics = async (req: Request, res: Response) => {
+export const getMetrics = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const currentMetrics = metricsService.collectMetrics()
     const stats = metricsService.getStats()
@@ -22,11 +23,8 @@ export const getMetrics = async (req: Request, res: Response) => {
       stats,
       timestamp: new Date()
     })
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(next, error, 'Erro ao obter métricas', 'METRICS_READ_FAILED')
   }
 }
 
@@ -34,7 +32,7 @@ export const getMetrics = async (req: Request, res: Response) => {
  * GET /api/metrics/history
  * Retorna histórico de métricas
  */
-export const getMetricsHistory = async (req: Request, res: Response) => {
+export const getMetricsHistory = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const history = metricsService.getHistory()
 
@@ -43,11 +41,8 @@ export const getMetricsHistory = async (req: Request, res: Response) => {
       history,
       count: history.length
     })
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(next, error, 'Erro ao obter histórico de métricas', 'METRICS_HISTORY_READ_FAILED')
   }
 }
 
@@ -55,7 +50,7 @@ export const getMetricsHistory = async (req: Request, res: Response) => {
  * GET /api/metrics/cron
  * Retorna métricas dos CRON jobs
  */
-export const getCronMetrics = async (req: Request, res: Response) => {
+export const getCronMetrics = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
 
@@ -79,10 +74,7 @@ export const getCronMetrics = async (req: Request, res: Response) => {
         last24Hours: logs.slice(0, 10)
       }
     })
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(next, error, 'Erro ao obter métricas dos CRON jobs', 'CRON_METRICS_READ_FAILED')
   }
 }

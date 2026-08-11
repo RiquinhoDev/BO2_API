@@ -59,10 +59,6 @@ function inventory(root = sourceRoot): Inventory {
 const BASELINE = {
   "rawEnvironmentRead": [],
   "localHttp500": [
-    "src/controllers/auth.controller.ts:107",
-    "src/controllers/auth.controller.ts:154",
-    "src/controllers/auth.controller.ts:207",
-    "src/controllers/auth.controller.ts:270",
     "src/controllers/guruAnalytics/churn.controller.ts:110",
     "src/controllers/guruAnalytics/churn.controller.ts:268",
     "src/controllers/guruAnalytics/churn.controller.ts:306",
@@ -71,10 +67,6 @@ const BASELINE = {
     "src/controllers/guruInactivationExternal.controller.ts:40",
     "src/controllers/guruSubscriptionList.controller.ts:126",
     "src/controllers/guruWebhookList.controller.ts:75",
-    "src/controllers/health.controller.ts:56",
-    "src/controllers/metrics.controller.ts:26",
-    "src/controllers/metrics.controller.ts:47",
-    "src/controllers/metrics.controller.ts:83",
     "src/controllers/studentHistory.controller.ts:113",
     "src/controllers/studentHistory.controller.ts:194",
     "src/controllers/studentsController.ts:60",
@@ -106,7 +98,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 32,
+  "localHttp500": 24,
   "publicErrorDetail": 0
 } as const
 

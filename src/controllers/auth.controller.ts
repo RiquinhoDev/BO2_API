@@ -1,11 +1,12 @@
 // src/controllers/auth.controller.ts
-import { Request, Response } from "express"
+import { type NextFunction, Request, Response } from "express"
 import Admin from "../models/Admin"
 import { signAppToken } from '../security/jwt'
+import { forwardApplicationError } from './forwardApplicationError'
 
 const JWT_EXPIRES_IN = "7d"
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = req.body
 
@@ -102,16 +103,12 @@ export const login = async (req: Request, res: Response) => {
         }
       }
     })
-  } catch (error) {
-    console.error("Error in login:", error)
-    res.status(500).json({
-      success: false,
-      message: "Erro ao fazer login"
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(next, error, 'Erro ao fazer login', 'AUTH_LOGIN_FAILED')
   }
 }
 
-export const verify = async (req: Request, res: Response) => {
+export const verify = async (req: Request, res: Response, next: NextFunction) => {
   const user = req.user
   if (!user) {
     return res.status(401).json({
@@ -149,12 +146,8 @@ export const verify = async (req: Request, res: Response) => {
         }
       }
     })
-  } catch (error) {
-    console.error("Error in verify:", error)
-    res.status(500).json({
-      success: false,
-      message: "Erro ao verificar token"
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(next, error, 'Erro ao verificar token', 'AUTH_VERIFY_FAILED')
   }
 }
 
@@ -165,7 +158,7 @@ export const logout = async (req: Request, res: Response) => {
   })
 }
 
-export const unlockAccount = async (req: Request, res: Response) => {
+export const unlockAccount = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email } = req.body
 
@@ -202,16 +195,12 @@ export const unlockAccount = async (req: Request, res: Response) => {
         failedAttempts: admin.failedAttempts
       }
     })
-  } catch (error) {
-    console.error("Error in unlockAccount:", error)
-    res.status(500).json({
-      success: false,
-      message: "Erro ao desbloquear conta"
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(next, error, 'Erro ao desbloquear conta', 'AUTH_UNLOCK_FAILED')
   }
 }
 
-export const changePassword = async (req: Request, res: Response) => {
+export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
   const user = req.user
   if (!user) {
     return res.status(401).json({
@@ -265,11 +254,7 @@ export const changePassword = async (req: Request, res: Response) => {
       success: true,
       message: "Password alterada com sucesso"
     })
-  } catch (error) {
-    console.error("Error in changePassword:", error)
-    res.status(500).json({
-      success: false,
-      message: "Erro ao alterar password"
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(next, error, 'Erro ao alterar password', 'AUTH_PASSWORD_CHANGE_FAILED')
   }
 }
