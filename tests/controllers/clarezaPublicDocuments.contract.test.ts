@@ -74,11 +74,17 @@ function requestPath(path: string): string {
   return `${path}${path.includes('?') ? '&' : '?'}${offlineSuffix}`
 }
 
-function configureDocument(path: string, body: unknown): void {
+function isCanonicalSuccessWrapper(value: unknown, expectedData: unknown): boolean {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+  return Reflect.get(value, 'success') === true
+    && Object.prototype.hasOwnProperty.call(value, 'data')
+    && JSON.stringify(Reflect.get(value, 'data')) === JSON.stringify(expectedData)
+}
+function configureDocument(path: string, body: unknown, rawBody: string | null): void {
   if (path === '/data') {
     mockGetClarezaData.mockResolvedValueOnce(body)
   } else if (path === '/top10') {
-    mockGetClarezaTop10Json.mockResolvedValueOnce(JSON.stringify(body))
+    mockGetClarezaTop10Json.mockResolvedValueOnce(rawBody ?? JSON.stringify(body))
   } else if (path.startsWith('/reit-valuation/')) {
     mockGetReitValuation.mockResolvedValueOnce(body)
   } else if (path.startsWith('/reit/')) {
@@ -92,7 +98,7 @@ function configureDocument(path: string, body: unknown): void {
   } else if (path.startsWith('/raiox?search=')) {
     mockSearchRaiox.mockResolvedValueOnce(body)
   } else if (path.startsWith('/raiox')) {
-    mockGetRaioxJson.mockResolvedValueOnce(JSON.stringify(body))
+    mockGetRaioxJson.mockResolvedValueOnce(rawBody ?? JSON.stringify(body))
   } else if (path === '/carteira/data') {
     mockGetClarezaCarteiraData.mockResolvedValueOnce(body)
   } else if (path.startsWith('/carteira-search')) {
@@ -122,15 +128,21 @@ describe('Clareza public documents', () => {
   test.each(publicDocumentFixtures.documents)(
     '$identity preserves the documented $requestPath payload, status, and cache header',
     async (fixture) => {
-      configureDocument(fixture.requestPath, fixture.body)
+      configureDocument(fixture.requestPath, fixture.body, fixture.rawBody)
 
       const response = await request(appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter }))
         .get(requestPath(fixture.requestPath))
 
-      expect(response.status).toBe(200)
+      expect(response.status).toBe(fixture.status)
       expect(response.headers['cache-control']).toBe(fixture.cacheControl ?? undefined)
-      expect(response.body).toEqual(fixture.body)
-      expect(response.body).not.toEqual(expect.objectContaining({ success: true, data: expect.anything() }))
+      if (fixture.bodyMode === 'raw') {
+        expect(response.text).toBe(fixture.rawBody)
+        expect(JSON.parse(response.text)).toEqual(fixture.body)
+      } else {
+        expect(response.body).toEqual(fixture.body)
+        expect(response.text).toBe(JSON.stringify(fixture.body))
+      }
+      expect(isCanonicalSuccessWrapper(response.body, fixture.body)).toBe(false)
     },
   )
 })

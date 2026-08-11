@@ -1,19 +1,352 @@
 {
-  "documents": [
-    { "identity": "GET /api/clareza/data", "requestPath": "/data", "body": { "thermometer": { "score": 72, "label": "Calmo" } }, "cacheControl": "public, max-age=3600" },
-    { "identity": "GET /api/clareza/top10", "requestPath": "/top10", "body": { "updated": "2026-08-11T09:30:00.000Z", "stocks": [{ "ticker": "AAPL", "score": 9 }] }, "cacheControl": "public, max-age=3600" },
-    { "identity": "GET /api/clareza/reit-valuation/:ticker", "requestPath": "/reit-valuation/O", "body": { "ticker": "O", "pAffoAvg": 15.2, "cockpit": "value" }, "cacheControl": "public, max-age=3600" },
-    { "identity": "GET /api/clareza/reit/:ticker", "requestPath": "/reit/O", "body": { "ticker": "O", "ffoYearsUsed": 5, "metrics": { "pFfo": 13.4 } }, "cacheControl": "public, max-age=3600" },
-    { "identity": "GET /api/clareza/stock/:ticker", "requestPath": "/stock/AAPL", "body": { "ticker": "AAPL", "metrics": { "pe": 28.1 }, "source": "fmp" }, "cacheControl": "public, max-age=3600" },
-    { "identity": "GET /api/clareza/raiox/:ticker", "requestPath": "/raiox/AAPL", "body": { "ticker": "AAPL", "score": 82, "diagnosis": "quality" }, "cacheControl": "public, max-age=3600" },
-    { "identity": "GET /api/clareza/raiox", "requestPath": "/raiox?symbol=AAPL", "body": { "ticker": "AAPL", "score": 82, "diagnosis": "quality" }, "cacheControl": "public, max-age=3600" },
-    { "identity": "GET /api/clareza/raiox", "requestPath": "/raiox?search=apple", "body": { "query": "apple", "count": 1, "results": [{ "ticker": "AAPL", "name": "Apple Inc." }] }, "cacheControl": "public, max-age=600" },
-    { "identity": "GET /api/clareza/raiox-search", "requestPath": "/raiox-search?q=apple", "body": { "query": "apple", "count": 1, "results": [{ "ticker": "AAPL", "name": "Apple Inc." }] }, "cacheControl": "public, max-age=600" },
-    { "identity": "GET /api/clareza/raiox-diagnose", "requestPath": "/raiox-diagnose", "body": { "tested": 3, "ok": 2, "failed": 1, "results": [{ "ticker": "AAPL", "ok": true }] }, "cacheControl": null },
-    { "identity": "GET /api/clareza/carteira/data", "requestPath": "/carteira/data", "body": { "portfolio": [{ "ticker": "AAPL", "weight": 12.5 }] }, "cacheControl": "public, max-age=3600" },
-    { "identity": "GET /api/clareza/carteira-search", "requestPath": "/carteira-search?q=apple", "body": { "query": "apple", "count": 1, "results": [{ "ticker": "AAPL", "name": "Apple Inc." }] }, "cacheControl": "public, max-age=600" },
-    { "identity": "GET /api/clareza/earnings/data", "requestPath": "/earnings/data", "body": { "updated": "2026-08-11T09:30:00.000Z", "window": "week", "count": 1, "earnings": [{ "ticker": "AAPL", "date": "2026-08-12" }] }, "cacheControl": "public, max-age=3600" },
-    { "identity": "GET /api/clareza/comparador", "requestPath": "/comparador?symbols=AAPL,MSFT", "body": { "count": 2, "updated": "2026-08-11T09:30:00.000Z", "companies": [{ "ticker": "AAPL", "price": 100 }, { "ticker": "MSFT", "price": 200 }] }, "cacheControl": "public, max-age=3600" },
-    { "identity": "GET /api/clareza/comparador", "requestPath": "/comparador?search=apple", "body": { "query": "APPLE", "count": 1, "results": [{ "symbol": "AAPL", "name": "Apple Inc." }] }, "cacheControl": "public, max-age=600" }
-  ]
+    "documents":  [
+                      {
+                          "identity":  "GET /api/clareza/data",
+                          "requestPath":  "/data",
+                          "body":  {
+                                       "thermometer":  {
+                                                           "score":  72,
+                                                           "label":  "Calmo"
+                                                       }
+                                   },
+                          "cacheControl":  "public, max-age=3600",
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
+                      },
+                      {
+                          "identity":  "GET /api/clareza/top10",
+                          "requestPath":  "/top10",
+                          "body":  {
+                                       "updated":  "2026-08-11T09:30:00.000Z",
+                                       "stocks":  [
+                                                      {
+                                                          "ticker":  "AAPL",
+                                                          "score":  9
+                                                      }
+                                                  ]
+                                   },
+                          "cacheControl":  "public, max-age=3600",
+                          "status":  200,
+                          "bodyMode":  "raw",
+                          "rawBody":  "{\"updated\":\"2026-08-11T09:30:00.000Z\",\"stocks\":[{\"ticker\":\"AAPL\",\"score\":9}]}",
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "serialized-cache"
+                                         },
+                          "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
+                      },
+                      {
+                          "identity":  "GET /api/clareza/reit-valuation/:ticker",
+                          "requestPath":  "/reit-valuation/O",
+                          "body":  {
+                                       "ticker":  "O",
+                                       "pAffoAvg":  15.2,
+                                       "cockpit":  "value"
+                                   },
+                          "cacheControl":  "public, max-age=3600",
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
+                      },
+                      {
+                          "identity":  "GET /api/clareza/reit/:ticker",
+                          "requestPath":  "/reit/O",
+                          "body":  {
+                                       "ticker":  "O",
+                                       "ffoYearsUsed":  5,
+                                       "metrics":  {
+                                                       "pFfo":  13.4
+                                                   }
+                                   },
+                          "cacheControl":  "public, max-age=3600",
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
+                      },
+                      {
+                          "identity":  "GET /api/clareza/stock/:ticker",
+                          "requestPath":  "/stock/AAPL",
+                          "body":  {
+                                       "ticker":  "AAPL",
+                                       "metrics":  {
+                                                       "pe":  28.1
+                                                   },
+                                       "source":  "fmp"
+                                   },
+                          "cacheControl":  "public, max-age=3600",
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
+                      },
+                      {
+                          "identity":  "GET /api/clareza/raiox/:ticker",
+                          "requestPath":  "/raiox/AAPL",
+                          "body":  {
+                                       "ticker":  "AAPL",
+                                       "score":  82,
+                                       "diagnosis":  "quality"
+                                   },
+                          "cacheControl":  "public, max-age=3600",
+                          "status":  200,
+                          "bodyMode":  "raw",
+                          "rawBody":  "{\"ticker\":\"AAPL\",\"score\":82,\"diagnosis\":\"quality\"}",
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "serialized-cache"
+                                         },
+                          "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
+                      },
+                      {
+                          "identity":  "GET /api/clareza/raiox",
+                          "requestPath":  "/raiox?symbol=AAPL",
+                          "body":  {
+                                       "ticker":  "AAPL",
+                                       "score":  82,
+                                       "diagnosis":  "quality"
+                                   },
+                          "cacheControl":  "public, max-age=3600",
+                          "status":  200,
+                          "bodyMode":  "raw",
+                          "rawBody":  "{\"ticker\":\"AAPL\",\"score\":82,\"diagnosis\":\"quality\"}",
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "serialized-cache"
+                                         },
+                          "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
+                      },
+                      {
+                          "identity":  "GET /api/clareza/raiox",
+                          "requestPath":  "/raiox?search=apple",
+                          "body":  {
+                                       "query":  "APPLE",
+                                       "count":  1,
+                                       "results":  [
+                                                       {
+                                                           "symbol":  "AAPL",
+                                                           "name":  "Apple Inc.",
+                                                           "price":  null,
+                                                           "image":  null,
+                                                           "currency":  null,
+                                                           "exchange":  null,
+                                                           "country":  null
+                                                       }
+                                                   ]
+                                   },
+                          "cacheControl":  "public, max-age=600",
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
+                      },
+                      {
+                          "identity":  "GET /api/clareza/raiox-search",
+                          "requestPath":  "/raiox-search?q=apple",
+                          "body":  {
+                                       "query":  "APPLE",
+                                       "count":  1,
+                                       "results":  [
+                                                       {
+                                                           "symbol":  "AAPL",
+                                                           "name":  "Apple Inc.",
+                                                           "price":  null,
+                                                           "image":  null,
+                                                           "currency":  null,
+                                                           "exchange":  null,
+                                                           "country":  null
+                                                       }
+                                                   ]
+                                   },
+                          "cacheControl":  "public, max-age=600",
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  null
+                      },
+                      {
+                          "identity":  "GET /api/clareza/raiox-diagnose",
+                          "requestPath":  "/raiox-diagnose",
+                          "body":  {
+                                       "tested":  3,
+                                       "ok":  2,
+                                       "failed":  1,
+                                       "results":  [
+                                                       {
+                                                           "ticker":  "AAPL",
+                                                           "ok":  true
+                                                       }
+                                                   ]
+                                   },
+                          "cacheControl":  null,
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  null
+                      },
+                      {
+                          "identity":  "GET /api/clareza/carteira/data",
+                          "requestPath":  "/carteira/data",
+                          "body":  {
+                                       "portfolio":  [
+                                                         {
+                                                             "ticker":  "AAPL",
+                                                             "weight":  12.5
+                                                         }
+                                                     ]
+                                   },
+                          "cacheControl":  "public, max-age=3600",
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
+                      },
+                      {
+                          "identity":  "GET /api/clareza/carteira-search",
+                          "requestPath":  "/carteira-search?q=apple",
+                          "body":  {
+                                       "query":  "apple",
+                                       "count":  1,
+                                       "results":  [
+                                                       {
+                                                           "ticker":  "AAPL",
+                                                           "name":  "Apple Inc."
+                                                       }
+                                                   ]
+                                   },
+                          "cacheControl":  "public, max-age=600",
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  null
+                      },
+                      {
+                          "identity":  "GET /api/clareza/earnings/data",
+                          "requestPath":  "/earnings/data",
+                          "body":  {
+                                       "updated":  "2026-08-11T09:30:00.000Z",
+                                       "window":  "week",
+                                       "count":  1,
+                                       "earnings":  [
+                                                        {
+                                                            "ticker":  "AAPL",
+                                                            "date":  "2026-08-12"
+                                                        }
+                                                    ]
+                                   },
+                          "cacheControl":  "public, max-age=3600",
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  null
+                      },
+                      {
+                          "identity":  "GET /api/clareza/comparador",
+                          "requestPath":  "/comparador?symbols=AAPL,MSFT",
+                          "body":  {
+                                       "count":  2,
+                                       "updated":  "2026-08-11T09:30:00.000Z",
+                                       "companies":  [
+                                                         {
+                                                             "ticker":  "AAPL",
+                                                             "price":  100
+                                                         },
+                                                         {
+                                                             "ticker":  "MSFT",
+                                                             "price":  200
+                                                         }
+                                                     ]
+                                   },
+                          "cacheControl":  "public, max-age=3600",
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  "Shared GET identity has query-selected public-document variants; the catalog stores their union."
+                      },
+                      {
+                          "identity":  "GET /api/clareza/comparador",
+                          "requestPath":  "/comparador?search=apple",
+                          "body":  {
+                                       "query":  "APPLE",
+                                       "count":  1,
+                                       "results":  [
+                                                       {
+                                                           "symbol":  "AAPL",
+                                                           "name":  "Apple Inc."
+                                                       }
+                                                   ]
+                                   },
+                          "cacheControl":  "public, max-age=600",
+                          "status":  200,
+                          "bodyMode":  "json",
+                          "rawBody":  null,
+                          "provenance":  {
+                                             "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
+                                             "producer":  "cache-backed Clareza producer characterization",
+                                             "boundary":  "cache-or-port"
+                                         },
+                          "dynamicRecordException":  "Shared GET identity has query-selected public-document variants; the catalog stores their union."
+                      }
+                  ]
 }
