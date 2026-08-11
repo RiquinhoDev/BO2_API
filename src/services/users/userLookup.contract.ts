@@ -11,6 +11,10 @@ export interface EnrichedUserReader {
   findEnriched(id: string): Promise<unknown | null>
 }
 
+export interface EnrichedUserByEmailReader {
+  findEnrichedByEmail(email: string): Promise<unknown | null>
+}
+
 export interface UserProductsReader {
   listByUser(userId: string): Promise<unknown[]>
 }

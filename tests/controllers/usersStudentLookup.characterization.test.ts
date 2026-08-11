@@ -3,12 +3,13 @@ import request from 'supertest'
 import type { Request, Response } from 'express'
 
 const mockFindById = jest.fn()
+const mockFindOne = jest.fn()
 const mockUserProductFind = jest.fn()
 const mockGetUserWithProducts = jest.fn()
 
 jest.mock('../../src/models/user', () => ({
   __esModule: true,
-  default: { findById: mockFindById },
+  default: { findById: mockFindById, findOne: mockFindOne },
 }))
 
 jest.mock('../../src/models', () => ({
@@ -23,7 +24,7 @@ jest.mock('../../src/services/userProducts/userProductService', () => ({
 
 import { createErrorHandling } from '../../src/security/errorHandling'
 import { getUserAllClasses } from '../../src/services/users/studentClasses.runtime'
-import { getUserById, getUserProducts } from '../../src/services/users/userLookup.runtime'
+import { getUserByEmail, getUserById, getUserProducts } from '../../src/services/users/userLookup.runtime'
 
 const LOOPBACK = '?__bo2_offline_loopback=1'
 
@@ -56,6 +57,7 @@ function populatedLean<T>(rows: T[]) {
 
 beforeEach(() => {
   mockFindById.mockReset()
+  mockFindOne.mockReset()
   mockUserProductFind.mockReset()
   mockGetUserWithProducts.mockReset()
 })
@@ -279,6 +281,64 @@ describe('getUserById — characterization', () => {
   })
 })
 
+describe('getUserByEmail — canonical lookup', () => {
+  function app(): express.Express {
+    return withCentralBoundary(instance => {
+      instance.get('/users/by-email/:email', getUserByEmail)
+    })
+  }
+
+  test('decodes, trims and lowercases the email before returning enriched data', async () => {
+    mockFindOne.mockReturnValue(leanResult({ _id: 'user-1' }))
+    mockGetUserWithProducts.mockResolvedValue({
+      _id: 'user-1',
+      email: 'ana+curso@example.test',
+      products: [{ _id: 'product-1' }],
+    })
+
+    const response = await request(app())
+      .get(`/users/by-email/%20Ana%2BCurso%40Example.TEST%20${LOOPBACK}`)
+      .expect(200)
+
+    expect(mockFindOne).toHaveBeenCalledWith({ email: 'ana+curso@example.test' })
+    expect(mockGetUserWithProducts).toHaveBeenCalledWith('user-1')
+    expect(response.body).toEqual({
+      success: true,
+      data: {
+        _id: 'user-1',
+        email: 'ana+curso@example.test',
+        products: [{ _id: 'product-1' }],
+      },
+    })
+  })
+
+  test('returns 404 when no normalized email matches', async () => {
+    mockFindOne.mockReturnValue(leanResult(null))
+
+    const response = await request(app())
+      .get(`/users/by-email/missing%40example.test${LOOPBACK}`)
+      .expect(404)
+
+    expect(response.body).toEqual({ success: false, message: 'User not found' })
+    expect(mockGetUserWithProducts).not.toHaveBeenCalled()
+  })
+
+  test('routes lookup failures through the central boundary', async () => {
+    mockFindOne.mockImplementation(() => { throw new Error('mongo exploded') })
+
+    const response = await request(app())
+      .get(`/users/by-email/a%40example.test${LOOPBACK}`)
+      .expect(500)
+
+    expect(response.body).toEqual({
+      success: false,
+      code: 'USER_LOOKUP_FAILED',
+      message: 'Erro ao buscar utilizador',
+      correlationId: 'test-correlation-id',
+    })
+    expect(JSON.stringify(response.body)).not.toContain('mongo exploded')
+  })
+})
 describe('getUserProducts — characterization', () => {
   function app(): express.Express {
     return withCentralBoundary(instance => {
