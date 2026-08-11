@@ -11,3 +11,11 @@ export const GENERIC_RENEWAL_OFFER_NAME = 'Renovação turma genérica'
 // atualizado no Backoffice.
 export const TURMA_1_RENEWAL_OFFER_CODE = 'm0ztdyti'
 export const TURMA_2_RENEWAL_OFFER_CODE = 'dyeiu7m9'
+
+// A Hotmart, sem start_date, só devolve uma janela recente (~30 dias) —
+// qualquer sync de sales/history sem isto nunca descobre ofertas sem
+// venda recente (foi assim que TURMA_1/2_RENEWAL_OFFER_CODE ficaram por
+// criar na BD durante meses). start_date tem limite de recuo próprio:
+// confirmado empiricamente contra a API real que 730 dias (2 anos) passa
+// e 731 já dá 400 invalid_parameter — limite da própria Hotmart.
+export const HOTMART_SALES_HISTORY_MAX_LOOKBACK_DAYS = 730

@@ -5,6 +5,7 @@ import RenewalOffer from '../../models/RenewalOffer'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServices/hotmart.helpers'
+import { HOTMART_SALES_HISTORY_MAX_LOOKBACK_DAYS } from './renewalConstants'
 import { parseOfferName, parseTurmaName } from './turmaParser'
 
 const HOTMART_SALES_HISTORY_URL = 'https://developers.hotmart.com/payments/api/v1/sales/history'
@@ -198,6 +199,10 @@ async function fetchHotmartOffers(
   const offers = new Map<string, HotmartOfferSnapshot>()
   let pageToken: string | null = null
   let page = 0
+  // sem start_date a Hotmart só devolve ~30 dias — nunca descobria ofertas
+  // sem venda recente (foi assim que as ofertas fixas turma 1/2 nunca
+  // chegaram a ser criadas na BD). Ver HOTMART_SALES_HISTORY_MAX_LOOKBACK_DAYS.
+  const startDate = Date.now() - HOTMART_SALES_HISTORY_MAX_LOOKBACK_DAYS * 24 * 60 * 60 * 1000
 
   do {
     page += 1
@@ -208,6 +213,7 @@ async function fetchHotmartOffers(
       },
       params: {
         max_results: 100,
+        start_date: startDate,
         ...(pageToken ? { page_token: pageToken } : {})
       },
       timeout: 30000
