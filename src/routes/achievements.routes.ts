@@ -1,6 +1,7 @@
 import { NextFunction, Router, Request, Response } from 'express'
 import { asyncRoute } from '../security/asyncRoute'
 import { internalError } from '../security/errorHandling'
+import { successResponse } from '../contracts/responseContract'
 import User from '../models/user'
 import {
   evaluateAllAchievements,
@@ -16,10 +17,7 @@ import {
 const router = Router()
 
 router.get('/definitions', (_req: Request, res: Response) => {
-  res.json({
-    total: TOTAL_ACHIEVEMENTS,
-    definitions: ACHIEVEMENT_DEFINITIONS,
-  })
+  res.json(successResponse(ACHIEVEMENT_DEFINITIONS, { total: TOTAL_ACHIEVEMENTS }))
 })
 
 router.post('/evaluate/:email', asyncRoute(async (req: Request, res: Response, next: NextFunction) => {
@@ -39,11 +37,7 @@ router.post('/evaluate/:email', asyncRoute(async (req: Request, res: Response, n
       backfillUnlockedAsSeen: true
     })
 
-    res.json({
-      message: `Conquistas avaliadas para ${email}`,
-      stats: result.stats,
-      achievements: result.achievements,
-    })
+    res.json(successResponse(result.achievements, { message: `Conquistas avaliadas para ${email}`, stats: result.stats }))
   } catch (error: unknown) {
     next(internalError('Erro ao avaliar conquistas', 'ACHIEVEMENTS_EVALUATE_FAILED', error))
   }
@@ -58,15 +52,14 @@ router.post('/evaluate-all', asyncRoute(async (req: Request, res: Response, next
       backfillUnlockedAsSeen: true
     })
 
-    res.json({
-      message: 'Avaliação de conquistas concluída',
+    res.json(successResponse({
       total: result.total,
       processed: result.processed,
       evaluated: result.evaluated,
       errors: result.errors,
       durationMs: result.durationMs,
       avgPerUser: result.total > 0 ? Math.round(result.durationMs / result.total) : 0,
-    })
+    }, { message: 'AvaliaÃ§Ã£o de conquistas concluÃ­da' }))
   } catch (error: unknown) {
     next(internalError('Erro na avaliação em massa', 'ACHIEVEMENTS_EVALUATE_ALL_FAILED', error))
   }
@@ -109,10 +102,7 @@ router.post('/mark-seen', asyncRoute(async (req: Request, res: Response, next: N
     user.markModified('achievements')
     await user.save()
 
-    res.json({
-      message: 'Conquistas marcadas como vistas.',
-      updated
-    })
+    res.json(successResponse({ updated }, { message: 'Conquistas marcadas como vistas.' }))
   } catch (error: unknown) {
     next(internalError('Erro ao marcar conquistas como vistas', 'ACHIEVEMENTS_MARK_SEEN_FAILED', error))
   }
@@ -153,12 +143,12 @@ router.get('/stats', asyncRoute(async (_req: Request, res: Response, next: NextF
       .sort(([, a], [, b]) => b - a)
       .map(([id, count]) => ({ id, count }))
 
-    res.json({
+    res.json(successResponse({
       global: stats || { totalUsers: 0 },
       mostCommon: sorted.slice(0, 5),
       leastCommon: sorted.slice(-5).reverse(),
       totalDefinitions: TOTAL_ACHIEVEMENTS,
-    })
+    }))
   } catch (error: unknown) {
     next(internalError('Erro ao calcular estatísticas', 'ACHIEVEMENTS_STATS_FAILED', error))
   }

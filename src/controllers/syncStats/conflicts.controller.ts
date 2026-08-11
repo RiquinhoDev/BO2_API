@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 import type { ConflictSeverity, ConflictType, ResolutionAction } from '../../models/SyncModels/SyncConflict'
 import conflictDetectionService from '../../services/syncUtilizadoresServices/conflictDetection.service'
 import { internalError } from '../../security/errorHandling'
+import { successResponse } from '../../contracts/responseContract'
 
 export const getConflicts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -60,16 +61,12 @@ export const getConflicts = async (req: Request, res: Response, next: NextFuncti
     const stats = await conflictDetectionService.getConflictStats()
     const byType = await conflictDetectionService.getConflictsByType()
 
-    res.status(200).json({
-      success: true,
-      message: 'Conflitos recuperados com sucesso',
-      data: {
+    res.status(200).json(successResponse({
         total: conflicts.length,
         conflicts,
         stats,
         byType
-      }
-    })
+      }, { message: 'Conflitos recuperados com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar conflitos', 'SYNC_CONFLICT_LIST_FAILED', error))
@@ -109,11 +106,7 @@ export const getConflictById = async (
       return
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Conflito recuperado com sucesso',
-      data: { conflict }
-    })
+    res.status(200).json(successResponse({ conflict }, { message: 'Conflito recuperado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar conflito', 'SYNC_CONFLICT_READ_FAILED', error))
@@ -171,11 +164,7 @@ export const resolveConflict = async (
       appliedChanges
     })
 
-    res.status(200).json({
-      success: true,
-      message: 'Conflito resolvido com sucesso',
-      data: { conflict }
-    })
+    res.status(200).json(successResponse({ conflict }, { message: 'Conflito resolvido com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao resolver conflito', 'SYNC_CONFLICT_RESOLVE_FAILED', error))
@@ -231,14 +220,10 @@ export const bulkResolveConflicts = async (req: Request, res: Response, next: Ne
       notes
     )
 
-    res.status(200).json({
-      success: true,
-      message: `${resolved} conflitos resolvidos com sucesso`,
-      data: {
+    res.status(200).json(successResponse({
         total: conflictIds.length,
         resolved
-      }
-    })
+      }, { message: `${resolved} conflitos resolvidos com sucesso` }))
 
   } catch (error: unknown) {
     next(internalError(
@@ -282,11 +267,7 @@ export const autoResolveConflicts = async (req: Request, res: Response, next: Ne
 
     const result = await conflictDetectionService.autoResolveConflicts(objectIds)
 
-    res.status(200).json({
-      success: true,
-      message: 'Auto-resolução completa',
-      data: result
-    })
+    res.status(200).json(successResponse(result, { message: 'Auto-resolução completa' }))
 
   } catch (error: unknown) {
     next(internalError(
@@ -328,11 +309,7 @@ export const ignoreConflict = async (
       reason
     )
 
-    res.status(200).json({
-      success: true,
-      message: 'Conflito ignorado com sucesso',
-      data: { conflict }
-    })
+    res.status(200).json(successResponse({ conflict }, { message: 'Conflito ignorado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao ignorar conflito', 'SYNC_CONFLICT_IGNORE_FAILED', error))
@@ -352,14 +329,10 @@ export const getCriticalConflicts = async (req: Request, res: Response, next: Ne
       parseInt(limit as string)
     )
 
-    res.status(200).json({
-      success: true,
-      message: 'Conflitos críticos recuperados',
-      data: {
+    res.status(200).json(successResponse({
         total: conflicts.length,
         conflicts
-      }
-    })
+      }, { message: 'Conflitos críticos recuperados' }))
 
   } catch (error: unknown) {
     next(internalError(
