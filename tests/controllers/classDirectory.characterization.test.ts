@@ -14,11 +14,8 @@ const listClasses = rtListClasses as unknown as AnyHandler
 type SimpleClass = { classId?: unknown; name?: string; isActive?: boolean; estado?: string; studentCount?: number; description?: string }
 type ListBody = {
   success?: boolean
-  data?: Array<Record<string, unknown>>
-  classes?: Array<Record<string, unknown>>
-  total?: number
-  filters?: Record<string, unknown>
-  timestamp?: unknown
+  data?: { classes?: Array<Record<string, unknown>> }
+  meta?: { total?: number; filters?: Record<string, unknown>; timestamp?: unknown }
   message?: string
 }
 type Captured = { status?: number; body?: unknown }
@@ -74,7 +71,7 @@ beforeEach(async () => {
 
 const byId = (arr: SimpleClass[], id: string) => arr.find(c => c.classId === id)!
 
-describe('classDirectory characterization — listClassesSimple (GET /api/classes)', () => {
+describe('classDirectory characterization â€” listClassesSimple (GET /api/classes)', () => {
   it('returns active and inactive classes in the canonical success envelope', async () => {
     const captured: Captured = {}
     await listClassesSimple(req(), makeResponse(captured))
@@ -108,42 +105,42 @@ describe('classDirectory characterization — listClassesSimple (GET /api/classe
   })
 })
 
-describe('classDirectory characterization — listClasses (GET /api/classes/listClasses)', () => {
+describe('classDirectory characterization â€” listClasses (GET /api/classes/listClasses)', () => {
   it('duplicates the listing under data and classes with total, filters and timestamp', async () => {
     const captured: Captured = {}
     await listClasses(req(), makeResponse(captured))
     const body = captured.body as ListBody
     expect(body.success).toBe(true)
-    expect(body.total).toBe(3)
-    expect(body.data).toHaveLength(3)
-    expect(body.classes).toEqual(body.data)
+    expect(body.meta?.total).toBe(3)
+    expect(body.data?.classes).toHaveLength(3)
+    expect(body.data?.classes).toHaveLength(3)
     // name asc: the unnamed class (null) sorts first, then Alpha, then Beta.
-    expect(body.data!.map(c => c.classId)).toEqual(['Z', 'A', 'B'])
-    expect(body.filters).toMatchObject({ limit: 100, offset: 0, sortBy: 'name', sortOrder: 'asc' })
-    expect(typeof body.timestamp).toBe('string')
+    expect(body.data?.classes!.map(c => c.classId)).toEqual(['Z', 'A', 'B'])
+    expect(body.meta?.filters).toMatchObject({ limit: 100, offset: 0, sortBy: 'name', sortOrder: 'asc' })
+    expect(typeof body.meta?.timestamp).toBe('string')
     // studentCount is embedded per class.
-    expect((body.data as SimpleClass[]).find(c => c.classId === 'B')!.studentCount).toBe(2)
+    expect((body.data?.classes as SimpleClass[]).find(c => c.classId === 'B')!.studentCount).toBe(2)
   })
 
   it('filters by source and returns an empty listing when nothing matches', async () => {
     const curseduca: Captured = {}
     await listClasses(req({ source: 'curseduca_sync' }), makeResponse(curseduca))
-    expect((curseduca.body as ListBody).data!.map(c => c.classId)).toEqual(['A'])
+    expect((curseduca.body as ListBody).data!.classes!.map(c => c.classId)).toEqual(['A'])
 
     const none: Captured = {}
     await listClasses(req({ source: 'ghost' }), makeResponse(none))
-    expect((none.body as ListBody).total).toBe(0)
-    expect((none.body as ListBody).data).toEqual([])
+    expect((none.body as ListBody).meta?.total).toBe(0)
+    expect((none.body as ListBody).data?.classes).toEqual([])
   })
 
   it('filters by isActive and by search', async () => {
     const active: Captured = {}
     await listClasses(req({ isActive: 'true' }), makeResponse(active))
-    expect((active.body as ListBody).data!.map(c => c.classId).sort()).toEqual(['B', 'Z'])
+    expect((active.body as ListBody).data!.classes!.map(c => c.classId).sort()).toEqual(['B', 'Z'])
 
     const search: Captured = {}
     await listClasses(req({ search: 'alpha' }), makeResponse(search))
-    expect((search.body as ListBody).data!.map(c => c.classId)).toEqual(['A'])
+    expect((search.body as ListBody).data!.classes!.map(c => c.classId)).toEqual(['A'])
   })
 
   it('reports failure through next(HttpError) with CLASS_LIST_FAILED', async () => {

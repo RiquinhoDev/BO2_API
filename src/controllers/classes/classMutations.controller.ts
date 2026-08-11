@@ -1,4 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import type { ClassInput, ClassMutationsService } from '../../services/classes/classMutations.service'
 
@@ -39,13 +40,10 @@ export function createAddOrEditClassController(service: UpsertService): RequestH
 
       const result = await service.upsert(input)
 
-      res.json({
-        success: true,
-        message: result.isNew ? 'Turma criada com sucesso' : 'Turma atualizada com sucesso',
-        class: result.class,
-        isNew: result.isNew,
-        timestamp: result.timestamp,
-      })
+      res.json(successResponse(
+        { class: result.class, isNew: result.isNew },
+        { message: result.isNew ? 'Turma criada com sucesso' : 'Turma atualizada com sucesso', timestamp: result.timestamp },
+      ))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_UPSERT_FAILED', publicMessage: 'Erro ao processar turma.', cause: error }))
     }
@@ -70,7 +68,7 @@ export function createDeleteClassController(service: RemoveService) {
         return
       }
 
-      res.json({ success: true, message: 'Turma removida com sucesso', timestamp: result.timestamp })
+      res.json(successResponse(null, { message: 'Turma removida com sucesso', timestamp: result.timestamp }))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_DELETE_FAILED', publicMessage: 'Erro ao remover turma.', cause: error }))
     }

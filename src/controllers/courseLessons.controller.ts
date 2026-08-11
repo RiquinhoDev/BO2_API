@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import mongoose from 'mongoose'
 import CourseLesson from '../models/CourseLesson'
 import { syncCourseLessonCatalog } from '../services/courseLessonCatalog.service'
@@ -35,10 +36,7 @@ export async function listCourseLessons(_req: Request, res: Response, next: Next
       .lean()
       .exec() as unknown as CourseLessonLean[]
 
-    res.json({
-      modules: groupLessonsByModule(lessons),
-      totalLessons: lessons.length
-    })
+    res.json(successResponse({ modules: groupLessonsByModule(lessons) }, { totalLessons: lessons.length }))
   } catch (error: unknown) {
     next(internalError('Erro ao listar aulas do curso.', 'COURSE_LESSONS_LIST_FAILED', error))
   }

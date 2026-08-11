@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import {
   sanitizeLimit,
@@ -32,20 +33,10 @@ export function createGetStudentsByClassController(service: Service): RequestHan
         return
       }
 
-      res.json({
-        success: true,
-        classId,
-        className: result.className,
-        students: result.students,
-        pagination: {
-          total: result.total,
-          limit,
-          offset,
-          hasMore: (offset + result.students.length) < result.total,
-        },
-        filters: { includeInactive, sortBy, sortOrder },
-        timestamp: result.timestamp,
-      })
+      res.json(successResponse(
+        { classId, className: result.className, students: result.students },
+        { pagination: { total: result.total, limit, offset, hasMore: (offset + result.students.length) < result.total }, filters: { includeInactive, sortBy, sortOrder }, timestamp: result.timestamp },
+      ))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_ROSTER_FAILED', publicMessage: 'Erro ao buscar estudantes da turma.', cause: error }))
     }

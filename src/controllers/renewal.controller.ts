@@ -23,7 +23,7 @@ export async function listOffers(req: Request, res: Response, next: NextFunction
       .lean()
       .exec()
 
-    res.json({ total: offers.length, offers })
+    res.json(successResponse({ offers }, { total: offers.length }))
   } catch (error: unknown) {
     next(internalError('Erro ao listar ofertas', 'RENEWAL_LIST_FAILED', error))
   }
@@ -134,7 +134,7 @@ export async function listTurmas(_req: Request, res: Response, next: NextFunctio
     const turmas = await getTurmasWithCoverage()
     // alerta: só turmas que renovam ESTE ANO e ainda não têm oferta
     const uncovered = turmas.filter((t) => t.renewsThisYear && !t.hasActiveOffer)
-    res.json({ turmas, uncovered })
+    res.json(successResponse({ turmas, uncovered }))
   } catch (error: unknown) {
     next(internalError('Erro ao listar turmas', 'RENEWAL_CLASSES_FAILED', error))
   }

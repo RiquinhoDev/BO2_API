@@ -119,10 +119,10 @@ describe('classInactivation characterization — createInactivationList', () => 
 
     const body = captured.body as Body
     expect(body.success).toBe(true)
-    expect(body.message).toBe('Lista de inativação criada e turmas atualizadas')
-    expect((body.list as Body).totalInactivated).toBe(1)
-    expect((body.classUpdates as Body).successful).toBe(1)
-    expect(body.timestamp).toBe('2026-02-03T04:05:06.000Z')
+    expect((body.meta as Body).message).toBe('Lista de inativação criada e turmas atualizadas')
+    expect(((body.data as Body).list as Body).totalInactivated).toBe(1)
+    expect(((body.data as Body).classUpdates as Body).successful).toBe(1)
+    expect((body.meta as Body).timestamp).toBe('2026-02-03T04:05:06.000Z')
 
     // The injected Discord port is used with the bulk scope — no network.
     expect(discord.delegate).toHaveBeenCalledWith(['c1'], 'discord-inactivation-bulk')
@@ -146,8 +146,8 @@ describe('classInactivation characterization — getInactivationLists', () => {
 
     const body = captured.body as Body
     expect(body.success).toBe(true)
-    expect(body.total).toBe(1)
-    expect((body.lists as unknown[])).toHaveLength(1)
+    expect((body.meta as Body).total).toBe(1)
+    expect(((body.data as Body).lists as unknown[])).toHaveLength(1)
   })
 })
 
@@ -201,8 +201,8 @@ describe('classInactivation characterization — updateClassStatus', () => {
 
     const body = captured.body as Body
     expect(body.success).toBe(true)
-    expect(body.action).toBe('deactivated')
-    expect(body.message).toContain('Turma inativada com sucesso')
+    expect((body.data as Body).action).toBe('deactivated')
+    expect((body.meta as Body).message).toContain('Turma inativada com sucesso')
     expect(discord.delegate).toHaveBeenCalledWith(['c1'], 'discord-inactivation-single')
 
     const student = await User.findById(oid(1)).lean() as { combined?: { status?: string } } | null
@@ -226,8 +226,8 @@ describe('classInactivation characterization — updateClassStatus', () => {
     await controllers.updateClassStatus(withBody({ classId: 'c1', isActive: true }), makeResponse(captured), noNext)
 
     const body = captured.body as Body
-    expect(body.action).toBe('reactivated')
-    expect(body.message).toContain('Turma ativada com sucesso')
+    expect((body.data as Body).action).toBe('reactivated')
+    expect((body.meta as Body).message).toContain('Turma ativada com sucesso')
     expect(discord.delegate).not.toHaveBeenCalled()
 
     const student = await User.findById(oid(2)).lean() as { combined?: { status?: string } } | null

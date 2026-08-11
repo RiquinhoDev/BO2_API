@@ -66,9 +66,9 @@ describe('classMutations — addOrEditClass (POST /addOrEditClass)', () => {
     await addOrEditClass(editReq({ classId: 'new-class', name: 'New Class' }), makeResponse(captured), next)
     const body = captured.body as Body
     expect(body.success).toBe(true)
-    expect(body.isNew).toBe(true)
-    expect(body.message).toBe('Turma criada com sucesso')
-    expect(typeof body.timestamp).toBe('string')
+    expect((body.data as Body).isNew).toBe(true)
+    expect((body.meta as Body).message).toBe('Turma criada com sucesso')
+    expect(typeof (body.meta as Body).timestamp).toBe('string')
   })
 
   it('edits an existing class without changing its source, with isNew false', async () => {
@@ -77,8 +77,8 @@ describe('classMutations — addOrEditClass (POST /addOrEditClass)', () => {
     const captured: Captured = {}
     await addOrEditClass(editReq({ classId: 'ex', name: 'Edited Name', source: 'manual' }), makeResponse(captured), noop)
     const body = captured.body as Body
-    expect(body.isNew).toBe(false)
-    expect(body.message).toBe('Turma atualizada com sucesso')
+    expect((body.data as Body).isNew).toBe(false)
+    expect((body.meta as Body).message).toBe('Turma atualizada com sucesso')
     const stored = await Class.findOne({ classId: 'ex' }).lean() as Record<string, unknown> | null
     expect(stored?.source).toBe('curseduca_sync') // source preserved on edit
     expect(stored?.name).toBe('Edited Name')
@@ -128,7 +128,7 @@ describe('classMutations — deleteClass (DELETE /:classId via withValidatedInpu
   it('removes an empty class', async () => {
     await seedClass('empty', 'Empty Class')
     const captured = await del('empty')
-    expect(captured.body).toMatchObject({ success: true, message: 'Turma removida com sucesso' })
+    expect(captured.body).toMatchObject({ success: true, data: null, meta: { message: 'Turma removida com sucesso' } })
     expect(await Class.findOne({ classId: 'empty' }).lean()).toBeNull()
   })
 })
