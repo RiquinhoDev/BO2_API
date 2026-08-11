@@ -130,17 +130,17 @@
   },
   "src/controllers/guruAnalytics/churn.controller.ts": {
     "no-console": {
-      "count": 5
+      "count": 2
     }
   },
   "src/controllers/guruAnalytics/comparison.controller.ts": {
     "no-console": {
-      "count": 22
+      "count": 19
     }
   },
   "src/controllers/guruAnalytics/subscriptionRepair.controller.ts": {
     "no-console": {
-      "count": 9
+      "count": 8
     }
   },
   "src/controllers/guruSnapshots/crud.controller.ts": {
@@ -156,19 +156,9 @@
       "count": 1
     }
   },
-  "src/controllers/guruSubscriptionList.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/controllers/guruWebhookAdmin.controller.ts": {
     "no-console": {
       "count": 3
-    }
-  },
-  "src/controllers/guruWebhookList.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "src/controllers/lessons.controller.ts": {

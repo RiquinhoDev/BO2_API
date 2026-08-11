@@ -1,6 +1,6 @@
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import { GURU_SSO_ALLOWED_STATUSES } from '../types/guru.types'
-import logger from '../utils/logger'
+import { forwardApplicationError } from './forwardApplicationError'
 import { paginate } from '../utils/pagination'
 
 const SUBSCRIPTION_PROJECTION = 'email name guru'
@@ -60,7 +60,7 @@ const subscriptionSort = (
 
 export const createListSubscriptions = ({
   model,
-}: SubscriptionListDependencies) => async (req: Request, res: Response) => {
+}: SubscriptionListDependencies) => async (req: Request, res: Response, next: NextFunction) => {
   const User = model as SubscriptionUserModel
 
   try {
@@ -121,11 +121,7 @@ export const createListSubscriptions = ({
       subscriptions,
       pagination: pagination.metadata(total),
     })
-  } catch (error: any) {
-    logger.error('[GURU] Erro ao listar subscrições', { error })
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    })
+  } catch (error: unknown) {
+    return forwardApplicationError(next, error, 'Erro ao listar subscrições', 'GURU_SUBSCRIPTION_LIST_FAILED')
   }
 }

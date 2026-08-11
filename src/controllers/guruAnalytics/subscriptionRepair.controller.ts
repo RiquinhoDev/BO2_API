@@ -1,9 +1,10 @@
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
+import { forwardApplicationError } from '../forwardApplicationError'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { fetchAllSubscriptionsComplete } from '../../services/guru/guruSync.service'
 import { GURU_CANCELED_STATUSES, getStatusPriority, type GuruDateInfo } from '../../services/guru/guru.constants'
-import { type SubscriptionCandidate, type MultiSubscriptionUser, type ProblemUser, errorMessage } from './support'
+import { type SubscriptionCandidate, type MultiSubscriptionUser, type ProblemUser } from './support'
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // DIAGNÃ“STICO: DETECTAR USERS COM MÃšLTIPLAS SUBSCRIÃ‡Ã•ES
@@ -16,7 +17,7 @@ import { type SubscriptionCandidate, type MultiSubscriptionUser, type ProblemUse
  * GET /guru/analytics/fix-multi-subscriptions
  * ?fix=true para corrigir automaticamente
  */
-export const fixMultiSubscriptions = async (req: Request, res: Response) => {
+export const fixMultiSubscriptions = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const shouldFix = req.query.fix === 'true'
 
@@ -184,10 +185,6 @@ export const fixMultiSubscriptions = async (req: Request, res: Response) => {
     })
 
   } catch (error: unknown) {
-    console.error('âŒ [MULTI-SUB] Erro:', errorMessage(error))
-    return res.status(500).json({
-      success: false,
-      message: errorMessage(error)
-    })
+    return forwardApplicationError(next, error, 'Erro ao analisar subscrições múltiplas', 'GURU_SUBSCRIPTION_REPAIR_FAILED')
   }
 }

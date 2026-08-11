@@ -1,13 +1,13 @@
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import type { FilterQuery } from 'mongoose'
 import GuruWebhook, { type IGuruWebhook } from '../models/GuruWebhook'
-import logger from '../utils/logger'
+import { forwardApplicationError } from './forwardApplicationError'
 import { paginate } from '../utils/pagination'
 
 const GURU_WEBHOOK_PUBLIC_PROJECTION =
   '_id email event status processed receivedAt'
 
-export const listGuruWebhooks = async (req: Request, res: Response) => {
+export const listGuruWebhooks = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
       email,
@@ -70,11 +70,7 @@ export const listGuruWebhooks = async (req: Request, res: Response) => {
       webhooks,
       pagination: pagination.metadata(total),
     })
-  } catch (error: any) {
-    logger.error('[GURU] Erro ao listar webhooks', { error })
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    })
+  } catch (error: unknown) {
+    return forwardApplicationError(next, error, 'Erro ao listar webhooks', 'GURU_WEBHOOK_LIST_FAILED')
   }
 }
