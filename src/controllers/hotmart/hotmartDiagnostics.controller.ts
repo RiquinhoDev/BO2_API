@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 import { internalError } from '../../security/errorHandling'
 import { SyncHistory, User } from '../../models'
@@ -31,17 +32,14 @@ export const findHotmartUser = async (req: Request, res: Response, next: NextFun
       return
     }
 
-    res.status(200).json({
-      message: 'Utilizador encontrado',
-      user: {
+    res.status(200).json(successResponse({
         id: foundUser._id,
         email: foundUser.email,
         name: foundUser.name,
         hotmartUserId: foundUser.hotmart?.hotmartUserId,
         status: foundUser.combined?.status,
         progress: foundUser.combined?.totalProgress
-      }
-    })
+      }, { message: 'Utilizador encontrado' }))
   } catch (error: unknown) {
     forwardHotmartError(next, error, 'Erro ao buscar utilizador', 'HOTMART_USER_READ_FAILED')
   }

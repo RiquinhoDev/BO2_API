@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../../../contracts/responseContract'
 import User from '../../../models/user'
 import { SyncHistory } from '../../../models'
 import { internalError } from '../../../security/errorHandling'
@@ -18,7 +19,7 @@ export const getUsersWithClasses = async (req: Request, res: Response, next: Nex
       withoutClasses: users.filter(user => !user.curseduca?.enrolledClasses?.length).length
     }
 
-    res.json({ success: true, users, stats })
+    res.json(successResponse(users, { stats }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar utilizadores CursEduca', 'CURSEDUCA_USERS_READ_FAILED', error))
   }
@@ -44,7 +45,7 @@ export const updateUserClasses = async (req: Request, res: Response, next: NextF
       { new: true }
     )
 
-    res.json({ success: true, user })
+    res.json(successResponse(user))
   } catch (error: unknown) {
     next(internalError('Erro ao atualizar turmas CursEduca', 'CURSEDUCA_USER_CLASSES_UPDATE_FAILED', error))
   }
