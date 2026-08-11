@@ -30,6 +30,7 @@ import achievementsRoutes from './achievements.routes'
 import eventsRoutes from './events.routes'
 import renewalRoutes from './renewal.routes'
 import renewalAcRoutes from './renewalAc.routes'
+import hotmartSalesHistoryRoutes from './hotmartSalesHistory.routes'
 import discordRenewalRoutes from './discordRenewal.routes'
 
 // ✅ CRON UTILIZADORES (Sistema Novo)
@@ -69,6 +70,7 @@ router.use("/achievements", achievementsRoutes)  // 🏆 Sistema de Conquistas
 router.use("/events", eventsRoutes)              // 📅 Calendário de Eventos
 router.use("/renewal", renewalRoutes)            // 🔁 Ofertas de renovação OGI
 router.use("/renewal-ac", renewalAcRoutes)       // 🔁 Sync Renovação OGI → AC (Fase B, desligado por defeito)
+router.use("/renewal-hotmart-sales", hotmartSalesHistoryRoutes) // 🛒 Sync Hotmart: histórico de vendas por aluno OGI ativo
 router.use("/discord-renewal", discordRenewalRoutes) // 🎮 Cargos R.{Mês} + mensagens do bot (desligado por defeito)
 
 // 📊 ANÁLISES E RELATÓRIOS
