@@ -402,7 +402,7 @@ test('critical tag list and create preserve filters, arguments and envelopes', a
     .get('/api/tag-monitoring/critical-tags')
     .query({ ...offlineMarker, onlyActive: 'true' })
   expect(listed.status).toBe(200)
-  expect(listed.body).toEqual({ success: true, data: tags, count: 1 })
+  expect(listed.body).toEqual({ success: true, data: tags, meta: { count: 1 } })
   expect(criticalTagServiceMock.getCriticalTags).toHaveBeenCalledWith(true)
 
   const tag = { id: 'tag-2', tagName: 'risk', priority: 'CRITICAL' }
@@ -414,8 +414,8 @@ test('critical tag list and create preserve filters, arguments and envelopes', a
   expect(created.status).toBe(201)
   expect(created.body).toEqual({
     success: true,
-    message: 'Tag crítica adicionada com sucesso',
     data: tag,
+    meta: { message: 'Tag crítica adicionada com sucesso' },
   })
   expect(criticalTagServiceMock.addCriticalTag).toHaveBeenCalledWith(
     'risk', 'admin-1', 'important', 'CRITICAL',
@@ -455,7 +455,11 @@ test('critical tag soft and permanent delete preserve IDs, semantics and order',
   const soft = await request(buildApp())
     .delete('/api/tag-monitoring/critical-tags/tag-soft').query(offlineMarker)
   expect(soft.status).toBe(200)
-  expect(soft.body).toEqual({ success: true, message: 'Tag crítica removida com sucesso' })
+  expect(soft.body).toEqual({
+    success: true,
+    data: null,
+    meta: { message: 'Tag crítica removida com sucesso' },
+  })
   expect(criticalTagServiceMock.removeCriticalTag).toHaveBeenCalledWith('tag-soft')
 
   criticalTagServiceMock.deleteCriticalTag.mockResolvedValueOnce()
@@ -489,8 +493,8 @@ test('critical tag mutations preserve validation, IDs and response envelopes', a
     .patch('/api/tag-monitoring/critical-tags/tag-1/toggle').query(offlineMarker)
   expect(toggled.body).toEqual({
     success: true,
-    message: 'Tag crítica desativada com sucesso',
     data: { isActive: false },
+    meta: { message: 'Tag crítica desativada com sucesso' },
   })
   expect(criticalTagServiceMock.toggleCriticalTag).toHaveBeenCalledWith('tag-1')
 
@@ -501,8 +505,8 @@ test('critical tag mutations preserve validation, IDs and response envelopes', a
     .query(offlineMarker).send({ priority: 'MEDIUM' })
   expect(updated.body).toEqual({
     success: true,
-    message: 'Prioridade atualizada para MEDIUM',
     data: updatedTag,
+    meta: { message: 'Prioridade atualizada para MEDIUM' },
   })
   expect(criticalTagServiceMock.updatePriority).toHaveBeenCalledWith('tag-1', 'MEDIUM')
 })
@@ -515,8 +519,7 @@ test('critical tag reads preserve query parsing and response envelopes', async (
   expect(available.body).toEqual({
     success: true,
     data: ['a', 'b'],
-    count: 2,
-    weeksAnalyzed: 6,
+    meta: { count: 2, weeksAnalyzed: 6 },
   })
   expect(criticalTagServiceMock.discoverNativeTagsFromSnapshots).toHaveBeenCalledWith(6)
 
@@ -550,7 +553,7 @@ test('snapshot list preserves filters, explicit limit and count envelope', async
     .query({ ...offlineMarker, weekNumber: '32', year: '2026', limit: '7' })
 
   expect(response.status).toBe(200)
-  expect(response.body).toEqual({ success: true, data: snapshots, count: 2 })
+  expect(response.body).toEqual({ success: true, data: snapshots, meta: { count: 2 } })
   expect(snapshotsModel.find).toHaveBeenCalledWith({ weekNumber: 32, year: 2026 })
   expect(query.sort).toHaveBeenCalledWith({ capturedAt: -1 })
   expect(query.limit).toHaveBeenCalledWith(7)
@@ -565,7 +568,7 @@ test('snapshot list preserves the default limit', async () => {
     .query(offlineMarker)
 
   expect(response.status).toBe(200)
-  expect(response.body).toEqual({ success: true, data: [], count: 0 })
+  expect(response.body).toEqual({ success: true, data: [], meta: { count: 0 } })
   expect(snapshotsModel.find).toHaveBeenCalledWith({})
   expect(query.limit).toHaveBeenCalledWith(100)
 })
@@ -582,8 +585,7 @@ test('snapshot email history preserves its default limit, count and email', asyn
   expect(response.body).toEqual({
     success: true,
     data: snapshots,
-    count: 1,
-    email: 'alice@example.test',
+    meta: { count: 1, email: 'alice@example.test' },
   })
   expect(snapshotsModel.findByEmail).toHaveBeenCalledWith('alice@example.test', 10)
 })
@@ -718,8 +720,8 @@ test('manual snapshot preserves the service result envelope', async () => {
   expect(response.status).toBe(200)
   expect(response.body).toEqual({
     success: true,
-    message: 'Snapshot manual executado com sucesso',
     data: result,
+    meta: { message: 'Snapshot manual executado com sucesso' },
   })
   expect(weeklyTagMonitoringService.performWeeklySnapshot).toHaveBeenCalledTimes(1)
 })
@@ -814,8 +816,8 @@ test('scope update preserves validation, service input and response envelope', a
   expect(updated.status).toBe(200)
   expect(updated.body).toEqual({
     success: true,
-    message: 'Configura\u00e7\u00e3o atualizada com sucesso',
     data: { scope: 'ALL_CONTACTS', enabled: false },
+    meta: { message: 'Configura\u00e7\u00e3o atualizada com sucesso' },
   })
   expect(monitoringConfigModel.updateScope).toHaveBeenCalledWith('ALL_CONTACTS')
 })
@@ -833,8 +835,8 @@ test('monitoring toggle preserves its dynamic message and config envelope', asyn
   expect(response.status).toBe(200)
   expect(response.body).toEqual({
     success: true,
-    message: 'Sistema desativado com sucesso',
     data: { scope: 'STUDENTS_ONLY', enabled: false },
+    meta: { message: 'Sistema desativado com sucesso' },
   })
 })
 
@@ -1100,18 +1102,20 @@ test('notification outcomes preserve success and not-found contracts', async () 
   expect(list.body).toEqual({
     success: true,
     data: [notification],
-    count: 1,
-    filters: { isRead: false, limit: 7, skip: 2, weekNumber: 32, year: 2026, tagName: 'vip' },
+    meta: {
+      count: 1,
+      filters: { isRead: false, limit: 7, skip: 2, weekNumber: 32, year: 2026, tagName: 'vip' },
+    },
   })
   expect(detail.body).toEqual({ success: true, data: notification })
   expect(missing.status).toBe(404)
   expect(missing.body).toEqual({ success: false, message: 'Notifica\u00e7\u00e3o n\u00e3o encontrada' })
-  expect(detailList.body).toEqual({ success: true, data: details, count: 1 })
-  expect(read.body).toEqual({ success: true, message: 'Notifica\u00e7\u00e3o marcada como lida', data: { ...notification, isRead: true } })
-  expect(unread.body).toEqual({ success: true, message: 'Notifica\u00e7\u00e3o marcada como n\u00e3o lida', data: notification })
-  expect(dismissed.body).toEqual({ success: true, message: 'Notifica\u00e7\u00e3o removida com sucesso' })
+  expect(detailList.body).toEqual({ success: true, data: details, meta: { count: 1 } })
+  expect(read.body).toEqual({ success: true, data: { ...notification, isRead: true }, meta: { message: 'Notifica\u00e7\u00e3o marcada como lida' } })
+  expect(unread.body).toEqual({ success: true, data: notification, meta: { message: 'Notifica\u00e7\u00e3o marcada como n\u00e3o lida' } })
+  expect(dismissed.body).toEqual({ success: true, data: null, meta: { message: 'Notifica\u00e7\u00e3o removida com sucesso' } })
   expect(unreadCount.body).toEqual({ success: true, data: { count: 2 } })
-  expect(allRead.body).toEqual({ success: true, message: '2 notifica\u00e7\u00f5es marcadas como lidas', data: { count: 2 } })
+  expect(allRead.body).toEqual({ success: true, data: { count: 2 }, meta: { message: '2 notifica\u00e7\u00f5es marcadas como lidas' } })
   expect(statsResponse.body).toEqual({ success: true, data: stats })
 })
 
