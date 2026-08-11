@@ -175,7 +175,11 @@ export async function generateDiscordRolesPlan(): Promise<DiscordPlanReport> {
     const className = active?.className || ''
     const parsed = parseTurmaName(className)
 
-    if (!parsed.valid || !parsed.accessEndOgi) {
+    // só precisamos do período (accessEndOgi) pra saber o mês do cargo —
+    // não do número de turma. "Turma Renovação | AAMM" (formato novo, sem
+    // número) tem período válido na mesma, por isso NÃO usar parsed.valid
+    // aqui (esse exige hasTurma, que este novo formato não tem).
+    if (!parsed.hasExpiry || !parsed.accessEndOgi) {
       report.invalidTurma += 1
       continue
     }

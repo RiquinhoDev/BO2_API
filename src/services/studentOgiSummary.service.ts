@@ -331,7 +331,7 @@ async function buildStudentOgiSummary(
   const fallbackExpiresAt = calculateExpirationDate(purchaseDate || enrolledAt)
   const expiresAt = resolveAccessEnd(purchaseDate || enrolledAt, activeClassName)
     || fallbackExpiresAt
-  const renewalOffer = await findRenewalOffer(parsedTurma?.turmaNumber)
+  const renewalOffer = await findRenewalOffer(parsedTurma?.turmaNumber, user._id)
 
   // Construir achievements a partir do cache no User doc
   const achievementsData = buildAchievementsResponse(user.achievements, user.achievementStats)
