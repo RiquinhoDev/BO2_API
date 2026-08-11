@@ -17,6 +17,7 @@ import {
 
 import type { StudentCompleteResponse } from '../types/studentComplete'
 import { StudentNotFoundError, StudentDataFetchError } from '../types/studentComplete'
+import logger from '../utils/logger'
 
 // ═══════════════════════════════════════════════════════════════
 // CONFIGURAÇÃO
@@ -118,8 +119,6 @@ export class StudentCompleteService {
 
       return response
     } catch (error) {
-      console.error('[StudentCompleteService] Erro ao buscar dados:', error)
-
       if (error instanceof StudentNotFoundError) {
         throw error
       }
@@ -142,7 +141,6 @@ export class StudentCompleteService {
     try {
       return await User.findById(userId).lean().maxTimeMS(QUERY_TIMEOUT).exec()
     } catch (error) {
-      console.error('[StudentCompleteService] Erro ao buscar user:', error)
       throw new StudentDataFetchError('Erro ao buscar dados do utilizador', error as Error)
     }
   }
@@ -159,7 +157,6 @@ export class StudentCompleteService {
         .maxTimeMS(QUERY_TIMEOUT)
         .exec()
     } catch (error) {
-      console.error('[StudentCompleteService] Erro ao buscar produtos:', error)
       throw new StudentDataFetchError('Erro ao buscar produtos do utilizador', error as Error)
     }
   }
@@ -175,10 +172,10 @@ export class StudentCompleteService {
         .lean()
         .maxTimeMS(QUERY_TIMEOUT)
         .exec()
-    } catch (error) {
-      console.error('[StudentCompleteService] Erro ao buscar histórico:', error)
+    } catch {
+      logger.warn('Student complete history query failed', { studentId: userId, status: 'failed' })
       // Não falhar se histórico não carregar - retornar array vazio
-      console.warn('[StudentCompleteService] Continuando sem histórico')
+      logger.warn('Student complete continuing without history', { studentId: userId, status: 'partial' })
       return []
     }
   }
@@ -192,10 +189,10 @@ export class StudentCompleteService {
         .lean()
         .maxTimeMS(QUERY_TIMEOUT)
         .exec()
-    } catch (error) {
-      console.error('[StudentCompleteService] Erro ao buscar engagement states:', error)
+    } catch {
+      logger.warn('Student complete engagement query failed', { studentId: userId, status: 'failed' })
       // Não falhar se engagement não carregar - retornar array vazio
-      console.warn('[StudentCompleteService] Continuando sem engagement states')
+      logger.warn('Student complete continuing without engagement', { studentId: userId, status: 'partial' })
       return []
     }
   }

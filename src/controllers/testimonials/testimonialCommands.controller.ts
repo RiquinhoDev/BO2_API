@@ -13,6 +13,7 @@ import {
   updateTestimonialTagsOnCompletion
 } from './testimonialTags.service'
 import { errorMessage } from './testimonialControllerSupport'
+import logger from '../../utils/logger'
 
 type RequestCreated = {
   testimonialId: mongoose.Types.ObjectId
@@ -84,12 +85,12 @@ export const createTestimonial = async (req: Request, res: Response, next: NextF
       const tags = await getTestimonialTags(studentObjectId)
       if (tags.length > 0) {
         await addTestimonialTagsToUser(studentObjectId, tags)
-        console.log(`Tags added to user ${studentEmail}: ${tags.join(', ')}`)
+        logger.info('Testimonial tags applied', { studentId, status: 'completed', tagCount: tags.length })
       } else {
-        console.log(`No testimonial tags determined for user ${studentEmail}`)
+        logger.info('No testimonial tags to apply', { studentId, status: 'skipped', tagCount: 0 })
       }
-    } catch (tagError: unknown) {
-      console.error(`Error adding tags to user ${studentEmail}:`, errorMessage(tagError))
+    } catch {
+      logger.warn('Testimonial tag application failed', { studentId, status: 'partial' })
     }
 
     res.status(201).json({
@@ -181,12 +182,12 @@ export const createTestimonialRequest = async (req: Request, res: Response, next
           const tags = await getTestimonialTags(student._id)
           if (tags.length > 0) {
             await addTestimonialTagsToUser(student._id, tags)
-            console.log(`âœ… Tags added to user ${student.email}: ${tags.join(', ')}`)
+            logger.info('Testimonial tags applied', { studentId, status: 'completed', tagCount: tags.length })
           } else {
-            console.log(`âš ï¸ No testimonial tags determined for user ${student.email}`)
+            logger.info('No testimonial tags to apply', { studentId, status: 'skipped', tagCount: 0 })
           }
-        } catch (tagError: unknown) {
-          console.error(`âŒ Error adding tags to user ${student.email}:`, errorMessage(tagError))
+        } catch {
+          logger.warn('Testimonial tag application failed', { studentId, status: 'partial' })
           // NÃ£o falhar a criaÃ§Ã£o do testemunho se as tags falharem
         }
 
@@ -243,9 +244,9 @@ export const updateTestimonialStatus = async (req: Request, res: Response, next:
       if (status === 'COMPLETED') {
         try {
           await updateTestimonialTagsOnCompletion(testimonial.studentId)
-          console.log(`âœ… Tags updated for completed testimonial ${testimonial._id}`)
-        } catch (tagError: unknown) {
-          console.error(`âŒ Error updating tags for testimonial ${testimonial._id}:`, errorMessage(tagError))
+          logger.info('Testimonial completion tags applied', { testimonialId: String(testimonial._id), status: 'completed' })
+        } catch {
+          logger.warn('Testimonial completion tag update failed', { testimonialId: String(testimonial._id), status: 'partial' })
           // NÃ£o falhar a atualizaÃ§Ã£o se as tags falharem
         }
       }
@@ -259,13 +260,13 @@ export const updateTestimonialStatus = async (req: Request, res: Response, next:
             for (const tag of tags) {
               try {
                 await activeCampaignService.removeTag(email, tag)
-              } catch (removeError: unknown) {
-                console.warn(`Error removing tag "${tag}" from ${email}:`, errorMessage(removeError))
+              } catch {
+                logger.warn('Testimonial ActiveCampaign tag removal failed', { testimonialId: String(testimonial._id), status: 'partial', tagCount: tags.length })
               }
             }
           }
-        } catch (tagError: unknown) {
-          console.error(`Error removing tags for testimonial ${testimonial._id}:`, errorMessage(tagError))
+        } catch {
+          logger.warn('Testimonial tag cleanup failed', { testimonialId: String(testimonial._id), status: 'partial' })
         }
       }
     }
