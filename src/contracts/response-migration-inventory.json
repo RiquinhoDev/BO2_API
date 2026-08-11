@@ -130,10 +130,10 @@
   {
     "identity": "DELETE /api/users/:id",
     "owner": "src/controllers/users/studentMutations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "DELETE /api/users/idsDiferentes/:id",
@@ -146,10 +146,10 @@
   {
     "identity": "DELETE /api/users/student/:id",
     "owner": "src/controllers/users/studentMutations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "DELETE /api/users/unmatchedUsers/:id",
@@ -3282,10 +3282,10 @@
   {
     "identity": "POST /api/users/:id/sync",
     "owner": "src/controllers/users/studentMutations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/users/bulkDelete",
@@ -3330,10 +3330,10 @@
   {
     "identity": "POST /api/users/student/:id/sync",
     "owner": "src/controllers/users/studentMutations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/users/syncDiscordAndHotmart",
@@ -3506,18 +3506,18 @@
   {
     "identity": "PUT /api/users/:id",
     "owner": "src/controllers/users/studentMutations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/pages/gerirAlunos/students/StudentEditor.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "PUT /api/users/editStudent/:id",
     "owner": "src/controllers/users/studentMutations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "PUT /cron-tags/config",

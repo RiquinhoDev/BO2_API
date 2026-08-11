@@ -97,7 +97,10 @@ describe('student mutations characterization', () => {
       const captured: Captured = {}
       await editStudent({ params: { id }, body: { name: 'Ana Maria' } } as unknown as Request, makeResponse(captured), noop)
       expect(captured.status).toBe(200)
-      expect(captured.body).toMatchObject({ name: 'Ana Maria' })
+      expect(captured.body).toMatchObject({
+        success: true,
+        data: { name: 'Ana Maria' },
+      })
     })
 
     it('dedupes discordIds into both shapes and recalculates combined data', async () => {
@@ -151,8 +154,11 @@ describe('student mutations characterization', () => {
       await syncSpecificStudent({ params: { id } } as unknown as Request, makeResponse(captured), noop)
       expect(captured.status).toBe(200)
       expect(captured.body).toEqual({
-        message: 'Sincronização específica iniciada para o aluno.',
-        email: 'ana@x.test',
+        success: true,
+        data: {
+          message: 'Sincronização específica iniciada para o aluno.',
+          email: 'ana@x.test',
+        },
       })
     })
 
@@ -181,7 +187,10 @@ describe('student mutations characterization', () => {
       const captured: Captured = {}
       await deleteStudent({ params: { id }, query: {} }, makeResponse(captured), noop)
       expect(captured.status).toBe(200)
-      expect(captured.body).toMatchObject({ message: 'Aluno marcado como inativo' })
+      expect(captured.body).toMatchObject({
+        success: true,
+        data: { message: 'Aluno marcado como inativo' },
+      })
       expect(updateSpy).toHaveBeenCalledWith(
         id,
         { status: 'BLOCKED', estado: 'inativo', updatedAt: expect.any(Date) },
@@ -201,7 +210,10 @@ describe('student mutations characterization', () => {
       const captured: Captured = {}
       await deleteStudent({ params: { id }, query: { permanent: 'true' } }, makeResponse(captured), noop)
       expect(captured.status).toBe(200)
-      expect(captured.body).toEqual({ message: 'Aluno eliminado permanentemente' })
+      expect(captured.body).toEqual({
+        success: true,
+        data: { message: 'Aluno eliminado permanentemente' },
+      })
       expect(await User.findById(id).lean()).toBeNull()
       expect(await StudentClassHistory.countDocuments({ studentId: new mongoose.Types.ObjectId(id) })).toBe(0)
     })
