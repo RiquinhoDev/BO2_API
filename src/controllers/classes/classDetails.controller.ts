@@ -1,4 +1,5 @@
 import type { Request, RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import type { ClassDetailsService } from '../../services/classes/classDetails.service'
 
@@ -81,7 +82,7 @@ export function createFetchClassDataPostController(service: Service): RequestHan
         })),
       }))
 
-      res.json(formatted)
+      res.json(successResponse(formatted))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_FETCH_POST_FAILED', publicMessage: 'Erro ao buscar dados das turmas.', cause: error }))
     }

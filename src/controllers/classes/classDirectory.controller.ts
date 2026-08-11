@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import type { ClassDirectoryService, ClassListFilters } from '../../services/classes/classDirectory.service'
 
@@ -7,8 +8,8 @@ type Service = Pick<ClassDirectoryService, 'simpleList' | 'list'>
 export function createListClassesSimpleController(service: Service): RequestHandler {
   return async (_req, res, next) => {
     try {
-      // Raw array, no envelope — the Front consumes it directly.
-      res.json(await service.simpleList())
+
+      res.json(successResponse(await service.simpleList()))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_DIRECTORY_FAILED', publicMessage: 'Erro ao listar turmas.', cause: error }))
     }

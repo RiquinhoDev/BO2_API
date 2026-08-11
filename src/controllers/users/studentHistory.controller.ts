@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import { DEFAULT_HISTORY_LIMIT } from '../../services/users/studentHistory.service'
 import type { StudentHistoryService } from '../../services/users/studentHistory.service'
@@ -20,7 +21,8 @@ export function createStudentHistoryController(
         return
       }
 
-      res.status(200).json(result)
+      const { total, ...data } = result
+      res.status(200).json(successResponse(data, { total }))
     } catch (error) {
       next(new HttpError({
         status: 500,

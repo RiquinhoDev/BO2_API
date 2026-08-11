@@ -998,8 +998,11 @@
     "method": "GET",
     "path": "/api/classes",
     "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "src/controllers/classes/classDirectory.controller.ts:11",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/classes/classDirectory.controller.ts:12",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -1044,7 +1047,7 @@
       "timestamp",
       "updatedAt"
     ],
-    "evidence": "src/controllers/classes/classDetails.controller.ts:41",
+    "evidence": "src/controllers/classes/classDetails.controller.ts:42",
     "frontConsumer": null
   },
   {
@@ -1073,7 +1076,7 @@
       "success",
       "timestamp"
     ],
-    "evidence": "src/controllers/classes/classDetails.controller.ts:57",
+    "evidence": "src/controllers/classes/classDetails.controller.ts:58",
     "frontConsumer": null
   },
   {
@@ -1116,7 +1119,7 @@
       "timestamp",
       "total"
     ],
-    "evidence": "src/controllers/classes/classDirectory.controller.ts:34",
+    "evidence": "src/controllers/classes/classDirectory.controller.ts:35",
     "frontConsumer": "src/components/analytics/analytics/ClassAnalyticsTab.tsx"
   },
   {
@@ -1135,7 +1138,7 @@
       "totalClasses",
       "totalStudents"
     ],
-    "evidence": "src/controllers/classes/classDetails.controller.ts:23",
+    "evidence": "src/controllers/classes/classDetails.controller.ts:24",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -2561,7 +2564,7 @@
       "offers",
       "total"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:25",
+    "evidence": "src/controllers/renewal.controller.ts:26",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -2569,13 +2572,10 @@
     "path": "/api/renewal/performance",
     "family": "success-data",
     "shapeKeys": [
-      "availableYears",
-      "target",
-      "totals",
-      "turmas",
-      "year"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:149",
+    "evidence": "src/controllers/renewal.controller.ts:150",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -2586,7 +2586,7 @@
       "turmas",
       "uncovered"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:136",
+    "evidence": "src/controllers/renewal.controller.ts:137",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -3116,15 +3116,11 @@
     "path": "/api/users/:id/history",
     "family": "success-data",
     "shapeKeys": [
-      "classHistory",
-      "history",
-      "stats",
-      "student",
-      "syncHistory",
-      "total",
-      "userHistory"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/users/studentHistory.controller.ts:23",
+    "evidence": "src/controllers/users/studentHistory.controller.ts:25",
     "frontConsumer": null
   },
   {
@@ -3132,22 +3128,10 @@
     "path": "/api/users/:id/stats",
     "family": "success-data",
     "shapeKeys": [
-      "classId",
-      "daysSinceLastAccess",
-      "daysSincePurchase",
-      "hasClass",
-      "hasDiscordIds",
-      "hasEmail",
-      "hasLastAccess",
-      "hasName",
-      "hasProgress",
-      "hasPurchaseDate",
-      "isActive",
-      "progressPercentage",
-      "totalDiscordIds",
-      "validationStatus"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/users/studentStats.controller.ts:19",
+    "evidence": "src/controllers/users/studentStats.controller.ts:20",
     "frontConsumer": null
   },
   {
@@ -3209,17 +3193,10 @@
     "path": "/api/users/getUserStats",
     "family": "success-data",
     "shapeKeys": [
-      "activeUsers",
-      "averageEngagement",
-      "bothPlatforms",
-      "inactiveUsers",
-      "needsAttentionCount",
-      "platformStats",
-      "topPerformersCount",
-      "totalUsers",
-      "withEngagement"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/users/userPlatformStats.controller.ts:11",
+    "evidence": "src/controllers/users/userPlatformStats.controller.ts:12",
     "frontConsumer": null
   },
   {
@@ -3285,14 +3262,11 @@
     "path": "/api/users/listUsersSimple",
     "family": "success-data",
     "shapeKeys": [
-      "count",
-      "limit",
-      "page",
-      "pagination",
-      "totalPages",
-      "users"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/usersSimpleList.controller.ts:10",
+    "evidence": "src/controllers/usersSimpleList.controller.ts:11",
     "frontConsumer": "src/hooks/useUsers.ts"
   },
   {
@@ -3356,17 +3330,10 @@
     "path": "/api/users/stats",
     "family": "success-data",
     "shapeKeys": [
-      "activeUsers",
-      "averageEngagement",
-      "bothPlatforms",
-      "inactiveUsers",
-      "needsAttentionCount",
-      "platformStats",
-      "topPerformersCount",
-      "totalUsers",
-      "withEngagement"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/users/userPlatformStats.controller.ts:11",
+    "evidence": "src/controllers/users/userPlatformStats.controller.ts:12",
     "frontConsumer": null
   },
   {
@@ -3386,15 +3353,11 @@
     "path": "/api/users/student/:id/history",
     "family": "success-data",
     "shapeKeys": [
-      "classHistory",
-      "history",
-      "stats",
-      "student",
-      "syncHistory",
-      "total",
-      "userHistory"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/users/studentHistory.controller.ts:23",
+    "evidence": "src/controllers/users/studentHistory.controller.ts:25",
     "frontConsumer": null
   },
   {
@@ -3402,22 +3365,10 @@
     "path": "/api/users/student/:id/stats",
     "family": "success-data",
     "shapeKeys": [
-      "classId",
-      "daysSinceLastAccess",
-      "daysSincePurchase",
-      "hasClass",
-      "hasDiscordIds",
-      "hasEmail",
-      "hasLastAccess",
-      "hasName",
-      "hasProgress",
-      "hasPurchaseDate",
-      "isActive",
-      "progressPercentage",
-      "totalDiscordIds",
-      "validationStatus"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/users/studentStats.controller.ts:19",
+    "evidence": "src/controllers/users/studentStats.controller.ts:20",
     "frontConsumer": null
   },
   {
@@ -3616,7 +3567,7 @@
     "shapeKeys": [
       "offer"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:122",
+    "evidence": "src/controllers/renewal.controller.ts:123",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -4079,8 +4030,11 @@
     "method": "POST",
     "path": "/api/classes/fetchClassData",
     "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "src/controllers/classes/classDetails.controller.ts:84",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/classes/classDetails.controller.ts:85",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -4922,7 +4876,7 @@
     "shapeKeys": [
       "offer"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:80",
+    "evidence": "src/controllers/renewal.controller.ts:81",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -4932,7 +4886,7 @@
     "shapeKeys": [
       "report"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:160",
+    "evidence": "src/controllers/renewal.controller.ts:161",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {

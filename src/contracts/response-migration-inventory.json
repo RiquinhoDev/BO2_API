@@ -530,10 +530,10 @@
   {
     "identity": "GET /api/classes",
     "owner": "src/controllers/classes/classDirectory.controller.ts",
-    "currentFamily": "raw-json",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/classes/:classId/complete-history",
@@ -1538,10 +1538,10 @@
   {
     "identity": "GET /api/renewal/performance",
     "owner": "src/controllers/renewal.controller.ts",
-    "currentFamily": "raw-json",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/renewalOffers.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/renewal/turmas",
@@ -1906,18 +1906,18 @@
   {
     "identity": "GET /api/users/:id/history",
     "owner": "src/controllers/users/studentHistory.controller.ts",
-    "currentFamily": "raw-json",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/:id/stats",
     "owner": "src/controllers/users/studentStats.controller.ts",
-    "currentFamily": "raw-json",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/:userId/all-classes",
@@ -1962,10 +1962,10 @@
   {
     "identity": "GET /api/users/getUserStats",
     "owner": "src/controllers/users/userPlatformStats.controller.ts",
-    "currentFamily": "raw-json",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/idsDiferentes",
@@ -2002,10 +2002,10 @@
   {
     "identity": "GET /api/users/listUsersSimple",
     "owner": "src/controllers/usersSimpleList.controller.ts",
-    "currentFamily": "raw-json",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/hooks/useUsers.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/search",
@@ -2018,10 +2018,10 @@
   {
     "identity": "GET /api/users/stats",
     "owner": "src/controllers/users/userPlatformStats.controller.ts",
-    "currentFamily": "raw-json",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/stats/overview",
@@ -2034,18 +2034,18 @@
   {
     "identity": "GET /api/users/student/:id/history",
     "owner": "src/controllers/users/studentHistory.controller.ts",
-    "currentFamily": "raw-json",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/student/:id/stats",
     "owner": "src/controllers/users/studentStats.controller.ts",
-    "currentFamily": "raw-json",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/unified",
@@ -2482,10 +2482,10 @@
   {
     "identity": "POST /api/classes/fetchClassData",
     "owner": "src/controllers/classes/classDetails.controller.ts",
-    "currentFamily": "raw-json",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/classes/inactivationLists/create",

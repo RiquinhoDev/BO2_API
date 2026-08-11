@@ -172,7 +172,7 @@ describe('classDetails characterization — fetchClassDataPost (POST /fetchClass
     expect(captured.status).toBe(400)
   })
 
-  it('returns a raw array of { className, students } and never mutates Class or User', async () => {
+  it('returns { className, students } in the canonical envelope and never mutates Class or User', async () => {
     const MUTATORS = ['insertOne', 'insertMany', 'updateOne', 'updateMany', 'replaceOne', 'deleteOne', 'deleteMany', 'bulkWrite', 'findOneAndUpdate', 'findOneAndDelete', 'findOneAndReplace'] as const
     const spies = [
       ...MUTATORS.map(m => jest.spyOn(Class.collection, m as never)),
@@ -182,9 +182,10 @@ describe('classDetails characterization — fetchClassDataPost (POST /fetchClass
     const captured: Captured = {}
     await fetchClassDataPost(req({}, {}, { classIds: ['H'] }), makeResponse(captured))
     const body = captured.body as Body
-    expect(Array.isArray(body)).toBe(true)
-    expect((body as unknown as Row[])[0]).toMatchObject({ className: 'Hotmart T' })
-    expect(Array.isArray((body as unknown as Row[])[0].students)).toBe(true)
+    expect(body.success).toBe(true)
+    expect(Array.isArray(body.data)).toBe(true)
+    expect((body.data as Row[])[0]).toMatchObject({ className: 'Hotmart T' })
+    expect(Array.isArray((body.data as Row[])[0].students)).toBe(true)
     // Read-only: POST fetchClassData never writes to Class or User.
     for (const spy of spies) expect(spy).not.toHaveBeenCalled()
   })
