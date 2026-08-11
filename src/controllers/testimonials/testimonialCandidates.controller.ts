@@ -1,6 +1,7 @@
 import { type NextFunction, type Request, type Response } from 'express'
 import { internalError } from '../../security/errorHandling'
 import { successResponse } from '../../contracts/responseContract'
+import { boundedQueryLimit } from '../../utils/queryBounds'
 import { FilterQuery, PipelineStage } from 'mongoose'
 import { Testimonial } from '../../models/Testimonial'
 import User, { IUser } from '../../models/user'
@@ -100,8 +101,8 @@ export const getAvailableStudents = async (req: Request, res: Response, next: Ne
     // Buscar estudantes com campos de engagement e progress
     let students = await User.find(studentFilters)
       .select('_id name email classId hotmart.engagement curseduca.engagement curseduca.memberStatus combined.status combined.engagement combined.totalProgress curseduca.progress')
-      .sort({ name: 1 })
-      .limit(Number(limit))
+      .sort({ name: 1, _id: 1 })
+      .limit(boundedQueryLimit(limit, 100))
       .lean()
 
     logger.info('Testimonial candidates loaded', { status: 'loaded', studentCount: students.length })

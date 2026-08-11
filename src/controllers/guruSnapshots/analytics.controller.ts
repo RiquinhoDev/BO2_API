@@ -3,6 +3,7 @@ import { IntegrationUnavailableError } from '../../errors/integrationUnavailable
 import { internalError } from '../../security/errorHandling'
 import GuruMonthlySnapshot from '../../models/GuruMonthlySnapshot'
 import { successResponse } from '../../contracts/responseContract'
+import { boundedQueryLimit } from '../../utils/queryBounds'
 
 function forwardGuruSnapshotError(
   next: NextFunction,
@@ -21,7 +22,8 @@ export const getChurnFromSnapshots = async (req: Request, res: Response, next: N
   try {
     // Buscar todos os snapshots ordenados
     const snapshots = await GuruMonthlySnapshot.find()
-      .sort({ year: 1, month: 1 })
+      .sort({ year: 1, month: 1, _id: 1 })
+      .limit(boundedQueryLimit(req.query.limit, 200))
       .lean()
 
     if (snapshots.length === 0) {

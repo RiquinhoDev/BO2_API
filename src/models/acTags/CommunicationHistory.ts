@@ -346,24 +346,25 @@ CommunicationHistorySchema.statics.getLastForUser = async function(
  * Calcular métricas por nível
  */
 CommunicationHistorySchema.statics.getMetricsByLevel = async function(
-  productCode: string, 
+  productCode: string,
   level: number
 ) {
-  const communications = await this.find({ productCode, level })
-  
-  const totalSent = communications.length
-  const opened = communications.filter((c: any) => c.openedAt).length
-  const clicked = communications.filter((c: any) => c.clickedAt).length
-  const returned = communications.filter((c: any) => c.outcome === 'SUCCESS').length
-  
+  const [metrics] = await this.aggregate([
+    { $match: { productCode, level } },
+    { $group: {
+      _id: null,
+      totalSent: { $sum: 1 },
+      opened: { $sum: { $cond: [{ $ne: ['$openedAt', null] }, 1, 0] } },
+      clicked: { $sum: { $cond: [{ $ne: ['$clickedAt', null] }, 1, 0] } },
+      returned: { $sum: { $cond: [{ $eq: ['$outcome', 'SUCCESS'] }, 1, 0] } },
+    } },
+  ])
+  const { totalSent = 0, opened = 0, clicked = 0, returned = 0 } = metrics ?? {}
   return {
-    totalSent,
-    opened,
-    clicked,
-    returned,
+    totalSent, opened, clicked, returned,
     openRate: totalSent > 0 ? (opened / totalSent) * 100 : 0,
     clickRate: totalSent > 0 ? (clicked / totalSent) * 100 : 0,
-    returnRate: totalSent > 0 ? (returned / totalSent) * 100 : 0
+    returnRate: totalSent > 0 ? (returned / totalSent) * 100 : 0,
   }
 }
 
@@ -371,25 +372,25 @@ CommunicationHistorySchema.statics.getMetricsByLevel = async function(
  * Obter tempo médio de retorno
  */
 CommunicationHistorySchema.statics.getAverageTimeToReturn = async function(
-  productCode: string, 
+  productCode: string,
   level?: number
 ) {
-  const query: any = {
+  const match: Record<string, unknown> = {
     productCode,
     outcome: 'SUCCESS',
-    timeToReturn: { $exists: true }
+    timeToReturn: { $exists: true },
   }
-  
-  if (level) {
-    query.level = level
-  }
-  
-  const communications = await this.find(query)
-  
-  if (communications.length === 0) return 0
-  
-  const totalMinutes = communications.reduce((sum: number, c: any) => sum + (c.timeToReturn || 0), 0)
-  return Math.floor(totalMinutes / communications.length)
+  if (level) match.level = level
+  const [result] = await this.aggregate([
+    { $match: match },
+    { $group: {
+      _id: null,
+      totalMinutes: { $sum: { $ifNull: ['$timeToReturn', 0] } },
+      communicationCount: { $sum: 1 },
+    } },
+  ])
+  if (!result?.communicationCount) return 0
+  return Math.floor(result.totalMinutes / result.communicationCount)
 }
 
 // ─────────────────────────────────────────────────────────────

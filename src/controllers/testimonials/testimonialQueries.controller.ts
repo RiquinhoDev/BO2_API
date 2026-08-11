@@ -1,6 +1,7 @@
 import { type NextFunction, type Request, type Response } from 'express'
 import { internalError } from '../../security/errorHandling'
 import { successResponse } from '../../contracts/responseContract'
+import { boundedQueryLimit } from '../../utils/queryBounds'
 import mongoose, { FilterQuery, PipelineStage } from 'mongoose'
 import { Testimonial, ITestimonial } from '../../models/Testimonial'
 import {
@@ -280,7 +281,8 @@ export const getStudentTestimonials = async (req: Request, res: Response, next: 
 
     // Buscar testemunhos do estudante
     const testimonials = await TestimonialModel.find(filter)
-      .sort({ requestedDate: -1 })
+      .sort({ requestedDate: -1, _id: -1 })
+      .limit(boundedQueryLimit(req.query.limit, 200))
       .lean()
 
     // Criar resumo do status dos testemunhos

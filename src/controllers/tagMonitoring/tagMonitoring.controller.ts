@@ -4,6 +4,7 @@ import { WeeklyNativeTagSnapshot, WeeklyTagMonitoringConfig } from '../../models
 import logger from '../../utils/logger'
 import { internalError } from '../../security/errorHandling'
 import { successResponse } from '../../contracts/responseContract'
+import { boundedQueryLimit } from '../../utils/queryBounds'
 
 type SnapshotEmailParams = {
   email: string
@@ -26,8 +27,8 @@ export const getSnapshots = async (
     if (year) query.year = parseInt(year as string)
 
     const snapshots = await WeeklyNativeTagSnapshot.find(query)
-      .sort({ capturedAt: -1 })
-      .limit(limit ? parseInt(limit as string) : 100)
+      .sort({ capturedAt: -1, _id: -1 })
+      .limit(boundedQueryLimit(limit, 100))
       .lean()
 
     res.json(successResponse(snapshots, { count: snapshots.length }))

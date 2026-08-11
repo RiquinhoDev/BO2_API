@@ -8,6 +8,7 @@ import type { GuruEmptyInput, GuruSnapshotDeleteInput } from '../../security/gur
 import { type SnapshotPeriodParams, type SnapshotSubscription } from '../../services/guruSnapshots/controllerSupport'
 import { createSnapshotFromSubscriptions, isAnnualPlan, mapStatus, parseGuruDate } from './history.controller'
 import { successResponse } from '../../contracts/responseContract'
+import { boundedQueryLimit } from '../../utils/queryBounds'
 
 function forwardGuruSnapshotError(
   next: NextFunction,
@@ -292,7 +293,8 @@ export const updateSnapshot = async (req: Request<SnapshotPeriodParams>, res: Re
 export const listSnapshots = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const snapshots = await GuruMonthlySnapshot.find()
-      .sort({ year: -1, month: -1 })
+      .sort({ year: -1, month: -1, _id: -1 })
+      .limit(boundedQueryLimit(req.query.limit, 200))
       .lean()
 
     return res.json(successResponse({ snapshots }, { total: snapshots.length }))

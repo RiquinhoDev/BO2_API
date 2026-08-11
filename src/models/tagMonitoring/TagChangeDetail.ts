@@ -1,3 +1,4 @@
+import { boundedQueryLimit } from '../../utils/queryBounds'
 import mongoose, { Document, Schema } from 'mongoose'
 
 /**
@@ -15,9 +16,9 @@ export interface ITagChangeDetail extends Document {
 }
 
 export interface ITagChangeDetailModel extends mongoose.Model<ITagChangeDetail> {
-  findByNotification(notificationId: string): Promise<ITagChangeDetail[]>
+  findByNotification(notificationId: string, limit?: number): Promise<ITagChangeDetail[]>
   findByEmail(email: string, limit?: number): Promise<ITagChangeDetail[]>
-  findByProduct(product: string): Promise<ITagChangeDetail[]>
+  findByProduct(product: string, limit?: number): Promise<ITagChangeDetail[]>
 }
 
 const TagChangeDetailSchema = new Schema<
@@ -74,16 +75,16 @@ TagChangeDetailSchema.index({ email: 1 })
 TagChangeDetailSchema.index({ detectedAt: -1 })
 
 // Métodos estáticos
-TagChangeDetailSchema.statics.findByNotification = function (notificationId: string) {
-  return this.find({ notificationId }).sort({ email: 1 })
+TagChangeDetailSchema.statics.findByNotification = function (notificationId: string, limit: number = 200) {
+  return this.find({ notificationId }).sort({ email: 1, _id: 1 }).limit(boundedQueryLimit(limit, 200))
 }
 
 TagChangeDetailSchema.statics.findByEmail = function (email: string, limit: number = 50) {
-  return this.find({ email }).sort({ detectedAt: -1 }).limit(limit)
+  return this.find({ email }).sort({ detectedAt: -1, _id: -1 }).limit(boundedQueryLimit(limit, 50))
 }
 
-TagChangeDetailSchema.statics.findByProduct = function (product: string) {
-  return this.find({ product }).sort({ detectedAt: -1 })
+TagChangeDetailSchema.statics.findByProduct = function (product: string, limit: number = 200) {
+  return this.find({ product }).sort({ detectedAt: -1, _id: -1 }).limit(boundedQueryLimit(limit, 200))
 }
 
 const TagChangeDetail = mongoose.model<ITagChangeDetail, ITagChangeDetailModel>(
