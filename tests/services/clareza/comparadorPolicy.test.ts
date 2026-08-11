@@ -115,7 +115,16 @@ describe('searchComparadorStocks', () => {
     expect(searchComparadorStocks(stocks, 'aap').results.map((entry) => entry.symbol)).toEqual(['AAPL', 'AAPX', 'N1', 'ZZA'])
   })
 
-  it('uses the snapshot record key as the symbol and falls back to it for an empty legacy name', () => {
+  it('ranks an exact ticker above a ticker-prefix result for the same query', () => {
+    const result = searchComparadorStocks(snapshot({
+      ZETAB: stock({ ticker: 'ZETAB', name: 'Zeta B' }),
+      ZETA: stock({ ticker: 'ZETA', name: 'Zeta A' }),
+    }), 'zeta')
+
+    expect(result.results.map((entry) => entry.symbol)).toEqual(['ZETA', 'ZETAB'])
+  })
+
+  it('uses the snapshot record key as the symbol and preserves an empty legacy name', () => {
     const result = searchComparadorStocks(snapshot({
       ZETA: stock({ ticker: 'WRONG', name: '' }),
       ALFA: stock({ ticker: 'ALSO-WRONG', name: 'Zeta Partners' }),
@@ -125,7 +134,7 @@ describe('searchComparadorStocks', () => {
       query: 'ZETA',
       count: 2,
       results: [
-        { symbol: 'ZETA', name: 'ZETA', sector: null, exchange: null, image: null, isReit: false },
+        { symbol: 'ZETA', name: '', sector: null, exchange: null, image: null, isReit: false },
         { symbol: 'ALFA', name: 'Zeta Partners', sector: null, exchange: null, image: null, isReit: false },
       ],
     })
