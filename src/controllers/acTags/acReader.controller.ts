@@ -10,6 +10,7 @@ import contactTagReaderService, {
   ContactTagInfo,
   SyncResult
 } from '../../services/activeCampaign/contactTagReader.service'
+import { activeCampaignService } from '../../services/activeCampaign/activeCampaignService'
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS
@@ -554,6 +555,41 @@ export const clearACCache: RequestHandler = async (req, res) => {
     res.status(500).json({
       success: false,
       error: error?.message || 'Erro interno do servidor'
+    })
+    return
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// TEMPORÁRIO — diagnóstico só-leitura pra descobrir os IDs dos campos
+// custom da AC (data de compra / 1ª compra / expiração). Nenhuma
+// escrita, só GET /api/3/fields. Remover depois de confirmado.
+// ─────────────────────────────────────────────────────────────
+export const debugListACFields: RequestHandler = async (_req, res) => {
+  try {
+    let offset = 0
+    const allFields: any[] = []
+    while (true) {
+      const response: any = await activeCampaignService.client.get('/api/3/fields', {
+        params: { limit: 100, offset }
+      })
+      const fields = response.data?.fields || []
+      allFields.push(...fields.map((f: any) => ({
+        id: f.id,
+        title: f.title,
+        type: f.type,
+        perstag: f.perstag
+      })))
+      if (fields.length < 100) break
+      offset += 100
+    }
+
+    res.json({ success: true, total: allFields.length, fields: allFields })
+    return
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error?.response?.data || error?.message || 'Erro interno do servidor'
     })
     return
   }
