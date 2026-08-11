@@ -264,6 +264,18 @@ describe('response contract catalog', () => {
     expect(consumer('POST /api/renewal-ac/execute')).toBe('src/services/renewalAcSync.service.ts')
   })
 
+  test('records the shared communication alias and pre-existing product-sales envelope', () => {
+    for (const identity of [
+      'GET /api/activecampaign/communication-history',
+      'GET /api/communication-history',
+      'GET /api/analytics/product-sales',
+    ]) {
+      expect(responseCatalog.find((entry) => routeId(entry) === identity)).toMatchObject({
+        family: 'success-data',
+        shapeKeys: ['data', 'meta', 'success'],
+      })
+    }
+  })
   test('write mode rejects producer drift and preserves the reviewed catalog SHA', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-source-'))
     const sourcePath = path.join(process.cwd(), 'src', 'services', 'users', 'usersV2OverviewAnalytics.service.ts')
