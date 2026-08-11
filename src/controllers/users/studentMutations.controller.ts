@@ -2,6 +2,7 @@ import type { NextFunction, Response, RequestHandler } from 'express'
 import { HttpError } from '../../security/errorHandling'
 import type { UsersDeleteStudentInput } from '../../security/usersDestructiveInput'
 import type { StudentMutationsService } from '../../services/users/studentMutations.service'
+import { successResponse } from '../../contracts/responseContract'
 
 export type DeleteStudentHandler = (
   input: UsersDeleteStudentInput,
@@ -23,7 +24,7 @@ export function createEditStudentController(service: Service): RequestHandler<{ 
         res.status(400).json({ message: 'Email inválido' })
         return
       }
-      res.status(200).json(result.student)
+      res.status(200).json(successResponse(result.student))
     } catch (error) {
       next(new HttpError({
         status: 500,
@@ -43,10 +44,10 @@ export function createSyncStudentController(service: Service): RequestHandler<{ 
         res.status(404).json({ message: 'Aluno não encontrado.' })
         return
       }
-      res.status(200).json({
+      res.status(200).json(successResponse({
         message: 'Sincronização específica iniciada para o aluno.',
         email: result.email,
-      })
+      }))
     } catch (error) {
       next(new HttpError({
         status: 500,
@@ -67,10 +68,10 @@ export function createDeleteStudentController(service: Service): DeleteStudentHa
         return
       }
       if (result.kind === 'deleted') {
-        res.status(200).json({ message: 'Aluno eliminado permanentemente' })
+        res.status(200).json(successResponse({ message: 'Aluno eliminado permanentemente' }))
         return
       }
-      res.status(200).json({ message: 'Aluno marcado como inativo', student: result.student })
+      res.status(200).json(successResponse({ message: 'Aluno marcado como inativo', student: result.student }))
     } catch (error) {
       next(new HttpError({
         status: 500,

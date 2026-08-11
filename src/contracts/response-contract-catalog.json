@@ -184,10 +184,10 @@
     "path": "/api/users/:id",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "student"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:70",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:71",
     "frontConsumer": null
   },
   {
@@ -205,10 +205,10 @@
     "path": "/api/users/student/:id",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "student"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:70",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:71",
     "frontConsumer": null
   },
   {
@@ -5247,10 +5247,10 @@
     "path": "/api/users/:id/sync",
     "family": "success-data",
     "shapeKeys": [
-      "email",
-      "message"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:46",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:47",
     "frontConsumer": null
   },
   {
@@ -5314,10 +5314,10 @@
     "path": "/api/users/student/:id/sync",
     "family": "success-data",
     "shapeKeys": [
-      "email",
-      "message"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:46",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:47",
     "frontConsumer": null
   },
   {
@@ -5572,9 +5572,10 @@
     "path": "/api/users/:id",
     "family": "success-data",
     "shapeKeys": [
-      "email"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:26",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:27",
     "frontConsumer": "src/pages/gerirAlunos/students/StudentEditor.tsx"
   },
   {
@@ -5582,9 +5583,10 @@
     "path": "/api/users/editStudent/:id",
     "family": "success-data",
     "shapeKeys": [
-      "email"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:26",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:27",
     "frontConsumer": null
   },
   {
