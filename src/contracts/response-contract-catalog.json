@@ -38,10 +38,11 @@
     "path": "/api/courses/:id",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/course.controller.ts:171",
+    "evidence": "src/controllers/course.controller.ts:168",
     "frontConsumer": null
   },
   {
@@ -94,10 +95,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:207",
+    "evidence": "src/controllers/products/productProfile.controller.ts:196",
     "frontConsumer": null
   },
   {
@@ -195,9 +196,11 @@
     "path": "/api/users/idsDiferentes/:id",
     "family": "success-data",
     "shapeKeys": [
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:111",
+    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:114",
     "frontConsumer": null
   },
   {
@@ -216,9 +219,11 @@
     "path": "/api/users/unmatchedUsers/:id",
     "family": "success-data",
     "shapeKeys": [
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:131",
+    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:137",
     "frontConsumer": null
   },
   {
@@ -238,10 +243,11 @@
     "path": "/api/achievements/definitions",
     "family": "success-data",
     "shapeKeys": [
-      "definitions",
-      "total"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/routes/achievements.routes.ts:19",
+    "evidence": "src/routes/achievements.routes.ts:20",
     "frontConsumer": null
   },
   {
@@ -249,12 +255,10 @@
     "path": "/api/achievements/stats",
     "family": "success-data",
     "shapeKeys": [
-      "global",
-      "leastCommon",
-      "mostCommon",
-      "totalDefinitions"
+      "data",
+      "success"
     ],
-    "evidence": "src/routes/achievements.routes.ts:156",
+    "evidence": "src/routes/achievements.routes.ts:146",
     "frontConsumer": null
   },
   {
@@ -1231,11 +1235,11 @@
     "path": "/api/courses",
     "family": "success-data",
     "shapeKeys": [
-      "count",
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/course.controller.ts:33",
+    "evidence": "src/controllers/course.controller.ts:34",
     "frontConsumer": null
   },
   {
@@ -1246,7 +1250,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/course.controller.ts:66",
+    "evidence": "src/controllers/course.controller.ts:63",
     "frontConsumer": null
   },
   {
@@ -1280,10 +1284,10 @@
     "path": "/api/cron-tags/config",
     "family": "success-data",
     "shapeKeys": [
-      "config",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:56",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:57",
     "frontConsumer": null
   },
   {
@@ -1291,10 +1295,10 @@
     "path": "/api/cron-tags/history",
     "family": "success-data",
     "shapeKeys": [
-      "history",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:90",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:87",
     "frontConsumer": null
   },
   {
@@ -1303,10 +1307,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:110",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:107",
     "frontConsumer": null
   },
   {
@@ -1314,10 +1318,10 @@
     "path": "/api/cron-tags/statistics",
     "family": "success-data",
     "shapeKeys": [
-      "statistics",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:98",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:95",
     "frontConsumer": null
   },
   {
@@ -1325,12 +1329,10 @@
     "path": "/api/cron-tags/status",
     "family": "success-data",
     "shapeKeys": [
-      "recentExecutions",
-      "stats",
-      "success",
-      "upcomingJobs"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:145",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:134",
     "frontConsumer": null
   },
   {
@@ -1446,12 +1448,11 @@
     "path": "/api/curseduca/products",
     "family": "success-data",
     "shapeKeys": [
-      "_v2Enabled",
-      "count",
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:19",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:20",
     "frontConsumer": null
   },
   {
@@ -1459,11 +1460,11 @@
     "path": "/api/curseduca/products/:groupId",
     "family": "success-data",
     "shapeKeys": [
-      "_v2Enabled",
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:56",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:52",
     "frontConsumer": null
   },
   {
@@ -1471,13 +1472,11 @@
     "path": "/api/curseduca/products/:groupId/users",
     "family": "success-data",
     "shapeKeys": [
-      "_v2Enabled",
-      "count",
       "data",
-      "filters",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:104",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:96",
     "frontConsumer": null
   },
   {
@@ -1501,12 +1500,11 @@
     "path": "/api/curseduca/stats",
     "family": "success-data",
     "shapeKeys": [
-      "_v2Enabled",
       "data",
-      "success",
-      "summary"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:149",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:139",
     "frontConsumer": null
   },
   {
@@ -1517,7 +1515,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/users.controller.ts:79",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/users.controller.ts:80",
     "frontConsumer": null
   },
   {
@@ -1584,11 +1582,11 @@
     "path": "/api/curseduca/users-with-classes",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
-      "success",
-      "users"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/users.controller.ts:21",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/users.controller.ts:22",
     "frontConsumer": null
   },
   {
@@ -2232,7 +2230,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/hotmart/hotmartDiagnostics.controller.ts:64",
+    "evidence": "src/controllers/hotmart/hotmartDiagnostics.controller.ts:62",
     "frontConsumer": null
   },
   {
@@ -2265,10 +2263,11 @@
     "path": "/api/hotmart/users",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "user"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/hotmart/hotmartDiagnostics.controller.ts:34",
+    "evidence": "src/controllers/hotmart/hotmartDiagnostics.controller.ts:35",
     "frontConsumer": null
   },
   {
@@ -2276,12 +2275,11 @@
     "path": "/api/hotmart/v2/products",
     "family": "success-data",
     "shapeKeys": [
-      "_v2Enabled",
-      "count",
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:26",
+    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:27",
     "frontConsumer": null
   },
   {
@@ -2289,11 +2287,11 @@
     "path": "/api/hotmart/v2/products/:subdomain",
     "family": "success-data",
     "shapeKeys": [
-      "_v2Enabled",
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:44",
+    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:45",
     "frontConsumer": null
   },
   {
@@ -2301,13 +2299,11 @@
     "path": "/api/hotmart/v2/products/:subdomain/users",
     "family": "success-data",
     "shapeKeys": [
-      "_v2Enabled",
-      "count",
       "data",
-      "filters",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:66",
+    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:67",
     "frontConsumer": null
   },
   {
@@ -2315,12 +2311,11 @@
     "path": "/api/hotmart/v2/stats",
     "family": "success-data",
     "shapeKeys": [
-      "_v2Enabled",
       "data",
-      "success",
-      "summary"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:81",
+    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:80",
     "frontConsumer": null
   },
   {
@@ -2342,11 +2337,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/lessons.controller.ts:185",
+    "evidence": "src/controllers/lessons.controller.ts:177",
     "frontConsumer": null
   },
   {
@@ -2355,11 +2349,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/lessons.controller.ts:217",
+    "evidence": "src/controllers/lessons.controller.ts:207",
     "frontConsumer": null
   },
   {
@@ -2368,11 +2361,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/lessons.controller.ts:56",
+    "evidence": "src/controllers/lessons.controller.ts:57",
     "frontConsumer": null
   },
   {
@@ -2381,11 +2373,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/lessons.controller.ts:142",
+    "evidence": "src/controllers/lessons.controller.ts:136",
     "frontConsumer": null
   },
   {
@@ -2393,12 +2384,11 @@
     "path": "/api/metrics",
     "family": "success-data",
     "shapeKeys": [
-      "current",
-      "stats",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/metrics.controller.ts:20",
+    "evidence": "src/controllers/metrics.controller.ts:21",
     "frontConsumer": null
   },
   {
@@ -2406,10 +2396,10 @@
     "path": "/api/metrics/cron",
     "family": "success-data",
     "shapeKeys": [
-      "metrics",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/metrics.controller.ts:66",
+    "evidence": "src/controllers/metrics.controller.ts:58",
     "frontConsumer": null
   },
   {
@@ -2417,11 +2407,11 @@
     "path": "/api/metrics/history",
     "family": "success-data",
     "shapeKeys": [
-      "count",
-      "history",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/metrics.controller.ts:39",
+    "evidence": "src/controllers/metrics.controller.ts:35",
     "frontConsumer": null
   },
   {
@@ -2429,11 +2419,11 @@
     "path": "/api/product-profiles",
     "family": "success-data",
     "shapeKeys": [
-      "count",
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:33",
+    "evidence": "src/controllers/products/productProfile.controller.ts:34",
     "frontConsumer": null
   },
   {
@@ -2444,7 +2434,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:67",
+    "evidence": "src/controllers/products/productProfile.controller.ts:64",
     "frontConsumer": null
   },
   {
@@ -2455,7 +2445,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:338",
+    "evidence": "src/controllers/products/productProfile.controller.ts:320",
     "frontConsumer": null
   },
   {
@@ -2652,10 +2642,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:63",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:64",
     "frontConsumer": null
   },
   {
@@ -2664,10 +2654,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:112",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:109",
     "frontConsumer": null
   },
   {
@@ -2676,10 +2666,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:355",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:332",
     "frontConsumer": null
   },
   {
@@ -2703,10 +2693,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:61",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:62",
     "frontConsumer": null
   },
   {
@@ -2751,7 +2741,7 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
     "evidence": "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts:105",
@@ -3069,10 +3059,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/userHistory.controller.ts:141",
+    "evidence": "src/controllers/userHistory.controller.ts:140",
     "frontConsumer": null
   },
   {
@@ -3081,10 +3071,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/userHistory.controller.ts:70",
+    "evidence": "src/controllers/userHistory.controller.ts:71",
     "frontConsumer": null
   },
   {
@@ -3422,10 +3412,10 @@
     "path": "/cron-tags/config",
     "family": "success-data",
     "shapeKeys": [
-      "config",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:56",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:57",
     "frontConsumer": null
   },
   {
@@ -3433,10 +3423,10 @@
     "path": "/cron-tags/history",
     "family": "success-data",
     "shapeKeys": [
-      "history",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:90",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:87",
     "frontConsumer": null
   },
   {
@@ -3445,10 +3435,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:110",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:107",
     "frontConsumer": null
   },
   {
@@ -3456,10 +3446,10 @@
     "path": "/cron-tags/statistics",
     "family": "success-data",
     "shapeKeys": [
-      "statistics",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:98",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:95",
     "frontConsumer": null
   },
   {
@@ -3467,12 +3457,10 @@
     "path": "/cron-tags/status",
     "family": "success-data",
     "shapeKeys": [
-      "recentExecutions",
-      "stats",
-      "success",
-      "upcomingJobs"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:145",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:134",
     "frontConsumer": null
   },
   {
@@ -3631,15 +3619,11 @@
     "path": "/api/achievements/evaluate-all",
     "family": "success-data",
     "shapeKeys": [
-      "avgPerUser",
-      "durationMs",
-      "errors",
-      "evaluated",
-      "message",
-      "processed",
-      "total"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/routes/achievements.routes.ts:61",
+    "evidence": "src/routes/achievements.routes.ts:55",
     "frontConsumer": null
   },
   {
@@ -3647,11 +3631,11 @@
     "path": "/api/achievements/evaluate/:email",
     "family": "success-data",
     "shapeKeys": [
-      "achievements",
-      "message",
-      "stats"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/routes/achievements.routes.ts:42",
+    "evidence": "src/routes/achievements.routes.ts:40",
     "frontConsumer": null
   },
   {
@@ -3659,10 +3643,11 @@
     "path": "/api/achievements/mark-seen",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "updated"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/routes/achievements.routes.ts:112",
+    "evidence": "src/routes/achievements.routes.ts:105",
     "frontConsumer": null
   },
   {
@@ -4004,12 +3989,11 @@
     "path": "/api/classes/moveMultipleStudents",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "results",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/classes/studentMovement.controller.ts:48",
+    "evidence": "src/controllers/classes/studentMovement.controller.ts:52",
     "frontConsumer": null
   },
   {
@@ -4017,12 +4001,11 @@
     "path": "/api/classes/moveStudent",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "movement",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/classes/studentMovement.controller.ts:25",
+    "evidence": "src/controllers/classes/studentMovement.controller.ts:26",
     "frontConsumer": null
   },
   {
@@ -4072,7 +4055,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/course.controller.ts:99",
+    "evidence": "src/controllers/course.controller.ts:96",
     "frontConsumer": null
   },
   {
@@ -4112,7 +4095,7 @@
       "replacement",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:27",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:28",
     "frontConsumer": null
   },
   {
@@ -4124,7 +4107,7 @@
       "replacement",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:27",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:28",
     "frontConsumer": null
   },
   {
@@ -4132,12 +4115,11 @@
     "path": "/api/cron-tags/validate",
     "family": "success-data",
     "shapeKeys": [
-      "humanReadable",
-      "nextExecutions",
-      "success",
-      "valid"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:128",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:121",
     "frontConsumer": null
   },
   {
@@ -4315,10 +4297,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/discovery.controller.ts:117",
+    "evidence": "src/controllers/discovery.controller.ts:112",
     "frontConsumer": null
   },
   {
@@ -4327,10 +4309,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/discovery.controller.ts:69",
+    "evidence": "src/controllers/discovery.controller.ts:68",
     "frontConsumer": null
   },
   {
@@ -4339,10 +4321,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/discovery.controller.ts:40",
+    "evidence": "src/controllers/discovery.controller.ts:41",
     "frontConsumer": null
   },
   {
@@ -4422,14 +4404,11 @@
     "path": "/api/guru/inactivation/cleanup",
     "family": "success-data",
     "shapeKeys": [
-      "cleaned",
-      "cleanedDetails",
-      "kept",
-      "message",
-      "success",
-      "total"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/guruInactivationMaintenance.controller.ts:20",
+    "evidence": "src/controllers/guruInactivationMaintenance.controller.ts:21",
     "frontConsumer": null
   },
   {
@@ -4450,10 +4429,10 @@
     "path": "/api/guru/inactivation/diagnose",
     "family": "success-data",
     "shapeKeys": [
-      "results",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guruInactivationMaintenance.controller.ts:50",
+    "evidence": "src/controllers/guruInactivationMaintenance.controller.ts:54",
     "frontConsumer": null
   },
   {
@@ -4694,10 +4673,11 @@
     "path": "/api/hotmart/syncProgressOnly",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "stats"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/hotmart/hotmartProgress.controller.ts:6",
+    "evidence": "src/controllers/hotmart/hotmartProgress.controller.ts:11",
     "frontConsumer": null
   },
   {
@@ -4706,11 +4686,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/lessons.controller.ts:93",
+    "evidence": "src/controllers/lessons.controller.ts:92",
     "frontConsumer": null
   },
   {
@@ -4719,10 +4698,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:123",
+    "evidence": "src/controllers/products/productProfile.controller.ts:120",
     "frontConsumer": null
   },
   {
@@ -4731,10 +4710,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:433",
+    "evidence": "src/controllers/products/productProfile.controller.ts:415",
     "frontConsumer": null
   },
   {
@@ -4830,10 +4809,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:331",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:312",
     "frontConsumer": null
   },
   {
@@ -4842,10 +4821,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:174",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:167",
     "frontConsumer": null
   },
   {
@@ -4854,10 +4833,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:285",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:270",
     "frontConsumer": null
   },
   {
@@ -4866,10 +4845,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncStats/conflicts.controller.ts:234",
+    "evidence": "src/controllers/syncStats/conflicts.controller.ts:223",
     "frontConsumer": null
   },
   {
@@ -5090,7 +5069,7 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
     "evidence": "src/controllers/populateHistory.controller.ts:302",
@@ -5102,10 +5081,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/testHistory.controller.ts:149",
+    "evidence": "src/controllers/testHistory.controller.ts:150",
     "frontConsumer": null
   },
   {
@@ -5114,10 +5093,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/populateHistory.controller.ts:357",
+    "evidence": "src/controllers/populateHistory.controller.ts:354",
     "frontConsumer": null
   },
   {
@@ -5126,10 +5105,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/populateHistory.controller.ts:241",
+    "evidence": "src/controllers/populateHistory.controller.ts:242",
     "frontConsumer": null
   },
   {
@@ -5138,7 +5117,7 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
     "evidence": "src/controllers/testHistory.controller.ts:233",
@@ -5173,7 +5152,7 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
     "evidence": "src/controllers/userHistory.controller.ts:202",
@@ -5195,10 +5174,11 @@
     "path": "/api/users/bulkDelete",
     "family": "success-data",
     "shapeKeys": [
-      "deletedCount",
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:148",
+    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:157",
     "frontConsumer": null
   },
   {
@@ -5206,10 +5186,11 @@
     "path": "/api/users/bulkDeleteUnmatched",
     "family": "success-data",
     "shapeKeys": [
-      "deletedCount",
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:168",
+    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:179",
     "frontConsumer": null
   },
   {
@@ -5217,11 +5198,11 @@
     "path": "/api/users/bulkMerge",
     "family": "success-data",
     "shapeKeys": [
-      "errors",
-      "mergedCount",
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:87",
+    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:88",
     "frontConsumer": null
   },
   {
@@ -5229,10 +5210,11 @@
     "path": "/api/users/manualMatch",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "user"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:63",
+    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:64",
     "frontConsumer": null
   },
   {
@@ -5240,10 +5222,11 @@
     "path": "/api/users/mergeDiscordId",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "user"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:41",
+    "evidence": "src/controllers/userIdentityReconciliation.controller.ts:42",
     "frontConsumer": null
   },
   {
@@ -5300,7 +5283,7 @@
       "replacement",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:27",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:28",
     "frontConsumer": null
   },
   {
@@ -5312,7 +5295,7 @@
       "replacement",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:27",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:28",
     "frontConsumer": null
   },
   {
@@ -5320,12 +5303,11 @@
     "path": "/cron-tags/validate",
     "family": "success-data",
     "shapeKeys": [
-      "humanReadable",
-      "nextExecutions",
-      "success",
-      "valid"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:128",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:121",
     "frontConsumer": null
   },
   {
@@ -5373,7 +5355,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/course.controller.ts:132",
+    "evidence": "src/controllers/course.controller.ts:129",
     "frontConsumer": null
   },
   {
@@ -5381,11 +5363,11 @@
     "path": "/api/cron-tags/config",
     "family": "success-data",
     "shapeKeys": [
-      "config",
-      "message",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:65",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:66",
     "frontConsumer": null
   },
   {
@@ -5405,10 +5387,10 @@
     "path": "/api/curseduca/user/:userId/classes",
     "family": "success-data",
     "shapeKeys": [
-      "success",
-      "user"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/users.controller.ts:47",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/users.controller.ts:48",
     "frontConsumer": null
   },
   {
@@ -5464,10 +5446,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/productProfile.controller.ts:168",
+    "evidence": "src/controllers/products/productProfile.controller.ts:161",
     "frontConsumer": null
   },
   {
@@ -5531,11 +5513,11 @@
     "path": "/cron-tags/config",
     "family": "success-data",
     "shapeKeys": [
-      "config",
-      "message",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:65",
+    "evidence": "src/controllers/cron/cronManagement.controller.ts:66",
     "frontConsumer": null
   }
 ]

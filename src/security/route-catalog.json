@@ -51,7 +51,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:18"
+    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:19"
   },
   {
     "method": "POST",
@@ -60,7 +60,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:52"
+    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:46"
   },
   {
     "method": "POST",
@@ -69,7 +69,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:25"
+    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:23"
   },
   {
     "method": "POST",
@@ -78,7 +78,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:75"
+    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:68"
   },
   {
     "method": "GET",
@@ -87,7 +87,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:121"
+    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:111"
   },
   {
     "method": "GET",

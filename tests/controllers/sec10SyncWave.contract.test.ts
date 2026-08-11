@@ -716,7 +716,7 @@ describe('preserved sync and conflict contracts', () => {
     expect(result.status).toBe(200)
     expect(result.body).toEqual({
       success: true,
-      message: 'Histórico retroativo criado com sucesso',
+      meta: { message: 'Histórico retroativo criado com sucesso' },
       data: {
         userId: 'user-id',
         email: 'student@example.test',
@@ -835,7 +835,7 @@ describe('preserved sync and conflict contracts', () => {
     expect(result.status).toBe(200)
     expect(result.body).toEqual({
       success: true,
-      message: 'Eventos de teste apagados com sucesso',
+      meta: { message: 'Eventos de teste apagados com sucesso' },
       data: { deletedCount: 3 },
     })
   })
@@ -858,7 +858,7 @@ describe('preserved sync and conflict contracts', () => {
     expect(result.status).toBe(200)
     expect(result.body).toEqual({
       success: true,
-      message: 'Histórico retroativo criado para 1 users',
+      meta: { message: 'Histórico retroativo criado para 1 users' },
       data: { usersProcessed: 1, totalRecords: 0 },
     })
   })
