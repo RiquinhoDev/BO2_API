@@ -8,6 +8,7 @@ const ROUTE_CATALOG_PATH = process.env.RESPONSE_CONTRACT_ROUTE_CATALOG ?? path.j
 const RESPONSE_CATALOG_PATH = process.env.RESPONSE_CONTRACT_CATALOG ?? path.join(ROOT, 'src', 'contracts', 'response-contract-catalog.json')
 const FRONT_ROOT = process.env.RESPONSE_CONTRACT_FRONT_ROOT ?? path.resolve(ROOT, '..', 'Front')
 const FRONT_EXTRA_SOURCE = process.env.RESPONSE_CONTRACT_FRONT_EXTRA_SOURCE
+const SOURCE_OVERLAY_ROOT = process.env.RESPONSE_CONTRACT_SOURCE_OVERLAY
 const FAMILIES = new Set(['success-data', 'domain-envelope', 'raw-json', 'no-content', 'redirect', 'stream-or-file'])
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete'])
 const TERMINAL_METHODS = new Set(['json', 'send', 'sendStatus', 'redirect', 'download', 'sendFile', 'writeHead', 'write', 'end'])
@@ -25,13 +26,52 @@ function routeEvidence(route) {
   return { file: match[1], line: Number(match[2]) }
 }
 
+function sourceOverlayFiles(directory) {
+  if (!fs.existsSync(directory)) throw new Error(`Response source overlay is missing: ${directory}`)
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const absolute = path.join(directory, entry.name)
+    if (entry.isDirectory()) return sourceOverlayFiles(absolute)
+    return /\.tsx?$/.test(entry.name) ? [absolute] : []
+  })
+}
+
+const sourceFileKey = (filePath) => {
+  const absolute = path.resolve(filePath)
+  return process.platform === 'win32' ? absolute.toLowerCase() : absolute
+}
+
+function sourceOverlays() {
+  if (!SOURCE_OVERLAY_ROOT) return new Map()
+  return new Map(sourceOverlayFiles(SOURCE_OVERLAY_ROOT).map((fixturePath) => {
+    const virtualPath = path.join(ROOT, path.relative(SOURCE_OVERLAY_ROOT, fixturePath))
+    return [sourceFileKey(virtualPath), { fixturePath, virtualPath }]
+  }))
+}
+
 function createProgram() {
   const configPath = ts.findConfigFile(ROOT, ts.sys.fileExists, 'tsconfig.json')
   if (!configPath) throw new Error('tsconfig.json not found')
   const config = ts.readConfigFile(configPath, ts.sys.readFile)
   if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'))
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, ROOT)
-  return ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options })
+  const overlays = sourceOverlays()
+  const host = ts.createCompilerHost(parsed.options)
+  const getSourceFile = host.getSourceFile.bind(host)
+  host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => {
+    const overlay = overlays.get(sourceFileKey(fileName))
+    if (!overlay) return getSourceFile(fileName, languageVersion, onError, shouldCreateNewSourceFile)
+    return ts.createSourceFile(
+      fileName,
+      fs.readFileSync(overlay.fixturePath, 'utf8'),
+      languageVersion,
+      true,
+    )
+  }
+  const rootNames = [...new Set([
+    ...parsed.fileNames,
+    ...[...overlays.values()].map((overlay) => overlay.virtualPath),
+  ])]
+  return ts.createProgram({ rootNames, options: parsed.options, host })
 }
 
 function findRouteCall(sourceFile, method, line) {
@@ -901,9 +941,14 @@ function driftMessages(reviewed, discovered) {
       evidence: current.evidence,
       frontConsumer: current.frontConsumer,
     })
-    return reviewedContract === discoveredContract
+    if (reviewedContract === discoveredContract) return []
+    const familyChange = decision.family === current.family
       ? []
-      : [`${identity(decision)} differs from source-derived evidence: reviewed ${reviewedContract}; discovered ${discoveredContract}`]
+      : [`${identity(decision)} response family changed: old=${current.family}; new=${decision.family}`]
+    return [
+      ...familyChange,
+      `${identity(decision)} differs from source-derived evidence: reviewed ${reviewedContract}; discovered ${discoveredContract}`,
+    ]
   })
 }
 
