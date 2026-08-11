@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import ts from 'typescript'
@@ -8,7 +9,9 @@ const ROUTE_CATALOG_PATH = process.env.RESPONSE_CONTRACT_ROUTE_CATALOG ?? path.j
 const RESPONSE_CATALOG_PATH = process.env.RESPONSE_CONTRACT_CATALOG ?? path.join(ROOT, 'src', 'contracts', 'response-contract-catalog.json')
 const FRONT_ROOT = process.env.RESPONSE_CONTRACT_FRONT_ROOT ?? path.resolve(ROOT, '..', 'Front')
 const FRONT_EXTRA_SOURCE = process.env.RESPONSE_CONTRACT_FRONT_EXTRA_SOURCE
-const SOURCE_OVERLAY_ROOT = process.env.RESPONSE_CONTRACT_SOURCE_OVERLAY
+const LEGACY_SOURCE_OVERLAY_ROOT = process.env.RESPONSE_CONTRACT_SOURCE_OVERLAY
+const TEST_SOURCE_OVERLAY_ROOT = process.env.RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY
+const ALLOW_TEST_SOURCE_OVERLAY = process.env.RESPONSE_CONTRACT_ALLOW_TEST_OVERLAY
 const FAMILIES = new Set(['success-data', 'domain-envelope', 'raw-json', 'no-content', 'redirect', 'stream-or-file'])
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete'])
 const TERMINAL_METHODS = new Set(['json', 'send', 'sendStatus', 'redirect', 'download', 'sendFile', 'writeHead', 'write', 'end'])
@@ -26,36 +29,119 @@ function routeEvidence(route) {
   return { file: match[1], line: Number(match[2]) }
 }
 
-function sourceOverlayFiles(directory) {
-  if (!fs.existsSync(directory)) throw new Error(`Response source overlay is missing: ${directory}`)
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const absolute = path.join(directory, entry.name)
-    if (entry.isDirectory()) return sourceOverlayFiles(absolute)
-    return /\.tsx?$/.test(entry.name) ? [absolute] : []
-  })
-}
-
 const sourceFileKey = (filePath) => {
   const absolute = path.resolve(filePath)
   return process.platform === 'win32' ? absolute.toLowerCase() : absolute
 }
 
-function sourceOverlays() {
-  if (!SOURCE_OVERLAY_ROOT) return new Map()
-  return new Map(sourceOverlayFiles(SOURCE_OVERLAY_ROOT).map((fixturePath) => {
-    const virtualPath = path.join(ROOT, path.relative(SOURCE_OVERLAY_ROOT, fixturePath))
+const containedPath = (parent, candidate) => {
+  const relative = path.relative(parent, candidate)
+  return relative !== ''
+    && relative !== '..'
+    && !relative.startsWith(`..${path.sep}`)
+    && !path.isAbsolute(relative)
+}
+
+function overlayEntries(directory, rootRealPath, entries = []) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const absolute = path.join(directory, entry.name)
+    const relative = slash(path.relative(rootRealPath, absolute))
+    const stats = fs.lstatSync(absolute)
+    if (stats.isSymbolicLink()) {
+      throw new Error(`${relative}: symbolic links are forbidden`)
+    }
+    const realPath = fs.realpathSync(absolute)
+    if (!containedPath(rootRealPath, realPath)) {
+      throw new Error(`${relative}: realpath escapes the overlay root`)
+    }
+    if (stats.isDirectory()) {
+      overlayEntries(absolute, rootRealPath, entries)
+      continue
+    }
+    if (!stats.isFile()) throw new Error(`${relative}: only regular files are allowed`)
+    if (!/\.tsx?$/.test(entry.name)) {
+      throw new Error(`${relative}: only .ts/.tsx files are allowed`)
+    }
+    entries.push({ fixturePath: realPath, relative })
+  }
+  return entries
+}
+
+function validatedSourceOverlays(overlayRoot) {
+  if (overlayRoot.split(/[\\/]+/).includes('..')) {
+    throw new Error('RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY: traversal segments are forbidden')
+  }
+  if (!fs.existsSync(overlayRoot)) {
+    throw new Error(`RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY: root does not exist: ${overlayRoot}`)
+  }
+  const rootStats = fs.lstatSync(overlayRoot)
+  if (rootStats.isSymbolicLink()) {
+    throw new Error('RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY: root cannot be a symbolic link')
+  }
+  if (!rootStats.isDirectory()) {
+    throw new Error('RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY: root must be a directory')
+  }
+  const rootRealPath = fs.realpathSync(overlayRoot)
+  const tempRealPath = fs.realpathSync(os.tmpdir())
+  if (!containedPath(tempRealPath, rootRealPath)) {
+    throw new Error('RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY: root must be contained in the OS temp directory')
+  }
+  const targetRoots = new Map([
+    ['backend', fs.realpathSync(ROOT)],
+    ['front', fs.realpathSync(FRONT_ROOT)],
+  ])
+  return new Map(overlayEntries(rootRealPath, rootRealPath).map(({ fixturePath, relative }) => {
+    const segments = relative.split('/')
+    const targetName = segments.shift()
+    const targetRoot = targetRoots.get(targetName)
+    if (!targetRoot) {
+      throw new Error(`${relative}: target root must be backend or front`)
+    }
+    const relativeTarget = segments.join(path.sep)
+    const virtualPath = path.resolve(targetRoot, relativeTarget)
+    if (!containedPath(targetRoot, virtualPath)) {
+      throw new Error(`${relative}: target escapes the ${targetName} source root`)
+    }
+    if (!fs.existsSync(virtualPath)) {
+      throw new Error(`${relative}: target source does not exist`)
+    }
+    const targetRealPath = fs.realpathSync(virtualPath)
+    if (!containedPath(targetRoot, targetRealPath)) {
+      throw new Error(`${relative}: target realpath escapes the ${targetName} source root`)
+    }
+    if (!fs.lstatSync(targetRealPath).isFile() || !/\.tsx?$/.test(targetRealPath)) {
+      throw new Error(`${relative}: target must be an existing .ts/.tsx source file`)
+    }
     return [sourceFileKey(virtualPath), { fixturePath, virtualPath }]
   }))
 }
 
-function createProgram() {
-  const configPath = ts.findConfigFile(ROOT, ts.sys.fileExists, 'tsconfig.json')
-  if (!configPath) throw new Error('tsconfig.json not found')
-  const config = ts.readConfigFile(configPath, ts.sys.readFile)
-  if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'))
-  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, ROOT)
+let cachedSourceOverlays
+function sourceOverlays() {
+  if (cachedSourceOverlays) return cachedSourceOverlays
+  if (LEGACY_SOURCE_OVERLAY_ROOT !== undefined) {
+    throw new Error('RESPONSE_CONTRACT_SOURCE_OVERLAY: legacy generic overlays are forbidden')
+  }
+  if (TEST_SOURCE_OVERLAY_ROOT === undefined) {
+    if (ALLOW_TEST_SOURCE_OVERLAY !== undefined) {
+      throw new Error('RESPONSE_CONTRACT_ALLOW_TEST_OVERLAY requires RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY')
+    }
+    cachedSourceOverlays = new Map()
+    return cachedSourceOverlays
+  }
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error('RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY requires NODE_ENV=test')
+  }
+  if (ALLOW_TEST_SOURCE_OVERLAY !== '1') {
+    throw new Error('RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY requires RESPONSE_CONTRACT_ALLOW_TEST_OVERLAY=1')
+  }
+  cachedSourceOverlays = validatedSourceOverlays(TEST_SOURCE_OVERLAY_ROOT)
+  return cachedSourceOverlays
+}
+
+function createProgramWithSourceOverlays(rootNames, options) {
   const overlays = sourceOverlays()
-  const host = ts.createCompilerHost(parsed.options)
+  const host = ts.createCompilerHost(options)
   const getSourceFile = host.getSourceFile.bind(host)
   host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => {
     const overlay = overlays.get(sourceFileKey(fileName))
@@ -67,11 +153,16 @@ function createProgram() {
       true,
     )
   }
-  const rootNames = [...new Set([
-    ...parsed.fileNames,
-    ...[...overlays.values()].map((overlay) => overlay.virtualPath),
-  ])]
-  return ts.createProgram({ rootNames, options: parsed.options, host })
+  return ts.createProgram({ rootNames, options, host })
+}
+
+function createProgram() {
+  const configPath = ts.findConfigFile(ROOT, ts.sys.fileExists, 'tsconfig.json')
+  if (!configPath) throw new Error('tsconfig.json not found')
+  const config = ts.readConfigFile(configPath, ts.sys.readFile)
+  if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'))
+  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, ROOT)
+  return createProgramWithSourceOverlays(parsed.fileNames, parsed.options)
 }
 
 function findRouteCall(sourceFile, method, line) {
@@ -766,7 +857,7 @@ function extractFrontCalls() {
   const extraFiles = FRONT_EXTRA_SOURCE
     ? (fs.statSync(FRONT_EXTRA_SOURCE).isDirectory() ? frontSourceFiles(FRONT_EXTRA_SOURCE) : [FRONT_EXTRA_SOURCE])
     : []
-  const program = ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options })
+  const program = createProgramWithSourceOverlays(parsed.fileNames, parsed.options)
   const checker = program.getTypeChecker()
   const calls = []
   const unresolvedCalls = []
@@ -955,6 +1046,7 @@ function driftMessages(reviewed, discovered) {
 function main() {
   const mode = process.argv[2]
   if (mode !== '--check' && mode !== '--write') throw new Error('Usage: generate-response-contract-catalog.mjs --check|--write')
+  sourceOverlays()
   const routes = readJson(ROUTE_CATALOG_PATH)
   const reviewed = reviewedDecisions(routes)
   const discovered = discoverDecisions(routes)

@@ -24,12 +24,22 @@ const sha256 = (value: string): string => createHash('sha256').update(value).dig
 const fileSha = (filePath: string): string => sha256(fs.readFileSync(filePath, 'utf8'))
 
 function writeSourceOverlay(directory: string, sourcePath: string, contents: string): string {
-  const overlayRoot = path.join(directory, 'backend')
-  const fixturePath = path.join(overlayRoot, path.relative(process.cwd(), sourcePath))
+  const overlayRoot = path.join(directory, 'source-overlay')
+  const fixturePath = path.join(
+    overlayRoot,
+    'backend',
+    path.relative(process.cwd(), sourcePath),
+  )
   fs.mkdirSync(path.dirname(fixturePath), { recursive: true })
   fs.writeFileSync(fixturePath, contents, 'utf8')
   return overlayRoot
 }
+
+const testSourceOverlayEnv = (overlayRoot: string): NodeJS.ProcessEnv => ({
+  NODE_ENV: 'test',
+  RESPONSE_CONTRACT_ALLOW_TEST_OVERLAY: '1',
+  RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY: overlayRoot,
+})
 
 function runGenerator(
   mode: '--check' | '--write',
@@ -248,9 +258,7 @@ describe('response contract catalog', () => {
       fs.copyFileSync(workspaceResponseCatalog, catalogPath)
       const catalogBefore = fileSha(catalogPath)
       const overlayRoot = writeSourceOverlay(directory, sourcePath, mutated)
-      const result = runGenerator('--write', catalogPath, {
-        RESPONSE_CONTRACT_SOURCE_OVERLAY: overlayRoot,
-      })
+      const result = runGenerator('--write', catalogPath, testSourceOverlayEnv(overlayRoot))
 
       expect(result.status).not.toBe(0)
       expect(`${result.stdout}${result.stderr}`).toContain('GET /api/users/v2/analytics')
@@ -293,32 +301,34 @@ describe('response contract catalog', () => {
 
   test('resolves an awaited Promise body before extracting response properties', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-await-'))
-    const routeFile = path.join(process.cwd(), 'src', '__responseContractAwaitFixture.ts')
+    const routeFile = path.join(process.cwd(), 'src', 'routes', 'index.ts')
     const routeCatalogFixture = path.join(directory, 'routes.json')
     const responseCatalogFixture = path.join(directory, 'responses.json')
     const frontRoot = path.join(directory, 'Front')
     const frontSrc = path.join(frontRoot, 'src')
-    const routeFileExistedBefore = fs.existsSync(routeFile)
-    const source = [
-      "import { Router } from 'express'",
-      'const router = Router()',
-      "router.get('/promise', async (_req, res) => {",
+    const routeFileShaBefore = fileSha(routeFile)
+    const source = fs.readFileSync(routeFile, 'utf8').replace(/\r\n/g, '\n')
+    const prefix = source.endsWith('\n') ? source : `${source}\n`
+    const routeDeclaration = "__responseContractAwaitRouter.get('/promise', async (_req, res) => {"
+    const mutated = `${prefix}${[
+      'const __responseContractAwaitRouter = Router()',
+      routeDeclaration,
       '  res.json(await Promise.resolve({ success: true, data: null }))',
       '})',
-      'export default router',
       '',
-    ].join('\n')
+    ].join('\n')}`
+    const routeLine = mutated.slice(0, mutated.indexOf(routeDeclaration)).split('\n').length
     const routes = [{
       method: 'GET',
       path: '/api/__awaited-promise',
-      evidence: 'consumer nao identificado; rota em src/__responseContractAwaitFixture.ts:3',
+      evidence: `consumer nao identificado; rota em src/routes/index.ts:${routeLine}`,
     }]
     const responses = [{
       method: 'GET',
       path: '/api/__awaited-promise',
       family: 'success-data',
       shapeKeys: ['data', 'success'],
-      evidence: 'src/__responseContractAwaitFixture.ts:4',
+      evidence: `src/routes/index.ts:${routeLine + 1}`,
       frontConsumer: null,
     }]
 
@@ -326,23 +336,22 @@ describe('response contract catalog', () => {
       fs.mkdirSync(frontSrc, { recursive: true })
       fs.writeFileSync(path.join(frontRoot, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2022' }, include: ['src/**/*.ts'] }), 'utf8')
       fs.writeFileSync(path.join(frontSrc, 'empty.ts'), 'export {}\n', 'utf8')
-      const overlayRoot = writeSourceOverlay(directory, routeFile, source)
+      const overlayRoot = writeSourceOverlay(directory, routeFile, mutated)
       fs.writeFileSync(routeCatalogFixture, JSON.stringify(routes), 'utf8')
       fs.writeFileSync(responseCatalogFixture, JSON.stringify(responses, null, 2) + '\n', 'utf8')
 
       const result = runGenerator('--check', responseCatalogFixture, {
+        ...testSourceOverlayEnv(overlayRoot),
         RESPONSE_CONTRACT_ROUTE_CATALOG: routeCatalogFixture,
         RESPONSE_CONTRACT_FRONT_ROOT: frontRoot,
-        RESPONSE_CONTRACT_SOURCE_OVERLAY: overlayRoot,
       })
       expect(result.stderr).toBe('')
       expect(result.status).toBe(0)
     } finally {
       fs.rmSync(directory, { recursive: true, force: true })
-      expect(fs.existsSync(routeFile)).toBe(routeFileExistedBefore)
+      expect(fileSha(routeFile)).toBe(routeFileShaBefore)
     }
   })
-
   test('classes users search includes the complete lean IUser surface', () => {
     const shapeKeys = responseCatalog.find((entry) => routeId(entry) === 'GET /api/classes/users/search')?.shapeKeys
     expect(shapeKeys).toEqual(expect.arrayContaining([
@@ -367,9 +376,7 @@ describe('response contract catalog', () => {
       fs.copyFileSync(workspaceResponseCatalog, catalogPath)
       const catalogBefore = fileSha(catalogPath)
       const overlayRoot = writeSourceOverlay(directory, sourcePath, mutated)
-      const result = runGenerator('--check', catalogPath, {
-        RESPONSE_CONTRACT_SOURCE_OVERLAY: overlayRoot,
-      })
+      const result = runGenerator('--check', catalogPath, testSourceOverlayEnv(overlayRoot))
       expect(result.status).not.toBe(0)
       expect(`${result.stdout}${result.stderr}`).toContain('GET /api/classes/users/search')
       expect(fileSha(catalogPath)).toBe(catalogBefore)
@@ -395,9 +402,7 @@ describe('response contract catalog', () => {
       fs.copyFileSync(workspaceResponseCatalog, catalogPath)
       const catalogBefore = fileSha(catalogPath)
       const overlayRoot = writeSourceOverlay(directory, sourcePath, mutated)
-      const result = runGenerator('--check', catalogPath, {
-        RESPONSE_CONTRACT_SOURCE_OVERLAY: overlayRoot,
-      })
+      const result = runGenerator('--check', catalogPath, testSourceOverlayEnv(overlayRoot))
       expect(result.status).not.toBe(0)
       expect(`${result.stdout}${result.stderr}`).toContain('GET /api/users/v2/analytics')
       expect(fileSha(catalogPath)).toBe(catalogBefore)
@@ -422,9 +427,7 @@ describe('response contract catalog', () => {
       fs.copyFileSync(workspaceResponseCatalog, catalogPath)
       const catalogBefore = fileSha(catalogPath)
       const overlayRoot = writeSourceOverlay(directory, sourcePath, mutated)
-      const result = runGenerator('--check', catalogPath, {
-        RESPONSE_CONTRACT_SOURCE_OVERLAY: overlayRoot,
-      })
+      const result = runGenerator('--check', catalogPath, testSourceOverlayEnv(overlayRoot))
       expect(result.status).not.toBe(0)
       expect(`${result.stdout}${result.stderr}`).toContain('POST /api/sync/discord')
       expect(fileSha(catalogPath)).toBe(catalogBefore)
