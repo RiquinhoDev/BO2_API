@@ -182,13 +182,17 @@ describe('ActiveCampaign communication history boundary', () => {
     })
     expect(res.json).toHaveBeenCalledWith({
       success: true,
-      period: {
-        days: 7,
-        since: '2026-08-02T12:00:00.000Z',
-        until: '2026-08-09T12:00:00.000Z',
+      data: {
+        totals: { total: 0, tagsAdded: 0, tagsRemoved: 0, emailsSent: 0, uniqueUsers: 0 },
+        byAction: [], bySource: [], byDay: [], topTags: [], topRules: [],
       },
-      totals: { total: 0, tagsAdded: 0, tagsRemoved: 0, emailsSent: 0, uniqueUsers: 0 },
-      byAction: [], bySource: [], byDay: [], topTags: [], topRules: [],
+      meta: {
+        period: {
+          days: 7,
+          since: '2026-08-02T12:00:00.000Z',
+          until: '2026-08-09T12:00:00.000Z',
+        },
+      },
     })
     jest.useRealTimers()
   })

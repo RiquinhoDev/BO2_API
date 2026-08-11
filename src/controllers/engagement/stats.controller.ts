@@ -1,6 +1,7 @@
 import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
 import { forwardEngagementError } from '../../services/engagement/controllerSupport'
+import { successResponse } from '../../contracts/responseContract'
 
 export const getEngagementStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -179,11 +180,10 @@ export const getEngagementStats = async (req: Request, res: Response, next: Next
       }
     })
 
-    res.status(200).json({
-      success: true,
-      stats: responseData,
-      timestamp: new Date().toISOString()
-    })
+    res.status(200).json(successResponse(
+      responseData,
+      { timestamp: new Date().toISOString() }
+    ))
 
   } catch (error: unknown) {
     forwardEngagementError(next, error, 'Erro ao calcular estatísticas', 'ENGAGEMENT_STATS_READ_FAILED')

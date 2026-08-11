@@ -2,6 +2,7 @@ import { type NextFunction, Request, Response } from 'express'
 import { FilterQuery, PipelineStage } from 'mongoose'
 import User, { IUser } from '../../models/user'
 import { type EngagementLevel, type EngagementSummaryUser, type EngagementLevelStat, forwardEngagementError, isEngagementLevel } from '../../services/engagement/controllerSupport'
+import { successResponse } from '../../contracts/responseContract'
 
 export const getEngagementDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -157,10 +158,16 @@ export const getEngagementDetails = async (req: Request, res: Response, next: Ne
     
     console.log(`✅ Retornando ${users.length} de ${totalCount} utilizadores`)
     
-    res.status(200).json({
-      success: true,
-      data: {
+    res.status(200).json(successResponse(
+      {
         users,
+        distribution,
+        stats: {
+          totalInRange: totalCount,
+          averageScore: users.reduce((acc, u) => acc + u.engagementScore, 0) / (users.length || 1)
+        }
+      },
+      {
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(totalCount / limit),
@@ -174,14 +181,9 @@ export const getEngagementDetails = async (req: Request, res: Response, next: Ne
           maxScore,
           level: level || 'all'
         },
-        distribution,
-        stats: {
-          totalInRange: totalCount,
-          averageScore: users.reduce((acc, u) => acc + u.engagementScore, 0) / (users.length || 1)
-        }
-      },
-      timestamp: new Date().toISOString()
-    })
+        timestamp: new Date().toISOString()
+      }
+    ))
     
   } catch (error: unknown) {
     forwardEngagementError(next, error, 'Erro ao buscar detalhes de engagement', 'ENGAGEMENT_DETAILS_READ_FAILED')

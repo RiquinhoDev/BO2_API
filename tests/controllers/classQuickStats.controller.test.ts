@@ -59,7 +59,7 @@ describe('classQuickStats controller', () => {
         inactiveStudents: 1,
         activityRate: 67,
       },
-      timestamp: '2026-07-29T12:00:00.000Z',
+      meta: { timestamp: '2026-07-29T12:00:00.000Z' },
     })
   })
 

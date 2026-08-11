@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
 import { type EngagementStats, forwardEngagementError, statsCache } from '../../services/engagement/controllerSupport'
@@ -12,15 +13,14 @@ export const getGlobalEngagementStats = async (req: Request, res: Response, next
     if (cachedEntry) {
       console.log('📦 Returning cached global engagement stats')
       
-      res.status(200).json({
-        success: true,
-        data: {
-          ...cachedEntry.data,
+      res.status(200).json(successResponse(
+        cachedEntry.data,
+        {
           cached: true,
-          cacheAge: Date.now() - cachedEntry.timestamp
+          cacheAge: Date.now() - cachedEntry.timestamp,
+          processingTime: Date.now() - startTime,
         },
-        processingTime: Date.now() - startTime
-      })
+      ))
       return
     }
 
@@ -124,12 +124,13 @@ export const getGlobalEngagementStats = async (req: Request, res: Response, next
         platformStats: { hotmartUsers: 0, discordUsers: 0, curseducaUsers: 0, activeUsers: 0, inactiveUsers: 0 }
       }
       
-      res.status(200).json({
-        success: true,
-        data: emptyStats,
-        timestamp: new Date().toISOString(),
-        processingTime: Date.now() - startTime
-      })
+      res.status(200).json(successResponse(
+        emptyStats,
+        {
+          timestamp: new Date().toISOString(),
+          processingTime: Date.now() - startTime,
+        },
+      ))
       return
     }
 
@@ -167,17 +168,16 @@ export const getGlobalEngagementStats = async (req: Request, res: Response, next
       needsAttention: stats.needsAttentionCount
     })
 
-    res.status(200).json({
-      success: true,
-      data: {
-        ...stats,
+    res.status(200).json(successResponse(
+      stats,
+      {
         cached: false,
-        cacheAge: 0
+        cacheAge: 0,
+        timestamp: new Date().toISOString(),
+        processingMethod: 'mongodb-aggregation',
+        processingTime: Date.now() - startTime,
       },
-      timestamp: new Date().toISOString(),
-      processingMethod: 'mongodb-aggregation',
-      processingTime: Date.now() - startTime
-    })
+    ))
 
   } catch (error: unknown) {
     forwardEngagementError(next, error, 'Erro ao calcular estatísticas de engagement', 'ENGAGEMENT_SUMMARY_READ_FAILED')
@@ -194,11 +194,10 @@ export const clearEngagementCache = async (req: Request, res: Response, next: Ne
     
     console.log(`🧹 Engagement cache cleared (was ${sizeBefore} items)`)
     
-    res.status(200).json({
-      success: true,
-      message: 'Cache de engagement limpo com sucesso',
-      clearedItems: sizeBefore
-    })
+    res.status(200).json(successResponse(
+      { clearedItems: sizeBefore },
+      { message: 'Cache de engagement limpo com sucesso' },
+    ))
   } catch (error: unknown) {
     forwardEngagementError(next, error, 'Erro ao limpar cache', 'ENGAGEMENT_CACHE_CLEAR_FAILED')
   }

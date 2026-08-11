@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import { type NextFunction, Request, Response } from 'express'
 import { FilterQuery, PipelineStage } from 'mongoose'
 import User, { IUser } from '../../models/user'
@@ -222,10 +223,9 @@ export const getUsersEngagementDetails = async (req: Request, res: Response, nex
     )
 
     // ✅ RESPOSTA OTIMIZADA
-    res.status(200).json({
-      success: true,
-      data: {
-        users: usersWithClassNames,
+    res.status(200).json(successResponse(
+      { users: usersWithClassNames },
+      {
         pagination: {
           currentPage: currentPage,
           totalPages: totalPages,
@@ -242,10 +242,10 @@ export const getUsersEngagementDetails = async (req: Request, res: Response, nex
           totalProcessed: totalItems,
           scoreRange: `${minScore}-${maxScore}`,
           search: search || null
-        }
+        },
+        timestamp: new Date().toISOString(),
       },
-      timestamp: new Date().toISOString()
-    })
+    ))
 
   } catch (error: unknown) {
     forwardEngagementError(next, error, 'Erro ao buscar detalhes de engagement', 'ENGAGEMENT_USERS_READ_FAILED')
