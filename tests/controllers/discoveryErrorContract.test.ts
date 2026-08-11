@@ -99,17 +99,17 @@ test.each([
 
 test('run preserves its success envelope', async () => {
   const response = await request(buildApp()).post('/api/discovery/run').query(marker).expect(200)
-  expect(response.body).toMatchObject({ success: true, data: { hotmartProducts: [], totalFound: 0 }, message: expect.any(String) })
+  expect(response.body).toMatchObject({ success: true, data: { hotmartProducts: [], totalFound: 0 }, meta: { message: expect.any(String) } })
 })
 
 test('generate config preserves its success envelope', async () => {
   const response = await request(buildApp()).post('/api/discovery/generate-config').query(marker).send({ discoveredProduct: { id: 'p1' } }).expect(200)
-  expect(response.body).toEqual({ success: true, data: { configuration: { code: 'OGI' } }, message: expect.any(String) })
+  expect(response.body).toEqual({ success: true, data: { configuration: { code: 'OGI' } }, meta: { message: expect.any(String) } })
 })
 
 test('configure preserves its success envelope and both writes', async () => {
   const response = await request(buildApp()).post('/api/discovery/configure').query(marker).send(configBody).expect(201)
   expect(createProduct).toHaveBeenCalledTimes(1)
   expect(createProfile).toHaveBeenCalledTimes(1)
-  expect(response.body).toMatchObject({ success: true, data: { product: { _id: 'product-1' }, productProfile: { _id: 'profile-1' } } })
+  expect(response.body).toMatchObject({ success: true, data: { product: { _id: 'product-1' }, productProfile: { _id: 'profile-1' } }, meta: { message: expect.any(String) } })
 })

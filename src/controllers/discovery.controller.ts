@@ -3,6 +3,7 @@
  */
 
 import { NextFunction, Request, Response } from 'express';
+import { successResponse } from '../contracts/responseContract';
 
 import hotmartDiscoveryService from '../services/discovery/hotmartDiscovery.service';
 import intelligentDefaultsService from '../services/discovery/intelligentDefaults.service';
@@ -37,11 +38,9 @@ export const runDiscovery = async (req: Request, res: Response, next: NextFuncti
       }
     };
 
-    res.json({
-      success: true,
-      data: result,
+    res.json(successResponse(result, {
       message: `Discovery completo: ${totalFound} produtos encontrados`
-    });
+    }));
 
   } catch (error: unknown) {
     next(internalError('Erro ao executar discovery', 'DISCOVERY_RUN_FAILED', error));
@@ -66,11 +65,7 @@ export const generateConfig = async (req: Request, res: Response, next: NextFunc
 
     const configuration = intelligentDefaultsService.generateConfiguration(discoveredProduct);
 
-    res.json({
-      success: true,
-      data: { configuration },
-      message: 'Configuração gerada com sucesso'
-    });
+    res.json(successResponse({ configuration }, { message: 'Configuração gerada com sucesso' }));
 
   } catch (error: unknown) {
     next(internalError('Erro ao gerar configuracao', 'DISCOVERY_CONFIG_GENERATION_FAILED', error));
@@ -114,11 +109,10 @@ export const configureProduct = async (req: Request, res: Response, next: NextFu
 
     console.log(`✅ Produto "${result.product.name}" configurado com sucesso`);
 
-    res.status(201).json({
-      success: true,
-      message: `Produto "${result.product.name}" configurado com sucesso`,
-      data: { product: result.product, productProfile: result.productProfile }
-    });
+    res.status(201).json(successResponse(
+      { product: result.product, productProfile: result.productProfile },
+      { message: `Produto "${result.product.name}" configurado com sucesso` },
+    ));
 
   } catch (error: unknown) {
     next(internalError('Erro ao configurar produto', 'DISCOVERY_PRODUCT_CONFIGURATION_FAILED', error));
