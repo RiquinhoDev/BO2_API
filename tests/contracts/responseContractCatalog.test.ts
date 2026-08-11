@@ -402,6 +402,24 @@ describe('response contract catalog', () => {
       body: 'res.json(successResponse({ id: 1 }, { page: 1 }))',
       expectedStatus: 1,
     },
+    {
+      label: 'exact literal canonical envelope with meta',
+      setup: '',
+      body: 'res.json({ success: true, data: { id: 1 }, meta: { page: 1 } })',
+      expectedStatus: 0,
+    },
+    {
+      label: 'literal envelope with variable success',
+      setup: '',
+      body: 'const success = true; res.json({ success, data: { id: 1 }, meta: { page: 1 } })',
+      expectedStatus: 1,
+    },
+    {
+      label: 'literal envelope with an extra key',
+      setup: '',
+      body: 'res.json({ success: true, data: { id: 1 }, meta: { page: 1 }, warning: null })',
+      expectedStatus: 1,
+    },
   ])('recognizes only the $label as a success-data response', ({ setup, body, expectedStatus }) => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-canonical-helper-'))
     const routeFile = path.join(process.cwd(), 'src', 'routes', 'index.ts')
