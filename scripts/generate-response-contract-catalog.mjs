@@ -7,12 +7,29 @@ import ts from 'typescript'
 const ROOT = process.cwd()
 const ROUTE_CATALOG_PATH = process.env.RESPONSE_CONTRACT_ROUTE_CATALOG ?? path.join(ROOT, 'src', 'security', 'route-catalog.json')
 const RESPONSE_CATALOG_PATH = process.env.RESPONSE_CONTRACT_CATALOG ?? path.join(ROOT, 'src', 'contracts', 'response-contract-catalog.json')
+const RESPONSE_MIGRATION_INVENTORY_PATH = process.env.RESPONSE_CONTRACT_MIGRATION_INVENTORY ?? path.join(ROOT, 'src', 'contracts', 'response-migration-inventory.json')
 const FRONT_ROOT = process.env.RESPONSE_CONTRACT_FRONT_ROOT ?? path.resolve(ROOT, '..', 'Front')
 const FRONT_EXTRA_SOURCE = process.env.RESPONSE_CONTRACT_FRONT_EXTRA_SOURCE
 const LEGACY_SOURCE_OVERLAY_ROOT = process.env.RESPONSE_CONTRACT_SOURCE_OVERLAY
 const TEST_SOURCE_OVERLAY_ROOT = process.env.RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY
 const ALLOW_TEST_SOURCE_OVERLAY = process.env.RESPONSE_CONTRACT_ALLOW_TEST_OVERLAY
-const FAMILIES = new Set(['success-data', 'domain-envelope', 'raw-json', 'no-content', 'redirect', 'stream-or-file'])
+const TERMINAL_FAMILIES = new Set(['success-data', 'public-document', 'redirect', 'stream-or-file', 'no-content'])
+const CURRENT_FAMILIES = new Set([...TERMINAL_FAMILIES, 'domain-envelope', 'raw-json', '501-only'])
+const PUBLIC_DOCUMENT_IDENTITIES = new Set([
+  'GET /api/clareza/carteira-search',
+  'GET /api/clareza/carteira/data',
+  'GET /api/clareza/comparador',
+  'GET /api/clareza/data',
+  'GET /api/clareza/earnings/data',
+  'GET /api/clareza/raiox',
+  'GET /api/clareza/raiox-diagnose',
+  'GET /api/clareza/raiox-search',
+  'GET /api/clareza/raiox/:ticker',
+  'GET /api/clareza/reit-valuation/:ticker',
+  'GET /api/clareza/reit/:ticker',
+  'GET /api/clareza/stock/:ticker',
+  'GET /api/clareza/top10',
+])
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete'])
 const TERMINAL_METHODS = new Set(['json', 'send', 'sendStatus', 'redirect', 'download', 'sendFile', 'writeHead', 'write', 'end'])
 
@@ -681,7 +698,7 @@ function aggregateExits(exits, handler) {
       .sort((left, right) => left.file.localeCompare(right.file, 'en') || left.line - right.line)[0]
     return {
       decision: {
-        family: 'domain-envelope',
+        family: '501-only',
         shapeKeys: [],
         evidence: `no successful exit (501-only); ${first.file}:${first.line}`,
       },
@@ -972,7 +989,14 @@ function discoverDecisions(routes) {
       if (!handler) throw new Error(`handler ${handlerExpression.getText(sourceFile)} is unresolved`)
       const result = inspectHandler(checker, handler)
       if (!result.decision) throw new Error(`${result.handler}: ${result.problems.join('; ')}`)
-      decisions.push({ method: route.method, path: route.path, ...result.decision, frontConsumer: front.consumers.get(identity(route))?.[0] ?? null })
+      const discovered = { method: route.method, path: route.path, ...result.decision, frontConsumer: front.consumers.get(identity(route))?.[0] ?? null }
+      if (PUBLIC_DOCUMENT_IDENTITIES.has(identity(route))) {
+        if (discovered.family !== 'raw-json') {
+          throw new Error(`${identity(route)} reviewed public document no longer resolves to a public JSON document`)
+        }
+        discovered.family = 'public-document'
+      }
+      decisions.push(discovered)
     } catch (error) {
       problems.push(`${identity(route)}: ${error instanceof Error ? error.message : String(error)}`)
     }
@@ -981,7 +1005,7 @@ function discoverDecisions(routes) {
   return decisions.sort(compareIdentities)
 }
 
-function validateExactMembership(routes, decisions) {
+function validateExactMembership(routes, decisions, label, requireTerminal = false) {
   const routeIds = routes.map(identity).sort()
   const decisionIds = decisions.map(identity).sort()
   const duplicateRoutes = routeIds.filter((entry, index) => entry === routeIds[index - 1])
@@ -990,17 +1014,18 @@ function validateExactMembership(routes, decisions) {
   const decisionSet = new Set(decisionIds)
   const missing = routeIds.filter((entry) => !decisionSet.has(entry))
   const orphaned = decisionIds.filter((entry) => !routeSet.has(entry))
-  const invalid = decisions.filter((entry) => !FAMILIES.has(entry.family)).map(identity)
+  const invalid = requireTerminal
+    ? decisions.filter((entry) => !TERMINAL_FAMILIES.has(entry.family)).map(identity)
+    : []
   const problems = [
     ...duplicateRoutes.map((entry) => `duplicate route: ${entry}`),
-    ...duplicateDecisions.map((entry) => `duplicate response decision: ${entry}`),
-    ...missing.map((entry) => `missing response decision: ${entry}`),
-    ...orphaned.map((entry) => `orphaned response decision: ${entry}`),
-    ...invalid.map((entry) => `invalid or unclassified response family: ${entry}`),
+    ...duplicateDecisions.map((entry) => `duplicate ${label}: ${entry}`),
+    ...missing.map((entry) => `missing ${label}: ${entry}`),
+    ...orphaned.map((entry) => `orphaned ${label}: ${entry}`),
+    ...invalid.map((entry) => `forbidden terminal response family: ${entry}`),
   ]
   if (problems.length > 0) throw new Error(problems.join('\n'))
 }
-
 const serialize = (decisions) => `${JSON.stringify(decisions, null, 2)}\n`
 
 function reviewedDecisions(routes) {
@@ -1008,51 +1033,81 @@ function reviewedDecisions(routes) {
     throw new Error(`Response catalog is missing: ${slash(path.relative(ROOT, RESPONSE_CATALOG_PATH))}`)
   }
   const decisions = readJson(RESPONSE_CATALOG_PATH)
-  validateExactMembership(routes, decisions)
+  validateExactMembership(routes, decisions, 'response decision', true)
   return decisions.map((decision) => ({
     ...decision,
     shapeKeys: [...new Set(decision.shapeKeys)].sort(),
   })).sort(compareIdentities)
 }
 
-function driftMessages(reviewed, discovered) {
-  const discoveredById = new Map(discovered.map((decision) => [identity(decision), decision]))
-  return reviewed.flatMap((decision) => {
-    const current = discoveredById.get(identity(decision))
-    if (!current) return [`${identity(decision)} is not discoverable`]
-    const reviewedContract = JSON.stringify({
-      family: decision.family,
-      shapeKeys: decision.shapeKeys,
-      evidence: decision.evidence,
-      frontConsumer: decision.frontConsumer,
-    })
-    const discoveredContract = JSON.stringify({
-      family: current.family,
-      shapeKeys: current.shapeKeys,
-      evidence: current.evidence,
-      frontConsumer: current.frontConsumer,
-    })
-    if (reviewedContract === discoveredContract) return []
-    const familyChange = decision.family === current.family
-      ? []
-      : [`${identity(decision)} response family changed: old=${current.family}; new=${decision.family}`]
-    return [
-      ...familyChange,
-      `${identity(decision)} differs from source-derived evidence: reviewed ${reviewedContract}; discovered ${discoveredContract}`,
-    ]
+function reviewedMigrationInventory(routes) {
+  if (!fs.existsSync(RESPONSE_MIGRATION_INVENTORY_PATH)) {
+    throw new Error(`Response migration inventory is missing: ${slash(path.relative(ROOT, RESPONSE_MIGRATION_INVENTORY_PATH))}`)
+  }
+  const inventory = readJson(RESPONSE_MIGRATION_INVENTORY_PATH)
+  const decisions = inventory.map((entry) => {
+    const separator = entry.identity.indexOf(' ')
+    return { method: entry.identity.slice(0, separator), path: entry.identity.slice(separator + 1) }
   })
+  validateExactMembership(routes, decisions, 'migration inventory entry')
+  const publicIds = inventory.filter((entry) => entry.targetFamily === 'public-document').map((entry) => entry.identity).sort()
+  const expectedPublicIds = routes.map(identity).filter((routeId) => PUBLIC_DOCUMENT_IDENTITIES.has(routeId)).sort()
+  const invalid = inventory.flatMap((entry) => {
+    const problems = []
+    if (!CURRENT_FAMILIES.has(entry.currentFamily)) problems.push(`${entry.identity} has invalid current family: ${entry.currentFamily}`)
+    if (!TERMINAL_FAMILIES.has(entry.targetFamily)) problems.push(`${entry.identity} has forbidden target family: ${entry.targetFamily}`)
+    if (!/^src\/.+\.ts$/.test(entry.owner)) problems.push(`${entry.identity} has invalid owner: ${entry.owner}`)
+    if (entry.status !== 'complete' && entry.status !== 'pending-migration') problems.push(`${entry.identity} has invalid status: ${entry.status}`)
+    if ((entry.currentFamily === entry.targetFamily) !== (entry.status === 'complete')) problems.push(`${entry.identity} has inconsistent status`)
+    return problems
+  })
+  if (JSON.stringify(publicIds) !== JSON.stringify(expectedPublicIds)) {
+    invalid.push(`reviewed public-document membership differs: expected ${expectedPublicIds.join(', ')}`)
+  }
+  if (invalid.length > 0) throw new Error(invalid.join('\n'))
+  return inventory.slice().sort((left, right) => left.identity.localeCompare(right.identity, 'en'))
+}
+function ownerFromEvidence(evidence) {
+  const match = evidence.match(/(src\/.+\.ts):\d+$/)
+  if (!match) throw new Error(`invalid response evidence: ${evidence}`)
+  return match[1]
 }
 
+function driftMessages(reviewed, discovered, inventory) {
+  const inventoryById = new Map(inventory.map((entry) => [entry.identity, entry]))
+  const catalogById = new Map(reviewed.map((entry) => [identity(entry), entry]))
+  const messages = []
+  for (const decision of discovered) {
+    const routeId = identity(decision)
+    const entry = inventoryById.get(routeId)
+    const catalog = catalogById.get(routeId)
+    if (!entry || !catalog) continue
+    const actual = JSON.stringify({ family: decision.family, shapeKeys: decision.shapeKeys, evidence: decision.evidence, frontConsumer: decision.frontConsumer, owner: ownerFromEvidence(decision.evidence) })
+    const expected = JSON.stringify({ family: entry.currentFamily, shapeKeys: catalog.shapeKeys, evidence: catalog.evidence, frontConsumer: entry.frontConsumer, owner: entry.owner })
+    if (actual !== expected) {
+      if (entry.currentFamily !== decision.family) messages.push(`${routeId} current response family changed: old=${entry.currentFamily}; new=${decision.family}`)
+      messages.push(`${routeId} differs from reviewed migration inventory: expected ${expected}; discovered ${actual}`)
+    }
+    if (catalog.family !== entry.targetFamily) {
+      messages.push(`${routeId} terminal family differs from migration inventory: catalog=${catalog.family}; target=${entry.targetFamily}`)
+    }
+    if (catalog.frontConsumer !== entry.frontConsumer) {
+      messages.push(`${routeId} Front consumer differs from migration inventory: catalog=${catalog.frontConsumer}; inventory=${entry.frontConsumer}`)
+    }
+  }
+  return messages
+}
 function main() {
   const mode = process.argv[2]
   if (mode !== '--check' && mode !== '--write') throw new Error('Usage: generate-response-contract-catalog.mjs --check|--write')
   sourceOverlays()
   const routes = readJson(ROUTE_CATALOG_PATH)
   const reviewed = reviewedDecisions(routes)
+  const inventory = reviewedMigrationInventory(routes)
   const discovered = discoverDecisions(routes)
-  validateExactMembership(routes, discovered)
+  validateExactMembership(routes, discovered, 'discovered response decision')
 
-  const drift = driftMessages(reviewed, discovered)
+  const drift = driftMessages(reviewed, discovered, inventory)
   if (drift.length > 0) {
     throw new Error(`Response catalog drift:\n${drift.join('\n')}`)
   }

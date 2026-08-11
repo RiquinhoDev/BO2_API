@@ -13,7 +13,7 @@
   {
     "method": "DELETE",
     "path": "/api/activecampaign/tag-rules/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -24,7 +24,7 @@
   {
     "method": "DELETE",
     "path": "/api/classes/:classId",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success",
@@ -36,7 +36,7 @@
   {
     "method": "DELETE",
     "path": "/api/courses/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -47,7 +47,7 @@
   {
     "method": "DELETE",
     "path": "/api/cron/jobs/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -58,7 +58,7 @@
   {
     "method": "DELETE",
     "path": "/api/events/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message"
     ],
@@ -68,7 +68,7 @@
   {
     "method": "DELETE",
     "path": "/api/guru/snapshots/:year/:month",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -79,7 +79,7 @@
   {
     "method": "DELETE",
     "path": "/api/guru/snapshots/all",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "deletedCount",
       "message",
@@ -91,7 +91,7 @@
   {
     "method": "DELETE",
     "path": "/api/product-profiles/:code",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -103,7 +103,7 @@
   {
     "method": "DELETE",
     "path": "/api/products/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "product",
@@ -115,7 +115,7 @@
   {
     "method": "DELETE",
     "path": "/api/sync/history/clean",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "cutoffDate",
       "deletedCount",
@@ -127,7 +127,7 @@
   {
     "method": "DELETE",
     "path": "/api/tag-monitoring/critical-tags/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -138,7 +138,7 @@
   {
     "method": "DELETE",
     "path": "/api/tag-monitoring/critical-tags/:id/permanent",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -149,7 +149,7 @@
   {
     "method": "DELETE",
     "path": "/api/tag-monitoring/notifications/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -160,7 +160,7 @@
   {
     "method": "DELETE",
     "path": "/api/tag-rules/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -171,7 +171,7 @@
   {
     "method": "DELETE",
     "path": "/api/testimonials/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "deletedTestimonial",
       "message"
@@ -182,7 +182,7 @@
   {
     "method": "DELETE",
     "path": "/api/users/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "student"
@@ -193,7 +193,7 @@
   {
     "method": "DELETE",
     "path": "/api/users/idsDiferentes/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message"
     ],
@@ -203,7 +203,7 @@
   {
     "method": "DELETE",
     "path": "/api/users/student/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "student"
@@ -214,7 +214,7 @@
   {
     "method": "DELETE",
     "path": "/api/users/unmatchedUsers/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message"
     ],
@@ -224,7 +224,7 @@
   {
     "method": "GET",
     "path": "/api/ac/contact/:email/tags",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "fromCache",
@@ -236,7 +236,7 @@
   {
     "method": "GET",
     "path": "/api/achievements/definitions",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "definitions",
       "total"
@@ -247,7 +247,7 @@
   {
     "method": "GET",
     "path": "/api/achievements/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "global",
       "leastCommon",
@@ -260,7 +260,7 @@
   {
     "method": "GET",
     "path": "/api/activecampaign/communication-history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "history",
       "pagination",
@@ -272,7 +272,7 @@
   {
     "method": "GET",
     "path": "/api/activecampaign/courses/clareza/students",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "students",
@@ -285,7 +285,7 @@
   {
     "method": "GET",
     "path": "/api/activecampaign/courses/ogi/students",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "students",
@@ -298,7 +298,7 @@
   {
     "method": "GET",
     "path": "/api/activecampaign/cron-logs",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "logs",
       "success"
@@ -320,7 +320,7 @@
   {
     "method": "GET",
     "path": "/api/activecampaign/history/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "byAction",
       "byDay",
@@ -337,7 +337,7 @@
   {
     "method": "GET",
     "path": "/api/activecampaign/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "success"
@@ -348,7 +348,7 @@
   {
     "method": "GET",
     "path": "/api/activecampaign/tag-rules",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "data",
@@ -360,7 +360,7 @@
   {
     "method": "GET",
     "path": "/api/activecampaign/v2/products/:productId/tagged",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "count",
@@ -374,7 +374,7 @@
   {
     "method": "GET",
     "path": "/api/activecampaign/v2/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "data",
@@ -387,7 +387,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/benchmarks",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -399,7 +399,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/class/:classId",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "meta",
@@ -412,7 +412,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/class/:classId/alerts",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -424,7 +424,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/class/:classId/engagement",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -436,7 +436,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/class/:classId/health",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -448,7 +448,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/class/:classId/quick",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -471,7 +471,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/compare",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "cacheAge",
       "cached",
@@ -486,7 +486,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/global",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "cacheAge",
       "cached",
@@ -501,7 +501,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/health-score/:classId",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -513,7 +513,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/multi-platform",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "activeUsers",
       "engagement",
@@ -529,7 +529,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/opportunities/:classId",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -541,7 +541,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/outdated",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -554,7 +554,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/product-sales",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "meta",
@@ -577,7 +577,7 @@
   {
     "method": "GET",
     "path": "/api/analytics/product-sales/period",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "period",
@@ -611,7 +611,7 @@
   {
     "method": "GET",
     "path": "/api/business-analytics/overview",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "meta",
@@ -623,7 +623,7 @@
   {
     "method": "GET",
     "path": "/api/business-analytics/products/comparison",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "meta",
@@ -635,7 +635,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/carteira-search",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [
       "count",
       "query",
@@ -647,7 +647,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/carteira/data",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [],
     "evidence": "src/controllers/clarezaController.ts:234",
     "frontConsumer": null
@@ -655,7 +655,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/comparador",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [
       "companies",
       "count",
@@ -669,7 +669,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/data",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [],
     "evidence": "src/controllers/clarezaController.ts:30",
     "frontConsumer": null
@@ -677,7 +677,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/earnings/data",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [
       "count",
       "earnings",
@@ -690,7 +690,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/raiox",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [
       "count",
       "query",
@@ -702,7 +702,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/raiox-diagnose",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [
       "failed",
       "ok",
@@ -715,7 +715,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/raiox-search",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [
       "count",
       "query",
@@ -727,7 +727,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/raiox/:ticker",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [],
     "evidence": "src/controllers/clarezaController.ts:142",
     "frontConsumer": null
@@ -735,7 +735,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/reit-valuation/:ticker",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [
       "adjDividend",
       "affoPayout",
@@ -824,7 +824,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/reit/:ticker",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [
       "adjDividend",
       "allTimeAvgPriceTarget",
@@ -907,7 +907,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/stock/:ticker",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [
       "adjDividend",
       "allTimeAvgPriceTarget",
@@ -989,7 +989,7 @@
   {
     "method": "GET",
     "path": "/api/clareza/top10",
-    "family": "raw-json",
+    "family": "public-document",
     "shapeKeys": [],
     "evidence": "src/controllers/clarezaController.ts:65",
     "frontConsumer": null
@@ -997,7 +997,7 @@
   {
     "method": "GET",
     "path": "/api/classes",
-    "family": "raw-json",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "src/controllers/classes/classDirectory.controller.ts:11",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
@@ -1005,7 +1005,7 @@
   {
     "method": "GET",
     "path": "/api/classes/:classId/complete-history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "classId",
       "className",
@@ -1021,7 +1021,7 @@
   {
     "method": "GET",
     "path": "/api/classes/:classId/details",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "__v",
       "_id",
@@ -1050,7 +1050,7 @@
   {
     "method": "GET",
     "path": "/api/classes/:classId/students",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "classId",
       "className",
@@ -1066,7 +1066,7 @@
   {
     "method": "GET",
     "path": "/api/classes/fetchClassData",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "classes",
       "count",
@@ -1079,7 +1079,7 @@
   {
     "method": "GET",
     "path": "/api/classes/history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "filters",
       "history",
@@ -1093,7 +1093,7 @@
   {
     "method": "GET",
     "path": "/api/classes/inactivationLists",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "filters",
       "lists",
@@ -1107,7 +1107,7 @@
   {
     "method": "GET",
     "path": "/api/classes/listClasses",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "classes",
       "data",
@@ -1122,7 +1122,7 @@
   {
     "method": "GET",
     "path": "/api/classes/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "activeClasses",
       "inactivationStats",
@@ -1141,7 +1141,7 @@
   {
     "method": "GET",
     "path": "/api/classes/studentHistory/:discordId",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "history",
       "student",
@@ -1155,7 +1155,7 @@
   {
     "method": "GET",
     "path": "/api/classes/studentHistoryByEmail/:email",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "history",
       "student",
@@ -1169,7 +1169,7 @@
   {
     "method": "GET",
     "path": "/api/classes/users/search",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "__v",
       "_id",
@@ -1203,7 +1203,7 @@
   {
     "method": "GET",
     "path": "/api/communication-history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "history",
       "pagination",
@@ -1215,7 +1215,7 @@
   {
     "method": "GET",
     "path": "/api/course-lessons",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "modules",
       "totalLessons"
@@ -1226,7 +1226,7 @@
   {
     "method": "GET",
     "path": "/api/courses",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "data",
@@ -1249,7 +1249,7 @@
   {
     "method": "GET",
     "path": "/api/courses/clareza/students",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "students",
@@ -1262,7 +1262,7 @@
   {
     "method": "GET",
     "path": "/api/courses/ogi/students",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "students",
@@ -1275,7 +1275,7 @@
   {
     "method": "GET",
     "path": "/api/cron-tags/config",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "config",
       "success"
@@ -1286,7 +1286,7 @@
   {
     "method": "GET",
     "path": "/api/cron-tags/history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "history",
       "success"
@@ -1297,7 +1297,7 @@
   {
     "method": "GET",
     "path": "/api/cron-tags/jobs/:id/history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -1309,7 +1309,7 @@
   {
     "method": "GET",
     "path": "/api/cron-tags/statistics",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "statistics",
       "success"
@@ -1320,7 +1320,7 @@
   {
     "method": "GET",
     "path": "/api/cron-tags/status",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "recentExecutions",
       "stats",
@@ -1333,7 +1333,7 @@
   {
     "method": "GET",
     "path": "/api/cron/jobs",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -1345,7 +1345,7 @@
   {
     "method": "GET",
     "path": "/api/cron/jobs/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -1357,7 +1357,7 @@
   {
     "method": "GET",
     "path": "/api/cron/jobs/:id/history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -1369,7 +1369,7 @@
   {
     "method": "GET",
     "path": "/api/cron/status",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -1381,7 +1381,7 @@
   {
     "method": "GET",
     "path": "/api/cron/tag-rules",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -1393,7 +1393,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/dashboard",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "activeUsers",
       "message",
@@ -1409,7 +1409,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/debug",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:47",
     "frontConsumer": null
@@ -1417,7 +1417,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/groups",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:7",
     "frontConsumer": null
@@ -1425,7 +1425,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/members",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:15",
     "frontConsumer": null
@@ -1433,7 +1433,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/members/by",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:23",
     "frontConsumer": null
@@ -1441,7 +1441,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/products",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "count",
@@ -1454,7 +1454,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/products/:groupId",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "data",
@@ -1466,7 +1466,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/products/:groupId/users",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "count",
@@ -1480,7 +1480,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/report",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:56",
     "frontConsumer": null
@@ -1488,7 +1488,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/reports/access",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:31",
     "frontConsumer": null
@@ -1496,7 +1496,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "data",
@@ -1520,7 +1520,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/sync/status",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "error",
       "finishedAt",
@@ -1535,7 +1535,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/sync/universal",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_universalSync",
       "_version",
@@ -1550,7 +1550,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/sync/universal/start",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "started",
@@ -1563,7 +1563,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/user",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:64",
     "frontConsumer": null
@@ -1571,7 +1571,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/users",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:39",
     "frontConsumer": null
@@ -1579,7 +1579,7 @@
   {
     "method": "GET",
     "path": "/api/curseduca/users-with-classes",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "success",
@@ -1613,7 +1613,7 @@
   {
     "method": "GET",
     "path": "/api/dashboard/quick/engagement-heatmap",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "meta",
@@ -1625,7 +1625,7 @@
   {
     "method": "GET",
     "path": "/api/dashboard/quick/product-comparison",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "meta",
@@ -1637,7 +1637,7 @@
   {
     "method": "GET",
     "path": "/api/dashboard/quick/products-breakdown",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "meta",
@@ -1649,7 +1649,7 @@
   {
     "method": "GET",
     "path": "/api/dashboard/search",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "meta",
@@ -1661,7 +1661,7 @@
   {
     "method": "GET",
     "path": "/api/dashboard/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "filters",
@@ -1717,7 +1717,7 @@
   {
     "method": "GET",
     "path": "/api/discord-renewal/scheduled/:key/preview",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "preview",
@@ -1752,7 +1752,7 @@
   {
     "method": "GET",
     "path": "/api/engagement/engagement/details",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -1764,7 +1764,7 @@
   {
     "method": "GET",
     "path": "/api/engagement/engagement/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "success",
@@ -1776,7 +1776,7 @@
   {
     "method": "GET",
     "path": "/api/engagement/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "processingMethod",
@@ -1790,7 +1790,7 @@
   {
     "method": "GET",
     "path": "/api/engagement/users",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -1802,7 +1802,7 @@
   {
     "method": "GET",
     "path": "/api/events",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "events",
       "total"
@@ -1813,7 +1813,7 @@
   {
     "method": "GET",
     "path": "/api/events/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "event"
     ],
@@ -1823,7 +1823,7 @@
   {
     "method": "GET",
     "path": "/api/events/types/list",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "types"
     ],
@@ -1833,7 +1833,7 @@
   {
     "method": "GET",
     "path": "/api/events/upcoming",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "events"
     ],
@@ -1843,7 +1843,7 @@
   {
     "method": "GET",
     "path": "/api/form/logs",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "items",
       "limit",
@@ -1856,7 +1856,7 @@
   {
     "method": "GET",
     "path": "/api/form/logs/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "breakdown",
       "daily",
@@ -1868,7 +1868,7 @@
   {
     "method": "GET",
     "path": "/api/guru/analytics/churn",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "churn",
       "dataQuality",
@@ -1881,7 +1881,7 @@
   {
     "method": "GET",
     "path": "/api/guru/analytics/churn-live",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "cached",
       "churn",
@@ -1895,7 +1895,7 @@
   {
     "method": "GET",
     "path": "/api/guru/analytics/churn-live/status",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "fetched",
       "hasCache",
@@ -1912,7 +1912,7 @@
   {
     "method": "GET",
     "path": "/api/guru/analytics/compare",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "cleanup",
       "discrepancies",
@@ -1925,7 +1925,7 @@
   {
     "method": "GET",
     "path": "/api/guru/analytics/fix-multi-subscriptions",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "fixed",
       "mode",
@@ -1943,7 +1943,7 @@
   {
     "method": "GET",
     "path": "/api/guru/analytics/mrr",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "mrr",
       "success"
@@ -1954,7 +1954,7 @@
   {
     "method": "GET",
     "path": "/api/guru/debug/token",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "debug",
       "success"
@@ -1965,7 +1965,7 @@
   {
     "method": "GET",
     "path": "/api/guru/diagnose",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "config",
       "success",
@@ -1978,7 +1978,7 @@
   {
     "method": "GET",
     "path": "/api/guru/inactivation/inactive",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "inactivatedList",
       "limit",
@@ -1993,7 +1993,7 @@
   {
     "method": "GET",
     "path": "/api/guru/inactivation/pending",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "deduplicated",
@@ -2008,7 +2008,7 @@
   {
     "method": "GET",
     "path": "/api/guru/inactivation/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "success"
@@ -2027,7 +2027,7 @@
   {
     "method": "GET",
     "path": "/api/guru/snapshots",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "snapshots",
       "success",
@@ -2039,7 +2039,7 @@
   {
     "method": "GET",
     "path": "/api/guru/snapshots/:year/:month",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "snapshot",
       "success"
@@ -2050,7 +2050,7 @@
   {
     "method": "GET",
     "path": "/api/guru/snapshots/churn",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "churn",
       "message",
@@ -2063,7 +2063,7 @@
   {
     "method": "GET",
     "path": "/api/guru/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "success"
@@ -2074,7 +2074,7 @@
   {
     "method": "GET",
     "path": "/api/guru/status",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "canAccessSSO",
       "email",
@@ -2089,7 +2089,7 @@
   {
     "method": "GET",
     "path": "/api/guru/subscriptions",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "pagination",
       "subscriptions",
@@ -2101,7 +2101,7 @@
   {
     "method": "GET",
     "path": "/api/guru/sync/all",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "result",
@@ -2113,7 +2113,7 @@
   {
     "method": "GET",
     "path": "/api/guru/sync/email/:email",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "action",
       "email",
@@ -2128,7 +2128,7 @@
   {
     "method": "GET",
     "path": "/api/guru/sync/preview",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "note",
@@ -2141,7 +2141,7 @@
   {
     "method": "GET",
     "path": "/api/guru/sync/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "success"
@@ -2152,7 +2152,7 @@
   {
     "method": "GET",
     "path": "/api/guru/sync/users",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "pagination",
       "success",
@@ -2164,7 +2164,7 @@
   {
     "method": "GET",
     "path": "/api/guru/trials",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "success",
       "total",
@@ -2176,7 +2176,7 @@
   {
     "method": "GET",
     "path": "/api/guru/trials/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "success"
@@ -2187,7 +2187,7 @@
   {
     "method": "GET",
     "path": "/api/guru/webhooks",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "pagination",
       "success",
@@ -2199,7 +2199,7 @@
   {
     "method": "GET",
     "path": "/api/guru/webhooks/grouped-by-month",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "groupedByMonth",
       "success"
@@ -2210,7 +2210,7 @@
   {
     "method": "GET",
     "path": "/api/health",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "integrations",
       "services",
@@ -2235,7 +2235,7 @@
   {
     "method": "GET",
     "path": "/api/hotmart/sync/universal",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_universalSync",
       "_version",
@@ -2249,7 +2249,7 @@
   {
     "method": "GET",
     "path": "/api/hotmart/syncHotmartUsers",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "stats"
@@ -2260,7 +2260,7 @@
   {
     "method": "GET",
     "path": "/api/hotmart/users",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "user"
@@ -2271,7 +2271,7 @@
   {
     "method": "GET",
     "path": "/api/hotmart/v2/products",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "count",
@@ -2284,7 +2284,7 @@
   {
     "method": "GET",
     "path": "/api/hotmart/v2/products/:subdomain",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "data",
@@ -2296,7 +2296,7 @@
   {
     "method": "GET",
     "path": "/api/hotmart/v2/products/:subdomain/users",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "count",
@@ -2310,7 +2310,7 @@
   {
     "method": "GET",
     "path": "/api/hotmart/v2/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "data",
@@ -2323,7 +2323,7 @@
   {
     "method": "GET",
     "path": "/api/info",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "endpoints",
       "features",
@@ -2336,7 +2336,7 @@
   {
     "method": "GET",
     "path": "/api/lessons/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2349,7 +2349,7 @@
   {
     "method": "GET",
     "path": "/api/lessons/test",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2362,7 +2362,7 @@
   {
     "method": "GET",
     "path": "/api/lessons/user/:userId",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2375,7 +2375,7 @@
   {
     "method": "GET",
     "path": "/api/lessons/user/:userId/integrated",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2388,7 +2388,7 @@
   {
     "method": "GET",
     "path": "/api/metrics",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "current",
       "stats",
@@ -2401,7 +2401,7 @@
   {
     "method": "GET",
     "path": "/api/metrics/cron",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "metrics",
       "success"
@@ -2412,7 +2412,7 @@
   {
     "method": "GET",
     "path": "/api/metrics/history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "history",
@@ -2424,7 +2424,7 @@
   {
     "method": "GET",
     "path": "/api/product-profiles",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "data",
@@ -2458,7 +2458,7 @@
   {
     "method": "GET",
     "path": "/api/products",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_legacy",
       "_v2",
@@ -2472,7 +2472,7 @@
   {
     "method": "GET",
     "path": "/api/products/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "product",
       "stats",
@@ -2484,7 +2484,7 @@
   {
     "method": "GET",
     "path": "/api/products/:id/analytics",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "analytics",
       "product",
@@ -2496,7 +2496,7 @@
   {
     "method": "GET",
     "path": "/api/products/:id/students",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "page",
       "students",
@@ -2510,7 +2510,7 @@
   {
     "method": "GET",
     "path": "/api/products/engagement-stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "engagementStats",
       "success"
@@ -2521,7 +2521,7 @@
   {
     "method": "GET",
     "path": "/api/products/users",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "debug",
       "success",
@@ -2556,7 +2556,7 @@
   {
     "method": "GET",
     "path": "/api/renewal/offers",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "offers",
       "total"
@@ -2567,7 +2567,7 @@
   {
     "method": "GET",
     "path": "/api/renewal/performance",
-    "family": "raw-json",
+    "family": "success-data",
     "shapeKeys": [
       "availableYears",
       "target",
@@ -2581,7 +2581,7 @@
   {
     "method": "GET",
     "path": "/api/renewal/turmas",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "turmas",
       "uncovered"
@@ -2614,7 +2614,7 @@
   {
     "method": "GET",
     "path": "/api/students/:userId/complete",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "meta",
@@ -2626,7 +2626,7 @@
   {
     "method": "GET",
     "path": "/api/students/:userId/history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "meta",
@@ -2649,7 +2649,7 @@
   {
     "method": "GET",
     "path": "/api/sync/conflicts",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2661,7 +2661,7 @@
   {
     "method": "GET",
     "path": "/api/sync/conflicts/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2673,7 +2673,7 @@
   {
     "method": "GET",
     "path": "/api/sync/conflicts/critical",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2685,7 +2685,7 @@
   {
     "method": "GET",
     "path": "/api/sync/history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "filters",
@@ -2700,7 +2700,7 @@
   {
     "method": "GET",
     "path": "/api/sync/history/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2712,7 +2712,7 @@
   {
     "method": "GET",
     "path": "/api/sync/reports",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2724,7 +2724,7 @@
   {
     "method": "GET",
     "path": "/api/sync/reports/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2736,7 +2736,7 @@
   {
     "method": "GET",
     "path": "/api/sync/reports/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2748,7 +2748,7 @@
   {
     "method": "GET",
     "path": "/api/sync/snapshots/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -2760,7 +2760,7 @@
   {
     "method": "GET",
     "path": "/api/sync/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "overview",
       "performance",
@@ -2795,7 +2795,7 @@
   {
     "method": "GET",
     "path": "/api/tag-monitoring/critical-tags",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "data",
@@ -2807,7 +2807,7 @@
   {
     "method": "GET",
     "path": "/api/tag-monitoring/critical-tags/available-native-tags",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "data",
@@ -2831,7 +2831,7 @@
   {
     "method": "GET",
     "path": "/api/tag-monitoring/notifications",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "data",
@@ -2855,7 +2855,7 @@
   {
     "method": "GET",
     "path": "/api/tag-monitoring/notifications/:id/details",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "data",
@@ -2889,7 +2889,7 @@
   {
     "method": "GET",
     "path": "/api/tag-monitoring/snapshots",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "data",
@@ -2912,7 +2912,7 @@
   {
     "method": "GET",
     "path": "/api/tag-monitoring/snapshots/user/:email",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "data",
@@ -2958,7 +2958,7 @@
   {
     "method": "GET",
     "path": "/api/tag-rules",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "data",
@@ -2992,7 +2992,7 @@
   {
     "method": "GET",
     "path": "/api/testimonials",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "filters",
       "pagination",
@@ -3004,7 +3004,7 @@
   {
     "method": "GET",
     "path": "/api/testimonials/available-students",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "excludedCount",
       "students",
@@ -3016,7 +3016,7 @@
   {
     "method": "GET",
     "path": "/api/testimonials/best-candidates",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "students",
@@ -3028,7 +3028,7 @@
   {
     "method": "GET",
     "path": "/api/testimonials/report",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "generatedAt",
       "period",
@@ -3041,7 +3041,7 @@
   {
     "method": "GET",
     "path": "/api/testimonials/stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "clasStats",
       "lastUpdated",
@@ -3054,7 +3054,7 @@
   {
     "method": "GET",
     "path": "/api/testimonials/student",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -3066,7 +3066,7 @@
   {
     "method": "GET",
     "path": "/api/user-history/all",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -3078,7 +3078,7 @@
   {
     "method": "GET",
     "path": "/api/user-history/user",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -3090,7 +3090,7 @@
   {
     "method": "GET",
     "path": "/api/users",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "filters",
@@ -3114,7 +3114,7 @@
   {
     "method": "GET",
     "path": "/api/users/:id/history",
-    "family": "raw-json",
+    "family": "success-data",
     "shapeKeys": [
       "classHistory",
       "history",
@@ -3130,7 +3130,7 @@
   {
     "method": "GET",
     "path": "/api/users/:id/stats",
-    "family": "raw-json",
+    "family": "success-data",
     "shapeKeys": [
       "classId",
       "daysSinceLastAccess",
@@ -3164,7 +3164,7 @@
   {
     "method": "GET",
     "path": "/api/users/:userId/products",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "data",
@@ -3176,7 +3176,7 @@
   {
     "method": "GET",
     "path": "/api/users/by-email/:email",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:64",
     "frontConsumer": "src/services/usersV2.service.ts"
@@ -3184,7 +3184,7 @@
   {
     "method": "GET",
     "path": "/api/users/dashboard-stats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "success"
@@ -3195,7 +3195,7 @@
   {
     "method": "GET",
     "path": "/api/users/getProductStats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "success",
@@ -3207,7 +3207,7 @@
   {
     "method": "GET",
     "path": "/api/users/getUserStats",
-    "family": "raw-json",
+    "family": "success-data",
     "shapeKeys": [
       "activeUsers",
       "averageEngagement",
@@ -3225,7 +3225,7 @@
   {
     "method": "GET",
     "path": "/api/users/idsDiferentes",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "idsDiferentes",
       "pagination"
@@ -3236,7 +3236,7 @@
   {
     "method": "GET",
     "path": "/api/users/infinite",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "cacheAge",
       "cachedAt",
@@ -3255,7 +3255,7 @@
   {
     "method": "GET",
     "path": "/api/users/infiniteStats",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "stats",
       "success",
@@ -3267,7 +3267,7 @@
   {
     "method": "GET",
     "path": "/api/users/listUsers",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "filters",
@@ -3283,7 +3283,7 @@
   {
     "method": "GET",
     "path": "/api/users/listUsersSimple",
-    "family": "raw-json",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "limit",
@@ -3298,7 +3298,7 @@
   {
     "method": "GET",
     "path": "/api/users/search",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_id",
       "acTagsByProduct",
@@ -3354,7 +3354,7 @@
   {
     "method": "GET",
     "path": "/api/users/stats",
-    "family": "raw-json",
+    "family": "success-data",
     "shapeKeys": [
       "activeUsers",
       "averageEngagement",
@@ -3372,7 +3372,7 @@
   {
     "method": "GET",
     "path": "/api/users/stats/overview",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "data",
@@ -3384,7 +3384,7 @@
   {
     "method": "GET",
     "path": "/api/users/student/:id/history",
-    "family": "raw-json",
+    "family": "success-data",
     "shapeKeys": [
       "classHistory",
       "history",
@@ -3400,7 +3400,7 @@
   {
     "method": "GET",
     "path": "/api/users/student/:id/stats",
-    "family": "raw-json",
+    "family": "success-data",
     "shapeKeys": [
       "classId",
       "daysSinceLastAccess",
@@ -3423,7 +3423,7 @@
   {
     "method": "GET",
     "path": "/api/users/unified",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "pagination",
       "success",
@@ -3435,7 +3435,7 @@
   {
     "method": "GET",
     "path": "/api/users/unmatchedUsers",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "pagination",
       "unmatchedUsers"
@@ -3446,7 +3446,7 @@
   {
     "method": "GET",
     "path": "/api/users/users/listUsers",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "count",
       "filters",
@@ -3462,7 +3462,7 @@
   {
     "method": "GET",
     "path": "/api/users/v2",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "filters",
@@ -3508,7 +3508,7 @@
   {
     "method": "GET",
     "path": "/api/users/v2/enrollments",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "filters",
@@ -3532,7 +3532,7 @@
   {
     "method": "GET",
     "path": "/cron-tags/config",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "config",
       "success"
@@ -3543,7 +3543,7 @@
   {
     "method": "GET",
     "path": "/cron-tags/history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "history",
       "success"
@@ -3554,7 +3554,7 @@
   {
     "method": "GET",
     "path": "/cron-tags/jobs/:id/history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3566,7 +3566,7 @@
   {
     "method": "GET",
     "path": "/cron-tags/statistics",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "statistics",
       "success"
@@ -3577,7 +3577,7 @@
   {
     "method": "GET",
     "path": "/cron-tags/status",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "recentExecutions",
       "stats",
@@ -3601,7 +3601,7 @@
   {
     "method": "PATCH",
     "path": "/api/events/:id/status",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "event",
       "message"
@@ -3612,7 +3612,7 @@
   {
     "method": "PATCH",
     "path": "/api/renewal/offers/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "offer"
     ],
@@ -3622,7 +3622,7 @@
   {
     "method": "PATCH",
     "path": "/api/tag-monitoring/config/scope",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3634,7 +3634,7 @@
   {
     "method": "PATCH",
     "path": "/api/tag-monitoring/config/toggle",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3646,7 +3646,7 @@
   {
     "method": "PATCH",
     "path": "/api/tag-monitoring/critical-tags/:id/priority",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3658,7 +3658,7 @@
   {
     "method": "PATCH",
     "path": "/api/tag-monitoring/critical-tags/:id/toggle",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3670,7 +3670,7 @@
   {
     "method": "PATCH",
     "path": "/api/tag-monitoring/notifications/:id/read",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3682,7 +3682,7 @@
   {
     "method": "PATCH",
     "path": "/api/tag-monitoring/notifications/:id/unread",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3694,7 +3694,7 @@
   {
     "method": "PATCH",
     "path": "/api/tag-monitoring/notifications/mark-all-read",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3706,7 +3706,7 @@
   {
     "method": "POST",
     "path": "/api/ac/contact/:email/sync",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success"
@@ -3717,7 +3717,7 @@
   {
     "method": "POST",
     "path": "/api/ac/contacts/batch-sync",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -3729,7 +3729,7 @@
   {
     "method": "POST",
     "path": "/api/ac/contacts/batch-tags",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success",
@@ -3741,7 +3741,7 @@
   {
     "method": "POST",
     "path": "/api/achievements/evaluate-all",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "avgPerUser",
       "durationMs",
@@ -3757,7 +3757,7 @@
   {
     "method": "POST",
     "path": "/api/achievements/evaluate/:email",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "achievements",
       "message",
@@ -3769,7 +3769,7 @@
   {
     "method": "POST",
     "path": "/api/achievements/mark-seen",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "updated"
@@ -3780,7 +3780,7 @@
   {
     "method": "POST",
     "path": "/api/activecampaign/courses/clareza/evaluate",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "proposedAdditions",
@@ -3794,7 +3794,7 @@
   {
     "method": "POST",
     "path": "/api/activecampaign/courses/ogi/evaluate",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "proposedAdditions",
@@ -3808,7 +3808,7 @@
   {
     "method": "POST",
     "path": "/api/activecampaign/tag-rules",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "rule",
       "success"
@@ -3819,7 +3819,7 @@
   {
     "method": "POST",
     "path": "/api/activecampaign/test-cron",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "duration",
       "executionId",
@@ -3832,7 +3832,7 @@
   {
     "method": "POST",
     "path": "/api/activecampaign/v2/sync/:productId",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "data",
@@ -3846,7 +3846,7 @@
   {
     "method": "POST",
     "path": "/api/activecampaign/v2/tag/apply",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "data",
@@ -3858,7 +3858,7 @@
   {
     "method": "POST",
     "path": "/api/activecampaign/v2/tag/remove",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_v2Enabled",
       "data",
@@ -3870,7 +3870,7 @@
   {
     "method": "POST",
     "path": "/api/analytics/class/:classId/recalculate",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3883,7 +3883,7 @@
   {
     "method": "POST",
     "path": "/api/analytics/class/:classId/recalculate-individual",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3907,7 +3907,7 @@
   {
     "method": "POST",
     "path": "/api/analytics/product-sales/rebuild",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "estimatedTime",
       "message",
@@ -3919,7 +3919,7 @@
   {
     "method": "POST",
     "path": "/api/auth/change-password",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -3930,7 +3930,7 @@
   {
     "method": "POST",
     "path": "/api/auth/login",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3942,7 +3942,7 @@
   {
     "method": "POST",
     "path": "/api/auth/logout",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -3953,7 +3953,7 @@
   {
     "method": "POST",
     "path": "/api/auth/unlock",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -3976,7 +3976,7 @@
   {
     "method": "POST",
     "path": "/api/clareza/carteira/refresh",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "success",
@@ -3988,7 +3988,7 @@
   {
     "method": "POST",
     "path": "/api/clareza/comparador/refresh",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "failed",
@@ -4003,7 +4003,7 @@
   {
     "method": "POST",
     "path": "/api/clareza/earnings/refresh",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "success",
@@ -4015,7 +4015,7 @@
   {
     "method": "POST",
     "path": "/api/clareza/raiox/refresh",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "success",
@@ -4027,7 +4027,7 @@
   {
     "method": "POST",
     "path": "/api/clareza/refresh",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "success",
@@ -4039,7 +4039,7 @@
   {
     "method": "POST",
     "path": "/api/clareza/top10/refresh",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "success",
@@ -4051,7 +4051,7 @@
   {
     "method": "POST",
     "path": "/api/classes/addOrEditClass",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "class",
       "isNew",
@@ -4065,7 +4065,7 @@
   {
     "method": "POST",
     "path": "/api/classes/checkAndUpdateClassHistory",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "message",
@@ -4078,7 +4078,7 @@
   {
     "method": "POST",
     "path": "/api/classes/fetchClassData",
-    "family": "raw-json",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "src/controllers/classes/classDetails.controller.ts:84",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
@@ -4086,7 +4086,7 @@
   {
     "method": "POST",
     "path": "/api/classes/inactivationLists/create",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "classUpdates",
       "list",
@@ -4100,7 +4100,7 @@
   {
     "method": "POST",
     "path": "/api/classes/inactivationLists/revert/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "result",
@@ -4113,7 +4113,7 @@
   {
     "method": "POST",
     "path": "/api/classes/moveMultipleStudents",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "results",
@@ -4126,7 +4126,7 @@
   {
     "method": "POST",
     "path": "/api/classes/moveStudent",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "movement",
@@ -4139,7 +4139,7 @@
   {
     "method": "POST",
     "path": "/api/classes/syncComplete",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "stats",
@@ -4153,7 +4153,7 @@
   {
     "method": "POST",
     "path": "/api/classes/syncHotmartClasses",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "classIds",
       "message",
@@ -4167,7 +4167,7 @@
   {
     "method": "POST",
     "path": "/api/course-lessons/sync",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "sync"
@@ -4189,7 +4189,7 @@
   {
     "method": "POST",
     "path": "/api/courses/clareza/evaluate",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "proposedAdditions",
@@ -4203,7 +4203,7 @@
   {
     "method": "POST",
     "path": "/api/courses/ogi/evaluate",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "proposedAdditions",
@@ -4217,7 +4217,7 @@
   {
     "method": "POST",
     "path": "/api/cron-tags/execute",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "error",
       "replacement",
@@ -4229,7 +4229,7 @@
   {
     "method": "POST",
     "path": "/api/cron-tags/execute-legacy",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "error",
       "replacement",
@@ -4241,7 +4241,7 @@
   {
     "method": "POST",
     "path": "/api/cron-tags/validate",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "humanReadable",
       "nextExecutions",
@@ -4254,7 +4254,7 @@
   {
     "method": "POST",
     "path": "/api/cron/jobs",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4266,7 +4266,7 @@
   {
     "method": "POST",
     "path": "/api/cron/jobs/:id/toggle",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4278,7 +4278,7 @@
   {
     "method": "POST",
     "path": "/api/cron/jobs/:id/trigger",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4290,7 +4290,7 @@
   {
     "method": "POST",
     "path": "/api/cron/tag-rules-only",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4302,7 +4302,7 @@
   {
     "method": "POST",
     "path": "/api/cron/validate",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4314,7 +4314,7 @@
   {
     "method": "POST",
     "path": "/api/curseduca/cleanup",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:75",
     "frontConsumer": null
@@ -4333,7 +4333,7 @@
   {
     "method": "POST",
     "path": "/api/dashboard/stats/v3/rebuild",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -4355,7 +4355,7 @@
   {
     "method": "POST",
     "path": "/api/discord-renewal/execute",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success"
@@ -4377,7 +4377,7 @@
   {
     "method": "POST",
     "path": "/api/discord-renewal/messages/send",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "messageIds",
@@ -4389,7 +4389,7 @@
   {
     "method": "POST",
     "path": "/api/discord-renewal/plan",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success"
@@ -4400,7 +4400,7 @@
   {
     "method": "POST",
     "path": "/api/discord-renewal/scheduled/:key/test",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "messageIds",
@@ -4423,7 +4423,7 @@
   {
     "method": "POST",
     "path": "/api/discovery/configure",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4435,7 +4435,7 @@
   {
     "method": "POST",
     "path": "/api/discovery/generate-config",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4447,7 +4447,7 @@
   {
     "method": "POST",
     "path": "/api/discovery/run",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4459,7 +4459,7 @@
   {
     "method": "POST",
     "path": "/api/engagement/engagement/cache/clear",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "clearedItems",
       "message",
@@ -4471,7 +4471,7 @@
   {
     "method": "POST",
     "path": "/api/events",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "event",
       "message"
@@ -4482,7 +4482,7 @@
   {
     "method": "POST",
     "path": "/api/events/:id/interest",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "interested",
       "interestedCount"
@@ -4493,7 +4493,7 @@
   {
     "method": "POST",
     "path": "/api/events/seed",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "eventsCreated",
       "message",
@@ -4505,7 +4505,7 @@
   {
     "method": "POST",
     "path": "/api/events/types",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "eventType",
       "message"
@@ -4516,7 +4516,7 @@
   {
     "method": "POST",
     "path": "/api/guru/inactivation/bulk",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "details",
       "failed",
@@ -4531,7 +4531,7 @@
   {
     "method": "POST",
     "path": "/api/guru/inactivation/cleanup",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "cleaned",
       "cleanedDetails",
@@ -4546,7 +4546,7 @@
   {
     "method": "POST",
     "path": "/api/guru/inactivation/cleanup-duplicates",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "modifiedCount",
@@ -4559,7 +4559,7 @@
   {
     "method": "POST",
     "path": "/api/guru/inactivation/diagnose",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "results",
       "success"
@@ -4570,7 +4570,7 @@
   {
     "method": "POST",
     "path": "/api/guru/inactivation/fix-to-active",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "results",
@@ -4584,7 +4584,7 @@
   {
     "method": "POST",
     "path": "/api/guru/inactivation/mark-discrepancies",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "alreadyMarked",
       "created",
@@ -4602,7 +4602,7 @@
   {
     "method": "POST",
     "path": "/api/guru/inactivation/mark-stale-inactive",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "emailsRequested",
       "message",
@@ -4618,7 +4618,7 @@
   {
     "method": "POST",
     "path": "/api/guru/inactivation/quarantine",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "modifiedCount",
@@ -4630,7 +4630,7 @@
   {
     "method": "POST",
     "path": "/api/guru/inactivation/restore",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "modifiedCount",
@@ -4643,7 +4643,7 @@
   {
     "method": "POST",
     "path": "/api/guru/inactivation/revert",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -4654,7 +4654,7 @@
   {
     "method": "POST",
     "path": "/api/guru/inactivation/single",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "email",
       "memberId",
@@ -4667,7 +4667,7 @@
   {
     "method": "POST",
     "path": "/api/guru/snapshots",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "snapshot",
@@ -4679,7 +4679,7 @@
   {
     "method": "POST",
     "path": "/api/guru/snapshots/historical",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "message",
@@ -4693,7 +4693,7 @@
   {
     "method": "POST",
     "path": "/api/guru/trials/check-expired",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "result",
@@ -4705,7 +4705,7 @@
   {
     "method": "POST",
     "path": "/api/guru/trials/inactivate",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "result",
@@ -4717,7 +4717,7 @@
   {
     "method": "POST",
     "path": "/api/guru/trials/revert",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "result",
@@ -4729,7 +4729,7 @@
   {
     "method": "POST",
     "path": "/api/guru/trials/sync",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "result",
@@ -4741,7 +4741,7 @@
   {
     "method": "POST",
     "path": "/api/guru/webhook",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "duplicate",
       "duration",
@@ -4759,7 +4759,7 @@
   {
     "method": "POST",
     "path": "/api/guru/webhooks/:id/reprocess",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "duplicate",
       "duration",
@@ -4777,7 +4777,7 @@
   {
     "method": "POST",
     "path": "/api/guru/webhooks/migrate-source",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "matched",
       "message",
@@ -4790,7 +4790,7 @@
   {
     "method": "POST",
     "path": "/api/hotmart/sync/universal/progress",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "_universalSync",
       "data",
@@ -4803,7 +4803,7 @@
   {
     "method": "POST",
     "path": "/api/hotmart/syncProgressOnly",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "stats"
@@ -4814,7 +4814,7 @@
   {
     "method": "POST",
     "path": "/api/lessons/multiple",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4827,7 +4827,7 @@
   {
     "method": "POST",
     "path": "/api/product-profiles",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4839,7 +4839,7 @@
   {
     "method": "POST",
     "path": "/api/product-profiles/:code/duplicate",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4851,7 +4851,7 @@
   {
     "method": "POST",
     "path": "/api/products",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "product",
@@ -4874,7 +4874,7 @@
   {
     "method": "POST",
     "path": "/api/renewal-ac/changes/:id/revert",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -4885,7 +4885,7 @@
   {
     "method": "POST",
     "path": "/api/renewal-ac/execute",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success"
@@ -4896,7 +4896,7 @@
   {
     "method": "POST",
     "path": "/api/renewal-ac/plan",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "success"
@@ -4918,7 +4918,7 @@
   {
     "method": "POST",
     "path": "/api/renewal/offers",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "offer"
     ],
@@ -4928,7 +4928,7 @@
   {
     "method": "POST",
     "path": "/api/renewal/sync",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "report"
     ],
@@ -4938,7 +4938,7 @@
   {
     "method": "POST",
     "path": "/api/sync/conflicts/:id/ignore",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4950,7 +4950,7 @@
   {
     "method": "POST",
     "path": "/api/sync/conflicts/:id/resolve",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4962,7 +4962,7 @@
   {
     "method": "POST",
     "path": "/api/sync/conflicts/auto-resolve",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4974,7 +4974,7 @@
   {
     "method": "POST",
     "path": "/api/sync/conflicts/bulk-resolve",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -4986,7 +4986,7 @@
   {
     "method": "POST",
     "path": "/api/sync/curseduca",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "reportId",
       "stats",
@@ -4998,7 +4998,7 @@
   {
     "method": "POST",
     "path": "/api/sync/curseduca/batch",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "duration",
       "message",
@@ -5012,7 +5012,7 @@
   {
     "method": "POST",
     "path": "/api/sync/discord",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/sync/operations.controller.ts:295",
     "frontConsumer": null
@@ -5020,7 +5020,7 @@
   {
     "method": "POST",
     "path": "/api/sync/discord/batch",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/sync/operations.controller.ts:319",
     "frontConsumer": null
@@ -5028,7 +5028,7 @@
   {
     "method": "POST",
     "path": "/api/sync/discord/csv",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [],
     "evidence": "no successful exit (501-only); src/controllers/sync/operations.controller.ts:307",
     "frontConsumer": null
@@ -5036,7 +5036,7 @@
   {
     "method": "POST",
     "path": "/api/sync/execute-pipeline",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "duration",
       "message",
@@ -5050,7 +5050,7 @@
   {
     "method": "POST",
     "path": "/api/sync/history",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "syncRecord"
@@ -5061,7 +5061,7 @@
   {
     "method": "POST",
     "path": "/api/sync/history/:syncId/retry",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "newStatus",
@@ -5073,7 +5073,7 @@
   {
     "method": "POST",
     "path": "/api/sync/hotmart",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "reportId",
       "stats",
@@ -5085,7 +5085,7 @@
   {
     "method": "POST",
     "path": "/api/sync/hotmart/batch",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "duration",
       "message",
@@ -5099,7 +5099,7 @@
   {
     "method": "POST",
     "path": "/api/tag-monitoring/critical-tags",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -5111,7 +5111,7 @@
   {
     "method": "POST",
     "path": "/api/tag-monitoring/snapshots/manual",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -5134,7 +5134,7 @@
   {
     "method": "POST",
     "path": "/api/tag-rules/:id/test",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -5167,7 +5167,7 @@
   {
     "method": "POST",
     "path": "/api/tags/evaluate",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "dryRun",
       "meta",
@@ -5182,7 +5182,7 @@
   {
     "method": "POST",
     "path": "/api/tags/evaluate-batch",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "dryRun",
       "errors",
@@ -5198,7 +5198,7 @@
   {
     "method": "POST",
     "path": "/api/test/history/delete-test-events",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -5210,7 +5210,7 @@
   {
     "method": "POST",
     "path": "/api/test/history/make-changes",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -5222,7 +5222,7 @@
   {
     "method": "POST",
     "path": "/api/test/history/populate-all-users",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -5234,7 +5234,7 @@
   {
     "method": "POST",
     "path": "/api/test/history/populate-retroactive",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -5246,7 +5246,7 @@
   {
     "method": "POST",
     "path": "/api/test/history/revert-changes",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -5258,7 +5258,7 @@
   {
     "method": "POST",
     "path": "/api/testimonials",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success",
@@ -5270,7 +5270,7 @@
   {
     "method": "POST",
     "path": "/api/testimonials/request",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "results"
@@ -5281,7 +5281,7 @@
   {
     "method": "POST",
     "path": "/api/user-history/manual",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -5293,7 +5293,7 @@
   {
     "method": "POST",
     "path": "/api/users/:id/sync",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "email",
       "message"
@@ -5304,7 +5304,7 @@
   {
     "method": "POST",
     "path": "/api/users/bulkDelete",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "deletedCount",
       "message"
@@ -5315,7 +5315,7 @@
   {
     "method": "POST",
     "path": "/api/users/bulkDeleteUnmatched",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "deletedCount",
       "message"
@@ -5326,7 +5326,7 @@
   {
     "method": "POST",
     "path": "/api/users/bulkMerge",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "errors",
       "mergedCount",
@@ -5338,7 +5338,7 @@
   {
     "method": "POST",
     "path": "/api/users/manualMatch",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "user"
@@ -5349,7 +5349,7 @@
   {
     "method": "POST",
     "path": "/api/users/mergeDiscordId",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "user"
@@ -5360,7 +5360,7 @@
   {
     "method": "POST",
     "path": "/api/users/student/:id/sync",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "email",
       "message"
@@ -5371,7 +5371,7 @@
   {
     "method": "POST",
     "path": "/api/users/syncDiscordAndHotmart",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "stats",
@@ -5383,7 +5383,7 @@
   {
     "method": "POST",
     "path": "/api/webhooks/ac/email-opened",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -5394,7 +5394,7 @@
   {
     "method": "POST",
     "path": "/api/webhooks/ac/link-clicked",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "success"
@@ -5405,7 +5405,7 @@
   {
     "method": "POST",
     "path": "/cron-tags/execute",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "error",
       "replacement",
@@ -5417,7 +5417,7 @@
   {
     "method": "POST",
     "path": "/cron-tags/execute-legacy",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "error",
       "replacement",
@@ -5429,7 +5429,7 @@
   {
     "method": "POST",
     "path": "/cron-tags/validate",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "humanReadable",
       "nextExecutions",
@@ -5442,7 +5442,7 @@
   {
     "method": "PUT",
     "path": "/api/activecampaign/tag-rules/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "rule",
       "success"
@@ -5453,7 +5453,7 @@
   {
     "method": "PUT",
     "path": "/api/classes/updateStatus",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "action",
       "class",
@@ -5468,7 +5468,7 @@
   {
     "method": "PUT",
     "path": "/api/course-lessons/:pageId",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "lesson",
       "message"
@@ -5490,7 +5490,7 @@
   {
     "method": "PUT",
     "path": "/api/cron-tags/config",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "config",
       "message",
@@ -5502,7 +5502,7 @@
   {
     "method": "PUT",
     "path": "/api/cron/jobs/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -5514,7 +5514,7 @@
   {
     "method": "PUT",
     "path": "/api/curseduca/user/:userId/classes",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "success",
       "user"
@@ -5536,7 +5536,7 @@
   {
     "method": "PUT",
     "path": "/api/events/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "event",
       "message"
@@ -5547,7 +5547,7 @@
   {
     "method": "PUT",
     "path": "/api/events/types/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "eventType",
       "message"
@@ -5558,7 +5558,7 @@
   {
     "method": "PUT",
     "path": "/api/guru/snapshots/:year/:month",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "previousExists",
@@ -5572,7 +5572,7 @@
   {
     "method": "PUT",
     "path": "/api/product-profiles/:code",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "data",
       "message",
@@ -5584,7 +5584,7 @@
   {
     "method": "PUT",
     "path": "/api/products/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "product",
@@ -5607,7 +5607,7 @@
   {
     "method": "PUT",
     "path": "/api/testimonials/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "message",
       "testimonial"
@@ -5618,7 +5618,7 @@
   {
     "method": "PUT",
     "path": "/api/users/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "email"
     ],
@@ -5628,7 +5628,7 @@
   {
     "method": "PUT",
     "path": "/api/users/editStudent/:id",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "email"
     ],
@@ -5638,7 +5638,7 @@
   {
     "method": "PUT",
     "path": "/cron-tags/config",
-    "family": "domain-envelope",
+    "family": "success-data",
     "shapeKeys": [
       "config",
       "message",

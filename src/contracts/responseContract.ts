@@ -1,27 +1,34 @@
+export type ApplicationResponseFamily = 'success-data'
+
 export type ResponseFamily =
-  | 'success-data'
-  | 'domain-envelope'
-  | 'raw-json'
-  | 'no-content'
+  | ApplicationResponseFamily
+  | 'public-document'
   | 'redirect'
   | 'stream-or-file'
+  | 'no-content'
 
 export const RESPONSE_FAMILIES: readonly ResponseFamily[] = [
   'success-data',
-  'domain-envelope',
-  'raw-json',
-  'no-content',
+  'public-document',
   'redirect',
   'stream-or-file',
+  'no-content',
 ]
 
-export interface SuccessResponse<T> {
+export interface SuccessResponse<
+  T,
+  M extends Record<string, unknown> | undefined = undefined,
+> {
   success: true
   data: T
+  meta?: M
 }
 
-export function successResponse<T>(data: T): SuccessResponse<T> {
-  return { success: true, data }
+export function successResponse<
+  T,
+  M extends Record<string, unknown> | undefined = undefined,
+>(data: T, meta?: M): SuccessResponse<T, M> {
+  return meta === undefined ? { success: true, data } : { success: true, data, meta }
 }
 
 export interface ResponseContractDecision {

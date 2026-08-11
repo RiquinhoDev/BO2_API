@@ -35,6 +35,15 @@ describe('canonical response contract for new code', () => {
     expect(response).toEqual({ success: true, data })
     expect(response.data).toBe(data)
   })
+
+  test('keeps typed transport metadata optional and separate from data', () => {
+    const data = { id: 'student-1' }
+    const meta = { total: 1, page: 1 }
+    const response: SuccessResponse<typeof data, typeof meta> = successResponse(data, meta)
+
+    expect(response).toEqual({ success: true, data, meta })
+    expect(response.meta).toBe(meta)
+  })
 })
 
 describe('response contract ratchet', () => {
@@ -77,7 +86,7 @@ describe('response contract ratchet', () => {
     }
   })
 
-  test('fails closed and reports old and new values for valid-family drift', () => {
+  test('fails closed when a forbidden raw-json terminal family is reintroduced', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-ratchet-'))
     const routeFixture = path.join(directory, 'routes.json')
     const responseFixture = path.join(directory, 'responses.json')
@@ -105,7 +114,7 @@ describe('response contract ratchet', () => {
 
       expect(result.status).not.toBe(0)
       expect(`${result.stdout}${result.stderr}`).toContain(
-        `${identity} response family changed: old=${oldFamily}; new=${newFamily}`,
+        `forbidden terminal response family: ${identity}`,
       )
       expect(fileSha(routeFixture)).toBe(routeFixtureShaBefore)
       expect(fileSha(responseFixture)).toBe(responseFixtureShaBefore)
@@ -113,6 +122,32 @@ describe('response contract ratchet', () => {
       fs.rmSync(directory, { recursive: true, force: true })
       expect(fileSha(workspaceRouteCatalog)).toBe(routeShaBefore)
       expect(fileSha(workspaceResponseCatalog)).toBe(responseShaBefore)
+    }
+  })
+  test.each(['domain-envelope', 'raw-json', '501-only'])('rejects a reintroduced %s decision without writing', (family) => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-ratchet-'))
+    const routeFixture = path.join(directory, 'routes.json')
+    const responseFixture = path.join(directory, 'responses.json')
+    const target = responseCatalog.find((decision) =>
+      decision.method === 'DELETE' && decision.path === '/api/ac/cache/clear')
+    if (target === undefined) throw new Error('response contract fixture target is missing')
+
+    try {
+      fs.copyFileSync(workspaceRouteCatalog, routeFixture)
+      fs.copyFileSync(workspaceResponseCatalog, responseFixture)
+      fs.writeFileSync(responseFixture, serialize(responseCatalog.map((decision) =>
+        decision === target ? { ...decision, family } : decision)), 'utf8')
+      const before = fileSha(responseFixture)
+
+      const result = runChecker(routeFixture, responseFixture)
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}${result.stderr}`).toContain(
+        `forbidden terminal response family: ${target.method} ${target.path}`,
+      )
+      expect(fileSha(responseFixture)).toBe(before)
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true })
     }
   })
 })
