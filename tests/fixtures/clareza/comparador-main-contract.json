@@ -1,0 +1,102 @@
+{
+  "snapshot": {
+    "updated": "2026-08-11T09:30:00.000Z",
+    "stocks": {
+      "AAPL": {
+        "ticker": "AAPL",
+        "name": "Apple Inc.",
+        "image": "https://cdn.example.test/aapl.png",
+        "sector": "Technology",
+        "industry": "Consumer Electronics",
+        "country": "US",
+        "currency": "USD",
+        "exchange": "NASDAQ",
+        "isReit": false,
+        "price": 213.49,
+        "change": 1.26,
+        "perf12m": 18.4,
+        "marketCap": 3210000000000,
+        "beta": 1.2,
+        "pe": 33.1,
+        "peg": null,
+        "ps": 8.5,
+        "pb": 48.2,
+        "evEbitda": 25.4,
+        "pFfo": null,
+        "grossMargin": 46.2,
+        "netMargin": 24.3,
+        "roe": 147.9,
+        "roic": 58.7,
+        "fcfYield": 2.8,
+        "debtEquity": 1.51,
+        "debtEbitda": 0.72,
+        "dividendYield": 0.44,
+        "payoutRatio": 14.6,
+        "ffoPayout": null,
+        "analystConsensus": "buy",
+        "strongBuy": 18,
+        "buy": 12,
+        "hold": 7,
+        "sell": 1,
+        "strongSell": 0,
+        "targetConsensus": 240,
+        "upside": 12.4,
+        "updated": "2026-08-11T09:30:00.000Z"
+      },
+      "O": {
+        "ticker": "O",
+        "name": "Realty Income Corporation",
+        "image": null,
+        "sector": "Real Estate",
+        "industry": "REIT - Retail",
+        "country": "US",
+        "currency": "USD",
+        "exchange": "NYSE",
+        "isReit": true,
+        "price": 57.13,
+        "change": null,
+        "perf12m": null,
+        "marketCap": 51100000000,
+        "beta": null,
+        "pe": null,
+        "peg": null,
+        "ps": null,
+        "pb": null,
+        "evEbitda": null,
+        "pFfo": 13.2,
+        "grossMargin": null,
+        "netMargin": null,
+        "roe": null,
+        "roic": null,
+        "fcfYield": null,
+        "debtEquity": null,
+        "debtEbitda": null,
+        "dividendYield": 5.37,
+        "payoutRatio": null,
+        "ffoPayout": 74.3,
+        "analystConsensus": null,
+        "strongBuy": null,
+        "buy": null,
+        "hold": null,
+        "sell": null,
+        "strongSell": null,
+        "targetConsensus": null,
+        "upside": null,
+        "updated": "2026-08-11T09:30:00.000Z"
+      }
+    }
+  },
+  "searchAliases": [
+    { "query": "apple", "symbols": ["AAPL"] },
+    { "query": "income", "symbols": ["O"] }
+  ],
+  "http": {
+    "get": {
+      "missingQuery": { "error": "Indica ?symbols=AAPL,MSFT para comparar ou ?search=apple para pesquisar." },
+      "unavailable": { "error": "Dados indisponíveis. Tente novamente em breve." }
+    },
+    "refresh": {
+      "unauthorized": { "error": "Refresh Clareza nao autorizado" }
+    }
+  }
+}
