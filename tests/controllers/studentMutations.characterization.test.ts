@@ -65,7 +65,14 @@ beforeEach(async () => {
 
 const seedUser = async (): Promise<string> => {
   const id = new mongoose.Types.ObjectId()
-  await User.collection.insertOne({ _id: id, name: 'Ana', email: 'ana@x.test', status: 'ACTIVE' })
+  await User.collection.insertOne({
+    _id: id,
+    name: 'Ana',
+    email: 'ana@x.test',
+    classId: 'CL1',
+    discord: { discordIds: ['12345678901234567'], role: 'STUDENT' },
+    combined: { status: 'ACTIVE' },
+  })
   return id.toString()
 }
 
@@ -97,9 +104,17 @@ describe('student mutations characterization', () => {
       const captured: Captured = {}
       await editStudent({ params: { id }, body: { name: 'Ana Maria' } } as unknown as Request, makeResponse(captured), noop)
       expect(captured.status).toBe(200)
-      expect(captured.body).toMatchObject({
+      expect(JSON.parse(JSON.stringify(captured.body))).toEqual({
         success: true,
-        data: { name: 'Ana Maria' },
+        data: {
+          _id: id,
+          name: 'Ana Maria',
+          email: 'ana@x.test',
+          discordIds: ['12345678901234567'],
+          classId: 'CL1',
+          status: 'ACTIVE',
+          role: 'STUDENT',
+        },
       })
     })
 

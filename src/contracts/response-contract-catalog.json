@@ -187,7 +187,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:71",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:113",
     "frontConsumer": null
   },
   {
@@ -208,7 +208,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:71",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:113",
     "frontConsumer": null
   },
   {
@@ -5250,7 +5250,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:47",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:89",
     "frontConsumer": null
   },
   {
@@ -5317,7 +5317,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:47",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:89",
     "frontConsumer": null
   },
   {
@@ -5575,7 +5575,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:27",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:69",
     "frontConsumer": "src/pages/gerirAlunos/students/StudentEditor.tsx"
   },
   {
@@ -5586,7 +5586,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/users/studentMutations.controller.ts:27",
+    "evidence": "src/controllers/users/studentMutations.controller.ts:69",
     "frontConsumer": null
   },
   {
