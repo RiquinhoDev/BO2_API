@@ -4,6 +4,7 @@
 // ================================================================
 
 import { type NextFunction, Request, Response } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { internalError } from '../../security/errorHandling'
 import type { ProductProfilesDeleteInput } from '../../security/productProfilesDestructiveInput'
 import ProductProfile, { IReengagementLevel } from '../../models/product/ProductProfile'
@@ -30,11 +31,7 @@ export const getAllProductProfiles = async (req: Request, res: Response, next: N
     const profiles = await ProductProfile.find(filter)
       .sort({ name: 1 })
 
-    res.json({
-      success: true,
-      count: profiles.length,
-      data: profiles
-    })
+    res.json(successResponse(profiles, { count: profiles.length }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar perfis de produto', 'PRODUCT_PROFILE_LIST_FAILED', error))
   }
@@ -120,11 +117,7 @@ export const createProductProfile = async (req: Request, res: Response, next: Ne
 
     console.log(`✅ Perfil de produto criado: ${profile.code}`)
 
-    res.status(201).json({
-      success: true,
-      data: profile,
-      message: 'Perfil de produto criado com sucesso'
-    })
+    res.status(201).json(successResponse(profile, { message: 'Perfil de produto criado com sucesso' }))
   } catch (error: unknown) {
     next(internalError('Erro ao criar perfil de produto', 'PRODUCT_PROFILE_CREATE_FAILED', error))
   }
@@ -165,11 +158,7 @@ export const updateProductProfile = async (
 
     console.log(`✅ Perfil de produto atualizado: ${profile.code}`)
 
-    res.json({
-      success: true,
-      data: profile,
-      message: 'Perfil de produto atualizado com sucesso'
-    })
+    res.json(successResponse(profile, { message: 'Perfil de produto atualizado com sucesso' }))
   } catch (error: unknown) {
     next(internalError('Erro ao atualizar perfil de produto', 'PRODUCT_PROFILE_UPDATE_FAILED', error))
   }
@@ -204,10 +193,7 @@ export const deleteProductProfile = async (
 
       console.log(`🗑️ Perfil de produto removido permanentemente: ${code}`)
 
-      res.json({
-        success: true,
-        message: 'Perfil de produto removido permanentemente'
-      })
+      res.json(successResponse(null, { message: 'Perfil de produto removido permanentemente' }))
     } else {
       // Soft delete (apenas desativar)
       const profile = await ProductProfile.findOneAndUpdate(
@@ -226,11 +212,7 @@ export const deleteProductProfile = async (
 
       console.log(`⏸️ Perfil de produto desativado: ${code}`)
 
-      res.json({
-        success: true,
-        data: profile,
-        message: 'Perfil de produto desativado com sucesso'
-      })
+      res.json(successResponse(profile, { message: 'Perfil de produto desativado com sucesso' }))
     }
   } catch (error: unknown) {
     next(internalError('Erro ao deletar perfil de produto', 'PRODUCT_PROFILE_DELETE_FAILED', error))
@@ -430,11 +412,7 @@ export const duplicateProductProfile = async (
 
     console.log(`✅ Perfil duplicado: ${code} → ${newCode}`)
 
-    res.status(201).json({
-      success: true,
-      data: duplicate,
-      message: 'Perfil duplicado com sucesso'
-    })
+    res.status(201).json(successResponse(duplicate, { message: 'Perfil duplicado com sucesso' }))
   } catch (error: unknown) {
     next(internalError('Erro ao duplicar perfil de produto', 'PRODUCT_PROFILE_DUPLICATE_FAILED', error))
   }

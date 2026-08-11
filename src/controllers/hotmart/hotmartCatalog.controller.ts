@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 import { internalError } from '../../security/errorHandling'
 import {
@@ -23,7 +24,7 @@ function forwardHotmartError(
 export async function getHotmartProducts(_req: Request, res: Response, next: NextFunction) {
   try {
     const products = await listHotmartProducts()
-    res.json({ success: true, data: products, count: products.length, _v2Enabled: true })
+    res.json(successResponse(products, { count: products.length, _v2Enabled: true }))
   } catch (error: unknown) {
     forwardHotmartError(next, error, 'Erro ao buscar produtos Hotmart', 'HOTMART_PRODUCT_LIST_FAILED')
   }
@@ -41,7 +42,7 @@ export async function getHotmartProductBySubdomain(req: Request<{ subdomain: str
       })
     }
 
-    return res.json({ success: true, data: product, _v2Enabled: true })
+    return res.json(successResponse(product, { _v2Enabled: true }))
   } catch (error: unknown) {
     forwardHotmartError(next, error, 'Erro ao buscar produto Hotmart', 'HOTMART_PRODUCT_READ_FAILED')
   }
@@ -63,13 +64,11 @@ export async function getHotmartProductUsers(req: Request<{ subdomain: string }>
       })
     }
 
-    return res.json({
-      success: true,
-      data: users,
+    return res.json(successResponse(users, {
       count: users.length,
       filters: { status, minProgress },
       _v2Enabled: true
-    })
+    }))
   } catch (error: unknown) {
     forwardHotmartError(next, error, 'Erro ao buscar utilizadores Hotmart', 'HOTMART_PRODUCT_USERS_READ_FAILED')
   }
@@ -78,7 +77,7 @@ export async function getHotmartProductUsers(req: Request<{ subdomain: string }>
 export async function getHotmartStats(_req: Request, res: Response, next: NextFunction) {
   try {
     const { stats, summary } = await getHotmartStatsSnapshot()
-    res.json({ success: true, data: stats, summary, _v2Enabled: true })
+    res.json(successResponse(stats, { summary, _v2Enabled: true }))
   } catch (error: unknown) {
     forwardHotmartError(next, error, 'Erro ao buscar estatísticas Hotmart', 'HOTMART_STATS_READ_FAILED')
   }

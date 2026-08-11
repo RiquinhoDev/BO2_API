@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../../../contracts/responseContract'
 import Product from '../../../models/product/Product'
 import { getUsersByProduct as getUsersByProductService, getUserCountForProduct } from '../../../services/userProducts/userProductService'
 import { internalError } from '../../../security/errorHandling'
@@ -16,12 +17,7 @@ export const getCurseducaProducts = async (req: Request, res: Response, next: Ne
       .select('name code curseducaGroupId curseducaGroupUuid isActive')
       .lean()
 
-    res.json({
-      success: true,
-      data: products,
-      count: products.length,
-      _v2Enabled: true
-    })
+    res.json(successResponse(products, { count: products.length, _v2Enabled: true }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar produtos CursEduca', 'CURSEDUCA_PRODUCT_LIST_FAILED', error))
   }
@@ -53,11 +49,7 @@ export const getCurseducaProductByGroupId = async (req: Request, res: Response, 
 
     const userCount = await getUserCountForProduct(String(product._id))
 
-    res.json({
-      success: true,
-      data: { ...product, userCount },
-      _v2Enabled: true
-    })
+    res.json(successResponse({ ...product, userCount }, { _v2Enabled: true }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar produto CursEduca', 'CURSEDUCA_PRODUCT_READ_FAILED', error))
   }
@@ -101,13 +93,11 @@ export const getCurseducaProductUsers = async (req: Request, res: Response, next
       )
     }
 
-    res.json({
-      success: true,
-      data: users,
+    res.json(successResponse(users, {
       count: users.length,
       filters: { minProgress },
       _v2Enabled: true
-    })
+    }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar utilizadores do produto CursEduca', 'CURSEDUCA_PRODUCT_USERS_READ_FAILED', error))
   }
@@ -146,9 +136,7 @@ export const getCurseducaStats = async (req: Request, res: Response, next: NextF
       })
     )
 
-    res.json({
-      success: true,
-      data: stats,
+    res.json(successResponse(stats, {
       summary: {
         totalProducts: products.length,
         totalUsers: stats.reduce((sum, s) => sum + s.totalUsers, 0),
@@ -157,7 +145,7 @@ export const getCurseducaStats = async (req: Request, res: Response, next: NextF
         )
       },
       _v2Enabled: true
-    })
+    }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar estatísticas CursEduca', 'CURSEDUCA_STATS_READ_FAILED', error))
   }

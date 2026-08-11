@@ -1,5 +1,6 @@
 // src/controllers/lessons.controller.ts
 import { type NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
 import { hotmartLessonsService } from '../services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService'
 import { internalError } from '../security/errorHandling'
@@ -53,12 +54,10 @@ class LessonsController {
         userName as string
       )
 
-      res.json({
-        success: true,
+      res.json(successResponse(lessonsData, {
         message: 'Lições carregadas com sucesso',
-        data: lessonsData,
         timestamp: new Date().toISOString()
-      })
+      }))
     } catch (error: unknown) {
       forwardLessonsError(next, error, 'Erro ao buscar lições do utilizador', 'LESSONS_USER_READ_FAILED')
     }
@@ -90,15 +89,10 @@ class LessonsController {
       const lessonsData = await hotmartLessonsService.getMultipleUsersLessons(userIds, subdomain)
       const globalStats = hotmartLessonsService.calculateGlobalStats(lessonsData)
 
-      res.json({
-        success: true,
+      res.json(successResponse({ users: lessonsData, globalStats }, {
         message: `Lições carregadas para ${lessonsData.length} utilizadores`,
-        data: {
-          users: lessonsData,
-          globalStats
-        },
         timestamp: new Date().toISOString()
-      })
+      }))
     } catch (error: unknown) {
       forwardLessonsError(next, error, 'Erro ao buscar lições de múltiplos utilizadores', 'LESSONS_MULTIPLE_READ_FAILED')
     }
@@ -139,12 +133,10 @@ class LessonsController {
       // lessonsData.userEmail = userFromDB?.email || lessonsData.userEmail
       // lessonsData.userName = userFromDB?.name || lessonsData.userName
 
-      res.json({
-        success: true,
+      res.json(successResponse(lessonsData, {
         message: 'Lições e dados do utilizador carregados com sucesso',
-        data: lessonsData,
         timestamp: new Date().toISOString()
-      })
+      }))
     } catch (error: unknown) {
       forwardLessonsError(next, error, 'Erro ao buscar lições integradas', 'LESSONS_INTEGRATED_READ_FAILED')
     }
@@ -182,16 +174,14 @@ class LessonsController {
       const lessonsData = await hotmartLessonsService.getMultipleUsersLessons(usersToProcess, subdomain as string)
       const globalStats = hotmartLessonsService.calculateGlobalStats(lessonsData)
 
-      res.json({
-        success: true,
+      res.json(successResponse({
+        globalStats,
+        usersCount: lessonsData.length,
+        processedAt: new Date().toISOString()
+      }, {
         message: 'Estatísticas calculadas com sucesso',
-        data: {
-          globalStats,
-          usersCount: lessonsData.length,
-          processedAt: new Date().toISOString()
-        },
         timestamp: new Date().toISOString()
-      })
+      }))
     } catch (error: unknown) {
       forwardLessonsError(next, error, 'Erro ao calcular estatísticas das lições', 'LESSONS_STATS_READ_FAILED')
     }
@@ -214,15 +204,13 @@ class LessonsController {
 
       const testResult = await hotmartLessonsService.getUserLessons(testUserId as string, subdomain as string)
 
-      res.json({
-        success: true,
+      res.json(successResponse({
+        lessonsFound: testResult.lessons?.length || 0,
+        sampleLesson: testResult.lessons?.[0] || null
+      }, {
         message: 'Conexão com Hotmart funcionando corretamente',
-        data: {
-          lessonsFound: testResult.lessons?.length || 0,
-          sampleLesson: testResult.lessons?.[0] || null
-        },
         timestamp: new Date().toISOString()
-      })
+      }))
     } catch (error: unknown) {
       forwardLessonsError(next, error, 'Erro na conexão com Hotmart', 'LESSONS_INTEGRATION_TEST_FAILED')
     }

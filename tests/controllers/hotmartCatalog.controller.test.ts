@@ -51,7 +51,7 @@ test('lists Hotmart products with the exact V2 envelope and projection', async (
 
   expect(mockProductFind).toHaveBeenCalledWith({ platform: 'hotmart' })
   expect(select).toHaveBeenCalledWith('name code platformData isActive')
-  expect(res.json).toHaveBeenCalledWith({ success: true, data: products, count: 1, _v2Enabled: true })
+  expect(res.json).toHaveBeenCalledWith({ success: true, data: products, meta: { count: 1, _v2Enabled: true } })
 })
 
 test('returns the product with its user count for the exact subdomain lookup', async () => {
@@ -72,7 +72,7 @@ test('returns the product with its user count for the exact subdomain lookup', a
   expect(res.json).toHaveBeenCalledWith({
     success: true,
     data: { ...product, userCount: 7 },
-    _v2Enabled: true
+    meta: { _v2Enabled: true }
   })
 })
 
@@ -124,9 +124,11 @@ test('filters product users by status and minimum progress without changing the 
   expect(res.json).toHaveBeenCalledWith({
     success: true,
     data: [matching],
-    count: 1,
-    filters: { status: 'active', minProgress: '50' },
-    _v2Enabled: true
+    meta: {
+      count: 1,
+      filters: { status: 'active', minProgress: '50' },
+      _v2Enabled: true
+    }
   })
 })
 
@@ -146,8 +148,10 @@ test('summarizes users and active users while preserving top-level subdomain', a
   expect(res.json).toHaveBeenCalledWith({
     success: true,
     data: [{ productId, productName: 'Clareza', subdomain: 'clareza', totalUsers: 2, activeUsers: 1 }],
-    summary: { totalProducts: 1, totalUsers: 2, totalActiveUsers: 1 },
-    _v2Enabled: true
+    meta: {
+      summary: { totalProducts: 1, totalUsers: 2, totalActiveUsers: 1 },
+      _v2Enabled: true
+    }
   })
 })
 

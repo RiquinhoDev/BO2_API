@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { type NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
 import Course from '../models/Course'
 import TagRule from '../models/acTags/TagRule'
@@ -30,11 +31,7 @@ export const getAllCourses = async (req: Request, res: Response, next: NextFunct
   try {
     const courses = await Course.find().sort({ name: 1 })
     
-    res.json({
-      success: true,
-      count: courses.length,
-      data: courses
-    })
+    res.json(successResponse(courses, { count: courses.length }))
   } catch (error: unknown) {
     forwardCourseError(next, error, 'Erro ao listar cursos', 'COURSE_LIST_FAILED')
   }
@@ -168,10 +165,7 @@ export const deleteCourse = async (req: Request, res: Response, next: NextFuncti
 
     console.log(`🗑️ Curso desativado: ${course.name}`)
 
-    res.json({
-      success: true,
-      message: 'Curso desativado com sucesso'
-    })
+    res.json(successResponse(null, { message: 'Curso desativado com sucesso' }))
   } catch (error: unknown) {
     forwardCourseError(next, error, 'Erro ao deletar curso', 'COURSE_DELETE_FAILED')
   }
