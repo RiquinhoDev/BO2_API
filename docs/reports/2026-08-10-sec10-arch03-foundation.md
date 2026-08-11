@@ -5,6 +5,7 @@
 **Branch:** `remake`
 **Required base:** `aedf636fa41f107b574b61ad5c6b7f547c07cd0c`
 **Test-fixture correction:** `3680349` (`test(classes): align contract fixtures`)
+**Duplicate-fatal-logging correction:** `8c7d8f4` (`fix(errors): remove duplicate fatal logging`)
 
 ## Outcome
 
@@ -57,7 +58,14 @@ rg -n "\.json\([^\n]*(error\.message|details\s*:)" src -g "*.ts"
 ```
 
 There were zero executable matches and zero comment-only matches, so no runtime or comment change was
-needed in Task 9.
+needed in the initial Task 9 scan.
+
+Terminal review separately found **46** fatal catch blocks with **47** local log calls before delegation to
+the central boundary, including **30** direct `console.*` calls. Commit `8c7d8f4` reduced those ceilings to
+**0/0/0**, leaving the boundary as the single fatal-log authority. Compensating writes remain intact; four
+non-fatal logs now use canonical safe metadata rather than raw error material. Static mutation/restoration
+and representative runtime coverage enforce local logger **0**, central logger exactly **1**, correlation
+presence, and encoded-email/token absence.
 
 ## ARCH-03 foundation
 
@@ -99,11 +107,11 @@ with no production edit, cast, `Partial`, `any`, non-null assertion or suppressi
 
 | Command | Exit / result |
 | --- | --- |
-| `npm.cmd run lint:baseline:prune` | 0; no source diff |
+| `npm.cmd run lint:baseline:prune` | 0; obsolete direct-console baseline counts pruned |
 | `npm.cmd run lint` | 0 |
 | `npm.cmd run types:check` | 0 |
 | `npm.cmd run contracts:responses:check` | 0; 439 decisions, 219 Front calls, 194 consumers |
-| `$env:MONGOMS_RUNTIME_DOWNLOAD='false'; npm.cmd test -- --runInBand` | 0; 335/335 suites, 2089/2089 tests, 296.644 s |
+| `$env:MONGOMS_RUNTIME_DOWNLOAD='false'; npm.cmd test -- --runInBand` | 0; 336/336 suites, 2092/2092 tests, 303.937 s |
 | `npm.cmd run build` | 0 |
 | `git diff --check` | 0 |
 | `git diff --exit-code aedf636 -- package-lock.json yarn.lock` | 0 |
@@ -113,9 +121,15 @@ Known non-failing output remains: model-registry availability logs under mocks, 
 the reserved `errors` schema key, disabled/unconfigured integration notices and error logs deliberately
 exercised by tests. No `--forceExit` was used and no orphan process remained.
 
+The final response-catalog refresh changed only **39** source-evidence line pointers displaced by the logging
+cleanup. Guarded comparison confirmed unchanged families, shape keys and Front consumers before the
+reviewer-controlled writer retained all **439** decisions.
+
 ## Progress and open work
 
-The eight-pillar equal-weight engineering estimate moves from **69.4% to 78.1% (+8.7 percentage points)**.
+The eight-pillar equal-weight engineering estimate moves from **69.4% to 78.1% (+8.8 percentage points)**.
+Using the unrounded means, the movement is **69.375% to 78.125%**, an exact **8.75 percentage points** rounded
+to one decimal; it is not calculated by subtracting the already-rounded displayed endpoints.
 Only middleware/SEC-10 and the ARCH-03 foundation moved in this mission. The workplan's mechanical count becomes
 **104/112 (92.9%)** after also reconciling the already-proved ARCH-02 size box; checkbox percentage is not an
 operational-readiness score.
