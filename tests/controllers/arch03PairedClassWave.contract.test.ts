@@ -34,5 +34,3 @@ describe('ARCH03 paired class and operational wave', () => {
     expect(owned).toContain('successResponse(')
   })
 })
-
-
