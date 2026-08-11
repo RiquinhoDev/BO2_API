@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express'
 import { criticalTagManagementService } from '../../services/tagMonitoring'
 import type { TagMonitoringDeleteInput } from '../../security/tagMonitoringDestructiveInput'
 import { internalError } from '../../security/errorHandling'
+import { successResponse } from '../../contracts/responseContract'
 
 type CriticalTagParams = {
   id: string
@@ -16,11 +17,7 @@ export const getCriticalTags = async (req: Request, res: Response, next: NextFun
     const { onlyActive } = req.query
     const tags = await criticalTagManagementService.getCriticalTags(onlyActive === 'true')
 
-    res.json({
-      success: true,
-      data: tags,
-      count: tags.length,
-    })
+    res.json(successResponse(tags, { count: tags.length }))
   } catch (error: unknown) {
     next(internalError('Erro ao listar tags críticas', 'CRITICAL_TAG_LIST_FAILED', error))
   }
@@ -65,11 +62,7 @@ export const addCriticalTag = async (req: Request, res: Response, next: NextFunc
       priority
     )
 
-    res.status(201).json({
-      success: true,
-      message: 'Tag crítica adicionada com sucesso',
-      data: tag,
-    })
+    res.status(201).json(successResponse(tag, { message: 'Tag crítica adicionada com sucesso' }))
   } catch (error: unknown) {
     if (error instanceof Error) {
       const { message } = error
@@ -102,10 +95,7 @@ export const removeCriticalTag = async (req: Request<CriticalTagParams>, res: Re
 
     await criticalTagManagementService.removeCriticalTag(id)
 
-    res.json({
-      success: true,
-      message: 'Tag crítica removida com sucesso',
-    })
+    res.json(successResponse(null, { message: 'Tag crítica removida com sucesso' }))
   } catch (error: unknown) {
     if (error instanceof Error) {
       const { message } = error
@@ -178,11 +168,7 @@ export const toggleCriticalTag = async (req: Request<CriticalTagParams>, res: Re
 
     const tag = await criticalTagManagementService.toggleCriticalTag(id)
 
-    res.json({
-      success: true,
-      message: `Tag crítica ${tag.isActive ? 'ativada' : 'desativada'} com sucesso`,
-      data: tag,
-    })
+    res.json(successResponse(tag, { message: `Tag crítica ${tag.isActive ? 'ativada' : 'desativada'} com sucesso` }))
   } catch (error: unknown) {
     if (error instanceof Error) {
       const { message } = error
@@ -224,11 +210,7 @@ export const updateCriticalTagPriority = async (req: Request<CriticalTagParams>,
 
     const tag = await criticalTagManagementService.updatePriority(id, priority)
 
-    res.json({
-      success: true,
-      message: `Prioridade atualizada para ${priority}`,
-      data: tag,
-    })
+    res.json(successResponse(tag, { message: `Prioridade atualizada para ${priority}` }))
   } catch (error: unknown) {
     if (error instanceof Error) {
       const { message } = error
@@ -255,12 +237,7 @@ export const getAvailableNativeTags = async (req: Request, res: Response, next: 
 
     const tags = await criticalTagManagementService.discoverNativeTagsFromSnapshots(weeks)
 
-    res.json({
-      success: true,
-      data: tags,
-      count: tags.length,
-      weeksAnalyzed: weeks,
-    })
+    res.json(successResponse(tags, { count: tags.length, weeksAnalyzed: weeks }))
   } catch (error: unknown) {
     next(internalError('Erro ao descobrir tags nativas', 'CRITICAL_TAG_NATIVE_TAGS_FAILED', error))
   }

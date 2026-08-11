@@ -1,5 +1,6 @@
 import { type NextFunction, type Request, type Response } from 'express'
 import { internalError } from '../../security/errorHandling'
+import { successResponse } from '../../contracts/responseContract'
 import mongoose, { FilterQuery, PipelineStage } from 'mongoose'
 import { Testimonial, ITestimonial } from '../../models/Testimonial'
 import {
@@ -61,7 +62,7 @@ export const getTestimonialStats = async (req: Request, res: Response, next: Nex
     const acceptanceRate = contactedCount > 0 ? ((totalAccepted + totalCompleted) / contactedCount * 100) : 0
     const completionRate = totalAccepted > 0 ? (totalCompleted / totalAccepted * 100) : 0
 
-    res.json({
+    res.json(successResponse({
       overview: {
         totalRequested,
         totalContacted: contactedCount,
@@ -81,8 +82,7 @@ export const getTestimonialStats = async (req: Request, res: Response, next: Nex
         cancelled: statusMap['CANCELLED'] || 0
       },
       clasStats,
-      lastUpdated: new Date()
-    })
+    }, { lastUpdated: new Date() }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar estatísticas', 'TESTIMONIAL_STATS_READ_FAILED', error))
@@ -160,8 +160,7 @@ export const listTestimonials = async (req: Request, res: Response, next: NextFu
     const testimonials = await TestimonialModel.aggregate(pipeline)
     const totalCount = await TestimonialModel.countDocuments(filters)
 
-    res.json({
-      testimonials,
+    res.json(successResponse(testimonials, {
       pagination: {
         currentPage: Number(page),
         totalPages: Math.ceil(totalCount / Number(limit)),
@@ -172,8 +171,8 @@ export const listTestimonials = async (req: Request, res: Response, next: NextFu
         status,
         classId,
         search
-      }
-    })
+      },
+    }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao listar testemunhos', 'TESTIMONIAL_LIST_FAILED', error))
@@ -298,14 +297,7 @@ export const getStudentTestimonials = async (req: Request, res: Response, next: 
       declinedCount: testimonials.filter(t => t.status === 'DECLINED').length
     }
 
-    res.json({
-      success: true,
-      data: {
-        testimonials,
-        summary
-      },
-      timestamp: new Date().toISOString()
-    })
+    res.json(successResponse({ testimonials, summary }, { timestamp: new Date().toISOString() }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar testemunhos do estudante', 'TESTIMONIAL_STUDENT_READ_FAILED', error))

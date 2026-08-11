@@ -1,5 +1,6 @@
 import { type NextFunction, type Request, type Response } from 'express'
 import { internalError } from '../../security/errorHandling'
+import { successResponse } from '../../contracts/responseContract'
 import { FilterQuery, PipelineStage } from 'mongoose'
 import { Testimonial } from '../../models/Testimonial'
 import User, { IUser } from '../../models/user'
@@ -166,11 +167,7 @@ export const getAvailableStudents = async (req: Request, res: Response, next: Ne
 
     logger.info('Testimonial candidates ready', { status: 'completed', studentCount: finalStudents.length })
 
-    res.json({
-      students: finalStudents,
-      total: finalStudents.length,
-      excludedCount: 0
-    })
+    res.json(successResponse(finalStudents, { total: finalStudents.length, excludedCount: 0 }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar estudantes', 'TESTIMONIAL_AVAILABLE_STUDENTS_READ_FAILED', error))
@@ -272,11 +269,7 @@ export const getBestCandidates = async (req: Request, res: Response, next: NextF
       highEngagement: students.filter(student => student.engagementLevel !== undefined && ['ALTO', 'MUITO_ALTO'].includes(student.engagementLevel)).length
     }
 
-    res.json({
-      success: true,
-      students,
-      stats
-    })
+    res.json(successResponse(students, { stats }))
   } catch (error: unknown) {
     next(internalError('Erro interno do servidor', 'TESTIMONIAL_CANDIDATES_READ_FAILED', error))
   }
