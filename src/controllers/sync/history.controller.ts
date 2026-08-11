@@ -176,7 +176,7 @@ export const getSyncStats = async (req: Request, res: Response, next: NextFuncti
       avgSuccessRate: 0
     }
 
-    res.json({
+    res.json(successResponse({
       overview: {
         totalSyncs,
         completedSyncs,
@@ -191,7 +191,7 @@ export const getSyncStats = async (req: Request, res: Response, next: NextFuncti
         avgRecordsPerSync: Math.round(performance.avgRecordsPerSync || 0),
         avgSuccessRate: Math.round(performance.avgSuccessRate || 0)
       }
-    })
+    }))
 
   } catch (error: unknown) {
     next(internalError(
@@ -222,11 +222,8 @@ export const cleanOldHistory = async (
       status: { $in: ["completed", "failed", "cancelled"] }
     })
 
-    res.json({
-      message: `Histórico limpo com sucesso. ${result.deletedCount} registos removidos.`,
-      deletedCount: result.deletedCount,
-      cutoffDate: cutoffDate.toISOString()
-    })
+    res.json(successResponse({ deletedCount: result.deletedCount, cutoffDate: cutoffDate.toISOString() },
+      { message: `Histórico limpo com sucesso. ${result.deletedCount} registos removidos.` }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao limpar histórico', 'SYNC_HISTORY_CLEAN_FAILED', error))
@@ -266,11 +263,8 @@ export const retrySyncOperation = async (req: Request, res: Response, next: Next
       }
     })
 
-    res.json({ 
-      message: "Sincronização marcada para retry.",
-      syncId,
-      newStatus: "pending"
-    })
+    res.json(successResponse({ syncId, newStatus: "pending" },
+      { message: "Sincronização marcada para retry." }))
 
   } catch (error: unknown) {
     next(internalError(
@@ -303,10 +297,8 @@ export const createSyncRecord = async (req: Request, res: Response, next: NextFu
 
     await syncRecord.save()
 
-    res.status(201).json({
-      message: "Registo de sincronização criado.",
-      syncRecord
-    })
+    res.status(201).json(successResponse({ syncRecord },
+      { message: "Registo de sincronização criado." }))
 
   } catch (error: unknown) {
     next(internalError(

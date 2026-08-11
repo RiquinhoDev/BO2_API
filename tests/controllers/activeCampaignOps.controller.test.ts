@@ -114,7 +114,7 @@ describe('ActiveCampaign operational boundary', () => {
     expect(sort).toHaveBeenCalledWith({ startedAt: -1 })
     expect(limit).toHaveBeenCalledWith(20)
     expect(response.status).toBe(200)
-    expect(response.body).toEqual({ success: true, logs })
+    expect(response.body).toEqual({ success: true, data: { logs } })
   })
 
   it('preserves the original central error when failed-run auditing also rejects', async () => {

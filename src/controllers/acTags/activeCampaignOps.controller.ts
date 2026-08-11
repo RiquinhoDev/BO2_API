@@ -8,6 +8,7 @@ import CronExecutionLog from '../../models/cron/CronExecutionLog'
 import decisionEngine from '../../services/activeCampaign/decisionEngine.service'
 import type { ActiveCampaignEmptyInput } from '../../security/activeCampaignDestructiveInput'
 import { internalError } from '../../security/errorHandling'
+import { successResponse } from '../../contracts/responseContract'
 import type { ValidatedRequest } from '../../security/validatedInput'
 import logger from '../../utils/logger'
 
@@ -178,7 +179,7 @@ export const testCron = async (
 export const getCronLogs: RequestHandler = async (_req, res, next) => {
   try {
     const logs = await CronExecutionLog.find().sort({ startedAt: -1 }).limit(20)
-    res.json({ success: true, logs })
+    res.json(successResponse({ logs }))
     return
   } catch (error: unknown) {
     next(internalError('Erro ao buscar cron logs', 'AC_CRON_LOGS_READ_FAILED', error))
