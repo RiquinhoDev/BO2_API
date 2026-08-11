@@ -63,10 +63,7 @@ export async function updateCourseLessonUrl(req: Request, res: Response, next: N
       return res.status(404).json({ message: 'Aula nao encontrada.' })
     }
 
-    res.json({
-      lesson,
-      message: 'Link da aula guardado com sucesso.'
-    })
+    res.json(successResponse({ lesson }, { message: 'Link da aula guardado com sucesso.' }))
   } catch (error: unknown) {
     next(internalError('Erro ao guardar link da aula.', 'COURSE_LESSON_UPDATE_FAILED', error))
   }

@@ -11,6 +11,7 @@ import type {
   ActiveCampaignTagMutationInput,
 } from '../../security/activeCampaignDestructiveInput'
 import { internalError } from '../../security/errorHandling'
+import { successResponse } from '../../contracts/responseContract'
 import type { ValidatedRequest } from '../../security/validatedInput'
 
 type PopulatedUser = {
@@ -256,15 +257,13 @@ export const getACStats: RequestHandler = async (_req, res, next) => {
       })
     )
 
-    res.json({
-      success: true,
-      data: stats,
+    res.json(successResponse(stats, {
       summary: {
         totalProducts: products.length,
-        totalUsersWithTags: stats.reduce((sum, s) => sum + s.totalUsersWithTags, 0),
-        totalUniqueTags: [...new Set(stats.flatMap(s => s.tagList))].length
+        totalUsersWithTags: stats.reduce((sum, stat) => sum + stat.totalUsersWithTags, 0),
+        totalUniqueTags: [...new Set(stats.flatMap(stat => stat.tagList))].length,
       },
-    })
+    }))
     return
   } catch (error: unknown) {
     next(internalError('Erro ao buscar estatísticas AC', 'AC_PRODUCT_TAG_STATS_READ_FAILED', error))

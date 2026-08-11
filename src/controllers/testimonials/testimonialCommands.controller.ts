@@ -13,6 +13,7 @@ import {
   updateTestimonialTagsOnCompletion
 } from '../../services/testimonials/testimonialTags.service'
 import { errorMessage } from '../../services/testimonials/controllerSupport'
+import { successResponse } from '../../contracts/responseContract'
 import logger from '../../utils/logger'
 
 type RequestCreated = {
@@ -93,11 +94,7 @@ export const createTestimonial = async (req: Request, res: Response, next: NextF
       logger.warn('Testimonial tag application failed', { studentId, status: 'partial' })
     }
 
-    res.status(201).json({
-      success: true,
-      message: 'Testemunho criado com sucesso',
-      testimonial
-    })
+    res.status(201).json(successResponse({ testimonial }, { message: 'Testemunho criado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro interno do servidor', 'TESTIMONIAL_CREATE_FAILED', error))
@@ -205,10 +202,9 @@ export const createTestimonialRequest = async (req: Request, res: Response, next
       }
     }
 
-    res.status(201).json({
+    res.status(201).json(successResponse({ results }, {
       message: `Processamento concluÃ­do: ${results.created.length} criados, ${results.skipped.length} ignorados, ${results.errors.length} erros`,
-      results
-    })
+    }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao criar solicitações', 'TESTIMONIAL_REQUEST_CREATE_FAILED', error))
@@ -280,10 +276,7 @@ export const updateTestimonialStatus = async (req: Request, res: Response, next:
 
     await testimonial.save()
 
-    res.json({
-      message: 'Testemunho atualizado com sucesso',
-      testimonial
-    })
+    res.json(successResponse({ testimonial }, { message: 'Testemunho atualizado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao atualizar testemunho', 'TESTIMONIAL_UPDATE_FAILED', error))
@@ -305,14 +298,13 @@ export const deleteTestimonial = async (
       return
     }
 
-    res.json({
-      message: 'Testemunho removido com sucesso',
+    res.json(successResponse({
       deletedTestimonial: {
         id: testimonial._id,
         studentName: testimonial.studentName,
-        status: testimonial.status
-      }
-    })
+        status: testimonial.status,
+      },
+    }, { message: 'Testemunho removido com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao remover testemunho', 'TESTIMONIAL_DELETE_FAILED', error))

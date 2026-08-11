@@ -1,6 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/controllers/tagRule.controller.ts
 // Controller CRUD para TagRules
+import { successResponse } from '../../contracts/responseContract'
 // ════════════════════════════════════════════════════════════
 
 import type { RequestHandler } from 'express'
@@ -24,11 +25,7 @@ export const getAllRules: RequestHandler = async (req, res, next) => {
       .populate('courseId', 'name code')
       .sort({ priority: -1, name: 1 })
 
-    res.json({
-      success: true,
-      count: rules.length,
-      data: rules
-    })
+    res.json(successResponse(rules, { count: rules.length }))
     return
   } catch (error: unknown) {
     next(internalError('Erro interno do servidor', 'TAG_RULE_LIST_FAILED', error))
@@ -153,10 +150,7 @@ export const deleteRule: RequestHandler = async (req, res, next) => {
 
     console.log(`🗑️ Regra desativada: ${rule.name}`)
 
-    res.json({
-      success: true,
-      message: 'Regra desativada com sucesso'
-    })
+    res.json(successResponse(null, { message: 'Regra desativada com sucesso' }))
     return
   } catch (error: unknown) {
     next(internalError('Erro interno do servidor', 'TAG_RULE_DELETE_FAILED', error))
@@ -186,10 +180,7 @@ export const testRule: RequestHandler = async (req, res, next) => {
     // (avaliar condições sem executar ações)
     void userId // só para não ficar "unused" se ainda não implementaste
 
-    res.json({
-      success: true,
-      message: 'Teste de regra (em desenvolvimento)'
-    })
+    res.json(successResponse(null, { message: 'Teste de regra (em desenvolvimento)' }))
     return
   } catch (error: unknown) {
     next(internalError('Erro interno do servidor', 'TAG_RULE_TEST_FAILED', error))

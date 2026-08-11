@@ -82,7 +82,7 @@ export async function createOffer(req: Request, res: Response, next: NextFunctio
       lastSeenAt: new Date()
     })
 
-    res.status(201).json({ offer })
+    res.status(201).json(successResponse({ offer }))
   } catch (error: unknown) {
     next(internalError('Erro ao criar oferta', 'RENEWAL_CREATE_FAILED', error))
   }
@@ -124,7 +124,7 @@ export async function updateOffer(req: Request, res: Response, next: NextFunctio
       return
     }
 
-    res.json({ offer })
+    res.json(successResponse({ offer }))
   } catch (error: unknown) {
     next(internalError('Erro ao actualizar oferta', 'RENEWAL_UPDATE_FAILED', error))
   }

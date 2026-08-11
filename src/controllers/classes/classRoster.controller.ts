@@ -67,15 +67,12 @@ export function createSearchStudentsController(service: Service): RequestHandler
       }
 
       const multiple = result.students.length > 1
-      const spread = multiple ? { students: result.students, total: result.total } : result.students[0]
-
-      res.json({
-        success: true,
+      res.json(successResponse({ students: result.students }, {
+        total: result.total,
         multiple,
-        message: multiple ? `Encontrados ${result.students.length} estudantes` : 'Estudante encontrado',
-        ...spread,
+        message: multiple ? 'Encontrados ' + result.students.length + ' estudantes' : 'Estudante encontrado',
         timestamp: result.timestamp,
-      })
+      }))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_STUDENT_SEARCH_FAILED', publicMessage: 'Erro ao pesquisar estudantes.', cause: error }))
     }
