@@ -16,6 +16,8 @@ export interface IACRenewalData extends Document {
   purchaseDate: Date | null // [Hotmart] Data da compra (AC field 334)
   firstPurchaseDate: Date | null // [Hotmart] Data da 1ª Compra (AC field 337)
   expirationDate: Date | null // [Hotmart] Data de expiração (AC field 332)
+  purchaseStatus: string | null // [Hotmart] Estado da compra (AC field 282) — ex: "Reembolsada"
+  refundDate: Date | null // [Hotmart] Data do reembolso (AC field 324)
 
   lastSyncedAt: Date
   syncError: string | null
@@ -33,6 +35,8 @@ const acRenewalDataSchema = new Schema<IACRenewalData>(
     purchaseDate: { type: Date, default: null },
     firstPurchaseDate: { type: Date, default: null },
     expirationDate: { type: Date, default: null },
+    purchaseStatus: { type: String, default: null },
+    refundDate: { type: Date, default: null, index: true },
 
     lastSyncedAt: { type: Date, required: true, default: Date.now, index: true },
     syncError: { type: String, default: null }

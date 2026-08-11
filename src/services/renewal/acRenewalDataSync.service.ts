@@ -20,8 +20,18 @@ import { activeCampaignService } from '../activeCampaign/activeCampaignService'
 export const AC_PURCHASE_DATE_FIELD_ID = Number(process.env.AC_PURCHASE_DATE_FIELD_ID || 334)
 export const AC_FIRST_PURCHASE_DATE_FIELD_ID = Number(process.env.AC_FIRST_PURCHASE_DATE_FIELD_ID || 337)
 export const AC_EXPIRATION_DATE_FIELD_ID = Number(process.env.RENEWAL_AC_EXPIRY_FIELD_ID || 332)
+// Explica muitos dos "sem data de expiração": reembolsados nunca tiveram
+// expiração escrita (não há renovação a marcar). Ler estes 2 também.
+export const AC_PURCHASE_STATUS_FIELD_ID = Number(process.env.AC_PURCHASE_STATUS_FIELD_ID || 282)
+export const AC_REFUND_DATE_FIELD_ID = Number(process.env.AC_REFUND_DATE_FIELD_ID || 324)
 
-const FIELD_IDS = [AC_PURCHASE_DATE_FIELD_ID, AC_FIRST_PURCHASE_DATE_FIELD_ID, AC_EXPIRATION_DATE_FIELD_ID]
+const FIELD_IDS = [
+  AC_PURCHASE_DATE_FIELD_ID,
+  AC_FIRST_PURCHASE_DATE_FIELD_ID,
+  AC_EXPIRATION_DATE_FIELD_ID,
+  AC_PURCHASE_STATUS_FIELD_ID,
+  AC_REFUND_DATE_FIELD_ID
+]
 
 export interface AcRenewalDataSyncReport {
   totalActiveStudents: number
@@ -129,6 +139,8 @@ export async function syncActiveStudentAcRenewalData(emails?: string[]): Promise
             purchaseDate: parseAcDate(result.values[AC_PURCHASE_DATE_FIELD_ID]),
             firstPurchaseDate: parseAcDate(result.values[AC_FIRST_PURCHASE_DATE_FIELD_ID]),
             expirationDate: parseAcDate(result.values[AC_EXPIRATION_DATE_FIELD_ID]),
+            purchaseStatus: result.values[AC_PURCHASE_STATUS_FIELD_ID]?.trim() || null,
+            refundDate: parseAcDate(result.values[AC_REFUND_DATE_FIELD_ID]),
             lastSyncedAt: new Date(),
             syncError: null
           }
