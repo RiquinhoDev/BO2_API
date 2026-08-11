@@ -8,6 +8,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { asyncRoute } from '../security/asyncRoute'
+import { successResponse } from '../contracts/responseContract'
 import { Router, type Request, type Response } from 'express'
 import { DiscordMessageLog, DiscordMessageTemplate, DiscordRoleChange } from '../models/discordRenewal'
 import CronJobConfig from '../models/SyncModels/CronJobConfig'
@@ -197,7 +198,8 @@ router.patch('/scheduled/:key', asyncRoute(async (req: Request, res: Response) =
 router.get('/scheduled/:key/preview', asyncRoute(async (req: Request, res: Response) => {
   const { previewScheduledRule } = await import('../services/renewal/discordScheduledMessages.service')
   const result = await previewScheduledRule(String(req.params.key))
-  res.status(result.success ? 200 : 404).json(result)
+  if (!result.success) return res.status(404).json(result)
+  res.json(successResponse({ preview: result.preview, target: result.target }))
 }))
 
 /** POST /api/discord-renewal/scheduled/:key/test — envia SEM menções (ninguém notificado) */
