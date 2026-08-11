@@ -8,7 +8,6 @@ import metricsRoutes from '../routes/metrics.routes'
 import productSalesStatsRoutes from '../routes/productSalesStats.routes'
 import activecampaignRoutes from '../routes/ACroutes/activecampaign.routes'
 import webhooksRoutes from '../routes/webhooks.routes'
-import healthRoutes from '../routes/health.routes'
 import validationLogsRoutes from '../routes/validationLogs.routes'
 import courseLessonsRoutes from '../routes/courseLessons.routes'
 import cronManagementRoutes from '../routes/cron/cronManagement.routes'
@@ -29,7 +28,6 @@ export const registerRoutes: RouteRegistrar = (app) => {
   app.use('/api/business-analytics', businessAnalyticsRoutes)
   app.use('/api/course-lessons', courseLessonsRoutes)
   app.use('/api/metrics', metricsRoutes)
-  app.use('/api', healthRoutes)
   app.use('/api/activecampaign', activecampaignRoutes)
   app.use('/api/webhooks', webhooksRoutes)
   app.use('/api/form', validationLogsRoutes)

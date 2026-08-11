@@ -888,7 +888,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/runtime/registerRoutes.ts:40"
+    "evidence": "consumer nao identificado; rota em src/runtime/registerRoutes.ts:38"
   },
   {
     "method": "GET",
@@ -2265,7 +2265,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "public: liveness sem credenciais; rota em src/routes/health.routes.ts:13"
+    "evidence": "public: liveness sem credenciais; rota em src/routes/index.ts:105"
   },
   {
     "method": "GET",
