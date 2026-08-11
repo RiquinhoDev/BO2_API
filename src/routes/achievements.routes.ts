@@ -59,7 +59,7 @@ router.post('/evaluate-all', asyncRoute(async (req: Request, res: Response, next
       errors: result.errors,
       durationMs: result.durationMs,
       avgPerUser: result.total > 0 ? Math.round(result.durationMs / result.total) : 0,
-    }, { message: 'AvaliaÃ§Ã£o de conquistas concluÃ­da' }))
+    }, { message: 'Avaliação de conquistas concluída' }))
   } catch (error: unknown) {
     next(internalError('Erro na avaliação em massa', 'ACHIEVEMENTS_EVALUATE_ALL_FAILED', error))
   }
