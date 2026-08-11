@@ -16,7 +16,7 @@ interface EnrollmentIdLean {
  */
 export class MongooseClassRosterReader implements ClassRosterReader {
   async getClassById(classId: string): Promise<ClassRosterSummary | null> {
-    return Class.findOne({ classId }).lean() as unknown as Promise<ClassRosterSummary | null>
+    return Class.findOne({ classId }).lean<ClassRosterSummary | null>()
   }
 
   async findCurseducaMemberIds(classId: string, includeInactive: boolean): Promise<unknown[]> {
@@ -30,24 +30,24 @@ export class MongooseClassRosterReader implements ClassRosterReader {
     return enrollments.map(enrollment => enrollment.userId)
   }
 
-  findStudents(filter: Filter, sort: Sort, limit: number, offset: number): Promise<RosterUser[]> {
+  async findStudents(filter: Filter, sort: Sort, limit: number, offset: number): Promise<RosterUser[]> {
     return User.find(filter)
       .sort(sort)
       .limit(limit)
       .skip(offset)
-      .lean() as unknown as Promise<RosterUser[]>
+      .lean<RosterUser[]>()
   }
 
   countStudents(filter: Filter): Promise<number> {
     return User.countDocuments(filter)
   }
 
-  searchStudents(query: Filter, limit: number, offset: number): Promise<RosterUser[]> {
+  async searchStudents(query: Filter, limit: number, offset: number): Promise<RosterUser[]> {
     return User.find(query)
       .limit(limit)
       .skip(offset)
       .sort({ name: 1, _id: 1 })
-      .lean() as unknown as Promise<RosterUser[]>
+      .lean<RosterUser[]>()
   }
 
   countSearch(query: Filter): Promise<number> {

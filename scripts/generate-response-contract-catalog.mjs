@@ -7,6 +7,7 @@ const ROOT = process.cwd()
 const ROUTE_CATALOG_PATH = process.env.RESPONSE_CONTRACT_ROUTE_CATALOG ?? path.join(ROOT, 'src', 'security', 'route-catalog.json')
 const RESPONSE_CATALOG_PATH = process.env.RESPONSE_CONTRACT_CATALOG ?? path.join(ROOT, 'src', 'contracts', 'response-contract-catalog.json')
 const FRONT_ROOT = process.env.RESPONSE_CONTRACT_FRONT_ROOT ?? path.resolve(ROOT, '..', 'Front')
+const FRONT_EXTRA_SOURCE = process.env.RESPONSE_CONTRACT_FRONT_EXTRA_SOURCE
 const FAMILIES = new Set(['success-data', 'domain-envelope', 'raw-json', 'no-content', 'redirect', 'stream-or-file'])
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete'])
 const TERMINAL_METHODS = new Set(['json', 'send', 'sendStatus', 'redirect', 'download', 'sendFile', 'writeHead', 'write', 'end'])
@@ -333,8 +334,9 @@ function initializerForIdentifier(checker, identifier) {
   return undefined
 }
 
-function shapesFromType(checker, expression) {
-  const type = checker.getTypeAtLocation(expression)
+function shapesFromType(checker, expression, suppliedType) {
+  const type = suppliedType ?? checker.getTypeAtLocation(expression)
+  if (!suppliedType && checker.getPromisedTypeOfPromise(type)) return []
   const members = type.isUnion() ? type.types : [type]
   const shapes = []
   for (const member of members) {
@@ -376,7 +378,25 @@ function shapesFromExpression(checker, expression, seen = new Set()) {
   seen.add(current)
 
   if (ts.isAwaitExpression(current)) {
-    return shapesFromExpression(checker, current.expression, seen)
+    const awaitedExpression = unwrapExpression(current.expression)
+    if (ts.isCallExpression(awaitedExpression)) {
+      const awaitedArgument = awaitedExpression.arguments[0]
+      if (awaitedArgument
+        && ts.isPropertyAccessExpression(awaitedExpression.expression)
+        && ts.isIdentifier(awaitedExpression.expression.expression)
+        && awaitedExpression.expression.expression.text === 'Promise'
+        && awaitedExpression.expression.name.text === 'resolve') {
+        return shapesFromExpression(checker, awaitedArgument, new Set(seen))
+      }
+      const producer = resolveFunction(checker, awaitedExpression.expression)
+      if (producer) {
+        const resolved = returnExpressions(producer).flatMap((returned) =>
+          shapesFromExpression(checker, returned, new Set(seen)))
+        return resolved
+      }
+    }
+    const awaited = checker.getAwaitedType(checker.getTypeAtLocation(current.expression))
+    return awaited ? shapesFromType(checker, current, awaited) : []
   }
   if (ts.isConditionalExpression(current)) {
     return [
@@ -703,13 +723,17 @@ function extractFrontCalls() {
   const config = ts.readConfigFile(configPath, ts.sys.readFile)
   if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'))
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, FRONT_ROOT)
+  const extraFiles = FRONT_EXTRA_SOURCE
+    ? (fs.statSync(FRONT_EXTRA_SOURCE).isDirectory() ? frontSourceFiles(FRONT_EXTRA_SOURCE) : [FRONT_EXTRA_SOURCE])
+    : []
   const program = ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options })
   const checker = program.getTypeChecker()
   const calls = []
-  for (const file of frontSourceFiles(srcRoot)) {
+  const unresolvedCalls = []
+  const files = [...new Set([...frontSourceFiles(srcRoot), ...extraFiles])]
+  for (const file of files) {
     const sourceFile = program.getSourceFile(file)
-    if (!sourceFile) throw new Error(`Front source is not in its TypeScript program: ${file}`)
-    const source = sourceFile.text
+      ?? ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
     const transports = frontTransportIdentifiers(sourceFile)
     if (transports.size === 0) continue
     const context = { ...frontDeclarations(sourceFile), bindings: new Map(), resolving: new Set(), checker }
@@ -726,12 +750,23 @@ function extractFrontCalls() {
           ? node.arguments[0].properties.find((property) =>
               ts.isPropertyAssignment(property) && property.name.getText(sourceFile) === 'url')?.initializer
           : node.arguments[0]
+        const line = sourceLine(sourceFile, node)
+        const fileName = slash(path.relative(FRONT_ROOT, file))
         const values = pathExpression ? frontPathValues(pathExpression, context).filter((value) => value.startsWith('/')) : []
+        if (values.length === 0) {
+          unresolvedCalls.push({
+            method,
+            expression: pathExpression?.getText(sourceFile) ?? node.arguments[0].getText(sourceFile),
+            file: fileName,
+            line,
+          })
+        }
         for (const value of values) {
           calls.push({
             method,
             path: value.split(/[?#]/)[0],
-            file: slash(path.relative(FRONT_ROOT, file)),
+            file: fileName,
+            line,
           })
         }
       }
@@ -739,7 +774,10 @@ function extractFrontCalls() {
     }
     visit(sourceFile)
   }
-  return [...new Map(calls.map((call) => [`${call.method}:${call.path}:${call.file}`, call])).values()]
+  return {
+    calls: [...new Map(calls.map((call) => [`${call.method}:${call.path}:${call.file}`, call])).values()],
+    unresolvedCalls,
+  }
 }
 
 function frontRouteMatches(call, route) {
@@ -753,25 +791,39 @@ function frontRouteMatches(call, route) {
       || segment === routeSegments[index])
 }
 
-let cachedFrontConsumers
-function frontConsumer(route, routes) {
-  if (!cachedFrontConsumers) {
-    cachedFrontConsumers = new Map()
-    for (const call of extractFrontCalls()) {
-      const matches = routes.filter((candidate) => frontRouteMatches(call, candidate))
-      const specificity = (candidate) => candidate.path.split('/').filter((segment) => segment && !segment.startsWith(':') && segment !== '*').length
-      const maximum = matches.reduce((current, candidate) => Math.max(current, specificity(candidate)), -1)
-      for (const match of matches.filter((candidate) => specificity(candidate) === maximum)) {
-        const key = identity(match)
-        const files = cachedFrontConsumers.get(key) ?? []
-        cachedFrontConsumers.set(key, [...new Set([...files, call.file])].sort())
-      }
+let cachedFrontSnapshot
+function frontSnapshot(routes) {
+  if (cachedFrontSnapshot) return cachedFrontSnapshot
+  const { calls, unresolvedCalls } = extractFrontCalls()
+  const consumers = new Map()
+  const unmatchedCalls = []
+  for (const call of calls) {
+    const matches = routes.filter((candidate) => frontRouteMatches(call, candidate))
+    if (matches.length === 0) {
+      unmatchedCalls.push(call)
+      continue
+    }
+    const specificity = (candidate) => candidate.path.split('/').filter((segment) => segment && !segment.startsWith(':') && segment !== '*').length
+    const maximum = matches.reduce((current, candidate) => Math.max(current, specificity(candidate)), -1)
+    for (const match of matches.filter((candidate) => specificity(candidate) === maximum)) {
+      const key = identity(match)
+      const files = consumers.get(key) ?? []
+      consumers.set(key, [...new Set([...files, call.file])].sort())
     }
   }
-  return cachedFrontConsumers.get(identity(route))?.[0] ?? null
+  const problems = [
+    ...unresolvedCalls.map((call) =>
+      `unresolved Front call: ${call.file}:${call.line}: ${call.method} ${call.expression}`),
+    ...unmatchedCalls.map((call) =>
+      `unmatched Front call: ${call.file}:${call.line}: ${call.method} ${call.path}`),
+  ].sort()
+  if (problems.length > 0) throw new Error(`Front contract scan failed:\n${problems.join('\n')}`)
+  cachedFrontSnapshot = { consumers, callCount: calls.length }
+  return cachedFrontSnapshot
 }
 
 function discoverDecisions(routes) {
+  const front = frontSnapshot(routes)
   const program = createProgram()
   const checker = program.getTypeChecker()
   const decisions = []
@@ -789,7 +841,7 @@ function discoverDecisions(routes) {
       if (!handler) throw new Error(`handler ${handlerExpression.getText(sourceFile)} is unresolved`)
       const result = inspectHandler(checker, handler)
       if (!result.decision) throw new Error(`${result.handler}: ${result.problems.join('; ')}`)
-      decisions.push({ method: route.method, path: route.path, ...result.decision, frontConsumer: frontConsumer(route, routes) })
+      decisions.push({ method: route.method, path: route.path, ...result.decision, frontConsumer: front.consumers.get(identity(route))?.[0] ?? null })
     } catch (error) {
       problems.push(`${identity(route)}: ${error instanceof Error ? error.message : String(error)}`)
     }
@@ -851,7 +903,7 @@ function driftMessages(reviewed, discovered) {
     })
     return reviewedContract === discoveredContract
       ? []
-      : [`${identity(decision)} differs from source-derived evidence`]
+      : [`${identity(decision)} differs from source-derived evidence: reviewed ${reviewedContract}; discovered ${discoveredContract}`]
   })
 }
 
@@ -864,19 +916,20 @@ function main() {
   validateExactMembership(routes, discovered)
 
   const drift = driftMessages(reviewed, discovered)
-  if (mode === '--check' && drift.length > 0) {
+  if (drift.length > 0) {
     throw new Error(`Response catalog drift:\n${drift.join('\n')}`)
   }
-  const expected = serialize(mode === '--write' ? discovered : reviewed)
+  const expected = serialize(reviewed)
   if (mode === '--write') {
     fs.writeFileSync(RESPONSE_CATALOG_PATH, expected, 'utf8')
-    process.stdout.write(`Updated ${discovered.length} reviewed response decisions by route identity.\n`)
+    process.stdout.write(`Retained ${reviewed.length} reviewed response decisions.\n`)
     return
   }
   if (fs.readFileSync(RESPONSE_CATALOG_PATH, 'utf8') !== expected) {
     throw new Error('Response catalog is not deterministically formatted; reviewer must run contracts:responses:update')
   }
-  process.stdout.write(`Response catalog is current (${reviewed.length} decisions).\n`)
+  const front = frontSnapshot(routes)
+  process.stdout.write(`Response catalog is current (${reviewed.length} decisions; ${front.callCount} Front calls; ${front.consumers.size} consumers).\n`)
 }
 try {
   main()
