@@ -169,9 +169,9 @@ describe('searchStudent — single and multiple results', () => {
       .expect(200)
 
     // Not wrapped: the single-result body IS the student object.
-    expect(response.body._id).toBe('user-1')
-    expect(response.body.multiple).toBeUndefined()
-    expect(response.body.students).toBeUndefined()
+    expect(response.body.data._id).toBe('user-1')
+    expect(response.body.meta?.multiple).toBeUndefined()
+    expect(response.body.meta).toBeUndefined()
   })
 
   test('wraps several matches in the multiple envelope', async () => {
@@ -183,10 +183,10 @@ describe('searchStudent — single and multiple results', () => {
       .get(`/users/search?name=Student&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.multiple).toBe(true)
-    expect(response.body.message).toBe('Encontrados 2 alunos')
-    expect(response.body.students).toHaveLength(2)
-    expect(response.body.students[0]._id).toBe('user-1')
+    expect(response.body.meta?.multiple).toBe(true)
+    expect(response.body.meta?.message).toBe('Encontrados 2 alunos')
+    expect(response.body.data).toHaveLength(2)
+    expect(response.body.data[0]._id).toBe('user-1')
   })
 
   test('queries the products of every matched user in one call', async () => {
@@ -228,7 +228,7 @@ describe('searchStudent — legacy field transformation', () => {
       .get(`/users/search?email=student@example.test&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body).toMatchObject({
+    expect(response.body.data).toMatchObject({
       discordIds: ['123'],
       status: 'ACTIVE',
       role: 'ADMIN',
@@ -263,10 +263,10 @@ describe('searchStudent — legacy field transformation', () => {
       .get(`/users/search?email=student@example.test&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.status).toBe('INACTIVE')
-    expect(response.body.isDeleted).toBe(true)
+    expect(response.body.data.status).toBe('INACTIVE')
+    expect(response.body.data.isDeleted).toBe(true)
     // `estado` reads combined.status only, so it disagrees with `status` here.
-    expect(response.body.estado).toBe('ativo')
+    expect(response.body.data.estado).toBe('ativo')
   })
 
   test('falls back through the access-date chain', async () => {
@@ -278,9 +278,9 @@ describe('searchStudent — legacy field transformation', () => {
       .get(`/users/search?email=student@example.test&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.lastAccessDate).toBe('2026-06-01')
+    expect(response.body.data.lastAccessDate).toBe('2026-06-01')
     // No `combined` means no progress block at all.
-    expect(response.body.progress).toBeUndefined()
+    expect(response.body.data.progress).toBeUndefined()
   })
 
   test('adds each product as a virtual class and indexes its ActiveCampaign tags', async () => {
@@ -302,7 +302,7 @@ describe('searchStudent — legacy field transformation', () => {
       .get(`/users/search?email=student@example.test&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.combined.allClasses).toEqual([
+    expect(response.body.data.combined.allClasses).toEqual([
       {
         classId: 'CLAREZA',
         className: 'Clareza',
@@ -312,7 +312,7 @@ describe('searchStudent — legacy field transformation', () => {
         role: 'student',
       },
     ])
-    expect(response.body.acTagsByProduct).toEqual({
+    expect(response.body.data.acTagsByProduct).toEqual({
       CLAREZA: {
         productCode: 'CLAREZA',
         productName: 'Clareza',
@@ -343,7 +343,7 @@ describe('searchStudent — legacy field transformation', () => {
       .get(`/users/search?email=student@example.test&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.combined.allClasses).toHaveLength(1)
+    expect(response.body.data.combined.allClasses).toHaveLength(1)
   })
 })
 

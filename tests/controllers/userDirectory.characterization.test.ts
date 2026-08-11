@@ -11,8 +11,8 @@ const getAllUsersUnified = extractedHandler as unknown as DirectoryHandler
 
 type DirectoryBody = {
   success: boolean
-  users: Array<{ email?: string; name?: string }>
-  pagination: { page: number; limit: number; total: number; pages: number }
+  data: Array<{ email?: string; name?: string }>
+  meta: { pagination: { page: number; limit: number; total: number; pages: number } }
 }
 
 type Captured = { status?: number; body?: DirectoryBody }
@@ -35,7 +35,7 @@ const request = (query: Record<string, unknown>): Request =>
   ({ query } as unknown as Request)
 
 const emailsOf = (body: DirectoryBody): string[] =>
-  body.users.map(user => user.email ?? '').sort()
+  body.data.map(user => user.email ?? '').sort()
 
 let mongoServer: MongoMemoryServer
 
@@ -81,7 +81,7 @@ describe('GET /api/users/unified — user directory characterization', () => {
     const body = captured.body as DirectoryBody
     expect(body.success).toBe(true)
     expect(emailsOf(body)).toEqual(['ana@example.test', 'bruno@example.test'])
-    expect(body.pagination).toEqual({ page: 1, limit: 1000, total: 2, pages: 1 })
+    expect(body.meta.pagination).toEqual({ page: 1, limit: 1000, total: 2, pages: 1 })
   })
 
   it('filters by active status', async () => {
@@ -130,8 +130,8 @@ describe('GET /api/users/unified — user directory characterization', () => {
     )
 
     const body = captured.body as DirectoryBody
-    expect(body.users).toHaveLength(1)
-    expect(body.pagination).toEqual({ page: 1, limit: 1, total: 2, pages: 2 })
+    expect(body.data).toHaveLength(1)
+    expect(body.meta.pagination).toEqual({ page: 1, limit: 1, total: 2, pages: 2 })
   })
 
   it('returns an empty listing when nothing matches', async () => {
@@ -140,8 +140,8 @@ describe('GET /api/users/unified — user directory characterization', () => {
 
     expect(captured.body).toEqual({
       success: true,
-      users: [],
-      pagination: { page: 1, limit: 1000, total: 0, pages: 0 },
+      data: [],
+      meta: { pagination: { page: 1, limit: 1000, total: 0, pages: 0 } },
     })
   })
 

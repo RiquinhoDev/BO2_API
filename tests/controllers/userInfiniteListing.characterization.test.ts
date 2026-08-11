@@ -69,13 +69,13 @@ describe('GET /api/users/infinite — infinite listing characterization', () => 
     expect(captured.status).toBe(200)
     const body = captured.body as Body
     expect(body.success).toBe(true)
-    expect(body.hasMore).toBe(false)
-    expect(body.users).toHaveLength(3)
+    expect(body.meta.hasMore).toBe(false)
+    expect(body.data).toHaveLength(3)
     expect(body.meta).toMatchObject({ limit: 50, returned: 3, preCalculated: false })
     // No cursor -> the estimated document count is used (counts even the deleted doc).
-    expect(body.totalCount).toBe(4)
-    expect(body.nextCursor).toBeTruthy()
-    expect(typeof body.timestamp).toBe('string')
+    expect(body.meta.totalCount).toBe(4)
+    expect(body.meta.nextCursor).toBeTruthy()
+    expect(typeof body.meta.timestamp).toBe('string')
     expect(cacheService.set).toHaveBeenCalledTimes(1)
   })
 
@@ -94,8 +94,8 @@ describe('GET /api/users/infinite — infinite listing characterization', () => 
 
     const body = captured.body as Body
     expect(body.meta.limit).toBe(10)
-    expect(body.users).toHaveLength(10)
-    expect(body.hasMore).toBe(true)
+    expect(body.data).toHaveLength(10)
+    expect(body.meta.hasMore).toBe(true)
   })
 
   it('serves a cache hit verbatim with fromCache flag and skips aggregation', async () => {
@@ -112,7 +112,7 @@ describe('GET /api/users/infinite — infinite listing characterization', () => 
     await getUsersInfinite(request({}), makeResponse(captured), jest.fn() as unknown as NextFunction)
 
     expect(captured.status).toBe(200)
-    expect(captured.body).toMatchObject({ success: true, fromCache: true })
+    expect(captured.body).toMatchObject({ success: true, meta: expect.objectContaining({ fromCache: true }) })
     expect(aggregate).not.toHaveBeenCalled()
   })
 

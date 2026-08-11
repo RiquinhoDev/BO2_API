@@ -294,7 +294,7 @@ describe('getUserProducts — characterization', () => {
       .expect(200)
 
     // Deliberate legacy behaviour: no 404 for an unknown user, always 200.
-    expect(response.body).toEqual({ success: true, data: [], count: 0 })
+    expect(response.body).toEqual({ success: true, data: [], meta: { count: 0 } })
   })
 
   test('queries by userId and populates product and user projections', async () => {
@@ -311,7 +311,7 @@ describe('getUserProducts — characterization', () => {
     expect(response.body).toEqual({
       success: true,
       data: [{ _id: 'up-1' }],
-      count: 1,
+      meta: { count: 1 },
     })
   })
 

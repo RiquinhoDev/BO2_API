@@ -99,7 +99,11 @@ describe('users V2 explicit resource controllers', () => {
       limit: 50,
       platform: 'hotmart',
     })
-    expect(response.body).toEqual(enrollmentResponse)
+    expect(response.body).toEqual({
+      success: true,
+      data: enrollmentResponse.data,
+      meta: { pagination: enrollmentResponse.pagination, filters: enrollmentResponse.filters },
+    })
   })
 
   it('preserves the exact overview analytics envelope', async () => {
@@ -136,7 +140,11 @@ describe('users V2 explicit resource controllers', () => {
         topPercentage: '10',
       },
     })
-    expect(response.body).toEqual(legacyResponse)
+    expect(response.body).toEqual({
+      success: true,
+      data: legacyResponse.data,
+      meta: { pagination: legacyResponse.pagination, filters: legacyResponse.filters },
+    })
   })
 
   it.each([
