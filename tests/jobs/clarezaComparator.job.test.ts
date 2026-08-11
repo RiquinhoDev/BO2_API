@@ -37,4 +37,22 @@ describe('Clareza comparator scheduled refresh', () => {
     expect(logError).toHaveBeenCalledWith('Clareza comparador refresh failed', { total: 0, errors: 1 })
     expect(JSON.stringify(logError.mock.calls)).not.toContain('secret token')
   })
+  it('continues after an earlier product failure and logs only aggregate failure metadata', async () => {
+    const calls: string[] = []
+    const logError = jest.fn()
+    const job = createClarezaJob({
+      refreshClarezaData: async () => { calls.push('market'); return { total: 3, errors: 0 } },
+      refreshClarezaTop10Data: async () => { calls.push('top10'); throw new Error('alice@example.test token=secret') },
+      refreshClarezaRaioxData: async () => { calls.push('raiox'); return { total: 1, errors: 0 } },
+      refreshClarezaCarteiraData: async () => { calls.push('carteira'); return { total: 4, errors: 0 } },
+      refreshClarezaEarningsData: async () => { calls.push('earnings'); return { total: 5, errors: 0 } },
+      refreshClarezaComparadorData: async () => { calls.push('comparador'); return { total: 6, errors: 0 } },
+      logger: { info: jest.fn(), error: logError },
+    })
+
+    await expect(job.run()).resolves.toEqual({ success: true, total: 3, errors: 0 })
+    expect(calls).toEqual(['market', 'top10', 'raiox', 'carteira', 'earnings', 'comparador'])
+    expect(logError).toHaveBeenCalledWith('Clareza Top10 refresh failed', { total: 0, errors: 1 })
+    expect(JSON.stringify(logError.mock.calls)).not.toMatch(/alice@example\.test|token=secret/)
+  })
 })
