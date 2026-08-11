@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import { classAnalyticsClassInput } from '../../security/classAnalyticsInput'
 import { HttpError } from '../../security/errorHandling'
 import type { ValidatedInputHandler } from '../../security/validatedInput'
@@ -20,11 +21,9 @@ export function createClassOpportunitiesController(
         return
       }
 
-      res.status(200).json({
-        success: true,
-        data: result.data,
+      res.status(200).json(successResponse(result.data, {
         timestamp: new Date(result.timestamp).toISOString(),
-      })
+      }))
     } catch (error) {
       next(new HttpError({
         status: 500,

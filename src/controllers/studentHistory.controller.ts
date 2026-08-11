@@ -4,6 +4,7 @@
 // ══════════════════════════════════════════════════════════════════════
 
 import { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import { forwardApplicationError } from '../security/forwardApplicationError'
 import mongoose from 'mongoose'
 import UserHistory from '../models/UserHistory'
@@ -87,28 +88,24 @@ export const getStudentHistory = async (req: Request<StudentHistoryParams>, res:
     // Agrupar por data para timeline
     const groupedHistory = groupHistoryByDate(history as any[])
 
-    return res.status(200).json({
-      success: true,
-      data: {
-        user: {
-          _id: userId,
-          email: user.email,
-          name: user.name
-        },
-        history,
-        groupedHistory,
-        pagination: {
-          total,
-          limit: limitNum,
-          offset: offsetNum,
-          hasMore: offsetNum + limitNum < total
-        }
+    return res.status(200).json(successResponse({
+      user: {
+        _id: userId,
+        email: user.email,
+        name: user.name
       },
-      meta: {
-        executionTime,
-        totalRecords: total
-      }
-    })
+      history,
+      groupedHistory,
+    }, {
+      pagination: {
+        total,
+        limit: limitNum,
+        offset: offsetNum,
+        hasMore: offsetNum + limitNum < total
+      },
+      executionTime,
+      totalRecords: total
+    }))
   } catch (error: unknown) {
     return forwardApplicationError(
       next,

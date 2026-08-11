@@ -106,16 +106,20 @@ describe('classComparison controller', () => {
       .get('/compare?classIds=class-a,missing&__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
+    const { cached, calculationDuration, lastUpdated, ...data } = comparisonData
     expect(response.body).toEqual({
       success: true,
-      data: comparisonData,
-      cached: false,
-      timestamp: new Date(1_025).toISOString(),
-      calculationDuration: 25,
+      data,
+      meta: {
+        cached,
+        timestamp: new Date(1_025).toISOString(),
+        calculationDuration,
+        lastUpdated,
+      },
     })
   })
 
-  it('preserves the cache-hit envelope and exposes cached inside data', async () => {
+  it('preserves the cache-hit envelope with cache state in meta', async () => {
     const cachedData = {
       ...comparisonData,
       cached: true,
@@ -129,12 +133,17 @@ describe('classComparison controller', () => {
       .get('/compare?classIds=class-a,missing&__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
+    const { cached, calculationDuration, lastUpdated, ...data } = cachedData
     expect(response.body).toEqual({
       success: true,
-      data: cachedData,
-      cached: true,
-      timestamp: new Date(1_025).toISOString(),
-      cacheAge: 30,
+      data,
+      meta: {
+        cached,
+        timestamp: new Date(1_025).toISOString(),
+        cacheAge: 30,
+        calculationDuration,
+        lastUpdated,
+      },
     })
   })
 

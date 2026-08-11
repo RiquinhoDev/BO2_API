@@ -69,12 +69,16 @@ describe('globalAnalytics controller', () => {
       .get('/global?__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
+    const { calculationDuration, lastUpdated, ...data } = populatedData
     expect(response.body).toEqual({
       success: true,
-      data: populatedData,
-      cached: false,
-      timestamp: new Date(1_010).toISOString(),
-      calculationDuration: 10,
+      data,
+      meta: {
+        cached: false,
+        timestamp: new Date(1_010).toISOString(),
+        calculationDuration,
+        lastUpdated,
+      },
     })
   })
 
@@ -88,16 +92,21 @@ describe('globalAnalytics controller', () => {
       .get('/global?__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
+    const { calculationDuration, lastUpdated, ...data } = populatedData
     expect(response.body).toEqual({
       success: true,
-      data: populatedData,
-      cached: true,
-      timestamp: new Date(1_010).toISOString(),
-      cacheAge: 30,
+      data,
+      meta: {
+        cached: true,
+        timestamp: new Date(1_010).toISOString(),
+        cacheAge: 30,
+        calculationDuration,
+        lastUpdated,
+      },
     })
   })
 
-  it('returns a complete empty data contract without synthetic metadata', async () => {
+  it('returns complete empty data with its explanation in meta', async () => {
     const emptyData: GlobalAnalyticsData = {
       totalClasses: 0,
       totalStudents: 0,
@@ -122,9 +131,11 @@ describe('globalAnalytics controller', () => {
       .get('/global?__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
+    const { message, ...data } = emptyData
     expect(response.body).toEqual({
       success: true,
-      data: emptyData,
+      data,
+      meta: { message },
     })
   })
 

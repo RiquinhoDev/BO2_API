@@ -87,7 +87,7 @@ describe('class opportunities controller', () => {
     expect(response.body).toEqual({
       success: true,
       data: opportunityData,
-      timestamp: '2026-07-29T13:00:00.000Z',
+      meta: { timestamp: '2026-07-29T13:00:00.000Z' },
     })
     expect(service.getForClass).toHaveBeenCalledWith('class-a')
   })

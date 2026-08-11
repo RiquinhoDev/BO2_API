@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import { globalAnalyticsInput } from '../../security/globalAnalyticsInput'
 import type { ValidatedInputHandler } from '../../security/validatedInput'
@@ -13,31 +14,30 @@ export function createGlobalAnalyticsController(
       const result = await service.get()
 
       if (result.cached) {
-        res.status(200).json({
-          success: true,
-          data: result.data,
+        const { calculationDuration, lastUpdated, ...data } = result.data
+        res.status(200).json(successResponse(data, {
           cached: true,
           timestamp: new Date(result.timestamp).toISOString(),
           cacheAge: result.cacheAge,
-        })
+          calculationDuration,
+          lastUpdated,
+        }))
         return
       }
 
       if (result.empty) {
-        res.status(200).json({
-          success: true,
-          data: result.data,
-        })
+        const { message, ...data } = result.data
+        res.status(200).json(successResponse(data, { message }))
         return
       }
 
-      res.status(200).json({
-        success: true,
-        data: result.data,
+      const { calculationDuration, lastUpdated, ...data } = result.data
+      res.status(200).json(successResponse(data, {
         cached: false,
         timestamp: new Date(result.timestamp).toISOString(),
-        calculationDuration: result.calculationDuration,
-      })
+        calculationDuration,
+        lastUpdated,
+      }))
     } catch (error) {
       next(new HttpError({
         status: 500,

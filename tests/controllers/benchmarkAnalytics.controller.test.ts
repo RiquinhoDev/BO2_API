@@ -97,10 +97,14 @@ describe('benchmark analytics controller', () => {
       .get('/benchmarks?__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
+    const { metadata, ...data } = populatedData
     expect(response.body).toEqual({
       success: true,
-      data: populatedData,
-      timestamp: '2026-07-29T10:00:00.025Z',
+      data,
+      meta: {
+        ...metadata,
+        timestamp: '2026-07-29T10:00:00.025Z',
+      },
     })
     expect(service.get).toHaveBeenCalledTimes(1)
   })
@@ -114,7 +118,7 @@ describe('benchmark analytics controller', () => {
       message: 'Nenhuma turma com dados válidos encontrada',
       totalClasses: 0,
     },
-  ])('preserves the empty response without synthetic metadata', async (data) => {
+  ])('moves the empty explanation into meta', async (data) => {
     const response = await request(createTestApp(fixedService({
       empty: true,
       data,
@@ -124,7 +128,8 @@ describe('benchmark analytics controller', () => {
     expect(response.status).toBe(200)
     expect(response.body).toEqual({
       success: true,
-      data,
+      data: { totalClasses: 0 },
+      meta: { message: data.message },
     })
   })
 
