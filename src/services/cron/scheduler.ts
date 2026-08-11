@@ -26,6 +26,7 @@ const ACHIEVEMENT_EVALUATION_JOB_NAME = 'AchievementEvaluation'
 const RENEWAL_AC_SYNC_JOB_NAME = 'RenewalAcSync'
 const DISCORD_ROLES_SYNC_JOB_NAME = 'DiscordRolesSync'
 const DISCORD_SCHEDULED_MESSAGES_JOB_NAME = 'DiscordScheduledMessages'
+const AC_EXPIRATION_SYNC_JOB_NAME = 'AcExpirationSync'
 const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('000000000000000000000001')
 
 // ─────────────────────────────────────────────────────────────
@@ -757,6 +758,42 @@ const job = await CronJobConfig.create({
     console.log('[DiscordScheduledMessages] Cron criado DESLIGADO (10:00 Lisboa, diário) — ligar manualmente na UI quando a feature for activada')
   }
 
+  /**
+   * Cron que escreve a "Data de expiração" na AC (único campo escrito —
+   * ver acExpirationSync.service.ts). Corre depois do Sync Hotmart e do
+   * Sync AC (leitura) para ter dados frescos para comparar. NASCE
+   * DESLIGADO; seed create-only — ligar é acção manual na UI, só depois
+   * de validar localmente (pedido explícito, 11/08/2026).
+   */
+  private async ensureAcExpirationSyncJob(): Promise<void> {
+    const existingJob = await CronJobConfig.findOne({ name: AC_EXPIRATION_SYNC_JOB_NAME })
+    if (existingJob) return
+
+    await CronJobConfig.create({
+      name: AC_EXPIRATION_SYNC_JOB_NAME,
+      description: 'Escreve a Data de expiração (AC field 332) para alunos cuja última compra na Hotmart (HotmartSaleHistory) ainda não está reflectida na AC (ACRenewalData.purchaseDate) — expiração = compra + 365 dias, arredondada ao 1º dia do mês seguinte. Nunca escreve para reembolsados. Só este campo é escrito.',
+      syncType: 'hotmart',
+      schedule: {
+        cronExpression: '0 8 * * *', // 08:00 Lisboa — depois do Sync Hotmart/AC (leitura)
+        timezone: 'Europe/Lisbon',
+        enabled: false // ⛔ nasce DESLIGADO — ligar é acção manual na UI
+      },
+      syncConfig: { fullSync: false, includeProgress: false, includeTags: false, batchSize: 100 },
+      tagRules: [],
+      tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
+      notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: true, recipients: [] },
+      retryPolicy: { maxRetries: 1, retryDelayMinutes: 30, exponentialBackoff: false },
+      nextRun: this.calculateNextRun('0 8 * * *'),
+      createdBy: SYSTEM_CRON_ADMIN_ID,
+      isActive: true,
+      totalRuns: 0,
+      successfulRuns: 0,
+      failedRuns: 0
+    })
+
+    console.log('[AcExpirationSync] Cron criado DESLIGADO (08:00 Lisboa) — ligar manualmente na UI depois de validar localmente')
+  }
+
   async initializeScheduler(): Promise<void> {
     console.log('🚀 Inicializando scheduler...')
 
@@ -768,6 +805,7 @@ const job = await CronJobConfig.create({
     await this.ensureRenewalAcSyncJob()
     await this.ensureDiscordRolesSyncJob()
     await this.ensureDiscordScheduledMessagesJob()
+    await this.ensureAcExpirationSyncJob()
 
     // Carregar todos os jobs ativos
     const activeJobs = await CronJobConfig.getActiveJobs()
@@ -973,6 +1011,20 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
         errors: (report.execution?.failed || 0) + (report.plan.anomalyAborted ? 1 : 0),
         skipped: report.plan.skippedDuplicates + (report.execution?.notInGuild || 0),
         errorMessage: report.plan.anomalyDetail
+      }
+
+    } else if (job.name.includes(AC_EXPIRATION_SYNC_JOB_NAME)) {
+      console.log('Executando: AcExpirationSync (escreve Data de expiração na AC)')
+      const { syncAcExpirationDates } = await import('../renewal/acExpirationSync.service')
+      const report = await syncAcExpirationDates()
+      result = {
+        success: true,
+        total: report.candidatesChecked,
+        inserted: 0,
+        updated: report.written,
+        errors: report.errors.length,
+        skipped: report.alreadyInSync + report.skippedRefunded + report.skippedNoContact + report.skippedNoHotmartData,
+        errorMessage: report.errors.map((e) => `${e.email}: ${e.error}`).join(' | ') || undefined
       }
 
     } else if (job.name.includes(RENEWAL_AC_SYNC_JOB_NAME)) {
