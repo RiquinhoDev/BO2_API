@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
-import { SyncType } from '../../../models/SyncModels/CronJobConfig'
-import type { ICondition, RuleCategory } from '../../../models/acTags/TagRule'
+import { SyncType } from '../../models/SyncModels/CronJobConfig'
+import type { ICondition, RuleCategory } from '../../models/acTags/TagRule'
 
 export type JobIdParams = {
   id: string

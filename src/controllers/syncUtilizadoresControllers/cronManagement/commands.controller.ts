@@ -4,7 +4,7 @@ import { TagRule } from '../../../models'
 import syncSchedulerService from '../../../services/cron/scheduler'
 import type { CronJobIdInput } from '../../../security/cronDestructiveInput'
 import { internalError } from '../../../security/errorHandling'
-import { type JobIdParams } from './support'
+import { type JobIdParams } from '../../../services/cron/controllerSupport'
 
 export const createJob = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

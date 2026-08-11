@@ -5,7 +5,7 @@ import GuruMonthlySnapshot from '../../models/GuruMonthlySnapshot'
 import User from '../../models/user'
 import { fetchSubscriptionsByMonth } from '../../services/guru/guruSync.service'
 import type { GuruEmptyInput, GuruSnapshotDeleteInput } from '../../security/guruDestructiveInput'
-import { type SnapshotPeriodParams, type SnapshotSubscription } from './support'
+import { type SnapshotPeriodParams, type SnapshotSubscription } from '../../services/guruSnapshots/controllerSupport'
 import { createSnapshotFromSubscriptions, isAnnualPlan, mapStatus, parseGuruDate } from './history.controller'
 
 function forwardGuruSnapshotError(

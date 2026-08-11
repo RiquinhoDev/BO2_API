@@ -2,7 +2,7 @@ import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
 import { fetchAllSubscriptionsComplete } from '../../services/guru/guruSync.service'
 import { computeChurnSeries } from '../../services/guru/guruChurn.service'
-import { forwardApplicationError } from '../forwardApplicationError'
+import { forwardApplicationError } from '../../security/forwardApplicationError'
 
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

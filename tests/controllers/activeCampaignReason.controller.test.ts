@@ -1,4 +1,4 @@
-import { buildReason } from '../../src/controllers/acTags/activeCampaignHistoryReason'
+import { buildReason } from '../../src/services/activeCampaign/historyReason'
 
 describe('ActiveCampaign communication reason', () => {
   it('does not render unknown inactivity as null days', () => {

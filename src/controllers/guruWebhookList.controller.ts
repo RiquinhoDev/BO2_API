@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import type { FilterQuery } from 'mongoose'
 import GuruWebhook, { type IGuruWebhook } from '../models/GuruWebhook'
-import { forwardApplicationError } from './forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 import { paginate } from '../utils/pagination'
 
 const GURU_WEBHOOK_PUBLIC_PROJECTION =

@@ -6,7 +6,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import StudentCompleteService from '../services/studentCompleteService'
 import { StudentNotFoundError, StudentDataFetchError } from '../types/studentComplete'
-import { forwardApplicationError } from './forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 
 // ═══════════════════════════════════════════════════════════════
 // GET /api/students/:userId/complete

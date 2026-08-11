@@ -5,7 +5,7 @@ import { Testimonial, ITestimonial } from '../../models/Testimonial'
 import {
   ensureTestimonialModel,
   queryString
-} from './testimonialControllerSupport'
+} from '../../services/testimonials/controllerSupport'
 
 type TestimonialStatus = ITestimonial['status']
 type StatusCount = { _id: TestimonialStatus; count: number }

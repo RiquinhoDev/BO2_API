@@ -103,14 +103,14 @@ jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
   default: { removeTag: jest.fn() },
 }))
 
-jest.mock('../../src/controllers/testimonials/testimonialTags.service', () => ({
+jest.mock('../../src/services/testimonials/testimonialTags.service', () => ({
   addTestimonialTagsToUser: jest.fn(),
   getTestimonialTags: jest.fn(),
   removeTestimonialTagsFromUser: jest.fn(),
   updateTestimonialTagsOnCompletion: jest.fn(),
 }))
 
-jest.mock('../../src/controllers/testimonials/testimonialControllerSupport', () => ({
+jest.mock('../../src/services/testimonials/controllerSupport', () => ({
   ensureTestimonialModel: () => mockTestimonialConstructor,
   errorMessage: (error: unknown) => error instanceof Error ? error.message : String(error),
   errorStack: (error: unknown) => error instanceof Error ? error.stack : undefined,

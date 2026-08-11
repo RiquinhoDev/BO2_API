@@ -11,8 +11,8 @@ import {
   getTestimonialTags,
   removeTestimonialTagsFromUser,
   updateTestimonialTagsOnCompletion
-} from './testimonialTags.service'
-import { errorMessage } from './testimonialControllerSupport'
+} from '../../services/testimonials/testimonialTags.service'
+import { errorMessage } from '../../services/testimonials/controllerSupport'
 import logger from '../../utils/logger'
 
 type RequestCreated = {

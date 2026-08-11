@@ -7,7 +7,7 @@
 import { Router } from 'express'
 import { asyncRoute } from '../../security/asyncRoute'
 import { localDebugOnly } from '../../security/debugRoutes'
-import { forwardApplicationError } from '../../controllers/forwardApplicationError'
+import { forwardApplicationError } from '../../security/forwardApplicationError'
 import { withValidatedInput } from '../../security/validatedInput'
 import {
   activeCampaignEmptyInput,

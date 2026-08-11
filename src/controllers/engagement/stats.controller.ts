@@ -1,6 +1,6 @@
 import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
-import { forwardEngagementError } from './support'
+import { forwardEngagementError } from '../../services/engagement/controllerSupport'
 
 export const getEngagementStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

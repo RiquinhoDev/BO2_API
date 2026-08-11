@@ -6,7 +6,7 @@ import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clarez
 import { getRaioxJson, searchRaiox, refreshClarezaRaioxData, diagnoseRaiox } from '../services/clareza/clarezaRaioxService'
 import { getClarezaCarteiraData, searchCarteira, refreshClarezaCarteiraData } from '../services/clareza/carteira/carteira.runtime'
 import { getClarezaEarningsData, refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
-import { forwardApplicationError } from './forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)

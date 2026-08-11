@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express'
 import mongoose from 'mongoose'
 import { SyncType } from '../../../models/SyncModels/CronJobConfig'
-import { type PopulatedTagRule, type CourseRuleGroup } from './support'
+import { type PopulatedTagRule, type CourseRuleGroup } from '../../../services/cron/controllerSupport'
 
 export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
   try {

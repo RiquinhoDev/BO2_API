@@ -1,5 +1,5 @@
 import { type NextFunction, Request, Response } from 'express'
-import { forwardApplicationError } from '../forwardApplicationError'
+import { forwardApplicationError } from '../../security/forwardApplicationError'
 import logger from '../../utils/logger'
 import axios from 'axios'
 import User, { type IUser } from '../../models/user'
@@ -7,7 +7,7 @@ import UserProduct from '../../models/UserProduct'
 import { GURU_CANCELED_STATUSES, CURSEDUCA_CANCELED_STATUSES, CURSEDUCA_ACTIVE_STATUSES, getEffectiveStatus, verifyCurseducaMemberStatus, type GuruDateInfo } from '../../services/guru/guru.constants'
 import { getOptionalCurseducaRuntimeSettings } from '../../services/requestDrivenRuntimeConfig'
 import { isCurseducaEnrollmentActive } from '../../services/syncUtilizadoresServices/curseducaServices/curseducaMemberships'
-import { type ClarezaComparisonData, type ComparisonRecord, type CurseducaMemberResponse } from './support'
+import { type ClarezaComparisonData, type ComparisonRecord, type CurseducaMemberResponse } from '../../services/guruAnalytics/controllerSupport'
 
 /**
  * Comparar cancelamentos entre Guru e Clareza (CursEduca)

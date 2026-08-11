@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 import { GURU_SSO_ALLOWED_STATUSES } from '../types/guru.types'
-import { forwardApplicationError } from './forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 import { paginate } from '../utils/pagination'
 
 const SUBSCRIPTION_PROJECTION = 'email name guru'

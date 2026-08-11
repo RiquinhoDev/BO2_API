@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 import type { SyncType } from '../../../models/SyncModels/CronJobConfig'
 import syncSchedulerService from '../../../services/cron/scheduler'
 import { internalError } from '../../../security/errorHandling'
-import { type JobIdParams, type LegacyCronConfig, type SystemJob, errorMessage } from './support'
+import { type JobIdParams, type LegacyCronConfig, type SystemJob, errorMessage } from '../../../services/cron/controllerSupport'
 
 export const getAllJobs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

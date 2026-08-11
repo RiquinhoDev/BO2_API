@@ -1,7 +1,7 @@
 import { type NextFunction, Request, Response } from 'express'
 import { FilterQuery, PipelineStage } from 'mongoose'
 import User, { IUser } from '../../models/user'
-import { type EngagementFacetResult, forwardEngagementError } from './support'
+import { type EngagementFacetResult, forwardEngagementError } from '../../services/engagement/controllerSupport'
 
 export const getUsersEngagementDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

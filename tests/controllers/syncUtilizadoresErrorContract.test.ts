@@ -4,7 +4,7 @@ import request from 'supertest'
 import { appForCentralError, expectCentralError } from '../support/centralErrorContract'
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import canonicalLogger from '../../src/utils/logger'
-import { SyncLogger } from '../../src/controllers/syncUtilizadoresControllers/curseduca/support'
+import { SyncLogger } from '../../src/services/curseducaServices/controllerSupport'
 
 jest.mock('../../src/utils/logger', () => {
   const actual = jest.requireActual<typeof import('../../src/utils/logger')>('../../src/utils/logger')
