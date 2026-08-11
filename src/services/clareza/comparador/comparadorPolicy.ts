@@ -8,6 +8,11 @@ import type {
 
 export type ComparadorPolicyErrorCode = 'EMPTY_SYMBOLS' | 'INVALID_LIMIT'
 
+const comparadorPolicyMessages: Readonly<Record<ComparadorPolicyErrorCode, string>> = {
+  EMPTY_SYMBOLS: 'Sem s\u00edmbolos v\u00e1lidos.',
+  INVALID_LIMIT: 'O limite de s\u00edmbolos tem de ser positivo.',
+}
+
 export class ComparadorPolicyError extends Error {
   readonly code: ComparadorPolicyErrorCode
 
@@ -16,6 +21,10 @@ export class ComparadorPolicyError extends Error {
     this.name = 'ComparadorPolicyError'
     this.code = code
   }
+}
+
+export function comparadorPolicyMessage(error: ComparadorPolicyError): string {
+  return comparadorPolicyMessages[error.code]
 }
 
 const MAX_SEARCH_RESULTS = 20
