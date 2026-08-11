@@ -2378,34 +2378,34 @@
   {
     "identity": "POST /api/auth/change-password",
     "owner": "src/controllers/auth.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/auth/login",
     "owner": "src/controllers/auth.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/contexts/AuthContext.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/auth/logout",
     "owner": "src/controllers/auth.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/auth/unlock",
     "owner": "src/controllers/auth.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/business-analytics/cache/invalidate",

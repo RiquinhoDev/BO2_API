@@ -2,6 +2,7 @@
 import { type NextFunction, Request, Response } from "express"
 import Admin from "../models/Admin"
 import { signAppToken } from '../security/jwt'
+import { successResponse } from '../contracts/responseContract'
 import { forwardApplicationError } from '../security/forwardApplicationError'
 
 const JWT_EXPIRES_IN = "7d"
@@ -89,20 +90,17 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       { expiresIn: JWT_EXPIRES_IN }
     )
 
-    res.json({
-      success: true,
+    res.json(successResponse({
       message: "Login realizado com sucesso",
-      data: {
-        token,
-        user: {
-          id: admin._id,
-          email: admin.email,
-          name: admin.name,
-          role: admin.role,
-          permissions: admin.permissions
-        }
+      token,
+      user: {
+        id: admin._id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
+        permissions: admin.permissions
       }
-    })
+    }))
   } catch (error: unknown) {
     forwardApplicationError(next, error, 'Erro ao fazer login', 'AUTH_LOGIN_FAILED')
   }
@@ -152,10 +150,9 @@ export const verify = async (req: Request, res: Response, next: NextFunction) =>
 }
 
 export const logout = async (req: Request, res: Response) => {
-  res.json({
-    success: true,
+  res.json(successResponse({
     message: "Logout realizado com sucesso"
-  })
+  }))
 }
 
 export const unlockAccount = async (req: Request, res: Response, next: NextFunction) => {
@@ -185,16 +182,13 @@ export const unlockAccount = async (req: Request, res: Response, next: NextFunct
     admin.lockUntil = undefined
     await admin.save()
 
-    res.json({
-      success: true,
+    res.json(successResponse({
       message: `Conta de ${admin.email} desbloqueada com sucesso`,
-      data: {
-        email: admin.email,
-        name: admin.name,
-        isLocked: admin.isLocked,
-        failedAttempts: admin.failedAttempts
-      }
-    })
+      email: admin.email,
+      name: admin.name,
+      isLocked: admin.isLocked,
+      failedAttempts: admin.failedAttempts
+    }))
   } catch (error: unknown) {
     forwardApplicationError(next, error, 'Erro ao desbloquear conta', 'AUTH_UNLOCK_FAILED')
   }
@@ -250,10 +244,9 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     admin.password = newPassword
     await admin.save()
 
-    res.json({
-      success: true,
+    res.json(successResponse({
       message: "Password alterada com sucesso"
-    })
+    }))
   } catch (error: unknown) {
     forwardApplicationError(next, error, 'Erro ao alterar password', 'AUTH_PASSWORD_CHANGE_FAILED')
   }
