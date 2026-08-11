@@ -126,7 +126,6 @@ export const getClarezaStudents: RequestHandler = async (_req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    logger.error('❌ [Clareza] Erro ao buscar alunos:', error)
     next(internalError('Erro ao buscar alunos', 'AC_CLAREZA_STUDENTS_READ_FAILED', error))
     return
   }
@@ -141,7 +140,6 @@ export const evaluateClarezaRules: RequestHandler = async (_req, res, next) => {
     res.json({ success: true, ...preview })
     return
   } catch (error: unknown) {
-    logger.error('❌ Erro ao pré-visualizar regras Clareza:', error)
     next(internalError('Erro ao pré-visualizar regras', 'AC_CLAREZA_RULES_PREVIEW_FAILED', error))
     return
   }
@@ -265,7 +263,6 @@ export const getOGIStudents: RequestHandler = async (_req, res, next) => {
     })
     return
   } catch (error: unknown) {
-    logger.error('❌ [OGI] Erro ao buscar alunos:', error)
     next(internalError('Erro ao buscar alunos', 'AC_OGI_STUDENTS_READ_FAILED', error))
     return
   }
@@ -280,7 +277,6 @@ export const evaluateOGIRules: RequestHandler = async (_req, res, next) => {
     res.json({ success: true, ...preview })
     return
   } catch (error: unknown) {
-    logger.error('❌ Erro ao pré-visualizar regras OGI:', error)
     next(internalError('Erro ao pré-visualizar regras', 'AC_OGI_RULES_PREVIEW_FAILED', error))
     return
   }

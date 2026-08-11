@@ -12,7 +12,6 @@ import type {
 } from '../../security/activeCampaignDestructiveInput'
 import { internalError } from '../../security/errorHandling'
 import type { ValidatedRequest } from '../../security/validatedInput'
-import logger from '../../utils/logger'
 
 type PopulatedUser = {
   _id: Types.ObjectId
@@ -123,7 +122,6 @@ export const applyTagToUserProduct = async (
     })
     return
   } catch (error: unknown) {
-    logger.error('[AC TAG APPLY ERROR]', error)
     next(internalError('Erro ao aplicar tag', 'AC_PRODUCT_TAG_APPLY_FAILED', error))
     return
   }
@@ -182,7 +180,6 @@ export const removeTagFromUserProduct = async (
     })
     return
   } catch (error: unknown) {
-    logger.error('[AC TAG REMOVE ERROR]', error)
     next(internalError('Erro ao remover tag', 'AC_PRODUCT_TAG_REMOVE_FAILED', error))
     return
   }

@@ -276,9 +276,11 @@ jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
   default: {},
 }))
 
+const mockLoggerError = jest.fn()
+
 jest.mock('../../src/utils/logger', () => ({
   __esModule: true,
-  default: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
+  default: { info: jest.fn(), error: mockLoggerError, warn: jest.fn() },
 }))
 import {
   batchSyncContacts,
@@ -770,11 +772,42 @@ describe('SEC-10 ActiveCampaign and tag-controller wave', () => {
     path,
   }) => {
     arrange()
-    const response = await request(appForCentralError(route))
+    const centralLogger = jest.fn()
+    const response = await request(appForCentralError(route, 'sec10-request', centralLogger))
       .post((path ?? '/target') + offline)
       .send(body ?? {})
 
     expectCentralError(response, expected)
+    expect(console.error).not.toHaveBeenCalled()
+    expect(mockLoggerError).not.toHaveBeenCalled()
+    expect(centralLogger).toHaveBeenCalledTimes(1)
+    expect(centralLogger).toHaveBeenCalledWith(expect.objectContaining({ correlationId: 'sec10-request' }))
+    expect(JSON.stringify(centralLogger.mock.calls)).not.toMatch(/alice@example\.test|token=hidden/)
+  })
+
+  it('keeps audit compensation but logs only safe metadata when the audit write fails', async () => {
+    const operation = operations.find(({ expected }) => expected.code === 'AC_MANUAL_EVALUATION_FAILED')
+    if (operation === undefined) {
+      throw new Error('ActiveCampaign manual evaluation fixture is missing')
+    }
+    operation.arrange()
+    mockCronExecutionLogCreate.mockRejectedValueOnce(secret)
+    const centralLogger = jest.fn()
+
+    const response = await request(appForCentralError(operation.route, 'sec10-request', centralLogger))
+      .post('/target' + offline)
+      .send({})
+
+    expectCentralError(response, operation.expected)
+    expect(mockCronExecutionLogCreate).toHaveBeenCalledTimes(2)
+    expect(mockCronExecutionLogCreate).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'failed' }))
+    expect(mockLoggerError).toHaveBeenCalledTimes(1)
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      'Falha ao registar auditoria da avaliação manual',
+      expect.objectContaining({ executionId: expect.any(String), status: 'failed' }),
+    )
+    expect(JSON.stringify(mockLoggerError.mock.calls)).not.toMatch(/alice@example\.test|token=hidden/)
+    expect(centralLogger).toHaveBeenCalledTimes(1)
   })
 })
 type Sec10BoundaryOperation = {

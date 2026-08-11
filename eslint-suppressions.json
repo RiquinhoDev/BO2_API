@@ -1,7 +1,7 @@
 {
   "src/controllers/acTags/acReader.controller.ts": {
     "no-console": {
-      "count": 8
+      "count": 4
     }
   },
   "src/controllers/acTags/tagRule.controller.ts": {
@@ -9,7 +9,7 @@
       "count": 1
     },
     "no-console": {
-      "count": 9
+      "count": 3
     }
   },
   "src/controllers/acTags/tagRuleEstimate.controller.ts": {
@@ -20,7 +20,7 @@
       "count": 2
     },
     "no-console": {
-      "count": 12
+      "count": 9
     }
   },
   "src/controllers/businessAnalytics.controller.ts": {
@@ -247,17 +247,17 @@
   },
   "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts": {
     "no-console": {
-      "count": 8
+      "count": 3
     }
   },
   "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts": {
     "no-console": {
-      "count": 13
+      "count": 9
     }
   },
   "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts": {
     "no-console": {
-      "count": 3
+      "count": 1
     }
   },
   "src/controllers/syncUtilizadoresControllers/cronManagement/tagRules.controller.ts": {
@@ -267,7 +267,7 @@
   },
   "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts": {
     "no-console": {
-      "count": 3
+      "count": 2
     }
   },
   "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts": {
@@ -285,15 +285,12 @@
       "count": 1
     },
     "no-console": {
-      "count": 6
+      "count": 3
     }
   },
   "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    },
-    "no-console": {
-      "count": 2
     }
   },
   "src/controllers/tagEvaluation.controller.ts": {

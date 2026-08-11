@@ -75,7 +75,6 @@ res.status(200).json({
 })
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao buscar sync:', error)
     next(internalError('Erro ao buscar sync', 'SYNC_HISTORY_READ_FAILED', error))
   }
 }
@@ -114,7 +113,6 @@ export const getSnapshotStats = async (req: Request, res: Response, next: NextFu
     })
 
   } catch (error: unknown) {
-    console.error('❌ Erro ao buscar estatísticas de snapshots:', error)
     next(internalError('Erro ao buscar estatísticas', 'SYNC_SNAPSHOT_STATS_FAILED', error))
   }
 }

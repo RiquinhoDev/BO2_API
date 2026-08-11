@@ -453,7 +453,6 @@ logger.info('✅ [HotmartUniversal] Stats atualizados!')
     })
 
   } catch (error: unknown) {
-    logger.error(`💥 [${syncRecord?._id}] ERRO CRÍTICO NA SINCRONIZAÇÃO:`, error)
 
     if (syncRecord) {
       await SyncHistory.findByIdAndUpdate(syncRecord._id, {

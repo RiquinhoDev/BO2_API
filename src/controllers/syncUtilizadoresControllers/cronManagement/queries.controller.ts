@@ -55,7 +55,6 @@ export const getAllJobs = async (req: Request, res: Response, next: NextFunction
     })
 
   } catch (error: unknown) {
-    console.error('�?� Erro ao buscar jobs:', error)
     next(internalError('Erro ao buscar jobs', 'CRON_JOB_LIST_FAILED', error))
   }
 }
@@ -110,7 +109,6 @@ export const getJobById = async (
     })
 
   } catch (error: unknown) {
-    console.error('�?� Erro ao buscar job:', error)
     next(internalError('Erro ao buscar job', 'CRON_JOB_READ_FAILED', error))
   }
 }

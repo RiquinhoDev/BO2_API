@@ -82,7 +82,6 @@ export const createJob = async (req: Request, res: Response, next: NextFunction)
     })
 
   } catch (error: unknown) {
-    console.error('�?� Erro ao criar job:', error)
     next(internalError('Erro ao criar job', 'CRON_JOB_CREATE_FAILED', error))
   }
 }
@@ -149,7 +148,6 @@ export const updateJob = async (
     })
 
   } catch (error: unknown) {
-    console.error('�?� Erro ao atualizar job:', error)
     next(internalError('Erro ao atualizar job', 'CRON_JOB_UPDATE_FAILED', error))
   }
 }
@@ -185,7 +183,6 @@ export const deleteJob = async (
     })
 
   } catch (error: unknown) {
-    console.error('�?� Erro ao deletar job:', error)
     next(internalError('Erro ao deletar job', 'CRON_JOB_DELETE_FAILED', error))
   }
 }
@@ -232,7 +229,6 @@ export const toggleJob = async (
     })
 
   } catch (error: unknown) {
-    console.error('�?� Erro ao toggle job:', error)
     next(internalError('Erro ao toggle job', 'CRON_JOB_TOGGLE_FAILED', error))
   }
 }
@@ -281,7 +277,6 @@ export const triggerJob = async (
     })
 
   } catch (error: unknown) {
-    console.error('�?� Erro ao executar job:', error)
     next(internalError('Erro ao executar job', 'CRON_JOB_TRIGGER_FAILED', error))
   }
 }
