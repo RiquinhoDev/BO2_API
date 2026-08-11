@@ -9,13 +9,166 @@
     "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:19"
   },
   {
-    "method": "POST",
-    "path": "/api/ac/contact/:email/sync",
+    "method": "DELETE",
+    "path": "/api/classes/:classId",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": true,
+    "evidence": "chamada do Front em <src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts>; rota em src/routes/classes.routes.ts:43"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/courses/:id",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:14"
+    "evidence": "consumer nao identificado; rota em src/routes/course.routes.ts:62"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/cron/jobs/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": true,
+    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>, <src/pages/gerirAlunos/hotmartSync/hooks/useDeleteJob.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:58"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/events/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": true,
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:159"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/guru/snapshots/:year/:month",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": true,
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:297"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/guru/snapshots/all",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": true,
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:279"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/product-profiles/:code",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:63"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/products/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:50"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/sync/history/clean",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:49"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-monitoring/critical-tags/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:24"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-monitoring/critical-tags/:id/permanent",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/tagMonitoring.routes.ts:27"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-monitoring/notifications/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": true,
+    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts>; rota em src/routes/tagMonitoring.routes.ts:77"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-rules/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/tagRule.routes.ts:52"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/testimonials/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": true,
+    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:57"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/:id",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:326"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/idsDiferentes/:id",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:320"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/student/:id",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:332"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/unmatchedUsers/:id",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:314"
   },
   {
     "method": "GET",
@@ -27,24 +180,6 @@
     "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/acReader.routes.ts:13"
   },
   {
-    "method": "POST",
-    "path": "/api/ac/contacts/batch-sync",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:17"
-  },
-  {
-    "method": "POST",
-    "path": "/api/ac/contacts/batch-tags",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:16"
-  },
-  {
     "method": "GET",
     "path": "/api/achievements/definitions",
     "access": "authenticated",
@@ -52,33 +187,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:19"
-  },
-  {
-    "method": "POST",
-    "path": "/api/achievements/evaluate-all",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:46"
-  },
-  {
-    "method": "POST",
-    "path": "/api/achievements/evaluate/:email",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:23"
-  },
-  {
-    "method": "POST",
-    "path": "/api/achievements/mark-seen",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:68"
   },
   {
     "method": "GET",
@@ -96,16 +204,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:110"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/courses/clareza/evaluate",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:79"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:89"
   },
   {
     "method": "GET",
@@ -114,16 +213,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:76"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/courses/ogi/evaluate",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:85"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:67"
   },
   {
     "method": "GET",
@@ -132,7 +222,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:82"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:71"
   },
   {
     "method": "GET",
@@ -141,7 +231,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:60"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:51"
   },
   {
     "method": "GET",
@@ -150,7 +240,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:136"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:115"
   },
   {
     "method": "GET",
@@ -159,7 +249,25 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:111"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:90"
+  },
+  {
+    "method": "GET",
+    "path": "/api/activecampaign/product-tags/stats",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:105"
+  },
+  {
+    "method": "GET",
+    "path": "/api/activecampaign/products/:productId/tagged",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:102"
   },
   {
     "method": "GET",
@@ -168,97 +276,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:68"
-  },
-  {
-    "method": "GET",
-    "path": "/api/activecampaign/tag-rules",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:93"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/tag-rules",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:96"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/activecampaign/tag-rules/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": true,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:102"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/activecampaign/tag-rules/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:99"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/test-cron",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:57"
-  },
-  {
-    "method": "GET",
-    "path": "/api/activecampaign/v2/products/:productId/tagged",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:123"
-  },
-  {
-    "method": "GET",
-    "path": "/api/activecampaign/v2/stats",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:126"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/v2/sync/:productId",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:129"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/v2/tag/apply",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:117"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/v2/tag/remove",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:120"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:59"
   },
   {
     "method": "GET",
@@ -313,24 +331,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:94"
-  },
-  {
-    "method": "POST",
-    "path": "/api/analytics/class/:classId/recalculate",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:39"
-  },
-  {
-    "method": "POST",
-    "path": "/api/analytics/class/:classId/recalculate-individual",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "wrapper/hook sem caller de componente no Front em <src/features/analytics/analytics.api.ts>, <src/features/analytics/hooks/useAnalyticsController.ts>; rota em src/routes/analytics.routes.ts:48"
   },
   {
     "method": "GET",
@@ -414,15 +414,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/productSalesStats.routes.ts:29"
   },
   {
-    "method": "POST",
-    "path": "/api/analytics/product-sales/compare",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productSalesStats.routes.ts:40"
-  },
-  {
     "method": "GET",
     "path": "/api/analytics/product-sales/period",
     "access": "authenticated",
@@ -432,51 +423,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/productSalesStats.routes.ts:26"
   },
   {
-    "method": "POST",
-    "path": "/api/analytics/product-sales/rebuild",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/productSalesStats.routes.ts:36"
-  },
-  {
-    "method": "POST",
-    "path": "/api/auth/change-password",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:18"
-  },
-  {
-    "method": "POST",
-    "path": "/api/auth/login",
-    "access": "public",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "public: entrada necessaria para obter JWT; chamada do Front em <src/contexts/AuthContext.tsx>; rota em src/routes/auth.routes.ts:10"
-  },
-  {
-    "method": "POST",
-    "path": "/api/auth/logout",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:14"
-  },
-  {
-    "method": "POST",
-    "path": "/api/auth/unlock",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:17"
-  },
-  {
     "method": "GET",
     "path": "/api/auth/verify",
     "access": "authenticated",
@@ -484,15 +430,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/contexts/AuthContext.tsx>; rota em src/routes/auth.routes.ts:13"
-  },
-  {
-    "method": "POST",
-    "path": "/api/business-analytics/cache/invalidate",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/hooks/Usebusinessanalytics.ts>; rota em src/routes/businessAnalytics.routes.ts:36"
   },
   {
     "method": "GET",
@@ -540,15 +477,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:37"
   },
   {
-    "method": "POST",
-    "path": "/api/clareza/carteira/refresh",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:39"
-  },
-  {
     "method": "GET",
     "path": "/api/clareza/comparador",
     "access": "public",
@@ -574,15 +502,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:41"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/earnings/refresh",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:42"
   },
   {
     "method": "GET",
@@ -621,33 +540,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:30"
   },
   {
-    "method": "POST",
-    "path": "/api/clareza/raiox/refresh",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:33"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/comparador/refresh",
-    "access": "authenticated",
-    "consumer": "externo",
-    "writes": true,
-    "destructive": false,
-    "evidence": "Backoffice/HTML Clareza externo; rota em src/routes/clareza.routes.ts:44"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/refresh",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:11"
-  },
-  {
     "method": "GET",
     "path": "/api/clareza/reit-valuation/:ticker",
     "access": "authenticated",
@@ -684,15 +576,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:19"
   },
   {
-    "method": "POST",
-    "path": "/api/clareza/top10/refresh",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:22"
-  },
-  {
     "method": "GET",
     "path": "/api/classes",
     "access": "authenticated",
@@ -700,15 +583,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/features/inactivation/inactivation.api.ts>, <src/features/testimonials/testimonials.api.ts>, <src/services/api.ts>; rota em src/routes/classes.routes.ts:13"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/classes/:classId",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": true,
-    "evidence": "chamada do Front em <src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts>; rota em src/routes/classes.routes.ts:43"
   },
   {
     "method": "GET",
@@ -738,24 +612,6 @@
     "evidence": "chamada do Front em <src/pages/gerirAlunos/turmas/components/StudentsDialog.tsx>, <src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts>; rota em src/routes/classes.routes.ts:37"
   },
   {
-    "method": "POST",
-    "path": "/api/classes/addOrEditClass",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts>, <src/pages/gerirAlunos/turmas/hooks/useWizard.ts>; rota em src/routes/classes.routes.ts:19"
-  },
-  {
-    "method": "POST",
-    "path": "/api/classes/checkAndUpdateClassHistory",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classes.routes.ts:66"
-  },
-  {
     "method": "GET",
     "path": "/api/classes/fetchClassData",
     "access": "authenticated",
@@ -763,15 +619,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/classes.routes.ts:25"
-  },
-  {
-    "method": "POST",
-    "path": "/api/classes/fetchClassData",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/inactivation/inactivation.api.ts>; rota em src/routes/classes.routes.ts:28"
   },
   {
     "method": "GET",
@@ -792,24 +639,6 @@
     "evidence": "chamada do Front em <src/features/inactivation/inactivation.api.ts>; rota em src/routes/classes.routes.ts:80"
   },
   {
-    "method": "POST",
-    "path": "/api/classes/inactivationLists/create",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/inactivation/inactivation.api.ts>; rota em src/routes/classes.routes.ts:77"
-  },
-  {
-    "method": "POST",
-    "path": "/api/classes/inactivationLists/revert/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/inactivation/inactivation.api.ts>; rota em src/routes/classes.routes.ts:83"
-  },
-  {
     "method": "GET",
     "path": "/api/classes/listClasses",
     "access": "authenticated",
@@ -817,24 +646,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/components/analytics/analytics/ClassAnalyticsTab.tsx>, <src/features/inactivation/inactivation.api.ts>, <src/features/testimonials/testimonials.api.ts>, <src/hooks/useClasses.ts>, <src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts>; rota em src/routes/classes.routes.ts:16"
-  },
-  {
-    "method": "POST",
-    "path": "/api/classes/moveMultipleStudents",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classes.routes.ts:55"
-  },
-  {
-    "method": "POST",
-    "path": "/api/classes/moveStudent",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classes.routes.ts:52"
   },
   {
     "method": "GET",
@@ -864,33 +675,6 @@
     "evidence": "chamada do Front em <src/pages/gerirAlunos/turmas/components/ClassHistoryDialog.tsx>, <src/pages/gerirAlunos/turmas/components/StudentsDialog.tsx>, <src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts>; rota em src/routes/classes.routes.ts:72"
   },
   {
-    "method": "POST",
-    "path": "/api/classes/syncComplete",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/components/analytics/analytics/ClassAnalyticsTab.tsx>; rota em src/routes/classes.routes.ts:92"
-  },
-  {
-    "method": "POST",
-    "path": "/api/classes/syncHotmartClasses",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts>; rota em src/routes/classes.routes.ts:22"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/classes/updateStatus",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/inactivation/inactivation.api.ts>, <src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts>; rota em src/routes/classes.routes.ts:34"
-  },
-  {
     "method": "GET",
     "path": "/api/classes/users/search",
     "access": "authenticated",
@@ -906,7 +690,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/runtime/registerRoutes.ts:38"
+    "evidence": "consumer nao identificado; rota em src/runtime/registerRoutes.ts:27"
   },
   {
     "method": "GET",
@@ -918,24 +702,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/courseLessons.routes.ts:10"
   },
   {
-    "method": "PUT",
-    "path": "/api/course-lessons/:pageId",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/courseLessons.routes.ts:11"
-  },
-  {
-    "method": "POST",
-    "path": "/api/course-lessons/sync",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/courseLessons.routes.ts:12"
-  },
-  {
     "method": "GET",
     "path": "/api/courses",
     "access": "authenticated",
@@ -943,24 +709,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/course.routes.ts:34"
-  },
-  {
-    "method": "POST",
-    "path": "/api/courses",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/course.routes.ts:48"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/courses/:id",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/course.routes.ts:62"
   },
   {
     "method": "GET",
@@ -972,24 +720,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/course.routes.ts:41"
   },
   {
-    "method": "PUT",
-    "path": "/api/courses/:id",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/course.routes.ts:55"
-  },
-  {
-    "method": "POST",
-    "path": "/api/courses/clareza/evaluate",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/course.routes.ts:80"
-  },
-  {
     "method": "GET",
     "path": "/api/courses/clareza/students",
     "access": "authenticated",
@@ -997,15 +727,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/course.routes.ts:73"
-  },
-  {
-    "method": "POST",
-    "path": "/api/courses/ogi/evaluate",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/course.routes.ts:94"
   },
   {
     "method": "GET",
@@ -1028,46 +749,13 @@
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
   {
-    "method": "PUT",
-    "path": "/api/cron-tags/config",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:24",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron-tags/execute",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:29",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron-tags/execute-legacy",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:34",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
-  },
-  {
     "method": "GET",
     "path": "/api/cron-tags/history",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:39",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:34",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -1078,7 +766,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:49",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:44",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -1089,24 +777,13 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:44",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:39",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
   {
     "method": "GET",
     "path": "/api/cron-tags/status",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:59",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron-tags/validate",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
@@ -1125,24 +802,6 @@
     "evidence": "chamada do Front em <src/features/cron/cron.api.ts>, <src/pages/gerirAlunos/hotmartSync/hooks/useSyncJobs.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:28"
   },
   {
-    "method": "POST",
-    "path": "/api/cron/jobs",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>, <src/pages/gerirAlunos/hotmartSync/hooks/useCreateJob.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:43"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/cron/jobs/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": true,
-    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>, <src/pages/gerirAlunos/hotmartSync/hooks/useDeleteJob.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:58"
-  },
-  {
     "method": "GET",
     "path": "/api/cron/jobs/:id",
     "access": "authenticated",
@@ -1152,15 +811,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:35"
   },
   {
-    "method": "PUT",
-    "path": "/api/cron/jobs/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:51"
-  },
-  {
     "method": "GET",
     "path": "/api/cron/jobs/:id/history",
     "access": "authenticated",
@@ -1168,24 +818,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/features/cron/cron.api.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:89"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron/jobs/:id/toggle",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>, <src/pages/gerirAlunos/hotmartSync/hooks/useToggleJob.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:70"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron/jobs/:id/trigger",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": true,
-    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>, <src/pages/gerirAlunos/hotmartSync/hooks/useExecuteJob.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:77"
   },
   {
     "method": "GET",
@@ -1206,31 +838,13 @@
     "evidence": "chamada do Front em <src/features/cron/cron.api.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:110"
   },
   {
-    "method": "POST",
-    "path": "/api/cron/tag-rules-only",
+    "method": "GET",
+    "path": "/api/curseduca/catalog/stats",
     "access": "authenticated",
     "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:118"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron/validate",
-    "access": "authenticated",
-    "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:101"
-  },
-  {
-    "method": "POST",
-    "path": "/api/curseduca/cleanup",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:55"
+    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:37"
   },
   {
     "method": "GET",
@@ -1239,43 +853,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:39"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/debug",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:50"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/groups",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:43"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/members",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:44"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/members/by",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:45"
+    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:27"
   },
   {
     "method": "GET",
@@ -1284,7 +862,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:71"
+    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:38"
   },
   {
     "method": "GET",
@@ -1293,7 +871,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:72"
+    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:39"
   },
   {
     "method": "GET",
@@ -1302,25 +880,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:73"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/report",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:53"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/reports/access",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:46"
+    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:40"
   },
   {
     "method": "GET",
@@ -1329,7 +889,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:70"
+    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:28"
   },
   {
     "method": "GET",
@@ -1338,7 +898,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:80"
+    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:45"
   },
   {
     "method": "GET",
@@ -1347,7 +907,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/GuruDashboard.tsx>; rota em src/routes/curseduca.routes.ts:84"
+    "evidence": "chamada do Front em <src/pages/guru/GuruDashboard.tsx>; rota em src/routes/curseduca.routes.ts:49"
   },
   {
     "method": "GET",
@@ -1356,7 +916,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:79"
+    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:44"
   },
   {
     "method": "GET",
@@ -1365,34 +925,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/GuruDashboard.tsx>; rota em src/routes/curseduca.routes.ts:83"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/user",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:54"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/curseduca/user/:userId/classes",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:62"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/users",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:47"
+    "evidence": "chamada do Front em <src/pages/guru/GuruDashboard.tsx>; rota em src/routes/curseduca.routes.ts:48"
   },
   {
     "method": "GET",
@@ -1401,16 +934,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:61"
-  },
-  {
-    "method": "POST",
-    "path": "/api/dashboard/compare",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:57"
+    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:30"
   },
   {
     "method": "GET",
@@ -1420,6 +944,15 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:48"
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboard/materialized-stats",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/dashboard/DashboardMainPage.tsx>, <src/services/api.ts>; rota em src/routes/dashboardRoutes.ts:68"
   },
   {
     "method": "GET",
@@ -1477,48 +1010,12 @@
   },
   {
     "method": "GET",
-    "path": "/api/dashboard/stats/v3",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/dashboard/DashboardMainPage.tsx>, <src/services/api.ts>; rota em src/routes/dashboardRoutes.ts:68"
-  },
-  {
-    "method": "POST",
-    "path": "/api/dashboard/stats/v3/rebuild",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/dashboardRoutes.ts:74"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/approve",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:81"
-  },
-  {
-    "method": "GET",
     "path": "/api/discord-renewal/changes",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:50"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/execute",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:95"
   },
   {
     "method": "GET",
@@ -1530,33 +1027,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:167"
   },
   {
-    "method": "POST",
-    "path": "/api/discord-renewal/messages/preview",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:145"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/messages/send",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:153"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/plan",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:75"
-  },
-  {
     "method": "GET",
     "path": "/api/discord-renewal/scheduled",
     "access": "authenticated",
@@ -1566,15 +1036,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:178"
   },
   {
-    "method": "PATCH",
-    "path": "/api/discord-renewal/scheduled/:key",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:189"
-  },
-  {
     "method": "GET",
     "path": "/api/discord-renewal/scheduled/:key/preview",
     "access": "authenticated",
@@ -1582,24 +1043,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:197"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/scheduled/:key/test",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:204"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/scheduled/run",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:211"
   },
   {
     "method": "GET",
@@ -1618,51 +1061,6 @@
     "writes": true,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:110"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/discord-renewal/templates/:key",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:117"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discovery/configure",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discovery.routes.ts:31"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discovery/generate-config",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discovery.routes.ts:23"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discovery/run",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discovery.routes.ts:15"
-  },
-  {
-    "method": "POST",
-    "path": "/api/engagement/engagement/cache/clear",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/engagement.routes.ts:30"
   },
   {
     "method": "GET",
@@ -1710,24 +1108,6 @@
     "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:103"
   },
   {
-    "method": "POST",
-    "path": "/api/events",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:129"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/events/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": true,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:159"
-  },
-  {
     "method": "GET",
     "path": "/api/events/:id",
     "access": "authenticated",
@@ -1735,60 +1115,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:44"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/events/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:146"
-  },
-  {
-    "method": "POST",
-    "path": "/api/events/:id/interest",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:62"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/events/:id/status",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:172"
-  },
-  {
-    "method": "POST",
-    "path": "/api/events/seed",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:234"
-  },
-  {
-    "method": "POST",
-    "path": "/api/events/types",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:211"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/events/types/:id",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:221"
   },
   {
     "method": "GET",
@@ -1899,51 +1225,6 @@
     "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:153"
   },
   {
-    "method": "POST",
-    "path": "/api/guru/inactivation/bulk",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": true,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:334"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/cleanup",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:360"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/cleanup-duplicates",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:388"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/diagnose",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:374"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/fix-to-active",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:367"
-  },
-  {
     "method": "GET",
     "path": "/api/guru/inactivation/inactive",
     "access": "authenticated",
@@ -1953,24 +1234,6 @@
     "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:320"
   },
   {
-    "method": "POST",
-    "path": "/api/guru/inactivation/mark-discrepancies",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:348"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/mark-stale-inactive",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:402"
-  },
-  {
     "method": "GET",
     "path": "/api/guru/inactivation/pending",
     "access": "authenticated",
@@ -1978,42 +1241,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:307"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/quarantine",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:381"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/restore",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:395"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/revert",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:341"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/single",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": true,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:327"
   },
   {
     "method": "GET",
@@ -2043,24 +1270,6 @@
     "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:266"
   },
   {
-    "method": "POST",
-    "path": "/api/guru/snapshots",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:253"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/guru/snapshots/:year/:month",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": true,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:297"
-  },
-  {
     "method": "GET",
     "path": "/api/guru/snapshots/:year/:month",
     "access": "authenticated",
@@ -2070,24 +1279,6 @@
     "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:285"
   },
   {
-    "method": "PUT",
-    "path": "/api/guru/snapshots/:year/:month",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:291"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/guru/snapshots/all",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": true,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:279"
-  },
-  {
     "method": "GET",
     "path": "/api/guru/snapshots/churn",
     "access": "authenticated",
@@ -2095,15 +1286,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:272"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/snapshots/historical",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:260"
   },
   {
     "method": "GET",
@@ -2187,33 +1369,6 @@
     "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:413"
   },
   {
-    "method": "POST",
-    "path": "/api/guru/trials/check-expired",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:425"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/trials/inactivate",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:445"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/trials/revert",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:438"
-  },
-  {
     "method": "GET",
     "path": "/api/guru/trials/stats",
     "access": "authenticated",
@@ -2221,24 +1376,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:419"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/trials/sync",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:431"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/webhook",
-    "access": "signature",
-    "consumer": "webhook:guru",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer webhook:guru; autenticacao por assinatura; rota em src/routes/guru.routes.ts:91"
   },
   {
     "method": "GET",
@@ -2250,15 +1387,6 @@
     "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:134"
   },
   {
-    "method": "POST",
-    "path": "/api/guru/webhooks/:id/reprocess",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:159"
-  },
-  {
     "method": "GET",
     "path": "/api/guru/webhooks/grouped-by-month",
     "access": "authenticated",
@@ -2266,15 +1394,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:127"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/webhooks/migrate-source",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:165"
   },
   {
     "method": "GET",
@@ -2287,61 +1406,25 @@
   },
   {
     "method": "GET",
-    "path": "/api/hotmart/sync/compare",
+    "path": "/api/hotmart/products",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:31"
+    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:35"
   },
   {
     "method": "GET",
-    "path": "/api/hotmart/sync/universal",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:29"
-  },
-  {
-    "method": "POST",
-    "path": "/api/hotmart/sync/universal/progress",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:30"
-  },
-  {
-    "method": "GET",
-    "path": "/api/hotmart/syncHotmartUsers",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:22"
-  },
-  {
-    "method": "POST",
-    "path": "/api/hotmart/syncProgressOnly",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:23"
-  },
-  {
-    "method": "GET",
-    "path": "/api/hotmart/users",
+    "path": "/api/hotmart/products/:subdomain",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:24"
+    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:36"
   },
   {
     "method": "GET",
-    "path": "/api/hotmart/v2/products",
+    "path": "/api/hotmart/products/:subdomain/users",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
@@ -2350,30 +1433,39 @@
   },
   {
     "method": "GET",
-    "path": "/api/hotmart/v2/products/:subdomain",
+    "path": "/api/hotmart/stats",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:38"
+    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:34"
   },
   {
     "method": "GET",
-    "path": "/api/hotmart/v2/products/:subdomain/users",
+    "path": "/api/hotmart/sync/compare",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:39"
+    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:29"
   },
   {
     "method": "GET",
-    "path": "/api/hotmart/v2/stats",
+    "path": "/api/hotmart/sync/universal",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:27"
+  },
+  {
+    "method": "GET",
+    "path": "/api/hotmart/users",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:36"
+    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:22"
   },
   {
     "method": "GET",
@@ -2383,15 +1475,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/index.ts:153"
-  },
-  {
-    "method": "POST",
-    "path": "/api/lessons/multiple",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/lessons.routes.ts:21"
   },
   {
     "method": "GET",
@@ -2466,24 +1549,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:20"
   },
   {
-    "method": "POST",
-    "path": "/api/product-profiles",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:41"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/product-profiles/:code",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:63"
-  },
-  {
     "method": "GET",
     "path": "/api/product-profiles/:code",
     "access": "authenticated",
@@ -2491,24 +1556,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:27"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/product-profiles/:code",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:55"
-  },
-  {
-    "method": "POST",
-    "path": "/api/product-profiles/:code/duplicate",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:48"
   },
   {
     "method": "GET",
@@ -2529,24 +1576,6 @@
     "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/pages/dashboard/DashboardMainPage.tsx>, <src/services/api.ts>; rota em src/routes/products.routes.ts:35"
   },
   {
-    "method": "POST",
-    "path": "/api/products",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:48"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/products/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:50"
-  },
-  {
     "method": "GET",
     "path": "/api/products/:id",
     "access": "authenticated",
@@ -2554,15 +1583,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:53"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/products/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:49"
   },
   {
     "method": "GET",
@@ -2601,15 +1621,6 @@
     "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:41"
   },
   {
-    "method": "POST",
-    "path": "/api/renewal-ac/approve",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:93"
-  },
-  {
     "method": "GET",
     "path": "/api/renewal-ac/changes",
     "access": "authenticated",
@@ -2617,42 +1628,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:53"
-  },
-  {
-    "method": "POST",
-    "path": "/api/renewal-ac/changes/:id/revert",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:124"
-  },
-  {
-    "method": "POST",
-    "path": "/api/renewal-ac/execute",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:112"
-  },
-  {
-    "method": "POST",
-    "path": "/api/renewal-ac/plan",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:74"
-  },
-  {
-    "method": "POST",
-    "path": "/api/renewal-ac/refunds/detect",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:84"
   },
   {
     "method": "GET",
@@ -2673,24 +1648,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/renewal.routes.ts:9"
   },
   {
-    "method": "POST",
-    "path": "/api/renewal/offers",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewal.routes.ts:12"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/renewal/offers/:id",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewal.routes.ts:21"
-  },
-  {
     "method": "GET",
     "path": "/api/renewal/performance",
     "access": "authenticated",
@@ -2698,15 +1655,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/renewal.routes.ts:18"
-  },
-  {
-    "method": "POST",
-    "path": "/api/renewal/sync",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewal.routes.ts:24"
   },
   {
     "method": "GET",
@@ -2781,42 +1729,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:73"
   },
   {
-    "method": "POST",
-    "path": "/api/sync/conflicts/:id/ignore",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:89"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/conflicts/:id/resolve",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:81"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/conflicts/auto-resolve",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:105"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/conflicts/bulk-resolve",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:97"
-  },
-  {
     "method": "GET",
     "path": "/api/sync/conflicts/critical",
     "access": "authenticated",
@@ -2826,76 +1738,13 @@
     "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:66"
   },
   {
-    "method": "POST",
-    "path": "/api/sync/curseduca",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:38"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/curseduca/batch",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:39"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/discord",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:42"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/discord/batch",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:44"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/discord/csv",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:43"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/execute-pipeline",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:27"
-  },
-  {
     "method": "GET",
     "path": "/api/sync/history",
     "access": "authenticated",
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/index.page.client.tsx>; rota em src/routes/sync.routes.ts:51"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/history",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:52"
+    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/index.page.client.tsx>; rota em src/routes/sync.routes.ts:46"
   },
   {
     "method": "GET",
@@ -2905,42 +1754,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:42"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/history/:syncId/retry",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:53"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/sync/history/clean",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:54"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/hotmart",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:34"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/hotmart/batch",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:35"
   },
   {
     "method": "GET",
@@ -2985,7 +1798,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:61"
+    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:56"
   },
   {
     "method": "GET",
@@ -2994,7 +1807,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:62"
+    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:57"
   },
   {
     "method": "GET",
@@ -3006,24 +1819,6 @@
     "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:136"
   },
   {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/config/scope",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:139"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/config/toggle",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:142"
-  },
-  {
     "method": "GET",
     "path": "/api/tag-monitoring/critical-tags",
     "access": "authenticated",
@@ -3031,51 +1826,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:18"
-  },
-  {
-    "method": "POST",
-    "path": "/api/tag-monitoring/critical-tags",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:21"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/tag-monitoring/critical-tags/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:24"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/tag-monitoring/critical-tags/:id/permanent",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/tagMonitoring.routes.ts:27"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/critical-tags/:id/priority",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:38"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/critical-tags/:id/toggle",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:35"
   },
   {
     "method": "GET",
@@ -3105,15 +1855,6 @@
     "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts>; rota em src/routes/tagMonitoring.routes.ts:55"
   },
   {
-    "method": "DELETE",
-    "path": "/api/tag-monitoring/notifications/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": true,
-    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts>; rota em src/routes/tagMonitoring.routes.ts:77"
-  },
-  {
     "method": "GET",
     "path": "/api/tag-monitoring/notifications/:id",
     "access": "authenticated",
@@ -3130,33 +1871,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts>; rota em src/routes/tagMonitoring.routes.ts:64"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/notifications/:id/read",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts>; rota em src/routes/tagMonitoring.routes.ts:71"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/notifications/:id/unread",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts>; rota em src/routes/tagMonitoring.routes.ts:74"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/notifications/mark-all-read",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts>; rota em src/routes/tagMonitoring.routes.ts:92"
   },
   {
     "method": "GET",
@@ -3193,15 +1907,6 @@
     "writes": false,
     "destructive": false,
     "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:116"
-  },
-  {
-    "method": "POST",
-    "path": "/api/tag-monitoring/snapshots/manual",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:119"
   },
   {
     "method": "GET",
@@ -3246,25 +1951,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/tagRule.routes.ts:22"
-  },
-  {
-    "method": "POST",
-    "path": "/api/tag-rules",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/tagRule.routes.ts:36"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/tag-rules/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/tagRule.routes.ts:50"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/tagRule.routes.ts:24"
   },
   {
     "method": "GET",
@@ -3273,34 +1960,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/tagRule.routes.ts:29"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/tag-rules/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/tagRule.routes.ts:43"
-  },
-  {
-    "method": "POST",
-    "path": "/api/tag-rules/:id/test",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/tagRule.routes.ts:62"
-  },
-  {
-    "method": "POST",
-    "path": "/api/tag-rules/estimate",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:78"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/tagRule.routes.ts:31"
   },
   {
     "method": "GET",
@@ -3310,6 +1970,1431 @@
     "writes": false,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/index.ts:80"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:27"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials/available-students",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:31"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials/best-candidates",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:35"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials/report",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/testimonials.routes.ts:42"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials/stats",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:23"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials/student",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>, <src/pages/gerirAlunos/students/components/TestimonialInfoCard.tsx>; rota em src/routes/testimonials.routes.ts:38"
+  },
+  {
+    "method": "GET",
+    "path": "/api/user-history/all",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/userHistory.routes.ts:13"
+  },
+  {
+    "method": "GET",
+    "path": "/api/user-history/user",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/userHistory.routes.ts:9"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/users.routes.ts:285"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/features/testimonials/testimonials.api.ts>, <src/hooks/useUsers.ts>, <src/pages/dashboard/DashboardMainPage.tsx>, <src/pages/gerirAlunos/students/StudentEditor.tsx>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:289"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/:id/history",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:279"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/:id/stats",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:278"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/:userId/all-classes",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:277"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/:userId/products",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:276"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/analytics",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:115"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/analytics/stats",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:123"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/by-email/:email",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:280"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/dashboard-stats",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:260"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/engagement/comparison",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:128"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/engagement/heatmap",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:133"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/enrollments",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:110"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/getProductStats",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:263"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/getUserStats",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:272"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/idsDiferentes",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:270"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/infinite",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:261",
+    "deprecated": true,
+    "deprecatedReason": "no known repository consumer; observe real traffic before removal"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/infiniteStats",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:262",
+    "deprecated": true,
+    "deprecatedReason": "no known repository consumer; observe real traffic before removal"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/listUsers",
+    "access": "authenticated",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Backoffice legacy em <backoffice/src/components/bot/DiscordBot.jsx>, <backoffice/src/components/pages/HotmartSync.jsx>, presente no bundle compilado; nenhum consumidor no Front; rota em src/routes/users.routes.ts:268"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/listUsersSimple",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/hooks/useUsers.ts>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:269"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/search",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>, <src/pages/gerirAlunos/students/StudentEditor.tsx>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:266"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/stats",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:264"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/stats/overview",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:265"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/student/:id/history",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:282"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/student/:id/stats",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:281"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/unified",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:259",
+    "deprecated": true,
+    "deprecatedReason": "no known repository consumer; observe real traffic before removal"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/unmatchedUsers",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:271"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/users/listUsers",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:273",
+    "deprecated": true,
+    "deprecatedReason": "no known repository consumer; observe real traffic before removal"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/discord-renewal/scheduled/:key",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:189"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/events/:id/status",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:172"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/renewal/offers/:id",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/renewal.routes.ts:21"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/config/scope",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:139"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/config/toggle",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:142"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/critical-tags/:id/priority",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:38"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/critical-tags/:id/toggle",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:35"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/notifications/:id/read",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts>; rota em src/routes/tagMonitoring.routes.ts:71"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/notifications/:id/unread",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts>; rota em src/routes/tagMonitoring.routes.ts:74"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/notifications/mark-all-read",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/gerirAlunos/syncUtilizadores/hooks/useTagNotifications.ts>; rota em src/routes/tagMonitoring.routes.ts:92"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac/contact/:email/sync",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:14"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac/contacts/batch-sync",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:17"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac/contacts/batch-tags",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/acReader.routes.ts:16"
+  },
+  {
+    "method": "POST",
+    "path": "/api/achievements/evaluate-all",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:46"
+  },
+  {
+    "method": "POST",
+    "path": "/api/achievements/evaluate/:email",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:23"
+  },
+  {
+    "method": "POST",
+    "path": "/api/achievements/mark-seen",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/achievements.routes.ts:68"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/product-tags/apply",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:96"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/product-tags/remove",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:99"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/products/:productId/tags/sync",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:108"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/test-cron",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:48"
+  },
+  {
+    "method": "POST",
+    "path": "/api/analytics/class/:classId/recalculate",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/analytics.routes.ts:39"
+  },
+  {
+    "method": "POST",
+    "path": "/api/analytics/class/:classId/recalculate-individual",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "wrapper/hook sem caller de componente no Front em <src/features/analytics/analytics.api.ts>, <src/features/analytics/hooks/useAnalyticsController.ts>; rota em src/routes/analytics.routes.ts:48"
+  },
+  {
+    "method": "POST",
+    "path": "/api/analytics/product-sales/compare",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/productSalesStats.routes.ts:40"
+  },
+  {
+    "method": "POST",
+    "path": "/api/analytics/product-sales/rebuild",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/analytics/analytics.api.ts>; rota em src/routes/productSalesStats.routes.ts:36"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/change-password",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:18"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/login",
+    "access": "public",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "public: entrada necessaria para obter JWT; chamada do Front em <src/contexts/AuthContext.tsx>; rota em src/routes/auth.routes.ts:10"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/logout",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:14"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/unlock",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:17"
+  },
+  {
+    "method": "POST",
+    "path": "/api/business-analytics/cache/invalidate",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/hooks/Usebusinessanalytics.ts>; rota em src/routes/businessAnalytics.routes.ts:36"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/carteira/refresh",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:39"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/comparador/refresh",
+    "access": "authenticated",
+    "consumer": "externo",
+    "writes": true,
+    "destructive": false,
+    "evidence": "Backoffice/HTML Clareza externo; rota em src/routes/clareza.routes.ts:44"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/earnings/refresh",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:42"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/raiox/refresh",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:33"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/refresh",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:11"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/top10/refresh",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:22"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/addOrEditClass",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts>, <src/pages/gerirAlunos/turmas/hooks/useWizard.ts>; rota em src/routes/classes.routes.ts:19"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/checkAndUpdateClassHistory",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/classes.routes.ts:66"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/fetchClassData",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/inactivation/inactivation.api.ts>; rota em src/routes/classes.routes.ts:28"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/inactivationLists/create",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/inactivation/inactivation.api.ts>; rota em src/routes/classes.routes.ts:77"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/inactivationLists/revert/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/inactivation/inactivation.api.ts>; rota em src/routes/classes.routes.ts:83"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/moveMultipleStudents",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/classes.routes.ts:55"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/moveStudent",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/classes.routes.ts:52"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/syncComplete",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/components/analytics/analytics/ClassAnalyticsTab.tsx>; rota em src/routes/classes.routes.ts:92"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/syncHotmartClasses",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts>; rota em src/routes/classes.routes.ts:22"
+  },
+  {
+    "method": "POST",
+    "path": "/api/course-lessons/sync",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/courseLessons.routes.ts:12"
+  },
+  {
+    "method": "POST",
+    "path": "/api/courses",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/course.routes.ts:48"
+  },
+  {
+    "method": "POST",
+    "path": "/api/courses/clareza/evaluate",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/course.routes.ts:80"
+  },
+  {
+    "method": "POST",
+    "path": "/api/courses/ogi/evaluate",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/course.routes.ts:94"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron-tags/execute",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:29",
+    "deprecated": true,
+    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron-tags/validate",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:49",
+    "deprecated": true,
+    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/jobs",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>, <src/pages/gerirAlunos/hotmartSync/hooks/useCreateJob.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:43"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/jobs/:id/toggle",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>, <src/pages/gerirAlunos/hotmartSync/hooks/useToggleJob.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:70"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/jobs/:id/trigger",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": true,
+    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>, <src/pages/gerirAlunos/hotmartSync/hooks/useExecuteJob.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:77"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/tag-rules-only",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:118"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/validate",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": false,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:101"
+  },
+  {
+    "method": "POST",
+    "path": "/api/dashboard/compare",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/dashboardRoutes.ts:57"
+  },
+  {
+    "method": "POST",
+    "path": "/api/dashboard/materialized-stats/rebuild",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/dashboardRoutes.ts:74"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/approve",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:81"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/execute",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:95"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/messages/preview",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:145"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/messages/send",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:153"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/plan",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:75"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/scheduled/:key/test",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:204"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/scheduled/run",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:211"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discovery/configure",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/discovery.routes.ts:31"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discovery/generate-config",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/discovery.routes.ts:23"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discovery/run",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/discovery.routes.ts:15"
+  },
+  {
+    "method": "POST",
+    "path": "/api/engagement/engagement/cache/clear",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/engagement.routes.ts:30"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:129"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/:id/interest",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:62"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/seed",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:234"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/types",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:211"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/bulk",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": true,
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:334"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/cleanup",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:360"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/cleanup-duplicates",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:388"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/diagnose",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:374"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/fix-to-active",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:367"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/mark-discrepancies",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:348"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/mark-stale-inactive",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:402"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/quarantine",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:381"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/restore",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:395"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/revert",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:341"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/single",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": true,
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:327"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/snapshots",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:253"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/snapshots/historical",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:260"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/check-expired",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:425"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/inactivate",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:445"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/revert",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:438"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/sync",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:431"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/webhook",
+    "access": "signature",
+    "consumer": "webhook:guru",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer webhook:guru; autenticacao por assinatura; rota em src/routes/guru.routes.ts:91"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/webhooks/:id/reprocess",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:159"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/webhooks/migrate-source",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:165"
+  },
+  {
+    "method": "POST",
+    "path": "/api/hotmart/sync/universal/progress",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:28"
+  },
+  {
+    "method": "POST",
+    "path": "/api/hotmart/syncProgressOnly",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/hotmart.routes.ts:21"
+  },
+  {
+    "method": "POST",
+    "path": "/api/lessons/multiple",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/lessons.routes.ts:21"
+  },
+  {
+    "method": "POST",
+    "path": "/api/product-profiles",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:41"
+  },
+  {
+    "method": "POST",
+    "path": "/api/product-profiles/:code/duplicate",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:48"
+  },
+  {
+    "method": "POST",
+    "path": "/api/products",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:48"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/approve",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:93"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/changes/:id/revert",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:124"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/execute",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:112"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/plan",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:74"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/refunds/detect",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:84"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal/offers",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/renewal.routes.ts:12"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal/sync",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/renewal.routes.ts:24"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/:id/ignore",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:89"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/:id/resolve",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:81"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/auto-resolve",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:105"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/bulk-resolve",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/syncUtilizadoresRoutes/syncStats.routes.ts:97"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/curseduca",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:38"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/curseduca/batch",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:39"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/execute-pipeline",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": true,
+    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:27"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/history",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:47"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/history/:syncId/retry",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:48"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/hotmart",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:34"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/hotmart/batch",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/sync.routes.ts:35"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tag-monitoring/critical-tags",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:21"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tag-monitoring/snapshots/manual",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/tagMonitoring/tagMonitoring.api.ts>; rota em src/routes/tagMonitoring.routes.ts:119"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tag-rules",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/tagRule.routes.ts:38"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tag-rules/:id/test",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/tagRule.routes.ts:64"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tag-rules/estimate",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": false,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:78"
   },
   {
     "method": "POST",
@@ -3384,15 +3469,6 @@
     "evidence": "consumer nao identificado; rota em src/routes/testHistory.routes.ts:28"
   },
   {
-    "method": "GET",
-    "path": "/api/testimonials",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:27"
-  },
-  {
     "method": "POST",
     "path": "/api/testimonials",
     "access": "authenticated",
@@ -3400,51 +3476,6 @@
     "writes": true,
     "destructive": false,
     "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:46"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/testimonials/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": true,
-    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:57"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/testimonials/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:53"
-  },
-  {
-    "method": "GET",
-    "path": "/api/testimonials/available-students",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:31"
-  },
-  {
-    "method": "GET",
-    "path": "/api/testimonials/best-candidates",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:35"
-  },
-  {
-    "method": "GET",
-    "path": "/api/testimonials/report",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/testimonials.routes.ts:42"
   },
   {
     "method": "POST",
@@ -3456,33 +3487,6 @@
     "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:49"
   },
   {
-    "method": "GET",
-    "path": "/api/testimonials/stats",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:23"
-  },
-  {
-    "method": "GET",
-    "path": "/api/testimonials/student",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>, <src/pages/gerirAlunos/students/components/TestimonialInfoCard.tsx>; rota em src/routes/testimonials.routes.ts:38"
-  },
-  {
-    "method": "GET",
-    "path": "/api/user-history/all",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/userHistory.routes.ts:13"
-  },
-  {
     "method": "POST",
     "path": "/api/user-history/manual",
     "access": "authenticated",
@@ -3492,94 +3496,13 @@
     "evidence": "consumer nao identificado; rota em src/routes/userHistory.routes.ts:17"
   },
   {
-    "method": "GET",
-    "path": "/api/user-history/user",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/userHistory.routes.ts:9"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/users.routes.ts:291"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/users/:id",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:332"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/features/testimonials/testimonials.api.ts>, <src/hooks/useUsers.ts>, <src/pages/dashboard/DashboardMainPage.tsx>, <src/pages/gerirAlunos/students/StudentEditor.tsx>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:295"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/users/:id",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": true,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/pages/gerirAlunos/students/StudentEditor.tsx>; rota em src/routes/users.routes.ts:317"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/:id/history",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:285"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/:id/stats",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:284"
-  },
-  {
     "method": "POST",
     "path": "/api/users/:id/sync",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:314"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/:userId/all-classes",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:283"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/:userId/products",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:282"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:308"
   },
   {
     "method": "POST",
@@ -3588,7 +3511,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:301"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:295"
   },
   {
     "method": "POST",
@@ -3597,7 +3520,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:307"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:301"
   },
   {
     "method": "POST",
@@ -3606,110 +3529,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:300"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/by-email/:email",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:286"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/dashboard-stats",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:266"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/users/editStudent/:id",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:318"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/getProductStats",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:269"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/getUserStats",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:278"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/idsDiferentes",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:276"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/users/idsDiferentes/:id",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:326"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/infinite",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:267",
-    "deprecated": true,
-    "deprecatedReason": "no known repository consumer; observe real traffic before removal"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/infiniteStats",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:268",
-    "deprecated": true,
-    "deprecatedReason": "no known repository consumer; observe real traffic before removal"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/listUsers",
-    "access": "authenticated",
-    "consumer": "externo",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Backoffice legacy em <backoffice/src/components/bot/DiscordBot.jsx>, <backoffice/src/components/pages/HotmartSync.jsx>, presente no bundle compilado; nenhum consumidor no Front; rota em src/routes/users.routes.ts:274"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/listUsersSimple",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/hooks/useUsers.ts>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:275"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:294"
   },
   {
     "method": "POST",
@@ -3718,7 +3538,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:313"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:307"
   },
   {
     "method": "POST",
@@ -3727,61 +3547,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:299"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/search",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>, <src/pages/gerirAlunos/students/StudentEditor.tsx>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:272"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/stats",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:270"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/stats/overview",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:271"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/users/student/:id",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:338"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/student/:id/history",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:288"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/student/:id/stats",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:287"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:293"
   },
   {
     "method": "POST",
@@ -3790,7 +3556,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:315"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:309"
   },
   {
     "method": "POST",
@@ -3799,107 +3565,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:298"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/unified",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:265",
-    "deprecated": true,
-    "deprecatedReason": "no known repository consumer; observe real traffic before removal"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/unmatchedUsers",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:277"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/users/unmatchedUsers/:id",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:320"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/users/listUsers",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:279",
-    "deprecated": true,
-    "deprecatedReason": "no known repository consumer; observe real traffic before removal"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2",
-    "access": "authenticated",
-    "consumer": "front",
-    "writes": false,
-    "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/pages/dashboard/DashboardMainPage.tsx>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:111",
-    "deprecated": true,
-    "deprecatedReason": "Polymorphic Users V2 contract; use explicit resources",
-    "successorLinks": [
-      "</api/users/v2/enrollments>; rel=\"successor-version\"",
-      "</api/users/v2/analytics>; rel=\"alternate\""
-    ]
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/analytics",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:121"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/engagement/comparison",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:134"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/engagement/heatmap",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:139"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/enrollments",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:116"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/stats",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:129"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:292"
   },
   {
     "method": "POST",
@@ -3920,19 +3586,35 @@
     "evidence": "consumer webhook:activecampaign; autenticacao por assinatura; rota em src/routes/webhooks.routes.ts:8"
   },
   {
-    "method": "GET",
-    "path": "/cron-tags/config",
+    "method": "PUT",
+    "path": "/api/classes/updateStatus",
     "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
+    "consumer": "front",
+    "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:19",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
+    "evidence": "chamada do Front em <src/features/inactivation/inactivation.api.ts>, <src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts>; rota em src/routes/classes.routes.ts:34"
   },
   {
     "method": "PUT",
-    "path": "/cron-tags/config",
+    "path": "/api/course-lessons/:pageId",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/courseLessons.routes.ts:11"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/courses/:id",
+    "access": "authenticated",
+    "consumer": "desconhecido",
+    "writes": true,
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/course.routes.ts:55"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/cron-tags/config",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": true,
@@ -3942,80 +3624,111 @@
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
   {
-    "method": "POST",
-    "path": "/cron-tags/execute",
+    "method": "PUT",
+    "path": "/api/cron/jobs/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/cron/cron.api.ts>; rota em src/routes/syncUtilizadoresRoutes/cron.routes.ts:51"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/curseduca/user/:userId/classes",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:29",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/curseduca.routes.ts:31"
   },
   {
-    "method": "POST",
-    "path": "/cron-tags/execute-legacy",
+    "method": "PUT",
+    "path": "/api/discord-renewal/templates/:key",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:34",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
+    "destructive": false,
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:117"
   },
   {
-    "method": "GET",
-    "path": "/cron-tags/history",
+    "method": "PUT",
+    "path": "/api/events/:id",
     "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
+    "consumer": "front",
+    "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:39",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
+    "evidence": "chamada do Front em <src/pages/events/events.api.ts>; rota em src/routes/events.routes.ts:146"
   },
   {
-    "method": "GET",
-    "path": "/cron-tags/jobs/:id/history",
+    "method": "PUT",
+    "path": "/api/events/types/:id",
     "access": "authenticated",
     "consumer": "desconhecido",
-    "writes": false,
+    "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:49",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
+    "evidence": "consumer nao identificado; rota em src/routes/events.routes.ts:221"
   },
   {
-    "method": "GET",
-    "path": "/cron-tags/statistics",
+    "method": "PUT",
+    "path": "/api/guru/snapshots/:year/:month",
     "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
+    "consumer": "front",
+    "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:44",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:291"
   },
   {
-    "method": "GET",
-    "path": "/cron-tags/status",
+    "method": "PUT",
+    "path": "/api/product-profiles/:code",
     "access": "authenticated",
     "consumer": "desconhecido",
-    "writes": false,
+    "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:59",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
+    "evidence": "consumer nao identificado; rota em src/routes/productProfile.routes.ts:55"
   },
   {
-    "method": "POST",
-    "path": "/cron-tags/validate",
+    "method": "PUT",
+    "path": "/api/products/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/products.routes.ts:49"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/tag-rules/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/tagRule.routes.ts:45"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/testimonials/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>; rota em src/routes/testimonials.routes.ts:53"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/users/:id",
+    "access": "authenticated",
+    "consumer": "front",
+    "writes": true,
+    "destructive": false,
+    "evidence": "chamada do Front em <src/pages/gerirAlunos/students/StudentEditor.tsx>; rota em src/routes/users.routes.ts:311"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/users/editStudent/:id",
     "access": "authenticated",
     "consumer": "desconhecido",
-    "writes": false,
+    "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:54",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:312"
   }
 ]

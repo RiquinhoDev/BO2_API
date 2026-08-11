@@ -12,17 +12,6 @@
   },
   {
     "method": "DELETE",
-    "path": "/api/activecampaign/tag-rules/:id",
-    "family": "success-data",
-    "shapeKeys": [
-      "message",
-      "success"
-    ],
-    "evidence": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:98",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
-  },
-  {
-    "method": "DELETE",
     "path": "/api/classes/:classId",
     "family": "success-data",
     "shapeKeys": [
@@ -114,7 +103,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/product.controller.ts:271",
+    "evidence": "src/controllers/products/product.controller.ts:252",
     "frontConsumer": "src/services/api.ts"
   },
   {
@@ -322,7 +311,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/ACroutes/activecampaign.routes.ts:170",
+    "evidence": "src/routes/ACroutes/activecampaign.routes.ts:149",
     "frontConsumer": null
   },
   {
@@ -339,6 +328,30 @@
   },
   {
     "method": "GET",
+    "path": "/api/activecampaign/product-tags/stats",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success",
+      "summary"
+    ],
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:259",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/activecampaign/products/:productId/tagged",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "meta",
+      "success"
+    ],
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:216",
+    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
+  },
+  {
+    "method": "GET",
     "path": "/api/activecampaign/stats",
     "family": "success-data",
     "shapeKeys": [
@@ -347,43 +360,6 @@
     ],
     "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:210",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
-  },
-  {
-    "method": "GET",
-    "path": "/api/activecampaign/tag-rules",
-    "family": "success-data",
-    "shapeKeys": [
-      "count",
-      "data",
-      "success"
-    ],
-    "evidence": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:20",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
-  },
-  {
-    "method": "GET",
-    "path": "/api/activecampaign/v2/products/:productId/tagged",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "meta",
-      "success"
-    ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:218",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
-  },
-  {
-    "method": "GET",
-    "path": "/api/activecampaign/v2/stats",
-    "family": "success-data",
-    "shapeKeys": [
-      "_v2Enabled",
-      "data",
-      "success",
-      "summary"
-    ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:262",
-    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -1336,6 +1312,18 @@
   },
   {
     "method": "GET",
+    "path": "/api/curseduca/catalog/stats",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "meta",
+      "success"
+    ],
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:138",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
     "path": "/api/curseduca/dashboard",
     "family": "success-data",
     "shapeKeys": [
@@ -1344,38 +1332,6 @@
       "success"
     ],
     "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts:12",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/debug",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:47",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/groups",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:7",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/members",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:15",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/members/by",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:23",
     "frontConsumer": null
   },
   {
@@ -1416,22 +1372,6 @@
   },
   {
     "method": "GET",
-    "path": "/api/curseduca/report",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:56",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/reports/access",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:31",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
     "path": "/api/curseduca/stats",
     "family": "success-data",
     "shapeKeys": [
@@ -1439,7 +1379,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts:139",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts:12",
     "frontConsumer": null
   },
   {
@@ -1465,7 +1405,7 @@
       "startedAt",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:162",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:92",
     "frontConsumer": "src/pages/guru/GuruDashboard.tsx"
   },
   {
@@ -1493,24 +1433,8 @@
       "startedAt",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:121",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:51",
     "frontConsumer": "src/pages/guru/GuruDashboard.tsx"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/user",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:64",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/users",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:39",
-    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -1534,6 +1458,17 @@
     ],
     "evidence": "src/controllers/dashboard.controller.ts:248",
     "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboard/materialized-stats",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/dashboard.controller.ts:339",
+    "frontConsumer": "src/pages/dashboard/DashboardMainPage.tsx"
   },
   {
     "method": "GET",
@@ -1605,17 +1540,6 @@
     ],
     "evidence": "src/controllers/dashboard.controller.ts:103",
     "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/dashboard/stats/v3",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "success"
-    ],
-    "evidence": "src/controllers/dashboard.controller.ts:339",
-    "frontConsumer": "src/pages/dashboard/DashboardMainPage.tsx"
   },
   {
     "method": "GET",
@@ -2131,6 +2055,53 @@
   },
   {
     "method": "GET",
+    "path": "/api/hotmart/products",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "meta",
+      "success"
+    ],
+    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:27",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/hotmart/products/:subdomain",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:45",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/hotmart/products/:subdomain/users",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "meta",
+      "success"
+    ],
+    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:67",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/hotmart/stats",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "meta",
+      "success"
+    ],
+    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:79",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
     "path": "/api/hotmart/sync/compare",
     "family": "success-data",
     "shapeKeys": [
@@ -2156,17 +2127,6 @@
   },
   {
     "method": "GET",
-    "path": "/api/hotmart/syncHotmartUsers",
-    "family": "success-data",
-    "shapeKeys": [
-      "message",
-      "stats"
-    ],
-    "evidence": "src/controllers/hotmart/hotmartLegacySync.controller.ts:439",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
     "path": "/api/hotmart/users",
     "family": "success-data",
     "shapeKeys": [
@@ -2175,54 +2135,6 @@
       "success"
     ],
     "evidence": "src/controllers/hotmart/hotmartDiagnostics.controller.ts:35",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/hotmart/v2/products",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "meta",
-      "success"
-    ],
-    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:27",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/hotmart/v2/products/:subdomain",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "meta",
-      "success"
-    ],
-    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:45",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/hotmart/v2/products/:subdomain/users",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "meta",
-      "success"
-    ],
-    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:67",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/hotmart/v2/stats",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "meta",
-      "success"
-    ],
-    "evidence": "src/controllers/hotmart/hotmartCatalog.controller.ts:80",
     "frontConsumer": null
   },
   {
@@ -2360,13 +2272,11 @@
     "path": "/api/products",
     "family": "success-data",
     "shapeKeys": [
-      "_legacy",
-      "_v2",
-      "products",
-      "success",
-      "total"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/products/product.controller.ts:32",
+    "evidence": "src/controllers/products/product.controller.ts:52",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -2377,7 +2287,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/products/product.controller.ts:110",
+    "evidence": "src/controllers/products/product.controller.ts:91",
     "frontConsumer": "src/services/api.ts"
   },
   {
@@ -2388,7 +2298,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/products/product.controller.ts:405",
+    "evidence": "src/controllers/products/product.controller.ts:386",
     "frontConsumer": "src/services/api.ts"
   },
   {
@@ -2400,7 +2310,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/product.controller.ts:307",
+    "evidence": "src/controllers/products/product.controller.ts:288",
     "frontConsumer": "src/services/api.ts"
   },
   {
@@ -2992,7 +2902,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/users/userLookup.controller.ts:24",
+    "evidence": "src/controllers/users/userLookup.controller.ts:25",
     "frontConsumer": "src/services/api.ts"
   },
   {
@@ -3038,15 +2948,40 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/users/userLookup.controller.ts:44",
+    "evidence": "src/controllers/users/userLookup.controller.ts:69",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/analytics",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/users/usersV2List.controller.ts:36",
+    "frontConsumer": "src/features/users-v2/usersV2.api.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/analytics/stats",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/users/usersV2Analytics.controller.ts:18",
+    "frontConsumer": null
   },
   {
     "method": "GET",
     "path": "/api/users/by-email/:email",
     "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:64",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/users/userLookup.controller.ts:50",
     "frontConsumer": "src/services/usersV2.service.ts"
   },
   {
@@ -3059,6 +2994,40 @@
     ],
     "evidence": "src/controllers/users/userDashboardStats.controller.ts:12",
     "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/engagement/comparison",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/users/usersV2Analytics.controller.ts:36",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/engagement/heatmap",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/routes/users.routes.ts:236",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/enrollments",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "meta",
+      "success"
+    ],
+    "evidence": "src/controllers/users/usersV2List.controller.ts:19",
+    "frontConsumer": "src/features/users-v2/usersV2.api.ts"
   },
   {
     "method": "GET",
@@ -3234,130 +3203,6 @@
       "success"
     ],
     "evidence": "src/controllers/users/userList.controller.ts:39",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "meta",
-      "success"
-    ],
-    "evidence": "src/controllers/users/usersV2List.controller.ts:54",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/analytics",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "success"
-    ],
-    "evidence": "src/controllers/users/usersV2List.controller.ts:36",
-    "frontConsumer": "src/features/users-v2/usersV2.api.ts"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/engagement/comparison",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "success"
-    ],
-    "evidence": "src/controllers/users/usersV2Analytics.controller.ts:36",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/engagement/heatmap",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "success"
-    ],
-    "evidence": "src/routes/users.routes.ts:242",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/enrollments",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "meta",
-      "success"
-    ],
-    "evidence": "src/controllers/users/usersV2List.controller.ts:19",
-    "frontConsumer": "src/features/users-v2/usersV2.api.ts"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/stats",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "success"
-    ],
-    "evidence": "src/controllers/users/usersV2Analytics.controller.ts:18",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/cron-tags/config",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "success"
-    ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:57",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/cron-tags/history",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "success"
-    ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:87",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/cron-tags/jobs/:id/history",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "meta",
-      "success"
-    ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:107",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/cron-tags/statistics",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "success"
-    ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:95",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
-    "path": "/cron-tags/status",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "success"
-    ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:134",
     "frontConsumer": null
   },
   {
@@ -3550,42 +3395,38 @@
   },
   {
     "method": "POST",
-    "path": "/api/activecampaign/courses/clareza/evaluate",
+    "path": "/api/activecampaign/product-tags/apply",
     "family": "success-data",
     "shapeKeys": [
-      "errors",
-      "proposedAdditions",
-      "proposedRemovals",
-      "studentsEvaluated",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:144",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:112",
+    "frontConsumer": null
   },
   {
     "method": "POST",
-    "path": "/api/activecampaign/courses/ogi/evaluate",
+    "path": "/api/activecampaign/product-tags/remove",
     "family": "success-data",
     "shapeKeys": [
-      "errors",
-      "proposedAdditions",
-      "proposedRemovals",
-      "studentsEvaluated",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:285",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:175",
+    "frontConsumer": null
   },
   {
     "method": "POST",
-    "path": "/api/activecampaign/tag-rules",
+    "path": "/api/activecampaign/products/:productId/tags/sync",
     "family": "success-data",
     "shapeKeys": [
-      "rule",
+      "data",
+      "productId",
+      "productName",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:43",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:326",
+    "frontConsumer": null
   },
   {
     "method": "POST",
@@ -3598,44 +3439,6 @@
       "success"
     ],
     "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:138",
-    "frontConsumer": null
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/v2/sync/:productId",
-    "family": "success-data",
-    "shapeKeys": [
-      "_v2Enabled",
-      "data",
-      "productId",
-      "productName",
-      "success"
-    ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:330",
-    "frontConsumer": null
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/v2/tag/apply",
-    "family": "success-data",
-    "shapeKeys": [
-      "_v2Enabled",
-      "data",
-      "success"
-    ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:112",
-    "frontConsumer": null
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/v2/tag/remove",
-    "family": "success-data",
-    "shapeKeys": [
-      "_v2Enabled",
-      "data",
-      "success"
-    ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:176",
     "frontConsumer": null
   },
   {
@@ -3991,18 +3794,6 @@
   },
   {
     "method": "POST",
-    "path": "/api/cron-tags/execute-legacy",
-    "family": "success-data",
-    "shapeKeys": [
-      "error",
-      "replacement",
-      "success"
-    ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:28",
-    "frontConsumer": null
-  },
-  {
-    "method": "POST",
     "path": "/api/cron-tags/validate",
     "family": "success-data",
     "shapeKeys": [
@@ -4075,14 +3866,6 @@
   },
   {
     "method": "POST",
-    "path": "/api/curseduca/cleanup",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:75",
-    "frontConsumer": null
-  },
-  {
-    "method": "POST",
     "path": "/api/dashboard/compare",
     "family": "success-data",
     "shapeKeys": [
@@ -4094,7 +3877,7 @@
   },
   {
     "method": "POST",
-    "path": "/api/dashboard/stats/v3/rebuild",
+    "path": "/api/dashboard/materialized-stats/rebuild",
     "family": "success-data",
     "shapeKeys": [
       "data",
@@ -4616,7 +4399,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/product.controller.ts:187",
+    "evidence": "src/controllers/products/product.controller.ts:168",
     "frontConsumer": "src/services/api.ts"
   },
   {
@@ -4766,30 +4549,6 @@
       "success"
     ],
     "evidence": "src/controllers/sync/operations.controller.ts:255",
-    "frontConsumer": null
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/discord",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/sync/operations.controller.ts:295",
-    "frontConsumer": null
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/discord/batch",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/sync/operations.controller.ts:319",
-    "frontConsumer": null
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/discord/csv",
-    "family": "success-data",
-    "shapeKeys": [],
-    "evidence": "no successful exit (501-only); src/controllers/sync/operations.controller.ts:307",
     "frontConsumer": null
   },
   {
@@ -5159,53 +4918,6 @@
     "frontConsumer": null
   },
   {
-    "method": "POST",
-    "path": "/cron-tags/execute",
-    "family": "success-data",
-    "shapeKeys": [
-      "error",
-      "replacement",
-      "success"
-    ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:28",
-    "frontConsumer": null
-  },
-  {
-    "method": "POST",
-    "path": "/cron-tags/execute-legacy",
-    "family": "success-data",
-    "shapeKeys": [
-      "error",
-      "replacement",
-      "success"
-    ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:28",
-    "frontConsumer": null
-  },
-  {
-    "method": "POST",
-    "path": "/cron-tags/validate",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "meta",
-      "success"
-    ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:121",
-    "frontConsumer": null
-  },
-  {
-    "method": "PUT",
-    "path": "/api/activecampaign/tag-rules/:id",
-    "family": "success-data",
-    "shapeKeys": [
-      "rule",
-      "success"
-    ],
-    "evidence": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts:68",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
-  },
-  {
     "method": "PUT",
     "path": "/api/classes/updateStatus",
     "family": "success-data",
@@ -5342,7 +5054,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/products/product.controller.ts:222",
+    "evidence": "src/controllers/products/product.controller.ts:203",
     "frontConsumer": "src/services/api.ts"
   },
   {
@@ -5387,18 +5099,6 @@
       "success"
     ],
     "evidence": "src/controllers/users/studentMutations.controller.ts:69",
-    "frontConsumer": null
-  },
-  {
-    "method": "PUT",
-    "path": "/cron-tags/config",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "meta",
-      "success"
-    ],
-    "evidence": "src/controllers/cron/cronManagement.controller.ts:66",
     "frontConsumer": null
   }
 ]

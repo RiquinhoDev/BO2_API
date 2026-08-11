@@ -4,36 +4,84 @@
     "path": "/api/ac/cache/clear"
   },
   {
-    "method": "POST",
-    "path": "/api/ac/contact/:email/sync"
+    "method": "DELETE",
+    "path": "/api/classes/:classId"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/courses/:id"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/cron/jobs/:id"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/events/:id"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/guru/snapshots/:year/:month"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/guru/snapshots/all"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/product-profiles/:code"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/products/:id"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/sync/history/clean"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-monitoring/critical-tags/:id"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-monitoring/critical-tags/:id/permanent"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-monitoring/notifications/:id"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-rules/:id"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/testimonials/:id"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/:id"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/idsDiferentes/:id"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/student/:id"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/unmatchedUsers/:id"
   },
   {
     "method": "GET",
     "path": "/api/ac/contact/:email/tags"
   },
   {
-    "method": "POST",
-    "path": "/api/ac/contacts/batch-sync"
-  },
-  {
-    "method": "POST",
-    "path": "/api/ac/contacts/batch-tags"
-  },
-  {
     "method": "GET",
     "path": "/api/achievements/definitions"
-  },
-  {
-    "method": "POST",
-    "path": "/api/achievements/evaluate-all"
-  },
-  {
-    "method": "POST",
-    "path": "/api/achievements/evaluate/:email"
-  },
-  {
-    "method": "POST",
-    "path": "/api/achievements/mark-seen"
   },
   {
     "method": "GET",
@@ -44,16 +92,8 @@
     "path": "/api/activecampaign/communication-history"
   },
   {
-    "method": "POST",
-    "path": "/api/activecampaign/courses/clareza/evaluate"
-  },
-  {
     "method": "GET",
     "path": "/api/activecampaign/courses/clareza/students"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/courses/ogi/evaluate"
   },
   {
     "method": "GET",
@@ -73,47 +113,15 @@
   },
   {
     "method": "GET",
+    "path": "/api/activecampaign/product-tags/stats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/activecampaign/products/:productId/tagged"
+  },
+  {
+    "method": "GET",
     "path": "/api/activecampaign/stats"
-  },
-  {
-    "method": "GET",
-    "path": "/api/activecampaign/tag-rules"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/tag-rules"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/activecampaign/tag-rules/:id"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/activecampaign/tag-rules/:id"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/test-cron"
-  },
-  {
-    "method": "GET",
-    "path": "/api/activecampaign/v2/products/:productId/tagged"
-  },
-  {
-    "method": "GET",
-    "path": "/api/activecampaign/v2/stats"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/v2/sync/:productId"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/v2/tag/apply"
-  },
-  {
-    "method": "POST",
-    "path": "/api/activecampaign/v2/tag/remove"
   },
   {
     "method": "GET",
@@ -138,14 +146,6 @@
   {
     "method": "GET",
     "path": "/api/analytics/class/:classId/quick"
-  },
-  {
-    "method": "POST",
-    "path": "/api/analytics/class/:classId/recalculate"
-  },
-  {
-    "method": "POST",
-    "path": "/api/analytics/class/:classId/recalculate-individual"
   },
   {
     "method": "GET",
@@ -184,40 +184,12 @@
     "path": "/api/analytics/product-sales/:productId"
   },
   {
-    "method": "POST",
-    "path": "/api/analytics/product-sales/compare"
-  },
-  {
     "method": "GET",
     "path": "/api/analytics/product-sales/period"
   },
   {
-    "method": "POST",
-    "path": "/api/analytics/product-sales/rebuild"
-  },
-  {
-    "method": "POST",
-    "path": "/api/auth/change-password"
-  },
-  {
-    "method": "POST",
-    "path": "/api/auth/login"
-  },
-  {
-    "method": "POST",
-    "path": "/api/auth/logout"
-  },
-  {
-    "method": "POST",
-    "path": "/api/auth/unlock"
-  },
-  {
     "method": "GET",
     "path": "/api/auth/verify"
-  },
-  {
-    "method": "POST",
-    "path": "/api/business-analytics/cache/invalidate"
   },
   {
     "method": "GET",
@@ -240,10 +212,6 @@
     "path": "/api/clareza/carteira/data"
   },
   {
-    "method": "POST",
-    "path": "/api/clareza/carteira/refresh"
-  },
-  {
     "method": "GET",
     "path": "/api/clareza/comparador"
   },
@@ -254,10 +222,6 @@
   {
     "method": "GET",
     "path": "/api/clareza/earnings/data"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/earnings/refresh"
   },
   {
     "method": "GET",
@@ -276,18 +240,6 @@
     "path": "/api/clareza/raiox/:ticker"
   },
   {
-    "method": "POST",
-    "path": "/api/clareza/raiox/refresh"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/comparador/refresh"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/refresh"
-  },
-  {
     "method": "GET",
     "path": "/api/clareza/reit-valuation/:ticker"
   },
@@ -304,16 +256,8 @@
     "path": "/api/clareza/top10"
   },
   {
-    "method": "POST",
-    "path": "/api/clareza/top10/refresh"
-  },
-  {
     "method": "GET",
     "path": "/api/classes"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/classes/:classId"
   },
   {
     "method": "GET",
@@ -328,19 +272,7 @@
     "path": "/api/classes/:classId/students"
   },
   {
-    "method": "POST",
-    "path": "/api/classes/addOrEditClass"
-  },
-  {
-    "method": "POST",
-    "path": "/api/classes/checkAndUpdateClassHistory"
-  },
-  {
     "method": "GET",
-    "path": "/api/classes/fetchClassData"
-  },
-  {
-    "method": "POST",
     "path": "/api/classes/fetchClassData"
   },
   {
@@ -352,24 +284,8 @@
     "path": "/api/classes/inactivationLists"
   },
   {
-    "method": "POST",
-    "path": "/api/classes/inactivationLists/create"
-  },
-  {
-    "method": "POST",
-    "path": "/api/classes/inactivationLists/revert/:id"
-  },
-  {
     "method": "GET",
     "path": "/api/classes/listClasses"
-  },
-  {
-    "method": "POST",
-    "path": "/api/classes/moveMultipleStudents"
-  },
-  {
-    "method": "POST",
-    "path": "/api/classes/moveStudent"
   },
   {
     "method": "GET",
@@ -384,18 +300,6 @@
     "path": "/api/classes/studentHistoryByEmail/:email"
   },
   {
-    "method": "POST",
-    "path": "/api/classes/syncComplete"
-  },
-  {
-    "method": "POST",
-    "path": "/api/classes/syncHotmartClasses"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/classes/updateStatus"
-  },
-  {
     "method": "GET",
     "path": "/api/classes/users/search"
   },
@@ -408,44 +312,16 @@
     "path": "/api/course-lessons"
   },
   {
-    "method": "PUT",
-    "path": "/api/course-lessons/:pageId"
-  },
-  {
-    "method": "POST",
-    "path": "/api/course-lessons/sync"
-  },
-  {
     "method": "GET",
     "path": "/api/courses"
   },
   {
-    "method": "POST",
-    "path": "/api/courses"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/courses/:id"
-  },
-  {
     "method": "GET",
     "path": "/api/courses/:id"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/courses/:id"
-  },
-  {
-    "method": "POST",
-    "path": "/api/courses/clareza/evaluate"
   },
   {
     "method": "GET",
     "path": "/api/courses/clareza/students"
-  },
-  {
-    "method": "POST",
-    "path": "/api/courses/ogi/evaluate"
   },
   {
     "method": "GET",
@@ -454,18 +330,6 @@
   {
     "method": "GET",
     "path": "/api/cron-tags/config"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/cron-tags/config"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron-tags/execute"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron-tags/execute-legacy"
   },
   {
     "method": "GET",
@@ -484,40 +348,16 @@
     "path": "/api/cron-tags/status"
   },
   {
-    "method": "POST",
-    "path": "/api/cron-tags/validate"
-  },
-  {
     "method": "GET",
     "path": "/api/cron/jobs"
   },
   {
-    "method": "POST",
-    "path": "/api/cron/jobs"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/cron/jobs/:id"
-  },
-  {
     "method": "GET",
-    "path": "/api/cron/jobs/:id"
-  },
-  {
-    "method": "PUT",
     "path": "/api/cron/jobs/:id"
   },
   {
     "method": "GET",
     "path": "/api/cron/jobs/:id/history"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron/jobs/:id/toggle"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron/jobs/:id/trigger"
   },
   {
     "method": "GET",
@@ -528,36 +368,12 @@
     "path": "/api/cron/tag-rules"
   },
   {
-    "method": "POST",
-    "path": "/api/cron/tag-rules-only"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron/validate"
-  },
-  {
-    "method": "POST",
-    "path": "/api/curseduca/cleanup"
+    "method": "GET",
+    "path": "/api/curseduca/catalog/stats"
   },
   {
     "method": "GET",
     "path": "/api/curseduca/dashboard"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/debug"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/groups"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/members"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/members/by"
   },
   {
     "method": "GET",
@@ -570,14 +386,6 @@
   {
     "method": "GET",
     "path": "/api/curseduca/products/:groupId/users"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/report"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/reports/access"
   },
   {
     "method": "GET",
@@ -601,27 +409,15 @@
   },
   {
     "method": "GET",
-    "path": "/api/curseduca/user"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/curseduca/user/:userId/classes"
-  },
-  {
-    "method": "GET",
-    "path": "/api/curseduca/users"
-  },
-  {
-    "method": "GET",
     "path": "/api/curseduca/users-with-classes"
-  },
-  {
-    "method": "POST",
-    "path": "/api/dashboard/compare"
   },
   {
     "method": "GET",
     "path": "/api/dashboard/engagement"
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboard/materialized-stats"
   },
   {
     "method": "GET",
@@ -649,59 +445,19 @@
   },
   {
     "method": "GET",
-    "path": "/api/dashboard/stats/v3"
-  },
-  {
-    "method": "POST",
-    "path": "/api/dashboard/stats/v3/rebuild"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/approve"
-  },
-  {
-    "method": "GET",
     "path": "/api/discord-renewal/changes"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/execute"
   },
   {
     "method": "GET",
     "path": "/api/discord-renewal/messages/logs"
   },
   {
-    "method": "POST",
-    "path": "/api/discord-renewal/messages/preview"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/messages/send"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/plan"
-  },
-  {
     "method": "GET",
     "path": "/api/discord-renewal/scheduled"
   },
   {
-    "method": "PATCH",
-    "path": "/api/discord-renewal/scheduled/:key"
-  },
-  {
     "method": "GET",
     "path": "/api/discord-renewal/scheduled/:key/preview"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/scheduled/:key/test"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discord-renewal/scheduled/run"
   },
   {
     "method": "GET",
@@ -710,26 +466,6 @@
   {
     "method": "GET",
     "path": "/api/discord-renewal/templates"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/discord-renewal/templates/:key"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discovery/configure"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discovery/generate-config"
-  },
-  {
-    "method": "POST",
-    "path": "/api/discovery/run"
-  },
-  {
-    "method": "POST",
-    "path": "/api/engagement/engagement/cache/clear"
   },
   {
     "method": "GET",
@@ -752,40 +488,8 @@
     "path": "/api/events"
   },
   {
-    "method": "POST",
-    "path": "/api/events"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/events/:id"
-  },
-  {
     "method": "GET",
     "path": "/api/events/:id"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/events/:id"
-  },
-  {
-    "method": "POST",
-    "path": "/api/events/:id/interest"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/events/:id/status"
-  },
-  {
-    "method": "POST",
-    "path": "/api/events/seed"
-  },
-  {
-    "method": "POST",
-    "path": "/api/events/types"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/events/types/:id"
   },
   {
     "method": "GET",
@@ -836,56 +540,12 @@
     "path": "/api/guru/diagnose"
   },
   {
-    "method": "POST",
-    "path": "/api/guru/inactivation/bulk"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/cleanup"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/cleanup-duplicates"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/diagnose"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/fix-to-active"
-  },
-  {
     "method": "GET",
     "path": "/api/guru/inactivation/inactive"
   },
   {
-    "method": "POST",
-    "path": "/api/guru/inactivation/mark-discrepancies"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/mark-stale-inactive"
-  },
-  {
     "method": "GET",
     "path": "/api/guru/inactivation/pending"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/quarantine"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/restore"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/revert"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/inactivation/single"
   },
   {
     "method": "GET",
@@ -900,32 +560,12 @@
     "path": "/api/guru/snapshots"
   },
   {
-    "method": "POST",
-    "path": "/api/guru/snapshots"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/guru/snapshots/:year/:month"
-  },
-  {
     "method": "GET",
     "path": "/api/guru/snapshots/:year/:month"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/guru/snapshots/:year/:month"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/guru/snapshots/all"
   },
   {
     "method": "GET",
     "path": "/api/guru/snapshots/churn"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/snapshots/historical"
   },
   {
     "method": "GET",
@@ -964,48 +604,36 @@
     "path": "/api/guru/trials"
   },
   {
-    "method": "POST",
-    "path": "/api/guru/trials/check-expired"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/trials/inactivate"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/trials/revert"
-  },
-  {
     "method": "GET",
     "path": "/api/guru/trials/stats"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/trials/sync"
-  },
-  {
-    "method": "POST",
-    "path": "/api/guru/webhook"
   },
   {
     "method": "GET",
     "path": "/api/guru/webhooks"
   },
   {
-    "method": "POST",
-    "path": "/api/guru/webhooks/:id/reprocess"
-  },
-  {
     "method": "GET",
     "path": "/api/guru/webhooks/grouped-by-month"
   },
   {
-    "method": "POST",
-    "path": "/api/guru/webhooks/migrate-source"
+    "method": "GET",
+    "path": "/api/health"
   },
   {
     "method": "GET",
-    "path": "/api/health"
+    "path": "/api/hotmart/products"
+  },
+  {
+    "method": "GET",
+    "path": "/api/hotmart/products/:subdomain"
+  },
+  {
+    "method": "GET",
+    "path": "/api/hotmart/products/:subdomain/users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/hotmart/stats"
   },
   {
     "method": "GET",
@@ -1016,44 +644,12 @@
     "path": "/api/hotmart/sync/universal"
   },
   {
-    "method": "POST",
-    "path": "/api/hotmart/sync/universal/progress"
-  },
-  {
-    "method": "GET",
-    "path": "/api/hotmart/syncHotmartUsers"
-  },
-  {
-    "method": "POST",
-    "path": "/api/hotmart/syncProgressOnly"
-  },
-  {
     "method": "GET",
     "path": "/api/hotmart/users"
   },
   {
     "method": "GET",
-    "path": "/api/hotmart/v2/products"
-  },
-  {
-    "method": "GET",
-    "path": "/api/hotmart/v2/products/:subdomain"
-  },
-  {
-    "method": "GET",
-    "path": "/api/hotmart/v2/products/:subdomain/users"
-  },
-  {
-    "method": "GET",
-    "path": "/api/hotmart/v2/stats"
-  },
-  {
-    "method": "GET",
     "path": "/api/info"
-  },
-  {
-    "method": "POST",
-    "path": "/api/lessons/multiple"
   },
   {
     "method": "GET",
@@ -1088,24 +684,8 @@
     "path": "/api/product-profiles"
   },
   {
-    "method": "POST",
-    "path": "/api/product-profiles"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/product-profiles/:code"
-  },
-  {
     "method": "GET",
     "path": "/api/product-profiles/:code"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/product-profiles/:code"
-  },
-  {
-    "method": "POST",
-    "path": "/api/product-profiles/:code/duplicate"
   },
   {
     "method": "GET",
@@ -1116,19 +696,7 @@
     "path": "/api/products"
   },
   {
-    "method": "POST",
-    "path": "/api/products"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/products/:id"
-  },
-  {
     "method": "GET",
-    "path": "/api/products/:id"
-  },
-  {
-    "method": "PUT",
     "path": "/api/products/:id"
   },
   {
@@ -1148,28 +716,8 @@
     "path": "/api/products/users"
   },
   {
-    "method": "POST",
-    "path": "/api/renewal-ac/approve"
-  },
-  {
     "method": "GET",
     "path": "/api/renewal-ac/changes"
-  },
-  {
-    "method": "POST",
-    "path": "/api/renewal-ac/changes/:id/revert"
-  },
-  {
-    "method": "POST",
-    "path": "/api/renewal-ac/execute"
-  },
-  {
-    "method": "POST",
-    "path": "/api/renewal-ac/plan"
-  },
-  {
-    "method": "POST",
-    "path": "/api/renewal-ac/refunds/detect"
   },
   {
     "method": "GET",
@@ -1180,20 +728,8 @@
     "path": "/api/renewal/offers"
   },
   {
-    "method": "POST",
-    "path": "/api/renewal/offers"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/renewal/offers/:id"
-  },
-  {
     "method": "GET",
     "path": "/api/renewal/performance"
-  },
-  {
-    "method": "POST",
-    "path": "/api/renewal/sync"
   },
   {
     "method": "GET",
@@ -1228,76 +764,16 @@
     "path": "/api/sync/conflicts/:id"
   },
   {
-    "method": "POST",
-    "path": "/api/sync/conflicts/:id/ignore"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/conflicts/:id/resolve"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/conflicts/auto-resolve"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/conflicts/bulk-resolve"
-  },
-  {
     "method": "GET",
     "path": "/api/sync/conflicts/critical"
   },
   {
-    "method": "POST",
-    "path": "/api/sync/curseduca"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/curseduca/batch"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/discord"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/discord/batch"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/discord/csv"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/execute-pipeline"
-  },
-  {
     "method": "GET",
-    "path": "/api/sync/history"
-  },
-  {
-    "method": "POST",
     "path": "/api/sync/history"
   },
   {
     "method": "GET",
     "path": "/api/sync/history/:id"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/history/:syncId/retry"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/sync/history/clean"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/hotmart"
-  },
-  {
-    "method": "POST",
-    "path": "/api/sync/hotmart/batch"
   },
   {
     "method": "GET",
@@ -1328,36 +804,8 @@
     "path": "/api/tag-monitoring/config/scope"
   },
   {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/config/scope"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/config/toggle"
-  },
-  {
     "method": "GET",
     "path": "/api/tag-monitoring/critical-tags"
-  },
-  {
-    "method": "POST",
-    "path": "/api/tag-monitoring/critical-tags"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/tag-monitoring/critical-tags/:id"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/tag-monitoring/critical-tags/:id/permanent"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/critical-tags/:id/priority"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/critical-tags/:id/toggle"
   },
   {
     "method": "GET",
@@ -1372,28 +820,12 @@
     "path": "/api/tag-monitoring/notifications"
   },
   {
-    "method": "DELETE",
-    "path": "/api/tag-monitoring/notifications/:id"
-  },
-  {
     "method": "GET",
     "path": "/api/tag-monitoring/notifications/:id"
   },
   {
     "method": "GET",
     "path": "/api/tag-monitoring/notifications/:id/details"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/notifications/:id/read"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/notifications/:id/unread"
-  },
-  {
-    "method": "PATCH",
-    "path": "/api/tag-monitoring/notifications/mark-all-read"
   },
   {
     "method": "GET",
@@ -1410,10 +842,6 @@
   {
     "method": "GET",
     "path": "/api/tag-monitoring/snapshots/compare"
-  },
-  {
-    "method": "POST",
-    "path": "/api/tag-monitoring/snapshots/manual"
   },
   {
     "method": "GET",
@@ -1436,20 +864,632 @@
     "path": "/api/tag-rules"
   },
   {
-    "method": "POST",
-    "path": "/api/tag-rules"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/tag-rules/:id"
-  },
-  {
     "method": "GET",
     "path": "/api/tag-rules/:id"
   },
   {
-    "method": "PUT",
-    "path": "/api/tag-rules/:id"
+    "method": "GET",
+    "path": "/api/tag-rules/fields"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials/available-students"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials/best-candidates"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials/report"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials/stats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/testimonials/student"
+  },
+  {
+    "method": "GET",
+    "path": "/api/user-history/all"
+  },
+  {
+    "method": "GET",
+    "path": "/api/user-history/user"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/:id"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/:id/history"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/:id/stats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/:userId/all-classes"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/:userId/products"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/analytics"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/analytics/stats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/by-email/:email"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/dashboard-stats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/engagement/comparison"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/engagement/heatmap"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/enrollments"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/getProductStats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/getUserStats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/idsDiferentes"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/infinite"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/infiniteStats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/listUsers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/listUsersSimple"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/search"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/stats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/stats/overview"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/student/:id/history"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/student/:id/stats"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/unified"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/unmatchedUsers"
+  },
+  {
+    "method": "GET",
+    "path": "/api/users/users/listUsers"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/discord-renewal/scheduled/:key"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/events/:id/status"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/renewal/offers/:id"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/config/scope"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/config/toggle"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/critical-tags/:id/priority"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/critical-tags/:id/toggle"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/notifications/:id/read"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/notifications/:id/unread"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/notifications/mark-all-read"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac/contact/:email/sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac/contacts/batch-sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac/contacts/batch-tags"
+  },
+  {
+    "method": "POST",
+    "path": "/api/achievements/evaluate-all"
+  },
+  {
+    "method": "POST",
+    "path": "/api/achievements/evaluate/:email"
+  },
+  {
+    "method": "POST",
+    "path": "/api/achievements/mark-seen"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/product-tags/apply"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/product-tags/remove"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/products/:productId/tags/sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/test-cron"
+  },
+  {
+    "method": "POST",
+    "path": "/api/analytics/class/:classId/recalculate"
+  },
+  {
+    "method": "POST",
+    "path": "/api/analytics/class/:classId/recalculate-individual"
+  },
+  {
+    "method": "POST",
+    "path": "/api/analytics/product-sales/compare"
+  },
+  {
+    "method": "POST",
+    "path": "/api/analytics/product-sales/rebuild"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/change-password"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/login"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/logout"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/unlock"
+  },
+  {
+    "method": "POST",
+    "path": "/api/business-analytics/cache/invalidate"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/carteira/refresh"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/comparador/refresh"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/earnings/refresh"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/raiox/refresh"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/refresh"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/top10/refresh"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/addOrEditClass"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/checkAndUpdateClassHistory"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/fetchClassData"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/inactivationLists/create"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/inactivationLists/revert/:id"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/moveMultipleStudents"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/moveStudent"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/syncComplete"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/syncHotmartClasses"
+  },
+  {
+    "method": "POST",
+    "path": "/api/course-lessons/sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/courses"
+  },
+  {
+    "method": "POST",
+    "path": "/api/courses/clareza/evaluate"
+  },
+  {
+    "method": "POST",
+    "path": "/api/courses/ogi/evaluate"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron-tags/execute"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron-tags/validate"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/jobs"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/jobs/:id/toggle"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/jobs/:id/trigger"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/tag-rules-only"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/validate"
+  },
+  {
+    "method": "POST",
+    "path": "/api/dashboard/compare"
+  },
+  {
+    "method": "POST",
+    "path": "/api/dashboard/materialized-stats/rebuild"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/approve"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/execute"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/messages/preview"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/messages/send"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/plan"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/scheduled/:key/test"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/scheduled/run"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discovery/configure"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discovery/generate-config"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discovery/run"
+  },
+  {
+    "method": "POST",
+    "path": "/api/engagement/engagement/cache/clear"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/:id/interest"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/seed"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/types"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/bulk"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/cleanup"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/cleanup-duplicates"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/diagnose"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/fix-to-active"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/mark-discrepancies"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/mark-stale-inactive"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/quarantine"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/restore"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/revert"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/single"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/snapshots"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/snapshots/historical"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/check-expired"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/inactivate"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/revert"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/webhook"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/webhooks/:id/reprocess"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/webhooks/migrate-source"
+  },
+  {
+    "method": "POST",
+    "path": "/api/hotmart/sync/universal/progress"
+  },
+  {
+    "method": "POST",
+    "path": "/api/hotmart/syncProgressOnly"
+  },
+  {
+    "method": "POST",
+    "path": "/api/lessons/multiple"
+  },
+  {
+    "method": "POST",
+    "path": "/api/product-profiles"
+  },
+  {
+    "method": "POST",
+    "path": "/api/product-profiles/:code/duplicate"
+  },
+  {
+    "method": "POST",
+    "path": "/api/products"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/approve"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/changes/:id/revert"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/execute"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/plan"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/refunds/detect"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal/offers"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal/sync"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/:id/ignore"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/:id/resolve"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/auto-resolve"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/bulk-resolve"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/curseduca"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/curseduca/batch"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/execute-pipeline"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/history"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/history/:syncId/retry"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/hotmart"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/hotmart/batch"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tag-monitoring/critical-tags"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tag-monitoring/snapshots/manual"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tag-rules"
   },
   {
     "method": "POST",
@@ -1458,10 +1498,6 @@
   {
     "method": "POST",
     "path": "/api/tag-rules/estimate"
-  },
-  {
-    "method": "GET",
-    "path": "/api/tag-rules/fields"
   },
   {
     "method": "POST",
@@ -1496,92 +1532,20 @@
     "path": "/api/test/history/revert-changes"
   },
   {
-    "method": "GET",
-    "path": "/api/testimonials"
-  },
-  {
     "method": "POST",
     "path": "/api/testimonials"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/testimonials/:id"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/testimonials/:id"
-  },
-  {
-    "method": "GET",
-    "path": "/api/testimonials/available-students"
-  },
-  {
-    "method": "GET",
-    "path": "/api/testimonials/best-candidates"
-  },
-  {
-    "method": "GET",
-    "path": "/api/testimonials/report"
   },
   {
     "method": "POST",
     "path": "/api/testimonials/request"
   },
   {
-    "method": "GET",
-    "path": "/api/testimonials/stats"
-  },
-  {
-    "method": "GET",
-    "path": "/api/testimonials/student"
-  },
-  {
-    "method": "GET",
-    "path": "/api/user-history/all"
-  },
-  {
     "method": "POST",
     "path": "/api/user-history/manual"
   },
   {
-    "method": "GET",
-    "path": "/api/user-history/user"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/users/:id"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/:id"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/users/:id"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/:id/history"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/:id/stats"
-  },
-  {
     "method": "POST",
     "path": "/api/users/:id/sync"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/:userId/all-classes"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/:userId/products"
   },
   {
     "method": "POST",
@@ -1596,80 +1560,12 @@
     "path": "/api/users/bulkMerge"
   },
   {
-    "method": "GET",
-    "path": "/api/users/by-email/:email"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/dashboard-stats"
-  },
-  {
-    "method": "PUT",
-    "path": "/api/users/editStudent/:id"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/getProductStats"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/getUserStats"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/idsDiferentes"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/users/idsDiferentes/:id"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/infinite"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/infiniteStats"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/listUsers"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/listUsersSimple"
-  },
-  {
     "method": "POST",
     "path": "/api/users/manualMatch"
   },
   {
     "method": "POST",
     "path": "/api/users/mergeDiscordId"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/search"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/stats"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/stats/overview"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/users/student/:id"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/student/:id/history"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/student/:id/stats"
   },
   {
     "method": "POST",
@@ -1680,46 +1576,6 @@
     "path": "/api/users/syncDiscordAndHotmart"
   },
   {
-    "method": "GET",
-    "path": "/api/users/unified"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/unmatchedUsers"
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/users/unmatchedUsers/:id"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/users/listUsers"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/analytics"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/engagement/comparison"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/engagement/heatmap"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/enrollments"
-  },
-  {
-    "method": "GET",
-    "path": "/api/users/v2/stats"
-  },
-  {
     "method": "POST",
     "path": "/api/webhooks/ac/email-opened"
   },
@@ -1728,39 +1584,67 @@
     "path": "/api/webhooks/ac/link-clicked"
   },
   {
-    "method": "GET",
-    "path": "/cron-tags/config"
+    "method": "PUT",
+    "path": "/api/classes/updateStatus"
   },
   {
     "method": "PUT",
-    "path": "/cron-tags/config"
+    "path": "/api/course-lessons/:pageId"
   },
   {
-    "method": "POST",
-    "path": "/cron-tags/execute"
+    "method": "PUT",
+    "path": "/api/courses/:id"
   },
   {
-    "method": "POST",
-    "path": "/cron-tags/execute-legacy"
+    "method": "PUT",
+    "path": "/api/cron-tags/config"
   },
   {
-    "method": "GET",
-    "path": "/cron-tags/history"
+    "method": "PUT",
+    "path": "/api/cron/jobs/:id"
   },
   {
-    "method": "GET",
-    "path": "/cron-tags/jobs/:id/history"
+    "method": "PUT",
+    "path": "/api/curseduca/user/:userId/classes"
   },
   {
-    "method": "GET",
-    "path": "/cron-tags/statistics"
+    "method": "PUT",
+    "path": "/api/discord-renewal/templates/:key"
   },
   {
-    "method": "GET",
-    "path": "/cron-tags/status"
+    "method": "PUT",
+    "path": "/api/events/:id"
   },
   {
-    "method": "POST",
-    "path": "/cron-tags/validate"
+    "method": "PUT",
+    "path": "/api/events/types/:id"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/guru/snapshots/:year/:month"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/product-profiles/:code"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/products/:id"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/tag-rules/:id"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/testimonials/:id"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/users/:id"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/users/editStudent/:id"
   }
 ]

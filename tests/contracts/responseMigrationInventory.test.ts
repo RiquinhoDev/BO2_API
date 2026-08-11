@@ -21,8 +21,8 @@ describe('response migration inventory', () => {
     }> = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
     const identities = inventory.map((entry) => entry.identity).sort()
 
-    expect(inventory).toHaveLength(441)
-    expect(new Set(identities).size).toBe(441)
+    expect(inventory).toHaveLength(412)
+    expect(new Set(identities).size).toBe(412)
     expect(identities).toEqual(routeCatalog.map(routeId).sort())
     for (const entry of inventory) {
       expect(entry.owner).toMatch(/^src\/.+\.ts$/)
@@ -32,8 +32,8 @@ describe('response migration inventory', () => {
       expect(entry.status).toMatch(/^(?:complete|pending-migration)$/)
     }
 
-    expect(inventory.filter((entry) => entry.status === 'complete')).toHaveLength(325)
-    expect(inventory.filter((entry) => entry.status === 'pending-migration')).toHaveLength(116)
+    expect(inventory.filter((entry) => entry.status === 'complete')).toHaveLength(322)
+    expect(inventory.filter((entry) => entry.status === 'pending-migration')).toHaveLength(90)
 
     // Planned 41 became 42 because the communication-history handler has a second
     // mounted identity. The exact-literal classifier also revealed product-sales
@@ -46,7 +46,7 @@ describe('response migration inventory', () => {
       'GET /api/activecampaign/courses/clareza/students',
       'GET /api/activecampaign/courses/ogi/students',
       'GET /api/activecampaign/stats',
-      'GET /api/activecampaign/v2/products/:productId/tagged',
+      'GET /api/activecampaign/products/:productId/tagged',
       'GET /api/analytics/product-sales',
       'GET /api/business-analytics/overview',
       'GET /api/business-analytics/products/comparison',
@@ -91,20 +91,6 @@ describe('response migration inventory', () => {
         status: 'complete',
       })
     }
-    expect(inventory.filter((entry) => entry.currentFamily === '501-only').map((entry) => entry.identity).sort()).toEqual([
-      'GET /api/curseduca/debug',
-      'GET /api/curseduca/groups',
-      'GET /api/curseduca/members',
-      'GET /api/curseduca/members/by',
-      'GET /api/curseduca/report',
-      'GET /api/curseduca/reports/access',
-      'GET /api/curseduca/user',
-      'GET /api/curseduca/users',
-      'GET /api/users/by-email/:email',
-      'POST /api/curseduca/cleanup',
-      'POST /api/sync/discord',
-      'POST /api/sync/discord/batch',
-      'POST /api/sync/discord/csv',
-    ])
+    expect(inventory.filter((entry) => entry.currentFamily === '501-only')).toEqual([])
   })
 })
