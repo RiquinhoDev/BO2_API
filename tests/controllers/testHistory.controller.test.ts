@@ -100,7 +100,8 @@ test('changes the canonical combined engagement field', async () => {
   const status = jest.fn().mockReturnValue({ json })
   await makeTestChanges(
     { body: { email: user.email } } as Request,
-    { status } as unknown as Response
+    { status } as unknown as Response,
+    jest.fn()
   )
 
   expect(User.findByIdAndUpdate).toHaveBeenCalledWith(user._id, {

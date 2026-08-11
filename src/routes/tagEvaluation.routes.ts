@@ -5,6 +5,7 @@
 
 import { Router } from 'express'
 import { evaluateTags, evaluateTagsBatch } from '../controllers/tagEvaluation.controller'
+import { asyncRoute } from '../security/asyncRoute'
 
 const router = Router()
 
@@ -42,7 +43,7 @@ const router = Router()
  * 4. Avaliar apenas um produto específico:
  *    POST { "email": "joao@example.com", "productId": "60f7b3b3e4b0c72e4c8b4568" }
  */
-router.post('/evaluate', evaluateTags)
+router.post('/evaluate', asyncRoute(evaluateTags))
 
 /**
  * POST /api/tags/evaluate-batch
@@ -68,7 +69,7 @@ router.post('/evaluate', evaluateTags)
  * 2. Avaliar e atualizar BD local para múltiplos users:
  *    POST { "userIds": ["id1", "id2", "id3"], "dryRun": false, "updateLocalDB": true, "limit": 50 }
  */
-router.post('/evaluate-batch', evaluateTagsBatch)
+router.post('/evaluate-batch', asyncRoute(evaluateTagsBatch))
 
 // ═══════════════════════════════════════════════════════════
 // EXPORT

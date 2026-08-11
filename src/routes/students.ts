@@ -6,6 +6,7 @@
 import express from 'express'
 import studentsController from '../controllers/studentsController'
 import * as studentHistoryController from '../controllers/studentHistory.controller'
+import { asyncRoute } from '../security/asyncRoute'
 
 const router = express.Router()
 
@@ -14,21 +15,21 @@ const router = express.Router()
 // Buscar dados completos de um estudante (consolidado)
 // ═══════════════════════════════════════════════════════════════
 
-router.get('/:userId/complete', studentsController.getStudentComplete)
+router.get('/:userId/complete', asyncRoute(studentsController.getStudentComplete))
 
 // ═══════════════════════════════════════════════════════════════
 // GET /api/students/:userId/history
 // Buscar histórico completo de alterações do estudante
 // ═══════════════════════════════════════════════════════════════
 
-router.get('/:userId/history', studentHistoryController.getStudentHistory)
+router.get('/:userId/history', asyncRoute(studentHistoryController.getStudentHistory))
 
 // ═══════════════════════════════════════════════════════════════
 // GET /api/students/:userId/history/summary
 // Buscar resumo do histórico (estatísticas)
 // ═══════════════════════════════════════════════════════════════
 
-router.get('/:userId/history/summary', studentHistoryController.getStudentHistorySummary)
+router.get('/:userId/history/summary', asyncRoute(studentHistoryController.getStudentHistorySummary))
 
 // ═══════════════════════════════════════════════════════════════
 // EXPORT

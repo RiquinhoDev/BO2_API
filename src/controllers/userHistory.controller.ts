@@ -1,9 +1,10 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import { ensureUserHistoryModel } from '../models/UserHistory'
 import mongoose from 'mongoose'
+import { forwardApplicationError } from './forwardApplicationError'
 
 // Buscar histórico de um usuário específico
-export const getUserHistory = async (req: Request, res: Response): Promise<void> => {
+export const getUserHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userId, email } = req.query
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100)
@@ -80,18 +81,18 @@ export const getUserHistory = async (req: Request, res: Response): Promise<void>
       timestamp: new Date().toISOString()
     })
 
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar histórico do usuário:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar histórico do usuário',
-      details: error.message
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(
+      next,
+      error,
+      'Erro ao buscar histórico do usuário',
+      'USER_HISTORY_READ_FAILED',
+    )
   }
 }
 
 // Buscar histórico geral (para admin)
-export const getAllHistory = async (req: Request, res: Response): Promise<void> => {
+export const getAllHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const page = Math.max(parseInt(req.query.page as string) || 1, 1)
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100)
@@ -161,18 +162,18 @@ export const getAllHistory = async (req: Request, res: Response): Promise<void> 
       timestamp: new Date().toISOString()
     })
 
-  } catch (error: any) {
-    console.error('❌ Erro ao buscar histórico geral:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao buscar histórico geral',
-      details: error.message
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(
+      next,
+      error,
+      'Erro ao buscar histórico geral',
+      'USER_HISTORY_LIST_FAILED',
+    )
   }
 }
 
 // Criar entrada manual no histórico (para edições administrativas)
-export const createManualHistoryEntry = async (req: Request, res: Response): Promise<void> => {
+export const createManualHistoryEntry = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userId, userEmail, changeType, previousValue, newValue, reason, changedBy } = req.body
 
@@ -204,12 +205,12 @@ export const createManualHistoryEntry = async (req: Request, res: Response): Pro
       message: 'Entrada de histórico criada com sucesso'
     })
 
-  } catch (error: any) {
-    console.error('❌ Erro ao criar entrada de histórico:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao criar entrada de histórico',
-      details: error.message
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(
+      next,
+      error,
+      'Erro ao criar entrada de histórico',
+      'USER_HISTORY_CREATE_FAILED',
+    )
   }
 }

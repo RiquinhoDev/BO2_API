@@ -3,7 +3,8 @@
 // Controller para histórico de alterações do estudante
 // ══════════════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
+import { forwardApplicationError } from './forwardApplicationError'
 import mongoose from 'mongoose'
 import UserHistory from '../models/UserHistory'
 import User from '../models/user'
@@ -20,7 +21,7 @@ type StudentHistoryParams = {
  * GET /api/students/:userId/history
  * Retorna histórico completo de alterações do estudante
  */
-export const getStudentHistory = async (req: Request<StudentHistoryParams>, res: Response) => {
+export const getStudentHistory = async (req: Request<StudentHistoryParams>, res: Response, next: NextFunction) => {
   try {
     const { userId } = req.params
     const { limit = '50', offset = '0', changeType, platform, startDate, endDate } = req.query
@@ -108,13 +109,13 @@ export const getStudentHistory = async (req: Request<StudentHistoryParams>, res:
         totalRecords: total
       }
     })
-  } catch (error: any) {
-    console.error('[StudentHistoryController] Erro:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao buscar histórico do estudante',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return forwardApplicationError(
+      next,
+      error,
+      'Erro ao buscar histórico do estudante',
+      'STUDENT_HISTORY_READ_FAILED',
+    )
   }
 }
 
@@ -126,7 +127,7 @@ export const getStudentHistory = async (req: Request<StudentHistoryParams>, res:
  * GET /api/students/:userId/history/summary
  * Retorna resumo do histórico (estatísticas)
  */
-export const getStudentHistorySummary = async (req: Request<StudentHistoryParams>, res: Response) => {
+export const getStudentHistorySummary = async (req: Request<StudentHistoryParams>, res: Response, next: NextFunction) => {
   try {
     const { userId } = req.params
 
@@ -189,13 +190,13 @@ export const getStudentHistorySummary = async (req: Request<StudentHistoryParams
       success: true,
       data: summary
     })
-  } catch (error: any) {
-    console.error('[StudentHistoryController] Erro:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao buscar resumo do histórico',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return forwardApplicationError(
+      next,
+      error,
+      'Erro ao buscar resumo do histórico',
+      'STUDENT_HISTORY_SUMMARY_READ_FAILED',
+    )
   }
 }
 

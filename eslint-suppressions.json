@@ -211,10 +211,10 @@
   },
   "src/controllers/studentHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
+      "count": 5
     },
     "no-console": {
-      "count": 4
+      "count": 2
     }
   },
   "src/controllers/studentOgiSummary.controller.ts": {
@@ -224,7 +224,7 @@
   },
   "src/controllers/studentsController.ts": {
     "no-console": {
-      "count": 3
+      "count": 2
     }
   },
   "src/controllers/sync/history.controller.ts": {
@@ -298,13 +298,13 @@
   },
   "src/controllers/tagEvaluation.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 9
+      "count": 6
     },
     "@typescript-eslint/no-unused-vars": {
-      "count": 2
+      "count": 1
     },
     "no-console": {
-      "count": 20
+      "count": 18
     }
   },
   "src/controllers/tagEvaluation/mapping.ts": {
@@ -319,10 +319,10 @@
   },
   "src/controllers/testHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
+      "count": 5
     },
     "no-console": {
-      "count": 22
+      "count": 20
     }
   },
   "src/controllers/testimonials/testimonialCandidates.controller.ts": {
@@ -342,10 +342,7 @@
   },
   "src/controllers/userHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 12
-    },
-    "no-console": {
-      "count": 3
+      "count": 9
     },
     "prefer-const": {
       "count": 1

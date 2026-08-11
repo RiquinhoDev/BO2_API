@@ -28,7 +28,7 @@ afterEach(() => {
   mockUserFindOne.mockReset()
 })
 
-test('tag evaluation uses typed node environment for development error stacks', async () => {
+test('tag evaluation forwards failures without development stacks', async () => {
   useTestRuntimeConfig({ nodeEnv: 'development' })
   const previousNodeEnv = process.env.NODE_ENV
   process.env.NODE_ENV = 'test'
@@ -39,17 +39,20 @@ test('tag evaluation uses typed node environment for development error stacks', 
     status: jest.fn().mockReturnThis(),
     json: jest.fn().mockReturnThis(),
   }
-  jest.spyOn(console, 'error').mockImplementation(() => undefined)
+  const next = jest.fn()
 
   try {
     await evaluateTags(
       { body: { email: 'student@example.test' } } as never,
       response as never,
+      next,
     )
 
-    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
-      stack: expect.any(String),
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'TAG_EVALUATION_FAILED',
+      publicMessage: 'Erro ao avaliar tags',
     }))
+    expect(response.json).not.toHaveBeenCalled()
   } finally {
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV
     else process.env.NODE_ENV = previousNodeEnv

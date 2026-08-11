@@ -3,12 +3,12 @@
 // Controller para teste e avaliaÃƒÂ§ÃƒÂ£o do sistema de tags V2
 // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import User from '../models/user'
 import { UserProduct } from '../models'
 import Product from '../models/product/Product'
-import { getRuntimeConfig } from '../config/runtimeConfig'
+import { forwardApplicationError } from './forwardApplicationError'
 import { evaluateStudentTags } from '../jobs/dailyPipeline/tagEvaluation/evaluateStudentTags'
 import { evaluateGlobalUserTags } from '../jobs/dailyPipeline/tagEvaluation/globalUserTags'
 import { IProductForEvaluation } from '../jobs/dailyPipeline/tagEvaluation/types'
@@ -53,7 +53,7 @@ import {
  *   errors: string[]
  * }
  */
-export const evaluateTags = async (req: Request, res: Response): Promise<void> => {
+export const evaluateTags = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const startTime = Date.now()
 
   try {
@@ -303,13 +303,8 @@ export const evaluateTags = async (req: Request, res: Response): Promise<void> =
 
     res.status(200).json(response)
 
-  } catch (error: any) {
-    console.error('Ã¢ÂÅ’ Erro ao avaliar tags:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      stack: getRuntimeConfig().core.nodeEnv === 'development' ? error.stack : undefined
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(next, error, 'Erro ao avaliar tags', 'TAG_EVALUATION_FAILED')
   }
 }
 
@@ -326,7 +321,7 @@ export const evaluateTags = async (req: Request, res: Response): Promise<void> =
  *   ...outras opÃƒÂ§ÃƒÂµes
  * }
  */
-export const evaluateTagsBatch = async (req: Request, res: Response): Promise<void> => {
+export const evaluateTagsBatch = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const startTime = Date.now()
 
   try {
@@ -336,7 +331,6 @@ export const evaluateTagsBatch = async (req: Request, res: Response): Promise<vo
       limit = 10,
       dryRun = true,
       updateLocalDB = false,
-      verbose = false,
       includeDebugInfo = false
     } = req.body
 
@@ -404,7 +398,7 @@ export const evaluateTagsBatch = async (req: Request, res: Response): Promise<vo
         } as Request
 
         const individualRes = {
-          status: (code: number) => ({
+          status: (_code: number) => ({
             json: (data: any) => {
               if (data.success) {
                 results.push(data.user)
@@ -415,10 +409,10 @@ export const evaluateTagsBatch = async (req: Request, res: Response): Promise<vo
           })
         } as any
 
-        await evaluateTags(individualReq, individualRes)
+        await evaluateTags(individualReq, individualRes, error => { throw error })
 
-      } catch (error: any) {
-        errors.push({ email: user.email, error: error.message })
+      } catch {
+        errors.push({ email: user.email, error: 'Erro ao avaliar tags' })
       }
     }
 
@@ -452,12 +446,8 @@ export const evaluateTagsBatch = async (req: Request, res: Response): Promise<vo
 
     console.log(`Ã¢Å“â€¦ AvaliaÃƒÂ§ÃƒÂ£o batch concluÃƒÂ­da: ${results.length}/${users.length} users (${duration}ms)`)
 
-  } catch (error: any) {
-    console.error('Ã¢ÂÅ’ Erro ao avaliar tags em batch:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(next, error, 'Erro ao avaliar tags em batch', 'TAG_EVALUATION_BATCH_FAILED')
   }
 }
 

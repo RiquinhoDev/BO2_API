@@ -4,16 +4,17 @@
 // ⚠️ APENAS PARA DESENVOLVIMENTO - REMOVER EM PRODUÇÃO
 // ══════════════════════════════════════════════════════════════════════
 
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import { snapshotAndCompare } from '../services/snapshotServices/userSnapshot.service'
+import { forwardApplicationError } from './forwardApplicationError'
 
 /**
  * POST /api/test/history/make-changes
  * Faz alterações de teste no user para testar sistema de histórico
  */
-export const makeTestChanges = async (req: Request, res: Response) => {
+export const makeTestChanges = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email } = req.body
 
@@ -167,13 +168,13 @@ export const makeTestChanges = async (req: Request, res: Response) => {
         viewHistoryUrl: `/dashboard?tab=studentEditor&search=${encodeURIComponent(email)}`
       }
     })
-  } catch (error: any) {
-    console.error('[TEST] Erro:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao fazer alterações de teste',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return forwardApplicationError(
+      next,
+      error,
+      'Erro ao fazer alterações de teste',
+      'TEST_HISTORY_CHANGES_FAILED',
+    )
   }
 }
 
@@ -181,7 +182,7 @@ export const makeTestChanges = async (req: Request, res: Response) => {
  * POST /api/test/history/revert-changes
  * Reverte as alterações de teste
  */
-export const revertTestChanges = async (req: Request, res: Response) => {
+export const revertTestChanges = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { originalState } = req.body
 
@@ -237,12 +238,12 @@ export const revertTestChanges = async (req: Request, res: Response) => {
         productsReverted: originalState.products.length
       }
     })
-  } catch (error: any) {
-    console.error('[TEST] Erro na reversão:', error)
-    return res.status(500).json({
-      success: false,
-      error: 'Erro ao reverter alterações',
-      message: error.message
-    })
+  } catch (error: unknown) {
+    return forwardApplicationError(
+      next,
+      error,
+      'Erro ao reverter alterações',
+      'TEST_HISTORY_REVERT_FAILED',
+    )
   }
 }

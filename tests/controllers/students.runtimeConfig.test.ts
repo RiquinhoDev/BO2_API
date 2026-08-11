@@ -20,7 +20,7 @@ afterEach(() => {
   mockGetCompleteStudentData.mockReset()
 })
 
-test('students controller uses typed node environment for development error details', async () => {
+test('students controller forwards typed failures without development details', async () => {
   useTestRuntimeConfig({ nodeEnv: 'development' })
   const previousNodeEnv = process.env.NODE_ENV
   process.env.NODE_ENV = 'test'
@@ -31,18 +31,21 @@ test('students controller uses typed node environment for development error deta
     status: jest.fn().mockReturnThis(),
     json: jest.fn().mockReturnThis(),
   }
+  const next = jest.fn()
   jest.spyOn(console, 'log').mockImplementation(() => undefined)
-  jest.spyOn(console, 'error').mockImplementation(() => undefined)
 
   try {
     await getStudentComplete(
       { params: { userId: '507f1f77bcf86cd799439011' } } as never,
       response as never,
+      next,
     )
 
-    expect(response.json).toHaveBeenCalledWith(expect.objectContaining({
-      details: 'database detail',
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'STUDENT_COMPLETE_DATA_FETCH_FAILED',
+      publicMessage: 'student fetch failed',
     }))
+    expect(response.json).not.toHaveBeenCalled()
   } finally {
     if (previousNodeEnv === undefined) delete process.env.NODE_ENV
     else process.env.NODE_ENV = previousNodeEnv
