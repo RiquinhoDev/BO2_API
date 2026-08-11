@@ -160,7 +160,7 @@ export async function performance(req: Request, res: Response, next: NextFunctio
 export async function runSync(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const report = await syncRenewalOffers()
-    res.json({ report })
+    res.json(successResponse({ report }))
   } catch (error: unknown) {
     next(internalError('Erro ao sincronizar ofertas', 'RENEWAL_SYNC_FAILED', error))
   }

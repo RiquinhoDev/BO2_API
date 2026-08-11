@@ -9,6 +9,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { asyncRoute } from '../security/asyncRoute'
+import { successResponse } from '../contracts/responseContract'
 import { Router, type Request, type Response } from 'express'
 import RenewalAcChange from '../models/RenewalAcChange'
 import CronJobConfig from '../models/SyncModels/CronJobConfig'
@@ -115,7 +116,7 @@ router.post('/execute', withValidatedInput(renewalAcExecuteInput, async (input, 
     batchId: input.body.batchId,
     executedBy: actor(req, input.body.actor)
   })
-  res.json({ success: report.masterEnabled, data: report })
+  res.json(successResponse({ report }))
 }))
 
 /**
@@ -123,7 +124,8 @@ router.post('/execute', withValidatedInput(renewalAcExecuteInput, async (input, 
  */
 router.post('/changes/:id/revert', withValidatedInput(renewalAcRevertInput, async (input, req, res) => {
   const result = await revertChange(input.params.id, actor(req, input.body.actor))
-  res.status(result.success ? 200 : 400).json({ success: result.success, message: result.message })
+  if (!result.success) return res.status(400).json(result)
+  res.json(successResponse({}, { message: result.message }))
 }))
 
 export default router

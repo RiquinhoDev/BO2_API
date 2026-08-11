@@ -105,11 +105,8 @@ export async function rebuildProductSalesStatsEndpoint(req: Request, res: Respon
     console.log('🔄 Rebuild manual de Product Sales Stats iniciado...')
     
     // Responder imediatamente (processo roda em background)
-    res.json({
-      success: true,
-      message: 'Rebuild de Product Sales Stats iniciado em background',
-      estimatedTime: '30-60 segundos'
-    })
+    res.json(successResponse({ estimatedTime: '30-60 segundos' },
+      { message: 'Rebuild de Product Sales Stats iniciado em background' }))
     
     // Executar rebuild em background
     buildProductSalesStats()

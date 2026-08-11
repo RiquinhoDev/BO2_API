@@ -72,10 +72,8 @@ export async function updateCourseLessonUrl(req: Request, res: Response, next: N
 export async function syncCourseLessons(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await syncCourseLessonCatalog()
-    res.json({
-      sync: result,
-      message: 'Catalogo de aulas sincronizado com sucesso.'
-    })
+    res.json(successResponse({ sync: result },
+      { message: 'Catalogo de aulas sincronizado com sucesso.' }))
   } catch (error: unknown) {
     next(internalError('Erro ao sincronizar catalogo de aulas.', 'COURSE_LESSONS_SYNC_FAILED', error))
   }
