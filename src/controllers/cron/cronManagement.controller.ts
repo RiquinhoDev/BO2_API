@@ -63,7 +63,7 @@ export function createCronManagementController(service: CronTagsUseCases) {
     ): Promise<void> {
       try {
         const config = await service.updateConfig(input.body)
-        res.json(successResponse(config, { message: 'ConfiguraÃ§Ã£o atualizada com sucesso' }))
+        res.json(successResponse(config, { message: 'Configuração atualizada com sucesso' }))
       } catch (error) {
         if (!respondNotFound(error, res)) throw error
       }
@@ -104,7 +104,7 @@ export function createCronManagementController(service: CronTagsUseCases) {
           input.params.id,
           input.query.limit,
         )
-        res.status(200).json(successResponse(data, { message: 'HistÃ³rico recuperado com sucesso' }))
+        res.status(200).json(successResponse(data, { message: 'Histórico recuperado com sucesso' }))
       } catch (error) {
         if (!respondNotFound(error, res)) throw error
       }

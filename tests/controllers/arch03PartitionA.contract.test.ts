@@ -130,7 +130,7 @@ test('achievements success routes use canonical data and meta and preserve persi
   expect(all.body).toEqual({
     success: true,
     data: { total: 2, processed: 2, evaluated: 1, errors: 0, durationMs: 20, avgPerUser: 10 },
-    meta: { message: 'AvaliaÃ§Ã£o de conquistas concluÃ­da' },
+    meta: { message: 'Avaliação de conquistas concluída' },
   })
   expect(user.markModified).toHaveBeenCalledWith('achievements')
   expect(user.save).toHaveBeenCalledTimes(1)

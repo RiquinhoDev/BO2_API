@@ -129,6 +129,7 @@ test('updates config through a strict DTO', async () => {
   expect(response.body).toMatchObject({
     success: true,
     data: { name: 'TAG_RULES_SYNC' },
+    meta: { message: 'Configuração atualizada com sucesso' },
   })
 })
 
@@ -158,6 +159,12 @@ test('passes normalized history limit to the use case', async () => {
   expect(response.status).toBe(200)
   expect(service.getHistory).toHaveBeenCalledWith(20)
   expect(response.body).toEqual({ success: true, data: [] })
+
+  const jobHistory = await request(app)
+    .get('/api/cron-tags/jobs/507f1f77bcf86cd799439011/history')
+    .query({ ...marker, limit: '20' })
+    .expect(200)
+  expect(jobHistory.body.meta).toEqual({ message: 'Histórico recuperado com sucesso' })
 })
 
 test('rejects oversized history queries before persistence', async () => {
