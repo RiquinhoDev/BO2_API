@@ -125,7 +125,7 @@
       "count": 1
     },
     "no-console": {
-      "count": 10
+      "count": 9
     }
   },
   "src/controllers/guruAnalytics/churn.controller.ts": {

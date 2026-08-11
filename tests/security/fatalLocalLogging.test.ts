@@ -72,6 +72,65 @@ function descendants(
 }
 
 
+function nestedCatchClauses(catchClause: ts.CatchClause): ts.CatchClause[] {
+  const matches: ts.CatchClause[] = []
+  function visit(node: ts.Node): void {
+    if (node !== catchClause && ts.isCatchClause(node)) {
+      matches.push(node)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(catchClause.block)
+  return matches
+}
+
+function referencesIdentifier(node: ts.Node, names: ReadonlySet<string>): boolean {
+  if (ts.isIdentifier(node) && names.has(node.text)) {
+    return true
+  }
+  let found = false
+  ts.forEachChild(node, (child) => {
+    if (!found && referencesIdentifier(child, names)) {
+      found = true
+    }
+  })
+  return found
+}
+
+function enclosingCatchVariables(node: ts.Node, boundary: ts.CatchClause): Set<string> {
+  const names = new Set<string>()
+  let current: ts.Node | undefined = node
+  while (current !== undefined) {
+    if (
+      ts.isCatchClause(current)
+      && current.variableDeclaration !== undefined
+      && ts.isIdentifier(current.variableDeclaration.name)
+    ) {
+      names.add(current.variableDeclaration.name.text)
+    }
+    if (current === boundary) {
+      break
+    }
+    current = current.parent
+  }
+  return names
+}
+
+function isUnsafeNestedCompensationLog(
+  node: ts.CallExpression,
+  boundary: ts.CatchClause,
+): boolean {
+  if (!ts.isPropertyAccessExpression(node.expression)) {
+    return false
+  }
+  const root = receiverRoot(node.expression.expression)
+  if (root === 'console' || /syncLogger/i.test(root)) {
+    return true
+  }
+  const errorNames = enclosingCatchVariables(node, boundary)
+  return node.arguments.some((argument) => referencesIdentifier(argument, errorNames))
+}
+
 function enclosingFunctionName(node: ts.Node): string | undefined {
   let current = node.parent
   while (current !== undefined) {
@@ -125,7 +184,14 @@ function findFatalLocalLogs(sourceText: string, file: string): FatalLocalLog[] {
         ? descendants(node, ts.isThrowStatement)
         : []
       const delegations = [...directDelegations, ...propagatedThrows]
-      const localLogs = descendants(node, isLocalLoggerCall)
+      const directLocalLogs = descendants(node, isLocalLoggerCall)
+      const nestedLocalLogs = nestedCatchClauses(node).flatMap((nestedCatch) =>
+        descendants(nestedCatch, isLocalLoggerCall).filter(
+          (localLog) => ts.isCallExpression(localLog)
+            && isUnsafeNestedCompensationLog(localLog, node),
+        ),
+      )
+      const localLogs = [...directLocalLogs, ...nestedLocalLogs]
       for (const localLog of localLogs) {
         if (!ts.isCallExpression(localLog)) {
           continue
@@ -175,6 +241,39 @@ describe('fatal local logging ratchet', () => {
       expect.objectContaining({ file, text: 'console.error(error)' }),
     ])
     expect(findFatalLocalLogs(source, file)).toEqual([])
+
+    const nestedMutation = source.replace(
+      marker,
+      `try {\n      throw error\n    } catch {\n      console.error(error)\n    }\n    ${marker}`,
+    )
+
+    expect(nestedMutation).not.toBe(source)
+    expect(findFatalLocalLogs(nestedMutation, file)).toEqual([
+      expect.objectContaining({ file, text: 'console.error(error)' }),
+    ])
+    expect(findFatalLocalLogs(source, file)).toEqual([])
+
+    const nestedSyncLoggerMutation = nestedMutation.replace(
+      'console.error(error)',
+      "SyncLogger.error('compensation failed')",
+    )
+    expect(findFatalLocalLogs(nestedSyncLoggerMutation, file)).toEqual([
+      expect.objectContaining({ file, text: "SyncLogger.error('compensation failed')" }),
+    ])
+
+    const nestedRawErrorMutation = nestedMutation.replace(
+      'console.error(error)',
+      "logger.warn('compensation failed', { error })",
+    )
+    expect(findFatalLocalLogs(nestedRawErrorMutation, file)).toEqual([
+      expect.objectContaining({ file, text: "logger.warn('compensation failed', { error })" }),
+    ])
+
+    const nestedSafeLoggerMutation = nestedMutation.replace(
+      'console.error(error)',
+      "logger.warn('compensation failed', { stage: 'write', status: 'failed' })",
+    )
+    expect(findFatalLocalLogs(nestedSafeLoggerMutation, file)).toEqual([])
 
     const helperFile = 'src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts'
     const helperSource = fs.readFileSync(path.resolve(process.cwd(), helperFile), 'utf8')
