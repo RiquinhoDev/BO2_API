@@ -3,6 +3,7 @@ import { weeklyTagMonitoringService } from '../../services/tagMonitoring'
 import { WeeklyNativeTagSnapshot, WeeklyTagMonitoringConfig } from '../../models/tagMonitoring'
 import logger from '../../utils/logger'
 import { internalError } from '../../security/errorHandling'
+import { successResponse } from '../../contracts/responseContract'
 
 type SnapshotEmailParams = {
   email: string
@@ -29,11 +30,7 @@ export const getSnapshots = async (
       .limit(limit ? parseInt(limit as string) : 100)
       .lean()
 
-    res.json({
-      success: true,
-      data: snapshots,
-      count: snapshots.length,
-    })
+    res.json(successResponse(snapshots, { count: snapshots.length }))
   } catch (error: unknown) {
     next(internalError('Erro ao listar snapshots', 'TAG_MONITORING_SNAPSHOT_LIST_FAILED', error))
   }
@@ -64,12 +61,7 @@ export const getSnapshotsByEmail = async (
       limit ? parseInt(limit as string) : 10
     )
 
-    res.json({
-      success: true,
-      data: snapshots,
-      count: snapshots.length,
-      email,
-    })
+    res.json(successResponse(snapshots, { count: snapshots.length, email }))
   } catch (error: unknown) {
     next(internalError(
       'Erro ao buscar snapshots',
@@ -161,11 +153,7 @@ export const executeManualSnapshot = async (
 
     const result = await weeklyTagMonitoringService.performWeeklySnapshot()
 
-    res.json({
-      success: true,
-      message: 'Snapshot manual executado com sucesso',
-      data: result,
-    })
+    res.json(successResponse(result, { message: 'Snapshot manual executado com sucesso' }))
   } catch (error: unknown) {
     next(internalError(
       'Erro ao executar snapshot manual',
@@ -297,14 +285,7 @@ export const updateScopeConfig = async (
 
     logger.info(`📋 Configuração de scope atualizada para: ${scope}`)
 
-    res.json({
-      success: true,
-      message: 'Configuração atualizada com sucesso',
-      data: {
-        scope: config.scope,
-        enabled: config.enabled,
-      },
-    })
+    res.json(successResponse({ scope: config.scope, enabled: config.enabled }, { message: 'Configuração atualizada com sucesso' }))
   } catch (error: unknown) {
     next(internalError(
       'Erro ao atualizar configuração',
@@ -328,14 +309,7 @@ export const toggleMonitoring = async (
 
     logger.info(`📋 Sistema de monitorização ${config.enabled ? 'ativado' : 'desativado'}`)
 
-    res.json({
-      success: true,
-      message: `Sistema ${config.enabled ? 'ativado' : 'desativado'} com sucesso`,
-      data: {
-        scope: config.scope,
-        enabled: config.enabled,
-      },
-    })
+    res.json(successResponse({ scope: config.scope, enabled: config.enabled }, { message: `Sistema ${config.enabled ? 'ativado' : 'desativado'} com sucesso` }))
   } catch (error: unknown) {
     next(internalError(
       'Erro ao alternar sistema',

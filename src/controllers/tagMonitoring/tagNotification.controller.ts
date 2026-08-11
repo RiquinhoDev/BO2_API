@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express'
 import { tagNotificationService } from '../../services/tagMonitoring'
 import { internalError } from '../../security/errorHandling'
 import type { TagMonitoringDeleteInput } from '../../security/tagMonitoringDestructiveInput'
+import { successResponse } from '../../contracts/responseContract'
 
 type NotificationIdParams = {
   id: string
@@ -30,12 +31,7 @@ export const getNotifications = async (req: Request, res: Response, next: NextFu
 
     const notifications = await tagNotificationService.getNotifications(filters)
 
-    res.json({
-      success: true,
-      data: notifications,
-      count: notifications.length,
-      filters,
-    })
+    res.json(successResponse(notifications, { count: notifications.length, filters }))
   } catch (cause: unknown) {
     next(internalError('Erro ao listar notificações', 'TAG_NOTIFICATION_LIST_FAILED', cause))
   }
@@ -99,11 +95,7 @@ export const getNotificationDetails = async (
 
     const details = await tagNotificationService.getNotificationDetails(id)
 
-    res.json({
-      success: true,
-      data: details,
-      count: details.length,
-    })
+    res.json(successResponse(details, { count: details.length }))
   } catch (cause: unknown) {
     next(internalError('Erro ao buscar detalhes', 'TAG_NOTIFICATION_DETAILS_FAILED', cause))
   }
@@ -130,11 +122,7 @@ export const markAsRead = async (
 
     const notification = await tagNotificationService.markAsRead(id)
 
-    res.json({
-      success: true,
-      message: 'Notificação marcada como lida',
-      data: notification,
-    })
+    res.json(successResponse(notification, { message: 'Notificação marcada como lida' }))
   } catch (cause: unknown) {
     const message = errorMessage(cause)
     if (message?.includes('não encontrada')) {
@@ -165,11 +153,7 @@ export const markAsUnread = async (
 
     const notification = await tagNotificationService.markAsUnread(id)
 
-    res.json({
-      success: true,
-      message: 'Notificação marcada como não lida',
-      data: notification,
-    })
+    res.json(successResponse(notification, { message: 'Notificação marcada como não lida' }))
   } catch (cause: unknown) {
     const message = errorMessage(cause)
     if (message?.includes('não encontrada')) {
@@ -200,10 +184,7 @@ export const dismissNotification = async (
 
     await tagNotificationService.dismissNotification(id)
 
-    res.json({
-      success: true,
-      message: 'Notificação removida com sucesso',
-    })
+    res.json(successResponse(null, { message: 'Notificação removida com sucesso' }))
   } catch (cause: unknown) {
     const message = errorMessage(cause)
     if (message?.includes('não encontrada')) {
@@ -238,11 +219,7 @@ export const markAllAsRead = async (req: Request, res: Response, next: NextFunct
   try {
     const count = await tagNotificationService.markAllAsRead()
 
-    res.json({
-      success: true,
-      message: `${count} notificações marcadas como lidas`,
-      data: { count },
-    })
+    res.json(successResponse({ count }, { message: `${count} notificações marcadas como lidas` }))
   } catch (cause: unknown) {
     next(internalError('Erro ao marcar todas como lidas', 'TAG_NOTIFICATION_MARK_ALL_READ_FAILED', cause))
   }
