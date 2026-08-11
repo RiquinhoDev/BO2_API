@@ -3,6 +3,7 @@ import IdsDiferentes from '../models/IdsDiferentes'
 import UnmatchedUser from '../models/UnmatchedUser'
 import { paginate } from '../utils/pagination'
 import { internalError } from '../security/errorHandling'
+import { successResponse } from '../contracts/responseContract'
 
 const IDS_DIFERENTES_PROJECTION =
   '_id email previousDiscordIds newDiscordId detectedAt createdAt updatedAt __v'
@@ -32,10 +33,7 @@ export const getIdsDiferentes = async (
       IdsDiferentes.countDocuments({}),
     ])
 
-    res.json({
-      idsDiferentes,
-      pagination: pagination.metadata(total),
-    })
+    res.json(successResponse(idsDiferentes, { pagination: pagination.metadata(total) }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar IDs diferentes', 'USERS_IDS_REVIEW_LIST_FAILED', error))
   }
@@ -58,10 +56,7 @@ export const getUnmatchedUsers = async (
       UnmatchedUser.countDocuments({}),
     ])
 
-    res.status(200).json({
-      unmatchedUsers,
-      pagination: pagination.metadata(total),
-    })
+    res.status(200).json(successResponse(unmatchedUsers, { pagination: pagination.metadata(total) }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar utilizadores não correspondidos', 'USERS_UNMATCHED_REVIEW_LIST_FAILED', error))
   }

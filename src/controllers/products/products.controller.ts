@@ -1,6 +1,7 @@
 // src/controllers/products.controller.ts
 import { type NextFunction, Request, Response } from 'express'
 import { internalError } from '../../security/errorHandling'
+import { successResponse } from '../../contracts/responseContract'
 import { getAllProductsStats, getProductStats, KNOWN_PRODUCTS } from '../../services/userProducts/productService'
 import { getEngagementStatsByPlatform } from '../../services/syncUtilizadoresServices/engagement/engagementService'
 import UserModel from '../../models/user'
@@ -97,16 +98,14 @@ export const getProductUsers = async (req: Request, res: Response, next: NextFun
       })))
     }
 
-    res.json({
-      success: true,
-      users: usersAny,
+    res.json(successResponse(usersAny, {
       total: usersAny.length,
       debug: {
         curseducaRoot: withCurseducaRoot.length,
         curseducaNested: withCurseducaNested.length,
         curseducaTotal: withCurseducaAny.length
       }
-    })
+    }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar utilizadores', 'PRODUCT_USERS_READ_FAILED', error))
   }
@@ -146,10 +145,8 @@ export const getEngagementStats = async (req: Request, res: Response, next: Next
   try {
     const stats = await getEngagementStatsByPlatform()
     
-    res.json({
-      success: true,
-      engagementStats: stats
-    })
+    res.json(successResponse({ engagementStats: stats }))
+
   } catch (error: unknown) {
     next(internalError('Erro ao buscar estatísticas de engagement', 'PRODUCT_ENGAGEMENT_STATS_READ_FAILED', error))
   }
