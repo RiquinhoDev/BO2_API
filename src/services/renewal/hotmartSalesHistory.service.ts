@@ -18,6 +18,7 @@
 import axios from 'axios'
 import mongoose from 'mongoose'
 import HotmartSaleHistory, { IHotmartSale } from '../../models/HotmartSaleHistory'
+import HotmartSalesMonthlyStats from '../../models/HotmartSalesMonthlyStats'
 import Product from '../../models/product/Product'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
@@ -26,6 +27,10 @@ import { HOTMART_SALES_HISTORY_MAX_LOOKBACK_DAYS } from './renewalConstants'
 
 const HOTMART_SALES_HISTORY_URL = 'https://developers.hotmart.com/payments/api/v1/sales/history'
 const PAGE_DELAY_MS = 500
+
+// mesmo critério usado em acExpirationSync.service.ts / RenewalAcAlertsPanel —
+// uma venda nestes estados nunca conta como venda "boa" para desempenho.
+const REFUND_TRANSACTION_STATUSES = new Set(['REFUNDED', 'CHARGEBACK'])
 
 export interface SalesHistorySyncReport {
   salesChecked: number
@@ -37,6 +42,7 @@ export interface SalesHistorySyncReport {
   updated: number
   withSales: number
   withoutSales: number
+  monthlyStatsUpdated: number
   errors: Array<{ email: string; error: string }>
 }
 
@@ -278,6 +284,71 @@ async function fetchAllOgiSalesGroupedByEmail(
   return { salesByEmail, salesChecked, pagesFetched, totalResultsReportedByHotmart, paginationComplete }
 }
 
+export interface MonthlySalesStat {
+  month: string // 'YYYY-MM'
+  year: number
+  monthNum: number
+  salesCount: number
+  revenueByCurrency: Record<string, number>
+  refundedCount: number
+  refundedByCurrency: Record<string, number>
+}
+
+function monthKeyFromDate(d: Date): string {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+/**
+ * Agrega TODAS as vendas já trazidas por fetchAllOgiSalesGroupedByEmail
+ * (não só as de alunos ativos) por mês de aprovação — desempenho de
+ * vendas, não matching de renovação. Zero chamadas extra à Hotmart:
+ * reaproveita o mesmo pedido em bulk que o Sync Hotmart já faz.
+ */
+export function aggregateMonthlySalesStats(salesByEmail: Map<string, IHotmartSale[]>): MonthlySalesStat[] {
+  const buckets = new Map<string, MonthlySalesStat>()
+
+  for (const sales of salesByEmail.values()) {
+    for (const sale of sales) {
+      if (!sale.approvedDate) continue
+
+      const month = monthKeyFromDate(sale.approvedDate)
+      let bucket = buckets.get(month)
+      if (!bucket) {
+        const [y, m] = month.split('-').map(Number)
+        bucket = { month, year: y, monthNum: m, salesCount: 0, revenueByCurrency: {}, refundedCount: 0, refundedByCurrency: {} }
+        buckets.set(month, bucket)
+      }
+
+      const isRefund = !!sale.transactionStatus && REFUND_TRANSACTION_STATUSES.has(sale.transactionStatus)
+      const currency = sale.currency || 'N/A'
+
+      if (isRefund) {
+        bucket.refundedCount += 1
+        if (sale.priceValue != null) {
+          bucket.refundedByCurrency[currency] = (bucket.refundedByCurrency[currency] || 0) + sale.priceValue
+        }
+      } else {
+        bucket.salesCount += 1
+        if (sale.priceValue != null) {
+          bucket.revenueByCurrency[currency] = (bucket.revenueByCurrency[currency] || 0) + sale.priceValue
+        }
+      }
+    }
+  }
+
+  return [...buckets.values()].sort((a, b) => a.month.localeCompare(b.month))
+}
+
+async function saveMonthlySalesStats(stats: MonthlySalesStat[]): Promise<void> {
+  for (const stat of stats) {
+    await HotmartSalesMonthlyStats.updateOne(
+      { month: stat.month },
+      { $set: { ...stat, lastSyncedAt: new Date() } },
+      { upsert: true }
+    )
+  }
+}
+
 async function resolveOgiProduct(): Promise<{ hotmartProductId: string; objectId: mongoose.Types.ObjectId }> {
   const ogiProduct = await ProductReadModel.findOne({
     platform: 'hotmart',
@@ -335,6 +406,11 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
   const { salesByEmail, salesChecked, pagesFetched, totalResultsReportedByHotmart, paginationComplete } =
     await fetchAllOgiSalesGroupedByEmail(accessToken, hotmartProductId)
 
+  // desempenho de vendas por mês (TODAS as vendas do produto vistas neste
+  // pedido, não só as de alunos ativos) — mesma passagem, zero custo extra.
+  const monthlyStats = aggregateMonthlySalesStats(salesByEmail)
+  await saveMonthlySalesStats(monthlyStats)
+
   const report: SalesHistorySyncReport = {
     salesChecked,
     pagesFetched,
@@ -345,6 +421,7 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
     updated: 0,
     withSales: 0,
     withoutSales: 0,
+    monthlyStatsUpdated: monthlyStats.length,
     errors: []
   }
 

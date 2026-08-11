@@ -1,6 +1,6 @@
 // src/routes/renewal.routes.ts
 import { Router } from 'express'
-import { listOffers, createOffer, updateOffer, listTurmas, performance, runSync } from '../controllers/renewal.controller'
+import { listOffers, createOffer, updateOffer, listTurmas, performance, runSync, salesPerformance } from '../controllers/renewal.controller'
 
 const router = Router()
 
@@ -15,6 +15,9 @@ router.get('/turmas', listTurmas)
 
 // GET  /api/renewal/performance  → taxa de renovação por turma vs meta 20%
 router.get('/performance', performance)
+
+// GET  /api/renewal/sales-performance → nº de vendas + capital por mês (OGI)
+router.get('/sales-performance', salesPerformance)
 
 // PATCH /api/renewal/offers/:id  → editar oferta (nome/turma/período/link/estado)
 router.patch('/offers/:id', updateOffer)

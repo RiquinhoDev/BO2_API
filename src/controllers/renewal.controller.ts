@@ -3,6 +3,7 @@ import RenewalOffer from '../models/RenewalOffer'
 import { syncRenewalOffers } from '../services/renewal/renewalSync.service'
 import { getTurmasWithCoverage } from '../services/renewal/renewalCoverage.service'
 import { getRenewalPerformance } from '../services/renewal/renewalPerformance.service'
+import { getHotmartSalesPerformance } from '../services/renewal/hotmartSalesPerformance.service'
 import { parseOfferName } from '../services/renewal/turmaParser'
 
 // GET /api/renewal/offers
@@ -162,4 +163,18 @@ export async function runSync(_req: Request, res: Response): Promise<void> {
   }
 }
 
-export default { listOffers, createOffer, updateOffer, listTurmas, performance, runSync }
+// GET /api/renewal/sales-performance
+// Nº de vendas + capital por mês (produto OGI) — lê o materializado,
+// atualizado pelo Sync Hotmart (ver hotmartSalesPerformance.service.ts).
+export async function salesPerformance(req: Request, res: Response): Promise<void> {
+  try {
+    const yearRaw = Number(req.query.year)
+    const year = Number.isInteger(yearRaw) && yearRaw > 2000 ? yearRaw : undefined
+    const data = await getHotmartSalesPerformance(year)
+    res.json(data)
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Erro ao calcular desempenho de vendas' })
+  }
+}
+
+export default { listOffers, createOffer, updateOffer, listTurmas, performance, runSync, salesPerformance }
