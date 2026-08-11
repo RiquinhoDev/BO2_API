@@ -26,6 +26,13 @@ import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServic
 const HOTMART_SALES_HISTORY_URL = 'https://developers.hotmart.com/payments/api/v1/sales/history'
 const PAGE_DELAY_MS = 500
 
+// A Hotmart, sem start_date, só devolve uma janela recente (~30 dias) — não
+// o histórico todo. E start_date tem um limite de recuo próprio: confirmado
+// empiricamente (probe manual à API real) que 730 dias (2 anos) passa e 731
+// já dá 400 invalid_parameter. Isto é um limite da própria Hotmart — compras
+// mais antigas que isto não são recuperáveis por esta API, ponto final.
+const MAX_LOOKBACK_DAYS = 730
+
 export interface SalesHistorySyncReport {
   salesChecked: number
   pagesFetched: number
@@ -209,9 +216,12 @@ async function fetchAllOgiSalesGroupedByEmail(
   let salesChecked = 0
   let pagesFetched = 0
 
+  const startDate = Date.now() - MAX_LOOKBACK_DAYS * 24 * 60 * 60 * 1000
+
   do {
     const response = await requestSalesPage(accessToken, {
       max_results: 100,
+      start_date: startDate,
       ...(pageToken ? { page_token: pageToken } : {})
     })
     pagesFetched += 1
