@@ -59,7 +59,8 @@ export interface IActivitySnapshotModel
     userId: mongoose.Types.ObjectId,
     startMonth: Date,
     endMonth: Date,
-    platform?: Platform
+    platform?: Platform,
+    requestedBatchSize?: number
   ): Promise<IActivitySnapshot[]>
   getActiveUsersInMonth(
     month: Date,

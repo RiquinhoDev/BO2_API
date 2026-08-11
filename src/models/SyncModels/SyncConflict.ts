@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import mongoose, { Schema, Document, Model } from 'mongoose'
+import { boundedQueryLimit } from '../../utils/queryBounds'
 
 // ─────────────────────────────────────────────────────────────
 // TYPES
@@ -335,16 +336,18 @@ SyncConflictSchema.statics.getPendingConflicts = async function (filters?: {
   email?: string
   limit?: number
 }) {
-  const query: any = { status: 'PENDING' }
+  const query: mongoose.FilterQuery<ISyncConflict> = { status: 'PENDING' }
 
   if (filters?.severity) query.severity = filters.severity
   if (filters?.conflictType) query.conflictType = filters.conflictType
   if (filters?.userId) query.userId = filters.userId
   if (filters?.email) query.email = filters.email
 
+  const cappedLimit = boundedQueryLimit(filters?.limit, 100)
+
   return this.find(query)
-    .sort({ severity: -1, detectedAt: -1 })
-    .limit(filters?.limit || 100)
+    .sort({ severity: -1, detectedAt: -1, _id: -1 })
+    .limit(cappedLimit)
     .populate('userId', 'name email')
     .populate('syncHistoryId', 'type startedAt')
 }
@@ -386,9 +389,10 @@ SyncConflictSchema.statics.getConflictsByType = async function () {
 }
 
 SyncConflictSchema.statics.getCriticalConflicts = async function (limit: number = 20) {
+  const cappedLimit = boundedQueryLimit(limit, 20)
   return this.find({ status: 'PENDING', severity: 'CRITICAL' })
-    .sort({ detectedAt: -1 })
-    .limit(limit)
+    .sort({ detectedAt: -1, _id: -1 })
+    .limit(cappedLimit)
     .populate('userId', 'name email')
 }
 

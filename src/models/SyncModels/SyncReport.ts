@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Schema, model, Types } from 'mongoose'
+import { boundedQueryLimit } from '../../utils/queryBounds'
 
 // ─────────────────────────────────────────────────────────────
 // TYPES & ENUMS
@@ -298,9 +299,10 @@ syncReportSchema.statics.findByType = function (this: ISyncReportModel, syncType
 }
 
 syncReportSchema.statics.findRecent = function (this: ISyncReportModel, limit = 20) {
+  const cappedLimit = boundedQueryLimit(limit, 20)
   return this.find()
-    .sort({ startedAt: -1 })
-    .limit(limit)
+    .sort({ startedAt: -1, _id: -1 })
+    .limit(cappedLimit)
     .populate('jobId', 'name syncType')
     .populate('triggeredByUser', 'name email')
     .exec()

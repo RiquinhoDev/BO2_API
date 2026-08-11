@@ -1,4 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose'
+import { collectBatches } from '../../utils/collectBatches'
+import { boundedQueryLimit } from '../../utils/queryBounds'
 
 /**
  * Interface para Snapshot Semanal de Tags Nativas
@@ -23,7 +25,7 @@ export interface TagChanges {
 export interface IWeeklyNativeTagSnapshotModel
   extends mongoose.Model<IWeeklyNativeTagSnapshot> {
   findByEmail(email: string, limit?: number): Promise<IWeeklyNativeTagSnapshot[]>
-  findByWeek(weekNumber: number, year: number): Promise<IWeeklyNativeTagSnapshot[]>
+  findByWeek(weekNumber: number, year: number, requestedBatchSize?: number): Promise<IWeeklyNativeTagSnapshot[]>
   findPreviousSnapshot(
     email: string,
     currentWeek: number,
@@ -108,8 +110,21 @@ WeeklyNativeTagSnapshotSchema.statics.findByEmail = function (
   return this.find({ email }).sort({ capturedAt: -1 }).limit(limit)
 }
 
-WeeklyNativeTagSnapshotSchema.statics.findByWeek = function (weekNumber: number, year: number) {
-  return this.find({ weekNumber, year })
+WeeklyNativeTagSnapshotSchema.statics.findByWeek = function (
+  weekNumber: number,
+  year: number,
+  requestedBatchSize: number = 200,
+) {
+  const cappedBatchSize = boundedQueryLimit(requestedBatchSize, 200)
+  return collectBatches(
+    cappedBatchSize,
+    (cursor: mongoose.Types.ObjectId | undefined, batchSize) => {
+      const query: mongoose.FilterQuery<IWeeklyNativeTagSnapshot> = { weekNumber, year }
+      if (cursor) query._id = { $gt: cursor }
+      return this.find(query).sort({ _id: 1 }).limit(batchSize).exec()
+    },
+    snapshot => snapshot._id,
+  )
 }
 
 WeeklyNativeTagSnapshotSchema.statics.findPreviousSnapshot = async function (

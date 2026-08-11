@@ -5,6 +5,7 @@
 // ════════════════════════════════════════════════════════════
 
 import mongoose, { Schema, model, Document, Model } from "mongoose"
+import { boundedQueryLimit } from '../../utils/queryBounds'
 
 // ─────────────────────────────────────────────────────────────
 // INTERFACES
@@ -387,12 +388,13 @@ syncHistorySchema.statics.getRecentSyncs = async function(
   type?: SyncType,
   limit: number = 20
 ) {
-  const query: any = {}
+  const query: mongoose.FilterQuery<ISyncHistory> = {}
   if (type) query.type = type
+  const cappedLimit = boundedQueryLimit(limit, 20)
   
   return this.find(query)
-    .sort({ startedAt: -1 })
-    .limit(limit)
+    .sort({ startedAt: -1, _id: -1 })
+    .limit(cappedLimit)
     .populate('triggeredBy.userId', 'name email')
     .populate('triggeredBy.cronJobId', 'name')
 }
