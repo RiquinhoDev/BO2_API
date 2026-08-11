@@ -211,7 +211,7 @@ test('registers explicit static resources before neighboring parameter routes', 
   expect(analytics).toBeGreaterThan(enrollments)
   expect(stats).toBeGreaterThan(analytics)
   expect(routeSource).toContain(
-    "router.get('/v2/engagement/heatmap', async (req, res) => {",
+    "router.get('/v2/engagement/heatmap', asyncRoute(async (req, res, next) => {",
   )
 })
 

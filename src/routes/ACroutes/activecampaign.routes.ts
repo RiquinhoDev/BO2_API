@@ -7,6 +7,7 @@
 import { Router } from 'express'
 import { asyncRoute } from '../../security/asyncRoute'
 import { localDebugOnly } from '../../security/debugRoutes'
+import { forwardApplicationError } from '../../controllers/forwardApplicationError'
 import { withValidatedInput } from '../../security/validatedInput'
 import {
   activeCampaignEmptyInput,
@@ -132,7 +133,7 @@ router.post('/v2/sync/:productId', withValidatedInput(activeCampaignProductSyncI
 // ─────────────────────────────────────────────────────────────
 
 // GET /api/activecampaign/debug/curseduca-data
-router.get('/debug/curseduca-data', localDebugOnly, async (req, res) => {
+router.get('/debug/curseduca-data', localDebugOnly, asyncRoute(async (_req, res, next) => {
   try {
     const UserProduct = (await import('../../models/UserProduct')).default
     const Product = (await import('../../models/product/Product')).default
@@ -192,12 +193,14 @@ router.get('/debug/curseduca-data', localDebugOnly, async (req, res) => {
         }
       }
     })
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(
+      next,
+      error,
+      'Erro ao carregar dados de debug do CursEduca',
+      'ACTIVE_CAMPAIGN_DEBUG_READ_FAILED',
+    )
   }
-})
+}))
 
 export default router

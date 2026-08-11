@@ -96,7 +96,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:109"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:110"
   },
   {
     "method": "POST",
@@ -105,7 +105,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:78"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:79"
   },
   {
     "method": "GET",
@@ -114,7 +114,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:75"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:76"
   },
   {
     "method": "POST",
@@ -123,7 +123,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:84"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:85"
   },
   {
     "method": "GET",
@@ -132,7 +132,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:81"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:82"
   },
   {
     "method": "GET",
@@ -141,7 +141,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:59"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:60"
   },
   {
     "method": "GET",
@@ -150,7 +150,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:135"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:136"
   },
   {
     "method": "GET",
@@ -159,7 +159,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:110"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:111"
   },
   {
     "method": "GET",
@@ -168,7 +168,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:67"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:68"
   },
   {
     "method": "GET",
@@ -177,7 +177,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:92"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:93"
   },
   {
     "method": "POST",
@@ -186,7 +186,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:95"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:96"
   },
   {
     "method": "DELETE",
@@ -195,7 +195,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": true,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:101"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:102"
   },
   {
     "method": "PUT",
@@ -204,7 +204,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:98"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:99"
   },
   {
     "method": "POST",
@@ -213,7 +213,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:56"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:57"
   },
   {
     "method": "GET",
@@ -222,7 +222,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:122"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>; rota em src/routes/ACroutes/activecampaign.routes.ts:123"
   },
   {
     "method": "GET",
@@ -231,7 +231,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:125"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:126"
   },
   {
     "method": "POST",
@@ -240,7 +240,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:128"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:129"
   },
   {
     "method": "POST",
@@ -249,7 +249,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:116"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:117"
   },
   {
     "method": "POST",
@@ -258,7 +258,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:119"
+    "evidence": "consumer nao identificado; rota em src/routes/ACroutes/activecampaign.routes.ts:120"
   },
   {
     "method": "GET",
@@ -1797,7 +1797,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/validationLogs.routes.ts:50"
+    "evidence": "consumer nao identificado; rota em src/routes/validationLogs.routes.ts:52"
   },
   {
     "method": "GET",
@@ -1806,7 +1806,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/validationLogs.routes.ts:77"
+    "evidence": "consumer nao identificado; rota em src/routes/validationLogs.routes.ts:80"
   },
   {
     "method": "GET",
@@ -3489,7 +3489,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/users.routes.ts:288"
+    "evidence": "chamada do Front em <src/services/api.ts>; rota em src/routes/users.routes.ts:291"
   },
   {
     "method": "DELETE",
@@ -3498,7 +3498,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:329"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:332"
   },
   {
     "method": "GET",
@@ -3507,7 +3507,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/features/testimonials/testimonials.api.ts>, <src/hooks/useUsers.ts>, <src/pages/dashboard/DashboardMainPage.tsx>, <src/pages/gerirAlunos/students/StudentEditor.tsx>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:292"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/features/testimonials/testimonials.api.ts>, <src/hooks/useUsers.ts>, <src/pages/dashboard/DashboardMainPage.tsx>, <src/pages/gerirAlunos/students/StudentEditor.tsx>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:295"
   },
   {
     "method": "PUT",
@@ -3516,7 +3516,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/gerirAlunos/students/StudentEditor.tsx>; rota em src/routes/users.routes.ts:314"
+    "evidence": "chamada do Front em <src/pages/gerirAlunos/students/StudentEditor.tsx>; rota em src/routes/users.routes.ts:317"
   },
   {
     "method": "GET",
@@ -3525,7 +3525,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:282"
+    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:285"
   },
   {
     "method": "GET",
@@ -3534,7 +3534,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:281"
+    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:284"
   },
   {
     "method": "POST",
@@ -3543,7 +3543,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:311"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:314"
   },
   {
     "method": "GET",
@@ -3552,7 +3552,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:280"
+    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:283"
   },
   {
     "method": "GET",
@@ -3561,7 +3561,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:279"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:282"
   },
   {
     "method": "POST",
@@ -3570,7 +3570,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:298"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:301"
   },
   {
     "method": "POST",
@@ -3579,7 +3579,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:304"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:307"
   },
   {
     "method": "POST",
@@ -3588,7 +3588,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:297"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:300"
   },
   {
     "method": "GET",
@@ -3597,7 +3597,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:283"
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:286"
   },
   {
     "method": "GET",
@@ -3606,7 +3606,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:263"
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:266"
   },
   {
     "method": "PUT",
@@ -3615,7 +3615,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:315"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:318"
   },
   {
     "method": "GET",
@@ -3624,7 +3624,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:266"
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:269"
   },
   {
     "method": "GET",
@@ -3633,7 +3633,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:275"
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:278"
   },
   {
     "method": "GET",
@@ -3642,7 +3642,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:273"
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:276"
   },
   {
     "method": "DELETE",
@@ -3651,7 +3651,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:323"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:326"
   },
   {
     "method": "GET",
@@ -3660,7 +3660,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:264",
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:267",
     "deprecated": true,
     "deprecatedReason": "no known repository consumer; observe real traffic before removal"
   },
@@ -3671,7 +3671,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:265",
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:268",
     "deprecated": true,
     "deprecatedReason": "no known repository consumer; observe real traffic before removal"
   },
@@ -3682,7 +3682,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Backoffice legacy em <backoffice/src/components/bot/DiscordBot.jsx>, <backoffice/src/components/pages/HotmartSync.jsx>, presente no bundle compilado; nenhum consumidor no Front; rota em src/routes/users.routes.ts:271"
+    "evidence": "chamada do Backoffice legacy em <backoffice/src/components/bot/DiscordBot.jsx>, <backoffice/src/components/pages/HotmartSync.jsx>, presente no bundle compilado; nenhum consumidor no Front; rota em src/routes/users.routes.ts:274"
   },
   {
     "method": "GET",
@@ -3691,7 +3691,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/hooks/useUsers.ts>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:272"
+    "evidence": "chamada do Front em <src/hooks/useUsers.ts>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:275"
   },
   {
     "method": "POST",
@@ -3700,7 +3700,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:310"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:313"
   },
   {
     "method": "POST",
@@ -3709,7 +3709,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:296"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:299"
   },
   {
     "method": "GET",
@@ -3718,7 +3718,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>, <src/pages/gerirAlunos/students/StudentEditor.tsx>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:269"
+    "evidence": "chamada do Front em <src/features/testimonials/testimonials.api.ts>, <src/pages/gerirAlunos/students/StudentEditor.tsx>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:272"
   },
   {
     "method": "GET",
@@ -3727,7 +3727,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:267"
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:270"
   },
   {
     "method": "GET",
@@ -3736,7 +3736,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:268"
+    "evidence": "chamada do Front em <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:271"
   },
   {
     "method": "DELETE",
@@ -3745,7 +3745,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:335"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:338"
   },
   {
     "method": "GET",
@@ -3754,7 +3754,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:285"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:288"
   },
   {
     "method": "GET",
@@ -3763,7 +3763,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:284"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:287"
   },
   {
     "method": "POST",
@@ -3772,7 +3772,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:312"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:315"
   },
   {
     "method": "POST",
@@ -3781,7 +3781,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:295"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:298"
   },
   {
     "method": "GET",
@@ -3790,7 +3790,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:262",
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:265",
     "deprecated": true,
     "deprecatedReason": "no known repository consumer; observe real traffic before removal"
   },
@@ -3801,7 +3801,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:274"
+    "evidence": "chamada do Front em <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:277"
   },
   {
     "method": "DELETE",
@@ -3810,7 +3810,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:317"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:320"
   },
   {
     "method": "GET",
@@ -3819,7 +3819,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:276",
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:279",
     "deprecated": true,
     "deprecatedReason": "no known repository consumer; observe real traffic before removal"
   },
@@ -3830,7 +3830,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/pages/dashboard/DashboardMainPage.tsx>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:109",
+    "evidence": "chamada do Front em <src/features/activecampaign/activecampaign.api.ts>, <src/pages/dashboard/DashboardMainPage.tsx>, <src/services/api.ts>, <src/services/usersV2.service.ts>; rota em src/routes/users.routes.ts:111",
     "deprecated": true,
     "deprecatedReason": "Polymorphic Users V2 contract; use explicit resources",
     "successorLinks": [
@@ -3845,7 +3845,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:119"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:121"
   },
   {
     "method": "GET",
@@ -3854,7 +3854,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:132"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:134"
   },
   {
     "method": "GET",
@@ -3863,7 +3863,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:137"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:139"
   },
   {
     "method": "GET",
@@ -3872,7 +3872,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:114"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:116"
   },
   {
     "method": "GET",
@@ -3881,7 +3881,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:127"
+    "evidence": "consumer nao identificado; rota em src/routes/users.routes.ts:129"
   },
   {
     "method": "POST",

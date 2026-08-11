@@ -1,5 +1,7 @@
 // src/routes/users.routes.ts - ROTAS ATUALIZADAS PARA COMPATIBILIDADE
 import { Router } from "express"
+import { asyncRoute } from '../security/asyncRoute'
+import { forwardApplicationError } from '../controllers/forwardApplicationError'
 import { createUsersImportUpload } from "../security/usersImportUpload"
 import { withValidatedInput } from "../security/validatedInput"
 import {
@@ -134,7 +136,7 @@ router.get(
   withValidatedInput(usersV2ComparisonInput, getUsersV2Comparison),
 )
 
-router.get('/v2/engagement/heatmap', async (req, res) => {
+router.get('/v2/engagement/heatmap', asyncRoute(async (req, res, next) => {
   try {
     console.log('\n🔥 [Engagement Heatmap] Calculando...')
 
@@ -250,13 +252,14 @@ router.get('/v2/engagement/heatmap', async (req, res) => {
     })
 
   } catch (error) {
-    console.error('❌ Erro:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Erro ao gerar heatmap de engagement'
-    })
+    forwardApplicationError(
+      next,
+      error,
+      'Erro ao gerar heatmap de engagement',
+      'USERS_ENGAGEMENT_HEATMAP_FAILED',
+    )
   }
-})
+}))
 
 // ✅ ROTAS EXISTENTES (mantidas para compatibilidade)
 router.get('/unified', getAllUsersUnified)

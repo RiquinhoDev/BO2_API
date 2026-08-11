@@ -72,6 +72,7 @@ test('clamps webhook pages and returns only the public projection', async () => 
       },
     } as unknown as Request,
     response,
+    jest.fn(),
   )
 
   expect(json).toHaveBeenCalledTimes(1)

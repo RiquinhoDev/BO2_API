@@ -17,7 +17,7 @@ test.each([
 ])('%s rejects a missing authenticated principal', async (_name, handler, request) => {
   const res = response()
 
-  await handler(request as Request, res as unknown as Response)
+  await handler(request as Request, res as unknown as Response, jest.fn())
 
   expect(res.status).toHaveBeenCalledWith(401)
   expect(res.json).toHaveBeenCalledWith({

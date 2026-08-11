@@ -618,11 +618,6 @@
       "count": 5
     }
   },
-  "src/routes/ACroutes/activecampaign.routes.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/routes/achievements.routes.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 4
@@ -661,15 +656,12 @@
       "count": 2
     },
     "no-console": {
-      "count": 4
+      "count": 3
     }
   },
   "src/routes/validationLogs.routes.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    },
-    "no-console": {
-      "count": 2
+      "count": 3
     }
   },
   "src/runtime/infrastructure.ts": {
