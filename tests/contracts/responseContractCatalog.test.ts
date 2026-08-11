@@ -63,8 +63,8 @@ describe('response contract catalog', () => {
     const routeIds = routeCatalog.map(routeId).sort()
     const contractIds = responseCatalog.map(routeId).sort()
 
-    expect(responseCatalog).toHaveLength(441)
-    expect(new Set(contractIds).size).toBe(441)
+    expect(responseCatalog).toHaveLength(412)
+    expect(new Set(contractIds).size).toBe(412)
     expect(contractIds).toEqual(routeIds)
   })
 
@@ -135,7 +135,7 @@ describe('response contract catalog', () => {
     )
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('219 Front calls; 194 consumers')
+    expect(result.stdout).toContain('213 Front calls; 188 consumers')
     expect(after).toBe(before)
   })
 
@@ -250,7 +250,7 @@ describe('response contract catalog', () => {
     const consumer = (identity: string): string | null | undefined =>
       responseCatalog.find((entry) => routeId(entry) === identity)?.frontConsumer
 
-    expect(consumers).toHaveLength(194)
+    expect(consumers).toHaveLength(188)
     expect(consumer('GET /api/users/v2')).toBeNull()
     expect(consumer('GET /api/users/v2/analytics')).toBe('src/features/users-v2/usersV2.api.ts')
     expect(consumer('GET /api/users/v2/enrollments')).toBe('src/features/users-v2/usersV2.api.ts')

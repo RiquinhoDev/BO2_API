@@ -75,6 +75,8 @@
     "validate:full": "npm run build && npm run lint && npm test",
     "types:check": "tsc --noEmit --pretty false",
     "lint:baseline:prune": "eslint src --prune-suppressions --max-warnings=0",
+    "routes:catalog:check": "node scripts/reconcile-route-catalog.mjs",
+    "routes:catalog:update": "node scripts/reconcile-route-catalog.mjs --write",
     "contracts:responses:check": "node scripts/generate-response-contract-catalog.mjs --check",
     "contracts:responses:update": "node scripts/generate-response-contract-catalog.mjs --write",
     "scalability:reads:check": "node scripts/generate-scalability-read-inventory.mjs --check",

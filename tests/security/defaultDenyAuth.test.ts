@@ -77,7 +77,7 @@ beforeEach(() =>
 
 test('o catalogo inteiro aplica 401 ou bypass sem JWT conforme o access', async () => {
   const app = buildCatalogProbe()
-  expect(catalog).toHaveLength(441)
+  expect(catalog).toHaveLength(412)
 
   for (const route of catalog) {
     const expected = route.access === 'public' || route.access === 'signature' ? 204 : 401
@@ -89,7 +89,7 @@ test('token valido atravessa todas as 435 rotas authenticated', async () => {
   const app = buildCatalogProbe()
   const token = signAppToken({ id: 'admin-1', email: 'admin@example.test', role: 'ADMIN', permissions: [] })
   const authenticated = catalog.filter((route) => route.access === 'authenticated')
-  expect(authenticated).toHaveLength(435)
+  expect(authenticated).toHaveLength(406)
 
   for (const route of authenticated) {
     const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete'
@@ -103,7 +103,6 @@ test('token valido atravessa todas as 435 rotas authenticated', async () => {
 test('rota ausente do catalogo falha fechada em cada raiz protegida', async () => {
   const app = buildCatalogProbe()
   await request(app).get('/api/catalog-drift-probe').query(marker).expect(401)
-  await request(app).get('/cron-tags/catalog-drift-probe').query(marker).expect(401)
 })
 
 test('nao permite bypass por diferenca de caixa ou barra final', async () => {

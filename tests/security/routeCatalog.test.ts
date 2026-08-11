@@ -44,11 +44,11 @@ function isLiteralPath(routePath: string): boolean {
     .every((segment) => !segment.startsWith(':') && !segment.startsWith('*'))
 }
 
-test('o catalogo cobre exatamente as 441 rotas do manifest', () => {
-  expect(manifest).toHaveLength(441)
-  expect(catalog).toHaveLength(441)
-  expect(new Set(manifest.map(key)).size).toBe(441)
-  expect(new Set(catalog.map(key)).size).toBe(441)
+test('o catalogo cobre exatamente as 412 rotas do manifest', () => {
+  expect(manifest).toHaveLength(412)
+  expect(catalog).toHaveLength(412)
+  expect(new Set(manifest.map(key)).size).toBe(412)
+  expect(new Set(catalog.map(key)).size).toBe(412)
   expect(catalog.map(key).sort()).toEqual(manifest.map(key).sort())
 })
 
@@ -76,7 +76,7 @@ test('a superficie excecional fica curta e explicita', () => {
     'POST /api/webhooks/ac/link-clicked',
   ])
   expect(routesWith('dead')).toEqual([])
-  expect(routesWith('authenticated')).toHaveLength(435)
+  expect(routesWith('authenticated')).toHaveLength(406)
   expect(catalog.filter((route) => route.access === 'public').every((route) => route.evidence.startsWith('public:'))).toBe(true)
 })
 /**
@@ -190,11 +190,11 @@ const UNCONSUMED_DEPRECATIONS = [
   '/api/users/infiniteStats',
 ] as const
 
-test('marca apenas cron-tags, o legacy users v2 e as listagens sem consumidor como deprecated', () => {
+test('marca apenas cron-tags e as listagens sem consumidor como deprecated', () => {
   const deprecated = catalog.filter((route) => route.deprecated)
-  const namedDeprecations = ['/api/users/v2', ...UNCONSUMED_DEPRECATIONS]
+  const namedDeprecations: readonly string[] = [...UNCONSUMED_DEPRECATIONS]
 
-  expect(deprecated).toHaveLength(23)
+  expect(deprecated).toHaveLength(12)
   expect(
     deprecated.filter((route) => !namedDeprecations.includes(route.path)).every(
       (route) =>
@@ -202,17 +202,6 @@ test('marca apenas cron-tags, o legacy users v2 e as listagens sem consumidor co
     ),
   ).toBe(true)
   expect(deprecated.every((route) => Boolean(route.deprecatedReason?.trim()))).toBe(true)
-
-  const legacy = deprecated.find((route) => route.path === '/api/users/v2')
-  expect(legacy).toMatchObject({
-    deprecated: true,
-    deprecatedReason: 'Polymorphic Users V2 contract; use explicit resources',
-    successorLinks: [
-      '</api/users/v2/enrollments>; rel="successor-version"',
-      '</api/users/v2/analytics>; rel="alternate"',
-    ],
-  })
-  expect(legacy).not.toHaveProperty('sunset')
 
   for (const routePath of UNCONSUMED_DEPRECATIONS) {
     const route = deprecated.find((candidate) => candidate.path === routePath)
@@ -276,4 +265,21 @@ test('os buckets de instrumentacao mantem os dois primeiros segmentos literais',
     .map(key)
 
   expect(unsafeBuckets).toEqual([])
+})
+
+test('regista apenas as identidades CursEduca canonicas em runtime', () => {
+  const identities = new Set(catalog.map(key))
+  expect([...identities].filter((entry) => entry.includes('/api/curseduca/v2/'))).toEqual([])
+  expect([...identities].filter((entry) => /^GET \/api\/curseduca\/(?:catalog\/stats|products(?:\/|$)|stats$)/.test(entry)).sort()).toEqual([
+    'GET /api/curseduca/catalog/stats',
+    'GET /api/curseduca/products',
+    'GET /api/curseduca/products/:groupId',
+    'GET /api/curseduca/products/:groupId/users',
+    'GET /api/curseduca/stats',
+  ])
+})
+
+test('proibe segmentos de versao ou legacy sem excecoes ocultas', () => {
+  const forbiddenSegment = /^(?:v[123]|legacy)$/i
+  expect(catalog.filter((route) => route.path.split('/').some((segment) => forbiddenSegment.test(segment))).map(key)).toEqual([])
 })

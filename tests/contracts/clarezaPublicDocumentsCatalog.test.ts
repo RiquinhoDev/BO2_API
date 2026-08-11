@@ -110,6 +110,6 @@ describe('Clareza public-document catalog protection', () => {
     const result = runChecker()
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('441 decisions; 219 Front calls; 194 consumers')
+    expect(result.stdout).toContain('412 decisions; 213 Front calls; 188 consumers')
   })
 })

@@ -8,14 +8,6 @@
     "status": "complete"
   },
   {
-    "identity": "DELETE /api/activecampaign/tag-rules/:id",
-    "owner": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
-  },
-  {
     "identity": "DELETE /api/classes/:classId",
     "owner": "src/controllers/classes/classMutations.controller.ts",
     "currentFamily": "success-data",
@@ -232,36 +224,28 @@
     "status": "complete"
   },
   {
+    "identity": "GET /api/activecampaign/product-tags/stats",
+    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
+    "currentFamily": "domain-envelope",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "pending-migration"
+  },
+  {
+    "identity": "GET /api/activecampaign/products/:productId/tagged",
+    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/activecampaign/stats",
     "owner": "src/controllers/acTags/activeCampaignOps.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
     "status": "complete"
-  },
-  {
-    "identity": "GET /api/activecampaign/tag-rules",
-    "owner": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
-  },
-  {
-    "identity": "GET /api/activecampaign/v2/products/:productId/tagged",
-    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/activecampaign/v2/stats",
-    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
   },
   {
     "identity": "GET /api/analytics/benchmarks",
@@ -752,44 +736,20 @@
     "status": "complete"
   },
   {
-    "identity": "GET /api/curseduca/dashboard",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts",
+    "identity": "GET /api/curseduca/catalog/stats",
+    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
     "status": "complete"
   },
   {
-    "identity": "GET /api/curseduca/debug",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "501-only",
+    "identity": "GET /api/curseduca/dashboard",
+    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "GET /api/curseduca/groups",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "501-only",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "GET /api/curseduca/members",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "501-only",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "GET /api/curseduca/members/by",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "501-only",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/curseduca/products",
@@ -816,24 +776,8 @@
     "status": "complete"
   },
   {
-    "identity": "GET /api/curseduca/report",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "501-only",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "GET /api/curseduca/reports/access",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "501-only",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
     "identity": "GET /api/curseduca/stats",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/products.controller.ts",
+    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
@@ -872,22 +816,6 @@
     "status": "pending-migration"
   },
   {
-    "identity": "GET /api/curseduca/user",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "501-only",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "GET /api/curseduca/users",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "501-only",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
     "identity": "GET /api/curseduca/users-with-classes",
     "owner": "src/controllers/syncUtilizadoresControllers/curseduca/users.controller.ts",
     "currentFamily": "success-data",
@@ -901,6 +829,14 @@
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/dashboard/materialized-stats",
+    "owner": "src/controllers/dashboard.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": "src/pages/dashboard/DashboardMainPage.tsx",
     "status": "complete"
   },
   {
@@ -949,14 +885,6 @@
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/dashboard/stats/v3",
-    "owner": "src/controllers/dashboard.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": "src/pages/dashboard/DashboardMainPage.tsx",
     "status": "complete"
   },
   {
@@ -1312,6 +1240,38 @@
     "status": "pending-migration"
   },
   {
+    "identity": "GET /api/hotmart/products",
+    "owner": "src/controllers/hotmart/hotmartCatalog.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/hotmart/products/:subdomain",
+    "owner": "src/controllers/hotmart/hotmartCatalog.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/hotmart/products/:subdomain/users",
+    "owner": "src/controllers/hotmart/hotmartCatalog.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/hotmart/stats",
+    "owner": "src/controllers/hotmart/hotmartCatalog.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/hotmart/sync/compare",
     "owner": "src/controllers/hotmart/hotmartDiagnostics.controller.ts",
     "currentFamily": "success-data",
@@ -1328,48 +1288,8 @@
     "status": "pending-migration"
   },
   {
-    "identity": "GET /api/hotmart/syncHotmartUsers",
-    "owner": "src/controllers/hotmart/hotmartLegacySync.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
     "identity": "GET /api/hotmart/users",
     "owner": "src/controllers/hotmart/hotmartDiagnostics.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/hotmart/v2/products",
-    "owner": "src/controllers/hotmart/hotmartCatalog.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/hotmart/v2/products/:subdomain",
-    "owner": "src/controllers/hotmart/hotmartCatalog.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/hotmart/v2/products/:subdomain/users",
-    "owner": "src/controllers/hotmart/hotmartCatalog.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/hotmart/v2/stats",
-    "owner": "src/controllers/hotmart/hotmartCatalog.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
@@ -1466,10 +1386,10 @@
   {
     "identity": "GET /api/products",
     "owner": "src/controllers/products/product.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/products/:id",
@@ -1936,12 +1856,28 @@
     "status": "complete"
   },
   {
+    "identity": "GET /api/users/analytics",
+    "owner": "src/controllers/users/usersV2List.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": "src/features/users-v2/usersV2.api.ts",
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/users/analytics/stats",
+    "owner": "src/controllers/users/usersV2Analytics.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/users/by-email/:email",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "501-only",
+    "owner": "src/controllers/users/userLookup.controller.ts",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/usersV2.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/dashboard-stats",
@@ -1949,6 +1885,30 @@
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/users/engagement/comparison",
+    "owner": "src/controllers/users/usersV2Analytics.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/users/engagement/heatmap",
+    "owner": "src/routes/users.routes.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/users/enrollments",
+    "owner": "src/controllers/users/usersV2List.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": "src/features/users-v2/usersV2.api.ts",
     "status": "complete"
   },
   {
@@ -2066,94 +2026,6 @@
   {
     "identity": "GET /api/users/users/listUsers",
     "owner": "src/controllers/users/userList.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/users/v2",
-    "owner": "src/controllers/users/usersV2List.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/users/v2/analytics",
-    "owner": "src/controllers/users/usersV2List.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": "src/features/users-v2/usersV2.api.ts",
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/users/v2/engagement/comparison",
-    "owner": "src/controllers/users/usersV2Analytics.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/users/v2/engagement/heatmap",
-    "owner": "src/routes/users.routes.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/users/v2/enrollments",
-    "owner": "src/controllers/users/usersV2List.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": "src/features/users-v2/usersV2.api.ts",
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/users/v2/stats",
-    "owner": "src/controllers/users/usersV2Analytics.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /cron-tags/config",
-    "owner": "src/controllers/cron/cronManagement.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /cron-tags/history",
-    "owner": "src/controllers/cron/cronManagement.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /cron-tags/jobs/:id/history",
-    "owner": "src/controllers/cron/cronManagement.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /cron-tags/statistics",
-    "owner": "src/controllers/cron/cronManagement.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /cron-tags/status",
-    "owner": "src/controllers/cron/cronManagement.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
@@ -2288,56 +2160,32 @@
     "status": "complete"
   },
   {
-    "identity": "POST /api/activecampaign/courses/clareza/evaluate",
-    "owner": "src/controllers/acTags/activeCampaignCourse.controller.ts",
-    "currentFamily": "domain-envelope",
+    "identity": "POST /api/activecampaign/product-tags/apply",
+    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
+    "frontConsumer": null,
+    "status": "complete"
   },
   {
-    "identity": "POST /api/activecampaign/courses/ogi/evaluate",
-    "owner": "src/controllers/acTags/activeCampaignCourse.controller.ts",
-    "currentFamily": "domain-envelope",
+    "identity": "POST /api/activecampaign/product-tags/remove",
+    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
+    "frontConsumer": null,
+    "status": "complete"
   },
   {
-    "identity": "POST /api/activecampaign/tag-rules",
-    "owner": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts",
+    "identity": "POST /api/activecampaign/products/:productId/tags/sync",
+    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
     "currentFamily": "domain-envelope",
     "targetFamily": "success-data",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
+    "frontConsumer": null,
     "status": "pending-migration"
   },
   {
     "identity": "POST /api/activecampaign/test-cron",
     "owner": "src/controllers/acTags/activeCampaignOps.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "POST /api/activecampaign/v2/sync/:productId",
-    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "POST /api/activecampaign/v2/tag/apply",
-    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "POST /api/activecampaign/v2/tag/remove",
-    "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
     "currentFamily": "domain-envelope",
     "targetFamily": "success-data",
     "frontConsumer": null,
@@ -2576,14 +2424,6 @@
     "status": "pending-migration"
   },
   {
-    "identity": "POST /api/cron-tags/execute-legacy",
-    "owner": "src/controllers/cron/cronManagement.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
     "identity": "POST /api/cron-tags/validate",
     "owner": "src/controllers/cron/cronManagement.controller.ts",
     "currentFamily": "success-data",
@@ -2632,14 +2472,6 @@
     "status": "complete"
   },
   {
-    "identity": "POST /api/curseduca/cleanup",
-    "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "501-only",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
     "identity": "POST /api/dashboard/compare",
     "owner": "src/controllers/dashboard.controller.ts",
     "currentFamily": "success-data",
@@ -2648,7 +2480,7 @@
     "status": "complete"
   },
   {
-    "identity": "POST /api/dashboard/stats/v3/rebuild",
+    "identity": "POST /api/dashboard/materialized-stats/rebuild",
     "owner": "src/routes/dashboardRoutes.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
@@ -3088,30 +2920,6 @@
     "status": "pending-migration"
   },
   {
-    "identity": "POST /api/sync/discord",
-    "owner": "src/controllers/sync/operations.controller.ts",
-    "currentFamily": "501-only",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "POST /api/sync/discord/batch",
-    "owner": "src/controllers/sync/operations.controller.ts",
-    "currentFamily": "501-only",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "POST /api/sync/discord/csv",
-    "owner": "src/controllers/sync/operations.controller.ts",
-    "currentFamily": "501-only",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
     "identity": "POST /api/sync/execute-pipeline",
     "owner": "src/controllers/sync/operations.controller.ts",
     "currentFamily": "domain-envelope",
@@ -3360,38 +3168,6 @@
     "status": "pending-migration"
   },
   {
-    "identity": "POST /cron-tags/execute",
-    "owner": "src/controllers/cron/cronManagement.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "POST /cron-tags/execute-legacy",
-    "owner": "src/controllers/cron/cronManagement.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
-    "identity": "POST /cron-tags/validate",
-    "owner": "src/controllers/cron/cronManagement.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "PUT /api/activecampaign/tag-rules/:id",
-    "owner": "src/controllers/acTags/activeCampaignLegacyTagRules.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
-  },
-  {
     "identity": "PUT /api/classes/updateStatus",
     "owner": "src/controllers/classes/classInactivation.controller.ts",
     "currentFamily": "success-data",
@@ -3514,14 +3290,6 @@
   {
     "identity": "PUT /api/users/editStudent/:id",
     "owner": "src/controllers/users/studentMutations.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "PUT /cron-tags/config",
-    "owner": "src/controllers/cron/cronManagement.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
