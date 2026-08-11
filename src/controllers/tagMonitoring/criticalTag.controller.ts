@@ -132,10 +132,7 @@ export const deleteCriticalTag = async (
 
     await criticalTagManagementService.deleteCriticalTag(id)
 
-    res.json({
-      success: true,
-      message: 'Tag crítica deletada permanentemente',
-    })
+    res.json(successResponse(null, { message: 'Tag crítica deletada permanentemente' }))
   } catch (error: unknown) {
     if (error instanceof Error) {
       const { message } = error

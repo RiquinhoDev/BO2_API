@@ -3,6 +3,7 @@
 // Controller para Contact Tag Reader endpoints
 // ════════════════════════════════════════════════════════════
 
+import { successResponse } from '../../contracts/responseContract'
 import type { RequestHandler } from 'express'
 import { internalError } from '../../security/errorHandling'
 import { ACContactState } from '../../models'
@@ -116,7 +117,7 @@ export const getContactTags: RequestHandler<ContactEmailParams> = async (req, re
     if (!forceRefresh) {
       const cached = await ACContactState.findOne({ email })
       if (cached && cached.lastSyncAt > new Date(Date.now() - 60 * 60 * 1000)) {
-        res.json({ success: true, data: cached, fromCache: true })
+        res.json(successResponse(cached, { fromCache: true }))
         return
       }
     }
@@ -141,11 +142,7 @@ export const getContactTags: RequestHandler<ContactEmailParams> = async (req, re
       { upsert: true, new: true }
     )
 
-    res.json({
-      success: true,
-      data: saved ?? payload,
-      fromCache: false
-    })
+    res.json(successResponse(saved ?? payload, { fromCache: false }))
     return
   } catch (error: unknown) {
     next(internalError('Erro interno do servidor', 'AC_CONTACT_TAGS_READ_FAILED', error))

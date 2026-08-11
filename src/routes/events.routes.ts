@@ -86,10 +86,7 @@ router.post('/:id/interest', async (req: Request, res: Response, next: NextFunct
 
     await event.save()
 
-    res.json({
-      interested: index === -1,
-      interestedCount: event.interestedCount,
-    })
+    res.json(successResponse({ interested: index === -1, interestedCount: event.interestedCount }))
   } catch (error: unknown) {
     next(internalError('Erro ao marcar interesse', 'EVENT_INTEREST_FAILED', error))
   }
