@@ -7,7 +7,131 @@
   },
   "mongooseListBaseline": {
     "count": 346,
-    "hash": "52a264e1d674db0ed64f7b5ae8d5a5e82363ada1c8cbea3fbf692f483d1f2455"
+    "hash": "f089e6f26861ab559cb970f02f2fcc3116a248ef8ebea7edb22d0bd083fad5f6"
+  },
+  "scale02": {
+    "summary": {
+      "planned": 11,
+      "complete": 11,
+      "pending": 0,
+      "changed": 10,
+      "alreadyCompliant": 1
+    },
+    "entries": [
+      {
+        "id": "dashboard-quick.product-comparison",
+        "file": "src/controllers/dashboardQuick.controller.ts",
+        "start": "export const getProductComparison =",
+        "end": "export const getEngagementHeatmap =",
+        "status": "complete",
+        "disposition": "changed",
+        "policy": "aggregate",
+        "require": ["$match", "$limit: 10", "allowDiskUse: true"]
+      },
+      {
+        "id": "dashboard-quick.products-breakdown",
+        "file": "src/controllers/dashboardQuick.controller.ts",
+        "start": "export const getProductsBreakdown =",
+        "status": "complete",
+        "disposition": "changed",
+        "policy": "aggregate",
+        "require": ["$match: matchStage", "$group", "allowDiskUse: true"]
+      },
+      {
+        "id": "dashboard.stats",
+        "file": "src/controllers/dashboard.controller.ts",
+        "start": "export const getDashboardStats =",
+        "end": "export const getProductsBreakdown =",
+        "status": "complete",
+        "disposition": "changed",
+        "policy": "aggregate",
+        "require": ["pipeline: any[] = [{ $match: matchStage }]", "pipeline.push(", "allowDiskUse: true"],
+        "forbid": ["pipeline.unshift("]
+      },
+      {
+        "id": "dashboard.engagement-distribution",
+        "file": "src/controllers/dashboard.controller.ts",
+        "start": "export const getEngagementDistribution =",
+        "end": "export const compareProducts =",
+        "status": "complete",
+        "disposition": "changed",
+        "policy": "aggregate",
+        "require": ["$match: matchStage", "$bucket", "allowDiskUse: true"]
+      },
+      {
+        "id": "dashboard.compare-products",
+        "file": "src/controllers/dashboard.controller.ts",
+        "start": "export const compareProducts =",
+        "end": "export const getDashboardStatsV3 =",
+        "status": "complete",
+        "disposition": "changed",
+        "policy": "aggregate",
+        "require": ["$in: productIds", "$group", "$lookup", "allowDiskUse: true"],
+        "forbid": ["Product.findById", "getProductStats"]
+      },
+      {
+        "id": "engagement.global-summary",
+        "file": "src/controllers/engagement/summary.controller.ts",
+        "start": "export const getGlobalEngagementStats =",
+        "end": "export const clearEngagementCache =",
+        "status": "complete",
+        "disposition": "already-compliant",
+        "policy": "aggregate",
+        "require": ["User.aggregate([", ".allowDiskUse(true)"]
+      },
+      {
+        "id": "engagement.stats",
+        "file": "src/controllers/engagement/stats.controller.ts",
+        "start": "export const getEngagementStats =",
+        "status": "complete",
+        "disposition": "changed",
+        "policy": "aggregate",
+        "require": ["hotmartUsers:", "curseducaUsers:", "discordUsers:", "allowDiskUse: true"],
+        "forbid": ["User.countDocuments"]
+      },
+      {
+        "id": "cohort.retention",
+        "file": "src/services/analytics/cohortAnalytics.service.ts",
+        "start": "async calculateCohortRetention(",
+        "end": "async calculateCohortMetrics(",
+        "status": "complete",
+        "disposition": "changed",
+        "policy": "aggregate",
+        "require": ["UserProduct.aggregate([", "$dateTrunc", "$sort: { _id: -1 }", ".allowDiskUse(true)"],
+        "forbid": ["countDocuments", "while ("]
+      },
+      {
+        "id": "cohort.metrics",
+        "file": "src/services/analytics/cohortAnalytics.service.ts",
+        "start": "async calculateCohortMetrics(",
+        "end": "async calculateSummary(",
+        "status": "complete",
+        "disposition": "changed",
+        "policy": "aggregate",
+        "require": ["$match: query", "$group", ".allowDiskUse(true)"]
+      },
+      {
+        "id": "user.source-statistics",
+        "file": "src/models/user.behavior.ts",
+        "start": "schema.statics.getSourceStatistics =",
+        "end": "schema.statics.getDataSourceStats =",
+        "status": "complete",
+        "disposition": "changed",
+        "policy": "aggregate",
+        "require": ["this.aggregate([", "$group", ".allowDiskUse(true)"]
+      },
+      {
+        "id": "user.data-source-stats",
+        "file": "src/models/user.behavior.ts",
+        "start": "schema.statics.getDataSourceStats =",
+        "end": "schema.statics.getEnhancedUsersList =",
+        "status": "complete",
+        "disposition": "changed",
+        "policy": "aggregate",
+        "require": ["this.aggregate([", "$facet", ".allowDiskUse(true)"],
+        "forbid": ["Promise.all"]
+      }
+    ]
   },
   "entries": [
     {

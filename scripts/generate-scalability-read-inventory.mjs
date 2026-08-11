@@ -98,6 +98,19 @@ function validateEntry(entry) {
   }
 }
 
+function validateScale02(scale02) {
+  const expectedSummary = { planned: 11, complete: 11, pending: 0, changed: 10, alreadyCompliant: 1 }
+  if (!scale02 || JSON.stringify(scale02.summary) !== JSON.stringify(expectedSummary)) fail('SCALE-02 stale summary')
+  if (!Array.isArray(scale02.entries) || scale02.entries.length !== 11) fail('SCALE-02 expected 11 decisions')
+  const ids = new Set(scale02.entries.map(entry => entry.id))
+  if (ids.size !== scale02.entries.length) fail('SCALE-02 duplicate identity')
+  const changed = scale02.entries.filter(entry => entry.disposition === 'changed').length
+  const alreadyCompliant = scale02.entries.filter(entry => entry.disposition === 'already-compliant').length
+  if (changed !== 10 || alreadyCompliant !== 1) fail('SCALE-02 stale disposition counts')
+  if (scale02.entries.some(entry => entry.status !== 'complete')) fail('SCALE-02 contains incomplete decision')
+  for (const entry of scale02.entries) validateEntry(entry)
+  return { complete: scale02.entries.length, pending: 0 }
+}
 function validate(inventory, currentBaseline) {
   if (inventory.version !== 1) fail('unsupported inventory version')
   if (inventory.entries.length !== 40) fail(`expected 40 planned entries, found ${inventory.entries.length}`)
@@ -108,10 +121,11 @@ function validate(inventory, currentBaseline) {
   if (complete !== 36 || pending !== 4) fail(`expected 36 complete / 4 pending, found ${complete} / ${pending}`)
   if (JSON.stringify(inventory.summary) !== JSON.stringify({ planned: 40, complete: 36, pending: 4 })) fail('stale summary')
   for (const entry of inventory.entries) validateEntry(entry)
+  const scale02 = validateScale02(inventory.scale02)
   if (inventory.mongooseListBaseline.count !== currentBaseline.count || inventory.mongooseListBaseline.hash !== currentBaseline.hash) {
     fail(`new Mongoose list site or baseline drift (${inventory.mongooseListBaseline.count} -> ${currentBaseline.count})`)
   }
-  return { complete, pending }
+  return { complete, pending, scale02 }
 }
 
 const command = process.argv[2]
@@ -120,4 +134,4 @@ const inventory = readJson(INVENTORY)
 const currentBaseline = mongooseSites()
 const result = validate(inventory, currentBaseline)
 if (command === '--write') fs.writeFileSync(INVENTORY, `${JSON.stringify(inventory, null, 2)}\n`)
-process.stdout.write(`SCALE-01 inventory OK: ${result.complete} complete / ${result.pending} pending; ${currentBaseline.count} Mongoose list sites\n`)
+process.stdout.write(`SCALE-01 inventory OK: ${result.complete} complete / ${result.pending} pending; SCALE-02 ${result.scale02.complete} complete / ${result.scale02.pending} pending; ${currentBaseline.count} Mongoose list sites\n`)
