@@ -13,7 +13,7 @@ import {
   refreshComparadorSymbols,
   refreshClarezaComparadorData,
 } from '../services/clareza/comparador/comparador.runtime'
-import { ComparadorPolicyError } from '../services/clareza/comparador/comparadorPolicy'
+import { ComparadorPolicyError, comparadorPolicyMessage } from '../services/clareza/comparador/comparadorPolicy'
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -316,7 +316,7 @@ export const clarezaController = {
       return res.json(data)
     } catch (error: unknown) {
       if (error instanceof ComparadorPolicyError) {
-        return res.status(400).json({ error: error.message })
+        return res.status(400).json({ error: comparadorPolicyMessage(error) })
       }
       forwardApplicationError(
         next,
@@ -344,7 +344,7 @@ export const clarezaController = {
       return res.json({ success: true, ...result })
     } catch (error: unknown) {
       if (error instanceof ComparadorPolicyError) {
-        return res.status(400).json({ error: error.message })
+        return res.status(400).json({ error: comparadorPolicyMessage(error) })
       }
       forwardApplicationError(next, error, 'Erro interno do servidor', 'CLAREZA_COMPARADOR_REFRESH_FAILED')
       return

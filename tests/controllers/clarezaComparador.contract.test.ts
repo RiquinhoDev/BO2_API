@@ -102,7 +102,21 @@ describe('Clareza comparator HTTP contract', () => {
     mockGetComparadorSymbols.mockRejectedValueOnce(new ComparadorPolicyError('EMPTY_SYMBOLS', 'Sem simbolos validos.'))
     const invalid = await request(app).get('/comparador?symbols=invalid/ticker&__bo2_offline_loopback=1')
     expect(invalid.status).toBe(400)
-    expect(invalid.body).toEqual({ error: 'Sem simbolos validos.' })
+    expect(invalid.body).toEqual({ error: 'Sem s\u00edmbolos v\u00e1lidos.' })
+  })
+
+  it('maps known comparator policy errors without exposing a forged message', async () => {
+    const app = appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter })
+
+    mockGetComparadorSymbols.mockRejectedValueOnce(new ComparadorPolicyError('EMPTY_SYMBOLS', 'forged comparator detail'))
+    const read = await request(app).get('/comparador?symbols=invalid/ticker&__bo2_offline_loopback=1')
+    expect(read.status).toBe(400)
+    expect(read.body).toEqual({ error: 'Sem s\u00edmbolos v\u00e1lidos.' })
+
+    mockRefreshComparadorSymbols.mockRejectedValueOnce(new ComparadorPolicyError('EMPTY_SYMBOLS', 'forged comparator detail'))
+    const refresh = await request(app).post('/comparador/refresh?symbols=invalid/ticker&__bo2_offline_loopback=1').send({})
+    expect(refresh.status).toBe(400)
+    expect(refresh.body).toEqual({ error: 'Sem s\u00edmbolos v\u00e1lidos.' })
   })
 
   it('protects refresh, preserves manual-symbol success, and limits its input in the service boundary', async () => {
@@ -121,7 +135,7 @@ describe('Clareza comparator HTTP contract', () => {
     mockRefreshComparadorSymbols.mockRejectedValueOnce(new ComparadorPolicyError('EMPTY_SYMBOLS', 'Sem simbolos validos.'))
     const invalid = await request(app).post('/comparador/refresh?symbols=invalid/ticker&__bo2_offline_loopback=1').send({})
     expect(invalid.status).toBe(400)
-    expect(invalid.body).toEqual({ error: 'Sem simbolos validos.' })
+    expect(invalid.body).toEqual({ error: 'Sem s\u00edmbolos v\u00e1lidos.' })
   })
 
   it('preserves full refresh, integration unavailability, and central SEC-10 failures', async () => {
