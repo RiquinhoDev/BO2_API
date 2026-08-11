@@ -2,11 +2,17 @@
 // 📁 src/routes/hotmartSalesHistory.routes.ts
 // Sync Hotmart (Fase 1) — histórico de vendas por aluno OGI ativo.
 // Endpoints manuais do Backoffice. Escrevem APENAS na nossa BD.
+//
+// A sync pode demorar vários minutos (37+ páginas Hotmart + upsert por
+// aluno ativo) — corre em BACKGROUND, não bloqueia o pedido HTTP (senão
+// o proxy da Railway corta a ligação por timeout antes de terminar, e
+// o browser reporta isso como erro de CORS/502). Progresso visível via
+// GET /status (syncInProgress) e GET /history (vai enchendo aos poucos).
 // ════════════════════════════════════════════════════════════
 
 import { Router, type Request, type RequestHandler, type Response } from 'express'
 import HotmartSaleHistory from '../models/HotmartSaleHistory'
-import { syncActiveStudentSalesHistory } from '../services/renewal/hotmartSalesHistory.service'
+import { syncActiveStudentSalesHistory, type SalesHistorySyncReport } from '../services/renewal/hotmartSalesHistory.service'
 
 const router = Router()
 
@@ -15,6 +21,11 @@ const asyncRoute = (fn: any): RequestHandler => {
     Promise.resolve(fn(req, res, next)).catch(next)
   }
 }
+
+let syncInProgress = false
+let syncStartedAt: Date | null = null
+let lastReport: SalesHistorySyncReport | null = null
+let lastError: string | null = null
 
 /**
  * GET /api/renewal-hotmart-sales/status
@@ -33,7 +44,11 @@ router.get('/status', asyncRoute(async (_req: Request, res: Response) => {
       total,
       withSales,
       withoutSales: total - withSales,
-      lastSyncedAt: lastSynced?.lastSyncedAt || null
+      lastSyncedAt: lastSynced?.lastSyncedAt || null,
+      syncInProgress,
+      syncStartedAt,
+      lastReport,
+      lastError
     }
   })
 }))
@@ -63,14 +78,35 @@ router.get('/history', asyncRoute(async (req: Request, res: Response) => {
  * POST /api/renewal-hotmart-sales/sync  { emails?: string[] }
  * Sem `emails`, corre para todos os alunos OGI ACTIVE.
  * Com `emails`, restringe a essa lista (re-sync pontual).
+ * Dispara e responde de imediato — não espera terminar.
  */
 router.post('/sync', asyncRoute(async (req: Request, res: Response) => {
+  if (syncInProgress) {
+    res.status(409).json({ success: false, message: 'Já há uma sincronização em curso.' })
+    return
+  }
+
   const emails: string[] | undefined = Array.isArray(req.body?.emails)
     ? req.body.emails.filter((e: unknown) => typeof e === 'string' && e.trim())
     : undefined
 
-  const report = await syncActiveStudentSalesHistory(emails)
-  res.json({ success: true, data: report })
+  syncInProgress = true
+  syncStartedAt = new Date()
+  lastReport = null
+  lastError = null
+
+  syncActiveStudentSalesHistory(emails)
+    .then((report) => { lastReport = report })
+    .catch((err: any) => {
+      lastError = err?.message || 'Erro desconhecido na sync'
+      console.error('❌ [HotmartSalesSync] Erro em background:', err)
+    })
+    .finally(() => { syncInProgress = false })
+
+  res.json({
+    success: true,
+    data: { started: true, message: 'Sincronização iniciada em background — consulta GET /status para acompanhar.' }
+  })
 }))
 
 export default router
