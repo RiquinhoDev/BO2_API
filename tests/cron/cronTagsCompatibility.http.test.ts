@@ -128,7 +128,7 @@ test('updates config through a strict DTO', async () => {
   })
   expect(response.body).toMatchObject({
     success: true,
-    config: { name: 'TAG_RULES_SYNC' },
+    data: { name: 'TAG_RULES_SYNC' },
   })
 })
 
@@ -157,7 +157,7 @@ test('passes normalized history limit to the use case', async () => {
 
   expect(response.status).toBe(200)
   expect(service.getHistory).toHaveBeenCalledWith(20)
-  expect(response.body).toEqual({ success: true, history: [] })
+  expect(response.body).toEqual({ success: true, data: [] })
 })
 
 test('rejects oversized history queries before persistence', async () => {
@@ -183,12 +183,12 @@ test('returns real statistics and scheduler status envelopes', async () => {
     .query(marker)
     .expect(200)
 
-  expect(statistics.body.statistics).toEqual({
+  expect(statistics.body.data).toEqual({
     totalExecutions: 3,
     successRate: 50,
     avgDuration: 2000,
   })
-  expect(status.body.stats.schedulerActive).toBe(true)
+  expect(status.body.data.stats.schedulerActive).toBe(true)
 })
 
 test('validates cron and preserves its public response contract', async () => {
@@ -203,8 +203,10 @@ test('validates cron and preserves its public response contract', async () => {
   expect(service.validateCronExpression).toHaveBeenCalledWith('0 2 * * *')
   expect(response.body).toEqual({
     success: true,
-    valid: true,
-    nextExecutions: ['2026-07-30T01:00:00.000Z'],
-    humanReadable: 'Todos os dias às 02:00',
+    data: {
+      nextExecutions: ['2026-07-30T01:00:00.000Z'],
+      humanReadable: 'Todos os dias às 02:00',
+    },
+    meta: { valid: true },
   })
 })

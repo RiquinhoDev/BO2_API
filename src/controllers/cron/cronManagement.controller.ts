@@ -1,4 +1,5 @@
 import type { Response } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import type { CronTagsExecuteInput } from '../../security/cronTagsDestructiveInput'
 import type {
   CronTagsConfigInput,
@@ -53,7 +54,7 @@ export function createCronManagementController(service: CronTagsUseCases) {
         return
       }
 
-      res.json({ success: true, config })
+      res.json(successResponse(config))
     },
 
     async updateConfig(
@@ -62,11 +63,7 @@ export function createCronManagementController(service: CronTagsUseCases) {
     ): Promise<void> {
       try {
         const config = await service.updateConfig(input.body)
-        res.json({
-          success: true,
-          message: 'Configuração atualizada com sucesso',
-          config,
-        })
+        res.json(successResponse(config, { message: 'ConfiguraÃ§Ã£o atualizada com sucesso' }))
       } catch (error) {
         if (!respondNotFound(error, res)) throw error
       }
@@ -87,7 +84,7 @@ export function createCronManagementController(service: CronTagsUseCases) {
       res: Response,
     ): Promise<void> {
       const history = await service.getHistory(input.query.limit)
-      res.json({ success: true, history })
+      res.json(successResponse(history))
     },
 
     async getStatistics(
@@ -95,7 +92,7 @@ export function createCronManagementController(service: CronTagsUseCases) {
       res: Response,
     ): Promise<void> {
       const statistics = await service.getStatistics(input.query.days)
-      res.json({ success: true, statistics })
+      res.json(successResponse(statistics))
     },
 
     async getJobHistory(
@@ -107,11 +104,7 @@ export function createCronManagementController(service: CronTagsUseCases) {
           input.params.id,
           input.query.limit,
         )
-        res.status(200).json({
-          success: true,
-          message: 'Histórico recuperado com sucesso',
-          data,
-        })
+        res.status(200).json(successResponse(data, { message: 'HistÃ³rico recuperado com sucesso' }))
       } catch (error) {
         if (!respondNotFound(error, res)) throw error
       }
@@ -125,11 +118,7 @@ export function createCronManagementController(service: CronTagsUseCases) {
         const validation = service.validateCronExpression(
           input.body.cronExpression,
         )
-        res.json({
-          success: true,
-          valid: true,
-          ...validation,
-        })
+        res.json(successResponse(validation, { valid: true }))
       } catch (error) {
         if (!(error instanceof Error)) throw error
         res.status(400).json({
@@ -142,7 +131,7 @@ export function createCronManagementController(service: CronTagsUseCases) {
 
     async getCronStatus(res: Response): Promise<void> {
       const status = await service.getStatus()
-      res.json({ success: true, ...status })
+      res.json(successResponse(status))
     },
   }
 }

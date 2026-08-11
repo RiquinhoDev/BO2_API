@@ -622,20 +622,20 @@ describe('preserved sync and conflict contracts', () => {
     const list = await callRoute(conflictRoute('get', '/conflicts')).response
     expect(list.body).toEqual({
       success: true,
-      message: 'Conflitos recuperados com sucesso',
       data: {
         total: 1,
         conflicts: [pendingConflict],
         stats: { total: 1, pending: 1 },
         byType: [{ type: 'DUPLICATE_EMAIL', count: 1 }],
       },
+      meta: { message: 'Conflitos recuperados com sucesso' },
     })
 
     mockGetConflictById.mockResolvedValueOnce(pendingConflict)
     const read = await callRoute(conflictRoute('get', '/conflicts/507f1f77bcf86cd799439011')).response
     expect(read.body).toEqual({
       success: true,
-      message: 'Conflito recuperado com sucesso',
+      meta: { message: 'Conflito recuperado com sucesso' },
       data: { conflict: pendingConflict },
     })
 
@@ -647,7 +647,7 @@ describe('preserved sync and conflict contracts', () => {
     ).response
     expect(resolved.body).toEqual({
       success: true,
-      message: 'Conflito resolvido com sucesso',
+      meta: { message: 'Conflito resolvido com sucesso' },
       data: { conflict: resolvedConflict },
     })
 
@@ -658,7 +658,7 @@ describe('preserved sync and conflict contracts', () => {
     ).response
     expect(bulk.body).toEqual({
       success: true,
-      message: '2 conflitos resolvidos com sucesso',
+      meta: { message: '2 conflitos resolvidos com sucesso' },
       data: { total: 2, resolved: 2 },
     })
 
@@ -670,7 +670,7 @@ describe('preserved sync and conflict contracts', () => {
     ).response
     expect(auto.body).toEqual({
       success: true,
-      message: 'Auto-resolução completa',
+      meta: { message: 'Auto-resolução completa' },
       data: autoResult,
     })
 
@@ -682,7 +682,7 @@ describe('preserved sync and conflict contracts', () => {
     ).response
     expect(ignored.body).toEqual({
       success: true,
-      message: 'Conflito ignorado com sucesso',
+      meta: { message: 'Conflito ignorado com sucesso' },
       data: { conflict: ignoredConflict },
     })
 
@@ -690,7 +690,7 @@ describe('preserved sync and conflict contracts', () => {
     const critical = await callRoute(conflictRoute('get', '/conflicts/critical')).response
     expect(critical.body).toEqual({
       success: true,
-      message: 'Conflitos críticos recuperados',
+      meta: { message: 'Conflitos críticos recuperados' },
       data: { total: 1, conflicts: [pendingConflict] },
     })
   })
