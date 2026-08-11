@@ -1,7 +1,6 @@
 import { Router } from 'express'
 import {
   clearACCache,
-  debugListACFields,
   getACOverview,
   getBatchContactTags,
   getContactTags,
@@ -29,8 +28,5 @@ router.get('/inconsistencies', getInconsistencies)
 // MANUTENÇÃO
 router.post('/maintenance/refresh-old', refreshOldSyncs)
 router.delete('/cache/clear', clearACCache)
-
-// TEMPORÁRIO — remover depois de confirmados os IDs dos campos
-router.get('/debug/fields', debugListACFields)
 
 export default router
