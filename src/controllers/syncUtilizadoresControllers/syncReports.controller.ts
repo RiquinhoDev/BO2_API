@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { internalError } from '../../security/errorHandling'
 import syncReportsService from '../../services/syncUtilizadoresServices/syncReports.service'
 
@@ -28,14 +29,7 @@ export const getAllReports = async (req: Request, res: Response, next: NextFunct
       syncType as any,
     )
     
-    res.status(200).json({
-      success: true,
-      message: 'Reports recuperados com sucesso',
-      data: {
-        reports,
-        total: reports.length
-      }
-    })
+    res.status(200).json(successResponse({ reports }, { total: reports.length, message: 'Reports recuperados com sucesso' }))
     
   } catch (error: unknown) {
     next(internalError('Erro ao buscar reports', 'SYNC_REPORT_LIST_FAILED', error))

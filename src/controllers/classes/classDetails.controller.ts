@@ -21,7 +21,7 @@ export function createGetClassStatsController(service: Service): RequestHandler 
         dateTo: dateTo as string,
         classIds: classIds ? (classIds as string).split(',') : undefined,
       })
-      res.json({ success: true, ...result.data, timestamp: result.timestamp })
+      res.json(successResponse(result.data, { timestamp: result.timestamp }))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_STATS_FAILED', publicMessage: 'Erro ao buscar estatísticas.', cause: error }))
     }

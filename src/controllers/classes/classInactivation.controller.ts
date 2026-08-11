@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import type { ClassInactivationService } from '../../services/classes/classInactivation.service'
 
@@ -19,13 +20,10 @@ export function createCreateInactivationListController(service: CreateService): 
 
       const result = await service.createList({ name, classIds, description, userId, platforms })
 
-      res.json({
-        success: true,
-        message: 'Lista de inativação criada e turmas atualizadas',
-        list: result.list,
-        classUpdates: result.classUpdates,
-        timestamp: result.timestamp,
-      })
+      res.json(successResponse(
+        { list: result.list, classUpdates: result.classUpdates },
+        { message: 'Lista de inativação criada e turmas atualizadas', timestamp: result.timestamp },
+      ))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_INACTIVATION_CREATE_FAILED', publicMessage: 'Erro ao criar lista de inativação.', cause: error }))
     }
@@ -41,13 +39,10 @@ export function createGetInactivationListsController(service: ListService): Requ
 
       const result = await service.listInactivations({ status, limit: limitNum, offset: offsetNum })
 
-      res.json({
-        success: true,
-        lists: result.lists,
-        total: result.total,
-        filters: { status, limit: limitNum, offset: offsetNum },
-        timestamp: result.timestamp,
-      })
+      res.json(successResponse(
+        { lists: result.lists },
+        { total: result.total, filters: { status, limit: limitNum, offset: offsetNum }, timestamp: result.timestamp },
+      ))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_INACTIVATION_LIST_FAILED', publicMessage: 'Erro ao buscar listas de inativação.', cause: error }))
     }
@@ -71,12 +66,10 @@ export function createRevertInactivationController(service: RevertService): Requ
         return
       }
 
-      res.json({
-        success: true,
-        message: 'Inativação revertida com sucesso',
-        result: { success: true },
-        timestamp: outcome.timestamp,
-      })
+      res.json(successResponse(
+        { result: { success: true } },
+        { message: 'Inativação revertida com sucesso', timestamp: outcome.timestamp },
+      ))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_INACTIVATION_REVERT_FAILED', publicMessage: 'Erro ao reverter inativação.', cause: error }))
     }
@@ -99,14 +92,10 @@ export function createUpdateClassStatusController(service: StatusService): Reque
         return
       }
 
-      res.json({
-        success: true,
-        message: outcome.message,
-        class: outcome.class,
-        studentsAffected: isActive ? outcome.reactivatedStudents : outcome.affectedStudents,
-        action: outcome.action,
-        timestamp: outcome.timestamp,
-      })
+      res.json(successResponse(
+        { class: outcome.class, studentsAffected: isActive ? outcome.reactivatedStudents : outcome.affectedStudents, action: outcome.action },
+        { message: outcome.message, timestamp: outcome.timestamp },
+      ))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_UPDATE_STATUS_FAILED', publicMessage: 'Erro ao atualizar status da turma.', cause: error }))
     }

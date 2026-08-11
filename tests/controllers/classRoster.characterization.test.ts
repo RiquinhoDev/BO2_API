@@ -14,11 +14,9 @@ const searchStudents = rtSearch as unknown as AnyHandler
 type Body = {
   success?: boolean
   message?: string
-  classId?: string
-  className?: string
+  data?: { classId?: string; className?: string; students?: Array<Record<string, unknown>> }
+  meta?: { pagination?: Record<string, unknown>; filters?: Record<string, unknown>; timestamp?: unknown }
   students?: Array<Record<string, unknown>>
-  pagination?: Record<string, unknown>
-  filters?: Record<string, unknown>
   multiple?: boolean
   total?: number
   timestamp?: unknown
@@ -103,28 +101,28 @@ describe('classRoster characterization — getStudentsByClass', () => {
   it('lists CursEduca members from UserProduct, active by default and including inactive on demand', async () => {
     const active: Captured = {}
     await getStudentsByClass(req({ classId: 'CUR' }), makeResponse(active))
-    expect(active.body!.students!.map(s => s.email)).toEqual(['ana@x.test'])
+    expect(active.body!.data!.students!.map(s => s.email)).toEqual(['ana@x.test'])
 
     const all: Captured = {}
     await getStudentsByClass(req({ classId: 'CUR' }, { includeInactive: 'true' }), makeResponse(all))
-    expect((all.body!.students!.map(s => s.email) as string[]).sort()).toEqual(['ana@x.test', 'bea@x.test'])
+    expect((all.body!.data!.students!.map(s => s.email) as string[]).sort()).toEqual(['ana@x.test', 'bea@x.test'])
   })
 
   it('lists Hotmart members by classId, excluding manual inactivation and INACTIVE combined status', async () => {
     const captured: Captured = {}
     await getStudentsByClass(req({ classId: 'HOT' }), makeResponse(captured))
-    expect(captured.body!.students!.map(s => s.email)).toEqual(['caio@x.test'])
+    expect(captured.body!.data!.students!.map(s => s.email)).toEqual(['caio@x.test'])
   })
 
   it('formats each student and returns the exact envelope', async () => {
     const captured: Captured = {}
     await getStudentsByClass(req({ classId: 'CUR' }), makeResponse(captured))
     const body = captured.body as Body
-    expect(body).toMatchObject({ success: true, classId: 'CUR', className: 'Curseduca T' })
-    expect(body.pagination).toMatchObject({ total: 1, limit: 100, offset: 0, hasMore: false })
-    expect(body.filters).toMatchObject({ includeInactive: false, sortBy: 'name', sortOrder: 'asc' })
-    expect(typeof body.timestamp).toBe('string')
-    expect(body.students![0]).toMatchObject({
+    expect(body).toMatchObject({ success: true, data: { classId: 'CUR', className: 'Curseduca T' } })
+    expect(body.meta!.pagination).toMatchObject({ total: 1, limit: 100, offset: 0, hasMore: false })
+    expect(body.meta!.filters).toMatchObject({ includeInactive: false, sortBy: 'name', sortOrder: 'asc' })
+    expect(typeof body.meta!.timestamp).toBe('string')
+    expect(body.data!.students![0]).toMatchObject({
       name: 'Ana',
       email: 'ana@x.test',
       discordId: 'd1',
@@ -132,8 +130,8 @@ describe('classRoster characterization — getStudentsByClass', () => {
       estado: 'ativo',
       platform: 'curseduca',
     })
-    expect(body.students![0]).toHaveProperty('joinedAt')
-    expect(body.students![0]).toHaveProperty('lastActivity')
+    expect(body.data!.students![0]).toHaveProperty('joinedAt')
+    expect(body.data!.students![0]).toHaveProperty('lastActivity')
   })
 
   it('reports failure through next(HttpError) with CLASS_ROSTER_FAILED', async () => {

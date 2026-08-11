@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import mongoose from 'mongoose'
 import SyncHistory from '../../models/SyncHistory'
 import { internalError } from '../../security/errorHandling'
@@ -83,19 +84,10 @@ export const getSyncHistory = async (req: Request, res: Response, next: NextFunc
     const countResult = await SyncHistory.aggregate(countPipeline)
     const count = countResult[0]?.total || 0
 
-    res.json({
-      history,
-      count,
-      page: +page,
-      limit: +limit,
-      totalPages: Math.ceil(count / +limit),
-      filters: {
-        type: type || null,
-        status: status || null,
-        startDate: startDate || null,
-        endDate: endDate || null
-      }
-    })
+    res.json(successResponse(
+      { history },
+      { count, page: +page, limit: +limit, totalPages: Math.ceil(count / +limit), filters: { type: type || null, status: status || null, startDate: startDate || null, endDate: endDate || null } },
+    ))
 
   } catch (error: unknown) {
     next(internalError(

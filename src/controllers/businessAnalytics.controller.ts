@@ -6,6 +6,7 @@
 // ════════════════════════════════════════════════════════════════════
 
 import { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import analyticsCacheService from '../services/analytics/analyticsCache.service'
 import analyticsCalculatorService from '../services/analytics/analyticsCalculator.service'
 import Product from '../models/product/Product'
@@ -205,8 +206,7 @@ class BusinessAnalyticsController {
       
       const duration = Date.now() - startTime
       
-      res.json({
-        success: true,
+      const response = {
         data: {
           kpis,
           timeSeries: {
@@ -254,7 +254,8 @@ class BusinessAnalyticsController {
           cached: false,
           version: '1.0.0'
         }
-      })
+      }
+      res.json(successResponse(response.data, response.meta))
       
       console.log(`✅ [Business Analytics] Overview gerado em ${duration}ms`)
       
@@ -324,8 +325,7 @@ class BusinessAnalyticsController {
       
       const duration = Date.now() - startTime
       
-      res.json({
-        success: true,
+      const response = {
         data: {
           comparison: {
             products: comparison,
@@ -348,7 +348,8 @@ class BusinessAnalyticsController {
           durationMs: duration,
           version: '1.0.0'
         }
-      })
+      }
+      res.json(successResponse(response.data, response.meta))
       
       console.log(`✅ [Business Analytics] Comparação gerada em ${duration}ms`)
       

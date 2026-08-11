@@ -4,6 +4,7 @@
 // ══════════════════════════════════════════════════════════════════════
 
 import type { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import StudentCompleteService from '../services/studentCompleteService'
 import { StudentNotFoundError, StudentDataFetchError } from '../types/studentComplete'
 import { forwardApplicationError } from '../security/forwardApplicationError'
@@ -44,7 +45,7 @@ export async function getStudentComplete(req: Request, res: Response, next: Next
     )
 
     // Retornar resposta
-    return res.status(200).json(response)
+    return res.status(200).json(successResponse(response.data, response.meta))
   } catch (error) {
     // Tratar erros conhecidos
     if (error instanceof StudentNotFoundError) {

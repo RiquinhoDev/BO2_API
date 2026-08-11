@@ -32,14 +32,7 @@ export function createListClassesController(service: Service): RequestHandler {
 
       const result = await service.list(filters)
 
-      res.json({
-        success: true,
-        data: result.classes,
-        classes: result.classes,
-        total: result.total,
-        filters,
-        timestamp: result.timestamp,
-      })
+      res.json(successResponse({ classes: result.classes }, { total: result.total, filters, timestamp: result.timestamp }))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_LIST_FAILED', publicMessage: 'Erro ao listar turmas.', cause: error }))
     }
