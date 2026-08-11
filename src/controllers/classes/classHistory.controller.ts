@@ -19,7 +19,7 @@ export function createGetClassHistoryController(service: Service): RequestHandle
         limit: num(limit, 50),
         offset: num(offset, 0),
       })
-      res.json({ success: true, ...result })
+      res.json(successResponse({ history: result.history }, { total: result.total, filters: result.filters, timestamp: result.timestamp }))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_HISTORY_FAILED', publicMessage: 'Erro ao buscar histórico.', cause: error }))
     }
@@ -34,7 +34,7 @@ export function createStudentHistoryByDiscordController(service: Service): Reque
         res.status(404).json({ success: false, message: 'Usuário não encontrado com esse Discord ID' })
         return
       }
-      res.json({ success: true, student: result.student, history: result.history, total: result.total, timestamp: result.timestamp })
+      res.json(successResponse({ student: result.student, history: result.history }, { total: result.total, timestamp: result.timestamp }))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'STUDENT_HISTORY_BY_DISCORD_FAILED', publicMessage: 'Erro ao buscar histórico do estudante.', cause: error }))
     }
@@ -49,7 +49,7 @@ export function createStudentHistoryByEmailController(service: Service): Request
         res.status(404).json({ success: false, message: 'Usuário não encontrado com esse email' })
         return
       }
-      res.json({ success: true, student: result.student, history: result.history, total: result.total, timestamp: result.timestamp })
+      res.json(successResponse({ student: result.student, history: result.history }, { total: result.total, timestamp: result.timestamp }))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'STUDENT_HISTORY_BY_EMAIL_FAILED', publicMessage: 'Erro ao buscar histórico do estudante.', cause: error }))
     }

@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { type NextFunction, Request, Response } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { internalError } from '../../security/errorHandling'
 
 import ProductSalesStats from '../../models/product/ProductSalesStats'
@@ -89,14 +90,7 @@ export async function getProductSalesByPeriod(req: Request, res: Response, next:
       })
     }))
     
-    res.json({
-      success: true,
-      data: filtered,
-      period: {
-        start: startDate,
-        end: endDate
-      }
-    })
+    res.json(successResponse(filtered, { period: { start: startDate, end: endDate } }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar estatísticas', 'PRODUCT_SALES_PERIOD_READ_FAILED', error))
   }
