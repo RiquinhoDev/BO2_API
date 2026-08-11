@@ -816,17 +816,17 @@ checkboxes nem prova de prontidão operacional. Esta reconciliação macro incor
 | 4. Middleware & funções | 80% | 100% | +20 pp | SEC-10 passou de 188 para 0 e o detalhe público mantém 0 |
 | 5. Segurança & rotas | 70% | 70% | 0 pp | default-deny/JWT/CORS fechados; matriz de papéis e OPS-02 abertos |
 | 6. Escalabilidade | 35% | 61% | +26 pp | SCALE-01 mantém 36/40; SCALE-02 A resolveu 10 débitos set-based e verificou 1 read já conforme; OPS-02 e 4 decisões continuam abertos |
-| 7. Contrato de resposta | 50% | 79,4% | +29,4 pp | foundation vale 50%; migração revista em 289/441, com 72 identidades fora do denominador migrável |
+| 7. Contrato de resposta | 50% | 84,3% | +34,3 pp | foundation vale 50%; migração revista em 325/441, com 72 identidades fora do denominador migrável |
 | 8. Toolchain & qualidade | 75% | 75% | 0 pp | TS/tests/package manager fechados; ESLint debt e validação operacional abertos |
-| **Total, média simples** | **75,6%** | **85,7%** | **+10,1 pp** | estimativa igualitária dos oito pilares |
+| **Total, média simples** | **75,6%** | **86,3%** | **+10,7 pp** | estimativa igualitária dos oito pilares |
 
-Contratos usa a fórmula explícita `50 + 50 × (289 - 72) / (441 - 72) = 79,4%`: metade do pilar é a foundation; a outra metade mede apenas as 369 identidades migráveis. O total atual é (606 + 79,4) / 8 = 85,7%. A coluna anterior reconcilia 605 / 8 = 75,6%; o delta é **+10,1 pp**. O avanço de escalabilidade usa a densidade já publicada de 20 pp / 36 e conta apenas os 10 débitos efetivamente removidos (+5,6 pp, arredondado para +6); o read já conforme acrescenta evidência, não progresso.
+Contratos usa a fórmula explícita `50 + 50 × (325 - 72) / (441 - 72) = 84,3%`: metade do pilar é a foundation; a outra metade mede apenas as 369 identidades migráveis. O total atual é `(606 + 84,3) / 8 = 86,3%`. A coluna anterior reconcilia `605 / 8 = 75,6%`; o delta acumulado é **+10,7 pp**. Nesta ronda, o ponto de partida era **84,9%** e o avanço foi **+1,4 pp**. O avanço de escalabilidade usa a densidade já publicada de 20 pp / 36 e conta apenas os 10 débitos efetivamente removidos (+5,6 pp, arredondado para +6); o read já conforme acrescenta evidência, não progresso.
 
 Na contagem mecânica, as duas missões reconciliam `102/112 -> 105/112` (`91,1% -> 93,8%`). SEC-10 e o
 boundary de responsabilidade ARCH-02 são os deltas de código; SCALE-01 e os 10 débitos removidos em SCALE-02 A melhoram a estimativa sem fechar a caixa ampla de paginação restante. Outra caixa corrigiu estado ARCH-02 já provado no ledger abaixo. Nenhuma das
 duas métricas inclui deploy, observação, equivalência de payloads ou prontidão operacional.
 
-**Evidência desta reconciliação (2026-08-11, offline):** SCALE-01 permanece em **36/40**; SCALE-02 A regista **11/11 decisões completas = 10 alterações + 1 read já conforme**; contratos permanecem em **289/441**. O checker mantém **346** sites Mongoose e ratchets separados para os dois lotes. Estes números são estado de código e inventário, não prova de deploy, carga real, plano do query planner, latência, equivalência em produção ou fecho operacional.
+**Evidência desta reconciliação (2026-08-11, offline):** SCALE-01 permanece em **36/40**; SCALE-02 A regista **11/11 decisões completas = 10 alterações + 1 read já conforme**; contratos avançaram para **325/441**. O checker mantém **346** sites Mongoose e ratchets separados para os dois lotes. `node_modules` foi restaurado com `npm ci`, sem alteração do `package-lock.json`. Passaram fresh o checker SCALE, os testes SCALE focados, TypeScript e os checkers ARCH e de contratos; os gates focados do implementador e a revisão independente também passaram. Algumas execuções combinadas Jest/Vitest excederam o timeout e não são reclamadas como prova. Estes números são estado de código e inventário, não prova de deploy, carga real, plano do query planner, latência, equivalência em produção ou fecho operacional.
 
 ### Evidência focada (2026-08-03; offline)
 
