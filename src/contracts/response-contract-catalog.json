@@ -594,7 +594,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/auth.controller.ts:137",
+    "evidence": "src/controllers/auth.controller.ts:135",
     "frontConsumer": "src/contexts/AuthContext.tsx"
   },
   {
@@ -3872,10 +3872,10 @@
     "path": "/api/auth/change-password",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/auth.controller.ts:253",
+    "evidence": "src/controllers/auth.controller.ts:247",
     "frontConsumer": null
   },
   {
@@ -3884,10 +3884,9 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
       "success"
     ],
-    "evidence": "src/controllers/auth.controller.ts:92",
+    "evidence": "src/controllers/auth.controller.ts:93",
     "frontConsumer": "src/contexts/AuthContext.tsx"
   },
   {
@@ -3895,10 +3894,10 @@
     "path": "/api/auth/logout",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/auth.controller.ts:155",
+    "evidence": "src/controllers/auth.controller.ts:153",
     "frontConsumer": null
   },
   {
@@ -3907,10 +3906,9 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
       "success"
     ],
-    "evidence": "src/controllers/auth.controller.ts:188",
+    "evidence": "src/controllers/auth.controller.ts:185",
     "frontConsumer": null
   },
   {
