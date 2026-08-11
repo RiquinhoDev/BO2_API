@@ -136,6 +136,51 @@ describe('public technical-error boundary', () => {
     expectCanonical(response, code, message)
   })
 
+  it('returns the complete canonical renewal performance payload and forwards the selected year', async () => {
+    const payload = {
+      target: 0.2,
+      year: 2026,
+      availableYears: [2025, 2026],
+      turmas: [{
+        turmaNumber: 12,
+        className: 'Turma 12',
+        novaClassName: 'Turma 13',
+        alunos: 10,
+        renovados: 4,
+        vendas: 5,
+        taxa: 0.5,
+        vsMeta: 0.3,
+        expiry: '2026-12-31',
+      }],
+      totals: { renovacoes: 1, renovados: 4, vendas: 5, alunos: 10, taxaMedia: 0.5, acimaMeta: 1 },
+    }
+    mockRenewalPerformance.mockResolvedValueOnce(payload)
+
+    const response = await request(appFor(renewalController.performance))
+      .get('/target?year=2026&__bo2_offline_loopback=1')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ success: true, data: payload })
+    expect(mockRenewalPerformance).toHaveBeenCalledWith(2026)
+  })
+
+  it('preserves the canonical renewal performance envelope for an empty result', async () => {
+    const payload = {
+      target: 0.2,
+      year: 2026,
+      availableYears: [],
+      turmas: [],
+      totals: { renovacoes: 0, renovados: 0, vendas: 0, alunos: 0, taxaMedia: 0, acimaMeta: 0 },
+    }
+    mockRenewalPerformance.mockResolvedValueOnce(payload)
+
+    const response = await request(appFor(renewalController.performance))
+      .get('/target?__bo2_offline_loopback=1')
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ success: true, data: payload })
+    expect(mockRenewalPerformance).toHaveBeenCalledWith(undefined)
+  })
   const trialCases = [
     ['list', trialController.getTrials, mockTrialList, 'GURU_TRIAL_LIST_FAILED', 'Erro ao listar trials'],
     ['stats', trialController.getTrialsStats, mockTrialStats, 'GURU_TRIAL_STATS_FAILED', 'Erro ao calcular estatísticas'],
