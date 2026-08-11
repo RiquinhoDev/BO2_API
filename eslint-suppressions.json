@@ -275,11 +275,6 @@
       "count": 1
     }
   },
-  "src/controllers/syncUtilizadoresControllers/curseduca/support.ts": {
-    "no-console": {
-      "count": 1
-    }
-  },
   "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
@@ -302,11 +297,6 @@
     },
     "no-console": {
       "count": 18
-    }
-  },
-  "src/controllers/tagEvaluation/mapping.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
     }
   },
   "src/controllers/tagMonitoring/tagMonitoring.controller.ts": {

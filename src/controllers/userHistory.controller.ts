@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express'
 import { ensureUserHistoryModel } from '../models/UserHistory'
 import mongoose from 'mongoose'
-import { forwardApplicationError } from './forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 
 // Buscar histórico de um usuário específico
 export const getUserHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

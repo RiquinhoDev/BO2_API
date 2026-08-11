@@ -36,7 +36,7 @@ jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
   __esModule: true,
   default: { removeTag: jest.fn() },
 }))
-jest.mock('../../src/controllers/testimonials/testimonialTags.service', () => ({
+jest.mock('../../src/services/testimonials/testimonialTags.service', () => ({
   addTestimonialTagsToUser: mockAddTags,
   getTestimonialTags: mockGetTags,
   removeTestimonialTagsFromUser: mockRemoveTags,
@@ -130,7 +130,7 @@ test('testimonial modules have no raw console or observability PII interpolation
   const files = [
     'src/controllers/testimonials/testimonialCandidates.controller.ts',
     'src/controllers/testimonials/testimonialCommands.controller.ts',
-    'src/controllers/testimonials/testimonialTags.service.ts',
+    'src/services/testimonials/testimonialTags.service.ts',
   ]
   const sources = files.map((file) => fs.readFileSync(path.join(process.cwd(), file), 'utf8')).join('\n')
 

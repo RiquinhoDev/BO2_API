@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken"
 import { verifyAppToken } from '../security/jwt'
 import { getRequestRouteTemplate } from '../observability/requestRoute'
 import logger, { type AppLogger } from '../utils/logger'
-import { forwardApplicationError } from '../controllers/forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 
 // Extend Express Request type to include user
 declare global {

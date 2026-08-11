@@ -1,6 +1,6 @@
 import request from 'supertest'
 import { IntegrationUnavailableError } from '../../src/errors/integrationUnavailableError'
-import { statsCache } from '../../src/controllers/engagement/support'
+import { statsCache } from '../../src/services/engagement/controllerSupport'
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import { appForCentralError, expectCentralError } from '../support/centralErrorContract'
 

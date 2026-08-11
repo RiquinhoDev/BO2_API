@@ -1,5 +1,5 @@
 import { evaluateTags, evaluateTagsBatch } from '../../src/controllers/tagEvaluation.controller'
-import { calculateTagDiff, mapUserToEvaluation } from '../../src/controllers/tagEvaluation/mapping'
+import { calculateTagDiff, mapUserToEvaluation } from '../../src/services/tagEvaluation/mapping'
 
 describe('tag evaluation controller topology', () => {
   it('keeps document mapping separate from HTTP orchestration', () => {

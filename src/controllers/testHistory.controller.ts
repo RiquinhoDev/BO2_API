@@ -8,7 +8,7 @@ import { NextFunction, Request, Response } from 'express'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
 import { snapshotAndCompare } from '../services/snapshotServices/userSnapshot.service'
-import { forwardApplicationError } from './forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 
 /**
  * POST /api/test/history/make-changes

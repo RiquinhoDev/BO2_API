@@ -35,7 +35,7 @@ export interface UserEvaluationResult {
     newTags: string[]
     diff: TagDiff
     appliedTags: ITagEvaluationResult['appliedTags']
-    debug?: any
+    debug?: ITagEvaluationResult['debug']
   }>
   globalTags: string[]
   summary: {
@@ -54,7 +54,7 @@ export interface UserEvaluationResult {
 /**
  * Converte User para IUserForEvaluation
  */
-export function mapUserToEvaluation(user: any): IUserForEvaluation {
+export function mapUserToEvaluation(user: Readonly<IUserForEvaluation>): IUserForEvaluation {
   return {
     _id: user._id,
     email: user.email,
@@ -66,7 +66,7 @@ export function mapUserToEvaluation(user: any): IUserForEvaluation {
 /**
  * Converte UserProduct para IUserProductForEvaluation
  */
-export function mapUserProductToEvaluation(userProduct: any): IUserProductForEvaluation {
+export function mapUserProductToEvaluation(userProduct: Readonly<IUserProductForEvaluation>): IUserProductForEvaluation {
   return {
     _id: userProduct._id,
     userId: userProduct.userId,
@@ -86,7 +86,7 @@ export function mapUserProductToEvaluation(userProduct: any): IUserProductForEva
 /**
  * Converte Product para IProductForEvaluation
  */
-export function mapProductToEvaluation(product: any): IProductForEvaluation {
+export function mapProductToEvaluation(product: Readonly<IProductForEvaluation>): IProductForEvaluation {
   return {
     _id: product._id,
     name: product.name,

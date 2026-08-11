@@ -6,7 +6,7 @@ import User from '../../models/user'
 import CommunicationHistory from '../../models/acTags/CommunicationHistory'
 import type { ICommunicationHistory } from '../../models/acTags/CommunicationHistory'
 import logger from '../../utils/logger'
-import { buildReason, type CommunicationReasonRule } from './activeCampaignHistoryReason'
+import { buildReason, type CommunicationReasonRule } from '../../services/activeCampaign/historyReason'
 
 type PopulatedUser = {
   _id: Types.ObjectId

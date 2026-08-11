@@ -2,7 +2,7 @@
 import { type NextFunction, Request, Response } from "express"
 import Admin from "../models/Admin"
 import { signAppToken } from '../security/jwt'
-import { forwardApplicationError } from './forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 
 const JWT_EXPIRES_IN = "7d"
 

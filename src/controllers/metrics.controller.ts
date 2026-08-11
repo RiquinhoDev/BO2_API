@@ -6,7 +6,7 @@
 import { type NextFunction, Request, Response } from 'express'
 import metricsService from '../services/metrics.service'
 import CronExecutionLog from '../models/cron/CronExecutionLog'
-import { forwardApplicationError } from './forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 
 /**
  * GET /api/metrics

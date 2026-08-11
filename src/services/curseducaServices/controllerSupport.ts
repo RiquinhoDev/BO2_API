@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import logger from '../../utils/logger'
 
 export interface SyncResponse {
   status(code: number): SyncResponse
@@ -54,7 +55,7 @@ export class SyncLogger {
     const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(2)
     const line = `[${timestamp}] [+${elapsed}s] ${message}`
     
-    console.log(message)
+    logger.info(message)
     fs.appendFileSync(this.logFile, line + '\n')
   }
 

@@ -1,6 +1,6 @@
 import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
-import { type EngagementStats, forwardEngagementError, statsCache } from './support'
+import { type EngagementStats, forwardEngagementError, statsCache } from '../../services/engagement/controllerSupport'
 
 export const getGlobalEngagementStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

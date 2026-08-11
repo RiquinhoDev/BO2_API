@@ -5,7 +5,7 @@ import { Testimonial } from '../../models/Testimonial'
 import User, { IUser } from '../../models/user'
 import {
   queryString
-} from './testimonialControllerSupport'
+} from '../../services/testimonials/controllerSupport'
 import logger from '../../utils/logger'
 
 type Candidate = {

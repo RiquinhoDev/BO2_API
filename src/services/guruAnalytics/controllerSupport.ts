@@ -1,5 +1,5 @@
 import { type IUser } from '../../models/user'
-import { type GuruSubscription } from '../../services/guru/guruSync.service'
+import { type GuruSubscription } from '../guru/guruSync.service'
 
 export type CurseducaDetails = NonNullable<IUser['curseduca']>
 

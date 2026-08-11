@@ -1,7 +1,7 @@
 // src/routes/users.routes.ts - ROTAS ATUALIZADAS PARA COMPATIBILIDADE
 import { Router } from "express"
 import { asyncRoute } from '../security/asyncRoute'
-import { forwardApplicationError } from '../controllers/forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 import { createUsersImportUpload } from "../security/usersImportUpload"
 import { withValidatedInput } from "../security/validatedInput"
 import {

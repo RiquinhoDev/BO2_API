@@ -1,10 +1,10 @@
 import { type NextFunction, Request, Response } from 'express'
-import { forwardApplicationError } from '../forwardApplicationError'
+import { forwardApplicationError } from '../../security/forwardApplicationError'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { fetchAllSubscriptionsComplete } from '../../services/guru/guruSync.service'
 import { GURU_CANCELED_STATUSES, getStatusPriority, type GuruDateInfo } from '../../services/guru/guru.constants'
-import { type SubscriptionCandidate, type MultiSubscriptionUser, type ProblemUser } from './support'
+import { type SubscriptionCandidate, type MultiSubscriptionUser, type ProblemUser } from '../../services/guruAnalytics/controllerSupport'
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // DIAGNÃ“STICO: DETECTAR USERS COM MÃšLTIPLAS SUBSCRIÃ‡Ã•ES

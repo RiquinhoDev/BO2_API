@@ -4,7 +4,7 @@
 import { Router, Request, Response } from 'express'
 import ValidationLog from '../models/ValidationLog'
 import { asyncRoute } from '../security/asyncRoute'
-import { forwardApplicationError } from '../controllers/forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 
 const router = Router()
 

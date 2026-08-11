@@ -3,7 +3,7 @@ import { IntegrationUnavailableError } from '../../errors/integrationUnavailable
 import { internalError } from '../../security/errorHandling'
 import GuruMonthlySnapshot from '../../models/GuruMonthlySnapshot'
 import { type GuruSubscription } from '../../services/guru/guruSync.service'
-import { type SnapshotStatus, type SnapshotBuildResult, errorMessage } from './support'
+import { type SnapshotStatus, type SnapshotBuildResult, errorMessage } from '../../services/guruSnapshots/controllerSupport'
 
 function forwardGuruSnapshotError(
   next: NextFunction,

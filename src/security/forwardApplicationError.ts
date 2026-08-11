@@ -1,6 +1,6 @@
 import type { NextFunction } from 'express'
 import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
-import { internalError } from '../security/errorHandling'
+import { internalError } from './errorHandling'
 
 export function forwardApplicationError(
   next: NextFunction,

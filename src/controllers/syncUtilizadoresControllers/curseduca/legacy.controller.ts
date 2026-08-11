@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express'
 import type { CurseducaCleanupInput } from '../../../security/curseducaDestructiveInput'
 import { syncCurseducaUsers } from './sync.controller'
-import { errorMessage, type SyncResponse } from './support'
+import { errorMessage, type SyncResponse } from '../../../services/curseducaServices/controllerSupport'
 
 export const getGroups = async (req: Request, res: Response): Promise<void> => {
   res.status(501).json({

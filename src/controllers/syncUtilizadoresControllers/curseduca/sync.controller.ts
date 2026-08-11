@@ -9,7 +9,7 @@ import { getOptionalCurseducaRuntimeSettings } from '../../../services/requestDr
 import curseducaAdapter from '../../../services/syncUtilizadoresServices/curseducaServices/curseduca.adapter'
 import { internalError } from '../../../security/errorHandling'
 import canonicalLogger from '../../../utils/logger'
-import { SyncLogger, type SyncResponse } from './support'
+import { SyncLogger, type SyncResponse } from '../../../services/curseducaServices/controllerSupport'
 
 export const syncCurseducaUsers = async (req: Request, res: SyncResponse, next: NextFunction): Promise<void> => {
   const logger = new SyncLogger()

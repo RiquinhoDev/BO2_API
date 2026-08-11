@@ -4,7 +4,7 @@
 // ══════════════════════════════════════════════════════════════════════
 
 import { NextFunction, Request, Response } from 'express'
-import { forwardApplicationError } from './forwardApplicationError'
+import { forwardApplicationError } from '../security/forwardApplicationError'
 import mongoose from 'mongoose'
 import UserHistory from '../models/UserHistory'
 import User from '../models/user'

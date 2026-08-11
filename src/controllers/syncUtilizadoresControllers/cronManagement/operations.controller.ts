@@ -4,7 +4,7 @@ import { CronExecution } from '../../../models'
 import syncSchedulerService from '../../../services/cron/scheduler'
 import type { CronEmptyInput } from '../../../security/cronDestructiveInput'
 import { internalError } from '../../../security/errorHandling'
-import { type JobIdParams, errorMessage } from './support'
+import { type JobIdParams, errorMessage } from '../../../services/cron/controllerSupport'
 
 export const getJobHistory = async (
   req: Request<JobIdParams>,
