@@ -4,9 +4,9 @@ import { FilterQuery, PipelineStage } from 'mongoose'
 import { Testimonial } from '../../models/Testimonial'
 import User, { IUser } from '../../models/user'
 import {
-  errorMessage,
   queryString
 } from './testimonialControllerSupport'
+import logger from '../../utils/logger'
 
 type Candidate = {
   testimonialScore?: number
@@ -15,7 +15,7 @@ type Candidate = {
 }
 export const getAvailableStudents = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    console.log('ðŸ” getAvailableStudents chamado com query:', req.query)
+    logger.info('Testimonial candidate lookup started', { status: 'started' })
 
     const {
       search = '',
@@ -27,7 +27,7 @@ export const getAvailableStudents = async (req: Request, res: Response, next: Ne
       limit = 1000
     } = req.query
 
-    console.log('ðŸ“‹ ParÃ¢metros processados:', { search, classId, excludeRequested, onlyActive, minEngagement, minProgress, limit })
+    logger.info('Testimonial candidate parameters parsed', { status: 'ready' })
 
     // Iniciar com filtros bÃ¡sicos simples
     const studentFilters: FilterQuery<IUser> = {}
@@ -94,7 +94,7 @@ export const getAvailableStudents = async (req: Request, res: Response, next: Ne
       }
     }
 
-    console.log('ðŸŽ¯ Filtros de estudantes:', JSON.stringify(studentFilters, null, 2))
+    logger.info('Testimonial candidate filters prepared', { status: 'ready' })
 
     // Buscar estudantes com campos de engagement e progress
     let students = await User.find(studentFilters)
@@ -103,7 +103,7 @@ export const getAvailableStudents = async (req: Request, res: Response, next: Ne
       .limit(Number(limit))
       .lean()
 
-    console.log('ðŸ‘¥ Estudantes encontrados (antes de filtros):', students.length)
+    logger.info('Testimonial candidates loaded', { status: 'loaded', studentCount: students.length })
 
     // Filtrar apenas ativos se solicitado
     if (onlyActive === 'true') {
@@ -122,9 +122,9 @@ export const getAvailableStudents = async (req: Request, res: Response, next: Ne
         
         const excludeIds = activeRequests.map(req => req.studentId.toString())
         students = students.filter(student => !excludeIds.includes(student._id.toString()))
-        console.log('ðŸ‘¥ Estudantes apÃ³s excluir solicitados:', students.length)
-      } catch (testimonialError: unknown) {
-        console.log('âš ï¸ Erro ao buscar testemunhos, ignorando filtro:', errorMessage(testimonialError))
+      logger.info('Testimonial candidates filtered', { status: 'filtered', studentCount: students.length })
+      } catch {
+      logger.warn('Testimonial exclusion lookup failed', { status: 'partial', studentCount: students.length })
       }
     }
 
@@ -164,7 +164,7 @@ export const getAvailableStudents = async (req: Request, res: Response, next: Ne
       }
     })
 
-    console.log('âœ… Estudantes finais:', finalStudents.length)
+    logger.info('Testimonial candidates ready', { status: 'completed', studentCount: finalStudents.length })
 
     res.json({
       students: finalStudents,

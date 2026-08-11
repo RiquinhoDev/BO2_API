@@ -2,14 +2,14 @@ import mongoose from 'mongoose'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import type { IProduct } from '../../models/product/Product'
-import { errorMessage } from './testimonialControllerSupport'
+import logger from '../../utils/logger'
 export async function getTestimonialTags(userId: mongoose.Types.ObjectId): Promise<string[]> {
   try {
     // Buscar todos os UserProducts do aluno
     const userProducts = await UserProduct.find({ userId }).populate<{ productId: IProduct }>('productId')
 
     if (!userProducts || userProducts.length === 0) {
-      console.log(`âš ï¸ No products found for user ${userId}`)
+      logger.info('No testimonial products found', { userId: String(userId), status: 'skipped', productCount: 0 })
       return []
     }
 
@@ -20,7 +20,7 @@ export async function getTestimonialTags(userId: mongoose.Types.ObjectId): Promi
       const product = userProduct.productId
 
       if (!product || !product.name) {
-        console.log(`âš ï¸ Product not found for UserProduct ${userProduct._id}`)
+        logger.warn('Testimonial product unavailable', { userProductId: String(userProduct._id), status: 'skipped' })
         continue
       }
 
@@ -41,13 +41,13 @@ export async function getTestimonialTags(userId: mongoose.Types.ObjectId): Promi
       if (tagName && !productsProcessed.has(tagName)) {
         tags.push(tagName)
         productsProcessed.add(tagName)
-        console.log(`âœ… Tag "${tagName}" will be added for product: ${product.name}`)
+        logger.info('Testimonial product tag selected', { userProductId: String(userProduct._id), status: 'selected', tagCount: tags.length })
       }
     }
 
     return tags
-  } catch (error: unknown) {
-    console.error('âŒ Error getting testimonial tags:', errorMessage(error))
+  } catch {
+    logger.warn('Testimonial tag lookup failed', { userId: String(userId), status: 'partial' })
     return []
   }
 }
@@ -56,14 +56,14 @@ export async function getTestimonialTags(userId: mongoose.Types.ObjectId): Promi
 export async function addTestimonialTagsToUser(userId: mongoose.Types.ObjectId, tags: string[]): Promise<void> {
   try {
     if (!tags || tags.length === 0) {
-      console.log(`âš ï¸ No tags to add for user ${userId}`)
+      logger.info('No testimonial tags to persist', { userId: String(userId), status: 'skipped', tagCount: 0 })
       return
     }
 
     // Buscar o user
     const user = await User.findById(userId)
     if (!user) {
-      console.error(`âŒ User ${userId} not found when trying to add tags`)
+      logger.warn('Testimonial tag user unavailable', { userId: String(userId), status: 'skipped' })
       return
     }
 
@@ -98,9 +98,9 @@ export async function addTestimonialTagsToUser(userId: mongoose.Types.ObjectId, 
       if (!existingTags.has(tag)) {
         courseComm.currentTags.push(tag)
         existingTags.add(tag)
-        console.log(`âœ… Added tag "${tag}" to user ${user.email}`)
+        logger.info('Testimonial tag applied', { userId: String(userId), status: 'applied', tagCount: tags.length })
       } else {
-        console.log(`â„¹ï¸ Tag "${tag}" already exists for user ${user.email}`)
+        logger.info('Testimonial tag already present', { userId: String(userId), status: 'existing', tagCount: tags.length })
       }
     }
 
@@ -114,10 +114,10 @@ export async function addTestimonialTagsToUser(userId: mongoose.Types.ObjectId, 
 
     // Salvar
     await user.save()
-    console.log(`âœ… Testimonial tags saved for user ${user.email}: ${tags.join(', ')}`)
+    logger.info('Testimonial tags persisted', { userId: String(userId), status: 'completed', tagCount: tags.length })
 
   } catch (error: unknown) {
-    console.error('âŒ Error adding testimonial tags to user:', errorMessage(error))
+    logger.warn('Testimonial tag persistence failed', { userId: String(userId), status: 'failed' })
     throw error
   }
 }
@@ -128,12 +128,12 @@ export async function updateTestimonialTagsOnCompletion(userId: mongoose.Types.O
     // Buscar o user
     const user = await User.findById(userId)
     if (!user) {
-      console.error(`âŒ User ${userId} not found when trying to update completion tags`)
+      logger.warn('Testimonial completion user unavailable', { userId: String(userId), status: 'skipped' })
       return
     }
 
     if (!user.communicationByCourse) {
-      console.log(`âš ï¸ User ${user.email} has no communicationByCourse data`)
+      logger.info('No testimonial communication data', { userId: String(userId), status: 'skipped', tagCount: 0 })
       return
     }
 
@@ -141,7 +141,7 @@ export async function updateTestimonialTagsOnCompletion(userId: mongoose.Types.O
     const courseComm = user.communicationByCourse.get(testimonialCourseKey)
 
     if (!courseComm || !courseComm.currentTags || courseComm.currentTags.length === 0) {
-      console.log(`âš ï¸ User ${user.email} has no testimonial tags to update`)
+      logger.info('No testimonial tags to update', { userId: String(userId), status: 'skipped', tagCount: 0 })
       return
     }
 
@@ -163,7 +163,7 @@ export async function updateTestimonialTagsOnCompletion(userId: mongoose.Types.O
     }
 
     if (tagsToRemove.length === 0) {
-      console.log(`â„¹ï¸ No tags to update for user ${user.email}`)
+      logger.info('No testimonial completion mapping', { userId: String(userId), status: 'skipped', tagCount: 0 })
       return
     }
 
@@ -175,7 +175,7 @@ export async function updateTestimonialTagsOnCompletion(userId: mongoose.Types.O
     for (const newTag of tagsToAdd) {
       if (!existingTags.has(newTag)) {
         courseComm.currentTags.push(newTag)
-        console.log(`âœ… Added completion tag "${newTag}" to user ${user.email}`)
+        logger.info('Testimonial completion tag applied', { userId: String(userId), status: 'applied', tagCount: tagsToAdd.length })
       }
     }
 
@@ -190,12 +190,12 @@ export async function updateTestimonialTagsOnCompletion(userId: mongoose.Types.O
     // Salvar
     await user.save()
 
-    console.log(`âœ… Updated testimonial tags for user ${user.email}:`)
-    console.log(`   - Removed: ${tagsToRemove.join(', ')}`)
-    console.log(`   - Added: ${tagsToAdd.join(', ')}`)
+    logger.info('Testimonial completion tags persisted', { userId: String(userId), status: 'completed', tagCount: tagsToAdd.length })
+    logger.info('Testimonial request tags removed', { userId: String(userId), status: 'removed', tagCount: tagsToRemove.length })
+    logger.info('Testimonial completion tags added', { userId: String(userId), status: 'added', tagCount: tagsToAdd.length })
 
   } catch (error: unknown) {
-    console.error('âŒ Error updating testimonial completion tags:', errorMessage(error))
+    logger.warn('Testimonial completion tag persistence failed', { userId: String(userId), status: 'failed' })
     throw error
   }
 }
@@ -207,7 +207,7 @@ export async function removeTestimonialTagsFromUser(
   try {
     const user = await User.findById(userId)
     if (!user) {
-      console.error(`Error: user ${userId} not found when trying to remove tags`)
+      logger.warn('Testimonial cleanup user unavailable', { userId: String(userId), status: 'skipped' })
       return { email: null, tags: [] }
     }
 
@@ -231,8 +231,8 @@ export async function removeTestimonialTagsFromUser(
     await user.save()
 
     return { email: user.email || null, tags: tagsToRemove }
-  } catch (error: unknown) {
-    console.error('Error removing testimonial tags from user:', errorMessage(error))
+  } catch {
+    logger.warn('Testimonial tag cleanup failed', { userId: String(userId), status: 'partial' })
     return { email: null, tags: [] }
   }
 }

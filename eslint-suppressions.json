@@ -325,21 +325,6 @@
       "count": 20
     }
   },
-  "src/controllers/testimonials/testimonialCandidates.controller.ts": {
-    "no-console": {
-      "count": 7
-    }
-  },
-  "src/controllers/testimonials/testimonialCommands.controller.ts": {
-    "no-console": {
-      "count": 10
-    }
-  },
-  "src/controllers/testimonials/testimonialTags.service.ts": {
-    "no-console": {
-      "count": 21
-    }
-  },
   "src/controllers/userHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 9
@@ -1052,7 +1037,7 @@
       "count": 1
     },
     "no-console": {
-      "count": 11
+      "count": 4
     }
   },
   "src/services/studentOgiSummary.service.ts": {
