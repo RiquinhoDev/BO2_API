@@ -811,20 +811,20 @@ checkboxes nem prova de prontidão operacional. A missão SEC-10/ARCH-03 só alt
 | Pilar | Antes da missão | Atual | Delta | Base da estimativa |
 | --- | ---: | ---: | ---: | --- |
 | 1. Arquitectura & bootstrap | 100% | 100% | 0 pp | ARCH-01 e lifecycle fechados no código |
-| 2. Ficheiros & domínios | 95% | 95% | 0 pp | teto ARCH-02 em 0; coesão sub-500 continua quality-driven |
+| 2. Ficheiros & domínios | 95% | 100% | +5 pp | teto ARCH-02 em 0; fronteira de controllers com baseline 0 |
 | 3. Pastas & higiene | 100% | 100% | 0 pp | DOC-02 e artefactos fechados |
 | 4. Middleware & funções | 80% | 100% | +20 pp | SEC-10 passou de 188 para 0 e o detalhe público mantém 0 |
 | 5. Segurança & rotas | 70% | 70% | 0 pp | default-deny/JWT/CORS fechados; matriz de papéis e OPS-02 abertos |
 | 6. Escalabilidade | 35% | 35% | 0 pp | base paginada existe; inventário restante e política transversal abertos |
 | 7. Contrato de resposta | 0% | 50% | +50 pp | foundation 439/439 fechada; migração de payloads continua aberta |
 | 8. Toolchain & qualidade | 75% | 75% | 0 pp | TS/tests/package manager fechados; ESLint debt e validação operacional abertos |
-| **Total, média simples** | **69,4%** | **78,1%** | **+8,8 pp** | estimativa igualitária dos oito pilares |
+| **Total, média simples** | **69,4%** | **78,8%** | **+9,4 pp** | estimativa igualitária dos oito pilares |
 
-O delta usa as médias não arredondadas: `69,375% -> 78,125%`, isto é, `8,75 pp`, arredondado para
-**+8,8 pp**. A subtração dos endpoints já apresentados a uma casa decimal não é a base do cálculo.
+O delta usa as médias não arredondadas: `69,375% -> 78,75%`, isto é, `9,375 pp`, arredondado para
+**+9,4 pp**. A subtração dos endpoints já apresentados a uma casa decimal não é a base do cálculo.
 
-Na contagem mecânica, esta edição reconcilia `102/112 -> 104/112` (`91,1% -> 92,9%`). Apenas o fecho
-SEC-10 é delta desta missão; a outra caixa corrige o estado ARCH-02 já provado no ledger abaixo. Nenhuma das
+Na contagem mecânica, as duas missões reconciliam `102/112 -> 105/112` (`91,1% -> 93,8%`). SEC-10 e o
+boundary de responsabilidade ARCH-02 são os deltas de código; outra caixa corrigiu estado ARCH-02 já provado no ledger abaixo. Nenhuma das
 duas métricas inclui deploy, observação, equivalência de payloads ou prontidão operacional.
 
 ### Evidência focada (2026-08-03; offline)
@@ -855,7 +855,7 @@ duas métricas inclui deploy, observação, equivalência de payloads ou prontid
 
 ### 2. Ficheiros pequenos & módulos por domínio
 - [x] **Limite aprovado: nenhum ficheiro TypeScript manuscrito em `src/` acima de 500 linhas físicas.** ARCH-02 fechou **39 -> 0** em 2026-08-10. O ratchet machine-checked permanece fail-closed contra ficheiros novos acima do limite, crescimento, dívida movida e baseline não podada; artefactos gerados exigem exceção explícita. Coesão e testabilidade continuam a poder exigir extrações antes do teto.
-- [ ] Cada módulo tem uma responsabilidade clara; sem "controller-que-faz-tudo".
+- [x] **Cada módulo tem uma responsabilidade clara; sem "controller-que-faz-tudo".** Fecho ARCH-02 de 2026-08-11: os **10→0** módulos de suporte, mapping, serviço e error forwarding alojados em `src/controllers` foram movidos para owners canónicos em `src/services/**` e `src/security/**`, sem fachadas legacy. O ratchet `controllerResponsibilityBoundary.test.ts` mantém baseline **0**, permite apenas `*.controller.ts`, barrels `index.ts` e os dois adapters HTTP legacy explicitamente classificados, e tem mutação fail-closed contra novos `support.ts`, `mapping.ts` e `*.service.ts`. O movimento expôs e eliminou **4** `any` no mapping de tags e **1** `console` direto no suporte CursEduca; as cinco suppressions correspondentes foram podadas. Contratos, rotas e efeitos permanecem inalterados; isto fecha a fronteira estrutural no código, não deploy ou observação operacional.
 - [x] **ARCH-02 — controller Hotmart dissolvido (2026-08-10):** `syncUtilizadoresControllers/hotmart.controller.ts` foi fisicamente apagado após caracterização RED/GREEN dos adapters de diagnóstico e Universal Sync. As **10 rotas montadas** consomem agora um barrel explícito e owners coesos; `testDatabaseConnection` saiu por prova negativa de zero consumidores. O controller original caiu **1233→304→0 linhas**; os módulos finais têm **475/161/84/75/13/7 linhas**, todos abaixo do teto de 500. A mutação de `triggeredByUser` deu RED com `admin-id` esperado e `undefined` recebido; o inventário SEC-10 caiu **283→282** e 16 suppressions `no-console` do ficheiro morto foram removidas. Gate final offline: lint 0, TypeScript 0, **276/276 suites e 1576/1576 testes**, build 0, `git diff --check` limpo e lockfiles intactos. Nenhuma API ou BD real foi chamada.
 - [x] **ARCH-02 — persistência UserProduct extraída do universal sync (2026-08-08):** resolução de produto, métricas, create/update e reassignment CursEduca passaram para universalSync/userProductPersistence.ts (267 linhas), mantendo os builders puros e a ordem de efeitos. processSyncItem.ts caiu **649→401 linhas**;
   no-console **1518→1504** sem suppressions novas. A caracterização pública provou create/update, dedup de turma, primary reassignment e missing-product; mutação removendo o $set deu RED (77 esperado, 10 recebido). Gate offline: 4 suites/34 testes focados, 227/227 suites e 1325/1325 testes totais, lint/types/build 0.
