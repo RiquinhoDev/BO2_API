@@ -40,6 +40,9 @@ router.post('/carteira/refresh', asyncRoute(clarezaController.refreshCarteira))
 // Endpoint publico - Calendario de Resultados
 router.get('/earnings/data', asyncRoute(clarezaController.getEarnings))
 router.post('/earnings/refresh', asyncRoute(clarezaController.refreshEarnings))
+router.get('/comparador', asyncRoute(clarezaController.getComparador))
+router.post('/comparador/refresh', asyncRoute(clarezaController.refreshComparador))
+
 
 // Endpoint publico — Comparador de Ações. Contrato igual ao PHP original:
 // ?symbols=AAPL,MSFT (máx. 4) compara, ?search=apple pesquisa.

@@ -550,6 +550,15 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/comparador",
+    "access": "public",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:43"
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/data",
     "access": "authenticated",
     "consumer": "desconhecido",
@@ -619,6 +628,15 @@
     "writes": true,
     "destructive": false,
     "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:33"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/comparador/refresh",
+    "access": "authenticated",
+    "consumer": "externo",
+    "writes": true,
+    "destructive": false,
+    "evidence": "Backoffice/HTML Clareza externo; rota em src/routes/clareza.routes.ts:44"
   },
   {
     "method": "POST",

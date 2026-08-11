@@ -7,6 +7,13 @@ import { getRaioxJson, searchRaiox, refreshClarezaRaioxData, diagnoseRaiox } fro
 import { getClarezaCarteiraData, searchCarteira, refreshClarezaCarteiraData } from '../services/clareza/carteira/carteira.runtime'
 import { getClarezaEarningsData, refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
 import { forwardApplicationError } from '../security/forwardApplicationError'
+import {
+  getComparadorSymbols,
+  searchComparador,
+  refreshComparadorSymbols,
+  refreshClarezaComparadorData,
+} from '../services/clareza/comparador/comparador.runtime'
+import { ComparadorPolicyError } from '../services/clareza/comparador/comparadorPolicy'
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -285,6 +292,61 @@ export const clarezaController = {
       return res.json({ success: true, ...result })
     } catch (error: unknown) {
       next(internalError('Erro interno do servidor', 'CLAREZA_CARTEIRA_REFRESH_FAILED', error))
+      return
+    }
+  },
+
+  async getComparador(req: Request, res: Response, next: NextFunction) {
+    const isSearch = req.query.search !== undefined
+    try {
+      if (isSearch) {
+        const data = await searchComparador(String(req.query.search || ''))
+        res.setHeader('Cache-Control', 'public, max-age=600')
+        return res.json(data)
+      }
+
+      if (req.query.symbols === undefined) {
+        return res.status(400).json({
+          error: 'Indica ?symbols=AAPL,MSFT para comparar ou ?search=apple para pesquisar.',
+        })
+      }
+
+      const data = await getComparadorSymbols(String(req.query.symbols || ''))
+      res.setHeader('Cache-Control', 'public, max-age=3600')
+      return res.json(data)
+    } catch (error: unknown) {
+      if (error instanceof ComparadorPolicyError) {
+        return res.status(400).json({ error: error.message })
+      }
+      forwardApplicationError(
+        next,
+        error,
+        'Erro interno do servidor',
+        isSearch ? 'CLAREZA_COMPARADOR_SEARCH_FAILED' : 'CLAREZA_COMPARADOR_READ_FAILED',
+      )
+      return
+    }
+  },
+
+  async refreshComparador(req: Request, res: Response, next: NextFunction) {
+    try {
+      const providedToken = String(req.header('x-clareza-refresh-token') || req.query.token || '')
+      if (!isClarezaRefreshAuthorized(providedToken)) {
+        return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
+      }
+
+      if (req.query.symbols !== undefined) {
+        const result = await refreshComparadorSymbols(String(req.query.symbols || ''))
+        return res.json(result)
+      }
+
+      const result = await refreshClarezaComparadorData()
+      return res.json({ success: true, ...result })
+    } catch (error: unknown) {
+      if (error instanceof ComparadorPolicyError) {
+        return res.status(400).json({ error: error.message })
+      }
+      forwardApplicationError(next, error, 'Erro interno do servidor', 'CLAREZA_COMPARADOR_REFRESH_FAILED')
       return
     }
   }

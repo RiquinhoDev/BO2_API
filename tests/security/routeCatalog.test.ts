@@ -44,11 +44,11 @@ function isLiteralPath(routePath: string): boolean {
     .every((segment) => !segment.startsWith(':') && !segment.startsWith('*'))
 }
 
-test('o catalogo cobre exatamente as 439 rotas do manifest', () => {
-  expect(manifest).toHaveLength(439)
-  expect(catalog).toHaveLength(439)
-  expect(new Set(manifest.map(key)).size).toBe(439)
-  expect(new Set(catalog.map(key)).size).toBe(439)
+test('o catalogo cobre exatamente as 441 rotas do manifest', () => {
+  expect(manifest).toHaveLength(441)
+  expect(catalog).toHaveLength(441)
+  expect(new Set(manifest.map(key)).size).toBe(441)
+  expect(new Set(catalog.map(key)).size).toBe(441)
   expect(catalog.map(key).sort()).toEqual(manifest.map(key).sort())
 })
 
@@ -69,14 +69,14 @@ test('cada decisao regista apenas factos e nunca politica de papeis', () => {
 test('a superficie excecional fica curta e explicita', () => {
   const routesWith = (access: string) => catalog.filter((route) => route.access === access).map(key).sort()
 
-  expect(routesWith('public')).toEqual(['GET /api/health', 'POST /api/auth/login'])
+  expect(routesWith('public')).toEqual(['GET /api/clareza/comparador', 'GET /api/health', 'POST /api/auth/login'])
   expect(routesWith('signature')).toEqual([
     'POST /api/guru/webhook',
     'POST /api/webhooks/ac/email-opened',
     'POST /api/webhooks/ac/link-clicked',
   ])
   expect(routesWith('dead')).toEqual([])
-  expect(routesWith('authenticated')).toHaveLength(434)
+  expect(routesWith('authenticated')).toHaveLength(435)
   expect(catalog.filter((route) => route.access === 'public').every((route) => route.evidence.startsWith('public:'))).toBe(true)
 })
 /**
