@@ -1658,7 +1658,7 @@
       "meta",
       "success"
     ],
-    "evidence": "mixed success exits (domain-envelope, success-data); src/controllers/dashboard.controller.ts:409",
+    "evidence": "src/controllers/dashboard.controller.ts:409",
     "frontConsumer": null
   },
   {
@@ -1667,10 +1667,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "filters",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/dashboard.controller.ts:102",
+    "evidence": "src/controllers/dashboard.controller.ts:103",
     "frontConsumer": null
   },
   {
@@ -4287,7 +4287,7 @@
     "path": "/api/dashboard/stats/v3/rebuild",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
       "success"
     ],
     "evidence": "src/routes/dashboardRoutes.ts:78",

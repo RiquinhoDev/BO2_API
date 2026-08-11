@@ -47,4 +47,16 @@ it('filters and averages dashboard progress through UserProduct progress.percent
     },
   })
   expect(pipeline[1].$group.avgProgress).toEqual({ $avg: '$progress.percentage' })
+  expect(response.body).toEqual({
+    success: true,
+    data: {
+      totalStudents: 1,
+      avgEngagement: 80,
+      avgProgress: 60,
+      activeStudents: 1,
+      totalEnrollments: 1,
+      activeRate: 100,
+    },
+    meta: { filters: { progressMin: '20', progressMax: '80' } },
+  })
 })

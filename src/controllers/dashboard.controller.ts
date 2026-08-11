@@ -6,6 +6,7 @@ import User from '../models/user';
 import { getAllUsersUnified } from '../services/syncUtilizadoresServices/dualReadService';
 import { HttpError, internalError } from '../security/errorHandling';
 
+import { successResponse } from '../contracts/responseContract';
 // ═══════════════════════════════════════════════════════════════════════════
 // 📊 ENDPOINT 1: GET /api/dashboard/stats
 // Estatísticas gerais para substituir Visão Geral V1
@@ -99,11 +100,10 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
       ? (response.activeStudents / response.totalEnrollments) * 100
       : 0;
 
-    res.json({
-      success: true,
-      data: response,
+    res.json(successResponse(response, {
       filters: { platform, productId, status, progressMin, progressMax, search }
-    });
+    }));
+
   } catch (error: unknown) {
     next(internalError('Erro ao carregar estatisticas do dashboard', 'DASHBOARD_STATS_FAILED', error));
   }
@@ -406,10 +406,10 @@ export const searchDashboard = async (req: Request, res: Response, next: NextFun
       });
     }
     if (q.length < 2) {
-      return res.json({
-        success: true,
-        data: []
-      });
+      return res.json(successResponse([], {
+        query: q,
+        count: 0
+      }));
     }
     console.log(`🔍 [SEARCH] Procurando: "${q}"`);
 
@@ -463,14 +463,10 @@ export const searchDashboard = async (req: Request, res: Response, next: NextFun
       };
     });
 
-    res.json({
-      success: true,
-      data: results,
-      meta: {
-        query: q,
-        count: results.length
-      }
-    });
+    res.json(successResponse(results, {
+      query: q,
+      count: results.length
+    }));
 
   } catch (error: unknown) {
     next(internalError('Erro ao pesquisar no dashboard', 'DASHBOARD_SEARCH_FAILED', error));
