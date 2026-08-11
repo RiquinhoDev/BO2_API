@@ -6,12 +6,7 @@ import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clarez
 import { getRaioxJson, searchRaiox, refreshClarezaRaioxData, diagnoseRaiox } from '../services/clareza/clarezaRaioxService'
 import { getClarezaCarteiraData, searchCarteira, refreshClarezaCarteiraData } from '../services/clareza/carteira/carteira.runtime'
 import { getClarezaEarningsData, refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
-import {
-  getComparadorSymbols,
-  searchComparador,
-  refreshClarezaComparadorData,
-  refreshComparadorSymbols
-} from '../services/clareza/clarezaComparadorService'
+import { forwardApplicationError } from './forwardApplicationError'
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -125,7 +120,7 @@ export const clarezaController = {
       const result = await refreshClarezaTop10Data()
       return res.json({ success: true, ...result })
     } catch (error: unknown) {
-      next(internalError('Erro interno do servidor', 'CLAREZA_TOP10_REFRESH_FAILED', error))
+      forwardApplicationError(next, error, 'Erro interno do servidor', 'CLAREZA_TOP10_REFRESH_FAILED')
       return
     }
   },
@@ -273,7 +268,7 @@ export const clarezaController = {
       const result = await refreshClarezaEarningsData()
       return res.json({ success: true, ...result })
     } catch (error: unknown) {
-      next(internalError('Erro interno do servidor', 'CLAREZA_EARNINGS_REFRESH_FAILED', error))
+      forwardApplicationError(next, error, 'Erro interno do servidor', 'CLAREZA_EARNINGS_REFRESH_FAILED')
       return
     }
   },
