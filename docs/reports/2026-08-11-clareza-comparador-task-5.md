@@ -16,7 +16,11 @@
 - GREEN: Comparator/router/job focused suite: 5 suites, 29 tests passed.
 - Catalogs: response contract check reported 441 reviewed decisions; response catalog 22/22, default deny 6/6 and route catalog 7/7 passed.
 - Static gates: scoped ESLint exited 0 (reported only pre-existing unpruned suppressions); `npm.cmd run types:check` and `git diff --check` exited 0.
+- Review RED: changing the comparator GET catalog entry to authenticated made the real application mount return 401; replacing the Raio-X job dependency with Top10 broke the asserted continuation order.
+- Review GREEN: real `createApp` plus `runtime/registerRoutes` production-mount contract and the strengthened job suite passed 2 suites / 5 tests. The mount covers public GET success/400, default-deny 401, Clareza-token 403, central 503, and SEC-10 500.
 
 ## Offline boundary
 
 All route tests used the local offline loopback marker and injected comparator runtime/auth seams. No FMP, Redis, MongoDB, or external HTTP integration was invoked.
+
+The production-mount test imports the full route tree and therefore retains its existing model/Guru and Mongoose-index import warnings; the test makes no egress calls.
