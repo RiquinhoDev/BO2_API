@@ -56,7 +56,11 @@ describe('usersSimpleList controller', () => {
       status: 'active',
     })
     expect(response.status).toBe(200)
-    expect(response.body).toEqual(result)
+    expect(response.body).toEqual({
+      success: true,
+      data: result.users,
+      meta: result.pagination,
+    })
   })
 
   it('passes failures to the central handler without exposing detail', async () => {

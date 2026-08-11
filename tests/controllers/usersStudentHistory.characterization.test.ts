@@ -94,20 +94,20 @@ describe('getStudentHistory — characterization', () => {
       .get(`/users/${VALID_ID}/history?${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.history.map((item: { type: string }) => item.type)).toEqual([
+    expect(response.body.data.history.map((item: { type: string }) => item.type)).toEqual([
       'class_change',
       'sync',
       'user_change',
     ])
     // Each source maps its own date field onto the shared `date` key.
-    expect(response.body.history.map((item: { date: string }) => item.date)).toEqual([
+    expect(response.body.data.history.map((item: { date: string }) => item.date)).toEqual([
       '2026-05-01T00:00:00.000Z',
       '2026-04-01T00:00:00.000Z',
       '2026-03-01T00:00:00.000Z',
     ])
     // `source` is preserved for user changes, forced to MANUAL for class changes
     // and overwritten with the sync type for sync events.
-    expect(response.body.history.map((item: { source: string }) => item.source)).toEqual([
+    expect(response.body.data.history.map((item: { source: string }) => item.source)).toEqual([
       'MANUAL',
       'HOTMART',
       'SYNC',
@@ -123,25 +123,24 @@ describe('getStudentHistory — characterization', () => {
       .get(`/users/${VALID_ID}/history?${LOOPBACK}`)
       .expect(200)
 
-    expect(Object.keys(response.body).sort()).toEqual([
+    expect(Object.keys(response.body.data).sort()).toEqual([
       'classHistory',
       'history',
       'stats',
       'student',
       'syncHistory',
-      'total',
       'userHistory',
     ])
-    expect(response.body.stats).toEqual({
+    expect(response.body.data.stats).toEqual({
       totalItems: 1,
       userChanges: 1,
       classChanges: 0,
       syncEvents: 0,
       lastActivity: '2026-03-01T00:00:00.000Z',
     })
-    expect(response.body.total).toBe(1)
+    expect(response.body.meta.total).toBe(1)
     // The raw per-source arrays are duplicated alongside the merged history.
-    expect(response.body.userHistory).toHaveLength(1)
+    expect(response.body.data.userHistory).toHaveLength(1)
   })
 
   test('reports a null lastActivity when no source returned anything', async () => {
@@ -151,7 +150,7 @@ describe('getStudentHistory — characterization', () => {
       .get(`/users/${VALID_ID}/history?${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.stats).toEqual({
+    expect(response.body.data.stats).toEqual({
       totalItems: 0,
       userChanges: 0,
       classChanges: 0,
@@ -197,10 +196,10 @@ describe('getStudentHistory — characterization', () => {
       .get(`/users/${VALID_ID}/history?limit=2&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.history).toHaveLength(2)
+    expect(response.body.data.history).toHaveLength(2)
     // stats.totalItems counts the truncated list, not the raw source rows.
-    expect(response.body.stats.totalItems).toBe(2)
-    expect(response.body.stats.userChanges).toBe(3)
+    expect(response.body.data.stats.totalItems).toBe(2)
+    expect(response.body.data.stats.userChanges).toBe(3)
   })
 
   test('degrades to an empty source when one history query fails, still returning 200', async () => {
@@ -217,9 +216,9 @@ describe('getStudentHistory — characterization', () => {
       .expect(200)
 
     // Per-source try/catch: a failed source is silently empty, the rest survives.
-    expect(response.body.userHistory).toEqual([])
-    expect(response.body.stats.userChanges).toBe(0)
-    expect(response.body.stats.classChanges).toBe(1)
+    expect(response.body.data.userHistory).toEqual([])
+    expect(response.body.data.stats.userChanges).toBe(0)
+    expect(response.body.data.stats.classChanges).toBe(1)
   })
 
   test('silently degrades when the id is not a valid ObjectId', async () => {
@@ -231,8 +230,8 @@ describe('getStudentHistory — characterization', () => {
 
     // `new mongoose.Types.ObjectId(id)` throws inside the inner try, so the user
     // history source is dropped without any 400 or 500 reaching the client.
-    expect(response.body.userHistory).toEqual([])
-    expect(response.body.stats.userChanges).toBe(0)
+    expect(response.body.data.userHistory).toEqual([])
+    expect(response.body.data.stats.userChanges).toBe(0)
   })
 
   test('derives platform flags from canonical fields and legacy fallbacks', async () => {
@@ -250,7 +249,7 @@ describe('getStudentHistory — characterization', () => {
       .get(`/users/${VALID_ID}/history?${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.student.platforms).toEqual({
+    expect(response.body.data.student.platforms).toEqual({
       discord: true,
       hotmart: true,
       curseduca: false,

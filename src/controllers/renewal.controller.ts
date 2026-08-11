@@ -1,4 +1,5 @@
-import { NextFunction, Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import { internalError } from '../security/errorHandling'
 import RenewalOffer from '../models/RenewalOffer'
 import { syncRenewalOffers } from '../services/renewal/renewalSync.service'
@@ -148,7 +149,7 @@ export async function performance(req: Request, res: Response, next: NextFunctio
     const yearRaw = Number(req.query.year)
     const year = Number.isInteger(yearRaw) && yearRaw > 2000 ? yearRaw : undefined
     const data = await getRenewalPerformance(year)
-    res.json(data)
+    res.json(successResponse(data))
   } catch (error: unknown) {
     next(internalError('Erro ao calcular desempenho', 'RENEWAL_PERFORMANCE_FAILED', error))
   }

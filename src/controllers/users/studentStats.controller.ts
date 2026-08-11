@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import type { StudentStatsService } from '../../services/users/studentStats.service'
 
@@ -16,7 +17,7 @@ export function createStudentStatsController(
         return
       }
 
-      res.status(200).json(stats)
+      res.status(200).json(successResponse(stats))
     } catch (error) {
       next(new HttpError({
         status: 500,

@@ -60,7 +60,7 @@ describe('GET /api/users/stats — user platform stats characterization', () => 
     const captured: Captured = {}
     await getUserStats(req, makeResponse(captured), jest.fn() as unknown as NextFunction)
 
-    expect(captured.body).toEqual({
+    expect(captured.body).toEqual({ success: true, data: {
       totalUsers: 4,
       activeUsers: 3,
       inactiveUsers: 1,
@@ -75,14 +75,14 @@ describe('GET /api/users/stats — user platform stats characterization', () => 
       averageEngagement: 25,
       topPerformersCount: 1,
       needsAttentionCount: 2,
-    })
+    } })
   })
 
   it('returns zeros when there are no users', async () => {
     const captured: Captured = {}
     await getUserStats(req, makeResponse(captured), jest.fn() as unknown as NextFunction)
 
-    expect(captured.body).toMatchObject({
+    expect(captured.body).toMatchObject({ success: true, data: {
       totalUsers: 0,
       activeUsers: 0,
       inactiveUsers: 0,
@@ -92,7 +92,7 @@ describe('GET /api/users/stats — user platform stats characterization', () => 
       averageEngagement: 0,
       topPerformersCount: 0,
       needsAttentionCount: 0,
-    })
+    } })
   })
 
   // SEC-10: failures now route through the central handler with a stable code

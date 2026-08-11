@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import type { UserPlatformStatsService } from '../../services/users/userPlatformStats.service'
 
@@ -8,7 +9,7 @@ export function createUserPlatformStatsController(
   return async (_req, res, next) => {
     try {
       const stats = await service.get()
-      res.json(stats)
+      res.json(successResponse(stats))
     } catch (error) {
       // SEC-10: replace the legacy local 500 (which leaked via `details`) with
       // the central handler and a stable code.

@@ -37,7 +37,7 @@ test('reads student stats from the canonical platform fields', async () => {
     .get('/users/student-1/stats?__bo2_offline_loopback=1')
     .expect(200)
 
-  expect(response.body).toMatchObject({
+  expect(response.body).toMatchObject({ success: true, data: {
     hasDiscordIds: true,
     totalDiscordIds: 1,
     isActive: true,
@@ -52,5 +52,5 @@ test('reads student stats from the canonical platform fields', async () => {
       discordIds: true,
       name: true,
     },
-  })
+  } })
 })

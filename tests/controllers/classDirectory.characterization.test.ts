@@ -75,23 +75,24 @@ beforeEach(async () => {
 const byId = (arr: SimpleClass[], id: string) => arr.find(c => c.classId === id)!
 
 describe('classDirectory characterization — listClassesSimple (GET /api/classes)', () => {
-  it('returns a raw array (not an envelope) of active and inactive classes', async () => {
+  it('returns active and inactive classes in the canonical success envelope', async () => {
     const captured: Captured = {}
     await listClassesSimple(req(), makeResponse(captured))
-    const body = captured.body as SimpleClass[]
-    expect(Array.isArray(body)).toBe(true)
-    expect(body).toHaveLength(3)
+    const body = captured.body as { success: boolean; data: SimpleClass[] }
+    expect(body.success).toBe(true)
+    expect(Array.isArray(body.data)).toBe(true)
+    expect(body.data).toHaveLength(3)
   })
 
   it('formats fields with name/estado fallbacks and platform-specific studentCount', async () => {
     const captured: Captured = {}
     await listClassesSimple(req(), makeResponse(captured))
-    const body = captured.body as SimpleClass[]
+    const body = captured.body as { success: boolean; data: SimpleClass[] }
 
-    expect(byId(body, 'B')).toEqual({ classId: 'B', name: 'Beta', isActive: true, estado: 'ativo', studentCount: 2, description: 'desc-b' })
-    expect(byId(body, 'A')).toMatchObject({ classId: 'A', name: 'Alpha', isActive: false, estado: 'inativo', studentCount: 1 })
+    expect(byId(body.data, 'B')).toEqual({ classId: 'B', name: 'Beta', isActive: true, estado: 'ativo', studentCount: 2, description: 'desc-b' })
+    expect(byId(body.data, 'A')).toMatchObject({ classId: 'A', name: 'Alpha', isActive: false, estado: 'inativo', studentCount: 1 })
     // Missing name -> classId fallback; missing estado -> derived from isActive.
-    expect(byId(body, 'Z')).toEqual({ classId: 'Z', name: 'Z', isActive: true, estado: 'ativo', studentCount: 0, description: '' })
+    expect(byId(body.data, 'Z')).toEqual({ classId: 'Z', name: 'Z', isActive: true, estado: 'ativo', studentCount: 0, description: '' })
   })
 
   it('reports failure through next(HttpError) with CLASS_DIRECTORY_FAILED', async () => {
