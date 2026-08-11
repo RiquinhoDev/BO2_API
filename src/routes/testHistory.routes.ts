@@ -18,14 +18,14 @@ const router = express.Router()
  * Faz alterações de teste no user
  * Body: { email: "user@example.com" }
  */
-router.post('/make-changes', testHistoryController.makeTestChanges)
+router.post('/make-changes', asyncRoute(testHistoryController.makeTestChanges))
 
 /**
  * POST /api/test/history/revert-changes
  * Reverte as alterações de teste
  * Body: { originalState: {...} }
  */
-router.post('/revert-changes', testHistoryController.revertTestChanges)
+router.post('/revert-changes', asyncRoute(testHistoryController.revertTestChanges))
 
 /**
  * POST /api/test/history/populate-retroactive

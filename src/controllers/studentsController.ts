@@ -3,17 +3,17 @@
 // Controller para endpoints relacionados com estudantes
 // ══════════════════════════════════════════════════════════════════════
 
-import type { Request, Response } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import StudentCompleteService from '../services/studentCompleteService'
 import { StudentNotFoundError, StudentDataFetchError } from '../types/studentComplete'
-import { getRuntimeConfig } from '../config/runtimeConfig'
+import { forwardApplicationError } from './forwardApplicationError'
 
 // ═══════════════════════════════════════════════════════════════
 // GET /api/students/:userId/complete
 // Buscar dados completos de um estudante
 // ═══════════════════════════════════════════════════════════════
 
-export async function getStudentComplete(req: Request, res: Response) {
+export async function getStudentComplete(req: Request, res: Response, next: NextFunction) {
   try {
     const { userId } = req.params
 
@@ -46,8 +46,6 @@ export async function getStudentComplete(req: Request, res: Response) {
     // Retornar resposta
     return res.status(200).json(response)
   } catch (error) {
-    console.error('[StudentsController] Erro:', error)
-
     // Tratar erros conhecidos
     if (error instanceof StudentNotFoundError) {
       return res.status(404).json({
@@ -57,19 +55,21 @@ export async function getStudentComplete(req: Request, res: Response) {
     }
 
     if (error instanceof StudentDataFetchError) {
-      return res.status(500).json({
-        success: false,
-        message: error.message,
-        details: getRuntimeConfig().core.nodeEnv === 'development' ? error.originalError?.message : undefined,
-      })
+      return forwardApplicationError(
+        next,
+        error.originalError ?? error,
+        error.message,
+        'STUDENT_COMPLETE_DATA_FETCH_FAILED',
+      )
     }
 
     // Erro genérico
-    return res.status(500).json({
-      success: false,
-      message: 'Erro interno ao buscar dados do estudante',
-      details: getRuntimeConfig().core.nodeEnv === 'development' ? (error as Error).message : undefined,
-    })
+    return forwardApplicationError(
+      next,
+      error,
+      'Erro interno ao buscar dados do estudante',
+      'STUDENT_COMPLETE_READ_FAILED',
+    )
   }
 }
 
