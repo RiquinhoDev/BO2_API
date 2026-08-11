@@ -191,7 +191,7 @@ describe('response contract catalog', () => {
     })
     expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/users/v2/enrollments')).toMatchObject({
       family: 'success-data',
-      shapeKeys: ['data', 'filters', 'pagination', 'success'],
+      shapeKeys: ['data', 'meta', 'success'],
     })
     expect(responseCatalog.find((entry) => routeId(entry) === 'POST /api/hotmart/syncProgressOnly')).toMatchObject({
       family: 'success-data',
@@ -213,15 +213,7 @@ describe('response contract catalog', () => {
       'multiple', 'name', 'students', 'success', 'timestamp', 'total', 'updatedAt',
     ])
     expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/users/search')?.shapeKeys).toEqual([
-      '_id', 'acTagsByProduct', 'acceptedTerms', 'accessCount', 'classId', 'className',
-      'combined', 'createdAt', 'curseducaUserId', 'deletedAt', 'deletedBy',
-      'discordIds', 'email', 'engagement', 'engagementCalculatedAt', 'engagementLevel',
-      'engagementScore', 'estado', 'firstAccessDate', 'hotmartUserId', 'isDeletable',
-      'isDeleted', 'lastAccessDate', 'lastActivityAt', 'lastEditedAt', 'lastEditedBy',
-      'locale', 'message', 'multiple', 'name', 'notes', 'performanceMetrics',
-      'plusAccess', 'priority', 'progress', 'purchaseDate', 'role', 'signupDate',
-      'source', 'status', 'students', 'tags', 'timer', 'truncated', 'type',
-      'updatedAt', 'username',
+      'data', 'meta', 'success',
     ])
     expect(responseCatalog.some((entry) => entry.evidence.startsWith('dynamic response spread'))).toBe(false)
   })
