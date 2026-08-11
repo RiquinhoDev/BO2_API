@@ -2,6 +2,7 @@ import { type NextFunction, Request, Response } from 'express'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 import { internalError } from '../../security/errorHandling'
 import GuruMonthlySnapshot from '../../models/GuruMonthlySnapshot'
+import { successResponse } from '../../contracts/responseContract'
 
 function forwardGuruSnapshotError(
   next: NextFunction,
@@ -24,11 +25,7 @@ export const getChurnFromSnapshots = async (req: Request, res: Response, next: N
       .lean()
 
     if (snapshots.length === 0) {
-      return res.json({
-        success: true,
-        message: 'Nenhum snapshot encontrado. Crie snapshots primeiro.',
-        snapshots: 0
-      })
+      return res.json(successResponse({ snapshots: 0 }, { message: 'Nenhum snapshot encontrado. Crie snapshots primeiro.' }))
     }
 
     // Usar o churn jÃ¡ calculado em cada snapshot (dados corretos!)
@@ -54,15 +51,12 @@ export const getChurnFromSnapshots = async (req: Request, res: Response, next: N
       ? validMonths.reduce((sum, m) => sum + m.churnRate, 0) / validMonths.length
       : 0
 
-    return res.json({
-      success: true,
-      churn: {
+    return res.json(successResponse({ churn: {
         average: parseFloat(avgChurnRate.toFixed(2)),
         months: monthlyChurn,
         totalSnapshots: snapshots.length,
         period: `${snapshots[0].month}/${snapshots[0].year} - ${snapshots[snapshots.length-1].month}/${snapshots[snapshots.length-1].year}`
-      }
-    })
+      } }))
 
   } catch (error: unknown) {
     forwardGuruSnapshotError(next, error, 'Erro ao calcular churn dos snapshots', 'GURU_SNAPSHOT_CHURN_READ_FAILED')
