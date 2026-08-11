@@ -48,7 +48,7 @@ beforeEach(async () => {
   await User.collection.deleteMany({})
 })
 
-test('merge preserves the legacy response envelope and canonical Discord field', async () => {
+test('merge uses the canonical response envelope and Discord field', async () => {
   await User.collection.insertOne({
     email: 'student@example.test',
     name: 'Student',
@@ -64,11 +64,12 @@ test('merge preserves the legacy response envelope and canonical Discord field',
     .expect(200)
 
   expect(response.body).toEqual({
-    message: 'Merge concluído com sucesso.',
-    user: {
+    success: true,
+    data: {
       email: 'student@example.test',
       discordIds: ['123456789012345678'],
     },
+    meta: { message: 'Merge concluído com sucesso.' },
   })
   await expect(
     User.exists({

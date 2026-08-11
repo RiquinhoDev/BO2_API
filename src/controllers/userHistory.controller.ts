@@ -1,3 +1,4 @@
+import { successResponse } from '../contracts/responseContract'
 import { NextFunction, Request, Response } from 'express'
 import { ensureUserHistoryModel } from '../models/UserHistory'
 import mongoose from 'mongoose'
@@ -67,19 +68,17 @@ export const getUserHistory = async (req: Request, res: Response, next: NextFunc
       hasManualEdits: stats.some((s: any) => s._id === 'MANUAL_EDIT')
     }
 
-    res.json({
-      success: true,
-      data: {
-        history,
-        summary,
+    res.json(successResponse(
+      { history, summary },
+      {
         pagination: {
           limit,
           total: history.length,
           hasMore: history.length === limit
-        }
+        },
+        timestamp: new Date().toISOString()
       },
-      timestamp: new Date().toISOString()
-    })
+    ))
 
   } catch (error: unknown) {
     forwardApplicationError(
@@ -138,18 +137,9 @@ export const getAllHistory = async (req: Request, res: Response, next: NextFunct
       }
     ])
 
-    res.json({
-      success: true,
-      data: {
+    res.json(successResponse(
+      {
         history,
-        pagination: {
-          page,
-          limit,
-          total: totalCount,
-          totalPages: Math.ceil(totalCount / limit),
-          hasNext: skip + limit < totalCount,
-          hasPrev: page > 1
-        },
         stats: stats.reduce((acc: any, stat: any) => {
           const key = `${stat._id.changeType}_${stat._id.source}`
           acc[key] = {
@@ -159,8 +149,18 @@ export const getAllHistory = async (req: Request, res: Response, next: NextFunct
           return acc
         }, {})
       },
-      timestamp: new Date().toISOString()
-    })
+      {
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+          hasNext: skip + limit < totalCount,
+          hasPrev: page > 1
+        },
+        timestamp: new Date().toISOString()
+      },
+    ))
 
   } catch (error: unknown) {
     forwardApplicationError(
@@ -199,11 +199,10 @@ export const createManualHistoryEntry = async (req: Request, res: Response, next
       reason: reason || 'Edição manual'
     })
 
-    res.status(201).json({
-      success: true,
-      data: historyEntry,
-      message: 'Entrada de histórico criada com sucesso'
-    })
+    res.status(201).json(successResponse(
+      historyEntry,
+      { message: 'Entrada de histórico criada com sucesso' },
+    ))
 
   } catch (error: unknown) {
     forwardApplicationError(

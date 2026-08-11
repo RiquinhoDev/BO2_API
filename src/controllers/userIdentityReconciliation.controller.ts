@@ -1,3 +1,4 @@
+import { successResponse } from '../contracts/responseContract'
 import { HttpError } from '../security/errorHandling'
 import {
   userIdentityBulkMergeInput,
@@ -38,13 +39,13 @@ export const mergeDiscordId: ValidatedInputHandler<
       return
     }
 
-    res.status(200).json({
-      message: 'Merge concluído com sucesso.',
-      user: {
+    res.status(200).json(successResponse(
+      {
         email: user.email,
         discordIds: user.discordIds,
       },
-    })
+      { message: 'Merge concluído com sucesso.' },
+    ))
   } catch (error) {
     next(internalError('DISCORD_IDENTITY_MERGE_FAILED', 'Erro interno no merge', error))
   }
@@ -60,14 +61,14 @@ export const manualMatch: ValidatedInputHandler<
       return
     }
 
-    res.status(200).json({
-      message: 'Correspondência manual criada com sucesso.',
-      user: {
+    res.status(200).json(successResponse(
+      {
         email: user.email,
         discordIds: user.discordIds,
         name: user.name,
       },
-    })
+      { message: 'Correspondência manual criada com sucesso.' },
+    ))
   } catch (error) {
     next(
       internalError(
@@ -84,11 +85,13 @@ export const bulkMergeIds: ValidatedInputHandler<
 > = async (input, _req, res, next) => {
   try {
     const result = await service.bulkMerge(input.body.ids)
-    res.status(200).json({
-      message: `${result.mergedCount} merges concluídos com sucesso.`,
-      mergedCount: result.mergedCount,
-      errors: result.errors.length > 0 ? result.errors : undefined,
-    })
+    res.status(200).json(successResponse(
+      {
+        mergedCount: result.mergedCount,
+        errors: result.errors.length > 0 ? result.errors : undefined,
+      },
+      { message: `${result.mergedCount} merges concluídos com sucesso.` },
+    ))
   } catch (error) {
     next(
       internalError(
@@ -108,7 +111,10 @@ export const deleteIdsDiferentes: ValidatedInputHandler<
       res.status(404).json({ message: 'Registo não encontrado.' })
       return
     }
-    res.status(200).json({ message: 'Registo removido com sucesso.' })
+    res.status(200).json(successResponse(
+      null,
+      { message: 'Registo removido com sucesso.' },
+    ))
   } catch (error) {
     next(
       internalError(
@@ -128,7 +134,10 @@ export const deleteUnmatchedUser: ValidatedInputHandler<
       res.status(404).json({ message: 'Utilizador não encontrado.' })
       return
     }
-    res.status(200).json({ message: 'Utilizador apagado com sucesso.' })
+    res.status(200).json(successResponse(
+      null,
+      { message: 'Utilizador apagado com sucesso.' },
+    ))
   } catch (error) {
     next(
       internalError(
@@ -145,10 +154,12 @@ export const bulkDeleteIds: ValidatedInputHandler<
 > = async (input, _req, res, next) => {
   try {
     const deletedCount = await service.deleteReviews(input.body.ids)
-    res.status(200).json({
-      message: `${deletedCount} registos eliminados com sucesso.`,
-      deletedCount,
-    })
+    res.status(200).json(successResponse(
+      { deletedCount },
+      {
+        message: `${deletedCount} registos eliminados com sucesso.`,
+      },
+    ))
   } catch (error) {
     next(
       internalError(
@@ -165,10 +176,12 @@ export const bulkDeleteUnmatchedUsers: ValidatedInputHandler<
 > = async (input, _req, res, next) => {
   try {
     const deletedCount = await service.deleteUnmatchedUsers(input.body.ids)
-    res.status(200).json({
-      message: `${deletedCount} utilizadores não correspondidos eliminados.`,
-      deletedCount,
-    })
+    res.status(200).json(successResponse(
+      { deletedCount },
+      {
+        message: `${deletedCount} utilizadores não correspondidos eliminados.`,
+      },
+    ))
   } catch (error) {
     next(
       internalError(

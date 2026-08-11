@@ -4,6 +4,7 @@
 // Endpoints para estatísticas de sync e gestão de conflitos
 // ════════════════════════════════════════════════════════════
 
+import { successResponse } from '../../contracts/responseContract'
 import { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import SyncHistory from '../../models/SyncModels/SyncHistory'
@@ -58,21 +59,20 @@ export const getSyncById = async (
       new mongoose.Types.ObjectId(id)
     )
 
-res.status(200).json({
-  success: true,
-  message: 'Sync recuperado com sucesso',
-  data: {
-    sync,
-    conflicts: conflicts.map((c: ISyncConflict) => ({
-      id: c._id,
-      type: c.conflictType,
-      severity: c.severity,
-      title: c.title,
-      status: c.status,
-      detectedAt: c.detectedAt
-    }))
-  }
-})
+    res.status(200).json(successResponse(
+      {
+        sync,
+        conflicts: conflicts.map((c: ISyncConflict) => ({
+          id: c._id,
+          type: c.conflictType,
+          severity: c.severity,
+          title: c.title,
+          status: c.status,
+          detectedAt: c.detectedAt
+        }))
+      },
+      { message: 'Sync recuperado com sucesso' },
+    ))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar sync', 'SYNC_HISTORY_READ_FAILED', error))
@@ -102,15 +102,14 @@ export const getSnapshotStats = async (req: Request, res: Response, next: NextFu
       platform as any,
     )
 
-    res.status(200).json({
-      success: true,
-      message: 'Estatísticas de snapshots recuperadas',
-      data: {
+    res.status(200).json(successResponse(
+      {
         month: targetMonth.toISOString().slice(0, 7),
         platform: platform || 'all',
         stats
-      }
-    })
+      },
+      { message: 'Estatísticas de snapshots recuperadas' },
+    ))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar estatísticas', 'SYNC_SNAPSHOT_STATS_FAILED', error))

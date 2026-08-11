@@ -1,3 +1,4 @@
+import { successResponse } from '../contracts/responseContract'
 import type { NextFunction, Request, Response } from 'express'
 import { internalError } from '../security/errorHandling'
 import { axiosCurseducaMemberClient } from '../services/guru/curseducaMember.client'
@@ -17,18 +18,21 @@ export const createGuruInactivationMaintenanceHandlers = (
     try {
       const result = await service.cleanup()
       const totalCleaned = result.cleanedInactive + result.cleanedGuruActive
-      return res.json({
-        success: true,
-        message: `Limpeza concluída: ${totalCleaned} removidos (${result.cleanedInactive} CursEduca INACTIVE, ${result.cleanedGuruActive} Guru ACTIVE), ${result.kept} mantidos`,
-        cleaned: {
-          total: totalCleaned,
-          curseducaInactive: result.cleanedInactive,
-          guruActive: result.cleanedGuruActive,
+      return res.json(successResponse(
+        {
+          cleaned: {
+            total: totalCleaned,
+            curseducaInactive: result.cleanedInactive,
+            guruActive: result.cleanedGuruActive,
+          },
+          kept: result.kept,
+          total: result.total,
+          cleanedDetails: result.details.slice(0, 50),
         },
-        kept: result.kept,
-        total: result.total,
-        cleanedDetails: result.details.slice(0, 50),
-      })
+        {
+          message: `Limpeza concluída: ${totalCleaned} removidos (${result.cleanedInactive} CursEduca INACTIVE, ${result.cleanedGuruActive} Guru ACTIVE), ${result.kept} mantidos`,
+        },
+      ))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao limpar lista de inativação',
@@ -47,7 +51,7 @@ export const createGuruInactivationMaintenanceHandlers = (
       })
     }
     try {
-      return res.json({ success: true, results: await service.diagnose(emails) })
+      return res.json(successResponse(await service.diagnose(emails)))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao diagnosticar utilizadores',

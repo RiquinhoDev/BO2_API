@@ -4,6 +4,7 @@
 // ⚠️ APENAS PARA DESENVOLVIMENTO - REMOVER EM PRODUÇÃO
 // ══════════════════════════════════════════════════════════════════════
 
+import { successResponse } from '../contracts/responseContract'
 import { NextFunction, Request, Response } from 'express'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
@@ -146,10 +147,8 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
     console.log(`   Total de alterações: ${comparison.summary.totalChanges}`)
     console.log(`   Alta prioridade: ${comparison.summary.highPriorityChanges}`)
 
-    return res.status(200).json({
-      success: true,
-      message: 'Alterações de teste realizadas com sucesso',
-      data: {
+    return res.status(200).json(successResponse(
+      {
         userId: user._id,
         email: user.email,
         changesApplied: changes,
@@ -166,8 +165,9 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
         },
         originalState,
         viewHistoryUrl: `/dashboard?tab=studentEditor&search=${encodeURIComponent(email)}`
-      }
-    })
+      },
+      { message: 'Alterações de teste realizadas com sucesso' },
+    ))
   } catch (error: unknown) {
     return forwardApplicationError(
       next,
@@ -230,14 +230,13 @@ export const revertTestChanges = async (req: Request, res: Response, next: NextF
 
     console.log('✅ [TEST] Reversão concluída!')
 
-    return res.status(200).json({
-      success: true,
-      message: 'Alterações revertidas com sucesso',
-      data: {
+    return res.status(200).json(successResponse(
+      {
         userId: originalState.userId,
         productsReverted: originalState.products.length
-      }
-    })
+      },
+      { message: 'Alterações revertidas com sucesso' },
+    ))
   } catch (error: unknown) {
     return forwardApplicationError(
       next,
