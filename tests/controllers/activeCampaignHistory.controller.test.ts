@@ -64,8 +64,8 @@ describe('ActiveCampaign communication history boundary', () => {
     expect(historyFindMock).not.toHaveBeenCalled()
     expect(res.json).toHaveBeenCalledWith({
       success: true,
-      history: [],
-      pagination: { total: 0, page: 1, limit: 25, pages: 0 },
+      data: [],
+      meta: { pagination: { total: 0, page: 1, limit: 25, pages: 0 } },
     })
   })
 
@@ -134,7 +134,7 @@ describe('ActiveCampaign communication history boundary', () => {
     expect(chain.limit).toHaveBeenCalledWith(2)
     expect(res.json).toHaveBeenCalledWith({
       success: true,
-      history: [{
+      data: [{
         _id: recordId.toString(),
         userId: explicitUserId.toString(),
         userName: 'Ana',
@@ -149,7 +149,7 @@ describe('ActiveCampaign communication history boundary', () => {
         status: 'SENT',
         userStateSnapshot: { currentProgress: 42 },
       }],
-      pagination: { total: 5, page: 2, limit: 2, pages: 3 },
+      meta: { pagination: { total: 5, page: 2, limit: 2, pages: 3 } },
     })
   })
 

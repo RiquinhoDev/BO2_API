@@ -88,8 +88,10 @@ export const getCommunicationHistory: RequestHandler = async (req, res, next) =>
         logger.info(`⚠️  Email "${email}" não encontrado`)
         res.json({
           success: true,
-          history: [],
-          pagination: { total: 0, page: 1, limit: parseInt(queryString(limit, '50')), pages: 0 }
+          data: [],
+          meta: {
+            pagination: { total: 0, page: 1, limit: parseInt(queryString(limit, '50')), pages: 0 }
+          }
         })
         return
       }
@@ -174,12 +176,14 @@ export const getCommunicationHistory: RequestHandler = async (req, res, next) =>
     // ═══════════════════════════════════════════════════════════
     res.json({
       success: true,
-      history,  // ✅ Array mapeado!
-      pagination: {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        pages: Math.ceil(total / limitNum)
+      data: history,
+      meta: {
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          pages: Math.ceil(total / limitNum)
+        }
       }
     })
     return

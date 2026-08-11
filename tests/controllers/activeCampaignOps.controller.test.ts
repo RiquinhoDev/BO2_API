@@ -23,7 +23,7 @@ jest.mock('../../src/utils/logger', () => ({
 }))
 
 import request from 'supertest'
-import { getCronLogs, testCron } from '../../src/controllers/acTags/activeCampaignOps.controller'
+import { getCronLogs, getStats, testCron } from '../../src/controllers/acTags/activeCampaignOps.controller'
 import {
   appForCentralError,
   expectCentralError,
@@ -86,6 +86,24 @@ describe('ActiveCampaign operational boundary', () => {
     jest.restoreAllMocks()
   })
 
+  it('returns canonical read stats without changing the count query', async () => {
+    countDocumentsMock.mockResolvedValue(7)
+    const statsRoute: CentralErrorRoute = { kind: 'handler', handler: getStats }
+    const response = await request(appForCentralError(statsRoute))
+      .get('/target?__bo2_offline_loopback=1')
+
+    expect(countDocumentsMock).toHaveBeenCalledWith({
+      $or: [
+        { 'hotmart.hotmartUserId': { $exists: true, $ne: null } },
+        { 'curseduca.curseducaUserId': { $exists: true, $ne: null } },
+      ],
+    })
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({
+      success: true,
+      data: { totalMonitored: 7, tagsAppliedToday: 0, emailsSent: 0, openRate: 0.65 },
+    })
+  })
   it('keeps the last-20 execution-log ordering', async () => {
     const logs = [{ executionId: 'latest' }]
     const limit = jest.fn().mockResolvedValue(logs)

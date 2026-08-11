@@ -129,9 +129,8 @@ describe.each(cases)('$name course students dashboard', (courseCase) => {
     expect(response.status).toBe(200)
     expect(response.body).toEqual({
       success: true,
-      stats: courseCase.zeroStats,
-      students: [],
-      warning: courseCase.warning,
+      data: { stats: courseCase.zeroStats, students: [] },
+      meta: { warning: courseCase.warning },
     })
     expect(mockFindUsers).not.toHaveBeenCalled()
   })
@@ -185,9 +184,10 @@ describe.each(cases)('$name course students dashboard', (courseCase) => {
     )
 
     expect(response.status).toBe(200)
-    expect(response.body.stats).toEqual(courseCase.expectedStats)
-    expect(response.body.students).toHaveLength(2)
-    expect(response.body.students[0]).toEqual({
+    expect(response.body).toEqual(expect.objectContaining({ success: true }))
+    expect(response.body.data.stats).toEqual(courseCase.expectedStats)
+    expect(response.body.data.students).toHaveLength(2)
+    expect(response.body.data.students[0]).toEqual({
       _id: 'user-hotmart',
       name: 'Hot Student',
       email: 'hot@example.test',
@@ -197,7 +197,7 @@ describe.each(cases)('$name course students dashboard', (courseCase) => {
       platform: 'Hotmart',
       ...courseCase.expectedStudentFields,
     })
-    expect(response.body.students[1]).toEqual({
+    expect(response.body.data.students[1]).toEqual({
       _id: 'user-curseduca',
       name: 'course',
       email: 'course@example.test',

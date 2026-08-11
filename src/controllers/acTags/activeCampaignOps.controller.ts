@@ -209,7 +209,7 @@ export const getStats: RequestHandler = async (_req, res, next) => {
 
     res.json({
       success: true,
-      stats: {
+      data: {
         totalMonitored,
         tagsAppliedToday,
         emailsSent,

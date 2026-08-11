@@ -97,7 +97,15 @@ it('returns the canonical UserProduct progress percentage', async () => {
     .get('/tagged/507f191e810c19729de860ea?__bo2_offline_loopback=1')
 
   expect(response.status).toBe(200)
-  expect(response.body.data[0].progress).toBe(37)
+  expect(response.body).toEqual(expect.objectContaining({
+    success: true,
+    data: expect.arrayContaining([expect.objectContaining({ progress: 37 })]),
+    meta: {
+      count: 1,
+      _v2Enabled: true,
+      filters: { productId: '507f191e810c19729de860ea' },
+    },
+  }))
 })
 
 it('fails a sync item without calling ActiveCampaign when its user has no email', async () => {
