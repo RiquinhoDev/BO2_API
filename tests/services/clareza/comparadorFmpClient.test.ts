@@ -7,15 +7,23 @@ type ScriptedResponse =
   | { readonly data: unknown }
   | { readonly error: unknown }
 
+interface RecordedFmpCall {
+  readonly url: string
+  readonly options: { readonly params: Readonly<Record<string, string>>; readonly timeout: number }
+}
+
 class ScriptedFmpHttp implements ComparadorFmpHttpPort {
-  readonly calls: string[] = []
+  readonly calls: RecordedFmpCall[] = []
 
   constructor(private readonly responses: ReadonlyMap<string, readonly ScriptedResponse[]>) {}
 
   private readonly offsets = new Map<string, number>()
 
-  async get(url: string): Promise<{ readonly data: unknown }> {
-    this.calls.push(url)
+  async get(
+    url: string,
+    options: { readonly params: Readonly<Record<string, string>>; readonly timeout: number },
+  ): Promise<{ readonly data: unknown }> {
+    this.calls.push({ url, options })
     const pathname = new URL(url).pathname
     const responses = this.responses.get(pathname) ?? [{ data: {} }]
     const offset = this.offsets.get(pathname) ?? 0
@@ -45,6 +53,16 @@ function endpointResponses(profile: unknown, reit = false): Map<string, readonly
 }
 
 describe('AxiosComparadorFmpClient', () => {
+function calledPaths(http: ScriptedFmpHttp): string[] {
+  return http.calls.map((call) => new URL(call.url).pathname)
+}
+
+function expectFmpRequest(call: RecordedFmpCall, path: string, ticker: string): void {
+  expect(call).toEqual({
+    url: `https://financialmodelingprep.com${path}`,
+    options: { params: { apikey: 'immutable-test-key', symbol: ticker }, timeout: 15000 },
+  })
+}
   it('does not issue an HTTP request when immutable runtime configuration cannot provide an FMP key', async () => {
     const http = new ScriptedFmpHttp(new Map())
     const client = new AxiosComparadorFmpClient({
@@ -93,6 +111,16 @@ describe('AxiosComparadorFmpClient', () => {
     expect(sleepCalls).toBe(1)
     expect(throttleCalls).toBe(6)
     expect(http.calls).toHaveLength(6)
+
+    expect(calledPaths(http)).toEqual([
+      '/stable/profile',
+      '/stable/profile',
+      '/stable/ratios-ttm',
+      '/stable/key-metrics-ttm',
+      '/stable/grades-consensus',
+      '/stable/price-target-consensus',
+    ])
+    expectFmpRequest(http.calls[0], '/stable/profile', 'AAPL')
   })
 
   it('does not retry a non-429 response failure', async () => {
@@ -131,14 +159,111 @@ describe('AxiosComparadorFmpClient', () => {
       now: () => '2026-08-11T09:30:00.000Z',
     })
 
-    await expect(client.fetchCompany('O')).resolves.toMatchObject({
+    await expect(client.fetchCompany('O')).resolves.toEqual({
       ticker: 'O',
+      name: 'Realty Income Corporation',
+      image: null,
+      sector: 'Real Estate',
+      industry: 'REIT - Retail',
+      country: null,
+      currency: 'USD',
+      exchange: 'NYSE',
       isReit: true,
-      pFfo: 5.19,
-      ffoPayout: 18.18,
+      price: 57.13,
+      change: null,
+      perf12m: null,
+      marketCap: null,
+      beta: null,
       pe: null,
+      peg: null,
+      ps: null,
+      pb: null,
+      evEbitda: null,
+      pFfo: 5.19,
       grossMargin: null,
+      netMargin: null,
+      roe: null,
+      roic: null,
+      fcfYield: null,
+      debtEquity: null,
+      debtEbitda: null,
+      dividendYield: null,
+      payoutRatio: null,
+      ffoPayout: 18.18,
+      analystConsensus: null,
+      strongBuy: null,
+      buy: null,
+      hold: null,
+      sell: null,
+      strongSell: null,
       targetConsensus: null,
+      upside: null,
+      updated: '2026-08-11T09:30:00.000Z',
     })
+    expect(http.calls[5]).toEqual({ url: 'https://financialmodelingprep.com/stable/income-statement', options: { params: { apikey: 'immutable-test-key', symbol: 'O', period: 'annual', limit: '1' }, timeout: 15000 } })
+    expect(http.calls[6]).toEqual({ url: 'https://financialmodelingprep.com/stable/cash-flow-statement', options: { params: { apikey: 'immutable-test-key', symbol: 'O', period: 'annual', limit: '1' }, timeout: 15000 } })
+  })
+
+  it('falls back to quote after an empty profile and keeps a successful profile away from quote', async () => {
+    const quote = {
+      name: 'Samsung Electronics',
+      price: 71,
+      currency: 'KRW',
+      exchange: 'KOSPI',
+    }
+    const responses = endpointResponses(quote)
+    responses.set('/stable/profile', [{ data: [] }])
+    responses.set('/stable/quote', [{ data: [quote] }])
+    const http = new ScriptedFmpHttp(responses)
+    const client = new AxiosComparadorFmpClient({
+      http,
+      getApiKey: () => 'immutable-test-key',
+      throttle: async () => undefined,
+      sleep: async () => undefined,
+      now: () => '2026-08-11T09:30:00.000Z',
+    })
+
+    await expect(client.fetchCompany('005930.KS')).resolves.toMatchObject({
+      ticker: '005930.KS',
+      name: 'Samsung Electronics',
+      price: 71,
+      currency: 'KRW',
+      exchange: 'KOSPI',
+    })
+    expect(calledPaths(http)).toEqual([
+      '/stable/profile',
+      '/stable/quote',
+      '/stable/ratios-ttm',
+      '/stable/key-metrics-ttm',
+      '/stable/grades-consensus',
+      '/stable/price-target-consensus',
+    ])
+    expectFmpRequest(http.calls[0], '/stable/profile', '005930.KS')
+    expectFmpRequest(http.calls[1], '/stable/quote', '005930.KS')
+  })
+
+  it('stops retrying the profile after exactly three 429 responses', async () => {
+    const responses = endpointResponses({})
+    responses.set('/stable/profile', [
+      { error: { response: { status: 429 } } },
+      { error: { response: { status: 429 } } },
+      { error: { response: { status: 429 } } },
+    ])
+    responses.set('/stable/quote', [{ data: [] }])
+    const http = new ScriptedFmpHttp(responses)
+    let throttleCalls = 0
+    let sleepCalls = 0
+    const client = new AxiosComparadorFmpClient({
+      http,
+      getApiKey: () => 'immutable-test-key',
+      throttle: async () => { throttleCalls += 1 },
+      sleep: async () => { sleepCalls += 1 },
+      now: () => '2026-08-11T09:30:00.000Z',
+    })
+
+    await expect(client.fetchCompany('AAPL')).resolves.toBeNull()
+    expect(calledPaths(http)).toEqual(['/stable/profile', '/stable/profile', '/stable/profile', '/stable/quote'])
+    expect(sleepCalls).toBe(2)
+    expect(throttleCalls).toBe(4)
   })
 })

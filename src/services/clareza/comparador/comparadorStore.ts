@@ -100,14 +100,34 @@ function decodeStock(value: unknown): ComparadorStock | null {
   }
 }
 
-function decodeSnapshot(value: unknown): ComparadorSnapshot | null {
-  if (!isJsonObject(value) || !isJsonObject(value.stocks)) return null
+function decodeStockEntries(entries: readonly [string, unknown][]): Record<string, ComparadorStock> | null {
   const stocks: Record<string, ComparadorStock> = {}
-  for (const [ticker, rawStock] of Object.entries(value.stocks)) {
+  for (const [ticker, rawStock] of entries) {
+    if (ticker in stocks) return null
     const stock = decodeStock(rawStock)
     if (!stock) return null
     stocks[ticker] = stock
   }
+  return stocks
+}
+
+function decodeStoredStocks(value: unknown): Record<string, ComparadorStock> | null {
+  if (isJsonObject(value)) return decodeStockEntries(Object.entries(value))
+  if (!Array.isArray(value)) return null
+  const entries: Array<[string, unknown]> = []
+  for (const rawEntry of value) {
+    if (!isJsonObject(rawEntry)) return null
+    const ticker = nullableString(rawEntry.ticker)
+    if (!ticker) return null
+    entries.push([ticker, rawEntry.stock])
+  }
+  return decodeStockEntries(entries)
+}
+
+function decodeSnapshot(value: unknown): ComparadorSnapshot | null {
+  if (!isJsonObject(value)) return null
+  const stocks = decodeStoredStocks(value.stocks)
+  if (!stocks) return null
   const updated = value.updated === null ? null : nullableString(value.updated)
   if (updated === null && value.updated !== null) return null
   return { updated, stocks }
@@ -128,7 +148,13 @@ export class MongooseComparadorSnapshotRepository implements ComparadorSnapshotR
   constructor(private readonly model: Model<IClarezaComparadorData> = ClarezaComparadorData) {}
 
   async create(record: ComparadorSnapshotRecord): Promise<void> {
-    await this.model.create(record)
+    await this.model.create({
+      fetchedAt: record.fetchedAt,
+      updated: record.updated,
+      stockCount: record.stockCount,
+      errors: record.errors,
+      stocks: Object.entries(record.stocks).map(([ticker, stock]) => ({ ticker, stock })),
+    })
   }
 
   async latest(): Promise<unknown> {
