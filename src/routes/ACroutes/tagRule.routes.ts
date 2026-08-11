@@ -3,8 +3,10 @@
 // Rotas para TagRules
 // ════════════════════════════════════════════════════════════
 
-import { Router } from 'express'
+import { Router, type Request } from 'express'
 import { asyncRoute } from '../../security/asyncRoute'
+import { activeCampaignTagRuleDeleteInput } from '../../security/activeCampaignDestructiveInput'
+import { withValidatedInput } from '../../security/validatedInput'
 import { createRule, deleteRule, getAllRules, getRuleById, testRule, updateRule } from '../../controllers/acTags/tagRule.controller'
 
 const router = Router()
@@ -47,7 +49,7 @@ router.put('/:id', asyncRoute(updateRule))
  * @desc    Desativar regra
  * @access  Admin
  */
-router.delete('/:id', asyncRoute(deleteRule))
+router.delete('/:id', withValidatedInput(activeCampaignTagRuleDeleteInput, (_input, req, res, next) => deleteRule(req as unknown as Request, res, next)))
 
 // ─────────────────────────────────────────────────────────────
 // ROTAS ESPECIAIS
