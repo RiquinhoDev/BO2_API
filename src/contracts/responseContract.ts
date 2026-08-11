@@ -15,6 +15,15 @@ export const RESPONSE_FAMILIES: readonly ResponseFamily[] = [
   'stream-or-file',
 ]
 
+export interface SuccessResponse<T> {
+  success: true
+  data: T
+}
+
+export function successResponse<T>(data: T): SuccessResponse<T> {
+  return { success: true, data }
+}
+
 export interface ResponseContractDecision {
   method: string
   path: string

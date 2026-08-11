@@ -1160,6 +1160,10 @@ Progresso controllers:
 
 ### 7. Contrato de resposta
 - [ ] Envelope/versionamento **único** para código novo; adaptado feature a feature preservando o Front (ARCH-03). Sem mistura de arrays crus / `{success,data}` / `{error}`.
+  - **Regra de migração ARCH-03 (Task 8):** o catálogo de famílias é o baseline revisto das 439 rotas montadas, não prova que a normalização dos payloads esteja concluída. Código JSON novo usa `SuccessResponse<T>` / `successResponse(data)`; status, headers e envio continuam propriedade do boundary Express. Rotas legacy não são migradas por este helper.
+  - A normalização avança feature-by-feature. Quando existe consumidor, Front + Back mudam atomicamente e só entram com contract tests de loading, success, empty e error; export e paginação também são cobertos quando aplicáveis. Até essa equivalência, o contrato legacy permanece vivo.
+  - As 13 rotas sem saída de sucesso continuam decisões **501-only** explícitas (`domain-envelope`, `shapeKeys: []`); não contam como normalizadas nem podem ser inferidas silenciosamente.
+  - `contracts:responses:update` / `--write` é reviewer-only e fail-closed: apenas retém decisões já revistas depois de membership e source drift verdes. Nova rota, family válida alterada, enum churn, consumer/evidence/shape drift ou decisão não classificada falham com identidade `METHOD path`; não há auto-normalização nem mudança de runtime nesta fundação.
 
 ### 8. Metodologias 2026 (toolchain & qualidade)
 - [x] **TOOL-01 — TypeScript `strict` a zero erros** (2026-08-03; F3.3). O ratchet foi removido, `noEmitOnError:true` está activo e não existe `tsc || exit 0` (Task 1, `8ee1c7c`). As autoridades restantes são `strict`, `noEmitOnError`, a compilação directa sem emissão (`npm.cmd run types:check`) e o build emissor (`npm.cmd run build`).

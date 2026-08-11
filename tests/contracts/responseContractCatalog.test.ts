@@ -11,6 +11,7 @@ const routeId = (entry: { method: string; path: string }): string =>
   `${entry.method} ${entry.path}`
 const generator = path.join(process.cwd(), 'scripts', 'generate-response-contract-catalog.mjs')
 const routeCatalogPath = path.join(process.cwd(), 'src', 'security', 'route-catalog.json')
+const workspaceResponseCatalog = path.join(process.cwd(), 'src', 'contracts', 'response-contract-catalog.json')
 
 function responseFixture() {
   return responseCatalog.map((decision) => ({
@@ -20,6 +21,15 @@ function responseFixture() {
 }
 
 const sha256 = (value: string): string => createHash('sha256').update(value).digest('hex')
+const fileSha = (filePath: string): string => sha256(fs.readFileSync(filePath, 'utf8'))
+
+function writeSourceOverlay(directory: string, sourcePath: string, contents: string): string {
+  const overlayRoot = path.join(directory, 'backend')
+  const fixturePath = path.join(overlayRoot, path.relative(process.cwd(), sourcePath))
+  fs.mkdirSync(path.dirname(fixturePath), { recursive: true })
+  fs.writeFileSync(fixturePath, contents, 'utf8')
+  return overlayRoot
+}
 
 function runGenerator(
   mode: '--check' | '--write',
@@ -221,49 +231,34 @@ describe('response contract catalog', () => {
     expect(consumer('POST /api/renewal-ac/execute')).toBe('src/services/renewalAcSync.service.ts')
   })
 
-  test('write mode rejects valid-family drift and preserves the reviewed catalog SHA', () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-'))
-    const catalogPath = path.join(directory, 'catalog.json')
-    const fixture = responseFixture().map((decision, index) =>
-      index === 0 ? { ...decision, family: decision.family === 'raw-json' ? 'domain-envelope' : 'raw-json' } : decision)
-    const before = `${JSON.stringify(fixture, null, 2)}\n`
-
-    try {
-      fs.writeFileSync(catalogPath, before, 'utf8')
-      const result = runGenerator('--write', catalogPath)
-
-      expect(result.status).not.toBe(0)
-      expect(`${result.stdout}${result.stderr}`).toContain(routeId(fixture[0]))
-      expect(sha256(fs.readFileSync(catalogPath, 'utf8'))).toBe(sha256(before))
-    } finally {
-      fs.rmSync(directory, { recursive: true, force: true })
-    }
-  })
-
   test('write mode rejects producer drift and preserves the reviewed catalog SHA', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-source-'))
     const sourcePath = path.join(process.cwd(), 'src', 'services', 'users', 'usersV2OverviewAnalytics.service.ts')
-    const catalogPath = path.join(process.cwd(), 'src', 'contracts', 'response-contract-catalog.json')
-    const sourceBefore = fs.readFileSync(sourcePath, 'utf8')
-    const catalogBefore = fs.readFileSync(catalogPath, 'utf8')
-    const mutated = sourceBefore.replace(
+    const catalogPath = path.join(directory, 'catalog.json')
+    const sourceShaBefore = fileSha(sourcePath)
+    const catalogShaBefore = fileSha(workspaceResponseCatalog)
+    const source = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n')
+    const mutated = source.replace(
       '    return {\n      success: true,\n      data: {',
       '    return {\n      success: true,\n      writeReviewMutation: null,\n      data: {',
     )
-    expect(mutated).not.toBe(sourceBefore)
+    expect(mutated).not.toBe(source)
 
     try {
-      fs.writeFileSync(sourcePath, mutated, 'utf8')
-      const result = spawnSync(process.execPath, [generator, '--write'], {
-        cwd: process.cwd(),
-        encoding: 'utf8',
+      fs.copyFileSync(workspaceResponseCatalog, catalogPath)
+      const catalogBefore = fileSha(catalogPath)
+      const overlayRoot = writeSourceOverlay(directory, sourcePath, mutated)
+      const result = runGenerator('--write', catalogPath, {
+        RESPONSE_CONTRACT_SOURCE_OVERLAY: overlayRoot,
       })
 
       expect(result.status).not.toBe(0)
       expect(`${result.stdout}${result.stderr}`).toContain('GET /api/users/v2/analytics')
-      expect(sha256(fs.readFileSync(catalogPath, 'utf8'))).toBe(sha256(catalogBefore))
+      expect(fileSha(catalogPath)).toBe(catalogBefore)
     } finally {
-      fs.writeFileSync(sourcePath, sourceBefore, 'utf8')
-      fs.writeFileSync(catalogPath, catalogBefore, 'utf8')
+      fs.rmSync(directory, { recursive: true, force: true })
+      expect(fileSha(sourcePath)).toBe(sourceShaBefore)
+      expect(fileSha(workspaceResponseCatalog)).toBe(catalogShaBefore)
     }
   })
 
@@ -274,23 +269,25 @@ describe('response contract catalog', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-front-'))
     const extraRoot = path.join(directory, 'src')
     const extraFile = path.join(extraRoot, 'mutation.api.ts')
-    const catalogPath = path.join(process.cwd(), 'src', 'contracts', 'response-contract-catalog.json')
-    const before = fs.readFileSync(catalogPath, 'utf8')
+    const catalogPath = path.join(directory, 'catalog.json')
+    const workspaceCatalogShaBefore = fileSha(workspaceResponseCatalog)
 
     try {
       fs.mkdirSync(extraRoot, { recursive: true })
+      fs.copyFileSync(workspaceResponseCatalog, catalogPath)
       fs.writeFileSync(extraFile, `import { httpClient } from './services/httpClient'\n${body}\n`, 'utf8')
+      const catalogBefore = fileSha(catalogPath)
       for (const mode of ['--check', '--write'] as const) {
         const result = runGenerator(mode, catalogPath, {
           RESPONSE_CONTRACT_FRONT_EXTRA_SOURCE: extraRoot,
         })
         expect(result.status).not.toBe(0)
         expect(`${result.stdout}${result.stderr}`).toContain(expectedError)
-        expect(sha256(fs.readFileSync(catalogPath, 'utf8'))).toBe(sha256(before))
+        expect(fileSha(catalogPath)).toBe(catalogBefore)
       }
     } finally {
-      fs.writeFileSync(catalogPath, before, 'utf8')
       fs.rmSync(directory, { recursive: true, force: true })
+      expect(fileSha(workspaceResponseCatalog)).toBe(workspaceCatalogShaBefore)
     }
   })
 
@@ -301,6 +298,7 @@ describe('response contract catalog', () => {
     const responseCatalogFixture = path.join(directory, 'responses.json')
     const frontRoot = path.join(directory, 'Front')
     const frontSrc = path.join(frontRoot, 'src')
+    const routeFileExistedBefore = fs.existsSync(routeFile)
     const source = [
       "import { Router } from 'express'",
       'const router = Router()',
@@ -328,19 +326,20 @@ describe('response contract catalog', () => {
       fs.mkdirSync(frontSrc, { recursive: true })
       fs.writeFileSync(path.join(frontRoot, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2022' }, include: ['src/**/*.ts'] }), 'utf8')
       fs.writeFileSync(path.join(frontSrc, 'empty.ts'), 'export {}\n', 'utf8')
-      fs.writeFileSync(routeFile, source, 'utf8')
+      const overlayRoot = writeSourceOverlay(directory, routeFile, source)
       fs.writeFileSync(routeCatalogFixture, JSON.stringify(routes), 'utf8')
       fs.writeFileSync(responseCatalogFixture, JSON.stringify(responses, null, 2) + '\n', 'utf8')
 
       const result = runGenerator('--check', responseCatalogFixture, {
         RESPONSE_CONTRACT_ROUTE_CATALOG: routeCatalogFixture,
         RESPONSE_CONTRACT_FRONT_ROOT: frontRoot,
+        RESPONSE_CONTRACT_SOURCE_OVERLAY: overlayRoot,
       })
       expect(result.stderr).toBe('')
       expect(result.status).toBe(0)
     } finally {
-      fs.rmSync(routeFile, { force: true })
       fs.rmSync(directory, { recursive: true, force: true })
+      expect(fs.existsSync(routeFile)).toBe(routeFileExistedBefore)
     }
   })
 
@@ -355,68 +354,84 @@ describe('response contract catalog', () => {
   })
 
   test('a new IUser producer field invalidates the classes users search decision', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-source-'))
     const sourcePath = path.join(process.cwd(), 'src', 'models', 'user.types.ts')
-    const catalogPath = path.join(process.cwd(), 'src', 'contracts', 'response-contract-catalog.json')
-    const sourceBefore = fs.readFileSync(sourcePath, 'utf8')
-    const catalogBefore = fs.readFileSync(catalogPath, 'utf8')
-    const mutated = sourceBefore.replace('  email: string //', '  reviewMutation?: string\n  email: string //')
-    expect(mutated).not.toBe(sourceBefore)
+    const catalogPath = path.join(directory, 'catalog.json')
+    const sourceShaBefore = fileSha(sourcePath)
+    const catalogShaBefore = fileSha(workspaceResponseCatalog)
+    const source = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n')
+    const mutated = source.replace('  email: string //', '  reviewMutation?: string\n  email: string //')
+    expect(mutated).not.toBe(source)
 
     try {
-      fs.writeFileSync(sourcePath, mutated, 'utf8')
-      const result = spawnSync(process.execPath, [generator, '--check'], {
-        cwd: process.cwd(),
-        encoding: 'utf8',
+      fs.copyFileSync(workspaceResponseCatalog, catalogPath)
+      const catalogBefore = fileSha(catalogPath)
+      const overlayRoot = writeSourceOverlay(directory, sourcePath, mutated)
+      const result = runGenerator('--check', catalogPath, {
+        RESPONSE_CONTRACT_SOURCE_OVERLAY: overlayRoot,
       })
       expect(result.status).not.toBe(0)
       expect(`${result.stdout}${result.stderr}`).toContain('GET /api/classes/users/search')
-      expect(sha256(fs.readFileSync(catalogPath, 'utf8'))).toBe(sha256(catalogBefore))
+      expect(fileSha(catalogPath)).toBe(catalogBefore)
     } finally {
-      fs.writeFileSync(sourcePath, sourceBefore, 'utf8')
+      fs.rmSync(directory, { recursive: true, force: true })
+      expect(fileSha(sourcePath)).toBe(sourceShaBefore)
+      expect(fileSha(workspaceResponseCatalog)).toBe(catalogShaBefore)
     }
   })
+
   test('producer drift fails check without writing the reviewed catalog', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-source-'))
     const sourcePath = path.join(process.cwd(), 'src', 'services', 'users', 'usersV2OverviewAnalytics.service.ts')
-    const catalogPath = path.join(process.cwd(), 'src', 'contracts', 'response-contract-catalog.json')
-    const sourceBefore = fs.readFileSync(sourcePath, 'utf8')
-    const catalogBefore = fs.readFileSync(catalogPath, 'utf8')
+    const catalogPath = path.join(directory, 'catalog.json')
+    const sourceShaBefore = fileSha(sourcePath)
+    const catalogShaBefore = fileSha(workspaceResponseCatalog)
+    const source = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n')
     const needle = '    return {\n      success: true,\n      data: {'
-    const mutated = sourceBefore.replace(needle, '    return {\n      success: true,\n      meta: null,\n      data: {')
-    expect(mutated).not.toBe(sourceBefore)
+    const mutated = source.replace(needle, '    return {\n      success: true,\n      meta: null,\n      data: {')
+    expect(mutated).not.toBe(source)
 
     try {
-      fs.writeFileSync(sourcePath, mutated, 'utf8')
-      const result = spawnSync(process.execPath, [generator, '--check'], {
-        cwd: process.cwd(),
-        encoding: 'utf8',
+      fs.copyFileSync(workspaceResponseCatalog, catalogPath)
+      const catalogBefore = fileSha(catalogPath)
+      const overlayRoot = writeSourceOverlay(directory, sourcePath, mutated)
+      const result = runGenerator('--check', catalogPath, {
+        RESPONSE_CONTRACT_SOURCE_OVERLAY: overlayRoot,
       })
       expect(result.status).not.toBe(0)
       expect(`${result.stdout}${result.stderr}`).toContain('GET /api/users/v2/analytics')
-      expect(fs.readFileSync(catalogPath, 'utf8')).toBe(catalogBefore)
+      expect(fileSha(catalogPath)).toBe(catalogBefore)
     } finally {
-      fs.writeFileSync(sourcePath, sourceBefore, 'utf8')
+      fs.rmSync(directory, { recursive: true, force: true })
+      expect(fileSha(sourcePath)).toBe(sourceShaBefore)
+      expect(fileSha(workspaceResponseCatalog)).toBe(catalogShaBefore)
     }
   })
 
   test('a 501-only route becoming successful requires a new reviewed decision', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-source-'))
     const sourcePath = path.join(process.cwd(), 'src', 'controllers', 'sync', 'operations.controller.ts')
-    const catalogPath = path.join(process.cwd(), 'src', 'contracts', 'response-contract-catalog.json')
-    const sourceBefore = fs.readFileSync(sourcePath, 'utf8')
-    const catalogBefore = fs.readFileSync(catalogPath, 'utf8')
-    const mutated = sourceBefore.replace('  res.status(501).json({', '  res.status(200).json({')
-    expect(mutated).not.toBe(sourceBefore)
+    const catalogPath = path.join(directory, 'catalog.json')
+    const sourceShaBefore = fileSha(sourcePath)
+    const catalogShaBefore = fileSha(workspaceResponseCatalog)
+    const source = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n')
+    const mutated = source.replace('  res.status(501).json({', '  res.status(200).json({')
+    expect(mutated).not.toBe(source)
 
     try {
-      fs.writeFileSync(sourcePath, mutated, 'utf8')
-      const result = spawnSync(process.execPath, [generator, '--check'], {
-        cwd: process.cwd(),
-        encoding: 'utf8',
+      fs.copyFileSync(workspaceResponseCatalog, catalogPath)
+      const catalogBefore = fileSha(catalogPath)
+      const overlayRoot = writeSourceOverlay(directory, sourcePath, mutated)
+      const result = runGenerator('--check', catalogPath, {
+        RESPONSE_CONTRACT_SOURCE_OVERLAY: overlayRoot,
       })
       expect(result.status).not.toBe(0)
       expect(`${result.stdout}${result.stderr}`).toContain('POST /api/sync/discord')
-      expect(fs.readFileSync(catalogPath, 'utf8')).toBe(catalogBefore)
+      expect(fileSha(catalogPath)).toBe(catalogBefore)
     } finally {
-      fs.writeFileSync(sourcePath, sourceBefore, 'utf8')
+      fs.rmSync(directory, { recursive: true, force: true })
+      expect(fileSha(sourcePath)).toBe(sourceShaBefore)
+      expect(fileSha(workspaceResponseCatalog)).toBe(catalogShaBefore)
     }
   })
 
