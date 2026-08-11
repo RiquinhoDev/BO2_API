@@ -1,4 +1,5 @@
 import { RequestHandler } from 'express'
+import { successResponse } from '../../../contracts/responseContract'
 import mongoose from 'mongoose'
 import { SyncType } from '../../../models/SyncModels/CronJobConfig'
 import { type PopulatedTagRule, type CourseRuleGroup } from '../../../services/cron/controllerSupport'
@@ -49,11 +50,7 @@ export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
     console.log(`[CRON] 📚 Encontrados ${courseIds.length} courses para plataforma ${syncType}`)
 
     if (courseIds.length === 0) {
-      res.status(200).json({
-        success: true,
-        message: 'Nenhum course encontrado para esta plataforma',
-        data: { rules: [], groupedByCourse: [], totalRules: 0, totalCourses: 0 }
-      })
+      res.status(200).json(successResponse({ rules: [], groupedByCourse: [], totalRules: 0, totalCourses: 0 }, { message: 'Nenhum course encontrado para esta plataforma' }))
       return
     }
 
@@ -103,10 +100,7 @@ export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
 
     groupedByCourse.sort((a, b) => a.courseName.localeCompare(b.courseName))
 
-    res.status(200).json({
-      success: true,
-      message: `${rules.length} Tag Rules encontradas`,
-      data: {
+    res.status(200).json(successResponse({
         rules: rules.map(rule => ({
           _id: rule._id,
           name: rule.name,
@@ -123,8 +117,7 @@ export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
         groupedByCourse,
         totalRules: rules.length,
         totalCourses: groupedByCourse.length
-      }
-    })
+      }, { message: `${rules.length} Tag Rules encontradas` }))
   } catch (err) {
     next(err) // 🔥 importante para Express lidar com o erro corretamente
   }

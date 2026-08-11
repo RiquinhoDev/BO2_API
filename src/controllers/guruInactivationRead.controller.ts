@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 import { internalError } from '../security/errorHandling'
+import { successResponse } from '../contracts/responseContract'
 import {
   createGuruInactivationReadService,
   type GuruInactivationReadService,
@@ -17,7 +18,7 @@ export const createGuruInactivationReadHandlers = (
     next: NextFunction,
   ) {
     try {
-      return res.json({ success: true, ...await service.listPending() })
+      return res.json(successResponse(await service.listPending()))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao listar inativações pendentes',
@@ -33,7 +34,7 @@ export const createGuruInactivationReadHandlers = (
     next: NextFunction,
   ) {
     try {
-      return res.json({ success: true, stats: await service.getStats() })
+      return res.json(successResponse(await service.getStats()))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao obter estatísticas de inativação',
@@ -45,7 +46,7 @@ export const createGuruInactivationReadHandlers = (
 
   async listInactivated(req: Request, res: Response, next: NextFunction) {
     try {
-      return res.json({ success: true, ...await service.listInactive(req.query) })
+      return res.json(successResponse(await service.listInactive(req.query)))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao listar inativações concluídas',
