@@ -5,6 +5,7 @@
 
 import { NextFunction, Request, Response } from 'express'
 import { internalError } from '../security/errorHandling'
+import { successResponse } from '../contracts/responseContract'
 import { TrialNotEndedError, TrialUserNotFoundError } from '../services/guru/guruTrialErrors'
 import {
   listTrials,
@@ -29,11 +30,7 @@ export async function getTrials(req: Request, res: Response, next: NextFunction)
       ? trials.filter((t) => t.trialStatus === statusFilter)
       : trials
 
-    res.json({
-      success: true,
-      trials: filtered,
-      total: filtered.length,
-    })
+    res.json(successResponse({ trials: filtered }, { total: filtered.length }))
   } catch (error: unknown) {
     next(internalError('Erro ao listar trials', 'GURU_TRIAL_LIST_FAILED', error))
   }
@@ -46,7 +43,7 @@ export async function getTrials(req: Request, res: Response, next: NextFunction)
 export async function getTrialsStats(req: Request, res: Response, next: NextFunction) {
   try {
     const stats = await getTrialStats()
-    res.json({ success: true, stats })
+    res.json(successResponse({ stats }))
   } catch (error: unknown) {
     next(internalError('Erro ao calcular estatísticas', 'GURU_TRIAL_STATS_FAILED', error))
   }

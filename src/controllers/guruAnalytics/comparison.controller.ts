@@ -2,6 +2,7 @@ import { type NextFunction, Request, Response } from 'express'
 import { forwardApplicationError } from '../../security/forwardApplicationError'
 import logger from '../../utils/logger'
 import axios from 'axios'
+import { successResponse } from '../../contracts/responseContract'
 import User, { type IUser } from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { GURU_CANCELED_STATUSES, CURSEDUCA_CANCELED_STATUSES, CURSEDUCA_ACTIVE_STATUSES, getEffectiveStatus, verifyCurseducaMemberStatus, type GuruDateInfo } from '../../services/guru/guru.constants'
@@ -402,8 +403,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response, next: Ne
     console.log(`      - Marcados como INACTIVE: ${cleanedInactiveCount}`)
     console.log(`      - Total limpo: ${cleanedActiveCount + cleanedInactiveCount}`)
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       stats,
       cleanup: {
         executed: true,
@@ -422,7 +422,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response, next: Ne
         guruOnlyNoClareza: discrepancies.guruOnlyNoClareza,
         clarezaOnlyNoGuru: discrepancies.clarezaOnlyNoGuru
       }
-    })
+    }))
 
   } catch (error: unknown) {
     return forwardApplicationError(next, error, 'Erro ao comparar Guru e Clareza', 'GURU_COMPARISON_READ_FAILED')

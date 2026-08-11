@@ -6,6 +6,7 @@ import User from '../models/user'
 import { GURU_SSO_ALLOWED_STATUSES } from '../types/guru.types'
 import { createListSubscriptions } from './guruSubscriptionList.controller'
 import { getGuruUserToken } from '../services/requestDrivenRuntimeConfig'
+import { successResponse } from '../contracts/responseContract'
 
 export const listSubscriptions = createListSubscriptions({ model: User })
 
@@ -186,16 +187,14 @@ export const getSubscriptionStatus = async (req: Request, res: Response, next: N
     }
 
     if (!user.guru) {
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         hasSubscription: false,
         email: user.email,
         name: user.name
-      })
+      }))
     }
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       hasSubscription: true,
       email: user.email,
       name: user.name,
@@ -209,7 +208,7 @@ export const getSubscriptionStatus = async (req: Request, res: Response, next: N
         paymentUrl: user.guru.paymentUrl
       },
       canAccessSSO: GURU_SSO_ALLOWED_STATUSES.includes(user.guru.status)
-    })
+    }))
 
   } catch (error: unknown) {
     return next(internalError(
@@ -266,8 +265,7 @@ export const diagnosSubscription = async (req: Request, res: Response, next: Nex
       .limit(10)
       .lean()
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       user: {
         email: user.email,
         name: user.name,
@@ -289,7 +287,7 @@ export const diagnosSubscription = async (req: Request, res: Response, next: Nex
         ssoAllowedStatuses: GURU_SSO_ALLOWED_STATUSES,
         canAccessSSO: user.guru ? GURU_SSO_ALLOWED_STATUSES.includes(user.guru.status as any) : false
       }
-    })
+    }))
 
   } catch (error: unknown) {
     return next(internalError(

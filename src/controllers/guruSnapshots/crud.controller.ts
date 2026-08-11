@@ -7,6 +7,7 @@ import { fetchSubscriptionsByMonth } from '../../services/guru/guruSync.service'
 import type { GuruEmptyInput, GuruSnapshotDeleteInput } from '../../security/guruDestructiveInput'
 import { type SnapshotPeriodParams, type SnapshotSubscription } from '../../services/guruSnapshots/controllerSupport'
 import { createSnapshotFromSubscriptions, isAnnualPlan, mapStatus, parseGuruDate } from './history.controller'
+import { successResponse } from '../../contracts/responseContract'
 
 function forwardGuruSnapshotError(
   next: NextFunction,
@@ -208,11 +209,7 @@ export const createSnapshot = async (req: Request, res: Response, next: NextFunc
     console.log(`   - Canceladas: ${totals.canceled}`)
     console.log(`   - Churn: ${churn.rate}%`)
 
-    return res.json({
-      success: true,
-      message: `Snapshot criado para ${month}/${year}`,
-      snapshot
-    })
+    return res.json(successResponse({ snapshot }, { message: `Snapshot criado para ${month}/${year}` }))
 
   } catch (error: unknown) {
     forwardGuruSnapshotError(next, error, 'Erro ao criar snapshot', 'GURU_SNAPSHOT_CREATE_FAILED')
@@ -268,11 +265,7 @@ export const updateSnapshot = async (req: Request<SnapshotPeriodParams>, res: Re
 
     if (result.skipped) {
       console.log(`â­ï¸ [SNAPSHOT] ${result.reason}`)
-      return res.json({
-        success: true,
-        message: result.reason,
-        skipped: true
-      })
+      return res.json(successResponse({ skipped: true }, { message: result.reason }))
     }
 
     console.log(`âœ… [SNAPSHOT] Snapshot atualizado para ${monthNum}/${yearNum}`)
@@ -281,12 +274,7 @@ export const updateSnapshot = async (req: Request<SnapshotPeriodParams>, res: Re
     console.log(`   - Canceladas: ${result.snapshot.totals.canceled}`)
     console.log(`   - Churn: ${result.snapshot.churn.rate}%`)
 
-    return res.json({
-      success: true,
-      message: `Snapshot atualizado para ${monthNum}/${yearNum}`,
-      snapshot: result.snapshot,
-      previousExists: !!deleted
-    })
+    return res.json(successResponse({ snapshot: result.snapshot, previousExists: !!deleted }, { message: `Snapshot atualizado para ${monthNum}/${yearNum}` }))
 
   } catch (error: unknown) {
     forwardGuruSnapshotError(next, error, 'Erro ao atualizar snapshot', 'GURU_SNAPSHOT_UPDATE_FAILED')
@@ -307,11 +295,7 @@ export const listSnapshots = async (req: Request, res: Response, next: NextFunct
       .sort({ year: -1, month: -1 })
       .lean()
 
-    return res.json({
-      success: true,
-      snapshots,
-      total: snapshots.length
-    })
+    return res.json(successResponse({ snapshots }, { total: snapshots.length }))
 
   } catch (error: unknown) {
     forwardGuruSnapshotError(next, error, 'Erro ao listar snapshots', 'GURU_SNAPSHOT_LIST_FAILED')
@@ -342,10 +326,7 @@ export const getSnapshot = async (req: Request<SnapshotPeriodParams>, res: Respo
       })
     }
 
-    return res.json({
-      success: true,
-      snapshot
-    })
+    return res.json(successResponse({ snapshot }))
 
   } catch (error: unknown) {
     forwardGuruSnapshotError(next, error, 'Erro ao obter snapshot', 'GURU_SNAPSHOT_READ_FAILED')
@@ -376,10 +357,7 @@ export const deleteSnapshot = async (input: GuruSnapshotDeleteInput, res: Respon
       })
     }
 
-    return res.json({
-      success: true,
-      message: `Snapshot apagado para ${month}/${year}`
-    })
+    return res.json(successResponse(null, { message: `Snapshot apagado para ${month}/${year}` }))
 
   } catch (error: unknown) {
     forwardGuruSnapshotError(next, error, 'Erro ao apagar snapshot', 'GURU_SNAPSHOT_DELETE_FAILED')
@@ -407,11 +385,7 @@ export const deleteAllSnapshots = async (_input: GuruEmptyInput, res: Response, 
 
     console.log(`âœ… [SNAPSHOT] ${result.deletedCount} snapshots apagados`)
 
-    return res.json({
-      success: true,
-      message: `${result.deletedCount} snapshots apagados`,
-      deletedCount: result.deletedCount
-    })
+    return res.json(successResponse({ deletedCount: result.deletedCount }, { message: `${result.deletedCount} snapshots apagados` }))
 
   } catch (error: unknown) {
     forwardGuruSnapshotError(next, error, 'Erro ao apagar snapshots', 'GURU_SNAPSHOT_DELETE_ALL_FAILED')

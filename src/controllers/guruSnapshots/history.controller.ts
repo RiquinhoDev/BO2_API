@@ -3,6 +3,7 @@ import { IntegrationUnavailableError } from '../../errors/integrationUnavailable
 import { internalError } from '../../security/errorHandling'
 import GuruMonthlySnapshot from '../../models/GuruMonthlySnapshot'
 import { type GuruSubscription } from '../../services/guru/guruSync.service'
+import { successResponse } from '../../contracts/responseContract'
 import { type SnapshotStatus, type SnapshotBuildResult, errorMessage } from '../../services/guruSnapshots/controllerSupport'
 
 function forwardGuruSnapshotError(
@@ -140,20 +141,14 @@ export const createHistoricalSnapshots = async (req: Request, res: Response, nex
     console.log(`   - Meses pulados: ${skipped.length}`)
     console.log(`   - Erros: ${errors.length}`)
 
-    return res.json({
-      success: true,
-      message: `${snapshots.length} snapshots histÃ³ricos criados com sucesso`,
-      snapshots: snapshots.map(s => ({
+    return res.json(successResponse({ snapshots: snapshots.map(s => ({
         year: s.year,
         month: s.month,
         total: s.totals.total,
         active: s.totals.active,
         canceled: s.totals.canceled,
         churn: s.churn.rate
-      })),
-      skipped: skipped.length > 0 ? skipped : undefined,
-      errors: errors.length > 0 ? errors : undefined
-    })
+      })), skipped: skipped.length > 0 ? skipped : undefined, errors: errors.length > 0 ? errors : undefined }, { message: `${snapshots.length} snapshots histÃ³ricos criados com sucesso` }))
 
   } catch (error: unknown) {
     forwardGuruSnapshotError(next, error, 'Erro ao criar snapshots históricos', 'GURU_SNAPSHOT_HISTORICAL_CREATE_FAILED')

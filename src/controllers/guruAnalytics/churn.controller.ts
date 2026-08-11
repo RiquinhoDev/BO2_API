@@ -1,6 +1,7 @@
 import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
 import { fetchAllSubscriptionsComplete } from '../../services/guru/guruSync.service'
+import { successResponse } from '../../contracts/responseContract'
 import { computeChurnSeries } from '../../services/guru/guruChurn.service'
 import { forwardApplicationError } from '../../security/forwardApplicationError'
 
@@ -35,12 +36,11 @@ export const getChurnLiveStatus = async (_req: Request, res: Response) => {
       ? Math.min(100, Math.round((churnLiveProgress.fetched / churnLiveProgress.total) * 100))
       : null
 
-  return res.json({
-    success: true,
+  return res.json(successResponse({
     ...churnLiveProgress,
     percent: churnLiveProgress.phase === 'computing' ? 100 : percent,
     hasCache: !!churnLiveCache
-  })
+  }))
 }
 
 /**
@@ -58,13 +58,12 @@ export const getChurnLive = async (req: Request, res: Response, next: NextFuncti
       churnLiveCache && Date.now() - churnLiveCache.computedAt.getTime() < CHURN_LIVE_TTL_MS
 
     if (!refresh && cacheValid && churnLiveCache) {
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         source: 'guru_api_live',
         cached: true,
         computedAt: churnLiveCache.computedAt.toISOString(),
         churn: churnLiveCache.churn
-      })
+      }))
     }
 
     // Partilhar o fetch entre pedidos concorrentes (o fetch completo demora ~10-15s)
@@ -98,13 +97,12 @@ export const getChurnLive = async (req: Request, res: Response, next: NextFuncti
 
     const entry = await churnLiveInFlight
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       source: 'guru_api_live',
       cached: false,
       computedAt: entry.computedAt.toISOString(),
       churn: entry.churn
-    })
+    }))
   } catch (error: unknown) {
     return forwardApplicationError(next, error, 'Erro ao calcular churn live', 'GURU_CHURN_LIVE_FAILED')
   }
@@ -231,8 +229,7 @@ export const getChurnMetrics = async (req: Request, res: Response, next: NextFun
     const monthlyRetentionRate = 100 - monthlyChurnRate
     const annualRetentionRate = 100 - annualChurnRate
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       dataQuality: 'estimated',
       note: 'Estes dados sÃ£o ESTIMATIVAS baseadas em projeÃ§Ãµes. Para churn preciso use /guru/snapshots/churn com snapshots histÃ³ricos.',
       churn: {
@@ -257,7 +254,7 @@ export const getChurnMetrics = async (req: Request, res: Response, next: NextFun
         },
         monthlyTrend: monthlyChurnData
       }
-    })
+    }))
 
   } catch (error: unknown) {
     return forwardApplicationError(next, error, 'Erro ao calcular churn', 'GURU_CHURN_READ_FAILED')

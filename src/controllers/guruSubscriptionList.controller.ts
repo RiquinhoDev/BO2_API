@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import { GURU_SSO_ALLOWED_STATUSES } from '../types/guru.types'
 import { forwardApplicationError } from '../security/forwardApplicationError'
+import { successResponse } from '../contracts/responseContract'
 import { paginate } from '../utils/pagination'
 
 const SUBSCRIPTION_PROJECTION = 'email name guru'
@@ -116,11 +117,7 @@ export const createListSubscriptions = ({
       ),
     }))
 
-    return res.json({
-      success: true,
-      subscriptions,
-      pagination: pagination.metadata(total),
-    })
+    return res.json(successResponse({ subscriptions }, { pagination: pagination.metadata(total) }))
   } catch (error: unknown) {
     return forwardApplicationError(next, error, 'Erro ao listar subscrições', 'GURU_SUBSCRIPTION_LIST_FAILED')
   }
