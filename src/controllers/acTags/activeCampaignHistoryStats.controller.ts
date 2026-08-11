@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express'
 import { internalError } from '../../security/errorHandling'
+import { successResponse } from '../../contracts/responseContract'
 
 import CommunicationHistory from '../../models/acTags/CommunicationHistory'
 import logger from '../../utils/logger'
@@ -166,26 +167,29 @@ export const getHistoryStats: RequestHandler = async (req, res, next) => {
     // ═══════════════════════════════════════════════════════════
     // RESPOSTA
     // ═══════════════════════════════════════════════════════════
-    res.json({
-      success: true,
-      period: {
-        days: daysNum,
-        since: since.toISOString(),
-        until: new Date().toISOString()
+    res.json(successResponse(
+      {
+        totals: result.totals[0] || {
+          total: 0,
+          tagsAdded: 0,
+          tagsRemoved: 0,
+          emailsSent: 0,
+          uniqueUsers: 0
+        },
+        byAction: result.byAction,
+        bySource: result.bySource,
+        byDay: result.byDay,
+        topTags: result.topTags,
+        topRules: result.topRules
       },
-      totals: result.totals[0] || {
-        total: 0,
-        tagsAdded: 0,
-        tagsRemoved: 0,
-        emailsSent: 0,
-        uniqueUsers: 0
-      },
-      byAction: result.byAction,
-      bySource: result.bySource,
-      byDay: result.byDay,
-      topTags: result.topTags,
-      topRules: result.topRules
-    })
+      {
+        period: {
+          days: daysNum,
+          since: since.toISOString(),
+          until: new Date().toISOString()
+        }
+      }
+    ))
     return
   } catch (error: unknown) {
     next(internalError('Erro ao calcular estatísticas', 'AC_HISTORY_STATS_FAILED', error))

@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import { classQuickStatsInput } from '../../security/classQuickStatsInput'
 import type { ValidatedInputHandler } from '../../security/validatedInput'
@@ -14,18 +15,14 @@ export function createClassQuickStatsController(
       const result = await service.get(input.params.classId)
 
       if ('message' in result) {
-        res.status(200).json({
-          success: true,
-          data: result,
-        })
+        res.status(200).json(successResponse(result))
         return
       }
 
-      res.status(200).json({
-        success: true,
-        data: result,
-        timestamp: now().toISOString(),
-      })
+      res.status(200).json(successResponse(
+        result,
+        { timestamp: now().toISOString() },
+      ))
     } catch (error) {
       next(new HttpError({
         status: 500,

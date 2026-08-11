@@ -68,7 +68,7 @@ describe('multi-platform analytics controller', () => {
       .get('/multi-platform?__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
-    expect(response.body).toEqual({ success: true, ...result })
+    expect(response.body).toEqual({ success: true, data: result })
     expect(service.get).toHaveBeenCalledTimes(1)
   })
 

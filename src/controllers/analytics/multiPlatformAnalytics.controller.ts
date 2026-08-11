@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import { multiPlatformAnalyticsInput } from '../../security/multiPlatformAnalyticsInput'
 import type { ValidatedInputHandler } from '../../security/validatedInput'
@@ -11,7 +12,7 @@ export function createMultiPlatformAnalyticsController(
   return async (_input, _req, res, next) => {
     try {
       const result = await service.get()
-      res.status(200).json({ success: true, ...result })
+      res.status(200).json(successResponse(result))
     } catch (error) {
       next(new HttpError({
         status: 500,
