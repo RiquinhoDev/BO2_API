@@ -2,41 +2,40 @@
 
 **Recorded:** 2026-08-11
 **Baseline producer commit:** `b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2`
-**Scope:** offline contract characterization only; no external FMP, Redis, or MongoDB connection.
+**Scope:** Task 3 protects route response representation only. It made no
+controller or service production diff and did not contact FMP, Redis, or MongoDB.
 
-## Contract evidence
+## Task 3 contract responsibility
 
-The fixture records 15 concrete requests across the finite 13 public GET
-identities. Every entry records status `200`, cache expectation, JSON versus raw
-serialization mode, and the producer boundary used as evidence.
+The fixture records 15 requests across the finite 13 public GET identities. Task
+3 asserts each controller's status, cache header, JSON versus raw serialization,
+exact selected fixture body, and absence of a canonical
+`{ success: true, data: <selected document> }` wrapper. Raw feeds compare
+`res.send` text byte-for-byte; JSON feeds compare Express canonical JSON
+serialization.
 
-Direct offline producer assertions cover 8 identities / 9 concrete requests:
+This is not a universal financial-data snapshot task. Dynamic/cache-backed record
+values remain owned by their existing service suites. The fixture provenance is
+explicit: cache-seeded passthrough, one derived Raio-X search, shared producer,
+existing injected-port test, or unexecuted slow diagnostic.
 
-- `/data`, `/top10`, `/earnings/data`;
-- `/reit/:ticker`, `/reit-valuation/:ticker`, `/stock/:ticker` through their
-  typed-configured cache paths;
-- `/raiox/:ticker` raw cache path and `/raiox-search` cached-index construction.
+## Boundary evidence
 
-The Raio-X search producer RED exposed the prior fixture error: it uppercases
-the query and preserves all cached-index fields. The fixture was corrected from
-that observed result before the router GREEN run.
+Cache-seeded boundary checks execute the real cache paths for `/data`, `/top10`,
+`/earnings/data`, reit, reit valuation, stock, and the serialized Raio-X ticker
+feed. They prove representation passthrough only, not the financial correctness
+of the seeded record. The Raio-X search is independently derived from a mocked
+cached index; its RED run corrected the fixture to uppercase the query and retain
+all index fields.
 
-The remaining fixture provenance is intentionally limited to existing producer
-contracts rather than a new controller seam: Raio-X symbol/search share the
-tested raw/index producers; carteira data/search are covered by the injected
-`ClarezaCarteiraService` tests; comparator symbols/search are covered by its
-injected store-port tests; diagnose remains a manual FMP diagnostic and was not
-run because its production loop deliberately sleeps 300ms for each fixed ticker.
+Raio-X symbol/search share the ticker/index producers. Carteira and comparator
+retain their existing injected-port service coverage. The diagnostic is deliberately
+not executed: production sleeps 300ms for every fixed ticker and is a manual FMP
+operation. These are provenance limits, not claims of universal output equality.
 
 ## Shape policy
 
-For fixed JSON documents, fixture top-level keys equal the reviewed catalog
-decision. Cache/raw documents and the reit/stock cache records are explicitly
-marked data-dependent. `/comparador` is also explicit: one route identity has
-two query-selected documents, so the catalog records their union while each
-fixture asserts its selected document.
-
-Router tests assert raw `res.send` text byte equality only for serialized feeds;
-JSON routes assert Express's canonical JSON serialization. The wrapper guard
-only rejects an actual `{ success: true, data: <expected document> }` envelope,
-allowing an independently meaningful `success` or `data` field.
+Fixed JSON document keys reconcile to the reviewed catalog. Data-dependent cache
+records are explicit exceptions. `/comparador` has two query-selected documents,
+so its single catalog decision stores their union while each fixture preserves the
+selected variant.
