@@ -1,4 +1,5 @@
 import type { Request, RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import type { ClassHistoryService } from '../../services/classes/classHistory.service'
 
@@ -74,11 +75,11 @@ export function createGetClassCompleteHistoryController(service: Service): Reque
         return
       }
 
-      res.json({
-        success: true,
+      res.json(successResponse({
         classId,
         className: result.className,
         history: result.history,
+      }, {
         total: result.total,
         pagination: {
           limit: result.limit,
@@ -86,7 +87,7 @@ export function createGetClassCompleteHistoryController(service: Service): Reque
           hasMore: result.offset + result.limit < result.total,
         },
         timestamp: result.timestamp,
-      })
+      }))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_COMPLETE_HISTORY_FAILED', publicMessage: 'Erro ao buscar histórico da turma.', cause: error }))
     }

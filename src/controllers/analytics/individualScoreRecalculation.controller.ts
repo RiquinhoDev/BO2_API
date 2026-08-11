@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import { individualScoreRecalculationInput } from '../../security/individualScoreRecalculationInput'
 import type { ValidatedInputHandler } from '../../security/validatedInput'
@@ -22,21 +23,19 @@ export function createIndividualScoreRecalculationController(
         return
       }
 
-      res.status(200).json({
-        success: true,
+      res.status(200).json(successResponse({
+        classId: result.classId,
+        totalStudents: result.totalStudents,
+        successfulUpdates: result.successfulUpdates,
+        failedUpdates: result.failedUpdates,
+        results: result.results,
+      }, {
         message:
           `Scores recalculados para ${result.successfulUpdates}`
           + ` de ${result.totalStudents} alunos`,
-        data: {
-          classId: result.classId,
-          totalStudents: result.totalStudents,
-          successfulUpdates: result.successfulUpdates,
-          failedUpdates: result.failedUpdates,
-          calculationDuration: result.calculationDuration,
-          results: result.results,
-        },
+        calculationDuration: result.calculationDuration,
         timestamp: result.completedAt.toISOString(),
-      })
+      }))
     } catch (error) {
       next(new HttpError({
         status: 500,

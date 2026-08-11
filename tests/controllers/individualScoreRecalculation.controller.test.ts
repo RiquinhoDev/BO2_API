@@ -98,13 +98,11 @@ describe('individual score recalculation controller', () => {
 
     expect(response.body).toEqual({
       success: true,
-      message: 'Scores recalculados para 1 de 2 alunos',
       data: {
         classId: 'class-partial',
         totalStudents: 2,
         successfulUpdates: 1,
         failedUpdates: 1,
-        calculationDuration: 42,
         results: [
           {
             studentId: 'student-success',
@@ -121,7 +119,11 @@ describe('individual score recalculation controller', () => {
           },
         ],
       },
-      timestamp: '2026-07-30T12:34:56.789Z',
+      meta: {
+        message: 'Scores recalculados para 1 de 2 alunos',
+        calculationDuration: 42,
+        timestamp: '2026-07-30T12:34:56.789Z',
+      },
     })
   })
 

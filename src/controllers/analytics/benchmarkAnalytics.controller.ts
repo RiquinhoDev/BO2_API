@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import { benchmarkAnalyticsInput } from '../../security/benchmarkAnalyticsInput'
 import type { ValidatedInputHandler } from '../../security/validatedInput'
@@ -12,18 +13,16 @@ export function createBenchmarkAnalyticsController(
     try {
       const result = await service.get()
       if (result.empty) {
-        res.status(200).json({
-          success: true,
-          data: result.data,
-        })
+        const { message, ...data } = result.data
+        res.status(200).json(successResponse(data, { message }))
         return
       }
 
-      res.status(200).json({
-        success: true,
-        data: result.data,
+      const { metadata, ...data } = result.data
+      res.status(200).json(successResponse(data, {
+        ...metadata,
         timestamp: new Date(result.timestamp).toISOString(),
-      })
+      }))
     } catch (error) {
       next(new HttpError({
         status: 500,

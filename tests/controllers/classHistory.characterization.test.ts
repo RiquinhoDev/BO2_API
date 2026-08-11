@@ -32,6 +32,16 @@ type Body = {
   pagination?: Record<string, unknown>
   timestamp?: unknown
   message?: string
+  data?: {
+    classId?: string
+    className?: string
+    history?: HistoryItem[]
+  }
+  meta?: {
+    total?: number
+    pagination?: Record<string, unknown>
+    timestamp?: unknown
+  }
 }
 type Captured = { status?: number; body?: Body }
 
@@ -216,10 +226,10 @@ describe('class history characterization', () => {
       await getClassCompleteHistory(req({ classId: 'C1' }), makeResponse(captured))
       const body = captured.body as Body
       expect(body.success).toBe(true)
-      expect(body.className).toBe('Turma 1')
-      expect(body.history!.map(h => h.type)).toEqual(['SYNC', 'USER_CHANGE', 'STUDENT_MOVEMENT'])
-      expect(body.total).toBe(3)
-      expect(typeof body.timestamp).toBe('string')
+      expect(body.data?.className).toBe('Turma 1')
+      expect(body.data?.history?.map(h => h.type)).toEqual(['SYNC', 'USER_CHANGE', 'STUDENT_MOVEMENT'])
+      expect(body.meta?.total).toBe(3)
+      expect(typeof body.meta?.timestamp).toBe('string')
     })
 
     it('absorbs a failing source and still returns the others (partial success)', async () => {
@@ -229,8 +239,8 @@ describe('class history characterization', () => {
       await getClassCompleteHistory(req({ classId: 'C1' }), makeResponse(captured))
       const body = captured.body as Body
       expect(body.success).toBe(true)
-      expect(body.history!.map(h => h.type)).toEqual(['SYNC', 'USER_CHANGE'])
-      expect(body.total).toBe(2)
+      expect(body.data?.history?.map(h => h.type)).toEqual(['SYNC', 'USER_CHANGE'])
+      expect(body.meta?.total).toBe(2)
     })
 
     it('applies limit/offset in each source query and again on the merged array (known legacy double pagination)', async () => {
@@ -239,8 +249,8 @@ describe('class history characterization', () => {
       // limit 1 keeps at most 1 per source query, then slices the merged array again.
       await getClassCompleteHistory(req({ classId: 'C1' }, { limit: '1', offset: '0' }), makeResponse(captured))
       const body = captured.body as Body
-      expect(body.history).toHaveLength(1)
-      expect(body.pagination).toMatchObject({ limit: 1, offset: 0 })
+      expect(body.data?.history).toHaveLength(1)
+      expect(body.meta?.pagination).toMatchObject({ limit: 1, offset: 0 })
     })
 
     it('reports failure through next(HttpError) with CLASS_COMPLETE_HISTORY_FAILED', async () => {

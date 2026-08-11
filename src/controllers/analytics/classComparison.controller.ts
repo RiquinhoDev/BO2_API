@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import { classComparisonInput } from '../../security/classComparisonInput'
 import { HttpError } from '../../security/errorHandling'
 import type { ValidatedInputHandler } from '../../security/validatedInput'
@@ -20,24 +21,24 @@ export function createClassComparisonController(
         return
       }
 
-      if (result.data.cached) {
-        res.status(200).json({
-          success: true,
-          data: result.data,
-          cached: true,
+      const { cached, calculationDuration, lastUpdated, ...data } = result.data
+      if (cached) {
+        res.status(200).json(successResponse(data, {
+          cached,
           timestamp: new Date(result.timestamp).toISOString(),
           cacheAge: result.cacheAge,
-        })
+          calculationDuration,
+          lastUpdated,
+        }))
         return
       }
 
-      res.status(200).json({
-        success: true,
-        data: result.data,
-        cached: false,
+      res.status(200).json(successResponse(data, {
+        cached,
         timestamp: new Date(result.timestamp).toISOString(),
-        calculationDuration: result.data.calculationDuration,
-      })
+        calculationDuration,
+        lastUpdated,
+      }))
     } catch (error) {
       next(new HttpError({
         status: 500,
