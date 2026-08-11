@@ -83,6 +83,37 @@ describe('response contract catalog', () => {
     }
   })
 
+  test('allows only terminal families and has the finite reviewed Clareza public documents', () => {
+    expect(RESPONSE_FAMILIES).toEqual([
+      'success-data',
+      'public-document',
+      'redirect',
+      'stream-or-file',
+      'no-content',
+    ])
+
+    const publicDocuments = responseCatalog
+      .filter((entry) => entry.family === 'public-document')
+      .map(routeId)
+      .sort()
+
+    expect(publicDocuments).toEqual([
+      'GET /api/clareza/carteira-search',
+      'GET /api/clareza/carteira/data',
+      'GET /api/clareza/comparador',
+      'GET /api/clareza/data',
+      'GET /api/clareza/earnings/data',
+      'GET /api/clareza/raiox',
+      'GET /api/clareza/raiox-diagnose',
+      'GET /api/clareza/raiox-search',
+      'GET /api/clareza/raiox/:ticker',
+      'GET /api/clareza/reit-valuation/:ticker',
+      'GET /api/clareza/reit/:ticker',
+      'GET /api/clareza/stock/:ticker',
+      'GET /api/clareza/top10',
+    ])
+  })
+
   test('is deterministically ordered by method and path', () => {
     const ids = responseCatalog.map(routeId)
 
@@ -159,11 +190,11 @@ describe('response contract catalog', () => {
       shapeKeys: ['data', 'success'],
     })
     expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/users/v2/enrollments')).toMatchObject({
-      family: 'domain-envelope',
+      family: 'success-data',
       shapeKeys: ['data', 'filters', 'pagination', 'success'],
     })
     expect(responseCatalog.find((entry) => routeId(entry) === 'POST /api/hotmart/syncProgressOnly')).toMatchObject({
-      family: 'domain-envelope',
+      family: 'success-data',
       shapeKeys: ['message', 'stats'],
     })
   })
@@ -219,7 +250,7 @@ describe('response contract catalog', () => {
     expect(reviewed).toEqual(expected)
     for (const identity of expected) {
       expect(responseCatalog.find((entry) => routeId(entry) === identity)).toMatchObject({
-        family: 'domain-envelope',
+        family: 'success-data',
         shapeKeys: [],
       })
     }
@@ -304,6 +335,7 @@ describe('response contract catalog', () => {
     const routeFile = path.join(process.cwd(), 'src', 'routes', 'index.ts')
     const routeCatalogFixture = path.join(directory, 'routes.json')
     const responseCatalogFixture = path.join(directory, 'responses.json')
+    const migrationInventoryFixture = path.join(directory, 'inventory.json')
     const frontRoot = path.join(directory, 'Front')
     const frontSrc = path.join(frontRoot, 'src')
     const routeFileShaBefore = fileSha(routeFile)
@@ -339,10 +371,19 @@ describe('response contract catalog', () => {
       const overlayRoot = writeSourceOverlay(directory, routeFile, mutated)
       fs.writeFileSync(routeCatalogFixture, JSON.stringify(routes), 'utf8')
       fs.writeFileSync(responseCatalogFixture, JSON.stringify(responses, null, 2) + '\n', 'utf8')
+      fs.writeFileSync(migrationInventoryFixture, JSON.stringify([{
+        identity: 'GET /api/__awaited-promise',
+        owner: 'src/routes/index.ts',
+        currentFamily: 'success-data',
+        targetFamily: 'success-data',
+        frontConsumer: null,
+        status: 'complete',
+      }], null, 2) + '\n', 'utf8')
 
       const result = runGenerator('--check', responseCatalogFixture, {
         ...testSourceOverlayEnv(overlayRoot),
         RESPONSE_CONTRACT_ROUTE_CATALOG: routeCatalogFixture,
+        RESPONSE_CONTRACT_MIGRATION_INVENTORY: migrationInventoryFixture,
         RESPONSE_CONTRACT_FRONT_ROOT: frontRoot,
       })
       expect(result.stderr).toBe('')
