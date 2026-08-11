@@ -13,23 +13,14 @@ import {
   activeCampaignEmptyInput,
   activeCampaignProductSyncInput,
   activeCampaignTagMutationInput,
-  activeCampaignTagRuleDeleteInput,
 } from '../../security/activeCampaignDestructiveInput'
 import {
   getClarezaStudents,
-  evaluateClarezaRules,
   getOGIStudents,
-  evaluateOGIRules,
 } from '../../controllers/acTags/activeCampaignCourse.controller'
 import { getCommunicationHistory } from '../../controllers/acTags/activeCampaignHistoryList.controller'
 import { getHistoryStats } from '../../controllers/acTags/activeCampaignHistoryStats.controller'
 import { getCronLogs, getStats, testCron } from '../../controllers/acTags/activeCampaignOps.controller'
-import {
-  createTagRule,
-  deleteTagRule,
-  getAllTagRules,
-  updateTagRule,
-} from '../../controllers/acTags/activeCampaignLegacyTagRules.controller'
 import {
   applyTagToUserProduct,
   getACStats,
@@ -75,31 +66,19 @@ router.get('/stats', asyncRoute(getStats))
 // GET /api/activecampaign/courses/clareza/students
 router.get('/courses/clareza/students', asyncRoute(getClarezaStudents))
 
-// POST /api/activecampaign/courses/clareza/evaluate
-router.post('/courses/clareza/evaluate', asyncRoute(evaluateClarezaRules))
 
 // GET /api/activecampaign/courses/ogi/students
 router.get('/courses/ogi/students', asyncRoute(getOGIStudents))
 
-// POST /api/activecampaign/courses/ogi/evaluate
-router.post('/courses/ogi/evaluate', asyncRoute(evaluateOGIRules))
 
 
 // ─────────────────────────────────────────────────────────────
 // TAG RULES (CRUD)
 // ─────────────────────────────────────────────────────────────
 
-// GET /api/activecampaign/tag-rules
-router.get('/tag-rules', asyncRoute(getAllTagRules))
 
-// POST /api/activecampaign/tag-rules
-router.post('/tag-rules', asyncRoute(createTagRule))
 
-// PUT /api/activecampaign/tag-rules/:id
-router.put('/tag-rules/:id', asyncRoute(updateTagRule))
 
-// DELETE /api/activecampaign/tag-rules/:id
-router.delete('/tag-rules/:id', withValidatedInput(activeCampaignTagRuleDeleteInput, (input, req, res, next) => deleteTagRule(input, req, res, next)))
 
 
 // ─────────────────────────────────────────────────────────────

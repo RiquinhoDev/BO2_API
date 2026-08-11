@@ -10,7 +10,6 @@ import Product from '../../models/product/Product'
 import UserProduct from '../../models/UserProduct'
 import { boundedQueryLimit } from '../../utils/queryBounds'
 import Course from '../../models/Course'
-import { getAllProductsStats as getLegacyStats } from '../../services/userProducts/productService'
 
 // ─────────────────────────────────────────────────────────────
 // GET ALL PRODUCTS
@@ -23,20 +22,7 @@ export const getAllProducts = async (req: Request, res: Response, next: NextFunc
       platform, 
       isActive, 
       courseId,
-      legacy  // Se true, retorna formato antigo
     } = req.query
-
-    // Se legacy=true, usar sistema antigo para compatibilidade
-    if (legacy === 'true') {
-      const legacyStats = await getLegacyStats()
-      return res.json({
-        success: true,
-        ...legacyStats,
-        _legacy: true
-      })
-    }
-
-    // Novo sistema V2: buscar de Product model
     const filters: any = {}
     
     if (platform) filters.platform = platform
@@ -63,12 +49,7 @@ export const getAllProducts = async (req: Request, res: Response, next: NextFunc
       })
     )
 
-    res.json({
-      success: true,
-      total: products.length,
-      products: productsWithCounts,
-      _v2: true
-    })
+    res.json(successResponse({ products: productsWithCounts }, { total: products.length }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar produtos', 'PRODUCT_LIST_FAILED', error))

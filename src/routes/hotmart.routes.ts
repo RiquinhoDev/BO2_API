@@ -8,7 +8,6 @@ import {
   getHotmartProducts,
   getHotmartProductUsers,
   getHotmartStats,
-  syncHotmartUsers,
   syncHotmartUsersUniversal,
   syncProgressOnly,
   syncProgressOnlyUniversal
@@ -31,11 +30,11 @@ router.post('/sync/universal/progress', asyncRoute(syncProgressOnlyUniversal))
 router.get('/sync/compare', asyncRoute(compareSyncMethods))
 
 // ─────────────────────────────────────────────────────────────
-// V2 (Hotmart products/users)
+// Catálogo Hotmart
 // ─────────────────────────────────────────────────────────────
-router.get('/v2/stats', asyncRoute(getHotmartStats))
-router.get('/v2/products', asyncRoute(getHotmartProducts))
-router.get('/v2/products/:subdomain', asyncRoute(getHotmartProductBySubdomain))
-router.get('/v2/products/:subdomain/users', asyncRoute(getHotmartProductUsers))
+router.get('/stats', asyncRoute(getHotmartStats))
+router.get('/products', asyncRoute(getHotmartProducts))
+router.get('/products/:subdomain', asyncRoute(getHotmartProductBySubdomain))
+router.get('/products/:subdomain/users', asyncRoute(getHotmartProductUsers))
 
 export default router

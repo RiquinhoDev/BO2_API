@@ -18,12 +18,7 @@ import cronTagsRouter from '../../src/routes/cron/cronManagement.routes'
 
 const marker = { __bo2_offline_loopback: '1' }
 
-const executionRoutes = [
-  '/api/cron-tags/execute',
-  '/api/cron-tags/execute-legacy',
-  '/cron-tags/execute',
-  '/cron-tags/execute-legacy',
-]
+const executionRoutes = ['/api/cron-tags/execute']
 
 function buildApp() {
   const app = express()
@@ -35,7 +30,6 @@ function buildApp() {
   app.use(errors.correlationId)
   app.use(express.json())
   app.use('/api/cron-tags', cronTagsRouter)
-  app.use('/cron-tags', cronTagsRouter)
   app.use(errors.handler)
   return app
 }

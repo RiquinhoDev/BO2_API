@@ -31,11 +31,6 @@ export function createCronManagementRouter(
     withValidatedInput(cronTagsExecuteInput, (input, _req, res) =>
       controller.executeNow(input, res)),
   )
-  router.post(
-    '/execute-legacy',
-    withValidatedInput(cronTagsExecuteInput, (input, _req, res) =>
-      controller.executeLegacy(input, res)),
-  )
   router.get(
     '/history',
     withValidatedInput(cronTagsHistoryInput, (input, _req, res) =>
