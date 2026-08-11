@@ -185,7 +185,7 @@ router.get("/info", (req, res) => {
       sync: "/api/sync",
       classes: "/api/classes",
       dashboard: "/api/dashboard",
-      dashboardV2: "/api/dashboard/stats/v2",
+      materializedDashboard: "/api/dashboard/materialized-stats",
       analytics: "/api/analytics",
       courses: "/api/courses",
       tagRules: "/api/tag-rules",

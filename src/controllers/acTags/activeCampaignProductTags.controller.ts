@@ -118,7 +118,6 @@ export const applyTagToUserProduct = async (
         tagApplied: tagName,
         acContactId: acContact.id
       },
-      _v2Enabled: true
     })
     return
   } catch (error: unknown) {
@@ -176,7 +175,6 @@ export const removeTagFromUserProduct = async (
     res.json({
       success: true,
       data: { userId, productId, tagRemoved: tagName },
-      _v2Enabled: true
     })
     return
   } catch (error: unknown) {
@@ -186,7 +184,7 @@ export const removeTagFromUserProduct = async (
 }
 
 /**
- * GET /api/activecampaign/v2/products/:productId/tagged
+ * GET /api/activecampaign/products/:productId/tagged
  */
 export const getUsersWithTagsInProduct: RequestHandler = async (req, res, next) => {
   try {
@@ -221,7 +219,6 @@ export const getUsersWithTagsInProduct: RequestHandler = async (req, res, next) 
       meta: {
         count: enrichedData.length,
         filters: { productId, tag },
-        _v2Enabled: true
       }
     })
     return
@@ -232,7 +229,7 @@ export const getUsersWithTagsInProduct: RequestHandler = async (req, res, next) 
 }
 
 /**
- * GET /api/activecampaign/v2/stats
+ * GET /api/activecampaign/product-tags/stats
  */
 export const getACStats: RequestHandler = async (_req, res, next) => {
   try {
@@ -267,7 +264,6 @@ export const getACStats: RequestHandler = async (_req, res, next) => {
         totalUsersWithTags: stats.reduce((sum, s) => sum + s.totalUsersWithTags, 0),
         totalUniqueTags: [...new Set(stats.flatMap(s => s.tagList))].length
       },
-      _v2Enabled: true
     })
     return
   } catch (error: unknown) {
@@ -277,7 +273,7 @@ export const getACStats: RequestHandler = async (_req, res, next) => {
 }
 
 /**
- * POST /api/activecampaign/v2/sync/:productId
+ * POST /api/activecampaign/products/:productId/tags/sync
  */
 export const syncProductTags = async (
   input: ActiveCampaignProductSyncInput,
@@ -332,7 +328,6 @@ export const syncProductTags = async (
       data: results,
       productId,
       productName: product.name,
-      _v2Enabled: true
     })
     return
   } catch (error: unknown) {

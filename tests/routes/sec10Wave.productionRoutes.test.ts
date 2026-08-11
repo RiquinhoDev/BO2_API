@@ -226,7 +226,7 @@ const asyncRouteCases: ProductionRouteCase[] = [
     name: 'Hotmart',
     method: 'get',
     mountPath: '/api/hotmart',
-    path: '/api/hotmart/v2/products',
+    path: '/api/hotmart/products',
     router: hotmartRouter,
     arrange: () => {
       const failure = internalError(

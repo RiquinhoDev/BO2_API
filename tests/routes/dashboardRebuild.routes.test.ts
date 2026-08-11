@@ -38,7 +38,7 @@ function buildApp() {
   return app
 }
 
-describe('POST /dashboard/stats/v3/rebuild', () => {
+describe('POST /dashboard/materialized-stats/rebuild', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     jest.spyOn(console, 'log').mockImplementation(() => undefined)
@@ -52,7 +52,7 @@ describe('POST /dashboard/stats/v3/rebuild', () => {
     mockRebuildDashboardStats.mockResolvedValueOnce({ success: true })
 
     const response = await request(buildApp())
-      .post('/dashboard/stats/v3/rebuild')
+      .post('/dashboard/materialized-stats/rebuild')
       .query({ __bo2_offline_loopback: '1' })
       .expect(200)
 
@@ -67,7 +67,7 @@ describe('POST /dashboard/stats/v3/rebuild', () => {
     mockRebuildDashboardStats.mockRejectedValueOnce(new Error('rebuild failed'))
 
     const response = await request(buildApp())
-      .post('/dashboard/stats/v3/rebuild')
+      .post('/dashboard/materialized-stats/rebuild')
       .query({ __bo2_offline_loopback: '1' })
       .expect(500)
 
@@ -84,7 +84,7 @@ describe('POST /dashboard/stats/v3/rebuild', () => {
     mockRebuildDashboardStats.mockRejectedValueOnce('token=super-secret')
 
     const response = await request(buildApp())
-      .post('/dashboard/stats/v3/rebuild')
+      .post('/dashboard/materialized-stats/rebuild')
       .query({ __bo2_offline_loopback: '1' })
       .expect(500)
 

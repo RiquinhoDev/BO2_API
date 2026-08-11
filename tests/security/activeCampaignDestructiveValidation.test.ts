@@ -71,7 +71,7 @@ const routes: DestructiveRoute[] = [
   {
     name: 'delete tag rule',
     method: 'delete',
-    path: `/api/activecampaign/tag-rules/${objectId}`,
+    path: `/api/tag-rules/${objectId}`,
     body: {},
   },
   {
@@ -83,19 +83,19 @@ const routes: DestructiveRoute[] = [
   {
     name: 'sync product tags',
     method: 'post',
-    path: `/api/activecampaign/v2/sync/${productId}`,
+    path: `/api/activecampaign/products/${productId}/tags/sync`,
     body: {},
   },
   {
     name: 'apply product tag',
     method: 'post',
-    path: '/api/activecampaign/v2/tag/apply',
+    path: '/api/activecampaign/product-tags/apply',
     body: { userId: objectId, productId, tagName: 'OGI_V1 - Inativo 7d' },
   },
   {
     name: 'remove product tag',
     method: 'post',
-    path: '/api/activecampaign/v2/tag/remove',
+    path: '/api/activecampaign/product-tags/remove',
     body: { userId: objectId, productId, tagName: 'OGI_V1 - Inativo 7d' },
   },
 ]

@@ -105,20 +105,15 @@ type HeatmapWeek = {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 🎯 FASE 4 & 5: ENDPOINT /v2 - FILTROS AVANÇADOS DASHBOARD V2 (OPTIMIZED)
+// 🎯 FASE 4 & 5: RECURSOS ANALÍTICOS E DE ENROLLMENTS
 // ═══════════════════════════════════════════════════════════════════════════
 router.get(
-  '/v2',
-  withValidatedInput(usersV2LegacyInput, getUsersV2Legacy),
-)
-
-router.get(
-  '/v2/enrollments',
+  '/enrollments',
   withValidatedInput(usersV2EnrollmentInput, getUsersV2Enrollments),
 )
 
 router.get(
-  '/v2/analytics',
+  '/analytics',
   withValidatedInput(
     usersV2OverviewAnalyticsInput,
     getUsersV2OverviewAnalytics,
@@ -126,16 +121,16 @@ router.get(
 )
 
 router.get(
-  '/v2/stats',
+  '/analytics/stats',
   withValidatedInput(usersV2StatsInput, getUsersV2Stats),
 )
 
 router.get(
-  '/v2/engagement/comparison',
+  '/engagement/comparison',
   withValidatedInput(usersV2ComparisonInput, getUsersV2Comparison),
 )
 
-router.get('/v2/engagement/heatmap', asyncRoute(async (req, res, next) => {
+router.get('/engagement/heatmap', asyncRoute(async (req, res, next) => {
   try {
     console.log('\n🔥 [Engagement Heatmap] Calculando...')
 

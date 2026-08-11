@@ -1,13 +1,13 @@
-// src/routes/curseduca.routes.ts - V1 + V2 UNIFICADO
+// src/routes/curseduca.routes.ts - ROTAS CANÓNICAS
 
 import { Router } from 'express'
 import {
-  // V1
+  // Recursos principais
   getDashboardStats,
   getUsersWithClasses,
   updateUserClasses,
 
-  // V2 (agora no mesmo controller)
+  // Catálogo
   getCurseducaProducts,
   getCurseducaProductByGroupId,
   getCurseducaProductUsers,
@@ -20,7 +20,7 @@ import {
 
 const router = Router()
 // ─────────────────────────────
-// V1 (base: /api/curseduca)
+// Recursos principais (base: /api/curseduca)
 // ─────────────────────────────
 
 // 📊 ESTATÍSTICAS E DASHBOARD
@@ -31,17 +31,13 @@ router.get('/users-with-classes', getUsersWithClasses)
 router.put('/user/:userId/classes', updateUserClasses)
 
 // ─────────────────────────────
-// V2 (base: /api/curseduca/v2)
+// Catálogo CursEduca
 // ─────────────────────────────
 
-const v2 = Router()
-
-v2.get('/stats', getCurseducaStats)
-v2.get('/products', getCurseducaProducts)
-v2.get('/products/:groupId', getCurseducaProductByGroupId)
-v2.get('/products/:groupId/users', getCurseducaProductUsers)
-
-router.use('/v2', v2)
+router.get('/catalog/stats', getCurseducaStats)
+router.get('/products', getCurseducaProducts)
+router.get('/products/:groupId', getCurseducaProductByGroupId)
+router.get('/products/:groupId/users', getCurseducaProductUsers)
 // ─────────────────────────────────────────────────────────────
 // UNIVERSAL SYNC (novos endpoints)
 // ─────────────────────────────────────────────────────────────

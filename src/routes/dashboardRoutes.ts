@@ -1,7 +1,7 @@
 import express from 'express';
 import { internalError } from '../security/errorHandling';
 import { successResponse } from '../contracts/responseContract';
-// ✅ DASHBOARD V2 CONTROLLERS - Consolidado + Sprint 1 & 2
+// ✅ DASHBOARD CONTROLLERS - Consolidado + Sprint 1 & 2
 import {
   getDashboardStats,
   getProductsBreakdown,
@@ -17,13 +17,13 @@ const router = express.Router();
 
 /**
  * GET /api/dashboard/stats
- * Retorna estatísticas consolidadas do dashboard V2
+ * Retorna estatísticas consolidadas do dashboard
  * Suporta filtros avançados: platform, productId, status, progressMin/Max, search
  */
 router.get('/stats', getDashboardStats);
 
 // ═══════════════════════════════════════════════════════════
-// 🎯 DASHBOARD V2 - NOVOS ENDPOINTS (25 Nov 2025)
+// 🎯 DASHBOARD - ENDPOINTS ANALÍTICOS (25 Nov 2025)
 // ═══════════════════════════════════════════════════════════
 
 /**
@@ -61,17 +61,17 @@ router.post('/compare', compareProducts);
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * GET /api/dashboard/stats/v3
+ * GET /api/dashboard/materialized-stats
  * Stats consolidadas com Health Score e Quick Filters
  * ⚡ AGORA COM MATERIALIZED VIEW - CARREGA EM < 100ms!
  */
-router.get('/stats/v3', getDashboardStatsV3);
+router.get('/materialized-stats', getDashboardStatsV3);
 
 /**
- * POST /api/dashboard/stats/v3/rebuild
+ * POST /api/dashboard/materialized-stats/rebuild
  * Rebuild manual dos Dashboard Stats (útil para debug)
  */
-router.post('/stats/v3/rebuild', async (req, res, next) => {
+router.post('/materialized-stats/rebuild', async (req, res, next) => {
   try {
     console.log('🔨 [MANUAL] Iniciando rebuild de Dashboard Stats...');
     await rebuildDashboardStatsManual();
