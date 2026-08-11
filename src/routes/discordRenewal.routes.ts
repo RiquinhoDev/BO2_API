@@ -100,7 +100,7 @@ router.post('/execute', withValidatedInput(discordRenewalExecuteInput, async (in
     limit: input.body.limit,
     executedBy: actor(req, input.body.actor)
   })
-  res.json({ success: report.masterEnabled, data: report })
+  res.json(successResponse({ report }))
 }))
 
 // ─────────────────────────────────────────────────────────────
@@ -206,7 +206,8 @@ router.get('/scheduled/:key/preview', asyncRoute(async (req: Request, res: Respo
 router.post('/scheduled/:key/test', withValidatedInput(discordRenewalScheduledTestInput, async (input, req, res) => {
   const { testScheduledRule } = await import('../services/renewal/discordScheduledMessages.service')
   const result = await testScheduledRule(input.params.key, actor(req, input.body.actor))
-  res.status(result.success ? 200 : 400).json(result)
+  if (!result.success) return res.status(400).json(result)
+  res.json(successResponse({ result }))
 }))
 
 /** POST /api/discord-renewal/scheduled/run — corre o job já (respeita switches/idempotência) */
