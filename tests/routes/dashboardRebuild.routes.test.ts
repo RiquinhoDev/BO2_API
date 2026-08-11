@@ -59,7 +59,7 @@ describe('POST /dashboard/stats/v3/rebuild', () => {
     expect(mockRebuildDashboardStats).toHaveBeenCalledTimes(1)
     expect(response.body).toEqual({
       success: true,
-      message: 'Dashboard Stats reconstruídos com sucesso.',
+      data: { message: 'Dashboard Stats reconstruídos com sucesso.' },
     })
   })
 

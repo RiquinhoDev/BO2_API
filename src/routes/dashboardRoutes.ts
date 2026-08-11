@@ -1,5 +1,6 @@
 import express from 'express';
 import { internalError } from '../security/errorHandling';
+import { successResponse } from '../contracts/responseContract';
 // ✅ DASHBOARD V2 CONTROLLERS - Consolidado + Sprint 1 & 2
 import {
   getDashboardStats,
@@ -12,7 +13,6 @@ import {
 import { rebuildDashboardStatsManual } from '../jobs/rebuildDashboardStats.job';
 // 🚀 QUICK ENDPOINTS (otimizados com dados agregados)
 import * as quickController from '../controllers/dashboardQuick.controller';
-
 const router = express.Router();
 
 /**
@@ -75,10 +75,10 @@ router.post('/stats/v3/rebuild', async (req, res, next) => {
   try {
     console.log('🔨 [MANUAL] Iniciando rebuild de Dashboard Stats...');
     await rebuildDashboardStatsManual();
-    res.json({
-      success: true,
+    res.json(successResponse({
       message: 'Dashboard Stats reconstruídos com sucesso.'
-    });
+    }));
+
   } catch (error: unknown) {
     next(internalError(
       'Erro ao reconstruir estatisticas do dashboard',

@@ -938,18 +938,18 @@
   {
     "identity": "GET /api/dashboard/search",
     "owner": "src/controllers/dashboard.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/dashboard/stats",
     "owner": "src/controllers/dashboard.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/dashboard/stats/v3",
@@ -2650,10 +2650,10 @@
   {
     "identity": "POST /api/dashboard/stats/v3/rebuild",
     "owner": "src/routes/dashboardRoutes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/discord-renewal/approve",
