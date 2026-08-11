@@ -1,3 +1,4 @@
+import { boundedQueryLimit } from '../../utils/queryBounds'
 import mongoose, { Document, Schema } from 'mongoose'
 import { TagPriority } from './CriticalTag'
 
@@ -22,8 +23,8 @@ export interface ITagChangeNotification extends Document {
 export interface ITagChangeNotificationModel extends mongoose.Model<ITagChangeNotification> {
   findUnread(limit?: number): Promise<ITagChangeNotification[]>
   getUnreadCount(): Promise<number>
-  findByWeek(weekNumber: number, year: number): Promise<ITagChangeNotification[]>
-  findByTag(tagName: string): Promise<ITagChangeNotification[]>
+  findByWeek(weekNumber: number, year: number, limit?: number): Promise<ITagChangeNotification[]>
+  findByTag(tagName: string, limit?: number): Promise<ITagChangeNotification[]>
 }
 
 const TagChangeNotificationSchema = new Schema<
@@ -108,40 +109,49 @@ TagChangeNotificationSchema.methods.markAsUnread = async function () {
 
 // Métodos estáticos
 TagChangeNotificationSchema.statics.findUnread = async function (limit: number = 50) {
-  // Buscar notificações não lidas e ordenar por prioridade
-  const notifications = await this.find({ isRead: false }).lean()
-
-  // Ordenar: CRITICAL > MEDIUM > LOW, depois por data
-  const priorityOrder: Record<string, number> = { CRITICAL: 1, MEDIUM: 2, LOW: 3 }
-  notifications.sort((a: any, b: any) => {
-    const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
-    if (priorityDiff !== 0) return priorityDiff
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  })
-
-  return notifications.slice(0, limit)
+  const cappedLimit = boundedQueryLimit(limit, 50)
+  return this.aggregate([
+    { $match: { isRead: false } },
+    { $addFields: {
+      priorityRank: { $switch: {
+        branches: [
+          { case: { $eq: ['$priority', 'CRITICAL'] }, then: 1 },
+          { case: { $eq: ['$priority', 'MEDIUM'] }, then: 2 },
+        ],
+        default: 3,
+      } },
+    } },
+    { $sort: { priorityRank: 1, createdAt: -1, _id: -1 } },
+    { $limit: cappedLimit },
+    { $project: { priorityRank: 0 } },
+  ])
 }
 
 TagChangeNotificationSchema.statics.getUnreadCount = async function (): Promise<number> {
   return this.countDocuments({ isRead: false })
 }
 
-TagChangeNotificationSchema.statics.findByWeek = async function (weekNumber: number, year: number) {
-  const notifications = await this.find({ weekNumber, year }).lean()
-
-  // Ordenar por prioridade e data
-  const priorityOrder: Record<string, number> = { CRITICAL: 1, MEDIUM: 2, LOW: 3 }
-  notifications.sort((a: any, b: any) => {
-    const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
-    if (priorityDiff !== 0) return priorityDiff
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  })
-
-  return notifications
+TagChangeNotificationSchema.statics.findByWeek = function (weekNumber: number, year: number, limit: number = 200) {
+  const cappedLimit = boundedQueryLimit(limit, 200)
+  return this.aggregate([
+    { $match: { weekNumber, year } },
+    { $addFields: {
+      priorityRank: { $switch: {
+        branches: [
+          { case: { $eq: ['$priority', 'CRITICAL'] }, then: 1 },
+          { case: { $eq: ['$priority', 'MEDIUM'] }, then: 2 },
+        ],
+        default: 3,
+      } },
+    } },
+    { $sort: { priorityRank: 1, createdAt: -1, _id: -1 } },
+    { $limit: cappedLimit },
+    { $project: { priorityRank: 0 } },
+  ])
 }
 
-TagChangeNotificationSchema.statics.findByTag = function (tagName: string) {
-  return this.find({ tagName }).sort({ createdAt: -1 })
+TagChangeNotificationSchema.statics.findByTag = function (tagName: string, limit: number = 200) {
+  return this.find({ tagName }).sort({ createdAt: -1, _id: -1 }).limit(boundedQueryLimit(limit, 200))
 }
 
 // Configurar virtuals no toJSON e toObject

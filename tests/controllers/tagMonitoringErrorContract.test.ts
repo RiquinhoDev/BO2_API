@@ -555,7 +555,7 @@ test('snapshot list preserves filters, explicit limit and count envelope', async
   expect(response.status).toBe(200)
   expect(response.body).toEqual({ success: true, data: snapshots, meta: { count: 2 } })
   expect(snapshotsModel.find).toHaveBeenCalledWith({ weekNumber: 32, year: 2026 })
-  expect(query.sort).toHaveBeenCalledWith({ capturedAt: -1 })
+  expect(query.sort).toHaveBeenCalledWith({ capturedAt: -1, _id: -1 })
   expect(query.limit).toHaveBeenCalledWith(7)
   expect(query.lean).toHaveBeenCalledTimes(1)
 })

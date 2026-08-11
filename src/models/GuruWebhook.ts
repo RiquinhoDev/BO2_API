@@ -1,4 +1,5 @@
 // src/models/GuruWebhook.ts - Modelo para guardar webhooks da Guru
+import { boundedQueryLimit } from '../utils/queryBounds'
 import mongoose, { Schema, model, Document } from "mongoose"
 import { GuruSubscriptionStatus, GuruWebhookEvent } from "../types/guru.types"
 
@@ -164,14 +165,14 @@ guruWebhookSchema.statics.findByRequestId = function(requestId: string) {
 
 guruWebhookSchema.statics.findByEmail = function(email: string, limit = 50) {
   return this.find({ email: email.toLowerCase().trim() })
-    .sort({ receivedAt: -1 })
-    .limit(limit)
+    .sort({ receivedAt: -1, _id: -1 })
+    .limit(boundedQueryLimit(limit, 50))
 }
 
 guruWebhookSchema.statics.getUnprocessed = function(limit = 100) {
   return this.find({ processed: false })
-    .sort({ receivedAt: 1 })
-    .limit(limit)
+    .sort({ receivedAt: 1, _id: 1 })
+    .limit(boundedQueryLimit(limit, 100))
 }
 
 guruWebhookSchema.statics.getStats = async function() {
