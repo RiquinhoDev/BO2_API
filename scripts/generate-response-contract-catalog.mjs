@@ -657,10 +657,16 @@ function classifyBody(checker, method, call) {
   }
   const direct = objectShape(checker, body)
   if (direct && !direct.dynamic) {
-    if (direct.successTrue
-      && direct.keys.length === 2
-      && direct.keys[0] === 'data'
-      && direct.keys[1] === 'success') {
+    const exactCanonicalEnvelope = direct.successTrue && (
+      (direct.keys.length === 2
+        && direct.keys[0] === 'data'
+        && direct.keys[1] === 'success')
+      || (direct.keys.length === 3
+        && direct.keys[0] === 'data'
+        && direct.keys[1] === 'meta'
+        && direct.keys[2] === 'success')
+    )
+    if (exactCanonicalEnvelope) {
       return { family: 'success-data', shapeKeys: direct.keys }
     }
     return { family: 'domain-envelope', shapeKeys: direct.keys }
