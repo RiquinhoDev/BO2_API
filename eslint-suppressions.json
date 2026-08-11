@@ -330,14 +330,6 @@
       "count": 1
     }
   },
-  "src/jobs/clareza.job.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    },
-    "no-console": {
-      "count": 11
-    }
-  },
   "src/jobs/cronExecutionCleanup.job.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
