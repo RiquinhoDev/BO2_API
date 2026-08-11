@@ -394,7 +394,7 @@
       "timestamp"
     ],
     "evidence": "mixed success exits (domain-envelope, success-data); src/controllers/analytics/benchmarkAnalytics.controller.ts:15",
-    "frontConsumer": null
+    "frontConsumer": "src/features/analytics/analytics.api.ts"
   },
   {
     "method": "GET",
@@ -636,7 +636,11 @@
     "method": "GET",
     "path": "/api/clareza/carteira-search",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "count",
+      "query",
+      "results"
+    ],
     "evidence": "src/controllers/clarezaController.ts:238",
     "frontConsumer": null
   },
@@ -660,7 +664,12 @@
     "method": "GET",
     "path": "/api/clareza/earnings/data",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "count",
+      "earnings",
+      "updated",
+      "window"
+    ],
     "evidence": "src/controllers/clarezaController.ts:252",
     "frontConsumer": null
   },
@@ -668,7 +677,11 @@
     "method": "GET",
     "path": "/api/clareza/raiox",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "count",
+      "query",
+      "results"
+    ],
     "evidence": "src/controllers/clarezaController.ts:154",
     "frontConsumer": null
   },
@@ -676,7 +689,12 @@
     "method": "GET",
     "path": "/api/clareza/raiox-diagnose",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "failed",
+      "ok",
+      "results",
+      "tested"
+    ],
     "evidence": "src/controllers/clarezaController.ts:196",
     "frontConsumer": null
   },
@@ -684,7 +702,11 @@
     "method": "GET",
     "path": "/api/clareza/raiox-search",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "count",
+      "query",
+      "results"
+    ],
     "evidence": "src/controllers/clarezaController.ts:185",
     "frontConsumer": null
   },
@@ -700,7 +722,88 @@
     "method": "GET",
     "path": "/api/clareza/reit-valuation/:ticker",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "adjDividend",
+      "affoPayout",
+      "allTimeAvgPriceTarget",
+      "beta",
+      "calendarYear",
+      "capitalExpenditure",
+      "cashAndShortTermInvestments",
+      "cashRatioTTM",
+      "changePercentage",
+      "cockpit",
+      "companyName",
+      "currency",
+      "current",
+      "currentRatioTTM",
+      "date",
+      "debtToEquityRatioTTM",
+      "depreciationAndAmortization",
+      "dividend",
+      "dividendCagr",
+      "dividendPayoutRatioTTM",
+      "dividendYieldTTM",
+      "dividends",
+      "dividendsPaid",
+      "ebitda",
+      "eps",
+      "epsdiluted",
+      "evToEBITDATTM",
+      "exchange",
+      "exchangeShortName",
+      "forwardPriceToEarningsGrowthRatioTTM",
+      "freeCashFlowYieldTTM",
+      "grossProfit",
+      "grossProfitMarginTTM",
+      "history",
+      "industry",
+      "interestCoverageRatioTTM",
+      "interestCoverageTTM",
+      "lastDiv",
+      "lastDividend",
+      "lastMonthAvgPriceTarget",
+      "longTermDebt",
+      "marketCap",
+      "name",
+      "netDebt",
+      "netDebtToEBITDATTM",
+      "netDividendsPaid",
+      "netIncome",
+      "netProfitMarginTTM",
+      "operatingIncome",
+      "pAffoAvg",
+      "pFfoAvg",
+      "peers",
+      "peersList",
+      "price",
+      "priceTarget",
+      "priceToBookRatioTTM",
+      "priceToEarningsGrowthRatioTTM",
+      "priceToEarningsRatioTTM",
+      "priceToSalesRatioTTM",
+      "range",
+      "returnOnEquityTTM",
+      "revenue",
+      "sector",
+      "sharesOut",
+      "sharesOutstanding",
+      "shortTermDebt",
+      "source",
+      "stockPrice",
+      "symbol",
+      "targetConsensus",
+      "ticker",
+      "totalCurrentAssets",
+      "totalCurrentLiabilities",
+      "totalDebt",
+      "totalDebtAndCapitalLeaseObligations",
+      "totalStockholdersEquity",
+      "updated",
+      "weightedAverageShsOut",
+      "weightedAverageShsOutDil",
+      "year"
+    ],
     "evidence": "src/controllers/clarezaController.ts:85",
     "frontConsumer": null
   },
@@ -708,7 +811,82 @@
     "method": "GET",
     "path": "/api/clareza/reit/:ticker",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "adjDividend",
+      "allTimeAvgPriceTarget",
+      "beta",
+      "calendarYear",
+      "capitalExpenditure",
+      "cashAndShortTermInvestments",
+      "cashRatioTTM",
+      "change",
+      "changePercentage",
+      "companyName",
+      "currency",
+      "currentRatioTTM",
+      "date",
+      "debtToEquityRatioTTM",
+      "depreciationAndAmortization",
+      "dividend",
+      "dividendPayoutRatioTTM",
+      "dividendYieldTTM",
+      "dividendsPaid",
+      "ebitda",
+      "eps",
+      "epsdiluted",
+      "evToEBITDATTM",
+      "exchange",
+      "exchangeShortName",
+      "ffoYearsUsed",
+      "forwardPriceToEarningsGrowthRatioTTM",
+      "freeCashFlowYieldTTM",
+      "grossProfit",
+      "grossProfitMarginTTM",
+      "industry",
+      "interestCoverageRatioTTM",
+      "interestCoverageTTM",
+      "lastDiv",
+      "lastDividend",
+      "lastMonthAvgPriceTarget",
+      "longTermDebt",
+      "marketCap",
+      "metrics",
+      "name",
+      "netDebt",
+      "netDebtToEBITDATTM",
+      "netDividendsPaid",
+      "netIncome",
+      "netProfitMarginTTM",
+      "operatingIncome",
+      "peersList",
+      "price",
+      "priceTarget",
+      "priceToBookRatioTTM",
+      "priceToEarningsGrowthRatioTTM",
+      "priceToEarningsRatioTTM",
+      "priceToSalesRatioTTM",
+      "range",
+      "returnOnEquityTTM",
+      "revenue",
+      "sector",
+      "sharesOut",
+      "sharesOutstanding",
+      "shortTermDebt",
+      "source",
+      "stockPrice",
+      "symbol",
+      "targetConsensus",
+      "ticker",
+      "totalCurrentAssets",
+      "totalCurrentLiabilities",
+      "totalDebt",
+      "totalDebtAndCapitalLeaseObligations",
+      "totalStockholdersEquity",
+      "updated",
+      "weightedAverageShsOut",
+      "weightedAverageShsOutDil",
+      "year"
+    ],
     "evidence": "src/controllers/clarezaController.ts:70",
     "frontConsumer": null
   },
@@ -716,7 +894,81 @@
     "method": "GET",
     "path": "/api/clareza/stock/:ticker",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "adjDividend",
+      "allTimeAvgPriceTarget",
+      "beta",
+      "calendarYear",
+      "capitalExpenditure",
+      "cashAndShortTermInvestments",
+      "cashRatioTTM",
+      "change",
+      "changePercentage",
+      "companyName",
+      "currency",
+      "currentRatioTTM",
+      "date",
+      "debtToEquityRatioTTM",
+      "depreciationAndAmortization",
+      "dividend",
+      "dividendPayoutRatioTTM",
+      "dividendYieldTTM",
+      "dividendsPaid",
+      "ebitda",
+      "eps",
+      "epsdiluted",
+      "evToEBITDATTM",
+      "exchange",
+      "exchangeShortName",
+      "forwardPriceToEarningsGrowthRatioTTM",
+      "freeCashFlowYieldTTM",
+      "grossProfit",
+      "grossProfitMarginTTM",
+      "industry",
+      "interestCoverageRatioTTM",
+      "interestCoverageTTM",
+      "lastDiv",
+      "lastDividend",
+      "lastMonthAvgPriceTarget",
+      "longTermDebt",
+      "marketCap",
+      "metrics",
+      "name",
+      "netDebt",
+      "netDebtToEBITDATTM",
+      "netDividendsPaid",
+      "netIncome",
+      "netProfitMarginTTM",
+      "operatingIncome",
+      "peersList",
+      "price",
+      "priceTarget",
+      "priceToBookRatioTTM",
+      "priceToEarningsGrowthRatioTTM",
+      "priceToEarningsRatioTTM",
+      "priceToSalesRatioTTM",
+      "range",
+      "returnOnEquityTTM",
+      "revenue",
+      "sector",
+      "sharesOut",
+      "sharesOutstanding",
+      "shortTermDebt",
+      "source",
+      "stockPrice",
+      "symbol",
+      "targetConsensus",
+      "ticker",
+      "totalCurrentAssets",
+      "totalCurrentLiabilities",
+      "totalDebt",
+      "totalDebtAndCapitalLeaseObligations",
+      "totalStockholdersEquity",
+      "updated",
+      "weightedAverageShsOut",
+      "weightedAverageShsOutDil",
+      "year"
+    ],
     "evidence": "src/controllers/clarezaController.ts:100",
     "frontConsumer": null
   },
@@ -757,10 +1009,28 @@
     "path": "/api/classes/:classId/details",
     "family": "domain-envelope",
     "shapeKeys": [
+      "__v",
+      "_id",
+      "classId",
+      "createdAt",
+      "curseducaId",
+      "curseducaUuid",
+      "description",
+      "estado",
+      "isActive",
+      "lastSyncAt",
+      "name",
+      "productId",
+      "recentHistory",
+      "source",
+      "stats",
+      "studentCount",
+      "students",
       "success",
-      "timestamp"
+      "timestamp",
+      "updatedAt"
     ],
-    "evidence": "dynamic response spread; src/controllers/classes/classDetails.controller.ts:41",
+    "evidence": "src/controllers/classes/classDetails.controller.ts:41",
     "frontConsumer": null
   },
   {
@@ -866,7 +1136,7 @@
       "total"
     ],
     "evidence": "src/controllers/classes/classHistory.controller.ts:36",
-    "frontConsumer": "src/pages/gerirAlunos/turmas/components/ClassHistoryDialog.tsx"
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -880,21 +1150,32 @@
       "total"
     ],
     "evidence": "src/controllers/classes/classHistory.controller.ts:51",
-    "frontConsumer": "src/pages/gerirAlunos/turmas/components/ClassHistoryDialog.tsx"
+    "frontConsumer": null
   },
   {
     "method": "GET",
     "path": "/api/classes/users/search",
     "family": "domain-envelope",
     "shapeKeys": [
+      "_id",
+      "classId",
+      "className",
+      "combined",
+      "communicationByCourse",
+      "curseduca",
+      "discord",
+      "email",
+      "hotmart",
       "message",
+      "metadata",
       "multiple",
+      "name",
       "students",
       "success",
       "timestamp",
       "total"
     ],
-    "evidence": "dynamic response spread; src/controllers/classes/classRoster.controller.ts:81",
+    "evidence": "src/controllers/classes/classRoster.controller.ts:81",
     "frontConsumer": null
   },
   {
@@ -918,7 +1199,7 @@
       "totalLessons"
     ],
     "evidence": "src/controllers/courseLessons.controller.ts:38",
-    "frontConsumer": null
+    "frontConsumer": "src/services/courseLessons.service.ts"
   },
   {
     "method": "GET",
@@ -1107,48 +1388,32 @@
     "method": "GET",
     "path": "/api/curseduca/debug",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:47",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:47",
     "frontConsumer": null
   },
   {
     "method": "GET",
     "path": "/api/curseduca/groups",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:7",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:7",
     "frontConsumer": null
   },
   {
     "method": "GET",
     "path": "/api/curseduca/members",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:15",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:15",
     "frontConsumer": null
   },
   {
     "method": "GET",
     "path": "/api/curseduca/members/by",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:23",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:23",
     "frontConsumer": null
   },
   {
@@ -1194,24 +1459,16 @@
     "method": "GET",
     "path": "/api/curseduca/report",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:56",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:56",
     "frontConsumer": null
   },
   {
     "method": "GET",
     "path": "/api/curseduca/reports/access",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:31",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:31",
     "frontConsumer": null
   },
   {
@@ -1285,24 +1542,16 @@
     "method": "GET",
     "path": "/api/curseduca/user",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:64",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:64",
     "frontConsumer": null
   },
   {
     "method": "GET",
     "path": "/api/curseduca/users",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:39",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:39",
     "frontConsumer": null
   },
   {
@@ -1419,7 +1668,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:71",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "GET",
@@ -1430,7 +1679,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:170",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "GET",
@@ -1446,8 +1695,13 @@
   {
     "method": "GET",
     "path": "/api/discord-renewal/scheduled/:key/preview",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "message",
+      "preview",
+      "success",
+      "target"
+    ],
     "evidence": "src/routes/discordRenewal.routes.ts:200",
     "frontConsumer": null
   },
@@ -1460,7 +1714,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:44",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "GET",
@@ -1471,7 +1725,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:113",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "GET",
@@ -1575,7 +1829,7 @@
       "total"
     ],
     "evidence": "src/routes/validationLogs.routes.ts:69",
-    "frontConsumer": null
+    "frontConsumer": "src/services/validationLogs.service.ts"
   },
   {
     "method": "GET",
@@ -1587,7 +1841,7 @@
       "totals"
     ],
     "evidence": "src/routes/validationLogs.routes.ts:137",
-    "frontConsumer": null
+    "frontConsumer": "src/services/validationLogs.service.ts"
   },
   {
     "method": "GET",
@@ -1678,8 +1932,11 @@
   {
     "method": "GET",
     "path": "/api/guru/debug/token",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "debug",
+      "success"
+    ],
     "evidence": "src/controllers/guruWebhookAdmin.controller.ts:8",
     "frontConsumer": null
   },
@@ -2237,7 +2494,7 @@
       "success"
     ],
     "evidence": "src/controllers/products/products.controller.ts:149",
-    "frontConsumer": "src/services/api.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -2250,7 +2507,7 @@
       "users"
     ],
     "evidence": "src/controllers/products/products.controller.ts:100",
-    "frontConsumer": "src/services/api.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -2261,7 +2518,7 @@
       "success"
     ],
     "evidence": "src/routes/renewalAc.routes.ts:67",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
     "method": "GET",
@@ -2272,7 +2529,7 @@
       "success"
     ],
     "evidence": "src/routes/renewalAc.routes.ts:46",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
     "method": "GET",
@@ -2283,15 +2540,21 @@
       "total"
     ],
     "evidence": "src/controllers/renewal.controller.ts:25",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
     "method": "GET",
     "path": "/api/renewal/performance",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "availableYears",
+      "target",
+      "totals",
+      "turmas",
+      "year"
+    ],
     "evidence": "src/controllers/renewal.controller.ts:149",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
     "method": "GET",
@@ -2302,7 +2565,7 @@
       "uncovered"
     ],
     "evidence": "src/controllers/renewal.controller.ts:136",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
     "method": "GET",
@@ -2329,8 +2592,12 @@
   {
     "method": "GET",
     "path": "/api/students/:userId/complete",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "data",
+      "meta",
+      "success"
+    ],
     "evidence": "src/controllers/studentsController.ts:47",
     "frontConsumer": "src/hooks/useStudentComplete.ts"
   },
@@ -2801,8 +3068,13 @@
   {
     "method": "GET",
     "path": "/api/users",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "data",
+      "filters",
+      "pagination",
+      "success"
+    ],
     "evidence": "src/controllers/users/usersV2List.controller.ts:51",
     "frontConsumer": "src/services/api.ts"
   },
@@ -2815,23 +3087,46 @@
       "success"
     ],
     "evidence": "src/controllers/users/userLookup.controller.ts:23",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
+    "frontConsumer": "src/services/api.ts"
   },
   {
     "method": "GET",
     "path": "/api/users/:id/history",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "classHistory",
+      "history",
+      "stats",
+      "student",
+      "syncHistory",
+      "total",
+      "userHistory"
+    ],
     "evidence": "src/controllers/users/studentHistory.controller.ts:23",
-    "frontConsumer": "src/services/usersV2.service.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
     "path": "/api/users/:id/stats",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "classId",
+      "daysSinceLastAccess",
+      "daysSincePurchase",
+      "hasClass",
+      "hasDiscordIds",
+      "hasEmail",
+      "hasLastAccess",
+      "hasName",
+      "hasProgress",
+      "hasPurchaseDate",
+      "isActive",
+      "progressPercentage",
+      "totalDiscordIds",
+      "validationStatus"
+    ],
     "evidence": "src/controllers/users/studentStats.controller.ts:19",
-    "frontConsumer": "src/services/usersV2.service.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -2842,7 +3137,7 @@
       "success"
     ],
     "evidence": "src/controllers/users/studentClasses.controller.ts:33",
-    "frontConsumer": "src/services/usersV2.service.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -2860,13 +3155,9 @@
     "method": "GET",
     "path": "/api/users/by-email/:email",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:64",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:64",
+    "frontConsumer": "src/services/usersV2.service.ts"
   },
   {
     "method": "GET",
@@ -2877,7 +3168,7 @@
       "success"
     ],
     "evidence": "src/controllers/users/userDashboardStats.controller.ts:11",
-    "frontConsumer": "src/services/api.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -2889,15 +3180,25 @@
       "timestamp"
     ],
     "evidence": "src/controllers/users/userProductStats.controller.ts:11",
-    "frontConsumer": "src/services/api.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
     "path": "/api/users/getUserStats",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "activeUsers",
+      "averageEngagement",
+      "bothPlatforms",
+      "inactiveUsers",
+      "needsAttentionCount",
+      "platformStats",
+      "topPerformersCount",
+      "totalUsers",
+      "withEngagement"
+    ],
     "evidence": "src/controllers/users/userPlatformStats.controller.ts:11",
-    "frontConsumer": "src/services/api.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -2908,7 +3209,7 @@
       "pagination"
     ],
     "evidence": "src/controllers/usersReviewLists.controller.ts:35",
-    "frontConsumer": "src/services/api.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -2961,7 +3262,14 @@
     "method": "GET",
     "path": "/api/users/listUsersSimple",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "count",
+      "limit",
+      "page",
+      "pagination",
+      "totalPages",
+      "users"
+    ],
     "evidence": "src/controllers/usersSimpleList.controller.ts:10",
     "frontConsumer": "src/hooks/useUsers.ts"
   },
@@ -2970,10 +3278,53 @@
     "path": "/api/users/search",
     "family": "domain-envelope",
     "shapeKeys": [
+      "_id",
+      "acTagsByProduct",
+      "acceptedTerms",
+      "accessCount",
+      "classId",
+      "className",
+      "combined",
+      "createdAt",
+      "curseducaUserId",
+      "deletedAt",
+      "deletedBy",
+      "discordIds",
+      "email",
+      "engagement",
+      "engagementCalculatedAt",
+      "engagementLevel",
+      "engagementScore",
+      "estado",
+      "firstAccessDate",
+      "hotmartUserId",
+      "isDeletable",
+      "isDeleted",
+      "lastAccessDate",
+      "lastActivityAt",
+      "lastEditedAt",
+      "lastEditedBy",
+      "locale",
       "message",
       "multiple",
+      "name",
+      "notes",
+      "performanceMetrics",
+      "plusAccess",
+      "priority",
+      "progress",
+      "purchaseDate",
+      "role",
+      "signupDate",
+      "source",
+      "status",
       "students",
-      "truncated"
+      "tags",
+      "timer",
+      "truncated",
+      "type",
+      "updatedAt",
+      "username"
     ],
     "evidence": "mixed success exits (domain-envelope, raw-json); src/controllers/users/studentSearch.controller.ts:73",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
@@ -2982,9 +3333,19 @@
     "method": "GET",
     "path": "/api/users/stats",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "activeUsers",
+      "averageEngagement",
+      "bothPlatforms",
+      "inactiveUsers",
+      "needsAttentionCount",
+      "platformStats",
+      "topPerformersCount",
+      "totalUsers",
+      "withEngagement"
+    ],
     "evidence": "src/controllers/users/userPlatformStats.controller.ts:11",
-    "frontConsumer": "src/services/api.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -3002,7 +3363,15 @@
     "method": "GET",
     "path": "/api/users/student/:id/history",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "classHistory",
+      "history",
+      "stats",
+      "student",
+      "syncHistory",
+      "total",
+      "userHistory"
+    ],
     "evidence": "src/controllers/users/studentHistory.controller.ts:23",
     "frontConsumer": null
   },
@@ -3010,15 +3379,34 @@
     "method": "GET",
     "path": "/api/users/student/:id/stats",
     "family": "raw-json",
-    "shapeKeys": [],
+    "shapeKeys": [
+      "classId",
+      "daysSinceLastAccess",
+      "daysSincePurchase",
+      "hasClass",
+      "hasDiscordIds",
+      "hasEmail",
+      "hasLastAccess",
+      "hasName",
+      "hasProgress",
+      "hasPurchaseDate",
+      "isActive",
+      "progressPercentage",
+      "totalDiscordIds",
+      "validationStatus"
+    ],
     "evidence": "src/controllers/users/studentStats.controller.ts:19",
     "frontConsumer": null
   },
   {
     "method": "GET",
     "path": "/api/users/unified",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "pagination",
+      "success",
+      "users"
+    ],
     "evidence": "src/controllers/users/userDirectory.controller.ts:11",
     "frontConsumer": null
   },
@@ -3031,7 +3419,7 @@
       "unmatchedUsers"
     ],
     "evidence": "src/controllers/usersReviewLists.controller.ts:61",
-    "frontConsumer": "src/services/api.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
@@ -3052,18 +3440,26 @@
   {
     "method": "GET",
     "path": "/api/users/v2",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "data",
+      "filters",
+      "pagination",
+      "success"
+    ],
     "evidence": "src/controllers/users/usersV2List.controller.ts:51",
-    "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
+    "frontConsumer": null
   },
   {
     "method": "GET",
     "path": "/api/users/v2/analytics",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
     "evidence": "src/controllers/users/usersV2List.controller.ts:34",
-    "frontConsumer": null
+    "frontConsumer": "src/features/users-v2/usersV2.api.ts"
   },
   {
     "method": "GET",
@@ -3090,16 +3486,24 @@
   {
     "method": "GET",
     "path": "/api/users/v2/enrollments",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "data",
+      "filters",
+      "pagination",
+      "success"
+    ],
     "evidence": "src/controllers/users/usersV2List.controller.ts:17",
-    "frontConsumer": null
+    "frontConsumer": "src/features/users-v2/usersV2.api.ts"
   },
   {
     "method": "GET",
     "path": "/api/users/v2/stats",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
     "evidence": "src/controllers/users/usersV2Analytics.controller.ts:18",
     "frontConsumer": null
   },
@@ -3191,7 +3595,7 @@
       "offer"
     ],
     "evidence": "src/controllers/renewal.controller.ts:122",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
     "method": "PATCH",
@@ -3465,7 +3869,7 @@
       "timestamp"
     ],
     "evidence": "src/controllers/analytics/individualScoreRecalculation.controller.ts:25",
-    "frontConsumer": null
+    "frontConsumer": "src/features/analytics/analytics.api.ts"
   },
   {
     "method": "POST",
@@ -3732,7 +4136,7 @@
       "sync"
     ],
     "evidence": "src/controllers/courseLessons.controller.ts:80",
-    "frontConsumer": null
+    "frontConsumer": "src/services/courseLessons.service.ts"
   },
   {
     "method": "POST",
@@ -3874,12 +4278,8 @@
     "method": "POST",
     "path": "/api/curseduca/cleanup",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:75",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:75",
     "frontConsumer": null
   },
   {
@@ -3913,7 +4313,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:91",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "POST",
@@ -3924,7 +4324,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:102",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "POST",
@@ -3935,15 +4335,19 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:149",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "POST",
     "path": "/api/discord-renewal/messages/send",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "message",
+      "messageIds",
+      "success"
+    ],
     "evidence": "src/routes/discordRenewal.routes.ts:163",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "POST",
@@ -3954,13 +4358,17 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:77",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "POST",
     "path": "/api/discord-renewal/scheduled/:key/test",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "message",
+      "messageIds",
+      "success"
+    ],
     "evidence": "src/routes/discordRenewal.routes.ts:207",
     "frontConsumer": null
   },
@@ -4358,8 +4766,11 @@
   {
     "method": "POST",
     "path": "/api/hotmart/syncProgressOnly",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "message",
+      "stats"
+    ],
     "evidence": "src/controllers/hotmart/hotmartProgress.controller.ts:6",
     "frontConsumer": null
   },
@@ -4421,7 +4832,7 @@
       "success"
     ],
     "evidence": "src/routes/renewalAc.routes.ts:103",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
     "method": "POST",
@@ -4432,7 +4843,7 @@
       "success"
     ],
     "evidence": "src/routes/renewalAc.routes.ts:126",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
     "method": "POST",
@@ -4443,7 +4854,7 @@
       "success"
     ],
     "evidence": "src/routes/renewalAc.routes.ts:118",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
     "method": "POST",
@@ -4454,7 +4865,7 @@
       "success"
     ],
     "evidence": "src/routes/renewalAc.routes.ts:77",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
     "method": "POST",
@@ -4465,7 +4876,7 @@
       "success"
     ],
     "evidence": "src/routes/renewalAc.routes.ts:87",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
     "method": "POST",
@@ -4475,7 +4886,7 @@
       "offer"
     ],
     "evidence": "src/controllers/renewal.controller.ts:80",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
     "method": "POST",
@@ -4485,7 +4896,7 @@
       "report"
     ],
     "evidence": "src/controllers/renewal.controller.ts:160",
-    "frontConsumer": null
+    "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
     "method": "POST",
@@ -4565,35 +4976,24 @@
     "method": "POST",
     "path": "/api/sync/discord",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/sync/operations.controller.ts:295",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/sync/operations.controller.ts:295",
     "frontConsumer": null
   },
   {
     "method": "POST",
     "path": "/api/sync/discord/batch",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "success"
-    ],
-    "evidence": "src/controllers/sync/operations.controller.ts:319",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/sync/operations.controller.ts:319",
     "frontConsumer": null
   },
   {
     "method": "POST",
     "path": "/api/sync/discord/csv",
     "family": "domain-envelope",
-    "shapeKeys": [
-      "message",
-      "note",
-      "success"
-    ],
-    "evidence": "src/controllers/sync/operations.controller.ts:307",
+    "shapeKeys": [],
+    "evidence": "no successful exit (501-only); src/controllers/sync/operations.controller.ts:307",
     "frontConsumer": null
   },
   {
@@ -5037,7 +5437,7 @@
       "message"
     ],
     "evidence": "src/controllers/courseLessons.controller.ts:68",
-    "frontConsumer": null
+    "frontConsumer": "src/services/courseLessons.service.ts"
   },
   {
     "method": "PUT",
@@ -5094,7 +5494,7 @@
       "success"
     ],
     "evidence": "src/routes/discordRenewal.routes.ts:141",
-    "frontConsumer": null
+    "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
     "method": "PUT",
@@ -5181,16 +5581,20 @@
   {
     "method": "PUT",
     "path": "/api/users/:id",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "email"
+    ],
     "evidence": "src/controllers/users/studentMutations.controller.ts:26",
     "frontConsumer": "src/pages/gerirAlunos/students/StudentEditor.tsx"
   },
   {
     "method": "PUT",
     "path": "/api/users/editStudent/:id",
-    "family": "raw-json",
-    "shapeKeys": [],
+    "family": "domain-envelope",
+    "shapeKeys": [
+      "email"
+    ],
     "evidence": "src/controllers/users/studentMutations.controller.ts:26",
     "frontConsumer": null
   },

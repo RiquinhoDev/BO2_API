@@ -1,6 +1,7 @@
 import { Class, ClassHistory, InactivationList } from '../../models/Class'
 import { User } from '../../models'
 import type {
+  ClassDetailStats,
   ClassDetailsReader,
   ClassRecord,
   ClassStatsData,
@@ -113,7 +114,7 @@ export class MongooseClassDetailsReader implements ClassDetailsReader {
     return { ...cls, studentCount }
   }
 
-  private async detailedStats(classId: string): Promise<ClassRecord> {
+  private async detailedStats(classId: string): Promise<ClassDetailStats> {
     const cls = await Class.findOne({ classId }).lean() as unknown as ClassRecord | null
 
     let counts: [number, number, number, number]
