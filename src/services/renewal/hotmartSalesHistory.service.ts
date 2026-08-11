@@ -43,6 +43,7 @@ export interface SalesHistorySyncReport {
   withSales: number
   withoutSales: number
   monthlyStatsUpdated: number
+  refundTransactionsFound: number
   errors: Array<{ email: string; error: string }>
 }
 
@@ -226,7 +227,8 @@ function extractTotalResults(responseData: any): number | null {
  */
 async function fetchAllOgiSalesGroupedByEmail(
   accessToken: string,
-  hotmartProductId: string
+  hotmartProductId: string,
+  transactionStatusFilter?: string
 ): Promise<BulkSalesResult> {
   const salesByEmail = new Map<string, IHotmartSale[]>()
   let pageToken: string | null = null
@@ -240,6 +242,7 @@ async function fetchAllOgiSalesGroupedByEmail(
     const response = await requestSalesPage(accessToken, {
       max_results: 100,
       start_date: startDate,
+      ...(transactionStatusFilter ? { transaction_status: transactionStatusFilter } : {}),
       ...(pageToken ? { page_token: pageToken } : {})
     })
     pagesFetched += 1
@@ -249,7 +252,7 @@ async function fetchAllOgiSalesGroupedByEmail(
     }
 
     const items = extractSalesItems(response.data)
-    console.log(`📄 [HotmartSalesSync] Página ${pagesFetched}: ${items.length} vendas (acumulado: ${salesChecked + items.length}${totalResultsReportedByHotmart !== null ? `/${totalResultsReportedByHotmart}` : ''})`)
+    console.log(`📄 [HotmartSalesSync${transactionStatusFilter ? `:${transactionStatusFilter}` : ''}] Página ${pagesFetched}: ${items.length} vendas (acumulado: ${salesChecked + items.length}${totalResultsReportedByHotmart !== null ? `/${totalResultsReportedByHotmart}` : ''})`)
 
     for (const item of items) {
       salesChecked += 1
@@ -261,6 +264,10 @@ async function fetchAllOgiSalesGroupedByEmail(
       if (!email) continue
 
       const sale = parseSaleItem(item)
+      // a Hotmart não garante que purchase.status reflita o filtro pedido
+      // (mesmo cuidado já tomado em hotmartRefunds.service.ts) — quando
+      // pedimos por transaction_status explícito, esse É o estado real.
+      if (transactionStatusFilter) sale.transactionStatus = transactionStatusFilter
       const list = salesByEmail.get(email)
       if (list) list.push(sale)
       else salesByEmail.set(email, [sale])
@@ -406,9 +413,29 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
   const { salesByEmail, salesChecked, pagesFetched, totalResultsReportedByHotmart, paginationComplete } =
     await fetchAllOgiSalesGroupedByEmail(accessToken, hotmartProductId)
 
-  // desempenho de vendas por mês (TODAS as vendas do produto vistas neste
-  // pedido, não só as de alunos ativos) — mesma passagem, zero custo extra.
-  const monthlyStats = aggregateMonthlySalesStats(salesByEmail)
+  // a Hotmart NÃO devolve reembolsos/chargebacks no pedido normal — só
+  // aparecem com transaction_status explícito (mesmo comportamento já
+  // tratado em hotmartRefunds.service.ts). 2 passagens extra, filtradas,
+  // só para o desempenho mensal — não afeta HotmartSaleHistory (continua
+  // a usar só o `salesByEmail` de cima, comportamento inalterado).
+  const [refundedResult, chargebackResult] = await Promise.all([
+    fetchAllOgiSalesGroupedByEmail(accessToken, hotmartProductId, 'REFUNDED'),
+    fetchAllOgiSalesGroupedByEmail(accessToken, hotmartProductId, 'CHARGEBACK')
+  ])
+
+  const salesByEmailWithRefunds = new Map<string, IHotmartSale[]>()
+  for (const [email, sales] of salesByEmail) salesByEmailWithRefunds.set(email, [...sales])
+  for (const extra of [refundedResult, chargebackResult]) {
+    for (const [email, sales] of extra.salesByEmail) {
+      const list = salesByEmailWithRefunds.get(email)
+      if (list) list.push(...sales)
+      else salesByEmailWithRefunds.set(email, [...sales])
+    }
+  }
+
+  // desempenho de vendas por mês (TODAS as vendas do produto vistas nestes
+  // pedidos, não só as de alunos ativos) — inclui agora reembolsos/chargebacks.
+  const monthlyStats = aggregateMonthlySalesStats(salesByEmailWithRefunds)
   await saveMonthlySalesStats(monthlyStats)
 
   const report: SalesHistorySyncReport = {
@@ -422,6 +449,8 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
     withSales: 0,
     withoutSales: 0,
     monthlyStatsUpdated: monthlyStats.length,
+    refundTransactionsFound: [...refundedResult.salesByEmail.values(), ...chargebackResult.salesByEmail.values()]
+      .reduce((n, s) => n + s.length, 0),
     errors: []
   }
 
