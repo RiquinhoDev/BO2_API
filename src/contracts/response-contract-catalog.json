@@ -26,11 +26,11 @@
     "path": "/api/classes/:classId",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/classes/classMutations.controller.ts:73",
+    "evidence": "src/controllers/classes/classMutations.controller.ts:71",
     "frontConsumer": "src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts"
   },
   {
@@ -73,10 +73,11 @@
     "path": "/api/guru/snapshots/:year/:month",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:379",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:362",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -84,11 +85,11 @@
     "path": "/api/guru/snapshots/all",
     "family": "success-data",
     "shapeKeys": [
-      "deletedCount",
-      "message",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:410",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:390",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -124,7 +125,7 @@
       "deletedCount",
       "message"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:233",
+    "evidence": "src/controllers/sync/history.controller.ts:225",
     "frontConsumer": null
   },
   {
@@ -270,8 +271,8 @@
     "path": "/api/activecampaign/communication-history",
     "family": "success-data",
     "shapeKeys": [
-      "history",
-      "pagination",
+      "data",
+      "meta",
       "success"
     ],
     "evidence": "src/controllers/acTags/activeCampaignHistoryList.controller.ts:89",
@@ -282,10 +283,9 @@
     "path": "/api/activecampaign/courses/clareza/students",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
-      "students",
-      "success",
-      "warning"
+      "data",
+      "meta",
+      "success"
     ],
     "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:22",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
@@ -295,12 +295,11 @@
     "path": "/api/activecampaign/courses/ogi/students",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
-      "students",
-      "success",
-      "warning"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:159",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:163",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -342,7 +341,7 @@
     "path": "/api/activecampaign/stats",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
+      "data",
       "success"
     ],
     "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:210",
@@ -365,10 +364,8 @@
     "path": "/api/activecampaign/v2/products/:productId/tagged",
     "family": "success-data",
     "shapeKeys": [
-      "_v2Enabled",
-      "count",
       "data",
-      "filters",
+      "meta",
       "success"
     ],
     "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:218",
@@ -384,7 +381,7 @@
       "success",
       "summary"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:260",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:262",
     "frontConsumer": null
   },
   {
@@ -597,7 +594,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/businessAnalytics.controller.ts:408",
+    "evidence": "src/controllers/businessAnalytics.controller.ts:409",
     "frontConsumer": "src/hooks/Usebusinessanalytics.ts"
   },
   {
@@ -609,7 +606,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/businessAnalytics.controller.ts:208",
+    "evidence": "src/controllers/businessAnalytics.controller.ts:258",
     "frontConsumer": "src/hooks/Usebusinessanalytics.ts"
   },
   {
@@ -621,7 +618,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/businessAnalytics.controller.ts:327",
+    "evidence": "src/controllers/businessAnalytics.controller.ts:352",
     "frontConsumer": "src/hooks/Usebusinessanalytics.ts"
   },
   {
@@ -1043,15 +1040,11 @@
     "path": "/api/classes/:classId/students",
     "family": "success-data",
     "shapeKeys": [
-      "classId",
-      "className",
-      "filters",
-      "pagination",
-      "students",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/classes/classRoster.controller.ts:35",
+    "evidence": "src/controllers/classes/classRoster.controller.ts:36",
     "frontConsumer": "src/pages/gerirAlunos/turmas/components/StudentsDialog.tsx"
   },
   {
@@ -1086,13 +1079,11 @@
     "path": "/api/classes/inactivationLists",
     "family": "success-data",
     "shapeKeys": [
-      "filters",
-      "lists",
-      "success",
-      "timestamp",
-      "total"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:44",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:42",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -1100,12 +1091,9 @@
     "path": "/api/classes/listClasses",
     "family": "success-data",
     "shapeKeys": [
-      "classes",
       "data",
-      "filters",
-      "success",
-      "timestamp",
-      "total"
+      "meta",
+      "success"
     ],
     "evidence": "src/controllers/classes/classDirectory.controller.ts:35",
     "frontConsumer": "src/components/analytics/analytics/ClassAnalyticsTab.tsx"
@@ -1115,16 +1103,9 @@
     "path": "/api/classes/stats",
     "family": "success-data",
     "shapeKeys": [
-      "activeClasses",
-      "inactivationStats",
-      "inactiveClasses",
-      "recentMovements",
-      "sourceBreakdown",
-      "studentDistribution",
-      "success",
-      "timestamp",
-      "totalClasses",
-      "totalStudents"
+      "data",
+      "meta",
+      "success"
     ],
     "evidence": "src/controllers/classes/classDetails.controller.ts:24",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
@@ -1188,7 +1169,7 @@
       "total",
       "updatedAt"
     ],
-    "evidence": "src/controllers/classes/classRoster.controller.ts:81",
+    "evidence": "src/controllers/classes/classRoster.controller.ts:72",
     "frontConsumer": null
   },
   {
@@ -1196,8 +1177,8 @@
     "path": "/api/communication-history",
     "family": "success-data",
     "shapeKeys": [
-      "history",
-      "pagination",
+      "data",
+      "meta",
       "success"
     ],
     "evidence": "src/controllers/acTags/activeCampaignHistoryList.controller.ts:89",
@@ -1208,10 +1189,11 @@
     "path": "/api/course-lessons",
     "family": "success-data",
     "shapeKeys": [
-      "modules",
-      "totalLessons"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/courseLessons.controller.ts:38",
+    "evidence": "src/controllers/courseLessons.controller.ts:39",
     "frontConsumer": "src/services/courseLessons.service.ts"
   },
   {
@@ -1242,10 +1224,9 @@
     "path": "/api/courses/clareza/students",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
-      "students",
-      "success",
-      "warning"
+      "data",
+      "meta",
+      "success"
     ],
     "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:22",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
@@ -1255,12 +1236,11 @@
     "path": "/api/courses/ogi/students",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
-      "students",
-      "success",
-      "warning"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:159",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:163",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -1849,12 +1829,10 @@
     "path": "/api/guru/analytics/churn",
     "family": "success-data",
     "shapeKeys": [
-      "churn",
-      "dataQuality",
-      "note",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:234",
+    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:232",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -1862,10 +1840,7 @@
     "path": "/api/guru/analytics/churn-live",
     "family": "success-data",
     "shapeKeys": [
-      "cached",
-      "churn",
-      "computedAt",
-      "source",
+      "data",
       "success"
     ],
     "evidence": "src/controllers/guruAnalytics/churn.controller.ts:61",
@@ -1876,16 +1851,10 @@
     "path": "/api/guru/analytics/churn-live/status",
     "family": "success-data",
     "shapeKeys": [
-      "fetched",
-      "hasCache",
-      "percent",
-      "phase",
-      "running",
-      "startedAt",
-      "success",
-      "total"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:38",
+    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:39",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -1893,12 +1862,10 @@
     "path": "/api/guru/analytics/compare",
     "family": "success-data",
     "shapeKeys": [
-      "cleanup",
-      "discrepancies",
-      "stats",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guruAnalytics/comparison.controller.ts:405",
+    "evidence": "src/controllers/guruAnalytics/comparison.controller.ts:406",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -1927,7 +1894,7 @@
       "mrr",
       "success"
     ],
-    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:288",
+    "evidence": "src/controllers/guruAnalytics/churn.controller.ts:285",
     "frontConsumer": null
   },
   {
@@ -1946,12 +1913,10 @@
     "path": "/api/guru/diagnose",
     "family": "success-data",
     "shapeKeys": [
-      "config",
-      "success",
-      "user",
-      "webhooks"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/guru.sso.controller.ts:269",
+    "evidence": "src/controllers/guru.sso.controller.ts:268",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1992,7 +1957,7 @@
     "path": "/api/guru/myorders",
     "family": "redirect",
     "shapeKeys": [],
-    "evidence": "src/controllers/guru.sso.controller.ts:125",
+    "evidence": "src/controllers/guru.sso.controller.ts:126",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -2000,11 +1965,11 @@
     "path": "/api/guru/snapshots",
     "family": "success-data",
     "shapeKeys": [
-      "snapshots",
-      "success",
-      "total"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:310",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:300",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -2012,10 +1977,10 @@
     "path": "/api/guru/snapshots/:year/:month",
     "family": "success-data",
     "shapeKeys": [
-      "snapshot",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:345",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:331",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -2023,12 +1988,11 @@
     "path": "/api/guru/snapshots/churn",
     "family": "success-data",
     "shapeKeys": [
-      "churn",
-      "message",
-      "snapshots",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/analytics.controller.ts:27",
+    "evidence": "src/controllers/guruSnapshots/analytics.controller.ts:30",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -2047,14 +2011,10 @@
     "path": "/api/guru/status",
     "family": "success-data",
     "shapeKeys": [
-      "canAccessSSO",
-      "email",
-      "hasSubscription",
-      "name",
-      "subscription",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.sso.controller.ts:189",
+    "evidence": "src/controllers/guru.sso.controller.ts:190",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -2062,11 +2022,11 @@
     "path": "/api/guru/subscriptions",
     "family": "success-data",
     "shapeKeys": [
-      "pagination",
-      "subscriptions",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSubscriptionList.controller.ts:119",
+    "evidence": "src/controllers/guruSubscriptionList.controller.ts:120",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -2137,11 +2097,11 @@
     "path": "/api/guru/trials",
     "family": "success-data",
     "shapeKeys": [
-      "success",
-      "total",
-      "trials"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:32",
+    "evidence": "src/controllers/guru.trials.controller.ts:33",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -2149,10 +2109,10 @@
     "path": "/api/guru/trials/stats",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:49",
+    "evidence": "src/controllers/guru.trials.controller.ts:46",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -2521,8 +2481,9 @@
     "path": "/api/renewal/offers",
     "family": "success-data",
     "shapeKeys": [
-      "offers",
-      "total"
+      "data",
+      "meta",
+      "success"
     ],
     "evidence": "src/controllers/renewal.controller.ts:26",
     "frontConsumer": "src/services/renewalOffers.service.ts"
@@ -2543,8 +2504,8 @@
     "path": "/api/renewal/turmas",
     "family": "success-data",
     "shapeKeys": [
-      "turmas",
-      "uncovered"
+      "data",
+      "success"
     ],
     "evidence": "src/controllers/renewal.controller.ts:137",
     "frontConsumer": "src/services/renewalOffers.service.ts"
@@ -2580,7 +2541,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/studentsController.ts:47",
+    "evidence": "src/controllers/studentsController.ts:48",
     "frontConsumer": "src/hooks/useStudentComplete.ts"
   },
   {
@@ -2647,14 +2608,11 @@
     "path": "/api/sync/history",
     "family": "success-data",
     "shapeKeys": [
-      "count",
-      "filters",
-      "history",
-      "limit",
-      "page",
-      "totalPages"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:86",
+    "evidence": "src/controllers/sync/history.controller.ts:87",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/index.page.client.tsx"
   },
   {
@@ -2675,10 +2633,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "message",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:31",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:32",
     "frontConsumer": "src/pages/gerirAlunos/hotmartSync/hooks/useSyncReports.ts"
   },
   {
@@ -2690,7 +2648,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:66",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:60",
     "frontConsumer": null
   },
   {
@@ -2702,7 +2660,7 @@
       "message",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:92",
+    "evidence": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts:86",
     "frontConsumer": null
   },
   {
@@ -2727,7 +2685,7 @@
       "recentSyncs",
       "typeStats"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:187",
+    "evidence": "src/controllers/sync/history.controller.ts:179",
     "frontConsumer": null
   },
   {
@@ -2749,7 +2707,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:249",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:250",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2853,7 +2811,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:33",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:34",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2864,7 +2822,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:115",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:116",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2876,7 +2834,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:64",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:65",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2887,7 +2845,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:178",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:179",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2898,7 +2856,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:218",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:219",
     "frontConsumer": null
   },
   {
@@ -2909,7 +2867,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:353",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:354",
     "frontConsumer": "src/pages/gerirAlunos/syncUtilizadores/hooks/useStudentsByPriority.ts"
   },
   {
@@ -2955,7 +2913,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:163",
+    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:164",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -2967,7 +2925,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialCandidates.controller.ts:170",
+    "evidence": "src/controllers/testimonials/testimonialCandidates.controller.ts:171",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -2979,7 +2937,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialCandidates.controller.ts:272",
+    "evidence": "src/controllers/testimonials/testimonialCandidates.controller.ts:273",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -2992,7 +2950,7 @@
       "timelineData",
       "topClasses"
     ],
-    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:240",
+    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:241",
     "frontConsumer": null
   },
   {
@@ -3004,7 +2962,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:65",
+    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:66",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -3016,7 +2974,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:300",
+    "evidence": "src/controllers/testimonials/testimonialQueries.controller.ts:302",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -3471,7 +3429,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:288",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:289",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -3483,7 +3441,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:312",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:313",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -3628,7 +3586,7 @@
       "studentsEvaluated",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:140",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:144",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -3642,7 +3600,7 @@
       "studentsEvaluated",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:277",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:285",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -3680,7 +3638,7 @@
       "productName",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:328",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:330",
     "frontConsumer": null
   },
   {
@@ -3807,7 +3765,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/businessAnalytics.controller.ts:385",
+    "evidence": "src/controllers/businessAnalytics.controller.ts:386",
     "frontConsumer": "src/hooks/Usebusinessanalytics.ts"
   },
   {
@@ -3890,13 +3848,11 @@
     "path": "/api/classes/addOrEditClass",
     "family": "success-data",
     "shapeKeys": [
-      "class",
-      "isNew",
-      "message",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/classes/classMutations.controller.ts:42",
+    "evidence": "src/controllers/classes/classMutations.controller.ts:43",
     "frontConsumer": "src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts"
   },
   {
@@ -3928,13 +3884,11 @@
     "path": "/api/classes/inactivationLists/create",
     "family": "success-data",
     "shapeKeys": [
-      "classUpdates",
-      "list",
-      "message",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:22",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:23",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -3942,12 +3896,11 @@
     "path": "/api/classes/inactivationLists/revert/:id",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "result",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:74",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:69",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -4010,7 +3963,7 @@
       "message",
       "sync"
     ],
-    "evidence": "src/controllers/courseLessons.controller.ts:80",
+    "evidence": "src/controllers/courseLessons.controller.ts:78",
     "frontConsumer": "src/services/courseLessons.service.ts"
   },
   {
@@ -4035,7 +3988,7 @@
       "studentsEvaluated",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:140",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:144",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -4049,7 +4002,7 @@
       "studentsEvaluated",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:277",
+    "evidence": "src/controllers/acTags/activeCampaignCourse.controller.ts:285",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -4504,11 +4457,11 @@
     "path": "/api/guru/snapshots",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "snapshot",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:211",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:213",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -4516,13 +4469,11 @@
     "path": "/api/guru/snapshots/historical",
     "family": "success-data",
     "shapeKeys": [
-      "errors",
-      "message",
-      "skipped",
-      "snapshots",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/history.controller.ts:143",
+    "evidence": "src/controllers/guruSnapshots/history.controller.ts:144",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
@@ -4534,7 +4485,7 @@
       "result",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:63",
+    "evidence": "src/controllers/guru.trials.controller.ts:60",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -4546,7 +4497,7 @@
       "result",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:104",
+    "evidence": "src/controllers/guru.trials.controller.ts:101",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -4558,7 +4509,7 @@
       "result",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:135",
+    "evidence": "src/controllers/guru.trials.controller.ts:132",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -4570,7 +4521,7 @@
       "result",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:81",
+    "evidence": "src/controllers/guru.trials.controller.ts:78",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -4890,7 +4841,7 @@
       "message",
       "syncRecord"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:314",
+    "evidence": "src/controllers/sync/history.controller.ts:306",
     "frontConsumer": null
   },
   {
@@ -4902,7 +4853,7 @@
       "newStatus",
       "syncId"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:277",
+    "evidence": "src/controllers/sync/history.controller.ts:269",
     "frontConsumer": null
   },
   {
@@ -4952,7 +4903,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:156",
+    "evidence": "src/controllers/tagMonitoring/tagMonitoring.controller.ts:157",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -5286,14 +5237,11 @@
     "path": "/api/classes/updateStatus",
     "family": "success-data",
     "shapeKeys": [
-      "action",
-      "class",
-      "message",
-      "studentsAffected",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:102",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:95",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -5304,7 +5252,7 @@
       "lesson",
       "message"
     ],
-    "evidence": "src/controllers/courseLessons.controller.ts:68",
+    "evidence": "src/controllers/courseLessons.controller.ts:66",
     "frontConsumer": "src/services/courseLessons.service.ts"
   },
   {
@@ -5392,13 +5340,11 @@
     "path": "/api/guru/snapshots/:year/:month",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "previousExists",
-      "skipped",
-      "snapshot",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:271",
+    "evidence": "src/controllers/guruSnapshots/crud.controller.ts:269",
     "frontConsumer": "src/features/guru/guruInsights.api.ts"
   },
   {
