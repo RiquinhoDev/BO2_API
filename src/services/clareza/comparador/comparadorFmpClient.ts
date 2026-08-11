@@ -1,6 +1,3 @@
-import axios from 'axios'
-import { getFmpApiKey } from '../../requestDrivenRuntimeConfig'
-import { fmpThrottle } from '../fmpThrottle'
 import type { ComparadorStock } from './comparador.types'
 
 const FMP_BASE_URL = 'https://financialmodelingprep.com/stable'
@@ -27,10 +24,6 @@ export interface ComparadorFmpClientDependencies {
   readonly throttle: () => Promise<void>
   readonly sleep: (milliseconds: number) => Promise<void>
   readonly now: () => string
-}
-
-const axiosHttp: ComparadorFmpHttpPort = {
-  get: async (url, options) => axios.get<unknown>(url, options),
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
@@ -215,14 +208,4 @@ export class AxiosComparadorFmpClient implements ComparadorFmpPort {
     }
     return null
   }
-}
-
-export function createComparadorFmpClient(): AxiosComparadorFmpClient {
-  return new AxiosComparadorFmpClient({
-    http: axiosHttp,
-    getApiKey: getFmpApiKey,
-    throttle: fmpThrottle,
-    sleep: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
-    now: () => new Date().toISOString(),
-  })
 }

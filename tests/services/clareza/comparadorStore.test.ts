@@ -113,7 +113,7 @@ describe('RedisMongoComparadorStore', () => {
       updated: '2026-08-10T09:30:00.000Z',
       stockCount: 1,
       errors: 0,
-      stocks: { OLD: sampleStock('OLD') },
+      stocks: [{ ticker: 'OLD', stock: sampleStock('OLD') }],
     })
 
     await expect(createStore(cache).read()).resolves.toEqual(expected)
@@ -162,4 +162,51 @@ describe('RedisMongoComparadorStore', () => {
 
     await expect(store.read()).resolves.toEqual(snapshot('AAPL', '2026-08-11T09:30:00.000Z'))
   })
+  it('round-trips dotted ticker keys through Mongo without data loss and persists refresh metadata', async () => {
+    const cache = new FakeComparadorCache()
+    const store = createStore(cache)
+    const expected: ComparadorSnapshot = {
+      updated: '2026-08-11T09:30:00.000Z',
+      stocks: {
+        'NESN.SW': sampleStock('NESN.SW'),
+        '005930.KS': sampleStock('005930.KS'),
+      },
+    }
+
+    await store.write(expected, 3)
+    cache.values.clear()
+
+    await expect(store.read()).resolves.toEqual(expected)
+    const persisted = await ClarezaComparadorData.findOne().lean()
+    expect(persisted?.fetchedAt.toISOString()).toBe('2026-08-11T09:30:00.000Z')
+    expect(persisted).toMatchObject({ updated: expected.updated, stockCount: 2, errors: 3 })
+    expect(persisted?.stocks).toEqual([
+      { ticker: 'NESN.SW', stock: sampleStock('NESN.SW') },
+      { ticker: '005930.KS', stock: sampleStock('005930.KS') },
+    ])
+  })
+
+  it('rejects unknown fields in strict persisted comparator entries', async () => {
+    await expect(ClarezaComparadorData.create({
+      fetchedAt: new Date('2026-08-11T09:30:00.000Z'),
+      updated: '2026-08-11T09:30:00.000Z',
+      stockCount: 1,
+      errors: 0,
+      stocks: [{
+        ticker: 'AAPL',
+        stock: { ...sampleStock('AAPL'), unsupportedMetric: 1 },
+      }],
+    })).rejects.toThrow(/StrictModeError|not in schema/)
+  })
+
+  it('ignores an invalid Redis payload and uses the latest Mongo snapshot', async () => {
+    const cache = new FakeComparadorCache()
+    const store = createStore(cache)
+    const expected = snapshot('AAPL', '2026-08-11T09:30:00.000Z')
+    await store.write(expected, 0)
+    cache.values.set('clareza:comparador:v1', { updated: expected.updated, stocks: 'invalid' })
+
+    await expect(store.read()).resolves.toEqual(expected)
+  })
+
 })
