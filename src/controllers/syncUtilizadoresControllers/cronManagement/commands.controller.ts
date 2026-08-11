@@ -4,6 +4,7 @@ import { TagRule } from '../../../models'
 import syncSchedulerService from '../../../services/cron/scheduler'
 import type { CronJobIdInput } from '../../../security/cronDestructiveInput'
 import { internalError } from '../../../security/errorHandling'
+import { successResponse } from '../../../contracts/responseContract'
 import { type JobIdParams } from '../../../services/cron/controllerSupport'
 
 export const createJob = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -71,15 +72,7 @@ export const createJob = async (req: Request, res: Response, next: NextFunction)
       5
     )
 
-    res.status(201).json({
-      success: true,
-      message: 'Job criado com sucesso',
-      data: {
-        job,
-        nextExecutions,
-        tagRulesCount: job.tagRules?.length || 0  // ✨ NOVO
-      }
-    })
+    res.status(201).json(successResponse({ job, nextExecutions, tagRulesCount: job.tagRules?.length || 0 }, { message: 'Job criado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao criar job', 'CRON_JOB_CREATE_FAILED', error))
@@ -137,15 +130,7 @@ export const updateJob = async (
       5
     )
 
-    res.status(200).json({
-      success: true,
-      message: 'Job atualizado com sucesso',
-      data: {
-        job,
-        nextExecutions,
-        tagRulesCount: job.tagRules?.length || 0  // ✨ NOVO
-      }
-    })
+    res.status(200).json(successResponse({ job, nextExecutions, tagRulesCount: job.tagRules?.length || 0 }, { message: 'Job atualizado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao atualizar job', 'CRON_JOB_UPDATE_FAILED', error))
@@ -177,10 +162,7 @@ export const deleteJob = async (
       new mongoose.Types.ObjectId(id)
     )
 
-    res.status(200).json({
-      success: true,
-      message: 'Job deletado com sucesso'
-    })
+    res.status(200).json(successResponse(null, { message: 'Job deletado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao deletar job', 'CRON_JOB_DELETE_FAILED', error))
@@ -222,11 +204,7 @@ export const toggleJob = async (
       enabled
     )
 
-    res.status(200).json({
-      success: true,
-      message: `Job ${enabled ? 'ativado' : 'desativado'} com sucesso`,
-      data: { job }
-    })
+    res.status(200).json(successResponse({ job }, { message: `Job ${enabled ? 'ativado' : 'desativado'} com sucesso` }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao toggle job', 'CRON_JOB_TOGGLE_FAILED', error))
@@ -264,17 +242,7 @@ export const triggerJob = async (
       triggeredBy
     )
 
-    res.status(200).json({
-      success: result.success,
-      message: result.success 
-        ? 'Job executado com sucesso' 
-        : 'Job executado com erros',
-      data: {
-        duration: result.duration,
-        stats: result.stats,
-        errorMessage: result.errorMessage
-      }
-    })
+    res.status(200).json(successResponse({ executionSucceeded: result.success, duration: result.duration, stats: result.stats, errorMessage: result.errorMessage }, { message: result.success ? 'Job executado com sucesso' : 'Job executado com erros' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao executar job', 'CRON_JOB_TRIGGER_FAILED', error))

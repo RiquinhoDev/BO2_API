@@ -5,6 +5,7 @@
 
 import { type NextFunction, Request, Response } from 'express'
 import { internalError } from '../../security/errorHandling'
+import { successResponse } from '../../contracts/responseContract'
 import Product from '../../models/product/Product'
 import UserProduct from '../../models/UserProduct'
 import { boundedQueryLimit } from '../../utils/queryBounds'
@@ -106,11 +107,7 @@ export const getProductById = async (req: Request, res: Response, next: NextFunc
       }
     ])
 
-    res.json({
-      success: true,
-      product,
-      stats
-    })
+    res.json(successResponse({ product, stats }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar produto', 'PRODUCT_READ_FAILED', error))
@@ -187,11 +184,7 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
       launchDate: new Date()
     })
 
-    res.status(201).json({
-      success: true,
-      message: 'Produto criado com sucesso',
-      product
-    })
+    res.status(201).json(successResponse({ product }, { message: 'Produto criado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao criar produto', 'PRODUCT_CREATE_FAILED', error))
@@ -226,11 +219,7 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
       })
     }
 
-    res.json({
-      success: true,
-      message: 'Produto atualizado com sucesso',
-      product
-    })
+    res.json(successResponse({ product }, { message: 'Produto atualizado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao atualizar produto', 'PRODUCT_UPDATE_FAILED', error))
@@ -279,11 +268,7 @@ export const deleteProduct = async (req: Request, res: Response, next: NextFunct
       })
     }
 
-    res.json({
-      success: true,
-      message: 'Produto desativado com sucesso',
-      product
-    })
+    res.json(successResponse({ product }, { message: 'Produto desativado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao remover produto', 'PRODUCT_DELETE_FAILED', error))
@@ -319,13 +304,7 @@ export const getProductStudents = async (req: Request, res: Response, next: Next
       UserProduct.countDocuments(filters)
     ])
 
-    res.json({
-      success: true,
-      total,
-      page: Number(page),
-      totalPages: Math.ceil(total / Number(limit)),
-      students: userProducts
-    })
+    res.json(successResponse({ students: userProducts }, { total, page: Number(page), totalPages: Math.ceil(total / Number(limit)) }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar estudantes', 'PRODUCT_STUDENTS_READ_FAILED', error))
@@ -423,15 +402,14 @@ export const getProductAnalytics = async (req: Request, res: Response, next: Nex
       }
     ])
 
-    res.json({
-      success: true,
+    res.json(successResponse({
       product: {
         id: product._id,
         code: product.code,
         name: product.name
       },
       analytics: analytics[0]
-    })
+    }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar analytics', 'PRODUCT_ANALYTICS_READ_FAILED', error))

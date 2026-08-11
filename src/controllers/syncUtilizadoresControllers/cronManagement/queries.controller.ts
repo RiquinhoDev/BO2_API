@@ -95,15 +95,7 @@ export const getJobById = async (
       5
     )
 
-    res.status(200).json({
-      success: true,
-      message: 'Job recuperado com sucesso',
-      data: {
-        job,
-        nextExecutions,
-        successRate: job.getSuccessRate()
-      }
-    })
+    res.status(200).json(successResponse({ job, nextExecutions, successRate: job.getSuccessRate() }, { message: 'Job recuperado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar job', 'CRON_JOB_READ_FAILED', error))
