@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken"
 import { verifyAppToken } from '../security/jwt'
 import { getRequestRouteTemplate } from '../observability/requestRoute'
 import logger, { type AppLogger } from '../utils/logger'
+import { forwardApplicationError } from '../controllers/forwardApplicationError'
 
 // Extend Express Request type to include user
 declare global {
@@ -68,15 +69,12 @@ export function createAuthenticate(log: AppLogger = logger) {
         })
       }
 
-      log.error('Erro no middleware de autenticação', {
-        method: req.method,
-        route,
+      return forwardApplicationError(
+        next,
         error,
-      })
-      return res.status(500).json({
-        success: false,
-        message: "Erro na autenticação"
-      })
+        "Erro na autenticação",
+        'AUTHENTICATION_FAILED',
+      )
     }
   }
 }

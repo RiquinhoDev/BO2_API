@@ -56,18 +56,13 @@ function inventory(root = sourceRoot): Inventory {
   return result
 }
 
-const BASELINE = {
+const BASELINE: Readonly<Record<keyof Inventory, readonly string[]>> = {
   "rawEnvironmentRead": [],
   "localHttp500": [
-    "src/middleware/auth.middleware.ts:76",
-    "src/routes/ACroutes/activecampaign.routes.ts:196",
-    "src/routes/users.routes.ts:254",
-    "src/routes/validationLogs.routes.ts:137",
-    "src/routes/validationLogs.routes.ts:70"
   ],
   "publicErrorDetail": [
   ]
-} as const
+}
 
 /**
  * Reviewable debt totals. The path lists above move whenever an unrelated edit
@@ -79,7 +74,7 @@ const BASELINE = {
  */
 const DEBT_CEILING = {
   "rawEnvironmentRead": 0,
-  "localHttp500": 5,
+  "localHttp500": 0,
   "publicErrorDetail": 0
 } as const
 

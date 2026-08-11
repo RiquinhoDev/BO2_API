@@ -3,6 +3,8 @@
 // Montado em /api/form → GET /api/form/logs e /api/form/logs/stats
 import { Router, Request, Response } from 'express'
 import ValidationLog from '../models/ValidationLog'
+import { asyncRoute } from '../security/asyncRoute'
+import { forwardApplicationError } from '../controllers/forwardApplicationError'
 
 const router = Router()
 
@@ -47,7 +49,7 @@ const buildLogsQuery = (query: any, useDefaultRange = false) => {
   return filter
 }
 
-router.get('/logs', async (req: Request, res: Response) => {
+router.get('/logs', asyncRoute(async (req: Request, res: Response, next) => {
   try {
     const page = Math.max(parseInt(String(req.query.page), 10) || 1, 1)
     const limit = Math.min(Math.max(parseInt(String(req.query.limit), 10) || 50, 1), 200)
@@ -65,16 +67,17 @@ router.get('/logs', async (req: Request, res: Response) => {
     ])
 
     return res.status(200).json({ total, page, limit, items })
-  } catch (error: any) {
-    console.error('[VALIDATION_LOGS] Error listing logs:', error)
-    return res.status(500).json({
-      message: 'Erro ao listar logs de validação.',
-      error: 'VALIDATION_LOGS_LIST_ERROR',
-    })
+  } catch (error: unknown) {
+    return forwardApplicationError(
+      next,
+      error,
+      'Erro ao listar logs de validação.',
+      'VALIDATION_LOGS_LIST_ERROR',
+    )
   }
-})
+}))
 
-router.get('/logs/stats', async (req: Request, res: Response) => {
+router.get('/logs/stats', asyncRoute(async (req: Request, res: Response, next) => {
   try {
     const filter = buildLogsQuery(req.query, true)
 
@@ -132,13 +135,14 @@ router.get('/logs/stats', async (req: Request, res: Response) => {
       totals.total > 0 ? Math.round((totals.validated / totals.total) * 1000) / 10 : 0
 
     return res.status(200).json({ daily, breakdown, totals })
-  } catch (error: any) {
-    console.error('[VALIDATION_LOGS] Error loading stats:', error)
-    return res.status(500).json({
-      message: 'Erro ao carregar estatísticas de validação.',
-      error: 'VALIDATION_LOGS_STATS_ERROR',
-    })
+  } catch (error: unknown) {
+    return forwardApplicationError(
+      next,
+      error,
+      'Erro ao carregar estatísticas de validação.',
+      'VALIDATION_LOGS_STATS_ERROR',
+    )
   }
-})
+}))
 
 export default router

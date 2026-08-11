@@ -91,7 +91,7 @@ const createResponse = () => {
 
 const invoke = async (query: Request['query']) => {
   const { json, response } = createResponse()
-  await listSubscriptions({ query } as Request, response)
+  await listSubscriptions({ query } as Request, response, jest.fn())
   expect(json).toHaveBeenCalledTimes(1)
   return json.mock.calls[0][0]
 }

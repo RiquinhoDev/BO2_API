@@ -134,15 +134,16 @@ test('single calls CursEduca once then persists enrollment and user state', asyn
 test('single records a remote failure without changing the enrollment status', async () => {
   jest.mocked(axios.patch).mockRejectedValue(new Error('offline remote failure'))
   const res = response()
+  const forward = jest.fn()
 
-  await inactivateSingle(singleInput(), res.value, next())
+  await inactivateSingle(singleInput(), res.value, forward)
 
-  expect(res.value.status).toHaveBeenCalledWith(500)
-  expect(res.json).toHaveBeenCalledWith({
-    success: false,
-    message: 'Erro ao inativar no CursEduca',
-    error: 'offline remote failure',
-  })
+  expect(forward).toHaveBeenCalledWith(expect.objectContaining({
+    code: 'GURU_INACTIVATION_SINGLE_REMOTE_FAILED',
+    publicMessage: 'Erro ao inativar no CursEduca',
+  }))
+  expect(res.value.status).not.toHaveBeenCalled()
+  expect(res.json).not.toHaveBeenCalled()
   expect(await UserProduct.findById(userProductId).lean()).toMatchObject({
     status: 'PARA_INATIVAR',
     metadata: {
