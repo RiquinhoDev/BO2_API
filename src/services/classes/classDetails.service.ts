@@ -49,7 +49,34 @@ export interface InactivationCounts {
   completedLists: number
 }
 
-export type ClassRecord = Record<string, unknown>
+export interface ClassDetailStats {
+  totalStudents: number
+  activeStudents: number
+  inactiveStudents: number
+  recentEnrollments: number
+  lastMovement?: Date
+}
+
+export interface ClassRecord {
+  _id?: unknown
+  __v?: number
+  classId: string
+  productId?: unknown
+  curseducaId?: string
+  curseducaUuid?: string
+  name: string
+  description?: string
+  studentCount: number
+  isActive: boolean
+  estado: 'ativo' | 'inativo'
+  source: 'hotmart_sync' | 'manual' | 'import' | 'curseduca_sync'
+  lastSyncAt?: Date
+  createdAt: Date
+  updatedAt: Date
+  stats?: ClassDetailStats
+  students?: unknown[]
+  recentHistory?: unknown[]
+}
 
 export interface ClassDetailsReader {
   classStats(filters: StatsFilters): Promise<ClassStatsData>

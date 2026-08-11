@@ -34,6 +34,10 @@ export interface RosterUser {
   communicationByCourse?: LearnerActivitySource['communicationByCourse']
 }
 
+export type SearchRosterStudent = RosterUser & {
+  className?: string
+}
+
 export interface RosterQuery {
   includeInactive: boolean
   limit: number
@@ -82,7 +86,7 @@ export type RosterResult =
 export type SearchResult =
   | { kind: 'no_criteria' }
   | { kind: 'not_found' }
-  | { kind: 'ok'; students: Array<Record<string, unknown>>; total: number; timestamp: string }
+  | { kind: 'ok'; students: SearchRosterStudent[]; total: number; timestamp: string }
 
 const MAX_TERM_LENGTH = 256
 const MAX_RESULTS = 200
@@ -235,7 +239,7 @@ export class ClassRosterService {
 
     return {
       kind: 'ok',
-      students: withClassNames as unknown as Array<Record<string, unknown>>,
+      students: withClassNames,
       total,
       timestamp: this.clock.now().toISOString(),
     }

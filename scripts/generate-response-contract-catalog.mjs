@@ -6,7 +6,7 @@ import ts from 'typescript'
 const ROOT = process.cwd()
 const ROUTE_CATALOG_PATH = process.env.RESPONSE_CONTRACT_ROUTE_CATALOG ?? path.join(ROOT, 'src', 'security', 'route-catalog.json')
 const RESPONSE_CATALOG_PATH = process.env.RESPONSE_CONTRACT_CATALOG ?? path.join(ROOT, 'src', 'contracts', 'response-contract-catalog.json')
-const FRONT_ROOT = path.resolve(ROOT, '..', 'Front')
+const FRONT_ROOT = process.env.RESPONSE_CONTRACT_FRONT_ROOT ?? path.resolve(ROOT, '..', 'Front')
 const FAMILIES = new Set(['success-data', 'domain-envelope', 'raw-json', 'no-content', 'redirect', 'stream-or-file'])
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete'])
 const TERMINAL_METHODS = new Set(['json', 'send', 'sendStatus', 'redirect', 'download', 'sendFile', 'writeHead', 'write', 'end'])
@@ -245,8 +245,14 @@ function propertyName(name) {
 function objectShape(checker, expression, seen = new Set()) {
   const current = unwrapExpression(expression)
   if (ts.isConditionalExpression(current)) {
-    const left = objectShape(checker, current.whenTrue, new Set(seen))
-    const right = objectShape(checker, current.whenFalse, new Set(seen))
+    const branchShape = (branch) => {
+      const literal = objectShape(checker, branch, new Set(seen))
+      if (literal) return literal
+      const keys = checker.getTypeAtLocation(branch).getProperties().map((symbol) => symbol.name)
+      return keys.length > 0 ? { keys, successTrue: false, dynamic: false } : undefined
+    }
+    const left = branchShape(current.whenTrue)
+    const right = branchShape(current.whenFalse)
     return {
       keys: [...new Set([...(left?.keys ?? []), ...(right?.keys ?? [])])].sort(),
       successTrue: Boolean(left?.successTrue && right?.successTrue),
@@ -300,25 +306,190 @@ function objectShape(checker, expression, seen = new Set()) {
   }
   return { keys: [...new Set(keys)].sort(), successTrue, dynamic }
 }
+function returnExpressions(fn) {
+  const expressions = []
+  const visit = (node) => {
+    if (node !== fn && ts.isFunctionLike(node)) return
+    if (ts.isReturnStatement(node) && node.expression) {
+      expressions.push(node.expression)
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+  if (fn.body) visit(fn.body)
+  return expressions
+}
+
+function initializerForIdentifier(checker, identifier) {
+  const symbol = aliasedSymbol(checker, identifier)
+  for (const declaration of symbol?.declarations ?? []) {
+    if (ts.isVariableDeclaration(declaration) && declaration.initializer) return declaration.initializer
+    if (ts.isBindingElement(declaration)
+      && ts.isVariableDeclaration(declaration.parent.parent)
+      && declaration.parent.parent.initializer) {
+      return declaration.parent.parent.initializer
+    }
+  }
+  return undefined
+}
+
+function shapesFromType(checker, expression) {
+  const type = checker.getTypeAtLocation(expression)
+  const members = type.isUnion() ? type.types : [type]
+  const shapes = []
+  for (const member of members) {
+    if (checker.isArrayType(member) || checker.isTupleType(member)) {
+      shapes.push({ kind: 'array', keys: [], successTrue: false, source: 'type' })
+      continue
+    }
+    if (member.flags & (ts.TypeFlags.StringLike | ts.TypeFlags.NumberLike | ts.TypeFlags.BooleanLike | ts.TypeFlags.Null | ts.TypeFlags.Undefined)) {
+      shapes.push({ kind: 'scalar', keys: [], successTrue: false, source: 'type' })
+      continue
+    }
+    const keys = member.getProperties()
+      .map((property) => property.name)
+      .filter((key) => !key.startsWith('__@'))
+      .sort()
+    if (keys.length > 0) {
+      const success = member.getProperty('success')
+      const successType = success
+        ? checker.getTypeOfSymbolAtLocation(success, expression)
+        : undefined
+      shapes.push({
+        kind: 'object',
+        keys,
+        successTrue: successType?.flags === ts.TypeFlags.BooleanLiteral
+          && successType.intrinsicName === 'true',
+        source: 'type',
+      })
+      continue
+    }
+    return []
+
+  }
+  return shapes
+}
+
+function shapesFromExpression(checker, expression, seen = new Set()) {
+  const current = unwrapExpression(expression)
+  if (seen.has(current)) return []
+  seen.add(current)
+
+  if (ts.isAwaitExpression(current)) {
+    return shapesFromExpression(checker, current.expression, seen)
+  }
+  if (ts.isConditionalExpression(current)) {
+    return [
+      ...shapesFromExpression(checker, current.whenTrue, new Set(seen)),
+      ...shapesFromExpression(checker, current.whenFalse, new Set(seen)),
+    ]
+  }
+  if (ts.isArrayLiteralExpression(current)) {
+    return [{ kind: 'array', keys: [], successTrue: false, source: 'literal' }]
+  }
+  if (ts.isObjectLiteralExpression(current)) {
+    const shape = objectShape(checker, current)
+    return shape && !shape.dynamic
+      ? [{ kind: 'object', ...shape, source: 'literal' }]
+      : []
+  }
+  if (ts.isIdentifier(current)) {
+    const narrowed = shapesFromType(checker, current)
+    if (narrowed.length > 0) return narrowed
+    const initializer = initializerForIdentifier(checker, current)
+    if (initializer) {
+      const resolved = shapesFromExpression(checker, initializer, seen)
+      if (resolved.length > 0) return resolved
+    }
+  }
+  if (ts.isCallExpression(current)) {
+    const producer = resolveFunction(checker, current.expression)
+    if (producer) {
+      const resolved = returnExpressions(producer).flatMap((returned) =>
+        shapesFromExpression(checker, returned, new Set(seen)))
+      if (resolved.length > 0) return resolved
+    }
+  }
+  return shapesFromType(checker, current)
+}
+
+function objectProperty(object, name) {
+  return object.properties.find((property) =>
+    propertyName(property.name) === name && ts.isPropertyAssignment(property))
+}
+
+function correlatedBodyShapes(checker, call) {
+  const body = call.arguments[0]
+  if (!body || !ts.isPropertyAccessExpression(body)) return []
+  const status = statusForTerminal(checker, call)
+  if (!status || !status.some((value) => value < 400)) return []
+  const base = unwrapExpression(body.expression)
+  if (!ts.isIdentifier(base)) return []
+  const initializer = initializerForIdentifier(checker, base)
+  if (!initializer) return []
+  const current = unwrapExpression(initializer)
+  const invoked = ts.isAwaitExpression(current) ? unwrapExpression(current.expression) : current
+  if (!ts.isCallExpression(invoked)) return []
+  const producer = resolveFunction(checker, invoked.expression)
+  if (!producer) return []
+
+  const shapes = []
+  for (const returned of returnExpressions(producer)) {
+    const candidate = unwrapExpression(returned)
+    if (!ts.isObjectLiteralExpression(candidate)) continue
+    const statusProperty = objectProperty(candidate, 'status')
+    const bodyProperty = objectProperty(candidate, body.name.text)
+    if (!statusProperty || !bodyProperty) continue
+    const values = statusValues(checker, statusProperty.initializer)
+    if (!values.some((value) => value < 400)) continue
+    shapes.push(...shapesFromExpression(checker, bodyProperty.initializer))
+  }
+  return shapes
+}
+
+function classifyResolvedShapes(shapes, correlated) {
+  const objectShapes = shapes.filter((shape) => shape.kind === 'object')
+  const keys = [...new Set(objectShapes.flatMap((shape) => shape.keys))].sort()
+  if (objectShapes.length === shapes.length && objectShapes.length > 0) {
+    const exactSuccessData = objectShapes.every((shape) =>
+      shape.successTrue && shape.keys.length === 2
+      && shape.keys[0] === 'data' && shape.keys[1] === 'success')
+    if (exactSuccessData) return { family: 'success-data', shapeKeys: keys }
+    if (correlated || objectShapes.every((shape) => shape.keys.includes('success'))) {
+      return { family: 'domain-envelope', shapeKeys: keys }
+    }
+    return { family: 'raw-json', shapeKeys: keys }
+  }
+  if (objectShapes.length > 0) return { family: 'domain-envelope', shapeKeys: keys }
+  return { family: 'raw-json', shapeKeys: [] }
+}
+
 function classifyBody(checker, method, call) {
   if (method === 'redirect') return { family: 'redirect', shapeKeys: [] }
   if (['download', 'sendFile', 'writeHead', 'write'].includes(method)) return { family: 'stream-or-file', shapeKeys: [] }
   if (method === 'end' || method === 'sendStatus') return { family: 'no-content', shapeKeys: [] }
   const body = call.arguments[0]
   if (!body) return { family: 'no-content', shapeKeys: [] }
-  const shape = objectShape(checker, body)
-  if (!shape) return { family: 'raw-json', shapeKeys: [] }
-
-  if (shape.successTrue
-    && !shape.dynamic
-    && shape.keys.length === 2
-    && shape.keys[0] === 'data'
-    && shape.keys[1] === 'success') {
-    return { family: 'success-data', shapeKeys: shape.keys, dynamic: false }
+  const direct = objectShape(checker, body)
+  if (direct && !direct.dynamic) {
+    if (direct.successTrue
+      && direct.keys.length === 2
+      && direct.keys[0] === 'data'
+      && direct.keys[1] === 'success') {
+      return { family: 'success-data', shapeKeys: direct.keys }
+    }
+    return { family: 'domain-envelope', shapeKeys: direct.keys }
   }
-  return { family: 'domain-envelope', shapeKeys: shape.keys, dynamic: shape.dynamic }
-}
 
+  const correlated = correlatedBodyShapes(checker, call)
+  const shapes = correlated.length > 0
+    ? correlated
+    : shapesFromExpression(checker, body)
+  if (shapes.length === 0) {
+    return { problem: `response expression is unresolved: ${body.getText(body.getSourceFile())}` }
+  }
+  return classifyResolvedShapes(shapes, correlated.length > 0)
+}
 function terminalResponse(checker, call, names) {
   if (!ts.isPropertyAccessExpression(call.expression)) return undefined
   const method = call.expression.name.text
@@ -330,7 +501,7 @@ function terminalResponse(checker, call, names) {
   if (statuses && statuses.length === 0) return { problem: `response status for ${method} is not statically numeric` }
   const classified = classifyBody(checker, method, call)
   const successful = !statuses || statuses.some((status) => status < 400)
-  return { ...classified, successful }
+  return { ...classified, successful, statuses }
 }
 
 function pipeResponse(call, names) {
@@ -351,6 +522,21 @@ function aggregateExits(exits, handler) {
   const allClassified = exits.filter((exit) => exit.family)
   if (allClassified.length === 0) return { problems: ['no response exit found'], handler: handlerEvidence(handler) }
   const successful = allClassified.filter((exit) => exit.successful !== false)
+  const onlyNotImplemented = successful.length === 0 && allClassified.every((exit) =>
+    Array.isArray(exit.statuses) && exit.statuses.length > 0 && exit.statuses.every((status) => status === 501))
+  if (onlyNotImplemented) {
+    const first = allClassified
+      .map((exit) => ({ file: sourcePath(exit.node.getSourceFile()), line: sourceLine(exit.node.getSourceFile(), exit.node) }))
+      .sort((left, right) => left.file.localeCompare(right.file, 'en') || left.line - right.line)[0]
+    return {
+      decision: {
+        family: 'domain-envelope',
+        shapeKeys: [],
+        evidence: `no successful exit (501-only); ${first.file}:${first.line}`,
+      },
+      handler: handlerEvidence(handler),
+    }
+  }
   const classified = successful.length > 0 ? successful : allClassified
   const families = new Set(classified.map((exit) => exit.family))
   const precedence = ['redirect', 'stream-or-file', 'no-content']
@@ -400,12 +586,189 @@ function inspectHandler(checker, handler) {
   return aggregateExits(exits, handler)
 }
 
-function frontConsumer(route) {
-  if (route.consumer !== 'front') return null
-  const candidates = [...route.evidence.matchAll(/<([^>]+\.(?:ts|tsx))>/g)].map((match) => match[1])
-  const existing = candidates.filter((candidate) => fs.existsSync(path.join(FRONT_ROOT, candidate)))
-  if (existing.length === 0) throw new Error(`${identity(route)} is marked front but has no existing Front evidence path`)
-  return existing.sort()[0]
+function frontSourceFiles(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const absolute = path.join(directory, entry.name)
+    if (entry.isDirectory()) return entry.name === '__tests__' ? [] : frontSourceFiles(absolute)
+    return /\.(?:ts|tsx)$/.test(entry.name) && !entry.name.includes('.test.') ? [absolute] : []
+  })
+}
+
+function frontDeclarations(sourceFile) {
+  const initializers = new Map()
+  const helpers = new Map()
+  const visit = (node) => {
+    if (ts.isFunctionDeclaration(node) && node.name && node.body) {
+      const returned = node.body.statements.find(ts.isReturnStatement)?.expression
+      if (returned) helpers.set(node.name.text, {
+        parameters: node.parameters.map((parameter) => parameter.name.getText(sourceFile)),
+        body: returned,
+      })
+    }
+    if (ts.isVariableStatement(node)) {
+      for (const declaration of node.declarationList.declarations) {
+        if (!ts.isIdentifier(declaration.name) || !declaration.initializer) continue
+        if (ts.isArrowFunction(declaration.initializer) && !ts.isBlock(declaration.initializer.body)) {
+          helpers.set(declaration.name.text, {
+            parameters: declaration.initializer.parameters.map((parameter) => parameter.name.getText(sourceFile)),
+            body: declaration.initializer.body,
+          })
+        } else {
+          initializers.set(declaration.name.text, declaration.initializer)
+        }
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  return { initializers, helpers }
+}
+
+function frontTransportIdentifiers(sourceFile) {
+  const identifiers = new Set()
+  sourceFile.forEachChild((node) => {
+    if (!ts.isImportDeclaration(node) || !node.importClause) return
+    const specifier = ts.isStringLiteralLike(node.moduleSpecifier) ? node.moduleSpecifier.text : ''
+    if (!/(?:^|\/)httpClient$/.test(specifier) && !/(?:^|\/)services\/api$/.test(specifier) && specifier !== './api') return
+    if (node.importClause.name) identifiers.add(node.importClause.name.text)
+    const bindings = node.importClause.namedBindings
+    if (bindings && ts.isNamedImports(bindings)) {
+      for (const element of bindings.elements) {
+        if ((element.propertyName ?? element.name).text === 'httpClient') identifiers.add(element.name.text)
+      }
+    }
+  })
+  return identifiers
+}
+
+function frontLiteralTypeValues(checker, expression) {
+  const type = checker.getTypeAtLocation(expression)
+  const types = type.isUnion() ? type.types : [type]
+  const values = types.flatMap((candidate) => candidate.flags & ts.TypeFlags.StringLiteral ? [candidate.value] : [])
+  return values.length === types.length ? [...new Set(values)] : []
+}
+
+function frontPathValues(expression, context) {
+  if (ts.isStringLiteralLike(expression)) return [expression.text]
+  if (ts.isParenthesizedExpression(expression) || ts.isAsExpression(expression) || ts.isNonNullExpression(expression)) {
+    return frontPathValues(expression.expression, context)
+  }
+  if (ts.isIdentifier(expression)) {
+    const binding = context.bindings.get(expression.text)
+    if (binding !== undefined) return Array.isArray(binding) ? binding : [binding]
+    const initializer = context.initializers.get(expression.text)
+    if (!initializer || context.resolving.has(expression.text)) {
+      const literals = frontLiteralTypeValues(context.checker, expression)
+      return literals.length > 0 ? literals : ['*']
+    }
+    return frontPathValues(initializer, { ...context, resolving: new Set(context.resolving).add(expression.text) })
+  }
+  if (ts.isConditionalExpression(expression)) {
+    return [...frontPathValues(expression.whenTrue, context), ...frontPathValues(expression.whenFalse, context)]
+  }
+  if (ts.isCallExpression(expression)) {
+    if (ts.isIdentifier(expression.expression) && expression.expression.text === 'encodeURIComponent') return ['*']
+    if (ts.isIdentifier(expression.expression)) {
+      const helper = context.helpers.get(expression.expression.text)
+      if (helper && !context.resolving.has(expression.expression.text)) {
+        const bindings = new Map(context.bindings)
+        helper.parameters.forEach((parameter, index) => {
+          const values = expression.arguments[index] ? frontPathValues(expression.arguments[index], context) : ['*']
+          bindings.set(parameter, values.length > 0 ? values : ['*'])
+        })
+        return frontPathValues(helper.body, {
+          ...context,
+          bindings,
+          resolving: new Set(context.resolving).add(expression.expression.text),
+        })
+      }
+    }
+    return []
+  }
+  if (!ts.isTemplateExpression(expression)) return []
+  let results = [expression.head.text]
+  for (const span of expression.templateSpans) {
+    const resolved = frontPathValues(span.expression, context)
+    const values = resolved.length > 0 ? resolved : ['*']
+    results = results.flatMap((prefix) => values.map((value) => `${prefix}${value}${span.literal.text}`))
+  }
+  return [...new Set(results)]
+}
+
+function extractFrontCalls() {
+  const srcRoot = path.join(FRONT_ROOT, 'src')
+  if (!fs.existsSync(srcRoot)) throw new Error(`Front source root is missing: ${srcRoot}`)
+  const configPath = ts.findConfigFile(FRONT_ROOT, ts.sys.fileExists, 'tsconfig.json')
+  if (!configPath) throw new Error(`Front tsconfig.json is missing: ${FRONT_ROOT}`)
+  const config = ts.readConfigFile(configPath, ts.sys.readFile)
+  if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, '\n'))
+  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, FRONT_ROOT)
+  const program = ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options })
+  const checker = program.getTypeChecker()
+  const calls = []
+  for (const file of frontSourceFiles(srcRoot)) {
+    const sourceFile = program.getSourceFile(file)
+    if (!sourceFile) throw new Error(`Front source is not in its TypeScript program: ${file}`)
+    const source = sourceFile.text
+    const transports = frontTransportIdentifiers(sourceFile)
+    if (transports.size === 0) continue
+    const context = { ...frontDeclarations(sourceFile), bindings: new Map(), resolving: new Set(), checker }
+    const visit = (node) => {
+      if (ts.isCallExpression(node)
+        && ts.isPropertyAccessExpression(node.expression)
+        && ts.isIdentifier(node.expression.expression)
+        && transports.has(node.expression.expression.text)
+        && ['get', 'post', 'put', 'patch', 'delete', 'getUri'].includes(node.expression.name.text)
+        && node.arguments[0]) {
+        const clientMethod = node.expression.name.text
+        const method = clientMethod === 'getUri' ? 'GET' : clientMethod.toUpperCase()
+        const pathExpression = clientMethod === 'getUri' && ts.isObjectLiteralExpression(node.arguments[0])
+          ? node.arguments[0].properties.find((property) =>
+              ts.isPropertyAssignment(property) && property.name.getText(sourceFile) === 'url')?.initializer
+          : node.arguments[0]
+        const values = pathExpression ? frontPathValues(pathExpression, context).filter((value) => value.startsWith('/')) : []
+        for (const value of values) {
+          calls.push({
+            method,
+            path: value.split(/[?#]/)[0],
+            file: slash(path.relative(FRONT_ROOT, file)),
+          })
+        }
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(sourceFile)
+  }
+  return [...new Map(calls.map((call) => [`${call.method}:${call.path}:${call.file}`, call])).values()]
+}
+
+function frontRouteMatches(call, route) {
+  if (call.method !== route.method) return false
+  const callPath = call.path.startsWith('/api/') ? call.path : `/api${call.path}`
+  const callSegments = callPath.split('/').filter(Boolean)
+  const routeSegments = route.path.split('/').filter(Boolean)
+  return callSegments.length === routeSegments.length
+    && callSegments.every((segment, index) => routeSegments[index] === '*'
+      || routeSegments[index]?.startsWith(':')
+      || segment === routeSegments[index])
+}
+
+let cachedFrontConsumers
+function frontConsumer(route, routes) {
+  if (!cachedFrontConsumers) {
+    cachedFrontConsumers = new Map()
+    for (const call of extractFrontCalls()) {
+      const matches = routes.filter((candidate) => frontRouteMatches(call, candidate))
+      const specificity = (candidate) => candidate.path.split('/').filter((segment) => segment && !segment.startsWith(':') && segment !== '*').length
+      const maximum = matches.reduce((current, candidate) => Math.max(current, specificity(candidate)), -1)
+      for (const match of matches.filter((candidate) => specificity(candidate) === maximum)) {
+        const key = identity(match)
+        const files = cachedFrontConsumers.get(key) ?? []
+        cachedFrontConsumers.set(key, [...new Set([...files, call.file])].sort())
+      }
+    }
+  }
+  return cachedFrontConsumers.get(identity(route))?.[0] ?? null
 }
 
 function discoverDecisions(routes) {
@@ -426,7 +789,7 @@ function discoverDecisions(routes) {
       if (!handler) throw new Error(`handler ${handlerExpression.getText(sourceFile)} is unresolved`)
       const result = inspectHandler(checker, handler)
       if (!result.decision) throw new Error(`${result.handler}: ${result.problems.join('; ')}`)
-      decisions.push({ method: route.method, path: route.path, ...result.decision, frontConsumer: frontConsumer(route) })
+      decisions.push({ method: route.method, path: route.path, ...result.decision, frontConsumer: frontConsumer(route, routes) })
     } catch (error) {
       problems.push(`${identity(route)}: ${error instanceof Error ? error.message : String(error)}`)
     }
@@ -499,12 +862,15 @@ function main() {
   const reviewed = reviewedDecisions(routes)
   const discovered = discoverDecisions(routes)
   validateExactMembership(routes, discovered)
+
   const drift = driftMessages(reviewed, discovered)
-  if (drift.length > 0) throw new Error(`Response catalog drift:\n${drift.join('\n')}`)
-  const expected = serialize(reviewed)
+  if (mode === '--check' && drift.length > 0) {
+    throw new Error(`Response catalog drift:\n${drift.join('\n')}`)
+  }
+  const expected = serialize(mode === '--write' ? discovered : reviewed)
   if (mode === '--write') {
     fs.writeFileSync(RESPONSE_CATALOG_PATH, expected, 'utf8')
-    process.stdout.write(`Retained ${reviewed.length} reviewed response decisions.\n`)
+    process.stdout.write(`Updated ${discovered.length} reviewed response decisions by route identity.\n`)
     return
   }
   if (fs.readFileSync(RESPONSE_CATALOG_PATH, 'utf8') !== expected) {
