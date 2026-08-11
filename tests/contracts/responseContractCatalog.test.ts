@@ -393,6 +393,87 @@ describe('response contract catalog', () => {
       expect(fileSha(routeFile)).toBe(routeFileShaBefore)
     }
   })
+  test.each([
+    {
+      label: 'canonical imported helper with meta',
+      setup: "import { successResponse as canonicalSuccessResponse } from '../contracts/responseContract'",
+      body: 'res.json(canonicalSuccessResponse({ id: 1 }, { page: 1 }))',
+      expectedStatus: 0,
+    },
+    {
+      label: 'local helper with the same name',
+      setup: [
+        'function successResponse(data: unknown, meta?: Record<string, unknown>) {',
+        '  return meta === undefined ? { success: true as const, data } : { success: true as const, data, meta }',
+        '}',
+      ].join('\n'),
+      body: 'res.json(successResponse({ id: 1 }, { page: 1 }))',
+      expectedStatus: 1,
+    },
+  ])('recognizes only the $label as a success-data response', ({ setup, body, expectedStatus }) => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-canonical-helper-'))
+    const routeFile = path.join(process.cwd(), 'src', 'routes', 'index.ts')
+    const routeCatalogFixture = path.join(directory, 'routes.json')
+    const responseCatalogFixture = path.join(directory, 'responses.json')
+    const migrationInventoryFixture = path.join(directory, 'inventory.json')
+    const frontRoot = path.join(directory, 'Front')
+    const frontSrc = path.join(frontRoot, 'src')
+    const routeFileShaBefore = fileSha(routeFile)
+    const source = fs.readFileSync(routeFile, 'utf8').replace(/\r\n/g, '\n')
+    const prefix = source.endsWith('\n') ? source : `${source}\n`
+    const routeDeclaration = "__responseContractCanonicalHelperRouter.get('/canonical-helper', (_req, res) => {"
+    const mutated = `${prefix}${[
+      setup,
+      'const __responseContractCanonicalHelperRouter = Router()',
+      routeDeclaration,
+      `  ${body}`,
+      '})',
+      '',
+    ].join('\n')}`
+    const routeLine = mutated.slice(0, mutated.indexOf(routeDeclaration)).split('\n').length
+    const routes = [{
+      method: 'GET',
+      path: '/api/__canonical-helper',
+      evidence: `consumer nao identificado; rota em src/routes/index.ts:${routeLine}`,
+    }]
+    const responses = [{
+      method: 'GET',
+      path: '/api/__canonical-helper',
+      family: 'success-data',
+      shapeKeys: ['data', 'meta', 'success'],
+      evidence: `src/routes/index.ts:${routeLine + 1}`,
+      frontConsumer: null,
+    }]
+    try {
+      fs.mkdirSync(frontSrc, { recursive: true })
+      fs.writeFileSync(path.join(frontRoot, 'tsconfig.json'), JSON.stringify({ compilerOptions: { target: 'ES2022' }, include: ['src/**/*.ts'] }), 'utf8')
+      fs.writeFileSync(path.join(frontSrc, 'empty.ts'), 'export {}\n', 'utf8')
+      const overlayRoot = writeSourceOverlay(directory, routeFile, mutated)
+      fs.writeFileSync(routeCatalogFixture, JSON.stringify(routes), 'utf8')
+      fs.writeFileSync(responseCatalogFixture, JSON.stringify(responses, null, 2) + '\n', 'utf8')
+      fs.writeFileSync(migrationInventoryFixture, JSON.stringify([{
+        identity: 'GET /api/__canonical-helper',
+        owner: 'src/routes/index.ts',
+        currentFamily: 'success-data',
+        targetFamily: 'success-data',
+        frontConsumer: null,
+        status: 'complete',
+      }], null, 2) + '\n', 'utf8')
+      const result = runGenerator('--check', responseCatalogFixture, {
+        ...testSourceOverlayEnv(overlayRoot),
+        RESPONSE_CONTRACT_ROUTE_CATALOG: routeCatalogFixture,
+        RESPONSE_CONTRACT_MIGRATION_INVENTORY: migrationInventoryFixture,
+        RESPONSE_CONTRACT_FRONT_ROOT: frontRoot,
+      })
+      expect(result.status).toBe(expectedStatus)
+      if (expectedStatus !== 0) {
+        expect(`${result.stdout}${result.stderr}`).toContain('GET /api/__canonical-helper')
+      }
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true })
+      expect(fileSha(routeFile)).toBe(routeFileShaBefore)
+    }
+  })
   test('classes users search includes the complete lean IUser surface', () => {
     const shapeKeys = responseCatalog.find((entry) => routeId(entry) === 'GET /api/classes/users/search')?.shapeKeys
     expect(shapeKeys).toEqual(expect.arrayContaining([

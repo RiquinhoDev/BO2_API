@@ -632,12 +632,29 @@ function classifyResolvedShapes(shapes, correlated) {
   return { family: 'raw-json', shapeKeys: [] }
 }
 
+function isCanonicalSuccessResponseCall(checker, expression) {
+  const current = unwrapExpression(expression)
+  if (!ts.isCallExpression(current) || !ts.isIdentifier(current.expression)) return false
+  const symbol = aliasedSymbol(checker, current.expression)
+  return Boolean(symbol?.declarations?.some((declaration) =>
+    ts.isFunctionDeclaration(declaration)
+    && declaration.name?.text === 'successResponse'
+    && sourceFileKey(declaration.getSourceFile().fileName) === sourceFileKey(path.join(ROOT, 'src', 'contracts', 'responseContract.ts'))))
+}
+function canonicalSuccessResponseShape(call) {
+  const meta = call.arguments[1]
+  const omitsMeta = !meta || (ts.isIdentifier(unwrapExpression(meta)) && unwrapExpression(meta).text === 'undefined')
+  return (omitsMeta ? ['data', 'success'] : ['data', 'meta', 'success'])
+}
 function classifyBody(checker, method, call) {
   if (method === 'redirect') return { family: 'redirect', shapeKeys: [] }
   if (['download', 'sendFile', 'writeHead', 'write'].includes(method)) return { family: 'stream-or-file', shapeKeys: [] }
   if (method === 'end' || method === 'sendStatus') return { family: 'no-content', shapeKeys: [] }
   const body = call.arguments[0]
   if (!body) return { family: 'no-content', shapeKeys: [] }
+  if (isCanonicalSuccessResponseCall(checker, body)) {
+    return { family: 'success-data', shapeKeys: canonicalSuccessResponseShape(body) }
+  }
   const direct = objectShape(checker, body)
   if (direct && !direct.dynamic) {
     if (direct.successTrue
