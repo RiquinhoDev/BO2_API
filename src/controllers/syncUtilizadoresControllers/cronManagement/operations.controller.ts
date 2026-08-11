@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../../../contracts/responseContract'
 import mongoose from 'mongoose'
 import { CronExecution } from '../../../models'
 import syncSchedulerService from '../../../services/cron/scheduler'
@@ -65,10 +66,7 @@ export const getJobHistory = async (
       errorMessage: exec.errorMessage
     }))
 
-    res.status(200).json({
-      success: true,
-      message: 'Histórico recuperado com sucesso',
-      data: {
+    res.status(200).json(successResponse({
         jobId: job._id,
         jobName: job.name,
         totalRuns: job.totalRuns,
@@ -78,8 +76,7 @@ export const getJobHistory = async (
         executions: history, // ✅ MUDOU: campo "executions" em vez de "history"
         count: history.length,
         limit
-      }
-    })
+      }, { message: 'Histórico recuperado com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar histórico', 'CRON_JOB_HISTORY_FAILED', error))
@@ -111,16 +108,12 @@ export const validateCronExpression = async (req: Request, res: Response, next: 
         5
       )
 
-      res.status(200).json({
-        success: true,
-        message: 'Cron expression válida',
-        data: {
+      res.status(200).json(successResponse({
           cronExpression,
           timezone,
           isValid: true,
           nextExecutions
-        }
-      })
+        }, { message: 'Cron expression válida' }))
 
     } catch (validationError: unknown) {
       res.status(400).json({
@@ -160,10 +153,7 @@ export const getSchedulerStatus = async (req: Request, res: Response, next: Next
       }
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Status do scheduler recuperado',
-      data: {
+    res.status(200).json(successResponse({
         schedulerRunning: true,
         stats,
         activeJobs: activeJobs.map(j => ({
@@ -174,8 +164,7 @@ export const getSchedulerStatus = async (req: Request, res: Response, next: Next
           nextRun: j.nextRun,
           lastRun: j.lastRun
         }))
-      }
-    })
+      }, { message: 'Status do scheduler recuperado' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar status', 'CRON_SCHEDULER_STATUS_FAILED', error))

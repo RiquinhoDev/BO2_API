@@ -5,6 +5,7 @@ import { Router, Request, Response } from 'express'
 import ValidationLog from '../models/ValidationLog'
 import { asyncRoute } from '../security/asyncRoute'
 import { forwardApplicationError } from '../security/forwardApplicationError'
+import { successResponse } from '../contracts/responseContract'
 
 const router = Router()
 
@@ -66,7 +67,7 @@ router.get('/logs', asyncRoute(async (req: Request, res: Response, next) => {
         .lean(),
     ])
 
-    return res.status(200).json({ total, page, limit, items })
+    return res.status(200).json(successResponse(items, { total, page, limit }))
   } catch (error: unknown) {
     return forwardApplicationError(
       next,
@@ -134,7 +135,7 @@ router.get('/logs/stats', asyncRoute(async (req: Request, res: Response, next) =
     totals.successRate =
       totals.total > 0 ? Math.round((totals.validated / totals.total) * 1000) / 10 : 0
 
-    return res.status(200).json({ daily, breakdown, totals })
+    return res.status(200).json(successResponse({ daily, breakdown, totals }))
   } catch (error: unknown) {
     return forwardApplicationError(
       next,

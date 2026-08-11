@@ -9,6 +9,7 @@ import EventType from '../models/EventType'
 import { eventsDeleteInput } from '../security/eventsDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 import { internalError } from '../security/errorHandling'
+import { successResponse } from '../contracts/responseContract'
 
 const router = Router()
 
@@ -116,7 +117,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       .lean()
       .exec()
 
-    res.json({ events, total: events.length })
+    res.json(successResponse(events, { total: events.length }))
   } catch (error: unknown) {
     next(internalError('Erro ao listar eventos', 'EVENTS_LIST_FAILED', error))
   }
@@ -133,7 +134,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     }
 
     await event.save()
-    res.status(201).json({ event, message: 'Evento criado com sucesso.' })
+    res.status(201).json(successResponse(event, { message: 'Evento criado com sucesso.' }))
   } catch (error: unknown) {
     next(internalError('Erro ao criar evento', 'EVENT_CREATE_FAILED', error))
   }
@@ -146,7 +147,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
     if (!event) {
       return res.status(404).json({ message: 'Evento não encontrado.' })
     }
-    res.json({ event, message: 'Evento actualizado com sucesso.' })
+    res.json(successResponse(event, { message: 'Evento actualizado com sucesso.' }))
   } catch (error: unknown) {
     next(internalError('Erro ao actualizar evento', 'EVENT_UPDATE_FAILED', error))
   }
@@ -159,7 +160,7 @@ router.delete('/:id', withValidatedInput(eventsDeleteInput, async (input, _req, 
     if (!event) {
       return res.status(404).json({ message: 'Evento não encontrado.' })
     }
-    res.json({ message: 'Evento apagado com sucesso.' })
+    res.json(successResponse(null, { message: 'Evento apagado com sucesso.' }))
   } catch (error: unknown) {
     next(internalError('Erro ao apagar evento', 'EVENT_DELETE_FAILED', error))
   }
@@ -182,7 +183,7 @@ router.patch('/:id/status', async (req: Request, res: Response, next: NextFuncti
     if (!event) {
       return res.status(404).json({ message: 'Evento não encontrado.' })
     }
-    res.json({ event, message: `Estado alterado para ${newStatus}.` })
+    res.json(successResponse(event, { message: `Estado alterado para ${newStatus}.` }))
   } catch (error: unknown) {
     next(internalError('Erro ao alterar estado', 'EVENT_STATUS_UPDATE_FAILED', error))
   }
@@ -195,7 +196,7 @@ router.patch('/:id/status', async (req: Request, res: Response, next: NextFuncti
 router.get('/types/list', async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const types = await EventType.find({ isActive: true }).sort({ label: 1 }).lean().exec()
-    res.json({ types })
+    res.json(successResponse(types))
   } catch (error: unknown) {
     next(internalError('Erro ao listar tipos', 'EVENT_TYPES_LIST_FAILED', error))
   }
@@ -340,11 +341,7 @@ router.post('/seed', async (_req: Request, res: Response, next: NextFunction) =>
       }
     }
 
-    res.json({
-      message: 'Seeding concluído.',
-      typesCreated,
-      eventsCreated,
-    })
+    res.json(successResponse({ typesCreated, eventsCreated }, { message: 'Seeding concluído.' }))
   } catch (error: unknown) {
     next(internalError('Erro no seeding', 'EVENTS_SEED_FAILED', error))
   }

@@ -126,13 +126,12 @@ const invoke = async (
 
 test('lists only canceled or status-less members and keeps the newest duplicate', async () => {
   const payload = await invoke(listPendingInactivation)
-
-  expect(payload).toMatchObject({ success: true, count: 2, total: 4, filtered: 1, deduplicated: 1 })
-  expect(payload.pendingList.map((item: { email: string }) => item.email).sort()).toEqual([
+  expect(payload).toMatchObject({ success: true, data: { count: 2, total: 4, filtered: 1, deduplicated: 1 } })
+  expect(payload.data.pendingList.map((item: { email: string }) => item.email).sort()).toEqual([
     'canceled@example.test',
     'legacy@example.test',
   ])
-  const canceled = payload.pendingList.find(
+  const canceled = payload.data.pendingList.find(
     (item: { email: string }) => item.email === 'canceled@example.test',
   )
   expect(canceled.classes[0].classId).toBe('class-new')
@@ -140,10 +139,9 @@ test('lists only canceled or status-less members and keeps the newest duplicate'
 
 test('uses the same pending rule for stats and counts Guru inactivations', async () => {
   const payload = await invoke(getInactivationStats)
-
   expect(payload).toEqual({
     success: true,
-    stats: {
+    data: {
       pendingInactivation: 2,
       pendingInactivationTotal: 4,
       inactivatedToday: 1,
@@ -153,26 +151,23 @@ test('uses the same pending rule for stats and counts Guru inactivations', async
 })
 
 test('preserves inactive filtering, pagination and response fields', async () => {
-  const payload = await invoke(listInactivated, {
-    page: '1',
-    limit: '10000',
-    email: 'CANCELED',
-  })
-
+  const payload = await invoke(listInactivated, { page: '1', limit: '10000', email: 'CANCELED' })
   expect(payload).toMatchObject({
     success: true,
-    total: 1,
-    page: 1,
-    limit: 200,
-    pages: 1,
-    inactivatedList: [{
-      email: 'canceled@example.test',
-      name: 'Canceled Person',
-      curseducaUserId: 'member-canceled',
-      guruStatus: 'canceled',
-      curseducaStatus: 'INACTIVE',
-      inactivatedBy: 'guru_integration',
-      inactivatedReason: 'CursEduca access removed',
-    }],
+    data: {
+      total: 1,
+      page: 1,
+      limit: 200,
+      pages: 1,
+      inactivatedList: [{
+        email: 'canceled@example.test',
+        name: 'Canceled Person',
+        curseducaUserId: 'member-canceled',
+        guruStatus: 'canceled',
+        curseducaStatus: 'INACTIVE',
+        inactivatedBy: 'guru_integration',
+        inactivatedReason: 'CursEduca access removed',
+      }],
+    },
   })
 })

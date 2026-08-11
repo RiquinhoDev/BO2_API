@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../../../contracts/responseContract'
 import mongoose from 'mongoose'
 import type { SyncType } from '../../../models/SyncModels/CronJobConfig'
 import syncSchedulerService from '../../../services/cron/scheduler'
@@ -44,15 +45,11 @@ export const getAllJobs = async (req: Request, res: Response, next: NextFunction
       }
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Jobs recuperados com sucesso',
-      data: {
+    res.status(200).json(successResponse({
         total: jobs.length,
         jobs,
         systemJobs
-      }
-    })
+      }, { message: 'Jobs recuperados com sucesso' }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao buscar jobs', 'CRON_JOB_LIST_FAILED', error))

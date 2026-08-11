@@ -44,18 +44,20 @@ test('preserves the three successful read envelopes', async () => {
   await handlers.listPendingInactivation({} as Request, pendingResponse, next)
   expect(pendingResponse.json).toHaveBeenCalledWith({
     success: true,
-    count: 1,
-    total: 2,
-    filtered: 0,
-    deduplicated: 1,
-    pendingList: [{ email: 'alice@example.test' }],
+    data: {
+      count: 1,
+      total: 2,
+      filtered: 0,
+      deduplicated: 1,
+      pendingList: [{ email: 'alice@example.test' }],
+    },
   })
 
   const statsResponse = response()
   await handlers.getInactivationStats({} as Request, statsResponse, next)
   expect(statsResponse.json).toHaveBeenCalledWith({
     success: true,
-    stats: {
+    data: {
       pendingInactivation: 1,
       pendingInactivationTotal: 2,
       inactivatedToday: 3,
@@ -71,11 +73,13 @@ test('preserves the three successful read envelopes', async () => {
   )
   expect(inactiveResponse.json).toHaveBeenCalledWith({
     success: true,
-    total: 1,
-    page: 1,
-    limit: 50,
-    pages: 1,
-    inactivatedList: [{ email: 'alice@example.test' }],
+    data: {
+      total: 1,
+      page: 1,
+      limit: 50,
+      pages: 1,
+      inactivatedList: [{ email: 'alice@example.test' }],
+    },
   })
   expect(next).not.toHaveBeenCalled()
 })
