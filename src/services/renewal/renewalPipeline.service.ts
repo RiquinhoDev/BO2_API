@@ -1,23 +1,42 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/renewal/renewalPipeline.service.ts
 // Orquestrador sequencial de renovações: Sync Hotmart (vendas) →
-// Sync AC (leitura) → Discord Roles. Cada passo só arranca depois
-// do anterior terminar — evita a fragilidade de horas fixas onde
-// um passo demorado ("corre mais") parte a cadência dos seguintes.
-// Um erro num passo não trava os seguintes (Promise.allSettled não
-// é usado propositadamente — a ordem tem de ser respeitada — mas
-// cada passo tem try/catch próprio para o pipeline continuar).
+// Sync AC (leitura) → AC Expiração (escrita) → Discord Roles. Cada
+// passo só arranca depois do anterior terminar — evita a fragilidade
+// de horas fixas onde um passo demorado ("corre mais") parte a
+// cadência dos seguintes. Um erro num passo não trava os seguintes
+// (Promise.allSettled não é usado propositadamente — a ordem tem de
+// ser respeitada — mas cada passo tem try/catch próprio para o
+// pipeline continuar).
 //
-// NASCE DESLIGADO (ver ensureRenewalPipelineJob em scheduler.ts) —
-// ligar é acção manual na UI, só depois de validar localmente.
+// Chamado a partir de dailyPipeline.service.ts (o "1º"), logo a
+// seguir a este terminar de facto — não a uma hora fixa que assume
+// quanto tempo o "1º" costuma demorar (o "1º" pode variar de
+// duração de dia para dia). SEM TRIGGER PRÓPRIO no scheduler (ver
+// scheduleJob() em scheduler.ts) — o registo "RenewalPipeline" em
+// CronJobConfig serve só de interruptor + histórico de execuções
+// manuais. NASCE DESLIGADO — ligar é acção manual na UI, só depois
+// de validar localmente.
+//
+// O passo de escrita (AC Expiração) tem o SEU PRÓPRIO interruptor
+// ("AcExpirationSync" em CronJobConfig), independente do interruptor
+// geral deste pipeline — ligar o RenewalPipeline corre só as partes
+// só-leitura (Hotmart, AC, Discord); a escrita na AC só acontece se
+// esse segundo interruptor também estiver ligado. Mantém a regra
+// "não escrever na AC" isolada e explícita, mesmo dentro da cadeia.
 // ════════════════════════════════════════════════════════════
 
+import CronJobConfig from '../../models/SyncModels/CronJobConfig'
 import { syncActiveStudentSalesHistory, SalesHistorySyncReport } from './hotmartSalesHistory.service'
 import { syncActiveStudentAcRenewalData, AcRenewalDataSyncReport } from './acRenewalDataSync.service'
+import { syncAcExpirationDates, AcExpirationSyncReport } from './acExpirationSync.service'
 import { runDiscordRolesSyncJob, DiscordCronReport } from './discordRolesSync.service'
+
+const AC_EXPIRATION_SYNC_JOB_NAME = 'AcExpirationSync'
 
 export interface RenewalPipelineStepResult<T> {
   success: boolean
+  skipped?: boolean
   durationMs: number
   report?: T
   error?: string
@@ -26,8 +45,20 @@ export interface RenewalPipelineStepResult<T> {
 export interface RenewalPipelineReport {
   hotmartSales: RenewalPipelineStepResult<SalesHistorySyncReport>
   acRenewalData: RenewalPipelineStepResult<AcRenewalDataSyncReport>
+  acExpiration: RenewalPipelineStepResult<AcExpirationSyncReport>
   discordRoles: RenewalPipelineStepResult<DiscordCronReport>
   success: boolean
+}
+
+type CronJobConfigReadModel = { findOne: (...args: any[]) => any }
+const CronJobConfigModel = CronJobConfig as unknown as CronJobConfigReadModel
+
+async function isJobSwitchEnabled(jobName: string): Promise<boolean> {
+  const doc = await CronJobConfigModel.findOne({ name: jobName })
+    .select('schedule.enabled')
+    .lean()
+    .exec() as { schedule?: { enabled?: boolean } } | null
+  return !!doc?.schedule?.enabled
 }
 
 async function runStep<T>(label: string, fn: () => Promise<T>): Promise<RenewalPipelineStepResult<T>> {
@@ -46,20 +77,36 @@ async function runStep<T>(label: string, fn: () => Promise<T>): Promise<RenewalP
 }
 
 /**
- * Corre os 3 passos em sequência, cada um só depois do anterior terminar.
+ * Como runStep, mas só corre `fn` se o interruptor `jobName` estiver
+ * ligado na BD — usado para o passo de escrita (AC Expiração), que
+ * precisa do seu próprio "sim" independente do interruptor geral.
+ */
+async function runGatedStep<T>(label: string, jobName: string, fn: () => Promise<T>): Promise<RenewalPipelineStepResult<T>> {
+  const enabled = await isJobSwitchEnabled(jobName)
+  if (!enabled) {
+    console.log(`[RenewalPipeline] ⏭ ${label} — interruptor "${jobName}" desligado, a saltar`)
+    return { success: true, skipped: true, durationMs: 0 }
+  }
+  return runStep(label, fn)
+}
+
+/**
+ * Corre os 4 passos em sequência, cada um só depois do anterior terminar.
  * Um passo que falhe não impede os seguintes de correr (o próximo passo
  * simplesmente trabalha com os dados que já existem em BD).
  */
 export async function runRenewalPipeline(): Promise<RenewalPipelineReport> {
   const hotmartSales = await runStep('Sync Hotmart (vendas)', () => syncActiveStudentSalesHistory())
   const acRenewalData = await runStep('Sync AC (leitura)', () => syncActiveStudentAcRenewalData())
+  const acExpiration = await runGatedStep('AC Expiração (escrita)', AC_EXPIRATION_SYNC_JOB_NAME, () => syncAcExpirationDates())
   const discordRoles = await runStep('Discord Roles', () => runDiscordRolesSyncJob())
 
   return {
     hotmartSales,
     acRenewalData,
+    acExpiration,
     discordRoles,
-    success: hotmartSales.success && acRenewalData.success && discordRoles.success
+    success: hotmartSales.success && acRenewalData.success && acExpiration.success && discordRoles.success
   }
 }
 

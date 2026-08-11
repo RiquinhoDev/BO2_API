@@ -4,6 +4,7 @@
 // ════════════════════════════════════════════════════════════
 
 import { Product, UserProduct, PipelineExecution } from '../../models'
+import CronJobConfig from '../../models/SyncModels/CronJobConfig'
 import logger from '../../utils/logger'
 
 import { recalculateAllEngagementMetrics } from '../syncUtilizadoresServices/engagement/recalculate-engagement-metrics'
@@ -626,6 +627,33 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
       logger.info('💾 Histórico salvo')
     } catch (err: any) {
       logger.error(`❌ Erro ao salvar histórico: ${err.message}`)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 🔗 RENOVAÇÕES: Sync Hotmart (vendas) → Sync AC (leitura) →
+    // AC Expiração (escrita) → Discord Roles. Corre só depois do "1º"
+    // ter mesmo terminado — dependência real em vez de um 2º cron a
+    // hora fixa que assume quanto tempo o "1º" demora (o "1º" pode
+    // variar de duração de dia para dia). Só arranca se o interruptor
+    // "RenewalPipeline" estiver ligado na BD (CronJobConfig.schedule.
+    // enabled) — nasce desligado, ligar é acção manual na UI. O passo
+    // de escrita (AC Expiração) tem o SEU PRÓPRIO interruptor à parte
+    // ("AcExpirationSync") — ver renewalPipeline.service.ts. Uma falha
+    // aqui NUNCA marca o "1º" como falhado — é um passo à parte, opcional.
+    // ═══════════════════════════════════════════════════════════
+    try {
+      const renewalPipelineJob = await CronJobConfig.findOne({ name: 'RenewalPipeline' })
+        .select('schedule.enabled')
+        .lean() as { schedule?: { enabled?: boolean } } | null
+
+      if (renewalPipelineJob?.schedule?.enabled) {
+        logger.info('🔗 RenewalPipeline ligado — a correr Sync Hotmart (vendas) → Sync AC → AC Expiração → Discord Roles...')
+        const { runRenewalPipeline } = await import('../renewal/renewalPipeline.service')
+        const renewalReport = await runRenewalPipeline()
+        logger.info(`🔗 RenewalPipeline concluído (success: ${renewalReport.success})`)
+      }
+    } catch (err: any) {
+      logger.error(`⚠️ Erro no RenewalPipeline (não afecta o resultado do "1º"): ${err.message}`)
     }
 
     return result

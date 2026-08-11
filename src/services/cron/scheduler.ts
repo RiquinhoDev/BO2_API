@@ -449,6 +449,15 @@ const job = await CronJobConfig.create({
   // ═══════════════════════════════════════════════════════════
 
   private async scheduleJob(job: ICronJobConfig): Promise<void> {
+    // RenewalPipeline não tem trigger próprio — "schedule.enabled" é só
+    // o interruptor lido pelo "1º" (dailyPipeline.service.ts) no fim da
+    // sua própria execução. Registá-lo aqui também faria a cadeia correr
+    // 2x (uma vez a horas fixas, outra dependente do "1º").
+    if (job.name === RENEWAL_PIPELINE_JOB_NAME) {
+      console.log(`🔗 ${job.name}: sem trigger próprio — corre dentro do "1º" quando o interruptor está ligado`)
+      return
+    }
+
     if (!job.schedule.enabled || !job.isActive) {
       console.log(`⏸️ Job não agendado (disabled): ${job.name}`)
       return
@@ -797,14 +806,22 @@ const job = await CronJobConfig.create({
 
   /**
    * Cadência sequencial de renovações: Sync Hotmart (vendas) → Sync AC
-   * (leitura) → Discord Roles, cada passo só arranca depois do anterior
-   * terminar (ver renewalPipeline.service.ts). Substitui a ideia de 3
-   * crons a horas fixas (04:00/05:30/07:30 etc.) que partem se um passo
-   * demorar mais que o previsto. NASCE DESLIGADO; seed create-only —
-   * ligar é acção manual na UI, só depois de validar localmente (pedido
-   * explícito, 11/08/2026). Enquanto estiver desligado, os 3 jobs
-   * individuais (RenewalAcSync / DiscordRolesSync, a horas fixas)
-   * continuam a ser a via normal se algum deles for ligado.
+   * (leitura) → AC Expiração (escrita) → Discord Roles, cada passo só
+   * arranca depois do anterior terminar (ver renewalPipeline.service.ts).
+   * O passo de escrita tem o SEU PRÓPRIO interruptor ("AcExpirationSync")
+   * — ligar só este job corre as partes só-leitura + Discord; a escrita
+   * na AC precisa do segundo interruptor também ligado. SEM TRIGGER
+   * PRÓPRIO — não
+   * é agendado a uma hora fixa (ver scheduleJob(), que ignora este job de
+   * propósito). Em vez disso, "schedule.enabled" funciona só como
+   * interruptor: o job "1º" (dailyPipeline.service.ts) lê este campo no
+   * fim da SUA PRÓPRIA execução e só aí, com o interruptor ligado, chama
+   * runRenewalPipeline() — garantia real de "só depois do 1º terminar",
+   * não uma estimativa de quanto tempo o 1º costuma demorar (pedido
+   * explícito, 11/08/2026: "1 só andava depois de garantido o anterior
+   * ter terminado"). cronExpression fica só para referência/UI.
+   * NASCE DESLIGADO; seed create-only — ligar é acção manual na UI, só
+   * depois de validar localmente.
    */
   private async ensureRenewalPipelineJob(): Promise<void> {
     const existingJob = await CronJobConfig.findOne({ name: RENEWAL_PIPELINE_JOB_NAME })
@@ -812,12 +829,12 @@ const job = await CronJobConfig.create({
 
     await CronJobConfig.create({
       name: RENEWAL_PIPELINE_JOB_NAME,
-      description: 'Cadência sequencial de renovações: Sync Hotmart (vendas) → Sync AC (leitura) → Discord Roles, cada passo só arranca depois do anterior terminar. Ver renewalPipeline.service.ts.',
+      description: 'Cadência sequencial de renovações: Sync Hotmart (vendas) → Sync AC (leitura) → AC Expiração (escrita, gate próprio via AcExpirationSync) → Discord Roles. Sem hora própria — corre logo a seguir ao "1º" terminar de facto (chamado a partir de dailyPipeline.service.ts), não a uma hora fixa estimada. Este registo serve só de interruptor (ligar/desligar) + histórico de execuções manuais. Ver renewalPipeline.service.ts.',
       syncType: 'hotmart',
       schedule: {
-        cronExpression: '0 5 * * *', // 05:00 Lisboa — 1h depois do sync "1º" (04:00)
+        cronExpression: '0 5 * * *', // referência apenas — este job não tem trigger próprio, ver scheduleJob()
         timezone: 'Europe/Lisbon',
-        enabled: false // ⛔ nasce DESLIGADO — ligar é acção manual na UI
+        enabled: false // ⛔ nasce DESLIGADO — ligar é acção manual na UI (interruptor lido pelo "1º")
       },
       syncConfig: { fullSync: false, includeProgress: false, includeTags: false, batchSize: 100 },
       tagRules: [],
@@ -832,7 +849,7 @@ const job = await CronJobConfig.create({
       failedRuns: 0
     })
 
-    console.log('[RenewalPipeline] Cron criado DESLIGADO (05:00 Lisboa) — ligar manualmente na UI depois de validar localmente')
+    console.log('[RenewalPipeline] Interruptor criado DESLIGADO (sem trigger próprio, corre a seguir ao "1º") — ligar manualmente na UI depois de validar localmente')
   }
 
   async initializeScheduler(): Promise<void> {
@@ -1086,17 +1103,18 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
       }
 
     } else if (job.name.includes(RENEWAL_PIPELINE_JOB_NAME)) {
-      console.log('Executando: RenewalPipeline (Sync Hotmart → Sync AC → Discord Roles, sequencial)')
+      console.log('Executando: RenewalPipeline (Sync Hotmart → Sync AC → AC Expiração → Discord Roles, sequencial)')
       const { runRenewalPipeline } = await import('../renewal/renewalPipeline.service')
       const report = await runRenewalPipeline()
+      const steps = [report.hotmartSales, report.acRenewalData, report.acExpiration, report.discordRoles]
       result = {
         success: report.success,
         total: (report.hotmartSales.report?.totalActiveStudents || 0) + (report.acRenewalData.report?.totalActiveStudents || 0),
         inserted: 0,
-        updated: (report.hotmartSales.report?.updated || 0) + (report.acRenewalData.report?.updated || 0) + (report.discordRoles.report?.execution?.applied || 0),
-        errors: [report.hotmartSales, report.acRenewalData, report.discordRoles].filter((s) => !s.success).length,
-        skipped: 0,
-        errorMessage: [report.hotmartSales.error, report.acRenewalData.error, report.discordRoles.error].filter(Boolean).join(' | ') || undefined
+        updated: (report.hotmartSales.report?.updated || 0) + (report.acRenewalData.report?.updated || 0) + (report.acExpiration.report?.written || 0) + (report.discordRoles.report?.execution?.applied || 0),
+        errors: steps.filter((s) => !s.success).length,
+        skipped: steps.filter((s) => s.skipped).length,
+        errorMessage: steps.map((s) => s.error).filter(Boolean).join(' | ') || undefined
       }
 
     } else if (job.name.includes(ACHIEVEMENT_EVALUATION_JOB_NAME)) {
