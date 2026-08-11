@@ -27,7 +27,7 @@ import { listUsersSimple } from "../services/users/usersSimpleList.runtime"
 import { getStudentStats } from "../services/users/studentStats.runtime"
 import { getUsersStatsOverview } from "../services/users/userStatsOverview.runtime"
 import { getUserAllClasses } from "../services/users/studentClasses.runtime"
-import { getUserById, getUserProducts } from "../services/users/userLookup.runtime"
+import { getUserByEmail, getUserById, getUserProducts } from "../services/users/userLookup.runtime"
 import { getStudentHistory } from "../services/users/studentHistory.runtime"
 import { searchStudent } from "../services/users/studentSearch.runtime"
 import { listUsers } from "../services/users/userList.runtime"
@@ -62,7 +62,6 @@ import {
   getUsersV2Legacy,
   getUsersV2OverviewAnalytics,
 } from "../services/users/usersV2List.runtime"
-import { getUserByEmail } from "../controllers/syncUtilizadoresControllers/curseduca.controller"
 
 const router = Router()
 const usersImportUpload = createUsersImportUpload()

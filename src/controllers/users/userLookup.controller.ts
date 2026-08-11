@@ -2,6 +2,7 @@ import type { RequestHandler } from 'express'
 import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import type {
+  EnrichedUserByEmailReader,
   EnrichedUserReader,
   UserProductsReader,
 } from '../../services/users/userLookup.contract'
@@ -33,6 +34,30 @@ export function createGetUserByIdController(
   }
 }
 
+export function createGetUserByEmailController(
+  reader: EnrichedUserByEmailReader,
+): RequestHandler<{ email: string }> {
+  return async (req, res, next) => {
+    try {
+      const email = req.params.email.trim().toLowerCase()
+      const user = await reader.findEnrichedByEmail(email)
+
+      if (!user) {
+        res.status(404).json({ success: false, message: 'User not found' })
+        return
+      }
+
+      res.json(successResponse(user))
+    } catch (error) {
+      next(new HttpError({
+        status: 500,
+        code: 'USER_LOOKUP_FAILED',
+        publicMessage: 'Erro ao buscar utilizador',
+        cause: error,
+      }))
+    }
+  }
+}
 export function createGetUserProductsController(
   reader: UserProductsReader,
 ): RequestHandler<UserProductsParams> {

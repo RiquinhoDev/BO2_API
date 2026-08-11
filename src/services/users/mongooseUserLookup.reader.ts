@@ -1,6 +1,7 @@
 import { UserProduct } from '../../models'
+import User from '../../models/user'
 import { getUserWithProducts } from '../userProducts/userProductService'
-import type { EnrichedUserReader, UserProductsReader } from './userLookup.contract'
+import type { EnrichedUserByEmailReader, EnrichedUserReader, UserProductsReader } from './userLookup.contract'
 
 export class UserProductsServiceEnrichedUserReader implements EnrichedUserReader {
   async findEnriched(id: string): Promise<unknown | null> {
@@ -8,6 +9,13 @@ export class UserProductsServiceEnrichedUserReader implements EnrichedUserReader
   }
 }
 
+export class UserProductsServiceEnrichedUserByEmailReader implements EnrichedUserByEmailReader {
+  async findEnrichedByEmail(email: string): Promise<unknown | null> {
+    const user = await User.findOne({ email }).lean()
+    if (!user?._id) return null
+    return getUserWithProducts(user._id.toString())
+  }
+}
 export class MongooseUserProductsReader implements UserProductsReader {
   /**
    * Deliberately does not check that the user exists: the legacy endpoint

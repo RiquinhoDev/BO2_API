@@ -34,9 +34,18 @@ jest.mock(
   '../../src/controllers/syncUtilizadoresControllers/curseduca.controller',
   () => ({
     __esModule: true,
-    getUserByEmail: jest.fn(),
+    getUserByEmail: jest.fn((_req: unknown, res: Response) =>
+      res.status(501).json({ source: 'curseduca-placeholder' })),
   }),
 )
+
+jest.mock('../../src/services/users/userLookup.runtime', () => ({
+  __esModule: true,
+  getUserById: jest.fn(),
+  getUserProducts: jest.fn(),
+  getUserByEmail: jest.fn((_req: unknown, res: Response) =>
+    res.status(200).json({ source: 'canonical-user-lookup' })),
+}))
 
 jest.mock('../../src/services/users/usersSimpleList.runtime', () => ({
   __esModule: true,
@@ -80,6 +89,7 @@ import {
   getUsersV2Legacy,
   getUsersV2OverviewAnalytics,
 } from '../../src/services/users/usersV2List.runtime'
+import { getUserByEmail } from '../../src/services/users/userLookup.runtime'
 
 const marker = { __bo2_offline_loopback: '1' }
 const routeSource = fs.readFileSync(
@@ -102,6 +112,16 @@ function buildApp() {
 
 beforeEach(() => {
   jest.clearAllMocks()
+})
+
+test('routes by-email through the canonical user lookup runtime', async () => {
+  const response = await request(buildApp())
+    .get('/api/users/by-email/Ana%40Example.test')
+    .query(marker)
+    .expect(200)
+
+  expect(response.body).toEqual({ source: 'canonical-user-lookup' })
+  expect(getUserByEmail).toHaveBeenCalledTimes(1)
 })
 
 test.each([
