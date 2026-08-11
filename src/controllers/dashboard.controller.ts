@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import mongoose from 'mongoose';
-import Product from '../models/product/Product';
+
 import UserProduct from '../models/UserProduct';
 import User from '../models/user';
 import { getAllUsersUnified } from '../services/syncUtilizadoresServices/dualReadService';
@@ -40,7 +40,7 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
     let pipeline: any[] = [{ $match: matchStage }];
 
     if (search) {
-      pipeline.unshift(
+      pipeline.push(
         {
           $lookup: {
             from: 'users',
@@ -85,7 +85,7 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
           totalEnrollments: 1
         }
       }
-    ]);
+    ], { allowDiskUse: true });
 
     const response = stats[0] || {
       totalStudents: 0,
@@ -222,7 +222,7 @@ export const getEngagementDistribution = async (req: Request, res: Response, nex
           }
         }
       }
-    ]);
+    ], { allowDiskUse: true });
 
     const labels = ['churnRisk', 'moderate', 'good', 'excellent'];
     const result: any = {
@@ -261,59 +261,38 @@ export const getEngagementDistribution = async (req: Request, res: Response, nex
 export const compareProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { productId1, productId2 } = req.query;
-
     if (!productId1 || !productId2) {
-      return res.status(400).json({
-        success: false,
-        error: 'productId1 e productId2 são obrigatórios'
-      });
+      return res.status(400).json({ success: false, error: 'productId1 e productId2 são obrigatórios' });
     }
-
-    // Buscar stats de ambos os produtos
-    const getProductStats = async (productId: string) => {
-      const stats = await UserProduct.aggregate([
-        { $match: { productId: new mongoose.Types.ObjectId(productId) } },
-        {
-          $group: {
-            _id: null,
-            totalStudents: { $addToSet: '$userId' },
-            avgEngagement: { $avg: '$engagement.engagementScore' },
-            avgProgress: { $avg: '$progress.percentage' },
-            activeStudents: {
-              $sum: { $cond: [{ $eq: ['$status', 'ACTIVE'] }, 1, 0] }
-            }
-          }
-        },
-        {
-          $lookup: {
-            from: 'products',
-            localField: '_id',
-            foreignField: '_id',
-            as: 'product'
-          }
-        }
-      ]);
-
-      const product = await Product.findById(productId);
-
+    const productIds = [productId1, productId2].map(id => new mongoose.Types.ObjectId(id as string));
+    const stats = await UserProduct.aggregate([
+      { $match: { productId: { $in: productIds } } },
+      { $group: {
+        _id: '$productId',
+        totalStudents: { $addToSet: '$userId' },
+        avgEngagement: { $avg: '$engagement.engagementScore' },
+        avgProgress: { $avg: '$progress.percentage' },
+        activeStudents: { $sum: { $cond: [{ $eq: ['$status', 'ACTIVE'] }, 1, 0] } }
+      } },
+      { $lookup: { from: 'products', localField: '_id', foreignField: '_id', as: 'product' } },
+      { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } }
+    ], { allowDiskUse: true });
+    const byId = new Map(stats.map(stat => [stat._id.toString(), stat]));
+    const toProductStats = (productId: string) => {
+      const stat = byId.get(productId);
       return {
         productId,
-        productName: product?.name || 'Unknown',
-        platform: product?.platform || 'unknown',
-        totalStudents: stats[0] ? stats[0].totalStudents.length : 0,
-        avgEngagement: stats[0]?.avgEngagement || 0,
-        avgProgress: stats[0]?.avgProgress || 0,
-        activeStudents: stats[0]?.activeStudents || 0,
-        engagementRate: stats[0]?.avgEngagement || 0
+        productName: stat?.product?.name || 'Unknown',
+        platform: stat?.product?.platform || 'unknown',
+        totalStudents: stat?.totalStudents.length || 0,
+        avgEngagement: stat?.avgEngagement || 0,
+        avgProgress: stat?.avgProgress || 0,
+        activeStudents: stat?.activeStudents || 0,
+        engagementRate: stat?.avgEngagement || 0
       };
     };
-
-    const [product1, product2] = await Promise.all([
-      getProductStats(productId1 as string),
-      getProductStats(productId2 as string)
-    ]);
-
-    // Calcular diferenças
+    const product1 = toProductStats(productId1 as string);
+    const product2 = toProductStats(productId2 as string);
     const comparison = {
       studentsDiff: product1.totalStudents - product2.totalStudents,
       engagementDiff: product1.avgEngagement - product2.avgEngagement,
@@ -324,20 +303,11 @@ export const compareProducts = async (req: Request, res: Response, next: NextFun
         progress: product1.avgProgress > product2.avgProgress ? 'product1' : 'product2'
       }
     };
-
-    res.json({
-      success: true,
-      data: {
-        product1,
-        product2,
-        comparison
-      }
-    });
+    res.json({ success: true, data: { product1, product2, comparison } });
   } catch (error: unknown) {
     next(internalError('Erro ao comparar produtos', 'DASHBOARD_COMPARISON_FAILED', error));
   }
 };
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 📊 SPRINT 1: STATS V3 - VERSÃO CONSOLIDADA
 // ═══════════════════════════════════════════════════════════════════════════
@@ -345,8 +315,7 @@ export const compareProducts = async (req: Request, res: Response, next: NextFun
 /**
  * 📊 GET DASHBOARD STATS V3 - VERSÃO CONSOLIDADA
  * Endpoint: GET /api/dashboard/stats/v3
- */
-export const getDashboardStatsV3 = async (req: Request, res: Response, next: NextFunction) => {
+ */export const getDashboardStatsV3 = async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log('\n📊 [STATS V3 - MATERIALIZED VIEW] Carregando stats pré-calculados...');
     const startTime = Date.now();

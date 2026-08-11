@@ -95,7 +95,7 @@ export const getProductComparison = async (req: Request, res: Response, next: Ne
 
       // Limitar a top 10 produtos
       { $limit: 10 }
-    ])
+    ], { allowDiskUse: true })
 
     console.log(`✅ [Quick Comparison] ${products.length} produtos encontrados`)
 
@@ -263,7 +263,7 @@ export const getProductsBreakdown = async (req: Request, res: Response, next: Ne
 
       // Sort
       { $sort: { totalStudentsCount: -1 } }
-    ])
+    ], { allowDiskUse: true })
 
     // Transform
     const breakdown = products.map((product: any) => ({

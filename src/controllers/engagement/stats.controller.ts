@@ -38,6 +38,24 @@ export const getEngagementStats = async (req: Request, res: Response, next: Next
               ]
             }
           },
+          hotmartUsers: {
+            $sum: { $cond: [{ $or: [
+              { $gt: [{ $strLenCP: { $ifNull: ['$hotmart.hotmartUserId', ''] } }, 0] },
+              { $gt: [{ $strLenCP: { $ifNull: ['$hotmartUserId', ''] } }, 0] }
+            ] }, 1, 0] }
+          },
+          curseducaUsers: {
+            $sum: { $cond: [{ $or: [
+              { $gt: [{ $strLenCP: { $ifNull: ['$curseduca.curseducaUserId', ''] } }, 0] },
+              { $gt: [{ $strLenCP: { $ifNull: ['$curseducaUserId', ''] } }, 0] }
+            ] }, 1, 0] }
+          },
+          discordUsers: {
+            $sum: { $cond: [{ $or: [
+              { $gt: [{ $size: { $ifNull: ['$discord.discordIds', []] } }, 0] },
+              { $gt: [{ $size: { $ifNull: ['$discordIds', []] } }, 0] }
+            ] }, 1, 0] }
+          },
           muitoAlto: {
             $sum: {
               $cond: [
@@ -85,7 +103,7 @@ export const getEngagementStats = async (req: Request, res: Response, next: Next
           }
         }
       }
-    ])
+    ], { allowDiskUse: true })
 
     const result = stats[0] || {
       totalUsers: 0,
@@ -103,46 +121,7 @@ export const getEngagementStats = async (req: Request, res: Response, next: Next
       ? Math.round(result.totalScore / result.totalUsers) 
       : 0
 
-    // ✅ CALCULAR USERS POR PLATAFORMA CORRETAMENTE
-    const baseQuery = { isDeleted: { $ne: true } }
-    
-    // Contar users do Hotmart
-    const hotmartUsers = await User.countDocuments({
-      ...baseQuery,
-      $or: [
-        { 'hotmart.hotmartUserId': { $exists: true, $nin: [null, ''] } },
-        { hotmartUserId: { $exists: true, $nin: [null, ''] } }
-      ]
-    })
-
-    const curseducaUsers = await User.countDocuments({
-      ...baseQuery,
-      $or: [
-        {
-          $and: [
-            { curseducaUserId: { $exists: true } },
-            { curseducaUserId: { $ne: null } },
-            { curseducaUserId: { $ne: "" } }
-          ]
-        },
-        {
-          $and: [
-            { 'curseduca.curseducaUserId': { $exists: true } },
-            { 'curseduca.curseducaUserId': { $ne: null } },
-            { 'curseduca.curseducaUserId': { $ne: "" } }
-          ]
-        }
-      ]
-    })
-
-    // Contar users do Discord
-    const discordUsers = await User.countDocuments({
-      ...baseQuery,
-      $or: [
-        { 'discord.discordIds.0': { $exists: true } },
-        { 'discordIds.0': { $exists: true } }
-      ]
-    })
+    const { hotmartUsers = 0, curseducaUsers = 0, discordUsers = 0 } = result
 
     console.log('📊 Platform Stats calculadas:', {
       hotmart: hotmartUsers,
