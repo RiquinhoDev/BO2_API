@@ -11,6 +11,48 @@ export type DeleteStudentHandler = (
 ) => Promise<void>
 
 type Service = Pick<StudentMutationsService, 'edit' | 'sync' | 'remove'>
+export interface StudentMutationDto {
+  _id: string
+  name: string
+  email: string
+  discordIds: string[]
+  classId: string
+  status: string
+  role: string
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function readString(record: Record<string, unknown>, key: string): string {
+  const value = record[key]
+  return typeof value === 'string' ? value : ''
+}
+
+function readStringArray(record: Record<string, unknown>, key: string): string[] {
+  const value = record[key]
+  return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : []
+}
+
+export function toStudentMutationDto(
+  student: Record<string, unknown> | null,
+): StudentMutationDto | null {
+  if (!student) return null
+
+  const discord = isRecord(student.discord) ? student.discord : {}
+  const combined = isRecord(student.combined) ? student.combined : {}
+
+  return {
+    _id: student._id === undefined || student._id === null ? '' : String(student._id),
+    name: readString(student, 'name'),
+    email: readString(student, 'email'),
+    discordIds: readStringArray(discord, 'discordIds'),
+    classId: readString(student, 'classId'),
+    status: readString(combined, 'status'),
+    role: readString(discord, 'role'),
+  }
+}
 
 export function createEditStudentController(service: Service): RequestHandler<{ id: string }> {
   return async (req, res, next) => {
@@ -24,7 +66,7 @@ export function createEditStudentController(service: Service): RequestHandler<{ 
         res.status(400).json({ message: 'Email inválido' })
         return
       }
-      res.status(200).json(successResponse(result.student))
+      res.status(200).json(successResponse(toStudentMutationDto(result.student)))
     } catch (error) {
       next(new HttpError({
         status: 500,
