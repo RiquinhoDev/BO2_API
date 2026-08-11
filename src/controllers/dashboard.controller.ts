@@ -314,7 +314,7 @@ export const compareProducts = async (req: Request, res: Response, next: NextFun
 
 /**
  * 📊 GET DASHBOARD STATS V3 - VERSÃO CONSOLIDADA
- * Endpoint: GET /api/dashboard/stats/v3
+ * Endpoint: GET /api/dashboard/materialized-stats
  */export const getDashboardStatsV3 = async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log('\n📊 [STATS V3 - MATERIALIZED VIEW] Carregando stats pré-calculados...');

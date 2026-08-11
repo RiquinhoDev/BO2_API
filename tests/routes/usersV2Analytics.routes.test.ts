@@ -126,27 +126,27 @@ test('routes by-email through the canonical user lookup runtime', async () => {
 
 test.each([
   {
-    path: '/api/users/v2',
+    path: '/api/users',
     source: 'legacy-runtime',
     handler: getUsersV2Legacy,
   },
   {
-    path: '/api/users/v2/enrollments',
+    path: '/api/users/enrollments',
     source: 'enrollment-runtime',
     handler: getUsersV2Enrollments,
   },
   {
-    path: '/api/users/v2/analytics',
+    path: '/api/users/analytics',
     source: 'overview-runtime',
     handler: getUsersV2OverviewAnalytics,
   },
   {
-    path: '/api/users/v2/stats',
+    path: '/api/users/analytics/stats',
     source: 'stats-runtime',
     handler: getUsersV2Stats,
   },
   {
-    path: '/api/users/v2/engagement/comparison',
+    path: '/api/users/engagement/comparison',
     source: 'comparison-runtime',
     handler: getUsersV2Comparison,
   },
@@ -166,19 +166,19 @@ test.each([
 
 test.each([
   {
-    path: '/api/users/v2/enrollments',
+    path: '/api/users/enrollments',
     handler: getUsersV2Enrollments,
   },
   {
-    path: '/api/users/v2/analytics',
+    path: '/api/users/analytics',
     handler: getUsersV2OverviewAnalytics,
   },
   {
-    path: '/api/users/v2/stats',
+    path: '/api/users/analytics/stats',
     handler: getUsersV2Stats,
   },
   {
-    path: '/api/users/v2/engagement/comparison',
+    path: '/api/users/engagement/comparison',
     handler: getUsersV2Comparison,
   },
 ])('$path rejects unknown query before runtime', async ({
@@ -195,7 +195,7 @@ test.each([
 
 test('legacy accepts benign unknown query through its compatibility translator', async () => {
   await request(buildApp())
-    .get('/api/users/v2')
+    .get('/api/users')
     .query({ ...marker, ignored: 'legacy' })
     .expect(200, { source: 'legacy-runtime' })
 
@@ -221,22 +221,19 @@ test('root users alias rejects hostile input before the legacy runtime', async (
 })
 
 test('registers explicit static resources before neighboring parameter routes', () => {
-  const legacy = routeSource.indexOf("  '/v2',")
-  const enrollments = routeSource.indexOf("'/v2/enrollments'")
-  const analytics = routeSource.indexOf("'/v2/analytics'")
-  const stats = routeSource.indexOf("'/v2/stats'")
+  const enrollments = routeSource.indexOf("'/enrollments'")
+  const analytics = routeSource.indexOf("'/analytics'")
+  const stats = routeSource.indexOf("'/analytics/stats'")
 
-  expect(legacy).toBeGreaterThanOrEqual(0)
-  expect(enrollments).toBeGreaterThan(legacy)
+  expect(enrollments).toBeGreaterThanOrEqual(0)
   expect(analytics).toBeGreaterThan(enrollments)
   expect(stats).toBeGreaterThan(analytics)
   expect(routeSource).toContain(
-    "router.get('/v2/engagement/heatmap', asyncRoute(async (req, res, next) => {",
+    "router.get('/engagement/heatmap', asyncRoute(async (req, res, next) => {",
   )
 })
-
 test('contains no inline stats or comparison handlers', () => {
   expect(routeSource).not.toMatch(
-    /router\.get\('\/v2\/stats', async|router\.get\('\/v2\/engagement\/comparison', async/,
+    /router\.get\('\/analytics\/stats', async|router\.get\('\/engagement\/comparison', async/,
   )
 })

@@ -354,6 +354,6 @@ async function validateUserProductsCreated(logger: SyncLogger, sampleSize = 5) {
 // ═══════════════════════════════════════════════════════════
 
 /**
- * GET /api/curseduca/v2/products
+ * GET /api/curseduca/products
  * Lista todos os produtos CursEduca
  */

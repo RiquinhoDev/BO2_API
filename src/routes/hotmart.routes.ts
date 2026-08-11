@@ -18,7 +18,6 @@ const router = Router()
 // ─────────────────────────────────────────────────────────────
 // LEGACY (mantém compatibilidade)
 // ─────────────────────────────────────────────────────────────
-router.get('/syncHotmartUsers', asyncRoute(syncHotmartUsers))
 router.post('/syncProgressOnly', asyncRoute(syncProgressOnly))
 router.get('/users', asyncRoute(findHotmartUser))
 

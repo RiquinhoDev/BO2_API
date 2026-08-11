@@ -89,23 +89,23 @@ router.get('/courses/ogi/students', asyncRoute(getOGIStudents))
 router.get('/communication-history', asyncRoute(getCommunicationHistory))
 router.get('/history/stats', asyncRoute(getHistoryStats))
 // ─────────────────────────────────────────────────────────────
-// V2 - TAGS POR PRODUTO
+// TAGS POR PRODUTO
 // ─────────────────────────────────────────────────────────────
 
-// POST /api/activecampaign/v2/tag/apply
-router.post('/v2/tag/apply', withValidatedInput(activeCampaignTagMutationInput, (input, req, res, next) => applyTagToUserProduct(input, req, res, next)))
+// POST /api/activecampaign/product-tags/apply
+router.post('/product-tags/apply', withValidatedInput(activeCampaignTagMutationInput, (input, req, res, next) => applyTagToUserProduct(input, req, res, next)))
 
-// POST /api/activecampaign/v2/tag/remove
-router.post('/v2/tag/remove', withValidatedInput(activeCampaignTagMutationInput, (input, req, res, next) => removeTagFromUserProduct(input, req, res, next)))
+// POST /api/activecampaign/product-tags/remove
+router.post('/product-tags/remove', withValidatedInput(activeCampaignTagMutationInput, (input, req, res, next) => removeTagFromUserProduct(input, req, res, next)))
 
-// GET /api/activecampaign/v2/products/:productId/tagged?tag=...
-router.get('/v2/products/:productId/tagged', asyncRoute(getUsersWithTagsInProduct))
+// GET /api/activecampaign/products/:productId/tagged?tag=...
+router.get('/products/:productId/tagged', asyncRoute(getUsersWithTagsInProduct))
 
-// GET /api/activecampaign/v2/stats
-router.get('/v2/stats', asyncRoute(getACStats))
+// GET /api/activecampaign/product-tags/stats
+router.get('/product-tags/stats', asyncRoute(getACStats))
 
-// POST /api/activecampaign/v2/sync/:productId
-router.post('/v2/sync/:productId', withValidatedInput(activeCampaignProductSyncInput, (input, req, res, next) => syncProductTags(input, req, res, next)))
+// POST /api/activecampaign/products/:productId/tags/sync
+router.post('/products/:productId/tags/sync', withValidatedInput(activeCampaignProductSyncInput, (input, req, res, next) => syncProductTags(input, req, res, next)))
 
 // ─────────────────────────────────────────────────────────────
 // DEBUG - TEMPORARY

@@ -292,7 +292,7 @@ test('limites de producao e paths pesados ficam explicitos', () => {
     '/api/users/bulkDeleteUnmatched',
     '/api/classes/syncHotmartClasses',
     '/api/classes/syncComplete',
-    '/api/dashboard/stats/v3/rebuild',
+    '/api/dashboard/materialized-stats/rebuild',
     '/api/analytics/product-sales/rebuild',
     '/cron-tags/execute',
     '/cron-tags/execute-legacy',

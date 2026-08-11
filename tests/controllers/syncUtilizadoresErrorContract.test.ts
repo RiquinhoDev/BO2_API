@@ -265,22 +265,22 @@ const cases: ErrorRouteCase[] = [
     expected: { code: 'CURSEDUCA_DASHBOARD_FAILED', message: 'Erro ao carregar dashboard CursEduca' },
   },
   {
-    name: 'CursEduca product list', router: curseducaRouter, mountPath: '/api/curseduca', method: 'get', path: '/api/curseduca/v2/products',
+    name: 'CursEduca product list', router: curseducaRouter, mountPath: '/api/curseduca', method: 'get', path: '/api/curseduca/products',
     arrange: () => mockProductFind.mockReturnValueOnce(rejectingChain('select', 'lean')),
     expected: { code: 'CURSEDUCA_PRODUCT_LIST_FAILED', message: 'Erro ao buscar produtos CursEduca' },
   },
   {
-    name: 'CursEduca product read', router: curseducaRouter, mountPath: '/api/curseduca', method: 'get', path: '/api/curseduca/v2/products/group-1',
+    name: 'CursEduca product read', router: curseducaRouter, mountPath: '/api/curseduca', method: 'get', path: '/api/curseduca/products/group-1',
     arrange: () => mockProductFindOne.mockReturnValueOnce(rejectingChain('lean')),
     expected: { code: 'CURSEDUCA_PRODUCT_READ_FAILED', message: 'Erro ao buscar produto CursEduca' },
   },
   {
-    name: 'CursEduca product users', router: curseducaRouter, mountPath: '/api/curseduca', method: 'get', path: '/api/curseduca/v2/products/group-1/users',
+    name: 'CursEduca product users', router: curseducaRouter, mountPath: '/api/curseduca', method: 'get', path: '/api/curseduca/products/group-1/users',
     arrange: () => rejectValueOnce(mockProductFindOne),
     expected: { code: 'CURSEDUCA_PRODUCT_USERS_READ_FAILED', message: 'Erro ao buscar utilizadores do produto CursEduca' },
   },
   {
-    name: 'CursEduca product stats', router: curseducaRouter, mountPath: '/api/curseduca', method: 'get', path: '/api/curseduca/v2/stats',
+    name: 'CursEduca product stats', router: curseducaRouter, mountPath: '/api/curseduca', method: 'get', path: '/api/curseduca/catalog/stats',
     arrange: () => mockProductFind.mockReturnValueOnce(rejectingChain('lean')),
     expected: { code: 'CURSEDUCA_STATS_READ_FAILED', message: 'Erro ao buscar estatísticas CursEduca' },
   },
@@ -590,26 +590,26 @@ test('CursEduca product envelopes preserve product and membership cardinality', 
   })
 
   mockProductFind.mockReturnValueOnce(resolvingChain(products, 'select', 'lean'))
-  const listResponse = await request(app).get('/api/curseduca/v2/products').query({ __bo2_offline_loopback: '1' })
+  const listResponse = await request(app).get('/api/curseduca/products').query({ __bo2_offline_loopback: '1' })
 
   expect(listResponse.status).toBe(200)
-  expect(listResponse.body).toMatchObject({ count: 2, data: products })
+  expect(listResponse.body).toMatchObject({ data: products, meta: { count: 2 } })
 
   mockProductFindOne.mockImplementationOnce(() => Promise.resolve(products[0]))
   mockGetUsersByProduct.mockResolvedValueOnce(productOneUsers)
-  const usersResponse = await request(app).get('/api/curseduca/v2/products/group-1/users').query({ __bo2_offline_loopback: '1' })
+  const usersResponse = await request(app).get('/api/curseduca/products/group-1/users').query({ __bo2_offline_loopback: '1' })
 
   expect(usersResponse.status).toBe(200)
-  expect(usersResponse.body).toMatchObject({ count: 2, data: productOneUsers })
+  expect(usersResponse.body).toMatchObject({ data: productOneUsers, meta: { count: 2 } })
 
   mockProductFind.mockReturnValueOnce(resolvingChain(products, 'lean'))
   mockGetUsersByProduct
     .mockResolvedValueOnce(productOneUsers)
     .mockResolvedValueOnce(productTwoUsers)
-  const statsResponse = await request(app).get('/api/curseduca/v2/stats').query({ __bo2_offline_loopback: '1' })
+  const statsResponse = await request(app).get('/api/curseduca/catalog/stats').query({ __bo2_offline_loopback: '1' })
 
   expect(statsResponse.status).toBe(200)
-  expect(statsResponse.body.summary).toEqual({
+  expect(statsResponse.body.meta.summary).toEqual({
     totalProducts: 2,
     totalUsers: 3,
     overallAvgProgress: 65,

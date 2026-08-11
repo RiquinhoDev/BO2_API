@@ -17,14 +17,14 @@ export const getCurseducaProducts = async (req: Request, res: Response, next: Ne
       .select('name code curseducaGroupId curseducaGroupUuid isActive')
       .lean()
 
-    res.json(successResponse(products, { count: products.length, _v2Enabled: true }))
+    res.json(successResponse(products, { count: products.length }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar produtos CursEduca', 'CURSEDUCA_PRODUCT_LIST_FAILED', error))
   }
 }
 
 /**
- * GET /api/curseduca/v2/products/:groupId
+ * GET /api/curseduca/products/:groupId
  * Buscar produto por groupId
  */
 export const getCurseducaProductByGroupId = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -56,7 +56,7 @@ export const getCurseducaProductByGroupId = async (req: Request, res: Response, 
 }
 
 /**
- * GET /api/curseduca/v2/products/:groupId/users?minProgress=XX
+ * GET /api/curseduca/products/:groupId/users?minProgress=XX
  * Buscar users de um produto com filtro de progresso
  */
 export const getCurseducaProductUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -96,7 +96,6 @@ export const getCurseducaProductUsers = async (req: Request, res: Response, next
     res.json(successResponse(users, {
       count: users.length,
       filters: { minProgress },
-      _v2Enabled: true
     }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar utilizadores do produto CursEduca', 'CURSEDUCA_PRODUCT_USERS_READ_FAILED', error))
@@ -104,7 +103,7 @@ export const getCurseducaProductUsers = async (req: Request, res: Response, next
 }
 
 /**
- * GET /api/curseduca/v2/stats
+ * GET /api/curseduca/catalog/stats
  * Estatísticas gerais dos produtos CursEduca
  */
 export const getCurseducaStats = async (req: Request, res: Response, next: NextFunction) => {
@@ -144,7 +143,6 @@ export const getCurseducaStats = async (req: Request, res: Response, next: NextF
           stats.reduce((sum, s) => sum + s.averageProgress, 0) / (stats.length || 1)
         )
       },
-      _v2Enabled: true
     }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar estatísticas CursEduca', 'CURSEDUCA_STATS_READ_FAILED', error))
