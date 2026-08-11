@@ -62,8 +62,9 @@ needed in the initial Task 9 scan.
 
 Terminal review separately found **46** fatal catch blocks with **47** local log calls before delegation to
 the central boundary, including **30** direct `console.*` calls. Commit `8c7d8f4` reduced those ceilings to
-**0/0/0**, leaving the boundary as the single fatal-log authority. Compensating writes remain intact; four
-non-fatal logs now use canonical safe metadata rather than raw error material. Static mutation/restoration
+**0/0/0**, leaving the boundary as the single fatal-log authority. Compensating writes remain intact; five
+non-fatal logs now use canonical safe metadata rather than raw error material, including the nested Guru
+failure-persistence path. Static mutation/restoration
 and representative runtime coverage enforce local logger **0**, central logger exactly **1**, correlation
 presence, and encoded-email/token absence.
 

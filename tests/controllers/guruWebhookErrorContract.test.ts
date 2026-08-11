@@ -1,7 +1,9 @@
 import type { NextFunction, Request, Response } from 'express'
+import requestAgent from 'supertest'
 import GuruWebhook from '../../src/models/GuruWebhook'
 import User from '../../src/models/user'
 import { HttpError } from '../../src/security/errorHandling'
+import { appForCentralError, expectCentralError } from '../support/centralErrorContract'
 
 jest.mock('../../src/services/requestDrivenRuntimeConfig', () => ({
   getGuruAccountToken: jest.fn(() => 'offline-guru-token'),
@@ -25,6 +27,15 @@ jest.mock('../../src/models/UserProduct', () => ({
   __esModule: true,
   default: {},
 }))
+jest.mock('../../src/utils/logger', () => ({
+  __esModule: true,
+  default: {
+    debug: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+  },
+}))
 
 import {
   getGuruStats,
@@ -33,6 +44,9 @@ import {
   migrateWebhookSource,
   reprocessWebhook,
 } from '../../src/controllers/guru.webhook.controller'
+import logger from '../../src/utils/logger'
+
+const loggerWarnMock = jest.mocked(logger.warn)
 
 const webhookModel = GuruWebhook as unknown as {
   aggregate: jest.Mock
@@ -111,19 +125,56 @@ test('webhook processing records the failure before forwarding it', async () => 
 })
 
 test('compensation failure never replaces the original webhook failure', async () => {
-  const original = new Error('primary failure')
+  const original = new Error('primary failure token=primary-secret')
   webhookModel.findOne.mockRejectedValueOnce(original)
-  webhookModel.findOneAndUpdate.mockRejectedValueOnce(new Error('compensation failure'))
-  const next: NextFunction = jest.fn()
+  webhookModel.findOneAndUpdate.mockRejectedValueOnce(
+    new Error('compensation alice%40example.test token=compensation-secret'),
+  )
+  const centralLogger = jest.fn()
+  const forwardedErrors: unknown[] = []
+  const next: NextFunction = (error) => {
+    forwardedErrors.push(error)
+  }
 
   await Reflect.apply(handleGuruWebhook, undefined, [request({
     headers: { 'x-request-id': 'request-456' },
     body: { api_token: 'offline-guru-token' },
   }), response(), next])
 
-  expect(next).toHaveBeenCalledWith(expect.objectContaining({
+  const [forwardedError] = forwardedErrors
+  const result = await requestAgent(appForCentralError({
+    kind: 'handler',
+    method: 'post',
+    handler: (_req, _res, boundaryNext) => boundaryNext(forwardedError),
+  }, 'request-456', centralLogger))
+    .post('/target?__bo2_offline_loopback=1')
+    .set('X-Request-ID', 'request-456')
+    .send({})
+
+  expect(forwardedError).toMatchObject({
+    status: 500,
     code: 'GURU_WEBHOOK_PROCESSING_FAILED',
     internalCause: original,
+  })
+  expectCentralError(result, {
+    code: 'GURU_WEBHOOK_PROCESSING_FAILED',
+    message: 'Erro ao processar webhook Guru',
+    correlationId: 'request-456',
+  })
+  expect(console.error).not.toHaveBeenCalled()
+  expect(loggerWarnMock).toHaveBeenCalledTimes(1)
+  expect(loggerWarnMock).toHaveBeenCalledWith(
+    'Guru webhook failure persistence failed',
+    { requestId: 'request-456', stage: 'failure-persistence', status: 'failed' },
+  )
+  expect(JSON.stringify(loggerWarnMock.mock.calls)).not.toMatch(
+    /alice(?:%40|@)example\.test|compensation-secret|primary-secret/,
+  )
+  expect(centralLogger).toHaveBeenCalledTimes(1)
+  expect(centralLogger).toHaveBeenCalledWith(expect.objectContaining({
+    code: 'GURU_WEBHOOK_PROCESSING_FAILED',
+    correlationId: 'request-456',
+    status: 500,
   }))
 })
 

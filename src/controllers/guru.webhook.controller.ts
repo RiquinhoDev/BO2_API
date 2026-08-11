@@ -6,7 +6,7 @@ import GuruWebhook from '../models/GuruWebhook'
 import UserProduct from '../models/UserProduct'
 import { GuruWebhookPayload, GuruSubscriptionStatus } from '../types/guru.types'
 import { getGuruAccountToken } from '../services/requestDrivenRuntimeConfig'
-
+import logger from '../utils/logger'
 export { listGuruWebhooks } from './guruWebhookList.controller'
 export { debugToken, migrateWebhookSource } from './guruWebhookAdmin.controller'
 
@@ -278,8 +278,8 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, 
           processedAt: new Date()
         }
       )
-    } catch (compensationError) {
-      console.error('❌ [GURU] Erro ao guardar falha:', compensationError)
+    } catch {
+      logger.warn('Guru webhook failure persistence failed', { requestId, stage: 'failure-persistence', status: 'failed' })
     }
 
     return next(internalError('Erro ao processar webhook Guru', 'GURU_WEBHOOK_PROCESSING_FAILED', error))
