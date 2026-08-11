@@ -1,3 +1,4 @@
+import { Types } from 'mongoose'
 import {
   ClassRosterService,
   escapeRegex,
@@ -12,14 +13,32 @@ import {
 const FIXED = new Date('2026-01-02T03:04:05.000Z')
 const fixedClock = { now: () => FIXED }
 
-const makeReader = (overrides: Partial<ClassRosterReader> = {}): ClassRosterReader => ({
+interface RosterReaderOverrides {
+  getClassById?: ClassRosterReader['getClassById']
+  findStudents?: ClassRosterReader['findStudents']
+  resolveClassNames?: ClassRosterReader['resolveClassNames']
+}
+
+const makeRosterUser = (id: number, name: string, classId?: string): RosterUser => ({
+  _id: new Types.ObjectId(id.toString(16).padStart(24, '0')),
+  email: `${name.toLowerCase()}@example.test`,
+  name,
+  classId,
+  metadata: {
+    createdAt: FIXED,
+    updatedAt: FIXED,
+    sources: {},
+  },
+})
+
+const makeReader = (overrides: RosterReaderOverrides = {}): ClassRosterReader => ({
   getClassById: jest.fn(async () => ({ name: 'Turma X', source: 'hotmart' })),
   findCurseducaMemberIds: jest.fn(async () => []),
-  findStudents: jest.fn(async () => [{ _id: 'u1', name: 'Ana', metadata: { createdAt: FIXED } } as RosterUser]),
+  findStudents: jest.fn(async () => [makeRosterUser(1, 'Ana')]),
   countStudents: jest.fn(async () => 1),
   searchStudents: jest.fn(async () => [
-    { _id: 'u1', name: 'Ana', classId: 'C1' } as RosterUser,
-    { _id: 'u2', name: 'Bea', classId: 'C1' } as RosterUser,
+    makeRosterUser(1, 'Ana', 'C1'),
+    makeRosterUser(2, 'Bea', 'C1'),
   ]),
   countSearch: jest.fn(async () => 2),
   resolveClassNames: jest.fn(async () => new Map([['C1', 'Turma C1']])),
