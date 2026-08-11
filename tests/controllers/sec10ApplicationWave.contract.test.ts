@@ -1,4 +1,5 @@
 import request from 'supertest'
+import { IntegrationUnavailableError } from '../../src/errors/integrationUnavailableError'
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 installTestRuntimeConfigHooks()
 import { appForCentralError, expectCentralError } from '../support/centralErrorContract'
@@ -292,6 +293,35 @@ describe('SEC-10 remaining application wave', () => {
       expect(response.body).toEqual({ error: 'Dados indisponíveis. Tente novamente em breve.' })
     })
 
+    it.each([
+      { name: 'Top 10', path: '/top10/refresh', dependency: mockRefreshClarezaTop10Data },
+      { name: 'earnings', path: '/earnings/refresh', dependency: mockRefreshClarezaEarningsData },
+    ])('preserves the FMP unavailable response for $name refresh', async ({ path, dependency }) => {
+      dependency.mockRejectedValueOnce(new IntegrationUnavailableError('fmp', secret))
+      const logError = jest.fn()
+      const app = appForCentralError(
+        { kind: 'router', mountPath: '/', router: clarezaRouter },
+        'clareza-fmp-request',
+        logError,
+      )
+
+      const response = await request(app).post(path + offline).send({})
+
+      expect(response.status).toBe(503)
+      expect(response.headers['x-request-id']).toBe('clareza-fmp-request')
+      expect(response.body).toEqual({
+        success: false,
+        code: 'INTEGRATION_UNAVAILABLE',
+        message: 'Serviço temporariamente indisponível',
+        correlationId: 'clareza-fmp-request',
+      })
+      expect(logError).toHaveBeenCalledWith(expect.objectContaining({
+        code: 'INTEGRATION_UNAVAILABLE',
+        integration: 'fmp',
+        status: 503,
+      }))
+      expect(JSON.stringify(logError.mock.calls)).not.toMatch(/alice@example\.test|token=hidden/)
+    })
     it('preserves the intentional missing-symbol validation response', async () => {
       const response = await request(appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter }))
         .get('/raiox' + offline)
