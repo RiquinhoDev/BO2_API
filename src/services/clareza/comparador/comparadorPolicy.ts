@@ -6,7 +6,7 @@ import type {
   ComparadorSymbolsResponse,
 } from './comparador.types'
 
-export type ComparadorPolicyErrorCode = 'EMPTY_SYMBOLS' | 'SYMBOL_LIMIT_EXCEEDED' | 'INVALID_LIMIT'
+export type ComparadorPolicyErrorCode = 'EMPTY_SYMBOLS' | 'INVALID_LIMIT'
 
 export class ComparadorPolicyError extends Error {
   readonly code: ComparadorPolicyErrorCode
@@ -20,13 +20,9 @@ export class ComparadorPolicyError extends Error {
 
 const MAX_SEARCH_RESULTS = 20
 
-function limitError(limit: number): ComparadorPolicyError {
-  return new ComparadorPolicyError('SYMBOL_LIMIT_EXCEEDED', `Limite de ${limit} símbolos excedido.`)
-}
-
 export function parseComparadorSymbols(raw: string, limit: number): string[] {
   if (!Number.isInteger(limit) || limit < 1) {
-    throw new ComparadorPolicyError('INVALID_LIMIT', 'O limite de símbolos tem de ser positivo.')
+    throw new ComparadorPolicyError('INVALID_LIMIT', 'O limite de s\u00edmbolos tem de ser positivo.')
   }
 
   const symbols: string[] = []
@@ -40,14 +36,13 @@ export function parseComparadorSymbols(raw: string, limit: number): string[] {
 
     seen.add(symbol)
     symbols.push(symbol)
+    if (symbols.length === limit) {
+      return symbols
+    }
   }
 
   if (symbols.length === 0) {
-    throw new ComparadorPolicyError('EMPTY_SYMBOLS', 'Sem símbolos válidos.')
-  }
-
-  if (symbols.length > limit) {
-    throw limitError(limit)
+    throw new ComparadorPolicyError('EMPTY_SYMBOLS', 'Sem s\u00edmbolos v\u00e1lidos.')
   }
 
   return symbols
@@ -62,7 +57,7 @@ export function selectComparadorStocks(
     updated: snapshot.updated,
     companies: symbols.map((symbol) => snapshot.stocks[symbol] ?? {
       ticker: symbol,
-      error: `${symbol} ainda não está disponível no Comparador.`,
+      error: `${symbol} ainda n\u00e3o est\u00e1 dispon\u00edvel no Comparador.`,
     }),
   }
 }
@@ -82,15 +77,15 @@ function searchRank(stock: ComparadorSearchResult, query: string): number | null
 
 export function searchComparadorStocks(snapshot: ComparadorSnapshot, rawQuery: string): ComparadorSearchResponse {
   const query = rawQuery.trim().toUpperCase()
-  const ranked = Object.values(snapshot.stocks)
-    .map((stock) => {
+  const ranked = Object.entries(snapshot.stocks)
+    .map(([symbol, stock]) => {
       const result: ComparadorSearchResult = {
-        symbol: stock.ticker,
-        name: stock.name,
+        symbol,
+        name: stock.name || symbol,
         sector: stock.sector,
         exchange: stock.exchange,
         image: stock.image,
-        isReit: stock.isReit,
+        isReit: stock.isReit ?? false,
       }
       const rank = searchRank(result, query)
       return rank === null ? null : { rank, result }
