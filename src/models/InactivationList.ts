@@ -1,5 +1,7 @@
 // src/models/InactivationList.ts - VERSÃO CORRIGIDA
 import mongoose, { Document, Schema } from 'mongoose'
+import { collectBatches } from '../utils/collectBatches'
+import { boundedQueryLimit } from '../utils/queryBounds'
 
 export interface IInactivationList extends Document {
   name: string
@@ -156,16 +158,31 @@ inactivationListSchema.methods.markAsReversed = function(reversedBy?: string, re
 }
 
 // Métodos estáticos
-inactivationListSchema.statics.findPending = function() {
-  return this.find({ status: 'PENDING' }).sort({ createdAt: -1 })
-}
-
-inactivationListSchema.statics.findExecutable = function() {
+inactivationListSchema.statics.findPending = function(requestedLimit: number = 100) {
+  const cappedLimit = boundedQueryLimit(requestedLimit, 100)
   return this.find({ status: 'PENDING' })
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(cappedLimit)
 }
 
-inactivationListSchema.statics.findRevertible = function() {
+inactivationListSchema.statics.findExecutable = function(requestedBatchSize: number = 200) {
+  const cappedBatchSize = boundedQueryLimit(requestedBatchSize, 200)
+  return collectBatches<IInactivationList, mongoose.Types.ObjectId>(
+    cappedBatchSize,
+    (cursor: mongoose.Types.ObjectId | undefined, batchSize) => {
+      const query: mongoose.FilterQuery<IInactivationList> = { status: 'PENDING' }
+      if (cursor) query._id = { $gt: cursor }
+      return this.find(query).sort({ _id: 1 }).limit(batchSize).exec()
+    },
+    list => list._id,
+  )
+}
+
+inactivationListSchema.statics.findRevertible = function(requestedLimit: number = 100) {
+  const cappedLimit = boundedQueryLimit(requestedLimit, 100)
   return this.find({ status: 'COMPLETED' })
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(cappedLimit)
 }
 
 const InactivationList: mongoose.Model<IInactivationList> = mongoose.models.InactivationList || mongoose.model<IInactivationList>('InactivationList', inactivationListSchema)

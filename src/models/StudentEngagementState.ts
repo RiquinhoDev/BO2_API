@@ -4,6 +4,8 @@
 // =====================================================
 
 import mongoose, { Document, Schema } from 'mongoose'
+import { collectBatches } from '../utils/collectBatches'
+import { boundedQueryLimit } from '../utils/queryBounds'
 
 /**
  * Interface: Histórico de Tags
@@ -380,23 +382,39 @@ StudentEngagementStateSchema.statics = {
   /**
    * Buscar alunos por estado
    */
-  async findByState(productCode: string, state: string) {
+  async findByState(productCode: string, state: string, requestedLimit: number = 100) {
+    const cappedLimit = boundedQueryLimit(requestedLimit, 100)
     return this.find({ productCode, currentState: state })
       .populate('userId')
-      .sort({ daysSinceLastLogin: -1 })
+      .sort({ daysSinceLastLogin: -1, _id: -1 })
+      .limit(cappedLimit)
   },
   
   /**
    * Buscar alunos elegíveis para avaliação
    */
-  async findEligibleForEvaluation(productCode: string) {
-    return this.find({
+  async findEligibleForEvaluation(productCode: string, requestedBatchSize: number = 200) {
+    const cappedBatchSize = boundedQueryLimit(requestedBatchSize, 200)
+    const eligible = {
       productCode,
       $or: [
         { isInCooldown: false },
         { cooldownUntil: { $lt: new Date() } }
       ]
-    }).populate('userId')
+    }
+    return collectBatches<IStudentEngagementState, mongoose.Types.ObjectId>(
+      cappedBatchSize,
+      (cursor: mongoose.Types.ObjectId | undefined, batchSize) => {
+        const query: mongoose.FilterQuery<IStudentEngagementState> = { ...eligible }
+        if (cursor) query._id = { $gt: cursor }
+        return this.find(query)
+          .sort({ _id: 1 })
+          .limit(batchSize)
+          .populate('userId')
+          .exec()
+      },
+      state => state._id,
+    )
   }
 }
 

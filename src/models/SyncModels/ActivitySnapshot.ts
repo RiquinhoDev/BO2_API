@@ -5,6 +5,8 @@
 // ════════════════════════════════════════════════════════════
 
 import mongoose, { Schema } from 'mongoose'
+import { collectBatches } from '../../utils/collectBatches'
+import { boundedQueryLimit } from '../../utils/queryBounds'
 import type {
   IActivitySnapshot,
   IActivitySnapshotMethods,
@@ -228,21 +230,40 @@ ActivitySnapshotSchema.statics.getUserSnapshots = async function(
   userId: mongoose.Types.ObjectId,
   startMonth: Date,
   endMonth: Date,
-  platform?: Platform
+  platform?: Platform,
+  requestedBatchSize: number = 200
 ): Promise<IActivitySnapshot[]> {
-  const query: any = {
-    userId,
-    snapshotMonth: {
-      $gte: new Date(startMonth.getFullYear(), startMonth.getMonth(), 1),
-      $lte: new Date(endMonth.getFullYear(), endMonth.getMonth(), 1)
-    }
+  const normalizedStart = new Date(startMonth.getFullYear(), startMonth.getMonth(), 1)
+  const normalizedEnd = new Date(endMonth.getFullYear(), endMonth.getMonth(), 1)
+  const cappedBatchSize = boundedQueryLimit(requestedBatchSize, 200)
+  type SnapshotCursor = {
+    snapshotMonth: Date
+    _id: mongoose.Types.ObjectId
   }
-  
-  if (platform) {
-    query.platform = platform
-  }
-  
-  return this.find(query).sort({ snapshotMonth: 1 })
+
+  return collectBatches<IActivitySnapshot, SnapshotCursor>(
+    cappedBatchSize,
+    (cursor, batchSize) => {
+      const query: mongoose.FilterQuery<IActivitySnapshot> = {
+        userId,
+        snapshotMonth: { $gte: normalizedStart, $lte: normalizedEnd },
+      }
+
+      if (platform) query.platform = platform
+      if (cursor) {
+        query.$or = [
+          { snapshotMonth: { $gt: cursor.snapshotMonth } },
+          { snapshotMonth: cursor.snapshotMonth, _id: { $gt: cursor._id } },
+        ]
+      }
+
+      return this.find(query)
+        .sort({ snapshotMonth: 1, _id: 1 })
+        .limit(batchSize)
+        .exec()
+    },
+    (snapshot) => ({ snapshotMonth: snapshot.snapshotMonth, _id: snapshot._id }),
+  )
 }
 
 ActivitySnapshotSchema.statics.getActiveUsersInMonth = async function(
