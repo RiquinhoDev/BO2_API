@@ -18,9 +18,59 @@ test('SCALE-01 inventory reconciles 36 complete and 4 pending reads', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
   expect(inventory.summary).toEqual({ planned: 40, complete: 36, pending: 4 })
   expect(inventory.entries).toHaveLength(40)
+  expect(inventory.scale02.summary).toEqual({ planned: 11, complete: 11, pending: 0, changed: 10, alreadyCompliant: 1 })
+  expect(inventory.scale02.entries).toHaveLength(11)
   expect(run()).toContain('36 complete / 4 pending')
+  expect(run()).toContain('SCALE-02 11 complete / 0 pending')
 })
 
+test('SCALE-02 ratchet records the exact set-based partition A decisions', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  expect(inventory.scale02.entries.map(({ id }: { id: string }) => id)).toEqual([
+    'dashboard-quick.product-comparison',
+    'dashboard-quick.products-breakdown',
+    'dashboard.stats',
+    'dashboard.engagement-distribution',
+    'dashboard.compare-products',
+    'engagement.global-summary',
+    'engagement.stats',
+    'cohort.retention',
+    'cohort.metrics',
+    'user.source-statistics',
+    'user.data-source-stats',
+  ])
+  expect(inventory.scale02.entries.filter(({ disposition }: { disposition: string }) => disposition === 'changed')).toHaveLength(10)
+  expect(inventory.scale02.entries.filter(({ disposition }: { disposition: string }) => disposition === 'already-compliant')).toHaveLength(1)
+})
+test('SCALE-02 ratchet rejects a removed set-based invariant', () => {
+  const relative = 'src/models/user.behavior.ts'
+  const overlay = fs.mkdtempSync(path.join(os.tmpdir(), 'scale02-read-overlay-'))
+  const target = path.join(overlay, relative)
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  fs.writeFileSync(target, fs.readFileSync(path.join(root, relative), 'utf8').replace('$facet', '$removedFacet'))
+  try {
+    expect(() => run({
+      NODE_ENV: 'test',
+      SCALABILITY_READ_TEST_OVERLAY: overlay,
+      SCALABILITY_READ_ALLOW_TEST_OVERLAY: '1',
+    })).toThrow(/user.data-source-stats: missing .*facet/)
+  } finally {
+    fs.rmSync(overlay, { recursive: true, force: true })
+  }
+})
+
+test('SCALE-02 ratchet rejects changed versus already-compliant drift', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  inventory.scale02.entries[0].disposition = 'already-compliant'
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'scale02-read-inventory-'))
+  const mutatedInventory = path.join(directory, 'inventory.json')
+  fs.writeFileSync(mutatedInventory, JSON.stringify(inventory))
+  try {
+    expect(() => run({ SCALABILITY_READ_INVENTORY: mutatedInventory })).toThrow(/SCALE-02 stale disposition counts/)
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
 test('ratchet rejects a cap above 200 and leaves the production source restored', () => {
   const relative = 'src/routes/events.routes.ts'
   const sourcePath = path.join(root, relative)

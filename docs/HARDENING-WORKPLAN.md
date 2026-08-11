@@ -806,7 +806,7 @@ Progresso controllers:
 ### Progresso estimado por pilar (2026-08-11)
 
 Esta tabela dá o mesmo peso aos oito pilares e é uma **estimativa de engenharia**, não uma contagem de
-checkboxes nem prova de prontidão operacional. Esta reconciliação macro incorpora SEC-10/ARCH-03 e SCALE-01 sem declarar fecho operacional.
+checkboxes nem prova de prontidão operacional. Esta reconciliação macro incorpora SEC-10/ARCH-03 e SCALE-01/SCALE-02 sem declarar fecho operacional.
 
 | Pilar | Antes da missão | Atual | Delta | Base da estimativa |
 | --- | ---: | ---: | ---: | --- |
@@ -815,18 +815,18 @@ checkboxes nem prova de prontidão operacional. Esta reconciliação macro incor
 | 3. Pastas & higiene | 100% | 100% | 0 pp | DOC-02 e artefactos fechados |
 | 4. Middleware & funções | 80% | 100% | +20 pp | SEC-10 passou de 188 para 0 e o detalhe público mantém 0 |
 | 5. Segurança & rotas | 70% | 70% | 0 pp | default-deny/JWT/CORS fechados; matriz de papéis e OPS-02 abertos |
-| 6. Escalabilidade | 35% | 55% | +20 pp | SCALE-01 fechou 36/40 reads selecionados; 4 decisões permanecem pendentes e a política transversal continua aberta |
+| 6. Escalabilidade | 35% | 61% | +26 pp | SCALE-01 mantém 36/40; SCALE-02 A resolveu 10 débitos set-based e verificou 1 read já conforme; OPS-02 e 4 decisões continuam abertos |
 | 7. Contrato de resposta | 50% | 79,4% | +29,4 pp | foundation vale 50%; migração revista em 289/441, com 72 identidades fora do denominador migrável |
 | 8. Toolchain & qualidade | 75% | 75% | 0 pp | TS/tests/package manager fechados; ESLint debt e validação operacional abertos |
-| **Total, média simples** | **75,6%** | **84,9%** | **+9,3 pp** | estimativa igualitária dos oito pilares |
+| **Total, média simples** | **75,6%** | **85,7%** | **+10,1 pp** | estimativa igualitária dos oito pilares |
 
-Contratos usa a fórmula explícita `50 + 50 × (289 - 72) / (441 - 72) = 79,4%`: metade do pilar é a foundation; a outra metade mede apenas as 369 identidades migráveis. O total atual é `(600 + 79,4) / 8 = 84,9%`. A coluna anterior reconcilia `605 / 8 = 75,6%`; o delta é **+9,3 pp**.
+Contratos usa a fórmula explícita `50 + 50 × (289 - 72) / (441 - 72) = 79,4%`: metade do pilar é a foundation; a outra metade mede apenas as 369 identidades migráveis. O total atual é (606 + 79,4) / 8 = 85,7%. A coluna anterior reconcilia 605 / 8 = 75,6%; o delta é **+10,1 pp**. O avanço de escalabilidade usa a densidade já publicada de 20 pp / 36 e conta apenas os 10 débitos efetivamente removidos (+5,6 pp, arredondado para +6); o read já conforme acrescenta evidência, não progresso.
 
 Na contagem mecânica, as duas missões reconciliam `102/112 -> 105/112` (`91,1% -> 93,8%`). SEC-10 e o
-boundary de responsabilidade ARCH-02 são os deltas de código; SCALE-01 melhora a estimativa sem fechar a caixa ampla de paginação restante. Outra caixa corrigiu estado ARCH-02 já provado no ledger abaixo. Nenhuma das
+boundary de responsabilidade ARCH-02 são os deltas de código; SCALE-01 e os 10 débitos removidos em SCALE-02 A melhoram a estimativa sem fechar a caixa ampla de paginação restante. Outra caixa corrigiu estado ARCH-02 já provado no ledger abaixo. Nenhuma das
 duas métricas inclui deploy, observação, equivalência de payloads ou prontidão operacional.
 
-**Evidência desta reconciliação (2026-08-11, offline):** SCALE-01 ficou em **36/40** e contratos em **289/441**. Os gates focados/estáticos e as revisões independentes dos blocos terminaram em PASS. Depois dos commits finais, `node_modules` deixou de conter Jest/`ts-jest`, impedindo uma repetição fresh de Jest, TypeScript e lint; não houve reinstalação nem rede. Estes números são estado de código e inventário, não prova de deploy, carga real, equivalência em produção ou fecho operacional.
+**Evidência desta reconciliação (2026-08-11, offline):** SCALE-01 permanece em **36/40**; SCALE-02 A regista **11/11 decisões completas = 10 alterações + 1 read já conforme**; contratos permanecem em **289/441**. O checker mantém **346** sites Mongoose e ratchets separados para os dois lotes. Estes números são estado de código e inventário, não prova de deploy, carga real, plano do query planner, latência, equivalência em produção ou fecho operacional.
 
 ### Evidência focada (2026-08-03; offline)
 
@@ -1183,6 +1183,7 @@ duas métricas inclui deploy, observação, equivalência de payloads ou prontid
 - [x] **Paginação canónica (ARCH-05 / F3.2):** helper único offset-based de listas HTTP, cap 200 e projeção explícita onde aplicável, cobrindo explicitamente as superfícies migradas `usersReviewLists`, `guruWebhookList`, `guruSubscriptionList` e `usersSimpleList` (controllers + `usersSimpleList` service/repository).
 - [ ] **Paginação restante:** resolver os quatro itens SCALE-01 pendentes sem truncagem semântica e continuar a migração das restantes listagens HTTP/scans fora deste lote. Superfícies offset inadequadas exigem cursor; scans operacionais exigem batch completo; exceções full-set/configuração exigem decisão explícita e machine-checked.
   - **SCALE-01 (2026-08-11, code-complete parcial):** inventário canónico `40 = 36 complete + 4 pending`. Os 36 reads usam cap `<=200`, desempate estável por `_id`, agregação escalar, catálogo finito justificado ou scan completo em batches. Permanecem pendentes `products.users-full-set`, dois heatmaps cuja truncagem enviesaria métricas e `course-lessons.grouped`; exigem desenho de contrato/algoritmo, não um cap cego. `scalability:reads:check` fixa ponteiros, limites, allowlists e o baseline de sites Mongoose; a prova determinística de scan completo preservou 10 000/10 000 registos com pedidos `<=200`. Isto não fecha OPS-02 nem prova carga/latência operacional.
+  - **SCALE-02 A (2026-08-11, code-complete; operacional aberto):** 11 = 11 complete + 0 pending, discriminados em 10 changed + 1 already-compliant. Comparação de produtos passou de quatro acessos para uma agregação; retenção de cohorts deixou de crescer por mês/milestone; stats de engagement incorporam contagens de plataforma; data-source stats usam um único facet; os restantes agregados completos preservam a população sem truncagem e explicitam allowDiskUse. O ratchet fixa ponteiros, tokens obrigatórios/proibidos e a distinção changed/no-op. Não prova índices implantados, explain, cardinalidade/latência real, cache distribuída nem OPS-02.
 - [ ] Idempotência e caps como **política transversal**, não caso-a-caso (OPS-02).
 
 ### 7. Contrato de resposta
