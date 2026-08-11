@@ -150,8 +150,8 @@ describe('classAnalytics controller', () => {
         lastCalculated: analytics.lastCalculatedAt.toISOString(),
         calculationDuration: analytics.calculationDuration,
         studentsProcessed: analytics.studentsProcessed,
+        timestamp: expect.any(String),
       },
-      timestamp: expect.any(String),
     })
   })
 
@@ -194,7 +194,6 @@ describe('classAnalytics controller', () => {
     expect(response.status).toBe(200)
     expect(response.body).toEqual({
       success: true,
-      message: 'Analytics recalculados com sucesso para a turma class-1',
       data: {
         classId: 'class-1',
         studentsProcessed: 20,
@@ -202,7 +201,10 @@ describe('classAnalytics controller', () => {
         newAverageEngagement: 72,
         newHealthScore: 78,
       },
-      timestamp: expect.any(String),
+      meta: {
+        message: 'Analytics recalculados com sucesso para a turma class-1',
+        timestamp: expect.any(String),
+      },
     })
   })
 
@@ -220,8 +222,10 @@ describe('classAnalytics controller', () => {
         count: 2,
         classes: ['class-1', 'class-2'],
       },
-      message: '2 turmas precisam de atualização',
-      timestamp: expect.any(String),
+      meta: {
+        message: '2 turmas precisam de atualização',
+        timestamp: expect.any(String),
+      },
     })
   })
 

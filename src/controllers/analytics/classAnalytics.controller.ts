@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import {
   classAnalyticsClassInput,
@@ -66,18 +67,14 @@ export function createClassAnalyticsController(
         )
         const isCached = !forceRecalculate && cacheAge < 6 * 60
 
-        res.status(200).json({
-          success: true,
-          data: analytics,
-          meta: {
+        res.status(200).json(successResponse(analytics, {
             cached: isCached,
             cacheAge,
             lastCalculated: analytics.lastCalculatedAt,
             calculationDuration: analytics.calculationDuration,
             studentsProcessed: analytics.studentsProcessed,
-          },
           timestamp: new Date().toISOString(),
-        })
+        }))
       } catch (error) {
         next(
           internalError(
@@ -104,18 +101,13 @@ export function createClassAnalyticsController(
           return
         }
 
-        res.status(200).json({
-          success: true,
-          message: `Analytics recalculados com sucesso para a turma ${classId}`,
-          data: {
+        res.status(200).json(successResponse({
             classId: analytics.classId,
             studentsProcessed: analytics.studentsProcessed,
             calculationDuration: analytics.calculationDuration,
             newAverageEngagement: analytics.averageEngagement,
             newHealthScore: analytics.healthScore,
-          },
-          timestamp: new Date().toISOString(),
-        })
+        }, { message: `Analytics recalculados com sucesso para a turma ${classId}`, timestamp: new Date().toISOString() }))
       } catch (error) {
         next(
           internalError(
@@ -132,15 +124,10 @@ export function createClassAnalyticsController(
       try {
         const outdatedClasses = await service.getClassesThatNeedUpdate()
 
-        res.status(200).json({
-          success: true,
-          data: {
+        res.status(200).json(successResponse({
             count: outdatedClasses.length,
             classes: outdatedClasses,
-          },
-          message: `${outdatedClasses.length} turmas precisam de atualização`,
-          timestamp: new Date().toISOString(),
-        })
+        }, { message: `${outdatedClasses.length} turmas precisam de atualização`, timestamp: new Date().toISOString() }))
       } catch (error) {
         next(
           internalError(
@@ -165,18 +152,14 @@ export function createClassAnalyticsController(
           return
         }
 
-        res.status(200).json({
-          success: true,
-          data: {
+        res.status(200).json(successResponse({
             classId: analytics.classId,
             className: analytics.className,
             healthScore: analytics.healthScore,
             healthFactors: analytics.healthFactors,
             totalStudents: analytics.totalStudents,
             lastCalculated: analytics.lastCalculatedAt,
-          },
-          timestamp: new Date().toISOString(),
-        })
+        }, { timestamp: new Date().toISOString() }))
       } catch (error) {
         next(
           internalError(
@@ -202,18 +185,14 @@ export function createClassAnalyticsController(
           return
         }
 
-        res.status(200).json({
-          success: true,
-          data: {
+        res.status(200).json(successResponse({
             classId: analytics.classId,
             className: analytics.className,
             totalStudents: analytics.totalStudents,
             averageEngagement: analytics.averageEngagement,
             distribution: analytics.engagementDistribution,
             lastCalculated: analytics.lastCalculatedAt,
-          },
-          timestamp: new Date().toISOString(),
-        })
+        }, { timestamp: new Date().toISOString() }))
       } catch (error) {
         next(
           internalError(
@@ -238,17 +217,13 @@ export function createClassAnalyticsController(
           return
         }
 
-        res.status(200).json({
-          success: true,
-          data: {
+        res.status(200).json(successResponse({
             classId: analytics.classId,
             className: analytics.className,
             totalAlerts: analytics.alerts.length,
             alerts: analytics.alerts,
             lastCalculated: analytics.lastCalculatedAt,
-          },
-          timestamp: new Date().toISOString(),
-        })
+        }, { timestamp: new Date().toISOString() }))
       } catch (error) {
         next(
           internalError(

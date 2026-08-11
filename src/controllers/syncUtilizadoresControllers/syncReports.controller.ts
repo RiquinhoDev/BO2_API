@@ -57,11 +57,7 @@ export const getReportById = async (req: Request<SyncReportParams>, res: Respons
       return
     }
     
-    res.status(200).json({
-      success: true,
-      message: 'Report recuperado com sucesso',
-      data: { report }
-    })
+    res.status(200).json(successResponse({ report }, { message: 'Report recuperado com sucesso' }))
     
   } catch (error: unknown) {
     next(internalError('Erro ao buscar report', 'SYNC_REPORT_READ_FAILED', error))
@@ -83,11 +79,7 @@ export const getAggregatedStats = async (req: Request, res: Response, next: Next
       days ? parseInt(String(days), 10) : 30,
     )
     
-    res.status(200).json({
-      success: true,
-      message: 'Stats agregados recuperados com sucesso',
-      data: { stats }
-    })
+    res.status(200).json(successResponse({ stats }, { message: 'Stats agregados recuperados com sucesso' }))
     
   } catch (error: unknown) {
     next(internalError('Erro ao buscar stats agregados', 'SYNC_REPORT_STATS_FAILED', error))

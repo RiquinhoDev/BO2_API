@@ -39,7 +39,7 @@ export function createGetClassDetailsController(service: Service): RequestHandle
         res.status(404).json({ success: false, message: 'Turma não encontrada' })
         return
       }
-      res.json({ success: true, ...result.data, timestamp: result.timestamp })
+      res.json(successResponse(result.data, { timestamp: result.timestamp }))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_DETAILS_FAILED', publicMessage: 'Erro ao buscar detalhes da turma.', cause: error }))
     }
@@ -55,7 +55,7 @@ export function createFetchClassDataController(service: Service): RequestHandler
         includeStudents: (includeStudents ?? 'false') === 'true',
         includeStats: (includeStats ?? 'true') === 'true',
       })
-      res.json({ success: true, classes: result.classes, count: result.classes.length, timestamp: result.timestamp })
+      res.json(successResponse({ classes: result.classes }, { count: result.classes.length, timestamp: result.timestamp }))
     } catch (error) {
       next(new HttpError({ status: 500, code: 'CLASS_FETCH_FAILED', publicMessage: 'Erro ao buscar dados das turmas.', cause: error }))
     }
