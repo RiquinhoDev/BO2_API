@@ -226,10 +226,10 @@
   {
     "identity": "GET /api/activecampaign/history/stats",
     "owner": "src/controllers/acTags/activeCampaignHistoryStats.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/activecampaign/stats",
@@ -306,10 +306,10 @@
   {
     "identity": "GET /api/analytics/class/:classId/quick",
     "owner": "src/controllers/analytics/classQuickStats.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/analytics/cohort",
@@ -346,10 +346,10 @@
   {
     "identity": "GET /api/analytics/multi-platform",
     "owner": "src/controllers/analytics/multiPlatformAnalytics.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/analytics/opportunities/:classId",
@@ -754,10 +754,10 @@
   {
     "identity": "GET /api/curseduca/dashboard",
     "owner": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/curseduca/debug",
@@ -1010,34 +1010,34 @@
   {
     "identity": "GET /api/engagement/engagement/details",
     "owner": "src/controllers/engagement/details.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/engagement/engagement/stats",
     "owner": "src/controllers/engagement/stats.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/engagement/stats",
     "owner": "src/controllers/engagement/summary.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/engagement/users",
     "owner": "src/controllers/engagement/users.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/events",
@@ -2738,10 +2738,10 @@
   {
     "identity": "POST /api/engagement/engagement/cache/clear",
     "owner": "src/controllers/engagement/summary.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/events",
@@ -3202,18 +3202,18 @@
   {
     "identity": "POST /api/tags/evaluate",
     "owner": "src/controllers/tagEvaluation.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/tags/evaluate-batch",
     "owner": "src/controllers/tagEvaluation.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/test/history/delete-test-events",
@@ -3338,10 +3338,10 @@
   {
     "identity": "POST /api/users/syncDiscordAndHotmart",
     "owner": "src/controllers/userDiscordImport.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/webhooks/ac/email-opened",

@@ -326,16 +326,11 @@
     "path": "/api/activecampaign/history/stats",
     "family": "success-data",
     "shapeKeys": [
-      "byAction",
-      "byDay",
-      "bySource",
-      "period",
-      "success",
-      "topRules",
-      "topTags",
-      "totals"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignHistoryStats.controller.ts:169",
+    "evidence": "src/controllers/acTags/activeCampaignHistoryStats.controller.ts:170",
     "frontConsumer": null
   },
   {
@@ -455,10 +450,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "mixed success exits (domain-envelope, success-data); src/controllers/analytics/classQuickStats.controller.ts:17",
+    "evidence": "src/controllers/analytics/classQuickStats.controller.ts:18",
     "frontConsumer": null
   },
   {
@@ -519,15 +514,10 @@
     "path": "/api/analytics/multi-platform",
     "family": "success-data",
     "shapeKeys": [
-      "activeUsers",
-      "engagement",
-      "inactiveUsers",
-      "insights",
-      "platformStats",
-      "success",
-      "totalUsers"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/analytics/multiPlatformAnalytics.controller.ts:14",
+    "evidence": "src/controllers/analytics/multiPlatformAnalytics.controller.ts:15",
     "frontConsumer": null
   },
   {
@@ -1400,15 +1390,11 @@
     "path": "/api/curseduca/dashboard",
     "family": "success-data",
     "shapeKeys": [
-      "activeUsers",
-      "message",
-      "products",
-      "success",
-      "timestamp",
-      "totalUserProducts",
-      "totalUsers"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts:11",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts:12",
     "frontConsumer": null
   },
   {
@@ -1756,10 +1742,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/engagement/details.controller.ts:160",
+    "evidence": "src/controllers/engagement/details.controller.ts:161",
     "frontConsumer": null
   },
   {
@@ -1767,11 +1753,11 @@
     "path": "/api/engagement/engagement/stats",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/engagement/stats.controller.ts:182",
+    "evidence": "src/controllers/engagement/stats.controller.ts:183",
     "frontConsumer": null
   },
   {
@@ -1780,12 +1766,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "processingMethod",
-      "processingTime",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/engagement/summary.controller.ts:15",
+    "evidence": "src/controllers/engagement/summary.controller.ts:16",
     "frontConsumer": null
   },
   {
@@ -1794,10 +1778,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "success",
-      "timestamp"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/engagement/users.controller.ts:225",
+    "evidence": "src/controllers/engagement/users.controller.ts:226",
     "frontConsumer": null
   },
   {
@@ -4332,8 +4316,8 @@
     "path": "/api/engagement/engagement/cache/clear",
     "family": "success-data",
     "shapeKeys": [
-      "clearedItems",
-      "message",
+      "data",
+      "meta",
       "success"
     ],
     "evidence": "src/controllers/engagement/summary.controller.ts:197",
@@ -5037,12 +5021,9 @@
     "path": "/api/tags/evaluate",
     "family": "success-data",
     "shapeKeys": [
-      "dryRun",
+      "data",
       "meta",
-      "success",
-      "updatedLocalDB",
-      "user",
-      "warnings"
+      "success"
     ],
     "evidence": "src/controllers/tagEvaluation.controller.ts:304",
     "frontConsumer": null
@@ -5052,15 +5033,11 @@
     "path": "/api/tags/evaluate-batch",
     "family": "success-data",
     "shapeKeys": [
-      "dryRun",
-      "errors",
+      "data",
       "meta",
-      "results",
-      "success",
-      "summary",
-      "updatedLocalDB"
+      "success"
     ],
-    "evidence": "src/controllers/tagEvaluation.controller.ts:428",
+    "evidence": "src/controllers/tagEvaluation.controller.ts:432",
     "frontConsumer": null
   },
   {
@@ -5245,11 +5222,11 @@
     "path": "/api/users/syncDiscordAndHotmart",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "stats",
-      "syncId"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/userDiscordImport.controller.ts:46",
+    "evidence": "src/controllers/userDiscordImport.controller.ts:47",
     "frontConsumer": null
   },
   {
