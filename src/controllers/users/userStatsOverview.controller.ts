@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import type { UserStatsOverviewService } from '../../services/users/userStatsOverview.service'
 
@@ -9,8 +10,7 @@ export function createUserStatsOverviewController(
     try {
       const data = await service.get()
 
-      // Success shape preserved verbatim for the Front.
-      res.json({ success: true, data, _v2Enabled: true })
+      res.json(successResponse(data))
     } catch (error) {
       // SEC-10: the legacy handler answered 500 with error.message in the body;
       // route the failure through the central handler with a stable public

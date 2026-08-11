@@ -11,14 +11,14 @@ const getUsersInfiniteStats = extractedHandler as unknown as Handler
 
 type StatsBody = {
   success: boolean
-  stats: {
+  data: {
     _id?: unknown
     totalUsers: number
     activeUsers: number
     withEngagement: number
     withProgress: number
   }
-  timestamp: string
+  meta: { timestamp: string }
 }
 type Captured = { status?: number; body?: StatsBody }
 
@@ -72,11 +72,11 @@ describe('GET /api/users/infiniteStats — listing stats characterization', () =
 
     const body = captured.body as StatsBody
     expect(body.success).toBe(true)
-    expect(typeof body.timestamp).toBe('string')
+    expect(typeof body.meta.timestamp).toBe('string')
     // The response returns the raw $group result, including its _id: null.
     // withEngagement counts every non-deleted document: a missing engagementScore
     // still satisfies { $ne: ['$engagementScore', null] } in the pipeline.
-    expect(body.stats).toEqual({
+    expect(body.data).toEqual({
       _id: null,
       totalUsers: 3,
       activeUsers: 2,
@@ -89,7 +89,7 @@ describe('GET /api/users/infiniteStats — listing stats characterization', () =
     const captured: Captured = {}
     await getUsersInfiniteStats(req, makeResponse(captured), jest.fn() as unknown as NextFunction)
 
-    expect((captured.body as StatsBody).stats).toEqual({
+    expect((captured.body as StatsBody).data).toEqual({
       totalUsers: 0,
       activeUsers: 0,
       withEngagement: 0,

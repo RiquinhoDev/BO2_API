@@ -58,8 +58,8 @@ describe('listUsers — the contract the legacy Backoffice depends on', () => {
       .expect(200)
 
     // DiscordBot.jsx and HotmartSync.jsx read exactly these two fields.
-    expect(response.body.users).toEqual([{ _id: 'u1', name: 'Ana' }])
-    expect(response.body.count).toBe(137)
+    expect(response.body.data).toEqual([{ _id: 'u1', name: 'Ana' }])
+    expect(response.body.meta.count).toBe(137)
   })
 
   test('echoes the pagination inputs and derives totalPages', async () => {
@@ -69,7 +69,7 @@ describe('listUsers — the contract the legacy Backoffice depends on', () => {
       .get(`/users/listUsers?page=3&limit=20&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body).toMatchObject({
+    expect(response.body.meta).toMatchObject({
       page: 3,
       limit: 20,
       totalPages: 7,
@@ -84,16 +84,8 @@ describe('listUsers — the contract the legacy Backoffice depends on', () => {
       .get(`/users/listUsers?${LOOPBACK}`)
       .expect(200)
 
-    expect(Object.keys(response.body).sort()).toEqual([
-      'count',
-      'filters',
-      'hasProgress',
-      'limit',
-      'page',
-      'totalPages',
-      'users',
-    ])
-    expect(response.body.filters).toEqual({
+    expect(Object.keys(response.body).sort()).toEqual(['data', 'meta', 'success'])
+    expect(response.body.meta.filters).toEqual({
       search: null,
       status: null,
       hasDiscord: null,
@@ -133,8 +125,8 @@ describe('listUsers — the contract the legacy Backoffice depends on', () => {
       .expect(200)
 
     // An empty count facet folds to 0 rather than undefined.
-    expect(response.body.count).toBe(0)
-    expect(response.body.totalPages).toBe(0)
+    expect(response.body.meta.count).toBe(0)
+    expect(response.body.meta.totalPages).toBe(0)
   })
 
   test('serves the /users/users/listUsers mount with the identical contract', async () => {
@@ -298,7 +290,7 @@ describe('listUsers — filters', () => {
       .get(`/users/listUsers?search=ana&status=ACTIVE&hasDiscord=true&hasHotmart=false&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.filters).toEqual({
+    expect(response.body.meta.filters).toEqual({
       search: 'ana',
       status: 'ACTIVE',
       hasDiscord: 'true',
@@ -378,7 +370,7 @@ describe('listUsers — filters', () => {
       .get(`/users/listUsers?search=ana&hasHotmart=true&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.filters.search).toBe('ana')
+    expect(response.body.meta.filters.search).toBe('ana')
     const match = (stage(pipelines().rows, '$match') as { $match: Record<string, unknown> }).$match
     expect(JSON.stringify(match)).toContain('ana')
     expect(JSON.stringify(match)).toContain('hotmartUserId')

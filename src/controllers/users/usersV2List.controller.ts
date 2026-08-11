@@ -1,3 +1,4 @@
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import {
   usersV2EnrollmentInput,
@@ -14,7 +15,8 @@ export function createUsersV2EnrollmentController(
 ): ValidatedInputHandler<typeof usersV2EnrollmentInput> {
   return async (input, _req, res, next) => {
     try {
-      res.status(200).json(await service.list(input.query))
+      const { data, pagination, filters } = await service.list(input.query)
+      res.status(200).json(successResponse(data, { pagination, filters }))
     } catch (error) {
       next(new HttpError({
         status: 500,
@@ -48,7 +50,8 @@ export function createUsersV2LegacyController(
 ): ValidatedInputHandler<typeof usersV2LegacyInput> {
   return async (input, _req, res, next) => {
     try {
-      res.status(200).json(await service.list(input.query))
+      const { data, pagination, filters } = await service.list(input.query)
+      res.status(200).json(successResponse(data, { pagination, filters }))
     } catch (error) {
       next(new HttpError({
         status: 500,

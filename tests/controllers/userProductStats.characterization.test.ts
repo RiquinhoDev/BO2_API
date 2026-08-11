@@ -11,7 +11,7 @@ const getProductStats = extractedHandler as unknown as Handler
 
 type StatsBody = {
   success: boolean
-  stats: {
+  data: {
     total: number
     grandeInvestimento: number
     relatoriosClareza: number
@@ -20,7 +20,7 @@ type StatsBody = {
     hotmart: number
     curseduca: number
   }
-  timestamp: string
+  meta: { timestamp: string }
 }
 type Captured = { status?: number; body?: StatsBody }
 
@@ -75,8 +75,8 @@ describe('GET /api/users/getProductStats — product membership stats characteri
 
     const body = captured.body as StatsBody
     expect(body.success).toBe(true)
-    expect(typeof body.timestamp).toBe('string')
-    expect(body.stats).toEqual({
+    expect(typeof body.meta.timestamp).toBe('string')
+    expect(body.data).toEqual({
       total: 4,
       grandeInvestimento: 2,
       relatoriosClareza: 2,
@@ -91,7 +91,7 @@ describe('GET /api/users/getProductStats — product membership stats characteri
     const captured: Captured = {}
     await getProductStats(req, makeResponse(captured), jest.fn() as unknown as NextFunction)
 
-    expect((captured.body as StatsBody).stats).toEqual({
+    expect((captured.body as StatsBody).data).toEqual({
       total: 0,
       grandeInvestimento: 0,
       relatoriosClareza: 0,

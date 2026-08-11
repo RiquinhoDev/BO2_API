@@ -3093,11 +3093,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "filters",
-      "pagination",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/users/usersV2List.controller.ts:51",
+    "evidence": "src/controllers/users/usersV2List.controller.ts:54",
     "frontConsumer": "src/services/api.ts"
   },
   {
@@ -3108,7 +3107,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/users/userLookup.controller.ts:23",
+    "evidence": "src/controllers/users/userLookup.controller.ts:24",
     "frontConsumer": "src/services/api.ts"
   },
   {
@@ -3150,11 +3149,11 @@
     "path": "/api/users/:userId/products",
     "family": "success-data",
     "shapeKeys": [
-      "count",
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/users/userLookup.controller.ts:43",
+    "evidence": "src/controllers/users/userLookup.controller.ts:44",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -3170,10 +3169,10 @@
     "path": "/api/users/dashboard-stats",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/users/userDashboardStats.controller.ts:11",
+    "evidence": "src/controllers/users/userDashboardStats.controller.ts:12",
     "frontConsumer": null
   },
   {
@@ -3181,11 +3180,11 @@
     "path": "/api/users/getProductStats",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/users/userProductStats.controller.ts:11",
+    "evidence": "src/controllers/users/userProductStats.controller.ts:12",
     "frontConsumer": null
   },
   {
@@ -3215,18 +3214,11 @@
     "path": "/api/users/infinite",
     "family": "success-data",
     "shapeKeys": [
-      "cacheAge",
-      "cachedAt",
-      "fromCache",
-      "hasMore",
+      "data",
       "meta",
-      "nextCursor",
-      "success",
-      "timestamp",
-      "totalCount",
-      "users"
+      "success"
     ],
-    "evidence": "src/controllers/users/userInfiniteListing.controller.ts:30",
+    "evidence": "src/controllers/users/userInfiniteListing.controller.ts:31",
     "frontConsumer": null
   },
   {
@@ -3234,11 +3226,11 @@
     "path": "/api/users/infiniteStats",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
-      "success",
-      "timestamp"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/users/userListingStats.controller.ts:11",
+    "evidence": "src/controllers/users/userListingStats.controller.ts:12",
     "frontConsumer": null
   },
   {
@@ -3246,15 +3238,11 @@
     "path": "/api/users/listUsers",
     "family": "success-data",
     "shapeKeys": [
-      "count",
-      "filters",
-      "hasProgress",
-      "limit",
-      "page",
-      "totalPages",
-      "users"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/users/userList.controller.ts:38",
+    "evidence": "src/controllers/users/userList.controller.ts:39",
     "frontConsumer": null
   },
   {
@@ -3274,55 +3262,11 @@
     "path": "/api/users/search",
     "family": "success-data",
     "shapeKeys": [
-      "_id",
-      "acTagsByProduct",
-      "acceptedTerms",
-      "accessCount",
-      "classId",
-      "className",
-      "combined",
-      "createdAt",
-      "curseducaUserId",
-      "deletedAt",
-      "deletedBy",
-      "discordIds",
-      "email",
-      "engagement",
-      "engagementCalculatedAt",
-      "engagementLevel",
-      "engagementScore",
-      "estado",
-      "firstAccessDate",
-      "hotmartUserId",
-      "isDeletable",
-      "isDeleted",
-      "lastAccessDate",
-      "lastActivityAt",
-      "lastEditedAt",
-      "lastEditedBy",
-      "locale",
-      "message",
-      "multiple",
-      "name",
-      "notes",
-      "performanceMetrics",
-      "plusAccess",
-      "priority",
-      "progress",
-      "purchaseDate",
-      "role",
-      "signupDate",
-      "source",
-      "status",
-      "students",
-      "tags",
-      "timer",
-      "truncated",
-      "type",
-      "updatedAt",
-      "username"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "mixed success exits (domain-envelope, raw-json); src/controllers/users/studentSearch.controller.ts:73",
+    "evidence": "src/controllers/users/studentSearch.controller.ts:74",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -3341,7 +3285,6 @@
     "path": "/api/users/stats/overview",
     "family": "success-data",
     "shapeKeys": [
-      "_v2Enabled",
       "data",
       "success"
     ],
@@ -3376,11 +3319,11 @@
     "path": "/api/users/unified",
     "family": "success-data",
     "shapeKeys": [
-      "pagination",
-      "success",
-      "users"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/users/userDirectory.controller.ts:11",
+    "evidence": "src/controllers/users/userDirectory.controller.ts:12",
     "frontConsumer": null
   },
   {
@@ -3399,15 +3342,11 @@
     "path": "/api/users/users/listUsers",
     "family": "success-data",
     "shapeKeys": [
-      "count",
-      "filters",
-      "hasProgress",
-      "limit",
-      "page",
-      "totalPages",
-      "users"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/users/userList.controller.ts:38",
+    "evidence": "src/controllers/users/userList.controller.ts:39",
     "frontConsumer": null
   },
   {
@@ -3416,11 +3355,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "filters",
-      "pagination",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/users/usersV2List.controller.ts:51",
+    "evidence": "src/controllers/users/usersV2List.controller.ts:54",
     "frontConsumer": null
   },
   {
@@ -3431,7 +3369,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/users/usersV2List.controller.ts:34",
+    "evidence": "src/controllers/users/usersV2List.controller.ts:36",
     "frontConsumer": "src/features/users-v2/usersV2.api.ts"
   },
   {
@@ -3462,11 +3400,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "filters",
-      "pagination",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/users/usersV2List.controller.ts:17",
+    "evidence": "src/controllers/users/usersV2List.controller.ts:19",
     "frontConsumer": "src/features/users-v2/usersV2.api.ts"
   },
   {

@@ -12,7 +12,7 @@ const getDashboardStats = extractedHandler as unknown as Handler
 
 type DashboardBody = {
   success: boolean
-  stats: Record<string, unknown>
+  data: Record<string, unknown>
 }
 type Captured = { status?: number; body?: DashboardBody }
 
@@ -76,7 +76,7 @@ describe('GET /api/users/dashboard-stats — dashboard stats characterization', 
 
     const body = captured.body as DashboardBody
     expect(body.success).toBe(true)
-    expect(body.stats).toEqual({
+    expect(body.data).toEqual({
       totalUsers: 5,
       activeUsers: 3,
       inactiveUsers: 2,
@@ -106,7 +106,7 @@ describe('GET /api/users/dashboard-stats — dashboard stats characterization', 
     const captured: Captured = {}
     await getDashboardStats(req, makeResponse(captured), jest.fn() as unknown as NextFunction)
 
-    expect(captured.body?.stats).toMatchObject({
+    expect(captured.body?.data).toMatchObject({
       totalUsers: 0,
       activeUsers: 0,
       inactiveUsers: 0,

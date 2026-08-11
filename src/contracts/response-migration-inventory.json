@@ -1890,10 +1890,10 @@
   {
     "identity": "GET /api/users",
     "owner": "src/controllers/users/usersV2List.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/:id",
@@ -1930,10 +1930,10 @@
   {
     "identity": "GET /api/users/:userId/products",
     "owner": "src/controllers/users/userLookup.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/by-email/:email",
@@ -1946,18 +1946,18 @@
   {
     "identity": "GET /api/users/dashboard-stats",
     "owner": "src/controllers/users/userDashboardStats.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/getProductStats",
     "owner": "src/controllers/users/userProductStats.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/getUserStats",
@@ -1978,26 +1978,26 @@
   {
     "identity": "GET /api/users/infinite",
     "owner": "src/controllers/users/userInfiniteListing.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/infiniteStats",
     "owner": "src/controllers/users/userListingStats.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/listUsers",
     "owner": "src/controllers/users/userList.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/listUsersSimple",
@@ -2010,10 +2010,10 @@
   {
     "identity": "GET /api/users/search",
     "owner": "src/controllers/users/studentSearch.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/stats",
@@ -2026,10 +2026,10 @@
   {
     "identity": "GET /api/users/stats/overview",
     "owner": "src/controllers/users/userStatsOverview.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/usersV2.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/student/:id/history",
@@ -2050,10 +2050,10 @@
   {
     "identity": "GET /api/users/unified",
     "owner": "src/controllers/users/userDirectory.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/unmatchedUsers",
@@ -2066,18 +2066,18 @@
   {
     "identity": "GET /api/users/users/listUsers",
     "owner": "src/controllers/users/userList.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/v2",
     "owner": "src/controllers/users/usersV2List.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/v2/analytics",
@@ -2106,10 +2106,10 @@
   {
     "identity": "GET /api/users/v2/enrollments",
     "owner": "src/controllers/users/usersV2List.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/users-v2/usersV2.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/v2/stats",

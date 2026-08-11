@@ -150,7 +150,6 @@ describe('GET /api/users/stats/overview — stats overview characterization', ()
 
     const body = captured.body as StatsBody
     expect(body.success).toBe(true)
-    expect(body._v2Enabled).toBe(true)
 
     // Soft-deleted user is included: seven user documents, no isDeleted filter.
     expect(body.data.totalUsers).toBe(7)
@@ -216,7 +215,6 @@ describe('GET /api/users/stats/overview — stats overview characterization', ()
         byPlatform: [],
         byProduct: [],
       },
-      _v2Enabled: true,
     })
   })
 

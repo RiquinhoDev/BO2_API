@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import type { UserListCriteria } from '../../services/users/userList.contract'
 import {
@@ -35,22 +36,19 @@ export function createUserListController(
     try {
       const result = await service.list(criteria, page, limit)
 
-      res.status(200).json({
-        users: result.users,
+      res.status(200).json(successResponse(result.users, {
         count: result.count,
         page: result.page,
         limit: result.limit,
         totalPages: result.totalPages,
-        // Always true: the projection carries the progress field.
         hasProgress: true,
-        // Echoed verbatim, including filters the query may have discarded.
         filters: {
           search: search || null,
           status: status || null,
           hasDiscord: hasDiscord || null,
           hasHotmart: hasHotmart || null,
         },
-      })
+      }))
     } catch (error) {
       next(new HttpError({
         status: 500,

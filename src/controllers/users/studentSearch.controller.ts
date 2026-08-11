@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import {
   MAX_CRITERION_LENGTH,
@@ -70,17 +71,15 @@ export function createStudentSearchController(
       }
 
       if (students.length > 1) {
-        res.status(200).json({
+        res.status(200).json(successResponse(students, {
           message: truncated ? TRUNCATED_MESSAGE : `Encontrados ${students.length} alunos`,
-          students,
           multiple: true,
           truncated,
-        })
+        }))
         return
       }
 
-      // A single match is returned unwrapped.
-      res.status(200).json(students[0])
+      res.status(200).json(successResponse(students[0]))
     } catch (error) {
       next(new HttpError({
         status: 500,

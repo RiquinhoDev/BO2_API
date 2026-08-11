@@ -1,4 +1,5 @@
 import type { RequestHandler } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { HttpError } from '../../security/errorHandling'
 import type {
   EnrichedUserReader,
@@ -40,11 +41,7 @@ export function createGetUserProductsController(
       const userProducts = await reader.listByUser(req.params.userId)
 
       // Always 200, even for an unknown user or an empty list.
-      res.json({
-        success: true,
-        data: userProducts,
-        count: userProducts.length,
-      })
+      res.json(successResponse(userProducts, { count: userProducts.length }))
     } catch (error) {
       next(new HttpError({
         status: 500,
