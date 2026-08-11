@@ -1,0 +1,96 @@
+import { execFileSync } from 'node:child_process'
+import crypto from 'node:crypto'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
+const root = process.cwd()
+const script = path.join(root, 'scripts', 'generate-scalability-read-inventory.mjs')
+const inventoryPath = path.join(root, 'src', 'contracts', 'scalability-read-inventory.json')
+
+const run = (env: NodeJS.ProcessEnv = {}) => execFileSync(process.execPath, [script, '--check'], {
+  cwd: root,
+  env: { ...process.env, ...env },
+  encoding: 'utf8',
+})
+
+test('SCALE-01 inventory reconciles 36 complete and 4 pending reads', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  expect(inventory.summary).toEqual({ planned: 40, complete: 36, pending: 4 })
+  expect(inventory.entries).toHaveLength(40)
+  expect(run()).toContain('36 complete / 4 pending')
+})
+
+test('ratchet rejects a cap above 200 and leaves the production source restored', () => {
+  const relative = 'src/routes/events.routes.ts'
+  const sourcePath = path.join(root, relative)
+  const original = fs.readFileSync(sourcePath, 'utf8')
+  const originalHash = crypto.createHash('sha256').update(original).digest('hex')
+  const overlay = fs.mkdtempSync(path.join(os.tmpdir(), 'scale-read-overlay-'))
+  const target = path.join(overlay, relative)
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  fs.writeFileSync(target, original.replace('.limit(200)', '.limit(201)'))
+
+  try {
+    expect(() => run({
+      NODE_ENV: 'test',
+      SCALABILITY_READ_TEST_OVERLAY: overlay,
+      SCALABILITY_READ_ALLOW_TEST_OVERLAY: '1',
+    })).toThrow(/cap exceeds 200/)
+  } finally {
+    fs.rmSync(overlay, { recursive: true, force: true })
+  }
+
+  const restoredHash = crypto.createHash('sha256').update(fs.readFileSync(sourcePath)).digest('hex')
+  expect(restoredHash).toBe(originalHash)
+})
+
+test('ratchet rejects a new Mongoose list site', () => {
+  const relative = 'src/models/EventType.ts'
+  const overlay = fs.mkdtempSync(path.join(os.tmpdir(), 'scale-read-overlay-'))
+  const target = path.join(overlay, relative)
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  fs.writeFileSync(target, `${fs.readFileSync(path.join(root, relative), 'utf8')}\nEventType.find({})\n`)
+  try {
+    expect(() => run({
+      NODE_ENV: 'test',
+      SCALABILITY_READ_TEST_OVERLAY: overlay,
+      SCALABILITY_READ_ALLOW_TEST_OVERLAY: '1',
+    })).toThrow(/new Mongoose list site/)
+  } finally {
+    fs.rmSync(overlay, { recursive: true, force: true })
+  }
+})
+
+test.each([
+  ['missing stable tie-breaker', 'scheduledAt: 1, _id: 1', 'scheduledAt: 1', /missing scheduledAt: 1, _id: 1/],
+  ['unbounded selected limit', 'boundedQueryLimit(req.query.limit, 6)', 'Number(req.query.limit)', /selected limit is optional or unbounded/],
+] as const)('ratchet rejects %s', (_name, before, after, expected) => {
+  const relative = 'src/routes/events.routes.ts'
+  const overlay = fs.mkdtempSync(path.join(os.tmpdir(), 'scale-read-overlay-'))
+  const target = path.join(overlay, relative)
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  fs.writeFileSync(target, fs.readFileSync(path.join(root, relative), 'utf8').replace(before, after))
+  try {
+    expect(() => run({
+      NODE_ENV: 'test',
+      SCALABILITY_READ_TEST_OVERLAY: overlay,
+      SCALABILITY_READ_ALLOW_TEST_OVERLAY: '1',
+    })).toThrow(expected)
+  } finally {
+    fs.rmSync(overlay, { recursive: true, force: true })
+  }
+})
+
+test('ratchet rejects a stale inventory pointer', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  inventory.entries[0].start = 'missing handler marker'
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'scale-read-inventory-'))
+  const mutatedInventory = path.join(directory, 'inventory.json')
+  fs.writeFileSync(mutatedInventory, JSON.stringify(inventory))
+  try {
+    expect(() => run({ SCALABILITY_READ_INVENTORY: mutatedInventory })).toThrow(/stale start pointer/)
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})

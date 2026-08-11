@@ -1,0 +1,441 @@
+{
+  "version": 1,
+  "summary": {
+    "planned": 40,
+    "complete": 36,
+    "pending": 4
+  },
+  "mongooseListBaseline": {
+    "count": 346,
+    "hash": "52a264e1d674db0ed64f7b5ae8d5a5e82363ada1c8cbea3fbf692f483d1f2455"
+  },
+  "entries": [
+    {
+      "id": "events.upcoming",
+      "file": "src/routes/events.routes.ts",
+      "start": "router.get('/upcoming'",
+      "end": "router.get('/:id'",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "scheduledAt: 1, _id: 1"
+      ]
+    },
+    {
+      "id": "events.admin-list",
+      "file": "src/routes/events.routes.ts",
+      "start": "router.get('/',",
+      "end": "router.post('/',",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "scheduledAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "events.types",
+      "file": "src/routes/events.routes.ts",
+      "start": "router.get('/types/list'",
+      "end": "router.post('/types'",
+      "status": "complete",
+      "policy": "finite",
+      "reason": "Event types are a finite administrator-defined configuration catalog.",
+      "require": [
+        "label: 1, _id: 1"
+      ]
+    },
+    {
+      "id": "renewal-ac.changes",
+      "file": "src/routes/renewalAc.routes.ts",
+      "start": "router.get('/changes'",
+      "end": "router.post('/plan'",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "plannedAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "courses.list",
+      "file": "src/controllers/course.controller.ts",
+      "start": "export const getAllCourses",
+      "end": "export const getCourseById",
+      "status": "complete",
+      "policy": "finite",
+      "reason": "Courses are a finite administrator-defined configuration catalog.",
+      "require": [
+        "name: 1, _id: 1"
+      ]
+    },
+    {
+      "id": "courses.rules",
+      "file": "src/controllers/course.controller.ts",
+      "start": "export const getCourseById",
+      "end": "export const createCourse",
+      "status": "complete",
+      "policy": "finite",
+      "reason": "Rules belonging to one course are a finite configuration catalog.",
+      "require": [
+        "priority: -1, _id: 1"
+      ]
+    },
+    {
+      "id": "product-sales.list",
+      "file": "src/services/productSalesStatsBuilder.ts",
+      "start": "export async function getProductSalesStats",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "'meta.calculatedAt': -1, _id: -1"
+      ]
+    },
+    {
+      "id": "product-sales.period",
+      "file": "src/controllers/products/productSalesStats.controller.ts",
+      "start": "export async function getProductSalesByPeriod",
+      "end": "export async function rebuildProductSalesStatsEndpoint",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "productCode: 1, _id: 1"
+      ]
+    },
+    {
+      "id": "product-profiles.list",
+      "file": "src/controllers/products/productProfile.controller.ts",
+      "start": "export const getAllProductProfiles",
+      "end": "export const getProductProfileByCode",
+      "status": "complete",
+      "policy": "finite",
+      "reason": "Product profiles are a finite administrator-defined configuration catalog.",
+      "require": [
+        "name: 1, _id: 1"
+      ]
+    },
+    {
+      "id": "renewal.offers",
+      "file": "src/controllers/renewal.controller.ts",
+      "start": "export async function listOffers",
+      "end": "export async function createOffer",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "offerCode: 1, _id: 1"
+      ]
+    },
+    {
+      "id": "products.list",
+      "file": "src/controllers/products/product.controller.ts",
+      "start": "export const getAllProducts",
+      "end": "export const getProductById",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "createdAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "testimonials.student",
+      "file": "src/controllers/testimonials/testimonialQueries.controller.ts",
+      "start": "export const getStudentTestimonials",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "requestedDate: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "testimonials.candidates",
+      "file": "src/controllers/testimonials/testimonialCandidates.controller.ts",
+      "start": "export const getAvailableStudents",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "name: 1, _id: 1"
+      ]
+    },
+    {
+      "id": "guru-snapshots.list",
+      "file": "src/controllers/guruSnapshots/crud.controller.ts",
+      "start": "export const listSnapshots",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "year: -1, month: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "guru-snapshots.churn",
+      "file": "src/controllers/guruSnapshots/analytics.controller.ts",
+      "start": "export const getChurnFromSnapshots",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "year: 1, month: 1, _id: 1"
+      ]
+    },
+    {
+      "id": "tag-monitoring.snapshots",
+      "file": "src/controllers/tagMonitoring/tagMonitoring.controller.ts",
+      "start": "export const getSnapshots = async (",
+      "end": "export const getSnapshotsByEmail",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "capturedAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "communication.metrics",
+      "file": "src/models/acTags/CommunicationHistory.ts",
+      "start": "getMetricsByLevel",
+      "end": "getAverageTimeToReturn",
+      "status": "complete",
+      "policy": "aggregate",
+      "require": [
+        "this.aggregate(",
+        "$group"
+      ]
+    },
+    {
+      "id": "communication.average",
+      "file": "src/models/acTags/CommunicationHistory.ts",
+      "start": "getAverageTimeToReturn",
+      "status": "complete",
+      "policy": "aggregate",
+      "require": [
+        "this.aggregate(",
+        "communicationCount"
+      ]
+    },
+    {
+      "id": "guru-webhook.email",
+      "file": "src/models/GuruWebhook.ts",
+      "start": "guruWebhookSchema.statics.findByEmail",
+      "end": "guruWebhookSchema.statics.getUnprocessed",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "receivedAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "guru-webhook.unprocessed",
+      "file": "src/models/GuruWebhook.ts",
+      "start": "guruWebhookSchema.statics.getUnprocessed",
+      "end": "guruWebhookSchema.statics.getStats",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "receivedAt: 1, _id: 1"
+      ]
+    },
+    {
+      "id": "tag-detail.notification",
+      "file": "src/models/tagMonitoring/TagChangeDetail.ts",
+      "start": "TagChangeDetailSchema.statics.findByNotification",
+      "end": "TagChangeDetailSchema.statics.findByEmail",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "email: 1, _id: 1"
+      ]
+    },
+    {
+      "id": "tag-detail.product",
+      "file": "src/models/tagMonitoring/TagChangeDetail.ts",
+      "start": "TagChangeDetailSchema.statics.findByProduct",
+      "end": "const TagChangeDetail",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "detectedAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "tag-notification.unread",
+      "file": "src/models/tagMonitoring/TagChangeNotification.ts",
+      "start": "TagChangeNotificationSchema.statics.findUnread",
+      "end": "TagChangeNotificationSchema.statics.getUnreadCount",
+      "status": "complete",
+      "policy": "aggregate-bounded",
+      "require": [
+        "priorityRank: 1, createdAt: -1, _id: -1",
+        "boundedQueryLimit"
+      ]
+    },
+    {
+      "id": "tag-notification.week",
+      "file": "src/models/tagMonitoring/TagChangeNotification.ts",
+      "start": "TagChangeNotificationSchema.statics.findByWeek",
+      "end": "TagChangeNotificationSchema.statics.findByTag",
+      "status": "complete",
+      "policy": "aggregate-bounded",
+      "require": [
+        "priorityRank: 1, createdAt: -1, _id: -1",
+        "boundedQueryLimit"
+      ]
+    },
+    {
+      "id": "tag-notification.tag",
+      "file": "src/models/tagMonitoring/TagChangeNotification.ts",
+      "start": "TagChangeNotificationSchema.statics.findByTag",
+      "end": "// Configurar virtuals",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "createdAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "weekly-snapshots.week",
+      "file": "src/models/tagMonitoring/WeeklyNativeTagSnapshot.ts",
+      "start": "statics.findByWeek",
+      "end": "statics.findPreviousSnapshot",
+      "status": "complete",
+      "policy": "batch",
+      "require": [
+        "sort({ _id: 1 })"
+      ]
+    },
+    {
+      "id": "inactivation.pending",
+      "file": "src/models/InactivationList.ts",
+      "start": "statics.findPending",
+      "end": "statics.findExecutable",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "createdAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "inactivation.executable",
+      "file": "src/models/InactivationList.ts",
+      "start": "statics.findExecutable",
+      "end": "statics.findRevertible",
+      "status": "complete",
+      "policy": "batch",
+      "require": [
+        "sort({ _id: 1 })"
+      ]
+    },
+    {
+      "id": "inactivation.revertible",
+      "file": "src/models/InactivationList.ts",
+      "start": "statics.findRevertible",
+      "end": "const InactivationList",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "createdAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "engagement.state",
+      "file": "src/models/StudentEngagementState.ts",
+      "start": "async findByState",
+      "end": "async findEligibleForEvaluation",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "daysSinceLastLogin: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "engagement.eligible",
+      "file": "src/models/StudentEngagementState.ts",
+      "start": "async findEligibleForEvaluation",
+      "end": "StudentEngagementStateSchema.pre",
+      "status": "complete",
+      "policy": "batch",
+      "require": [
+        "sort({ _id: 1 })"
+      ]
+    },
+    {
+      "id": "sync-report.recent",
+      "file": "src/models/SyncModels/SyncReport.ts",
+      "start": "statics.findRecent",
+      "end": "statics.getAggregatedStats",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "startedAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "sync-history.recent",
+      "file": "src/models/SyncModels/SyncHistory.ts",
+      "start": "statics.getRecentSyncs",
+      "end": "statics.getActiveSyncs",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "startedAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "activity-snapshots.user",
+      "file": "src/models/SyncModels/ActivitySnapshot.ts",
+      "start": "statics.getUserSnapshots",
+      "end": "statics.getActiveUsersInMonth",
+      "status": "complete",
+      "policy": "batch",
+      "require": [
+        "snapshotMonth: 1, _id: 1"
+      ]
+    },
+    {
+      "id": "sync-conflicts.pending",
+      "file": "src/models/SyncModels/SyncConflict.ts",
+      "start": "statics.getPendingConflicts",
+      "end": "statics.getConflictStats",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "severity: -1, detectedAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "sync-conflicts.critical",
+      "file": "src/models/SyncModels/SyncConflict.ts",
+      "start": "statics.getCriticalConflicts",
+      "end": "statics.getOldPendingConflicts",
+      "status": "complete",
+      "policy": "bounded",
+      "require": [
+        "detectedAt: -1, _id: -1"
+      ]
+    },
+    {
+      "id": "products.users-full-set",
+      "file": "src/controllers/products/products.controller.ts",
+      "start": "export const getProductUsers",
+      "status": "pending",
+      "reason": "The response and debug totals require the complete selected user set; truncating at 200 would silently break the existing contract and needs paired cursor design."
+    },
+    {
+      "id": "heatmap.quick",
+      "file": "src/controllers/dashboardQuick.controller.ts",
+      "start": "export const getEngagementHeatmap",
+      "status": "pending",
+      "reason": "Capping the analytical population biases the heatmap distribution; it requires aggregation or a complete bounded scan rather than truncation."
+    },
+    {
+      "id": "heatmap.cohort",
+      "file": "src/controllers/cohortAnalytics.controller.ts",
+      "start": "async getCohortAnalysis",
+      "status": "pending",
+      "reason": "Capping cohort input biases retention metrics; the owner requires an aggregation or complete batch strategy with equivalence proof."
+    },
+    {
+      "id": "course-lessons.grouped",
+      "file": "src/controllers/courseLessons.controller.ts",
+      "start": "export async function listCourseLessons",
+      "end": "export async function updateCourseLessonUrl",
+      "status": "pending",
+      "reason": "The endpoint returns a grouped full lesson catalog; truncation would create incomplete modules and needs a paired grouped-pagination contract."
+    }
+  ]
+}

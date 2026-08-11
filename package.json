@@ -76,6 +76,8 @@
     "types:check": "tsc --noEmit --pretty false",
     "lint:baseline:prune": "eslint src --prune-suppressions --max-warnings=0",
     "contracts:responses:check": "node scripts/generate-response-contract-catalog.mjs --check",
-    "contracts:responses:update": "node scripts/generate-response-contract-catalog.mjs --write"
+    "contracts:responses:update": "node scripts/generate-response-contract-catalog.mjs --write",
+    "scalability:reads:check": "node scripts/generate-scalability-read-inventory.mjs --check",
+    "scalability:reads:update": "node scripts/generate-scalability-read-inventory.mjs --write"
   }
 }

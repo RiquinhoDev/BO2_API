@@ -806,7 +806,7 @@ Progresso controllers:
 ### Progresso estimado por pilar (2026-08-11)
 
 Esta tabela dá o mesmo peso aos oito pilares e é uma **estimativa de engenharia**, não uma contagem de
-checkboxes nem prova de prontidão operacional. A missão SEC-10/ARCH-03 só altera os pilares 4 e 7.
+checkboxes nem prova de prontidão operacional. A missão SEC-10/ARCH-03 altera os pilares 4 e 7; SCALE-01 altera o pilar 6.
 
 | Pilar | Antes da missão | Atual | Delta | Base da estimativa |
 | --- | ---: | ---: | ---: | --- |
@@ -815,16 +815,16 @@ checkboxes nem prova de prontidão operacional. A missão SEC-10/ARCH-03 só alt
 | 3. Pastas & higiene | 100% | 100% | 0 pp | DOC-02 e artefactos fechados |
 | 4. Middleware & funções | 80% | 100% | +20 pp | SEC-10 passou de 188 para 0 e o detalhe público mantém 0 |
 | 5. Segurança & rotas | 70% | 70% | 0 pp | default-deny/JWT/CORS fechados; matriz de papéis e OPS-02 abertos |
-| 6. Escalabilidade | 35% | 35% | 0 pp | base paginada existe; inventário restante e política transversal abertos |
+| 6. Escalabilidade | 35% | 55% | +20 pp | SCALE-01 fechou 36/40 reads selecionados; 4 decisões permanecem pendentes e a política transversal continua aberta |
 | 7. Contrato de resposta | 0% | 50% | +50 pp | foundation 439/439 fechada; migração de payloads continua aberta |
 | 8. Toolchain & qualidade | 75% | 75% | 0 pp | TS/tests/package manager fechados; ESLint debt e validação operacional abertos |
-| **Total, média simples** | **69,4%** | **78,8%** | **+9,4 pp** | estimativa igualitária dos oito pilares |
+| **Total, média simples** | **69,4%** | **81,3%** | **+11,9 pp** | estimativa igualitária dos oito pilares |
 
-O delta usa as médias não arredondadas: `69,375% -> 78,75%`, isto é, `9,375 pp`, arredondado para
-**+9,4 pp**. A subtração dos endpoints já apresentados a uma casa decimal não é a base do cálculo.
+O delta usa as médias não arredondadas: `69,375% -> 81,25%`, isto é, `11,875 pp`, arredondado para
+**+11,9 pp**. A subtração dos endpoints já apresentados a uma casa decimal não é a base do cálculo.
 
 Na contagem mecânica, as duas missões reconciliam `102/112 -> 105/112` (`91,1% -> 93,8%`). SEC-10 e o
-boundary de responsabilidade ARCH-02 são os deltas de código; outra caixa corrigiu estado ARCH-02 já provado no ledger abaixo. Nenhuma das
+boundary de responsabilidade ARCH-02 são os deltas de código; SCALE-01 melhora a estimativa sem fechar a caixa ampla de paginação restante. Outra caixa corrigiu estado ARCH-02 já provado no ledger abaixo. Nenhuma das
 duas métricas inclui deploy, observação, equivalência de payloads ou prontidão operacional.
 
 ### Evidência focada (2026-08-03; offline)
@@ -1180,7 +1180,8 @@ duas métricas inclui deploy, observação, equivalência de payloads ou prontid
 
 ### 6. Escalabilidade
 - [x] **Paginação canónica (ARCH-05 / F3.2):** helper único offset-based de listas HTTP, cap 200 e projeção explícita onde aplicável, cobrindo explicitamente as superfícies migradas `usersReviewLists`, `guruWebhookList`, `guruSubscriptionList` e `usersSimpleList` (controllers + `usersSimpleList` service/repository).
-- [ ] **Paginação restante:** avaliar e migrar para cursor as superfícies onde offset não é adequado; inventário/allowlist machine-checked e migração das listagens HTTP não canónicas que bypassam `paginate` ou ultrapassam o cap 200 (ex.: `src/controllers/testimonials.controller.ts:789` usa default 1000; `src/routes/renewalAc.routes.ts:59` permite 500). O exemplo antigo `users.controller.ts:325` foi removido com o monólito e não é dívida ativa. Scans operacionais exigem cursor/batch, e toda exceção `find({})` tem de ser bounded ou protegida por uma allowlist finita explícita e machine-checked, incluindo leituras deliberadamente pequenas de configuração/full-set.
+- [ ] **Paginação restante:** resolver os quatro itens SCALE-01 pendentes sem truncagem semântica e continuar a migração das restantes listagens HTTP/scans fora deste lote. Superfícies offset inadequadas exigem cursor; scans operacionais exigem batch completo; exceções full-set/configuração exigem decisão explícita e machine-checked.
+  - **SCALE-01 (2026-08-11, code-complete parcial):** inventário canónico `40 = 36 complete + 4 pending`. Os 36 reads usam cap `<=200`, desempate estável por `_id`, agregação escalar, catálogo finito justificado ou scan completo em batches. Permanecem pendentes `products.users-full-set`, dois heatmaps cuja truncagem enviesaria métricas e `course-lessons.grouped`; exigem desenho de contrato/algoritmo, não um cap cego. `scalability:reads:check` fixa ponteiros, limites, allowlists e o baseline de sites Mongoose; a prova determinística de scan completo preservou 10 000/10 000 registos com pedidos `<=200`. Isto não fecha OPS-02 nem prova carga/latência operacional.
 - [ ] Idempotência e caps como **política transversal**, não caso-a-caso (OPS-02).
 
 ### 7. Contrato de resposta
