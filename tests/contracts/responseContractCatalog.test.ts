@@ -195,7 +195,7 @@ describe('response contract catalog', () => {
     })
     expect(responseCatalog.find((entry) => routeId(entry) === 'POST /api/hotmart/syncProgressOnly')).toMatchObject({
       family: 'success-data',
-      shapeKeys: ['message', 'stats'],
+      shapeKeys: ['data', 'meta', 'success'],
     })
   })
 
