@@ -34,10 +34,10 @@
   {
     "identity": "DELETE /api/cron/jobs/:id",
     "owner": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/cron/cron.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "DELETE /api/events/:id",
@@ -74,10 +74,10 @@
   {
     "identity": "DELETE /api/products/:id",
     "owner": "src/controllers/products/product.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "DELETE /api/sync/history/clean",
@@ -274,34 +274,34 @@
   {
     "identity": "GET /api/analytics/class/:classId",
     "owner": "src/controllers/analytics/classAnalytics.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/analytics/analytics.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/analytics/class/:classId/alerts",
     "owner": "src/controllers/analytics/classAnalytics.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/analytics/class/:classId/engagement",
     "owner": "src/controllers/analytics/classAnalytics.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/analytics/class/:classId/health",
     "owner": "src/controllers/analytics/classAnalytics.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/analytics/analytics.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/analytics/class/:classId/quick",
@@ -338,10 +338,10 @@
   {
     "identity": "GET /api/analytics/health-score/:classId",
     "owner": "src/controllers/analytics/classAnalytics.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/analytics/multi-platform",
@@ -362,10 +362,10 @@
   {
     "identity": "GET /api/analytics/outdated",
     "owner": "src/controllers/analytics/classAnalytics.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/analytics/product-sales",
@@ -386,10 +386,10 @@
   {
     "identity": "GET /api/analytics/product-sales/period",
     "owner": "src/controllers/products/productSalesStats.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/auth/verify",
@@ -546,10 +546,10 @@
   {
     "identity": "GET /api/classes/:classId/details",
     "owner": "src/controllers/classes/classDetails.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/classes/:classId/students",
@@ -562,18 +562,18 @@
   {
     "identity": "GET /api/classes/fetchClassData",
     "owner": "src/controllers/classes/classDetails.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/classes/history",
     "owner": "src/controllers/classes/classHistory.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/classes/inactivationLists",
@@ -602,18 +602,18 @@
   {
     "identity": "GET /api/classes/studentHistory/:discordId",
     "owner": "src/controllers/classes/classHistory.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/classes/studentHistoryByEmail/:email",
     "owner": "src/controllers/classes/classHistory.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/classes/users/search",
@@ -722,10 +722,10 @@
   {
     "identity": "GET /api/cron/jobs/:id",
     "owner": "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/cron/jobs/:id/history",
@@ -1050,10 +1050,10 @@
   {
     "identity": "GET /api/events/:id",
     "owner": "src/routes/events.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/events/types/list",
@@ -1066,10 +1066,10 @@
   {
     "identity": "GET /api/events/upcoming",
     "owner": "src/routes/events.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/form/logs",
@@ -1474,42 +1474,42 @@
   {
     "identity": "GET /api/products/:id",
     "owner": "src/controllers/products/product.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/products/:id/analytics",
     "owner": "src/controllers/products/product.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/products/:id/students",
     "owner": "src/controllers/products/product.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/products/engagement-stats",
     "owner": "src/controllers/products/products.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/products/users",
     "owner": "src/controllers/products/products.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/renewal-ac/changes",
@@ -1642,18 +1642,18 @@
   {
     "identity": "GET /api/sync/reports/:id",
     "owner": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/sync/reports/stats",
     "owner": "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/sync/snapshots/stats",
@@ -1850,10 +1850,10 @@
   {
     "identity": "GET /api/testimonials/report",
     "owner": "src/controllers/testimonials/testimonialQueries.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/testimonials/stats",
@@ -1970,10 +1970,10 @@
   {
     "identity": "GET /api/users/idsDiferentes",
     "owner": "src/controllers/usersReviewLists.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/infinite",
@@ -2058,10 +2058,10 @@
   {
     "identity": "GET /api/users/unmatchedUsers",
     "owner": "src/controllers/usersReviewLists.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/users/users/listUsers",
@@ -2346,10 +2346,10 @@
   {
     "identity": "POST /api/analytics/class/:classId/recalculate",
     "owner": "src/controllers/analytics/classAnalytics.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/analytics/class/:classId/recalculate-individual",
@@ -2594,26 +2594,26 @@
   {
     "identity": "POST /api/cron/jobs",
     "owner": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/cron/cron.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/cron/jobs/:id/toggle",
     "owner": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/cron/cron.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/cron/jobs/:id/trigger",
     "owner": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/cron/cron.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/cron/tag-rules-only",
@@ -2770,10 +2770,10 @@
   {
     "identity": "POST /api/events/types",
     "owner": "src/routes/events.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/inactivation/bulk",
@@ -2978,10 +2978,10 @@
   {
     "identity": "POST /api/products",
     "owner": "src/controllers/products/product.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/renewal-ac/approve",
@@ -3426,10 +3426,10 @@
   {
     "identity": "PUT /api/cron/jobs/:id",
     "owner": "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/cron/cron.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "PUT /api/curseduca/user/:userId/classes",
@@ -3458,10 +3458,10 @@
   {
     "identity": "PUT /api/events/types/:id",
     "owner": "src/routes/events.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "PUT /api/guru/snapshots/:year/:month",
@@ -3482,10 +3482,10 @@
   {
     "identity": "PUT /api/products/:id",
     "owner": "src/controllers/products/product.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "PUT /api/tag-rules/:id",

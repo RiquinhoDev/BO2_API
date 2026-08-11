@@ -201,10 +201,7 @@ describe('response contract catalog', () => {
 
   test('records complete unions for spread and mixed response shapes', () => {
     expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/classes/:classId/details')?.shapeKeys).toEqual([
-      '__v', '_id', 'classId', 'createdAt', 'curseducaId', 'curseducaUuid',
-      'description', 'estado', 'isActive', 'lastSyncAt', 'name', 'productId',
-      'recentHistory', 'source', 'stats', 'studentCount', 'students', 'success',
-      'timestamp', 'updatedAt',
+      'data', 'meta', 'success',
     ])
     expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/classes/users/search')?.shapeKeys).toEqual([
       '__v', '_id', 'achievementStats', 'achievements', 'classId', 'className',
