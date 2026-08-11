@@ -1,0 +1,12 @@
+[
+  "src/controllers/acTags/activeCampaignHistoryReason.ts",
+  "src/controllers/engagement/support.ts",
+  "src/controllers/forwardApplicationError.ts",
+  "src/controllers/guruAnalytics/support.ts",
+  "src/controllers/guruSnapshots/support.ts",
+  "src/controllers/syncUtilizadoresControllers/cronManagement/support.ts",
+  "src/controllers/syncUtilizadoresControllers/curseduca/support.ts",
+  "src/controllers/tagEvaluation/mapping.ts",
+  "src/controllers/testimonials/testimonialControllerSupport.ts",
+  "src/controllers/testimonials/testimonialTags.service.ts"
+]
