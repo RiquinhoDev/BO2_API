@@ -37,11 +37,11 @@ export const createGuruExternalInactivationHandlers = (
         })
       }
       if (result.kind === 'remote-failure') {
-        return res.status(500).json({
-          success: false,
-          message: 'Erro ao inativar no CursEduca',
-          error: result.error,
-        })
+        return next(internalError(
+          'Erro ao inativar no CursEduca',
+          'GURU_INACTIVATION_SINGLE_REMOTE_FAILED',
+          result.error,
+        ))
       }
       return res.json({
         success: true,

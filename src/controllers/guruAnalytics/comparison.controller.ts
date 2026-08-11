@@ -1,11 +1,13 @@
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
+import { forwardApplicationError } from '../forwardApplicationError'
+import logger from '../../utils/logger'
 import axios from 'axios'
 import User, { type IUser } from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { GURU_CANCELED_STATUSES, CURSEDUCA_CANCELED_STATUSES, CURSEDUCA_ACTIVE_STATUSES, getEffectiveStatus, verifyCurseducaMemberStatus, type GuruDateInfo } from '../../services/guru/guru.constants'
 import { getOptionalCurseducaRuntimeSettings } from '../../services/requestDrivenRuntimeConfig'
 import { isCurseducaEnrollmentActive } from '../../services/syncUtilizadoresServices/curseducaServices/curseducaMemberships'
-import { type ClarezaComparisonData, type ComparisonRecord, type CurseducaMemberResponse, errorMessage } from './support'
+import { type ClarezaComparisonData, type ComparisonRecord, type CurseducaMemberResponse } from './support'
 
 /**
  * Comparar cancelamentos entre Guru e Clareza (CursEduca)
@@ -18,7 +20,7 @@ import { type ClarezaComparisonData, type ComparisonRecord, type CurseducaMember
  * - Cancelado no Clareza mas ativo na Guru
  * - Consistentes (ambos cancelados ou ambos ativos)
  */
-export const compareGuruVsClareza = async (req: Request, res: Response) => {
+export const compareGuruVsClareza = async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log('ðŸ“Š [COMPARE] Comparando cancelamentos Guru vs Clareza...')
 
@@ -380,14 +382,18 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
               continue
             }
           } catch (apiError: unknown) {
-            const detail = axios.isAxiosError(apiError)
-              ? apiError.response?.status || apiError.message
-              : errorMessage(apiError)
-            console.log(`      âš ï¸ Erro API CursEduca ${user.email}: ${detail}`)
+            logger.warn('CursEduca comparison cleanup request failed', {
+              status: axios.isAxiosError(apiError) ? apiError.response?.status : undefined,
+              cleanedActiveCount,
+              cleanedInactiveCount,
+            })
           }
         }
-      } catch (error: unknown) {
-        console.error(`      âš ï¸ Erro ao limpar ${userProduct.userId?.email}:`, errorMessage(error))
+      } catch {
+        logger.warn('Guru comparison cleanup failed', {
+          cleanedActiveCount,
+          cleanedInactiveCount,
+        })
       }
     }
 
@@ -419,10 +425,6 @@ export const compareGuruVsClareza = async (req: Request, res: Response) => {
     })
 
   } catch (error: unknown) {
-    console.error('âŒ [COMPARE] Erro ao comparar:', errorMessage(error))
-    return res.status(500).json({
-      success: false,
-      message: errorMessage(error)
-    })
+    return forwardApplicationError(next, error, 'Erro ao comparar Guru e Clareza', 'GURU_COMPARISON_READ_FAILED')
   }
 }

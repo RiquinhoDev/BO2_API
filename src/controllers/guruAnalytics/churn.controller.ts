@@ -1,8 +1,8 @@
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
 import { fetchAllSubscriptionsComplete } from '../../services/guru/guruSync.service'
 import { computeChurnSeries } from '../../services/guru/guruChurn.service'
-import { errorMessage } from './support'
+import { forwardApplicationError } from '../forwardApplicationError'
 
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -51,7 +51,7 @@ export const getChurnLiveStatus = async (_req: Request, res: Response) => {
  * Cada subscriÃ§Ã£o da Guru traz started_at + cancelled_at, por isso a sÃ©rie mensal
  * completa Ã© recalculÃ¡vel a qualquer momento â€” nÃ£o sÃ£o precisos snapshots na BD.
  */
-export const getChurnLive = async (req: Request, res: Response) => {
+export const getChurnLive = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const refresh = req.query.refresh === 'true'
     const cacheValid =
@@ -106,11 +106,7 @@ export const getChurnLive = async (req: Request, res: Response) => {
       churn: entry.churn
     })
   } catch (error: unknown) {
-    console.error('âŒ [CHURN LIVE] Erro ao calcular churn:', errorMessage(error))
-    return res.status(500).json({
-      success: false,
-      message: errorMessage(error)
-    })
+    return forwardApplicationError(next, error, 'Erro ao calcular churn live', 'GURU_CHURN_LIVE_FAILED')
   }
 }
 
@@ -125,7 +121,7 @@ export const getChurnLive = async (req: Request, res: Response) => {
  * NOTA: Este endpoint calcula churn baseado em ESTIMATIVAS (dados atuais projetados para o passado).
  * Para churn PRECISO baseado em dados histÃ³ricos reais, use: GET /guru/snapshots/churn
  */
-export const getChurnMetrics = async (req: Request, res: Response) => {
+export const getChurnMetrics = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const now = new Date()
 
@@ -264,11 +260,7 @@ export const getChurnMetrics = async (req: Request, res: Response) => {
     })
 
   } catch (error: unknown) {
-    console.error('âŒ [GURU ANALYTICS] Erro ao calcular churn:', errorMessage(error))
-    return res.status(500).json({
-      success: false,
-      message: errorMessage(error)
-    })
+    return forwardApplicationError(next, error, 'Erro ao calcular churn', 'GURU_CHURN_READ_FAILED')
   }
 }
 
@@ -276,7 +268,7 @@ export const getChurnMetrics = async (req: Request, res: Response) => {
  * Calcular MRR (Monthly Recurring Revenue) e crescimento
  * GET /guru/analytics/mrr
  */
-export const getMRRMetrics = async (req: Request, res: Response) => {
+export const getMRRMetrics = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Buscar todas as subscriÃ§Ãµes ativas com valores
     const activeSubscriptions = await User.aggregate([
@@ -302,11 +294,7 @@ export const getMRRMetrics = async (req: Request, res: Response) => {
     })
 
   } catch (error: unknown) {
-    console.error('âŒ [GURU ANALYTICS] Erro ao calcular MRR:', errorMessage(error))
-    return res.status(500).json({
-      success: false,
-      message: errorMessage(error)
-    })
+    return forwardApplicationError(next, error, 'Erro ao calcular MRR', 'GURU_MRR_READ_FAILED')
   }
 }
 
