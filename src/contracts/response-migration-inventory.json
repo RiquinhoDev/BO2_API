@@ -914,26 +914,26 @@
   {
     "identity": "GET /api/dashboard/quick/engagement-heatmap",
     "owner": "src/controllers/dashboardQuick.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/components/dashboard/EngagementHeatmap.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/dashboard/quick/product-comparison",
     "owner": "src/controllers/dashboardQuick.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/components/dashboard/ProductComparison.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/dashboard/quick/products-breakdown",
     "owner": "src/controllers/dashboardQuick.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/pages/dashboard/DashboardMainPage.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/dashboard/search",

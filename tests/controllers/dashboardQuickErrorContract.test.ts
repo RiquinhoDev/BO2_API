@@ -6,6 +6,8 @@ import {
   getProductsBreakdown,
 } from '../../src/controllers/dashboardQuick.controller'
 import { HttpError } from '../../src/security/errorHandling'
+import fs from 'node:fs'
+import path from 'node:path'
 
 jest.mock('../../src/models/UserProduct', () => ({
   __esModule: true,
@@ -76,4 +78,10 @@ test('product comparison preserves its success envelope', async () => {
     data: [],
     meta: expect.objectContaining({ method: 'mongodb-aggregation' }),
   }))
+})
+
+test('all dashboard quick successes terminate through successResponse', () => {
+  const source = fs.readFileSync(path.join(process.cwd(), 'src/controllers/dashboardQuick.controller.ts'), 'utf8')
+  expect(source.match(/res\.status\(200\)\.json\(successResponse\(/g)).toHaveLength(3)
+  expect(source).not.toMatch(/res\.status\(200\)\.json\(\{\s*success:/)
 })

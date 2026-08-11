@@ -7,6 +7,7 @@ import { NextFunction, Request, Response } from 'express'
 import UserProduct from '../models/UserProduct'
 import mongoose from 'mongoose'
 import { internalError } from '../security/errorHandling'
+import { successResponse } from '../contracts/responseContract'
 
 /**
  * GET /api/dashboard/quick/product-comparison
@@ -130,15 +131,11 @@ export const getProductComparison = async (req: Request, res: Response, next: Ne
       }
     })
 
-    return res.status(200).json({
-      success: true,
-      data: comparison,
-      meta: {
+    return res.status(200).json(successResponse(comparison, {
         calculatedAt: new Date(),
         cached: false,
         method: 'mongodb-aggregation'
-      }
-    })
+      }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar comparação de produtos', 'DASHBOARD_QUICK_COMPARISON_FAILED', error))
   }
@@ -200,14 +197,10 @@ export const getEngagementHeatmap = async (req: Request, res: Response, next: Ne
 
     console.log('✅ [Quick Heatmap] Heatmap gerado')
 
-    return res.status(200).json({
-      success: true,
-      data: heatmapData,
-      meta: {
+    return res.status(200).json(successResponse(heatmapData, {
         isMock: true,
         message: 'Dados simulados - implementar tracking temporal'
-      }
-    })
+      }))
   } catch (error: unknown) {
     next(internalError('Erro ao gerar heatmap', 'DASHBOARD_QUICK_HEATMAP_FAILED', error))
   }
@@ -287,15 +280,11 @@ export const getProductsBreakdown = async (req: Request, res: Response, next: Ne
 
     console.log(`✅ [Quick Products] ${breakdown.length} produtos`)
 
-    return res.status(200).json({
-      success: true,
-      data: breakdown,
-      meta: {
+    return res.status(200).json(successResponse(breakdown, {
         calculatedAt: new Date(),
         cached: false,
         method: 'mongodb-aggregation'
-      }
-    })
+      }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar breakdown de produtos', 'DASHBOARD_QUICK_BREAKDOWN_FAILED', error))
   }

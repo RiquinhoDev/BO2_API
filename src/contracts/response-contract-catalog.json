@@ -1622,7 +1622,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/dashboardQuick.controller.ts:203",
+    "evidence": "src/controllers/dashboardQuick.controller.ts:200",
     "frontConsumer": "src/components/dashboard/EngagementHeatmap.tsx"
   },
   {
@@ -1634,7 +1634,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/dashboardQuick.controller.ts:133",
+    "evidence": "src/controllers/dashboardQuick.controller.ts:134",
     "frontConsumer": "src/components/dashboard/ProductComparison.tsx"
   },
   {
@@ -1646,7 +1646,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/dashboardQuick.controller.ts:290",
+    "evidence": "src/controllers/dashboardQuick.controller.ts:283",
     "frontConsumer": "src/pages/dashboard/DashboardMainPage.tsx"
   },
   {
