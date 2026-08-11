@@ -803,6 +803,27 @@ Progresso controllers:
 > **Regra de ouro do alvo:** não se troca correcção por elegância. Cada critério entra por **refactor
 > incremental** atrás dos contratos vivos (Front, webhooks, CRON), com **characterization tests primeiro**.
 
+### Progresso estimado por pilar (2026-08-11)
+
+Esta tabela dá o mesmo peso aos oito pilares e é uma **estimativa de engenharia**, não uma contagem de
+checkboxes nem prova de prontidão operacional. A missão SEC-10/ARCH-03 só altera os pilares 4 e 7.
+
+| Pilar | Antes da missão | Atual | Delta | Base da estimativa |
+| --- | ---: | ---: | ---: | --- |
+| 1. Arquitectura & bootstrap | 100% | 100% | 0 pp | ARCH-01 e lifecycle fechados no código |
+| 2. Ficheiros & domínios | 95% | 95% | 0 pp | teto ARCH-02 em 0; coesão sub-500 continua quality-driven |
+| 3. Pastas & higiene | 100% | 100% | 0 pp | DOC-02 e artefactos fechados |
+| 4. Middleware & funções | 80% | 100% | +20 pp | SEC-10 passou de 188 para 0 e o detalhe público mantém 0 |
+| 5. Segurança & rotas | 70% | 70% | 0 pp | default-deny/JWT/CORS fechados; matriz de papéis e OPS-02 abertos |
+| 6. Escalabilidade | 35% | 35% | 0 pp | base paginada existe; inventário restante e política transversal abertos |
+| 7. Contrato de resposta | 0% | 50% | +50 pp | foundation 439/439 fechada; migração de payloads continua aberta |
+| 8. Toolchain & qualidade | 75% | 75% | 0 pp | TS/tests/package manager fechados; ESLint debt e validação operacional abertos |
+| **Total, média simples** | **69,4%** | **78,1%** | **+8,7 pp** | estimativa igualitária dos oito pilares |
+
+Na contagem mecânica, esta edição reconcilia `102/112 -> 104/112` (`91,1% -> 92,9%`). Apenas o fecho
+SEC-10 é delta desta missão; a outra caixa corrige o estado ARCH-02 já provado no ledger abaixo. Nenhuma das
+duas métricas inclui deploy, observação, equivalência de payloads ou prontidão operacional.
+
 ### Evidência focada (2026-08-03; offline)
 
 - Perímetro/upload/observabilidade/paginação: **14 suites / 65 testes**. Command exacto do corte de controller:
@@ -820,7 +841,7 @@ Progresso controllers:
   Market-data integration wave (2026-08-09): FMP and Hotmart credentials, subdomain aliases and the optional lesson-sync user are parsed once into the immutable startup boundary. FMP/Raio-X, Hotmart sync/helpers/lessons and the course lesson catalog no longer read ambient credentials; the embedded production club fallback was removed, while the explicit product subdomain fallback remains. Required settings fail with IntegrationUnavailableError before HTTP; parser priority is COURSE_LESSON_SUBDOMAIN → HOTMART_SUBDOMAIN → legacy subdomain. The machine inventory fell **45→8 raw-env reads** and **17→4 files**. Offline gate: lint 0, TypeScript 0, **231/231 suites and 1332/1332 tests**, build 0; lockfiles unchanged.
   Runtime-boundary closure wave (2026-08-09): Clareza refresh authorization now uses one timing-safe helper over immutable runtime config; `OLD_API_URL` and Hotmart club configuration are resolved through call-time providers; development checks use typed `nodeEnv`. The inventory matcher now catches both property and bare-object `process.env` reads, closing its previous blind spot. Runtime debt fell **8→0 reads** and **4→0 files** outside explicit composition roots. TDD included missing-contract RED, configured/unconfigured GREEN, and a restored timing-safe mutation. Offline gate: lint 0, TypeScript 0, **231/231 suites and 1332/1332 tests**, build 0, `git diff --check` clean; lockfiles unchanged. Independent leak diagnosis with `--runInBand --detectOpenHandles` also passed **231/231 / 1332/1332** with zero open handles, so no teardown or `--forceExit` change was made.
 
-- Contradições ainda abertas: o error handler central convive com **302** respostas 500 ad hoc; restam **671** suppressions `no-explicit-any`, a política transversal de idempotência/caps e o inventário/migração de listagens HTTP não canónicas + scans `find({})`. Distributed limiter/429/CSP, JWT dedicado, CORS explícito, debug local e o boundary raw-env estão fechados no código; provisioning/deploy/observação continuam separados.
+- Contradições ainda abertas: a migração de payloads ARCH-03, a matriz de papéis SEC-01, a política transversal de idempotência/caps, a dívida ESLint e o inventário/migração de listagens HTTP não canónicas + scans `find({})`. O error handler central está fechado no código em **0** respostas 500 locais e **0** detalhes técnicos públicos; distributed limiter/429/CSP, JWT dedicado, CORS explícito, debug local e o boundary raw-env também estão fechados no código. Provisioning/deploy/observação continuam separados.
 - Proveniência de gates no checkpoint `39aecee`: lint e TypeScript **0**, Jest offline completo **227/227 suites / 1321/1321 tests**, build **0** e `git diff --check` limpo. É evidência de repositório/sandbox; não reclama deploy nem observação operacional.
 - Nenhum runtime nem sistema externo foi tocado; os resultados são focados e offline.
 
@@ -830,7 +851,7 @@ Progresso controllers:
 - [x] Modelos e jobs registados **explicitamente**, nunca por side-effect de import. Startup order e shutdown testáveis.
 
 ### 2. Ficheiros pequenos & módulos por domínio
-- [ ] **Limite aprovado: nenhum ficheiro TypeScript manuscrito em `src/` acima de 500 linhas físicas.** O limite é um guardrail, não uma meta de enchimento: coesão e testabilidade podem exigir extração antes dele. Baseline na decisão: **39 ficheiros acima de 500**; após dissolver `decisionEngine`, o controller Hotmart e o scheduler, **35 permanecem**. O ratchet machine-checked rejeita ficheiros novos acima do limite, crescimento da dívida e baselines não podados. Maiores atuais: `testimonials.controller.ts` 1216, `curseduca.adapter.ts` 1200 e `clarezaFmpService.ts` 1184. ARCH-02 fecha em **39 → 0**; artefactos gerados exigem exceção explícita.
+- [x] **Limite aprovado: nenhum ficheiro TypeScript manuscrito em `src/` acima de 500 linhas físicas.** ARCH-02 fechou **39 -> 0** em 2026-08-10. O ratchet machine-checked permanece fail-closed contra ficheiros novos acima do limite, crescimento, dívida movida e baseline não podada; artefactos gerados exigem exceção explícita. Coesão e testabilidade continuam a poder exigir extrações antes do teto.
 - [ ] Cada módulo tem uma responsabilidade clara; sem "controller-que-faz-tudo".
 - [x] **ARCH-02 — controller Hotmart dissolvido (2026-08-10):** `syncUtilizadoresControllers/hotmart.controller.ts` foi fisicamente apagado após caracterização RED/GREEN dos adapters de diagnóstico e Universal Sync. As **10 rotas montadas** consomem agora um barrel explícito e owners coesos; `testDatabaseConnection` saiu por prova negativa de zero consumidores. O controller original caiu **1233→304→0 linhas**; os módulos finais têm **475/161/84/75/13/7 linhas**, todos abaixo do teto de 500. A mutação de `triggeredByUser` deu RED com `admin-id` esperado e `undefined` recebido; o inventário SEC-10 caiu **283→282** e 16 suppressions `no-console` do ficheiro morto foram removidas. Gate final offline: lint 0, TypeScript 0, **276/276 suites e 1576/1576 testes**, build 0, `git diff --check` limpo e lockfiles intactos. Nenhuma API ou BD real foi chamada.
 - [x] **ARCH-02 — persistência UserProduct extraída do universal sync (2026-08-08):** resolução de produto, métricas, create/update e reassignment CursEduca passaram para universalSync/userProductPersistence.ts (267 linhas), mantendo os builders puros e a ordem de efeitos. processSyncItem.ts caiu **649→401 linhas**;
@@ -1138,9 +1159,10 @@ Progresso controllers:
   - Focused closeout proof (offline): **10 suites / 84 tests passed** across `repositoryHygiene`, `redisRateLimitStore`, `httpPerimeter`, config/bootstrap/startup, shutdown, auth, deployment perimeter, and CORS. Tests use local fakes and `MongoMemoryServer` only; no live Redis was contacted.
   - Production caveat: `REDIS_HOST` is required at startup for production distributed rate limiting; any non-default Redis port/username/password must be provisioned. No deployment, external API, production database, or sibling Front was exercised.
   - Final review remediation (offline): Helmet now emits only the four explicit API CSP directives on success, preflight, and 429; shutdown/rollback await all warmups before cache/infrastructure teardown. The final default unit+integration gate passed **165/165 suites / 868/868 tests**; the bounded loopback load project passed **1 suite / 2 tests** and the empty E2E project exited 0 without a browser dependency.
-- [ ] **Error handler central** `(err,req,res,next)` — mensagem pública estável + correlation ID; detalhe só no logger redigido (SEC-10). *(base já entregue — validar cobertura em todas as rotas; respostas 500 ad hoc continuam com shapes diferentes e `events.routes` pode expor `error.message`.)*
+- [x] **Error handler central** `(err,req,res,next)` — mensagem pública estável + correlation ID; detalhe só no logger redigido (SEC-10). O inventário exato desta missão caiu **188 -> 0** e o inventário público `error.message`/`details` mantém **0**; os três ceilings `rawEnvironmentRead/localHttp500/publicErrorDetail` são **0/0/0** e têm mutação/restauração fail-closed.
 
   - **Tag Monitoring wave fechada no código (2026-08-10):** os **27→0** formatadores HTTP 500 locais dos três controllers foram enviados para o boundary central (monitoring **10→0**, notifications **9→0**, critical tags **8→0**); o inventário global SEC-10 caiu **233→206** e, na Task 4, **214→206**. O ratchet global acompanha exatamente os **206** sites restantes; a baseline no-explicit-any deste último controller caiu **8→0**. A Task 4 preserva envelopes de sucesso/400/404/409, IDs e ordem de writes para create, soft delete, permanent delete, toggle e prioridade; authenticate continua antes do handler e o delete permanente mantém withValidatedInput strict sobre params/query/body. Prova offline focada: **4/4 suites / 70/70 testes**; gate maior: lint-prune/lint/TypeScript/build **0**, Jest **318/318 suites / 1734/1734 testes**, git diff --check limpo e lockfiles intactos. O grep res.status(500)|error.message no domínio devolveu zero. O prerequisite Front foi fechado no commit **4758941**: o boundary canónico apiError é a única autoridade e o helper local foi apagado; testes focados, lint, TypeScript e build do Front ficaram verdes. SEC-10 global permanece aberto nos outros **206** sites; não houve deploy nem observação operacional.
+  - **Fecho terminal SEC-10 (2026-08-11):** as vagas ActiveCampaign **188->156**, Products/Hotmart/Guru **156->116**, Sync Utilizadores **116->91**, Sync/history/conflicts **91->70** e aplicação restante **70->0** convergiram todos os erros inesperados para o boundary central sem reescrever payloads de sucesso ou respostas locais de domínio. O scan literal final encontrou zero ocorrências executáveis e zero comentários enganadores. Isto é fecho de código/offline; deploy e observação continuam por fazer.
 - [x] Redação PII/tokens **numa só função** partilhada (logger + error handler): `redactSensitiveData` é partilhada pelo logger e pelo error handler, e o ESLint ratchet rejeita novos `console` calls. A baseline legacy de console/suppressions continua aberta em TOOL-02.
 
 ### 5. Segurança & rotas protegidas
@@ -1160,10 +1182,12 @@ Progresso controllers:
 
 ### 7. Contrato de resposta
 - [ ] Envelope/versionamento **único** para código novo; adaptado feature a feature preservando o Front (ARCH-03). Sem mistura de arrays crus / `{success,data}` / `{error}`.
+  - **Foundation ARCH-03 fechada no código (2026-08-11):** **439/439** rotas têm decisão revista: **58** `success-data`, **358** `domain-envelope`, **22** `raw-json` e **1** `redirect`. As **13** rotas sem saída de sucesso permanecem `501-only` explícitas. O scan do Front resolveu **219 calls / 194 consumers / 0 gaps**.
   - **Regra de migração ARCH-03 (Task 8):** o catálogo de famílias é o baseline revisto das 439 rotas montadas, não prova que a normalização dos payloads esteja concluída. Código JSON novo usa `SuccessResponse<T>` / `successResponse(data)`; status, headers e envio continuam propriedade do boundary Express. Rotas legacy não são migradas por este helper.
   - A normalização avança feature-by-feature. Quando existe consumidor, Front + Back mudam atomicamente e só entram com contract tests de loading, success, empty e error; export e paginação também são cobertos quando aplicáveis. Até essa equivalência, o contrato legacy permanece vivo.
   - As 13 rotas sem saída de sucesso continuam decisões **501-only** explícitas (`domain-envelope`, `shapeKeys: []`); não contam como normalizadas nem podem ser inferidas silenciosamente.
   - `contracts:responses:update` / `--write` é reviewer-only e fail-closed: apenas retém decisões já revistas depois de membership e source drift verdes. Nova rota, family válida alterada, enum churn, consumer/evidence/shape drift ou decisão não classificada falham com identidade `METHOD path`; não há auto-normalização nem mudança de runtime nesta fundação.
+  - `--check` nunca escreve; `--write` preserva decisões revistas e recusa drift; overlays de source estão confinados a testes, a diretórios temporários e a targets `backend`/`front`, com opt-in explícito. A migração de payloads continua aberta feature-by-feature.
 
 ### 8. Metodologias 2026 (toolchain & qualidade)
 - [x] **TOOL-01 — TypeScript `strict` a zero erros** (2026-08-03; F3.3). O ratchet foi removido, `noEmitOnError:true` está activo e não existe `tsc || exit 0` (Task 1, `8ee1c7c`). As autoridades restantes são `strict`, `noEmitOnError`, a compilação directa sem emissão (`npm.cmd run types:check`) e o build emissor (`npm.cmd run build`).
@@ -1178,7 +1202,7 @@ Progresso controllers:
 
 ### Fecho offline, métricas e validação operacional
 
-O progresso `checked/total` mede apenas o fecho mecânico deste workplan. Mesmo `104/104` significa
+O progresso `checked/total` mede apenas o fecho mecânico deste workplan. Mesmo `112/112` significa
 **hardening offline concluído**, não prontidão operacional nem equivalência em produção. O estado passa a
 ser comunicado em quatro eixos independentes: caixas do workplan; prontidão operacional; dívida objetiva
 (`no-explicit-any`, supressões, `res.status(500)`, leituras raw-env e maior ficheiro); e migração
@@ -1189,7 +1213,7 @@ linha curta no ledger ativo. Plano + spec + relatório extenso ficam reservados 
 dados, operações destrutivas, mudanças de contrato e às superfícies de alto risco da Task 9. Não criar um
 novo documento quando este workplan ou o plano ativo puder receber a decisão de forma concisa.
 
-O desenvolvimento offline continua até `104/104`. A validação real acontece depois, numa janela de fim de
+O desenvolvimento offline continua até `112/112`. A validação real acontece depois, numa janela de fim de
 semana, com stack legacy e stack `remake` em URLs distintas e promoção manual por três vagas:
 
 1. **Leitura real:** ambas as stacks podem ler a BD real e APIs externas em modo estritamente read-only.
@@ -1314,3 +1338,12 @@ aqui ao validar. Ordem macro: **conter segurança → validar rotas (F3.1) → p
 - Added a focused real-Express contract suite covering all 19 public-detail sites, both webhook branches, the two Guru domain errors and representative 400/404 behavior. RED proved raw email/token leakage and missing codes/correlation IDs; GREEN closes those paths without touching external integrations.
 - Ratchets tightened from **206 -> 188** local HTTP 500 blocks and **19 -> 0** public `error.message`/`details` exposures. Removed obsolete lint suppressions for 15 explicit-`any` catches and 13 direct-console sites; route-catalog evidence was updated without changing the 439-route surface.
 - All work and verification remained offline. No real API, production MongoDB, Redis, scheduler or deployment was contacted.
+
+### [x] SEC-10 closure and ARCH-03 foundation (2026-08-11)
+
+- SEC-10 closed the exact **188 -> 0** local-500 inventory while public technical detail and raw runtime-env debt remained **0**. The terminal scans found zero executable matches and zero misleading comments.
+- ARCH-03 foundation catalogs **439/439** mounted routes with family counts **58/358/22/1**, keeps **13** explicit `501-only` decisions, and resolves **219 Front calls / 194 consumers / 0 gaps**. Exact-membership, check/write drift and test-only overlay ratchets are active.
+- The first terminal Jest run exposed two pre-existing incomplete class-service fixtures: **333/335 suites** passed and all **2076** executed tests passed, but two suites failed TypeScript compilation. Commit `3680349` aligned those fixtures to the complete contracts without changing production; focused proof was **2/2 suites / 13/13 tests**.
+- Fresh terminal offline evidence after that correction: lint-prune, lint, strict TypeScript, response-contract check, build, diff-check and lockfile check all exited **0**; Jest passed **335/335 suites / 2089/2089 tests** in-band with `MONGOMS_RUNTIME_DOWNLOAD=false`; zero Jest processes remained. Known model-registry, Mongoose index/reserved-key, disabled-integration and exercised-error warnings remain non-failing.
+- Code-complete is not operationally closed. Still open: feature-by-feature payload migration; approved production deployment/observation; SEC-01 role matrix and OPS-02; target-environment provisioning/startup; and the recorded Railway Users V2 index `inspect -> apply-if-missing -> verify` one-off. The current workplan does not list key rotation or a Railway builder change as open work, so neither is claimed or added here.
+- Detailed evidence: `docs/reports/2026-08-10-sec10-arch03-foundation.md`.
