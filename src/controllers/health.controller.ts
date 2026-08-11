@@ -3,17 +3,20 @@
 // Health check endpoint com validação de serviços
 // =====================================================
 
-import { Request, Response } from 'express'
+import { type NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import CronExecutionLog from '../models/cron/CronExecutionLog'
+import { forwardApplicationError } from './forwardApplicationError'
+
+type HealthCheck = { status: string } & Record<string, unknown>
 
 /**
  * GET /api/health
  * Verifica saúde do sistema (MongoDB + CRON jobs)
  */
-export const getHealth = async (req: Request, res: Response) => {
+export const getHealth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const checks: any = {
+    const checks: Record<string, HealthCheck> = {
       database: { status: 'unknown' },
       cronJob: { status: 'unknown' }
     }
@@ -43,7 +46,7 @@ export const getHealth = async (req: Request, res: Response) => {
     }
     
     // Determinar status geral
-    const allOk = Object.values(checks).every((check: any) => check.status === 'ok')
+    const allOk = Object.values(checks).every((check) => check.status === 'ok')
     const status = allOk ? 'healthy' : 'degraded'
     
     res.status(allOk ? 200 : 503).json({
@@ -52,11 +55,7 @@ export const getHealth = async (req: Request, res: Response) => {
       uptime: process.uptime(),
       timestamp: new Date()
     })
-  } catch (error: any) {
-    res.status(500).json({
-      status: 'unhealthy',
-      error: error.message,
-      timestamp: new Date()
-    })
+  } catch (error: unknown) {
+    forwardApplicationError(next, error, 'Erro ao verificar saúde do sistema', 'HEALTH_READ_FAILED')
   }
 }

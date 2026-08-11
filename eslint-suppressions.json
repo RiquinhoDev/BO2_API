@@ -23,11 +23,6 @@
       "count": 12
     }
   },
-  "src/controllers/auth.controller.ts": {
-    "no-console": {
-      "count": 4
-    }
-  },
   "src/controllers/businessAnalytics.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
@@ -176,19 +171,9 @@
       "count": 1
     }
   },
-  "src/controllers/health.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
   "src/controllers/lessons.controller.ts": {
     "no-console": {
       "count": 4
-    }
-  },
-  "src/controllers/metrics.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
     }
   },
   "src/controllers/populateHistory.controller.ts": {

@@ -447,7 +447,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:17"
+    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:18"
   },
   {
     "method": "POST",
@@ -456,7 +456,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "public: entrada necessaria para obter JWT; chamada do Front em <src/contexts/AuthContext.tsx>; rota em src/routes/auth.routes.ts:9"
+    "evidence": "public: entrada necessaria para obter JWT; chamada do Front em <src/contexts/AuthContext.tsx>; rota em src/routes/auth.routes.ts:10"
   },
   {
     "method": "POST",
@@ -465,7 +465,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:13"
+    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:14"
   },
   {
     "method": "POST",
@@ -474,7 +474,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:16"
+    "evidence": "consumer nao identificado; rota em src/routes/auth.routes.ts:17"
   },
   {
     "method": "GET",
@@ -483,7 +483,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/contexts/AuthContext.tsx>; rota em src/routes/auth.routes.ts:12"
+    "evidence": "chamada do Front em <src/contexts/AuthContext.tsx>; rota em src/routes/auth.routes.ts:13"
   },
   {
     "method": "POST",
@@ -2265,7 +2265,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "public: liveness sem credenciais; rota em src/routes/health.routes.ts:12"
+    "evidence": "public: liveness sem credenciais; rota em src/routes/health.routes.ts:13"
   },
   {
     "method": "GET",
@@ -2418,7 +2418,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/metrics.routes.ts:12"
+    "evidence": "consumer nao identificado; rota em src/routes/metrics.routes.ts:13"
   },
   {
     "method": "GET",
@@ -2427,7 +2427,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/metrics.routes.ts:18"
+    "evidence": "consumer nao identificado; rota em src/routes/metrics.routes.ts:19"
   },
   {
     "method": "GET",
@@ -2436,7 +2436,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/metrics.routes.ts:15"
+    "evidence": "consumer nao identificado; rota em src/routes/metrics.routes.ts:16"
   },
   {
     "method": "GET",
