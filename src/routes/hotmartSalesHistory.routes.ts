@@ -38,6 +38,10 @@ router.get('/status', asyncRoute(async (_req: Request, res: Response) => {
     HotmartSaleHistory.findOne({}).sort({ lastSyncedAt: -1 }).select('lastSyncedAt').lean().exec()
   ])
 
+  // sem isto, alguma camada (proxy/CDN/browser) pode servir uma resposta
+  // antiga enquanto o front sonda syncInProgress — visto em produção com
+  // o /status da AC (BD avançava, HTTP não refletia).
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate')
   res.json({
     success: true,
     data: {
