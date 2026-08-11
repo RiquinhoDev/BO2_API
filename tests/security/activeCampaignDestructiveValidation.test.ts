@@ -38,6 +38,16 @@ jest.mock('../../src/controllers/acTags/activeCampaignLegacyTagRules.controller'
   deleteTagRule: jest.fn((_input, _req, res) => res.status(204).end()),
 }))
 
+
+jest.mock('../../src/controllers/acTags/tagRule.controller', () => ({
+  __esModule: true,
+  getAllRules: jest.fn((_req, res) => res.status(204).end()),
+  getRuleById: jest.fn((_req, res) => res.status(204).end()),
+  createRule: jest.fn((_req, res) => res.status(204).end()),
+  updateRule: jest.fn((_req, res) => res.status(204).end()),
+  deleteRule: jest.fn((_req, res) => res.status(204).end()),
+  testRule: jest.fn((_req, res) => res.status(204).end()),
+}))
 jest.mock('../../src/controllers/acTags/activeCampaignProductTags.controller', () => ({
   __esModule: true,
   applyTagToUserProduct: jest.fn((_input, _req, res) => res.status(204).end()),
@@ -52,7 +62,8 @@ jest.mock('../../src/routes', () => {
   return { __esModule: true, default: Router() }
 })
 
-import { deleteTagRule } from '../../src/controllers/acTags/activeCampaignLegacyTagRules.controller'
+import { deleteRule } from '../../src/controllers/acTags/tagRule.controller'
+import tagRuleRouter from '../../src/routes/ACroutes/tagRule.routes'
 import activeCampaignRouter from '../../src/routes/ACroutes/activecampaign.routes'
 import { registerRoutes } from '../../src/runtime/registerRoutes'
 
@@ -110,6 +121,7 @@ function buildApp() {
   app.use(errors.correlationId)
   app.use(express.json())
   app.use('/api/activecampaign', activeCampaignRouter)
+  app.use('/api/tag-rules', tagRuleRouter)
   app.use(errors.handler)
   return app
 }
@@ -124,6 +136,7 @@ function buildRuntimeApp() {
   app.use(errors.correlationId)
   app.use(express.json())
   registerRoutes(app)
+  app.use('/api/tag-rules', tagRuleRouter)
   app.use(errors.handler)
   return app
 }
@@ -151,8 +164,8 @@ test.each(routes)('$name rejects a nested Mongo operator', async (route) => {
   }).expect(400)
 })
 
-test('direct legacy delete rejects an invalid ObjectId before its controller', async () => {
-  const deleteController = jest.mocked(deleteTagRule)
+test('canonical delete rejects an invalid ObjectId before its controller', async () => {
+  const deleteController = jest.mocked(deleteRule)
   deleteController.mockClear()
 
   await request(buildRuntimeApp())
