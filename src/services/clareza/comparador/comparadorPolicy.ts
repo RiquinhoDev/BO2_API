@@ -81,7 +81,7 @@ export function searchComparadorStocks(snapshot: ComparadorSnapshot, rawQuery: s
     .map(([symbol, stock]) => {
       const result: ComparadorSearchResult = {
         symbol,
-        name: stock.name || symbol,
+        name: stock.name ?? symbol,
         sector: stock.sector,
         exchange: stock.exchange,
         image: stock.image,
