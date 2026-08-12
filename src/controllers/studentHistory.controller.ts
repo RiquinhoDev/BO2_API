@@ -7,12 +7,19 @@ import logger from '../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
 import { forwardApplicationError } from '../security/forwardApplicationError'
-import mongoose from 'mongoose'
-import UserHistory from '../models/UserHistory'
+import mongoose, { type FilterQuery } from 'mongoose'
+import UserHistory, { type IUserHistory } from '../models/UserHistory'
 import User from '../models/user'
 
 type StudentHistoryParams = {
   userId: string
+}
+
+type HistoryQuery = FilterQuery<IUserHistory> & {
+  changeDate?: {
+    $gte?: Date
+    $lte?: Date
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -30,7 +37,6 @@ export const getStudentHistory = async (req: Request<StudentHistoryParams>, res:
 
     logger.info(`[StudentHistoryController] Buscando histórico para userId: ${userId}`)
 
-    // Validar userId
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return res.status(400).json({
         success: false,
@@ -38,7 +44,6 @@ export const getStudentHistory = async (req: Request<StudentHistoryParams>, res:
       })
     }
 
-    // Buscar user para validar que existe
     const user = await User.findById(userId).select('email name').lean()
     if (!user) {
       return res.status(404).json({
@@ -47,8 +52,7 @@ export const getStudentHistory = async (req: Request<StudentHistoryParams>, res:
       })
     }
 
-    // Build query
-    const query: any = { userId: new mongoose.Types.ObjectId(userId) }
+    const query: HistoryQuery = { userId: new mongoose.Types.ObjectId(userId) }
 
     if (changeType && typeof changeType === 'string') {
       query.changeType = changeType
@@ -68,10 +72,9 @@ export const getStudentHistory = async (req: Request<StudentHistoryParams>, res:
       }
     }
 
-    const limitNum = parseInt(limit as string, 10) || 50
-    const offsetNum = parseInt(offset as string, 10) || 0
+    const limitNum = parseInt(String(limit), 10) || 50
+    const offsetNum = parseInt(String(offset), 10) || 0
 
-    // Buscar histórico
     const startTime = Date.now()
     const [history, total] = await Promise.all([
       UserHistory.find(query)
@@ -86,8 +89,7 @@ export const getStudentHistory = async (req: Request<StudentHistoryParams>, res:
 
     logger.info(`[StudentHistoryController] ${history.length} registos encontrados em ${executionTime}ms`)
 
-    // Agrupar por data para timeline
-    const groupedHistory = groupHistoryByDate(history as any[])
+    const groupedHistory = groupHistoryByDate(history)
 
     return res.status(200).json(successResponse({
       user: {
@@ -138,7 +140,6 @@ export const getStudentHistorySummary = async (req: Request<StudentHistoryParams
 
     const userIdObj = new mongoose.Types.ObjectId(userId)
 
-    // Agregar estatísticas
     const stats = await UserHistory.aggregate([
       { $match: { userId: userIdObj } },
       {
@@ -202,20 +203,14 @@ export const getStudentHistorySummary = async (req: Request<StudentHistoryParams
 // HELPERS
 // ═══════════════════════════════════════════════════════════════
 
-interface HistoryRecord {
-  _id: string
+interface GroupableHistoryRecord {
   changeDate: Date
   changeType: string
-  source: string
-  platform?: string
-  metadata?: any
-  previousValue: any
-  newValue: any
 }
 
-interface GroupedHistoryDay {
-  date: string // YYYY-MM-DD
-  changes: HistoryRecord[]
+interface GroupedHistoryDay<T extends GroupableHistoryRecord> {
+  date: string
+  changes: T[]
   summary: {
     total: number
     byType: Record<string, number>
@@ -225,12 +220,12 @@ interface GroupedHistoryDay {
 /**
  * Agrupa histórico por dia para exibição em timeline
  */
-function groupHistoryByDate(history: HistoryRecord[]): GroupedHistoryDay[] {
-  const grouped = new Map<string, HistoryRecord[]>()
+function groupHistoryByDate<T extends GroupableHistoryRecord>(history: T[]): GroupedHistoryDay<T>[] {
+  const grouped = new Map<string, T[]>()
 
   history.forEach((record) => {
     const date = new Date(record.changeDate)
-    const dateKey = date.toISOString().split('T')[0] // YYYY-MM-DD
+    const dateKey = date.toISOString().split('T')[0]
 
     if (!grouped.has(dateKey)) {
       grouped.set(dateKey, [])
@@ -238,7 +233,7 @@ function groupHistoryByDate(history: HistoryRecord[]): GroupedHistoryDay[] {
     grouped.get(dateKey)!.push(record)
   })
 
-  const result: GroupedHistoryDay[] = []
+  const result: GroupedHistoryDay<T>[] = []
 
   grouped.forEach((changes, dateKey) => {
     const byType: Record<string, number> = {}
@@ -256,7 +251,6 @@ function groupHistoryByDate(history: HistoryRecord[]): GroupedHistoryDay[] {
     })
   })
 
-  // Ordenar por data decrescente
   result.sort((a, b) => b.date.localeCompare(a.date))
 
   return result
