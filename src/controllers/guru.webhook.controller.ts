@@ -181,7 +181,7 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, 
       logger.info(`✅ [GURU] Novo user criado: ${email}`)
     } else {
       // Atualizar user existente — usar updateOne para não tocar em campos de outras plataformas
-      const updateFields: Record<string, any> = {
+      const updateFields: Record<string, unknown> = {
         'guru.guruContactId': payload.guru_contact_id,
         'guru.subscriptionCode': payload.subscription_code,
         'guru.status': payload.status,
@@ -299,13 +299,13 @@ export const listWebhooksGroupedByMonth = async (req: Request, res: Response, ne
   try {
     const { source } = req.query
 
-    const matchQuery: any = {}
+    const matchQuery: { source?: unknown } = {}
     if (source) {
       matchQuery.source = source
     }
 
     // Agrupar por ano e mês
-    const grouped = await GuruWebhook.aggregate([
+    const grouped = await GuruWebhook.aggregate<{ _id: { year: number; month: number; source: 'guru' | 'manual' }; count: number; processed: number; failed: number }>([
       { $match: matchQuery },
       {
         $group: {
@@ -327,9 +327,9 @@ export const listWebhooksGroupedByMonth = async (req: Request, res: Response, ne
     ])
 
     // Reorganizar dados por ano > mês > origem
-    const byYear: Record<number, any> = {}
+    const byYear: Record<number, Record<number, { guru: null | { count: number; processed: number; failed: number }; manual: null | { count: number; processed: number; failed: number }; total: number }>> = {}
 
-    grouped.forEach((item: any) => {
+    grouped.forEach(item => {
       const year = item._id.year
       const month = item._id.month
       const source = item._id.source
@@ -385,7 +385,7 @@ export const getGuruStats = async (req: Request, res: Response, next: NextFuncti
     ])
 
     // Estatísticas de subscrições (users com guru)
-    const subscriptionStats = await User.aggregate([
+    const subscriptionStats = await User.aggregate<{ _id: string; count: number }>([
       { $match: { guru: { $exists: true } } },
       {
         $group: {
@@ -395,7 +395,7 @@ export const getGuruStats = async (req: Request, res: Response, next: NextFuncti
       }
     ])
 
-    const byStatus = subscriptionStats.reduce((acc: any, item: any) => {
+    const byStatus = subscriptionStats.reduce<Record<string, number>>((acc, item) => {
       acc[item._id] = item.count
       return acc
     }, {
@@ -408,7 +408,7 @@ export const getGuruStats = async (req: Request, res: Response, next: NextFuncti
       suspended: 0
     })
 
-    const totalSubscriptions = Object.values(byStatus).reduce((sum: number, val: any) => sum + val, 0)
+    const totalSubscriptions = Object.values(byStatus).reduce((sum, val) => sum + val, 0)
 
     // Último webhook
     const lastWebhook = await GuruWebhook.findOne().sort({ receivedAt: -1 }).lean()

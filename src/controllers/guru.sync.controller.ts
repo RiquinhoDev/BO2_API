@@ -136,7 +136,7 @@ export const getSyncStats = async (req: Request, res: Response, next: NextFuncti
     const usersWithGuru = await User.countDocuments({ guru: { $exists: true } })
 
     // Contar por status
-    const byStatus = await User.aggregate([
+    const byStatus = await User.aggregate<{ _id: string | null; count: number }>([
       { $match: { guru: { $exists: true } } },
       { $group: { _id: '$guru.status', count: { $sum: 1 } } }
     ])
@@ -148,17 +148,17 @@ export const getSyncStats = async (req: Request, res: Response, next: NextFuncti
       .lean()
 
     // Contar por produto
-    const byProduct = await User.aggregate([
+    const byProduct = await User.aggregate<{ _id: string | null; count: number }>([
       { $match: { guru: { $exists: true } } },
       { $group: { _id: '$guru.productId', count: { $sum: 1 } } }
     ])
 
-    const statusCounts = byStatus.reduce((acc: any, item: any) => {
+    const statusCounts = byStatus.reduce<Record<string, number>>((acc, item) => {
       acc[item._id || 'unknown'] = item.count
       return acc
     }, {})
 
-    const productCounts = byProduct.reduce((acc: any, item: any) => {
+    const productCounts = byProduct.reduce<Record<string, number>>((acc, item) => {
       acc[item._id || 'unknown'] = item.count
       return acc
     }, {})
@@ -240,7 +240,7 @@ export const listUsersWithGuru = async (req: Request, res: Response, next: NextF
       productId
     } = req.query
 
-    const query: any = { guru: { $exists: true } }
+    const query: Record<string, unknown> = { guru: { $exists: true } }
 
     if (status) {
       query['guru.status'] = status
