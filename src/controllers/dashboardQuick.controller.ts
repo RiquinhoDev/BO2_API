@@ -1,14 +1,36 @@
 import logger from '../utils/logger'
-// ══════════════════════════════════════════════════════════════════════
-// 📁 src/controllers/dashboardQuick.controller.ts
-// Endpoints RÁPIDOS para dashboard usando agregação MongoDB
-// ══════════════════════════════════════════════════════════════════════
-
 import { NextFunction, Request, Response } from 'express'
 import UserProduct from '../models/UserProduct'
 import mongoose from 'mongoose'
 import { internalError } from '../security/errorHandling'
 import { successResponse } from '../contracts/responseContract'
+
+interface ProductComparisonAggregate {
+  _id: mongoose.Types.ObjectId
+  totalStudentsCount?: number
+  productName?: string
+  platform?: string
+  avgEngagement?: number
+  alto?: number
+  medio?: number
+  baixo?: number
+  risco?: number
+}
+
+interface ProductBreakdownAggregate {
+  _id: mongoose.Types.ObjectId
+  totalStudentsCount?: number
+  productName?: string
+  platform?: string
+  avgEngagement?: number
+  avgProgress?: number
+  activeStudents?: number
+}
+
+interface ProductMatchStage {
+  isPrimary: { $ne: false }
+  platform?: { $in: string[] }
+}
 
 /**
  * GET /api/dashboard/quick/product-comparison
@@ -18,20 +40,14 @@ export const getProductComparison = async (req: Request, res: Response, next: Ne
   try {
     logger.info('\n📊 [Quick Comparison] Agregando dados por produto...')
 
-    // Agregação MongoDB otimizada
-    const products = await UserProduct.aggregate([
-      // Match apenas produtos ativos (opcional)
-      { $match: { isPrimary: { $ne: false } } }, // Filtra secundários do CursEDuca
-
-      // Group por produto para calcular métricas
+    const products = await UserProduct.aggregate<ProductComparisonAggregate>([
+      { $match: { isPrimary: { $ne: false } } },
       {
         $group: {
           _id: '$productId',
-          totalStudents: { $addToSet: '$userId' }, // Users únicos
+          totalStudents: { $addToSet: '$userId' },
           avgEngagement: { $avg: '$engagement.engagementScore' },
           platform: { $first: '$platform' },
-
-          // Contar por nível de engagement
           alto: {
             $sum: {
               $cond: [{ $gte: ['$engagement.engagementScore', 60] }, 1, 0]
@@ -72,8 +88,6 @@ export const getProductComparison = async (req: Request, res: Response, next: Ne
           }
         }
       },
-
-      // Lookup para obter nome do produto
       {
         $lookup: {
           from: 'products',
@@ -82,26 +96,19 @@ export const getProductComparison = async (req: Request, res: Response, next: Ne
           as: 'productInfo'
         }
       },
-
-      // Calcular total de students únicos
       {
         $addFields: {
           totalStudentsCount: { $size: '$totalStudents' },
           productName: { $arrayElemAt: ['$productInfo.name', 0] }
         }
       },
-
-      // Sort por total de estudantes
       { $sort: { totalStudentsCount: -1 } },
-
-      // Limitar a top 10 produtos
       { $limit: 10 }
     ], { allowDiskUse: true })
 
     logger.info(`✅ [Quick Comparison] ${products.length} produtos encontrados`)
 
-    // Transformar para formato esperado pelo frontend
-    const comparison = products.map((product: any) => {
+    const comparison = products.map((product) => {
       const totalStudents = product.totalStudentsCount || 0
 
       return {
@@ -110,7 +117,7 @@ export const getProductComparison = async (req: Request, res: Response, next: Ne
         platform: product.platform || 'unknown',
         totalStudents,
         avgScore: Math.round(product.avgEngagement || 0),
-        trend: 0, // TODO: Calcular trend comparando períodos
+        trend: 0,
         distribution: {
           alto: {
             count: product.alto || 0,
@@ -133,10 +140,10 @@ export const getProductComparison = async (req: Request, res: Response, next: Ne
     })
 
     return res.status(200).json(successResponse(comparison, {
-        calculatedAt: new Date(),
-        cached: false,
-        method: 'mongodb-aggregation'
-      }))
+      calculatedAt: new Date(),
+      cached: false,
+      method: 'mongodb-aggregation'
+    }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar comparação de produtos', 'DASHBOARD_QUICK_COMPARISON_FAILED', error))
   }
@@ -150,8 +157,6 @@ export const getEngagementHeatmap = async (req: Request, res: Response, next: Ne
   try {
     logger.info('\n🔥 [Quick Heatmap] Gerando heatmap simplificado...')
 
-    // Por agora, retornar dados mockados
-    // TODO: Implementar sistema de tracking temporal de engagement
     const mockWeeks = []
     const today = new Date()
 
@@ -161,15 +166,14 @@ export const getEngagementHeatmap = async (req: Request, res: Response, next: Ne
         const date = new Date(today)
         date.setDate(date.getDate() - ((4 - weekNum) * 7 + (6 - dayNum)))
 
-        // Mock scores baseados em padrões realistas
         const isWeekend = dayNum >= 5
         const baseScore = isWeekend ? 28 : 38
         const variance = Math.floor(Math.random() * 10) - 5
         const avgScore = Math.max(15, Math.min(50, baseScore + variance))
 
         const level = avgScore >= 40 ? 'alto' :
-                     avgScore >= 30 ? 'medio' :
-                     avgScore >= 20 ? 'baixo' : 'risco'
+          avgScore >= 30 ? 'medio' :
+            avgScore >= 20 ? 'baixo' : 'risco'
 
         days.push({
           day: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayNum],
@@ -199,9 +203,9 @@ export const getEngagementHeatmap = async (req: Request, res: Response, next: Ne
     logger.info('✅ [Quick Heatmap] Heatmap gerado')
 
     return res.status(200).json(successResponse(heatmapData, {
-        isMock: true,
-        message: 'Dados simulados - implementar tracking temporal'
-      }))
+      isMock: true,
+      message: 'Dados simulados - implementar tracking temporal'
+    }))
   } catch (error: unknown) {
     next(internalError('Erro ao gerar heatmap', 'DASHBOARD_QUICK_HEATMAP_FAILED', error))
   }
@@ -216,19 +220,15 @@ export const getProductsBreakdown = async (req: Request, res: Response, next: Ne
     logger.info('\n📦 [Quick Products] Agregando breakdown por produto...')
 
     const { platforms } = req.query
+    const matchStage: ProductMatchStage = { isPrimary: { $ne: false } }
 
-    // Construir match stage baseado nos filtros
-    const matchStage: any = { isPrimary: { $ne: false } }
     if (platforms && typeof platforms === 'string') {
       const platformList = platforms.split(',').map((p: string) => p.toLowerCase())
       matchStage.platform = { $in: platformList }
     }
 
-    // Agregação MongoDB
-    const products = await UserProduct.aggregate([
+    const products = await UserProduct.aggregate<ProductBreakdownAggregate>([
       { $match: matchStage },
-
-      // Group por produto
       {
         $group: {
           _id: '$productId',
@@ -243,8 +243,6 @@ export const getProductsBreakdown = async (req: Request, res: Response, next: Ne
           }
         }
       },
-
-      // Lookup product info
       {
         $lookup: {
           from: 'products',
@@ -253,39 +251,34 @@ export const getProductsBreakdown = async (req: Request, res: Response, next: Ne
           as: 'productInfo'
         }
       },
-
-      // Add fields
       {
         $addFields: {
           totalStudentsCount: { $size: '$totalStudents' },
           productName: { $arrayElemAt: ['$productInfo.name', 0] }
         }
       },
-
-      // Sort
       { $sort: { totalStudentsCount: -1 } }
     ], { allowDiskUse: true })
 
-    // Transform
-    const breakdown = products.map((product: any) => ({
+    const breakdown = products.map((product) => ({
       productId: product._id.toString(),
       productName: product.productName || 'Produto Desconhecido',
       platform: product.platform || 'unknown',
       totalStudents: product.totalStudentsCount || 0,
       avgEngagement: Math.round(product.avgEngagement || 0),
       avgProgress: Math.round(product.avgProgress || 0),
-      engagementRate: product.totalStudentsCount > 0
-        ? Math.round((product.activeStudents / product.totalStudentsCount) * 100)
+      engagementRate: (product.totalStudentsCount || 0) > 0
+        ? Math.round(((product.activeStudents || 0) / (product.totalStudentsCount || 1)) * 100)
         : 0
     }))
 
     logger.info(`✅ [Quick Products] ${breakdown.length} produtos`)
 
     return res.status(200).json(successResponse(breakdown, {
-        calculatedAt: new Date(),
-        cached: false,
-        method: 'mongodb-aggregation'
-      }))
+      calculatedAt: new Date(),
+      cached: false,
+      method: 'mongodb-aggregation'
+    }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar breakdown de produtos', 'DASHBOARD_QUICK_BREAKDOWN_FAILED', error))
   }
