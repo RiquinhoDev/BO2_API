@@ -44,6 +44,32 @@ describe('SCALE-02 partition C contracts', () => {
     findOne.mockImplementation(() => ({ sort: jest.fn().mockResolvedValue(null) }))
   })
 
+  it('evaluates refresh half-life with server execution time and strict equality', async () => {
+    const serverNow = new Date('2026-08-12T12:00:00.000Z')
+    const fixtures = [
+      { calculatedAt: new Date('2026-08-12T10:00:00.000Z'), expiresAt: new Date('2026-08-12T14:00:00.000Z') },
+      { calculatedAt: new Date('2026-08-12T09:59:59.998Z'), expiresAt: new Date('2026-08-12T13:59:59.998Z') },
+      { calculatedAt: new Date('2026-08-12T10:00:00.002Z'), expiresAt: new Date('2026-08-12T14:00:00.002Z') },
+    ]
+    aggregate.mockImplementationOnce((pipeline: unknown[]) => {
+      const serialized = JSON.stringify(pipeline)
+      expect(serialized).toContain('"$$NOW"')
+      expect(serialized).toContain('"$gt"')
+      expect(serialized).not.toContain(serverNow.toISOString())
+      const count = fixtures.filter(({ calculatedAt, expiresAt }) => {
+        const halfLife = calculatedAt.getTime() + (expiresAt.getTime() - calculatedAt.getTime()) / 2
+        return serverNow.getTime() > halfLife
+      }).length
+      return Promise.resolve([{ count }])
+    }).mockResolvedValueOnce([])
+
+    await expect(analyticsCacheService.getCacheStats()).resolves.toMatchObject({ needsRefresh: 1 })
+    const refreshPipeline = aggregate.mock.calls[0][0]
+    expect(refreshPipeline[0].$match.$expr).toEqual({
+      $gt: ['$$NOW', { $add: ['$calculatedAt', { $divide: [{ $subtract: ['$expiresAt', '$calculatedAt'] }, 2] }] }],
+    })
+  })
+
   it('computes complete cache statistics without materializing cache documents', async () => {
     const oldest = new Date('2026-01-01T00:00:00.000Z')
     const newest = new Date('2026-08-01T00:00:00.000Z')

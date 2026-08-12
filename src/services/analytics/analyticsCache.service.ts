@@ -320,7 +320,7 @@ class AnalyticsCacheService {
         {
           $match: {
             $expr: {
-              $gt: [new Date(), { $add: ['$calculatedAt', { $divide: [{ $subtract: ['$expiresAt', '$calculatedAt'] }, 2] }] }]
+              $gt: ['$$NOW', { $add: ['$calculatedAt', { $divide: [{ $subtract: ['$expiresAt', '$calculatedAt'] }, 2] }] }]
             }
           }
         },

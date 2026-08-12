@@ -4,7 +4,7 @@
 
 Task 3 reviewed analytics cache statistics/warmup, ActiveCampaign manual/native/testimonial flows, weekly tag monitoring, and Guru cross-reference. No real provider, production Mongo, or network call was made.
 
-- Changed: `analyticsCache.getCacheStats()` no longer materializes every cache document to evaluate half-life. Mongo evaluates the same `now > calculatedAt + (expiresAt - calculatedAt) / 2` predicate and returns only `$count`.
+- Changed: `analyticsCache.getCacheStats()` no longer materializes every cache document to evaluate half-life. Mongo evaluates `$$NOW > calculatedAt + (expiresAt - calculatedAt) / 2` at pipeline execution and returns only `$count`.
 - Characterized: 50 concurrent warmups for the same calendar window fill the monthly/yearly keys once each through the existing keyed singleflight. No extra warmup scheduler was added because the requested behavior already existed.
 - Ejected: five provider/write flows below. Parallel execution cannot preserve their current observable semantics with the available boundaries.
 
@@ -22,9 +22,16 @@ GREEN:
 
 `npm.cmd test -- --runInBand tests/scalability/scale02PartitionC.contract.test.ts --silent`
 
-- 1 suite passed; 15/15 tests passed.
+- Initial GREEN: 1 suite passed; 15/15 tests passed.
 - N=10/100/10,000 bounded-provider helper coverage remained green.
 - Jest emitted only the repository's pre-existing Mongoose reserved-path warning.
+
+P2 review correction:
+
+- Independent review found that the first aggregate captured JavaScript time before the database request, rather than using pipeline execution time.
+- RED: the focused boundary fixture rejected the captured ISO date; 1 failed and 15 passed.
+- GREEN: the pipeline now uses `$$NOW` with strict `$gt`. Fixtures at, two milliseconds before, and two milliseconds after half-life prove equality remains false and only the crossed fixture is counted.
+- Fresh focused result after correction: 1 suite passed; 16/16 tests passed.
 
 ## Exact ejections
 
