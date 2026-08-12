@@ -9,7 +9,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 export interface IPipelineStepStats {
   success: boolean
   duration: number
-  stats: Record<string, unknown>
+  stats: unknown
   error?: string
 }
 
