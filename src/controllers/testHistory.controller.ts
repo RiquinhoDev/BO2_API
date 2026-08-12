@@ -12,6 +12,12 @@ import UserProduct from '../models/UserProduct'
 import { snapshotAndCompare } from '../services/snapshotServices/userSnapshot.service'
 import { forwardApplicationError } from '../security/forwardApplicationError'
 
+function populatedProductName(productId: unknown): string {
+  return productId && typeof productId === 'object' && 'name' in productId && typeof productId.name === 'string'
+    ? productId.name
+    : 'Produto'
+}
+
 /**
  * POST /api/test/history/make-changes
  * Faz alterações de teste no user para testar sistema de histórico
@@ -52,9 +58,9 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
       userId: user._id.toString(),
       name: user.name,
       averageEngagement: user.combined?.combinedEngagement,
-      products: products.map((p: any) => ({
+      products: products.map((p) => ({
         _id: p._id.toString(),
-        productName: p.productId?.name || 'Produto',
+        productName: populatedProductName(p.productId),
         status: p.status,
         progressPercentage: p.progress?.percentage || 0,
         completedLessons: p.progress?.completed || 0,
@@ -65,7 +71,7 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
 
     // 4. Criar snapshot ANTES das alterações
     logger.info('\n📸 [TEST] Criando snapshot inicial...')
-    await snapshotAndCompare(user, products as any[], 'manual')
+    await snapshotAndCompare(user, products, 'manual')
 
     // 5. Fazer alterações
     logger.info('\n🔧 [TEST] Fazendo alterações...\n')
@@ -96,8 +102,8 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
 
     // Alteração 3-5: No primeiro produto
     if (products.length > 0) {
-      const product = products[0] as any
-      const productName = product.productId?.name || 'Produto'
+      const product = products[0]
+      const productName = populatedProductName(product.productId)
 
       // 3. Progresso
       const oldProgress = product.progress?.percentage || 0
@@ -140,7 +146,7 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
     logger.info('\n📸 [TEST] Criando snapshot final e comparando...')
     const { comparison } = await snapshotAndCompare(
       updatedUser!,
-      updatedProducts as any[],
+      updatedProducts,
       'manual'
     )
 
@@ -227,7 +233,7 @@ export const revertTestChanges = async (req: Request, res: Response, next: NextF
       .populate('productId', 'name code platform')
 
     logger.info('\n📸 [TEST] Criando snapshot pós-reversão...')
-    await snapshotAndCompare(user!, products as any[], 'manual')
+    await snapshotAndCompare(user!, products, 'manual')
 
     logger.info('✅ [TEST] Reversão concluída!')
 
