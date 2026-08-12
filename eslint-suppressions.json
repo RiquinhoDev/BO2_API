@@ -25,9 +25,6 @@
     }
   },
   "src/jobs/cronExecutionCleanup.job.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -58,9 +55,6 @@
     }
   },
   "src/jobs/evaluateRules.job.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
@@ -69,9 +63,6 @@
     }
   },
   "src/jobs/resetCounters.job.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
     },
@@ -80,9 +71,6 @@
     }
   },
   "src/jobs/weeklyTagSnapshot.job.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -132,11 +120,6 @@
       "count": 1
     },
     "no-useless-assignment": {
-      "count": 1
-    }
-  },
-  "src/models/cron/PipelineExecution.ts": {
-    "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
@@ -330,11 +313,6 @@
   "src/services/userProducts/userProductService.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
-    }
-  },
-  "src/types/cron.types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "src/types/studentComplete.ts": {
