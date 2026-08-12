@@ -1,5 +1,6 @@
 // src/controllers/guru.webhook.controller.ts - Controller para webhooks da Guru
 import { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import { internalError } from '../security/errorHandling'
 import User from '../models/user'
 import GuruWebhook from '../models/GuruWebhook'
@@ -348,10 +349,9 @@ export const listWebhooksGroupedByMonth = async (req: Request, res: Response, ne
       byYear[year][month].total += item.count
     })
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       groupedByMonth: byYear
-    })
+    }))
 
   } catch (error: unknown) {
     return next(internalError('Erro ao agrupar webhooks Guru', 'GURU_WEBHOOK_GROUPING_FAILED', error))
@@ -413,8 +413,7 @@ export const getGuruStats = async (req: Request, res: Response, next: NextFuncti
     // Último webhook
     const lastWebhook = await GuruWebhook.findOne().sort({ receivedAt: -1 }).lean()
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       stats: {
         subscriptions: {
           total: totalSubscriptions,
@@ -428,7 +427,7 @@ export const getGuruStats = async (req: Request, res: Response, next: NextFuncti
         },
         lastWebhookAt: lastWebhook?.receivedAt || null
       }
-    })
+    }))
 
   } catch (error: unknown) {
     return next(internalError('Erro ao obter estatísticas Guru', 'GURU_WEBHOOK_STATS_FAILED', error))

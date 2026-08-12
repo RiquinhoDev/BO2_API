@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import GuruWebhook from '../models/GuruWebhook'
 import { guruTokenDebugStatus } from '../security/debugRoutes'
 import { internalError } from '../security/errorHandling'
@@ -24,11 +25,10 @@ export const migrateWebhookSource = async (req: Request, res: Response, next: Ne
     console.log(`   📊 Webhooks encontrados para migração: ${webhooksToMigrate.length}`)
 
     if (webhooksToMigrate.length === 0) {
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         message: 'Nenhum webhook precisa de migração',
         migrated: 0
-      })
+      }))
     }
 
     // Atualizar todos para source: 'manual'
@@ -46,12 +46,11 @@ export const migrateWebhookSource = async (req: Request, res: Response, next: Ne
 
     console.log(`   ✅ Webhooks migrados: ${result.modifiedCount}`)
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       message: `${result.modifiedCount} webhooks migrados para source: 'manual'`,
       migrated: result.modifiedCount,
       matched: result.matchedCount
-    })
+    }))
 
   } catch (error: unknown) {
     return next(internalError('Erro ao migrar webhooks Guru', 'GURU_WEBHOOK_MIGRATION_FAILED', error))

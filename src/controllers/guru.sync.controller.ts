@@ -1,5 +1,6 @@
 // src/controllers/guru.sync.controller.ts - Controller para sincronização com Guru (APENAS LEITURA)
 import { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import { internalError } from '../security/errorHandling'
 import guruSyncService from '../services/guru/guruSync.service'
 import User from '../models/user'
@@ -40,8 +41,7 @@ export const syncAllFromGuru = async (req: Request, res: Response, next: NextFun
     try {
       const result = await guruSyncService.syncAllSubscriptions()
 
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         message: 'Sincronização completa',
         result: {
           total: result.total,
@@ -54,7 +54,7 @@ export const syncAllFromGuru = async (req: Request, res: Response, next: NextFun
           multiSubEmails: result.multiSubEmails,
           crossReference: result.crossReference || null
         }
-      })
+      }))
 
     } finally {
       // Libertar lock
@@ -94,19 +94,17 @@ export const syncEmailFromGuru = async (req: Request<GuruSyncEmailParams>, res: 
     }
 
     if (!result.subscription) {
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         message: 'Contacto existe na Guru mas sem subscrições ativas',
         email,
         hasSubscription: false
-      })
+      }))
     }
 
     // Guardar na BD
     const saveResult = await guruSyncService.saveSubscriptionToDb(result.subscription)
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       message: `Email sincronizado (${saveResult.action})`,
       email,
       action: saveResult.action,
@@ -116,7 +114,7 @@ export const syncEmailFromGuru = async (req: Request<GuruSyncEmailParams>, res: 
         product: result.subscription.product?.name,
         value: result.subscription.product?.offer?.value
       }
-    })
+    }))
 
   } catch (error: unknown) {
     return next(internalError('Erro ao sincronizar subscrição Guru', 'GURU_SYNC_EMAIL_FAILED', error))
@@ -164,15 +162,14 @@ export const getSyncStats = async (req: Request, res: Response, next: NextFuncti
       return acc
     }, {})
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       stats: {
         totalUsersWithGuru: usersWithGuru,
         byStatus: statusCounts,
         byProduct: productCounts,
         lastSyncAt: lastSynced?.guru?.lastSyncAt || null
       }
-    })
+    }))
 
   } catch (error: unknown) {
     return next(internalError('Erro ao obter estatísticas Guru', 'GURU_SYNC_STATS_FAILED', error))
@@ -214,12 +211,11 @@ export const previewSync = async (req: Request, res: Response, next: NextFunctio
       }
     }))
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       message: `Preview de ${preview.length} subscrições (limite: ${limit})`,
       preview,
       note: 'Este é apenas um preview. Nenhum dado foi guardado. Use GET /guru/sync/all para sincronizar.'
-    })
+    }))
 
   } catch (error: unknown) {
     return next(internalError('Erro ao gerar preview Guru', 'GURU_SYNC_PREVIEW_FAILED', error))
@@ -282,8 +278,7 @@ export const listUsersWithGuru = async (req: Request, res: Response, next: NextF
       hotmartStatus: user.hotmart?.status
     }))
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       users: enrichedUsers,
       pagination: {
         page: Number(page),
@@ -291,7 +286,7 @@ export const listUsersWithGuru = async (req: Request, res: Response, next: NextF
         total,
         pages: Math.ceil(total / Number(limit))
       }
-    })
+    }))
 
   } catch (error: unknown) {
     return next(internalError('Erro ao listar utilizadores Guru', 'GURU_SYNC_USERS_FAILED', error))

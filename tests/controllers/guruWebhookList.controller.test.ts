@@ -76,9 +76,10 @@ test('clamps webhook pages and returns only the public projection', async () => 
   )
 
   expect(json).toHaveBeenCalledTimes(1)
-  const payload = json.mock.calls[0][0]
+  const envelope = json.mock.calls[0][0]
+  expect(envelope).toEqual({ success: true, data: expect.any(Object) })
+  const payload = envelope.data
   expect(payload).toMatchObject({
-    success: true,
     pagination: {
       page: 1,
       limit: 200,

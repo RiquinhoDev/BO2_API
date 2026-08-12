@@ -114,9 +114,11 @@ test('single calls CursEduca once then persists enrollment and user state', asyn
   )
   expect(res.json).toHaveBeenCalledWith({
     success: true,
+    data: {
     message: 'Membro inativado com sucesso',
     memberId: '101',
     email: 'alice@example.test',
+    },
   })
   expect(await UserProduct.findById(userProductId).lean()).toMatchObject({
     status: 'INACTIVE',
@@ -175,12 +177,14 @@ test('bulk deduplicates the same member and performs only one remote call', asyn
   )
 
   expect(axios.patch).toHaveBeenCalledTimes(1)
-  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+  expect(res.json).toHaveBeenCalledWith({
     success: true,
-    processed: 1,
-    succeeded: 1,
-    failed: 0,
-  }))
+    data: expect.objectContaining({
+      processed: 1,
+      succeeded: 1,
+      failed: 0,
+    }),
+  })
   expect(await UserProduct.findById(userProductId).lean()).toMatchObject({
     status: 'INACTIVE',
     metadata: { inactivatedBy: 'guru_integration_bulk' },
@@ -205,17 +209,19 @@ test('bulk isolates a missing member id without contacting CursEduca', async () 
   await inactivateBulk(bulkInput([String(userProductId)]), res.value, next())
 
   expect(axios.patch).not.toHaveBeenCalled()
-  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+  expect(res.json).toHaveBeenCalledWith({
     success: true,
-    processed: 1,
-    succeeded: 0,
-    failed: 1,
-    details: [expect.objectContaining({
+    data: expect.objectContaining({
+      processed: 1,
+      succeeded: 0,
+      failed: 1,
+      details: [expect.objectContaining({
       userProductId,
       success: false,
       error: 'curseducaUserId não encontrado',
-    })],
-  }))
+      })],
+    }),
+  })
 })
 test('single rejects an empty selector before reading or calling CursEduca', async () => {
   const res = response()

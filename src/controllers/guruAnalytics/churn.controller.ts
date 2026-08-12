@@ -282,13 +282,12 @@ export const getMRRMetrics = async (req: Request, res: Response, next: NextFunct
 
     // Para calcular MRR real, precisarÃ­amos do valor de cada subscriÃ§Ã£o
     // Por agora, vamos apenas retornar o nÃºmero de subscriÃ§Ãµes
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       mrr: {
         activeSubscriptions: totalActive,
         note: 'MRR real requer valores de subscriÃ§Ã£o da API Guru'
       }
-    })
+    }))
 
   } catch (error: unknown) {
     return forwardApplicationError(next, error, 'Erro ao calcular MRR', 'GURU_MRR_READ_FAILED')

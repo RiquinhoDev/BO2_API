@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import { internalError } from '../security/errorHandling'
 import {
   createGuruInactivationMutationService,
@@ -24,11 +25,10 @@ export const createGuruInactivationMutationHandlers = (
       if (result.kind === 'not-found') {
         return res.status(404).json({ success: false, message: 'Utilizador não encontrado' })
       }
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         message: `${result.modifiedCount} produto(s) de ${email} movidos para QUARENTENA`,
         modifiedCount: result.modifiedCount,
-      })
+      }))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao mover produtos para quarentena',
@@ -48,7 +48,7 @@ export const createGuruInactivationMutationHandlers = (
       if (result.kind === 'not-found') {
         return res.status(404).json({ success: false, message: 'UserProduct não encontrado' })
       }
-      return res.json({ success: true, message: 'Marcação revertida com sucesso' })
+      return res.json(successResponse({ message: 'Marcação revertida com sucesso' }))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao reverter marcação de inativação',
@@ -74,12 +74,11 @@ export const createGuruInactivationMutationHandlers = (
       const message = result.mode === 'primary'
         ? `${result.modifiedCount} UserProduct(s) marcados como isPrimary:true`
         : `${result.modifiedCount} UserProduct(s) marcados como INACTIVE (BD apenas, CursEduca não foi tocado)`
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         message,
         modifiedCount: result.modifiedCount,
         requestedCount: result.requestedCount,
-      })
+      }))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao limpar produtos duplicados',
@@ -100,13 +99,12 @@ export const createGuruInactivationMutationHandlers = (
     try {
       const result = await service.markStale(emails)
       if (result.usersFound === 0) {
-        return res.json({ success: true, message: 'Nenhum user encontrado', modifiedCount: 0 })
+        return res.json(successResponse({ message: 'Nenhum user encontrado', modifiedCount: 0 }))
       }
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         message: `${result.userProductsModified} UserProduct(s) e ${result.usersModified} User.curseduca marcados INACTIVE (BD apenas, CursEduca não foi tocado)`,
         ...result,
-      })
+      }))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao marcar produtos sem acesso como inativos',
@@ -126,11 +124,10 @@ export const createGuruInactivationMutationHandlers = (
     }
     try {
       const result = await service.restore(userProductIds)
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         message: `${result.modifiedCount} UserProduct(s) restaurados para PARA_INATIVAR com isPrimary:true`,
         ...result,
-      })
+      }))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao restaurar produtos',
@@ -150,11 +147,10 @@ export const createGuruInactivationMutationHandlers = (
     }
     try {
       const result = await service.fixActive(emails)
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         message: `${result.updatedUsers} utilizador(es) corrigido(s) para ACTIVE`,
         ...result,
-      })
+      }))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao corrigir utilizadores para ativos',

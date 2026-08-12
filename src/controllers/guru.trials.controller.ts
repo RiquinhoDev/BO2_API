@@ -57,11 +57,10 @@ export async function checkExpired(req: Request, res: Response, next: NextFuncti
   try {
     console.log('⏳ [GURU TRIALS] Iniciando verificação de trials expirados...')
     const result = await checkExpiredTrials()
-    res.json({
-      success: true,
+    res.json(successResponse({
       message: 'Verificação de trials concluída',
       result,
-    })
+    }))
   } catch (error: unknown) {
     next(internalError('Erro ao verificar trials expirados', 'GURU_TRIAL_EXPIRED_CHECK_FAILED', error))
   }
@@ -75,11 +74,10 @@ export async function syncTrials(req: Request, res: Response, next: NextFunction
   try {
     console.log('🔄 [GURU TRIALS] Iniciando sync de trials da API Guru...')
     const result = await syncTrialsFromGuru()
-    res.json({
-      success: true,
+    res.json(successResponse({
       message: `Sync concluído: ${result.synced} trials sincronizados`,
       result,
-    })
+    }))
   } catch (error: unknown) {
     next(internalError('Erro ao sincronizar trials', 'GURU_TRIAL_SYNC_FAILED', error))
   }
@@ -98,11 +96,10 @@ export async function inactivateTrial(req: Request, res: Response, next: NextFun
     }
 
     const result = await manuallyInactivateTrial(email)
-    res.json({
-      success: true,
+    res.json(successResponse({
       message: `Trial de ${result.email} inativado (${result.marked} UserProducts marcados PARA_INATIVAR)`,
       result,
-    })
+    }))
   } catch (error: unknown) {
     if (error instanceof TrialUserNotFoundError) {
       res.status(400).json({ success: false, message: 'Utilizador não encontrado' })
@@ -129,11 +126,10 @@ export async function revertTrialMark(req: Request, res: Response, next: NextFun
     }
 
     const result = await revertTrial(email)
-    res.json({
-      success: true,
+    res.json(successResponse({
       message: `Trial de ${result.email} revertido (${result.reverted} UserProducts repostos)`,
       result,
-    })
+    }))
   } catch (error: unknown) {
     next(internalError('Erro ao reverter trial', 'GURU_TRIAL_REVERT_FAILED', error))
   }

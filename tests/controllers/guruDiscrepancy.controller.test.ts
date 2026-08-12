@@ -35,6 +35,7 @@ test('preserves the success envelope and adds the Front-required noUserProduct c
 
   expect(res.json).toHaveBeenCalledWith({
     success: true,
+    data: {
     message: '3 UserProduct(s) marcado(s) para inativação (1 marcados, 2 criados)',
     marked: 1,
     created: 2,
@@ -43,6 +44,7 @@ test('preserves the success envelope and adds the Front-required noUserProduct c
     noUserProduct: 1,
     total: 3,
     details: [],
+    },
   })
   expect(next).not.toHaveBeenCalled()
 })
