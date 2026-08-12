@@ -63,8 +63,8 @@ describe('response contract catalog', () => {
     const routeIds = routeCatalog.map(routeId).sort()
     const contractIds = responseCatalog.map(routeId).sort()
 
-    expect(responseCatalog).toHaveLength(410)
-    expect(new Set(contractIds).size).toBe(410)
+    expect(responseCatalog).toHaveLength(409)
+    expect(new Set(contractIds).size).toBe(409)
     expect(contractIds).toEqual(routeIds)
   })
 

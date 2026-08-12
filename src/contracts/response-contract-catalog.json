@@ -308,17 +308,6 @@
   },
   {
     "method": "GET",
-    "path": "/api/activecampaign/debug/curseduca-data",
-    "family": "success-data",
-    "shapeKeys": [
-      "data",
-      "success"
-    ],
-    "evidence": "src/routes/ACroutes/activecampaign.routes.ts:149",
-    "frontConsumer": null
-  },
-  {
-    "method": "GET",
     "path": "/api/activecampaign/history/stats",
     "family": "success-data",
     "shapeKeys": [
@@ -1382,7 +1371,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:96",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:89",
     "frontConsumer": "src/pages/guru/GuruDashboard.tsx"
   },
   {
@@ -1404,7 +1393,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:52",
+    "evidence": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts:45",
     "frontConsumer": "src/pages/guru/GuruDashboard.tsx"
   },
   {

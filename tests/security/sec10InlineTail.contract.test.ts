@@ -86,17 +86,9 @@ describe('SEC-10 inline route tail boundary', () => {
 
   const routeOperations = [
     {
-      name: 'ActiveCampaign debug',
-      router: activecampaignRouter,
-      path: '/debug/curseduca-data',
-      arrange: () => mockProductFind.mockImplementationOnce(() => { throw secret }),
-      code: 'ACTIVE_CAMPAIGN_DEBUG_READ_FAILED',
-      message: 'Erro ao carregar dados de debug do CursEduca',
-    },
-    {
       name: 'users engagement heatmap',
       router: usersRouter,
-      path: '/v2/engagement/heatmap',
+      path: '/engagement/heatmap',
       arrange: () => mockUserProductFind.mockImplementationOnce(() => { throw secret }),
       code: 'USERS_ENGAGEMENT_HEATMAP_FAILED',
       message: 'Erro ao gerar heatmap de engagement',
