@@ -6,8 +6,8 @@
     "pending": 4
   },
   "mongooseListBaseline": {
-    "count": 346,
-    "hash": "f089e6f26861ab559cb970f02f2fcc3116a248ef8ebea7edb22d0bd083fad5f6"
+    "count": 344,
+    "hash": "41a54e17e154f1747ba85a051a607868e671682179c9bb36eedfc31630ab6cdb"
   },
   "scale02": {
     "summary": {
@@ -26,7 +26,11 @@
         "status": "complete",
         "disposition": "changed",
         "policy": "aggregate",
-        "require": ["$match", "$limit: 10", "allowDiskUse: true"]
+        "require": [
+          "$match",
+          "$limit: 10",
+          "allowDiskUse: true"
+        ]
       },
       {
         "id": "dashboard-quick.products-breakdown",
@@ -35,7 +39,11 @@
         "status": "complete",
         "disposition": "changed",
         "policy": "aggregate",
-        "require": ["$match: matchStage", "$group", "allowDiskUse: true"]
+        "require": [
+          "$match: matchStage",
+          "$group",
+          "allowDiskUse: true"
+        ]
       },
       {
         "id": "dashboard.stats",
@@ -45,8 +53,14 @@
         "status": "complete",
         "disposition": "changed",
         "policy": "aggregate",
-        "require": ["pipeline: any[] = [{ $match: matchStage }]", "pipeline.push(", "allowDiskUse: true"],
-        "forbid": ["pipeline.unshift("]
+        "require": [
+          "pipeline: any[] = [{ $match: matchStage }]",
+          "pipeline.push(",
+          "allowDiskUse: true"
+        ],
+        "forbid": [
+          "pipeline.unshift("
+        ]
       },
       {
         "id": "dashboard.engagement-distribution",
@@ -56,7 +70,11 @@
         "status": "complete",
         "disposition": "changed",
         "policy": "aggregate",
-        "require": ["$match: matchStage", "$bucket", "allowDiskUse: true"]
+        "require": [
+          "$match: matchStage",
+          "$bucket",
+          "allowDiskUse: true"
+        ]
       },
       {
         "id": "dashboard.compare-products",
@@ -66,8 +84,16 @@
         "status": "complete",
         "disposition": "changed",
         "policy": "aggregate",
-        "require": ["$in: productIds", "$group", "$lookup", "allowDiskUse: true"],
-        "forbid": ["Product.findById", "getProductStats"]
+        "require": [
+          "$in: productIds",
+          "$group",
+          "$lookup",
+          "allowDiskUse: true"
+        ],
+        "forbid": [
+          "Product.findById",
+          "getProductStats"
+        ]
       },
       {
         "id": "engagement.global-summary",
@@ -77,7 +103,10 @@
         "status": "complete",
         "disposition": "already-compliant",
         "policy": "aggregate",
-        "require": ["User.aggregate([", ".allowDiskUse(true)"]
+        "require": [
+          "User.aggregate([",
+          ".allowDiskUse(true)"
+        ]
       },
       {
         "id": "engagement.stats",
@@ -86,8 +115,15 @@
         "status": "complete",
         "disposition": "changed",
         "policy": "aggregate",
-        "require": ["hotmartUsers:", "curseducaUsers:", "discordUsers:", "allowDiskUse: true"],
-        "forbid": ["User.countDocuments"]
+        "require": [
+          "hotmartUsers:",
+          "curseducaUsers:",
+          "discordUsers:",
+          "allowDiskUse: true"
+        ],
+        "forbid": [
+          "User.countDocuments"
+        ]
       },
       {
         "id": "cohort.retention",
@@ -97,8 +133,16 @@
         "status": "complete",
         "disposition": "changed",
         "policy": "aggregate",
-        "require": ["UserProduct.aggregate([", "$dateTrunc", "$sort: { _id: -1 }", ".allowDiskUse(true)"],
-        "forbid": ["countDocuments", "while ("]
+        "require": [
+          "UserProduct.aggregate([",
+          "$dateTrunc",
+          "$sort: { _id: -1 }",
+          ".allowDiskUse(true)"
+        ],
+        "forbid": [
+          "countDocuments",
+          "while ("
+        ]
       },
       {
         "id": "cohort.metrics",
@@ -108,7 +152,11 @@
         "status": "complete",
         "disposition": "changed",
         "policy": "aggregate",
-        "require": ["$match: query", "$group", ".allowDiskUse(true)"]
+        "require": [
+          "$match: query",
+          "$group",
+          ".allowDiskUse(true)"
+        ]
       },
       {
         "id": "user.source-statistics",
@@ -118,7 +166,11 @@
         "status": "complete",
         "disposition": "changed",
         "policy": "aggregate",
-        "require": ["this.aggregate([", "$group", ".allowDiskUse(true)"]
+        "require": [
+          "this.aggregate([",
+          "$group",
+          ".allowDiskUse(true)"
+        ]
       },
       {
         "id": "user.data-source-stats",
@@ -128,8 +180,14 @@
         "status": "complete",
         "disposition": "changed",
         "policy": "aggregate",
-        "require": ["this.aggregate([", "$facet", ".allowDiskUse(true)"],
-        "forbid": ["Promise.all"]
+        "require": [
+          "this.aggregate([",
+          "$facet",
+          ".allowDiskUse(true)"
+        ],
+        "forbid": [
+          "Promise.all"
+        ]
       }
     ]
   },
@@ -561,5 +619,224 @@
       "status": "pending",
       "reason": "The endpoint returns a grouped full lesson catalog; truncation would create incomplete modules and needs a paired grouped-pagination contract."
     }
-  ]
+  ],
+  "scale03": {
+    "summary": {
+      "planned": 24,
+      "complete": 9,
+      "pending": 15,
+      "changed": 9
+    },
+    "entries": [
+      {
+        "id": "product-sales.user-products-set",
+        "file": "src/services/productSalesStatsBuilder.ts",
+        "start": "export async function buildProductSalesStats",
+        "status": "complete",
+        "disposition": "changed",
+        "require": [
+          "userId: { $in: uniqueUserIds }",
+          "new Map(userIds.map"
+        ]
+      },
+      {
+        "id": "product-sales.first-enrollment-order",
+        "file": "src/services/productSalesStatsBuilder.ts",
+        "start": "export async function buildProductSalesStats",
+        "status": "complete",
+        "disposition": "changed",
+        "require": [
+          ".sort({ enrolledAt: 1, _id: 1 })",
+          "if (!userFirstProducts.has(firstUserId))"
+        ]
+      },
+      {
+        "id": "class-details.fetch-multiple",
+        "file": "src/services/classes/mongooseClassDetails.reader.ts",
+        "start": "async fetchMultiple(",
+        "status": "complete",
+        "disposition": "changed",
+        "require": [
+          "mapBounded(classes",
+          "const ENRICH_CONCURRENCY = 10"
+        ]
+      },
+      {
+        "id": "class-details.fetch-all",
+        "file": "src/services/classes/mongooseClassDetails.reader.ts",
+        "start": "async fetchAll(",
+        "status": "complete",
+        "disposition": "changed",
+        "require": [
+          "mapBounded(classes",
+          "const ENRICH_CONCURRENCY = 10"
+        ]
+      },
+      {
+        "id": "course-preview.dry-run",
+        "file": "src/controllers/acTags/activeCampaignCourse.controller.ts",
+        "start": "async function previewCourseRules",
+        "status": "complete",
+        "disposition": "changed",
+        "require": [
+          "mapCoursePreviewBounded(products",
+          "COURSE_PREVIEW_CONCURRENCY = 10",
+          "product._id.toString(), true"
+        ]
+      },
+      {
+        "id": "analytics-cache.singleflight",
+        "file": "src/services/analytics/analyticsCache.service.ts",
+        "start": "async getOrCalculateMetrics(",
+        "status": "complete",
+        "disposition": "changed",
+        "require": [
+          "calculateSingleflight(options)",
+          "inFlightCalculations"
+        ]
+      },
+      {
+        "id": "engagement-summary.singleflight",
+        "file": "src/controllers/engagement/summary.controller.ts",
+        "start": "export const getGlobalEngagementStats",
+        "status": "complete",
+        "disposition": "changed",
+        "require": [
+          "statsCache.runSingleflight(cacheKey",
+          "global-engagement-stats"
+        ]
+      },
+      {
+        "id": "raiox.raw-scan",
+        "file": "src/services/clareza/raiox/data.ts",
+        "start": "export async function runWithConcurrency",
+        "status": "complete",
+        "disposition": "changed",
+        "require": [
+          "Math.min(Math.max(1, Math.floor(concurrency)), 10",
+          "results[i] = await tasks[i]()"
+        ]
+      },
+      {
+        "id": "raiox.peer-scan",
+        "file": "src/services/clareza/raiox/data.ts",
+        "start": "export async function runWithConcurrency",
+        "status": "complete",
+        "disposition": "changed",
+        "require": [
+          "firstError",
+          "await Promise.all(Array.from({ length: workerCount }, worker))"
+        ]
+      },
+      {
+        "id": "student-movement.ordered-writes",
+        "file": "src/services/classes/studentMovement.service.ts",
+        "start": "async moveMany(",
+        "status": "pending",
+        "reason": "Sequential per-student timestamps and best-effort writes are contract behavior; parallelization would change strict order and partial failures."
+      },
+      {
+        "id": "activity-snapshot.partial-writes",
+        "file": "src/services/syncUtilizadoresServices/activitySnapshot.service.ts",
+        "start": "async createMonthlySnapshots(",
+        "status": "pending",
+        "reason": "Per-user snapshot writes preserve item-level failure accounting and cannot be parallelized without write-semantics proof."
+      },
+      {
+        "id": "achievements.partial-writes",
+        "file": "src/services/achievements/achievementEvaluation.service.ts",
+        "start": "export async function evaluateAllAchievements",
+        "status": "pending",
+        "reason": "Evaluation persists each user and aggregates partial failures; bounded parallel writes need equivalence evidence."
+      },
+      {
+        "id": "guru-discrepancy.compensation",
+        "file": "src/services/guru/guruDiscrepancy.service.ts",
+        "start": "export const createGuruDiscrepancyService",
+        "status": "pending",
+        "reason": "Identity fallback, enrollment creation and status writes are dependent compensating operations with ordered result accounting."
+      },
+      {
+        "id": "guru-trials.provider-writes",
+        "file": "src/services/guru/guruTrialService.ts",
+        "start": "export async function syncTrialsFromGuru",
+        "status": "pending",
+        "reason": "Provider fallback and directed per-user writes preserve partial failures and require an explicit safe batching design."
+      },
+      {
+        "id": "activecampaign.manual-actions",
+        "file": "src/controllers/acTags/activeCampaignOps.controller.ts",
+        "start": "export const testCron",
+        "status": "pending",
+        "reason": "Decision evaluation can execute external actions; concurrency cannot change provider order or per-item error accounting."
+      },
+      {
+        "id": "native-tags.compensating-writes",
+        "file": "src/services/activeCampaign/nativeTagProtection.service.ts",
+        "start": "export async function captureNativeTagsBatch",
+        "status": "pending",
+        "reason": "Tag removal plus snapshot and history writes have ordering and compensation implications."
+      },
+      {
+        "id": "testimonial-tags.ordered-provider",
+        "file": "src/services/activeCampaign/testimonialTagSync.service.ts",
+        "start": "export async function syncTestimonialTags",
+        "status": "pending",
+        "reason": "Provider remove/add operations are ordered per user and preserve partial-error aggregation."
+      },
+      {
+        "id": "weekly-tags.snapshot-writes",
+        "file": "src/services/tagMonitoring/weeklyTagMonitoring.service.ts",
+        "start": "async performWeeklySnapshot(",
+        "status": "pending",
+        "reason": "Traversal is coupled to snapshot, notification and change-history writes whose order must remain stable."
+      },
+      {
+        "id": "guru-cross-reference.actions",
+        "file": "src/services/guru/crossReference.service.ts",
+        "start": "export async function runCrossReferenceAfterCurseducaSync",
+        "status": "pending",
+        "reason": "Conditional provider reads, database updates, action ordering and throttling prevent safe parallelization."
+      },
+      {
+        "id": "analytics-cache.stats-scan",
+        "file": "src/services/analytics/analyticsCache.service.ts",
+        "start": "async getCacheStats()",
+        "status": "pending",
+        "reason": "Complete cache statistics still scan their full population and need aggregation or complete bounded batching."
+      },
+      {
+        "id": "analytics-cache.warmup",
+        "file": "src/services/analytics/analyticsCache.service.ts",
+        "start": "async warmUpCache()",
+        "status": "pending",
+        "reason": "Warmup remains a data-sized traversal and needs bounded scheduling without changing cache-fill failure behavior."
+      },
+      {
+        "id": "activity-snapshot.cohort-fanout",
+        "file": "src/services/syncUtilizadoresServices/activitySnapshot.service.ts",
+        "start": "async getCohortRetention(",
+        "status": "pending",
+        "reason": "Milestone reads still use data-sized Promise.all and need a bounded pool with result-order and complete-accounting proof."
+      },
+      {
+        "id": "guru-trials.expired-writes",
+        "file": "src/services/guru/guruTrialService.ts",
+        "start": "export async function checkExpiredTrials",
+        "status": "pending",
+        "reason": "Expired-trial processing performs sequential user and enrollment writes with item-level failure accounting."
+      },
+      {
+        "id": "product-sales.product-loop-writes",
+        "file": "src/services/productSalesStatsBuilder.ts",
+        "start": "export async function buildProductSalesStats",
+        "status": "pending",
+        "reason": "The outer product traversal still couples per-product reads to one stats upsert; batching needs write-order and partial-failure equivalence."
+      }
+    ],
+    "operational": {
+      "status": "pending",
+      "reason": "No authorized non-production read-only Mongo target was loaded, so real executionStats and 1/10/50 probe evidence are absent."
+    }
+  }
 }

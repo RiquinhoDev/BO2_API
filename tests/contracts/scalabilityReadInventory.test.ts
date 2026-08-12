@@ -22,8 +22,46 @@ test('SCALE-01 inventory reconciles 36 complete and 4 pending reads', () => {
   expect(inventory.scale02.entries).toHaveLength(11)
   expect(run()).toContain('36 complete / 4 pending')
   expect(run()).toContain('SCALE-02 11 complete / 0 pending')
+  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 9, pending: 15, changed: 9 })
+  expect(inventory.scale03.entries).toHaveLength(24)
+  expect(run()).toContain('SCALE-03 9 complete / 15 pending')
 })
 
+test('SCALE-03 records exactly nine reviewed code changes and fifteen honest pending decisions', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(9)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(15)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(9)
+  expect(inventory.scale03.operational.status).toBe('pending')
+})
+
+test('SCALE-03 ratchet rejects removal of a bounded-concurrency invariant', () => {
+  const relative = 'src/services/classes/mongooseClassDetails.reader.ts'
+  const overlay = fs.mkdtempSync(path.join(os.tmpdir(), 'scale03-read-overlay-'))
+  const target = path.join(overlay, relative)
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  fs.writeFileSync(target, fs.readFileSync(path.join(root, relative), 'utf8').replace(/mapBounded\(classes/g, 'unboundedMap(classes'))
+  try {
+    expect(() => run({ NODE_ENV: 'test', SCALABILITY_READ_TEST_OVERLAY: overlay, SCALABILITY_READ_ALLOW_TEST_OVERLAY: '1' }))
+      .toThrow(new RegExp('class-details.fetch-multiple: missing mapBounded'))
+  } finally {
+    fs.rmSync(overlay, { recursive: true, force: true })
+  }
+})
+
+test('SCALE-03 ratchet rejects falsely closing operational evidence', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  inventory.scale03.operational.status = 'complete'
+  delete inventory.scale03.operational.reason
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'scale03-read-inventory-'))
+  const mutatedInventory = path.join(directory, 'inventory.json')
+  fs.writeFileSync(mutatedInventory, JSON.stringify(inventory))
+  try {
+    expect(() => run({ SCALABILITY_READ_INVENTORY: mutatedInventory })).toThrow(/SCALE-03 operational evidence must remain pending/)
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
 test('SCALE-02 ratchet records the exact set-based partition A decisions', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
   expect(inventory.scale02.entries.map(({ id }: { id: string }) => id)).toEqual([

@@ -111,6 +111,60 @@ function validateScale02(scale02) {
   for (const entry of scale02.entries) validateEntry(entry)
   return { complete: scale02.entries.length, pending: 0 }
 }
+function validateScale03(scale03) {
+  const expectedSummary = { planned: 24, complete: 9, pending: 15, changed: 9 }
+  if (!scale03 || JSON.stringify(scale03.summary) !== JSON.stringify(expectedSummary)) fail('SCALE-03 stale summary')
+  if (!Array.isArray(scale03.entries) || scale03.entries.length !== 24) fail('SCALE-03 expected 24 decisions')
+  const ids = new Set(scale03.entries.map(entry => entry.id))
+  if (ids.size !== scale03.entries.length) fail('SCALE-03 duplicate identity')
+  const expectedIds = [
+    'product-sales.user-products-set',
+    'product-sales.first-enrollment-order',
+    'class-details.fetch-multiple',
+    'class-details.fetch-all',
+    'course-preview.dry-run',
+    'analytics-cache.singleflight',
+    'engagement-summary.singleflight',
+    'raiox.raw-scan',
+    'raiox.peer-scan',
+    'student-movement.ordered-writes',
+    'activity-snapshot.partial-writes',
+    'achievements.partial-writes',
+    'guru-discrepancy.compensation',
+    'guru-trials.provider-writes',
+    'activecampaign.manual-actions',
+    'native-tags.compensating-writes',
+    'testimonial-tags.ordered-provider',
+    'weekly-tags.snapshot-writes',
+    'guru-cross-reference.actions',
+    'analytics-cache.stats-scan',
+    'analytics-cache.warmup',
+    'activity-snapshot.cohort-fanout',
+    'guru-trials.expired-writes',
+    'product-sales.product-loop-writes',
+  ]
+  if (JSON.stringify(scale03.entries.map(entry => entry.id)) !== JSON.stringify(expectedIds)) fail('SCALE-03 identity drift')
+  const complete = scale03.entries.filter(entry => entry.status === 'complete')
+  const pending = scale03.entries.filter(entry => entry.status === 'pending')
+  if (!scale03.operational || scale03.operational.status !== 'pending' || !scale03.operational.reason) {
+    fail('SCALE-03 operational evidence must remain pending')
+  }
+  if (complete.length !== 9 || pending.length !== 15) fail('SCALE-03 stale status counts')
+  if (complete.some(entry => entry.disposition !== 'changed') || complete.filter(entry => entry.disposition === 'changed').length !== 9) {
+    fail('SCALE-03 stale changed counts')
+  }
+  for (const entry of scale03.entries) {
+    if (!entry.id || !entry.file || !entry.start || !['complete', 'pending'].includes(entry.status)) fail('SCALE-03 invalid inventory entry')
+    segment(entry)
+    if (entry.status === 'pending') {
+      if (!entry.reason || entry.reason.length < 20) fail(`${entry.id}: pending reason missing`)
+      continue
+    }
+    const text = source(entry.file)
+    for (const token of entry.require ?? []) if (!text.includes(token)) fail(`${entry.id}: missing ${token}`)
+  }
+  return { complete: complete.length, pending: pending.length }
+}
 function validate(inventory, currentBaseline) {
   if (inventory.version !== 1) fail('unsupported inventory version')
   if (inventory.entries.length !== 40) fail(`expected 40 planned entries, found ${inventory.entries.length}`)
@@ -122,10 +176,11 @@ function validate(inventory, currentBaseline) {
   if (JSON.stringify(inventory.summary) !== JSON.stringify({ planned: 40, complete: 36, pending: 4 })) fail('stale summary')
   for (const entry of inventory.entries) validateEntry(entry)
   const scale02 = validateScale02(inventory.scale02)
+  const scale03 = validateScale03(inventory.scale03)
   if (inventory.mongooseListBaseline.count !== currentBaseline.count || inventory.mongooseListBaseline.hash !== currentBaseline.hash) {
-    fail(`new Mongoose list site or baseline drift (${inventory.mongooseListBaseline.count} -> ${currentBaseline.count})`)
+    fail(`new Mongoose list site or baseline drift (${inventory.mongooseListBaseline.count}:${inventory.mongooseListBaseline.hash} -> ${currentBaseline.count}:${currentBaseline.hash})`)
   }
-  return { complete, pending, scale02 }
+  return { complete, pending, scale02, scale03 }
 }
 
 const command = process.argv[2]
@@ -134,4 +189,4 @@ const inventory = readJson(INVENTORY)
 const currentBaseline = mongooseSites()
 const result = validate(inventory, currentBaseline)
 if (command === '--write') fs.writeFileSync(INVENTORY, `${JSON.stringify(inventory, null, 2)}\n`)
-process.stdout.write(`SCALE-01 inventory OK: ${result.complete} complete / ${result.pending} pending; SCALE-02 ${result.scale02.complete} complete / ${result.scale02.pending} pending; ${currentBaseline.count} Mongoose list sites\n`)
+process.stdout.write(`SCALE-01 inventory OK: ${result.complete} complete / ${result.pending} pending; SCALE-02 ${result.scale02.complete} complete / ${result.scale02.pending} pending; SCALE-03 ${result.scale03.complete} complete / ${result.scale03.pending} pending; ${currentBaseline.count} Mongoose list sites\n`)
