@@ -1,9 +1,4 @@
 {
-  "src/controllers/businessAnalytics.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/controllers/dashboard.controller.ts": {
     "@typescript-eslint/no-require-imports": {
       "count": 1
@@ -33,21 +28,6 @@
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    }
-  },
-  "src/controllers/products/product.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "src/controllers/products/productProfile.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "src/controllers/products/productSalesStats.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
     }
   },
   "src/controllers/products/products.controller.ts": {
@@ -88,11 +68,6 @@
       "count": 5
     },
     "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "src/controllers/tagMonitoring/tagMonitoring.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
@@ -242,34 +217,9 @@
       "count": 5
     }
   },
-  "src/routes/achievements.routes.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    }
-  },
-  "src/routes/discordRenewal.routes.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/routes/events.routes.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/routes/renewalAc.routes.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/routes/users.routes.ts": {
     "@typescript-eslint/no-require-imports": {
       "count": 2
-    }
-  },
-  "src/routes/validationLogs.routes.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
     }
   },
   "src/security/usersImportUpload.ts": {

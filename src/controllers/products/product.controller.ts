@@ -23,7 +23,7 @@ export const getAllProducts = async (req: Request, res: Response, next: NextFunc
       isActive, 
       courseId,
     } = req.query
-    const filters: any = {}
+    const filters: { platform?: unknown; isActive?: boolean; courseId?: unknown } = {}
     
     if (platform) filters.platform = platform
     if (isActive !== undefined) filters.isActive = isActive === 'true'
@@ -270,7 +270,7 @@ export const getProductStudents = async (req: Request, res: Response, next: Next
       limit = 50 
     } = req.query
 
-    const filters: any = { productId: id }
+    const filters: { productId: string | string[]; status?: unknown } = { productId: id }
     if (status) filters.status = status
 
     const skip = (Number(page) - 1) * Number(limit)

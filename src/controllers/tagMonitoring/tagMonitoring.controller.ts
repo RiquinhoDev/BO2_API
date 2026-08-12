@@ -22,7 +22,7 @@ export const getSnapshots = async (
   try {
     const { limit, weekNumber, year } = req.query
 
-    const query: any = {}
+    const query: { weekNumber?: number; year?: number } = {}
     if (weekNumber) query.weekNumber = parseInt(weekNumber as string)
     if (year) query.year = parseInt(year as string)
 

@@ -1,4 +1,5 @@
 // ════════════════════════════════════════════════════════════
+import type { IMonthlySales } from '../../models/product/ProductSalesStats'
 // 📁 src/controllers/productSalesStats.controller.ts
 // CONTROLLER: Product Sales Stats API
 // ════════════════════════════════════════════════════════════
@@ -167,7 +168,7 @@ export async function compareProducts(req: Request, res: Response, next: NextFun
 // HELPERS
 // ─────────────────────────────────────────────────────────────
 
-function calculateGrowthRate(salesByMonth: any[]): number {
+function calculateGrowthRate(salesByMonth: IMonthlySales[]): number {
   if (salesByMonth.length < 2) return 0
   
   const recent6Months = salesByMonth.slice(-6)
@@ -181,14 +182,14 @@ function calculateGrowthRate(salesByMonth: any[]): number {
   return Math.round(((last - first) / first) * 100)
 }
 
-function calculateAverage(salesByMonth: any[]): number {
+function calculateAverage(salesByMonth: IMonthlySales[]): number {
   if (salesByMonth.length === 0) return 0
   
   const total = salesByMonth.reduce((sum, month) => sum + month.count, 0)
   return Math.round(total / salesByMonth.length)
 }
 
-function findPeakMonth(salesByMonth: any[]): any {
+function findPeakMonth(salesByMonth: IMonthlySales[]): IMonthlySales | null {
   if (salesByMonth.length === 0) return null
   
   return salesByMonth.reduce((peak, month) => 

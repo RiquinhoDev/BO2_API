@@ -56,7 +56,7 @@ router.get('/status', asyncRoute(async (_req: Request, res: Response) => {
 router.get('/changes', asyncRoute(async (req: Request, res: Response) => {
   const { status, batchId, email } = req.query
 
-  const query: any = {}
+  const query: Record<string, unknown> = {}
   if (status) query.status = status
   if (batchId) query.planBatchId = batchId
   if (email) query.email = String(email).toLowerCase()

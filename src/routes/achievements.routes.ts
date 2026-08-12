@@ -91,13 +91,13 @@ router.post('/mark-seen', asyncRoute(async (req: Request, res: Response, next: N
     let updated = 0
     const idSet = new Set(ids)
 
-    user.achievements = ((user.achievements || []) as any[]).map((achievement: any) => {
+    user.achievements = (user.achievements || []).map(achievement => {
       if (idSet.has(achievement.id) && achievement.unlockedAt && !achievement.seenAt) {
         updated++
         return { ...achievement, seenAt: now }
       }
       return achievement
-    }) as any
+    })
 
     user.markModified('achievements')
     await user.save()
@@ -132,7 +132,7 @@ router.get('/stats', asyncRoute(async (_req: Request, res: Response, next: NextF
     ).lean().exec()
 
     for (const user of usersWithAchievements) {
-      for (const achievement of (user as any).achievements || []) {
+      for (const achievement of user.achievements || []) {
         if (achievement.unlockedAt) {
           achievementCounts[achievement.id] = (achievementCounts[achievement.id] || 0) + 1
         }
