@@ -5,6 +5,12 @@ import { fmpThrottle } from './fmpThrottle'
 import ClarezaEarningsData from '../../models/ClarezaEarningsData'
 import { getRuntimeConfig } from '../../config/runtimeConfig'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import {
+  hasProviderError,
+  isRecord,
+  type ClarezaEarningsEntry,
+  type ClarezaEarningsPayload,
+} from '../../types/clareza.types'
 
 // Limits concurrency without adding p-queue to this hot path.
 function errorMessage(error: unknown): string {
@@ -91,24 +97,8 @@ type EarningsRow = {
   reportedEPS?: number | string | null
 }
 
-type EarningsEntry = {
-  t: string
-  d: string
-  e: number | null
-  c: string
-  lr?: {
-    d: string
-    r: number | null
-    e: number | null
-    b: boolean | null
-  }
-}
-
-type EarningsPayload = {
-  updated: string
-  window: { from: string; to: string }
-  count: number
-  earnings: EarningsEntry[]
+function isEarningsRow(value: unknown): value is EarningsRow {
+  return isRecord(value)
 }
 
 function getFmpApiKey(): string {
@@ -117,17 +107,16 @@ function getFmpApiKey(): string {
   return integration.value.apiKey
 }
 
-async function fmpGet<T = any>(path: string, params: Record<string, string> = {}): Promise<T | null> {
+async function fmpGet(path: string, params: Record<string, string> = {}): Promise<unknown | null> {
   const apiKey = getFmpApiKey()
   try {
     await fmpThrottle()
-    const { data } = await axios.get(`${FMP_BASE}${path}`, {
+    const { data } = await axios.get<unknown>(`${FMP_BASE}${path}`, {
       params: { apikey: apiKey, ...params },
       timeout: 15000
     })
-    if (!data || (!Array.isArray(data) && (data as any)['Error Message'])) return null
-    if (Array.isArray(data)) return data as T
-    return data as T
+    if (!data || hasProviderError(data)) return null
+    return data
   } catch {
     return null
   }
@@ -157,15 +146,16 @@ export async function fetchEarningsForTicker(
   ticker: string,
   today = isoDate(),
   limitDt = isoDate(120)
-): Promise<EarningsEntry | null> {
-  const rows = await fmpGet<EarningsRow[]>('/earnings', { symbol: ticker, limit: '8' })
-  if (!Array.isArray(rows)) throw new Error('Resposta FMP invalida')
+): Promise<ClarezaEarningsEntry | null> {
+  const rawRows = await fmpGet('/earnings', { symbol: ticker, limit: '8' })
+  if (!Array.isArray(rawRows)) throw new Error('Resposta FMP invalida')
+  const rows = rawRows.filter(isEarningsRow)
 
   let next: EarningsRow | null = null
   let last: EarningsRow | null = null
 
   for (const row of rows) {
-    const date = row?.date ?? ''
+    const date = row.date ?? ''
     if (!date) continue
 
     if (date >= today) {
@@ -177,7 +167,7 @@ export async function fetchEarningsForTicker(
 
   if (!next || !next.date || next.date > limitDt) return null
 
-  const entry: EarningsEntry = {
+  const entry: ClarezaEarningsEntry = {
     t: ticker,
     d: next.date,
     e: round4OrNull(next.epsEstimated),
@@ -222,10 +212,10 @@ export async function refreshClarezaEarningsData(): Promise<{ total: number; err
   )
 
   const earnings = results
-    .filter((entry: EarningsEntry | null): entry is EarningsEntry => entry !== null)
+    .filter((entry: ClarezaEarningsEntry | null): entry is ClarezaEarningsEntry => entry !== null)
     .sort((a, b) => a.d.localeCompare(b.d))
 
-  const payload: EarningsPayload = {
+  const payload: ClarezaEarningsPayload = {
     updated: timestamp(),
     window: { from: today, to: limitDt },
     count: earnings.length,
@@ -243,7 +233,7 @@ export async function refreshClarezaEarningsData(): Promise<{ total: number; err
     })
     const all = await ClarezaEarningsData.find({}, '_id fetchedAt').sort({ fetchedAt: -1 }).lean()
     if (all.length > 5) {
-      const toDelete = all.slice(5).map((d: any) => d._id)
+      const toDelete = all.slice(5).map((document) => document._id)
       await ClarezaEarningsData.deleteMany({ _id: { $in: toDelete } })
     }
     logger.info('[ClarezaEarnings] Snapshot guardado na BD')
@@ -255,8 +245,8 @@ export async function refreshClarezaEarningsData(): Promise<{ total: number; err
   return { total: COMPANIES.length, errors }
 }
 
-export async function getClarezaEarningsData(): Promise<EarningsPayload | null> {
-  const cached = await cacheService.get<EarningsPayload>(CLAREZA_EARNINGS_CACHE_KEY)
+export async function getClarezaEarningsData(): Promise<ClarezaEarningsPayload | null> {
+  const cached = await cacheService.get<ClarezaEarningsPayload>(CLAREZA_EARNINGS_CACHE_KEY)
   if (cached) return cached
 
   try {
@@ -264,7 +254,7 @@ export async function getClarezaEarningsData(): Promise<EarningsPayload | null> 
     if (latest?.earnings?.earnings?.length) {
       logger.info(`[ClarezaEarnings] Cache Redis vazio - a servir snapshot da BD (${latest.fetchedAt})`)
       await cacheService.set(CLAREZA_EARNINGS_CACHE_KEY, latest.earnings, CACHE_TTL)
-      return latest.earnings as EarningsPayload
+      return latest.earnings
     }
   } catch (err: unknown) {
     logger.error('[ClarezaEarnings] Erro ao ler snapshot da BD:', errorMessage(err))
