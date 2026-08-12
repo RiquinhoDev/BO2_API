@@ -5,7 +5,7 @@ import { internalError } from '../security/errorHandling'
 import User from '../models/user'
 import GuruWebhook from '../models/GuruWebhook'
 import UserProduct from '../models/UserProduct'
-import { GuruWebhookPayload, GuruSubscriptionStatus } from '../types/guru.types'
+import { GuruWebhookPayload } from '../types/guru.types'
 import { getGuruAccountToken } from '../services/requestDrivenRuntimeConfig'
 import logger from '../utils/logger'
 export { listGuruWebhooks } from './guruWebhookList.controller'
@@ -452,6 +452,32 @@ export const getGuruStats = async (req: Request, res: Response, next: NextFuncti
  * Reprocessar um webhook falhado
  * POST /guru/webhooks/:id/reprocess
  */
+const createGuruReprocessResponse = (res: Response): Response => {
+  const proxy: Response = new Proxy(res, {
+    get(target, property, receiver) {
+      if (property === 'status') {
+        return (code: number) => {
+          target.status(code)
+          return proxy
+        }
+      }
+      if (property === 'json') {
+        return (payload: unknown) => {
+          if (typeof payload === 'object' && payload !== null &&
+              (payload as { success?: unknown }).success === true) {
+            const data = { ...(payload as Record<string, unknown>) }
+            delete data.success
+            return target.json(successResponse(data))
+          }
+          return target.json(payload)
+        }
+      }
+      return Reflect.get(target, property, receiver)
+    },
+  })
+  return proxy
+}
+
 export const reprocessWebhook = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params
@@ -471,7 +497,7 @@ export const reprocessWebhook = async (req: Request, res: Response, next: NextFu
     }
 
     // Processar novamente
-    await handleGuruWebhook(mockReq, res, next)
+    await handleGuruWebhook(mockReq, createGuruReprocessResponse(res), next)
 
   } catch (error: unknown) {
     return next(internalError('Erro ao reprocessar webhook Guru', 'GURU_WEBHOOK_REPROCESS_FAILED', error))

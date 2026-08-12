@@ -31,6 +31,21 @@ export function successResponse<
   return meta === undefined ? { success: true, data } : { success: true, data, meta }
 }
 
+export interface OperationalSuccessPayload {
+  completed: boolean
+  message?: string
+  data?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+export function operationalSuccessResponse(payload: OperationalSuccessPayload) {
+  const { message, data, ...rest } = payload
+  return successResponse(
+    { ...rest, ...(data ?? {}) },
+    message === undefined ? undefined : { message },
+  )
+}
+
 export interface ResponseContractDecision {
   method: string
   path: string

@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
+import { operationalSuccessResponse } from '../../contracts/responseContract'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 import { internalError } from '../../security/errorHandling'
 import { User } from '../../models'
@@ -32,11 +33,11 @@ export const syncHotmartUsersUniversal = async (req: Request, res: Response, nex
     logger.info('[HotmartUniversal] Utilizadores preparados', { total: hotmartData.length })
 
     if (hotmartData.length === 0) {
-      res.status(200).json({
-        success: false,
+      res.status(200).json(operationalSuccessResponse({
+        completed: false,
         message: 'Nenhum utilizador encontrado na Hotmart',
         data: { stats: { total: 0, inserted: 0, updated: 0, errors: 0 } }
-      })
+      }))
       return
     }
 
@@ -74,8 +75,8 @@ export const syncHotmartUsersUniversal = async (req: Request, res: Response, nex
       errors: result.stats.errors
     })
 
-    res.status(200).json({
-      success: result.success,
+    res.status(200).json(operationalSuccessResponse({
+      completed: result.success,
       message: result.success
         ? 'Sincronização via Universal Service concluída com sucesso!'
         : 'Sincronização concluída com erros',
@@ -89,9 +90,7 @@ export const syncHotmartUsersUniversal = async (req: Request, res: Response, nex
         reportUrl: `/api/sync/reports/${result.reportId}`,
         syncHistoryUrl: `/api/sync/history/${result.syncHistoryId}`
       },
-      _universalSync: true,
-      _version: '3.0'
-    })
+    }))
   } catch (error: unknown) {
     forwardHotmartError(next, error, 'Erro ao executar sincronização via Universal Service', 'HOTMART_UNIVERSAL_SYNC_FAILED')
   }
@@ -108,11 +107,11 @@ export const syncProgressOnlyUniversal = async (req: Request, res: Response, nex
     logger.info('[HotmartProgress] Utilizadores com Hotmart ID', { total: existingUsers.length })
 
     if (existingUsers.length === 0) {
-      res.status(200).json({
-        success: true,
+      res.status(200).json(operationalSuccessResponse({
+        completed: true,
         message: 'Nenhum utilizador com Hotmart ID encontrado',
         data: { stats: { total: 0 } }
-      })
+      }))
       return
     }
 
@@ -142,8 +141,8 @@ export const syncProgressOnlyUniversal = async (req: Request, res: Response, nex
       sourceData: progressData
     })
 
-    res.status(200).json({
-      success: result.success,
+    res.status(200).json(operationalSuccessResponse({
+      completed: result.success,
       message: 'Progresso sincronizado via Universal Service!',
       data: {
         reportId: result.reportId,
@@ -151,8 +150,7 @@ export const syncProgressOnlyUniversal = async (req: Request, res: Response, nex
         duration: result.duration,
         withProgress: progressMap.size
       },
-      _universalSync: true
-    })
+    }))
   } catch (error: unknown) {
     forwardHotmartError(next, error, 'Erro ao sincronizar progresso Hotmart', 'HOTMART_PROGRESS_SYNC_FAILED')
   }

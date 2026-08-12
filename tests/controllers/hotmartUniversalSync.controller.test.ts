@@ -71,11 +71,11 @@ describe('Hotmart Universal Sync controller', () => {
       onWarning: expect.any(Function)
     }))
     expect(status).toHaveBeenCalledWith(200)
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
+    expect(json).toHaveBeenCalledWith({
       success: true,
-      _universalSync: true,
-      _version: '3.0'
-    }))
+      data: expect.objectContaining({ completed: true }),
+      meta: { message: expect.any(String) },
+    })
   })
 
   test('does not execute full sync when the adapter returns no users', async () => {
@@ -87,9 +87,9 @@ describe('Hotmart Universal Sync controller', () => {
     expect(universalSyncService.executeUniversalSync).not.toHaveBeenCalled()
     expect(status).toHaveBeenCalledWith(200)
     expect(json).toHaveBeenCalledWith({
-      success: false,
-      message: 'Nenhum utilizador encontrado na Hotmart',
-      data: { stats: { total: 0, inserted: 0, updated: 0, errors: 0 } }
+      success: true,
+      data: { completed: false, stats: { total: 0, inserted: 0, updated: 0, errors: 0 } },
+      meta: { message: 'Nenhum utilizador encontrado na Hotmart' },
     })
   })
 
@@ -130,9 +130,11 @@ describe('Hotmart Universal Sync controller', () => {
       ]
     }))
     expect(status).toHaveBeenCalledWith(200)
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ withProgress: 1 })
-    }))
+    expect(json).toHaveBeenCalledWith({
+      success: true,
+      data: expect.objectContaining({ completed: true, withProgress: 1 }),
+      meta: { message: 'Progresso sincronizado via Universal Service!' },
+    })
   })
 
   test('does not fetch progress or execute sync when no users have a Hotmart id', async () => {
@@ -148,8 +150,8 @@ describe('Hotmart Universal Sync controller', () => {
     expect(status).toHaveBeenCalledWith(200)
     expect(json).toHaveBeenCalledWith({
       success: true,
-      message: 'Nenhum utilizador com Hotmart ID encontrado',
-      data: { stats: { total: 0 } }
+      data: { completed: true, stats: { total: 0 } },
+      meta: { message: 'Nenhum utilizador com Hotmart ID encontrado' },
     })
   })
 })
