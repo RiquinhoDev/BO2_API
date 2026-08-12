@@ -14,6 +14,8 @@ import { analyticsCalculatorService } from './analyticsCalculator.service'
 // ═══════════════════════════════════════════════════════════════════
 
 class AnalyticsCacheService {
+  private readonly inFlightCalculations = new Map<string, Promise<ICacheMetrics>>()
+
   // Configuração de TTL (Time To Live) por período
   private readonly TTL_CONFIG: CacheConfig = {
     daily: 1,      // 1 hora
@@ -98,7 +100,7 @@ class AnalyticsCacheService {
     // Se forceRefresh, recalcular sempre
     if (forceRefresh) {
       console.log('   🔄 Force refresh solicitado')
-      return await this.calculateAndCache(options)
+      return await this.calculateSingleflight(options)
     }
     
     // Buscar cache válido
@@ -134,12 +136,33 @@ class AnalyticsCacheService {
     
     // Cache não encontrado, calcular
     console.log('   ⚠️ Cache não encontrado, calculando...')
-    return await this.calculateAndCache(options)
+    return await this.calculateSingleflight(options)
   }
   
   /**
    * Calcular métricas e salvar no cache
    */
+  private calculateSingleflight(options: CacheOptions): Promise<ICacheMetrics> {
+    const key = JSON.stringify({
+      productId: options.productId ?? null,
+      platform: options.platform ?? null,
+      period: options.period,
+      startDate: options.startDate.toISOString(),
+      endDate: options.endDate.toISOString(),
+    })
+    const existing = this.inFlightCalculations.get(key)
+    if (existing) return existing
+
+    const calculation = this.calculateAndCache(options)
+    this.inFlightCalculations.set(key, calculation)
+    void calculation.finally(() => {
+      if (this.inFlightCalculations.get(key) === calculation) {
+        this.inFlightCalculations.delete(key)
+      }
+    }).catch(() => undefined)
+    return calculation
+  }
+
   private async calculateAndCache(options: CacheOptions): Promise<ICacheMetrics> {
     console.log('🧮 [Cache Service] Calculando novas métricas...')
     const startTime = Date.now()

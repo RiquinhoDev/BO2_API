@@ -110,13 +110,14 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 export async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
   const results: T[] = []
   let index = 0
+  const workerCount = Math.min(Math.max(1, Math.floor(concurrency)), 10, tasks.length)
   async function worker() {
     while (index < tasks.length) {
       const i = index++
       results[i] = await tasks[i]()
     }
   }
-  await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker))
+  await Promise.all(Array.from({ length: workerCount }, worker))
   return results
 }
 
