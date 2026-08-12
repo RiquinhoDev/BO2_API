@@ -1,6 +1,10 @@
 import { Schema } from 'mongoose'
 import { IUser } from './user.types'
 
+type CombinedClass = NonNullable<NonNullable<IUser['combined']>['allClasses']>[number]
+type PrimaryClass = NonNullable<NonNullable<IUser['combined']>['primaryClass']>
+type EnhancedUserSource = Pick<IUser, 'combined' | 'curseduca' | 'hotmart'> & Record<string, unknown>
+
 export function attachUserBehavior(schema: Schema): void {
 // ðŸ”„ MIDDLEWARE PARA NORMALIZAR EMAIL E CALCULAR DADOS COMBINADOS
 schema.pre<IUser>('save', function(next) {
@@ -106,7 +110,7 @@ schema.methods.calculateCombinedData = function(this: IUser) {
   else if (avgEngagementScore >= 25) engagementLevel = 'BAIXO'
   
   // ðŸ†• AGREGAR TURMAS DE TODAS AS PLATAFORMAS
-  const allClasses: any[] = []
+  const allClasses: CombinedClass[] = []
   
   // Turmas da Hotmart
   if (this.hotmart?.enrolledClasses && Array.isArray(this.hotmart.enrolledClasses)) {
@@ -136,7 +140,7 @@ schema.methods.calculateCombinedData = function(this: IUser) {
   }
   
   // ðŸ†• DEFINIR TURMA PRINCIPAL (prioridade: Hotmart > Curseduca)
-  let primaryClass: any = undefined
+  let primaryClass: PrimaryClass | undefined
   let classId: string | undefined = undefined
   let className: string | undefined = undefined
   
@@ -323,7 +327,7 @@ schema.statics.getEnhancedUsersList = async function(filters = {}) {
   return this.find(query)
     .sort({ 'metadata.updatedAt': -1, 'combined.combinedEngagement': -1 })
     .lean()
-    .then((users: any[]) => users.map(user => ({
+    .then((users: EnhancedUserSource[]) => users.map(user => ({
       ...user,
       displayProgress: user.combined?.totalProgress || user.curseduca?.progress?.estimatedProgress || 0,
       displayEngagement: user.combined?.combinedEngagement || 0,
