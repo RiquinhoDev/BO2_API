@@ -17,6 +17,13 @@ export interface IProductSalesMonthlyStats extends Document {
   salesCount: number
   revenueByCurrency: Record<string, number>
 
+  // novo (1ª compra) vs recorrente (renovação/renovação de subscrição) —
+  // previsibilidade (recorrente) vs crescimento (novo).
+  newCount: number
+  newRevenueByCurrency: Record<string, number>
+  recurringCount: number
+  recurringRevenueByCurrency: Record<string, number>
+
   refundedCount: number
   refundedByCurrency: Record<string, number>
 
@@ -35,6 +42,11 @@ const productSalesMonthlyStatsSchema = new Schema<IProductSalesMonthlyStats>(
 
     salesCount: { type: Number, default: 0 },
     revenueByCurrency: { type: Schema.Types.Mixed, default: {} },
+
+    newCount: { type: Number, default: 0 },
+    newRevenueByCurrency: { type: Schema.Types.Mixed, default: {} },
+    recurringCount: { type: Number, default: 0 },
+    recurringRevenueByCurrency: { type: Schema.Types.Mixed, default: {} },
 
     refundedCount: { type: Number, default: 0 },
     refundedByCurrency: { type: Schema.Types.Mixed, default: {} },

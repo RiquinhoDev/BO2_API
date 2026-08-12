@@ -27,6 +27,7 @@ import {
   fetchAllOgiSalesGroupedByEmail,
   resolveOgiProduct,
   aggregateMonthlySalesStats,
+  emptyMonthlyStat,
   type MonthlySalesStat
 } from '../renewal/hotmartSalesHistory.service'
 import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServices/hotmart.helpers'
@@ -134,8 +135,30 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 interface GuruTransaction {
   status: string
   dates?: { confirmed_at?: number | null }
-  invoice?: { value?: number; status?: string }
+  invoice?: { value?: number; status?: string; cycle?: number }
   payment?: { net?: number; gross?: number; total?: number; currency?: string }
+}
+
+/**
+ * Com 5 pedidos em paralelo por lote, a Guru devolve 429 sob carga —
+ * confirmado em produção (36 subscrições falharam sem isto). Mesmo
+ * padrão de retry/backoff já usado para a Hotmart (requestSalesPage).
+ */
+async function requestGuruWithRetry(url: string, params: Record<string, unknown>) {
+  const maxRetries = 5
+  let attempt = 0
+
+  while (true) {
+    try {
+      return await guruApi.get(url, { params })
+    } catch (error: any) {
+      if (error?.response?.status !== 429 || attempt >= maxRetries) throw error
+      const retryAfter = Number(error.response.headers?.['retry-after'])
+      const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 500 * Math.pow(2, attempt)
+      await sleep(delay)
+      attempt += 1
+    }
+  }
 }
 
 async function fetchSubscriptionTransactions(subscriptionId: string): Promise<GuruTransaction[]> {
@@ -145,8 +168,8 @@ async function fetchSubscriptionTransactions(subscriptionId: string): Promise<Gu
 
   do {
     page += 1
-    const response = await guruApi.get(`/subscriptions/${subscriptionId}/transactions`, {
-      params: { per_page: 50, ...(cursor ? { cursor } : {}) }
+    const response = await requestGuruWithRetry(`/subscriptions/${subscriptionId}/transactions`, {
+      per_page: 50, ...(cursor ? { cursor } : {})
     })
     const data: GuruTransaction[] = response.data?.data || []
     all.push(...data)
@@ -209,11 +232,15 @@ export async function syncClarezaPlanSalesPerformance(productKey: 'CLAREZA_MENSA
         const amount = tx.invoice?.value ?? tx.payment?.net ?? tx.payment?.gross ?? null
         const currency = tx.payment?.currency || 'EUR'
         const month = monthKeyFromUnix(confirmedAt)
+        // ao contrário da Hotmart, a Guru diz-nos diretamente: cycle 1 =
+        // 1ª cobrança da subscrição (novo subscritor), cycle > 1 = renovação
+        // recorrente. Muito mais fiável que inferir por preço.
+        const isNew = tx.invoice?.cycle === 1
 
         let bucket = buckets.get(month)
         if (!bucket) {
           const [y, m] = month.split('-').map(Number)
-          bucket = { month, year: y, monthNum: m, salesCount: 0, revenueByCurrency: {}, refundedCount: 0, refundedByCurrency: {} }
+          bucket = emptyMonthlyStat(month, y, m)
           buckets.set(month, bucket)
         }
 
@@ -221,10 +248,20 @@ export async function syncClarezaPlanSalesPerformance(productKey: 'CLAREZA_MENSA
           refundsFound += 1
           bucket.refundedCount += 1
           if (amount != null) bucket.refundedByCurrency[currency] = (bucket.refundedByCurrency[currency] || 0) + amount
-        } else {
-          salesFound += 1
-          bucket.salesCount += 1
-          if (amount != null) bucket.revenueByCurrency[currency] = (bucket.revenueByCurrency[currency] || 0) + amount
+          continue
+        }
+
+        salesFound += 1
+        bucket.salesCount += 1
+        if (amount != null) {
+          bucket.revenueByCurrency[currency] = (bucket.revenueByCurrency[currency] || 0) + amount
+          if (isNew) {
+            bucket.newCount += 1
+            bucket.newRevenueByCurrency[currency] = (bucket.newRevenueByCurrency[currency] || 0) + amount
+          } else {
+            bucket.recurringCount += 1
+            bucket.recurringRevenueByCurrency[currency] = (bucket.recurringRevenueByCurrency[currency] || 0) + amount
+          }
         }
       }
     } catch (error: any) {
@@ -265,18 +302,30 @@ export interface ProductSalesMonth {
   monthNum: number
   salesCount: number
   revenueByCurrency: Record<string, number>
+  newCount: number
+  newRevenueByCurrency: Record<string, number>
+  recurringCount: number
+  recurringRevenueByCurrency: Record<string, number>
   refundedCount: number
   refundedByCurrency: Record<string, number>
   estimatedRevenueEUR: number
+  estimatedNewRevenueEUR: number
+  estimatedRecurringRevenueEUR: number
   lastSyncedAt: string
 }
 
 export interface ProductSalesTotals {
   salesCount: number
   revenueByCurrency: Record<string, number>
+  newCount: number
+  newRevenueByCurrency: Record<string, number>
+  recurringCount: number
+  recurringRevenueByCurrency: Record<string, number>
   refundedCount: number
   refundedByCurrency: Record<string, number>
   estimatedTotalEUR: number
+  estimatedNewRevenueEUR: number
+  estimatedRecurringRevenueEUR: number
   unconvertedCurrencies: string[]
 }
 
@@ -294,19 +343,40 @@ export interface ProductSalesPerformanceResponse {
   products: ProductSalesBlock[]
 }
 
+function sumByCurrency(target: Record<string, number>, source: Record<string, number>): void {
+  for (const [cur, val] of Object.entries(source)) target[cur] = (target[cur] || 0) + val
+}
+
 function toTotals(months: ProductSalesMonth[]): ProductSalesTotals {
   const raw = months.reduce(
     (acc, m) => {
       acc.salesCount += m.salesCount
+      acc.newCount += m.newCount
+      acc.recurringCount += m.recurringCount
       acc.refundedCount += m.refundedCount
-      for (const [cur, val] of Object.entries(m.revenueByCurrency)) acc.revenueByCurrency[cur] = (acc.revenueByCurrency[cur] || 0) + val
-      for (const [cur, val] of Object.entries(m.refundedByCurrency)) acc.refundedByCurrency[cur] = (acc.refundedByCurrency[cur] || 0) + val
+      sumByCurrency(acc.revenueByCurrency, m.revenueByCurrency)
+      sumByCurrency(acc.newRevenueByCurrency, m.newRevenueByCurrency)
+      sumByCurrency(acc.recurringRevenueByCurrency, m.recurringRevenueByCurrency)
+      sumByCurrency(acc.refundedByCurrency, m.refundedByCurrency)
       return acc
     },
-    { salesCount: 0, revenueByCurrency: {} as Record<string, number>, refundedCount: 0, refundedByCurrency: {} as Record<string, number> }
+    {
+      salesCount: 0, revenueByCurrency: {} as Record<string, number>,
+      newCount: 0, newRevenueByCurrency: {} as Record<string, number>,
+      recurringCount: 0, recurringRevenueByCurrency: {} as Record<string, number>,
+      refundedCount: 0, refundedByCurrency: {} as Record<string, number>
+    }
   )
   const est = estimateEUR(raw.revenueByCurrency)
-  return { ...raw, estimatedTotalEUR: est.estimatedTotalEUR, unconvertedCurrencies: est.unconvertedCurrencies }
+  const newEst = estimateEUR(raw.newRevenueByCurrency)
+  const recurringEst = estimateEUR(raw.recurringRevenueByCurrency)
+  return {
+    ...raw,
+    estimatedTotalEUR: est.estimatedTotalEUR,
+    estimatedNewRevenueEUR: newEst.estimatedTotalEUR,
+    estimatedRecurringRevenueEUR: recurringEst.estimatedTotalEUR,
+    unconvertedCurrencies: est.unconvertedCurrencies
+  }
 }
 
 type LeanModel = { find: (...args: any[]) => any }
@@ -326,6 +396,10 @@ export async function getProductSalesPerformance(year?: number): Promise<Product
     monthNum: number
     salesCount: number
     revenueByCurrency: Record<string, number>
+    newCount: number
+    newRevenueByCurrency: Record<string, number>
+    recurringCount: number
+    recurringRevenueByCurrency: Record<string, number>
     refundedCount: number
     refundedByCurrency: Record<string, number>
     lastSyncedAt: string
@@ -336,7 +410,13 @@ export async function getProductSalesPerformance(year?: number): Promise<Product
       .filter((d) => d.productKey === productKey)
       .map((d) => ({
         ...d,
-        estimatedRevenueEUR: estimateEUR(d.revenueByCurrency || {}).estimatedTotalEUR
+        newCount: d.newCount || 0,
+        newRevenueByCurrency: d.newRevenueByCurrency || {},
+        recurringCount: d.recurringCount || 0,
+        recurringRevenueByCurrency: d.recurringRevenueByCurrency || {},
+        estimatedRevenueEUR: estimateEUR(d.revenueByCurrency || {}).estimatedTotalEUR,
+        estimatedNewRevenueEUR: estimateEUR(d.newRevenueByCurrency || {}).estimatedTotalEUR,
+        estimatedRecurringRevenueEUR: estimateEUR(d.recurringRevenueByCurrency || {}).estimatedTotalEUR
       }))
     return { productKey, label: PRODUCT_LABELS[productKey], months, totals: toTotals(months) }
   })

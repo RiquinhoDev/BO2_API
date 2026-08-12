@@ -31,6 +31,12 @@ const PAGE_DELAY_MS = 500
 // uma venda nestes estados nunca conta como venda "boa" para desempenho.
 const REFUND_TRANSACTION_STATUSES = new Set(['REFUNDED', 'CHARGEBACK'])
 
+// preço a partir do qual uma venda OGI é "aluno novo" (preço cheio) em vez
+// de "renovação" (preço reduzido) — critério dado pelo negócio, editável
+// por env var sem deploy. Só compara o valor numérico, independente da
+// moeda (a esmagadora maioria das vendas é em EUR).
+const OGI_NEW_STUDENT_PRICE_THRESHOLD = Number(process.env.OGI_NEW_STUDENT_PRICE_THRESHOLD_EUR) || 167
+
 export interface SalesHistorySyncReport {
   salesChecked: number
   pagesFetched: number
@@ -294,6 +300,14 @@ export interface MonthlySalesStat {
   monthNum: number
   salesCount: number
   revenueByCurrency: Record<string, number>
+  // novo (1ª compra / preço cheio) vs recorrente (renovação) — dá
+  // previsibilidade (recorrente) vs crescimento (novo). newCount +
+  // recurringCount pode ser < salesCount se alguma venda não deu para
+  // classificar (ex: sem priceValue).
+  newCount: number
+  newRevenueByCurrency: Record<string, number>
+  recurringCount: number
+  recurringRevenueByCurrency: Record<string, number>
   refundedCount: number
   refundedByCurrency: Record<string, number>
 }
@@ -302,11 +316,25 @@ function monthKeyFromDate(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
+export function emptyMonthlyStat(month: string, year: number, monthNum: number): MonthlySalesStat {
+  return {
+    month, year, monthNum,
+    salesCount: 0, revenueByCurrency: {},
+    newCount: 0, newRevenueByCurrency: {},
+    recurringCount: 0, recurringRevenueByCurrency: {},
+    refundedCount: 0, refundedByCurrency: {}
+  }
+}
+
 /**
  * Agrega TODAS as vendas já trazidas por fetchAllOgiSalesGroupedByEmail
  * (não só as de alunos ativos) por mês de aprovação — desempenho de
  * vendas, não matching de renovação. Zero chamadas extra à Hotmart:
  * reaproveita o mesmo pedido em bulk que o Sync Hotmart já faz.
+ *
+ * Novo vs recorrente na Hotmart: não há um campo explícito, por isso
+ * usa-se o preço — venda ≥ OGI_NEW_STUDENT_PRICE_THRESHOLD (preço
+ * cheio) = aluno novo; abaixo (preço de renovação) = recorrente.
  */
 export function aggregateMonthlySalesStats(salesByEmail: Map<string, IHotmartSale[]>): MonthlySalesStat[] {
   const buckets = new Map<string, MonthlySalesStat>()
@@ -319,7 +347,7 @@ export function aggregateMonthlySalesStats(salesByEmail: Map<string, IHotmartSal
       let bucket = buckets.get(month)
       if (!bucket) {
         const [y, m] = month.split('-').map(Number)
-        bucket = { month, year: y, monthNum: m, salesCount: 0, revenueByCurrency: {}, refundedCount: 0, refundedByCurrency: {} }
+        bucket = emptyMonthlyStat(month, y, m)
         buckets.set(month, bucket)
       }
 
@@ -331,10 +359,19 @@ export function aggregateMonthlySalesStats(salesByEmail: Map<string, IHotmartSal
         if (sale.priceValue != null) {
           bucket.refundedByCurrency[currency] = (bucket.refundedByCurrency[currency] || 0) + sale.priceValue
         }
-      } else {
-        bucket.salesCount += 1
-        if (sale.priceValue != null) {
-          bucket.revenueByCurrency[currency] = (bucket.revenueByCurrency[currency] || 0) + sale.priceValue
+        continue
+      }
+
+      bucket.salesCount += 1
+      if (sale.priceValue != null) {
+        bucket.revenueByCurrency[currency] = (bucket.revenueByCurrency[currency] || 0) + sale.priceValue
+
+        if (sale.priceValue >= OGI_NEW_STUDENT_PRICE_THRESHOLD) {
+          bucket.newCount += 1
+          bucket.newRevenueByCurrency[currency] = (bucket.newRevenueByCurrency[currency] || 0) + sale.priceValue
+        } else {
+          bucket.recurringCount += 1
+          bucket.recurringRevenueByCurrency[currency] = (bucket.recurringRevenueByCurrency[currency] || 0) + sale.priceValue
         }
       }
     }
