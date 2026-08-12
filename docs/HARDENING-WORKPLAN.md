@@ -803,7 +803,7 @@ Progresso controllers:
 > **Regra de ouro do alvo:** não se troca correcção por elegância. Cada critério entra por **refactor
 > incremental** atrás dos contratos vivos (Front, webhooks, CRON), com **characterization tests primeiro**.
 
-### Progresso estimado por pilar (2026-08-11)
+### Progresso estimado por pilar (2026-08-12)
 
 Esta tabela dá o mesmo peso aos oito pilares e é uma **estimativa de engenharia**, não uma contagem de
 checkboxes nem prova de prontidão operacional. Esta reconciliação macro incorpora SEC-10/ARCH-03 e SCALE-01/SCALE-02 sem declarar fecho operacional.
@@ -811,22 +811,22 @@ checkboxes nem prova de prontidão operacional. Esta reconciliação macro incor
 | Pilar | Antes da missão | Atual | Delta | Base da estimativa |
 | --- | ---: | ---: | ---: | --- |
 | 1. Arquitectura & bootstrap | 100% | 100% | 0 pp | ARCH-01 e lifecycle fechados no código |
-| 2. Ficheiros & domínios | 95% | 100% | +5 pp | teto ARCH-02 em 0; fronteira de controllers com baseline 0 |
+| 2. Ficheiros & domínios | 100% | 100% | 0 pp | teto ARCH-02 em 0; fronteira de controllers com baseline 0 |
 | 3. Pastas & higiene | 100% | 100% | 0 pp | DOC-02 e artefactos fechados |
-| 4. Middleware & funções | 80% | 100% | +20 pp | SEC-10 passou de 188 para 0 e o detalhe público mantém 0 |
+| 4. Middleware & funções | 100% | 100% | 0 pp | SEC-10 mantém 0 respostas 500 locais e 0 detalhes técnicos públicos |
 | 5. Segurança & rotas | 70% | 70% | 0 pp | default-deny/JWT/CORS fechados; matriz de papéis e OPS-02 abertos |
-| 6. Escalabilidade | 35% | 61% | +26 pp | SCALE-01 mantém 36/40; SCALE-02 A resolveu 10 débitos set-based e verificou 1 read já conforme; OPS-02 e 4 decisões continuam abertos |
-| 7. Contrato de resposta | 50% | 84,3% | +34,3 pp | foundation vale 50%; migração revista em 325/441, com 72 identidades fora do denominador migrável |
+| 6. Escalabilidade | 61% | 61% | 0 pp | SCALE-01 mantém 36/40; SCALE-02 A mantém 11/11 decisões completas; OPS-02 e 4 decisões continuam abertos |
+| 7. Contrato de resposta | 84,3% | 100% | +15,7 pp | 409/409 identidades têm contrato terminal revisto; 0 pendentes |
 | 8. Toolchain & qualidade | 75% | 75% | 0 pp | TS/tests/package manager fechados; ESLint debt e validação operacional abertos |
-| **Total, média simples** | **75,6%** | **86,3%** | **+10,7 pp** | estimativa igualitária dos oito pilares |
+| **Total, média simples** | **86,3%** | **88,3%** | **+2,0 pp** | `(100 + 100 + 100 + 100 + 70 + 61 + 100 + 75) / 8 = 88,25%` |
 
-Contratos usa a fórmula explícita `50 + 50 × (325 - 72) / (441 - 72) = 84,3%`: metade do pilar é a foundation; a outra metade mede apenas as 369 identidades migráveis. O total atual é `(606 + 84,3) / 8 = 86,3%`. A coluna anterior reconcilia `605 / 8 = 75,6%`; o delta acumulado é **+10,7 pp**. Nesta ronda, o ponto de partida era **84,9%** e o avanço foi **+1,4 pp**. O avanço de escalabilidade usa a densidade já publicada de 20 pp / 36 e conta apenas os 10 débitos efetivamente removidos (+5,6 pp, arredondado para +6); o read já conforme acrescenta evidência, não progresso.
+Contratos fecha em **100%** porque as **409/409** identidades montadas têm uma decisão terminal revista e o inventário mantém **0 pendentes**. A média simples final é `(100 + 100 + 100 + 100 + 70 + 61 + 100 + 75) / 8 = 88,25%`, apresentada como **88,3%**. O ponto de partida desta ronda era **86,3%**; o avanço é **+2,0 pp** após arredondamento.
 
 Na contagem mecânica, as duas missões reconciliam `102/112 -> 105/112` (`91,1% -> 93,8%`). SEC-10 e o
 boundary de responsabilidade ARCH-02 são os deltas de código; SCALE-01 e os 10 débitos removidos em SCALE-02 A melhoram a estimativa sem fechar a caixa ampla de paginação restante. Outra caixa corrigiu estado ARCH-02 já provado no ledger abaixo. Nenhuma das
 duas métricas inclui deploy, observação, equivalência de payloads ou prontidão operacional.
 
-**Evidência desta reconciliação (2026-08-11, offline):** SCALE-01 permanece em **36/40**; SCALE-02 A regista **11/11 decisões completas = 10 alterações + 1 read já conforme**; contratos avançaram para **325/441**. O checker mantém **346** sites Mongoose e ratchets separados para os dois lotes. `node_modules` foi restaurado com `npm ci`, sem alteração do `package-lock.json`. Passaram fresh o checker SCALE, os testes SCALE focados, TypeScript e os checkers ARCH e de contratos; os gates focados do implementador e a revisão independente também passaram. Algumas execuções combinadas Jest/Vitest excederam o timeout e não são reclamadas como prova. Estes números são estado de código e inventário, não prova de deploy, carga real, plano do query planner, latência, equivalência em produção ou fecho operacional.
+**Evidência desta reconciliação (2026-08-12, offline):** a topologia final tem **409 rotas**, **409 contratos completos** e **0 pendentes**. A taxonomia terminal é **390 `success-data` / 15 `public-document` / 3 `webhook-ack` / 1 `redirect`**; o acesso é **403 autenticadas / 3 públicas / 3 webhook-ack**. Os ratchets encontram **0** segmentos de rota `v1`/`v2`/`v3`/`legacy`/`debug`, **0** `status(501)` no runtime e **0** decisões `501-only`. Checkers de rotas e respostas, lint, TypeScript, builds e a prova focada de **53 testes** passaram; a revisão independente terminou em **PASS** e o estado está pronto para push, sem o executar. `git diff --check` ficou limpo e os lockfiles não mudaram. O gate Jest completo com diagnóstico de open handles não é reclamado nesta ronda; os resultados continuam a ser prova offline de código e inventário, não deploy ou observação operacional.
 
 ### Evidência focada (2026-08-03; offline)
 
@@ -836,7 +836,7 @@ duas métricas inclui deploy, observação, equivalência de payloads ou prontid
 - JWT/CORS/Helmet: **5 suites / 27 testes**. Command exacto da auditoria Luna:
   `npm.cmd test -- --runInBand tests/bootstrap/config.test.ts tests/bootstrap/bootstrap.test.ts tests/security/jwt.test.ts tests/security/cors.test.ts tests/security/httpPerimeter.test.ts`
   Resultado: **5 suites passed / 27 tests passed**.
-- Startup security boundaries (2026-08-04; offline): dedicated `OLD_API_JWT_SECRET` and `STUDENT_ACCESS_JWT_SECRET` authorities are distinct and required; production CORS uses only the explicit normalized `ALLOWED_ORIGINS` list; and the real mounted `/api/curseduca/debug` route is gated by `localDebugOnly`.
+- Startup security boundaries (2026-08-04; offline): dedicated `OLD_API_JWT_SECRET` and `STUDENT_ACCESS_JWT_SECRET` authorities are distinct and required; production CORS uses only the explicit normalized `ALLOWED_ORIGINS` list; and the then-mounted `/api/curseduca/debug` route was gated by `localDebugOnly` (historical checkpoint; the final 2026-08-12 topology removes debug routes).
   Focused route evidence: `MONGOMS_RUNTIME_DOWNLOAD=false; node_modules\.bin\jest.cmd --ci --runInBand tests/security/curseducaDestructiveValidation.test.ts tests/security/debugRoutes.test.ts` - **2 suites passed / 6 tests passed**. The test mounts the real router and uses the existing mocked controller/noop boundary.
   These slices are code-complete only: production still requires provisioning of all mandatory secrets and the complete origin list, followed by deployment and observation. No production system or external API was contacted.
   OPS-01 remains operationally open until mandatory configuration is provisioned and startup is observed in the target environment; the code-side raw-environment migration is closed below.
@@ -845,7 +845,7 @@ duas métricas inclui deploy, observação, equivalência de payloads ou prontid
   Market-data integration wave (2026-08-09): FMP and Hotmart credentials, subdomain aliases and the optional lesson-sync user are parsed once into the immutable startup boundary. FMP/Raio-X, Hotmart sync/helpers/lessons and the course lesson catalog no longer read ambient credentials; the embedded production club fallback was removed, while the explicit product subdomain fallback remains. Required settings fail with IntegrationUnavailableError before HTTP; parser priority is COURSE_LESSON_SUBDOMAIN → HOTMART_SUBDOMAIN → legacy subdomain. The machine inventory fell **45→8 raw-env reads** and **17→4 files**. Offline gate: lint 0, TypeScript 0, **231/231 suites and 1332/1332 tests**, build 0; lockfiles unchanged.
   Runtime-boundary closure wave (2026-08-09): Clareza refresh authorization now uses one timing-safe helper over immutable runtime config; `OLD_API_URL` and Hotmart club configuration are resolved through call-time providers; development checks use typed `nodeEnv`. The inventory matcher now catches both property and bare-object `process.env` reads, closing its previous blind spot. Runtime debt fell **8→0 reads** and **4→0 files** outside explicit composition roots. TDD included missing-contract RED, configured/unconfigured GREEN, and a restored timing-safe mutation. Offline gate: lint 0, TypeScript 0, **231/231 suites and 1332/1332 tests**, build 0, `git diff --check` clean; lockfiles unchanged. Independent leak diagnosis with `--runInBand --detectOpenHandles` also passed **231/231 / 1332/1332** with zero open handles, so no teardown or `--forceExit` change was made.
 
-- Contradições ainda abertas: a migração de payloads ARCH-03, a matriz de papéis SEC-01, a política transversal de idempotência/caps, a dívida ESLint e o inventário/migração de listagens HTTP não canónicas + scans `find({})`. O error handler central está fechado no código em **0** respostas 500 locais e **0** detalhes técnicos públicos; distributed limiter/429/CSP, JWT dedicado, CORS explícito, debug local e o boundary raw-env também estão fechados no código. Provisioning/deploy/observação continuam separados.
+- Contradições ainda abertas: a matriz de papéis SEC-01, a política transversal de idempotência/caps, a dívida ESLint e o inventário/migração de listagens HTTP não canónicas + scans `find({})`. O error handler central está fechado no código em **0** respostas 500 locais e **0** detalhes técnicos públicos; distributed limiter/429/CSP, JWT dedicado, CORS explícito, ausência de rotas debug e o boundary raw-env também estão fechados no código. Provisioning/deploy/observação continuam separados.
 - Proveniência de gates no checkpoint `39aecee`: lint e TypeScript **0**, Jest offline completo **227/227 suites / 1321/1321 tests**, build **0** e `git diff --check` limpo. É evidência de repositório/sandbox; não reclama deploy nem observação operacional.
 - Nenhum runtime nem sistema externo foi tocado; os resultados são focados e offline.
 
@@ -1187,13 +1187,12 @@ duas métricas inclui deploy, observação, equivalência de payloads ou prontid
 - [ ] Idempotência e caps como **política transversal**, não caso-a-caso (OPS-02).
 
 ### 7. Contrato de resposta
-- [ ] Envelope/versionamento **único** para código novo; adaptado feature a feature preservando o Front (ARCH-03). Sem mistura de arrays crus / `{success,data}` / `{error}`.
-  - **Foundation ARCH-03 fechada no código (2026-08-11):** **439/439** rotas têm decisão revista: **58** `success-data`, **358** `domain-envelope`, **22** `raw-json` e **1** `redirect`. As **13** rotas sem saída de sucesso permanecem `501-only` explícitas. O scan do Front resolveu **219 calls / 194 consumers / 0 gaps**.
-  - **Regra de migração ARCH-03 (Task 8):** o catálogo de famílias é o baseline revisto das 439 rotas montadas, não prova que a normalização dos payloads esteja concluída. Código JSON novo usa `SuccessResponse<T>` / `successResponse(data)`; status, headers e envio continuam propriedade do boundary Express. Rotas legacy não são migradas por este helper.
-  - A normalização avança feature-by-feature. Quando existe consumidor, Front + Back mudam atomicamente e só entram com contract tests de loading, success, empty e error; export e paginação também são cobertos quando aplicáveis. Até essa equivalência, o contrato legacy permanece vivo.
-  - As 13 rotas sem saída de sucesso continuam decisões **501-only** explícitas (`domain-envelope`, `shapeKeys: []`); não contam como normalizadas nem podem ser inferidas silenciosamente.
-  - `contracts:responses:update` / `--write` é reviewer-only e fail-closed: apenas retém decisões já revistas depois de membership e source drift verdes. Nova rota, family válida alterada, enum churn, consumer/evidence/shape drift ou decisão não classificada falham com identidade `METHOD path`; não há auto-normalização nem mudança de runtime nesta fundação.
-  - `--check` nunca escreve; `--write` preserva decisões revistas e recusa drift; overlays de source estão confinados a testes, a diretórios temporários e a targets `backend`/`front`, com opt-in explícito. A migração de payloads continua aberta feature-by-feature.
+- [x] Envelope **único** adaptado feature a feature com migrações atómicas Front + Back (ARCH-03); não permanecem versões paralelas, aliases legacy, debug público ou respostas 501.
+  - **ARCH-03 fechado no código (2026-08-12):** **409/409** rotas montadas têm decisão terminal revista e o inventário mantém **409 complete / 0 pending**.
+  - A taxonomia final é **390 `success-data` / 15 `public-document` / 3 `webhook-ack` / 1 `redirect`**. Os documentos públicos e ACKs de providers preservam deliberadamente o protocolo externo; as restantes respostas produtivas usam o contrato canónico.
+  - O scan resolve **213 Front calls / 188 consumers / 0 gaps**. Consumidores reais foram migrados atomicamente com parsers estritos; não foram criados consumidores artificiais nem fallbacks polimórficos.
+  - `contracts:responses:check` e `routes:catalog:check` falham fechados perante membership, producer, consumer, shape ou evidence drift. A superfície final tem **0** segmentos `v1`/`v2`/`v3`/`legacy`/`debug`, **0** `status(501)` no runtime e **0** decisões `501-only`.
+  - O fecho é de código e evidência offline. Deploy, observação dos HTML/PHP externos e integrações reais continuam fora desta declaração.
 
 ### 8. Metodologias 2026 (toolchain & qualidade)
 - [x] **TOOL-01 — TypeScript `strict` a zero erros** (2026-08-03; F3.3). O ratchet foi removido, `noEmitOnError:true` está activo e não existe `tsc || exit 0` (Task 1, `8ee1c7c`). As autoridades restantes são `strict`, `noEmitOnError`, a compilação directa sem emissão (`npm.cmd run types:check`) e o build emissor (`npm.cmd run build`).
