@@ -74,10 +74,10 @@
   {
     "identity": "DELETE /api/sync/history/clean",
     "owner": "src/controllers/sync/history.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "DELETE /api/tag-monitoring/critical-tags/:id",
@@ -90,10 +90,10 @@
   {
     "identity": "DELETE /api/tag-monitoring/critical-tags/:id/permanent",
     "owner": "src/controllers/tagMonitoring/criticalTag.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "DELETE /api/tag-monitoring/notifications/:id",
@@ -106,18 +106,18 @@
   {
     "identity": "DELETE /api/tag-rules/:id",
     "owner": "src/controllers/acTags/tagRule.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "DELETE /api/testimonials/:id",
     "owner": "src/controllers/testimonials/testimonialCommands.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "DELETE /api/users/:id",
@@ -154,10 +154,10 @@
   {
     "identity": "GET /api/ac/contact/:email/tags",
     "owner": "src/controllers/acTags/acReader.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/achievements/definitions",
@@ -202,10 +202,10 @@
   {
     "identity": "GET /api/activecampaign/cron-logs",
     "owner": "src/controllers/acTags/activeCampaignOps.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/activecampaign/debug/curseduca-data",
@@ -226,10 +226,10 @@
   {
     "identity": "GET /api/activecampaign/product-tags/stats",
     "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/activecampaign/products/:productId/tagged",
@@ -602,10 +602,10 @@
   {
     "identity": "GET /api/classes/users/search",
     "owner": "src/controllers/classes/classRoster.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/communication-history",
@@ -914,10 +914,10 @@
   {
     "identity": "GET /api/discord-renewal/scheduled/:key/preview",
     "owner": "src/routes/discordRenewal.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/discord-renewal/status",
@@ -1050,18 +1050,18 @@
   {
     "identity": "GET /api/guru/analytics/fix-multi-subscriptions",
     "owner": "src/controllers/guruAnalytics/subscriptionRepair.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/guru/analytics/mrr",
     "owner": "src/controllers/guruAnalytics/churn.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/guru/debug/token",
@@ -1138,10 +1138,10 @@
   {
     "identity": "GET /api/guru/stats",
     "owner": "src/controllers/guru.webhook.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruCore.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/guru/status",
@@ -1162,42 +1162,42 @@
   {
     "identity": "GET /api/guru/sync/all",
     "owner": "src/controllers/guru.sync.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruCore.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/guru/sync/email/:email",
     "owner": "src/controllers/guru.sync.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruCore.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/guru/sync/preview",
     "owner": "src/controllers/guru.sync.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruCore.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/guru/sync/stats",
     "owner": "src/controllers/guru.sync.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruCore.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/guru/sync/users",
     "owner": "src/controllers/guru.sync.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruCore.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/guru/trials",
@@ -1218,18 +1218,18 @@
   {
     "identity": "GET /api/guru/webhooks",
     "owner": "src/controllers/guruWebhookList.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruCore.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/guru/webhooks/grouped-by-month",
     "owner": "src/controllers/guru.webhook.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruCore.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/health",
@@ -1586,10 +1586,10 @@
   {
     "identity": "GET /api/sync/stats",
     "owner": "src/controllers/sync/history.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/sync/status",
@@ -1722,10 +1722,10 @@
   {
     "identity": "GET /api/tag-rules",
     "owner": "src/controllers/acTags/tagRule.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/tag-rules/:id",
@@ -2050,10 +2050,10 @@
   {
     "identity": "PATCH /api/renewal/offers/:id",
     "owner": "src/controllers/renewal.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/renewalOffers.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "PATCH /api/tag-monitoring/config/scope",
@@ -2218,10 +2218,10 @@
   {
     "identity": "POST /api/analytics/product-sales/rebuild",
     "owner": "src/controllers/products/productSalesStats.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/analytics/analytics.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/auth/change-password",
@@ -2386,10 +2386,10 @@
   {
     "identity": "POST /api/course-lessons/sync",
     "owner": "src/controllers/courseLessons.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/courseLessons.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/courses",
@@ -2498,10 +2498,10 @@
   {
     "identity": "POST /api/discord-renewal/execute",
     "owner": "src/routes/discordRenewal.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/discordRenewal.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/discord-renewal/messages/preview",
@@ -2530,10 +2530,10 @@
   {
     "identity": "POST /api/discord-renewal/scheduled/:key/test",
     "owner": "src/routes/discordRenewal.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/discord-renewal/scheduled/run",
@@ -2586,10 +2586,10 @@
   {
     "identity": "POST /api/events/:id/interest",
     "owner": "src/routes/events.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/events/seed",
@@ -2610,10 +2610,10 @@
   {
     "identity": "POST /api/guru/inactivation/bulk",
     "owner": "src/controllers/guruInactivationExternal.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/inactivation/cleanup",
@@ -2626,10 +2626,10 @@
   {
     "identity": "POST /api/guru/inactivation/cleanup-duplicates",
     "owner": "src/controllers/guruInactivationMutation.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/inactivation/diagnose",
@@ -2642,58 +2642,58 @@
   {
     "identity": "POST /api/guru/inactivation/fix-to-active",
     "owner": "src/controllers/guruInactivationMutation.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/inactivation/mark-discrepancies",
     "owner": "src/controllers/guruDiscrepancy.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/inactivation/mark-stale-inactive",
     "owner": "src/controllers/guruInactivationMutation.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/inactivation/quarantine",
     "owner": "src/controllers/guruInactivationMutation.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/inactivation/restore",
     "owner": "src/controllers/guruInactivationMutation.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/inactivation/revert",
     "owner": "src/controllers/guruInactivationMutation.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/inactivation/single",
     "owner": "src/controllers/guruInactivationExternal.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/snapshots",
@@ -2714,34 +2714,34 @@
   {
     "identity": "POST /api/guru/trials/check-expired",
     "owner": "src/controllers/guru.trials.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/trials/inactivate",
     "owner": "src/controllers/guru.trials.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/trials/revert",
     "owner": "src/controllers/guru.trials.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/trials/sync",
     "owner": "src/controllers/guru.trials.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/webhook",
@@ -2762,10 +2762,10 @@
   {
     "identity": "POST /api/guru/webhooks/migrate-source",
     "owner": "src/controllers/guruWebhookAdmin.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruCore.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/hotmart/sync/universal/progress",
@@ -2826,18 +2826,18 @@
   {
     "identity": "POST /api/renewal-ac/changes/:id/revert",
     "owner": "src/routes/renewalAc.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/renewalAcSync.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/renewal-ac/execute",
     "owner": "src/routes/renewalAc.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/renewalAcSync.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/renewal-ac/plan",
@@ -2858,18 +2858,18 @@
   {
     "identity": "POST /api/renewal/offers",
     "owner": "src/controllers/renewal.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/renewalOffers.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/renewal/sync",
     "owner": "src/controllers/renewal.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/renewalOffers.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/sync/conflicts/:id/ignore",
@@ -2930,18 +2930,18 @@
   {
     "identity": "POST /api/sync/history",
     "owner": "src/controllers/sync/history.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/sync/history/:syncId/retry",
     "owner": "src/controllers/sync/history.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/sync/hotmart",
@@ -2986,10 +2986,10 @@
   {
     "identity": "POST /api/tag-rules/:id/test",
     "owner": "src/controllers/acTags/tagRule.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/tag-rules/estimate",
@@ -3066,18 +3066,18 @@
   {
     "identity": "POST /api/testimonials",
     "owner": "src/controllers/testimonials/testimonialCommands.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/testimonials/request",
     "owner": "src/controllers/testimonials/testimonialCommands.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/user-history/manual",
@@ -3178,10 +3178,10 @@
   {
     "identity": "PUT /api/course-lessons/:pageId",
     "owner": "src/controllers/courseLessons.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/courseLessons.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "PUT /api/courses/:id",
@@ -3274,10 +3274,10 @@
   {
     "identity": "PUT /api/testimonials/:id",
     "owner": "src/controllers/testimonials/testimonialCommands.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "PUT /api/users/:id",

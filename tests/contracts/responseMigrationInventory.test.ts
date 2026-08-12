@@ -32,8 +32,8 @@ describe('response migration inventory', () => {
       expect(entry.status).toMatch(/^(?:complete|pending-migration)$/)
     }
 
-    expect(inventory.filter((entry) => entry.status === 'complete')).toHaveLength(322)
-    expect(inventory.filter((entry) => entry.status === 'pending-migration')).toHaveLength(90)
+    expect(inventory.filter((entry) => entry.status === 'complete')).toHaveLength(374)
+    expect(inventory.filter((entry) => entry.status === 'pending-migration')).toHaveLength(38)
 
     // Planned 41 became 42 because the communication-history handler has a second
     // mounted identity. The exact-literal classifier also revealed product-sales
