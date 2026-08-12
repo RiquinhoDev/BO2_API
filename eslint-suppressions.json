@@ -19,32 +19,9 @@
       "count": 5
     }
   },
-  "src/controllers/syncStats/conflicts.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/controllers/tagEvaluation.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    }
-  },
-  "src/controllers/testHistory.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
     }
   },
   "src/jobs/cronExecutionCleanup.job.ts": {
