@@ -12,6 +12,10 @@ import path from 'path'
 // INTERFACES
 // ═══════════════════════════════════════════════════════════
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
+}
+
 export interface UserProductSnapshot {
   userId: string
   email: string
@@ -172,8 +176,8 @@ class PipelineSnapshotService {
       logger.info(`[Snapshot] 💾 Snapshot salvo: ${finalFilename}`)
 
       return filepath
-    } catch (error: any) {
-      logger.error(`[Snapshot] ❌ Erro ao salvar snapshot: ${error.message}`)
+    } catch (error: unknown) {
+      logger.error(`[Snapshot] ❌ Erro ao salvar snapshot: ${errorMessage(error)}`)
       throw error
     }
   }
@@ -187,8 +191,8 @@ class PipelineSnapshotService {
       const snapshot = JSON.parse(content)
       logger.info(`[Snapshot] 📂 Snapshot carregado: ${path.basename(filepath)}`)
       return snapshot
-    } catch (error: any) {
-      logger.error(`[Snapshot] ❌ Erro ao carregar snapshot: ${error.message}`)
+    } catch (error: unknown) {
+      logger.error(`[Snapshot] ❌ Erro ao carregar snapshot: ${errorMessage(error)}`)
       throw error
     }
   }
@@ -328,8 +332,8 @@ class PipelineSnapshotService {
       logger.info(`[Snapshot] 💾 Comparação salva: ${finalFilename}`)
 
       return filepath
-    } catch (error: any) {
-      logger.error(`[Snapshot] ❌ Erro ao salvar comparação: ${error.message}`)
+    } catch (error: unknown) {
+      logger.error(`[Snapshot] ❌ Erro ao salvar comparação: ${errorMessage(error)}`)
       throw error
     }
   }
@@ -438,8 +442,8 @@ class PipelineSnapshotService {
       logger.info(`[Snapshot] 📝 Relatório markdown salvo: ${finalFilename}`)
 
       return filepath
-    } catch (error: any) {
-      logger.error(`[Snapshot] ❌ Erro ao salvar relatório: ${error.message}`)
+    } catch (error: unknown) {
+      logger.error(`[Snapshot] ❌ Erro ao salvar relatório: ${errorMessage(error)}`)
       throw error
     }
   }

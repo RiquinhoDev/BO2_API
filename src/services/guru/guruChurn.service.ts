@@ -16,7 +16,16 @@
 // e as datas podem vir no nível raiz ou dentro de dates.*)
 // ─────────────────────────────────────────────────────────────
 
-function parseGuruDate(value: any): Date | null {
+type GuruDateValue = string | number | Date | null | undefined
+interface GuruChurnSubscription {
+  started_at?: GuruDateValue
+  cancelled_at?: GuruDateValue
+  canceled_at?: GuruDateValue
+  charged_every_days?: number
+  dates?: { started_at?: GuruDateValue; canceled_at?: GuruDateValue; cancelled_at?: GuruDateValue }
+}
+
+function parseGuruDate(value: GuruDateValue): Date | null {
   if (!value) return null
   if (typeof value === 'number') {
     return new Date(value * 1000) // Unix timestamp em segundos
@@ -25,11 +34,11 @@ function parseGuruDate(value: any): Date | null {
   return isNaN(d.getTime()) ? null : d
 }
 
-function getStartedAt(sub: any): Date | null {
+function getStartedAt(sub: GuruChurnSubscription): Date | null {
   return parseGuruDate(sub.started_at || sub.dates?.started_at)
 }
 
-function getCanceledAt(sub: any): Date | null {
+function getCanceledAt(sub: GuruChurnSubscription): Date | null {
   return parseGuruDate(
     sub.cancelled_at || sub.canceled_at || sub.dates?.canceled_at || sub.dates?.cancelled_at
   )
@@ -81,7 +90,7 @@ export interface ChurnSeries {
 // CÁLCULO
 // ─────────────────────────────────────────────────────────────
 
-export function computeChurnSeries(allSubscriptions: any[]): ChurnSeries {
+export function computeChurnSeries(allSubscriptions: GuruChurnSubscription[]): ChurnSeries {
   // Normalizar uma vez (descartar subscrições sem data de início — não classificáveis)
   const subs = allSubscriptions
     .map(sub => ({

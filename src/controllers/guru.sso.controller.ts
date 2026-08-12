@@ -286,7 +286,7 @@ export const diagnosSubscription = async (req: Request, res: Response, next: Nex
       })),
       config: {
         ssoAllowedStatuses: GURU_SSO_ALLOWED_STATUSES,
-        canAccessSSO: user.guru ? GURU_SSO_ALLOWED_STATUSES.includes(user.guru.status as any) : false
+        canAccessSSO: user.guru ? typeof user.guru.status === 'string' && GURU_SSO_ALLOWED_STATUSES.some(status => status === user.guru?.status) : false
       }
     }))
 

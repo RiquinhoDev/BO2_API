@@ -7,6 +7,10 @@ import { getRuntimeConfig } from '../../config/runtimeConfig'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 
 // Limits concurrency without adding p-queue to this hot path.
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
+}
+
 async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
   const results: T[] = []
   let index = 0
@@ -239,9 +243,9 @@ export async function refreshClarezaEarningsData(): Promise<{ total: number; err
     COMPANIES.map(ticker => async () => {
       try {
         return await fetchEarningsForTicker(ticker, today, limitDt)
-      } catch (err: any) {
+      } catch (err: unknown) {
         errors++
-        logger.error(`[ClarezaEarnings] Erro em ${ticker}:`, err.message)
+        logger.error(`[ClarezaEarnings] Erro em ${ticker}:`, errorMessage(err))
         return null
       }
     }),
@@ -274,8 +278,8 @@ export async function refreshClarezaEarningsData(): Promise<{ total: number; err
       await ClarezaEarningsData.deleteMany({ _id: { $in: toDelete } })
     }
     logger.info('[ClarezaEarnings] Snapshot guardado na BD')
-  } catch (err: any) {
-    logger.error('[ClarezaEarnings] Erro ao guardar snapshot na BD:', err.message)
+  } catch (err: unknown) {
+    logger.error('[ClarezaEarnings] Erro ao guardar snapshot na BD:', errorMessage(err))
   }
 
   logger.info(`[ClarezaEarnings] Refresh completo - ${earnings.length} ok, ${errors} erros`)
@@ -293,8 +297,8 @@ export async function getClarezaEarningsData(): Promise<EarningsPayload | null> 
       await cacheService.set(CLAREZA_EARNINGS_CACHE_KEY, latest.earnings, CACHE_TTL)
       return latest.earnings as EarningsPayload
     }
-  } catch (err: any) {
-    logger.error('[ClarezaEarnings] Erro ao ler snapshot da BD:', err.message)
+  } catch (err: unknown) {
+    logger.error('[ClarezaEarnings] Erro ao ler snapshot da BD:', errorMessage(err))
   }
 
   logger.warn('[ClarezaEarnings] Sem cache Redis e sem snapshot MongoDB. Aguardar cron ClarezaRefresh.')
