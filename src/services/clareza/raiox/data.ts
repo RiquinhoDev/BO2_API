@@ -108,18 +108,28 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 
 // Limita a concorrência (sem dependências externas).
 export async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
+  if (!Number.isFinite(concurrency) || concurrency <= 0) {
+    throw new RangeError('concurrency must be a finite positive number')
+  }
   const results: T[] = []
   let index = 0
+  let stopped = false
+  let firstError: unknown
   const workerCount = Math.min(Math.max(1, Math.floor(concurrency)), 10, tasks.length)
   async function worker() {
-    while (index < tasks.length) {
+    while (!stopped && index < tasks.length) {
       const i = index++
-      results[i] = await tasks[i]()
+      try {
+        results[i] = await tasks[i]()
+      } catch (error) {
+        stopped = true
+        firstError = error
+      }
     }
   }
   await Promise.all(Array.from({ length: workerCount }, worker))
-  return results
-}
+  if (firstError !== undefined) throw firstError
+  return results}
 
 // Todas as chamadas passam pelo limitador global partilhado (fmpThrottle),
 // comum às 3 ferramentas Clareza → a soma nunca passa do limite do plano.

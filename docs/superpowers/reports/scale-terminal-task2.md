@@ -1,4 +1,4 @@
-﻿# SCALE terminal Task 2 implementer report
+# SCALE terminal Task 2 implementer report
 
 Date: 2026-08-12
 Branch: `remake`
@@ -16,7 +16,7 @@ This is process-local coordination only. It is not distributed singleflight acro
 ## Candidate characterization
 
 - `src/services/analytics/analyticsCache.service.ts`: live cache entry point; safe to coalesce identical calculations because the cache write is an idempotent upsert for the same key. Implemented.
-- `src/controllers/engagement/summary.controller.ts` + `src/services/engagement/controllerSupport.ts`: live in-memory cache; identical cold requests can still duplicate the Mongo aggregation. Not changed in this scoped commit; remains a concern and must not be represented as closed by the process-local analytics flight.
+- `src/controllers/engagement/summary.controller.ts` + `src/services/engagement/controllerSupport.ts`: live in-memory cache; cold Mongo aggregation now uses keyed process-local singleflight with rejection cleanup and independent keys.
 - `src/services/clareza/raiox/data.ts`: live provider worker primitive and provider scan. Existing call site requested 5, but the exported primitive accepted arbitrary unbounded ceilings. Implemented defensive ceiling 10.
 - `src/services/activeCampaign/nativeTagProtection.service.ts`: live scans are already sequential/batched; tag removal and snapshot/history writes have ordering and compensation implications. Ejected from parallelization.
 - `src/services/activeCampaign/testimonialTagSync.service.ts`: live provider reads/writes are sequential and ordered per user/tag, including remove/add operations and partial-error aggregation. Ejected from parallelization.
@@ -48,7 +48,24 @@ GREEN (exit 0): 1 suite passed, 6 tests passed. The contracts prove 50 identical
 
 ## Concerns / handoff
 
-- The engagement summary cold-cache aggregation still lacks singleflight and is explicitly not closed here.
+- Engagement and analytics coordination are process-local only; replicas can still duplicate work.
 - Process-local singleflight does not prevent duplicate work across replicas. Distributed coordination would require a separately designed lease/lock with failure semantics.
 - The provider worker ceiling protects callers of `runWithConcurrency`; serial provider flows were intentionally not made concurrent because doing so could change order, compensation, rate accounting or partial-write semantics.
 - Console output from the legacy analytics cache makes the focused Jest log noisy; it does not affect assertions.
+## Independent review fix round 1
+
+Accepted findings were reproduced with a genuine RED: stale hits launched duplicate refreshes; hung analytics flights were not evicted; engagement lacked keyed flight coordination; NaN concurrency silently returned an empty result; and provider rejection allowed further task consumption.
+
+Fixes:
+
+- stale analytics refresh uses the same keyed flight;
+- analytics flights are evicted after the existing 30-second transport timeout pattern, with unref and settlement cleanup;
+- engagement aggregation uses generic keyed process-local singleflight;
+- concurrency rejects non-finite/non-positive values;
+- provider failure stops new task consumption, waits already-started workers, then preserves the public rejection contract.
+
+Fresh evidence:
+
+- SCALE partition C: 12/12 passed, including fake-timer eviction, stale refresh, engagement rejection/key isolation, NaN, fail-fast, and 10k behavior.
+- TypeScript, owned ESLint, and scoped diff-check: exit 0.
+- Existing `engagementCache.controller.test.ts` remains red because it expects cache metadata at `body.data.cached`; the response contract and controller put it at `body.meta.cached`. This mismatch predates the review fix and no HTTP contract/test was changed to hide it.

@@ -5,6 +5,7 @@ import { internalError } from '../../security/errorHandling'
 // ✅ CACHE OTIMIZADO (NOVO) - apenas adiciona cache às funções existentes
 export class EngagementStatsCache<T> {
   private cache = new Map<string, { data: T; timestamp: number }>()
+  private inFlight = new Map<string, Promise<unknown>>()
   private readonly TTL = 300000 // 5 minutos (increased since aggregation is fast)
 
   get(key: string): { data: T; timestamp: number } | null {
@@ -17,6 +18,17 @@ export class EngagementStatsCache<T> {
     }
 
     return item
+  }
+
+  runSingleflight<R>(key: string, loader: () => Promise<R>): Promise<R> {
+    const existing = this.inFlight.get(key)
+    if (existing) return existing as Promise<R>
+    const flight = loader()
+    this.inFlight.set(key, flight)
+    void flight.finally(() => {
+      if (this.inFlight.get(key) === flight) this.inFlight.delete(key)
+    }).catch(() => undefined)
+    return flight
   }
 
   set(key: string, data: T): void {
