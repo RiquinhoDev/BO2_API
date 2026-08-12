@@ -26,6 +26,8 @@ import { needsEngagementRecalculation } from "./engagement-recalculation-policy"
 
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+import type { AnyBulkWriteOperation } from 'mongoose'
+import type { IEngagement, IUserProduct } from '../../../models/UserProduct'
 // TYPES
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
@@ -161,7 +163,7 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
       // PROCESSAR BATCH (com early skip + cache)
       // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       
-      const bulkOps: any[] = []
+      const bulkOps: AnyBulkWriteOperation<IUserProduct>[] = []
       
       for (const up of userProducts) {
         try {
@@ -195,13 +197,16 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
           // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           // 4. PREPARAR UPDATES (apenas campos que mudaram)
           // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          const currentEngagement = up.engagement as (IEngagement & {
+            actionsLastWeek?: number; actionsLastMonth?: number
+          }) | undefined
           
-          const updateFields: any = {}
+          const updateFields: Record<string, number | Date> = {}
           let needsUpdate = false
           
           // daysSinceLastLogin
           if (metrics.engagement.daysSinceLastLogin !== null) {
-            const currentValue = (up as any).engagement?.daysSinceLastLogin
+            const currentValue = up.engagement?.daysSinceLastLogin
             
             if (currentValue !== metrics.engagement.daysSinceLastLogin) {
               updateFields['engagement.daysSinceLastLogin'] = metrics.engagement.daysSinceLastLogin
@@ -211,7 +216,7 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
           
           // daysSinceLastAction
           if (metrics.engagement.daysSinceLastAction !== null) {
-            const currentValue = (up as any).engagement?.daysSinceLastAction
+            const currentValue = up.engagement?.daysSinceLastAction
             
             if (currentValue !== metrics.engagement.daysSinceLastAction) {
               updateFields['engagement.daysSinceLastAction'] = metrics.engagement.daysSinceLastAction
@@ -221,7 +226,7 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
           
           // daysSinceEnrollment
           if (metrics.engagement.daysSinceEnrollment !== null) {
-            const currentValue = (up as any).engagement?.daysSinceEnrollment
+            const currentValue = up.engagement?.daysSinceEnrollment
             
             if (currentValue !== metrics.engagement.daysSinceEnrollment) {
               updateFields['engagement.daysSinceEnrollment'] = metrics.engagement.daysSinceEnrollment
@@ -231,7 +236,7 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
           
           // enrolledAt (comparar timestamps)
           if (metrics.engagement.enrolledAt !== null) {
-            const currentValue = (up as any).engagement?.enrolledAt
+            const currentValue = up.engagement?.enrolledAt
             const newValue = metrics.engagement.enrolledAt
             
             const currentTime = currentValue ? new Date(currentValue).getTime() : 0
@@ -245,7 +250,7 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
           
           // actionsLastWeek
           if (metrics.engagement.actionsLastWeek !== undefined) {
-            const currentValue = (up as any).engagement?.actionsLastWeek
+            const currentValue = currentEngagement?.actionsLastWeek
             
             if (currentValue !== metrics.engagement.actionsLastWeek) {
               updateFields['engagement.actionsLastWeek'] = metrics.engagement.actionsLastWeek
@@ -255,7 +260,7 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
           
           // actionsLastMonth
           if (metrics.engagement.actionsLastMonth !== undefined) {
-            const currentValue = (up as any).engagement?.actionsLastMonth
+            const currentValue = currentEngagement?.actionsLastMonth
             
             if (currentValue !== metrics.engagement.actionsLastMonth) {
               updateFields['engagement.actionsLastMonth'] = metrics.engagement.actionsLastMonth

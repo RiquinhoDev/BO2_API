@@ -9,6 +9,10 @@ import logger from '../../../utils/logger'
 import { UniversalSourceItem } from '../../../types/universalSync.types'
 import hotmartHelpers from './hotmart.helpers'
 import type { ProgressData } from './hotmart.helpers'
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 
 // ═══════════════════════════════════════════════════════════
 // TYPES
@@ -97,10 +101,10 @@ export const fetchHotmartDataForSync = async (
         hotmartHelpers.validateHotmartUser(rawUser)
 
         const hotmartId =
-  (rawUser as any).id ||
-  (rawUser as any).user_id ||
-  (rawUser as any).uid ||
-  (rawUser as any).code
+  rawUser.id ||
+  rawUser.user_id ||
+  rawUser.uid ||
+  rawUser.code
 
 if (!hotmartId) {
   throw new Error('Hotmart user sem ID válido')
@@ -178,8 +182,8 @@ if (!hotmartId) {
           currentModule: undefined
         }
   })
-      } catch (error: any) {
-        errors.push(`${(rawUser as any).email || 'unknown'}: ${error.message}`)
+      } catch (error: unknown) {
+        errors.push(`${rawUser.email || 'unknown'}: ${errorMessage(error)}`)
       }
     }
 
@@ -196,9 +200,9 @@ if (!hotmartId) {
     }
 
     return normalizedUsers
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [HotmartAdapter] Erro fatal:', error)
-    throw new Error(`Adapter falhou: ${error.message}`)
+    throw new Error(`Adapter falhou: ${errorMessage(error)}`)
   }
 }
 
@@ -242,7 +246,7 @@ export const fetchProgressForExistingUsers = async (
 
     logger.info(`✅ [HotmartAdapter] ${progressMap.size} progressos obtidos`)
     return progressMap
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [HotmartAdapter] Erro ao buscar progresso:', error)
     throw error
   }
