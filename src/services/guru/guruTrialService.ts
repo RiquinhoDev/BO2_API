@@ -209,16 +209,35 @@ export async function syncTrialsFromGuru(): Promise<{ synced: number; errors: nu
     // Buscar todas subscrições da Guru
     const allSubs = await fetchAllSubscriptionsComplete()
 
+    type LocalTrialUser = { _id: unknown; email: string }
+    const trialEmails = Array.from(new Set(allSubs
+      .filter((sub) => ['trial', 'trialing'].includes((sub.last_status || '').toLowerCase()))
+      .map((sub) => ((sub as unknown as { contact?: { email?: string } }).contact?.email || sub.subscriber?.email)?.toLowerCase()?.trim())
+      .filter((email): email is string => Boolean(email))))
+    let usersByEmail: Map<string, LocalTrialUser> | undefined
+    try {
+      const localUsers = trialEmails.length > 0
+        ? await User.find({ email: { $in: trialEmails } }).select('_id email').lean().exec()
+        : []
+      usersByEmail = new Map(
+        (localUsers as unknown as LocalTrialUser[]).map((user) => [user.email.toLowerCase().trim(), user]),
+      )
+    } catch {
+      // Preserve legacy per-subscription error accounting if the set read fails.
+    }
+
     for (const sub of allSubs) {
       const status = (sub.last_status || '').toLowerCase()
       if (status !== 'trial' && status !== 'trialing') continue
 
       // A lista da Guru traz o email em `contact.email` (não `subscriber.email`)
-      const email = ((sub as any).contact?.email || sub.subscriber?.email)?.toLowerCase()?.trim()
+      const email = ((sub as unknown as { contact?: { email?: string } }).contact?.email || sub.subscriber?.email)?.toLowerCase()?.trim()
       if (!email) continue
 
       try {
-        const user = await User.findOne({ email }).select('_id')
+        const user = usersByEmail
+          ? usersByEmail.get(email)
+          : await User.findOne({ email }).select('_id')
         if (!user) {
           console.log(`⏳ [GURU TRIALS SYNC] User ${email} não encontrado na BD — ignorado`)
           continue
