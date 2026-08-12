@@ -1,11 +1,36 @@
 import type { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
-import type { ConflictSeverity, ConflictType, ResolutionAction } from '../../models/SyncModels/SyncConflict'
+import type {
+  ConflictSeverity,
+  ConflictStatus,
+  ConflictType,
+  ISyncConflict,
+  ResolutionAction,
+} from '../../models/SyncModels/SyncConflict'
 import conflictDetectionService from '../../services/syncUtilizadoresServices/conflictDetection.service'
 import { internalError } from '../../security/errorHandling'
 import { successResponse } from '../../contracts/responseContract'
 
-export const getConflicts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+type ConflictListQuery = {
+  status?: ConflictStatus | 'ALL'
+  severity?: ConflictSeverity
+  conflictType?: ConflictType
+  email?: string
+  limit?: string
+}
+
+type ConflictFilters = {
+  severity?: ConflictSeverity
+  conflictType?: ConflictType
+  email?: string
+  limit: number
+}
+
+export const getConflicts = async (
+  req: Request<Record<string, never>, unknown, unknown, ConflictListQuery>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const {
       status = 'PENDING',
@@ -15,34 +40,22 @@ export const getConflicts = async (req: Request, res: Response, next: NextFuncti
       limit = '50'
     } = req.query
 
-    const filters: any = {}
-
-    if (severity) {
-      filters.severity = severity as ConflictSeverity
+    const filters: ConflictFilters = {
+      limit: parseInt(limit, 10),
     }
 
-    if (conflictType) {
-      filters.conflictType = conflictType as ConflictType
-    }
-
-    if (email) {
-      filters.email = email as string
-    }
-
-    filters.limit = parseInt(limit as string)
+    if (severity) filters.severity = severity
+    if (conflictType) filters.conflictType = conflictType
+    if (email) filters.email = email
 
     let conflicts
 
     if (status === 'PENDING') {
       conflicts = await conflictDetectionService.getPendingConflicts(filters)
     } else {
-      // Buscar todos com filtros
-      const query: any = {}
-      
-      if (status !== 'ALL') {
-        query.status = status
-      }
-      
+      const query: mongoose.FilterQuery<ISyncConflict> = {}
+
+      if (status !== 'ALL') query.status = status
       if (filters.severity) query.severity = filters.severity
       if (filters.conflictType) query.conflictType = filters.conflictType
       if (filters.email) query.email = filters.email
@@ -57,26 +70,19 @@ export const getConflicts = async (req: Request, res: Response, next: NextFuncti
         .lean()
     }
 
-    // Estatísticas
     const stats = await conflictDetectionService.getConflictStats()
     const byType = await conflictDetectionService.getConflictsByType()
 
     res.status(200).json(successResponse({
-        total: conflicts.length,
-        conflicts,
-        stats,
-        byType
-      }, { message: 'Conflitos recuperados com sucesso' }))
-
+      total: conflicts.length,
+      conflicts,
+      stats,
+      byType
+    }, { message: 'Conflitos recuperados com sucesso' }))
   } catch (error: unknown) {
     next(internalError('Erro ao buscar conflitos', 'SYNC_CONFLICT_LIST_FAILED', error))
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// GET CONFLICT BY ID
-// GET /api/sync/conflicts/:id
-// ═══════════════════════════════════════════════════════════
 
 export const getConflictById = async (
   req: Request<{ id: string }>,
@@ -107,16 +113,10 @@ export const getConflictById = async (
     }
 
     res.status(200).json(successResponse({ conflict }, { message: 'Conflito recuperado com sucesso' }))
-
   } catch (error: unknown) {
     next(internalError('Erro ao buscar conflito', 'SYNC_CONFLICT_READ_FAILED', error))
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// RESOLVE CONFLICT
-// POST /api/sync/conflicts/:id/resolve
-// ═══════════════════════════════════════════════════════════
 
 export const resolveConflict = async (
   req: Request<{ id: string }>,
@@ -144,7 +144,7 @@ export const resolveConflict = async (
     }
 
     const validActions: ResolutionAction[] = ['MERGED', 'KEPT_EXISTING', 'USED_NEW', 'MANUAL', 'IGNORED']
-    
+
     if (!validActions.includes(action)) {
       res.status(400).json({
         success: false,
@@ -153,7 +153,6 @@ export const resolveConflict = async (
       return
     }
 
-    // TODO: Pegar user ID do token JWT
     const adminId = new mongoose.Types.ObjectId('000000000000000000000001')
 
     const conflict = await conflictDetectionService.resolveConflict({
@@ -165,16 +164,10 @@ export const resolveConflict = async (
     })
 
     res.status(200).json(successResponse({ conflict }, { message: 'Conflito resolvido com sucesso' }))
-
   } catch (error: unknown) {
     next(internalError('Erro ao resolver conflito', 'SYNC_CONFLICT_RESOLVE_FAILED', error))
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// BULK RESOLVE CONFLICTS
-// POST /api/sync/conflicts/bulk-resolve
-// ═══════════════════════════════════════════════════════════
 
 export const bulkResolveConflicts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -196,9 +189,8 @@ export const bulkResolveConflicts = async (req: Request, res: Response, next: Ne
       return
     }
 
-    // Validar IDs
     const invalidIds = conflictIds.filter(id => !mongoose.Types.ObjectId.isValid(id))
-    
+
     if (invalidIds.length > 0) {
       res.status(400).json({
         success: false,
@@ -208,9 +200,7 @@ export const bulkResolveConflicts = async (req: Request, res: Response, next: Ne
       return
     }
 
-    // TODO: Pegar user ID do token JWT
     const adminId = new mongoose.Types.ObjectId('000000000000000000000001')
-
     const objectIds = conflictIds.map(id => new mongoose.Types.ObjectId(id))
 
     const resolved = await conflictDetectionService.bulkResolveConflicts(
@@ -221,10 +211,9 @@ export const bulkResolveConflicts = async (req: Request, res: Response, next: Ne
     )
 
     res.status(200).json(successResponse({
-        total: conflictIds.length,
-        resolved
-      }, { message: `${resolved} conflitos resolvidos com sucesso` }))
-
+      total: conflictIds.length,
+      resolved
+    }, { message: `${resolved} conflitos resolvidos com sucesso` }))
   } catch (error: unknown) {
     next(internalError(
       'Erro ao resolver conflitos',
@@ -233,11 +222,6 @@ export const bulkResolveConflicts = async (req: Request, res: Response, next: Ne
     ))
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// AUTO-RESOLVE CONFLICTS
-// POST /api/sync/conflicts/auto-resolve
-// ═══════════════════════════════════════════════════════════
 
 export const autoResolveConflicts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -251,9 +235,8 @@ export const autoResolveConflicts = async (req: Request, res: Response, next: Ne
       return
     }
 
-    // Validar IDs
     const invalidIds = conflictIds.filter(id => !mongoose.Types.ObjectId.isValid(id))
-    
+
     if (invalidIds.length > 0) {
       res.status(400).json({
         success: false,
@@ -264,11 +247,9 @@ export const autoResolveConflicts = async (req: Request, res: Response, next: Ne
     }
 
     const objectIds = conflictIds.map(id => new mongoose.Types.ObjectId(id))
-
     const result = await conflictDetectionService.autoResolveConflicts(objectIds)
 
     res.status(200).json(successResponse(result, { message: 'Auto-resolução completa' }))
-
   } catch (error: unknown) {
     next(internalError(
       'Erro ao auto-resolver conflitos',
@@ -277,11 +258,6 @@ export const autoResolveConflicts = async (req: Request, res: Response, next: Ne
     ))
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// IGNORE CONFLICT
-// POST /api/sync/conflicts/:id/ignore
-// ═══════════════════════════════════════════════════════════
 
 export const ignoreConflict = async (
   req: Request<{ id: string }>,
@@ -300,7 +276,6 @@ export const ignoreConflict = async (
       return
     }
 
-    // TODO: Pegar user ID do token JWT
     const adminId = new mongoose.Types.ObjectId('000000000000000000000001')
 
     const conflict = await conflictDetectionService.ignoreConflict(
@@ -310,16 +285,10 @@ export const ignoreConflict = async (
     )
 
     res.status(200).json(successResponse({ conflict }, { message: 'Conflito ignorado com sucesso' }))
-
   } catch (error: unknown) {
     next(internalError('Erro ao ignorar conflito', 'SYNC_CONFLICT_IGNORE_FAILED', error))
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// GET CRITICAL CONFLICTS
-// GET /api/sync/conflicts/critical
-// ═══════════════════════════════════════════════════════════
 
 export const getCriticalConflicts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -330,10 +299,9 @@ export const getCriticalConflicts = async (req: Request, res: Response, next: Ne
     )
 
     res.status(200).json(successResponse({
-        total: conflicts.length,
-        conflicts
-      }, { message: 'Conflitos críticos recuperados' }))
-
+      total: conflicts.length,
+      conflicts
+    }, { message: 'Conflitos críticos recuperados' }))
   } catch (error: unknown) {
     next(internalError(
       'Erro ao buscar conflitos críticos',
@@ -342,5 +310,3 @@ export const getCriticalConflicts = async (req: Request, res: Response, next: Ne
     ))
   }
 }
-
-// ═══════════════════════════════════════════════════════════
