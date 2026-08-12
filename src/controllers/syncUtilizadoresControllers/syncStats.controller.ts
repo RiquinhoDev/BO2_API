@@ -11,14 +11,19 @@ import SyncHistory from '../../models/SyncModels/SyncHistory'
 import { internalError } from '../../security/errorHandling'
 
 import type { ISyncConflict } from '../../models/SyncModels/SyncConflict'
+import type { Platform } from '../../models/SyncModels/ActivitySnapshot'
 import activitySnapshotService from '../../services/syncUtilizadoresServices/activitySnapshot.service'
-import  conflictDetectionService   from '../../services/syncUtilizadoresServices/conflictDetection.service'
+import conflictDetectionService from '../../services/syncUtilizadoresServices/conflictDetection.service'
 
 export {
   autoResolveConflicts, bulkResolveConflicts, getConflictById, getConflicts,
   getCriticalConflicts, ignoreConflict, resolveConflict
 } from '../syncStats/conflicts.controller'
 
+type SnapshotStatsQuery = {
+  month?: string
+  platform?: Platform
+}
 
 // ═══════════════════════════════════════════════════════════
 // GET SYNC BY ID
@@ -54,7 +59,6 @@ export const getSyncById = async (
       return
     }
 
-    // Buscar conflitos deste sync
     const conflicts = await conflictDetectionService.getSyncConflicts(
       new mongoose.Types.ObjectId(id)
     )
@@ -73,22 +77,21 @@ export const getSyncById = async (
       },
       { message: 'Sync recuperado com sucesso' },
     ))
-
   } catch (error: unknown) {
     next(internalError('Erro ao buscar sync', 'SYNC_HISTORY_READ_FAILED', error))
   }
 }
 
 // ═══════════════════════════════════════════════════════════
-// GET ALL CONFLICTS
-// GET /api/sync/conflicts
-// ═══════════════════════════════════════════════════════════
-
 // GET ACTIVITY SNAPSHOTS STATS
 // GET /api/sync/snapshots/stats
 // ═══════════════════════════════════════════════════════════
 
-export const getSnapshotStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const getSnapshotStats = async (
+  req: Request<Record<string, never>, unknown, unknown, SnapshotStatsQuery>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const { month, platform } = req.query
 
@@ -96,10 +99,11 @@ export const getSnapshotStats = async (req: Request, res: Response, next: NextFu
       ? new Date(String(month))
       : new Date()
 
-    // Legacy raw-query compatibility: invalid/repeated platform values reached the model filter unchanged.
+    // Legacy raw-query compatibility remains runtime-identical; this generic only
+    // describes the documented single-value query contract for TypeScript.
     const stats = await activitySnapshotService.getMonthlyStats(
       targetMonth,
-      platform as any,
+      platform,
     )
 
     res.status(200).json(successResponse(
@@ -110,7 +114,6 @@ export const getSnapshotStats = async (req: Request, res: Response, next: NextFu
       },
       { message: 'Estatísticas de snapshots recuperadas' },
     ))
-
   } catch (error: unknown) {
     next(internalError('Erro ao buscar estatísticas', 'SYNC_SNAPSHOT_STATS_FAILED', error))
   }
