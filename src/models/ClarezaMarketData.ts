@@ -1,10 +1,11 @@
 import mongoose, { Schema, type HydratedDocument } from 'mongoose'
+import type { ClarezaStockEntry } from '../types/clareza.types'
 
 export interface IClarezaMarketData {
   fetchedAt: Date
   stockCount: number
   errors: number
-  stocks: any[]
+  stocks: ClarezaStockEntry[]
 }
 
 export type ClarezaMarketDataDocument =
