@@ -7,7 +7,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:304",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:301",
     "frontConsumer": null
   },
   {
@@ -55,7 +55,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/events.routes.ts:165",
+    "evidence": "src/routes/events.routes.ts:162",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -111,9 +111,9 @@
     "path": "/api/sync/history/clean",
     "family": "success-data",
     "shapeKeys": [
-      "cutoffDate",
-      "deletedCount",
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
     "evidence": "src/controllers/sync/history.controller.ts:225",
     "frontConsumer": null
@@ -135,7 +135,8 @@
     "path": "/api/tag-monitoring/critical-tags/:id/permanent",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
+      "meta",
       "success"
     ],
     "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:135",
@@ -158,10 +159,11 @@
     "path": "/api/tag-rules/:id",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:156",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:153",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -169,10 +171,11 @@
     "path": "/api/testimonials/:id",
     "family": "success-data",
     "shapeKeys": [
-      "deletedTestimonial",
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialCommands.controller.ts:308",
+    "evidence": "src/controllers/testimonials/testimonialCommands.controller.ts:301",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -227,10 +230,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "fromCache",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:119",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:120",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -297,10 +300,10 @@
     "path": "/api/activecampaign/cron-logs",
     "family": "success-data",
     "shapeKeys": [
-      "logs",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:181",
+    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:182",
     "frontConsumer": null
   },
   {
@@ -332,10 +335,10 @@
     "family": "success-data",
     "shapeKeys": [
       "data",
-      "success",
-      "summary"
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:259",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:260",
     "frontConsumer": null
   },
   {
@@ -347,7 +350,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:216",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:217",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -358,7 +361,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:210",
+    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:211",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -1094,33 +1097,11 @@
     "path": "/api/classes/users/search",
     "family": "success-data",
     "shapeKeys": [
-      "__v",
-      "_id",
-      "achievementStats",
-      "achievements",
-      "classId",
-      "className",
-      "combined",
-      "communicationByCourse",
-      "createdAt",
-      "curseduca",
-      "discord",
-      "email",
-      "engagement",
-      "guru",
-      "hotmart",
-      "inactivation",
-      "message",
-      "metadata",
-      "multiple",
-      "name",
-      "students",
-      "success",
-      "timestamp",
-      "total",
-      "updatedAt"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/classes/classRoster.controller.ts:72",
+    "evidence": "src/controllers/classes/classRoster.controller.ts:70",
     "frontConsumer": null
   },
   {
@@ -1549,7 +1530,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:71",
+    "evidence": "src/routes/discordRenewal.routes.ts:72",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -1560,7 +1541,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:170",
+    "evidence": "src/routes/discordRenewal.routes.ts:171",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -1571,7 +1552,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:185",
+    "evidence": "src/routes/discordRenewal.routes.ts:186",
     "frontConsumer": null
   },
   {
@@ -1579,12 +1560,10 @@
     "path": "/api/discord-renewal/scheduled/:key/preview",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "preview",
-      "success",
-      "target"
+      "data",
+      "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:200",
+    "evidence": "src/routes/discordRenewal.routes.ts:202",
     "frontConsumer": null
   },
   {
@@ -1595,7 +1574,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:44",
+    "evidence": "src/routes/discordRenewal.routes.ts:45",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -1606,7 +1585,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:113",
+    "evidence": "src/routes/discordRenewal.routes.ts:114",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -1666,7 +1645,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/events.routes.ts:122",
+    "evidence": "src/routes/events.routes.ts:119",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -1688,7 +1667,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/events.routes.ts:205",
+    "evidence": "src/routes/events.routes.ts:202",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -1774,17 +1753,10 @@
     "path": "/api/guru/analytics/fix-multi-subscriptions",
     "family": "success-data",
     "shapeKeys": [
-      "fixed",
-      "mode",
-      "multiSubDetails",
-      "multiSubscriptionUsers",
-      "problemUsers",
-      "problems",
-      "success",
-      "totalSubscriptions",
-      "uniqueEmails"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/guruAnalytics/subscriptionRepair.controller.ts:175",
+    "evidence": "src/controllers/guruAnalytics/subscriptionRepair.controller.ts:176",
     "frontConsumer": null
   },
   {
@@ -1792,7 +1764,7 @@
     "path": "/api/guru/analytics/mrr",
     "family": "success-data",
     "shapeKeys": [
-      "mrr",
+      "data",
       "success"
     ],
     "evidence": "src/controllers/guruAnalytics/churn.controller.ts:285",
@@ -1806,7 +1778,7 @@
       "debug",
       "success"
     ],
-    "evidence": "src/controllers/guruWebhookAdmin.controller.ts:8",
+    "evidence": "src/controllers/guruWebhookAdmin.controller.ts:9",
     "frontConsumer": null
   },
   {
@@ -1901,7 +1873,7 @@
     "path": "/api/guru/stats",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
+      "data",
       "success"
     ],
     "evidence": "src/controllers/guru.webhook.controller.ts:416",
@@ -1935,11 +1907,10 @@
     "path": "/api/guru/sync/all",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "result",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.sync.controller.ts:43",
+    "evidence": "src/controllers/guru.sync.controller.ts:44",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1947,11 +1918,7 @@
     "path": "/api/guru/sync/email/:email",
     "family": "success-data",
     "shapeKeys": [
-      "action",
-      "email",
-      "hasSubscription",
-      "message",
-      "subscription",
+      "data",
       "success"
     ],
     "evidence": "src/controllers/guru.sync.controller.ts:97",
@@ -1962,12 +1929,10 @@
     "path": "/api/guru/sync/preview",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "note",
-      "preview",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.sync.controller.ts:217",
+    "evidence": "src/controllers/guru.sync.controller.ts:214",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1975,10 +1940,10 @@
     "path": "/api/guru/sync/stats",
     "family": "success-data",
     "shapeKeys": [
-      "stats",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.sync.controller.ts:167",
+    "evidence": "src/controllers/guru.sync.controller.ts:165",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -1986,11 +1951,10 @@
     "path": "/api/guru/sync/users",
     "family": "success-data",
     "shapeKeys": [
-      "pagination",
-      "success",
-      "users"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/guru.sync.controller.ts:285",
+    "evidence": "src/controllers/guru.sync.controller.ts:281",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -2021,11 +1985,10 @@
     "path": "/api/guru/webhooks",
     "family": "success-data",
     "shapeKeys": [
-      "pagination",
-      "success",
-      "webhooks"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/guruWebhookList.controller.ts:68",
+    "evidence": "src/controllers/guruWebhookList.controller.ts:69",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -2033,10 +1996,10 @@
     "path": "/api/guru/webhooks/grouped-by-month",
     "family": "success-data",
     "shapeKeys": [
-      "groupedByMonth",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.webhook.controller.ts:351",
+    "evidence": "src/controllers/guru.webhook.controller.ts:352",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -2344,7 +2307,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:67",
+    "evidence": "src/routes/renewalAc.routes.ts:68",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -2355,7 +2318,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:47",
+    "evidence": "src/routes/renewalAc.routes.ts:48",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -2562,10 +2525,8 @@
     "path": "/api/sync/stats",
     "family": "success-data",
     "shapeKeys": [
-      "overview",
-      "performance",
-      "recentSyncs",
-      "typeStats"
+      "data",
+      "success"
     ],
     "evidence": "src/controllers/sync/history.controller.ts:179",
     "frontConsumer": null
@@ -2613,7 +2574,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:240",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:237",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -2624,7 +2585,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:254",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:251",
     "frontConsumer": null
   },
   {
@@ -2757,11 +2718,11 @@
     "path": "/api/tag-rules",
     "family": "success-data",
     "shapeKeys": [
-      "count",
       "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:27",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:28",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -2772,7 +2733,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:57",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:54",
     "frontConsumer": null
   },
   {
@@ -3213,7 +3174,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:193",
+    "evidence": "src/routes/discordRenewal.routes.ts:194",
     "frontConsumer": null
   },
   {
@@ -3225,7 +3186,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/events.routes.ts:188",
+    "evidence": "src/routes/events.routes.ts:185",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -3233,7 +3194,8 @@
     "path": "/api/renewal/offers/:id",
     "family": "success-data",
     "shapeKeys": [
-      "offer"
+      "data",
+      "success"
     ],
     "evidence": "src/controllers/renewal.controller.ts:125",
     "frontConsumer": "src/services/renewalOffers.service.ts"
@@ -3271,7 +3233,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:213",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:210",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -3283,7 +3245,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:171",
+    "evidence": "src/controllers/tagMonitoring/criticalTag.controller.ts:168",
     "frontConsumer": "src/features/tagMonitoring/tagMonitoring.api.ts"
   },
   {
@@ -3330,7 +3292,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:179",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:176",
     "frontConsumer": null
   },
   {
@@ -3342,7 +3304,7 @@
       "success",
       "summary"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:279",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:276",
     "frontConsumer": null
   },
   {
@@ -3354,7 +3316,7 @@
       "success",
       "summary"
     ],
-    "evidence": "src/controllers/acTags/acReader.controller.ts:231",
+    "evidence": "src/controllers/acTags/acReader.controller.ts:228",
     "frontConsumer": null
   },
   {
@@ -3401,7 +3363,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:112",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:113",
     "frontConsumer": null
   },
   {
@@ -3412,7 +3374,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:175",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:176",
     "frontConsumer": null
   },
   {
@@ -3425,7 +3387,7 @@
       "productName",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:326",
+    "evidence": "src/controllers/acTags/activeCampaignProductTags.controller.ts:325",
     "frontConsumer": null
   },
   {
@@ -3438,7 +3400,7 @@
       "results",
       "success"
     ],
-    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:138",
+    "evidence": "src/controllers/acTags/activeCampaignOps.controller.ts:139",
     "frontConsumer": null
   },
   {
@@ -3473,7 +3435,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/products/productSalesStats.controller.ts:159",
+    "evidence": "src/controllers/products/productSalesStats.controller.ts:156",
     "frontConsumer": null
   },
   {
@@ -3481,8 +3443,8 @@
     "path": "/api/analytics/product-sales/rebuild",
     "family": "success-data",
     "shapeKeys": [
-      "estimatedTime",
-      "message",
+      "data",
+      "meta",
       "success"
     ],
     "evidence": "src/controllers/products/productSalesStats.controller.ts:108",
@@ -3735,10 +3697,11 @@
     "path": "/api/course-lessons/sync",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "sync"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/courseLessons.controller.ts:78",
+    "evidence": "src/controllers/courseLessons.controller.ts:75",
     "frontConsumer": "src/services/courseLessons.service.ts"
   },
   {
@@ -3894,7 +3857,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:91",
+    "evidence": "src/routes/discordRenewal.routes.ts:92",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3905,7 +3868,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:102",
+    "evidence": "src/routes/discordRenewal.routes.ts:103",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3916,7 +3879,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:149",
+    "evidence": "src/routes/discordRenewal.routes.ts:150",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3928,7 +3891,7 @@
       "messageIds",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:163",
+    "evidence": "src/routes/discordRenewal.routes.ts:164",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3939,7 +3902,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:77",
+    "evidence": "src/routes/discordRenewal.routes.ts:78",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -3947,11 +3910,10 @@
     "path": "/api/discord-renewal/scheduled/:key/test",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "messageIds",
+      "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:207",
+    "evidence": "src/routes/discordRenewal.routes.ts:210",
     "frontConsumer": null
   },
   {
@@ -3962,7 +3924,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:214",
+    "evidence": "src/routes/discordRenewal.routes.ts:217",
     "frontConsumer": null
   },
   {
@@ -4022,7 +3984,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/events.routes.ts:139",
+    "evidence": "src/routes/events.routes.ts:136",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -4030,8 +3992,8 @@
     "path": "/api/events/:id/interest",
     "family": "success-data",
     "shapeKeys": [
-      "interested",
-      "interestedCount"
+      "data",
+      "success"
     ],
     "evidence": "src/routes/events.routes.ts:89",
     "frontConsumer": null
@@ -4045,7 +4007,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/events.routes.ts:350",
+    "evidence": "src/routes/events.routes.ts:347",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -4057,7 +4019,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/events.routes.ts:215",
+    "evidence": "src/routes/events.routes.ts:212",
     "frontConsumer": null
   },
   {
@@ -4065,11 +4027,7 @@
     "path": "/api/guru/inactivation/bulk",
     "family": "success-data",
     "shapeKeys": [
-      "details",
-      "failed",
-      "message",
-      "processed",
-      "succeeded",
+      "data",
       "success"
     ],
     "evidence": "src/controllers/guruInactivationExternal.controller.ts:75",
@@ -4092,9 +4050,7 @@
     "path": "/api/guru/inactivation/cleanup-duplicates",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "modifiedCount",
-      "requestedCount",
+      "data",
       "success"
     ],
     "evidence": "src/controllers/guruInactivationMutation.controller.ts:77",
@@ -4116,13 +4072,10 @@
     "path": "/api/guru/inactivation/fix-to-active",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "results",
-      "success",
-      "updatedUserProducts",
-      "updatedUsers"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/guruInactivationMutation.controller.ts:153",
+    "evidence": "src/controllers/guruInactivationMutation.controller.ts:150",
     "frontConsumer": null
   },
   {
@@ -4130,17 +4083,10 @@
     "path": "/api/guru/inactivation/mark-discrepancies",
     "family": "success-data",
     "shapeKeys": [
-      "alreadyMarked",
-      "created",
-      "details",
-      "marked",
-      "message",
-      "noUserProduct",
-      "skipped",
-      "success",
-      "total"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/guruDiscrepancy.controller.ts:23",
+    "evidence": "src/controllers/guruDiscrepancy.controller.ts:24",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts"
   },
   {
@@ -4148,15 +4094,10 @@
     "path": "/api/guru/inactivation/mark-stale-inactive",
     "family": "success-data",
     "shapeKeys": [
-      "emailsRequested",
-      "message",
-      "modifiedCount",
-      "success",
-      "userProductsModified",
-      "usersFound",
-      "usersModified"
+      "data",
+      "success"
     ],
-    "evidence": "src/controllers/guruInactivationMutation.controller.ts:103",
+    "evidence": "src/controllers/guruInactivationMutation.controller.ts:102",
     "frontConsumer": null
   },
   {
@@ -4164,11 +4105,10 @@
     "path": "/api/guru/inactivation/quarantine",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "modifiedCount",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guruInactivationMutation.controller.ts:27",
+    "evidence": "src/controllers/guruInactivationMutation.controller.ts:28",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts"
   },
   {
@@ -4176,12 +4116,10 @@
     "path": "/api/guru/inactivation/restore",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "modifiedCount",
-      "requestedCount",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guruInactivationMutation.controller.ts:129",
+    "evidence": "src/controllers/guruInactivationMutation.controller.ts:127",
     "frontConsumer": null
   },
   {
@@ -4189,7 +4127,7 @@
     "path": "/api/guru/inactivation/revert",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
       "success"
     ],
     "evidence": "src/controllers/guruInactivationMutation.controller.ts:51",
@@ -4200,12 +4138,10 @@
     "path": "/api/guru/inactivation/single",
     "family": "success-data",
     "shapeKeys": [
-      "email",
-      "memberId",
-      "message",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guruInactivationExternal.controller.ts:46",
+    "evidence": "src/controllers/guruInactivationExternal.controller.ts:47",
     "frontConsumer": "src/features/guru/guruInactivation.api.ts"
   },
   {
@@ -4237,8 +4173,7 @@
     "path": "/api/guru/trials/check-expired",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "result",
+      "data",
       "success"
     ],
     "evidence": "src/controllers/guru.trials.controller.ts:60",
@@ -4249,11 +4184,10 @@
     "path": "/api/guru/trials/inactivate",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "result",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:101",
+    "evidence": "src/controllers/guru.trials.controller.ts:99",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -4261,11 +4195,10 @@
     "path": "/api/guru/trials/revert",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "result",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:132",
+    "evidence": "src/controllers/guru.trials.controller.ts:129",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -4273,11 +4206,10 @@
     "path": "/api/guru/trials/sync",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "result",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guru.trials.controller.ts:78",
+    "evidence": "src/controllers/guru.trials.controller.ts:77",
     "frontConsumer": "src/pages/guru/TrialsTab.tsx"
   },
   {
@@ -4295,7 +4227,7 @@
       "status",
       "success"
     ],
-    "evidence": "src/controllers/guru.webhook.controller.ts:100",
+    "evidence": "src/controllers/guru.webhook.controller.ts:101",
     "frontConsumer": null
   },
   {
@@ -4313,7 +4245,7 @@
       "status",
       "success"
     ],
-    "evidence": "src/controllers/guru.webhook.controller.ts:100",
+    "evidence": "src/controllers/guru.webhook.controller.ts:101",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -4321,12 +4253,10 @@
     "path": "/api/guru/webhooks/migrate-source",
     "family": "success-data",
     "shapeKeys": [
-      "matched",
-      "message",
-      "migrated",
+      "data",
       "success"
     ],
-    "evidence": "src/controllers/guruWebhookAdmin.controller.ts:27",
+    "evidence": "src/controllers/guruWebhookAdmin.controller.ts:28",
     "frontConsumer": "src/features/guru/guruCore.api.ts"
   },
   {
@@ -4410,7 +4340,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:103",
+    "evidence": "src/routes/renewalAc.routes.ts:104",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4418,10 +4348,11 @@
     "path": "/api/renewal-ac/changes/:id/revert",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:126",
+    "evidence": "src/routes/renewalAc.routes.ts:128",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4432,7 +4363,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:118",
+    "evidence": "src/routes/renewalAc.routes.ts:119",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4443,7 +4374,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:77",
+    "evidence": "src/routes/renewalAc.routes.ts:78",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4454,7 +4385,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:87",
+    "evidence": "src/routes/renewalAc.routes.ts:88",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4462,7 +4393,8 @@
     "path": "/api/renewal/offers",
     "family": "success-data",
     "shapeKeys": [
-      "offer"
+      "data",
+      "success"
     ],
     "evidence": "src/controllers/renewal.controller.ts:83",
     "frontConsumer": "src/services/renewalOffers.service.ts"
@@ -4472,7 +4404,8 @@
     "path": "/api/renewal/sync",
     "family": "success-data",
     "shapeKeys": [
-      "report"
+      "data",
+      "success"
     ],
     "evidence": "src/controllers/renewal.controller.ts:163",
     "frontConsumer": "src/services/renewalOffers.service.ts"
@@ -4570,10 +4503,11 @@
     "path": "/api/sync/history",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "syncRecord"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:306",
+    "evidence": "src/controllers/sync/history.controller.ts:300",
     "frontConsumer": null
   },
   {
@@ -4581,11 +4515,11 @@
     "path": "/api/sync/history/:syncId/retry",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "newStatus",
-      "syncId"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/sync/history.controller.ts:269",
+    "evidence": "src/controllers/sync/history.controller.ts:266",
     "frontConsumer": null
   },
   {
@@ -4646,7 +4580,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:90",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:87",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -4654,10 +4588,11 @@
     "path": "/api/tag-rules/:id/test",
     "family": "success-data",
     "shapeKeys": [
-      "message",
+      "data",
+      "meta",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:189",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:183",
     "frontConsumer": null
   },
   {
@@ -4771,11 +4706,11 @@
     "path": "/api/testimonials",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "success",
-      "testimonial"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialCommands.controller.ts:96",
+    "evidence": "src/controllers/testimonials/testimonialCommands.controller.ts:97",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -4783,10 +4718,11 @@
     "path": "/api/testimonials/request",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "results"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialCommands.controller.ts:208",
+    "evidence": "src/controllers/testimonials/testimonialCommands.controller.ts:205",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
@@ -4934,8 +4870,9 @@
     "path": "/api/course-lessons/:pageId",
     "family": "success-data",
     "shapeKeys": [
-      "lesson",
-      "message"
+      "data",
+      "meta",
+      "success"
     ],
     "evidence": "src/controllers/courseLessons.controller.ts:66",
     "frontConsumer": "src/services/courseLessons.service.ts"
@@ -4994,7 +4931,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/discordRenewal.routes.ts:141",
+    "evidence": "src/routes/discordRenewal.routes.ts:142",
     "frontConsumer": "src/services/discordRenewal.service.ts"
   },
   {
@@ -5006,7 +4943,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/events.routes.ts:152",
+    "evidence": "src/routes/events.routes.ts:149",
     "frontConsumer": "src/pages/events/events.api.ts"
   },
   {
@@ -5018,7 +4955,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/events.routes.ts:227",
+    "evidence": "src/routes/events.routes.ts:224",
     "frontConsumer": null
   },
   {
@@ -5065,7 +5002,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/acTags/tagRule.controller.ts:125",
+    "evidence": "src/controllers/acTags/tagRule.controller.ts:122",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts"
   },
   {
@@ -5073,10 +5010,11 @@
     "path": "/api/testimonials/:id",
     "family": "success-data",
     "shapeKeys": [
-      "message",
-      "testimonial"
+      "data",
+      "meta",
+      "success"
     ],
-    "evidence": "src/controllers/testimonials/testimonialCommands.controller.ts:283",
+    "evidence": "src/controllers/testimonials/testimonialCommands.controller.ts:279",
     "frontConsumer": "src/features/testimonials/testimonials.api.ts"
   },
   {
