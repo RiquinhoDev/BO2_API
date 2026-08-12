@@ -72,25 +72,20 @@ export async function buildProductSalesStats(): Promise<void> {
       // 2.4. Determinar quais users sÃ£o "novos" (primeiro produto)
   const userFirstProducts = new Map<string, string>() // âœ… MUDANÃ‡A: mongoose.Types.ObjectId â†’ string
       
-      for (const up of userProducts) {
-        const userId = (typeof up.userId === 'object' && up.userId._id 
-          ? up.userId._id 
-          : up.userId).toString()
-        
-        if (!userFirstProducts.has(userId)) {
-          // Buscar todos os produtos deste user
-          const allUserProducts = await UserProduct.find({
-            userId: up.userId
-          }).sort({ enrolledAt: 1 }).lean()
-          
-          if (allUserProducts.length > 0) {
-            // âœ… CORREÃ‡ÃƒO: Type assertion e conversÃ£o para string
-            const firstProductId = (allUserProducts[0]._id as mongoose.Types.ObjectId).toString()
-            userFirstProducts.set(userId, firstProductId)
-          }
+      const uniqueUserIds = Array.from(
+        new Map(userIds.map(userId => [userId.toString(), userId])).values()
+      )
+      const allUserProducts = await UserProduct.find({
+        userId: { $in: uniqueUserIds }
+      }).sort({ enrolledAt: 1, _id: 1 }).lean()
+
+      for (const firstEnrollment of allUserProducts) {
+        const firstUserId = firstEnrollment.userId.toString()
+        if (!userFirstProducts.has(firstUserId)) {
+          userFirstProducts.set(firstUserId, (firstEnrollment._id as mongoose.Types.ObjectId).toString())
         }
       }
-      
+
   // 2.5. Processar cada UserProduct
       for (const up of userProducts) {
         recordsProcessed++
