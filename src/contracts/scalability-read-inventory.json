@@ -1,859 +1,864 @@
 {
-  "version": 1,
-  "summary": {
-    "planned": 40,
-    "complete": 36,
-    "pending": 4
-  },
-  "mongooseListBaseline": {
-    "count": 344,
-    "hash": "41a54e17e154f1747ba85a051a607868e671682179c9bb36eedfc31630ab6cdb"
-  },
-  "scale02": {
-    "summary": {
-      "planned": 11,
-      "complete": 11,
-      "pending": 0,
-      "changed": 10,
-      "alreadyCompliant": 1
-    },
-    "entries": [
-      {
-        "id": "dashboard-quick.product-comparison",
-        "file": "src/controllers/dashboardQuick.controller.ts",
-        "start": "export const getProductComparison =",
-        "end": "export const getEngagementHeatmap =",
-        "status": "complete",
-        "disposition": "changed",
-        "policy": "aggregate",
-        "require": [
-          "$match",
-          "$limit: 10",
-          "allowDiskUse: true"
-        ]
-      },
-      {
-        "id": "dashboard-quick.products-breakdown",
-        "file": "src/controllers/dashboardQuick.controller.ts",
-        "start": "export const getProductsBreakdown =",
-        "status": "complete",
-        "disposition": "changed",
-        "policy": "aggregate",
-        "require": [
-          "$match: matchStage",
-          "$group",
-          "allowDiskUse: true"
-        ]
-      },
-      {
-        "id": "dashboard.stats",
-        "file": "src/controllers/dashboard.controller.ts",
-        "start": "export const getDashboardStats =",
-        "end": "export const getProductsBreakdown =",
-        "status": "complete",
-        "disposition": "changed",
-        "policy": "aggregate",
-        "require": [
-          "pipeline: any[] = [{ $match: matchStage }]",
-          "pipeline.push(",
-          "allowDiskUse: true"
-        ],
-        "forbid": [
-          "pipeline.unshift("
-        ]
-      },
-      {
-        "id": "dashboard.engagement-distribution",
-        "file": "src/controllers/dashboard.controller.ts",
-        "start": "export const getEngagementDistribution =",
-        "end": "export const compareProducts =",
-        "status": "complete",
-        "disposition": "changed",
-        "policy": "aggregate",
-        "require": [
-          "$match: matchStage",
-          "$bucket",
-          "allowDiskUse: true"
-        ]
-      },
-      {
-        "id": "dashboard.compare-products",
-        "file": "src/controllers/dashboard.controller.ts",
-        "start": "export const compareProducts =",
-        "end": "export const getDashboardStatsV3 =",
-        "status": "complete",
-        "disposition": "changed",
-        "policy": "aggregate",
-        "require": [
-          "$in: productIds",
-          "$group",
-          "$lookup",
-          "allowDiskUse: true"
-        ],
-        "forbid": [
-          "Product.findById",
-          "getProductStats"
-        ]
-      },
-      {
-        "id": "engagement.global-summary",
-        "file": "src/controllers/engagement/summary.controller.ts",
-        "start": "export const getGlobalEngagementStats =",
-        "end": "export const clearEngagementCache =",
-        "status": "complete",
-        "disposition": "already-compliant",
-        "policy": "aggregate",
-        "require": [
-          "User.aggregate([",
-          ".allowDiskUse(true)"
-        ]
-      },
-      {
-        "id": "engagement.stats",
-        "file": "src/controllers/engagement/stats.controller.ts",
-        "start": "export const getEngagementStats =",
-        "status": "complete",
-        "disposition": "changed",
-        "policy": "aggregate",
-        "require": [
-          "hotmartUsers:",
-          "curseducaUsers:",
-          "discordUsers:",
-          "allowDiskUse: true"
-        ],
-        "forbid": [
-          "User.countDocuments"
-        ]
-      },
-      {
-        "id": "cohort.retention",
-        "file": "src/services/analytics/cohortAnalytics.service.ts",
-        "start": "async calculateCohortRetention(",
-        "end": "async calculateCohortMetrics(",
-        "status": "complete",
-        "disposition": "changed",
-        "policy": "aggregate",
-        "require": [
-          "UserProduct.aggregate([",
-          "$dateTrunc",
-          "$sort: { _id: -1 }",
-          ".allowDiskUse(true)"
-        ],
-        "forbid": [
-          "countDocuments",
-          "while ("
-        ]
-      },
-      {
-        "id": "cohort.metrics",
-        "file": "src/services/analytics/cohortAnalytics.service.ts",
-        "start": "async calculateCohortMetrics(",
-        "end": "async calculateSummary(",
-        "status": "complete",
-        "disposition": "changed",
-        "policy": "aggregate",
-        "require": [
-          "$match: query",
-          "$group",
-          ".allowDiskUse(true)"
-        ]
-      },
-      {
-        "id": "user.source-statistics",
-        "file": "src/models/user.behavior.ts",
-        "start": "schema.statics.getSourceStatistics =",
-        "end": "schema.statics.getDataSourceStats =",
-        "status": "complete",
-        "disposition": "changed",
-        "policy": "aggregate",
-        "require": [
-          "this.aggregate([",
-          "$group",
-          ".allowDiskUse(true)"
-        ]
-      },
-      {
-        "id": "user.data-source-stats",
-        "file": "src/models/user.behavior.ts",
-        "start": "schema.statics.getDataSourceStats =",
-        "end": "schema.statics.getEnhancedUsersList =",
-        "status": "complete",
-        "disposition": "changed",
-        "policy": "aggregate",
-        "require": [
-          "this.aggregate([",
-          "$facet",
-          ".allowDiskUse(true)"
-        ],
-        "forbid": [
-          "Promise.all"
-        ]
-      }
-    ]
-  },
-  "entries": [
-    {
-      "id": "events.upcoming",
-      "file": "src/routes/events.routes.ts",
-      "start": "router.get('/upcoming'",
-      "end": "router.get('/:id'",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "scheduledAt: 1, _id: 1"
-      ]
-    },
-    {
-      "id": "events.admin-list",
-      "file": "src/routes/events.routes.ts",
-      "start": "router.get('/',",
-      "end": "router.post('/',",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "scheduledAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "events.types",
-      "file": "src/routes/events.routes.ts",
-      "start": "router.get('/types/list'",
-      "end": "router.post('/types'",
-      "status": "complete",
-      "policy": "finite",
-      "reason": "Event types are a finite administrator-defined configuration catalog.",
-      "require": [
-        "label: 1, _id: 1"
-      ]
-    },
-    {
-      "id": "renewal-ac.changes",
-      "file": "src/routes/renewalAc.routes.ts",
-      "start": "router.get('/changes'",
-      "end": "router.post('/plan'",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "plannedAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "courses.list",
-      "file": "src/controllers/course.controller.ts",
-      "start": "export const getAllCourses",
-      "end": "export const getCourseById",
-      "status": "complete",
-      "policy": "finite",
-      "reason": "Courses are a finite administrator-defined configuration catalog.",
-      "require": [
-        "name: 1, _id: 1"
-      ]
-    },
-    {
-      "id": "courses.rules",
-      "file": "src/controllers/course.controller.ts",
-      "start": "export const getCourseById",
-      "end": "export const createCourse",
-      "status": "complete",
-      "policy": "finite",
-      "reason": "Rules belonging to one course are a finite configuration catalog.",
-      "require": [
-        "priority: -1, _id: 1"
-      ]
-    },
-    {
-      "id": "product-sales.list",
-      "file": "src/services/productSalesStatsBuilder.ts",
-      "start": "export async function getProductSalesStats",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "'meta.calculatedAt': -1, _id: -1"
-      ]
-    },
-    {
-      "id": "product-sales.period",
-      "file": "src/controllers/products/productSalesStats.controller.ts",
-      "start": "export async function getProductSalesByPeriod",
-      "end": "export async function rebuildProductSalesStatsEndpoint",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "productCode: 1, _id: 1"
-      ]
-    },
-    {
-      "id": "product-profiles.list",
-      "file": "src/controllers/products/productProfile.controller.ts",
-      "start": "export const getAllProductProfiles",
-      "end": "export const getProductProfileByCode",
-      "status": "complete",
-      "policy": "finite",
-      "reason": "Product profiles are a finite administrator-defined configuration catalog.",
-      "require": [
-        "name: 1, _id: 1"
-      ]
-    },
-    {
-      "id": "renewal.offers",
-      "file": "src/controllers/renewal.controller.ts",
-      "start": "export async function listOffers",
-      "end": "export async function createOffer",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "offerCode: 1, _id: 1"
-      ]
-    },
-    {
-      "id": "products.list",
-      "file": "src/controllers/products/product.controller.ts",
-      "start": "export const getAllProducts",
-      "end": "export const getProductById",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "createdAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "testimonials.student",
-      "file": "src/controllers/testimonials/testimonialQueries.controller.ts",
-      "start": "export const getStudentTestimonials",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "requestedDate: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "testimonials.candidates",
-      "file": "src/controllers/testimonials/testimonialCandidates.controller.ts",
-      "start": "export const getAvailableStudents",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "name: 1, _id: 1"
-      ]
-    },
-    {
-      "id": "guru-snapshots.list",
-      "file": "src/controllers/guruSnapshots/crud.controller.ts",
-      "start": "export const listSnapshots",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "year: -1, month: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "guru-snapshots.churn",
-      "file": "src/controllers/guruSnapshots/analytics.controller.ts",
-      "start": "export const getChurnFromSnapshots",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "year: 1, month: 1, _id: 1"
-      ]
-    },
-    {
-      "id": "tag-monitoring.snapshots",
-      "file": "src/controllers/tagMonitoring/tagMonitoring.controller.ts",
-      "start": "export const getSnapshots = async (",
-      "end": "export const getSnapshotsByEmail",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "capturedAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "communication.metrics",
-      "file": "src/models/acTags/CommunicationHistory.ts",
-      "start": "getMetricsByLevel",
-      "end": "getAverageTimeToReturn",
-      "status": "complete",
-      "policy": "aggregate",
-      "require": [
-        "this.aggregate(",
-        "$group"
-      ]
-    },
-    {
-      "id": "communication.average",
-      "file": "src/models/acTags/CommunicationHistory.ts",
-      "start": "getAverageTimeToReturn",
-      "status": "complete",
-      "policy": "aggregate",
-      "require": [
-        "this.aggregate(",
-        "communicationCount"
-      ]
-    },
-    {
-      "id": "guru-webhook.email",
-      "file": "src/models/GuruWebhook.ts",
-      "start": "guruWebhookSchema.statics.findByEmail",
-      "end": "guruWebhookSchema.statics.getUnprocessed",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "receivedAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "guru-webhook.unprocessed",
-      "file": "src/models/GuruWebhook.ts",
-      "start": "guruWebhookSchema.statics.getUnprocessed",
-      "end": "guruWebhookSchema.statics.getStats",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "receivedAt: 1, _id: 1"
-      ]
-    },
-    {
-      "id": "tag-detail.notification",
-      "file": "src/models/tagMonitoring/TagChangeDetail.ts",
-      "start": "TagChangeDetailSchema.statics.findByNotification",
-      "end": "TagChangeDetailSchema.statics.findByEmail",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "email: 1, _id: 1"
-      ]
-    },
-    {
-      "id": "tag-detail.product",
-      "file": "src/models/tagMonitoring/TagChangeDetail.ts",
-      "start": "TagChangeDetailSchema.statics.findByProduct",
-      "end": "const TagChangeDetail",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "detectedAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "tag-notification.unread",
-      "file": "src/models/tagMonitoring/TagChangeNotification.ts",
-      "start": "TagChangeNotificationSchema.statics.findUnread",
-      "end": "TagChangeNotificationSchema.statics.getUnreadCount",
-      "status": "complete",
-      "policy": "aggregate-bounded",
-      "require": [
-        "priorityRank: 1, createdAt: -1, _id: -1",
-        "boundedQueryLimit"
-      ]
-    },
-    {
-      "id": "tag-notification.week",
-      "file": "src/models/tagMonitoring/TagChangeNotification.ts",
-      "start": "TagChangeNotificationSchema.statics.findByWeek",
-      "end": "TagChangeNotificationSchema.statics.findByTag",
-      "status": "complete",
-      "policy": "aggregate-bounded",
-      "require": [
-        "priorityRank: 1, createdAt: -1, _id: -1",
-        "boundedQueryLimit"
-      ]
-    },
-    {
-      "id": "tag-notification.tag",
-      "file": "src/models/tagMonitoring/TagChangeNotification.ts",
-      "start": "TagChangeNotificationSchema.statics.findByTag",
-      "end": "// Configurar virtuals",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "createdAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "weekly-snapshots.week",
-      "file": "src/models/tagMonitoring/WeeklyNativeTagSnapshot.ts",
-      "start": "statics.findByWeek",
-      "end": "statics.findPreviousSnapshot",
-      "status": "complete",
-      "policy": "batch",
-      "require": [
-        "sort({ _id: 1 })"
-      ]
-    },
-    {
-      "id": "inactivation.pending",
-      "file": "src/models/InactivationList.ts",
-      "start": "statics.findPending",
-      "end": "statics.findExecutable",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "createdAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "inactivation.executable",
-      "file": "src/models/InactivationList.ts",
-      "start": "statics.findExecutable",
-      "end": "statics.findRevertible",
-      "status": "complete",
-      "policy": "batch",
-      "require": [
-        "sort({ _id: 1 })"
-      ]
-    },
-    {
-      "id": "inactivation.revertible",
-      "file": "src/models/InactivationList.ts",
-      "start": "statics.findRevertible",
-      "end": "const InactivationList",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "createdAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "engagement.state",
-      "file": "src/models/StudentEngagementState.ts",
-      "start": "async findByState",
-      "end": "async findEligibleForEvaluation",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "daysSinceLastLogin: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "engagement.eligible",
-      "file": "src/models/StudentEngagementState.ts",
-      "start": "async findEligibleForEvaluation",
-      "end": "StudentEngagementStateSchema.pre",
-      "status": "complete",
-      "policy": "batch",
-      "require": [
-        "sort({ _id: 1 })"
-      ]
-    },
-    {
-      "id": "sync-report.recent",
-      "file": "src/models/SyncModels/SyncReport.ts",
-      "start": "statics.findRecent",
-      "end": "statics.getAggregatedStats",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "startedAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "sync-history.recent",
-      "file": "src/models/SyncModels/SyncHistory.ts",
-      "start": "statics.getRecentSyncs",
-      "end": "statics.getActiveSyncs",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "startedAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "activity-snapshots.user",
-      "file": "src/models/SyncModels/ActivitySnapshot.ts",
-      "start": "statics.getUserSnapshots",
-      "end": "statics.getActiveUsersInMonth",
-      "status": "complete",
-      "policy": "batch",
-      "require": [
-        "snapshotMonth: 1, _id: 1"
-      ]
-    },
-    {
-      "id": "sync-conflicts.pending",
-      "file": "src/models/SyncModels/SyncConflict.ts",
-      "start": "statics.getPendingConflicts",
-      "end": "statics.getConflictStats",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "severity: -1, detectedAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "sync-conflicts.critical",
-      "file": "src/models/SyncModels/SyncConflict.ts",
-      "start": "statics.getCriticalConflicts",
-      "end": "statics.getOldPendingConflicts",
-      "status": "complete",
-      "policy": "bounded",
-      "require": [
-        "detectedAt: -1, _id: -1"
-      ]
-    },
-    {
-      "id": "products.users-full-set",
-      "file": "src/controllers/products/products.controller.ts",
-      "start": "export const getProductUsers",
-      "status": "pending",
-      "reason": "The response and debug totals require the complete selected user set; truncating at 200 would silently break the existing contract and needs paired cursor design."
-    },
-    {
-      "id": "heatmap.quick",
-      "file": "src/controllers/dashboardQuick.controller.ts",
-      "start": "export const getEngagementHeatmap",
-      "status": "pending",
-      "reason": "Capping the analytical population biases the heatmap distribution; it requires aggregation or a complete bounded scan rather than truncation."
-    },
-    {
-      "id": "heatmap.cohort",
-      "file": "src/controllers/cohortAnalytics.controller.ts",
-      "start": "async getCohortAnalysis",
-      "status": "pending",
-      "reason": "Capping cohort input biases retention metrics; the owner requires an aggregation or complete batch strategy with equivalence proof."
-    },
-    {
-      "id": "course-lessons.grouped",
-      "file": "src/controllers/courseLessons.controller.ts",
-      "start": "export async function listCourseLessons",
-      "end": "export async function updateCourseLessonUrl",
-      "status": "pending",
-      "reason": "The endpoint returns a grouped full lesson catalog; truncation would create incomplete modules and needs a paired grouped-pagination contract."
-    }
-  ],
-  "scale03": {
-    "summary": {
-      "planned": 24,
-      "complete": 9,
-      "pending": 15,
-      "changed": 9
-    },
-    "entries": [
-      {
-        "id": "product-sales.user-products-set",
-        "file": "src/services/productSalesStatsBuilder.ts",
-        "start": "const uniqueUserIds = Array.from(",
-        "end": "for (const firstEnrollment of allUserProducts)",
-        "status": "complete",
-        "disposition": "changed",
-        "require": [
-          "userId: { $in: uniqueUserIds }",
-          "new Map(userIds.map"
-        ]
-      },
-      {
-        "id": "product-sales.first-enrollment-order",
-        "file": "src/services/productSalesStatsBuilder.ts",
-        "start": "const allUserProducts = await UserProduct.find(",
-        "end": "// 2.5. Processar cada UserProduct",
-        "status": "complete",
-        "disposition": "changed",
-        "require": [
-          ".sort({ enrolledAt: 1, _id: 1 })",
-          "if (!userFirstProducts.has(firstUserId))"
-        ]
-      },
-      {
-        "id": "class-details.fetch-multiple",
-        "file": "src/services/classes/mongooseClassDetails.reader.ts",
-        "start": "async fetchMultiple(",
-        "status": "complete",
-        "end": "async fetchAll(",
-        "disposition": "changed",
-        "require": [
-          "mapBounded(classes"
-        ],
-        "globalRequire": [
-          "const ENRICH_CONCURRENCY = 10"
-        ]
-      },
-      {
-        "id": "class-details.fetch-all",
-        "file": "src/services/classes/mongooseClassDetails.reader.ts",
-        "start": "async fetchAll(",
-        "status": "complete",
-        "end": "private async enrich(",
-        "disposition": "changed",
-        "require": [
-          "mapBounded(classes"
-        ],
-        "globalRequire": [
-          "const ENRICH_CONCURRENCY = 10"
-        ]
-      },
-      {
-        "id": "course-preview.dry-run",
-        "file": "src/controllers/acTags/activeCampaignCourse.controller.ts",
-        "start": "async function previewCourseRules",
-        "status": "complete",
-        "disposition": "changed",
-        "end": "errors: results.reduce(",
-        "require": [
-          "mapCoursePreviewBounded(products",
-          "product._id.toString(), true"
-        ],
-        "globalRequire": [
-          "COURSE_PREVIEW_CONCURRENCY = 10"
-        ]
-      },
-      {
-        "id": "analytics-cache.singleflight",
-        "file": "src/services/analytics/analyticsCache.service.ts",
-        "start": "async getOrCalculateMetrics(",
-        "status": "complete",
-        "disposition": "changed",
-        "end": "private calculateSingleflight(",
-        "require": [
-          "calculateSingleflight(options)"
-        ],
-        "globalRequire": [
-          "inFlightCalculations"
-        ]
-      },
-      {
-        "id": "engagement-summary.singleflight",
-        "file": "src/controllers/engagement/summary.controller.ts",
-        "start": "export const getGlobalEngagementStats",
-        "status": "complete",
-        "disposition": "changed",
-        "end": "export const clearEngagementCache",
-        "require": [
-          "statsCache.runSingleflight(cacheKey",
-          "global-engagement-stats"
-        ]
-      },
-      {
-        "id": "raiox.raw-scan",
-        "file": "src/services/clareza/raiox/data.ts",
-        "start": "const workerCount = Math.min(",
-        "end": "async function worker()",
-        "status": "complete",
-        "disposition": "changed",
-        "require": [
-          "Math.min(Math.max(1, Math.floor(concurrency)), 10"
-        ]
-      },
-      {
-        "id": "raiox.peer-scan",
-        "file": "src/services/clareza/raiox/data.ts",
-        "start": "async function worker()",
-        "end": "// Todas as chamadas passam pelo limitador global",
-        "status": "complete",
-        "disposition": "changed",
-        "require": [
-          "firstError",
-          "results[i] = await tasks[i]()",
-          "await Promise.all(Array.from({ length: workerCount }, worker))"
-        ]
-      },
-      {
-        "id": "student-movement.ordered-writes",
-        "file": "src/services/classes/studentMovement.service.ts",
-        "start": "async moveMany(",
-        "status": "pending",
-        "reason": "Sequential per-student timestamps and best-effort writes are contract behavior; parallelization would change strict order and partial failures."
-      },
-      {
-        "id": "activity-snapshot.partial-writes",
-        "file": "src/services/syncUtilizadoresServices/activitySnapshot.service.ts",
-        "start": "async createMonthlySnapshots(",
-        "status": "pending",
-        "reason": "Per-user snapshot writes preserve item-level failure accounting and cannot be parallelized without write-semantics proof."
-      },
-      {
-        "id": "achievements.partial-writes",
-        "file": "src/services/achievements/achievementEvaluation.service.ts",
-        "start": "export async function evaluateAllAchievements",
-        "status": "pending",
-        "reason": "Evaluation persists each user and aggregates partial failures; bounded parallel writes need equivalence evidence."
-      },
-      {
-        "id": "guru-discrepancy.compensation",
-        "file": "src/services/guru/guruDiscrepancy.service.ts",
-        "start": "export const createGuruDiscrepancyService",
-        "status": "pending",
-        "reason": "Identity fallback, enrollment creation and status writes are dependent compensating operations with ordered result accounting."
-      },
-      {
-        "id": "guru-trials.provider-writes",
-        "file": "src/services/guru/guruTrialService.ts",
-        "start": "export async function syncTrialsFromGuru",
-        "status": "pending",
-        "reason": "Provider fallback and directed per-user writes preserve partial failures and require an explicit safe batching design."
-      },
-      {
-        "id": "activecampaign.manual-actions",
-        "file": "src/controllers/acTags/activeCampaignOps.controller.ts",
-        "start": "export const testCron",
-        "status": "pending",
-        "reason": "Decision evaluation can execute external actions; concurrency cannot change provider order or per-item error accounting."
-      },
-      {
-        "id": "native-tags.compensating-writes",
-        "file": "src/services/activeCampaign/nativeTagProtection.service.ts",
-        "start": "export async function captureNativeTagsBatch",
-        "status": "pending",
-        "reason": "Tag removal plus snapshot and history writes have ordering and compensation implications."
-      },
-      {
-        "id": "testimonial-tags.ordered-provider",
-        "file": "src/services/activeCampaign/testimonialTagSync.service.ts",
-        "start": "export async function syncTestimonialTags",
-        "status": "pending",
-        "reason": "Provider remove/add operations are ordered per user and preserve partial-error aggregation."
-      },
-      {
-        "id": "weekly-tags.snapshot-writes",
-        "file": "src/services/tagMonitoring/weeklyTagMonitoring.service.ts",
-        "start": "async performWeeklySnapshot(",
-        "status": "pending",
-        "reason": "Traversal is coupled to snapshot, notification and change-history writes whose order must remain stable."
-      },
-      {
-        "id": "guru-cross-reference.actions",
-        "file": "src/services/guru/crossReference.service.ts",
-        "start": "export async function runCrossReferenceAfterCurseducaSync",
-        "status": "pending",
-        "reason": "Conditional provider reads, database updates, action ordering and throttling prevent safe parallelization."
-      },
-      {
-        "id": "analytics-cache.stats-scan",
-        "file": "src/services/analytics/analyticsCache.service.ts",
-        "start": "async getCacheStats()",
-        "status": "pending",
-        "reason": "Complete cache statistics still scan their full population and need aggregation or complete bounded batching."
-      },
-      {
-        "id": "analytics-cache.warmup",
-        "file": "src/services/analytics/analyticsCache.service.ts",
-        "start": "async warmUpCache()",
-        "status": "pending",
-        "reason": "Warmup remains a data-sized traversal and needs bounded scheduling without changing cache-fill failure behavior."
-      },
-      {
-        "id": "activity-snapshot.cohort-fanout",
-        "file": "src/services/syncUtilizadoresServices/activitySnapshot.service.ts",
-        "start": "async getCohortRetention(",
-        "status": "pending",
-        "reason": "Milestone reads still use data-sized Promise.all and need a bounded pool with result-order and complete-accounting proof."
-      },
-      {
-        "id": "guru-trials.expired-writes",
-        "file": "src/services/guru/guruTrialService.ts",
-        "start": "export async function checkExpiredTrials",
-        "status": "pending",
-        "reason": "Expired-trial processing performs sequential user and enrollment writes with item-level failure accounting."
-      },
-      {
-        "id": "product-sales.product-loop-writes",
-        "file": "src/services/productSalesStatsBuilder.ts",
-        "start": "export async function buildProductSalesStats",
-        "status": "pending",
-        "reason": "The outer product traversal still couples per-product reads to one stats upsert; batching needs write-order and partial-failure equivalence."
-      }
-    ],
-    "operational": {
-      "status": "pending",
-      "reason": "No authorized non-production read-only Mongo target was loaded, so real executionStats and 1/10/50 probe evidence are absent."
-    }
-  }
+    "version":  1,
+    "summary":  {
+                    "planned":  40,
+                    "complete":  40,
+                    "pending":  0
+                },
+    "mongooseListBaseline":  {
+                                 "count":  344,
+                                 "hash":  "b4269eedae97976995baa777a707c736de74d0a20a976eebf5b3ae78ba54a9cd"
+                             },
+    "scale02":  {
+                    "summary":  {
+                                    "planned":  11,
+                                    "complete":  11,
+                                    "pending":  0,
+                                    "changed":  10,
+                                    "alreadyCompliant":  1
+                                },
+                    "entries":  [
+                                    {
+                                        "id":  "dashboard-quick.product-comparison",
+                                        "file":  "src/controllers/dashboardQuick.controller.ts",
+                                        "start":  "export const getProductComparison =",
+                                        "end":  "export const getEngagementHeatmap =",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "policy":  "aggregate",
+                                        "require":  [
+                                                        "$match",
+                                                        "$limit: 10",
+                                                        "allowDiskUse: true"
+                                                    ]
+                                    },
+                                    {
+                                        "id":  "dashboard-quick.products-breakdown",
+                                        "file":  "src/controllers/dashboardQuick.controller.ts",
+                                        "start":  "export const getProductsBreakdown =",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "policy":  "aggregate",
+                                        "require":  [
+                                                        "$match: matchStage",
+                                                        "$group",
+                                                        "allowDiskUse: true"
+                                                    ]
+                                    },
+                                    {
+                                        "id":  "dashboard.stats",
+                                        "file":  "src/controllers/dashboard.controller.ts",
+                                        "start":  "export const getDashboardStats =",
+                                        "end":  "export const getProductsBreakdown =",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "policy":  "aggregate",
+                                        "require":  [
+                                                        "pipeline: any[] = [{ $match: matchStage }]",
+                                                        "pipeline.push(",
+                                                        "allowDiskUse: true"
+                                                    ],
+                                        "forbid":  [
+                                                       "pipeline.unshift("
+                                                   ]
+                                    },
+                                    {
+                                        "id":  "dashboard.engagement-distribution",
+                                        "file":  "src/controllers/dashboard.controller.ts",
+                                        "start":  "export const getEngagementDistribution =",
+                                        "end":  "export const compareProducts =",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "policy":  "aggregate",
+                                        "require":  [
+                                                        "$match: matchStage",
+                                                        "$bucket",
+                                                        "allowDiskUse: true"
+                                                    ]
+                                    },
+                                    {
+                                        "id":  "dashboard.compare-products",
+                                        "file":  "src/controllers/dashboard.controller.ts",
+                                        "start":  "export const compareProducts =",
+                                        "end":  "export const getDashboardStatsV3 =",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "policy":  "aggregate",
+                                        "require":  [
+                                                        "$in: productIds",
+                                                        "$group",
+                                                        "$lookup",
+                                                        "allowDiskUse: true"
+                                                    ],
+                                        "forbid":  [
+                                                       "Product.findById",
+                                                       "getProductStats"
+                                                   ]
+                                    },
+                                    {
+                                        "id":  "engagement.global-summary",
+                                        "file":  "src/controllers/engagement/summary.controller.ts",
+                                        "start":  "export const getGlobalEngagementStats =",
+                                        "end":  "export const clearEngagementCache =",
+                                        "status":  "complete",
+                                        "disposition":  "already-compliant",
+                                        "policy":  "aggregate",
+                                        "require":  [
+                                                        "User.aggregate([",
+                                                        ".allowDiskUse(true)"
+                                                    ]
+                                    },
+                                    {
+                                        "id":  "engagement.stats",
+                                        "file":  "src/controllers/engagement/stats.controller.ts",
+                                        "start":  "export const getEngagementStats =",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "policy":  "aggregate",
+                                        "require":  [
+                                                        "hotmartUsers:",
+                                                        "curseducaUsers:",
+                                                        "discordUsers:",
+                                                        "allowDiskUse: true"
+                                                    ],
+                                        "forbid":  [
+                                                       "User.countDocuments"
+                                                   ]
+                                    },
+                                    {
+                                        "id":  "cohort.retention",
+                                        "file":  "src/services/analytics/cohortAnalytics.service.ts",
+                                        "start":  "async calculateCohortRetention(",
+                                        "end":  "async calculateCohortMetrics(",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "policy":  "aggregate",
+                                        "require":  [
+                                                        "UserProduct.aggregate([",
+                                                        "$dateTrunc",
+                                                        "$sort: { _id: -1 }",
+                                                        ".allowDiskUse(true)"
+                                                    ],
+                                        "forbid":  [
+                                                       "countDocuments",
+                                                       "while ("
+                                                   ]
+                                    },
+                                    {
+                                        "id":  "cohort.metrics",
+                                        "file":  "src/services/analytics/cohortAnalytics.service.ts",
+                                        "start":  "async calculateCohortMetrics(",
+                                        "end":  "async calculateSummary(",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "policy":  "aggregate",
+                                        "require":  [
+                                                        "$match: query",
+                                                        "$group",
+                                                        ".allowDiskUse(true)"
+                                                    ]
+                                    },
+                                    {
+                                        "id":  "user.source-statistics",
+                                        "file":  "src/models/user.behavior.ts",
+                                        "start":  "schema.statics.getSourceStatistics =",
+                                        "end":  "schema.statics.getDataSourceStats =",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "policy":  "aggregate",
+                                        "require":  [
+                                                        "this.aggregate([",
+                                                        "$group",
+                                                        ".allowDiskUse(true)"
+                                                    ]
+                                    },
+                                    {
+                                        "id":  "user.data-source-stats",
+                                        "file":  "src/models/user.behavior.ts",
+                                        "start":  "schema.statics.getDataSourceStats =",
+                                        "end":  "schema.statics.getEnhancedUsersList =",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "policy":  "aggregate",
+                                        "require":  [
+                                                        "this.aggregate([",
+                                                        "$facet",
+                                                        ".allowDiskUse(true)"
+                                                    ],
+                                        "forbid":  [
+                                                       "Promise.all"
+                                                   ]
+                                    }
+                                ]
+                },
+    "entries":  [
+                    {
+                        "id":  "events.upcoming",
+                        "file":  "src/routes/events.routes.ts",
+                        "start":  "router.get(\u0027/upcoming\u0027",
+                        "end":  "router.get(\u0027/:id\u0027",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "scheduledAt: 1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "events.admin-list",
+                        "file":  "src/routes/events.routes.ts",
+                        "start":  "router.get(\u0027/\u0027,",
+                        "end":  "router.post(\u0027/\u0027,",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "scheduledAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "events.types",
+                        "file":  "src/routes/events.routes.ts",
+                        "start":  "router.get(\u0027/types/list\u0027",
+                        "end":  "router.post(\u0027/types\u0027",
+                        "status":  "complete",
+                        "policy":  "finite",
+                        "reason":  "Event types are a finite administrator-defined configuration catalog.",
+                        "require":  [
+                                        "label: 1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "renewal-ac.changes",
+                        "file":  "src/routes/renewalAc.routes.ts",
+                        "start":  "router.get(\u0027/changes\u0027",
+                        "end":  "router.post(\u0027/plan\u0027",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "plannedAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "courses.list",
+                        "file":  "src/controllers/course.controller.ts",
+                        "start":  "export const getAllCourses",
+                        "end":  "export const getCourseById",
+                        "status":  "complete",
+                        "policy":  "finite",
+                        "reason":  "Courses are a finite administrator-defined configuration catalog.",
+                        "require":  [
+                                        "name: 1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "courses.rules",
+                        "file":  "src/controllers/course.controller.ts",
+                        "start":  "export const getCourseById",
+                        "end":  "export const createCourse",
+                        "status":  "complete",
+                        "policy":  "finite",
+                        "reason":  "Rules belonging to one course are a finite configuration catalog.",
+                        "require":  [
+                                        "priority: -1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "product-sales.list",
+                        "file":  "src/services/productSalesStatsBuilder.ts",
+                        "start":  "export async function getProductSalesStats",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "\u0027meta.calculatedAt\u0027: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "product-sales.period",
+                        "file":  "src/controllers/products/productSalesStats.controller.ts",
+                        "start":  "export async function getProductSalesByPeriod",
+                        "end":  "export async function rebuildProductSalesStatsEndpoint",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "productCode: 1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "product-profiles.list",
+                        "file":  "src/controllers/products/productProfile.controller.ts",
+                        "start":  "export const getAllProductProfiles",
+                        "end":  "export const getProductProfileByCode",
+                        "status":  "complete",
+                        "policy":  "finite",
+                        "reason":  "Product profiles are a finite administrator-defined configuration catalog.",
+                        "require":  [
+                                        "name: 1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "renewal.offers",
+                        "file":  "src/controllers/renewal.controller.ts",
+                        "start":  "export async function listOffers",
+                        "end":  "export async function createOffer",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "offerCode: 1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "products.list",
+                        "file":  "src/controllers/products/product.controller.ts",
+                        "start":  "export const getAllProducts",
+                        "end":  "export const getProductById",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "createdAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "testimonials.student",
+                        "file":  "src/controllers/testimonials/testimonialQueries.controller.ts",
+                        "start":  "export const getStudentTestimonials",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "requestedDate: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "testimonials.candidates",
+                        "file":  "src/controllers/testimonials/testimonialCandidates.controller.ts",
+                        "start":  "export const getAvailableStudents",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "name: 1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "guru-snapshots.list",
+                        "file":  "src/controllers/guruSnapshots/crud.controller.ts",
+                        "start":  "export const listSnapshots",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "year: -1, month: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "guru-snapshots.churn",
+                        "file":  "src/controllers/guruSnapshots/analytics.controller.ts",
+                        "start":  "export const getChurnFromSnapshots",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "year: 1, month: 1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "tag-monitoring.snapshots",
+                        "file":  "src/controllers/tagMonitoring/tagMonitoring.controller.ts",
+                        "start":  "export const getSnapshots = async (",
+                        "end":  "export const getSnapshotsByEmail",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "capturedAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "communication.metrics",
+                        "file":  "src/models/acTags/CommunicationHistory.ts",
+                        "start":  "getMetricsByLevel",
+                        "end":  "getAverageTimeToReturn",
+                        "status":  "complete",
+                        "policy":  "aggregate",
+                        "require":  [
+                                        "this.aggregate(",
+                                        "$group"
+                                    ]
+                    },
+                    {
+                        "id":  "communication.average",
+                        "file":  "src/models/acTags/CommunicationHistory.ts",
+                        "start":  "getAverageTimeToReturn",
+                        "status":  "complete",
+                        "policy":  "aggregate",
+                        "require":  [
+                                        "this.aggregate(",
+                                        "communicationCount"
+                                    ]
+                    },
+                    {
+                        "id":  "guru-webhook.email",
+                        "file":  "src/models/GuruWebhook.ts",
+                        "start":  "guruWebhookSchema.statics.findByEmail",
+                        "end":  "guruWebhookSchema.statics.getUnprocessed",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "receivedAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "guru-webhook.unprocessed",
+                        "file":  "src/models/GuruWebhook.ts",
+                        "start":  "guruWebhookSchema.statics.getUnprocessed",
+                        "end":  "guruWebhookSchema.statics.getStats",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "receivedAt: 1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "tag-detail.notification",
+                        "file":  "src/models/tagMonitoring/TagChangeDetail.ts",
+                        "start":  "TagChangeDetailSchema.statics.findByNotification",
+                        "end":  "TagChangeDetailSchema.statics.findByEmail",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "email: 1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "tag-detail.product",
+                        "file":  "src/models/tagMonitoring/TagChangeDetail.ts",
+                        "start":  "TagChangeDetailSchema.statics.findByProduct",
+                        "end":  "const TagChangeDetail",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "detectedAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "tag-notification.unread",
+                        "file":  "src/models/tagMonitoring/TagChangeNotification.ts",
+                        "start":  "TagChangeNotificationSchema.statics.findUnread",
+                        "end":  "TagChangeNotificationSchema.statics.getUnreadCount",
+                        "status":  "complete",
+                        "policy":  "aggregate-bounded",
+                        "require":  [
+                                        "priorityRank: 1, createdAt: -1, _id: -1",
+                                        "boundedQueryLimit"
+                                    ]
+                    },
+                    {
+                        "id":  "tag-notification.week",
+                        "file":  "src/models/tagMonitoring/TagChangeNotification.ts",
+                        "start":  "TagChangeNotificationSchema.statics.findByWeek",
+                        "end":  "TagChangeNotificationSchema.statics.findByTag",
+                        "status":  "complete",
+                        "policy":  "aggregate-bounded",
+                        "require":  [
+                                        "priorityRank: 1, createdAt: -1, _id: -1",
+                                        "boundedQueryLimit"
+                                    ]
+                    },
+                    {
+                        "id":  "tag-notification.tag",
+                        "file":  "src/models/tagMonitoring/TagChangeNotification.ts",
+                        "start":  "TagChangeNotificationSchema.statics.findByTag",
+                        "end":  "// Configurar virtuals",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "createdAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "weekly-snapshots.week",
+                        "file":  "src/models/tagMonitoring/WeeklyNativeTagSnapshot.ts",
+                        "start":  "statics.findByWeek",
+                        "end":  "statics.findPreviousSnapshot",
+                        "status":  "complete",
+                        "policy":  "batch",
+                        "require":  [
+                                        "sort({ _id: 1 })"
+                                    ]
+                    },
+                    {
+                        "id":  "inactivation.pending",
+                        "file":  "src/models/InactivationList.ts",
+                        "start":  "statics.findPending",
+                        "end":  "statics.findExecutable",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "createdAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "inactivation.executable",
+                        "file":  "src/models/InactivationList.ts",
+                        "start":  "statics.findExecutable",
+                        "end":  "statics.findRevertible",
+                        "status":  "complete",
+                        "policy":  "batch",
+                        "require":  [
+                                        "sort({ _id: 1 })"
+                                    ]
+                    },
+                    {
+                        "id":  "inactivation.revertible",
+                        "file":  "src/models/InactivationList.ts",
+                        "start":  "statics.findRevertible",
+                        "end":  "const InactivationList",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "createdAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "engagement.state",
+                        "file":  "src/models/StudentEngagementState.ts",
+                        "start":  "async findByState",
+                        "end":  "async findEligibleForEvaluation",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "daysSinceLastLogin: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "engagement.eligible",
+                        "file":  "src/models/StudentEngagementState.ts",
+                        "start":  "async findEligibleForEvaluation",
+                        "end":  "StudentEngagementStateSchema.pre",
+                        "status":  "complete",
+                        "policy":  "batch",
+                        "require":  [
+                                        "sort({ _id: 1 })"
+                                    ]
+                    },
+                    {
+                        "id":  "sync-report.recent",
+                        "file":  "src/models/SyncModels/SyncReport.ts",
+                        "start":  "statics.findRecent",
+                        "end":  "statics.getAggregatedStats",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "startedAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "sync-history.recent",
+                        "file":  "src/models/SyncModels/SyncHistory.ts",
+                        "start":  "statics.getRecentSyncs",
+                        "end":  "statics.getActiveSyncs",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "startedAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "activity-snapshots.user",
+                        "file":  "src/models/SyncModels/ActivitySnapshot.ts",
+                        "start":  "statics.getUserSnapshots",
+                        "end":  "statics.getActiveUsersInMonth",
+                        "status":  "complete",
+                        "policy":  "batch",
+                        "require":  [
+                                        "snapshotMonth: 1, _id: 1"
+                                    ]
+                    },
+                    {
+                        "id":  "sync-conflicts.pending",
+                        "file":  "src/models/SyncModels/SyncConflict.ts",
+                        "start":  "statics.getPendingConflicts",
+                        "end":  "statics.getConflictStats",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "severity: -1, detectedAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "sync-conflicts.critical",
+                        "file":  "src/models/SyncModels/SyncConflict.ts",
+                        "start":  "statics.getCriticalConflicts",
+                        "end":  "statics.getOldPendingConflicts",
+                        "status":  "complete",
+                        "policy":  "bounded",
+                        "require":  [
+                                        "detectedAt: -1, _id: -1"
+                                    ]
+                    },
+                    {
+                        "id":  "products.users-full-set",
+                        "file":  "src/controllers/products/products.controller.ts",
+                        "start":  "export const getProductUsers",
+                        "status":  "complete",
+                        "disposition":  "changed",
+                        "policy":  "driver-cursor"
+                    },
+                    {
+                        "id":  "heatmap.quick",
+                        "file":  "src/controllers/dashboardQuick.controller.ts",
+                        "start":  "export const getEngagementHeatmap",
+                        "status":  "complete",
+                        "disposition":  "already-compliant",
+                        "policy":  "aggregate"
+                    },
+                    {
+                        "id":  "heatmap.cohort",
+                        "file":  "src/controllers/cohortAnalytics.controller.ts",
+                        "start":  "async getCohortAnalysis",
+                        "status":  "complete",
+                        "disposition":  "already-compliant",
+                        "policy":  "aggregate"
+                    },
+                    {
+                        "id":  "course-lessons.grouped",
+                        "file":  "src/controllers/courseLessons.controller.ts",
+                        "start":  "export async function listCourseLessons",
+                        "end":  "export async function updateCourseLessonUrl",
+                        "status":  "complete",
+                        "disposition":  "changed",
+                        "policy":  "aggregate"
+                    }
+                ],
+    "scale03":  {
+                    "summary":  {
+                                    "planned":  24,
+                                    "complete":  12,
+                                    "pending":  12,
+                                    "changed":  11,
+                                    "alreadyCompliant":  1
+                                },
+                    "entries":  [
+                                    {
+                                        "id":  "product-sales.user-products-set",
+                                        "file":  "src/services/productSalesStatsBuilder.ts",
+                                        "start":  "const uniqueUserIds = Array.from(",
+                                        "end":  "for (const firstEnrollment of allUserProducts)",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "require":  [
+                                                        "userId: { $in: uniqueUserIds }",
+                                                        "new Map(userIds.map"
+                                                    ]
+                                    },
+                                    {
+                                        "id":  "product-sales.first-enrollment-order",
+                                        "file":  "src/services/productSalesStatsBuilder.ts",
+                                        "start":  "const allUserProducts = await UserProduct.find(",
+                                        "end":  "// 2.5. Processar cada UserProduct",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "require":  [
+                                                        ".sort({ enrolledAt: 1, _id: 1 })",
+                                                        "if (!userFirstProducts.has(firstUserId))"
+                                                    ]
+                                    },
+                                    {
+                                        "id":  "class-details.fetch-multiple",
+                                        "file":  "src/services/classes/mongooseClassDetails.reader.ts",
+                                        "start":  "async fetchMultiple(",
+                                        "status":  "complete",
+                                        "end":  "async fetchAll(",
+                                        "disposition":  "changed",
+                                        "require":  [
+                                                        "mapBounded(classes"
+                                                    ],
+                                        "globalRequire":  [
+                                                              "const ENRICH_CONCURRENCY = 10"
+                                                          ]
+                                    },
+                                    {
+                                        "id":  "class-details.fetch-all",
+                                        "file":  "src/services/classes/mongooseClassDetails.reader.ts",
+                                        "start":  "async fetchAll(",
+                                        "status":  "complete",
+                                        "end":  "private async enrich(",
+                                        "disposition":  "changed",
+                                        "require":  [
+                                                        "mapBounded(classes"
+                                                    ],
+                                        "globalRequire":  [
+                                                              "const ENRICH_CONCURRENCY = 10"
+                                                          ]
+                                    },
+                                    {
+                                        "id":  "course-preview.dry-run",
+                                        "file":  "src/controllers/acTags/activeCampaignCourse.controller.ts",
+                                        "start":  "async function previewCourseRules",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "end":  "errors: results.reduce(",
+                                        "require":  [
+                                                        "mapCoursePreviewBounded(products",
+                                                        "product._id.toString(), true"
+                                                    ],
+                                        "globalRequire":  [
+                                                              "COURSE_PREVIEW_CONCURRENCY = 10"
+                                                          ]
+                                    },
+                                    {
+                                        "id":  "analytics-cache.singleflight",
+                                        "file":  "src/services/analytics/analyticsCache.service.ts",
+                                        "start":  "async getOrCalculateMetrics(",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "end":  "private calculateSingleflight(",
+                                        "require":  [
+                                                        "calculateSingleflight(options)"
+                                                    ],
+                                        "globalRequire":  [
+                                                              "inFlightCalculations"
+                                                          ]
+                                    },
+                                    {
+                                        "id":  "engagement-summary.singleflight",
+                                        "file":  "src/controllers/engagement/summary.controller.ts",
+                                        "start":  "export const getGlobalEngagementStats",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "end":  "export const clearEngagementCache",
+                                        "require":  [
+                                                        "statsCache.runSingleflight(cacheKey",
+                                                        "global-engagement-stats"
+                                                    ]
+                                    },
+                                    {
+                                        "id":  "raiox.raw-scan",
+                                        "file":  "src/services/clareza/raiox/data.ts",
+                                        "start":  "const workerCount = Math.min(",
+                                        "end":  "async function worker()",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "require":  [
+                                                        "Math.min(Math.max(1, Math.floor(concurrency)), 10"
+                                                    ]
+                                    },
+                                    {
+                                        "id":  "raiox.peer-scan",
+                                        "file":  "src/services/clareza/raiox/data.ts",
+                                        "start":  "async function worker()",
+                                        "end":  "// Todas as chamadas passam pelo limitador global",
+                                        "status":  "complete",
+                                        "disposition":  "changed",
+                                        "require":  [
+                                                        "firstError",
+                                                        "results[i] = await tasks[i]()",
+                                                        "await Promise.all(Array.from({ length: workerCount }, worker))"
+                                                    ]
+                                    },
+                                    {
+                                        "id":  "student-movement.ordered-writes",
+                                        "file":  "src/services/classes/studentMovement.service.ts",
+                                        "start":  "async moveMany(",
+                                        "status":  "pending",
+                                        "reason":  "Sequential per-student timestamps and best-effort writes are contract behavior; parallelization would change strict order and partial failures."
+                                    },
+                                    {
+                                        "id":  "activity-snapshot.partial-writes",
+                                        "file":  "src/services/syncUtilizadoresServices/activitySnapshot.service.ts",
+                                        "start":  "async createMonthlySnapshots(",
+                                        "status":  "pending",
+                                        "reason":  "Per-user snapshot writes preserve item-level failure accounting and cannot be parallelized without write-semantics proof."
+                                    },
+                                    {
+                                        "id":  "achievements.partial-writes",
+                                        "file":  "src/services/achievements/achievementEvaluation.service.ts",
+                                        "start":  "export async function evaluateAllAchievements",
+                                        "status":  "pending",
+                                        "reason":  "Evaluation persists each user and aggregates partial failures; bounded parallel writes need equivalence evidence."
+                                    },
+                                    {
+                                        "id":  "guru-discrepancy.compensation",
+                                        "file":  "src/services/guru/guruDiscrepancy.service.ts",
+                                        "start":  "export const createGuruDiscrepancyService",
+                                        "status":  "pending",
+                                        "reason":  "Identity fallback, enrollment creation and status writes are dependent compensating operations with ordered result accounting."
+                                    },
+                                    {
+                                        "id":  "guru-trials.provider-writes",
+                                        "file":  "src/services/guru/guruTrialService.ts",
+                                        "start":  "export async function syncTrialsFromGuru",
+                                        "status":  "complete",
+                                        "disposition":  "changed"
+                                    },
+                                    {
+                                        "id":  "activecampaign.manual-actions",
+                                        "file":  "src/controllers/acTags/activeCampaignOps.controller.ts",
+                                        "start":  "export const testCron",
+                                        "status":  "pending",
+                                        "reason":  "Decision evaluation can execute external actions; concurrency cannot change provider order or per-item error accounting."
+                                    },
+                                    {
+                                        "id":  "native-tags.compensating-writes",
+                                        "file":  "src/services/activeCampaign/nativeTagProtection.service.ts",
+                                        "start":  "export async function captureNativeTagsBatch",
+                                        "status":  "pending",
+                                        "reason":  "Tag removal plus snapshot and history writes have ordering and compensation implications."
+                                    },
+                                    {
+                                        "id":  "testimonial-tags.ordered-provider",
+                                        "file":  "src/services/activeCampaign/testimonialTagSync.service.ts",
+                                        "start":  "export async function syncTestimonialTags",
+                                        "status":  "pending",
+                                        "reason":  "Provider remove/add operations are ordered per user and preserve partial-error aggregation."
+                                    },
+                                    {
+                                        "id":  "weekly-tags.snapshot-writes",
+                                        "file":  "src/services/tagMonitoring/weeklyTagMonitoring.service.ts",
+                                        "start":  "async performWeeklySnapshot(",
+                                        "status":  "pending",
+                                        "reason":  "Traversal is coupled to snapshot, notification and change-history writes whose order must remain stable."
+                                    },
+                                    {
+                                        "id":  "guru-cross-reference.actions",
+                                        "file":  "src/services/guru/crossReference.service.ts",
+                                        "start":  "export async function runCrossReferenceAfterCurseducaSync",
+                                        "status":  "pending",
+                                        "reason":  "Conditional provider reads, database updates, action ordering and throttling prevent safe parallelization."
+                                    },
+                                    {
+                                        "id":  "analytics-cache.stats-scan",
+                                        "file":  "src/services/analytics/analyticsCache.service.ts",
+                                        "start":  "async getCacheStats()",
+                                        "status":  "complete",
+                                        "disposition":  "changed"
+                                    },
+                                    {
+                                        "id":  "analytics-cache.warmup",
+                                        "file":  "src/services/analytics/analyticsCache.service.ts",
+                                        "start":  "async warmUpCache()",
+                                        "status":  "complete",
+                                        "disposition":  "already-compliant"
+                                    },
+                                    {
+                                        "id":  "activity-snapshot.cohort-fanout",
+                                        "file":  "src/services/syncUtilizadoresServices/activitySnapshot.service.ts",
+                                        "start":  "async getCohortRetention(",
+                                        "status":  "pending",
+                                        "reason":  "Milestone reads still use data-sized Promise.all and need a bounded pool with result-order and complete-accounting proof."
+                                    },
+                                    {
+                                        "id":  "guru-trials.expired-writes",
+                                        "file":  "src/services/guru/guruTrialService.ts",
+                                        "start":  "export async function checkExpiredTrials",
+                                        "status":  "pending",
+                                        "reason":  "Expired-trial processing performs sequential user and enrollment writes with item-level failure accounting."
+                                    },
+                                    {
+                                        "id":  "product-sales.product-loop-writes",
+                                        "file":  "src/services/productSalesStatsBuilder.ts",
+                                        "start":  "export async function buildProductSalesStats",
+                                        "status":  "pending",
+                                        "reason":  "The outer product traversal still couples per-product reads to one stats upsert; batching needs write-order and partial-failure equivalence."
+                                    }
+                                ],
+                    "operational":  {
+                                        "status":  "pending",
+                                        "reason":  "No authorized non-production read-only Mongo target was loaded, so real executionStats and 1/10/50 probe evidence are absent."
+                                    }
+                }
 }
