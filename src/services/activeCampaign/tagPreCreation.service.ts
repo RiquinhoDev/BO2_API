@@ -89,7 +89,7 @@ export async function preCreateBOTags(): Promise<TagPreCreationResult> {
     const tagNames = new Set<string>()
 
     for (const rule of tagRules) {
-      const tagName = (rule as any).actions?.addTag
+      const tagName = (rule).actions?.addTag
       if (tagName && typeof tagName === 'string') {
         tagNames.add(tagName)
       }

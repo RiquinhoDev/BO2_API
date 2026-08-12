@@ -346,17 +346,7 @@
       "count": 1
     }
   },
-  "src/services/activeCampaign/nativeTagProtection.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/services/activeCampaign/pipelineSnapshot.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/services/activeCampaign/tagPreCreation.service.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
@@ -399,11 +389,6 @@
       "count": 10
     }
   },
-  "src/services/dashboardStatsBuilder.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    }
-  },
   "src/services/discovery/hotmartDiscovery.service.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 6
@@ -436,11 +421,6 @@
       "count": 5
     },
     "no-useless-assignment": {
-      "count": 1
-    }
-  },
-  "src/services/renewal/discord/planning.ts": {
-    "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
@@ -560,11 +540,6 @@
   "src/services/tagMonitoring/weeklyTagMonitoring.service.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 5
-    }
-  },
-  "src/services/userProducts/productService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
     }
   },
   "src/services/userProducts/userProductService.ts": {

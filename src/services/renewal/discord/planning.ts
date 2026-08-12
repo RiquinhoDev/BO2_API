@@ -152,7 +152,7 @@ export async function generateDiscordRolesPlan(): Promise<DiscordPlanReport> {
   }
 
   // 1. Estado desejado: alunos com turma activa + discord ligado
-  const students = await (User as any).find({
+  const students = await (User).find({
     'hotmart.enrolledClasses.0': { $exists: true }
   })
     .select('email discord.discordIds hotmart.enrolledClasses')
