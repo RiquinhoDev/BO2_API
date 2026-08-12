@@ -68,7 +68,7 @@ export interface CronExecutionResult {
   errorMessage?: string
 }
 
-export type PipelineStepStats = Record<string, unknown>
+export type PipelineStepStats = unknown
 
 export interface PipelineStepResult {
   success: boolean
