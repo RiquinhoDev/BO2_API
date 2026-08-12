@@ -1,10 +1,11 @@
 import mongoose, { Schema } from 'mongoose'
+import type { ClarezaEarningsPayload } from '../types/clareza.types'
 
 export interface IClarezaEarningsData {
   fetchedAt: Date
   itemCount: number
   errors: number
-  earnings: any
+  earnings: ClarezaEarningsPayload
 }
 
 const ClarezaEarningsDataSchema = new Schema<IClarezaEarningsData>(
