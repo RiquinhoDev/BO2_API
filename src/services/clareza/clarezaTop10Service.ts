@@ -5,6 +5,13 @@ import { fmpThrottle } from './fmpThrottle'
 import ClarezaTop10Data from '../../models/ClarezaTop10Data'
 import { getRuntimeConfig } from '../../config/runtimeConfig'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import {
+  hasProviderError,
+  isRecord,
+  type ClarezaHistoricalPoint,
+  type ClarezaTop10Payload,
+  type ClarezaTop10StockPayload,
+} from '../../types/clareza.types'
 
 // Limita concorrência sem depender de p-queue (ESM-only)
 function errorMessage(error: unknown): string {
@@ -67,15 +74,15 @@ const WATCHLIST = [
   { ticker: 'META',  name: 'Meta Platforms',           exchange: 'NASDAQ',            currency: '$', isPrivate: false, ipoFallback: false },
   { ticker: 'RACE',  name: 'Ferrari NV',               exchange: 'Borsa Italiana',     currency: '€', isPrivate: false, ipoFallback: false, fetchTicker: 'RACE.MI' },
   { ticker: 'NBIS',  name: 'Nebius Group N.V.',        exchange: 'NASDAQ',            currency: '$', isPrivate: false, ipoFallback: false },
-  { ticker: 'SPCX',  name: 'SpaceX',                   exchange: 'NASDAQ',            currency: '$', isPrivate: false, ipoFallback: true },
+  { ticker: 'SPCX',  name: 'SpaceX',                   exchange: 'NASDAQ',             currency: '$', isPrivate: false, ipoFallback: true },
 ]
 
 // ─────────────────────────────────────────────────────────────
 // FMP HELPERS (stable + fallback v3)
 // ─────────────────────────────────────────────────────────────
 
-const isEmpty = (v: unknown) => v === null || v === undefined ||
-  (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
+const isEmpty = (value: unknown) => value === null || value === undefined ||
+  (isRecord(value) && Object.keys(value).length === 0)
 
 function getFmpApiKey(): string {
   const integration = getRuntimeConfig().integrations.fmp
@@ -83,36 +90,40 @@ function getFmpApiKey(): string {
   return integration.value.apiKey
 }
 
+function firstProviderRecord(value: unknown): Record<string, unknown> | null {
+  if (Array.isArray(value)) {
+    return value.find(isRecord) ?? null
+  }
+  return isRecord(value) ? value : null
+}
 
 // Primeiro elemento — endpoints STABLE (?symbol=)
-async function fmpFirstStable<T = unknown>(path: string, params: Record<string, string> = {}): Promise<T | null> {
+async function fmpFirstStable(path: string, params: Record<string, string> = {}): Promise<Record<string, unknown> | null> {
   const apiKey = getFmpApiKey()
   try {
     await fmpThrottle()
-    const { data } = await axios.get(`${FMP_STABLE}${path}`, {
+    const { data } = await axios.get<unknown>(`${FMP_STABLE}${path}`, {
       params: { apikey: apiKey, ...params },
       timeout: 15000
     })
-    if (!data || (data as any)['Error Message']) return null
-    if (Array.isArray(data)) return (data[0] ?? null) as T
-    return data as T
+    if (!data || hasProviderError(data)) return null
+    return firstProviderRecord(data)
   } catch {
     return null
   }
 }
 
 // Primeiro elemento — endpoints v3 (ticker no path)
-async function fmpFirstV3<T = any>(pathWithTicker: string): Promise<T | null> {
+async function fmpFirstV3(pathWithTicker: string): Promise<Record<string, unknown> | null> {
   const apiKey = getFmpApiKey()
   try {
     await fmpThrottle()
-    const { data } = await axios.get(`${FMP_V3}${pathWithTicker}`, {
+    const { data } = await axios.get<unknown>(`${FMP_V3}${pathWithTicker}`, {
       params: { apikey: apiKey },
       timeout: 15000
     })
-    if (!data || (data as any)['Error Message']) return null
-    if (Array.isArray(data)) return (data[0] ?? null) as T
-    return data as T
+    if (!data || hasProviderError(data)) return null
+    return firstProviderRecord(data)
   } catch {
     return null
   }
@@ -127,17 +138,17 @@ function ymd(date: Date): string {
 // Corta o payload de ~1256 pts/ação para ~150 → JSON ~5× menor.
 const RECENT_DAYS = 90
 const OLD_STRIDE = 5 // 1 ponto a cada ~5 dias úteis (≈ semanal) para histórico antigo
-function downsampleHistory(rows: Array<{ date: string; close: number }>): Array<{ date: string; close: number }> {
+function downsampleHistory(rows: ClarezaHistoricalPoint[]): ClarezaHistoricalPoint[] {
   if (rows.length <= 160) return rows
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - RECENT_DAYS)
   const cutoffStr = ymd(cutoff)
 
-  const out: Array<{ date: string; close: number }> = []
+  const out: ClarezaHistoricalPoint[] = []
   for (let i = 0; i < rows.length; i++) {
-    const r = rows[i]
-    const isRecent = r.date >= cutoffStr
-    if (isRecent || i % OLD_STRIDE === 0) out.push(r)
+    const row = rows[i]
+    const isRecent = row.date >= cutoffStr
+    if (isRecent || i % OLD_STRIDE === 0) out.push(row)
   }
   // Garantir que o último ponto real (preço atual) está sempre presente
   const last = rows[rows.length - 1]
@@ -146,12 +157,12 @@ function downsampleHistory(rows: Array<{ date: string; close: number }>): Array<
 }
 
 // Histórico: STABLE light → fallback v3 historical-price-full → normalizado {date, close}
-async function fetchHistorical(ticker: string, from: string, to: string): Promise<Array<{ date: string; close: number }>> {
+async function fetchHistorical(ticker: string, from: string, to: string): Promise<ClarezaHistoricalPoint[]> {
   const apiKey = getFmpApiKey()
-  let rows: any[] = []
+  let rows: unknown[] = []
   try {
     await fmpThrottle()
-    const { data } = await axios.get(`${FMP_STABLE}/historical-price-eod/light`, {
+    const { data } = await axios.get<unknown>(`${FMP_STABLE}/historical-price-eod/light`, {
       params: { apikey: apiKey, symbol: ticker, from, to },
       timeout: 20000
     })
@@ -161,18 +172,19 @@ async function fetchHistorical(ticker: string, from: string, to: string): Promis
   if (!rows.length) {
     try {
       await fmpThrottle()
-      const { data } = await axios.get(`${FMP_V3}/historical-price-full/${ticker}`, {
+      const { data } = await axios.get<unknown>(`${FMP_V3}/historical-price-full/${ticker}`, {
         params: { apikey: apiKey, from, to },
         timeout: 20000
       })
-      if (data && Array.isArray(data.historical)) rows = data.historical
+      if (isRecord(data) && Array.isArray(data.historical)) rows = data.historical
     } catch { /* ignora */ }
   }
 
-  const out: Array<{ date: string; close: number }> = []
-  for (const r of rows) {
-    const date = r?.date ?? null
-    const close = r?.price ?? r?.close ?? r?.adjClose ?? null
+  const out: ClarezaHistoricalPoint[] = []
+  for (const rawRow of rows) {
+    if (!isRecord(rawRow)) continue
+    const date = rawRow.date ?? null
+    const close = rawRow.price ?? rawRow.close ?? rawRow.adjClose ?? null
     if (date && close !== null && !isNaN(Number(close))) {
       out.push({ date: String(date).slice(0, 10), close: Math.round(Number(close) * 100) / 100 })
     }
@@ -185,17 +197,17 @@ async function fetchHistorical(ticker: string, from: string, to: string): Promis
 // FETCH POR AÇÃO
 // ─────────────────────────────────────────────────────────────
 
-async function fetchPublicStock(ticker: string) {
+async function fetchPublicStock(ticker: string): Promise<ClarezaTop10StockPayload> {
   // Sleeps manuais removidos: o fmpThrottle já é o único gate de ritmo
   // partilhado por toda a Clareza (2.400/min, plano Ultimate).
   // 1) STABLE
   let profile = await fmpFirstStable('/profile', { symbol: ticker })
-  let ratios  = await fmpFirstStable('/ratios-ttm', { symbol: ticker })
+  let ratios = await fmpFirstStable('/ratios-ttm', { symbol: ticker })
   let metrics = await fmpFirstStable('/key-metrics-ttm', { symbol: ticker })
 
   // 2) Fallback v3 quando a STABLE devolve vazio (ex.: NBIS, RACE)
   if (isEmpty(profile)) profile = await fmpFirstV3(`/profile/${ticker}`)
-  if (isEmpty(ratios))  ratios  = await fmpFirstV3(`/ratios-ttm/${ticker}`)
+  if (isEmpty(ratios)) ratios = await fmpFirstV3(`/ratios-ttm/${ticker}`)
   if (isEmpty(metrics)) metrics = await fmpFirstV3(`/key-metrics-ttm/${ticker}`)
 
   const from = new Date()
@@ -203,16 +215,16 @@ async function fetchPublicStock(ticker: string) {
   const historical = downsampleHistory(await fetchHistorical(ticker, ymd(from), ymd(new Date())))
 
   return {
-    profile:    isEmpty(profile) ? {} : profile,
-    ratios:     isEmpty(ratios) ? {} : ratios,
-    keyMetrics: isEmpty(metrics) ? {} : metrics,
+    profile: profile ?? {},
+    ratios: ratios ?? {},
+    keyMetrics: metrics ?? {},
     historical,
-    updated:    new Date().toISOString()
+    updated: new Date().toISOString()
   }
 }
 
 // SpaceX antes de IPO — dados manuais enquanto a FMP não devolve nada útil
-function spacexIpoFallbackPayload() {
+function spacexIpoFallbackPayload(): ClarezaTop10StockPayload {
   const today = ymd(new Date())
   return {
     profile: {
@@ -252,12 +264,12 @@ function spacexIpoFallbackPayload() {
   }
 }
 
-function withSpacexIpoFallback(payload: any) {
+function withSpacexIpoFallback(payload: ClarezaTop10StockPayload): ClarezaTop10StockPayload {
   const fallback = spacexIpoFallbackPayload()
-  const liveProfile = payload?.profile || {}
-  const liveRatios = payload?.ratios || {}
-  const liveKeyMetrics = payload?.keyMetrics || {}
-  const liveHistorical = Array.isArray(payload?.historical) ? payload.historical : []
+  const liveProfile = payload.profile
+  const liveRatios = payload.ratios
+  const liveKeyMetrics = payload.keyMetrics
+  const liveHistorical = payload.historical
 
   const livePrice = liveProfile.price
   const hasPrice = livePrice !== null && livePrice !== undefined && !isNaN(Number(livePrice))
@@ -281,13 +293,13 @@ function withSpacexIpoFallback(payload: any) {
     historical: hasHistory ? liveHistorical : fallback.historical,
     ipoInfo: {
       ...fallback.ipoInfo,
-      ...(payload?.ipoInfo || {})
+      ...(payload.ipoInfo ?? {})
     },
-    updated: payload?.updated || fallback.updated
+    updated: payload.updated || fallback.updated
   }
 }
 
-function privateStockPayload() {
+function privateStockPayload(): ClarezaTop10StockPayload {
   return {
     profile: { price: null, changesPercentage: null, changePercentage: null, sector: 'Privada', country: '—' },
     ratios: {},
@@ -315,7 +327,7 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
         return { ticker: stock.ticker, payload: privateStockPayload() }
       }
       try {
-        let payload: any = await fetchPublicStock(stock.fetchTicker || stock.ticker)
+        let payload = await fetchPublicStock(stock.fetchTicker || stock.ticker)
 
         // SPCX: usa fallback manual de IPO enquanto a FMP não tiver preço nem histórico
         if (stock.ipoFallback) {
@@ -334,12 +346,12 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
     10
   )
 
-  const stocks: Record<string, any> = {}
-  for (const e of entries) {
-    if (e.payload) stocks[e.ticker] = e.payload
+  const stocks: Record<string, ClarezaTop10StockPayload> = {}
+  for (const entry of entries) {
+    if (entry.payload) stocks[entry.ticker] = entry.payload
   }
 
-  const payload = {
+  const payload: ClarezaTop10Payload = {
     updated: new Date().toISOString().slice(0, 19).replace('T', ' '),
     source: 'Financial Modeling Prep',
     revision: REVISION,
@@ -356,7 +368,7 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
   // Guardar em MongoDB (persistência durável — mesmo se Redis reiniciar)
   try {
     await ClarezaTop10Data.create({
-      fetchedAt:  new Date(),
+      fetchedAt: new Date(),
       stockCount: Object.keys(stocks).length,
       errors,
       payload
@@ -364,10 +376,10 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
     // Manter apenas os últimos 5 snapshots
     const all = await ClarezaTop10Data.find({}, '_id fetchedAt').sort({ fetchedAt: -1 }).lean()
     if (all.length > 5) {
-      const toDelete = all.slice(5).map((d: any) => d._id)
+      const toDelete = all.slice(5).map((document) => document._id)
       await ClarezaTop10Data.deleteMany({ _id: { $in: toDelete } })
     }
-    logger.info(`💾 [ClarezaTop10] Snapshot guardado na BD`)
+    logger.info('💾 [ClarezaTop10] Snapshot guardado na BD')
   } catch (err: unknown) {
     logger.error('⚠️ [ClarezaTop10] Erro ao guardar snapshot na BD:', errorMessage(err))
   }
@@ -409,9 +421,9 @@ export async function getClarezaTop10Json(): Promise<string | null> {
   return json
 }
 
-export async function getClarezaTop10Data(): Promise<any | null> {
+export async function getClarezaTop10Data(): Promise<ClarezaTop10Payload | null> {
   // 1. Tentar Redis
-  const cached = await cacheService.get<any>(CLAREZA_TOP10_CACHE_KEY)
+  const cached = await cacheService.get<ClarezaTop10Payload>(CLAREZA_TOP10_CACHE_KEY)
   if (cached) return cached
 
   // 2. Redis miss → tentar MongoDB (último snapshot persistido)
