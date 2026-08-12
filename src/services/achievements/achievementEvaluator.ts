@@ -15,7 +15,7 @@ import { Class } from '../../models/Class'
 // TIPOS
 // ─────────────────────────────────────────────────────────────
 
-interface AchievementItem {
+export interface AchievementItem {
   id: string
   unlockedAt: Date | null
   seenAt?: Date | null
@@ -25,20 +25,22 @@ interface AchievementItem {
   }
 }
 
-interface AchievementResult {
+export interface AchievementStats {
+  total: number
+  unlocked: number
+  percentage: number
+  currentStreak: number
+  bestStreak: number
+  lastEvaluatedAt: Date
+}
+
+export interface AchievementResult {
   achievements: AchievementItem[]
-  stats: {
-    total: number
-    unlocked: number
-    percentage: number
-    currentStreak: number
-    bestStreak: number
-    lastEvaluatedAt: Date
-  }
+  stats: AchievementStats
 }
 
 // Dados do utilizador necessários para avaliação
-interface UserData {
+export interface UserData {
   _id: mongoose.Types.ObjectId
   email: string
   discord?: {
@@ -332,7 +334,7 @@ function evaluateSingle(
       const firstAccess = user.hotmart?.firstAccessDate
       if (!purchase || !firstAccess) return { unlocked: false }
       const diffMs = new Date(firstAccess).getTime() - new Date(purchase).getTime()
-      return { unlocked: diffMs >= 0 && diffMs < 86400000 } // < 24h
+      return { unlocked: diffMs >= 0 && diffMs < 86400000 }
     }
 
     case 'volta_triunfal': {
