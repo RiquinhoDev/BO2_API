@@ -101,13 +101,13 @@ interface LegacyHotmartData {
   signupDate?: Date
   lastAccessDate?: Date
   enrolledClasses?: Array<{
-    classId?: string
-    className?: string
-    isActive?: boolean
+    classId: string
+    className: string
+    isActive: boolean
     enrolledAt?: Date
   }>
   progress?: {
-    completedLessons?: number
+    completedLessons: number
     lessonsData?: Array<{
       lessonId: string
       title: string
@@ -150,6 +150,7 @@ interface AchievementStats {
   percentage: number
   currentStreak: number
   bestStreak: number
+  lastEvaluatedAt: Date
 }
 
 type StudentWithAchievements = StudentLean & {
@@ -274,14 +275,11 @@ async function buildStudentOgiSummary(
   const continueLesson = await buildContinueLesson(userProduct)
   const activeClassName = getActiveHotmartClassName(user)
   const parsedTurma = activeClassName ? parseTurmaName(activeClassName) : null
-  // Fim de acesso canónico (2 camadas: compra + nome da turma) — mesma regra do
-  // gate de login na API legacy. Fallback ao cálculo antigo se não houver dados.
   const fallbackExpiresAt = calculateExpirationDate(purchaseDate || enrolledAt)
   const expiresAt = resolveAccessEnd(purchaseDate || enrolledAt, activeClassName)
     || fallbackExpiresAt
   const renewalOffer = await findRenewalOffer(parsedTurma?.turmaNumber)
 
-  // Construir achievements a partir do cache no User doc
   const achievementsData = buildAchievementsResponse(user.achievements, user.achievementStats)
 
   return {
@@ -357,25 +355,24 @@ function toContinueLesson(
 }
 
 function buildAchievementsResponse(
-  achievements?: any[],
-  stats?: any
+  achievements?: AchievementEntry[],
+  stats?: AchievementStats
 ): StudentOgiSummary['achievements'] {
   if (!achievements || achievements.length === 0) return undefined
 
-  // Enriquecer com definições (nomes, descrições)
   const defMap = new Map(ACHIEVEMENT_DEFINITIONS.map((d) => [d.id, d]))
 
-  const items = achievements.map((a) => {
-    const def = defMap.get(a.id)
+  const items = achievements.map((achievement) => {
+    const def = defMap.get(achievement.id)
     return {
-      id: a.id,
-      name: def?.name || a.id,
+      id: achievement.id,
+      name: def?.name || achievement.id,
       description: def?.description || '',
       category: def?.category || 'marcos',
-      isUnlocked: Boolean(a.unlockedAt),
-      unlockedAt: a.unlockedAt ? new Date(a.unlockedAt).toISOString() : null,
-      isNew: Boolean(a.unlockedAt && !a.seenAt),
-      progress: a.progress || undefined,
+      isUnlocked: Boolean(achievement.unlockedAt),
+      unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt).toISOString() : null,
+      isNew: Boolean(achievement.unlockedAt && !achievement.seenAt),
+      progress: achievement.progress || undefined,
     }
   })
 
