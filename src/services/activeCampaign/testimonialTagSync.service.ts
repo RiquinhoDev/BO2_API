@@ -7,6 +7,10 @@ import User from '../../models/user'
 import activeCampaignService from './activeCampaignService'
 import logger from '../../utils/logger'
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
+}
+
 /**
  * Interface para resultado da sincronização
  */
@@ -123,8 +127,8 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
               if (removed) {
                 logger.info(`   🗑️  Tag antiga "${oldTag}" removida de ${email}`)
               }
-            } catch (removeError: any) {
-              logger.warn(`   ⚠️  Erro ao remover tag antiga "${oldTag}" de ${email}: ${removeError.message}`)
+            } catch (removeError: unknown) {
+              logger.warn(`   ⚠️  Erro ao remover tag antiga "${oldTag}" de ${email}: ${errorMessage(removeError)}`)
               // Não falhar por causa de remoção de tag
             }
           }
@@ -153,12 +157,12 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
             logger.info(`   ✅ Tag "${tagName}" aplicada em ${email}`)
             result.stats.synced++
 
-          } catch (tagError: any) {
-            logger.error(`   ❌ Erro ao aplicar tag "${tagName}" em ${email}: ${tagError.message}`)
+          } catch (tagError: unknown) {
+            logger.error(`   ❌ Erro ao aplicar tag "${tagName}" em ${email}: ${errorMessage(tagError)}`)
             result.errors.push({
               userId: user._id.toString(),
               email,
-              error: `Tag "${tagName}": ${tagError.message}`
+              error: `Tag "${tagName}": ${errorMessage(tagError)}`
             })
             result.stats.failed++
           }
@@ -177,16 +181,16 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
               }
             }
           )
-        } catch (updateError: any) {
-          logger.warn(`   ⚠️  Erro ao atualizar lastSyncedAt para ${email}: ${updateError.message}`)
+        } catch (updateError: unknown) {
+          logger.warn(`   ⚠️  Erro ao atualizar lastSyncedAt para ${email}: ${errorMessage(updateError)}`)
         }
 
-      } catch (userError: any) {
-        logger.error(`   ❌ Erro ao processar user ${user.email}: ${userError.message}`)
+      } catch (userError: unknown) {
+        logger.error(`   ❌ Erro ao processar user ${user.email}: ${errorMessage(userError)}`)
         result.errors.push({
           userId: user._id.toString(),
           email: user.email || 'N/A',
-          error: userError.message
+          error: errorMessage(userError)
         })
         result.stats.failed++
       }
@@ -227,13 +231,13 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
 
     return result
 
-  } catch (error: any) {
-    logger.error('   ❌ Erro fatal na sincronização de tags de testemunhos:', error.message)
+  } catch (error: unknown) {
+    logger.error('   ❌ Erro fatal na sincronização de tags de testemunhos:', errorMessage(error))
     result.success = false
     result.errors.push({
       userId: 'SYSTEM',
       email: 'SYSTEM',
-      error: `Fatal: ${error.message}`
+      error: `Fatal: ${errorMessage(error)}`
     })
     return result
   }

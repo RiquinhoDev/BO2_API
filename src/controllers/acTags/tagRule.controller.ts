@@ -6,6 +6,8 @@ import { successResponse } from '../../contracts/responseContract'
 // ════════════════════════════════════════════════════════════
 
 import type { RequestHandler } from 'express'
+import type { FilterQuery } from 'mongoose'
+import type { ITagRule } from '../../models/acTags/TagRule'
 import { internalError } from '../../security/errorHandling'
 import { Course, TagRule } from '../../models'
 
@@ -17,7 +19,7 @@ export const getAllRules: RequestHandler = async (req, res, next) => {
   try {
     const { courseId, category, isActive } = req.query
 
-    const filter: any = {}
+    const filter: FilterQuery<ITagRule> = {}
     if (courseId) filter.courseId = courseId
     if (category) filter.category = category
     if (isActive !== undefined) filter.isActive = isActive === 'true'

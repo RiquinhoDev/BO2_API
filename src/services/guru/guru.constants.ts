@@ -15,6 +15,10 @@ import { getOptionalCurseducaRuntimeSettings } from '../requestDrivenRuntimeConf
 // STATUS GURU
 // ═══════════════════════════════════════════════════════════
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
+}
+
 /** Status que indicam cancelamento definitivo */
 export const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
 
@@ -200,8 +204,8 @@ export async function verifyCurseducaMemberStatus(memberId: string | number): Pr
       name: data?.name,
       email: data?.email
     }
-  } catch (err: any) {
-    logger.info(`   ⚠️ [CURSEDUCA API] Erro verificar membro ${memberId}: ${err.response?.status || err.message}`)
+  } catch (err: unknown) {
+    logger.info(`   ⚠️ [CURSEDUCA API] Erro verificar membro ${memberId}: ${axios.isAxiosError(err) ? (err.response?.status || err.message) : errorMessage(err)}`)
     return null
   }
 }
@@ -250,9 +254,9 @@ export async function lookupCurseducaUserIdByEmail(email: string): Promise<{
     // Se /members não suportou filtro por email, tentar por nome
     // (fallback - menos eficiente)
     return null
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Se 404 ou endpoint não suporta filtro, tentar busca alternativa
-    if (err.response?.status === 404 || err.response?.status === 422) {
+    if (axios.isAxiosError(err) && (err.response?.status === 404 || err.response?.status === 422)) {
       // Tentar listar membros dos grupos conhecidos
       try {
         const CLAREZA_GROUP_IDS = ['6', '7'] // IDs dos grupos Clareza
@@ -281,11 +285,11 @@ export async function lookupCurseducaUserIdByEmail(email: string): Promise<{
 
           await new Promise(resolve => setTimeout(resolve, 300)) // Rate limit
         }
-      } catch (groupErr: any) {
-        logger.info(`   ⚠️ [CURSEDUCA LOOKUP] Erro grupos: ${groupErr.response?.status || groupErr.message}`)
+      } catch (groupErr: unknown) {
+        logger.info(`   ⚠️ [CURSEDUCA LOOKUP] Erro grupos: ${axios.isAxiosError(groupErr) ? (groupErr.response?.status || groupErr.message) : errorMessage(groupErr)}`)
       }
     } else {
-      logger.info(`   ⚠️ [CURSEDUCA LOOKUP] Erro pesquisar ${email}: ${err.response?.status || err.message}`)
+      logger.info(`   ⚠️ [CURSEDUCA LOOKUP] Erro pesquisar ${email}: ${axios.isAxiosError(err) ? (err.response?.status || err.message) : errorMessage(err)}`)
     }
     return null
   }

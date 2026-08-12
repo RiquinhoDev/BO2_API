@@ -18,6 +18,10 @@ import activeCampaignService from './activeCampaignService'
 // TYPES
 // ═══════════════════════════════════════════════════════════
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
+}
+
 export interface TagPreCreationResult {
   success: boolean
   totalTags: number
@@ -118,8 +122,8 @@ export async function preCreateBOTags(): Promise<TagPreCreationResult> {
         result.tagCache.set(tagName, tagId)
         result.existing++
 
-      } catch (error: any) {
-        logger.error(`   ❌ Tag "${tagName}": ${error.message}`)
+      } catch (error: unknown) {
+        logger.error(`   ❌ Tag "${tagName}": ${errorMessage(error)}`)
         result.failed.push(tagName)
         result.success = false
       }
@@ -136,11 +140,11 @@ export async function preCreateBOTags(): Promise<TagPreCreationResult> {
 
     return result
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     result.success = false
     result.duration = Math.floor((Date.now() - startTime) / 1000)
 
-    logger.error(`❌ Erro fatal na pré-criação: ${error.message}`)
+    logger.error(`❌ Erro fatal na pré-criação: ${errorMessage(error)}`)
 
     return result
   }

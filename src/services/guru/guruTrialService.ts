@@ -12,6 +12,10 @@ import { TrialNotEndedError, TrialUserNotFoundError } from './guruTrialErrors'
 // Fim do trial: usar o trial_finished_at da Guru (autoritativo). A Guru só o
 // devolve no endpoint POR SUBSCRIÇÃO (a lista omite-o), por isso o sync vai
 // buscá-lo lá. TRIAL_WINDOW_DAYS é apenas fallback quando a Guru não dá fim.
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
+}
+
 const TRIAL_WINDOW_DAYS = 7
 const DAY_MS = 86400000
 
@@ -188,8 +192,8 @@ export async function checkExpiredTrials(): Promise<CheckExpiredResult> {
         const markedCount = await markUserProductsForInactivation(user._id as any, user.email)
         result.markedForInactivation += markedCount
       }
-    } catch (error: any) {
-      logger.error(`❌ [GURU TRIALS] Erro ao verificar ${user.email}:`, error.message)
+    } catch (error: unknown) {
+      logger.error(`❌ [GURU TRIALS] Erro ao verificar ${user.email}:`, errorMessage(error))
       result.errors++
     }
   }
@@ -279,13 +283,13 @@ export async function syncTrialsFromGuru(): Promise<{ synced: number; errors: nu
         await User.updateOne({ _id: user._id }, { $set: update })
         synced++
         logger.info(`✅ [GURU TRIALS SYNC] ${email} → trial (início=${startRaw || 'N/A'}, fim=${finishRaw || 'início+7d'})`)
-      } catch (err: any) {
-        logger.error(`❌ [GURU TRIALS SYNC] Erro ${email}:`, err.message)
+      } catch (err: unknown) {
+        logger.error(`❌ [GURU TRIALS SYNC] Erro ${email}:`, errorMessage(err))
         errors++
       }
     }
-  } catch (err: any) {
-    logger.error('❌ [GURU TRIALS SYNC] Erro global:', err.message)
+  } catch (err: unknown) {
+    logger.error('❌ [GURU TRIALS SYNC] Erro global:', errorMessage(err))
     errors++
   }
 

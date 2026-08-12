@@ -11,6 +11,10 @@ import logger from '../../utils/logger'
 // IDENTIFICAÇÃO DE TAGS
 // ═══════════════════════════════════════════════════════════
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
+}
+
 /**
  * Verifica se uma tag é uma tag BO (criada pelo nosso sistema)
  *
@@ -169,8 +173,8 @@ export async function captureNativeTags(
       boTags,
       isFirstCapture
     }
-  } catch (error: any) {
-    logger.error(`[NativeTagProtection] ❌ Erro ao capturar tags para ${email}:`, error.message)
+  } catch (error: unknown) {
+    logger.error(`[NativeTagProtection] ❌ Erro ao capturar tags para ${email}:`, errorMessage(error))
     return {
       success: false,
       nativeTags: [],

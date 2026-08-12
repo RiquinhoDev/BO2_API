@@ -7,6 +7,10 @@ import { getRuntimeConfig } from '../../config/runtimeConfig'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 
 // Limita concorrência sem depender de p-queue (ESM-only)
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido'
+}
+
 async function runWithConcurrency<T>(
   tasks: (() => Promise<T>)[],
   concurrency: number
@@ -319,9 +323,9 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
         }
 
         return { ticker: stock.ticker, payload }
-      } catch (err: any) {
+      } catch (err: unknown) {
         errors++
-        logger.error(`❌ [ClarezaTop10] Erro em ${stock.ticker}:`, err.message)
+        logger.error(`❌ [ClarezaTop10] Erro em ${stock.ticker}:`, errorMessage(err))
         return { ticker: stock.ticker, payload: null }
       }
     }),
@@ -364,8 +368,8 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
       await ClarezaTop10Data.deleteMany({ _id: { $in: toDelete } })
     }
     logger.info(`💾 [ClarezaTop10] Snapshot guardado na BD`)
-  } catch (err: any) {
-    logger.error('⚠️ [ClarezaTop10] Erro ao guardar snapshot na BD:', err.message)
+  } catch (err: unknown) {
+    logger.error('⚠️ [ClarezaTop10] Erro ao guardar snapshot na BD:', errorMessage(err))
   }
 
   logger.info(`✅ [ClarezaTop10] Refresh completo — ${Object.keys(stocks).length} ok, ${errors} erros`)
@@ -418,8 +422,8 @@ export async function getClarezaTop10Data(): Promise<any | null> {
       await cacheService.set(CLAREZA_TOP10_CACHE_KEY, latest.payload, CACHE_TTL)
       return latest.payload
     }
-  } catch (err: any) {
-    logger.error('⚠️ [ClarezaTop10] Erro ao ler snapshot da BD:', err.message)
+  } catch (err: unknown) {
+    logger.error('⚠️ [ClarezaTop10] Erro ao ler snapshot da BD:', errorMessage(err))
   }
 
   // 3. Nenhum dado disponível. Não chamar FMP em load público.
