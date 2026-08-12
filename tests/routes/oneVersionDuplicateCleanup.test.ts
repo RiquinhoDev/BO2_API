@@ -18,6 +18,7 @@ test('exposes only canonical ActiveCampaign, cron and Hotmart route identities',
   expect(runtime).not.toContain("app.use('/cron-tags'")
   expect(runtime).not.toContain("app.get('/api/tag-rules'")
   expect(cron).not.toContain("'/execute-legacy'")
+  expect(cron).not.toContain("'/execute'")
   expect(hotmart).not.toContain("'/syncHotmartUsers'")
   expect(hotmart).toContain("router.get('/sync/universal'")
 })

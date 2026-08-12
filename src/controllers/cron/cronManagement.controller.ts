@@ -1,6 +1,5 @@
 import type { Response } from 'express'
 import { successResponse } from '../../contracts/responseContract'
-import type { CronTagsExecuteInput } from '../../security/cronTagsDestructiveInput'
 import type {
   CronTagsConfigInput,
   CronTagsHistoryInput,
@@ -23,14 +22,6 @@ export type CronTagsUseCases = Pick<
   | 'updateConfig'
   | 'validateCronExpression'
 >
-
-function executionGone(res: Response): void {
-  res.status(410).json({
-    success: false,
-    error: 'Endpoint descontinuado',
-    replacement: '/api/cron/tag-rules-only',
-  })
-}
 
 function respondNotFound(error: unknown, res: Response): boolean {
   if (!(error instanceof CronTagsJobNotFoundError)) return false
@@ -67,16 +58,6 @@ export function createCronManagementController(service: CronTagsUseCases) {
       } catch (error) {
         if (!respondNotFound(error, res)) throw error
       }
-    },
-
-    executeNow(input: CronTagsExecuteInput, res: Response): void {
-      void input
-      executionGone(res)
-    },
-
-    executeLegacy(input: CronTagsExecuteInput, res: Response): void {
-      void input
-      executionGone(res)
     },
 
     async getHistory(

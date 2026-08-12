@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import type { CronManagementController } from '../../controllers/cron/cronManagement.controller'
-import { cronTagsExecuteInput } from '../../security/cronTagsDestructiveInput'
 import {
   cronTagsConfigInput,
   cronTagsEmptyInput,
@@ -25,11 +24,6 @@ export function createCronManagementRouter(
     '/config',
     withValidatedInput(cronTagsConfigInput, (input, _req, res) =>
       controller.updateConfig(input, res)),
-  )
-  router.post(
-    '/execute',
-    withValidatedInput(cronTagsExecuteInput, (input, _req, res) =>
-      controller.executeNow(input, res)),
   )
   router.get(
     '/history',
