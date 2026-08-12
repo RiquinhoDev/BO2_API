@@ -1,7 +1,7 @@
 import { successResponse } from '../contracts/responseContract'
 import { NextFunction, Request, Response } from 'express'
-import { ensureUserHistoryModel } from '../models/UserHistory'
-import mongoose from 'mongoose'
+import { ensureUserHistoryModel, type IUserHistory } from '../models/UserHistory'
+import mongoose, { type FilterQuery } from 'mongoose'
 import { forwardApplicationError } from '../security/forwardApplicationError'
 
 // Buscar histórico de um usuário específico
@@ -21,7 +21,7 @@ export const getUserHistory = async (req: Request, res: Response, next: NextFunc
     const UserHistoryModel = ensureUserHistoryModel()
     
     // Determinar filtro baseado no parâmetro fornecido
-    const filter: any = {}
+    const filter: FilterQuery<IUserHistory> = {}
     if (userId) {
       if (!mongoose.Types.ObjectId.isValid(userId as string)) {
         res.status(400).json({
@@ -43,7 +43,7 @@ export const getUserHistory = async (req: Request, res: Response, next: NextFunc
       .lean()
 
     // Estatísticas do histórico
-    const stats = await UserHistoryModel.aggregate([
+    const stats = await UserHistoryModel.aggregate<{ _id: string; count: number; lastChange: Date }>([
       { $match: filter },
       {
         $group: {
@@ -56,16 +56,16 @@ export const getUserHistory = async (req: Request, res: Response, next: NextFunc
 
     const summary = {
       totalChanges: history.length,
-      changeTypes: stats.reduce((acc: any, stat: any) => {
+      changeTypes: stats.reduce<Record<string, { count: number; lastChange: Date }>>((acc, stat) => {
         acc[stat._id] = {
           count: stat.count,
           lastChange: stat.lastChange
         }
         return acc
       }, {}),
-      hasClassChanges: stats.some((s: any) => s._id === 'CLASS_CHANGE'),
-      hasEmailChanges: stats.some((s: any) => s._id === 'EMAIL_CHANGE'),
-      hasManualEdits: stats.some((s: any) => s._id === 'MANUAL_EDIT')
+      hasClassChanges: stats.some((s) => s._id === 'CLASS_CHANGE'),
+      hasEmailChanges: stats.some((s) => s._id === 'EMAIL_CHANGE'),
+      hasManualEdits: stats.some((s) => s._id === 'MANUAL_EDIT')
     }
 
     res.json(successResponse(
@@ -103,7 +103,7 @@ export const getAllHistory = async (req: Request, res: Response, next: NextFunct
     const UserHistoryModel = ensureUserHistoryModel()
     
     // Construir filtro
-    const filter: any = {}
+    const filter: FilterQuery<IUserHistory> = {}
     if (changeType) {
       filter.changeType = changeType
     }
@@ -123,7 +123,11 @@ export const getAllHistory = async (req: Request, res: Response, next: NextFunct
     ])
 
     // Estatísticas gerais
-    const stats = await UserHistoryModel.aggregate([
+    const stats = await UserHistoryModel.aggregate<{
+      _id: { changeType: string; source: string }
+      count: number
+      lastChange: Date
+    }>([
       { $match: filter },
       {
         $group: {
@@ -140,7 +144,7 @@ export const getAllHistory = async (req: Request, res: Response, next: NextFunct
     res.json(successResponse(
       {
         history,
-        stats: stats.reduce((acc: any, stat: any) => {
+        stats: stats.reduce<Record<string, { count: number; lastChange: Date }>>((acc, stat) => {
           const key = `${stat._id.changeType}_${stat._id.source}`
           acc[key] = {
             count: stat.count,

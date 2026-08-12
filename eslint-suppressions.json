@@ -1,9 +1,4 @@
 {
-  "src/controllers/acTags/tagRuleEstimate.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 11
-    }
-  },
   "src/controllers/businessAnalytics.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
@@ -104,11 +99,6 @@
   "src/controllers/testHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 5
-    }
-  },
-  "src/controllers/userHistory.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 9
     }
   },
   "src/jobs/cronExecutionCleanup.job.ts": {
@@ -362,9 +352,6 @@
     }
   },
   "src/services/analytics/analyticsService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 8
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -454,7 +441,7 @@
   },
   "src/services/studentOgiSummary.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 9
+      "count": 2
     }
   },
   "src/services/syncUtilizadoresServices/activitySnapshot.service.ts": {
@@ -544,7 +531,7 @@
   },
   "src/services/userProducts/userProductService.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 9
+      "count": 3
     }
   },
   "src/types/cron.types.ts": {
@@ -563,9 +550,6 @@
     }
   },
   "src/utils/studentDataConsolidator.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 10
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }

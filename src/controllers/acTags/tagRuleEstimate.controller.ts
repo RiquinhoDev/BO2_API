@@ -5,6 +5,10 @@
 
 import logger from '../../utils/logger'
 import type { RequestHandler } from 'express'
+import type { FilterQuery, Types } from 'mongoose'
+import type { ICourse } from '../../models/Course'
+import type { IProduct } from '../../models/product/Product'
+import type { IUserProduct } from '../../models/UserProduct'
 import { internalError } from '../../security/errorHandling'
 import { UserProduct, Product, Course } from '../../models'
 
@@ -98,7 +102,7 @@ export const estimateAffectedUsers: RequestHandler = async (req, res, next) => {
     logger.info(`✅ Estimativa: ${count} alunos`)
 
     // Breakdown por status
-    const breakdown = await UserProduct.aggregate([
+    const breakdown = await UserProduct.aggregate<{ _id: string; count: number }>([
       { $match: query },
       {
         $group: {
@@ -112,7 +116,7 @@ export const estimateAffectedUsers: RequestHandler = async (req, res, next) => {
       success: true,
       data: {
         estimatedCount: count,
-        breakdown: breakdown.reduce((acc: any, item: any) => {
+        breakdown: breakdown.reduce<Record<string, number>>((acc, item) => {
           acc[item._id] = item.count
           return acc
         }, {})
@@ -168,8 +172,8 @@ export const previewAffectedUsers: RequestHandler = async (req, res, next) => {
     // Buscar alunos (com limit)
     const userProducts = await UserProduct.find(query)
       .limit(Math.min(limit, 50)) // Máximo 50
-      .populate('userId', 'name email')
-      .populate('productId', 'name code')
+      .populate<{ userId?: { _id?: Types.ObjectId; name?: string; email?: string } }>('userId', 'name email')
+      .populate<{ productId?: { _id?: Types.ObjectId; name?: string; code?: string } }>('productId', 'name code')
       .sort({ updatedAt: -1 })
 
     // Total count
@@ -178,7 +182,7 @@ export const previewAffectedUsers: RequestHandler = async (req, res, next) => {
     logger.info(`✅ Preview: ${userProducts.length} de ${totalCount} alunos`)
 
     // Formatar resposta
-    const users = userProducts.map((up: any) => ({
+    const users = userProducts.map((up) => ({
       userId: up.userId?._id,
       userName: up.userId?.name,
       userEmail: up.userId?.email,
@@ -300,8 +304,11 @@ export const getAvailableFields: RequestHandler = async (_req, res, next) => {
 // HELPER: Construir Query MongoDB
 // ─────────────────────────────────────────────────────────────
 
-async function buildMongoQuery(conditions: IConditions, course: any): Promise<any> {
-  const query: any = {}
+async function buildMongoQuery(
+  conditions: IConditions,
+  course: Pick<ICourse, '_id'> | null,
+): Promise<FilterQuery<IUserProduct>> {
+  const query: FilterQuery<IUserProduct> = {}
 
   // ═══════════════════════════════════════════════════════════
   // SOURCE: USERPRODUCT (Simples)
@@ -330,7 +337,7 @@ async function buildMongoQuery(conditions: IConditions, course: any): Promise<an
     const logic = conditions.logic || 'AND'
 
     // Buscar produtos que satisfazem as condições
-    const productQuery: any = {}
+    const productQuery: FilterQuery<IProduct> = {}
 
     if (logic === 'AND') {
       for (const rule of rules) {
@@ -369,12 +376,12 @@ async function buildMongoQuery(conditions: IConditions, course: any): Promise<an
   // ═══════════════════════════════════════════════════════════
   else if (conditions.source === 'COMBINED' && conditions.groups) {
     const groups = conditions.groups
-    const andConditions: any[] = []
+    const andConditions: FilterQuery<IUserProduct>[] = []
 
     for (const group of groups) {
       if (group.source === 'USERPRODUCT') {
         // Condições diretas do UserProduct
-        const groupQuery: any = {}
+        const groupQuery: FilterQuery<IUserProduct> = {}
         
         if (group.logic === 'AND') {
           for (const rule of group.rules) {
@@ -388,7 +395,7 @@ async function buildMongoQuery(conditions: IConditions, course: any): Promise<an
         andConditions.push(groupQuery)
       } else if (group.source === 'PRODUCT') {
         // Buscar produtos
-        const productQuery: any = {}
+        const productQuery: FilterQuery<IProduct> = {}
         
         if (group.logic === 'AND') {
           for (const rule of group.rules) {
@@ -419,7 +426,7 @@ async function buildMongoQuery(conditions: IConditions, course: any): Promise<an
 // HELPER: Construir condição de uma rule
 // ─────────────────────────────────────────────────────────────
 
-function buildRuleCondition(rule: IRule): any {
+function buildRuleCondition(rule: IRule): Record<string, unknown> {
   const { field, operator, value } = rule
 
   // Operadores simples

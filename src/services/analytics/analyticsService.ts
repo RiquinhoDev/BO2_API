@@ -7,6 +7,22 @@ import { IClassAnalytics } from '../../types/analytics.types'
 
 
 
+type AnalyticsStudent = Omit<IUser, 'engagement'> & {
+  status?: string
+  engagementScore?: number
+  engagement?: string
+  accessCount?: number
+  progress?: { completedPercentage?: number }
+  lastAccessDate?: Date
+}
+
+interface LastAccessStats {
+  today: number
+  week: number
+  month: number
+  older: number
+}
+
 export class AnalyticsService {
   
   /**
@@ -17,7 +33,7 @@ export class AnalyticsService {
     
     try {
       // Verificar se a turma existe
-      const classData = await Class.findOne({ classId }).lean() as any
+      const classData = await Class.findOne({ classId }).lean()
       if (!classData) {
         logger.info(`❌ Turma ${classId} não encontrada`)
         return null
@@ -46,7 +62,7 @@ export class AnalyticsService {
 const students = await User.find({
   classId,
   isDeleted: { $ne: true }
-}).lean<IUser[]>()
+}).lean<AnalyticsStudent[]>()
     
     logger.info(`👥 Encontrados ${students.length} alunos na turma`)
     
@@ -56,7 +72,7 @@ const students = await User.find({
     
     // 2. Calcular métricas básicas
     const totalStudents = students.length
-    const activeStudents = students.filter(s => (s as any).status === 'ACTIVE').length
+    const activeStudents = students.filter(s => s.status === 'ACTIVE').length
     const inactiveStudents = totalStudents - activeStudents
     
     // 3. Calcular engagement scores e estatísticas
@@ -123,7 +139,7 @@ const students = await User.find({
   /**
    * CALCULAR ESTATÍSTICAS DE ENGAGEMENT
    */
-  private calculateEngagementStats(students: any[]) {
+  private calculateEngagementStats(students: AnalyticsStudent[]) {
     let totalEngagement = 0
     const distribution = {
       muito_alto: 0,
@@ -177,7 +193,7 @@ const students = await User.find({
   /**
    * CALCULAR ESTATÍSTICAS DE PROGRESSO
    */
-  private calculateProgressStats(students: any[]) {
+  private calculateProgressStats(students: AnalyticsStudent[]) {
     let totalProgress = 0
     const distribution = {
       completed: 0,
@@ -207,7 +223,7 @@ const students = await User.find({
   /**
    * CALCULAR ESTATÍSTICAS DE ATIVIDADE
    */
-  private calculateActivityStats(students: any[]) {
+  private calculateActivityStats(students: AnalyticsStudent[]) {
     let totalAccess = 0
     const distribution = {
       very_active: 0,
@@ -241,7 +257,7 @@ const students = await User.find({
   /**
    * CALCULAR ESTATÍSTICAS DE ÚLTIMO ACESSO
    */
-  private calculateLastAccessStats(students: any[]) {
+  private calculateLastAccessStats(students: AnalyticsStudent[]) {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const weekAgo = new Date(today.getTime() - (7 * 24 * 60 * 60 * 1000))
@@ -312,7 +328,7 @@ const students = await User.find({
   /**
    * CALCULAR TAXA DE RETENÇÃO
    */
-  private calculateRetentionRate(lastAccess: any, totalStudents: number): number {
+  private calculateRetentionRate(lastAccess: LastAccessStats, totalStudents: number): number {
     if (totalStudents === 0) return 0
     const recentAccess = lastAccess.today + lastAccess.week
     return (recentAccess / totalStudents) * 100
@@ -328,7 +344,7 @@ const students = await User.find({
     averageProgress: number
     activityRate: number
   }) {
-    const alerts: any[] = []
+    const alerts: IClassAnalytics['alerts'] = []
     
     // Alerta de baixo engagement
     if (metrics.averageEngagement < 40) {

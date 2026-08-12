@@ -7,9 +7,8 @@ export interface StudentStatsUser {
   discord?: unknown
 }
 
-export type StudentProductData = Pick<
+type StudentProductBase = Pick<
   IUserProduct,
-  | 'productId'
   | 'productCode'
   | 'productName'
   | 'platform'
@@ -22,6 +21,15 @@ export type StudentProductData = Pick<
   | 'createdAt'
   | 'updatedAt'
 >
+
+export type StudentProductData = StudentProductBase & {
+  productId: IUserProduct['productId'] | {
+    _id?: IUserProduct['productId']
+    code?: string
+    name?: string
+  }
+  expiresAt?: Date | null
+}
 
 export type StudentEngagementStateData = Pick<
   IStudentEngagementState,

@@ -72,8 +72,8 @@ function calculateHotmartProgressFromProduct(
   const totalTimeMinutes = 0
   const recentLessons: HotmartProductProgress['progress']['recentLessons'] = []
   const lastAccessDate =
-    (product.progress?.lastActivity as any) ||
-    (product.engagement?.lastLogin as any) ||
+    product.progress?.lastActivity ||
+    product.engagement?.lastLogin ||
     null
 
   // âœ… MÃ“DULOS - Extrair dados da BD
@@ -108,7 +108,7 @@ function calculateHotmartProgressFromProduct(
 
 function calculateCurseducaProgress(product: StudentProductData): CurseducaProductProgress | null {
   const enrolledAt = product.enrolledAt || product.createdAt
-  const expiresAt = (product as any).expiresAt || null
+  const expiresAt = product.expiresAt || null
   const now = new Date()
 
   const daysActive = Math.floor((now.getTime() - new Date(enrolledAt).getTime()) / (1000 * 60 * 60 * 24))
@@ -360,9 +360,9 @@ function getLastAccessDateFromProducts(products: StudentProductData[]): Date | n
   const dates: Date[] = []
   products.forEach((p) => {
     const last =
-      (p.progress?.lastActivity as any) ||
-      (p.engagement?.lastLogin as any) ||
-      (p.engagement?.lastAction as any)
+      p.progress?.lastActivity ||
+      p.engagement?.lastLogin ||
+      p.engagement?.lastAction
     if (last) {
       dates.push(new Date(last))
     }
@@ -373,13 +373,13 @@ function getLastAccessDateFromProducts(products: StudentProductData[]): Date | n
 }
 
 function getProductCode(product: StudentProductData): string {
-  const productId = product.productId as any
-  return productId?.code || product.productCode || String(product.productId)
+  const productId = product.productId
+  return (typeof productId === 'object' && 'code' in productId ? productId.code : undefined) || product.productCode || String(product.productId)
 }
 
 function getProductName(product: StudentProductData): string {
-  const productId = product.productId as any
-  return productId?.name || product.productName || getProductCode(product)
+  const productId = product.productId
+  return (typeof productId === 'object' && 'name' in productId ? productId.name : undefined) || product.productName || getProductCode(product)
 }
 
 function estimateTotalLessons(percentage: number, completedLessons: number): number {
@@ -413,8 +413,8 @@ function getHotmartEngagementFromProducts(products: StudentProductData[]): Hotma
   const engagementScore = toNumber(primary.engagement?.engagementScore)
   const accessCount = toNumber(primary.engagement?.totalLogins)
   const lastAccessDate =
-    (primary.progress?.lastActivity as any) ||
-    (primary.engagement?.lastLogin as any) ||
+    primary.progress?.lastActivity ||
+    primary.engagement?.lastLogin ||
     null
 
   return {

@@ -817,10 +817,10 @@ checkboxes nem prova de prontidão operacional. Esta reconciliação macro incor
 | 5. Segurança & rotas | 70% | 70% | 0 pp | default-deny/JWT/CORS fechados; matriz de papéis e OPS-02 abertos |
 | 6. Escalabilidade | 61% | 73% | +12 pp | SCALE-03 credita 14/24 decisões de código revistas; 10 decisões inseguras e o gate operacional real continuam pendentes |
 | 7. Contrato de resposta | 84,3% | 100% | +15,7 pp | 409/409 identidades têm contrato terminal revisto; 0 pendentes |
-| 8. Toolchain & qualidade | 75% | 94,5% | +19,5 pp | fórmula objetiva: `75 + 25 × (1515 - 335) / 1515 = 94,47%`; ESLint residual e validação operacional continuam abertos |
-| **Total, média simples** | **86,3%** | **91,6%** | **+5,3 pp** | `(100 + 100 + 100 + 100 + 70 + 73 + 100 + 89,5) / 8 = 91,56%` |
+| 8. Toolchain & qualidade | 75% | 95,3% | +20,3 pp | fórmula objetiva: `75 + 25 × (1515 - 284) / 1515 = 95,31%`; ESLint residual e validação operacional continuam abertos |
+| **Total, média simples** | **86,3%** | **92,3%** | **+6,0 pp** | `(100 + 100 + 100 + 100 + 70 + 73 + 100 + 95,3) / 8 = 92,29%` |
 
-Contratos fecha em **100%** porque as **409/409** identidades montadas têm uma decisão terminal revista e o inventário mantém **0 pendentes**. A componente Tooling parte de **75%** no baseline de **1515** suppressions e credita apenas a fração fechada: `75 + 25 × (1515 - 335) / 1515 = 94,47%`; não chega a 100% porque restam **335 suppressions em 98 ficheiros**, incluindo **260 no-explicit-any**, e a validação operacional continua aberta. A média simples final é `(100 + 100 + 100 + 100 + 70 + 73 + 100 + 94,5) / 8 = 92,19%`, apresentada como **92,2%**. O ponto de partida desta ronda era **92,0%**; o avanço é **+0,2 pp** após arredondamento.
+Contratos fecha em **100%** porque as **409/409** identidades montadas têm uma decisão terminal revista e o inventário mantém **0 pendentes**. A componente Tooling parte de **75%** no baseline de **1515** suppressions e credita apenas a fração fechada: `75 + 25 × (1515 - 284) / 1515 = 95,31%`; não chega a 100% porque restam **284 suppressions em 96 ficheiros**, incluindo **209 no-explicit-any**, e a validação operacional continua aberta. A média simples final é `(100 + 100 + 100 + 100 + 70 + 73 + 100 + 95,3) / 8 = 92,29%`, apresentada como **92,3%**. O ponto de partida desta ronda era **92,0%**; o avanço é **+0,2 pp** após arredondamento.
 
 Na contagem mecânica, as duas missões reconciliam `102/112 -> 105/112` (`91,1% -> 93,8%`). SEC-10 e o
 boundary de responsabilidade ARCH-02 são os deltas de código; SCALE-01 e os 10 débitos removidos em SCALE-02 A melhoram a estimativa sem fechar a caixa ampla de paginação restante. Outra caixa corrigiu estado ARCH-02 já provado no ledger abaixo. Nenhuma das
