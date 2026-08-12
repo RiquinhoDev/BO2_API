@@ -42,3 +42,9 @@ No real database or provider was called.
 
 - `npm.cmd run types:check`: exit 0.
 - Focused lint reached the whole `src` tree through the repository script and exited 1 on 16 pre-existing `no-explicit-any` errors in `guruTrialService.ts`; the Task 2 change adds no explicit `any`.
+## Review fix: dedupe and sequential-write mutations
+
+- Dedupe RED: temporarily removed `Set`; focused N=1/10/100 run exited 1. N=10 and N=100 exposed duplicate normalized emails in the `$in` query (2 failures, N=1 passed).
+- Sequential-write RED: restored `Set`, temporarily removed the awaited write; focused run exited 1. Peak in-flight writes became 10 and 100 for N=10/100 instead of 1 (2 failures, N=1 passed).
+- GREEN: restored production behavior; `npm.cmd test -- --runInBand --silent tests/scalability/scaleFinalTask2.contract.test.ts` exited 0 with 1 suite and 10 tests passed.
+- Fixtures now include duplicate and whitespace/case-variant subscription emails for N=10/100. They prove normalized query deduplication while retaining all N provider-order directed writes and peak write concurrency 1.
