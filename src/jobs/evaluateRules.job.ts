@@ -1,4 +1,5 @@
 import logger from '../utils/logger'
+import { errorMessage } from '../services/syncUtilizadoresServices/universalSync/fieldUtils'
 // ════════════════════════════════════════════════════════════════════════════
 // 📁 src/jobs/evaluateRules.job.ts
 // ✅ NOVO SISTEMA: Usa DecisionEngine por UserProduct
@@ -28,7 +29,7 @@ export async function executeEvaluateRules() {
     let totalUserProducts = 0
     let totalDecisions = 0
     let totalExecutions = 0
-    const errors: any[] = []
+    const errors: Array<Record<string, unknown>> = []
 
     // ═══════════════════════════════════════════════════════════
     // 2. PROCESSAR CADA PRODUTO
@@ -73,23 +74,23 @@ export async function executeEvaluateRules() {
             totalDecisions++
             totalExecutions += result.tagsApplied.length + result.tagsRemoved.length
 
-          } catch (userError: any) {
-            logger.error(`   ❌ Erro UserProduct ${up._id}:`, userError.message)
+          } catch (userError: unknown) {
+            logger.error(`   ❌ Erro UserProduct ${up._id}:`, errorMessage(userError))
             errors.push({
               userProductId: up._id,
               productId: product._id,
-              error: userError.message
+              error: errorMessage(userError)
             })
           }
         }
 
         logger.info(`   ✅ ${product.code}: ${userProducts.length} UserProducts avaliados`)
 
-      } catch (productError: any) {
-        logger.error(`❌ Erro ao processar produto ${product._id}:`, productError.message)
+      } catch (productError: unknown) {
+        logger.error(`❌ Erro ao processar produto ${product._id}:`, errorMessage(productError))
         errors.push({
           productId: product._id,
-          error: productError.message
+          error: errorMessage(productError)
         })
       }
     }
@@ -126,9 +127,9 @@ export async function executeEvaluateRules() {
       duration: Math.round(duration / 1000)
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ Erro na avaliação diária:', error)
-    throw new Error(`Erro na avaliação de regras: ${error.message}`)
+    throw new Error(`Erro na avaliação de regras: ${errorMessage(error)}`)
   }
 }
 

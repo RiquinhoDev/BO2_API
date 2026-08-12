@@ -88,11 +88,11 @@ async function executeJob() {
           await user.save({ validateBeforeSave: false })
           stats.weeklyCountersReset++
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         stats.errors++
         logger.error(`❌ Erro ao resetar contador semanal do user ${user.email}:`, {
           userId: user.id.toString(),
-          error: error.message
+          error: error instanceof Error ? error.message : String(error)
         })
       }
     }
@@ -130,11 +130,11 @@ async function executeJob() {
             await user.save({ validateBeforeSave: false })
             stats.monthlyCountersReset++
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           stats.errors++
           logger.error(`❌ Erro ao resetar contador mensal do user ${user.email}:`, {
             userId: user.id.toString(),
-            error: error.message
+            error: error instanceof Error ? error.message : String(error)
           })
         }
       }
@@ -179,12 +179,12 @@ async function executeJob() {
       duration: durationSeconds
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     stats.errors++
     logJobError(JOB_NAME, error)
     
     // ✅ LANÇAR ERRO PARA CRON CAPTURAR
-    throw new Error(`Erro no reset de contadores: ${error.message}`)
+    throw new Error(`Erro no reset de contadores: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
