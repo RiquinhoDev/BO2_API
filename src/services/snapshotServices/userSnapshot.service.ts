@@ -11,6 +11,12 @@ import type { IUser } from '../../models/user'
 import type { IUserProduct } from '../../models/UserProduct'
 import { compareSnapshots, type ComparisonResult } from './snapshotComparison.service'
 
+function populatedProductName(productId: unknown): string {
+  return productId && typeof productId === 'object' && 'name' in productId && typeof productId.name === 'string'
+    ? productId.name
+    : 'Produto desconhecido'
+}
+
 export function snapshotUserState(user: IUser) {
   return {
     name: user.name,
@@ -36,9 +42,7 @@ export async function createUserSnapshot(
   // Construir array de produtos
   const productSnapshots: IProductSnapshot[] = products.map((product) => {
     const productId = product.productId
-    const productName = typeof productId === 'object' && productId !== null
-      ? (productId as any).name || 'Produto desconhecido'
-      : 'Produto desconhecido'
+    const productName = populatedProductName(productId)
 
     return {
       productId: product.productId?.toString() || '',
@@ -134,7 +138,7 @@ export async function getLastUserSnapshot(
   userId: mongoose.Types.ObjectId | string,
   syncType?: 'hotmart' | 'curseduca' | 'discord' | 'manual'
 ): Promise<IUserSnapshot | null> {
-  const query: any = {
+  const query: { userId: mongoose.Types.ObjectId; syncType?: IUserSnapshot['syncType'] } = {
     userId: typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId
   }
 

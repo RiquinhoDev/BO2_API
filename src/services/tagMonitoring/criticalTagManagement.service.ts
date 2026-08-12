@@ -1,6 +1,7 @@
 import { CriticalTag, WeeklyNativeTagSnapshot } from '../../models/tagMonitoring'
 import { ICriticalTag, TagPriority } from '../../models/tagMonitoring/CriticalTag'
 import logger from '../../utils/logger'
+import { Types } from 'mongoose'
 
 /**
  * Serviço de Gestão de Tags Críticas
@@ -25,7 +26,7 @@ class CriticalTagManagementService {
         }
         // Se existir mas estiver inativa, reativar
         existing.isActive = true
-        existing.createdBy = userId as any
+        existing.createdBy = new Types.ObjectId(userId)
         existing.priority = priority
         if (description) existing.description = description
         await existing.save()

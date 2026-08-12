@@ -26,9 +26,6 @@
     }
   },
   "src/controllers/sync/operations.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
     }
@@ -287,15 +284,7 @@
       "count": 1
     }
   },
-  "src/services/snapshotServices/snapshotComparison.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/services/snapshotServices/userSnapshot.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -364,11 +353,6 @@
       "count": 1
     },
     "preserve-caught-error": {
-      "count": 1
-    }
-  },
-  "src/services/tagMonitoring/criticalTagManagement.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
