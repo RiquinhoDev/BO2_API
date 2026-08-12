@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express'
+import { operationalSuccessResponse } from '../../../contracts/responseContract'
 import { syncCurseducaUsers } from './sync.controller'
 import { errorMessage, type SyncResponse } from '../../../services/curseducaServices/controllerSupport'
 
@@ -48,19 +49,22 @@ export const syncCurseducaUsersStart = async (req: Request, res: Response): Prom
   global.__curseducaSyncError = null
 
   // Responder JÁ (não bloquear → sem timeout)
-  res.status(202).json({
-    success: true,
+  res.status(202).json(operationalSuccessResponse({
+    completed: true,
     started: true,
     startedAt: global.__curseducaSyncStartedAt,
     message: 'Sincronização CursEduca iniciada em background. Use /curseduca/sync/status para acompanhar.'
-  })
+  }))
 
   // Correr em fundo reutilizando o handler existente com um res falso
   const fakeRes: SyncResponse & { statusCode: number } = {
     statusCode: 200,
     status(code: number) { this.statusCode = code; return this },
-    json(payload: Record<string, unknown>) {
-      global.__curseducaSyncResult = { httpStatus: this.statusCode, ...payload }
+    json(payload: unknown) {
+      const body = typeof payload === 'object' && payload !== null
+        ? payload as Record<string, unknown>
+        : { data: payload }
+      global.__curseducaSyncResult = { httpStatus: this.statusCode, ...body }
       return this
     }
   }
@@ -89,12 +93,12 @@ export const syncCurseducaUsersStart = async (req: Request, res: Response): Prom
  * Estado do sync background (para polling do frontend).
  */
 export const getCurseducaSyncStatus = async (_req: Request, res: Response): Promise<void> => {
-  res.json({
-    success: true,
+  res.json(operationalSuccessResponse({
+    completed: true,
     running: Boolean(global.__curseducaSyncRunning),
     startedAt: global.__curseducaSyncStartedAt || null,
     finishedAt: global.__curseducaSyncFinishedAt || null,
     error: global.__curseducaSyncError || null,
     result: global.__curseducaSyncResult || null
-  })
+  }))
 }

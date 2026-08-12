@@ -1,4 +1,5 @@
 import { NextFunction, Request } from 'express'
+import { operationalSuccessResponse } from '../../../contracts/responseContract'
 import type { CrossReferenceResult } from '../../../services/guru/crossReference.service'
 import type { SyncError, SyncProgress, SyncWarning } from '../../../types/universalSync.types'
 import User from '../../../models/user'
@@ -62,12 +63,12 @@ export const syncCurseducaUsers = async (req: Request, res: SyncResponse, next: 
 
     if (curseducaData.length === 0) {
       logger.warn('Nenhum membro encontrado!')
-      res.status(200).json({
-        success: false,
+      res.status(200).json(operationalSuccessResponse({
+        completed: false,
         message: 'Nenhum membro encontrado na CursEduca',
         logFile: logger.getLogPath(),
         data: { stats: { total: 0, inserted: 0, updated: 0, errors: 0 } }
-      })
+      }))
       return
     }
 
@@ -203,8 +204,8 @@ export const syncCurseducaUsers = async (req: Request, res: SyncResponse, next: 
     logger.success('SYNC COMPLETO!')
     logger.log('═'.repeat(80))
 
-    res.status(200).json({
-      success: result.success,
+    res.status(200).json(operationalSuccessResponse({
+      completed: result.success,
       message: result.success
         ? 'Sincronização concluída com sucesso!'
         : 'Sincronização concluída com erros',
@@ -229,9 +230,7 @@ export const syncCurseducaUsers = async (req: Request, res: SyncResponse, next: 
           duration: crossRefResult.duration
         } : null
       },
-      _universalSync: true,
-      _version: '3.1'
-    })
+    }))
   } catch (error: unknown) {
     
     next(internalError('Erro ao executar sincronização CursEduca', 'CURSEDUCA_SYNC_FAILED', error))

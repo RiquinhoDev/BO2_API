@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from 'express'
+import { operationalSuccessResponse } from '../../contracts/responseContract'
 import { executeDailyPipeline } from '../../services/cron/dailyPipeline.service'
 import universalSyncService from '../../services/syncUtilizadoresServices/universalSync'
 import hotmartAdapter from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
@@ -32,13 +33,13 @@ export const executePipeline = async (
     const result = await executeDailyPipeline()
     
     if (result.success) {
-      res.json({
-        success: true,
+      res.json(operationalSuccessResponse({
+        completed: true,
         message: 'Pipeline executado com sucesso',
         duration: result.duration,
         summary: result.summary,
         steps: result.steps
-      })
+      }))
     } else {
       const cause = new Error(JSON.stringify({
         duration: result.duration,
@@ -112,11 +113,11 @@ export const syncHotmartEndpoint = async (req: Request, res: Response, next: Nex
       sourceData: [userData]
     })
     
-    res.json({
-      success: result.success,
+    res.json(operationalSuccessResponse({
+      completed: result.success,
       stats: result.stats,
       reportId: result.reportId
-    })
+    }))
   } catch (error: unknown) {
     forwardSyncFailure(error, next, 'Erro ao sincronizar Hotmart', 'SYNC_HOTMART_USER_FAILED')
   }
@@ -142,10 +143,10 @@ export const syncHotmartBatchEndpoint = async (req: Request, res: Response, next
     const hotmartData = await hotmartAdapter.fetchHotmartDataForSync()
     
     if (hotmartData.length === 0) {
-      res.status(200).json({
-        success: false,
+      res.status(200).json(operationalSuccessResponse({
+        completed: false,
         message: 'Nenhum user encontrado no Hotmart'
-      })
+      }))
       return
     }
     
@@ -162,12 +163,12 @@ export const syncHotmartBatchEndpoint = async (req: Request, res: Response, next
       sourceData: hotmartData
     })
     
-    res.json({
-      success: result.success,
+    res.json(operationalSuccessResponse({
+      completed: result.success,
       stats: result.stats,
       reportId: result.reportId,
       duration: result.duration
-    })
+    }))
   } catch (error: unknown) {
     forwardSyncFailure(error, next, 'Erro ao sincronizar Hotmart batch', 'SYNC_HOTMART_BATCH_FAILED')
   }
@@ -225,11 +226,11 @@ export const syncCurseducaEndpoint = async (req: Request, res: Response, next: N
       sourceData: [userData]
     })
     
-    res.json({
-      success: result.success,
+    res.json(operationalSuccessResponse({
+      completed: result.success,
       stats: result.stats,
       reportId: result.reportId
-    })
+    }))
   } catch (error: unknown) {
     forwardSyncFailure(error, next, 'Erro ao sincronizar CursEduca', 'SYNC_CURSEDUCA_USER_FAILED')
   }
@@ -252,10 +253,10 @@ export const syncCurseducaBatchEndpoint = async (req: Request, res: Response, ne
     })
     
     if (curseducaData.length === 0) {
-      res.status(200).json({
-        success: false,
+      res.status(200).json(operationalSuccessResponse({
+        completed: false,
         message: 'Nenhum user encontrado na CursEduca'
-      })
+      }))
       return
     }
     
@@ -272,12 +273,12 @@ export const syncCurseducaBatchEndpoint = async (req: Request, res: Response, ne
       sourceData: curseducaData
     })
     
-    res.json({
-      success: result.success,
+    res.json(operationalSuccessResponse({
+      completed: result.success,
       stats: result.stats,
       reportId: result.reportId,
       duration: result.duration
-    })
+    }))
   } catch (error: unknown) {
     forwardSyncFailure(error, next, 'Erro ao sincronizar CursEduca batch', 'SYNC_CURSEDUCA_BATCH_FAILED')
   }

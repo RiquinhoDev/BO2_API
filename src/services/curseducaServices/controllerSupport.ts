@@ -4,7 +4,7 @@ import logger from '../../utils/logger'
 
 export interface SyncResponse {
   status(code: number): SyncResponse
-  json(payload: Record<string, unknown>): SyncResponse
+  json(payload: unknown): SyncResponse
 }
 
 interface BackgroundSyncResult extends Record<string, unknown> {
