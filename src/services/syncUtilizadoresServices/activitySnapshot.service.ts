@@ -287,7 +287,19 @@ export class ActivitySnapshotService {
 
     const results = await mapCohortMilestonesBounded(
       milestones,
-      async milestone => {}
+      async milestone => {
+        const retention = await ActivitySnapshot.getCohortRetention(
+          cohortMonth,
+          platform,
+          milestone
+        )
+        return {
+          month: milestone,
+          total: retention.total,
+          active: retention.active,
+          rate: retention.rate
+        }
+      }
     )
 
     return {
