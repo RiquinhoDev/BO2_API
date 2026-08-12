@@ -4,7 +4,8 @@ import { createErrorHandling, type ErrorLogEvent } from '../../src/security/erro
 
 const exec = jest.fn()
 const lean = jest.fn(() => ({ exec }))
-const sort = jest.fn(() => ({ lean }))
+const limit = jest.fn(() => ({ lean }))
+const sort = jest.fn(() => ({ limit }))
 const find = jest.fn(() => ({ sort }))
 const findOneAndUpdate = jest.fn(() => ({ lean }))
 const syncCourseLessonCatalog = jest.fn()
@@ -60,8 +61,11 @@ test('list preserves the success envelope', async () => {
     .expect(200)
 
   expect(response.body).toMatchObject({
-    totalLessons: 1,
-    modules: [{ moduleId: 'module-1', lessons: [{ pageId: 'lesson-1' }] }],
+    success: true,
+    data: {
+      modules: [{ moduleId: 'module-1', lessons: [{ pageId: 'lesson-1' }] }],
+    },
+    meta: { totalLessons: 1 },
   })
 })
 

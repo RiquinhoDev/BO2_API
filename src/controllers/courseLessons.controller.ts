@@ -4,12 +4,14 @@ import mongoose from 'mongoose'
 import CourseLesson from '../models/CourseLesson'
 import { syncCourseLessonCatalog } from '../services/courseLessonCatalog.service'
 import { internalError } from '../security/errorHandling'
+import { collectBatches } from '../utils/collectBatches'
 
 type MongooseReadModel = mongoose.Model<mongoose.Document>
 
 const CourseLessonReadModel = CourseLesson as unknown as MongooseReadModel
 
 interface CourseLessonLean {
+  _id: mongoose.Types.ObjectId
   pageId: string
   pageName: string
   moduleId: string
@@ -31,11 +33,33 @@ interface CourseLessonModuleGroup {
 
 export async function listCourseLessons(_req: Request, res: Response, next: NextFunction) {
   try {
-    const lessons = await CourseLessonReadModel.find({ isActive: true })
-      .sort({ moduleSequence: 1, lessonSequence: 1 })
-      .lean()
-      .exec() as unknown as CourseLessonLean[]
-
+    const lessons = await collectBatches<CourseLessonLean, CourseLessonLean>(
+      200,
+      async (cursor: CourseLessonLean | undefined, batchSize) => {
+        const cursorFilter = cursor
+          ? {
+              $or: [
+                { moduleSequence: { $gt: cursor.moduleSequence } },
+                {
+                  moduleSequence: cursor.moduleSequence,
+                  lessonSequence: { $gt: cursor.lessonSequence }
+                },
+                {
+                  moduleSequence: cursor.moduleSequence,
+                  lessonSequence: cursor.lessonSequence,
+                  _id: { $gt: cursor._id }
+                }
+              ]
+            }
+          : {}
+        return CourseLessonReadModel.find({ isActive: true, ...cursorFilter })
+          .sort({ moduleSequence: 1, lessonSequence: 1, _id: 1 })
+          .limit(batchSize)
+          .lean()
+          .exec() as unknown as CourseLessonLean[]
+      },
+      lesson => lesson,
+    )
     res.json(successResponse({ modules: groupLessonsByModule(lessons) }, { totalLessons: lessons.length }))
   } catch (error: unknown) {
     next(internalError('Erro ao listar aulas do curso.', 'COURSE_LESSONS_LIST_FAILED', error))
