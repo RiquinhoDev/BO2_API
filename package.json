@@ -80,6 +80,7 @@
     "contracts:responses:check": "node scripts/generate-response-contract-catalog.mjs --check",
     "contracts:responses:update": "node scripts/generate-response-contract-catalog.mjs --write",
     "scalability:reads:check": "node scripts/generate-scalability-read-inventory.mjs --check",
-    "scalability:reads:update": "node scripts/generate-scalability-read-inventory.mjs --write"
+    "scalability:reads:update": "node scripts/generate-scalability-read-inventory.mjs --write",
+    "scalability:operational": "ts-node --transpile-only scripts/validate-scalability-operational.ts"
   }
 }
