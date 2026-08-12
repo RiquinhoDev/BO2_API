@@ -1,4 +1,5 @@
 // src/controllers/lessons.controller.ts
+import logger from '../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
 import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
@@ -45,7 +46,7 @@ class LessonsController {
         return
       }
 
-      console.log(`🔍 Buscando lições do utilizador ${userId}`)
+      logger.info(`🔍 Buscando lições do utilizador ${userId}`)
 
       const lessonsData = await hotmartLessonsService.getUserLessonsData(
         userId,
@@ -84,7 +85,7 @@ class LessonsController {
         return
       }
 
-      console.log(`🔄 Buscando lições de ${userIds.length} utilizadores`)
+      logger.info(`🔄 Buscando lições de ${userIds.length} utilizadores`)
 
       const lessonsData = await hotmartLessonsService.getMultipleUsersLessons(userIds, subdomain)
       const globalStats = hotmartLessonsService.calculateGlobalStats(lessonsData)
@@ -169,7 +170,7 @@ class LessonsController {
         return
       }
 
-      console.log(`📈 Calculando estatísticas para ${usersToProcess.length} utilizadores`)
+      logger.info(`📈 Calculando estatísticas para ${usersToProcess.length} utilizadores`)
 
       const lessonsData = await hotmartLessonsService.getMultipleUsersLessons(usersToProcess, subdomain as string)
       const globalStats = hotmartLessonsService.calculateGlobalStats(lessonsData)
@@ -200,7 +201,7 @@ class LessonsController {
         return
       }
 
-      console.log(`🧪 Testando conexão com Hotmart para utilizador ${testUserId}`)
+      logger.info(`🧪 Testando conexão com Hotmart para utilizador ${testUserId}`)
 
       const testResult = await hotmartLessonsService.getUserLessons(testUserId as string, subdomain as string)
 

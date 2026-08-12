@@ -1,4 +1,5 @@
 // src/models/ClassAnalytics.ts - Modelo para Cache de Métricas da Turma
+import logger from '../utils/logger'
 import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IClassAnalytics extends Document {
@@ -277,15 +278,15 @@ ClassAnalyticsSchema.pre('save', function(next) {
   const activityTotal = Object.values(this.activityDistribution).reduce((a, b) => a + b, 0)
   
   if (engagementTotal !== this.totalStudents && this.totalStudents > 0) {
-    console.warn(`⚠️ Distribuição de engagement não confere: ${engagementTotal} vs ${this.totalStudents}`)
+    logger.warn(`⚠️ Distribuição de engagement não confere: ${engagementTotal} vs ${this.totalStudents}`)
   }
   
   if (progressTotal !== this.totalStudents && this.totalStudents > 0) {
-    console.warn(`⚠️ Distribuição de progresso não confere: ${progressTotal} vs ${this.totalStudents}`)
+    logger.warn(`⚠️ Distribuição de progresso não confere: ${progressTotal} vs ${this.totalStudents}`)
   }
   
   if (activityTotal !== this.totalStudents && this.totalStudents > 0) {
-    console.warn(`⚠️ Distribuição de atividade não confere: ${activityTotal} vs ${this.totalStudents}`)
+    logger.warn(`⚠️ Distribuição de atividade não confere: ${activityTotal} vs ${this.totalStudents}`)
   }
   
   next()

@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import axios from 'axios'
 import mongoose from 'mongoose'
 import { IntegrationUnavailableError } from '../../../errors/integrationUnavailableError'
@@ -70,7 +71,7 @@ export async function executeDiscordRolesPlan(options: {
   }
 
   if (!isRolesSyncEnabled()) {
-    console.log('⛔ [DiscordRoles] DISCORD_ROLES_SYNC_ENABLED != true — execução recusada')
+    logger.info('⛔ [DiscordRoles] DISCORD_ROLES_SYNC_ENABLED != true — execução recusada')
     return report
   }
 
@@ -113,7 +114,7 @@ export async function executeDiscordRolesPlan(options: {
     } catch (error: any) {
       // lote inteiro falhou (bot em baixo?) — marcar FAILED re-tentável e parar
       const msg = `Chamada ao bot falhou: ${error.response?.status || ''} ${error.message}`
-      console.error(`❌ [DiscordRoles] ${msg}`)
+      logger.error(`❌ [DiscordRoles] ${msg}`)
       await DiscordRoleChange.updateMany(
         { _id: { $in: batch.map((c) => c._id) } },
         { $set: { status: 'FAILED', error: msg }, $inc: { attempts: 1 } }
@@ -166,7 +167,7 @@ export async function executeDiscordRolesPlan(options: {
     }
   }
 
-  console.log(`✅ [DiscordRoles] Execução: ${report.applied} aplicadas, ${report.notInGuild} fora do servidor, ${report.failed} falhas, ${report.leftForNextRun} para o próximo run`)
+  logger.info(`✅ [DiscordRoles] Execução: ${report.applied} aplicadas, ${report.notInGuild} fora do servidor, ${report.failed} falhas, ${report.leftForNextRun} para o próximo run`)
   return report
 }
 
@@ -373,11 +374,11 @@ export async function runDiscordRolesSyncJob(): Promise<DiscordCronReport> {
 
   let execution: DiscordExecuteReport | null = null
   if (plan.anomalyAborted) {
-    console.error('🚨 [DiscordRoles] Plano abortado por anomalia — nada executado')
+    logger.error('🚨 [DiscordRoles] Plano abortado por anomalia — nada executado')
   } else if (isRolesSyncEnabled() && isRolesAutoExecuteEnabled()) {
     execution = await executeDiscordRolesPlan({ includePlanned: true, executedBy: 'cron:DiscordRolesSync' })
   } else {
-    console.log('📋 [DiscordRoles] Modo dry-run: plano gerado, execução aguarda switches/aprovação')
+    logger.info('📋 [DiscordRoles] Modo dry-run: plano gerado, execução aguarda switches/aprovação')
   }
 
   return { expired, plan, execution }

@@ -20,6 +20,7 @@
 //   RENEWAL_AC_PROCESS_REFUNDS   permite detecção de reembolsos (só BD)
 //   RENEWAL_AC_AUTO_EXECUTE      cron executa sem aprovação manual
 // ════════════════════════════════════════════════════════════
+import logger from '../../../utils/logger'
 import { getRuntimeConfig } from '../../../config/runtimeConfig'
 
 import mongoose from 'mongoose'
@@ -214,7 +215,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
   if (changes.length > anomalyThreshold) {
     report.anomalyAborted = true
     report.anomalyDetail = `${changes.length} mudanças de turma em ${windowHours}h (> limiar ${anomalyThreshold}) — provável falha da API Hotmart, plano NÃO gerado`
-    console.error(`🚨 [RenewalAcSync] ${report.anomalyDetail}`)
+    logger.error(`🚨 [RenewalAcSync] ${report.anomalyDetail}`)
     return report
   }
 
@@ -373,7 +374,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
   }
 
   report.overCap = report.planned > maxChangesPerRun()
-  console.log(`📋 [RenewalAcSync] Plano ${batchId}: ${report.planned} planeadas, ${report.blocked} bloqueadas, ${report.skippedDuplicates} duplicadas, ${report.refundReverts} reversões de reembolso${report.overCap ? ` — ACIMA DO CAP ${maxChangesPerRun()}, execução exigirá aprovação/lotes` : ''}`)
+  logger.info(`📋 [RenewalAcSync] Plano ${batchId}: ${report.planned} planeadas, ${report.blocked} bloqueadas, ${report.skippedDuplicates} duplicadas, ${report.refundReverts} reversões de reembolso${report.overCap ? ` — ACIMA DO CAP ${maxChangesPerRun()}, execução exigirá aprovação/lotes` : ''}`)
 
   return report
 }

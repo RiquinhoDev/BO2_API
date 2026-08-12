@@ -3,6 +3,7 @@
 // Controller para histórico de alterações do estudante
 // ══════════════════════════════════════════════════════════════════════
 
+import logger from '../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
 import { forwardApplicationError } from '../security/forwardApplicationError'
@@ -27,7 +28,7 @@ export const getStudentHistory = async (req: Request<StudentHistoryParams>, res:
     const { userId } = req.params
     const { limit = '50', offset = '0', changeType, platform, startDate, endDate } = req.query
 
-    console.log(`[StudentHistoryController] Buscando histórico para userId: ${userId}`)
+    logger.info(`[StudentHistoryController] Buscando histórico para userId: ${userId}`)
 
     // Validar userId
     if (!mongoose.Types.ObjectId.isValid(userId)) {
@@ -83,7 +84,7 @@ export const getStudentHistory = async (req: Request<StudentHistoryParams>, res:
 
     const executionTime = Date.now() - startTime
 
-    console.log(`[StudentHistoryController] ${history.length} registos encontrados em ${executionTime}ms`)
+    logger.info(`[StudentHistoryController] ${history.length} registos encontrados em ${executionTime}ms`)
 
     // Agrupar por data para timeline
     const groupedHistory = groupHistoryByDate(history as any[])

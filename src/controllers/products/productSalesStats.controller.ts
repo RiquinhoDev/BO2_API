@@ -3,6 +3,7 @@
 // CONTROLLER: Product Sales Stats API
 // ════════════════════════════════════════════════════════════
 
+import logger from '../../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import { successResponse } from '../../contracts/responseContract'
 import { internalError } from '../../security/errorHandling'
@@ -102,7 +103,7 @@ export async function getProductSalesByPeriod(req: Request, res: Response, next:
 
 export async function rebuildProductSalesStatsEndpoint(req: Request, res: Response, next: NextFunction) {
   try {
-    console.log('🔄 Rebuild manual de Product Sales Stats iniciado...')
+    logger.info('🔄 Rebuild manual de Product Sales Stats iniciado...')
     
     // Responder imediatamente (processo roda em background)
     res.json(successResponse({ estimatedTime: '30-60 segundos' },
@@ -111,10 +112,10 @@ export async function rebuildProductSalesStatsEndpoint(req: Request, res: Respon
     // Executar rebuild em background
     buildProductSalesStats()
       .then(() => {
-        console.log('✅ Rebuild manual completado')
+        logger.info('✅ Rebuild manual completado')
       })
       .catch(error => {
-        console.error('❌ Erro no rebuild manual:', error)
+        logger.error('❌ Erro no rebuild manual:', error)
       })
     
   } catch (error: unknown) {

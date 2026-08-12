@@ -7,19 +7,6 @@
   "src/controllers/businessAnalytics.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
-    },
-    "no-console": {
-      "count": 6
-    }
-  },
-  "src/controllers/cohortAnalytics.controller.ts": {
-    "no-console": {
-      "count": 1
-    }
-  },
-  "src/controllers/course.controller.ts": {
-    "no-console": {
-      "count": 3
     }
   },
   "src/controllers/dashboard.controller.ts": {
@@ -38,31 +25,6 @@
       "count": 1
     }
   },
-  "src/controllers/discovery.controller.ts": {
-    "no-console": {
-      "count": 2
-    }
-  },
-  "src/controllers/engagement/details.controller.ts": {
-    "no-console": {
-      "count": 3
-    }
-  },
-  "src/controllers/engagement/stats.controller.ts": {
-    "no-console": {
-      "count": 3
-    }
-  },
-  "src/controllers/engagement/summary.controller.ts": {
-    "no-console": {
-      "count": 5
-    }
-  },
-  "src/controllers/engagement/users.controller.ts": {
-    "no-console": {
-      "count": 4
-    }
-  },
   "src/controllers/guru.sync.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 6
@@ -71,11 +33,6 @@
   "src/controllers/guru.webhook.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 7
-    }
-  },
-  "src/controllers/lessons.controller.ts": {
-    "no-console": {
-      "count": 4
     }
   },
   "src/controllers/populateHistory.controller.ts": {
@@ -94,43 +51,21 @@
   "src/controllers/products/productProfile.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
-    },
-    "no-console": {
-      "count": 5
     }
   },
   "src/controllers/products/productSalesStats.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 4
-    },
-    "no-console": {
-      "count": 3
     }
   },
   "src/controllers/products/products.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    },
-    "no-console": {
-      "count": 5
     }
   },
   "src/controllers/studentHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 5
-    },
-    "no-console": {
-      "count": 2
-    }
-  },
-  "src/controllers/studentOgiSummary.controller.ts": {
-    "no-console": {
-      "count": 2
-    }
-  },
-  "src/controllers/studentsController.ts": {
-    "no-console": {
-      "count": 2
     }
   },
   "src/controllers/sync/history.controller.ts": {
@@ -151,42 +86,9 @@
       "count": 2
     }
   },
-  "src/controllers/syncUtilizadoresControllers/cronManagement/commands.controller.ts": {
-    "no-console": {
-      "count": 3
-    }
-  },
-  "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts": {
-    "no-console": {
-      "count": 9
-    }
-  },
-  "src/controllers/syncUtilizadoresControllers/cronManagement/queries.controller.ts": {
-    "no-console": {
-      "count": 1
-    }
-  },
-  "src/controllers/syncUtilizadoresControllers/cronManagement/tagRules.controller.ts": {
-    "no-console": {
-      "count": 2
-    }
-  },
-  "src/controllers/syncUtilizadoresControllers/curseduca/dashboard.controller.ts": {
-    "no-console": {
-      "count": 2
-    }
-  },
-  "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts": {
-    "no-console": {
-      "count": 1
-    }
-  },
   "src/controllers/syncUtilizadoresControllers/syncReports.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    },
-    "no-console": {
-      "count": 3
     }
   },
   "src/controllers/syncUtilizadoresControllers/syncStats.controller.ts": {
@@ -200,9 +102,6 @@
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    },
-    "no-console": {
-      "count": 18
     }
   },
   "src/controllers/tagMonitoring/tagMonitoring.controller.ts": {
@@ -218,16 +117,6 @@
   "src/controllers/userHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 9
-    }
-  },
-  "src/controllers/webhooks.controller.ts": {
-    "no-console": {
-      "count": 2
-    }
-  },
-  "src/index.ts": {
-    "no-console": {
-      "count": 1
     }
   },
   "src/jobs/cronExecutionCleanup.job.ts": {
@@ -316,11 +205,6 @@
   "src/models/ClarezaTop10Data.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    }
-  },
-  "src/models/ClassAnalytics.ts": {
-    "no-console": {
-      "count": 3
     }
   },
   "src/models/GuruWebhook.ts": {
@@ -425,9 +309,6 @@
   "src/models/index.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    },
-    "no-console": {
-      "count": 5
     }
   },
   "src/models/user.behavior.ts": {
@@ -438,9 +319,6 @@
   "src/models/user.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    },
-    "no-console": {
-      "count": 2
     }
   },
   "src/models/user.types.ts": {
@@ -451,11 +329,6 @@
   "src/routes/achievements.routes.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 4
-    }
-  },
-  "src/routes/dashboardRoutes.ts": {
-    "no-console": {
-      "count": 1
     }
   },
   "src/routes/discordRenewal.routes.ts": {
@@ -479,29 +352,11 @@
     },
     "@typescript-eslint/no-require-imports": {
       "count": 2
-    },
-    "no-console": {
-      "count": 3
     }
   },
   "src/routes/validationLogs.routes.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
-    }
-  },
-  "src/runtime/infrastructure.ts": {
-    "no-console": {
-      "count": 1
-    }
-  },
-  "src/runtime/listen.ts": {
-    "no-console": {
-      "count": 1
-    }
-  },
-  "src/security/httpPerimeter.ts": {
-    "no-console": {
-      "count": 1
     }
   },
   "src/security/usersImportUpload.ts": {
@@ -512,9 +367,6 @@
   "src/services/achievements/achievementEvaluation.service.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 7
-    },
-    "no-console": {
-      "count": 1
     }
   },
   "src/services/achievements/achievementEvaluator.ts": {
@@ -571,9 +423,6 @@
   "src/services/cache.service.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
-    },
-    "no-console": {
-      "count": 11
     }
   },
   "src/services/clareza/clarezaEarningsService.ts": {
@@ -600,9 +449,6 @@
     "@typescript-eslint/no-explicit-any": {
       "count": 6
     },
-    "no-console": {
-      "count": 6
-    },
     "preserve-caught-error": {
       "count": 1
     }
@@ -612,17 +458,9 @@
       "count": 9
     }
   },
-  "src/services/notification.service.ts": {
-    "no-console": {
-      "count": 5
-    }
-  },
   "src/services/productSalesStatsBuilder.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    },
-    "no-console": {
-      "count": 23
     },
     "no-irregular-whitespace": {
       "count": 1
@@ -634,17 +472,11 @@
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    },
-    "no-console": {
-      "count": 6
     }
   },
   "src/services/renewal/activeCampaign/planning.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 10
-    },
-    "no-console": {
-      "count": 2
     }
   },
   "src/services/renewal/discord/execution.ts": {
@@ -654,9 +486,6 @@
     "@typescript-eslint/no-unused-vars": {
       "count": 5
     },
-    "no-console": {
-      "count": 5
-    },
     "no-useless-assignment": {
       "count": 1
     }
@@ -664,22 +493,11 @@
   "src/services/renewal/discord/planning.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    },
-    "no-console": {
-      "count": 2
-    }
-  },
-  "src/services/renewal/discordScheduledMessages.service.ts": {
-    "no-console": {
-      "count": 3
     }
   },
   "src/services/renewal/hotmartRefunds.service.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 13
-    },
-    "no-console": {
-      "count": 2
     }
   },
   "src/services/renewal/renewalCoverage.service.ts": {
@@ -713,17 +531,11 @@
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    },
-    "no-console": {
-      "count": 2
     }
   },
   "src/services/studentCompleteService.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    },
-    "no-console": {
-      "count": 4
     }
   },
   "src/services/studentOgiSummary.service.ts": {
@@ -796,11 +608,6 @@
       "count": 1
     }
   },
-  "src/services/systemMonitor.service.ts": {
-    "no-console": {
-      "count": 4
-    }
-  },
   "src/services/tagMonitoring/criticalTagManagement.service.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
@@ -824,9 +631,6 @@
   "src/services/userProducts/productService.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 4
-    },
-    "no-console": {
-      "count": 1
     }
   },
   "src/services/userProducts/userProductService.ts": {

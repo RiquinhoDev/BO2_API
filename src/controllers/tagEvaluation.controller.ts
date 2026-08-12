@@ -3,6 +3,7 @@
 // Controller para teste e avaliaÃƒÂ§ÃƒÂ£o do sistema de tags V2
 // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 
+import logger from '../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import User from '../models/user'
@@ -109,7 +110,7 @@ export const evaluateTags = async (req: Request, res: Response, next: NextFuncti
     }
 
     if (verbose) {
-      console.log(`\nÃ°Å¸â€œÂ§ Avaliando tags para: ${user.email}`)
+      logger.info(`\nÃ°Å¸â€œÂ§ Avaliando tags para: ${user.email}`)
     }
 
     // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
@@ -139,7 +140,7 @@ export const evaluateTags = async (req: Request, res: Response, next: NextFuncti
     }
 
     if (verbose) {
-      console.log(`Ã°Å¸â€œÂ¦ Produtos encontrados: ${userProducts.length}`)
+      logger.info(`Ã°Å¸â€œÂ¦ Produtos encontrados: ${userProducts.length}`)
     }
 
     // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
@@ -171,7 +172,7 @@ export const evaluateTags = async (req: Request, res: Response, next: NextFuncti
 
       if (!product) {
         if (verbose) {
-          console.warn(`Produto ${userProduct.productId} nao encontrado`)
+          logger.warn(`Produto ${userProduct.productId} nao encontrado`)
         }
         continue
       }
@@ -210,12 +211,12 @@ export const evaluateTags = async (req: Request, res: Response, next: NextFuncti
       totalToRemove += diff.tagsToRemove.length
 
       if (verbose) {
-        console.log(`\n  Ã°Å¸â€œÂ¦ ${product.name}:`)
-        console.log(`     Status: ${userProduct.status}`)
-        console.log(`     Tags atuais: ${currentTags.length}`)
-        console.log(`     Tags novas: ${result.tags.length}`)
-        console.log(`     Ã¢Å¾â€¢ A adicionar: ${diff.tagsToAdd.length}`)
-        console.log(`     Ã¢Å¾â€“ A remover: ${diff.tagsToRemove.length}`)
+        logger.info(`\n  Ã°Å¸â€œÂ¦ ${product.name}:`)
+        logger.info(`     Status: ${userProduct.status}`)
+        logger.info(`     Tags atuais: ${currentTags.length}`)
+        logger.info(`     Tags novas: ${result.tags.length}`)
+        logger.info(`     Ã¢Å¾â€¢ A adicionar: ${diff.tagsToAdd.length}`)
+        logger.info(`     Ã¢Å¾â€“ A remover: ${diff.tagsToRemove.length}`)
       }
     }
 
@@ -228,7 +229,7 @@ export const evaluateTags = async (req: Request, res: Response, next: NextFuncti
     )
 
     if (verbose && globalTags.length > 0) {
-      console.log(`\nÃ°Å¸Å’Â Tags globais: ${globalTags.join(', ')}`)
+      logger.info(`\nÃ°Å¸Å’Â Tags globais: ${globalTags.join(', ')}`)
     }
 
     // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
@@ -239,7 +240,7 @@ export const evaluateTags = async (req: Request, res: Response, next: NextFuncti
 
     if (updateLocalDB && !dryRun) {
       if (verbose) {
-        console.log('\nÃ°Å¸â€™Â¾ Atualizando BD local (UserProduct.activeCampaignData.tags)...')
+        logger.info('\nÃ°Å¸â€™Â¾ Atualizando BD local (UserProduct.activeCampaignData.tags)...')
       }
 
       for (const result of productResults) {
@@ -258,7 +259,7 @@ export const evaluateTags = async (req: Request, res: Response, next: NextFuncti
       }
 
       if (verbose) {
-        console.log('Ã¢Å“â€¦ BD local atualizada')
+        logger.info('Ã¢Å“â€¦ BD local atualizada')
       }
     } else if (updateLocalDB && dryRun) {
       warnings.push('updateLocalDB ignorado porque dryRun=true')
@@ -295,10 +296,10 @@ export const evaluateTags = async (req: Request, res: Response, next: NextFuncti
     }
 
     if (verbose) {
-      console.log('\n' + 'Ã¢â€¢Â'.repeat(60))
-      console.log('Ã¢Å“â€¦ AvaliaÃƒÂ§ÃƒÂ£o concluÃƒÂ­da')
-      console.log(`Ã¢ÂÂ±Ã¯Â¸Â  DuraÃƒÂ§ÃƒÂ£o: ${duration}ms`)
-      console.log('Ã¢â€¢Â'.repeat(60) + '\n')
+      logger.info('\n' + 'Ã¢â€¢Â'.repeat(60))
+      logger.info('Ã¢Å“â€¦ AvaliaÃƒÂ§ÃƒÂ£o concluÃƒÂ­da')
+      logger.info(`Ã¢ÂÂ±Ã¯Â¸Â  DuraÃƒÂ§ÃƒÂ£o: ${duration}ms`)
+      logger.info('Ã¢â€¢Â'.repeat(60) + '\n')
     }
 
     res.status(200).json(successResponse(response, {
@@ -378,7 +379,7 @@ export const evaluateTagsBatch = async (req: Request, res: Response, next: NextF
       return
     }
 
-    console.log(`\nÃ°Å¸â€œÂ§ Avaliando ${users.length} utilizadores...`)
+    logger.info(`\nÃ°Å¸â€œÂ§ Avaliando ${users.length} utilizadores...`)
 
     // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
     // 3. PROCESSAR CADA USER
@@ -446,7 +447,7 @@ export const evaluateTagsBatch = async (req: Request, res: Response, next: NextF
       timestamp: new Date().toISOString()
     }))
 
-    console.log(`Ã¢Å“â€¦ AvaliaÃƒÂ§ÃƒÂ£o batch concluÃƒÂ­da: ${results.length}/${users.length} users (${duration}ms)`)
+    logger.info(`Ã¢Å“â€¦ AvaliaÃƒÂ§ÃƒÂ£o batch concluÃƒÂ­da: ${results.length}/${users.length} users (${duration}ms)`)
 
   } catch (error: unknown) {
     forwardApplicationError(next, error, 'Erro ao avaliar tags em batch', 'TAG_EVALUATION_BATCH_FAILED')

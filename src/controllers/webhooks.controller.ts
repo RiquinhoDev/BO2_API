@@ -3,6 +3,7 @@
 // Webhooks do Active Campaign
 // =====================================================
 
+import logger from '../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { internalError } from '../security/errorHandling'
 import User from '../models/user'
@@ -24,7 +25,7 @@ export const emailOpened = async (req: Request, res: Response, next: NextFunctio
       return res.status(404).json({ success: false, message: 'User não encontrado' })
     }
     
-    console.log(`📧 Email aberto: ${contact.email} em ${date_time}`)
+    logger.info(`📧 Email aberto: ${contact.email} em ${date_time}`)
     
     res.json({ success: true, message: 'Email opened registered' })
   } catch (error: unknown) {
@@ -44,7 +45,7 @@ export const linkClicked = async (req: Request, res: Response, next: NextFunctio
       return res.status(400).json({ success: false, message: 'Email inválido' })
     }
     
-    console.log(`🖱️  Link clicado: ${contact.email} - ${link}`)
+    logger.info(`🖱️  Link clicado: ${contact.email} - ${link}`)
     
     res.json({ success: true, message: 'Link click registered' })
   } catch (error: unknown) {

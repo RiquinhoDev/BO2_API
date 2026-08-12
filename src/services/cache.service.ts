@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 import Redis from 'ioredis'
 import type { AppConfig } from '../config/appConfig'
 import {
@@ -28,12 +29,12 @@ class CacheService {
     this.isConnected = false
 
     redis.on('connect', () => {
-      console.log('✅ Redis connected')
+      logger.info('✅ Redis connected')
       this.isConnected = true
     })
 
     redis.on('error', (error) => {
-      console.error('❌ Redis error:', error)
+      logger.error('❌ Redis error:', error)
       this.isConnected = false
     })
 
@@ -48,7 +49,7 @@ class CacheService {
       } catch {
         // Preserve the original connection failure.
       }
-      console.error('❌ Failed to connect Redis:', error)
+      logger.error('❌ Failed to connect Redis:', error)
       throw error
     }
   }
@@ -101,7 +102,7 @@ class CacheService {
       const data = await this.redis.get(key)
       return data ? JSON.parse(data) : null
     } catch (error) {
-      console.error('Cache get error:', error)
+      logger.error('Cache get error:', error)
       return null
     }
   }
@@ -112,7 +113,7 @@ class CacheService {
     try {
       await this.redis.setex(key, ttl, JSON.stringify(value))
     } catch (error) {
-      console.error('Cache set error:', error)
+      logger.error('Cache set error:', error)
     }
   }
 
@@ -124,7 +125,7 @@ class CacheService {
     try {
       return await this.redis.get(key)
     } catch (error) {
-      console.error('Cache getRaw error:', error)
+      logger.error('Cache getRaw error:', error)
       return null
     }
   }
@@ -135,7 +136,7 @@ class CacheService {
     try {
       await this.redis.setex(key, ttl, value)
     } catch (error) {
-      console.error('Cache setRaw error:', error)
+      logger.error('Cache setRaw error:', error)
     }
   }
 
@@ -145,7 +146,7 @@ class CacheService {
     try {
       await this.redis.del(key)
     } catch (error) {
-      console.error('Cache delete error:', error)
+      logger.error('Cache delete error:', error)
     }
   }
 
@@ -164,7 +165,7 @@ class CacheService {
       } while (cursor !== '0')
       return found
     } catch (error) {
-      console.error('Cache keys/scan error:', error)
+      logger.error('Cache keys/scan error:', error)
       return []
     }
   }
@@ -178,7 +179,7 @@ class CacheService {
         await this.redis.del(...keys)
       }
     } catch (error) {
-      console.error('Cache invalidate error:', error)
+      logger.error('Cache invalidate error:', error)
     }
   }
 
@@ -188,7 +189,7 @@ class CacheService {
     try {
       await this.redis.flushdb()
     } catch (error) {
-      console.error('Cache flush error:', error)
+      logger.error('Cache flush error:', error)
     }
   }
 

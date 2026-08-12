@@ -11,6 +11,7 @@
 // manualmente via endpoint. Ver docs/reference/renewal/RENOVACAO_OGI_BO_PLAN.md (Gap A).
 // ════════════════════════════════════════════════════════════
 
+import logger from '../../utils/logger'
 import axios from 'axios'
 import mongoose from 'mongoose'
 import { getRuntimeConfig } from '../../config/runtimeConfig'
@@ -233,13 +234,13 @@ export async function detectHotmartRefunds(windowDays: number = 30): Promise<Ref
 
     if (result.modifiedCount && result.modifiedCount > 0) {
       report.newlyMarked += 1
-      console.log(`💸 [HotmartRefunds] Reembolso marcado: ${refund.email} (${refund.transactionStatus}, ${refund.refundDate.toISOString().slice(0, 10)})`)
+      logger.info(`💸 [HotmartRefunds] Reembolso marcado: ${refund.email} (${refund.transactionStatus}, ${refund.refundDate.toISOString().slice(0, 10)})`)
     } else {
       report.alreadyMarked += 1
     }
   }
 
-  console.log(`💸 [HotmartRefunds] Janela ${windowDays}d: ${report.refundsFound} reembolsos OGI, ${report.newlyMarked} novos, ${report.alreadyMarked} já marcados, ${report.usersNotFound} sem user`)
+  logger.info(`💸 [HotmartRefunds] Janela ${windowDays}d: ${report.refundsFound} reembolsos OGI, ${report.newlyMarked} novos, ${report.alreadyMarked} já marcados, ${report.usersNotFound} sem user`)
 
   return report
 }

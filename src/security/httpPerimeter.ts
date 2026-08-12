@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 import type { RequestHandler } from 'express'
 import helmet from 'helmet'
 import { MemoryStore, rateLimit } from 'express-rate-limit'
@@ -108,7 +109,7 @@ export function createHttpPerimeter(options: HttpPerimeterOptions = {}): HttpPer
   const onRateLimit =
     options.onRateLimit ??
     ((event) =>
-      console.warn('[RATE_LIMIT] pedido bloqueado', {
+      logger.warn('[RATE_LIMIT] pedido bloqueado', {
         policy: event.policy,
         correlationId: event.correlationId,
       }))

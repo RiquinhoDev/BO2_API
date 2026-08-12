@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 import express from 'express';
 import { internalError } from '../security/errorHandling';
 import { successResponse } from '../contracts/responseContract';
@@ -73,7 +74,7 @@ router.get('/materialized-stats', getDashboardStatsV3);
  */
 router.post('/materialized-stats/rebuild', async (req, res, next) => {
   try {
-    console.log('🔨 [MANUAL] Iniciando rebuild de Dashboard Stats...');
+    logger.info('🔨 [MANUAL] Iniciando rebuild de Dashboard Stats...');
     await rebuildDashboardStatsManual();
     res.json(successResponse({
       message: 'Dashboard Stats reconstruídos com sucesso.'

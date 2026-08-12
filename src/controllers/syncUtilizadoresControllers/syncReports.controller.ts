@@ -3,6 +3,7 @@
 // Controller: Sync Reports API
 // ════════════════════════════════════════════════════════════
 
+import logger from '../../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../../contracts/responseContract'
 import { internalError } from '../../security/errorHandling'
@@ -21,7 +22,7 @@ export const getAllReports = async (req: Request, res: Response, next: NextFunct
   try {
     const { limit, syncType } = req.query
     
-    console.log('📋 [ReportsController] Buscando reports...')
+    logger.info('📋 [ReportsController] Buscando reports...')
     
     // Legacy raw-query compatibility: invalid/repeated syncType values reached the model filter unchanged.
     const reports = await syncReportsService.getReports(
@@ -45,7 +46,7 @@ export const getReportById = async (req: Request<SyncReportParams>, res: Respons
   try {
     const { id } = req.params
     
-    console.log(`📋 [ReportsController] Buscando report: ${id}`)
+    logger.info(`📋 [ReportsController] Buscando report: ${id}`)
     
     const report = await syncReportsService.getReportById(id)
     
@@ -73,7 +74,7 @@ export const getAggregatedStats = async (req: Request, res: Response, next: Next
   try {
     const { days } = req.query
     
-    console.log('📊 [ReportsController] Buscando stats agregados...')
+    logger.info('📊 [ReportsController] Buscando stats agregados...')
     
     const stats = await syncReportsService.getAggregatedStats(
       days ? parseInt(String(days), 10) : 30,

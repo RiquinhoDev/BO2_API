@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import { successResponse } from '../../contracts/responseContract'
 import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
@@ -11,7 +12,7 @@ export const getGlobalEngagementStats = async (req: Request, res: Response, next
     // ✅ Verificar cache primeiro (cache por 5 minutos)
     const cachedEntry = statsCache.get(cacheKey)
     if (cachedEntry) {
-      console.log('📦 Returning cached global engagement stats')
+      logger.info('📦 Returning cached global engagement stats')
       
       res.status(200).json(successResponse(
         cachedEntry.data,
@@ -25,7 +26,7 @@ export const getGlobalEngagementStats = async (req: Request, res: Response, next
     }
 
     // ✅ USAR AGREGAÇÃO MONGODB OTIMIZADA - USAR SCORES JÁ CALCULADOS
-    console.log('🚀 Calculando estatísticas com MongoDB aggregation...')
+    logger.info('🚀 Calculando estatísticas com MongoDB aggregation...')
     
     const aggregationResult = await statsCache.runSingleflight(cacheKey, async () => User.aggregate([
       {
@@ -160,8 +161,8 @@ export const getGlobalEngagementStats = async (req: Request, res: Response, next
     // ✅ Cachear resultado por 5 minutos
     statsCache.set(cacheKey, stats)
 
-    console.log('📈 Estatísticas OTIMIZADAS calculadas em:', Date.now() - startTime, 'ms')
-    console.log('📊 Resultados:', {
+    logger.info('📈 Estatísticas OTIMIZADAS calculadas em:', Date.now() - startTime, 'ms')
+    logger.info('📊 Resultados:', {
       totalUsers: stats.totalUsers,
       averageScore: stats.averageScore,
       topPerformers: stats.topPerformersCount,
@@ -192,7 +193,7 @@ export const clearEngagementCache = async (req: Request, res: Response, next: Ne
     const sizeBefore = statsCache.getSize()
     statsCache.clear()
     
-    console.log(`🧹 Engagement cache cleared (was ${sizeBefore} items)`)
+    logger.info(`🧹 Engagement cache cleared (was ${sizeBefore} items)`)
     
     res.status(200).json(successResponse(
       { clearedItems: sizeBefore },

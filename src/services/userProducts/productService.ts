@@ -3,6 +3,7 @@
 // ✅ VERSÃO V2: USA USERPRODUCT (NÃO User V1)
 // ════════════════════════════════════════════════════════════
 
+import logger from '../../utils/logger'
 import UserProduct from '../../models/UserProduct'
 import Product from '../../models/product/Product'
 
@@ -71,7 +72,7 @@ export const getProductStats = async (productKey: keyof typeof KNOWN_PRODUCTS): 
     productId: { $in: productIds }
   }).lean()
   
-  console.log(`📊 [ProductStats] ${productInfo.platform}: ${userProducts.length} UserProducts encontrados`)
+  logger.info(`📊 [ProductStats] ${productInfo.platform}: ${userProducts.length} UserProducts encontrados`)
   
   // ═══════════════════════════════════════════════════════════
   // CALCULAR STATS
