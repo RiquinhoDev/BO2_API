@@ -1,4 +1,5 @@
 import type { NextFunction, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import type {
   GuruInactivationBulkInput,
   GuruInactivationSingleInput,
@@ -43,12 +44,11 @@ export const createGuruExternalInactivationHandlers = (
           result.error,
         ))
       }
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         message: 'Membro inativado com sucesso',
         memberId: result.memberId,
         email: result.email,
-      })
+      }))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao inativar membro no CursEduca',
@@ -72,19 +72,17 @@ export const createGuruExternalInactivationHandlers = (
     try {
       const result = await service.inactivateBulk(input.body)
       if (result.processed === 0) {
-        return res.json({
-          success: true,
+        return res.json(successResponse({
           message: 'Nenhum user para inativar',
           processed: 0,
           succeeded: 0,
           failed: 0,
-        })
+        }))
       }
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         message: `Processados ${result.processed} membros`,
         ...result,
-      })
+      }))
     } catch (error: unknown) {
       return next(internalError(
         'Erro ao inativar membros no CursEduca',

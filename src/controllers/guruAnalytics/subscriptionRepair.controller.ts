@@ -1,4 +1,5 @@
 import { type NextFunction, Request, Response } from 'express'
+import { successResponse } from '../../contracts/responseContract'
 import { forwardApplicationError } from '../../security/forwardApplicationError'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
@@ -172,8 +173,7 @@ export const fixMultiSubscriptions = async (req: Request, res: Response, next: N
       console.log(`   - Corrigidos: ${fixed}`)
     }
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       totalSubscriptions: allSubscriptions.length,
       uniqueEmails: subsByEmail.size,
       multiSubscriptionUsers: multiSubUsers.length,
@@ -182,7 +182,7 @@ export const fixMultiSubscriptions = async (req: Request, res: Response, next: N
       mode: shouldFix ? 'FIX' : 'DIAGNÃ“STICO (adicionar ?fix=true para corrigir)',
       problems: problemUsers,
       multiSubDetails: multiSubUsers.slice(0, 50)
-    })
+    }))
 
   } catch (error: unknown) {
     return forwardApplicationError(next, error, 'Erro ao analisar subscrições múltiplas', 'GURU_SUBSCRIPTION_REPAIR_FAILED')

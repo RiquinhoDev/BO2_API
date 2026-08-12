@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import type { FilterQuery } from 'mongoose'
 import GuruWebhook, { type IGuruWebhook } from '../models/GuruWebhook'
 import { forwardApplicationError } from '../security/forwardApplicationError'
@@ -65,11 +66,10 @@ export const listGuruWebhooks = async (req: Request, res: Response, next: NextFu
       GuruWebhook.countDocuments(query),
     ])
 
-    return res.json({
-      success: true,
+    return res.json(successResponse({
       webhooks,
       pagination: pagination.metadata(total),
-    })
+    }))
   } catch (error: unknown) {
     return forwardApplicationError(next, error, 'Erro ao listar webhooks', 'GURU_WEBHOOK_LIST_FAILED')
   }

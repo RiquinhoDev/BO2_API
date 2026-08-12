@@ -91,7 +91,9 @@ test('sync all preserves its success envelope and always releases its lock', asy
 
   expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
     success: true,
-    result: expect.objectContaining({ total: 1, created: 1, crossReference: null }),
+    data: expect.objectContaining({
+      result: expect.objectContaining({ total: 1, created: 1, crossReference: null }),
+    }),
   }))
   expect((globalThis as Record<string, unknown>).guru_sync_running).toBe(false)
 })

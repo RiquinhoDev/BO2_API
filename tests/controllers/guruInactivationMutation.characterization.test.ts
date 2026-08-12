@@ -73,7 +73,9 @@ const invoke = async (
   await handler({ body } as Request, response, next)
   expect(next).not.toHaveBeenCalled()
   expect(json).toHaveBeenCalledTimes(1)
-  return json.mock.calls[0][0]
+  const envelope = json.mock.calls[0][0]
+  expect(envelope).toEqual({ success: true, data: expect.any(Object) })
+  return { success: true, ...envelope.data }
 }
 
 test('quarantine and revert persist their audit metadata instead of dropping it', async () => {

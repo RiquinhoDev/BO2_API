@@ -1,4 +1,5 @@
 import type { NextFunction, Response } from 'express'
+import { successResponse } from '../contracts/responseContract'
 import type { GuruMarkDiscrepanciesInput } from '../security/guruDestructiveInput'
 import { internalError } from '../security/errorHandling'
 import { curseducaIdentityLookup } from '../services/guru/curseducaIdentityLookup.client'
@@ -20,13 +21,12 @@ export const createGuruDiscrepancyHandlers = (
   ) {
     try {
       const result = await service.mark(input.body.emails)
-      return res.json({
-        success: true,
+      return res.json(successResponse({
         message: `${result.marked + result.created} UserProduct(s) marcado(s) para inativação (${result.marked} marcados, ${result.created} criados)`,
         ...result,
         total: result.marked + result.created,
         details: result.details.slice(0, 50),
-      })
+      }))
     } catch (error: unknown) {
       const publicMessage = error instanceof CurseducaProductUnavailableError
         ? error.message
