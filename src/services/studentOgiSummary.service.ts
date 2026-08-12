@@ -137,6 +137,27 @@ interface StudentLean {
   }
 }
 
+interface AchievementEntry {
+  id: string
+  unlockedAt: Date | null
+  seenAt?: Date | null
+  progress?: { current: number; target: number }
+}
+
+interface AchievementStats {
+  total: number
+  unlocked: number
+  percentage: number
+  currentStreak: number
+  bestStreak: number
+}
+
+type StudentWithAchievements = StudentLean & {
+  achievements?: AchievementEntry[]
+  achievementStats?: AchievementStats
+  toObject?: () => StudentWithAchievements
+}
+
 interface ProductLean {
   _id: mongoose.Types.ObjectId
   code?: string
@@ -186,7 +207,7 @@ export async function getStudentOgiSummary(email: string): Promise<StudentOgiSum
   const normalizedEmail = normalizeStudentEmail(email)
   const user = await User.findOne({ email: normalizedEmail })
     .select('name email hotmart curseduca discord combined engagement inactivation achievements achievementStats')
-    .exec() as (StudentLean & { achievements?: any[]; achievementStats?: any }) | null
+    .exec() as StudentWithAchievements | null
 
   if (!user) return null
 
@@ -201,7 +222,7 @@ export async function getStudentOgiSummary(email: string): Promise<StudentOgiSum
   const ogiProduct = await findOgiProduct()
   const userProduct = await findOgiUserProduct(user._id, ogiProduct?._id)
 
-  return buildStudentOgiSummary(typeof (user as any).toObject === 'function' ? (user as any).toObject() : user, userProduct)
+  return buildStudentOgiSummary(typeof user.toObject === 'function' ? user.toObject() : user, userProduct)
 }
 
 async function findOgiProduct(): Promise<ProductLean | null> {
@@ -240,7 +261,7 @@ async function findOgiUserProduct(
 }
 
 async function buildStudentOgiSummary(
-  user: StudentLean & { achievements?: any[]; achievementStats?: any },
+  user: StudentWithAchievements,
   userProduct: UserProductLean | null
 ): Promise<StudentOgiSummary> {
   const modules = buildModuleSummaries(userProduct)
@@ -344,7 +365,7 @@ function buildAchievementsResponse(
   // Enriquecer com definições (nomes, descrições)
   const defMap = new Map(ACHIEVEMENT_DEFINITIONS.map((d) => [d.id, d]))
 
-  const items = achievements.map((a: any) => {
+  const items = achievements.map((a) => {
     const def = defMap.get(a.id)
     return {
       id: a.id,

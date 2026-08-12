@@ -3,17 +3,26 @@
 // SERVIÇO DE USERPRODUCT - HELPER FUNCTIONS
 // ════════════════════════════════════════════════════════════
 
-import mongoose from 'mongoose'
+import mongoose, { type FilterQuery } from 'mongoose'
 import User from '../../models/user'
 import Product from '../../models/product/Product'
 import UserProduct, {
   type EnrollmentStatus,
   type PlatformType,
+  type IProgress,
+  type IEngagement,
+  type IUserProduct,
 } from '../../models/UserProduct'
 import type {
   UsersV2LegacyGroupedProduct,
   UsersV2LegacyGroupedUser,
 } from '../../contracts/usersV2'
+
+interface PopulatedProduct {
+  _id: mongoose.Types.ObjectId
+  code: string
+  name: string
+}
 
 interface LegacyGroupedEnrollmentLean {
   _id: mongoose.Types.ObjectId
@@ -66,7 +75,7 @@ export async function getUserWithProducts(userId: string | mongoose.Types.Object
   // 2. Buscar UserProducts (V2 - dados novos)
   const userProducts = await UserProduct.find({ userId: user._id })
     .populate('productId', 'code name platform')
-    .lean()
+    .lean<Array<Omit<IUserProduct, 'productId'> & { productId: PopulatedProduct }>>()
   
   // 3. Montar resposta compatível
   return {
@@ -75,9 +84,9 @@ export async function getUserWithProducts(userId: string | mongoose.Types.Object
     // V2 data (novo campo)
     products: userProducts.map(up => ({
       _id: up._id,
-      productId: (up.productId as any)._id,
-      productCode: (up.productId as any).code,
-      productName: (up.productId as any).name,
+      productId: up.productId._id,
+      productCode: up.productId.code,
+      productName: up.productId.name,
       platform: up.platform,
       platformUserId: up.platformUserId,
       platformUserUuid: up.platformUserUuid,
@@ -103,8 +112,8 @@ export async function dualWriteUserData(
   userId: mongoose.Types.ObjectId,
   productCode: string,
   data: {
-    progress?: any
-    engagement?: any
+    progress?: IProgress
+    engagement?: IEngagement
     platformUserId?: string
     platformUserUuid?: string
     status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CANCELLED'
@@ -239,7 +248,7 @@ export async function getUserProducts(
     platform?: string
   }
 ) {
-  const query: any = { userId }
+  const query: FilterQuery<IUserProduct> = { userId }
   
   if (filters?.status) query.status = filters.status
   if (filters?.platform) query.platform = filters.platform
