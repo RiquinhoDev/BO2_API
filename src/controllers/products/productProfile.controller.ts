@@ -256,7 +256,7 @@ export const getProductProfileStats = async (
       StudentEngagementState.countDocuments({ productCode: code.toUpperCase() }),
       
       // Alunos por estado
-      StudentEngagementState.aggregate([
+      StudentEngagementState.aggregate<{ _id: string; count: number }>([
         { $match: { productCode: code.toUpperCase() } },
         { $group: { _id: '$currentState', count: { $sum: 1 } } }
       ]),
@@ -283,8 +283,8 @@ export const getProductProfileStats = async (
     ])
 
     // Formatar estatísticas por estado
-    const stateStats: any = {}
-    studentsByState.forEach((item: any) => {
+    const stateStats: Record<string, number> = {}
+    studentsByState.forEach(item => {
       stateStats[item._id] = item.count
     })
 

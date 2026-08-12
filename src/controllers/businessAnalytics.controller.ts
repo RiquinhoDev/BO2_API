@@ -281,7 +281,7 @@ class BusinessAnalyticsController {
       const start = startDate ? new Date(startDate as string) : new Date(now.getFullYear(), now.getMonth(), 1)
       const end = endDate ? new Date(endDate as string) : new Date(now.getFullYear(), now.getMonth() + 1, 0)
       
-      const query: any = { isActive: true }
+      const query: { isActive: boolean; _id?: { $in: unknown[] } } = { isActive: true }
       if (productIds) {
         const ids = Array.isArray(productIds) ? productIds : [productIds]
         query._id = { $in: ids }

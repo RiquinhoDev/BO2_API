@@ -38,7 +38,7 @@ const buildCreatedAtFilter = (from?: unknown, to?: unknown, defaultDays?: number
   return Object.keys(createdAt).length ? { createdAt } : {}
 }
 
-const buildLogsQuery = (query: any, useDefaultRange = false) => {
+const buildLogsQuery = (query: Request['query'], useDefaultRange = false) => {
   const filter: Record<string, unknown> = {
     ...buildCreatedAtFilter(query.from, query.to, useDefaultRange ? 30 : undefined),
   }
@@ -123,7 +123,7 @@ router.get('/logs/stats', asyncRoute(async (req: Request, res: Response, next) =
     ])
 
     const totals = daily.reduce(
-      (acc: any, day: any) => {
+      (acc: { total: number; validated: number; rejected: number }, day: { total: number; validated: number; rejected: number }) => {
         acc.total += day.total
         acc.validated += day.validated
         acc.rejected += day.rejected

@@ -100,7 +100,7 @@ router.post('/:id/interest', async (req: Request, res: Response, next: NextFunct
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status, eventType, from, to, limit } = req.query
-    const query: any = {}
+    const query: { status?: unknown; eventType?: unknown; scheduledAt?: { $gte?: Date; $lte?: Date } } = {}
 
     if (status) query.status = status
     if (eventType) query.eventType = eventType

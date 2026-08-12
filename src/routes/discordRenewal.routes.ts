@@ -53,7 +53,7 @@ router.get('/changes', asyncRoute(async (req: Request, res: Response) => {
   const limit = Math.min(Number(req.query.limit) || 50, 500)
   const skip = Math.max(Number(req.query.skip) || 0, 0)
 
-  const query: any = {}
+  const query: Record<string, unknown> = {}
   if (status) query.status = status
   if (batchId) query.planBatchId = batchId
   if (search && String(search).trim()) {
