@@ -25,11 +25,11 @@ jest.mock('../../src/services/guru/guruSync.service', () => ({
 
 import { syncTrialsFromGuru } from '../../src/services/guru/guruTrialService'
 
-const subscription = (index: number) => ({
+const subscription = (index: number, email = `user-${index}@example.test`) => ({
   id: `sub-${index}`,
   subscription_code: `sub-${index}`,
   last_status: 'trial',
-  contact: { email: `user-${index}@example.test` },
+  contact: { email },
   trial_started_at: '2026-08-01T00:00:00.000Z',
   trial_finished_at: '2026-08-08T00:00:00.000Z',
 })
@@ -45,41 +45,59 @@ function usersQuery(users: Array<{ _id: string; email: string }>) {
 describe.each([1, 10, 100])('Guru trial local set read N=%i', (size) => {
   beforeEach(() => {
     jest.clearAllMocks()
-    const users = Array.from({ length: size }, (_, index) => ({
+    const uniqueCount = Math.ceil(size / 2)
+    const users = Array.from({ length: uniqueCount }, (_, index) => ({
       _id: `user-${index}`,
       email: `user-${index}@example.test`,
     }))
     mockFetchAllSubscriptionsComplete.mockResolvedValue(
-      Array.from({ length: size }, (_, index) => subscription(index)),
+      Array.from({ length: size }, (_, index) => {
+        const userIndex = Math.floor(index / 2)
+        const email = `user-${userIndex}@example.test`
+        return subscription(index, index % 2 === 0 ? email : ` USER-${userIndex}@EXAMPLE.TEST `)
+      }),
     )
     mockUserFind.mockReturnValue(usersQuery(users))
     mockUserUpdateOne.mockResolvedValue({ modifiedCount: 1 })
   })
 
   test('loads all matching local users once and preserves directed write order', async () => {
+    let active = 0
+    let peak = 0
+    mockUserUpdateOne.mockImplementation(async () => {
+      active++
+      peak = Math.max(peak, active)
+      await Promise.resolve()
+      active--
+      return { modifiedCount: 1 }
+    })
+
     const result = await syncTrialsFromGuru()
 
     expect(mockUserFind).toHaveBeenCalledTimes(1)
     expect(mockUserFind).toHaveBeenCalledWith({
-      email: { $in: Array.from({ length: size }, (_, index) => `user-${index}@example.test`) },
+      email: {
+        $in: Array.from({ length: Math.ceil(size / 2) }, (_, index) => `user-${index}@example.test`),
+      },
     })
     expect(mockUserFindOne).not.toHaveBeenCalled()
     expect(mockUserUpdateOne).toHaveBeenCalledTimes(size)
     expect(mockUserUpdateOne.mock.calls.map(([filter]) => filter._id)).toEqual(
-      Array.from({ length: size }, (_, index) => `user-${index}`),
+      Array.from({ length: size }, (_, index) => `user-${Math.floor(index / 2)}`),
     )
+    expect(peak).toBe(1)
     expect(result).toEqual({ synced: size, errors: 0 })
     expect(mockFetchSubscriptionById).not.toHaveBeenCalled()
   })
 
   test('accounts for every failed directed write without stopping later writes', async () => {
     const failed = new Set(Array.from({ length: size }, (_, index) => index).filter(index => index % 10 === 0))
-    mockUserUpdateOne.mockImplementation(async ({ _id }: { _id: string }) => {
-      const index = Number(_id.slice('user-'.length))
+    let callIndex = 0
+    mockUserUpdateOne.mockImplementation(async () => {
+      const index = callIndex++
       if (failed.has(index)) throw new Error(`write-${index}`)
       return { modifiedCount: 1 }
     })
-
     const result = await syncTrialsFromGuru()
 
     expect(mockUserUpdateOne).toHaveBeenCalledTimes(size)
