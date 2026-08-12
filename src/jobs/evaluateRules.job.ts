@@ -9,6 +9,22 @@ import { Product, UserProduct } from '../models'
 import decisionEngine from '../services/activeCampaign/decisionEngine.service'
 import tagOrchestrator from '../services/activeCampaign/tagOrchestrator.service'
 
+interface PopulatedCourseSummary {
+  name?: string
+  trackingType?: string
+}
+
+function populatedCourseSummary(value: unknown): PopulatedCourseSummary | null {
+  if (!value || typeof value !== 'object') return null
+
+  return {
+    name: 'name' in value && typeof value.name === 'string' ? value.name : undefined,
+    trackingType: 'trackingType' in value && typeof value.trackingType === 'string'
+      ? value.trackingType
+      : undefined,
+  }
+}
+
 logger.info('⚠️ EvaluateRules: DESATIVADO hardcoded (gerido pelo wizard)')
 
 export async function executeEvaluateRules() {
@@ -18,10 +34,6 @@ export async function executeEvaluateRules() {
   const startTime = Date.now()
 
   try {
-    // ═══════════════════════════════════════════════════════════
-    // 1. BUSCAR PRODUTOS ATIVOS
-    // ═══════════════════════════════════════════════════════════
-
     const products = await Product.find({ isActive: true }).populate('courseId')
 
     logger.info(`📦 Encontrados ${products.length} produtos ativos`)
@@ -31,20 +43,12 @@ export async function executeEvaluateRules() {
     let totalExecutions = 0
     const errors: Array<Record<string, unknown>> = []
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. PROCESSAR CADA PRODUTO
-    // ═══════════════════════════════════════════════════════════
-
     for (const product of products) {
       try {
-        const course = product.courseId as any
+        const course = populatedCourseSummary(product.courseId)
 
         logger.info(`\n📦 Processando produto: ${product.name} (${product.code})`)
         logger.info(`   📚 Course: ${course?.name || 'N/A'} (${course?.trackingType || 'N/A'})`)
-
-        // ═══════════════════════════════════════════════════════════
-        // 3. BUSCAR USERPRODUCTS ATIVOS DESTE PRODUTO
-        // ═══════════════════════════════════════════════════════════
 
         const userProducts = await UserProduct.find({
           productId: product._id,
@@ -57,12 +61,7 @@ export async function executeEvaluateRules() {
         }
 
         logger.info(`   👥 ${userProducts.length} UserProduct(s) ativo(s)`)
-
         totalUserProducts += userProducts.length
-
-        // ═══════════════════════════════════════════════════════════
-        // 4. AVALIAR CADA USERPRODUCT COM DECISIONENGINE
-        // ═══════════════════════════════════════════════════════════
 
         for (const up of userProducts) {
           try {
@@ -73,7 +72,6 @@ export async function executeEvaluateRules() {
 
             totalDecisions++
             totalExecutions += result.tagsApplied.length + result.tagsRemoved.length
-
           } catch (userError: unknown) {
             logger.error(`   ❌ Erro UserProduct ${up._id}:`, errorMessage(userError))
             errors.push({
@@ -85,7 +83,6 @@ export async function executeEvaluateRules() {
         }
 
         logger.info(`   ✅ ${product.code}: ${userProducts.length} UserProducts avaliados`)
-
       } catch (productError: unknown) {
         logger.error(`❌ Erro ao processar produto ${product._id}:`, errorMessage(productError))
         errors.push({
@@ -94,10 +91,6 @@ export async function executeEvaluateRules() {
         })
       }
     }
-
-    // ═══════════════════════════════════════════════════════════
-    // 5. RESULTADO FINAL
-    // ═══════════════════════════════════════════════════════════
 
     const duration = Date.now() - startTime
 
@@ -116,7 +109,6 @@ export async function executeEvaluateRules() {
 
     logger.info(`${'═'.repeat(70)}\n`)
 
-    // ✅ RETORNAR RESULTADO PARA O SCHEDULER
     return {
       success: true,
       totalCourses: products.length,
@@ -126,16 +118,11 @@ export async function executeEvaluateRules() {
       errors: errors.length,
       duration: Math.round(duration / 1000)
     }
-
   } catch (error: unknown) {
     logger.error('❌ Erro na avaliação diária:', error)
     throw new Error(`Erro na avaliação de regras: ${errorMessage(error)}`)
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// EXPORT
-// ═══════════════════════════════════════════════════════════
 
 export default {
   run: executeEvaluateRules
