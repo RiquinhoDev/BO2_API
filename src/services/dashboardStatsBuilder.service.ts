@@ -51,8 +51,8 @@ export async function buildDashboardStats(): Promise<void> {
     }>()
     
     for (const up of userProducts) {
-      const userId = typeof up.userId === 'object' && (up.userId as any)._id 
-        ? (up.userId as any)._id.toString() 
+      const userId = typeof up.userId === 'object' && up.userId._id
+        ? up.userId._id.toString()
         : up.userId.toString()
       
       if (!byUserId.has(userId)) {
@@ -215,8 +215,8 @@ export async function buildDashboardStats(): Promise<void> {
     for (const up of userProducts) {
       if (!up.platform) continue
       
-      const userId = typeof up.userId === 'object' && (up.userId as any)._id 
-        ? (up.userId as any)._id.toString() 
+      const userId = typeof up.userId === 'object' && up.userId._id
+        ? up.userId._id.toString()
         : up.userId.toString()
       
       const platform = up.platform.toLowerCase()

@@ -376,7 +376,7 @@ export async function filterSafeTagsToRemove(
 /**
  * Gera relatório de tags nativas para um utilizador
  */
-export async function getNativeTagsReport(email: string): Promise<any> {
+export async function getNativeTagsReport(email: string): Promise<unknown> {
   const snapshot = await ACNativeTagsSnapshot.findOne({ email })
 
   if (!snapshot) {
@@ -409,7 +409,7 @@ export async function getNativeTagsReport(email: string): Promise<any> {
 /**
  * Gera estatísticas globais de proteção
  */
-export async function getProtectionStats(): Promise<any> {
+export async function getProtectionStats(): Promise<unknown> {
   const totalSnapshots = await ACNativeTagsSnapshot.countDocuments()
 
   const snapshotsWithNativeTags = await ACNativeTagsSnapshot.countDocuments({

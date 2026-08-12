@@ -62,7 +62,7 @@ export const getProductStats = async (productKey: keyof typeof KNOWN_PRODUCTS): 
     }
   }
   
-  const productIds = products.map(p => (p as any)._id)
+  const productIds = products.map(p => (p)._id)
   
   // ═══════════════════════════════════════════════════════════
   // ✅ BUSCAR USERPRODUCTS (V2 - NÃO User V1!)
@@ -79,13 +79,13 @@ export const getProductStats = async (productKey: keyof typeof KNOWN_PRODUCTS): 
   // ═══════════════════════════════════════════════════════════
   
   const totalUsers = userProducts.length
-  const activeUsers = userProducts.filter((up: any) => up.status === 'ACTIVE').length
+  const activeUsers = userProducts.filter((up) => up.status === 'ACTIVE').length
   
   // Engagement médio
   let totalEngagement = 0
   let countWithEngagement = 0
   
-  userProducts.forEach((up: any) => {
+  userProducts.forEach((up) => {
     const score = up.engagement?.engagementScore || 0
     if (score > 0) {
       totalEngagement += score
@@ -101,7 +101,7 @@ export const getProductStats = async (productKey: keyof typeof KNOWN_PRODUCTS): 
   let totalProgress = 0
   let countWithProgress = 0
   
-  userProducts.forEach((up: any) => {
+  userProducts.forEach((up) => {
     const progress = up.progress?.percentage || 0
     if (progress > 0) {
       totalProgress += progress
