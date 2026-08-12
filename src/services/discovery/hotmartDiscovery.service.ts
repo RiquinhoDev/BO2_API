@@ -2,6 +2,7 @@
  * 🔥 HOTMART DISCOVERY SERVICE - Versão Simplificada
  */
 
+import logger from '../../utils/logger'
 import Product from '../../models/product/Product';
 import { 
   DiscoveredProduct, 
@@ -17,7 +18,7 @@ export class HotmartDiscoveryService {
    */
   async discoverNewProducts(): Promise<DiscoveredProduct[]> {
     try {
-      console.log('🔍 Iniciando discovery Hotmart...');
+      logger.info('🔍 Iniciando discovery Hotmart...');
 
       // 1. Buscar produtos da API Hotmart
       const allHotmartProducts = await this.getHotmartProducts();
@@ -28,7 +29,7 @@ export class HotmartDiscoveryService {
         product => !existingIds.includes(product.id.toString())
       );
 
-      console.log(`🆕 ${newProducts.length} produtos novos encontrados`);
+      logger.info(`🆕 ${newProducts.length} produtos novos encontrados`);
 
       // 3. Processar produtos novos
       const discoveredProducts: DiscoveredProduct[] = [];
@@ -36,16 +37,16 @@ export class HotmartDiscoveryService {
         try {
           const discovered = this.processProduct(product);
           discoveredProducts.push(discovered);
-          console.log(`✅ Processado: ${discovered.detectedName}`);
+          logger.info(`✅ Processado: ${discovered.detectedName}`);
         } catch (error: any) {
-          console.error(`❌ Erro ao processar ${product.id}:`, error);
+          logger.error(`❌ Erro ao processar ${product.id}:`, error);
         }
       }
 
       return discoveredProducts;
 
     } catch (error: any) {
-      console.error('❌ Erro no discovery:', error);
+      logger.error('❌ Erro no discovery:', error);
       throw new Error(`Discovery falhou: ${error.message}`);
     }
   }
@@ -56,7 +57,7 @@ export class HotmartDiscoveryService {
   private async getHotmartProducts(): Promise<any[]> {
     // ⚠️ MOCK - Implementar integração real aqui
     // TODO: Integrar com sua API Hotmart existente
-    console.log('📦 Usando dados MOCK - Integre com API Hotmart real');
+    logger.info('📦 Usando dados MOCK - Integre com API Hotmart real');
     
     return [
       {

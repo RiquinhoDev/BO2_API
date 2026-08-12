@@ -42,7 +42,7 @@ export class StudentCompleteService {
     const startTime = Date.now()
 
     try {
-      console.log(`[StudentCompleteService] Iniciando busca para userId: ${userId}`)
+      logger.info(`[StudentCompleteService] Iniciando busca para userId: ${userId}`)
 
       // ═══════════════════════════════════════════════════════════
       // STEP 1: EXECUTAR QUERIES EM PARALELO
@@ -60,7 +60,7 @@ export class StudentCompleteService {
         throw new StudentNotFoundError(userId)
       }
 
-      console.log(`[StudentCompleteService] Dados base carregados em ${Date.now() - startTime}ms`)
+      logger.info(`[StudentCompleteService] Dados base carregados em ${Date.now() - startTime}ms`)
 
       // ═══════════════════════════════════════════════════════════
       // STEP 2: CONSOLIDAR DADOS
@@ -80,7 +80,7 @@ export class StudentCompleteService {
       // Calcular estatísticas
       const stats = calculateStudentStats(user, products, classes, history)
 
-      console.log(
+      logger.info(
         `[StudentCompleteService] Consolidação concluída em ${Date.now() - consolidationStart}ms`,
       )
 
@@ -113,7 +113,7 @@ export class StudentCompleteService {
         },
       }
 
-      console.log(
+      logger.info(
         `[StudentCompleteService] Resposta completa preparada em ${totalTime}ms`,
       )
 

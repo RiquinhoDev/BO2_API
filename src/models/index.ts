@@ -2,6 +2,7 @@
 // Este arquivo garante que todos os modelos sejam importados e disponíveis
 // Previne recompilação durante hot reload
 
+import logger from '../utils/logger'
 import mongoose from 'mongoose'
 
 // Importar todos os models para garantir que estão registrados
@@ -81,16 +82,16 @@ export { DashboardStats } from './DashboardStats'
 // Função para verificar se um modelo está disponível
 function ensureModel(modelName: string): boolean {
   if (mongoose.models[modelName]) {
-    console.log(`ℹ️ Modelo ${modelName} já está disponível`)
+    logger.info(`ℹ️ Modelo ${modelName} já está disponível`)
     return true
   } else {
-    console.warn(`⚠️ Modelo ${modelName} não está disponível`)
+    logger.warn(`⚠️ Modelo ${modelName} não está disponível`)
     return false
   }
 }
 
 // Verificar todos os modelos necessários
-console.log('🔍 Verificando modelos disponíveis...')
+logger.info('🔍 Verificando modelos disponíveis...')
 
 const modelsToCheck = [
   'User',
@@ -134,9 +135,9 @@ modelsToCheck.forEach(modelName => {
   }
 })
 
-console.log(`✅ Verificação concluída: ${availableModels}/${modelsToCheck.length} modelos disponíveis`)
+logger.info(`✅ Verificação concluída: ${availableModels}/${modelsToCheck.length} modelos disponíveis`)
 
 // Se algum modelo crítico não estiver disponível, mostrar aviso
 if (availableModels < modelsToCheck.length) {
-  console.warn('⚠️ Alguns modelos não estão disponíveis. Verifique se foram importados corretamente.')
+  logger.warn('⚠️ Alguns modelos não estão disponíveis. Verifique se foram importados corretamente.')
 }

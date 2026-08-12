@@ -15,6 +15,7 @@
 //   DISCORD_MESSAGES_ENABLED     master das mensagens do bot
 // ════════════════════════════════════════════════════════════
 
+import logger from '../../../utils/logger'
 import mongoose from 'mongoose'
 import { getRuntimeConfig } from '../../../config/runtimeConfig'
 import { IntegrationUnavailableError } from '../../../errors/integrationUnavailableError'
@@ -251,7 +252,7 @@ export async function generateDiscordRolesPlan(): Promise<DiscordPlanReport> {
     if (report.realChanges > threshold) {
       report.anomalyAborted = true
       report.anomalyDetail = `${report.realChanges} mudanças de cargos JÁ aplicados (> limiar ${threshold}) — provável anomalia nos dados, plano NÃO gerado (novas atribuições: ${report.newAssignments}, não contam)`
-      console.error(`🚨 [DiscordRoles] ${report.anomalyDetail}`)
+      logger.error(`🚨 [DiscordRoles] ${report.anomalyDetail}`)
       return report
     }
   }
@@ -306,7 +307,7 @@ export async function generateDiscordRolesPlan(): Promise<DiscordPlanReport> {
   }
 
   report.overCap = report.planned > maxOpsPerRun()
-  console.log(`📋 [DiscordRoles] Plano ${batchId}: ${report.planned} changes (${report.removals} remoções), ${report.skippedDuplicates} duplicadas, backfill=${report.isBackfill}${report.overCap ? ` — ACIMA DO CAP ${maxOpsPerRun()}` : ''}`)
+  logger.info(`📋 [DiscordRoles] Plano ${batchId}: ${report.planned} changes (${report.removals} remoções), ${report.skippedDuplicates} duplicadas, backfill=${report.isBackfill}${report.overCap ? ` — ACIMA DO CAP ${maxOpsPerRun()}` : ''}`)
   return report
 }
 

@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 import type { AppConfig } from '../config/appConfig'
 import type { Infrastructure } from '../bootstrap'
 import mongoose from 'mongoose'
@@ -20,7 +21,7 @@ export class InfrastructureCleanupError extends Error {
 export const infrastructure: Infrastructure = {
   async connectMongo(config: AppConfig): Promise<void> {
     await mongoose.connect(config.mongoUri)
-    console.log('✅ Ligado ao MongoDB')
+    logger.info('✅ Ligado ao MongoDB')
   },
   async connectRedis(config: AppConfig): Promise<RateLimitStoreFactory | undefined> {
     if (!config.redis) return undefined

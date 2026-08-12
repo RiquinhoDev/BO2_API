@@ -19,6 +19,7 @@
 // - Envio passa pelo sendDiscordMessage existente: allowlist dos 12 cargos R.*, allowlist de
 //   canais, switch DISCORD_MESSAGES_ENABLED, e registo em DiscordMessageLog.
 
+import logger from '../../utils/logger'
 import { getRuntimeConfig } from '../../config/runtimeConfig'
 import {
   DiscordMessageTemplate,
@@ -189,16 +190,16 @@ export async function runScheduledMessagesJob(): Promise<ScheduledMessagesReport
       rule.lastSentMonth = target.monthKey
       rule.lastResult = `enviada a ${target.roleName} (${members} membros)`
       report.sent++
-      console.log(`📨 [ScheduledMessages] ${rule.key} → ${target.roleName} (${members} membros): OK`)
+      logger.info(`📨 [ScheduledMessages] ${rule.key} → ${target.roleName} (${members} membros): OK`)
     } else {
       rule.lastResult = `FALHOU: ${result.message}`
       report.skipped.push({ rule: rule.key, reason: result.message })
-      console.error(`❌ [ScheduledMessages] ${rule.key}: ${result.message}`)
+      logger.error(`❌ [ScheduledMessages] ${rule.key}: ${result.message}`)
     }
     await rule.save()
   }
 
-  console.log(
+  logger.info(
     `📅 [ScheduledMessages] dia ${day} — ${report.checked} regra(s) para hoje, ${report.sent} enviada(s), ${report.skipped.length} skip(s)`
   )
   return report

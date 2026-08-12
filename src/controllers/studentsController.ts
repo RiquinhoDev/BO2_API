@@ -3,6 +3,7 @@
 // Controller para endpoints relacionados com estudantes
 // ══════════════════════════════════════════════════════════════════════
 
+import logger from '../utils/logger'
 import type { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
 import StudentCompleteService from '../services/studentCompleteService'
@@ -34,13 +35,13 @@ export async function getStudentComplete(req: Request, res: Response, next: Next
       })
     }
 
-    console.log(`[StudentsController] GET /api/students/${userId}/complete`)
+    logger.info(`[StudentsController] GET /api/students/${userId}/complete`)
 
     // Buscar dados usando service
     const response = await StudentCompleteService.getCompleteStudentData(userId)
 
     // Log de sucesso
-    console.log(
+    logger.info(
       `[StudentsController] Dados retornados com sucesso em ${response.meta.executionTime}ms`,
     )
 

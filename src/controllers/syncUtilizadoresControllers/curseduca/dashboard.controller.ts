@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import User from '../../../models/user'
 import Product from '../../../models/product/Product'
@@ -22,7 +23,7 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
  * Obter estatísticas do dashboard CursEduca
  */
 export const getCurseducaDashboardStats = async () => {
-  console.log('📊 [DASHBOARD] Calculando estatísticas CursEduca...')
+  logger.info('📊 [DASHBOARD] Calculando estatísticas CursEduca...')
 
   const curseducaProducts = await Product.find({
     platform: 'curseduca',
@@ -41,7 +42,7 @@ export const getCurseducaDashboardStats = async () => {
     productId: { $in: curseducaProducts.map(p => p._id) }
   })
 
-  console.log('✅ Estatísticas calculadas')
+  logger.info('✅ Estatísticas calculadas')
 
   return {
     totalUsers,

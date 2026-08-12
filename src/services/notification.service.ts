@@ -3,6 +3,7 @@
 // Serviço de notificações (Slack, Email, etc)
 // =====================================================
 
+import logger from '../utils/logger'
 import axios from 'axios'
 
 import { getSlackWebhookUrl } from './requestDrivenRuntimeConfig'
@@ -13,7 +14,7 @@ class NotificationService {
   async sendSlackAlert(message: string, level: 'info' | 'warning' | 'error' = 'info') {
     const slackWebhookUrl = getSlackWebhookUrl()
     if (!slackWebhookUrl) {
-      console.warn('⚠️  Slack webhook não configurado')
+      logger.warn('⚠️  Slack webhook não configurado')
       return
     }
 
@@ -33,9 +34,9 @@ class NotificationService {
         }]
       })
 
-      console.log(`✅ Alerta enviado para Slack: ${message}`)
+      logger.info(`✅ Alerta enviado para Slack: ${message}`)
     } catch (error) {
-      console.error('❌ Erro ao enviar alerta para Slack:', error)
+      logger.error('❌ Erro ao enviar alerta para Slack:', error)
     }
   }
 
@@ -44,8 +45,8 @@ class NotificationService {
    */
   async sendEmailAlert(subject: string, body: string) {
     // TODO: Implementar com nodemailer ou serviço de email
-    console.log(`📧 Email Alert: ${subject}`)
-    console.log(body)
+    logger.info(`📧 Email Alert: ${subject}`)
+    logger.info(body)
   }
 
   /**

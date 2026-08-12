@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 import { Request, Response } from 'express'
 import {
   getStudentAccess,
@@ -36,7 +37,7 @@ export async function getOgiSummary(req: Request, res: Response): Promise<void> 
       data: summary
     })
   } catch (error) {
-    console.error('[studentOgiSummary] Erro ao buscar resumo OGI:', error)
+    logger.error('[studentOgiSummary] Erro ao buscar resumo OGI:', error)
     res.status(403).json({
       success: false,
       error: 'STUDENT_SUMMARY_FORBIDDEN',
@@ -78,7 +79,7 @@ export async function getOgiAccess(req: Request, res: Response): Promise<void> {
       data: access
     })
   } catch (error) {
-    console.error('[studentOgiSummary] Erro ao validar acesso OGI:', error)
+    logger.error('[studentOgiSummary] Erro ao validar acesso OGI:', error)
     res.status(403).json({
       success: false,
       error: 'STUDENT_ACCESS_FORBIDDEN',

@@ -1,4 +1,5 @@
 // src/models/user.ts - public User model composition
+import logger from '../utils/logger'
 import mongoose from 'mongoose'
 import { attachUserBehavior } from './user.behavior'
 import { userSchemaDefinition } from './user.schema'
@@ -44,10 +45,10 @@ let UserModel: IUserModel
 
 try {
   UserModel = mongoose.model<IUser, IUserModel>('User')
-  console.log('â™»ï¸ Modelo User jÃ¡ existe, reutilizando...')
+  logger.info('â™»ï¸ Modelo User jÃ¡ existe, reutilizando...')
 } catch (error) {
   UserModel = mongoose.model<IUser, IUserModel>('User', UserSchema)
-  console.log('âœ… Novo modelo User criado com estrutura segregada')
+  logger.info('âœ… Novo modelo User criado com estrutura segregada')
 }
 
 export default UserModel

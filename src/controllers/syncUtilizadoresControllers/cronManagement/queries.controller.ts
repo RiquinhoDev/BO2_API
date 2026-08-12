@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../../../contracts/responseContract'
 import mongoose from 'mongoose'
@@ -41,7 +42,7 @@ export const getAllJobs = async (req: Request, res: Response, next: NextFunction
           lastRun: cfg.lastRun || null
         }))
       } catch (legacyError: unknown) {
-        console.warn('⚠�? Não foi possível ler jobs legacy (cronconfigs):', errorMessage(legacyError))
+        logger.warn('⚠�? Não foi possível ler jobs legacy (cronconfigs):', errorMessage(legacyError))
       }
     }
 

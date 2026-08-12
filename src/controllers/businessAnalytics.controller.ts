@@ -5,6 +5,7 @@
 // Separado do analytics.controller.ts existente (que foca em turmas)
 // ════════════════════════════════════════════════════════════════════
 
+import logger from '../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
 import analyticsCacheService from '../services/analytics/analyticsCache.service'
@@ -29,7 +30,7 @@ class BusinessAnalyticsController {
    */
   async getBusinessOverview(req: Request, res: Response, next: NextFunction) {
     try {
-      console.log('💼 [Business Analytics] GET /overview')
+      logger.info('💼 [Business Analytics] GET /overview')
       const startTime = Date.now()
       
       // Parse query params
@@ -257,7 +258,7 @@ class BusinessAnalyticsController {
       }
       res.json(successResponse(response.data, response.meta))
       
-      console.log(`✅ [Business Analytics] Overview gerado em ${duration}ms`)
+      logger.info(`✅ [Business Analytics] Overview gerado em ${duration}ms`)
       
     } catch (error: unknown) {
       next(internalError('Erro ao gerar overview de analytics de negocio', 'BUSINESS_ANALYTICS_OVERVIEW_FAILED', error))
@@ -270,7 +271,7 @@ class BusinessAnalyticsController {
   
   async getProductComparison(req: Request, res: Response, next: NextFunction) {
     try {
-      console.log('💼 [Business Analytics] GET /products/comparison')
+      logger.info('💼 [Business Analytics] GET /products/comparison')
       const startTime = Date.now()
       
       const { startDate, endDate, productIds } = req.query
@@ -351,7 +352,7 @@ class BusinessAnalyticsController {
       }
       res.json(successResponse(response.data, response.meta))
       
-      console.log(`✅ [Business Analytics] Comparação gerada em ${duration}ms`)
+      logger.info(`✅ [Business Analytics] Comparação gerada em ${duration}ms`)
       
     } catch (error: unknown) {
       next(internalError('Erro ao gerar comparacao de produtos', 'BUSINESS_ANALYTICS_COMPARISON_FAILED', error))
@@ -364,7 +365,7 @@ class BusinessAnalyticsController {
   
   async invalidateCache(req: Request, res: Response, next: NextFunction) {
     try {
-      console.log('🗑️ [Business Analytics] POST /cache/invalidate')
+      logger.info('🗑️ [Business Analytics] POST /cache/invalidate')
       
       const { productId, platform, all } = req.body
       
@@ -402,7 +403,7 @@ class BusinessAnalyticsController {
   
   async getCacheStats(req: Request, res: Response, next: NextFunction) {
     try {
-      console.log('📊 [Business Analytics] GET /cache/stats')
+      logger.info('📊 [Business Analytics] GET /cache/stats')
       
       const stats = await analyticsCacheService.getCacheStats()
       

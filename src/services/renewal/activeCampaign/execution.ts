@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import mongoose from 'mongoose'
 import RenewalAcChange, { IRenewalAcChange } from '../../../models/RenewalAcChange'
 import UserProduct from '../../../models/UserProduct'
@@ -66,7 +67,7 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
 
   // MASTER KILL SWITCH — sem isto, nada sai daqui (nível 2 da secção 13.2)
   if (!isMasterEnabled()) {
-    console.log('⛔ [RenewalAcSync] RENEWAL_AC_SYNC_ENABLED != true — execução recusada, nada escrito na AC')
+    logger.info('⛔ [RenewalAcSync] RENEWAL_AC_SYNC_ENABLED != true — execução recusada, nada escrito na AC')
     return report
   }
 
@@ -101,11 +102,11 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
         { _id: change._id },
         { $set: { status: 'FAILED', error: error.message }, $inc: { attempts: 1 } }
       )
-      console.error(`❌ [RenewalAcSync] ${change.action} ${change.email}: ${error.message}`)
+      logger.error(`❌ [RenewalAcSync] ${change.action} ${change.email}: ${error.message}`)
     }
   }
 
-  console.log(`✅ [RenewalAcSync] Execução: ${report.applied} aplicadas, ${report.alreadyInSync} já em sync, ${report.blockedBySwitch} travadas por switch, ${report.failed} falhas, ${report.leftForNextRun} ficam para o próximo run`)
+  logger.info(`✅ [RenewalAcSync] Execução: ${report.applied} aplicadas, ${report.alreadyInSync} já em sync, ${report.blockedBySwitch} travadas por switch, ${report.failed} falhas, ${report.leftForNextRun} ficam para o próximo run`)
   return report
 }
 
@@ -341,7 +342,7 @@ export async function runRenewalAcSyncJob(): Promise<RenewalAcCronReport> {
     try {
       refundDetection = await detectHotmartRefunds(30)
     } catch (error: any) {
-      console.error('⚠️ [RenewalAcSync] Detecção de reembolsos falhou (segue sem ela):', error.message)
+      logger.error('⚠️ [RenewalAcSync] Detecção de reembolsos falhou (segue sem ela):', error.message)
     }
   }
 
@@ -349,11 +350,11 @@ export async function runRenewalAcSyncJob(): Promise<RenewalAcCronReport> {
 
   let execution: ExecuteReport | null = null
   if (plan.anomalyAborted) {
-    console.error('🚨 [RenewalAcSync] Plano abortado por anomalia — nada executado')
+    logger.error('🚨 [RenewalAcSync] Plano abortado por anomalia — nada executado')
   } else if (isMasterEnabled() && isAutoExecuteEnabled()) {
     execution = await executePlan({ includePlanned: true, executedBy: 'cron:RenewalAcSync' })
   } else {
-    console.log('📋 [RenewalAcSync] Modo dry-run: plano gerado, execução aguarda switches/aprovação')
+    logger.info('📋 [RenewalAcSync] Modo dry-run: plano gerado, execução aguarda switches/aprovação')
   }
 
   return { expired, refundDetection, plan, execution }

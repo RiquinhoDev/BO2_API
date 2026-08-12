@@ -1,4 +1,5 @@
 // src/controllers/products.controller.ts
+import logger from '../../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import { internalError } from '../../security/errorHandling'
 import { successResponse } from '../../contracts/responseContract'
@@ -85,13 +86,13 @@ export const getProductUsers = async (req: Request, res: Response, next: NextFun
       (u.curseduca?.curseducaUserId && u.curseduca.curseducaUserId !== '')
     )
     
-    console.log(`📊 [Products API] Total users: ${usersAny.length}`)
-    console.log(`📊 [Products API] With curseducaUserId (root): ${withCurseducaRoot.length}`)
-    console.log(`📊 [Products API] With curseducaUserId (nested): ${withCurseducaNested.length}`)
-    console.log(`📊 [Products API] With curseducaUserId (any): ${withCurseducaAny.length}`)
+    logger.info(`📊 [Products API] Total users: ${usersAny.length}`)
+    logger.info(`📊 [Products API] With curseducaUserId (root): ${withCurseducaRoot.length}`)
+    logger.info(`📊 [Products API] With curseducaUserId (nested): ${withCurseducaNested.length}`)
+    logger.info(`📊 [Products API] With curseducaUserId (any): ${withCurseducaAny.length}`)
     
     if (withCurseducaAny.length > 0) {
-      console.log(`📊 [Products API] Exemplos:`, withCurseducaAny.slice(0, 3).map(u => ({
+      logger.info(`📊 [Products API] Exemplos:`, withCurseducaAny.slice(0, 3).map(u => ({
         email: u.email,
         curseducaUserId: u.curseducaUserId,
         'curseduca.curseducaUserId': u.curseduca?.curseducaUserId,

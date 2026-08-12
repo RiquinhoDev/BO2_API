@@ -2,6 +2,7 @@
 // 📊 COHORT ANALYTICS CONTROLLER
 // ════════════════════════════════════════════════════════════
 
+import logger from '../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
 import cohortAnalyticsService from '../services/analytics/cohortAnalytics.service'
@@ -36,7 +37,7 @@ class CohortAnalyticsController {
         selectedCohort: req.query.selectedCohort as string
       }
       
-      console.log('📊 [CohortAnalytics] Fetching cohort analysis:', filters)
+      logger.info('📊 [CohortAnalytics] Fetching cohort analysis:', filters)
       
       // 1. Calcular heatmap data
       const heatmapData = await cohortAnalyticsService.calculateCohortRetention(filters)

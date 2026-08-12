@@ -1,4 +1,5 @@
 // src/routes/users.routes.ts - ROTAS ATUALIZADAS PARA COMPATIBILIDADE
+import logger from '../utils/logger'
 import { Router } from "express"
 import { asyncRoute } from '../security/asyncRoute'
 import { forwardApplicationError } from '../security/forwardApplicationError'
@@ -132,7 +133,7 @@ router.get(
 
 router.get('/engagement/heatmap', asyncRoute(async (req, res, next) => {
   try {
-    console.log('\n🔥 [Engagement Heatmap] Calculando...')
+    logger.info('\n🔥 [Engagement Heatmap] Calculando...')
 
     const { productId, platform } = req.query
 
@@ -147,7 +148,7 @@ router.get('/engagement/heatmap', asyncRoute(async (req, res, next) => {
       .populate('userId', 'name email')
       .lean()
 
-    console.log(`   👥 ${userProducts.length} UserProducts encontrados`)
+    logger.info(`   👥 ${userProducts.length} UserProducts encontrados`)
 
     const userIds = userProducts.map((up: UserProductLean) => (up.userId as PopulatedUser | undefined)?._id).filter(Boolean)
 
@@ -231,7 +232,7 @@ router.get('/engagement/heatmap', asyncRoute(async (req, res, next) => {
     const weekendAvg = avgByDay.slice(5).reduce((sum: number, d: { avg: number }) => sum + d.avg, 0) / 2
     const weekendDrop = Math.round(((weekdayAvg - weekendAvg) / weekdayAvg) * 100)
 
-    console.log(`✅ Heatmap gerado: ${weeks.length} semanas`)
+    logger.info(`✅ Heatmap gerado: ${weeks.length} semanas`)
 
     res.json({
       success: true,

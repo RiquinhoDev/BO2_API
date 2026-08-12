@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { operationalSuccessResponse } from '../../../contracts/responseContract'
 import { syncCurseducaUsers } from './sync.controller'
@@ -77,7 +78,7 @@ export const syncCurseducaUsersStart = async (req: Request, res: Response): Prom
       const dur = startedAt
         ? Math.round((global.__curseducaSyncFinishedAt.getTime() - startedAt.getTime()) / 1000)
         : 0
-      console.log(`✅ [CursEduca BG] Sync background concluído em ${dur}s`)
+      logger.info(`✅ [CursEduca BG] Sync background concluído em ${dur}s`)
     })
 }
 

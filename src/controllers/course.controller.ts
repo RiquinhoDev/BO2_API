@@ -3,6 +3,7 @@
 // Controller CRUD para Cursos
 // ════════════════════════════════════════════════════════════
 
+import logger from '../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
 import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
@@ -92,7 +93,7 @@ export const createCourse = async (req: Request, res: Response, next: NextFuncti
 
     const course = await Course.create(courseData)
     
-    console.log(`✅ Curso criado: ${course.name}`)
+    logger.info(`✅ Curso criado: ${course.name}`)
 
     res.status(201).json({
       success: true,
@@ -125,7 +126,7 @@ export const updateCourse = async (req: Request, res: Response, next: NextFuncti
       })
     }
 
-    console.log(`✅ Curso atualizado: ${course.name}`)
+    logger.info(`✅ Curso atualizado: ${course.name}`)
 
     res.json({
       success: true,
@@ -164,7 +165,7 @@ export const deleteCourse = async (req: Request, res: Response, next: NextFuncti
       { isActive: false }
     )
 
-    console.log(`🗑️ Curso desativado: ${course.name}`)
+    logger.info(`🗑️ Curso desativado: ${course.name}`)
 
     res.json(successResponse(null, { message: 'Curso desativado com sucesso' }))
   } catch (error: unknown) {

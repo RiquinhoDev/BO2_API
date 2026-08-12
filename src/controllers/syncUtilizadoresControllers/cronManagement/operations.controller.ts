@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../../../contracts/responseContract'
 import mongoose from 'mongoose'
@@ -16,7 +17,7 @@ export const getJobHistory = async (
     const { id } = req.params
     const limit = parseInt(String(req.query.limit), 10) || 20
 
-    console.log(`📊 Buscando histórico do job: ${id} (limit: ${limit})`)
+    logger.info(`📊 Buscando histórico do job: ${id} (limit: ${limit})`)
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({
@@ -44,7 +45,7 @@ export const getJobHistory = async (
       .limit(limit)
       .lean()
 
-    console.log(`✅ ${executions.length} execuções encontradas para ${job.name}`)
+    logger.info(`✅ ${executions.length} execuções encontradas para ${job.name}`)
 
     // Transformar para formato esperado pelo frontend
     const history = executions.map(exec => ({
@@ -181,20 +182,20 @@ export const triggerTagRulesOnly = async (
   res: Response,
   next: NextFunction,
 ): Promise<void> => {
-  console.log('�?'.repeat(60))
-  console.log('�?��?  [TAG-RULES-ONLY] Endpoint chamado!')
-  console.log('�?��?  [TAG-RULES-ONLY] Timestamp:', new Date().toISOString())
-  console.log('�?'.repeat(60))
+  logger.info('�?'.repeat(60))
+  logger.info('�?��?  [TAG-RULES-ONLY] Endpoint chamado!')
+  logger.info('�?��?  [TAG-RULES-ONLY] Timestamp:', new Date().toISOString())
+  logger.info('�?'.repeat(60))
 
   try {
-    console.log('�?��?  [TAG-RULES-ONLY] A importar dailyPipeline.service...')
+    logger.info('�?��?  [TAG-RULES-ONLY] A importar dailyPipeline.service...')
 
     // Import dinâmico para evitar circular dependencies
     const { executeTagRulesOnly } = await import('../../../services/cron/dailyPipeline.service')
-    console.log('�?��?  [TAG-RULES-ONLY] Import OK, a chamar executeTagRulesOnly()...')
+    logger.info('�?��?  [TAG-RULES-ONLY] Import OK, a chamar executeTagRulesOnly()...')
 
     const result = await executeTagRulesOnly()
-    console.log('�?��?  [TAG-RULES-ONLY] executeTagRulesOnly() retornou!')
+    logger.info('�?��?  [TAG-RULES-ONLY] executeTagRulesOnly() retornou!')
 
     const message = result.success
       ? 'Tag Rules Only executado com sucesso'

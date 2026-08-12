@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import { FilterQuery, PipelineStage } from 'mongoose'
 import User, { IUser } from '../../models/user'
@@ -6,7 +7,7 @@ import { successResponse } from '../../contracts/responseContract'
 
 export const getEngagementDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    console.log('📊 GET /api/engagement/details - Buscando detalhes de engagement...')
+    logger.info('📊 GET /api/engagement/details - Buscando detalhes de engagement...')
     
     // Parâmetros da query
     const minScore = parseInt(req.query.minScore as string) || 0
@@ -17,7 +18,7 @@ export const getEngagementDetails = async (req: Request, res: Response, next: Ne
     
     const skip = (page - 1) * limit
     
-    console.log(`🔍 Filtros: score ${minScore}-${maxScore}, level: ${level || 'all'}, page: ${page}`)
+    logger.info(`🔍 Filtros: score ${minScore}-${maxScore}, level: ${level || 'all'}, page: ${page}`)
     
     // Construir query
     const matchConditions: FilterQuery<IUser>[] = [{
@@ -156,7 +157,7 @@ export const getEngagementDetails = async (req: Request, res: Response, next: Ne
       }
     })
     
-    console.log(`✅ Retornando ${users.length} de ${totalCount} utilizadores`)
+    logger.info(`✅ Retornando ${users.length} de ${totalCount} utilizadores`)
     
     res.status(200).json(successResponse(
       {

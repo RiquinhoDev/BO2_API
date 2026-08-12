@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 import type { AppListener } from '../bootstrap'
 
 export function configureServerTimeouts(server: {
@@ -11,7 +12,7 @@ export function configureServerTimeouts(server: {
 export const listen: AppListener = async (app, port) =>
   new Promise((resolve, reject) => {
     const server = app.listen(port, () => {
-      console.log(`🚀 Servidor iniciado em http://localhost:${port}/api`)
+      logger.info(`🚀 Servidor iniciado em http://localhost:${port}/api`)
       resolve(server)
     })
     configureServerTimeouts(server)

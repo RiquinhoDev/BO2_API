@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import { successResponse } from '../../contracts/responseContract'
 import { type NextFunction, Request, Response } from 'express'
 import { FilterQuery, PipelineStage } from 'mongoose'
@@ -14,7 +15,7 @@ export const getUsersEngagementDetails = async (req: Request, res: Response, nex
       search = ''
     } = req.query
 
-    console.log(`🔍 Buscando utilizadores com score ${minScore}-${maxScore}, página ${page}`)
+    logger.info(`🔍 Buscando utilizadores com score ${minScore}-${maxScore}, página ${page}`)
 
     // ✅ QUERY BASE PARA FILTRAR UTILIZADORES
     const matchQuery: FilterQuery<IUser> = {}
@@ -184,21 +185,21 @@ export const getUsersEngagementDetails = async (req: Request, res: Response, nex
       }
     ]
 
-    console.log(`⚡ Executando agregação otimizada...`)
+    logger.info(`⚡ Executando agregação otimizada...`)
     const startTime = Date.now()
     
     // ✅ EXECUTAR AGREGAÇÃO
     const [result] = await User.aggregate<EngagementFacetResult>(pipeline).allowDiskUse(true)
     
     const executionTime = Date.now() - startTime
-    console.log(`✅ Agregação completa em ${executionTime}ms`)
+    logger.info(`✅ Agregação completa em ${executionTime}ms`)
 
     // Extrair resultados
     const totalItems = result?.totalCount?.[0]?.total || 0
     const users = result?.paginatedData || []
     const totalPages = Math.ceil(totalItems / targetLimit)
 
-    console.log(`📊 Resultado: ${totalItems} utilizadores totais, página ${currentPage}/${totalPages}`)
+    logger.info(`📊 Resultado: ${totalItems} utilizadores totais, página ${currentPage}/${totalPages}`)
 
     // ✅ BUSCAR NOMES DAS TURMAS (se necessário)
     const usersWithClassNames = await Promise.all(

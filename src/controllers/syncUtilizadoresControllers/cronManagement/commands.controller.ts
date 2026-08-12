@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import { TagRule } from '../../../models'
@@ -46,7 +47,7 @@ export const createJob = async (req: Request, res: Response, next: NextFunction)
         return
       }
 
-      console.log(`✅ ${validRules.length} Tag Rules validadas`)
+      logger.info(`✅ ${validRules.length} Tag Rules validadas`)
     }
 
     // TODO: Pegar user ID do token JWT
@@ -116,7 +117,7 @@ export const updateJob = async (
         return
       }
 
-      console.log(`✅ ${validRules.length} Tag Rules validadas`)
+      logger.info(`✅ ${validRules.length} Tag Rules validadas`)
     }
 
     const job = await syncSchedulerService.updateJob(
@@ -235,7 +236,7 @@ export const triggerJob = async (
     // TODO: Pegar user ID do token JWT
     const triggeredBy = new mongoose.Types.ObjectId('000000000000000000000001')
 
-    console.log(`▶�? Executando job manualmente: ${id}`)
+    logger.info(`▶�? Executando job manualmente: ${id}`)
 
     const result = await syncSchedulerService.executeJobManually(
       new mongoose.Types.ObjectId(id),

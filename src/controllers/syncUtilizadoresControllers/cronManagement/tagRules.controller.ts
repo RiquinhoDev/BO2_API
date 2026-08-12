@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import { RequestHandler } from 'express'
 import { successResponse } from '../../../contracts/responseContract'
 import mongoose from 'mongoose'
@@ -16,7 +17,7 @@ export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
       return
     }
 
-    console.log(`[CRON] �? Buscando Tag Rules para syncType: ${syncType}`)
+    logger.info(`[CRON] �? Buscando Tag Rules para syncType: ${syncType}`)
 
     const TagRule = (await import('../../../models/acTags/TagRule')).default
     const Course = (await import('../../../models/Course')).default
@@ -47,7 +48,7 @@ export const getAvailableTagRules: RequestHandler = async (req, res, next) => {
       courseIds = uniqueIds.map(id => new mongoose.Types.ObjectId(id))
     }
 
-    console.log(`[CRON] 📚 Encontrados ${courseIds.length} courses para plataforma ${syncType}`)
+    logger.info(`[CRON] 📚 Encontrados ${courseIds.length} courses para plataforma ${syncType}`)
 
     if (courseIds.length === 0) {
       res.status(200).json(successResponse({ rules: [], groupedByCourse: [], totalRules: 0, totalCourses: 0 }, { message: 'Nenhum course encontrado para esta plataforma' }))

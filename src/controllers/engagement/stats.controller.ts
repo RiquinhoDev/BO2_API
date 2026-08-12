@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
 import { forwardEngagementError } from '../../services/engagement/controllerSupport'
@@ -5,7 +6,7 @@ import { successResponse } from '../../contracts/responseContract'
 
 export const getEngagementStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    console.log('📊 GET /api/engagement/stats - Calculando estatísticas...')
+    logger.info('📊 GET /api/engagement/stats - Calculando estatísticas...')
     
     // Agregação para calcular estatísticas
     const stats = await User.aggregate([
@@ -123,7 +124,7 @@ export const getEngagementStats = async (req: Request, res: Response, next: Next
 
     const { hotmartUsers = 0, curseducaUsers = 0, discordUsers = 0 } = result
 
-    console.log('📊 Platform Stats calculadas:', {
+    logger.info('📊 Platform Stats calculadas:', {
       hotmart: hotmartUsers,
       curseduca: curseducaUsers,  // ✅ Deve mostrar 4!
       discord: discordUsers
@@ -149,7 +150,7 @@ export const getEngagementStats = async (req: Request, res: Response, next: Next
       }
     }
 
-    console.log('✅ Stats calculadas com sucesso:', {
+    logger.info('✅ Stats calculadas com sucesso:', {
       total: responseData.totalUsers,
       average: responseData.averageScore,
       platforms: {

@@ -3,6 +3,7 @@
 // Serviço principal para criar snapshots e registar histórico
 // ══════════════════════════════════════════════════════════════════════
 
+import logger from '../../utils/logger'
 import mongoose from 'mongoose'
 import UserSnapshot, { type IUserSnapshot, type IProductSnapshot } from '../../models/UserSnapshot'
 import UserHistory from '../../models/UserHistory'
@@ -167,7 +168,7 @@ export async function compareAndRecordChanges(
 
   // Se não houve alterações significativas, não registar
   if (!comparison.hasChanges) {
-    console.log(`📋 [Snapshot] Sem alterações para ${user.email}`)
+    logger.info(`📋 [Snapshot] Sem alterações para ${user.email}`)
     return comparison
   }
 
@@ -222,7 +223,7 @@ export async function compareAndRecordChanges(
   // Inserir em batch
   if (historyRecords.length > 0) {
     await UserHistory.insertMany(historyRecords)
-    console.log(`✅ [Snapshot] ${historyRecords.length} alterações registadas para ${user.email}`)
+    logger.info(`✅ [Snapshot] ${historyRecords.length} alterações registadas para ${user.email}`)
   }
 
   return comparison

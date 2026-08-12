@@ -3,6 +3,7 @@
 // CONTROLLER: Gestão de Perfis de Produto (Re-engagement)
 // ================================================================
 
+import logger from '../../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import { successResponse } from '../../contracts/responseContract'
 import { internalError } from '../../security/errorHandling'
@@ -117,7 +118,7 @@ export const createProductProfile = async (req: Request, res: Response, next: Ne
       createdBy: req.body.userId || 'system' // Pode vir do auth middleware
     })
 
-    console.log(`✅ Perfil de produto criado: ${profile.code}`)
+    logger.info(`✅ Perfil de produto criado: ${profile.code}`)
 
     res.status(201).json(successResponse(profile, { message: 'Perfil de produto criado com sucesso' }))
   } catch (error: unknown) {
@@ -158,7 +159,7 @@ export const updateProductProfile = async (
       return
     }
 
-    console.log(`✅ Perfil de produto atualizado: ${profile.code}`)
+    logger.info(`✅ Perfil de produto atualizado: ${profile.code}`)
 
     res.json(successResponse(profile, { message: 'Perfil de produto atualizado com sucesso' }))
   } catch (error: unknown) {
@@ -193,7 +194,7 @@ export const deleteProductProfile = async (
         return
       }
 
-      console.log(`🗑️ Perfil de produto removido permanentemente: ${code}`)
+      logger.info(`🗑️ Perfil de produto removido permanentemente: ${code}`)
 
       res.json(successResponse(null, { message: 'Perfil de produto removido permanentemente' }))
     } else {
@@ -212,7 +213,7 @@ export const deleteProductProfile = async (
         return
       }
 
-      console.log(`⏸️ Perfil de produto desativado: ${code}`)
+      logger.info(`⏸️ Perfil de produto desativado: ${code}`)
 
       res.json(successResponse(profile, { message: 'Perfil de produto desativado com sucesso' }))
     }
@@ -412,7 +413,7 @@ export const duplicateProductProfile = async (
       createdBy: req.body.userId || 'system'
     })
 
-    console.log(`✅ Perfil duplicado: ${code} → ${newCode}`)
+    logger.info(`✅ Perfil duplicado: ${code} → ${newCode}`)
 
     res.status(201).json(successResponse(duplicate, { message: 'Perfil duplicado com sucesso' }))
   } catch (error: unknown) {

@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import User from '../../models/user'
 import { evaluateAchievements } from './achievementEvaluator'
 
@@ -158,7 +159,7 @@ export async function evaluateAllAchievements(
       if (result.evaluated) evaluated++
     } catch (error: any) {
       errors++
-      console.error(`Erro avaliação conquistas ${user.email}:`, error.message)
+      logger.error(`Erro avaliação conquistas ${user.email}:`, error.message)
     }
   }
 

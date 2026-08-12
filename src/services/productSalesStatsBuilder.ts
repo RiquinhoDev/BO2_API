@@ -3,6 +3,7 @@
 // SERVICE: Construtor de EstatÃ­sticas de Vendas por Produto
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
+import logger from '../utils/logger'
 import ProductSalesStats, { 
   IMonthlySales, 
   IYearlySales,
@@ -16,30 +17,30 @@ import { boundedQueryLimit } from '../utils/queryBounds'
 import { determineSaleDate } from './productSales/dateResolver'
 
 export async function buildProductSalesStats(): Promise<void> {
-  console.log('\nðŸ—ï¸ ========================================')
-  console.log('ðŸ—ï¸ CONSTRUINDO PRODUCT SALES STATS')
-  console.log('ðŸ—ï¸ ========================================\n')
+  logger.info('\nðŸ—ï¸ ========================================')
+  logger.info('ðŸ—ï¸ CONSTRUINDO PRODUCT SALES STATS')
+  logger.info('ðŸ—ï¸ ========================================\n')
   
   const startTime = Date.now()
   
   try {
     // 1. Buscar todos os produtos
     const products = await Product.find({ isActive: true })
-    console.log(`ðŸ“¦ ${products.length} produtos ativos encontrados\n`)
+    logger.info(`ðŸ“¦ ${products.length} produtos ativos encontrados\n`)
     
     // 2. Processar cada produto
     for (const product of products) {
-      console.log(`\nðŸ“Š Processando produto: ${product.code} (${product.name})`)
+      logger.info(`\nðŸ“Š Processando produto: ${product.code} (${product.name})`)
       
       // 2.1. Buscar UserProducts deste produto
       const userProducts = await UserProduct.find({ 
         productId: product._id 
       }).populate('userId').lean()
       
-      console.log(`   âœ… ${userProducts.length} UserProducts encontrados`)
+      logger.info(`   âœ… ${userProducts.length} UserProducts encontrados`)
       
       if (userProducts.length === 0) {
-        console.log(`   â­ï¸  Pulando produto sem vendas`)
+        logger.info(`   â­ï¸  Pulando produto sem vendas`)
         continue
       }
       
@@ -100,7 +101,7 @@ export async function buildProductSalesStats(): Promise<void> {
         const user = userMap.get(userId)
         
         if (!user) {
-          console.warn(`   âš ï¸ User ${userId} nÃ£o encontrado`)
+          logger.warn(`   âš ï¸ User ${userId} nÃ£o encontrado`)
           recordsWithoutDates++
           overallSources.unknown++
           continue
@@ -201,7 +202,7 @@ export async function buildProductSalesStats(): Promise<void> {
           }
           
         } catch (error) {
-          console.error(`   âŒ Erro ao processar UserProduct ${up._id}:`, error)
+          logger.error(`   âŒ Erro ao processar UserProduct ${up._id}:`, error)
           recordsWithoutDates++
           overallSources.unknown++
         }
@@ -281,24 +282,24 @@ export async function buildProductSalesStats(): Promise<void> {
         { upsert: true, new: true }
       )
       
-      console.log(`   âœ… Stats guardados:`)
-      console.log(`      â€¢ Total vendas: ${totals.allTime}`)
-      console.log(`      â€¢ Registos processados: ${recordsProcessed}`)
-      console.log(`      â€¢ Com datas vÃ¡lidas: ${recordsWithValidDates}`)
-      console.log(`      â€¢ Sem datas: ${recordsWithoutDates}`)
-      console.log(`      â€¢ Fontes de dados:`)
-      console.log(`        - purchaseDate: ${overallSources.purchaseDate}`)
-      console.log(`        - joinedDate: ${overallSources.joinedDate}`)
-      console.log(`        - enrolledAt: ${overallSources.enrolledAt}`)
-      console.log(`        - ðŸ†• firstSystemEntry: ${overallSources.firstSystemEntry}`)
-      console.log(`        - unknown: ${overallSources.unknown}`)
+      logger.info(`   âœ… Stats guardados:`)
+      logger.info(`      â€¢ Total vendas: ${totals.allTime}`)
+      logger.info(`      â€¢ Registos processados: ${recordsProcessed}`)
+      logger.info(`      â€¢ Com datas vÃ¡lidas: ${recordsWithValidDates}`)
+      logger.info(`      â€¢ Sem datas: ${recordsWithoutDates}`)
+      logger.info(`      â€¢ Fontes de dados:`)
+      logger.info(`        - purchaseDate: ${overallSources.purchaseDate}`)
+      logger.info(`        - joinedDate: ${overallSources.joinedDate}`)
+      logger.info(`        - enrolledAt: ${overallSources.enrolledAt}`)
+      logger.info(`        - ðŸ†• firstSystemEntry: ${overallSources.firstSystemEntry}`)
+      logger.info(`        - unknown: ${overallSources.unknown}`)
     }
     
     const duration = Math.round((Date.now() - startTime) / 1000)
-    console.log(`\nâœ… Product Sales Stats construÃ­dos com sucesso em ${duration}s`)
+    logger.info(`\nâœ… Product Sales Stats construÃ­dos com sucesso em ${duration}s`)
     
   } catch (error) {
-    console.error('âŒ Erro ao construir Product Sales Stats:', error)
+    logger.error('âŒ Erro ao construir Product Sales Stats:', error)
     throw error
   }
 }
@@ -321,7 +322,7 @@ export async function getProductSalesStats(
     
     return stats
   } catch (error) {
-    console.error('âŒ Erro ao buscar Product Sales Stats:', error)
+    logger.error('âŒ Erro ao buscar Product Sales Stats:', error)
     throw error
   }
 }

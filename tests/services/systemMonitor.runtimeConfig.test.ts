@@ -1,4 +1,10 @@
 const mockCollectMetrics = jest.fn()
+const mockLoggerInfo = jest.fn()
+
+jest.mock('../../src/utils/logger', () => ({
+  __esModule: true,
+  default: { info: mockLoggerInfo, warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+}))
 
 jest.mock('../../src/services/metrics.service', () => ({
   __esModule: true,
@@ -38,6 +44,7 @@ afterEach(() => {
   resetRuntimeConfigForTests()
   jest.restoreAllMocks()
   mockCollectMetrics.mockReset()
+  mockLoggerInfo.mockReset()
 })
 
 test('system monitor uses typed metrics flag at check time instead of LOG_METRICS', async () => {
@@ -45,12 +52,10 @@ test('system monitor uses typed metrics flag at check time instead of LOG_METRIC
   const previousMetricsFlag = process.env.LOG_METRICS
   process.env.LOG_METRICS = 'false'
   mockCollectMetrics.mockReturnValue(metrics)
-  const log = jest.spyOn(console, 'log').mockImplementation(() => undefined)
-
   try {
     await (systemMonitor as unknown as { checkSystem: () => Promise<void> }).checkSystem()
 
-    expect(log).toHaveBeenCalledWith(expect.stringContaining('Métricas: CPU 20.0%, MEM 20.0%'))
+    expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining('Métricas: CPU 20.0%, MEM 20.0%'))
   } finally {
     if (previousMetricsFlag === undefined) delete process.env.LOG_METRICS
     else process.env.LOG_METRICS = previousMetricsFlag

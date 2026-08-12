@@ -3,6 +3,7 @@
 // Monitorização contínua do sistema
 // =====================================================
 
+import logger from '../utils/logger'
 import metricsService from './metrics.service'
 import notificationService from './notification.service'
 import { getRuntimeConfig } from '../config/runtimeConfig'
@@ -17,7 +18,7 @@ class SystemMonitor {
    * Iniciar monitorização
    */
   start() {
-    console.log('🔍 Iniciando System Monitor...')
+    logger.info('🔍 Iniciando System Monitor...')
 
     this.monitorInterval = setInterval(() => {
       this.checkSystem()
@@ -33,7 +34,7 @@ class SystemMonitor {
   stop() {
     if (this.monitorInterval) {
       clearInterval(this.monitorInterval)
-      console.log('⏹️  System Monitor parado')
+      logger.info('⏹️  System Monitor parado')
     }
   }
 
@@ -75,10 +76,10 @@ class SystemMonitor {
 
       // Log de métricas (opcional)
       if (getRuntimeConfig().observability.metricsEnabled) {
-        console.log(`📊 Métricas: CPU ${metrics.cpu.usage.toFixed(1)}%, MEM ${metrics.memory.usagePercent.toFixed(1)}%`)
+        logger.info(`📊 Métricas: CPU ${metrics.cpu.usage.toFixed(1)}%, MEM ${metrics.memory.usagePercent.toFixed(1)}%`)
       }
     } catch (error) {
-      console.error('❌ Erro ao verificar sistema:', error)
+      logger.error('❌ Erro ao verificar sistema:', error)
     }
   }
 }

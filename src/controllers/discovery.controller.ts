@@ -2,6 +2,7 @@
  * 🎮 DISCOVERY CONTROLLER
  */
 
+import logger from '../utils/logger'
 import { NextFunction, Request, Response } from 'express';
 import { successResponse } from '../contracts/responseContract';
 
@@ -19,7 +20,7 @@ export const runDiscovery = async (req: Request, res: Response, next: NextFuncti
   const startTime = Date.now();
   
   try {
-    console.log('🔍 Executando discovery completo...');
+    logger.info('🔍 Executando discovery completo...');
 
     const hotmartProducts = await hotmartDiscoveryService.discoverNewProducts();
     
@@ -107,7 +108,7 @@ export const configureProduct = async (req: Request, res: Response, next: NextFu
       return;
     }
 
-    console.log(`✅ Produto "${result.product.name}" configurado com sucesso`);
+    logger.info(`✅ Produto "${result.product.name}" configurado com sucesso`);
 
     res.status(201).json(successResponse(
       { product: result.product, productProfile: result.productProfile },
