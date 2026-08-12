@@ -6,26 +6,20 @@
 
 import mongoose, { Schema, Document } from 'mongoose'
 
-// ═══════════════════════════════════════════════════════════
-// INTERFACES
-// ═══════════════════════════════════════════════════════════
-
 export interface IPipelineStepStats {
   success: boolean
-  duration: number // segundos
-  stats: any
+  duration: number
+  stats: Record<string, unknown>
   error?: string
 }
 
 export interface IPipelineExecution extends Document {
-  // Metadata
   executionType: 'automatic' | 'manual'
   status: 'success' | 'partial' | 'failed' | 'running'
   startTime: Date
   endTime?: Date
-  duration: number // segundos
+  duration: number
 
-  // Steps detalhados
   steps: {
     syncHotmart: IPipelineStepStats
     syncCursEduca: IPipelineStepStats
@@ -34,7 +28,6 @@ export interface IPipelineExecution extends Document {
     evaluateTagRules: IPipelineStepStats
   }
 
-  // Summary
   summary: {
     totalUsers: number
     totalUserProducts: number
@@ -42,17 +35,10 @@ export interface IPipelineExecution extends Document {
     tagsApplied: number
   }
 
-  // Errors (renamed to avoid conflict with mongoose Document.errors)
   errorMessages: string[]
-
-  // Execution context
   executedBy?: mongoose.Types.ObjectId
   triggeredBy?: string
 }
-
-// ═══════════════════════════════════════════════════════════
-// SCHEMA
-// ═══════════════════════════════════════════════════════════
 
 const PipelineStepStatsSchema = new Schema({
   success: { type: Boolean, required: true },
@@ -115,22 +101,9 @@ const PipelineExecutionSchema = new Schema(
   }
 )
 
-// ═══════════════════════════════════════════════════════════
-// INDEXES
-// ═══════════════════════════════════════════════════════════
-
-// Query por data (mais recentes primeiro)
 PipelineExecutionSchema.index({ startTime: -1 })
-
-// Query por status
 PipelineExecutionSchema.index({ status: 1, startTime: -1 })
-
-// Query por tipo de execução
 PipelineExecutionSchema.index({ executionType: 1, startTime: -1 })
-
-// ═══════════════════════════════════════════════════════════
-// METHODS
-// ═══════════════════════════════════════════════════════════
 
 PipelineExecutionSchema.methods.markAsSuccess = function() {
   this.status = 'success'
@@ -152,10 +125,6 @@ PipelineExecutionSchema.methods.markAsPartial = function() {
   this.endTime = new Date()
   return this.save()
 }
-
-// ═══════════════════════════════════════════════════════════
-// STATICS
-// ═══════════════════════════════════════════════════════════
 
 PipelineExecutionSchema.statics.getLastExecution = function() {
   return this.findOne()
@@ -206,9 +175,5 @@ PipelineExecutionSchema.statics.getExecutionStats = function(days: number = 7) {
     }
   ])
 }
-
-// ═══════════════════════════════════════════════════════════
-// EXPORT
-// ═══════════════════════════════════════════════════════════
 
 export default mongoose.model<IPipelineExecution>('PipelineExecution', PipelineExecutionSchema)
