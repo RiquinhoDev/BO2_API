@@ -72,14 +72,14 @@ export async function preCreateBOTags(): Promise<TagPreCreationResult> {
   }
 
   try {
-    console.log('[PRE-CREATE] ▶️ Buscando TagRules ativas na BD...')
+    logger.info('[PRE-CREATE] ▶️ Buscando TagRules ativas na BD...')
 
     // Buscar TagRules ativas
     const tagRules = await TagRule.find({ isActive: true })
       .select('actions.addTag')
       .lean()
 
-    console.log(`[PRE-CREATE] ✅ Encontradas ${tagRules.length} TagRules ativas`)
+    logger.info(`[PRE-CREATE] ✅ Encontradas ${tagRules.length} TagRules ativas`)
 
     // Extrair tag names únicos
     const tagNames = new Set<string>()
@@ -94,15 +94,15 @@ export async function preCreateBOTags(): Promise<TagPreCreationResult> {
     const uniqueTags = Array.from(tagNames).sort()
     result.totalTags = uniqueTags.length
 
-    console.log(`[PRE-CREATE] 📋 ${uniqueTags.length} tags únicas encontradas`)
+    logger.info(`[PRE-CREATE] 📋 ${uniqueTags.length} tags únicas encontradas`)
 
     if (uniqueTags.length === 0) {
-      console.log('[PRE-CREATE] ⚠️ Nenhuma tag encontrada, a retornar...')
+      logger.info('[PRE-CREATE] ⚠️ Nenhuma tag encontrada, a retornar...')
       result.duration = Math.floor((Date.now() - startTime) / 1000)
       return result
     }
 
-    console.log('[PRE-CREATE] ▶️ A iniciar loop de pré-criação...')
+    logger.info('[PRE-CREATE] ▶️ A iniciar loop de pré-criação...')
 
     // Pré-criar tags na AC
     for (let i = 0; i < uniqueTags.length; i++) {
@@ -110,7 +110,7 @@ export async function preCreateBOTags(): Promise<TagPreCreationResult> {
 
       // Log de progresso a cada 5 tags ou no final
       if (i % 5 === 0 || i === uniqueTags.length - 1) {
-        console.log(`[PRE-CREATE] 🏷️ Tag ${i + 1}/${uniqueTags.length}: "${tagName}"`)
+        logger.info(`[PRE-CREATE] 🏷️ Tag ${i + 1}/${uniqueTags.length}: "${tagName}"`)
       }
 
       try {

@@ -2,6 +2,7 @@
 // Constantes e helpers partilhados para toda a integração Guru/CursEduca
 // TODAS as classificações de status devem vir daqui - NUNCA definir localmente
 
+import logger from '../../utils/logger'
 import axios from 'axios'
 import { getOptionalCurseducaRuntimeSettings } from '../requestDrivenRuntimeConfig'
 
@@ -200,7 +201,7 @@ export async function verifyCurseducaMemberStatus(memberId: string | number): Pr
       email: data?.email
     }
   } catch (err: any) {
-    console.log(`   ⚠️ [CURSEDUCA API] Erro verificar membro ${memberId}: ${err.response?.status || err.message}`)
+    logger.info(`   ⚠️ [CURSEDUCA API] Erro verificar membro ${memberId}: ${err.response?.status || err.message}`)
     return null
   }
 }
@@ -281,10 +282,10 @@ export async function lookupCurseducaUserIdByEmail(email: string): Promise<{
           await new Promise(resolve => setTimeout(resolve, 300)) // Rate limit
         }
       } catch (groupErr: any) {
-        console.log(`   ⚠️ [CURSEDUCA LOOKUP] Erro grupos: ${groupErr.response?.status || groupErr.message}`)
+        logger.info(`   ⚠️ [CURSEDUCA LOOKUP] Erro grupos: ${groupErr.response?.status || groupErr.message}`)
       }
     } else {
-      console.log(`   ⚠️ [CURSEDUCA LOOKUP] Erro pesquisar ${email}: ${err.response?.status || err.message}`)
+      logger.info(`   ⚠️ [CURSEDUCA LOOKUP] Erro pesquisar ${email}: ${err.response?.status || err.message}`)
     }
     return null
   }

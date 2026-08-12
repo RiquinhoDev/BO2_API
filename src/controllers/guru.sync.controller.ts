@@ -1,4 +1,5 @@
 // src/controllers/guru.sync.controller.ts - Controller para sincronização com Guru (APENAS LEITURA)
+import logger from '../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
 import { internalError } from '../security/errorHandling'
@@ -22,7 +23,7 @@ type GuruSyncEmailParams = {
  * Todos os dados são guardados apenas na nossa BD.
  */
 export const syncAllFromGuru = async (req: Request, res: Response, next: NextFunction) => {
-  console.log('\n💰 [GURU SYNC] Pedido de sincronização completa recebido')
+  logger.info('\n💰 [GURU SYNC] Pedido de sincronização completa recebido')
 
   try {
     // Verificar se já está a decorrer um sync
@@ -80,7 +81,7 @@ export const syncEmailFromGuru = async (req: Request<GuruSyncEmailParams>, res: 
     })
   }
 
-  console.log(`\n💰 [GURU SYNC] Sincronizando email: ${email}`)
+  logger.info(`\n💰 [GURU SYNC] Sincronizando email: ${email}`)
 
   try {
     const result = await guruSyncService.checkEmailInGuru(email.toLowerCase().trim())
@@ -185,7 +186,7 @@ export const getSyncStats = async (req: Request, res: Response, next: NextFuncti
  * GET /guru/sync/preview
  */
 export const previewSync = async (req: Request, res: Response, next: NextFunction) => {
-  console.log('\n💰 [GURU SYNC] Executando preview (não guarda dados)')
+  logger.info('\n💰 [GURU SYNC] Executando preview (não guarda dados)')
 
   try {
     const limit = Number(req.query.limit) || 10

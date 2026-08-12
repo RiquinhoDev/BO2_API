@@ -7,6 +7,7 @@
 // - Executa tags via activeCampaignService
 // =====================================================
 
+import logger from '../../utils/logger'
 import UserProduct from '../../models/UserProduct'
 import UserAction from '../../models/UserAction'
 import activeCampaignService from './activeCampaignService'
@@ -350,7 +351,7 @@ private evaluateCondition(
       currentModule: context.userProduct.progress?.currentModule
     },
     unknownCondition => {
-      console.warn(`[DecisionEngine] CondiÃ§Ã£o nÃ£o reconhecida: "${unknownCondition}"`)
+      logger.warn(`[DecisionEngine] CondiÃ§Ã£o nÃ£o reconhecida: "${unknownCondition}"`)
     }
   )
 }

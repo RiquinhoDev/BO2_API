@@ -3,9 +3,9 @@
 // Controller: Endpoints auxiliares para estimativa de Tag Rules
 // ════════════════════════════════════════════════════════════
 
+import logger from '../../utils/logger'
 import type { RequestHandler } from 'express'
 import { internalError } from '../../security/errorHandling'
-import mongoose from 'mongoose'
 import { UserProduct, Product, Course } from '../../models'
 
 // ─────────────────────────────────────────────────────────────
@@ -62,8 +62,8 @@ export const estimateAffectedUsers: RequestHandler = async (req, res, next) => {
       courseId?: string
     }
 
-    console.log('📊 Estimando alunos afetados...')
-    console.log('Conditions:', JSON.stringify(conditions, null, 2))
+    logger.info('📊 Estimando alunos afetados...')
+    logger.info('Conditions:', JSON.stringify(conditions, null, 2))
 
     // Validar input
     if (!conditions || !conditions.source) {
@@ -90,12 +90,12 @@ export const estimateAffectedUsers: RequestHandler = async (req, res, next) => {
     // Construir query MongoDB baseado nas condições
     const query = await buildMongoQuery(conditions, course)
 
-    console.log('🔍 Query MongoDB:', JSON.stringify(query, null, 2))
+    logger.info('🔍 Query MongoDB:', JSON.stringify(query, null, 2))
 
     // Contar documentos
     const count = await UserProduct.countDocuments(query)
 
-    console.log(`✅ Estimativa: ${count} alunos`)
+    logger.info(`✅ Estimativa: ${count} alunos`)
 
     // Breakdown por status
     const breakdown = await UserProduct.aggregate([
@@ -138,7 +138,7 @@ export const previewAffectedUsers: RequestHandler = async (req, res, next) => {
       limit?: number
     }
 
-    console.log(`👁️ Preview de alunos (limit: ${limit})...`)
+    logger.info(`👁️ Preview de alunos (limit: ${limit})...`)
 
     // Validar input
     if (!conditions || !conditions.source) {
@@ -175,7 +175,7 @@ export const previewAffectedUsers: RequestHandler = async (req, res, next) => {
     // Total count
     const totalCount = await UserProduct.countDocuments(query)
 
-    console.log(`✅ Preview: ${userProducts.length} de ${totalCount} alunos`)
+    logger.info(`✅ Preview: ${userProducts.length} de ${totalCount} alunos`)
 
     // Formatar resposta
     const users = userProducts.map((up: any) => ({
@@ -215,7 +215,7 @@ export const previewAffectedUsers: RequestHandler = async (req, res, next) => {
 
 export const getAvailableFields: RequestHandler = async (_req, res, next) => {
   try {
-    console.log('📋 Listando campos disponíveis...')
+    logger.info('📋 Listando campos disponíveis...')
 
     const fields = {
       USERPRODUCT: {
@@ -354,7 +354,7 @@ async function buildMongoQuery(conditions: IConditions, course: any): Promise<an
   else if (conditions.source === 'COURSE' && conditions.rules) {
     // TODO: Implementar avaliação de thresholds dinâmicos
     // Por enquanto, apenas placeholder
-    console.warn('⚠️ SOURCE=COURSE ainda não totalmente implementado')
+    logger.warn('⚠️ SOURCE=COURSE ainda não totalmente implementado')
     
     // Buscar products do course
     if (course) {
@@ -420,7 +420,7 @@ async function buildMongoQuery(conditions: IConditions, course: any): Promise<an
 // ─────────────────────────────────────────────────────────────
 
 function buildRuleCondition(rule: IRule): any {
-  const { field, operator, value, unit } = rule
+  const { field, operator, value } = rule
 
   // Operadores simples
   switch (operator) {
@@ -476,7 +476,7 @@ function buildRuleCondition(rule: IRule): any {
     }
 
     default:
-      console.warn(`⚠️ Operator não suportado: ${operator}`)
+      logger.warn(`⚠️ Operator não suportado: ${operator}`)
       return {}
   }
 }

@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import User, { type IUser } from '../../../models/user'
 import UserProduct from '../../../models/UserProduct'
 import { getStatusPriority, getEffectiveStatus, type GuruDateInfo } from '../guru.constants'
@@ -5,9 +6,9 @@ import { fetchAllSubscriptionsPaginated, fetchContactByEmail, fetchContactSubscr
 import { mapGuruStatus } from './persistence'
 
 export async function syncAllSubscriptions(): Promise<SyncResult> {
-  console.log('\n════════════════════════════════════════════════════════')
-  console.log('💰 [GURU SYNC] INICIANDO SINCRONIZAÇÃO COMPLETA')
-  console.log('════════════════════════════════════════════════════════\n')
+  logger.info('\n════════════════════════════════════════════════════════')
+  logger.info('💰 [GURU SYNC] INICIANDO SINCRONIZAÇÃO COMPLETA')
+  logger.info('════════════════════════════════════════════════════════\n')
 
   const startTime = Date.now()
 
@@ -28,7 +29,7 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
     const subscriptions = await fetchAllSubscriptionsPaginated()
     result.total = subscriptions.length
 
-    console.log(`\n📊 [GURU SYNC] Total subscrições: ${subscriptions.length}`)
+    logger.info(`\n📊 [GURU SYNC] Total subscrições: ${subscriptions.length}`)
 
     // ═══════════════════════════════════════════════════════════
     // 2. PRÉ-AGRUPAR POR EMAIL
@@ -57,8 +58,8 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
     result.uniqueEmails = subsByEmail.size
     result.multiSubEmails = Array.from(subsByEmail.values()).filter(subs => subs.length > 1).length
 
-    console.log(`📧 [GURU SYNC] ${subsByEmail.size} emails únicos (${result.multiSubEmails} com múltiplas subs)`)
-    console.log(`📊 [GURU SYNC] Processando email a email...\n`)
+    logger.info(`📧 [GURU SYNC] ${subsByEmail.size} emails únicos (${result.multiSubEmails} com múltiplas subs)`)
+    logger.info(`📊 [GURU SYNC] Processando email a email...\n`)
 
     // ═══════════════════════════════════════════════════════════
     // 3. PROCESSAR CADA EMAIL COM A MELHOR SUBSCRIÇÃO
@@ -172,7 +173,7 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
               }
             )
             if (revertResult.modifiedCount > 0) {
-              console.log(`  🟢 REVERTIDO: ${email} - ${revertResult.modifiedCount} UserProduct(s) → ACTIVE (sub ${bestStatus})`)
+              logger.info(`  🟢 REVERTIDO: ${email} - ${revertResult.modifiedCount} UserProduct(s) → ACTIVE (sub ${bestStatus})`)
             }
           }
         } else {
@@ -221,28 +222,28 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
 
         if (action === 'created') {
           result.created++
-          console.log(`  ✨ CRIADO: ${email} (${bestStatus}, ${subs.length} sub(s))`)
+          logger.info(`  ✨ CRIADO: ${email} (${bestStatus}, ${subs.length} sub(s))`)
         } else {
           result.updated++
         }
 
         if (markedForInactivation > 0) {
           result.markedForInactivation += markedForInactivation
-          console.log(`  🔴 PARA_INATIVAR: ${email} (${markedForInactivation} UserProduct(s), ${subs.length} sub(s) todas ${bestStatus})`)
+          logger.info(`  🔴 PARA_INATIVAR: ${email} (${markedForInactivation} UserProduct(s), ${subs.length} sub(s) todas ${bestStatus})`)
         }
 
         result.details.push({ email, action, markedForInactivation })
 
         // Log de progresso a cada 50 emails
         if (processedCount % 50 === 0) {
-          console.log(`\n📈 [GURU SYNC] Progresso: ${processedCount}/${subsByEmail.size} emails (✨${result.created} novos, 🔄${result.updated} atualizados, 🔴${result.markedForInactivation} p/inativar)\n`)
+          logger.info(`\n📈 [GURU SYNC] Progresso: ${processedCount}/${subsByEmail.size} emails (✨${result.created} novos, 🔄${result.updated} atualizados, 🔴${result.markedForInactivation} p/inativar)\n`)
         }
 
       } catch (error: unknown) {
         const message = guruApiErrorDetails(error).message
         result.errors++
         result.details.push({ email, action: 'error', error: message })
-        console.error(`❌ [GURU SYNC] Erro ${email}:`, message)
+        logger.error(`❌ [GURU SYNC] Erro ${email}:`, message)
       }
     }
 
@@ -254,31 +255,31 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
       const crossRefResult = await runCrossReferenceAfterGuruSync()
       result.crossReference = crossRefResult
     } catch (crossRefError: unknown) {
-      console.error('⚠️ [GURU SYNC] Cross-reference falhou (não-fatal):', guruApiErrorDetails(crossRefError).message)
+      logger.error('⚠️ [GURU SYNC] Cross-reference falhou (não-fatal):', guruApiErrorDetails(crossRefError).message)
     }
 
     const duration = Date.now() - startTime
 
-    console.log('\n════════════════════════════════════════════════════════')
-    console.log('✅ [GURU SYNC] SINCRONIZAÇÃO COMPLETA!')
-    console.log('════════════════════════════════════════════════════════')
-    console.log(`📊 Total subscrições: ${result.total}`)
-    console.log(`📧 Emails únicos: ${result.uniqueEmails} (${result.multiSubEmails} com múltiplas subs)`)
-    console.log(`✨ Novos criados: ${result.created}`)
-    console.log(`🔄 Atualizados: ${result.updated}`)
-    console.log(`⏭️ Ignorados (sem email): ${result.skipped}`)
-    console.log(`❌ Erros: ${result.errors}`)
-    console.log(`🔴 Marcados PARA_INATIVAR: ${result.markedForInactivation}`)
+    logger.info('\n════════════════════════════════════════════════════════')
+    logger.info('✅ [GURU SYNC] SINCRONIZAÇÃO COMPLETA!')
+    logger.info('════════════════════════════════════════════════════════')
+    logger.info(`📊 Total subscrições: ${result.total}`)
+    logger.info(`📧 Emails únicos: ${result.uniqueEmails} (${result.multiSubEmails} com múltiplas subs)`)
+    logger.info(`✨ Novos criados: ${result.created}`)
+    logger.info(`🔄 Atualizados: ${result.updated}`)
+    logger.info(`⏭️ Ignorados (sem email): ${result.skipped}`)
+    logger.info(`❌ Erros: ${result.errors}`)
+    logger.info(`🔴 Marcados PARA_INATIVAR: ${result.markedForInactivation}`)
     if (result.crossReference) {
-      console.log(`🔄 Cross-reference: ${result.crossReference.confirmedInactive} confirmados INACTIVE, ${result.crossReference.revertedToActive} revertidos`)
+      logger.info(`🔄 Cross-reference: ${result.crossReference.confirmedInactive} confirmados INACTIVE, ${result.crossReference.revertedToActive} revertidos`)
     }
-    console.log(`\n⏱️ Duração: ${(duration / 1000).toFixed(2)}s`)
-    console.log('════════════════════════════════════════════════════════\n')
+    logger.info(`\n⏱️ Duração: ${(duration / 1000).toFixed(2)}s`)
+    logger.info('════════════════════════════════════════════════════════\n')
 
     return result
 
   } catch (error: unknown) {
-    console.error('\n❌ [GURU SYNC] ERRO FATAL:', guruApiErrorDetails(error).message)
+    logger.error('\n❌ [GURU SYNC] ERRO FATAL:', guruApiErrorDetails(error).message)
     throw error
   }
 }
@@ -313,7 +314,7 @@ export async function checkEmailInGuru(email: string): Promise<{
     return { exists: true, subscription: activeSubscription }
 
   } catch (error: unknown) {
-    console.error(`❌ [GURU SYNC] Erro ao verificar email ${email}:`, guruApiErrorDetails(error).message)
+    logger.error(`❌ [GURU SYNC] Erro ao verificar email ${email}:`, guruApiErrorDetails(error).message)
     return { exists: false }
   }
 }

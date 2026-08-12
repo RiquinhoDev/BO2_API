@@ -1,6 +1,7 @@
 // ✅ SPRINT 5 - Task 5.1.1: Contact Tag Reader Service
 // Objetivo: Ler tags do Active Campaign e sincronizar com Backoffice
 
+import logger from '../../utils/logger'
 import UserProduct from '../../models/UserProduct'
 import Product from '../../models/product/Product'
 import User from '../../models/user'
@@ -68,13 +69,13 @@ class ContactTagReaderService {
    */
   async getContactTags(email: string): Promise<ContactTagInfo | null> {
     try {
-      console.log(`[ContactTagReader] Buscando tags para: ${email}`)
+      logger.info(`[ContactTagReader] Buscando tags para: ${email}`)
 
       // 1. Buscar contacto no AC (getContactByEmail devolve ACContactResponse)
       const contactResp: ACContactResponse | null = await activeCampaignService.getContactByEmail(email)
 
       if (!contactResp?.contact) {
-        console.log(`[ContactTagReader] Contacto não encontrado: ${email}`)
+        logger.info(`[ContactTagReader] Contacto não encontrado: ${email}`)
         return null
       }
 
@@ -99,7 +100,7 @@ class ContactTagReaderService {
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido'
-      console.error(`[ContactTagReader] Erro ao buscar tags: ${message}`)
+      logger.error(`[ContactTagReader] Erro ao buscar tags: ${message}`)
       throw error
     }
   }
@@ -136,7 +137,7 @@ for (const profile of productProfiles) {
       }
     }
 
-    console.log(`[ContactTagReader] Produtos detectados: ${products.length}`)
+    logger.info(`[ContactTagReader] Produtos detectados: ${products.length}`)
     return products
   }
 
@@ -170,7 +171,7 @@ private getCurrentLevel(tagNames: string[]): number {
    */
   async syncUserTagsFromAC(userId: string): Promise<SyncResult> {
     try {
-      console.log(`[ContactTagReader] Sincronizando tags para userId: ${userId}`)
+      logger.info(`[ContactTagReader] Sincronizando tags para userId: ${userId}`)
 
       // 1. Buscar user no BO
       const user = await User.findById(userId)
@@ -198,7 +199,7 @@ private getCurrentLevel(tagNames: string[]): number {
         }
       }
 
-      console.log(`[ContactTagReader] ✅ Sincronização completa: ${productsUpdated} produtos atualizados`)
+      logger.info(`[ContactTagReader] ✅ Sincronização completa: ${productsUpdated} produtos atualizados`)
 
       return {
         synced: true,
@@ -208,7 +209,7 @@ private getCurrentLevel(tagNames: string[]): number {
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido'
-      console.error(`[ContactTagReader] Erro ao sincronizar: ${message}`)
+      logger.error(`[ContactTagReader] Erro ao sincronizar: ${message}`)
       return { synced: false, reason: message }
     }
   }
@@ -223,7 +224,7 @@ private getCurrentLevel(tagNames: string[]): number {
     try {
       const product = await Product.findOne({ code: productInfo.code })
       if (!product?._id) {
-        console.log(`[ContactTagReader] Produto ${productInfo.code} não encontrado no BO`)
+        logger.info(`[ContactTagReader] Produto ${productInfo.code} não encontrado no BO`)
         return false
       }
 
@@ -233,7 +234,7 @@ private getCurrentLevel(tagNames: string[]): number {
       })
 
       if (!userProduct?._id) {
-        console.log(
+        logger.info(
           `[ContactTagReader] UserProduct não encontrado para userId=${userId}, productId=${product._id.toString()}`
         )
         return false
@@ -246,11 +247,11 @@ private getCurrentLevel(tagNames: string[]): number {
         }
       })
 
-      console.log(`[ContactTagReader] ✅ UserProduct ${userProduct._id.toString()} atualizado com tags do AC`)
+      logger.info(`[ContactTagReader] ✅ UserProduct ${userProduct._id.toString()} atualizado com tags do AC`)
       return true
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido'
-      console.error(`[ContactTagReader] Erro ao atualizar engagement state: ${message}`)
+      logger.error(`[ContactTagReader] Erro ao atualizar engagement state: ${message}`)
       return false
     }
   }
@@ -259,7 +260,7 @@ private getCurrentLevel(tagNames: string[]): number {
    * 🔄 Sincronizar TODOS os users (batch)
    */
   async syncAllUsersFromAC(limit: number = 100): Promise<SyncSummary> {
-    console.log(`[ContactTagReader] Iniciando sync batch de ${limit} users...`)
+    logger.info(`[ContactTagReader] Iniciando sync batch de ${limit} users...`)
 
     const users = await User.find({}).limit(limit)
 
@@ -289,7 +290,7 @@ private getCurrentLevel(tagNames: string[]): number {
       }
     }
 
-    console.log(`[ContactTagReader] ✅ Batch sync completo: ${results.synced}/${results.total} sucesso`)
+    logger.info(`[ContactTagReader] ✅ Batch sync completo: ${results.synced}/${results.total} sucesso`)
     return results
   }
 }

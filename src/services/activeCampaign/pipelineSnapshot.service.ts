@@ -3,7 +3,7 @@
 // Captura estado PRE/POST pipeline para comparação
 // ═══════════════════════════════════════════════════════════
 
-import { UserProduct, User, Product } from '../../models'
+import { UserProduct } from '../../models'
 import logger from '../../utils/logger'
 import fs from 'fs/promises'
 import path from 'path'

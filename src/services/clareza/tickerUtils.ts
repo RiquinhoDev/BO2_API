@@ -26,5 +26,5 @@ export function normalizeTicker(raw: string): string {
  * dígitos, ponto e traço, até 10 caracteres.
  */
 export function isValidTicker(ticker: string): boolean {
-  return /^[A-Z0-9][A-Z0-9.\-]{0,9}$/.test(ticker)
+  return /^[A-Z0-9][A-Z0-9.-]{0,9}$/.test(ticker)
 }

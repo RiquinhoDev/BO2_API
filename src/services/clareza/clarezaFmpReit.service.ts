@@ -48,7 +48,7 @@ export async function getReitAnalysis(rawTicker: string) {
         await sleep(1500) // rate limit momentÃ¢neo (refresh do cron) â†’ 1 retry
         continue
       }
-      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`)
+      throw Object.assign(new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`), { cause: e })
     }
   }
   await sleep(150)
@@ -149,7 +149,7 @@ export async function getReitValuation(rawTicker: string) {
         await sleep(1500)
         continue
       }
-      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`)
+      throw Object.assign(new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`), { cause: e })
     }
   }
   await sleep(150)
@@ -158,7 +158,7 @@ export async function getReitValuation(rawTicker: string) {
   const incomes = await fmpGetArray('/income-statement', { symbol: ticker, period: 'annual', limit: '6' }); await sleep(150)
   const cashFlows = await fmpGetArray('/cash-flow-statement', { symbol: ticker, period: 'annual', limit: '6' }); await sleep(150)
 
-  let enterpriseValues: FmpRecord[] = []
+  let enterpriseValues: FmpRecord[]
   try {
     enterpriseValues = await fmpGetArray('/enterprise-values', { symbol: ticker, period: 'annual', limit: '6' })
   } catch {
@@ -166,7 +166,7 @@ export async function getReitValuation(rawTicker: string) {
   }
   await sleep(150)
 
-  let dividendsRaw: FmpRecord[] = []
+  let dividendsRaw: FmpRecord[]
   try {
     dividendsRaw = await fmpGetArray('/dividends', { symbol: ticker, limit: '120' })
   } catch {
@@ -175,7 +175,7 @@ export async function getReitValuation(rawTicker: string) {
   await sleep(150)
 
   // Cockpit: balanÃ§o (equity, dÃ­vida) + price target.
-  let balance: FmpRecord | null = null
+  let balance: FmpRecord | null
   try {
     balance = await fmpGet('/balance-sheet-statement', { symbol: ticker, period: 'annual', limit: '1' })
   } catch {
@@ -183,7 +183,7 @@ export async function getReitValuation(rawTicker: string) {
   }
   await sleep(150)
 
-  let priceTarget: number | null = null
+  let priceTarget: number | null
   try {
     const pt = await fmpGet('/price-target-summary', { symbol: ticker })
     priceTarget = num(
@@ -194,7 +194,7 @@ export async function getReitValuation(rawTicker: string) {
   }
   await sleep(150)
 
-  let peerSymbols: string[] = []
+  let peerSymbols: string[]
   try {
     // /stock-peers devolve um array de objetos de pares; usar fmpGetArray (nÃ£o fmpGet).
     const peerArr = await fmpGetArray('/stock-peers', { symbol: ticker })

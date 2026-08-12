@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import User, { type IUser } from '../../../models/user'
 import UserProduct from '../../../models/UserProduct'
 import { GURU_CANCELED_STATUSES, getEffectiveStatus, isStatusBetterOrEqual as sharedIsStatusBetterOrEqual, type GuruDateInfo } from '../guru.constants'
@@ -35,7 +36,7 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
   const email = subscriptionEmail(subscription)
 
   if (!email) {
-    console.warn('⚠️ [GURU SYNC] Subscrição sem email:', JSON.stringify({
+    logger.warn('⚠️ [GURU SYNC] Subscrição sem email:', JSON.stringify({
       id: subscription.id,
       code: subscription.subscription_code,
       subscriber: subscription.subscriber,
@@ -95,7 +96,7 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
       nextCycleAt: existingUser.guru?.nextCycleAt
     }
     if (currentGuruStatus && !sharedIsStatusBetterOrEqual(guruData.status, currentGuruStatus, newDates, currentDates)) {
-      console.log(`  ⏭️ SKIP: ${email} - manter ${currentGuruStatus} (ignorar ${guruData.status} de sub ${guruData.subscriptionCode})`)
+      logger.info(`  ⏭️ SKIP: ${email} - manter ${currentGuruStatus} (ignorar ${guruData.status} de sub ${guruData.subscriptionCode})`)
       return { action: 'skipped', email, markedForInactivation: 0 }
     }
 
@@ -141,7 +142,7 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
         }
       )
       if (revertResult.modifiedCount > 0) {
-        console.log(`  ✅ REVERTIDO: ${email} - ${revertResult.modifiedCount} UserProduct(s) voltaram a ACTIVE (encontrada sub ${guruData.status})`)
+        logger.info(`  ✅ REVERTIDO: ${email} - ${revertResult.modifiedCount} UserProduct(s) voltaram a ACTIVE (encontrada sub ${guruData.status})`)
       }
     }
   } else {
@@ -190,7 +191,7 @@ export async function saveSubscriptionToDb(subscription: GuruSubscription): Prom
     markedForInactivation = result.modifiedCount || 0
 
     if (markedForInactivation > 0) {
-      console.log(`  ⚠️ PARA_INATIVAR: ${email} (${markedForInactivation} UserProduct(s))`)
+      logger.info(`  ⚠️ PARA_INATIVAR: ${email} (${markedForInactivation} UserProduct(s))`)
     }
   }
 

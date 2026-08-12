@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 import { type NextFunction, type Request, type Response } from 'express'
 import { internalError } from '../security/errorHandling'
 import { successResponse } from '../contracts/responseContract'
@@ -43,7 +44,7 @@ export const clarezaController = {
         return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
       }
 
-      console.log('🔄 [POST /api/clareza/refresh] Refresh manual iniciado')
+      logger.info('🔄 [POST /api/clareza/refresh] Refresh manual iniciado')
       const result = await refreshClarezaData()
       return res.json(successResponse(result))
     } catch (error: unknown) {
@@ -124,7 +125,7 @@ export const clarezaController = {
         return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
       }
 
-      console.log('🔄 [POST /api/clareza/top10/refresh] Refresh manual iniciado')
+      logger.info('🔄 [POST /api/clareza/top10/refresh] Refresh manual iniciado')
       const result = await refreshClarezaTop10Data()
       return res.json(successResponse(result))
     } catch (error: unknown) {
@@ -216,7 +217,7 @@ export const clarezaController = {
         return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
       }
 
-      console.log('🔄 [POST /api/clareza/raiox/refresh] Refresh manual iniciado')
+      logger.info('🔄 [POST /api/clareza/raiox/refresh] Refresh manual iniciado')
       const result = await refreshClarezaRaioxData()
       return res.json(successResponse(result))
     } catch (error: unknown) {
@@ -272,7 +273,7 @@ export const clarezaController = {
         return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
       }
 
-      console.log('[POST /api/clareza/earnings/refresh] Refresh manual iniciado')
+      logger.info('[POST /api/clareza/earnings/refresh] Refresh manual iniciado')
       const result = await refreshClarezaEarningsData()
       return res.json(successResponse(result))
     } catch (error: unknown) {
@@ -288,7 +289,7 @@ export const clarezaController = {
         return res.status(403).json({ error: 'Refresh Clareza nao autorizado' })
       }
 
-      console.log('[POST /api/clareza/carteira/refresh] Refresh manual iniciado')
+      logger.info('[POST /api/clareza/carteira/refresh] Refresh manual iniciado')
       const result = await refreshClarezaCarteiraData()
       return res.json(successResponse(result))
     } catch (error: unknown) {

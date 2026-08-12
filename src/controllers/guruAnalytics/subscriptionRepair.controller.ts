@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import { successResponse } from '../../contracts/responseContract'
 import { forwardApplicationError } from '../../security/forwardApplicationError'
@@ -22,11 +23,11 @@ export const fixMultiSubscriptions = async (req: Request, res: Response, next: N
   try {
     const shouldFix = req.query.fix === 'true'
 
-    console.log(`\nðŸ” [MULTI-SUB] ${shouldFix ? 'CORRIGINDO' : 'DIAGNOSTICANDO'} users com mÃºltiplas subscriÃ§Ãµes...`)
+    logger.info(`\nðŸ” [MULTI-SUB] ${shouldFix ? 'CORRIGINDO' : 'DIAGNOSTICANDO'} users com mÃºltiplas subscriÃ§Ãµes...`)
 
     // 1. Buscar TODAS as subscriÃ§Ãµes da Guru
     const allSubscriptions = await fetchAllSubscriptionsComplete()
-    console.log(`   ðŸ“Š Total subscriÃ§Ãµes na Guru: ${allSubscriptions.length}`)
+    logger.info(`   ðŸ“Š Total subscriÃ§Ãµes na Guru: ${allSubscriptions.length}`)
 
     // 2. Agrupar por email
     const subsByEmail = new Map<string, SubscriptionCandidate[]>()
@@ -155,22 +156,22 @@ export const fixMultiSubscriptions = async (req: Request, res: Response, next: N
                 }
               )
               if (revert.modifiedCount > 0) {
-                console.log(`   âœ… CORRIGIDO: ${email} â†’ ${bestSub.status} + revertido ${revert.modifiedCount} UserProduct(s)`)
+                logger.info(`   âœ… CORRIGIDO: ${email} â†’ ${bestSub.status} + revertido ${revert.modifiedCount} UserProduct(s)`)
               }
             }
 
             fixed++
-            console.log(`   âœ… CORRIGIDO: ${email}: ${ourStatus} â†’ ${bestSub.status}`)
+            logger.info(`   âœ… CORRIGIDO: ${email}: ${ourStatus} â†’ ${bestSub.status}`)
           }
         }
       }
     }
 
-    console.log(`\nðŸ” [MULTI-SUB] Resultado:`)
-    console.log(`   - Users com mÃºltiplas subs: ${multiSubUsers.length}`)
-    console.log(`   - Users com status ERRADO: ${problemUsers.length}`)
+    logger.info(`\nðŸ” [MULTI-SUB] Resultado:`)
+    logger.info(`   - Users com mÃºltiplas subs: ${multiSubUsers.length}`)
+    logger.info(`   - Users com status ERRADO: ${problemUsers.length}`)
     if (shouldFix) {
-      console.log(`   - Corrigidos: ${fixed}`)
+      logger.info(`   - Corrigidos: ${fixed}`)
     }
 
     return res.json(successResponse({

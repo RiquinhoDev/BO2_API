@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import { cacheService } from '../../cache.service'
 import ClarezaRaioxData from '../../../models/ClarezaRaioxData'
 import { getFmpApiKey } from '../../requestDrivenRuntimeConfig'
@@ -11,7 +12,6 @@ import {
   isoDaysAgo,
   JsonObject,
   lastBday,
-  PricePoint,
   pruneStaleRaiox,
   RAIOX_CACHE_PREFIX,
   RAIOX_INDEX_KEY,
@@ -29,7 +29,7 @@ import {
 export async function refreshClarezaRaioxData(): Promise<{ total: number; errors: number }> {
   getFmpApiKey()
 
-  console.log(`📊 [Raiox] Iniciando refresh de ${RAIOX_UNIVERSE.length} ações...`)
+  logger.info(`📊 [Raiox] Iniciando refresh de ${RAIOX_UNIVERSE.length} ações...`)
 
   // 1. Dados globais (uma vez): P/E setorial + histórico SPY p/ momentum.
   const sectorPe = (await fmpRaw('/sector-pe-snapshot', { date: lastBday() })) ?? []
@@ -70,11 +70,11 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
         })
       } else {
         errors++
-        console.warn(`⚠️ [Raiox] Sem dados para ${stock.ticker}`)
+        logger.warn(`⚠️ [Raiox] Sem dados para ${stock.ticker}`)
       }
     } catch (error: unknown) {
       errors++
-      console.error(`❌ [Raiox] Erro em ${stock.ticker}:`, errorMessage(error))
+      logger.error(`❌ [Raiox] Erro em ${stock.ticker}:`, errorMessage(error))
     }
   }
 
@@ -99,12 +99,12 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
       const toDelete = all.slice(5).map(document => document._id)
       await ClarezaRaioxData.deleteMany({ _id: { $in: toDelete } })
     }
-    console.log('💾 [Raiox] Snapshot guardado na BD')
+    logger.info('💾 [Raiox] Snapshot guardado na BD')
   } catch (error: unknown) {
-    console.error('⚠️ [Raiox] Erro ao guardar snapshot na BD:', errorMessage(error))
+    logger.error('⚠️ [Raiox] Erro ao guardar snapshot na BD:', errorMessage(error))
   }
 
-  console.log(`✅ [Raiox] Refresh completo — ${RAIOX_UNIVERSE.length - errors} ok, ${errors} erros`)
+  logger.info(`✅ [Raiox] Refresh completo — ${RAIOX_UNIVERSE.length - errors} ok, ${errors} erros`)
   return { total: RAIOX_UNIVERSE.length, errors }
 }
 
@@ -149,7 +149,7 @@ export async function getRaioxAnalysis(rawTicker: string): Promise<RaioxPayload 
       return { ...hit, sectorPe: latest?.sectorPe ?? [] }
     }
   } catch (error: unknown) {
-    console.error('⚠️ [Raiox] Erro ao ler snapshot da BD:', errorMessage(error))
+    logger.error('⚠️ [Raiox] Erro ao ler snapshot da BD:', errorMessage(error))
   }
 
   // 3. Fora da cache (ticker raro / fora do universo) → fetch live + cacheia.

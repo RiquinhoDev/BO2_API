@@ -2,6 +2,7 @@
 // Lógica partilhada de cross-reference entre Guru e CursEduca
 // Chamada automaticamente após cada sync para manter consistência
 
+import logger from '../../utils/logger'
 import axios from 'axios'
 import User, { IUser } from '../../models/user'
 import UserProduct from '../../models/UserProduct'
@@ -120,7 +121,7 @@ export async function runCrossReferenceAfterCurseducaSync(
   options?: { reconcileStale?: boolean; minSyncSize?: number }
 ): Promise<CrossReferenceResult> {
   const startTime = Date.now()
-  console.log('\n🔄 [CROSS-REF] Post-CursEduca sync cross-reference...')
+  logger.info('\n🔄 [CROSS-REF] Post-CursEduca sync cross-reference...')
 
   const result: CrossReferenceResult = {
     processed: 0,
@@ -147,7 +148,7 @@ export async function runCrossReferenceAfterCurseducaSync(
     .select('_id email guru.status guru.updatedAt guru.nextCycleAt curseduca.memberStatus curseduca.situation')
     .lean()
 
-  console.log(`   📋 ${users.length} users com dados Guru + CursEduca`)
+  logger.info(`   📋 ${users.length} users com dados Guru + CursEduca`)
 
   if (users.length === 0) {
     result.duration = Math.floor((Date.now() - startTime) / 1000)
@@ -200,10 +201,10 @@ export async function runCrossReferenceAfterCurseducaSync(
         reason: action.reason
       })
 
-      console.log(`   ${action.action === 'mark_para_inativar' ? '🔴' : action.action === 'revert_to_active' ? '🟢' : '⚫'} ${user.email}: ${action.action} (${action.reason})`)
+      logger.info(`   ${action.action === 'mark_para_inativar' ? '🔴' : action.action === 'revert_to_active' ? '🟢' : '⚫'} ${user.email}: ${action.action} (${action.reason})`)
     } catch (err: unknown) {
       result.errors++
-      console.error(`   ❌ Erro ${user.email}: ${errorMessage(err)}`)
+      logger.error(`   ❌ Erro ${user.email}: ${errorMessage(err)}`)
     }
   }
 
@@ -213,8 +214,6 @@ export async function runCrossReferenceAfterCurseducaSync(
   // ─────────────────────────────────────────────────────────
   if (syncedEmails && syncedEmails.length > 0) {
     const STRICT_CANCELED = ['canceled', 'expired', 'refunded']
-    const syncedSet = new Set(syncedEmails)
-
     const missedUsers = await User.find({
       'guru.status': { $in: STRICT_CANCELED },
       'curseduca.curseducaUserId': { $exists: true },
@@ -263,14 +262,14 @@ export async function runCrossReferenceAfterCurseducaSync(
             action: action.action,
             reason: `[fora do sync] ${action.reason}`
           })
-          console.log(`   🔍 ${user.email}: ${action.action} (fora do sync, Guru ${guruData?.status})`)
+          logger.info(`   🔍 ${user.email}: ${action.action} (fora do sync, Guru ${guruData?.status})`)
         } catch (err: unknown) {
           result.errors++
-          console.error(`   ❌ Erro ${user.email}: ${errorMessage(err)}`)
+          logger.error(`   ❌ Erro ${user.email}: ${errorMessage(err)}`)
         }
       }
 
-      console.log(`   🔍 ${missedUsers.length} users com Guru cancelado fora do sync verificados`)
+      logger.info(`   🔍 ${missedUsers.length} users com Guru cancelado fora do sync verificados`)
     }
   }
 
@@ -282,7 +281,7 @@ export async function runCrossReferenceAfterCurseducaSync(
   // ─────────────────────────────────────────────────────────
   const minSize = options?.minSyncSize ?? 400
   if (options?.reconcileStale === true && syncedEmails && syncedEmails.length >= minSize) {
-    console.log(`\n🧹 [CROSS-REF] Reconciliação de stale records (${syncedEmails.length} emails no sync)...`)
+    logger.info(`\n🧹 [CROSS-REF] Reconciliação de stale records (${syncedEmails.length} emails no sync)...`)
 
     const syncedSet = new Set(syncedEmails)
 
@@ -311,20 +310,20 @@ export async function runCrossReferenceAfterCurseducaSync(
         }
       )
       result.reconciledStale = staleIds.length
-      console.log(`   🔴 ${staleIds.length} UserProducts stale marcados PARA_INATIVAR (pendente chamada API)`)
+      logger.info(`   🔴 ${staleIds.length} UserProducts stale marcados PARA_INATIVAR (pendente chamada API)`)
     } else {
-      console.log(`   ✅ Nenhum stale encontrado`)
+      logger.info(`   ✅ Nenhum stale encontrado`)
     }
   }
 
   result.duration = Math.floor((Date.now() - startTime) / 1000)
 
-  console.log(`\n✅ [CROSS-REF] Post-CursEduca concluído em ${result.duration}s:`)
-  console.log(`   🔴 Marcados PARA_INATIVAR: ${result.markedParaInativar}`)
-  console.log(`   🟢 Revertidos a ACTIVE: ${result.revertedToActive}`)
-  console.log(`   ⚫ Confirmados INACTIVE: ${result.confirmedInactive}`)
-  console.log(`   🧹 Stale reconciliados: ${result.reconciledStale}`)
-  console.log(`   ⏭️ Ignorados: ${result.skipped}`)
+  logger.info(`\n✅ [CROSS-REF] Post-CursEduca concluído em ${result.duration}s:`)
+  logger.info(`   🔴 Marcados PARA_INATIVAR: ${result.markedParaInativar}`)
+  logger.info(`   🟢 Revertidos a ACTIVE: ${result.revertedToActive}`)
+  logger.info(`   ⚫ Confirmados INACTIVE: ${result.confirmedInactive}`)
+  logger.info(`   🧹 Stale reconciliados: ${result.reconciledStale}`)
+  logger.info(`   ⏭️ Ignorados: ${result.skipped}`)
 
   return result
 }
@@ -335,7 +334,7 @@ export async function runCrossReferenceAfterCurseducaSync(
 
 export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceResult> {
   const startTime = Date.now()
-  console.log('\n🔄 [CROSS-REF] Post-Guru sync cross-reference...')
+  logger.info('\n🔄 [CROSS-REF] Post-Guru sync cross-reference...')
 
   const result: CrossReferenceResult = {
     processed: 0,
@@ -358,7 +357,7 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
     .populate<{ userId: IUser }>('userId', 'email curseduca.memberStatus curseduca.situation curseduca.curseducaUserId guru.status guru.updatedAt guru.nextCycleAt')
     .lean()
 
-  console.log(`   📋 ${userProducts.length} UserProducts PARA_INATIVAR para verificar`)
+  logger.info(`   📋 ${userProducts.length} UserProducts PARA_INATIVAR para verificar`)
 
   if (userProducts.length === 0) {
     result.duration = Math.floor((Date.now() - startTime) / 1000)
@@ -414,7 +413,7 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
             apiCallsUsed++
             await new Promise(resolve => setTimeout(resolve, 300))
           } catch (apiErr: unknown) {
-            console.log(`   ⚠️ API check falhou ${user.email}: ${requestErrorMessage(apiErr)}`)
+            logger.info(`   ⚠️ API check falhou ${user.email}: ${requestErrorMessage(apiErr)}`)
           }
         }
       }
@@ -444,20 +443,20 @@ export async function runCrossReferenceAfterGuruSync(): Promise<CrossReferenceRe
         reason: action.reason
       })
 
-      console.log(`   ${action.action === 'confirm_inactive' ? '⚫' : '🟢'} ${user.email}: ${action.action}`)
+      logger.info(`   ${action.action === 'confirm_inactive' ? '⚫' : '🟢'} ${user.email}: ${action.action}`)
     } catch (err: unknown) {
       result.errors++
-      console.error(`   ❌ Erro ${up.userId?.email}: ${errorMessage(err)}`)
+      logger.error(`   ❌ Erro ${up.userId?.email}: ${errorMessage(err)}`)
     }
   }
 
   result.duration = Math.floor((Date.now() - startTime) / 1000)
 
-  console.log(`\n✅ [CROSS-REF] Post-Guru concluído em ${result.duration}s:`)
-  console.log(`   ⚫ Confirmados INACTIVE: ${result.confirmedInactive}`)
-  console.log(`   🟢 Revertidos a ACTIVE: ${result.revertedToActive}`)
-  console.log(`   ⏭️ Ignorados: ${result.skipped}`)
-  console.log(`   📡 API calls usados: ${apiCallsUsed}/${MAX_API_CALLS}`)
+  logger.info(`\n✅ [CROSS-REF] Post-Guru concluído em ${result.duration}s:`)
+  logger.info(`   ⚫ Confirmados INACTIVE: ${result.confirmedInactive}`)
+  logger.info(`   🟢 Revertidos a ACTIVE: ${result.revertedToActive}`)
+  logger.info(`   ⏭️ Ignorados: ${result.skipped}`)
+  logger.info(`   📡 API calls usados: ${apiCallsUsed}/${MAX_API_CALLS}`)
 
   return result
 }

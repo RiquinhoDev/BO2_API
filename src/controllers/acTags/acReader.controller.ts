@@ -3,6 +3,7 @@
 // Controller para Contact Tag Reader endpoints
 // ════════════════════════════════════════════════════════════
 
+import logger from '../../utils/logger'
 import { successResponse } from '../../contracts/responseContract'
 import type { RequestHandler } from 'express'
 import { internalError } from '../../security/errorHandling'
@@ -158,7 +159,7 @@ export const syncContactTags: RequestHandler<ContactEmailParams> = async (req, r
   try {
     const { email } = req.params
 
-    console.log(`🔄 Sync contact tags: ${email}`)
+    logger.info(`🔄 Sync contact tags: ${email}`)
 
     const syncResult = await syncByEmail(email)
 
@@ -206,7 +207,7 @@ export const getBatchContactTags: RequestHandler = async (req, res, next) => {
 
     const normalizedEmails = emails.filter(e => typeof e === 'string') as string[]
 
-    console.log(`🔍 Batch contact tags: ${normalizedEmails.length} emails`)
+    logger.info(`🔍 Batch contact tags: ${normalizedEmails.length} emails`)
 
     const results = await Promise.all(
       normalizedEmails.map(async (email: string) => {
@@ -259,7 +260,7 @@ export const batchSyncContacts: RequestHandler = async (req, res, next) => {
 
     const normalizedEmails = emails.filter(e => typeof e === 'string') as string[]
 
-    console.log(`🔄 Batch sync contacts: ${normalizedEmails.length} emails`)
+    logger.info(`🔄 Batch sync contacts: ${normalizedEmails.length} emails`)
 
     const results = await Promise.all(normalizedEmails.map(email => syncByEmail(email)))
 
@@ -288,7 +289,7 @@ export const clearACCache: RequestHandler = async (req, res, next) => {
     const olderThanDays =
       typeof req.body.olderThanDays === 'number' ? req.body.olderThanDays : 30
 
-    console.log(`🗑️ Clear AC cache (older than ${olderThanDays} days)`)
+    logger.info(`🗑️ Clear AC cache (older than ${olderThanDays} days)`)
 
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000)
 

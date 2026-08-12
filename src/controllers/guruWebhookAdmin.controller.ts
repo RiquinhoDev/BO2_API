@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 import type { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
 import GuruWebhook from '../models/GuruWebhook'
@@ -6,7 +7,7 @@ import { internalError } from '../security/errorHandling'
 
 export const migrateWebhookSource = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('🔄 [GURU] Iniciando migração de webhooks antigos...')
+    logger.info('🔄 [GURU] Iniciando migração de webhooks antigos...')
 
     // Buscar todos os webhooks que não têm o campo 'source' definido
     // ou que têm source como null/undefined
@@ -17,7 +18,7 @@ export const migrateWebhookSource = async (req: Request, res: Response, next: Ne
       ]
     })
 
-    console.log(`   📊 Webhooks encontrados para migração: ${webhooksToMigrate.length}`)
+    logger.info(`   📊 Webhooks encontrados para migração: ${webhooksToMigrate.length}`)
 
     if (webhooksToMigrate.length === 0) {
       return res.json(successResponse({
@@ -39,7 +40,7 @@ export const migrateWebhookSource = async (req: Request, res: Response, next: Ne
       }
     )
 
-    console.log(`   ✅ Webhooks migrados: ${result.modifiedCount}`)
+    logger.info(`   ✅ Webhooks migrados: ${result.modifiedCount}`)
 
     return res.json(successResponse({
       message: `${result.modifiedCount} webhooks migrados para source: 'manual'`,
