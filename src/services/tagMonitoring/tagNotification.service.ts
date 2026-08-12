@@ -7,6 +7,7 @@ import {
 } from '../../models/tagMonitoring'
 import { TagPriority } from '../../models/tagMonitoring/CriticalTag'
 import logger from '../../utils/logger'
+import type { FilterQuery } from 'mongoose'
 
 export interface StudentChange {
   email: string
@@ -15,6 +16,9 @@ export interface StudentChange {
   class?: string
   currentTags: string[]
 }
+
+type NotificationView = Pick<ITagChangeNotification,
+  '_id' | 'tagName' | 'priority' | 'changeType' | 'affectedCount' | 'weekNumber' | 'year' | 'isRead' | 'createdAt' | 'detailsIds'>
 
 export interface NotificationFilters {
   isRead?: boolean
@@ -108,7 +112,7 @@ class TagNotificationService {
    * Lista notificações com filtros opcionais
    * Ordena por prioridade (CRITICAL > MEDIUM > LOW) e depois por data
    */
-  async getNotifications(filters: NotificationFilters = {}): Promise<ITagChangeNotification[]> {
+  async getNotifications(filters: NotificationFilters = {}): Promise<NotificationView[]> {
     try {
       const {
         isRead,
@@ -119,7 +123,7 @@ class TagNotificationService {
         tagName,
       } = filters
 
-      const query: any = {}
+      const query: FilterQuery<ITagChangeNotification> = {}
       if (isRead !== undefined) query.isRead = isRead
       if (weekNumber !== undefined) query.weekNumber = weekNumber
       if (year !== undefined) query.year = year
@@ -129,14 +133,14 @@ class TagNotificationService {
 
       // Ordenar por prioridade e data
       const priorityOrder: Record<string, number> = { CRITICAL: 1, MEDIUM: 2, LOW: 3 }
-      notifications.sort((a: any, b: any) => {
+      notifications.sort((a, b) => {
         const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
         if (priorityDiff !== 0) return priorityDiff
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       })
 
       // Aplicar skip e limit após ordenar
-      return notifications.slice(skip, skip + limit) as any[]
+      return notifications.slice(skip, skip + limit)
     } catch (error) {
       logger.error('Erro ao listar notificações', { filters, error })
       throw error

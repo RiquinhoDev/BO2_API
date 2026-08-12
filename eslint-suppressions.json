@@ -261,9 +261,6 @@
     }
   },
   "src/services/discovery/hotmartDiscovery.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
     "preserve-caught-error": {
       "count": 1
     }
@@ -390,19 +387,9 @@
       "count": 1
     }
   },
-  "src/services/tagMonitoring/tagNotification.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    }
-  },
   "src/services/tagMonitoring/weekly/studentsByPriority.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
-    }
-  },
-  "src/services/tagMonitoring/weeklyTagMonitoring.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
     }
   },
   "src/services/userProducts/userProductService.ts": {

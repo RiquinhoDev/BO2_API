@@ -11,6 +11,7 @@ import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import logger from '../../utils/logger'
 import { getStudentsByPriority } from './weekly/studentsByPriority'
+import { errorMessage } from '../syncUtilizadoresServices/universalSync/fieldUtils'
 
 interface SnapshotResult {
   success: boolean
@@ -21,6 +22,18 @@ interface SnapshotResult {
   duration: string
   errors: number
   mode: 'STUDENTS_ONLY' | 'ALL_CONTACTS'
+}
+
+interface LastWeekStats {
+  weekNumber: number
+  year: number
+  snapshots: number
+}
+
+interface SnapshotStats {
+  totalSnapshots: number
+  uniqueStudents: number
+  lastWeek: LastWeekStats
 }
 
 interface CriticalChange {
@@ -103,7 +116,7 @@ class WeeklyTagMonitoringService {
         errors,
         mode,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('❌ Erro fatal no snapshot semanal:', error)
       throw error
     }
@@ -187,9 +200,9 @@ class WeeklyTagMonitoringService {
               )
             }
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           errors++
-          logger.error(`Erro ao processar ${email}:`, error.message)
+          logger.error(`Erro ao processar ${email}:`, errorMessage(error))
         }
       }
 
@@ -288,8 +301,8 @@ class WeeklyTagMonitoringService {
         snapshot,
         changes,
       }
-    } catch (error: any) {
-      logger.error(`Erro ao capturar snapshot de ${email}:`, error.message)
+    } catch (error: unknown) {
+      logger.error(`Erro ao capturar snapshot de ${email}:`, errorMessage(error))
       return { success: false }
     }
   }
@@ -415,7 +428,7 @@ class WeeklyTagMonitoringService {
   /**
    * Obtém estatísticas do sistema
    */
-  async getSnapshotStats(): Promise<any> {
+  async getSnapshotStats(): Promise<SnapshotStats> {
     try {
       const [totalSnapshots, uniqueStudents, lastWeek] = await Promise.all([
         WeeklyNativeTagSnapshot.countDocuments(),
@@ -437,7 +450,7 @@ class WeeklyTagMonitoringService {
   /**
    * Estatísticas da última semana
    */
-  private async getLastWeekStats(): Promise<any> {
+  private async getLastWeekStats(): Promise<LastWeekStats> {
     const currentDate = new Date()
     const weekNumber = this.getWeekNumber(currentDate)
     const year = currentDate.getFullYear()
