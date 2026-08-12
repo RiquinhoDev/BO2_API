@@ -1,17 +1,24 @@
 import logger from '../utils/logger'
-// ══════════════════════════════════════════════════════════════════════
-// 📁 src/controllers/populateHistory.controller.ts
-// Controller para popular histórico retroativo dos alunos
-// ══════════════════════════════════════════════════════════════════════
-
 import { successResponse } from '../contracts/responseContract'
 import { NextFunction, Request, Response } from 'express'
 import type { TestHistoryDeleteEventsInput } from '../security/testHistoryDestructiveInput'
 import User from '../models/user'
 import UserProduct from '../models/UserProduct'
-import UserHistory from '../models/UserHistory'
-import mongoose from 'mongoose'
+import UserHistory, { type IUserHistory } from '../models/UserHistory'
 import { internalError } from '../security/errorHandling'
+
+function populatedProductName(productId: unknown): string {
+  return productId !== null
+    && typeof productId === 'object'
+    && 'name' in productId
+    && typeof productId.name === 'string'
+    ? productId.name
+    : 'Produto desconhecido'
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 /**
  * POST /api/test/history/populate-retroactive
@@ -37,21 +44,18 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
 
     logger.info(`\n📋 [POPULATE] Populando histórico retroativo para ${user.email}...`)
 
-    // Buscar produtos do user
     const products = await UserProduct.find({ userId: user._id })
       .populate('productId', 'name code platform')
-      .sort({ enrolledAt: 1 }) // Ordenar por data de inscrição
+      .sort({ enrolledAt: 1 })
 
     logger.info(`✅ [POPULATE] ${products.length} produtos encontrados`)
 
-    const historyRecords: any[] = []
+    const historyRecords: IUserHistory[] = []
     let recordsCreated = 0
 
     for (const product of products) {
-      const productName = (product.productId as any)?.name || 'Produto desconhecido'
+      const productName = populatedProductName(product.productId)
       const platform = product.platform
-
-      // 1️⃣ EVENTO: Primeira inscrição no produto
       const enrolledDate = product.enrolledAt || product.createdAt || new Date()
 
       historyRecords.push({
@@ -65,7 +69,7 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
         action: 'create',
         changeDate: enrolledDate,
         source: platform === 'hotmart' ? 'HOTMART_SYNC' :
-                platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
+          platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
         metadata: {
           changeType: 'PRODUCT_ADDED',
           description: `Inscrito no produto ${productName}`,
@@ -77,7 +81,6 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
       })
       recordsCreated++
 
-      // 2️⃣ EVENTO: Primeira atividade (se existir)
       let firstActivityDate = null
       if (platform === 'hotmart' && user.hotmart?.firstAccessDate) {
         firstActivityDate = new Date(user.hotmart.firstAccessDate)
@@ -97,7 +100,7 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
           action: 'update',
           changeDate: firstActivityDate,
           source: platform === 'hotmart' ? 'HOTMART_SYNC' :
-                  platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
+            platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
           metadata: {
             changeType: 'LOGIN_ACTIVITY',
             description: `Primeiro acesso em ${productName}`,
@@ -110,12 +113,9 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
         recordsCreated++
       }
 
-      // 3️⃣ EVENTO: Progresso atual (se > 0)
       const currentProgress = product.progress?.percentage || 0
       if (currentProgress > 0) {
-        const progressDate = product.progress?.lastActivity ||
-                            product.updatedAt ||
-                            new Date()
+        const progressDate = product.progress?.lastActivity || product.updatedAt || new Date()
 
         historyRecords.push({
           userId: user._id,
@@ -128,7 +128,7 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
           action: 'update',
           changeDate: progressDate,
           source: platform === 'hotmart' ? 'HOTMART_SYNC' :
-                  platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
+            platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
           metadata: {
             changeType: 'PROGRESS_INCREASE',
             description: `Atingiu ${currentProgress.toFixed(0)}% de progresso em ${productName}`,
@@ -141,12 +141,9 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
         recordsCreated++
       }
 
-      // 4️⃣ EVENTO: Lições completadas (se > 0)
       const completedLessons = product.progress?.completed || 0
       if (completedLessons > 0) {
-        const lessonsDate = product.progress?.lastActivity ||
-                           product.updatedAt ||
-                           new Date()
+        const lessonsDate = product.progress?.lastActivity || product.updatedAt || new Date()
 
         historyRecords.push({
           userId: user._id,
@@ -159,7 +156,7 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
           action: 'update',
           changeDate: lessonsDate,
           source: platform === 'hotmart' ? 'HOTMART_SYNC' :
-                  platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
+            platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
           metadata: {
             changeType: 'LESSONS_COMPLETED',
             description: `Completou ${completedLessons} lições em ${productName}`,
@@ -172,12 +169,9 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
         recordsCreated++
       }
 
-      // 5️⃣ EVENTO: Total de acessos (se > 0)
       const totalLogins = product.engagement?.totalLogins || 0
       if (totalLogins > 10) {
-        const loginsDate = product.engagement?.lastLogin ||
-                          product.updatedAt ||
-                          new Date()
+        const loginsDate = product.engagement?.lastLogin || product.updatedAt || new Date()
 
         historyRecords.push({
           userId: user._id,
@@ -190,7 +184,7 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
           action: 'update',
           changeDate: loginsDate,
           source: platform === 'hotmart' ? 'HOTMART_SYNC' :
-                  platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
+            platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
           metadata: {
             changeType: 'LOGIN_ACTIVITY',
             description: `Acumulou ${totalLogins} acessos em ${productName}`,
@@ -203,7 +197,6 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
         recordsCreated++
       }
 
-      // 6️⃣ EVENTO: Status atual (se INACTIVE)
       if (product.status === 'INACTIVE') {
         const inactiveDate = product.updatedAt || new Date()
 
@@ -218,7 +211,7 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
           action: 'update',
           changeDate: inactiveDate,
           source: platform === 'hotmart' ? 'HOTMART_SYNC' :
-                  platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
+            platform === 'curseduca' ? 'CURSEDUCA_SYNC' : 'SYSTEM',
           metadata: {
             changeType: 'PRODUCT_STATUS_CHANGE',
             description: `Status alterado para INACTIVE em ${productName}`,
@@ -234,7 +227,6 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
       logger.info(`   ✅ [POPULATE] ${productName}: ${recordsCreated - historyRecords.length + products.length} eventos criados`)
     }
 
-    // Inserir todos os registos
     if (historyRecords.length > 0) {
       await UserHistory.insertMany(historyRecords)
       logger.info(`\n✅ [POPULATE] ${historyRecords.length} registos de histórico criados!`)
@@ -246,10 +238,10 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
         email: user.email,
         productsProcessed: products.length,
         historyRecordsCreated: historyRecords.length,
-        events: historyRecords.map(r => ({
-          date: r.changeDate,
-          type: r.metadata.changeType,
-          description: r.metadata.description
+        events: historyRecords.map((record) => ({
+          date: record.changeDate,
+          type: record.metadata?.changeType,
+          description: record.metadata?.description
         }))
       },
       { message: 'Histórico retroativo criado com sucesso' },
@@ -284,7 +276,6 @@ export const deleteTestEvents = async (
 
     logger.info(`\n🗑️ [DELETE] Apagando eventos de teste para ${email}...`)
 
-    // Apagar eventos com changeDate específica de teste
     const result = await UserHistory.deleteMany({
       userEmail: email,
       changeDate: new Date('2026-01-19T17:09:06.703Z')
@@ -292,13 +283,12 @@ export const deleteTestEvents = async (
 
     logger.info(`✅ [DELETE] ${result.deletedCount} eventos de teste apagados`)
 
-    // Reverter nome do user
     await User.findOneAndUpdate(
       { email },
       { $set: { name: 'João Ferreira' } }
     )
 
-    logger.info(`✅ [DELETE] Nome do user revertido`)
+    logger.info('✅ [DELETE] Nome do user revertido')
 
     return res.status(200).json(successResponse(
       { deletedCount: result.deletedCount },
@@ -339,16 +329,13 @@ export const populateAllUsersHistory = async (req: Request, res: Response, next:
 
         if (products.length === 0) continue
 
-        // Usar a mesma lógica do endpoint individual
-        // (código omitido por brevidade - seria igual ao de cima)
-
         logger.info(`   ✅ Processado: ${user.email}`)
         results.push({
           email: user.email,
           products: products.length
         })
-      } catch (err: any) {
-        logger.error(`   ❌ Erro em ${user.email}:`, err.message)
+      } catch (error: unknown) {
+        logger.error(`   ❌ Erro em ${user.email}:`, errorMessage(error))
       }
     }
 
