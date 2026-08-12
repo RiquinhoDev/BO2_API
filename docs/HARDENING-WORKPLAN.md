@@ -817,10 +817,10 @@ checkboxes nem prova de prontidão operacional. Esta reconciliação macro incor
 | 5. Segurança & rotas | 70% | 70% | 0 pp | default-deny/JWT/CORS fechados; matriz de papéis e OPS-02 abertos |
 | 6. Escalabilidade | 61% | 73% | +12 pp | SCALE-03 credita 14/24 decisões de código revistas; 10 decisões inseguras e o gate operacional real continuam pendentes |
 | 7. Contrato de resposta | 84,3% | 100% | +15,7 pp | 409/409 identidades têm contrato terminal revisto; 0 pendentes |
-| 8. Toolchain & qualidade | 75% | 75% | 0 pp | TS/tests/package manager fechados; ESLint debt e validação operacional abertos |
-| **Total, média simples** | **86,3%** | **89,8%** | **+3,5 pp** | `(100 + 100 + 100 + 100 + 70 + 73 + 100 + 75) / 8 = 89,75%` |
+| 8. Toolchain & qualidade | 75% | 89,5% | +14,5 pp | fórmula objetiva: `75 + 25 × (1515 - 636) / 1515 = 89,50%`; ESLint residual e validação operacional continuam abertos |
+| **Total, média simples** | **86,3%** | **91,6%** | **+5,3 pp** | `(100 + 100 + 100 + 100 + 70 + 73 + 100 + 89,5) / 8 = 91,56%` |
 
-Contratos fecha em **100%** porque as **409/409** identidades montadas têm uma decisão terminal revista e o inventário mantém **0 pendentes**. A média simples final é `(100 + 100 + 100 + 100 + 70 + 73 + 100 + 75) / 8 = 89,75%`, apresentada como **89,8%**. O ponto de partida desta ronda era **86,3%**; o avanço é **+3,5 pp** após arredondamento.
+Contratos fecha em **100%** porque as **409/409** identidades montadas têm uma decisão terminal revista e o inventário mantém **0 pendentes**. A componente Tooling parte de **75%** no baseline de **1515** suppressions e credita apenas a fração fechada: `75 + 25 × (1515 - 636) / 1515 = 89,50%`; não chega a 100% porque restam **636 suppressions em 144 ficheiros** e a validação operacional continua aberta. A média simples final é `(100 + 100 + 100 + 100 + 70 + 73 + 100 + 89,5) / 8 = 91,56%`, apresentada como **91,6%**. O ponto de partida desta ronda era **86,3%**; o avanço é **+5,3 pp** após arredondamento.
 
 Na contagem mecânica, as duas missões reconciliam `102/112 -> 105/112` (`91,1% -> 93,8%`). SEC-10 e o
 boundary de responsabilidade ARCH-02 são os deltas de código; SCALE-01 e os 10 débitos removidos em SCALE-02 A melhoram a estimativa sem fechar a caixa ampla de paginação restante. Outra caixa corrigiu estado ARCH-02 já provado no ledger abaixo. Nenhuma das
