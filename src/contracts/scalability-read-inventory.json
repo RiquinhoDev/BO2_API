@@ -631,7 +631,8 @@
       {
         "id": "product-sales.user-products-set",
         "file": "src/services/productSalesStatsBuilder.ts",
-        "start": "export async function buildProductSalesStats",
+        "start": "const uniqueUserIds = Array.from(",
+        "end": "for (const firstEnrollment of allUserProducts)",
         "status": "complete",
         "disposition": "changed",
         "require": [
@@ -642,7 +643,8 @@
       {
         "id": "product-sales.first-enrollment-order",
         "file": "src/services/productSalesStatsBuilder.ts",
-        "start": "export async function buildProductSalesStats",
+        "start": "const allUserProducts = await UserProduct.find(",
+        "end": "// 2.5. Processar cada UserProduct",
         "status": "complete",
         "disposition": "changed",
         "require": [
@@ -655,9 +657,12 @@
         "file": "src/services/classes/mongooseClassDetails.reader.ts",
         "start": "async fetchMultiple(",
         "status": "complete",
+        "end": "async fetchAll(",
         "disposition": "changed",
         "require": [
-          "mapBounded(classes",
+          "mapBounded(classes"
+        ],
+        "globalRequire": [
           "const ENRICH_CONCURRENCY = 10"
         ]
       },
@@ -666,9 +671,12 @@
         "file": "src/services/classes/mongooseClassDetails.reader.ts",
         "start": "async fetchAll(",
         "status": "complete",
+        "end": "private async enrich(",
         "disposition": "changed",
         "require": [
-          "mapBounded(classes",
+          "mapBounded(classes"
+        ],
+        "globalRequire": [
           "const ENRICH_CONCURRENCY = 10"
         ]
       },
@@ -678,10 +686,13 @@
         "start": "async function previewCourseRules",
         "status": "complete",
         "disposition": "changed",
+        "end": "errors: results.reduce(",
         "require": [
           "mapCoursePreviewBounded(products",
-          "COURSE_PREVIEW_CONCURRENCY = 10",
           "product._id.toString(), true"
+        ],
+        "globalRequire": [
+          "COURSE_PREVIEW_CONCURRENCY = 10"
         ]
       },
       {
@@ -690,8 +701,11 @@
         "start": "async getOrCalculateMetrics(",
         "status": "complete",
         "disposition": "changed",
+        "end": "private calculateSingleflight(",
         "require": [
-          "calculateSingleflight(options)",
+          "calculateSingleflight(options)"
+        ],
+        "globalRequire": [
           "inFlightCalculations"
         ]
       },
@@ -701,6 +715,7 @@
         "start": "export const getGlobalEngagementStats",
         "status": "complete",
         "disposition": "changed",
+        "end": "export const clearEngagementCache",
         "require": [
           "statsCache.runSingleflight(cacheKey",
           "global-engagement-stats"
@@ -709,22 +724,24 @@
       {
         "id": "raiox.raw-scan",
         "file": "src/services/clareza/raiox/data.ts",
-        "start": "export async function runWithConcurrency",
+        "start": "const workerCount = Math.min(",
+        "end": "async function worker()",
         "status": "complete",
         "disposition": "changed",
         "require": [
-          "Math.min(Math.max(1, Math.floor(concurrency)), 10",
-          "results[i] = await tasks[i]()"
+          "Math.min(Math.max(1, Math.floor(concurrency)), 10"
         ]
       },
       {
         "id": "raiox.peer-scan",
         "file": "src/services/clareza/raiox/data.ts",
-        "start": "export async function runWithConcurrency",
+        "start": "async function worker()",
+        "end": "// Todas as chamadas passam pelo limitador global",
         "status": "complete",
         "disposition": "changed",
         "require": [
           "firstError",
+          "results[i] = await tasks[i]()",
           "await Promise.all(Array.from({ length: workerCount }, worker))"
         ]
       },
