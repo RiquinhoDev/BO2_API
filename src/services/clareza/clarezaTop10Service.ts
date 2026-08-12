@@ -74,7 +74,7 @@ const WATCHLIST = [
 // FMP HELPERS (stable + fallback v3)
 // ─────────────────────────────────────────────────────────────
 
-const isEmpty = (v: any) => v === null || v === undefined ||
+const isEmpty = (v: unknown) => v === null || v === undefined ||
   (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
 
 function getFmpApiKey(): string {
@@ -85,7 +85,7 @@ function getFmpApiKey(): string {
 
 
 // Primeiro elemento — endpoints STABLE (?symbol=)
-async function fmpFirstStable<T = any>(path: string, params: Record<string, string> = {}): Promise<T | null> {
+async function fmpFirstStable<T = unknown>(path: string, params: Record<string, string> = {}): Promise<T | null> {
   const apiKey = getFmpApiKey()
   try {
     await fmpThrottle()

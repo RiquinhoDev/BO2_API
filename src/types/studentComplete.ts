@@ -171,10 +171,10 @@ export interface StudentCompleteResponse {
   success: boolean
   data: {
     // Dados base do user
-    user: any // IUser do modelo
+    user: unknown // IUser do modelo
 
     // Produtos
-    products: any[] // IUserProduct[]
+    products: unknown[] // IUserProduct[]
 
     // Turmas consolidadas
     classes: ConsolidatedClass[]
@@ -186,7 +186,7 @@ export interface StudentCompleteResponse {
     engagement: ConsolidatedEngagement
 
     // Histórico
-    history: any[] // IUserHistory[]
+    history: unknown[] // IUserHistory[]
 
     // Estatísticas
     stats: StudentStats

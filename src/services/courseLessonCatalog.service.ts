@@ -15,7 +15,7 @@ type MongooseReadModel = mongoose.Model<mongoose.Document>
 
 const ProductReadModel = Product as unknown as MongooseReadModel
 const UserProductReadModel = UserProduct as unknown as MongooseReadModel
-const CourseLessonWriteModel = CourseLesson as unknown as mongoose.Model<any>
+const CourseLessonWriteModel = CourseLesson as unknown as mongoose.Model<unknown>
 
 interface ProductLean {
   _id: mongoose.Types.ObjectId

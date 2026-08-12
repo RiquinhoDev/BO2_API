@@ -18,7 +18,7 @@ import RenewalOffer from '../../models/RenewalOffer'
 import User from '../../models/user'
 import { parseOfferName, parseTurmaName } from './turmaParser'
 
-type AggregateModel = { aggregate: (...args: any[]) => any }
+type AggregateModel = { aggregate: (...args: unknown[]) => unknown }
 const UserAgg = User as unknown as AggregateModel
 
 export const RENEWAL_TARGET = 0.2 // 20% — meta de comissão

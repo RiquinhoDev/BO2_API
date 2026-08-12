@@ -140,7 +140,7 @@ router.get('/engagement/heatmap', asyncRoute(async (req, res, next) => {
     const UserProduct = require('../models/UserProduct').default
     const User = require('../models/user').default
 
-    const query: any = { status: 'ACTIVE' }
+    const query: { status: string; productId?: typeof productId; platform?: typeof platform } = { status: 'ACTIVE' }
     if (productId) query.productId = productId
     if (platform) query.platform = platform
 

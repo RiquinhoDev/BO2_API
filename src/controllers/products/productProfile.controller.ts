@@ -24,7 +24,7 @@ export const getAllProductProfiles = async (req: Request, res: Response, next: N
   try {
     const { isActive } = req.query
 
-    const filter: any = {}
+    const filter: { isActive?: boolean } = {}
     if (isActive !== undefined) {
       filter.isActive = isActive === 'true'
     }

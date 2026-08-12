@@ -32,14 +32,19 @@ export type ChangeType =
 export interface ChangeDetail {
   changeType: ChangeType
   field?: string
-  previousValue: any
-  newValue: any
+  previousValue: unknown
+  newValue: unknown
   productId?: string
   productName?: string
   platform?: 'hotmart' | 'curseduca' | 'discord'
   significance: 'HIGH' | 'MEDIUM' | 'LOW' // Quão importante é esta mudança?
   description: string // Descrição em português
-  metadata?: any
+  metadata?: Record<string, unknown>
+}
+
+function productName(productId: IUserProduct['productId']): string | undefined {
+  if (typeof productId !== 'object' || productId === null || !('name' in productId)) return undefined
+  return typeof productId.name === 'string' ? productId.name : undefined
 }
 
 export interface ComparisonResult {
@@ -87,10 +92,10 @@ export function compareSnapshots(
         previousValue: null,
         newValue: product.status,
         productId: product.productId?.toString(),
-        productName: (product.productId as any)?.name || 'Produto desconhecido',
+        productName: productName(product.productId) || 'Produto desconhecido',
         platform: product.platform,
         significance: 'HIGH',
-        description: `Inscrito no produto ${(product.productId as any)?.name || 'desconhecido'}`
+        description: `Inscrito no produto ${productName(product.productId) || 'desconhecido'}`
       })
     })
 

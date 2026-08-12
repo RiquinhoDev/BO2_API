@@ -50,7 +50,7 @@ export interface TimeSeriesDataPoint {
   date: string
   value: number
   label?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface TimeSeries {

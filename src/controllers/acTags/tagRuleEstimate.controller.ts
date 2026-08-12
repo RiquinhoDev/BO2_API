@@ -33,7 +33,7 @@ type OperatorType =
 interface IRule {
   field: string
   operator: OperatorType
-  value: any
+  value: unknown
   unit?: string
 }
 
@@ -462,14 +462,14 @@ function buildRuleCondition(rule: IRule): any {
 
     case 'olderThan': {
       // Calcular data
-      const days = parseInt(value, 10)
+      const days = parseInt(String(value), 10)
       const date = new Date()
       date.setDate(date.getDate() - days)
       return { [field]: { $lt: date } }
     }
 
     case 'newerThan': {
-      const days = parseInt(value, 10)
+      const days = parseInt(String(value), 10)
       const date = new Date()
       date.setDate(date.getDate() - days)
       return { [field]: { $gt: date } }

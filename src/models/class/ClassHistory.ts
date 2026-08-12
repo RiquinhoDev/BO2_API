@@ -14,7 +14,7 @@ export interface IClassHistory extends Document {
   reason?: string
   dateMoved: Date
   performedBy?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   createdAt: Date
 }
 

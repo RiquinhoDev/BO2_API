@@ -22,10 +22,16 @@ describe('ESLint suppression baseline', () => {
       0,
     )
 
-    expect(countSuppressions()).toBe(450)
+    const noExplicitAny = Object.values(suppressions as Suppressions).reduce(
+      (total, rules) => total + (rules['@typescript-eslint/no-explicit-any']?.count ?? 0),
+      0,
+    )
+
+    expect(countSuppressions()).toBe(347)
     expect(noConsole).toBe(0)
-    expect(countSuppressions((relativePath) => syncTask1.test(relativePath))).toBe(49)
-    expect(countSuppressions((relativePath) => providerTask2.test(relativePath))).toBe(55)
-    expect(countSuppressions((relativePath) => opsTask3.test(relativePath))).toBe(82)
+    expect(noExplicitAny).toBe(272)
+    expect(countSuppressions((relativePath) => syncTask1.test(relativePath))).toBe(47)
+    expect(countSuppressions((relativePath) => providerTask2.test(relativePath))).toBe(42)
+    expect(countSuppressions((relativePath) => opsTask3.test(relativePath))).toBe(73)
   })
 })

@@ -1,18 +1,15 @@
 {
   "src/controllers/acTags/tagRuleEstimate.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 12
+      "count": 11
     }
   },
   "src/controllers/businessAnalytics.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 3
+      "count": 1
     }
   },
   "src/controllers/dashboard.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 9
-    },
     "@typescript-eslint/no-require-imports": {
       "count": 1
     }
@@ -27,7 +24,7 @@
   },
   "src/controllers/guru.sync.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 6
+      "count": 5
     }
   },
   "src/controllers/guru.webhook.controller.ts": {
@@ -50,7 +47,7 @@
   },
   "src/controllers/products/productProfile.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 3
+      "count": 2
     }
   },
   "src/controllers/products/productSalesStats.controller.ts": {
@@ -66,11 +63,6 @@
   "src/controllers/studentHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 5
-    }
-  },
-  "src/controllers/sync/history.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "src/controllers/sync/operations.controller.ts": {
@@ -98,7 +90,7 @@
   },
   "src/controllers/tagEvaluation.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 6
+      "count": 5
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -212,11 +204,6 @@
       "count": 2
     }
   },
-  "src/models/HotmartWebhook.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 8
-    }
-  },
   "src/models/StudentEngagementState.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
@@ -225,11 +212,6 @@
   "src/models/SyncModels/ActivitySnapshot.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    }
-  },
-  "src/models/SyncModels/SyncConflict.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
     }
   },
   "src/models/SyncModels/SyncHistory.ts": {
@@ -281,19 +263,9 @@
       "count": 1
     }
   },
-  "src/models/class/ClassHistory.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/models/class/InactivationList.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 2
-    }
-  },
-  "src/models/class/Student.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "src/models/cron/CronExecutionLog.ts": {
@@ -347,9 +319,6 @@
     }
   },
   "src/routes/users.routes.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "@typescript-eslint/no-require-imports": {
       "count": 2
     }
@@ -367,11 +336,6 @@
   "src/services/achievements/achievementEvaluation.service.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 7
-    }
-  },
-  "src/services/achievements/achievementEvaluator.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 16
     }
   },
   "src/services/achievements/streakCalculator.ts": {
@@ -432,12 +396,7 @@
   },
   "src/services/clareza/clarezaTop10Service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 12
-    }
-  },
-  "src/services/courseLessonCatalog.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
+      "count": 10
     }
   },
   "src/services/dashboardStatsBuilder.service.ts": {
@@ -451,11 +410,6 @@
     },
     "preserve-caught-error": {
       "count": 1
-    }
-  },
-  "src/services/guru/guruTrialService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 9
     }
   },
   "src/services/productSalesStatsBuilder.ts": {
@@ -474,11 +428,6 @@
       "count": 1
     }
   },
-  "src/services/renewal/activeCampaign/planning.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 10
-    }
-  },
   "src/services/renewal/discord/execution.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 5
@@ -495,21 +444,6 @@
       "count": 1
     }
   },
-  "src/services/renewal/hotmartRefunds.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 13
-    }
-  },
-  "src/services/renewal/renewalCoverage.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "src/services/renewal/renewalPerformance.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/services/renewal/renewalSync.service.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -522,7 +456,7 @@
   },
   "src/services/snapshotServices/snapshotComparison.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 6
+      "count": 1
     }
   },
   "src/services/snapshotServices/userSnapshot.service.ts": {
@@ -570,7 +504,7 @@
   },
   "src/services/syncUtilizadoresServices/engagement/recalculate-engagement-metrics.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 10
+      "count": 8
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts": {
@@ -638,30 +572,12 @@
       "count": 9
     }
   },
-  "src/types/analytics/core.types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/types/analytics/presentation.types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/types/cron.types.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
-  "src/types/discovery.types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/types/studentComplete.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }

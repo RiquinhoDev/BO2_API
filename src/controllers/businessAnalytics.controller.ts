@@ -8,6 +8,7 @@
 import logger from '../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
+import type { Period, Platform } from '../types/analytics/core.types'
 import analyticsCacheService from '../services/analytics/analyticsCache.service'
 import analyticsCalculatorService from '../services/analytics/analyticsCalculator.service'
 import Product from '../models/product/Product'
@@ -83,8 +84,8 @@ class BusinessAnalyticsController {
       // Buscar KPIs do cache ou calcular
       const kpis = await analyticsCacheService.getOrCalculateMetrics({
         productId: productId as string | undefined,
-        platform: platform as any,
-        period: period as any,
+        platform: platform as Platform,
+        period: period as Period,
         startDate: start,
         endDate: end,
         forceRefresh: forceRefresh === 'true'
