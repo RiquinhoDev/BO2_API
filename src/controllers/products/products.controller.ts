@@ -25,7 +25,7 @@ export const getProductUsers = async (req: Request, res: Response, next: NextFun
   try {
     const baseQuery = { isDeleted: { $ne: true } }
 
-    const users = await UserModel.find(baseQuery)
+    const usersCursor = UserModel.find(baseQuery)
       .select({
         // Identificação básica
         name: 1,
@@ -70,11 +70,12 @@ export const getProductUsers = async (req: Request, res: Response, next: NextFun
         // Combined (para engagement score)
         'combined.engagement': 1
       })
-      .limit(50000)
       .lean()
+      .cursor({ batchSize: 200 })
 
     // ✅ Type assertion para contornar o TypeScript
-    const usersAny = users as any[]
+    const usersAny: any[] = []
+    for await (const user of usersCursor) usersAny.push(user)
 
     // ✅ DEBUG: Ver quantos têm curseducaUserId (em qualquer localização)
     const withCurseducaRoot = usersAny.filter(u => u.curseducaUserId && u.curseducaUserId !== '')

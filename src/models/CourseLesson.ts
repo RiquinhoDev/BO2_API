@@ -74,7 +74,7 @@ const CourseLessonSchema = new Schema<ICourseLesson>({
   collection: 'courseLessons'
 })
 
-CourseLessonSchema.index({ moduleSequence: 1, lessonSequence: 1 })
+CourseLessonSchema.index({ moduleSequence: 1, lessonSequence: 1, _id: 1 })
 
 const CourseLesson: mongoose.Model<ICourseLesson> = mongoose.models.CourseLesson || mongoose.model<ICourseLesson>('CourseLesson', CourseLessonSchema)
 
