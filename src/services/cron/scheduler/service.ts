@@ -74,7 +74,7 @@ export class CronManagementService {
   // ═══════════════════════════════════════════════════════════
 
   async createJob(dto: CreateCronJobDTO): Promise<ICronJobConfig> {
-    console.log(`📝 Criando job: ${dto.name}`)
+    logger.info(`📝 Criando job: ${dto.name}`)
 
     // Validar cron expression
     this.validateCronExpression(dto.cronExpression)
@@ -131,7 +131,7 @@ const job = await CronJobConfig.create({
     // Agendar execução
     await this.scheduleJob(job)
 
-    console.log(`✅ Job criado: ${job.name} (próxima execução: ${nextRun.toISOString()})`)
+    logger.info(`✅ Job criado: ${job.name} (próxima execução: ${nextRun.toISOString()})`)
 
     return job
   }
@@ -144,7 +144,7 @@ const job = await CronJobConfig.create({
     jobId: mongoose.Types.ObjectId,
     dto: UpdateCronJobDTO
   ): Promise<ICronJobConfig> {
-    console.log(`📝 Atualizando job: ${jobId}`)
+    logger.info(`📝 Atualizando job: ${jobId}`)
 
     const job = await CronJobConfig.findById(jobId)
     if (!job) {
@@ -195,7 +195,7 @@ const job = await CronJobConfig.create({
     // Re-agendar
     await this.rescheduleJob(job)
 
-    console.log(`✅ Job atualizado: ${job.name}`)
+    logger.info(`✅ Job atualizado: ${job.name}`)
 
     return job
   }
@@ -205,7 +205,7 @@ const job = await CronJobConfig.create({
   // ═══════════════════════════════════════════════════════════
 
   async deleteJob(jobId: mongoose.Types.ObjectId): Promise<void> {
-    console.log(`🗑️ Deletando job: ${jobId}`)
+    logger.info(`🗑️ Deletando job: ${jobId}`)
 
     const job = await CronJobConfig.findById(jobId)
     if (!job) {
@@ -222,7 +222,7 @@ const job = await CronJobConfig.create({
     // Deletar da BD
     await CronJobConfig.deleteOne({ _id: jobId })
 
-    console.log(`✅ Job deletado: ${job.name}`)
+    logger.info(`✅ Job deletado: ${job.name}`)
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -233,7 +233,7 @@ const job = await CronJobConfig.create({
     jobId: mongoose.Types.ObjectId,
     enabled: boolean
   ): Promise<ICronJobConfig> {
-    console.log(`🔄 Toggling job ${jobId}: ${enabled ? 'ENABLED' : 'DISABLED'}`)
+    logger.info(`🔄 Toggling job ${jobId}: ${enabled ? 'ENABLED' : 'DISABLED'}`)
 
     const job = await CronJobConfig.findById(jobId)
     if (!job) {
@@ -253,7 +253,7 @@ const job = await CronJobConfig.create({
       registry.unregister(jobId.toString())
     }
 
-    console.log(`✅ Job ${enabled ? 'ativado' : 'desativado'}: ${job.name}`)
+    logger.info(`✅ Job ${enabled ? 'ativado' : 'desativado'}: ${job.name}`)
 
     return job
   }
@@ -315,7 +315,7 @@ const job = await CronJobConfig.create({
     }
 
     if (!job.schedule.enabled || !job.isActive) {
-      console.log(`⏸️ Job não agendado (disabled): ${job.name}`)
+      logger.info(`⏸️ Job não agendado (disabled): ${job.name}`)
       return
     }
 
@@ -338,11 +338,11 @@ const job = await CronJobConfig.create({
       }
       registry.register(jobId, scheduledJob)
 
-      console.log(
+      logger.info(
         `✅ Job agendado: ${job.name} (${job.schedule.cronExpression})`
       )
     } catch (error: any) {
-      console.error(`❌ Erro ao agendar job: ${job.name}`, error)
+      logger.error(`❌ Erro ao agendar job: ${job.name}`, error)
       throw error
     }
   }
@@ -358,7 +358,7 @@ const job = await CronJobConfig.create({
   // ═══════════════════════════════════════════════════════════
 
   async initializeScheduler(): Promise<void> {
-    console.log('🚀 Inicializando scheduler...')
+    logger.info('🚀 Inicializando scheduler...')
 
     // Limpar registry
     registry.clear()
@@ -368,24 +368,24 @@ const job = await CronJobConfig.create({
     // Carregar todos os jobs ativos
     const activeJobs = await CronJobConfig.getActiveJobs()
 
-    console.log(`📋 ${activeJobs.length} jobs ativos encontrados`)
+    logger.info(`📋 ${activeJobs.length} jobs ativos encontrados`)
 
     // Agendar cada job
     for (const job of activeJobs) {
       try {
         await this.scheduleJob(job)
       } catch (error: any) {
-        console.error(`⚠️ Erro ao agendar job ${job.name}:`, error.message)
+        logger.error(`⚠️ Erro ao agendar job ${job.name}:`, error.message)
       }
     }
 
-    console.log('✅ Scheduler inicializado')
+    logger.info('✅ Scheduler inicializado')
   }
 
   stopScheduler(): void {
-    console.log('🛑 Parando scheduler...')
+    logger.info('🛑 Parando scheduler...')
     registry.clear()
-    console.log('✅ Scheduler parado')
+    logger.info('✅ Scheduler parado')
   }
 
   isSchedulerActive(): boolean {

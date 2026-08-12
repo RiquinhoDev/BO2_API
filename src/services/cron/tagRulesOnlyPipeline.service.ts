@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import { Product, UserProduct, PipelineExecution } from '../../models'
 import { PipelineStepResult } from '../../types/cron.types'
 import { recalculateAllEngagementMetrics } from '../syncUtilizadoresServices/engagement/recalculate-engagement-metrics'
@@ -34,7 +35,7 @@ export interface TagRulesOnlyResult {
  * - Step 5: Evaluate Tag Rules (aplica/remove tags)
  */
 export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
-  console.log('[TAG-RULES] â–¶ï¸ FunÃ§Ã£o iniciada!')
+  logger.info('[TAG-RULES] â–¶ï¸ FunÃ§Ã£o iniciada!')
 
   const startTime = Date.now()
   const errors: string[] = []
@@ -44,8 +45,8 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
     timeStyle: 'short'
   })
 
-  console.log('[TAG-RULES] â–¶ï¸ Timestamp:', startTimestamp)
-  console.log('[TAG-RULES] â–¶ï¸ A criar objeto result...')
+  logger.info('[TAG-RULES] â–¶ï¸ Timestamp:', startTimestamp)
+  logger.info('[TAG-RULES] â–¶ï¸ A criar objeto result...')
 
   const result: TagRulesOnlyResult = {
     success: true,
@@ -67,13 +68,13 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
 
   try {
     // STEP 1/3: PRÃ‰-CRIAR TAGS BO
-    console.log('[TAG-RULES] â–¶ï¸ STEP 1/3: Pre-create Tags - INÃCIO')
+    logger.info('[TAG-RULES] â–¶ï¸ STEP 1/3: Pre-create Tags - INÃCIO')
     const step1Start = Date.now()
 
     try {
-      console.log('[TAG-RULES] â–¶ï¸ A chamar tagPreCreationService.preCreateBOTags()...')
+      logger.info('[TAG-RULES] â–¶ï¸ A chamar tagPreCreationService.preCreateBOTags()...')
       const preCreateResult = await tagPreCreationService.preCreateBOTags()
-      console.log('[TAG-RULES] âœ… preCreateBOTags() retornou!')
+      logger.info('[TAG-RULES] âœ… preCreateBOTags() retornou!')
 
       result.steps.preCreateTags = {
         success: preCreateResult.success,
@@ -88,10 +89,10 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
       }
 
       if (preCreateResult.failed.length > 0) {
-        console.log(`[TAG-RULES] âš ï¸ ${preCreateResult.failed.length} tags falharam: ${preCreateResult.failed.join(', ')}`)
+        logger.info(`[TAG-RULES] âš ï¸ ${preCreateResult.failed.length} tags falharam: ${preCreateResult.failed.join(', ')}`)
       }
 
-      console.log(`[TAG-RULES] âœ… STEP 1/3 DONE: ${preCreateResult.totalTags} tags, ${result.steps.preCreateTags.duration}s`)
+      logger.info(`[TAG-RULES] âœ… STEP 1/3 DONE: ${preCreateResult.totalTags} tags, ${result.steps.preCreateTags.duration}s`)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       errors.push(`Pre-create Tags: ${message}`)
@@ -101,17 +102,17 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         success: false,
         error: message
       }
-      console.log(`[TAG-RULES] âŒ STEP 1/3 ERROR: ${message}`)
+      logger.info(`[TAG-RULES] âŒ STEP 1/3 ERROR: ${message}`)
     }
 
     // STEP 2/3: RECALC ENGAGEMENT
-    console.log('[TAG-RULES] â–¶ï¸ STEP 2/3: Recalc Engagement - INÃCIO')
+    logger.info('[TAG-RULES] â–¶ï¸ STEP 2/3: Recalc Engagement - INÃCIO')
     const step2Start = Date.now()
 
     try {
-      console.log('[TAG-RULES] â–¶ï¸ A chamar recalculateAllEngagementMetrics()...')
+      logger.info('[TAG-RULES] â–¶ï¸ A chamar recalculateAllEngagementMetrics()...')
       const recalcResult = await recalculateAllEngagementMetrics()
-      console.log('[TAG-RULES] âœ… recalculateAllEngagementMetrics() retornou!')
+      logger.info('[TAG-RULES] âœ… recalculateAllEngagementMetrics() retornou!')
 
       result.steps.recalcEngagement = {
         success: recalcResult.success,
@@ -124,7 +125,7 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
 
       const total = recalcResult.stats?.total || 0
       const updated = recalcResult.stats?.updated || 0
-      console.log(`[TAG-RULES] âœ… STEP 2/3 DONE: ${total} UserProducts, ${updated} atualizados, ${result.steps.recalcEngagement.duration}s`)
+      logger.info(`[TAG-RULES] âœ… STEP 2/3 DONE: ${total} UserProducts, ${updated} atualizados, ${result.steps.recalcEngagement.duration}s`)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       errors.push(`Recalc Engagement: ${message}`)
@@ -134,26 +135,26 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         success: false,
         error: message
       }
-      console.log(`[TAG-RULES] âŒ STEP 2/3 ERROR: ${message}`)
+      logger.info(`[TAG-RULES] âŒ STEP 2/3 ERROR: ${message}`)
     }
 
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // ðŸ“¸ SNAPSHOT PRE (antes de aplicar tags)
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    console.log('[TAG-RULES] ðŸ“¸ Capturando snapshot PRE...')
+    logger.info('[TAG-RULES] ðŸ“¸ Capturando snapshot PRE...')
     let preSnapshot: PipelineSnapshot | null = null
     try {
       preSnapshot = await pipelineSnapshotService.captureSnapshot('PRE')
       await pipelineSnapshotService.saveSnapshot(preSnapshot, 'snapshot_PRE_tagrules.json')
-      console.log(`[TAG-RULES] âœ… Snapshot PRE: ${preSnapshot.stats.totalTags} tags, ${preSnapshot.stats.totalUsers} users`)
+      logger.info(`[TAG-RULES] âœ… Snapshot PRE: ${preSnapshot.stats.totalTags} tags, ${preSnapshot.stats.totalUsers} users`)
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
-      console.log(`[TAG-RULES] âš ï¸ Erro ao capturar snapshot PRE: ${message}`)
+      logger.info(`[TAG-RULES] âš ï¸ Erro ao capturar snapshot PRE: ${message}`)
     }
 
     // STEP 3/3: EVALUATE TAG RULES
-    console.log('[TAG-RULES] â–¶ï¸ STEP 3/3: Tag Rules - INÃCIO')
+    logger.info('[TAG-RULES] â–¶ï¸ STEP 3/3: Tag Rules - INÃCIO')
     const step3Start = Date.now()
 
     try {
@@ -172,16 +173,16 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         code: { $in: PRODUCTS_TO_SKIP }
       }).select('_id').lean()
       const productIdsToSkip = new Set(productsToSkip.map((product) => product._id.toString()))
-      console.log(`[TAG-RULES] ðŸš« Produtos a ignorar: ${PRODUCTS_TO_SKIP.join(', ')}`)
+      logger.info(`[TAG-RULES] ðŸš« Produtos a ignorar: ${PRODUCTS_TO_SKIP.join(', ')}`)
 
-      console.log('[TAG-RULES] â–¶ï¸ A buscar UserProducts ativos...')
+      logger.info('[TAG-RULES] â–¶ï¸ A buscar UserProducts ativos...')
       const userProducts = await UserProduct.find({ status: 'ACTIVE' })
         .select('userId productId metadata engagement')
         .populate({ path: 'userId', select: 'hotmart.lastAccessDate hotmart.firstAccessDate hotmart.progress.lastAccessDate metadata.purchaseDate email' })
         .populate({ path: 'productId', select: 'code' })
         .lean<PipelineUserProduct[]>()
 
-      console.log(`[TAG-RULES] ðŸ“Š Total UserProducts ativos: ${userProducts.length}`)
+      logger.info(`[TAG-RULES] ðŸ“Š Total UserProducts ativos: ${userProducts.length}`)
 
       // Filtrar produtos sem regras de tags (DISCORD_COMMUNITY, etc)
       const userProductsWithTags = userProducts.filter((up) => {
@@ -191,13 +192,13 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
       })
       const skippedCount = userProducts.length - userProductsWithTags.length
       if (skippedCount > 0) {
-        console.log(`[TAG-RULES] ðŸš« ${skippedCount} UserProducts de produtos sem tags ignorados`)
+        logger.info(`[TAG-RULES] ðŸš« ${skippedCount} UserProducts de produtos sem tags ignorados`)
       }
 
       const validUserProducts = userProductsWithTags.filter(hasPipelineReferences)
       const orphanCount = userProductsWithTags.length - validUserProducts.length
       if (orphanCount > 0) {
-        console.log(`[TAG-RULES] âš ï¸ ${orphanCount} UserProducts Ã³rfÃ£os ignorados`)
+        logger.info(`[TAG-RULES] âš ï¸ ${orphanCount} UserProducts Ã³rfÃ£os ignorados`)
       }
 
       const filteredUserProducts = validUserProducts.filter((up) => {
@@ -218,7 +219,7 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
 
       const filteredCount = validUserProducts.length - filteredUserProducts.length
       if (filteredCount > 0) {
-        console.log(`[TAG-RULES] ðŸ” Filtrados ${filteredCount} alunos OGI_V1 inativos`)
+        logger.info(`[TAG-RULES] ðŸ” Filtrados ${filteredCount} alunos OGI_V1 inativos`)
       }
 
       const items = filteredUserProducts
@@ -233,7 +234,7 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
       let totalTagsRemoved = 0
       let totalErrors = 0
 
-      console.log(`[TAG-RULES] ðŸš€ A processar ${items.length} UserProducts...`)
+      logger.info(`[TAG-RULES] ðŸš€ A processar ${items.length} UserProducts...`)
 
       for (const item of items) {
         const itemResult = await tagOrchestratorV2.orchestrateUserProduct(item.userId, item.productId)
@@ -268,12 +269,12 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
           const etaMin = Math.floor(etaSec / 60)
           const etaSecRemainder = etaSec % 60
 
-          console.log(`[TAG-RULES] ðŸ“Š ${percentage}% (${processed}/${items.length}) | +${totalTagsApplied} -${totalTagsRemoved} tags | ${totalErrors} erros | ETA: ${etaMin}m${etaSecRemainder}s`)
+          logger.info(`[TAG-RULES] ðŸ“Š ${percentage}% (${processed}/${items.length}) | +${totalTagsApplied} -${totalTagsRemoved} tags | ${totalErrors} erros | ETA: ${etaMin}m${etaSecRemainder}s`)
           lastLoggedPercent = percentage
         }
       }
 
-      console.log(`[TAG-RULES] âœ… Processamento completo: ${items.length} UserProducts em ${Math.floor((Date.now() - step3Start) / 1000)}s`)
+      logger.info(`[TAG-RULES] âœ… Processamento completo: ${items.length} UserProducts em ${Math.floor((Date.now() - step3Start) / 1000)}s`)
 
       const stats = tagOrchestratorV2.getExecutionStats(orchestrationResults)
 
@@ -301,7 +302,7 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
       result.summary.tagsApplied = tagsApplied
       result.summary.tagsRemoved = tagsRemoved
 
-      console.log(`[TAG-RULES] âœ… STEP 3/3 DONE: +${tagsApplied} tags, -${tagsRemoved} tags, ${result.steps.evaluateTagRules.duration}s`)
+      logger.info(`[TAG-RULES] âœ… STEP 3/3 DONE: +${tagsApplied} tags, -${tagsRemoved} tags, ${result.steps.evaluateTagRules.duration}s`)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       errors.push(`Tag Rules: ${message}`)
@@ -312,41 +313,41 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         stats: { total: 0, successful: 0, failed: 1, tagsApplied: 0, tagsRemoved: 0 },
         error: message
       }
-      console.log(`[TAG-RULES] âŒ STEP 3/3 ERROR: ${message}`)
+      logger.info(`[TAG-RULES] âŒ STEP 3/3 ERROR: ${message}`)
     }
 
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // ðŸ“¸ SNAPSHOT POST (depois de aplicar tags)
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    console.log('[TAG-RULES] ðŸ“¸ Capturando snapshot POST...')
+    logger.info('[TAG-RULES] ðŸ“¸ Capturando snapshot POST...')
     let postSnapshot: PipelineSnapshot | null = null
     let comparison: SnapshotComparison | null = null
 
     try {
       postSnapshot = await pipelineSnapshotService.captureSnapshot('POST')
       await pipelineSnapshotService.saveSnapshot(postSnapshot, 'snapshot_POST_tagrules.json')
-      console.log(`[TAG-RULES] âœ… Snapshot POST: ${postSnapshot.stats.totalTags} tags, ${postSnapshot.stats.totalUsers} users`)
+      logger.info(`[TAG-RULES] âœ… Snapshot POST: ${postSnapshot.stats.totalTags} tags, ${postSnapshot.stats.totalUsers} users`)
 
       // Comparar snapshots se ambos existirem
       if (preSnapshot && postSnapshot) {
-        console.log('[TAG-RULES] ðŸ” Comparando snapshots PRE vs POST...')
+        logger.info('[TAG-RULES] ðŸ” Comparando snapshots PRE vs POST...')
         comparison = pipelineSnapshotService.compareSnapshots(preSnapshot, postSnapshot)
 
         await pipelineSnapshotService.saveComparison(comparison, 'comparison_tagrules.json')
         await pipelineSnapshotService.saveMarkdownReport(comparison, 'report_tagrules.md')
 
-        console.log('[TAG-RULES] âœ… ComparaÃ§Ã£o:', {
+        logger.info('[TAG-RULES] âœ… ComparaÃ§Ã£o:', {
           tagsAdded: comparison.diff.summary.totalTagsAdded,
           tagsRemoved: comparison.diff.summary.totalTagsRemoved,
           usersAffected: comparison.diff.summary.usersAffected
         })
 
-        console.log('[TAG-RULES] ðŸ“‚ Ficheiros salvos em: ./snapshots/')
+        logger.info('[TAG-RULES] ðŸ“‚ Ficheiros salvos em: ./snapshots/')
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
-      console.log(`[TAG-RULES] âš ï¸ Erro ao capturar snapshot POST: ${message}`)
+      logger.info(`[TAG-RULES] âš ï¸ Erro ao capturar snapshot POST: ${message}`)
     }
 
     // FINALIZAR
@@ -361,24 +362,24 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
       timeStyle: 'short'
     })
 
-    console.log('â”'.repeat(60))
+    logger.info('â”'.repeat(60))
     if (result.success) {
-      console.log('[TAG-RULES] ðŸŽ‰ COMPLETO COM SUCESSO')
+      logger.info('[TAG-RULES] ðŸŽ‰ COMPLETO COM SUCESSO')
     } else {
-      console.log('[TAG-RULES] âš ï¸ COMPLETO COM ERROS')
+      logger.info('[TAG-RULES] âš ï¸ COMPLETO COM ERROS')
     }
-    console.log(`[TAG-RULES] Fim: ${endTimestamp} | DuraÃ§Ã£o: ${durationMin}min ${durationSec}s`)
-    console.log('[TAG-RULES] ðŸ“Š RESUMO:')
-    console.log(`[TAG-RULES]    STEP 1 - Pre-create:   ${result.steps.preCreateTags.duration}s | ${result.steps.preCreateTags.stats?.totalTags || 0} tags`)
-    console.log(`[TAG-RULES]    STEP 2 - Engagement:   ${result.steps.recalcEngagement.duration}s | ${result.steps.recalcEngagement.stats?.updated || 0} atualizados`)
-    console.log(`[TAG-RULES]    STEP 3 - Tag Rules:    ${result.steps.evaluateTagRules.duration}s | +${result.summary.tagsApplied}/-${result.summary.tagsRemoved} tags`)
-    console.log(`[TAG-RULES] ðŸ“ˆ Total: ${result.summary.totalUserProducts} UserProducts | +${result.summary.tagsApplied} -${result.summary.tagsRemoved} tags`)
+    logger.info(`[TAG-RULES] Fim: ${endTimestamp} | DuraÃ§Ã£o: ${durationMin}min ${durationSec}s`)
+    logger.info('[TAG-RULES] ðŸ“Š RESUMO:')
+    logger.info(`[TAG-RULES]    STEP 1 - Pre-create:   ${result.steps.preCreateTags.duration}s | ${result.steps.preCreateTags.stats?.totalTags || 0} tags`)
+    logger.info(`[TAG-RULES]    STEP 2 - Engagement:   ${result.steps.recalcEngagement.duration}s | ${result.steps.recalcEngagement.stats?.updated || 0} atualizados`)
+    logger.info(`[TAG-RULES]    STEP 3 - Tag Rules:    ${result.steps.evaluateTagRules.duration}s | +${result.summary.tagsApplied}/-${result.summary.tagsRemoved} tags`)
+    logger.info(`[TAG-RULES] ðŸ“ˆ Total: ${result.summary.totalUserProducts} UserProducts | +${result.summary.tagsApplied} -${result.summary.tagsRemoved} tags`)
 
     if (errors.length > 0) {
-      console.log(`[TAG-RULES] âŒ ERROS (${errors.length}):`)
-      errors.forEach((err, i) => console.log(`[TAG-RULES]    ${i + 1}. ${err}`))
+      logger.info(`[TAG-RULES] âŒ ERROS (${errors.length}):`)
+      errors.forEach((err, i) => logger.info(`[TAG-RULES]    ${i + 1}. ${err}`))
     }
-    console.log('â”'.repeat(60))
+    logger.info('â”'.repeat(60))
 
     // Salvar histÃ³rico
     try {
@@ -393,10 +394,10 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         errorMessages: result.errors,
         triggeredBy: 'API'
       })
-      console.log('[TAG-RULES] ðŸ’¾ HistÃ³rico salvo')
+      logger.info('[TAG-RULES] ðŸ’¾ HistÃ³rico salvo')
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
-      console.log(`[TAG-RULES] âŒ Erro ao salvar histÃ³rico: ${message}`)
+      logger.info(`[TAG-RULES] âŒ Erro ao salvar histÃ³rico: ${message}`)
     }
 
     return result
@@ -408,10 +409,10 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
     result.completedAt = new Date()
     result.errors = [...errors, `Tag Rules Only fatal: ${message}`]
 
-    console.log('â”'.repeat(60))
-    console.log('[TAG-RULES] âŒ FALHOU COMPLETAMENTE')
-    console.log(`[TAG-RULES] Erro: ${message}`)
-    console.log('â”'.repeat(60))
+    logger.info('â”'.repeat(60))
+    logger.info('[TAG-RULES] âŒ FALHOU COMPLETAMENTE')
+    logger.info(`[TAG-RULES] Erro: ${message}`)
+    logger.info('â”'.repeat(60))
 
     return result
   }

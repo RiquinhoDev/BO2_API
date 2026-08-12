@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 // ════════════════════════════════════════════════════════════════════
 // 📊 ANALYTICS CALCULATOR SERVICE
 // ════════════════════════════════════════════════════════════════════
@@ -40,7 +41,7 @@ class AnalyticsCalculatorService {
    * Calcula todas as métricas para um período
    */
   async calculateMetrics(options: CalculateMetricsOptions) {
-    console.log('🧮 [Analytics Calculator] Iniciando cálculo de métricas...')
+    logger.info('🧮 [Analytics Calculator] Iniciando cálculo de métricas...')
     const startTime = Date.now()
     
     const {
@@ -65,7 +66,7 @@ class AnalyticsCalculatorService {
       .populate('productId', 'name platform')
       .lean()
     
-    console.log(`   📊 ${currentPeriodUPs.length} UserProducts no período atual`)
+    logger.info(`   📊 ${currentPeriodUPs.length} UserProducts no período atual`)
     
     // Buscar UserProducts do período anterior (para comparação)
     let previousPeriodUPs: AnalyticsUserProduct[] = []
@@ -80,7 +81,7 @@ class AnalyticsCalculatorService {
       }
       
       previousPeriodUPs = await UserProduct.find(previousQuery).lean()
-      console.log(`   📊 ${previousPeriodUPs.length} UserProducts no período anterior`)
+      logger.info(`   📊 ${previousPeriodUPs.length} UserProducts no período anterior`)
     }
     
     // Calcular métricas
@@ -108,7 +109,7 @@ class AnalyticsCalculatorService {
     }
     
     const duration = Date.now() - startTime
-    console.log(`✅ [Analytics Calculator] Métricas calculadas em ${duration}ms`)
+    logger.info(`✅ [Analytics Calculator] Métricas calculadas em ${duration}ms`)
     
     return metrics
   }

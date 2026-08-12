@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 import { NextFunction, Request, Response } from 'express';
 import mongoose from 'mongoose';
 
@@ -115,7 +116,7 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
 // ═══════════════════════════════════════════════════════════════════════════
 export const getProductsBreakdown = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('📦 [PRODUCTS BREAKDOWN - DUAL READ]');
+    logger.info('📦 [PRODUCTS BREAKDOWN - DUAL READ]');
     const { platforms } = req.query;
 
     // 🔄 USAR DUAL READ
@@ -185,7 +186,7 @@ export const getProductsBreakdown = async (req: Request, res: Response, next: Ne
         : 0
     })).sort((a, b) => b.totalStudents - a.totalStudents);
 
-    console.log(`   ✅ ${breakdown.length} produtos analisados`);
+    logger.info(`   ✅ ${breakdown.length} produtos analisados`);
 
     res.json({
       success: true,
@@ -317,7 +318,7 @@ export const compareProducts = async (req: Request, res: Response, next: NextFun
  * Endpoint: GET /api/dashboard/materialized-stats
  */export const getDashboardStatsV3 = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('\n📊 [STATS V3 - MATERIALIZED VIEW] Carregando stats pré-calculados...');
+    logger.info('\n📊 [STATS V3 - MATERIALIZED VIEW] Carregando stats pré-calculados...');
     const startTime = Date.now();
     
     // 🚀 SOLUÇÃO: Ler de materialized view (50ms ao invés de 80s!)
@@ -334,7 +335,7 @@ export const compareProducts = async (req: Request, res: Response, next: NextFun
     }
     
     const duration = Date.now() - startTime;
-    console.log(`✅ [STATS V3] Carregado em ${duration}ms (materialized view)`);
+    logger.info(`✅ [STATS V3] Carregado em ${duration}ms (materialized view)`);
     
     res.json({
       success: true,
@@ -380,7 +381,7 @@ export const searchDashboard = async (req: Request, res: Response, next: NextFun
         count: 0
       }));
     }
-    console.log(`🔍 [SEARCH] Procurando: "${q}"`);
+    logger.info(`🔍 [SEARCH] Procurando: "${q}"`);
 
     const users = await User.find({
       $or: [
@@ -392,7 +393,7 @@ export const searchDashboard = async (req: Request, res: Response, next: NextFun
       .select('name email')
       .lean();
 
-    console.log(`   ✅ ${users.length} users encontrados`);
+    logger.info(`   ✅ ${users.length} users encontrados`);
 
     const userIds = users.map(u => u._id);
     const userProducts = await UserProduct.find({

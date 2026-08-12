@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 🧹 CRON EXECUTION CLEANUP JOB
 // ════════════════════════════════════════════════════════════
@@ -21,10 +22,10 @@ const RETENTION_DAYS = 90 // Manter últimos 90 dias
 const CRON_SCHEDULE = '0 3 * * 0' // Domingos às 03:00
 const MIN_RECORDS_TO_KEEP = 100 // Sempre manter pelo menos 100 registos
 
-console.log(`⚠️ CronExecutionCleanup: DESATIVADO (migrado para wizard CRON)`)
-console.log(`   Schedule original: ${CRON_SCHEDULE} (Domingos às 03:00)`)
-console.log(`   Retenção: ${RETENTION_DAYS} dias`)
-console.log(`   Mínimo a manter: ${MIN_RECORDS_TO_KEEP} registos`)
+logger.info(`⚠️ CronExecutionCleanup: DESATIVADO (migrado para wizard CRON)`)
+logger.info(`   Schedule original: ${CRON_SCHEDULE} (Domingos às 03:00)`)
+logger.info(`   Retenção: ${RETENTION_DAYS} dias`)
+logger.info(`   Mínimo a manter: ${MIN_RECORDS_TO_KEEP} registos`)
 
 // ─────────────────────────────────────────────────────────────
 // FUNÇÃO DE LIMPEZA
@@ -38,9 +39,9 @@ async function cleanupOldExecutions(): Promise<{
 }> {
   const executionId = `CLEANUP-${Date.now()}`
   
-  console.log(`\n${'═'.repeat(70)}`)
-  console.log(`🧹 INICIANDO LIMPEZA DE HISTÓRICO - ${executionId}`)
-  console.log(`${'═'.repeat(70)}`)
+  logger.info(`\n${'═'.repeat(70)}`)
+  logger.info(`🧹 INICIANDO LIMPEZA DE HISTÓRICO - ${executionId}`)
+  logger.info(`${'═'.repeat(70)}`)
 
   const startTime = Date.now()
 
@@ -49,23 +50,23 @@ async function cleanupOldExecutions(): Promise<{
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS)
 
-    console.log(`📅 Data limite: ${cutoffDate.toISOString()}`)
-    console.log(`   Registos anteriores a esta data serão removidos`)
+    logger.info(`📅 Data limite: ${cutoffDate.toISOString()}`)
+    logger.info(`   Registos anteriores a esta data serão removidos`)
 
     // Contar total de registos
     const totalBefore = await CronExecution.countDocuments()
-    console.log(`📊 Total de registos ANTES: ${totalBefore}`)
+    logger.info(`📊 Total de registos ANTES: ${totalBefore}`)
 
     // Contar registos a remover
     const toDelete = await CronExecution.countDocuments({
       startTime: { $lt: cutoffDate }
     })
-    console.log(`🗑️  Registos candidatos à remoção: ${toDelete}`)
+    logger.info(`🗑️  Registos candidatos à remoção: ${toDelete}`)
 
     // ✅ PROTEÇÃO: Sempre manter pelo menos MIN_RECORDS_TO_KEEP
     if (totalBefore - toDelete < MIN_RECORDS_TO_KEEP) {
-      console.log(`⚠️  PROTEÇÃO ATIVADA: Manter pelo menos ${MIN_RECORDS_TO_KEEP} registos`)
-      console.log(`   Nenhum registo será removido nesta execução`)
+      logger.info(`⚠️  PROTEÇÃO ATIVADA: Manter pelo menos ${MIN_RECORDS_TO_KEEP} registos`)
+      logger.info(`   Nenhum registo será removido nesta execução`)
       
       return {
         success: true,
@@ -85,14 +86,14 @@ async function cleanupOldExecutions(): Promise<{
 
     const duration = Date.now() - startTime
 
-    console.log(`\n${'─'.repeat(70)}`)
-    console.log(`✅ LIMPEZA CONCLUÍDA`)
-    console.log(`${'─'.repeat(70)}`)
-    console.log(`🗑️  Registos removidos: ${result.deletedCount}`)
-    console.log(`📊 Registos restantes: ${totalAfter}`)
-    console.log(`💾 Espaço liberado: ~${(result.deletedCount * 0.5).toFixed(2)} KB (estimado)`)
-    console.log(`⏱️  Tempo total: ${(duration / 1000).toFixed(2)}s`)
-    console.log(`${'═'.repeat(70)}\n`)
+    logger.info(`\n${'─'.repeat(70)}`)
+    logger.info(`✅ LIMPEZA CONCLUÍDA`)
+    logger.info(`${'─'.repeat(70)}`)
+    logger.info(`🗑️  Registos removidos: ${result.deletedCount}`)
+    logger.info(`📊 Registos restantes: ${totalAfter}`)
+    logger.info(`💾 Espaço liberado: ~${(result.deletedCount * 0.5).toFixed(2)} KB (estimado)`)
+    logger.info(`⏱️  Tempo total: ${(duration / 1000).toFixed(2)}s`)
+    logger.info(`${'═'.repeat(70)}\n`)
 
     return {
       success: true,
@@ -103,12 +104,12 @@ async function cleanupOldExecutions(): Promise<{
   } catch (error: any) {
     const duration = Date.now() - startTime
     
-    console.error(`\n${'═'.repeat(70)}`)
-    console.error(`❌ ERRO NA LIMPEZA - ${executionId}`)
-    console.error(`${'═'.repeat(70)}`)
-    console.error(`Erro: ${error.message}`)
-    console.error(`Tempo até falha: ${(duration / 1000).toFixed(2)}s`)
-    console.error(`${'═'.repeat(70)}\n`)
+    logger.error(`\n${'═'.repeat(70)}`)
+    logger.error(`❌ ERRO NA LIMPEZA - ${executionId}`)
+    logger.error(`${'═'.repeat(70)}`)
+    logger.error(`Erro: ${error.message}`)
+    logger.error(`Tempo até falha: ${(duration / 1000).toFixed(2)}s`)
+    logger.error(`${'═'.repeat(70)}\n`)
 
     return {
       success: false,
@@ -124,7 +125,7 @@ async function cleanupOldExecutions(): Promise<{
 // ─────────────────────────────────────────────────────────────
 
 export async function runCleanupManually(dryRun: boolean = false): Promise<any> {
-  console.log(`🧪 Executando limpeza manual${dryRun ? ' (DRY RUN)' : ''}...`)
+  logger.info(`🧪 Executando limpeza manual${dryRun ? ' (DRY RUN)' : ''}...`)
   
   if (dryRun) {
     const cutoffDate = new Date()
@@ -135,10 +136,10 @@ export async function runCleanupManually(dryRun: boolean = false): Promise<any> 
       startTime: { $lt: cutoffDate }
     })
 
-    console.log(`📊 Total de registos: ${totalBefore}`)
-    console.log(`🗑️  Registos a remover: ${toDelete}`)
-    console.log(`📅 Data limite: ${cutoffDate.toISOString()}`)
-    console.log(`🔍 DRY RUN - Nenhum registo foi removido`)
+    logger.info(`📊 Total de registos: ${totalBefore}`)
+    logger.info(`🗑️  Registos a remover: ${toDelete}`)
+    logger.info(`📅 Data limite: ${cutoffDate.toISOString()}`)
+    logger.info(`🔍 DRY RUN - Nenhum registo foi removido`)
 
     return {
       success: true,

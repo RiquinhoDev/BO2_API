@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 // ════════════════════════════════════════════════════════════════════
 // 💾 ANALYTICS CACHE SERVICE - VERSÃO FINAL CORRIGIDA
 // ════════════════════════════════════════════════════════════════════
@@ -86,7 +87,7 @@ class AnalyticsCacheService {
    * Buscar métricas do cache ou calcular se necessário
    */
   async getOrCalculateMetrics(options: CacheOptions): Promise<ICacheMetrics> {
-    console.log('💾 [Cache Service] Buscando métricas...')
+    logger.info('💾 [Cache Service] Buscando métricas...')
     const startTime = Date.now()
     
     const {
@@ -100,7 +101,7 @@ class AnalyticsCacheService {
     
     // Se forceRefresh, recalcular sempre
     if (forceRefresh) {
-      console.log('   🔄 Force refresh solicitado')
+      logger.info('   🔄 Force refresh solicitado')
       return await this.calculateSingleflight(options)
     }
     
@@ -119,24 +120,24 @@ class AnalyticsCacheService {
       const age = Date.now() - cache.calculatedAt.getTime()
       const ageMinutes = Math.round(age / 60000)
       
-      console.log(`   ✅ Cache encontrado (idade: ${ageMinutes}min)`)
+      logger.info(`   ✅ Cache encontrado (idade: ${ageMinutes}min)`)
       
       // Se cache precisa refresh (50% da vida), fazer refresh assíncrono
       if (cache.needsRefresh()) {
-        console.log('   🔄 Iniciando refresh assíncrono do cache...')
+        logger.info('   🔄 Iniciando refresh assíncrono do cache...')
         this.calculateSingleflight(options).catch(err => {
-          console.error('   ❌ Erro no refresh assíncrono:', err)
+          logger.error('   ❌ Erro no refresh assíncrono:', err)
         })
       }
       
       const duration = Date.now() - startTime
-      console.log(`💾 [Cache Service] Métricas retornadas do cache em ${duration}ms`)
+      logger.info(`💾 [Cache Service] Métricas retornadas do cache em ${duration}ms`)
       
       return cache.metrics
     }
     
     // Cache não encontrado, calcular
-    console.log('   ⚠️ Cache não encontrado, calculando...')
+    logger.info('   ⚠️ Cache não encontrado, calculando...')
     return await this.calculateSingleflight(options)
   }
   
@@ -172,7 +173,7 @@ class AnalyticsCacheService {
   }
 
   private async calculateAndCache(options: CacheOptions): Promise<ICacheMetrics> {
-    console.log('🧮 [Cache Service] Calculando novas métricas...')
+    logger.info('🧮 [Cache Service] Calculando novas métricas...')
     const startTime = Date.now()
     
     const {
@@ -234,12 +235,12 @@ class AnalyticsCacheService {
       )
       
       const duration = Date.now() - startTime
-      console.log(`✅ [Cache Service] Métricas calculadas e cacheadas em ${duration}ms`)
-      console.log(`   📅 Expira em: ${expiresAt.toISOString()}`)
+      logger.info(`✅ [Cache Service] Métricas calculadas e cacheadas em ${duration}ms`)
+      logger.info(`   📅 Expira em: ${expiresAt.toISOString()}`)
       
       return metrics
     } catch (error) {
-      console.error('❌ [Cache Service] Erro ao salvar cache:', error)
+      logger.error('❌ [Cache Service] Erro ao salvar cache:', error)
       // Retornar métricas mesmo se falhar ao cachear
       return metrics
     }
@@ -249,11 +250,11 @@ class AnalyticsCacheService {
    * Invalidar cache de um produto específico
    */
   async invalidateProduct(productId: string): Promise<number> {
-    console.log(`🗑️ [Cache Service] Invalidando cache do produto ${productId}...`)
+    logger.info(`🗑️ [Cache Service] Invalidando cache do produto ${productId}...`)
     
     const result = await AnalyticsCache.deleteMany({ productId })
     
-    console.log(`✅ ${result.deletedCount} caches invalidados`)
+    logger.info(`✅ ${result.deletedCount} caches invalidados`)
     return result.deletedCount
   }
   
@@ -261,11 +262,11 @@ class AnalyticsCacheService {
    * Invalidar cache de uma plataforma
    */
   async invalidatePlatform(platform: 'hotmart' | 'curseduca' | 'discord'): Promise<number> {
-    console.log(`🗑️ [Cache Service] Invalidando cache da plataforma ${platform}...`)
+    logger.info(`🗑️ [Cache Service] Invalidando cache da plataforma ${platform}...`)
     
     const result = await AnalyticsCache.deleteMany({ platform })
     
-    console.log(`✅ ${result.deletedCount} caches invalidados`)
+    logger.info(`✅ ${result.deletedCount} caches invalidados`)
     return result.deletedCount
   }
   
@@ -273,11 +274,11 @@ class AnalyticsCacheService {
    * Invalidar todo o cache (quando lógica muda)
    */
   async invalidateAll(): Promise<number> {
-    console.log('🗑️ [Cache Service] Invalidando TODO o cache...')
+    logger.info('🗑️ [Cache Service] Invalidando TODO o cache...')
     
     const result = await AnalyticsCache.deleteMany({})
     
-    console.log(`✅ ${result.deletedCount} caches invalidados`)
+    logger.info(`✅ ${result.deletedCount} caches invalidados`)
     return result.deletedCount
   }
   
@@ -285,13 +286,13 @@ class AnalyticsCacheService {
    * Limpar cache expirado (executar periodicamente)
    */
   async cleanExpired(): Promise<number> {
-    console.log('🧹 [Cache Service] Limpando caches expirados...')
+    logger.info('🧹 [Cache Service] Limpando caches expirados...')
     
     const result = await AnalyticsCache.deleteMany({
       expiresAt: { $lt: new Date() }
     })
     
-    console.log(`✅ ${result.deletedCount} caches expirados removidos`)
+    logger.info(`✅ ${result.deletedCount} caches expirados removidos`)
     return result.deletedCount
   }
   
@@ -299,7 +300,7 @@ class AnalyticsCacheService {
    * Obter estatísticas do cache
    */
   async getCacheStats() {
-    console.log('📊 [Cache Service] Coletando estatísticas...')
+    logger.info('📊 [Cache Service] Coletando estatísticas...')
     
     const [
       total,
@@ -362,7 +363,7 @@ class AnalyticsCacheService {
    * Pre-aquecer cache (calcular métricas comuns antecipadamente)
    */
   async warmUpCache() {
-    console.log('🔥 [Cache Service] Aquecendo cache...')
+    logger.info('🔥 [Cache Service] Aquecendo cache...')
     
     const now = new Date()
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -392,12 +393,12 @@ class AnalyticsCacheService {
         await this.getOrCalculateMetrics(period)
         results.push({ period: period.period, success: true })
       } catch (error) {
-        console.error(`❌ Erro ao aquecer cache ${period.period}:`, error)
+        logger.error(`❌ Erro ao aquecer cache ${period.period}:`, error)
         results.push({ period: period.period, success: false, error })
       }
     }
     
-    console.log(`✅ [Cache Service] Cache aquecido: ${results.filter(r => r.success).length}/${results.length} sucessos`)
+    logger.info(`✅ [Cache Service] Cache aquecido: ${results.filter(r => r.success).length}/${results.length} sucessos`)
     
     return results
   }

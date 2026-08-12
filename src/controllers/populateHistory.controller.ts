@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 // ══════════════════════════════════════════════════════════════════════
 // 📁 src/controllers/populateHistory.controller.ts
 // Controller para popular histórico retroativo dos alunos
@@ -34,14 +35,14 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
       })
     }
 
-    console.log(`\n📋 [POPULATE] Populando histórico retroativo para ${user.email}...`)
+    logger.info(`\n📋 [POPULATE] Populando histórico retroativo para ${user.email}...`)
 
     // Buscar produtos do user
     const products = await UserProduct.find({ userId: user._id })
       .populate('productId', 'name code platform')
       .sort({ enrolledAt: 1 }) // Ordenar por data de inscrição
 
-    console.log(`✅ [POPULATE] ${products.length} produtos encontrados`)
+    logger.info(`✅ [POPULATE] ${products.length} produtos encontrados`)
 
     const historyRecords: any[] = []
     let recordsCreated = 0
@@ -230,13 +231,13 @@ export const populateRetroactiveHistory = async (req: Request, res: Response, ne
         recordsCreated++
       }
 
-      console.log(`   ✅ [POPULATE] ${productName}: ${recordsCreated - historyRecords.length + products.length} eventos criados`)
+      logger.info(`   ✅ [POPULATE] ${productName}: ${recordsCreated - historyRecords.length + products.length} eventos criados`)
     }
 
     // Inserir todos os registos
     if (historyRecords.length > 0) {
       await UserHistory.insertMany(historyRecords)
-      console.log(`\n✅ [POPULATE] ${historyRecords.length} registos de histórico criados!`)
+      logger.info(`\n✅ [POPULATE] ${historyRecords.length} registos de histórico criados!`)
     }
 
     return res.status(200).json(successResponse(
@@ -281,7 +282,7 @@ export const deleteTestEvents = async (
       })
     }
 
-    console.log(`\n🗑️ [DELETE] Apagando eventos de teste para ${email}...`)
+    logger.info(`\n🗑️ [DELETE] Apagando eventos de teste para ${email}...`)
 
     // Apagar eventos com changeDate específica de teste
     const result = await UserHistory.deleteMany({
@@ -289,7 +290,7 @@ export const deleteTestEvents = async (
       changeDate: new Date('2026-01-19T17:09:06.703Z')
     })
 
-    console.log(`✅ [DELETE] ${result.deletedCount} eventos de teste apagados`)
+    logger.info(`✅ [DELETE] ${result.deletedCount} eventos de teste apagados`)
 
     // Reverter nome do user
     await User.findOneAndUpdate(
@@ -297,7 +298,7 @@ export const deleteTestEvents = async (
       { $set: { name: 'João Ferreira' } }
     )
 
-    console.log(`✅ [DELETE] Nome do user revertido`)
+    logger.info(`✅ [DELETE] Nome do user revertido`)
 
     return res.status(200).json(successResponse(
       { deletedCount: result.deletedCount },
@@ -320,13 +321,13 @@ export const populateAllUsersHistory = async (req: Request, res: Response, next:
   try {
     const { limit = 100 } = req.body
 
-    console.log(`\n📋 [POPULATE ALL] Populando histórico retroativo para até ${limit} users...`)
+    logger.info(`\n📋 [POPULATE ALL] Populando histórico retroativo para até ${limit} users...`)
 
     const users = await User.find({})
       .limit(limit)
       .select('_id email')
 
-    console.log(`✅ [POPULATE ALL] ${users.length} users encontrados`)
+    logger.info(`✅ [POPULATE ALL] ${users.length} users encontrados`)
 
     let totalRecords = 0
     const results = []
@@ -341,13 +342,13 @@ export const populateAllUsersHistory = async (req: Request, res: Response, next:
         // Usar a mesma lógica do endpoint individual
         // (código omitido por brevidade - seria igual ao de cima)
 
-        console.log(`   ✅ Processado: ${user.email}`)
+        logger.info(`   ✅ Processado: ${user.email}`)
         results.push({
           email: user.email,
           products: products.length
         })
       } catch (err: any) {
-        console.error(`   ❌ Erro em ${user.email}:`, err.message)
+        logger.error(`   ❌ Erro em ${user.email}:`, err.message)
       }
     }
 

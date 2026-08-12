@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 // ══════════════════════════════════════════════════════════════════════
 // 📁 src/controllers/testHistory.controller.ts
 // Controller de TESTE para sistema de histórico
@@ -26,7 +27,7 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
       })
     }
 
-    console.log(`\n📋 [TEST] Buscando dados de ${email}...`)
+    logger.info(`\n📋 [TEST] Buscando dados de ${email}...`)
 
     // 1. Buscar user
     const user = await User.findOne({ email })
@@ -38,13 +39,13 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
       })
     }
 
-    console.log(`✅ [TEST] User encontrado: ${user.name} (${user._id})`)
+    logger.info(`✅ [TEST] User encontrado: ${user.name} (${user._id})`)
 
     // 2. Buscar produtos
     const products = await UserProduct.find({ userId: user._id })
       .populate('productId', 'name code platform')
 
-    console.log(`✅ [TEST] ${products.length} produtos encontrados`)
+    logger.info(`✅ [TEST] ${products.length} produtos encontrados`)
 
     // 3. Guardar estado original
     const originalState = {
@@ -63,18 +64,18 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
     }
 
     // 4. Criar snapshot ANTES das alterações
-    console.log('\n📸 [TEST] Criando snapshot inicial...')
+    logger.info('\n📸 [TEST] Criando snapshot inicial...')
     await snapshotAndCompare(user, products as any[], 'manual')
 
     // 5. Fazer alterações
-    console.log('\n🔧 [TEST] Fazendo alterações...\n')
+    logger.info('\n🔧 [TEST] Fazendo alterações...\n')
 
     const changes: string[] = []
 
     // Alteração 1: Nome
     const oldName = user.name
     const newName = user.name.includes('(TESTE)') ? user.name : user.name + ' (TESTE)'
-    console.log(`1️⃣ [TEST] Nome: "${oldName}" → "${newName}"`)
+    logger.info(`1️⃣ [TEST] Nome: "${oldName}" → "${newName}"`)
     changes.push(`Nome alterado de "${oldName}" para "${newName}"`)
 
     // Atualizar apenas o nome, sem validação do modelo completo
@@ -85,7 +86,7 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
     // Alteração 2: Engagement médio
     const oldEngagement = user.combined?.combinedEngagement || 50
     const newEngagement = Math.min(oldEngagement + 10, 100)
-    console.log(`2️⃣ [TEST] Engagement: ${oldEngagement} → ${newEngagement}`)
+    logger.info(`2️⃣ [TEST] Engagement: ${oldEngagement} → ${newEngagement}`)
     changes.push(`Engagement alterado de ${oldEngagement} para ${newEngagement}`)
 
     // Atualizar apenas o engagement canónico, sem validação do modelo completo
@@ -101,7 +102,7 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
       // 3. Progresso
       const oldProgress = product.progress?.percentage || 0
       const newProgress = Math.min(oldProgress + 15, 100)
-      console.log(`3️⃣ [TEST] Progresso em "${productName}": ${oldProgress}% → ${newProgress}%`)
+      logger.info(`3️⃣ [TEST] Progresso em "${productName}": ${oldProgress}% → ${newProgress}%`)
       changes.push(`Progresso em ${productName} alterado de ${oldProgress}% para ${newProgress}%`)
 
       await UserProduct.findByIdAndUpdate(product._id, {
@@ -111,7 +112,7 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
       // 4. Lições
       const oldLessons = product.progress?.completed || 0
       const newLessons = oldLessons + 5
-      console.log(`4️⃣ [TEST] Lições em "${productName}": ${oldLessons} → ${newLessons}`)
+      logger.info(`4️⃣ [TEST] Lições em "${productName}": ${oldLessons} → ${newLessons}`)
       changes.push(`Lições completadas em ${productName} alteradas de ${oldLessons} para ${newLessons}`)
 
       await UserProduct.findByIdAndUpdate(product._id, {
@@ -121,7 +122,7 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
       // 5. Logins
       const oldLogins = product.engagement?.totalLogins || 0
       const newLogins = oldLogins + 20
-      console.log(`5️⃣ [TEST] Logins em "${productName}": ${oldLogins} → ${newLogins}`)
+      logger.info(`5️⃣ [TEST] Logins em "${productName}": ${oldLogins} → ${newLogins}`)
       changes.push(`Total de logins em ${productName} alterado de ${oldLogins} para ${newLogins}`)
 
       await UserProduct.findByIdAndUpdate(product._id, {
@@ -130,22 +131,22 @@ export const makeTestChanges = async (req: Request, res: Response, next: NextFun
     }
 
     // 6. Buscar estado atualizado
-    console.log('\n📊 [TEST] Buscando estado atualizado...')
+    logger.info('\n📊 [TEST] Buscando estado atualizado...')
     const updatedUser = await User.findById(user._id)
     const updatedProducts = await UserProduct.find({ userId: user._id })
       .populate('productId', 'name code platform')
 
     // 7. Criar snapshot DEPOIS e comparar
-    console.log('\n📸 [TEST] Criando snapshot final e comparando...')
+    logger.info('\n📸 [TEST] Criando snapshot final e comparando...')
     const { comparison } = await snapshotAndCompare(
       updatedUser!,
       updatedProducts as any[],
       'manual'
     )
 
-    console.log('\n✅ [TEST] Comparação concluída!')
-    console.log(`   Total de alterações: ${comparison.summary.totalChanges}`)
-    console.log(`   Alta prioridade: ${comparison.summary.highPriorityChanges}`)
+    logger.info('\n✅ [TEST] Comparação concluída!')
+    logger.info(`   Total de alterações: ${comparison.summary.totalChanges}`)
+    logger.info(`   Alta prioridade: ${comparison.summary.highPriorityChanges}`)
 
     return res.status(200).json(successResponse(
       {
@@ -193,7 +194,7 @@ export const revertTestChanges = async (req: Request, res: Response, next: NextF
       })
     }
 
-    console.log(`\n🔄 [TEST] Revertendo alterações para user ${originalState.userId}...`)
+    logger.info(`\n🔄 [TEST] Revertendo alterações para user ${originalState.userId}...`)
 
     // 1. Reverter user
     await User.findByIdAndUpdate(originalState.userId, {
@@ -203,7 +204,7 @@ export const revertTestChanges = async (req: Request, res: Response, next: NextF
       }
     })
 
-    console.log(`✅ [TEST] User revertido`)
+    logger.info(`✅ [TEST] User revertido`)
 
     // 2. Reverter produtos
     for (const product of originalState.products) {
@@ -217,7 +218,7 @@ export const revertTestChanges = async (req: Request, res: Response, next: NextF
         }
       })
 
-      console.log(`✅ [TEST] Produto ${product.productName} revertido`)
+      logger.info(`✅ [TEST] Produto ${product.productName} revertido`)
     }
 
     // 3. Criar snapshot da reversão
@@ -225,10 +226,10 @@ export const revertTestChanges = async (req: Request, res: Response, next: NextF
     const products = await UserProduct.find({ userId: originalState.userId })
       .populate('productId', 'name code platform')
 
-    console.log('\n📸 [TEST] Criando snapshot pós-reversão...')
+    logger.info('\n📸 [TEST] Criando snapshot pós-reversão...')
     await snapshotAndCompare(user!, products as any[], 'manual')
 
-    console.log('✅ [TEST] Reversão concluída!')
+    logger.info('✅ [TEST] Reversão concluída!')
 
     return res.status(200).json(successResponse(
       {

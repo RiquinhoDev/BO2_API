@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 src/jobs/dailyPipeline/tagEvaluation/evaluateStudentTags.ts
 // Função Principal de Avaliação de Tags
@@ -115,7 +116,7 @@ export async function evaluateStudentTags(
   }
 
   if (verbose && existingTestimonialTags.length > 0) {
-    console.log(`  📝 Mantendo tags de testemunhos: ${existingTestimonialTags.join(', ')}`)
+    logger.info(`  📝 Mantendo tags de testemunhos: ${existingTestimonialTags.join(', ')}`)
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -125,7 +126,7 @@ export async function evaluateStudentTags(
     const product = products.get(userProduct.productId.toString())
     if (!product) {
       if (verbose) {
-        console.log(`  ⚠️  Produto não encontrado: ${userProduct.productId}`)
+        logger.info(`  ⚠️  Produto não encontrado: ${userProduct.productId}`)
       }
       continue
     }
@@ -133,7 +134,7 @@ export async function evaluateStudentTags(
     const productName = normalizeProductName(product)
 
     if (verbose) {
-      console.log(`\n  📦 Avaliando produto: ${productName} (${product._id})`)
+      logger.info(`\n  📦 Avaliando produto: ${productName} (${product._id})`)
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -149,7 +150,7 @@ export async function evaluateStudentTags(
       })
 
       if (verbose) {
-        console.log(`    ✅ ACCOUNT_STATUS: ${accountStatusTags.join(', ')}`)
+        logger.info(`    ✅ ACCOUNT_STATUS: ${accountStatusTags.join(', ')}`)
       }
     }
 
@@ -166,7 +167,7 @@ export async function evaluateStudentTags(
       })
 
       if (verbose) {
-        console.log(`    ✅ COMPLETION: ${completionTags.join(', ')}`)
+        logger.info(`    ✅ COMPLETION: ${completionTags.join(', ')}`)
       }
     }
 
@@ -183,7 +184,7 @@ export async function evaluateStudentTags(
       })
 
       if (verbose) {
-        console.log(`    ✅ INACTIVITY: ${inactivityTags.join(', ')}`)
+        logger.info(`    ✅ INACTIVITY: ${inactivityTags.join(', ')}`)
       }
     }
 
@@ -200,7 +201,7 @@ export async function evaluateStudentTags(
       })
 
       if (verbose) {
-        console.log(`    ✅ PROGRESS: ${progressTags.join(', ')}`)
+        logger.info(`    ✅ PROGRESS: ${progressTags.join(', ')}`)
       }
     }
 
@@ -218,7 +219,7 @@ export async function evaluateStudentTags(
       })
 
       if (verbose) {
-        console.log(`    ✅ ENGAGEMENT: ${engagementTags.join(', ')} (score: ${score})`)
+        logger.info(`    ✅ ENGAGEMENT: ${engagementTags.join(', ')} (score: ${score})`)
       }
     }
 
@@ -235,7 +236,7 @@ export async function evaluateStudentTags(
       })
 
       if (verbose) {
-        console.log(`    ✅ POSITIVE: ${positiveTags.join(', ')}`)
+        logger.info(`    ✅ POSITIVE: ${positiveTags.join(', ')}`)
       }
     }
 
@@ -252,7 +253,7 @@ export async function evaluateStudentTags(
       })
 
       if (verbose) {
-        console.log(`    ✅ MODULE_STUCK: ${moduleStuckTags.join(', ')}`)
+        logger.info(`    ✅ MODULE_STUCK: ${moduleStuckTags.join(', ')}`)
       }
     }
   }
