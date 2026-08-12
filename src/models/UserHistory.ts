@@ -5,8 +5,8 @@ export interface IUserHistory {
   userId: mongoose.Types.ObjectId
   userEmail: string
   changeType: 'CLASS_CHANGE' | 'EMAIL_CHANGE' | 'MANUAL_EDIT' | 'PLATFORM_UPDATE' | 'STATUS_CHANGE' | 'INACTIVATION'
-  previousValue: Record<string, any>
-  newValue: Record<string, any>
+  previousValue: Record<string, unknown>
+  newValue: Record<string, unknown>
   platform?: 'hotmart' | 'curseduca' | 'discord' | 'system'
   field?: string
   action?: 'create' | 'update' | 'delete' | 'sync'
@@ -18,7 +18,7 @@ export interface IUserHistory {
   adminId?: string
   reason?: string
   notes?: string
-  metadata?: any
+  metadata?: { platforms?: string[] } & Record<string, unknown>
 }
 
 export interface UserHistoryModelType extends Model<IUserHistory> {

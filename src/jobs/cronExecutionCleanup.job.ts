@@ -124,7 +124,10 @@ async function cleanupOldExecutions(): Promise<{
 // EXPORTAR FUNÇÃO PARA EXECUÇÃO MANUAL
 // ─────────────────────────────────────────────────────────────
 
-export async function runCleanupManually(dryRun: boolean = false): Promise<any> {
+export async function runCleanupManually(dryRun: boolean = false): Promise<
+  Awaited<ReturnType<typeof cleanupOldExecutions>> |
+  { success: true; dryRun: true; wouldDelete: number; totalBefore: number }
+> {
   logger.info(`🧪 Executando limpeza manual${dryRun ? ' (DRY RUN)' : ''}...`)
   
   if (dryRun) {

@@ -106,7 +106,7 @@ async function executeWeeklySnapshot(): Promise<{
 // EXPORTAR FUNÇÃO PARA EXECUÇÃO MANUAL
 // ─────────────────────────────────────────────────────────────
 
-export async function runWeeklySnapshotManually(): Promise<any> {
+export async function runWeeklySnapshotManually(): Promise<Awaited<ReturnType<typeof executeWeeklySnapshot>>> {
   logger.info('🚀 Executando snapshot semanal manual...')
   return await executeWeeklySnapshot()
 }
