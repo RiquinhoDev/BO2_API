@@ -93,4 +93,43 @@ describe.each([1, 10, 100])('Guru cross-reference actions N=%i', (size) => {
       products.filter((_, index) => index % 10 !== 0).map(product => product.userId.email),
     )
   })
+  test('throttles provider reads by 300ms and stops at the budget of 20', async () => {
+    jest.useFakeTimers()
+    jest.setSystemTime(new Date('2026-08-12T12:00:00.000Z'))
+    try {
+      jest.clearAllMocks()
+      const products = Array.from({ length: size }, (_, index) => ({
+        _id: `product-${index}`,
+        status: 'PARA_INATIVAR',
+        platformUserId: `member-${index}`,
+        userId: {
+          _id: `user-${index}`,
+          email: `user-${index}@example.test`,
+          guru: { status: 'canceled' },
+          curseduca: { memberStatus: 'ACTIVE', situation: 'ACTIVE' },
+        },
+      }))
+      mockUserProductFind.mockReturnValue(productsQuery(products))
+      const callTimes: number[] = []
+      mockAxiosGet.mockImplementation(async () => {
+        callTimes.push(Date.now())
+        return { data: { situation: 'INACTIVE' } }
+      })
+      mockUserFindByIdAndUpdate.mockResolvedValue(undefined)
+      mockFindByIdAndUpdate.mockResolvedValue(undefined)
+
+      const run = runCrossReferenceAfterGuruSync()
+      await jest.runAllTimersAsync()
+      await run
+
+      const expectedCalls = Math.min(size, 20)
+      expect(mockAxiosGet).toHaveBeenCalledTimes(expectedCalls)
+      expect(callTimes).toEqual(Array.from(
+        { length: expectedCalls },
+        (_, index) => Date.parse('2026-08-12T12:00:00.000Z') + index * 300,
+      ))
+    } finally {
+      jest.useRealTimers()
+    }
+  })
 })

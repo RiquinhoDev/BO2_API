@@ -27,3 +27,9 @@ All three Guru decisions are ejected from concurrency. No stable idempotency key
 ## Scope
 
 No inventory, generator, workplan, package or Front file was edited. These decisions remain pending scalability debt by design; this task does not claim operational closure.
+
+
+## Self-review fix
+
+- Added fake-timer N=1/10/100 coverage for the post-Guru provider budget (20) and 300 ms throttle.
+- RED: temporarily removed the throttle; N=10 and N=100 observed all provider calls at the same instant and failed (2 failures).
