@@ -28,8 +28,8 @@ export const syncAllFromGuru = async (req: Request, res: Response, next: NextFun
   try {
     // Verificar se já está a decorrer um sync
     const lockKey = 'guru_sync_running'
-    const globalAny = global as any
-    if (globalAny[lockKey]) {
+    const globalState = global as typeof globalThis & Record<string, boolean | undefined>
+    if (globalState[lockKey]) {
       return res.status(409).json({
         success: false,
         message: 'Já existe uma sincronização em curso. Aguarde.'
@@ -37,7 +37,7 @@ export const syncAllFromGuru = async (req: Request, res: Response, next: NextFun
     }
 
     // Marcar como em execução
-    globalAny[lockKey] = true
+    globalState[lockKey] = true
 
     try {
       const result = await guruSyncService.syncAllSubscriptions()
@@ -59,7 +59,7 @@ export const syncAllFromGuru = async (req: Request, res: Response, next: NextFun
 
     } finally {
       // Libertar lock
-      globalAny[lockKey] = false
+      globalState[lockKey] = false
     }
 
   } catch (error: unknown) {

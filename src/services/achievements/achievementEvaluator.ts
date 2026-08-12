@@ -56,7 +56,7 @@ interface UserData {
     }>
     progress?: {
       completedLessons: number
-      lessonsData?: any[]
+      lessonsData?: unknown[]
     }
     engagement?: {
       engagementLevel?: string
@@ -179,9 +179,9 @@ function evaluateSingle(
   id: string,
   user: UserData,
   streak: StreakResult,
-  userProduct: any,
+  userProduct: AchievementUserProduct | null,
   classHistoryCount: number,
-  engagementState: any,
+  engagementState: AchievementEngagementState | null,
   classNames: string[]
 ): SingleResult {
   switch (id) {
@@ -337,7 +337,7 @@ function evaluateSingle(
 
     case 'volta_triunfal': {
       const longestInactive = engagementState?.stats?.longestStreakInactive || 0
-      const hasReturned = engagementState?.totalReturns > 0
+      const hasReturned = (engagementState?.totalReturns || 0) > 0
       return { unlocked: longestInactive >= 30 && hasReturned }
     }
 
@@ -363,31 +363,49 @@ function evaluateSingle(
 // HELPERS — Extracção de dados
 // ─────────────────────────────────────────────────────────────
 
-function getCompletedLessons(user: UserData, userProduct: any): number {
+interface AchievementUserProduct {
+  enrolledAt?: Date | string
+  progress?: {
+    completed?: number
+    lessonsCompleted?: unknown[]
+    percentage?: number
+    modulesCompleted?: unknown[]
+    modulesList?: Array<{ isCompleted?: boolean }>
+    totalModules?: number
+  }
+  engagement?: { weeksActiveLast30Days?: number }
+}
+
+interface AchievementEngagementState {
+  stats?: { longestStreakInactive?: number }
+  totalReturns?: number
+}
+
+function getCompletedLessons(user: UserData, userProduct: AchievementUserProduct | null): number {
   return userProduct?.progress?.completed
     || userProduct?.progress?.lessonsCompleted?.length
     || user.hotmart?.progress?.completedLessons
     || 0
 }
 
-function getProgressPercentage(user: UserData, userProduct: any): number {
+function getProgressPercentage(user: UserData, userProduct: AchievementUserProduct | null): number {
   if (typeof userProduct?.progress?.percentage === 'number') {
     return userProduct.progress.percentage
   }
   return user.combined?.totalProgress || 0
 }
 
-function getModulesCompleted(userProduct: any): number {
+function getModulesCompleted(userProduct: AchievementUserProduct | null): number {
   if (Array.isArray(userProduct?.progress?.modulesCompleted)) {
     return userProduct.progress.modulesCompleted.length
   }
   if (Array.isArray(userProduct?.progress?.modulesList)) {
-    return userProduct.progress.modulesList.filter((m: any) => m.isCompleted).length
+    return userProduct.progress.modulesList.filter((module) => module.isCompleted).length
   }
   return 0
 }
 
-function getTotalModules(userProduct: any): number {
+function getTotalModules(userProduct: AchievementUserProduct | null): number {
   return userProduct?.progress?.totalModules
     || userProduct?.progress?.modulesList?.length
     || 0
@@ -399,7 +417,7 @@ function getEngagementLevel(user: UserData): string {
     || 'NONE'
 }
 
-function getDaysSinceEnrollment(user: UserData, userProduct: any): number {
+function getDaysSinceEnrollment(user: UserData, userProduct: AchievementUserProduct | null): number {
   const enrolledAt = userProduct?.enrolledAt
     || user.hotmart?.purchaseDate
     || user.hotmart?.signupDate
@@ -414,8 +432,8 @@ function getDaysSinceEnrollment(user: UserData, userProduct: any): number {
 // HELPERS — Queries de dados auxiliares
 // ─────────────────────────────────────────────────────────────
 
-async function findOgiUserProduct(userId: mongoose.Types.ObjectId): Promise<any> {
-  return (UserProduct as any).findOne({
+async function findOgiUserProduct(userId: mongoose.Types.ObjectId): Promise<AchievementUserProduct | null> {
+  return UserProduct.findOne({
     userId,
     platform: 'hotmart',
   })
@@ -426,11 +444,11 @@ async function findOgiUserProduct(userId: mongoose.Types.ObjectId): Promise<any>
 }
 
 async function countClassChanges(userId: mongoose.Types.ObjectId): Promise<number> {
-  return (StudentClassHistory as any).countDocuments({ studentId: userId }).exec()
+  return StudentClassHistory.countDocuments({ studentId: userId }).exec()
 }
 
-async function findEngagementState(userId: mongoose.Types.ObjectId): Promise<any> {
-  return (StudentEngagementState as any).findOne({ userId })
+async function findEngagementState(userId: mongoose.Types.ObjectId): Promise<AchievementEngagementState | null> {
+  return StudentEngagementState.findOne({ userId })
     .select('stats totalReturns')
     .lean()
     .exec()
@@ -443,10 +461,10 @@ async function getEnrolledClassNames(user: UserData): Promise<string[]> {
 
   if (classIds.length === 0) return []
 
-  const classes = await (Class as any).find({ classId: { $in: classIds } })
+  const classes = await Class.find({ classId: { $in: classIds } })
     .select('classId name')
     .lean()
     .exec()
 
-  return classes.map((c: any) => c.name || '')
+  return classes.map((classDocument) => classDocument.name || '')
 }

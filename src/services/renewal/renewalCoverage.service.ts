@@ -15,7 +15,7 @@ import RenewalOffer from '../../models/RenewalOffer'
 import User from '../../models/user'
 import { parseTurmaName } from './turmaParser'
 
-type AggregateModel = { aggregate: (...args: any[]) => any }
+type AggregateModel = { aggregate: (...args: unknown[]) => unknown }
 const UserAgg = User as unknown as AggregateModel
 
 export interface TurmaInfo {

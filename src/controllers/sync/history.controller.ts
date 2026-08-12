@@ -23,7 +23,11 @@ export const getSyncHistory = async (req: Request, res: Response, next: NextFunc
   const skip = (+page - 1) * +limit
 
   try {
-    const matchStage: Record<string, any> = {}
+    const matchStage: {
+      type?: string
+      status?: string
+      startedAt?: { $gte?: Date; $lte?: Date }
+    } = {}
     
     if (type && typeof type === "string") {
       matchStage.type = type

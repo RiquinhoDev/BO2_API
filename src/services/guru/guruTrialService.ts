@@ -16,6 +16,13 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Erro desconhecido'
 }
 
+function subscriptionDates(value: unknown): { started_at?: string } | undefined {
+  if (typeof value !== 'object' || value === null || !('dates' in value)) return undefined
+  const dates = value.dates
+  if (typeof dates !== 'object' || dates === null || !('started_at' in dates)) return undefined
+  return typeof dates.started_at === 'string' ? { started_at: dates.started_at } : undefined
+}
+
 const TRIAL_WINDOW_DAYS = 7
 const DAY_MS = 86400000
 
@@ -28,12 +35,12 @@ export interface TrialUser {
   email: string
   name: string
   guru: {
-    status: string
-    isTrial: boolean
+    status?: string
+    isTrial?: boolean
     trialStartedAt?: Date
     trialFinishedAt?: Date
     trialConvertedAt?: Date
-    subscriptionCode: string
+    subscriptionCode?: string
     offerId?: string
     productId?: string
   }
@@ -77,7 +84,7 @@ export async function listTrials(): Promise<TrialUser[]> {
 
   const now = Date.now()
 
-  return (users as any[]).map((u) => {
+  return users.map((u) => {
     // Fim: trial_finished_at da Guru (autoritativo); fallback início + 7 dias.
     const startMs = u.guru?.trialStartedAt ? new Date(u.guru.trialStartedAt).getTime() : null
     const trialEnd = u.guru?.trialFinishedAt
@@ -189,7 +196,7 @@ export async function checkExpiredTrials(): Promise<CheckExpiredResult> {
         await user.save()
 
         // Marcar UserProducts CursEduca como PARA_INATIVAR
-        const markedCount = await markUserProductsForInactivation(user._id as any, user.email)
+        const markedCount = await markUserProductsForInactivation(user._id, user.email)
         result.markedForInactivation += markedCount
       }
     } catch (error: unknown) {
@@ -256,7 +263,7 @@ export async function syncTrialsFromGuru(): Promise<{ synced: number; errors: nu
           const code = sub.subscription_code || sub.id
           if (code) {
             const full = await fetchSubscriptionById(code)
-            startRaw = startRaw || full?.trial_started_at || (full as any)?.dates?.started_at
+            startRaw = startRaw || full?.trial_started_at || subscriptionDates(full)?.started_at
             finishRaw = finishRaw || full?.trial_finished_at
           }
         }
@@ -264,7 +271,7 @@ export async function syncTrialsFromGuru(): Promise<{ synced: number; errors: nu
         // $set direcionado (NÃO user.save()) para não revalidar o documento todo —
         // há docs com valores de enum antigos inválidos noutros campos que faziam
         // o save rebentar e impediam a atualização das datas do trial.
-        const update: Record<string, any> = {
+        const update: Record<string, unknown> = {
           'guru.isTrial': true,
           'guru.status': 'trial',
           'guru.subscriptionCode': sub.subscription_code || sub.id,
@@ -300,8 +307,8 @@ export async function syncTrialsFromGuru(): Promise<{ synced: number; errors: nu
 // HELPER — Marcar UserProducts para inativação
 // ─────────────────────────────────────────────────────────────
 
-async function markUserProductsForInactivation(userId: any, email: string): Promise<number> {
-  const result = await (UserProduct as any).updateMany(
+async function markUserProductsForInactivation(userId: string | import('mongoose').Types.ObjectId, email: string): Promise<number> {
+  const result = await UserProduct.updateMany(
     {
       userId,
       platform: 'curseduca',
@@ -344,7 +351,7 @@ export async function manuallyInactivateTrial(email: string): Promise<ManualInac
 
   // Validar que o trial já terminou (não inativar um trial a meio).
   // Fim: trial_finished_at da Guru (autoritativo); fallback início + 7 dias.
-  const g = (user as any).guru || {}
+  const g: { trialStartedAt?: Date; trialFinishedAt?: Date } = user.guru || {}
   const startMs = g.trialStartedAt ? new Date(g.trialStartedAt).getTime() : null
   const finishMs = g.trialFinishedAt
     ? new Date(g.trialFinishedAt).getTime()
@@ -361,7 +368,7 @@ export async function manuallyInactivateTrial(email: string): Promise<ManualInac
     { $set: { 'guru.isTrial': false, 'guru.status': 'expired' } }
   )
 
-  const marked = await markUserProductsForInactivation(user._id as any, normalizedEmail)
+  const marked = await markUserProductsForInactivation(user._id, normalizedEmail)
   logger.info(`🔴 [GURU TRIALS] Inativação manual de ${normalizedEmail} → ${marked} UserProducts PARA_INATIVAR`)
 
   return { email: normalizedEmail, marked, eligible: true }
@@ -386,7 +393,7 @@ export async function revertTrial(email: string): Promise<RevertTrialResult> {
   }
 
   // 1. Repor UserProducts marcados PARA_INATIVAR (apenas os marcados por trial)
-  const result = await (UserProduct as any).updateMany(
+  const result = await UserProduct.updateMany(
     {
       userId: user._id,
       platform: 'curseduca',

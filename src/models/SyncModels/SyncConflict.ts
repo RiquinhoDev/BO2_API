@@ -26,10 +26,10 @@ export type Platform = 'hotmart' | 'curseduca' | 'discord' | 'system'
 
 export interface IConflictData {
   field: string
-  existingValue: any
-  newValue: any
+  existingValue: unknown
+  newValue: unknown
   platform: Platform
-  context?: any
+  context?: unknown
 }
 
 export interface IResolution {
@@ -37,7 +37,7 @@ export interface IResolution {
   resolvedBy: mongoose.Types.ObjectId
   resolvedAt: Date
   notes?: string
-  appliedChanges?: any
+  appliedChanges?: unknown
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ export interface ISyncConflict extends Document {
     action: ResolutionAction,
     adminId: mongoose.Types.ObjectId,
     notes?: string,
-    appliedChanges?: any
+    appliedChanges?: unknown
   ) => Promise<void>
 
   autoResolve: (action: ResolutionAction, reason: string) => Promise<void>
@@ -269,7 +269,7 @@ SyncConflictSchema.methods.resolve = async function (
   action: ResolutionAction,
   adminId: mongoose.Types.ObjectId,
   notes?: string,
-  appliedChanges?: any
+  appliedChanges?: unknown
 ): Promise<void> {
   this.status = action === 'IGNORED' ? 'IGNORED' : 'RESOLVED'
   this.resolution = {

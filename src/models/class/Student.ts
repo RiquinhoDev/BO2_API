@@ -12,7 +12,7 @@ export interface IStudent {
   hotmartId?: string
   enrollmentDate?: Date
   lastActivity?: Date
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   createdAt: Date
   updatedAt: Date
 }

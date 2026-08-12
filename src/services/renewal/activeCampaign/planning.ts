@@ -106,13 +106,9 @@ function isSaneExpiryDate(d: Date): boolean {
 // HELPERS DE DADOS
 // ─────────────────────────────────────────────────────────────
 
-type ReadModel = { findOne: (...args: any[]) => any; find?: (...args: any[]) => any; countDocuments?: (...args: any[]) => any }
-const UserRead = User as unknown as ReadModel
-const ProductRead = Product as unknown as ReadModel
-const HistoryRead = StudentClassHistory as unknown as ReadModel
 
 export async function resolveOgiProductObjectId(): Promise<mongoose.Types.ObjectId | null> {
-  const p = await ProductRead.findOne({
+  const p = await Product.findOne({
     platform: 'hotmart',
     isActive: true,
     $or: [{ code: /^OGI/i }, { courseCode: /^OGI/i }, { name: /Grande Investimento/i }]
@@ -122,10 +118,10 @@ export async function resolveOgiProductObjectId(): Promise<mongoose.Types.Object
 
 export async function getOgiUserProduct(userId: mongoose.Types.ObjectId, ogiId: mongoose.Types.ObjectId | null) {
   if (!ogiId) return null
-  return (UserProduct as any).findOne({ userId, productId: ogiId, platform: 'hotmart' })
+  return UserProduct.findOne({ userId, productId: ogiId, platform: 'hotmart' })
     .select('metadata platformData')
     .lean()
-    .exec() as Promise<{ metadata?: { refunded?: boolean; refundedAt?: Date; purchaseDate?: Date }; platformData?: any } | null>
+    .exec() as Promise<{ metadata?: { refunded?: boolean; refundedAt?: Date; purchaseDate?: Date }; platformData?: unknown } | null>
 }
 
 async function hasLivingChange(sourceRef: string, action: string): Promise<boolean> {
@@ -193,7 +189,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
   }
 
   // 1. Mudanças de turma recentes gravadas pelo sync "1º"
-  const changes = await HistoryRead.find!({
+  const changes = await StudentClassHistory.find({
     dateMoved: { $gte: since },
     movedBy: 'Sistema - Sync Automático',
     previousClassName: { $exists: true, $ne: null }
@@ -208,7 +204,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
   report.classChangesSeen = changes.length
 
   // 2. Circuit breaker anti-massa (F10): mudanças demais = falha da API
-  const usersWithClasses = await (User as any).countDocuments({
+  const usersWithClasses = await User.countDocuments({
     'hotmart.enrolledClasses.0': { $exists: true }
   })
   const anomalyThreshold = Math.max(20, Math.ceil(usersWithClasses * 0.05))
@@ -221,7 +217,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
 
   // 3. Uma change por acção, por mudança de turma
   for (const ch of changes) {
-    const user = await UserRead.findOne({ _id: ch.studentId }).select('email').lean().exec() as { email?: string } | null
+    const user = await User.findOne({ _id: ch.studentId }).select('email').lean().exec() as { email?: string } | null
     if (!user?.email) continue
 
     const email = user.email.toLowerCase()
@@ -329,7 +325,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
 
   // 4. Reversões por reembolso (Fase 3): tag aplicada pelo BO + reembolso novo
   if (ogiId) {
-    const refundedUps = await (UserProduct as any).find({
+    const refundedUps = await UserProduct.find({
       productId: ogiId,
       platform: 'hotmart',
       'metadata.refunded': true,
@@ -344,7 +340,7 @@ export async function generatePlan(windowHours: number = 26): Promise<PlanReport
       const appliedTag = up.platformData?.renewalAc?.appliedTurmaTag
       if (!appliedTag) continue
 
-      const user = await UserRead.findOne({ _id: up.userId }).select('email').lean().exec() as { email?: string } | null
+      const user = await User.findOne({ _id: up.userId }).select('email').lean().exec() as { email?: string } | null
       if (!user?.email) continue
 
       const sourceRef = `refund-${up.userId}-${appliedTag}`

@@ -115,7 +115,7 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
       .select('_id hotmart.lastAccessDate curseduca.lastLogin curseduca.lastAction')
       .lean()
     
-    users.forEach((user: any) => {
+    users.forEach((user) => {
       usersMap.set(String(user._id), user)
     })
     
@@ -124,7 +124,7 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
       .select('_id platform code')
       .lean()
     
-    products.forEach((product: any) => {
+    products.forEach((product) => {
       productsMap.set(String(product._id), product)
     })
     

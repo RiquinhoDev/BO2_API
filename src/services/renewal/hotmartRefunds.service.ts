@@ -40,19 +40,16 @@ export interface RefundDetectionReport {
   refunds: DetectedRefund[]
 }
 
-type MongooseReadModel = {
-  findOne: (...args: any[]) => any
-  find?: (...args: any[]) => any
+function getValue(obj: unknown, path: string): unknown {
+  let current = obj
+  for (const key of path.split('.')) {
+    if (typeof current !== 'object' || current === null || !(key in current)) return undefined
+    current = (current as Record<string, unknown>)[key]
+  }
+  return current
 }
 
-const ProductReadModel = Product as unknown as MongooseReadModel
-const UserReadModel = User as unknown as MongooseReadModel
-
-function getValue(obj: any, path: string): any {
-  return path.split('.').reduce((acc, key) => acc?.[key], obj)
-}
-
-function firstString(obj: any, paths: string[]): string | null {
+function firstString(obj: unknown, paths: string[]): string | null {
   for (const path of paths) {
     const value = getValue(obj, path)
     if (typeof value === 'string' && value.trim()) return value.trim()
@@ -60,28 +57,23 @@ function firstString(obj: any, paths: string[]): string | null {
   return null
 }
 
-function extractSalesItems(responseData: any): any[] {
-  const candidates = [
-    responseData?.items,
-    responseData?.data,
-    responseData?.sales,
-    responseData?.transactions,
-    responseData?.results
-  ]
+function extractSalesItems(responseData: unknown): unknown[] {
+  const candidates = ['items', 'data', 'sales', 'transactions', 'results'].map(key => getValue(responseData, key))
   const items = candidates.find(Array.isArray)
   return items || []
 }
 
-function extractNextPageToken(responseData: any): string | null {
-  return responseData?.page_info?.next_page_token
-    || responseData?.pageInfo?.nextPageToken
-    || responseData?.pagination?.next_page_token
-    || responseData?.pagination?.nextPageToken
-    || responseData?.next_page_token
-    || null
+function extractNextPageToken(responseData: unknown): string | null {
+  return firstString(responseData, [
+    'page_info.next_page_token',
+    'pageInfo.nextPageToken',
+    'pagination.next_page_token',
+    'pagination.nextPageToken',
+    'next_page_token',
+  ])
 }
 
-function extractProductIdFromSale(item: any): string | null {
+function extractProductIdFromSale(item: unknown): string | null {
   const value = firstString(item, [
     'purchase.product.id',
     'product.id',
@@ -93,7 +85,7 @@ function extractProductIdFromSale(item: any): string | null {
   return typeof numeric === 'number' ? String(numeric) : null
 }
 
-function extractRefundDate(item: any): Date {
+function extractRefundDate(item: unknown): Date {
   // A Hotmart não expõe a data do reembolso em todos os payloads;
   // usamos a data mais recente disponível na transacção como aproximação.
   const candidates = [
@@ -109,7 +101,7 @@ function extractRefundDate(item: any): Date {
 }
 
 async function resolveOgiProduct(): Promise<{ hotmartProductId: string; objectId: mongoose.Types.ObjectId }> {
-  const ogiProduct = await ProductReadModel.findOne({
+  const ogiProduct = await Product.findOne({
     platform: 'hotmart',
     isActive: true,
     $or: [
@@ -207,7 +199,7 @@ export async function detectHotmartRefunds(windowDays: number = 30): Promise<Ref
   }
 
   for (const refund of refunds) {
-    const user = await UserReadModel.findOne({ email: refund.email })
+    const user = await User.findOne({ email: refund.email })
       .select('_id email')
       .lean()
       .exec() as { _id: mongoose.Types.ObjectId } | null
@@ -217,7 +209,7 @@ export async function detectHotmartRefunds(windowDays: number = 30): Promise<Ref
       continue
     }
 
-    const result = await (UserProduct as any).updateOne(
+    const result = await UserProduct.updateOne(
       {
         userId: user._id,
         productId: ogiObjectId,

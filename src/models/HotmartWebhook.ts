@@ -4,14 +4,14 @@ import mongoose, { Schema, model, Document } from "mongoose"
 interface IHotmartWebhook extends Document {
   event: string
   receivedAt?: Date
-  product?: any
-  buyer?: any
-  producer?: any
-  affiliates?: any[]
-  commissions?: any[]
-  purchase?: any
-  refund?: any
-  subscription?: any
+  product?: unknown
+  buyer?: unknown
+  producer?: unknown
+  affiliates?: unknown[]
+  commissions?: unknown[]
+  purchase?: unknown
+  refund?: unknown
+  subscription?: unknown
   moloniInvoiceId?: number
   moloniCreditNoteId?: number
   rawData?: object

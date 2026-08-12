@@ -17,7 +17,12 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
     const { platform, productId, status, progressMin, progressMax, search } = req.query;
 
     // Construir filtro base
-    const matchStage: any = {};
+    const matchStage: {
+      platforms?: unknown
+      productId?: mongoose.Types.ObjectId
+      status?: unknown
+      'progress.percentage'?: { $gte?: number; $lte?: number }
+    } = {};
 
     if (platform) {
       matchStage['platforms'] = platform;
@@ -38,7 +43,7 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
     }
 
     // Se houver search, precisamos fazer lookup em User
-    const pipeline: any[] = [{ $match: matchStage }];
+    const pipeline: mongoose.PipelineStage[] = [{ $match: matchStage }];
 
     if (search) {
       pipeline.push(
@@ -114,6 +119,15 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
 // 📦 ENDPOINT 2: GET /api/dashboard/products
 // Breakdown de alunos por produto
 // ═══════════════════════════════════════════════════════════════════════════
+function populatedProduct(productId: unknown): { _id?: unknown; name?: string; platform?: string } {
+  if (typeof productId !== 'object' || productId === null) return {}
+  return {
+    _id: '_id' in productId ? productId._id : undefined,
+    name: 'name' in productId && typeof productId.name === 'string' ? productId.name : undefined,
+    platform: 'platform' in productId && typeof productId.platform === 'string' ? productId.platform : undefined,
+  }
+}
+
 export const getProductsBreakdown = async (req: Request, res: Response, next: NextFunction) => {
   try {
     logger.info('📦 [PRODUCTS BREAKDOWN - DUAL READ]');
@@ -127,7 +141,7 @@ export const getProductsBreakdown = async (req: Request, res: Response, next: Ne
     if (platforms && typeof platforms === 'string') {
       const platformList = platforms.split(',').map(p => p.toLowerCase());
       filteredUPs = userProducts.filter(up => {
-        const platform = up.platform || (up.productId as any)?.platform || '';
+        const platform = up.platform || populatedProduct(up.productId).platform || '';
         return platformList.includes(platform.toLowerCase());
       });
     }
@@ -205,7 +219,7 @@ export const getEngagementDistribution = async (req: Request, res: Response, nex
   try {
     const { productId } = req.query;
 
-    const matchStage: any = {};
+    const matchStage: { productId?: mongoose.Types.ObjectId } = {};
     if (productId) {
       matchStage.productId = new mongoose.Types.ObjectId(productId as string);
     }
@@ -226,15 +240,15 @@ export const getEngagementDistribution = async (req: Request, res: Response, nex
     ], { allowDiskUse: true });
 
     const labels = ['churnRisk', 'moderate', 'good', 'excellent'];
-    const result: any = {
-      distribution: {},
-      percentages: {},
-      total: 0
-    };
+    const result: {
+      distribution: Record<string, number>
+      percentages: Record<string, number>
+      total: number
+    } = { distribution: {}, percentages: {}, total: 0 };
 
     distribution.forEach((bucket, index) => {
       const label = labels[index] || 'unknown';
-      const uniqueUsers = new Set(bucket.users.map((id: any) => id.toString())).size;
+      const uniqueUsers = new Set(bucket.users.map((id: unknown) => String(id))).size;
       result.distribution[label] = uniqueUsers;
       result.total += uniqueUsers;
     });
@@ -419,15 +433,18 @@ export const searchDashboard = async (req: Request, res: Response, next: NextFun
         _id: user._id,
         name: user.name,
         email: user.email,
-        products: products.map(p => ({
+        products: products.map(p => {
+          const product = populatedProduct(p.productId)
+          return {
           _id: p._id,
-          productId: (p.productId as any)?._id,
-          productName: (p.productId as any)?.name,
-          platform: (p.productId as any)?.platform,
+          productId: product._id,
+          productName: product.name,
+          platform: product.platform,
           status: p.status,
           engagement: p.engagement?.engagementScore || 0,
           progress: p.progress?.percentage || 0  // ✅ CORRIGIDO: percentage
-        })),
+          }
+        }),
         avgEngagement: Math.round(avgEngagement * 10) / 10,
         tags: products.flatMap(p => p.activeCampaignData?.tags || [])
       };

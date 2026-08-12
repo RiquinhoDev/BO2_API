@@ -11,7 +11,7 @@ export interface DiscoveredProduct {
   suggestedCategory: ProductCategory;
   confidence: ProductConfidence;
   discoveredAt: Date;
-  rawData: any;
+  rawData: unknown;
   insights: string[];
 }
 
@@ -140,6 +140,8 @@ export const REENGAGEMENT_TEMPLATES: Partial<
 };
 
 // Validadores
-export function validateConfigurationData(config: any): config is ProductConfigurationData {
-  return config?.productData?.code && config?.profileData?.name;
+export function validateConfigurationData(config: unknown): config is ProductConfigurationData {
+  if (typeof config !== 'object' || config === null) return false
+  const candidate = config as { productData?: { code?: unknown }; profileData?: { name?: unknown } }
+  return typeof candidate.productData?.code === 'string' && typeof candidate.profileData?.name === 'string'
 }
