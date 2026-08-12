@@ -1,5 +1,6 @@
 import { type NextFunction, type Request, type Response } from 'express'
 import { internalError } from '../security/errorHandling'
+import { successResponse } from '../contracts/responseContract'
 import { isClarezaRefreshAuthorized } from '../security/clarezaRefreshAuthorization'
 import { getClarezaData, refreshClarezaData, getReitAnalysis, getReitValuation, getStockAnalysis } from '../services/clareza/clarezaFmpService'
 import { getClarezaTop10Json, refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
@@ -44,7 +45,7 @@ export const clarezaController = {
 
       console.log('🔄 [POST /api/clareza/refresh] Refresh manual iniciado')
       const result = await refreshClarezaData()
-      return res.json({ success: true, ...result })
+      return res.json(successResponse(result))
     } catch (error: unknown) {
       next(internalError('Erro interno do servidor', 'CLAREZA_DATA_REFRESH_FAILED', error))
       return
@@ -125,7 +126,7 @@ export const clarezaController = {
 
       console.log('🔄 [POST /api/clareza/top10/refresh] Refresh manual iniciado')
       const result = await refreshClarezaTop10Data()
-      return res.json({ success: true, ...result })
+      return res.json(successResponse(result))
     } catch (error: unknown) {
       forwardApplicationError(next, error, 'Erro interno do servidor', 'CLAREZA_TOP10_REFRESH_FAILED')
       return
@@ -217,7 +218,7 @@ export const clarezaController = {
 
       console.log('🔄 [POST /api/clareza/raiox/refresh] Refresh manual iniciado')
       const result = await refreshClarezaRaioxData()
-      return res.json({ success: true, ...result })
+      return res.json(successResponse(result))
     } catch (error: unknown) {
       next(internalError('Erro interno do servidor', 'CLAREZA_RAIOX_REFRESH_FAILED', error))
       return
@@ -273,7 +274,7 @@ export const clarezaController = {
 
       console.log('[POST /api/clareza/earnings/refresh] Refresh manual iniciado')
       const result = await refreshClarezaEarningsData()
-      return res.json({ success: true, ...result })
+      return res.json(successResponse(result))
     } catch (error: unknown) {
       forwardApplicationError(next, error, 'Erro interno do servidor', 'CLAREZA_EARNINGS_REFRESH_FAILED')
       return
@@ -289,7 +290,7 @@ export const clarezaController = {
 
       console.log('[POST /api/clareza/carteira/refresh] Refresh manual iniciado')
       const result = await refreshClarezaCarteiraData()
-      return res.json({ success: true, ...result })
+      return res.json(successResponse(result))
     } catch (error: unknown) {
       next(internalError('Erro interno do servidor', 'CLAREZA_CARTEIRA_REFRESH_FAILED', error))
       return
@@ -341,7 +342,7 @@ export const clarezaController = {
       }
 
       const result = await refreshClarezaComparadorData()
-      return res.json({ success: true, ...result })
+      return res.json(successResponse(result))
     } catch (error: unknown) {
       if (error instanceof ComparadorPolicyError) {
         return res.status(400).json({ error: comparadorPolicyMessage(error) })

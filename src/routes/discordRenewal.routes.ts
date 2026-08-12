@@ -162,7 +162,11 @@ router.post('/messages/send', withValidatedInput(discordRenewalMessageSendInput,
     mentionEveryone: input.body.mentionEveryone === true,
     sentBy: actor(req, input.body.actor)
   })
-  res.status(result.success ? 200 : 400).json(result)
+  if (!result.success) {
+    res.status(400).json(result)
+    return
+  }
+  res.status(200).json(successResponse({ messageIds: result.messageIds }, { message: result.message }))
 }))
 
 /** GET /api/discord-renewal/messages/logs?limit= */

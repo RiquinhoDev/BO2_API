@@ -143,7 +143,7 @@ describe('Clareza comparator HTTP contract', () => {
     const app = appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter })
     const refreshed = await request(app).post('/comparador/refresh' + offline).send({})
     expect(refreshed.status).toBe(200)
-    expect(refreshed.body).toEqual({ success: true, total: 45, errors: 2 })
+    expect(refreshed.body).toEqual({ success: true, data: { total: 45, errors: 2 } })
 
     mockRefreshClarezaComparadorData.mockRejectedValueOnce(new IntegrationUnavailableError('fmp'))
     const unavailable = await request(appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter }, 'comparador-unavailable'))

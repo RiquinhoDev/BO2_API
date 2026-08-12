@@ -322,12 +322,7 @@ export const syncProductTags = async (
       }
     }
 
-    res.json({
-      success: true,
-      data: results,
-      productId,
-      productName: product.name,
-    })
+    res.json(successResponse(results, { productId, productName: product.name }))
     return
   } catch (error: unknown) {
     next(internalError('Erro ao sincronizar tags', 'AC_PRODUCT_TAG_SYNC_FAILED', error))

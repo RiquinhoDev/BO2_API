@@ -136,18 +136,13 @@ export const testCron = async (
     // ═══════════════════════════════════════════════════════════
     // 5. RESPOSTA
     // ═══════════════════════════════════════════════════════════
-    res.json({
-      success: true,
-      executionId,
-      duration: `${(duration / 1000).toFixed(2)}s`,
-      results: {
+    res.json(successResponse({ executionId, results: {
         totalProducts: products.length,
         totalUserProducts,
         decisionsEvaluated: totalDecisions,
         actionsExecuted: totalExecutions,
         errors: errors.length
-      }
-    })
+      } }, { duration: `${(duration / 1000).toFixed(2)}s` }))
     return
   } catch (error: unknown) {
 
