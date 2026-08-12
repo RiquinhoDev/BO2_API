@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import User from '../../../models/user'
 import UserProduct from '../../../models/UserProduct'
 import Product from '../../../models/product/Product'
@@ -16,7 +17,7 @@ const BACKGROUND_REFRESH_THRESHOLD = 8 * 60 * 1000
 let warmupPromise: Promise<void> | null = null
 
 async function buildUnifiedCache() {
-  console.log('\n🔄 [DUAL READ v3.1] Construindo cache...')
+  logger.info('\n🔄 [DUAL READ v3.1] Construindo cache...')
   const startTime = Date.now()
 
   // ========================================================================
@@ -26,7 +27,7 @@ async function buildUnifiedCache() {
     isDeleted: { $ne: true } 
   }).lean<LegacyUserRecord[]>()
   
-  console.log(`   ✅ ${users.length} users encontrados na BD`)
+  logger.info(`   ✅ ${users.length} users encontrados na BD`)
 
   // ========================================================================
   // 2. BUSCAR TODOS OS USERPRODUCTS V2 (se existirem)
@@ -36,7 +37,7 @@ async function buildUnifiedCache() {
     .populate('productId', 'name code platform')
     .lean<UnifiedUserProduct[]>()
   
-  console.log(`   ✅ ${userProducts.length} UserProducts V2 encontrados`)
+  logger.info(`   ✅ ${userProducts.length} UserProducts V2 encontrados`)
 
   // ========================================================================
   // 3. MAPEAR USERPRODUCTS V2 POR USERID
@@ -47,7 +48,7 @@ async function buildUnifiedCache() {
   userProducts.forEach(up => {
     const userId = stringifyId(up.userId)
     if (!userId || !up.productId) {
-      console.warn(`   ⚠️ UserProduct ${up._id} sem populate (ignorado)`)
+      logger.warn(`   ⚠️ UserProduct ${up._id} sem populate (ignorado)`)
       return
     }
     
@@ -59,7 +60,7 @@ async function buildUnifiedCache() {
     validV2Count++
   })
 
-  console.log(`   ✅ ${validV2Count} UserProducts V2 válidos mapeados`)
+  logger.info(`   ✅ ${validV2Count} UserProducts V2 válidos mapeados`)
 
   // ========================================================================
   // 4. BUSCAR TODOS OS PRODUTOS DA BD (DINÂMICO!)
@@ -75,13 +76,13 @@ async function buildUnifiedCache() {
     }
   })
   
-  console.log(`   ✅ ${products.length} produtos ativos disponíveis:`)
+  logger.info(`   ✅ ${products.length} produtos ativos disponíveis:`)
   productsByPlatform.forEach((product, platform) => {
     const icon = 
       platform === 'hotmart' ? '🔥' :
       platform === 'curseduca' ? '📚' :
       platform === 'discord' ? '💬' : '🌟'
-    console.log(`      ${icon} ${platform}: ${product.name} (${product.code})`)
+    logger.info(`      ${icon} ${platform}: ${product.name} (${product.code})`)
   })
 
   // ========================================================================
@@ -147,7 +148,7 @@ async function buildUnifiedCache() {
       const product = productsByPlatform.get(mapping.platform)
       if (!product) {
         if (!warnedPlatforms.has(mapping.platform)) {
-          console.warn(`   ⚠️ Produto ${mapping.platform} não existe na BD`)
+          logger.warn(`   ⚠️ Produto ${mapping.platform} não existe na BD`)
           warnedPlatforms.add(mapping.platform)
         }
         continue
@@ -257,21 +258,21 @@ async function buildUnifiedCache() {
   const v1Count = unifiedUserProducts.filter(up => up._isV1).length
   const v2Count = unifiedUserProducts.filter(up => !up._isV1).length
 
-  console.log(`\n   ✅ CONVERSÃO COMPLETA em ${duration}ms`)
-  console.log(`   ════════════════════════════════════════`)
-  console.log(`   📊 Total unificado: ${unifiedUserProducts.length} UserProducts`)
-  console.log(`   📦 V2 (nativos): ${v2Count}`)
-  console.log(`   🔄 V1 (convertidos): ${v1Count}`)
+  logger.info(`\n   ✅ CONVERSÃO COMPLETA em ${duration}ms`)
+  logger.info(`   ════════════════════════════════════════`)
+  logger.info(`   📊 Total unificado: ${unifiedUserProducts.length} UserProducts`)
+  logger.info(`   📦 V2 (nativos): ${v2Count}`)
+  logger.info(`   🔄 V1 (convertidos): ${v1Count}`)
   
   conversionStats.forEach((count, platform) => {
     const icon = 
       platform === 'hotmart' ? '🔥' :
       platform === 'curseduca' ? '📚' :
       platform === 'discord' ? '💬' : '🌟'
-    console.log(`      ${icon} ${platform}: ${count}`)
+    logger.info(`      ${icon} ${platform}: ${count}`)
   })
   
-  console.log(`   ════════════════════════════════════════\n`)
+  logger.info(`   ════════════════════════════════════════\n`)
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ATUALIZAR CACHE
@@ -288,7 +289,7 @@ async function buildUnifiedCache() {
   }
 
   const cacheBuildDuration = Date.now() - startTime
-  console.log(`💾 [CACHE] Construído: ${unifiedUserProducts.length} UserProducts (${cacheBuildDuration}ms)`)
+  logger.info(`💾 [CACHE] Construído: ${unifiedUserProducts.length} UserProducts (${cacheBuildDuration}ms)`)
 
   return unifiedUserProducts
 }
@@ -300,11 +301,11 @@ async function buildUnifiedCache() {
  */
 export async function warmUpCache() {
   if (warmupPromise) {
-    console.log('⏳ [WARM-UP] Já em progresso, aguardando...')
+    logger.info('⏳ [WARM-UP] Já em progresso, aguardando...')
     return warmupPromise
   }
 
-  console.log('\n🔥 [WARM-UP] Iniciando pré-aquecimento do cache...')
+  logger.info('\n🔥 [WARM-UP] Iniciando pré-aquecimento do cache...')
 
   warmupPromise = (async () => {
     try {
@@ -316,11 +317,11 @@ export async function warmUpCache() {
       await buildUnifiedCache()
       const duration = Date.now() - startTime
 
-      console.log(`✅ [WARM-UP] Cache pré-aquecido em ${Math.round(duration/1000)}s`)
-      console.log(`✅ [WARM-UP] Próximo acesso será instantâneo!\n`)
+      logger.info(`✅ [WARM-UP] Cache pré-aquecido em ${Math.round(duration/1000)}s`)
+      logger.info(`✅ [WARM-UP] Próximo acesso será instantâneo!\n`)
 
     } catch (error) {
-      console.error('❌ [WARM-UP] Erro ao pré-aquecer cache:', error)
+      logger.error('❌ [WARM-UP] Erro ao pré-aquecer cache:', error)
     } finally {
       warmupPromise = null
       if (unifiedCache) {
@@ -343,10 +344,10 @@ async function backgroundRefresh() {
   const age = Date.now() - unifiedCache.timestamp
 
   if (age > BACKGROUND_REFRESH_THRESHOLD) {
-    console.log('🔄 [BACKGROUND] Iniciando refresh preventivo do cache...')
+    logger.info('🔄 [BACKGROUND] Iniciando refresh preventivo do cache...')
 
     warmUpCache().catch(err => {
-      console.error('❌ [BACKGROUND] Erro no refresh:', err)
+      logger.error('❌ [BACKGROUND] Erro no refresh:', err)
     })
   }
 }
@@ -357,12 +358,12 @@ async function backgroundRefresh() {
  * ═══════════════════════════════════════════════════════════════════════════
  */
 export function clearUnifiedCache() {
-  console.log('🗑️ [CACHE] Limpando cache')
+  logger.info('🗑️ [CACHE] Limpando cache')
   unifiedCache = null
 
-  console.log('🔥 [CACHE] Iniciando warm-up em background...')
+  logger.info('🔥 [CACHE] Iniciando warm-up em background...')
   warmUpCache().catch(err => {
-    console.error('❌ [CACHE] Erro no warm-up após clear:', err)
+    logger.error('❌ [CACHE] Erro no warm-up após clear:', err)
   })
 }
 
@@ -377,21 +378,21 @@ export async function getAllUsersUnified() {
     const age = Date.now() - unifiedCache.timestamp
 
     if (age < CACHE_TTL) {
-      console.log(`⚡ [CACHE HIT] ${unifiedCache.data.length} UserProducts (idade: ${Math.round(age/1000)}s)`)
+      logger.info(`⚡ [CACHE HIT] ${unifiedCache.data.length} UserProducts (idade: ${Math.round(age/1000)}s)`)
 
       // Background refresh se próximo da expiração
       backgroundRefresh()
 
       return unifiedCache.data
     } else {
-      console.log(`⏰ [CACHE] Expirado (${Math.round(age/1000)}s)`)
+      logger.info(`⏰ [CACHE] Expirado (${Math.round(age/1000)}s)`)
     }
   }
 
   // Cache miss - verificar se warm-up em progresso
   if (warmupPromise) {
-    console.log('⏳ [CACHE] Warm-up em progresso...')
-    console.log('⚡ [CACHE] Aguardando máximo 5 segundos...')
+    logger.info('⏳ [CACHE] Warm-up em progresso...')
+    logger.info('⚡ [CACHE] Aguardando máximo 5 segundos...')
     
     const timeoutPromise = new Promise<void>((_, reject) => 
       setTimeout(() => reject(new Error('Warm-up timeout')), 5000)
@@ -400,16 +401,16 @@ export async function getAllUsersUnified() {
     try {
       await Promise.race([warmupPromise, timeoutPromise])
       if (unifiedCache) {
-        console.log('✅ [CACHE] Warm-up completou dentro do timeout!')
+        logger.info('✅ [CACHE] Warm-up completou dentro do timeout!')
         return unifiedCache.data
       }
     } catch {
-      console.log('⚠️ [CACHE] Warm-up demorou >5s, construindo dados diretamente...')
+      logger.info('⚠️ [CACHE] Warm-up demorou >5s, construindo dados diretamente...')
     }
   }
 
   // Cache miss - construir novo
-  console.log('🔄 [CACHE MISS] Reconstruindo cache...')
+  logger.info('🔄 [CACHE MISS] Reconstruindo cache...')
   return await buildUnifiedCache()
 }
 

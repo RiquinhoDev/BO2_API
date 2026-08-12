@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import axios from 'axios'
 import { UniversalSourceItem } from '../../../types/universalSync.types'
 import {
@@ -39,9 +40,9 @@ export const fetchCurseducaDataForSync = async (
   }
 ): Promise<UniversalSourceItem[]> => {  // âœ… CORRIGIDO!
   
-  console.log('ðŸš€ [CurseducaAdapter] Iniciando busca de dados para sync...')
-  console.log('   ðŸ“Š OpÃ§Ãµes:', options)
-  console.log(`   ðŸ”„ EstratÃ©gia: ${options.enrichWithDetails ? 'HÃ­brida (2 endpoints)' : 'Simples (1 endpoint)'}`)
+  logger.info('ðŸš€ [CurseducaAdapter] Iniciando busca de dados para sync...')
+  logger.info('   ðŸ“Š OpÃ§Ãµes:', options)
+  logger.info(`   ðŸ”„ EstratÃ©gia: ${options.enrichWithDetails ? 'HÃ­brida (2 endpoints)' : 'Simples (1 endpoint)'}`)
 
   const startTime = Date.now()
 
@@ -54,7 +55,7 @@ export const fetchCurseducaDataForSync = async (
     // STEP 1: BUSCAR GRUPOS
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     
-    console.log('ðŸ“š [CurseducaAdapter] Step 1/5: Buscando grupos...')
+    logger.info('ðŸ“š [CurseducaAdapter] Step 1/5: Buscando grupos...')
     
     const groupsResponse = await axios.get<CollectionPayload<CursEducaGroup>>(`${curseducaApiUrl()}/groups`, {
       headers,
@@ -77,13 +78,13 @@ export const fetchCurseducaDataForSync = async (
         throw new Error(`Grupo nÃ£o encontrado: ${options.groupId}`)
       }
       
-      console.log(`   ðŸŽ¯ Filtrando apenas grupo: ${allGroups[0].name}`)
+      logger.info(`   ðŸŽ¯ Filtrando apenas grupo: ${allGroups[0].name}`)
     }
 
-    console.log(`âœ… [CurseducaAdapter] ${allGroups.length} grupos Clareza encontrados`)
+    logger.info(`âœ… [CurseducaAdapter] ${allGroups.length} grupos Clareza encontrados`)
     
     if (allGroups.length === 0) {
-      console.warn('âš ï¸ [CurseducaAdapter] Nenhum grupo Clareza encontrado!')
+      logger.warn('âš ï¸ [CurseducaAdapter] Nenhum grupo Clareza encontrado!')
       return []
     }
 
@@ -91,12 +92,12 @@ export const fetchCurseducaDataForSync = async (
     // STEP 2: BUSCAR LISTA DE MEMBROS (ESTRATÃ‰GIA HÃBRIDA)
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    console.log('ðŸ‘¥ [CurseducaAdapter] Step 2/6: Buscando lista de membros (HÃBRIDO)...')
-    console.log('   ðŸ’¡ Usando 2 endpoints para capturar TODOS os users:')
-    console.log('   1ï¸âƒ£  /reports/group/members (users com enrollments)')
-    console.log('   2ï¸âƒ£  /groups/{groupId}/members (TODOS, incluindo admins)')
+    logger.info('ðŸ‘¥ [CurseducaAdapter] Step 2/6: Buscando lista de membros (HÃBRIDO)...')
+    logger.info('   ðŸ’¡ Usando 2 endpoints para capturar TODOS os users:')
+    logger.info('   1ï¸âƒ£  /reports/group/members (users com enrollments)')
+    logger.info('   2ï¸âƒ£  /groups/{groupId}/members (TODOS, incluindo admins)')
 
-    console.log('   Buscando relatorio de acessos para engagement...')
+    logger.info('   Buscando relatorio de acessos para engagement...')
     const accessReport = await fetchAccessReport(headers)
 
     // ðŸš€ Buscar situation/lastAccess de TODOS os membros de uma vez (paginado),
@@ -107,10 +108,10 @@ export const fetchCurseducaDataForSync = async (
 
     for (const group of allGroups) {
       try {
-        console.log(`   ðŸ“š Processando grupo: ${group.name} (ID: ${group.id})`)
+        logger.info(`   ðŸ“š Processando grupo: ${group.name} (ID: ${group.id})`)
 
         // STEP 1: Buscar lista completa via /groups/{id}/members
-        console.log(`   ðŸ“¡ 1/2: Buscando lista via /groups/${group.id}/members...`)
+        logger.info(`   ðŸ“¡ 1/2: Buscando lista via /groups/${group.id}/members...`)
 
         const groupMembersResponse = await axios.get<CollectionPayload<CursEducaRosterMember>>(
           `${curseducaApiUrl()}/groups/${group.id}/members`,
@@ -123,12 +124,12 @@ export const fetchCurseducaDataForSync = async (
 
         const allGroupMembers = collectionItems(groupMembersResponse.data)
 
-        console.log(`   âœ… ${allGroupMembers.length} members encontrados`)
+        logger.info(`   âœ… ${allGroupMembers.length} members encontrados`)
 
         // STEP 2: Buscar progresso via /reports/group/members
-        console.log(`   ðŸ“¡ 2/2: Buscando progresso via /reports/group/members...`)
+        logger.info(`   ðŸ“¡ 2/2: Buscando progresso via /reports/group/members...`)
         const membersWithProgress = await fetchGroupMembersList(group.id, headers)
-        console.log(`   âœ… ${membersWithProgress.length} members com dados de progresso`)
+        logger.info(`   âœ… ${membersWithProgress.length} members com dados de progresso`)
 
         // STEP 3: Merge - adicionar progresso aos members (preferir email se IDs divergem)
         const progressById = new Map<number, CursEducaMemberFromReports>()
@@ -196,7 +197,7 @@ export const fetchCurseducaDataForSync = async (
         }
 
 
-        console.log(`   âœ… Dados mesclados: ${unifiedMembersList.length} members com progresso`)
+        logger.info(`   âœ… Dados mesclados: ${unifiedMembersList.length} members com progresso`)
 
         const progressReport = await fetchProgressReport(group.id, group.name, headers)
         if (progressReport.size > 0) {
@@ -216,7 +217,7 @@ export const fetchCurseducaDataForSync = async (
           }
 
           if (updatedCount > 0) {
-            console.log(`   Progresso extra aplicado: ${updatedCount} members`)
+            logger.info(`   Progresso extra aplicado: ${updatedCount} members`)
           }
         }
 
@@ -226,7 +227,7 @@ export const fetchCurseducaDataForSync = async (
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
         if (options.enrichWithDetails) {
-          console.log(`   ðŸ”„ Enriquecendo via mapa em massa (situation, lastLogin)...`)
+          logger.info(`   ðŸ”„ Enriquecendo via mapa em massa (situation, lastLogin)...`)
 
           // Sem chamadas 1-a-1 -> sem 504s, sem espera por lotes.
           // Roster autoritativo deste grupo (para a regra de pertenÃ§a).
@@ -248,10 +249,10 @@ export const fetchCurseducaDataForSync = async (
             }
           }
 
-          console.log(`      Enriquecidos ${enrichedCount}/${unifiedMembersList.length} (${skippedOtherGroup} de outros grupos ignorados, 0 chamadas individuais)`)
+          logger.info(`      Enriquecidos ${enrichedCount}/${unifiedMembersList.length} (${skippedOtherGroup} de outros grupos ignorados, 0 chamadas individuais)`)
 
         } else {
-          console.log(`   â„¹ï¸  Modo simples (sem fetch de detalhes)`)
+          logger.info(`   â„¹ï¸  Modo simples (sem fetch de detalhes)`)
 
           for (const member of unifiedMembersList) {
             try {
@@ -284,18 +285,18 @@ export const fetchCurseducaDataForSync = async (
         await new Promise(resolve => setTimeout(resolve, 1000))
         
       } catch (error: unknown) {
-        console.error(`   âŒ Erro ao processar grupo ${group.name}:`, errorMessage(error))
+        logger.error(`   âŒ Erro ao processar grupo ${group.name}:`, errorMessage(error))
         errors.push(`Grupo ${group.name}: ${errorMessage(error)}`)
       }
     }
 
-    console.log(`âœ… [CurseducaAdapter] ${allMembersWithMetadata.length} membros processados`)
+    logger.info(`âœ… [CurseducaAdapter] ${allMembersWithMetadata.length} membros processados`)
 
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // STEP 4: DEDUPLICAR
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    console.log('ðŸ”„ [CurseducaAdapter] Step 4/5: Deduplicando membros...')
+    logger.info('ðŸ”„ [CurseducaAdapter] Step 4/5: Deduplicando membros...')
 
     const deduplicated = deduplicateMembers(allMembersWithMetadata)
 
@@ -305,16 +306,16 @@ export const fetchCurseducaDataForSync = async (
       duplicates: deduplicated.filter(m => m.isDuplicate && !m.isPrimary).length
     }
 
-    console.log(`âœ… [CurseducaAdapter] DeduplicaÃ§Ã£o completa:`)
-    console.log(`   ðŸ“¦ Total produtos: ${stats.total}`)
-    console.log(`   ðŸ“§ Users Ãºnicos: ${stats.unique}`)
-    console.log(`   ðŸ” Produtos secundÃ¡rios: ${stats.duplicates}`)
+    logger.info(`âœ… [CurseducaAdapter] DeduplicaÃ§Ã£o completa:`)
+    logger.info(`   ðŸ“¦ Total produtos: ${stats.total}`)
+    logger.info(`   ðŸ“§ Users Ãºnicos: ${stats.unique}`)
+    logger.info(`   ðŸ” Produtos secundÃ¡rios: ${stats.duplicates}`)
 
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // STEP 5: NORMALIZAR
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     
-    console.log('ðŸ”„ [CurseducaAdapter] Step 5/5: Normalizando dados...')
+    logger.info('ðŸ”„ [CurseducaAdapter] Step 5/5: Normalizando dados...')
     
     const normalized = attachCurseducaMemberships(
       deduplicated.map(m => normalizeCurseducaMember(m)),
@@ -322,22 +323,22 @@ export const fetchCurseducaDataForSync = async (
 
     const duration = Math.floor((Date.now() - startTime) / 1000)
     
-    console.log('âœ… [CurseducaAdapter] Dados preparados!')
-    console.log(`   â±ï¸ DuraÃ§Ã£o: ${duration}s`)
-    console.log(`   âœ… Total: ${normalized.length}`)
-    console.log(`   âŒ Erros: ${errors.length}`)
+    logger.info('âœ… [CurseducaAdapter] Dados preparados!')
+    logger.info(`   â±ï¸ DuraÃ§Ã£o: ${duration}s`)
+    logger.info(`   âœ… Total: ${normalized.length}`)
+    logger.info(`   âŒ Erros: ${errors.length}`)
 
     if (errors.length > 0) {
-      console.warn('âš ï¸ [CurseducaAdapter] Erros:', errors.slice(0, 5))
+      logger.warn('âš ï¸ [CurseducaAdapter] Erros:', errors.slice(0, 5))
       if (errors.length > 5) {
-        console.warn(`   ... e mais ${errors.length - 5} erros`)
+        logger.warn(`   ... e mais ${errors.length - 5} erros`)
       }
     }
 
     return normalized
     
   } catch (error: unknown) {
-    console.error('âŒ [CurseducaAdapter] Erro fatal:', error)
+    logger.error('âŒ [CurseducaAdapter] Erro fatal:', error)
     
     if (errorStatus(error) === 401) {
       throw new Error(

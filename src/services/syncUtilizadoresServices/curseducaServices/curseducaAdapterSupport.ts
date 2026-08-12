@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import axios from 'axios'
 import { UniversalSourceItem } from '../../../types/universalSync.types'
 import {
@@ -131,7 +132,7 @@ export interface CurseducaEnrollment {
 export function deduplicateMembers(
   members: CursEducaMemberWithMetadata[]
 ): CursEducaMemberWithMetadata[] {
-  console.log(`ðŸ“Š [Dedupe] Processando ${members.length} membros...`)
+  logger.info(`ðŸ“Š [Dedupe] Processando ${members.length} membros...`)
 
   const byEmail = new Map<string, CursEducaMemberWithMetadata[]>()
 
@@ -141,7 +142,7 @@ export function deduplicateMembers(
     byEmail.get(email)!.push(member)
   }
 
-  console.log(`   ðŸ“§ ${byEmail.size} emails Ãºnicos`)
+  logger.info(`   ðŸ“§ ${byEmail.size} emails Ãºnicos`)
 
   const result: CursEducaMemberWithMetadata[] = []
   let duplicateCount = 0
@@ -170,15 +171,15 @@ export function deduplicateMembers(
 
       result.push(...userProducts)
 
-      console.log(
+      logger.info(
         `   ðŸ” ${email}: ${userProducts.length} produtos ` +
         `(primÃ¡rio: ${userProducts[0].subscriptionType})`
       )
     }
   }
 
-  console.log(`   âœ… ${duplicateCount} users com mÃºltiplos produtos`)
-  console.log(`   ðŸ“¦ Total de produtos: ${result.length}`)
+  logger.info(`   âœ… ${duplicateCount} users com mÃºltiplos produtos`)
+  logger.info(`   ðŸ“¦ Total de produtos: ${result.length}`)
 
   return result
 }

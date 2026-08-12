@@ -1,3 +1,4 @@
+import logger from '../../../../utils/logger'
 import type { HotmartLesson, HotmartUser, ProgressData } from './transport'
 import { calculateModuleProgress } from './modules'
 
@@ -78,7 +79,7 @@ export const convertUnixTimestamp = (timestamp: any): Date | null => {
   // Validar ano
   const year = date.getFullYear()
   if (year < 2000 || year > 2030) {
-    console.warn(`⚠️ Data suspeita: ${date.toISOString()} (timestamp: ${timestamp})`)
+    logger.warn(`⚠️ Data suspeita: ${date.toISOString()} (timestamp: ${timestamp})`)
     return null
   }
 

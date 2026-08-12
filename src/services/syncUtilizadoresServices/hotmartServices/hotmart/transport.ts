@@ -1,3 +1,4 @@
+import logger from '../../../../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/hotmartServices/hotmart.helpers.ts
 // Hotmart Helpers - Funções reutilizáveis
@@ -69,7 +70,7 @@ export async function requestWithRetry<T>(
       const status = error?.response?.status
       const motivo = status ? `HTTP ${status}` : (error?.code ?? error?.cause?.code ?? 'erro de rede')
       const delay = getRetryDelayMs(error, attempt, options.baseDelayMs)
-      console.warn(
+      logger.warn(
         `[HotmartFetch] ${motivo}. Retry in ${delay}ms (attempt ${attempt + 1}/${options.maxRetries})`
       )
       await sleep(delay)
@@ -161,7 +162,7 @@ export const getHotmartAccessToken = async (): Promise<string> => {
 
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
 
-    console.log(`🔐 [HotmartAuth] Gerando token...`)
+    logger.info(`🔐 [HotmartAuth] Gerando token...`)
 
     const response = await axios.post(
       'https://api-sec-vlc.hotmart.com/security/oauth/token',
@@ -178,11 +179,11 @@ export const getHotmartAccessToken = async (): Promise<string> => {
       throw new Error('Access token não encontrado na resposta')
     }
 
-    console.log(`✅ [HotmartAuth] Token obtido - Expira em: ${response.data.expires_in}s`)
+    logger.info(`✅ [HotmartAuth] Token obtido - Expira em: ${response.data.expires_in}s`)
     return response.data.access_token
 
   } catch (error: any) {
-    console.error('❌ [HotmartAuth] Erro:', error.response?.data || error.message)
+    logger.error('❌ [HotmartAuth] Erro:', error.response?.data || error.message)
     throw new Error(
       `Falha ao obter token: ${error.response?.data?.error_description || error.message}`
     )
@@ -204,7 +205,7 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
   let pageCount = 0
   const subdomain = getHotmartSubdomain()
 
-  console.log(`📡 [HotmartFetch] Iniciando busca de utilizadores...`)
+  logger.info(`📡 [HotmartFetch] Iniciando busca de utilizadores...`)
 
   try {
     do {
@@ -214,7 +215,7 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
         requestUrl += `&page_token=${encodeURIComponent(nextPageToken)}`
       }
 
-      console.log(`📄 [HotmartFetch] Página ${pageCount}: ${requestUrl}`)
+      logger.info(`📄 [HotmartFetch] Página ${pageCount}: ${requestUrl}`)
 
       const response = await requestWithRetry(
         () =>
@@ -239,8 +240,8 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
       allUsers = allUsers.concat(users)
       nextPageToken = pageInfo.next_page_token || pageInfo.nextPageToken || null
 
-console.log(`✅ [HotmartFetch] Página ${pageCount}: ${users.length} utilizadores | Total: ${allUsers.length}`)
-console.log(`   nextPageToken: ${nextPageToken ? 'exists' : 'null'}`)
+logger.info(`✅ [HotmartFetch] Página ${pageCount}: ${users.length} utilizadores | Total: ${allUsers.length}`)
+logger.info(`   nextPageToken: ${nextPageToken ? 'exists' : 'null'}`)
 
 // Rate limiting (só se houver próxima página)
 if (nextPageToken) {
@@ -248,11 +249,11 @@ if (nextPageToken) {
 }
     } while (nextPageToken)
 
-    console.log(`🎯 [HotmartFetch] Busca completa: ${allUsers.length} utilizadores em ${pageCount} páginas`)
+    logger.info(`🎯 [HotmartFetch] Busca completa: ${allUsers.length} utilizadores em ${pageCount} páginas`)
     return allUsers
 
   } catch (error: any) {
-    console.error('❌ [HotmartFetch] Erro:', error.response?.data || error.message)
+    logger.error('❌ [HotmartFetch] Erro:', error.response?.data || error.message)
     throw new Error(`Erro ao buscar utilizadores: ${error.message}`)
   }
 }
@@ -288,7 +289,7 @@ const response = await requestWithRetry(
     return response.data.lessons || []
 
   } catch (error: any) {
-    console.warn(`⚠️ [HotmartFetch] Erro ao buscar lições do user ${userId}:`, error.message)
+    logger.warn(`⚠️ [HotmartFetch] Erro ao buscar lições do user ${userId}:`, error.message)
     return []
   }
 }
@@ -311,10 +312,10 @@ export const fetchBatchUserProgress = async (
     .map(u => u.id || u.user_id || u.uid || u.code)
     .filter(Boolean) as string[]
 
-  console.log(`📊 [HotmartProgress] Iniciando fetch de progresso...`)
-  console.log(`   👥 Total users: ${userIds.length}`)
-  console.log(`   🔢 Concurrency: ${concurrency}`)
-  console.log(`   ⏱️  Estimativa: ~${Math.ceil(userIds.length / concurrency * 0.5 / 60)} minutos`)
+  logger.info(`📊 [HotmartProgress] Iniciando fetch de progresso...`)
+  logger.info(`   👥 Total users: ${userIds.length}`)
+  logger.info(`   🔢 Concurrency: ${concurrency}`)
+  logger.info(`   ⏱️  Estimativa: ~${Math.ceil(userIds.length / concurrency * 0.5 / 60)} minutos`)
 
   const startTime = Date.now()
   let processedCount = 0
@@ -349,7 +350,7 @@ export const fetchBatchUserProgress = async (
     // ✅ LOG A CADA 10 BATCHES (não todos!)
     if (batchNum % 10 === 0 || batchNum === totalBatches) {
       const remaining = Math.ceil((userIds.length - processedCount) / concurrency * (batchDuration / 1000))
-      console.log(`   📦 Batch ${batchNum}/${totalBatches} (${percentage}%) - ${elapsed}s passados, ~${Math.ceil(remaining / 60)} min restantes`)
+      logger.info(`   📦 Batch ${batchNum}/${totalBatches} (${percentage}%) - ${elapsed}s passados, ~${Math.ceil(remaining / 60)} min restantes`)
     }
     
     // Rate limiting entre batches
@@ -359,10 +360,10 @@ export const fetchBatchUserProgress = async (
   }
 
   const totalDuration = Math.floor((Date.now() - startTime) / 1000)
-  console.log(`✅ [HotmartProgress] Completo!`)
-  console.log(`   ⏱️  Duração: ${totalDuration}s (${Math.floor(totalDuration / 60)} min)`)
-  console.log(`   📊 Sucesso: ${progressMap.size}/${userIds.length} users (${Math.floor(progressMap.size / userIds.length * 100)}%)`)
-  console.log(`   ⚡ Velocidade: ${(userIds.length / totalDuration).toFixed(1)} users/s`)
+  logger.info(`✅ [HotmartProgress] Completo!`)
+  logger.info(`   ⏱️  Duração: ${totalDuration}s (${Math.floor(totalDuration / 60)} min)`)
+  logger.info(`   📊 Sucesso: ${progressMap.size}/${userIds.length} users (${Math.floor(progressMap.size / userIds.length * 100)}%)`)
+  logger.info(`   ⚡ Velocidade: ${(userIds.length / totalDuration).toFixed(1)} users/s`)
 
   return progressMap
 }

@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts
 // Hotmart Adapter - Ponte para Universal Sync
@@ -38,36 +39,36 @@ export const fetchHotmartDataForSync = async (
     progressConcurrency: 5
   }
 ): Promise<UniversalSyncUserData[]> => {
-  console.log('🚀 [HotmartAdapter] Iniciando busca de dados para sync...')
-  console.log('   📊 Opções:', options)
+  logger.info('🚀 [HotmartAdapter] Iniciando busca de dados para sync...')
+  logger.info('   📊 Opções:', options)
 
   const startTime = Date.now()
 
   try {
     // STEP 1: AUTENTICAÇÃO
-    console.log('🔐 [HotmartAdapter] Step 1/4: Autenticação...')
+    logger.info('🔐 [HotmartAdapter] Step 1/4: Autenticação...')
     const accessToken = await hotmartHelpers.getHotmartAccessToken()
 
     // STEP 2: BUSCAR UTILIZADORES
-    console.log('📡 [HotmartAdapter] Step 2/4: Buscando utilizadores...')
+    logger.info('📡 [HotmartAdapter] Step 2/4: Buscando utilizadores...')
     const rawUsers = await hotmartHelpers.fetchAllHotmartUsers(accessToken)
 
     if (rawUsers.length === 0) {
-      console.warn('⚠️ [HotmartAdapter] Nenhum utilizador encontrado!')
+      logger.warn('⚠️ [HotmartAdapter] Nenhum utilizador encontrado!')
       return []
     }
 
-    console.log(`✅ [HotmartAdapter] ${rawUsers.length} utilizadores encontrados`)
+    logger.info(`✅ [HotmartAdapter] ${rawUsers.length} utilizadores encontrados`)
 
     // STEP 3: BUSCAR PROGRESSO (SE NECESSÁRIO)
     let progressMap = new Map<string, ProgressData>()
 
     if (options.includeProgress && options.includeLessons) {
-      console.log('📊 [HotmartAdapter] Step 3/4: Buscando progresso...')
-      console.log(`   👥 ${rawUsers.length} users para processar`)
-      console.log(`   🔢 Concurrency: ${options.progressConcurrency || 2}`)
-      console.log(`   ⏱️  Tempo estimado: ${Math.ceil(rawUsers.length / (options.progressConcurrency || 2) * 0.5 / 60)} minutos`)
-      console.log('   ☕ Isto pode demorar - vai buscar um café!')
+      logger.info('📊 [HotmartAdapter] Step 3/4: Buscando progresso...')
+      logger.info(`   👥 ${rawUsers.length} users para processar`)
+      logger.info(`   🔢 Concurrency: ${options.progressConcurrency || 2}`)
+      logger.info(`   ⏱️  Tempo estimado: ${Math.ceil(rawUsers.length / (options.progressConcurrency || 2) * 0.5 / 60)} minutos`)
+      logger.info('   ☕ Isto pode demorar - vai buscar um café!')
 
       const progressStart = Date.now()
 
@@ -78,14 +79,14 @@ export const fetchHotmartDataForSync = async (
       )
 
       const progressDuration = Math.floor((Date.now() - progressStart) / 1000)
-      console.log(`✅ [HotmartAdapter] Progresso obtido em ${progressDuration}s (${Math.floor(progressDuration / 60)} min)`)
-      console.log(`   📊 ${progressMap.size}/${rawUsers.length} users com progresso`)
+      logger.info(`✅ [HotmartAdapter] Progresso obtido em ${progressDuration}s (${Math.floor(progressDuration / 60)} min)`)
+      logger.info(`   📊 ${progressMap.size}/${rawUsers.length} users com progresso`)
     } else {
-      console.log('⏭️ [HotmartAdapter] Step 3/4: Progresso ignorado (opções)')
+      logger.info('⏭️ [HotmartAdapter] Step 3/4: Progresso ignorado (opções)')
     }
 
     // STEP 4: NORMALIZAR DADOS (✅ VERSÃO COMPLETA)
-    console.log('🔄 [HotmartAdapter] Step 4/4: Normalizando dados...')
+    logger.info('🔄 [HotmartAdapter] Step 4/4: Normalizando dados...')
 
     const normalizedUsers: UniversalSyncUserData[] = []
     const errors: string[] = []
@@ -185,18 +186,18 @@ if (!hotmartId) {
     // STEP 5: RESULTADOS
     const duration = Math.floor((Date.now() - startTime) / 1000)
 
-    console.log('✅ [HotmartAdapter] Dados preparados!')
-    console.log(`   ⏱️ Duração: ${duration}s`)
-    console.log(`   ✅ Válidos: ${normalizedUsers.length}`)
-    console.log(`   ❌ Erros: ${errors.length}`)
+    logger.info('✅ [HotmartAdapter] Dados preparados!')
+    logger.info(`   ⏱️ Duração: ${duration}s`)
+    logger.info(`   ✅ Válidos: ${normalizedUsers.length}`)
+    logger.info(`   ❌ Erros: ${errors.length}`)
 
     if (errors.length > 0) {
-      console.warn('⚠️ [HotmartAdapter] Erros de validação:', errors.slice(0, 5))
+      logger.warn('⚠️ [HotmartAdapter] Erros de validação:', errors.slice(0, 5))
     }
 
     return normalizedUsers
   } catch (error: any) {
-    console.error('❌ [HotmartAdapter] Erro fatal:', error)
+    logger.error('❌ [HotmartAdapter] Erro fatal:', error)
     throw new Error(`Adapter falhou: ${error.message}`)
   }
 }
@@ -208,7 +209,7 @@ if (!hotmartId) {
 export const fetchProgressForExistingUsers = async (
   userIds: string[]
 ): Promise<Map<string, ProgressData>> => {
-  console.log(`📊 [HotmartAdapter] Buscando progresso para ${userIds.length} utilizadores...`)
+  logger.info(`📊 [HotmartAdapter] Buscando progresso para ${userIds.length} utilizadores...`)
 
   try {
     const accessToken = await hotmartHelpers.getHotmartAccessToken()
@@ -226,7 +227,7 @@ export const fetchProgressForExistingUsers = async (
             progressMap.set(userId, progress)
           }
         } catch {
-          console.warn(`⚠️ Erro ao buscar progresso do user ${userId}`)
+          logger.warn(`⚠️ Erro ao buscar progresso do user ${userId}`)
         }
       })
 
@@ -239,10 +240,10 @@ export const fetchProgressForExistingUsers = async (
       }
     }
 
-    console.log(`✅ [HotmartAdapter] ${progressMap.size} progressos obtidos`)
+    logger.info(`✅ [HotmartAdapter] ${progressMap.size} progressos obtidos`)
     return progressMap
   } catch (error: any) {
-    console.error('❌ [HotmartAdapter] Erro ao buscar progresso:', error)
+    logger.error('❌ [HotmartAdapter] Erro ao buscar progresso:', error)
     throw error
   }
 }

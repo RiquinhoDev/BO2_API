@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/activitySnapshot.service.ts
 // Service: Activity Snapshot
@@ -42,7 +43,7 @@ export class ActivitySnapshotService {
   // ═══════════════════════════════════════════════════════════
   
   async createSnapshot(dto: CreateSnapshotDTO): Promise<IActivitySnapshot> {
-    console.log(`📸 Criando snapshot: User ${dto.userId} | Platform ${dto.platform}`)
+    logger.info(`📸 Criando snapshot: User ${dto.userId} | Platform ${dto.platform}`)
 
     // Normalizar mês para primeiro dia
     const normalizedMonth = normalizeSnapshotMonth(dto.month)
@@ -63,7 +64,7 @@ export class ActivitySnapshotService {
     })
 
     if (existing) {
-      console.log(`♻️ Snapshot já existe, atualizando...`)
+      logger.info(`♻️ Snapshot já existe, atualizando...`)
       
       // Atualizar snapshot existente
       existing.wasActive = dto.wasActive
@@ -102,7 +103,7 @@ export class ActivitySnapshotService {
       syncHistoryId: dto.syncHistoryId
     })
 
-    console.log(`✅ Snapshot criado: ${snapshot._id}`)
+    logger.info(`✅ Snapshot criado: ${snapshot._id}`)
     
     return snapshot
   }
@@ -116,7 +117,7 @@ export class ActivitySnapshotService {
     updated: number
     errors: number
   }> {
-    console.log(`📸 Criando batch snapshots: ${dto.userActivities.length} users`)
+    logger.info(`📸 Criando batch snapshots: ${dto.userActivities.length} users`)
 
     const normalizedMonth = normalizeSnapshotMonth(dto.month)
     
@@ -163,12 +164,12 @@ export class ActivitySnapshotService {
         created += result.upsertedCount
         updated += result.modifiedCount
       } catch (error: any) {
-        console.error(`❌ Erro no batch ${i}-${i + batchSize}:`, error.message)
+        logger.error(`❌ Erro no batch ${i}-${i + batchSize}:`, error.message)
         errors += batch.length
       }
     }
 
-    console.log(`✅ Batch completo: ${created} criados, ${updated} atualizados, ${errors} erros`)
+    logger.info(`✅ Batch completo: ${created} criados, ${updated} atualizados, ${errors} erros`)
     
     return { created, updated, errors }
   }
@@ -187,7 +188,7 @@ export class ActivitySnapshotService {
   }> {
     const startTime = Date.now()
     
-    console.log(`📸 Criando snapshots mensais: ${month.toISOString().slice(0, 7)}`)
+    logger.info(`📸 Criando snapshots mensais: ${month.toISOString().slice(0, 7)}`)
 
     const normalizedMonth = normalizeSnapshotMonth(month)
     const platforms: Platform[] = platform ? [platform] : ['HOTMART', 'CURSEDUCA', 'DISCORD']
@@ -196,12 +197,12 @@ export class ActivitySnapshotService {
     let snapshotsCreated = 0
 
     for (const plt of platforms) {
-      console.log(`🔄 Processando plataforma: ${plt}`)
+      logger.info(`🔄 Processando plataforma: ${plt}`)
 
       // Buscar todos os users ativos nesta plataforma
       const users = await this.getActiveUsersForPlatform(plt, normalizedMonth)
       
-      console.log(`👥 ${users.length} users encontrados`)
+      logger.info(`👥 ${users.length} users encontrados`)
 
       // Criar snapshots
       for (const user of users) {
@@ -225,14 +226,14 @@ export class ActivitySnapshotService {
           totalProcessed++
 
         } catch (error: any) {
-          console.error(`❌ Erro ao criar snapshot para user ${user._id}:`, error.message)
+          logger.error(`❌ Erro ao criar snapshot para user ${user._id}:`, error.message)
         }
       }
     }
 
     const duration = Math.round((Date.now() - startTime) / 1000)
     
-    console.log(`✅ Snapshots mensais criados: ${snapshotsCreated}/${totalProcessed} (${duration}s)`)
+    logger.info(`✅ Snapshots mensais criados: ${snapshotsCreated}/${totalProcessed} (${duration}s)`)
     
     return {
       totalProcessed,
@@ -283,7 +284,7 @@ export class ActivitySnapshotService {
     platform: Platform,
     milestones: number[] = [1, 3, 6, 12]
   ): Promise<CohortRetentionData> {
-    console.log(`📊 Calculando cohort retention: ${cohortMonth.toISOString().slice(0, 7)}`)
+    logger.info(`📊 Calculando cohort retention: ${cohortMonth.toISOString().slice(0, 7)}`)
 
     const results = await mapCohortMilestonesBounded(
       milestones,
@@ -323,11 +324,11 @@ export class ActivitySnapshotService {
   async cleanupOldSnapshots(
     olderThanMonths: number = 18
   ): Promise<number> {
-    console.log(`🧹 Limpando snapshots mais antigos que ${olderThanMonths} meses`)
+    logger.info(`🧹 Limpando snapshots mais antigos que ${olderThanMonths} meses`)
 
     const deletedCount = await ActivitySnapshot.cleanupOldSnapshots(olderThanMonths)
     
-    console.log(`✅ ${deletedCount} snapshots deletados`)
+    logger.info(`✅ ${deletedCount} snapshots deletados`)
     
     return deletedCount
   }

@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import axios from 'axios'
 import {
   CursEducaMemberFromReports,
@@ -27,7 +28,7 @@ export async function fetchGroupMembersList(
   let pageCount = 0
   const maxPages = 10
 
-  console.log(`   ðŸ“„ Buscando lista de membros do grupo ${groupId}...`)
+  logger.info(`   ðŸ“„ Buscando lista de membros do grupo ${groupId}...`)
 
   while (hasMore && offset < 1000 && pageCount < maxPages) {
     pageCount++
@@ -44,7 +45,7 @@ export async function fetchGroupMembersList(
 
       const pageMembers = collectionItems(response.data)
 
-      console.log(`      PÃ¡gina ${pageCount}: ${pageMembers.length} membros`)
+      logger.info(`      PÃ¡gina ${pageCount}: ${pageMembers.length} membros`)
       
       allMembers.push(...pageMembers)
       
@@ -56,12 +57,12 @@ export async function fetchGroupMembersList(
       }
       
     } catch (error: unknown) {
-      console.error(`   âŒ Erro na pÃ¡gina ${pageCount}:`, errorMessage(error))
+      logger.error(`   âŒ Erro na pÃ¡gina ${pageCount}:`, errorMessage(error))
       throw error
     }
   }
 
-  console.log(`   âœ… Total: ${allMembers.length} membros`)
+  logger.info(`   âœ… Total: ${allMembers.length} membros`)
   return allMembers
 }
 export type CurseducaProgressReportItem = {
@@ -102,11 +103,11 @@ export async function fetchProgressReport(
   // Mapear grupo para content
   const contentSlug = getContentSlugFromGroup(groupName)
   if (!contentSlug) {
-    console.log(`   âš ï¸  NÃ£o consegui mapear grupo "${groupName}" para content, saltando...`)
+    logger.info(`   âš ï¸  NÃ£o consegui mapear grupo "${groupName}" para content, saltando...`)
     return progressMap
   }
 
-  console.log(`   Buscando progresso detalhado do grupo ${groupId} (content: ${contentSlug})...`)
+  logger.info(`   Buscando progresso detalhado do grupo ${groupId} (content: ${contentSlug})...`)
 
   while (hasMore && offset < 2000 && pageCount < maxPages) {
     pageCount++
@@ -158,12 +159,12 @@ export async function fetchProgressReport(
         await new Promise(resolve => setTimeout(resolve, 200))
       }
     } catch (error: unknown) {
-      console.error(`   Erro ao buscar /reports/progress:`, errorMessage(error))
+      logger.error(`   Erro ao buscar /reports/progress:`, errorMessage(error))
       break
     }
   }
 
-  console.log(`   Progresso detalhado: ${progressMap.size} membros`)
+  logger.info(`   Progresso detalhado: ${progressMap.size} membros`)
   return progressMap
 }
 
@@ -182,7 +183,7 @@ export async function fetchAccessReport(
   let pageCount = 0
   const maxPages = 30
 
-  console.log('   Buscando relatorio de acessos (reports/access)...')
+  logger.info('   Buscando relatorio de acessos (reports/access)...')
 
   while (hasMore && offset < 3000 && pageCount < maxPages) {
     pageCount++
@@ -236,12 +237,12 @@ export async function fetchAccessReport(
         await new Promise(resolve => setTimeout(resolve, 200))
       }
     } catch (error: unknown) {
-      console.error('   Erro ao buscar /reports/access:', errorMessage(error))
+      logger.error('   Erro ao buscar /reports/access:', errorMessage(error))
       break
     }
   }
 
-  console.log(`   Relatorio de acessos: ${accessMap.size} membros`)
+  logger.info(`   Relatorio de acessos: ${accessMap.size} membros`)
   return accessMap
 }
 
@@ -274,7 +275,7 @@ export async function fetchAllMembersMap(
   let pages = 0
   const maxPages = 200 // teto de seguranÃ§a (~20k membros)
 
-  console.log('   ðŸ“¡ Buscando TODOS os membros em massa via /members (paginado)...')
+  logger.info('   ðŸ“¡ Buscando TODOS os membros em massa via /members (paginado)...')
 
   while (pages < maxPages) {
     pages++
@@ -313,12 +314,12 @@ export async function fetchAllMembersMap(
           : items.length === limit
 
         if (!hasMore || items.length === 0) {
-          console.log(`   âœ… Membros em massa: ${map.size}${total ? `/${total}` : ''} (${pages} pÃ¡ginas)`)
+          logger.info(`   âœ… Membros em massa: ${map.size}${total ? `/${total}` : ''} (${pages} pÃ¡ginas)`)
           return map
         }
         offset += limit
       } catch (error: unknown) {
-        console.warn(`   âš ï¸ /members offset=${offset} tentativa ${attempt}/3 falhou: ${errorMessage(error)}`)
+        logger.warn(`   âš ï¸ /members offset=${offset} tentativa ${attempt}/3 falhou: ${errorMessage(error)}`)
         if (attempt === 3) {
           // Desiste desta pÃ¡gina mas continua â€” ids em falta caem no fallback 'ACTIVE'
           offset += limit
@@ -330,7 +331,7 @@ export async function fetchAllMembersMap(
     }
   }
 
-  console.log(`   âœ… Membros em massa: ${map.size}${total ? `/${total}` : ''} (${pages} pÃ¡ginas, teto atingido)`)
+  logger.info(`   âœ… Membros em massa: ${map.size}${total ? `/${total}` : ''} (${pages} pÃ¡ginas, teto atingido)`)
   return map
 }
 

@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 universalSync/processSyncItem.ts
 // The per-item use case extracted from universalSyncService.ts: given one
@@ -57,7 +58,7 @@ async function ensureClassExists(
         lastSyncAt: new Date()
       })
 
-      console.log(`   ✅ [Class] Nova turma criada: ${classId} - "${displayName}"`)
+      logger.info(`   ✅ [Class] Nova turma criada: ${classId} - "${displayName}"`)
       return displayName
 
     } else {
@@ -71,7 +72,7 @@ async function ensureClassExists(
 
       if (isGenericName && hasNewName) {
         updates.name = className
-        console.log(`   📝 [Class] Nome atualizado: ${classId} - "${existingClass.name}" → "${className}"`)
+        logger.info(`   📝 [Class] Nome atualizado: ${classId} - "${existingClass.name}" → "${className}"`)
       }
 
       if (source === 'curseduca') {
@@ -85,7 +86,7 @@ async function ensureClassExists(
     }
   } catch (error: unknown) {
     if (mongoErrorCode(error) !== 11000) {
-      console.error(`   ⚠️ [Class] Erro ao criar/atualizar turma ${classId}:`, errorMessage(error))
+      logger.error(`   ⚠️ [Class] Erro ao criar/atualizar turma ${classId}:`, errorMessage(error))
     }
     return className || `Turma ${classId}`
   }
@@ -118,7 +119,7 @@ export const processSyncItem = async (
       email,
       name
     })
-    console.log(`✨ [UniversalSync] Novo user criado: ${user.email}`)
+    logger.info(`✨ [UniversalSync] Novo user criado: ${user.email}`)
   }
 
   const userIdStr = String(user._id)
@@ -179,7 +180,7 @@ export const processSyncItem = async (
             reason: 'Mudança detectada no sync Hotmart',
             movedBy: 'Sistema - Sync Automático'
           })
-          console.log(`   📝 [ClassChange] ${user.email}: "${ev.previousClassName}" → "${ev.className}"`)
+          logger.info(`   📝 [ClassChange] ${user.email}: "${ev.previousClassName}" → "${ev.className}"`)
         } else {
           await StudentClassHistory.create({
             studentId: user._id,
@@ -189,10 +190,10 @@ export const processSyncItem = async (
             reason: 'Primeira inscrição na turma (data de compra)',
             movedBy: 'Sistema - Sync Automático'
           })
-          console.log(`   ✨ [FirstEnrollment] ${user.email} inscrito em "${ev.className}"`)
+          logger.info(`   ✨ [FirstEnrollment] ${user.email} inscrito em "${ev.className}"`)
         }
       } catch (error: unknown) {
-        console.warn(`   ⚠️ Erro ao registrar histórico de turma para ${user.email}:`, errorMessage(error))
+        logger.warn(`   ⚠️ Erro ao registrar histórico de turma para ${user.email}:`, errorMessage(error))
       }
     }
 
@@ -251,7 +252,7 @@ export const processSyncItem = async (
           debugLog(`   ✅ [CursEduca Sync] Removido de PARA_INATIVAR (já INACTIVE): ${user.email}`)
         }
       } catch (err: unknown) {
-        console.error(`⚠️ [CursEduca Sync] Erro ao atualizar UserProduct para ${user.email}:`, errorMessage(err))
+        logger.error(`⚠️ [CursEduca Sync] Erro ao atualizar UserProduct para ${user.email}:`, errorMessage(err))
       }
     }
 
@@ -295,7 +296,7 @@ export const processSyncItem = async (
       const validityDescription = autofix.validity.kind === 'class'
         ? `acesso válido até ${formatDateOnly(autofix.validity.accessEnd)}`
         : `compra recente (${autofix.validity.daysSincePurchase}d)`
-      console.log(`   🔄 [AutoFix] ${user.email} está INACTIVE mas tem ${validityDescription} → reativando`)
+      logger.info(`   🔄 [AutoFix] ${user.email} está INACTIVE mas tem ${validityDescription} → reativando`)
       Object.assign(updateFields, buildCanonicalActiveUserStatusUpdate())
       updateFields['inactivation.isManuallyInactivated'] = false
       updateFields['inactivation.reactivatedAt'] = new Date()
@@ -379,7 +380,7 @@ export const processSyncItem = async (
       debugLog(`      - LOW: ${comparison.summary.lowPriorityChanges}`)
     }
   } catch (snapshotError: unknown) {
-    console.error(`⚠️  [Snapshot] Erro ao criar snapshot para ${user.email}:`, errorMessage(snapshotError))
+    logger.error(`⚠️  [Snapshot] Erro ao criar snapshot para ${user.email}:`, errorMessage(snapshotError))
     // Não falhar o sync por erro no snapshot
   }
 

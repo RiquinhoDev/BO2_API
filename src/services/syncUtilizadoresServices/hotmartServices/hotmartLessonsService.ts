@@ -63,7 +63,7 @@ class HotmartLessonsService {
   async getUserLessons(userId: string, subdomain: string): Promise<HotmartLessonsResponse> {
     const headers = await this.getAuthHeaders()
     try {
-      console.log(`🔍 Buscando lições do utilizador ${userId} no subdomínio ${subdomain}`)
+      logger.info(`🔍 Buscando lições do utilizador ${userId} no subdomínio ${subdomain}`)
       
       // 🧪 DEBUG: Log da requisição completa
       const requestUrl = `${this.baseURL}/users/${userId}/lessons`
@@ -78,10 +78,10 @@ class HotmartLessonsService {
         params: { subdomain }
       })
 
-      console.log(`✅ Resposta recebida - Status: ${response.status}`)
+      logger.info(`✅ Resposta recebida - Status: ${response.status}`)
       
       // 🧪 DEBUG: Log da estrutura completa da resposta
-      console.log(`📄 Estrutura da resposta:`, {
+      logger.info(`📄 Estrutura da resposta:`, {
         hasLessons: 'lessons' in response.data,
         lessonsType: typeof response.data.lessons,
         lessonsIsArray: Array.isArray(response.data.lessons),
@@ -91,14 +91,14 @@ class HotmartLessonsService {
       
       // 🧪 DEBUG: Log da resposta completa se for pequena
       if (!response.data.lessons || response.data.lessons.length <= 5) {
-        console.log(`📄 Resposta completa:`, JSON.stringify(response.data, null, 2))
+        logger.info(`📄 Resposta completa:`, JSON.stringify(response.data, null, 2))
       }
       
-      console.log(`📚 Lições encontradas: ${response.data.lessons?.length || 0}`)
+      logger.info(`📚 Lições encontradas: ${response.data.lessons?.length || 0}`)
       
       // 🧪 DEBUG: Log da primeira lição (se existir)
       if (response.data.lessons && response.data.lessons.length > 0) {
-        console.log(`📖 Exemplo de lição:`, JSON.stringify(response.data.lessons[0], null, 2))
+        logger.info(`📖 Exemplo de lição:`, JSON.stringify(response.data.lessons[0], null, 2))
       }
       
       return response.data
@@ -118,16 +118,16 @@ class HotmartLessonsService {
   private convertHotmartLessons(hotmartLessons: HotmartLesson[]): LessonProgress[] {
     // 🛡️ PROTEÇÃO: Verificar se lessons existe e é array
     if (!hotmartLessons) {
-      console.log('⚠️ hotmartLessons é undefined/null, retornando array vazio')
+      logger.info('⚠️ hotmartLessons é undefined/null, retornando array vazio')
       return []
     }
     
     if (!Array.isArray(hotmartLessons)) {
-      console.log('⚠️ hotmartLessons não é um array:', typeof hotmartLessons, hotmartLessons)
+      logger.info('⚠️ hotmartLessons não é um array:', typeof hotmartLessons, hotmartLessons)
       return []
     }
     
-    console.log(`🔄 Convertendo ${hotmartLessons.length} lições da Hotmart para formato interno`)
+    logger.info(`🔄 Convertendo ${hotmartLessons.length} lições da Hotmart para formato interno`)
     
     return hotmartLessons.map(lesson => ({
       pageId: lesson.page_id,
@@ -180,12 +180,12 @@ class HotmartLessonsService {
   // 🎯 Método principal: buscar e processar lições de um utilizador
   async getUserLessonsData(userId: string, subdomain: string, userEmail?: string, userName?: string): Promise<UserLessonsData> {
     try {
-      console.log(`🎯 === PROCESSAMENTO DO UTILIZADOR ${userId} ===`)
+      logger.info(`🎯 === PROCESSAMENTO DO UTILIZADOR ${userId} ===`)
       
       // Buscar dados da Hotmart
       const hotmartData = await this.getUserLessons(userId, subdomain)
       
-      console.log(`📦 Dados recebidos da Hotmart:`, {
+      logger.info(`📦 Dados recebidos da Hotmart:`, {
         hasLessons: 'lessons' in hotmartData,
         lessonsType: typeof hotmartData.lessons,
         lessonsLength: hotmartData.lessons?.length || 0,
@@ -194,15 +194,15 @@ class HotmartLessonsService {
       
       // 🛡️ PROTEÇÃO: Garantir que lessons existe
       const lessonsArray = hotmartData.lessons || []
-      console.log(`📚 Array de lições a processar: ${lessonsArray.length} items`)
+      logger.info(`📚 Array de lições a processar: ${lessonsArray.length} items`)
       
       // Converter para formato interno
       const lessons = this.convertHotmartLessons(lessonsArray)
-      console.log(`✅ Lições convertidas: ${lessons.length} items`)
+      logger.info(`✅ Lições convertidas: ${lessons.length} items`)
       
       // Calcular estatísticas
       const stats = this.calculateLessonStats(lessons)
-      console.log(`📊 Estatísticas calculadas:`, {
+      logger.info(`📊 Estatísticas calculadas:`, {
         totalLessons: stats.totalLessons,
         completedLessons: stats.completedLessons,
         progressPercentage: stats.progressPercentage
@@ -220,17 +220,17 @@ class HotmartLessonsService {
         lastUpdated: new Date()
       }
       
-      console.log(`🎯 === FIM DO PROCESSAMENTO ${userId} ===`)
+      logger.info(`🎯 === FIM DO PROCESSAMENTO ${userId} ===`)
       return result
     } catch (error) {
-      console.error(`❌ Erro ao processar lições do utilizador ${userId}:`, error)
+      logger.error(`❌ Erro ao processar lições do utilizador ${userId}:`, error)
       throw error
     }
   }
 
   // 📈 Buscar lições de múltiplos utilizadores (para dashboard)
   async getMultipleUsersLessons(userIds: string[], subdomain: string): Promise<UserLessonsData[]> {
-    console.log(`🔄 Buscando lições de ${userIds.length} utilizadores...`)
+    logger.info(`🔄 Buscando lições de ${userIds.length} utilizadores...`)
     
     const results: UserLessonsData[] = []
     const errors: { userId: string; error: string }[] = []
@@ -245,7 +245,7 @@ class HotmartLessonsService {
           const lessonData = await this.getUserLessonsData(userId, subdomain)
           results.push(lessonData)
         } catch (error: any) {
-          console.error(`❌ Erro ao buscar lições do utilizador ${userId}:`, error.message)
+          logger.error(`❌ Erro ao buscar lições do utilizador ${userId}:`, error.message)
           errors.push({ userId, error: error.message })
         }
       })
@@ -258,10 +258,10 @@ class HotmartLessonsService {
       }
     }
 
-    console.log(`✅ Processados: ${results.length} sucessos, ${errors.length} erros`)
+    logger.info(`✅ Processados: ${results.length} sucessos, ${errors.length} erros`)
     
     if (errors.length > 0) {
-      console.warn('⚠️ Erros encontrados:', errors)
+      logger.warn('⚠️ Erros encontrados:', errors)
     }
 
     return results
