@@ -373,15 +373,7 @@
       "count": 1
     }
   },
-  "src/services/syncUtilizadoresServices/engagement/recalculate-engagement-metrics.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 8
-    }
-  },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 8
-    },
     "preserve-caught-error": {
       "count": 1
     }
