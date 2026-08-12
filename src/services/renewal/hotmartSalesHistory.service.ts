@@ -18,7 +18,6 @@
 import axios from 'axios'
 import mongoose from 'mongoose'
 import HotmartSaleHistory, { IHotmartSale } from '../../models/HotmartSaleHistory'
-import HotmartSalesMonthlyStats from '../../models/HotmartSalesMonthlyStats'
 import Product from '../../models/product/Product'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
@@ -42,8 +41,6 @@ export interface SalesHistorySyncReport {
   updated: number
   withSales: number
   withoutSales: number
-  monthlyStatsUpdated: number
-  refundTransactionsFound: number
   errors: Array<{ email: string; error: string }>
 }
 
@@ -225,7 +222,7 @@ function extractTotalResults(responseData: any): number | null {
  * Se não bater certo, a paginação parou cedo (bug ou API mudou) —
  * fica registado no report em vez de passar despercebido.
  */
-async function fetchAllOgiSalesGroupedByEmail(
+export async function fetchAllOgiSalesGroupedByEmail(
   accessToken: string,
   hotmartProductId: string,
   transactionStatusFilter?: string
@@ -346,17 +343,7 @@ export function aggregateMonthlySalesStats(salesByEmail: Map<string, IHotmartSal
   return [...buckets.values()].sort((a, b) => a.month.localeCompare(b.month))
 }
 
-async function saveMonthlySalesStats(stats: MonthlySalesStat[]): Promise<void> {
-  for (const stat of stats) {
-    await HotmartSalesMonthlyStats.updateOne(
-      { month: stat.month },
-      { $set: { ...stat, lastSyncedAt: new Date() } },
-      { upsert: true }
-    )
-  }
-}
-
-async function resolveOgiProduct(): Promise<{ hotmartProductId: string; objectId: mongoose.Types.ObjectId }> {
+export async function resolveOgiProduct(): Promise<{ hotmartProductId: string; objectId: mongoose.Types.ObjectId }> {
   const ogiProduct = await ProductReadModel.findOne({
     platform: 'hotmart',
     isActive: true,
@@ -413,31 +400,6 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
   const { salesByEmail, salesChecked, pagesFetched, totalResultsReportedByHotmart, paginationComplete } =
     await fetchAllOgiSalesGroupedByEmail(accessToken, hotmartProductId)
 
-  // a Hotmart NÃO devolve reembolsos/chargebacks no pedido normal — só
-  // aparecem com transaction_status explícito (mesmo comportamento já
-  // tratado em hotmartRefunds.service.ts). 2 passagens extra, filtradas,
-  // só para o desempenho mensal — não afeta HotmartSaleHistory (continua
-  // a usar só o `salesByEmail` de cima, comportamento inalterado).
-  const [refundedResult, chargebackResult] = await Promise.all([
-    fetchAllOgiSalesGroupedByEmail(accessToken, hotmartProductId, 'REFUNDED'),
-    fetchAllOgiSalesGroupedByEmail(accessToken, hotmartProductId, 'CHARGEBACK')
-  ])
-
-  const salesByEmailWithRefunds = new Map<string, IHotmartSale[]>()
-  for (const [email, sales] of salesByEmail) salesByEmailWithRefunds.set(email, [...sales])
-  for (const extra of [refundedResult, chargebackResult]) {
-    for (const [email, sales] of extra.salesByEmail) {
-      const list = salesByEmailWithRefunds.get(email)
-      if (list) list.push(...sales)
-      else salesByEmailWithRefunds.set(email, [...sales])
-    }
-  }
-
-  // desempenho de vendas por mês (TODAS as vendas do produto vistas nestes
-  // pedidos, não só as de alunos ativos) — inclui agora reembolsos/chargebacks.
-  const monthlyStats = aggregateMonthlySalesStats(salesByEmailWithRefunds)
-  await saveMonthlySalesStats(monthlyStats)
-
   const report: SalesHistorySyncReport = {
     salesChecked,
     pagesFetched,
@@ -448,9 +410,6 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
     updated: 0,
     withSales: 0,
     withoutSales: 0,
-    monthlyStatsUpdated: monthlyStats.length,
-    refundTransactionsFound: [...refundedResult.salesByEmail.values(), ...chargebackResult.salesByEmail.values()]
-      .reduce((n, s) => n + s.length, 0),
     errors: []
   }
 

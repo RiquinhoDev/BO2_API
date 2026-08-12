@@ -1,18 +1,15 @@
 // ════════════════════════════════════════════════════════════
-// 📁 src/models/HotmartSalesMonthlyStats.ts
-// Desempenho de vendas Hotmart (OGI) por mês — nº de vendas + capital,
-// materializado a partir do mesmo pedido em bulk já feito pelo Sync
-// Hotmart (hotmartSalesHistory.service.ts), sem chamadas extra à API.
-//
-// Ao contrário de HotmartSaleHistory (só alunos ATIVOS), aqui entram
-// TODAS as vendas do produto OGI vistas nesse pedido — incluindo quem
-// entretanto saiu/reembolsou — porque o objetivo é desempenho de
-// vendas, não matching de renovação.
+// 📁 src/models/ProductSalesMonthlyStats.ts
+// Desempenho de vendas por produto e por mês — nº de vendas + capital,
+// um documento por (productKey, month). Multi-plataforma: OGI vem da
+// Hotmart, Clareza (Mensal/Anual) vem da Guru — ver
+// src/services/products/productSalesPerformance.service.ts.
 // ════════════════════════════════════════════════════════════
 
 import mongoose, { Document, Schema } from 'mongoose'
 
-export interface IHotmartSalesMonthlyStats extends Document {
+export interface IProductSalesMonthlyStats extends Document {
+  productKey: string // 'OGI' | 'CLAREZA_MENSAL' | 'CLAREZA_ANUAL'
   month: string // 'YYYY-MM'
   year: number
   monthNum: number // 1-12
@@ -29,9 +26,10 @@ export interface IHotmartSalesMonthlyStats extends Document {
   updatedAt: Date
 }
 
-const hotmartSalesMonthlyStatsSchema = new Schema<IHotmartSalesMonthlyStats>(
+const productSalesMonthlyStatsSchema = new Schema<IProductSalesMonthlyStats>(
   {
-    month: { type: String, required: true, unique: true },
+    productKey: { type: String, required: true, index: true },
+    month: { type: String, required: true },
     year: { type: Number, required: true, index: true },
     monthNum: { type: Number, required: true },
 
@@ -45,11 +43,13 @@ const hotmartSalesMonthlyStatsSchema = new Schema<IHotmartSalesMonthlyStats>(
   },
   {
     timestamps: true,
-    collection: 'hotmartsalesmonthlystats'
+    collection: 'productsalesmonthlystats'
   }
 )
 
-const HotmartSalesMonthlyStats = (mongoose.models.HotmartSalesMonthlyStats ||
-  mongoose.model<IHotmartSalesMonthlyStats>('HotmartSalesMonthlyStats', hotmartSalesMonthlyStatsSchema)) as mongoose.Model<IHotmartSalesMonthlyStats>
+productSalesMonthlyStatsSchema.index({ productKey: 1, month: 1 }, { unique: true })
 
-export default HotmartSalesMonthlyStats
+const ProductSalesMonthlyStats = (mongoose.models.ProductSalesMonthlyStats ||
+  mongoose.model<IProductSalesMonthlyStats>('ProductSalesMonthlyStats', productSalesMonthlyStatsSchema)) as mongoose.Model<IProductSalesMonthlyStats>
+
+export default ProductSalesMonthlyStats
