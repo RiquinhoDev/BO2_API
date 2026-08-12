@@ -45,8 +45,8 @@ export const executeUniversalSync = async (
   const errors: SyncError[] = []
   const warnings: SyncWarning[] = []
 
-  let rid = ''
-  let hid = ''
+  let rid: string
+  let hid: string
 
   try {
     // ✅ OTIMIZAÇÃO FASE 1: Pre-load cache de produtos

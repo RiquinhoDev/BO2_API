@@ -1,3 +1,4 @@
+import { errorMessage } from './universalSync/fieldUtils'
 import logger from '../../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 syncReports.service.ts - VERSÃO CORRIGIDA
@@ -47,7 +48,7 @@ export const createSnapshot = async (): Promise<ISyncReportSnapshot> => {
         discord: discordCount
       }
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ Erro ao criar snapshot:', error)
     
     // ✅ MELHOR: Retornar com flag de erro
@@ -57,7 +58,7 @@ export const createSnapshot = async (): Promise<ISyncReportSnapshot> => {
       activeUsers: 0,
       platformStats: {},
       hasError: true,
-      errorMessage: error.message
+      errorMessage: errorMessage(error)
     } as ISyncReportSnapshot
   }
 }
@@ -138,9 +139,9 @@ export const createSyncReport = async (
     logger.info(`✅ [SyncReports] Report criado: ${report._id}`)
     return report
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao criar report:', error)
-    throw new Error(`Falha ao criar report: ${error.message}`)
+    throw new Error(`Falha ao criar report: ${errorMessage(error)}`)
   }
 }
 
@@ -165,7 +166,7 @@ export const updateReportStats = async (
     await report.save()
     return report
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao atualizar stats:', error)
     return null
   }
@@ -208,7 +209,7 @@ export const completeReport = async (
     
     return report
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao finalizar report:', error)
     return null
   }
@@ -239,7 +240,7 @@ export const addReportError = async (
       stack
     })
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao adicionar erro ao report:', error)
   }
 }
@@ -267,7 +268,7 @@ export const addReportWarning = async (
       context
     })
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao adicionar warning ao report:', error)
   }
 }
@@ -291,7 +292,7 @@ export const addReportLog = async (
     
     await report.addLog(level, message, meta)
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao adicionar log ao report:', error)
   }
 }
@@ -316,7 +317,7 @@ export const getReports = async (
     
     return reports
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao buscar reports:', error)
     return []
   }
@@ -337,7 +338,7 @@ export const getReportById = async (
     
     return report
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao buscar report:', error)
     return null
   }
@@ -355,7 +356,7 @@ export const getReportsByJob = async (
     const reports = await SyncReport.findByJob(jobId, limit)
     return reports
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao buscar reports do job:', error)
     return []
   }
@@ -370,7 +371,7 @@ export const getAggregatedStats = async (days: number = 30) => {
     const stats = await SyncReport.getAggregatedStats(days)
     return stats
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('❌ [SyncReports] Erro ao buscar stats agregados:', error)
     return {
       totalSyncs: 0,

@@ -1,3 +1,4 @@
+import { errorMessage } from './universalSync/fieldUtils'
 import logger from '../../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/activitySnapshot.service.ts
@@ -163,8 +164,8 @@ export class ActivitySnapshotService {
         const result = await ActivitySnapshot.bulkWrite(operations)
         created += result.upsertedCount
         updated += result.modifiedCount
-      } catch (error: any) {
-        logger.error(`❌ Erro no batch ${i}-${i + batchSize}:`, error.message)
+      } catch (error: unknown) {
+        logger.error(`❌ Erro no batch ${i}-${i + batchSize}:`, errorMessage(error))
         errors += batch.length
       }
     }
@@ -225,8 +226,8 @@ export class ActivitySnapshotService {
           snapshotsCreated++
           totalProcessed++
 
-        } catch (error: any) {
-          logger.error(`❌ Erro ao criar snapshot para user ${user._id}:`, error.message)
+        } catch (error: unknown) {
+          logger.error(`❌ Erro ao criar snapshot para user ${user._id}:`, errorMessage(error))
         }
       }
     }
@@ -271,7 +272,7 @@ export class ActivitySnapshotService {
   async getMonthlyStats(
     month: Date,
     platform?: Platform
-  ): Promise<any> {
+  ): Promise<Awaited<ReturnType<typeof ActivitySnapshot.getMonthlyStats>>> {
     return ActivitySnapshot.getMonthlyStats(month, platform)
   }
 
@@ -339,8 +340,8 @@ export class ActivitySnapshotService {
   
   private async getActiveUsersForPlatform(
     platform: Platform,
-    month: Date
-  ): Promise<any[]> {
+    _month: Date
+  ): Promise<Array<{ _id: mongoose.Types.ObjectId }>> {
     // TODO: Implementar query real baseada na plataforma
     // Por agora, retornar mock data
     
@@ -369,16 +370,16 @@ export class ActivitySnapshotService {
   }
 
   private async getUserActivityForMonth(
-    userId: mongoose.Types.ObjectId,
-    platform: Platform,
-    month: Date
+    _userId: mongoose.Types.ObjectId,
+    _platform: Platform,
+    _month: Date
   ): Promise<{
     wasActive: boolean
     hadLogin: boolean
     hadActivity: boolean
     loginCount: number
     activityCount: number
-    progress?: any
+    progress?: CreateSnapshotDTO['progress']
   }> {
     // TODO: Implementar lógica real para buscar atividade do mês
     // Por agora, retornar mock data
@@ -446,7 +447,7 @@ export class ActivitySnapshotService {
     activeUsers: number
     totalUsers: number
   }>> {
-    const results: any[] = []
+    const results: Array<{ month: Date; avgEngagement: number; activeUsers: number; totalUsers: number }> = []
     
     for (let i = months - 1; i >= 0; i--) {
       const month = new Date()

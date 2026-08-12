@@ -1,3 +1,4 @@
+import { errorMessage } from '../universalSync/fieldUtils'
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ðŸ”„ ENGAGEMENT RECALCULATION SERVICE V3 (HIGHLY OPTIMIZED)
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -280,18 +281,18 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
           
           stats.processed++
           
-        } catch (error: any) {
+        } catch (error: unknown) {
           stats.errors++
           stats.processed++
           
           errors.push({
             userProductId: String(up._id),
-            error: error.message
+            error: errorMessage(error)
           })
           
           logger.error('[EngagementRecalc] âŒ Erro ao processar UserProduct', {
             userProductId: up._id,
-            error: error.message
+            error: errorMessage(error)
           })
         }
       }
@@ -371,13 +372,13 @@ export async function recalculateAllEngagementMetrics(): Promise<RecalculationRe
       errors
     }
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     stats.endTime = Date.now()
     stats.duration = Math.floor((stats.endTime - stats.startTime) / 1000)
     
     logger.error('[EngagementRecalc] ðŸ’¥ Erro fatal', {
-      error: error.message,
-      stack: error.stack,
+      error: errorMessage(error),
+      stack: error instanceof Error ? error.stack : undefined,
       stats
     })
     

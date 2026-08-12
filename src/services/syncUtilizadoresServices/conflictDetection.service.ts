@@ -1,3 +1,4 @@
+import { errorMessage } from './universalSync/fieldUtils'
 import logger from '../../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/conflictDetection.service.ts
@@ -342,8 +343,8 @@ export class ConflictDetectionService {
         
         logger.info(`✅ Conflito ${conflictId} auto-resolvido: ${rule.action}`)
 
-      } catch (error: any) {
-        logger.error(`❌ Erro ao auto-resolver conflito ${conflictId}:`, error.message)
+      } catch (error: unknown) {
+        logger.error(`❌ Erro ao auto-resolver conflito ${conflictId}:`, errorMessage(error))
         failed++
       }
     }

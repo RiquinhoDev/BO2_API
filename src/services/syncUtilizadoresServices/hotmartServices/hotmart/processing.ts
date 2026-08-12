@@ -50,10 +50,10 @@ export const calculateProgress = (
 
 /**
  * Converter timestamp Unix para Date (com validação)
- * @param {any} timestamp - Timestamp em diversos formatos
+ * @param {unknown} timestamp - Timestamp em diversos formatos
  * @returns {Date | null} Data válida ou null
  */
-export const convertUnixTimestamp = (timestamp: any): Date | null => {
+export const convertUnixTimestamp = (timestamp: unknown): Date | null => {
   if (!timestamp) return null
 
   // ISO string
@@ -70,6 +70,7 @@ export const convertUnixTimestamp = (timestamp: any): Date | null => {
 
   // Unix timestamp
   const numTimestamp = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp
+  if (typeof numTimestamp !== 'number') return null
   if (isNaN(numTimestamp) || numTimestamp <= 0) return null
 
   // Converter para milliseconds se necessário
