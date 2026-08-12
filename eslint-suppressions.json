@@ -128,15 +128,7 @@
       "count": 1
     }
   },
-  "src/services/achievements/achievementEvaluation.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 7
-    }
-  },
   "src/services/achievements/streakCalculator.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
     "no-useless-assignment": {
       "count": 1
     }
