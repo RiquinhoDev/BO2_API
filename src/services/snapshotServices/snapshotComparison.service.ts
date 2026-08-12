@@ -7,6 +7,12 @@ import type { IUserSnapshot, IProductSnapshot } from '../../models/UserSnapshot'
 import type { IUser } from '../../models/user'
 import type { IUserProduct } from '../../models/UserProduct'
 
+function populatedProductName(productId: unknown): string {
+  return productId && typeof productId === 'object' && 'name' in productId && typeof productId.name === 'string'
+    ? productId.name
+    : 'Produto desconhecido'
+}
+
 // ═══════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════
@@ -200,7 +206,7 @@ function compareProducts(
   // ✅ PRODUTOS ADICIONADOS + ALTERAÇÕES EM PRODUTOS EXISTENTES
   afterMap.forEach((afterProduct, key) => {
     const beforeProduct = beforeMap.get(key)
-    const productName = (afterProduct.productId as any)?.name || 'Produto desconhecido'
+    const productName = populatedProductName(afterProduct.productId)
 
     // Produto novo
     if (!beforeProduct) {
