@@ -37,7 +37,7 @@ export interface IProductSnapshot {
   }>
 
   // Metadata
-  raw?: any // Dados brutos da plataforma
+  raw?: unknown // Dados brutos da plataforma
 }
 
 export interface IUserSnapshot {

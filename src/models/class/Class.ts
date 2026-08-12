@@ -3,6 +3,7 @@ import mongoose, {
   Schema,
   Document,
   type HydratedDocument,
+  type FilterQuery,
 } from 'mongoose'
 
 export interface IClass extends Document {
@@ -166,11 +167,11 @@ ClassSchema.methods.updateStudentCount = async function() {
 ClassSchema.methods.getStats = async function() {
   const User = mongoose.model('User')
 
-  let totalQuery: any = {
+  let totalQuery: FilterQuery<Record<string, unknown>> = {
     classId: this.classId,
     'inactivation.isManuallyInactivated': { $ne: true }
   }
-  let activeQuery: any = {
+  let activeQuery: FilterQuery<Record<string, unknown>> = {
     classId: this.classId,
     status: 'ACTIVE',
     'inactivation.isManuallyInactivated': { $ne: true }

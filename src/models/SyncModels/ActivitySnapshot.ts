@@ -4,7 +4,7 @@
 // Snapshots mensais de atividade para Cohort Analysis perfeito
 // ════════════════════════════════════════════════════════════
 
-import mongoose, { Schema } from 'mongoose'
+import mongoose, { Schema, type FilterQuery } from 'mongoose'
 import { collectBatches } from '../../utils/collectBatches'
 import { boundedQueryLimit } from '../../utils/queryBounds'
 import type {
@@ -354,7 +354,7 @@ ActivitySnapshotSchema.statics.getMonthlyStats = async function(
 }> {
   const normalizedMonth = new Date(month.getFullYear(), month.getMonth(), 1)
   
-  const query: any = { snapshotMonth: normalizedMonth }
+  const query: FilterQuery<IActivitySnapshot> = { snapshotMonth: normalizedMonth }
   if (platform) query.platform = platform
   
   const stats = await this.aggregate([

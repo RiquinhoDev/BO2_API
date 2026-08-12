@@ -17,7 +17,7 @@ export interface ICronExecutionLog extends Document {
     totalStudents?: number
     tagsApplied?: number
     tagsRemoved?: number
-    errors?: any[]
+    errors?: unknown[]
     error?: string
   }
 }

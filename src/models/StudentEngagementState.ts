@@ -262,7 +262,7 @@ StudentEngagementStateSchema.methods = {
     this.currentTagAC = tag
     this.currentLevel = level
     this.levelAppliedAt = new Date()
-    this.currentState = `LEVEL_${level}` as any
+    this.currentState = `LEVEL_${level}` as 'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3'
     
     // Adicionar ao histórico
     this.tagsHistory.push({

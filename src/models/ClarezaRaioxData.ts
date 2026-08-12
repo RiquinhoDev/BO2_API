@@ -4,9 +4,9 @@ export interface IClarezaRaioxData {
   fetchedAt: Date
   stockCount: number
   errors: number
-  sectorPe: any[]
+  sectorPe: unknown[]
   // Mapa { TICKER: payloadRico } — payload no mesmo formato de chaves curtas do raiox
-  stocks: Record<string, any>
+  stocks: Record<string, unknown>
 }
 
 export type ClarezaRaioxDataDocument =
