@@ -130,7 +130,7 @@ describe('hotmartClassSync — syncHotmartClasses', () => {
 
     const body = captured.body as Body
     expect(body.success).toBe(true)
-    expect((body.classIds as string[]).sort()).toEqual(['H1', 'H2'])
+    expect((((body.data as Body).classIds) as string[]).sort()).toEqual(['H1', 'H2'])
     expect(sleeper.waits).toEqual([200, 200]) // one wait per page, no real sleeping
 
     const cls = await Class.findOne({ classId: 'H1' }).lean()
@@ -174,7 +174,7 @@ describe('hotmartClassSync — checkAndUpdateClassHistory', () => {
     const captured: Captured = {}
     await handlers.checkAndUpdateClassHistory(emptyReq(), makeResponse(captured), jest.fn() as unknown as NextFunction)
 
-    const stats = (captured.body as Body).stats as Body
+    const stats = ((captured.body as Body).data as Body).stats as Body
     expect(stats.changesDetected).toBe(2)
     expect(stats.pagesProcessed).toBe(2)
     expect(sleeper.waits).toEqual([200]) // sleeps only between pages, not after the last
@@ -213,7 +213,7 @@ describe('hotmartClassSync — syncComplete', () => {
 
     const body = captured.body as Body
     expect(body.success).toBe(true)
-    expect((body.stats as Body).conflicts).toBe(2)
+    expect((((body.data as Body).stats) as Body).conflicts).toBe(2)
     expect(sleeper.waits).toEqual([200, 200])
     expect(await Class.countDocuments({ classId: { $in: ['NEW1', 'NEW2'] } })).toBe(2)
     expect(await StudentClassHistory.countDocuments({})).toBe(2)

@@ -173,10 +173,12 @@ export const syncContactTags: RequestHandler<ContactEmailParams> = async (req, r
       )
     }
 
-    res.json({
-      success: syncResult.action === 'synced' || syncResult.action === 'no_changes',
-      data: syncResult
-    })
+    const succeeded = syncResult.action === 'synced' || syncResult.action === 'no_changes'
+    if (!succeeded) {
+      res.json({ success: false, data: syncResult })
+      return
+    }
+    res.json(successResponse(syncResult))
     return
   } catch (error: unknown) {
     next(internalError('Erro interno do servidor', 'AC_CONTACT_TAGS_SYNC_FAILED', error))
@@ -225,15 +227,11 @@ export const getBatchContactTags: RequestHandler = async (req, res, next) => {
 
     const found = results.filter(Boolean) as ACContactStateUpsertPayload[]
 
-    res.json({
-      success: true,
-      data: found,
-      summary: {
-        requested: normalizedEmails.length,
-        found: found.length,
-        notFound: normalizedEmails.length - found.length
-      }
-    })
+    res.json(successResponse(found, { summary: {
+      requested: normalizedEmails.length,
+      found: found.length,
+      notFound: normalizedEmails.length - found.length,
+    } }))
     return
   } catch (error: unknown) {
     next(internalError('Erro interno do servidor', 'AC_CONTACT_TAGS_BATCH_READ_FAILED', error))
@@ -273,7 +271,7 @@ export const batchSyncContacts: RequestHandler = async (req, res, next) => {
       errors: results.filter(r => r.action === 'error').length
     }
 
-    res.json({ success: true, data: results, summary })
+    res.json(successResponse(results, { summary }))
     return
   } catch (error: unknown) {
     next(internalError('Erro interno do servidor', 'AC_CONTACT_TAGS_BATCH_SYNC_FAILED', error))

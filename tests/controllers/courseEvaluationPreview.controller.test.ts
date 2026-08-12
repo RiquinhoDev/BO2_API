@@ -119,10 +119,12 @@ describe.each([
     expect(response.status).toBe(200)
     expect(response.body).toEqual({
       success: true,
-      studentsEvaluated: 2,
-      proposedAdditions: 3,
-      proposedRemovals: 3,
-      errors: 1,
+      data: {
+        studentsEvaluated: 2,
+        proposedAdditions: 3,
+        proposedRemovals: 3,
+        errors: 1,
+      },
     })
     expect(mockFindCourse).toHaveBeenCalledWith(lookup)
     expect(mockFindProducts).toHaveBeenCalledWith({
@@ -146,10 +148,12 @@ describe.each([
     expect(response.status).toBe(200)
     expect(response.body).toEqual({
       success: true,
-      studentsEvaluated: 0,
-      proposedAdditions: 0,
-      proposedRemovals: 0,
-      errors: 0,
+      data: {
+        studentsEvaluated: 0,
+        proposedAdditions: 0,
+        proposedRemovals: 0,
+        errors: 0,
+      },
     })
     expect(mockFindProducts).not.toHaveBeenCalled()
     expect(mockEvaluateProduct).not.toHaveBeenCalled()
@@ -170,10 +174,12 @@ describe.each([
     expect(response.status).toBe(200)
     expect(response.body).toEqual({
       success: true,
-      studentsEvaluated: 0,
-      proposedAdditions: 0,
-      proposedRemovals: 0,
-      errors: 0,
+      data: {
+        studentsEvaluated: 0,
+        proposedAdditions: 0,
+        proposedRemovals: 0,
+        errors: 0,
+      },
     })
     expect(mockEvaluateProduct).not.toHaveBeenCalled()
   })

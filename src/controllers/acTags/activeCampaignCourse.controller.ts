@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express'
 import { internalError } from '../../security/errorHandling'
+import { successResponse } from '../../contracts/responseContract'
 
 import User from '../../models/user'
 import { Course, Product, UserProduct } from '../../models'
@@ -141,7 +142,7 @@ export const getClarezaStudents: RequestHandler = async (_req, res, next) => {
 export const evaluateClarezaRules: RequestHandler = async (_req, res, next) => {
   try {
     const preview = await previewCourseRules({ name: /^Clareza$/i })
-    res.json({ success: true, ...preview })
+    res.json(successResponse(preview))
     return
   } catch (error: unknown) {
     next(internalError('Erro ao pré-visualizar regras', 'AC_CLAREZA_RULES_PREVIEW_FAILED', error))
@@ -282,7 +283,7 @@ export const getOGIStudents: RequestHandler = async (_req, res, next) => {
 export const evaluateOGIRules: RequestHandler = async (_req, res, next) => {
   try {
     const preview = await previewCourseRules({ code: /^OGI$/i })
-    res.json({ success: true, ...preview })
+    res.json(successResponse(preview))
     return
   } catch (error: unknown) {
     next(internalError('Erro ao pré-visualizar regras', 'AC_OGI_RULES_PREVIEW_FAILED', error))

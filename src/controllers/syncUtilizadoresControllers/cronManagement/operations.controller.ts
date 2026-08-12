@@ -196,37 +196,39 @@ export const triggerTagRulesOnly = async (
     const result = await executeTagRulesOnly()
     console.log('�?��?  [TAG-RULES-ONLY] executeTagRulesOnly() retornou!')
 
-    res.status(200).json({
-      success: result.success,
-      message: result.success
-        ? 'Tag Rules Only executado com sucesso'
-        : 'Tag Rules Only executado com erros',
-      data: {
-        duration: result.duration,
-        completedAt: result.completedAt,
-        steps: {
-          preCreateTags: {
-            success: result.steps.preCreateTags.success,
-            duration: result.steps.preCreateTags.duration,
-            totalTags: result.steps.preCreateTags.stats?.totalTags || 0
-          },
-          recalcEngagement: {
-            success: result.steps.recalcEngagement.success,
-            duration: result.steps.recalcEngagement.duration,
-            updated: result.steps.recalcEngagement.stats?.updated || 0
-          },
-          evaluateTagRules: {
-            success: result.steps.evaluateTagRules.success,
-            duration: result.steps.evaluateTagRules.duration,
-            total: result.steps.evaluateTagRules.stats?.total || 0,
-            tagsApplied: result.steps.evaluateTagRules.stats?.tagsApplied || 0,
-            tagsRemoved: result.steps.evaluateTagRules.stats?.tagsRemoved || 0
-          }
+    const message = result.success
+      ? 'Tag Rules Only executado com sucesso'
+      : 'Tag Rules Only executado com erros'
+    const data = {
+      duration: result.duration,
+      completedAt: result.completedAt,
+      steps: {
+        preCreateTags: {
+          success: result.steps.preCreateTags.success,
+          duration: result.steps.preCreateTags.duration,
+          totalTags: result.steps.preCreateTags.stats?.totalTags || 0,
         },
-        summary: result.summary,
-        errors: result.errors
-      }
-    })
+        recalcEngagement: {
+          success: result.steps.recalcEngagement.success,
+          duration: result.steps.recalcEngagement.duration,
+          updated: result.steps.recalcEngagement.stats?.updated || 0,
+        },
+        evaluateTagRules: {
+          success: result.steps.evaluateTagRules.success,
+          duration: result.steps.evaluateTagRules.duration,
+          total: result.steps.evaluateTagRules.stats?.total || 0,
+          tagsApplied: result.steps.evaluateTagRules.stats?.tagsApplied || 0,
+          tagsRemoved: result.steps.evaluateTagRules.stats?.tagsRemoved || 0,
+        },
+      },
+      summary: result.summary,
+      errors: result.errors,
+    }
+    if (!result.success) {
+      res.status(200).json({ success: false, message, data })
+      return
+    }
+    res.status(200).json(successResponse(data, { message }))
 
   } catch (error: unknown) {
     next(internalError('Erro ao executar Tag Rules Only', 'CRON_TAG_RULES_TRIGGER_FAILED', error))
