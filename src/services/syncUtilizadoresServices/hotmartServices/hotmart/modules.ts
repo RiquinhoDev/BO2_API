@@ -1,7 +1,6 @@
 import logger from '../../../../utils/logger'
 import axios from 'axios'
 import { HotmartModule, HotmartModuleProgress } from '../../../../types/lesson.types'
-import { requestWithRetry } from './transport'
 import type { HotmartLesson } from './transport'
 export const fetchCourseModules = async (
   accessToken: string,
@@ -29,9 +28,11 @@ export const fetchCourseModules = async (
 
     logger.info(`✅ [HotmartModules] ${modules.length} módulos encontrados para ${subdomain}`)
     return modules
-  } catch (error: any) {
-    const status = error.response?.status
-    const errorMsg = error.response?.data?.message || error.message
+  } catch (error: unknown) {
+    const status = axios.isAxiosError(error) ? error.response?.status : undefined
+    const errorMsg = axios.isAxiosError<{ message?: string }>(error)
+      ? error.response?.data?.message ?? error.message
+      : error instanceof Error ? error.message : String(error)
 
     if (status === 401) {
       logger.warn(`⚠️ [HotmartModules] Endpoint /modules requer permissões adicionais (401)`)
