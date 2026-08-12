@@ -285,21 +285,9 @@ export class ActivitySnapshotService {
   ): Promise<CohortRetentionData> {
     console.log(`📊 Calculando cohort retention: ${cohortMonth.toISOString().slice(0, 7)}`)
 
-    const results = await Promise.all(
-      milestones.map(async milestone => {
-        const retention = await ActivitySnapshot.getCohortRetention(
-          cohortMonth,
-          platform,
-          milestone
-        )
-        
-        return {
-          month: milestone,
-          total: retention.total,
-          active: retention.active,
-          rate: retention.rate
-        }
-      })
+    const results = await mapCohortMilestonesBounded(
+      milestones,
+      async milestone => {}
     )
 
     return {
