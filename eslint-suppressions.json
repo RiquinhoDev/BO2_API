@@ -12,16 +12,6 @@
       "count": 1
     }
   },
-  "src/controllers/guru.sync.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    }
-  },
-  "src/controllers/guru.webhook.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 7
-    }
-  },
   "src/controllers/populateHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
