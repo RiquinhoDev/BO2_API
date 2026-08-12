@@ -77,7 +77,8 @@ router.get('/changes', asyncRoute(async (req: Request, res: Response) => {
 router.post('/plan', asyncRoute(async (req: Request, res: Response) => {
   const windowHours = Number(req.body?.windowHours) || 26
   const report = await generatePlan(windowHours)
-  res.json({ success: !report.anomalyAborted, data: report })
+  const outcome = report.anomalyAborted ? 'anomaly-aborted' : 'planned'
+  res.json(successResponse({ outcome, report }))
 }))
 
 /**
