@@ -4,7 +4,6 @@ import { createApp } from '../../src/app'
 import { configureDebugRoutes, localDebugOnly } from '../../src/security/debugRoutes'
 
 const routes = [
-  ['get', '/api/activecampaign/debug/curseduca-data'],
   ['post', '/api/test/history/make-changes'],
 ] as const
 

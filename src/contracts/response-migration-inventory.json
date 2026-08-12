@@ -208,14 +208,6 @@
     "status": "complete"
   },
   {
-    "identity": "GET /api/activecampaign/debug/curseduca-data",
-    "owner": "src/routes/ACroutes/activecampaign.routes.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
     "identity": "GET /api/activecampaign/history/stats",
     "owner": "src/controllers/acTags/activeCampaignHistoryStats.controller.ts",
     "currentFamily": "success-data",

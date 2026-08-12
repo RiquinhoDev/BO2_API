@@ -44,11 +44,11 @@ function isLiteralPath(routePath: string): boolean {
     .every((segment) => !segment.startsWith(':') && !segment.startsWith('*'))
 }
 
-test('o catalogo cobre exatamente as 410 rotas do manifest', () => {
-  expect(manifest).toHaveLength(410)
-  expect(catalog).toHaveLength(410)
-  expect(new Set(manifest.map(key)).size).toBe(410)
-  expect(new Set(catalog.map(key)).size).toBe(410)
+test('o catalogo cobre exatamente as 409 rotas do manifest', () => {
+  expect(manifest).toHaveLength(409)
+  expect(catalog).toHaveLength(409)
+  expect(new Set(manifest.map(key)).size).toBe(409)
+  expect(new Set(catalog.map(key)).size).toBe(409)
   expect(catalog.map(key).sort()).toEqual(manifest.map(key).sort())
 })
 
@@ -76,7 +76,7 @@ test('a superficie excecional fica curta e explicita', () => {
     'POST /api/webhooks/ac/link-clicked',
   ])
   expect(routesWith('dead')).toEqual([])
-  expect(routesWith('authenticated')).toHaveLength(404)
+  expect(routesWith('authenticated')).toHaveLength(403)
   expect(catalog.filter((route) => route.access === 'public').every((route) => route.evidence.startsWith('public:'))).toBe(true)
 })
 /**
