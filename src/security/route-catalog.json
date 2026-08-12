@@ -51,7 +51,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": true,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:297"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:282"
   },
   {
     "method": "DELETE",
@@ -60,7 +60,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": true,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:279"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:264"
   },
   {
     "method": "DELETE",
@@ -744,7 +744,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:19",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:18",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -755,7 +755,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:34",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:28",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -766,7 +766,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:44",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:38",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -777,7 +777,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:39",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:33",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -788,7 +788,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:54",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:48",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -1024,7 +1024,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:168"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:173"
   },
   {
     "method": "GET",
@@ -1033,7 +1033,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:179"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:184"
   },
   {
     "method": "GET",
@@ -1042,7 +1042,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:198"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:203"
   },
   {
     "method": "GET",
@@ -1060,7 +1060,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:111"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:112"
   },
   {
     "method": "GET",
@@ -1159,7 +1159,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:210"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:195"
   },
   {
     "method": "GET",
@@ -1168,7 +1168,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:217"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:202"
   },
   {
     "method": "GET",
@@ -1177,7 +1177,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:223"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:208"
   },
   {
     "method": "GET",
@@ -1186,7 +1186,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:235"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:220"
   },
   {
     "method": "GET",
@@ -1195,7 +1195,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:242"
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:227"
   },
   {
     "method": "GET",
@@ -1204,16 +1204,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:229"
-  },
-  {
-    "method": "GET",
-    "path": "/api/guru/debug/token",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:97"
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:214"
   },
   {
     "method": "GET",
@@ -1222,7 +1213,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:153"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:138"
   },
   {
     "method": "GET",
@@ -1231,7 +1222,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:320"
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:305"
   },
   {
     "method": "GET",
@@ -1240,7 +1231,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:307"
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:292"
   },
   {
     "method": "GET",
@@ -1249,7 +1240,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:313"
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:298"
   },
   {
     "method": "GET",
@@ -1258,7 +1249,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:110"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:95"
   },
   {
     "method": "GET",
@@ -1267,7 +1258,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:266"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:251"
   },
   {
     "method": "GET",
@@ -1276,7 +1267,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:285"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:270"
   },
   {
     "method": "GET",
@@ -1285,7 +1276,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:272"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:257"
   },
   {
     "method": "GET",
@@ -1294,7 +1285,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:140"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:125"
   },
   {
     "method": "GET",
@@ -1303,7 +1294,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:116"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:101"
   },
   {
     "method": "GET",
@@ -1312,7 +1303,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:147"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:132"
   },
   {
     "method": "GET",
@@ -1321,7 +1312,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:182"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:167"
   },
   {
     "method": "GET",
@@ -1330,7 +1321,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:188"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:173"
   },
   {
     "method": "GET",
@@ -1339,7 +1330,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:175"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:160"
   },
   {
     "method": "GET",
@@ -1348,7 +1339,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:194"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:179"
   },
   {
     "method": "GET",
@@ -1357,7 +1348,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:200"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:185"
   },
   {
     "method": "GET",
@@ -1366,7 +1357,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:413"
+    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:398"
   },
   {
     "method": "GET",
@@ -1375,7 +1366,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:419"
+    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:404"
   },
   {
     "method": "GET",
@@ -1384,7 +1375,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:134"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:119"
   },
   {
     "method": "GET",
@@ -1393,7 +1384,7 @@
     "consumer": "front",
     "writes": false,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:127"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:112"
   },
   {
     "method": "GET",
@@ -2310,7 +2301,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:190"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:195"
   },
   {
     "method": "PATCH",
@@ -2737,23 +2728,12 @@
   },
   {
     "method": "POST",
-    "path": "/api/cron-tags/execute",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:29",
-    "deprecated": true,
-    "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
-  },
-  {
-    "method": "POST",
     "path": "/api/cron-tags/validate",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:49",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:43",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -2827,7 +2807,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:82"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:83"
   },
   {
     "method": "POST",
@@ -2836,7 +2816,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:96"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:97"
   },
   {
     "method": "POST",
@@ -2845,7 +2825,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:146"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:147"
   },
   {
     "method": "POST",
@@ -2854,7 +2834,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:154"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:155"
   },
   {
     "method": "POST",
@@ -2872,7 +2852,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:206"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:211"
   },
   {
     "method": "POST",
@@ -2881,7 +2861,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:214"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:219"
   },
   {
     "method": "POST",
@@ -2962,7 +2942,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": true,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:334"
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:319"
   },
   {
     "method": "POST",
@@ -2971,7 +2951,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:360"
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:345"
   },
   {
     "method": "POST",
@@ -2980,7 +2960,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:388"
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:373"
   },
   {
     "method": "POST",
@@ -2989,7 +2969,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:374"
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:359"
   },
   {
     "method": "POST",
@@ -2998,7 +2978,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:367"
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:352"
   },
   {
     "method": "POST",
@@ -3007,7 +2987,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:348"
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:333"
   },
   {
     "method": "POST",
@@ -3016,7 +2996,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:402"
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:387"
   },
   {
     "method": "POST",
@@ -3025,7 +3005,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:381"
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:366"
   },
   {
     "method": "POST",
@@ -3034,7 +3014,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:395"
+    "evidence": "consumer nao identificado; rota em src/routes/guru.routes.ts:380"
   },
   {
     "method": "POST",
@@ -3043,7 +3023,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:341"
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:326"
   },
   {
     "method": "POST",
@@ -3052,7 +3032,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": true,
-    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:327"
+    "evidence": "chamada do Front em <src/features/guru/guruInactivation.api.ts>; rota em src/routes/guru.routes.ts:312"
   },
   {
     "method": "POST",
@@ -3061,7 +3041,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:253"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:238"
   },
   {
     "method": "POST",
@@ -3070,7 +3050,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:260"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:245"
   },
   {
     "method": "POST",
@@ -3079,7 +3059,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:425"
+    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:410"
   },
   {
     "method": "POST",
@@ -3088,7 +3068,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:445"
+    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:430"
   },
   {
     "method": "POST",
@@ -3097,7 +3077,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:438"
+    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:423"
   },
   {
     "method": "POST",
@@ -3106,7 +3086,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:431"
+    "evidence": "chamada do Front em <src/pages/guru/TrialsTab.tsx>; rota em src/routes/guru.routes.ts:416"
   },
   {
     "method": "POST",
@@ -3115,7 +3095,7 @@
     "consumer": "webhook:guru",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer webhook:guru; autenticacao por assinatura; rota em src/routes/guru.routes.ts:91"
+    "evidence": "consumer webhook:guru; autenticacao por assinatura; rota em src/routes/guru.routes.ts:82"
   },
   {
     "method": "POST",
@@ -3124,7 +3104,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:159"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:144"
   },
   {
     "method": "POST",
@@ -3133,7 +3113,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:165"
+    "evidence": "chamada do Front em <src/features/guru/guruCore.api.ts>; rota em src/routes/guru.routes.ts:150"
   },
   {
     "method": "POST",
@@ -3196,7 +3176,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:94"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:95"
   },
   {
     "method": "POST",
@@ -3205,7 +3185,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:125"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:126"
   },
   {
     "method": "POST",
@@ -3214,7 +3194,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:113"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:114"
   },
   {
     "method": "POST",
@@ -3232,7 +3212,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:85"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:86"
   },
   {
     "method": "POST",
@@ -3619,7 +3599,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:24",
+    "evidence": "consumer nao identificado; rota em src/routes/cron/createCronManagementRouter.ts:23",
     "deprecated": true,
     "deprecatedReason": "duplicated cron-tags surface has no known Front consumer; observe traffic before removal"
   },
@@ -3648,7 +3628,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:118"
+    "evidence": "consumer nao identificado; rota em src/routes/discordRenewal.routes.ts:119"
   },
   {
     "method": "PUT",
@@ -3675,7 +3655,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:291"
+    "evidence": "chamada do Front em <src/features/guru/guruInsights.api.ts>; rota em src/routes/guru.routes.ts:276"
   },
   {
     "method": "PUT",

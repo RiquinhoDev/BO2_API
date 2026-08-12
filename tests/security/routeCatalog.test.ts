@@ -44,11 +44,11 @@ function isLiteralPath(routePath: string): boolean {
     .every((segment) => !segment.startsWith(':') && !segment.startsWith('*'))
 }
 
-test('o catalogo cobre exatamente as 412 rotas do manifest', () => {
-  expect(manifest).toHaveLength(412)
-  expect(catalog).toHaveLength(412)
-  expect(new Set(manifest.map(key)).size).toBe(412)
-  expect(new Set(catalog.map(key)).size).toBe(412)
+test('o catalogo cobre exatamente as 410 rotas do manifest', () => {
+  expect(manifest).toHaveLength(410)
+  expect(catalog).toHaveLength(410)
+  expect(new Set(manifest.map(key)).size).toBe(410)
+  expect(new Set(catalog.map(key)).size).toBe(410)
   expect(catalog.map(key).sort()).toEqual(manifest.map(key).sort())
 })
 
@@ -76,7 +76,7 @@ test('a superficie excecional fica curta e explicita', () => {
     'POST /api/webhooks/ac/link-clicked',
   ])
   expect(routesWith('dead')).toEqual([])
-  expect(routesWith('authenticated')).toHaveLength(406)
+  expect(routesWith('authenticated')).toHaveLength(404)
   expect(catalog.filter((route) => route.access === 'public').every((route) => route.evidence.startsWith('public:'))).toBe(true)
 })
 /**
@@ -194,7 +194,7 @@ test('marca apenas cron-tags e as listagens sem consumidor como deprecated', () 
   const deprecated = catalog.filter((route) => route.deprecated)
   const namedDeprecations: readonly string[] = [...UNCONSUMED_DEPRECATIONS]
 
-  expect(deprecated).toHaveLength(12)
+  expect(deprecated).toHaveLength(11)
   expect(
     deprecated.filter((route) => !namedDeprecations.includes(route.path)).every(
       (route) =>

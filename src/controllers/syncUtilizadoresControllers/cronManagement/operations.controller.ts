@@ -225,7 +225,7 @@ export const triggerTagRulesOnly = async (
       errors: result.errors,
     }
     if (!result.success) {
-      res.status(200).json({ success: false, message, data })
+      res.status(200).json(successResponse({ completed: false, ...data }, { message }))
       return
     }
     res.status(200).json(successResponse(data, { message }))

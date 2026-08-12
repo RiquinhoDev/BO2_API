@@ -338,7 +338,7 @@ export const clarezaController = {
 
       if (req.query.symbols !== undefined) {
         const result = await refreshComparadorSymbols(String(req.query.symbols || ''))
-        return res.json(result)
+        return res.json(successResponse(result))
       }
 
       const result = await refreshClarezaComparadorData()

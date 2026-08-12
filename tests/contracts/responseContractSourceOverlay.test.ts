@@ -314,7 +314,7 @@ describe('response contract test source overlay boundary', () => {
       const result = runChecker(testOverlayEnv(overlayRoot))
 
       expect(result.status).not.toBe(0)
-      expect(`${result.stdout}${result.stderr}`).toContain('GET /api/users/v2/analytics')
+      expect(`${result.stdout}${result.stderr}`).toContain('GET /api/users/analytics')
       expect(fileSha(entry)).toBe(entrySha)
     } finally {
       fs.rmSync(directory, { recursive: true, force: true })

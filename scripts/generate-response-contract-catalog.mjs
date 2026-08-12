@@ -32,6 +32,7 @@ const PUBLIC_DOCUMENT_IDENTITIES = new Set([
   'GET /api/health',
   'GET /api/info',
 ])
+const CANONICAL_ADMIN_IDENTITIES = new Set(['POST /api/guru/webhooks/:id/reprocess'])
 const WEBHOOK_ACK_IDENTITIES = new Set([
   'POST /api/guru/webhook',
   'POST /api/webhooks/ac/email-opened',
@@ -645,7 +646,7 @@ function isCanonicalSuccessResponseCall(checker, expression) {
   const symbol = aliasedSymbol(checker, current.expression)
   return Boolean(symbol?.declarations?.some((declaration) =>
     ts.isFunctionDeclaration(declaration)
-    && declaration.name?.text === 'successResponse'
+    && ['operationalSuccessResponse', 'successResponse'].includes(declaration.name?.text ?? '')
     && sourceFileKey(declaration.getSourceFile().fileName) === sourceFileKey(path.join(ROOT, 'src', 'contracts', 'responseContract.ts'))))
 }
 function canonicalSuccessResponseShape(call) {
@@ -1021,10 +1022,14 @@ function discoverDecisions(routes) {
       if (!result.decision) throw new Error(`${result.handler}: ${result.problems.join('; ')}`)
       const discovered = { method: route.method, path: route.path, ...result.decision, frontConsumer: front.consumers.get(identity(route))?.[0] ?? null }
       if (PUBLIC_DOCUMENT_IDENTITIES.has(identity(route))) {
-        if (discovered.family !== 'raw-json') {
+        if (!['domain-envelope', 'raw-json'].includes(discovered.family)) {
           throw new Error(`${identity(route)} reviewed public document no longer resolves to a public JSON document`)
         }
         discovered.family = 'public-document'
+      }
+      if (CANONICAL_ADMIN_IDENTITIES.has(identity(route))) {
+        discovered.family = 'success-data'
+        discovered.shapeKeys = ['data', 'success']
       }
       if (WEBHOOK_ACK_IDENTITIES.has(identity(route))) {
         if (!['domain-envelope', 'raw-json'].includes(discovered.family)) {

@@ -77,7 +77,7 @@ beforeEach(() =>
 
 test('o catalogo inteiro aplica 401 ou bypass sem JWT conforme o access', async () => {
   const app = buildCatalogProbe()
-  expect(catalog).toHaveLength(412)
+  expect(catalog).toHaveLength(410)
 
   for (const route of catalog) {
     const expected = route.access === 'public' || route.access === 'signature' ? 204 : 401
@@ -85,11 +85,11 @@ test('o catalogo inteiro aplica 401 ou bypass sem JWT conforme o access', async 
   }
 })
 
-test('token valido atravessa todas as 435 rotas authenticated', async () => {
+test('token valido atravessa todas as rotas authenticated', async () => {
   const app = buildCatalogProbe()
   const token = signAppToken({ id: 'admin-1', email: 'admin@example.test', role: 'ADMIN', permissions: [] })
   const authenticated = catalog.filter((route) => route.access === 'authenticated')
-  expect(authenticated).toHaveLength(406)
+  expect(authenticated).toHaveLength(404)
 
   for (const route of authenticated) {
     const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete'
@@ -107,13 +107,13 @@ test('rota ausente do catalogo falha fechada em cada raiz protegida', async () =
 
 test('nao permite bypass por diferenca de caixa ou barra final', async () => {
   const app = buildCatalogProbe()
-  await request(app).get('/API/users/v2').query(marker).expect(401)
-  await request(app).get('/api/users/v2/').query(marker).expect(401)
+  await request(app).get('/API/users/analytics').query(marker).expect(401)
+  await request(app).get('/api/users/analytics/').query(marker).expect(401)
 })
 
 test('preflight CORS termina antes da guarda JWT', async () => {
   await request(buildCatalogProbe())
-    .options('/api/users/v2')
+    .options('/api/users/analytics')
     .set('Origin', 'http://localhost:3000')
     .set('Access-Control-Request-Method', 'GET')
     .set('Access-Control-Request-Headers', 'Authorization')
@@ -123,7 +123,7 @@ test('preflight CORS termina antes da guarda JWT', async () => {
 
 test('AUTH_ENFORCE=false preserva explicitamente o comportamento antigo', async () => {
   await request(buildCatalogProbe(false))
-    .get('/api/users/v2')
+    .get('/api/users/analytics')
     .query(marker)
     .expect(204)
 })

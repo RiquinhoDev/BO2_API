@@ -175,7 +175,7 @@ export const syncContactTags: RequestHandler<ContactEmailParams> = async (req, r
 
     const succeeded = syncResult.action === 'synced' || syncResult.action === 'no_changes'
     if (!succeeded) {
-      res.json({ success: false, data: syncResult })
+      res.json(successResponse({ completed: false, result: syncResult }))
       return
     }
     res.json(successResponse(syncResult))

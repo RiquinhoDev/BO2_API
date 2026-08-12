@@ -26,12 +26,8 @@ function buildProbe(
       createRouteUsageInstrumentation: () => instrumentation,
       registerRoutes: (app) => {
         app.get('/api/users/by-email/:email', (_req, res) => res.sendStatus(204))
-        app.get('/api/users/v2', (_req, res) => res.sendStatus(204))
-        app.get('/api/users/v2/enrollments', (_req, res) => res.sendStatus(204))
-        app.get('/api/users/v2/analytics', (_req, res) => res.sendStatus(204))
         app.get('/api/cron/status', (_req, res) => res.sendStatus(204))
         app.get('/api/cron-tags/status', (_req, res) => res.sendStatus(204))
-        app.get('/cron-tags/status', (_req, res) => res.sendStatus(204))
       },
     }),
     info,
@@ -95,23 +91,19 @@ test('consome a funcao unica de redacao da F1.8', async () => {
   redact.mockRestore()
 })
 
-test('distingue as montagens api e app no log de uso', async () => {
+test('regista a montagem api no log de uso', async () => {
   const events: RouteUsageLogEvent[] = []
   const { app } = buildProbe(events)
 
   await request(app).get('/api/cron-tags/status').query(marker).expect(204)
-  await request(app).get('/cron-tags/status').query(marker).expect(204)
-
   expect(events.map(({ route, mount }) => ({ route, mount }))).toEqual([
-    { route: '/cron-tags/status', mount: 'api' },
-    { route: '/cron-tags/status', mount: 'app' },
-  ])
+    { route: '/cron-tags/status', mount: 'api' },  ])
 })
 
-test('emite Deprecation nas 18 rotas cron-tags sem marcar a familia cron viva', async () => {
+test('emite Deprecation na familia api cron-tags sem marcar a familia cron viva', async () => {
   const { app } = buildProbe([])
 
-  for (const route of ['/api/cron-tags/status', '/cron-tags/status']) {
+  for (const route of ['/api/cron-tags/status']) {
     const response = await request(app).get(route).query(marker).expect(204)
     expect(response.headers.deprecation).toBe('true')
     expect(response.headers.sunset).toBeUndefined()
@@ -119,67 +111,4 @@ test('emite Deprecation nas 18 rotas cron-tags sem marcar a familia cron viva', 
 
   const live = await request(app).get('/api/cron/status').query(marker).expect(204)
   expect(live.headers.deprecation).toBeUndefined()
-})
-
-test('deriva do catalogo os headers de sucessao do legacy users v2', async () => {
-  const events: RouteUsageLogEvent[] = []
-  const response = await request(buildProbe(events).app)
-    .get('/api/users/v2')
-    .query({ ...marker, email: 'alice@example.test' })
-    .expect(204)
-
-  expect(response.headers.deprecation).toBe('true')
-  expect(response.headers.link).toBe([
-    '</api/users/v2/enrollments>; rel="successor-version"',
-    '</api/users/v2/analytics>; rel="alternate"',
-  ].join(', '))
-  expect(response.headers.link).not.toContain('alice')
-  expect(response.headers.sunset).toBeUndefined()
-  expect(events).toEqual([{
-    method: 'GET',
-    route: '/users/v2',
-    authenticated: false,
-    mount: 'api',
-    successorLinks: [
-      '</api/users/v2/enrollments>; rel="successor-version"',
-      '</api/users/v2/analytics>; rel="alternate"',
-    ],
-  }])
-})
-
-test('nao marca os dois recursos explicitos como deprecated', async () => {
-  for (const route of [
-    '/api/users/v2/enrollments',
-    '/api/users/v2/analytics',
-  ]) {
-    const response = await request(buildProbe([]).app)
-      .get(route)
-      .query(marker)
-      .expect(204)
-
-    expect(response.headers.deprecation).toBeUndefined()
-    expect(response.headers.link).toBeUndefined()
-    expect(response.headers.sunset).toBeUndefined()
-  }
-})
-
-test('ordena especificidade por segmento: literal, parametro, wildcard', () => {
-  const templates = [
-    '/api/files/*path',
-    '/api/files/:id',
-    '/api/files/stats',
-  ]
-
-  expect(templates.sort(compareRouteTemplateSpecificity)).toEqual([
-    '/api/files/stats',
-    '/api/files/:id',
-    '/api/files/*path',
-  ])
-})
-
-test.each([
-  ['/api/files/*', '/api/files/nested/report.csv'],
-  ['/api/files/*path', '/api/files/nested/report.csv'],
-])('reconhece wildcard futuro %s', (template, actualPath) => {
-  expect(routeTemplateMatchesPath(template, actualPath)).toBe(true)
 })

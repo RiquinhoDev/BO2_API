@@ -8,7 +8,6 @@ describe('sync controller topology', () => {
     expect(operations.executePipeline).toBe(facade.executePipeline)
     expect(operations.syncHotmartEndpoint).toBe(facade.syncHotmartEndpoint)
     expect(operations.syncCurseducaEndpoint).toBe(facade.syncCurseducaEndpoint)
-    expect(operations.syncDiscordEndpoint).toBe(facade.syncDiscordEndpoint)
   })
 
   it('keeps history handlers in the history module', () => {

@@ -13,7 +13,7 @@ test('final Partition 1 uses canonical envelopes only on successful branches', (
   expect(read('src/controllers/acTags/activeCampaignOps.controller.ts')).toContain('successResponse({ executionId, results:')
 
   const clareza = read('src/controllers/clarezaController.ts')
-  expect(clareza.match(/successResponse\(result\)/g)).toHaveLength(6)
+  expect(clareza.match(/successResponse\(result\)/g)).toHaveLength(7)
 
   const classes = read('src/controllers/classes/hotmartClassSync.controller.ts')
   expect(classes).toContain('successResponse({ stats: result.stats, classIds: result.classIds }')

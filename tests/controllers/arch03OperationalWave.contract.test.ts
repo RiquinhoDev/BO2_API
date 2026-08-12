@@ -17,5 +17,5 @@ test('operational response wave uses canonical success envelopes only for the fo
   expect(dashboard).toContain("import { successResponse } from '../../../contracts/responseContract'")
   expect(dashboard).toContain('res.status(200).json(successResponse(stats, {')
   expect(routes).toContain('router.get("/health"')
-  expect(repair).toContain('return res.json({')
+  expect(repair).toContain('return res.json(successResponse({')
 })

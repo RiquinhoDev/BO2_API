@@ -121,9 +121,6 @@
     "@typescript-eslint/no-explicit-any": {
       "count": 7
     },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
     "no-console": {
       "count": 9
     }
@@ -464,12 +461,12 @@
   },
   "src/models/SyncModels/ActivitySnapshot.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 2
+      "count": 1
     }
   },
   "src/models/SyncModels/SyncConflict.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
+      "count": 6
     }
   },
   "src/models/SyncModels/SyncHistory.ts": {
@@ -477,7 +474,7 @@
       "count": 1
     },
     "@typescript-eslint/no-explicit-any": {
-      "count": 3
+      "count": 2
     }
   },
   "src/models/SyncModels/SyncReport.ts": {
@@ -508,11 +505,6 @@
   "src/models/ValidationLog.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    }
-  },
-  "src/models/acTags/CommunicationHistory.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
     }
   },
   "src/models/class/Class.ts": {
@@ -557,11 +549,6 @@
     },
     "no-console": {
       "count": 5
-    }
-  },
-  "src/models/tagMonitoring/TagChangeNotification.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
     }
   },
   "src/models/user.behavior.ts": {
@@ -747,9 +734,6 @@
   },
   "src/services/analytics/cohortAnalytics.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    },
-    "prefer-const": {
       "count": 1
     }
   },

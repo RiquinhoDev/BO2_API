@@ -63,8 +63,8 @@ describe('response contract catalog', () => {
     const routeIds = routeCatalog.map(routeId).sort()
     const contractIds = responseCatalog.map(routeId).sort()
 
-    expect(responseCatalog).toHaveLength(412)
-    expect(new Set(contractIds).size).toBe(412)
+    expect(responseCatalog).toHaveLength(410)
+    expect(new Set(contractIds).size).toBe(410)
     expect(contractIds).toEqual(routeIds)
   })
 
@@ -194,11 +194,11 @@ describe('response contract catalog', () => {
     }
   })
   test('resolves producer contracts instead of defaulting expressions to raw-json', () => {
-    expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/users/v2/analytics')).toMatchObject({
+    expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/users/analytics')).toMatchObject({
       family: 'success-data',
       shapeKeys: ['data', 'success'],
     })
-    expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/users/v2/enrollments')).toMatchObject({
+    expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/users/enrollments')).toMatchObject({
       family: 'success-data',
       shapeKeys: ['data', 'meta', 'success'],
     })
@@ -212,46 +212,16 @@ describe('response contract catalog', () => {
     expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/classes/:classId/details')?.shapeKeys).toEqual([
       'data', 'meta', 'success',
     ])
-    expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/classes/users/search')?.shapeKeys).toEqual([
-      '__v', '_id', 'achievementStats', 'achievements', 'classId', 'className',
-      'combined', 'communicationByCourse', 'createdAt', 'curseduca', 'discord',
-      'email', 'engagement', 'guru', 'hotmart', 'inactivation', 'message', 'metadata',
-      'multiple', 'name', 'students', 'success', 'timestamp', 'total', 'updatedAt',
-    ])
+    expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/classes/users/search')?.shapeKeys).toEqual(['data', 'meta', 'success'])
     expect(responseCatalog.find((entry) => routeId(entry) === 'GET /api/users/search')?.shapeKeys).toEqual([
       'data', 'meta', 'success',
     ])
     expect(responseCatalog.some((entry) => entry.evidence.startsWith('dynamic response spread'))).toBe(false)
   })
 
-  test('keeps the exact 13 routes without a successful exit explicitly reviewed', () => {
-    const expected = [
-      'GET /api/curseduca/debug',
-      'GET /api/curseduca/groups',
-      'GET /api/curseduca/members',
-      'GET /api/curseduca/members/by',
-      'GET /api/curseduca/report',
-      'GET /api/curseduca/reports/access',
-      'GET /api/curseduca/user',
-      'GET /api/curseduca/users',
-      'GET /api/users/by-email/:email',
-      'POST /api/curseduca/cleanup',
-      'POST /api/sync/discord',
-      'POST /api/sync/discord/batch',
-      'POST /api/sync/discord/csv',
-    ]
-    const reviewed = responseCatalog
-      .filter((entry) => entry.evidence.startsWith('no successful exit (501-only); '))
-      .map(routeId)
-      .sort()
-
-    expect(reviewed).toEqual(expected)
-    for (const identity of expected) {
-      expect(responseCatalog.find((entry) => routeId(entry) === identity)).toMatchObject({
-        family: 'success-data',
-        shapeKeys: [],
-      })
-    }
+  test('has no 501-only or non-terminal reviewed decisions', () => {
+    expect(responseCatalog.some((entry) => entry.evidence.includes('501-only'))).toBe(false)
+    expect(responseCatalog.every((entry) => new Set<string>(RESPONSE_FAMILIES).has(entry.family))).toBe(true)
   })
 
   test('derives exact Front consumers and rejects the legacy users v2 false positive', () => {
@@ -260,9 +230,9 @@ describe('response contract catalog', () => {
       responseCatalog.find((entry) => routeId(entry) === identity)?.frontConsumer
 
     expect(consumers).toHaveLength(188)
-    expect(consumer('GET /api/users/v2')).toBeNull()
-    expect(consumer('GET /api/users/v2/analytics')).toBe('src/features/users-v2/usersV2.api.ts')
-    expect(consumer('GET /api/users/v2/enrollments')).toBe('src/features/users-v2/usersV2.api.ts')
+    expect(consumer('GET /api/users/analytics')).toBe('src/features/users-v2/usersV2.api.ts')
+    expect(consumer('GET /api/users/analytics')).toBe('src/features/users-v2/usersV2.api.ts')
+    expect(consumer('GET /api/users/enrollments')).toBe('src/features/users-v2/usersV2.api.ts')
     expect(consumer('PUT /api/course-lessons/:pageId')).toBe('src/services/courseLessons.service.ts')
     expect(consumer('GET /api/activecampaign/courses/clareza/students')).toBe('src/features/activecampaign/activecampaign.api.ts')
     expect(consumer('POST /api/renewal/offers')).toBe('src/services/renewalOffers.service.ts')
@@ -302,7 +272,7 @@ describe('response contract catalog', () => {
       const result = runGenerator('--write', catalogPath, testSourceOverlayEnv(overlayRoot))
 
       expect(result.status).not.toBe(0)
-      expect(`${result.stdout}${result.stderr}`).toContain('GET /api/users/v2/analytics')
+      expect(`${result.stdout}${result.stderr}`).toContain('GET /api/users/analytics')
       expect(fileSha(catalogPath)).toBe(catalogBefore)
     } finally {
       fs.rmSync(directory, { recursive: true, force: true })
@@ -502,41 +472,6 @@ describe('response contract catalog', () => {
       expect(fileSha(routeFile)).toBe(routeFileShaBefore)
     }
   })
-  test('classes users search includes the complete lean IUser surface', () => {
-    const shapeKeys = responseCatalog.find((entry) => routeId(entry) === 'GET /api/classes/users/search')?.shapeKeys
-    expect(shapeKeys).toEqual(expect.arrayContaining([
-      '__v', '_id', 'achievementStats', 'achievements', 'classId', 'className',
-      'combined', 'communicationByCourse', 'createdAt', 'curseduca', 'discord',
-      'email', 'engagement', 'guru', 'hotmart', 'inactivation', 'metadata', 'name',
-      'updatedAt',
-    ]))
-  })
-
-  test('a new IUser producer field invalidates the classes users search decision', () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-source-'))
-    const sourcePath = path.join(process.cwd(), 'src', 'models', 'user.types.ts')
-    const catalogPath = path.join(directory, 'catalog.json')
-    const sourceShaBefore = fileSha(sourcePath)
-    const catalogShaBefore = fileSha(workspaceResponseCatalog)
-    const source = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n')
-    const mutated = source.replace('  email: string //', '  reviewMutation?: string\n  email: string //')
-    expect(mutated).not.toBe(source)
-
-    try {
-      fs.copyFileSync(workspaceResponseCatalog, catalogPath)
-      const catalogBefore = fileSha(catalogPath)
-      const overlayRoot = writeSourceOverlay(directory, sourcePath, mutated)
-      const result = runGenerator('--check', catalogPath, testSourceOverlayEnv(overlayRoot))
-      expect(result.status).not.toBe(0)
-      expect(`${result.stdout}${result.stderr}`).toContain('GET /api/classes/users/search')
-      expect(fileSha(catalogPath)).toBe(catalogBefore)
-    } finally {
-      fs.rmSync(directory, { recursive: true, force: true })
-      expect(fileSha(sourcePath)).toBe(sourceShaBefore)
-      expect(fileSha(workspaceResponseCatalog)).toBe(catalogShaBefore)
-    }
-  })
-
   test('producer drift fails check without writing the reviewed catalog', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-source-'))
     const sourcePath = path.join(process.cwd(), 'src', 'services', 'users', 'usersV2OverviewAnalytics.service.ts')
@@ -554,32 +489,7 @@ describe('response contract catalog', () => {
       const overlayRoot = writeSourceOverlay(directory, sourcePath, mutated)
       const result = runGenerator('--check', catalogPath, testSourceOverlayEnv(overlayRoot))
       expect(result.status).not.toBe(0)
-      expect(`${result.stdout}${result.stderr}`).toContain('GET /api/users/v2/analytics')
-      expect(fileSha(catalogPath)).toBe(catalogBefore)
-    } finally {
-      fs.rmSync(directory, { recursive: true, force: true })
-      expect(fileSha(sourcePath)).toBe(sourceShaBefore)
-      expect(fileSha(workspaceResponseCatalog)).toBe(catalogShaBefore)
-    }
-  })
-
-  test('a 501-only route becoming successful requires a new reviewed decision', () => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-source-'))
-    const sourcePath = path.join(process.cwd(), 'src', 'controllers', 'sync', 'operations.controller.ts')
-    const catalogPath = path.join(directory, 'catalog.json')
-    const sourceShaBefore = fileSha(sourcePath)
-    const catalogShaBefore = fileSha(workspaceResponseCatalog)
-    const source = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n')
-    const mutated = source.replace('  res.status(501).json({', '  res.status(200).json({')
-    expect(mutated).not.toBe(source)
-
-    try {
-      fs.copyFileSync(workspaceResponseCatalog, catalogPath)
-      const catalogBefore = fileSha(catalogPath)
-      const overlayRoot = writeSourceOverlay(directory, sourcePath, mutated)
-      const result = runGenerator('--check', catalogPath, testSourceOverlayEnv(overlayRoot))
-      expect(result.status).not.toBe(0)
-      expect(`${result.stdout}${result.stderr}`).toContain('POST /api/sync/discord')
+      expect(`${result.stdout}${result.stderr}`).toContain('GET /api/users/analytics')
       expect(fileSha(catalogPath)).toBe(catalogBefore)
     } finally {
       fs.rmSync(directory, { recursive: true, force: true })
@@ -592,7 +502,7 @@ describe('response contract catalog', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-'))
     const catalogPath = path.join(directory, 'catalog.json')
     const fixture = responseFixture().map((decision) =>
-      routeId(decision) === 'GET /api/users/v2'
+      routeId(decision) === 'GET /api/users/analytics'
         ? { ...decision, frontConsumer: 'src/features/activecampaign/activecampaign.api.ts' }
         : decision)
     const before = `${JSON.stringify(fixture, null, 2)}\n`
