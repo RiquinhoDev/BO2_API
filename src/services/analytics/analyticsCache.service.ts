@@ -15,6 +15,7 @@ import { analyticsCalculatorService } from './analyticsCalculator.service'
 
 class AnalyticsCacheService {
   private readonly inFlightCalculations = new Map<string, Promise<ICacheMetrics>>()
+  private readonly FLIGHT_TIMEOUT_MS = 30_000
 
   // Configuração de TTL (Time To Live) por período
   private readonly TTL_CONFIG: CacheConfig = {
@@ -123,7 +124,7 @@ class AnalyticsCacheService {
       // Se cache precisa refresh (50% da vida), fazer refresh assíncrono
       if (cache.needsRefresh()) {
         console.log('   🔄 Iniciando refresh assíncrono do cache...')
-        this.calculateAndCache(options).catch(err => {
+        this.calculateSingleflight(options).catch(err => {
           console.error('   ❌ Erro no refresh assíncrono:', err)
         })
       }
@@ -155,7 +156,14 @@ class AnalyticsCacheService {
 
     const calculation = this.calculateAndCache(options)
     this.inFlightCalculations.set(key, calculation)
+    const evictionTimer = setTimeout(() => {
+      if (this.inFlightCalculations.get(key) === calculation) {
+        this.inFlightCalculations.delete(key)
+      }
+    }, this.FLIGHT_TIMEOUT_MS)
+    evictionTimer.unref?.()
     void calculation.finally(() => {
+      clearTimeout(evictionTimer)
       if (this.inFlightCalculations.get(key) === calculation) {
         this.inFlightCalculations.delete(key)
       }

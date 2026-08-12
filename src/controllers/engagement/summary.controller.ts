@@ -27,7 +27,7 @@ export const getGlobalEngagementStats = async (req: Request, res: Response, next
     // ✅ USAR AGREGAÇÃO MONGODB OTIMIZADA - USAR SCORES JÁ CALCULADOS
     console.log('🚀 Calculando estatísticas com MongoDB aggregation...')
     
-    const aggregationResult = await User.aggregate([
+    const aggregationResult = await statsCache.runSingleflight(cacheKey, async () => User.aggregate([
       {
         $project: {
           // ✅ USAR SCORE JÁ CALCULADO (prioridade: combined > hotmart > curseduca)
@@ -112,7 +112,7 @@ export const getGlobalEngagementStats = async (req: Request, res: Response, next
           inactiveUsers: { $sum: { $cond: [{ $not: "$isActive" }, 1, 0] } }
         }
       }
-    ]).allowDiskUse(true)
+    ]).allowDiskUse(true))
 
     if (!aggregationResult || aggregationResult.length === 0) {
       const emptyStats: EngagementStats = {
