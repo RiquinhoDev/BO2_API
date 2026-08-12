@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 import { DashboardStats } from '../models/DashboardStats'
 import { calculateHealthScore } from './analytics/healthScore'
 import { getAllUsersUnified } from './syncUtilizadoresServices/dualReadService'
@@ -6,9 +7,9 @@ import { getAllUsersUnified } from './syncUtilizadoresServices/dualReadService'
  * 🏗️ Construir e guardar stats do dashboard
  */
 export async function buildDashboardStats(): Promise<void> {
-  console.log('\n🏗️ ========================================')
-  console.log('🏗️ CONSTRUINDO DASHBOARD STATS (Materialized View)')
-  console.log('🏗️ ========================================\n')
+  logger.info('\n🏗️ ========================================')
+  logger.info('🏗️ CONSTRUINDO DASHBOARD STATS (Materialized View)')
+  logger.info('🏗️ ========================================\n')
   
   const startTime = Date.now()
   
@@ -17,10 +18,10 @@ export async function buildDashboardStats(): Promise<void> {
     // STEP 1: FETCH USERPRODUCTS (FILTRAR isPrimary)
     // ═══════════════════════════════════════════════════════════
     
-    console.log('📊 Buscando UserProducts unificados...')
+    logger.info('📊 Buscando UserProducts unificados...')
     const allUserProducts = await getAllUsersUnified()
     
-    console.log(`   ✅ ${allUserProducts.length} UserProducts total`)
+    logger.info(`   ✅ ${allUserProducts.length} UserProducts total`)
     
     // ✅ CRITICAL: Filtrar apenas isPrimary=true para CursEDuca
     const userProducts = allUserProducts.filter(up => {
@@ -30,14 +31,14 @@ export async function buildDashboardStats(): Promise<void> {
       return true
     })
     
-    console.log(`   📦 ${userProducts.length} UserProducts após filtrar isPrimary`)
-    console.log(`   🔁 ${allUserProducts.length - userProducts.length} produtos secundários removidos`)
+    logger.info(`   📦 ${userProducts.length} UserProducts após filtrar isPrimary`)
+    logger.info(`   🔁 ${allUserProducts.length - userProducts.length} produtos secundários removidos`)
     
     // ═══════════════════════════════════════════════════════════
     // STEP 2: AGRUPAR POR USERID (USERS ÚNICOS!)
     // ═══════════════════════════════════════════════════════════
     
-    console.log('🔄 Agrupando por userId...')
+    logger.info('🔄 Agrupando por userId...')
     
     const byUserId = new Map<string, {
       products: any[]
@@ -108,13 +109,13 @@ export async function buildDashboardStats(): Promise<void> {
     
     const uniqueStudents = byUserId.size
     
-    console.log(`   ✅ ${uniqueStudents} alunos únicos agrupados`)
+    logger.info(`   ✅ ${uniqueStudents} alunos únicos agrupados`)
     
     // ═══════════════════════════════════════════════════════════
     // STEP 3: CALCULAR MÉTRICAS (POR USER)
     // ═══════════════════════════════════════════════════════════
     
-    console.log('📊 Calculando métricas...')
+    logger.info('📊 Calculando métricas...')
     
     const userScores: Array<{ userId: string; score: number }> = []
     
@@ -192,7 +193,7 @@ export async function buildDashboardStats(): Promise<void> {
     // STEP 4: CALCULAR TOP 10% (DINÂMICO)
     // ═══════════════════════════════════════════════════════════
     
-    console.log('🏆 Calculando Top 10%...')
+    logger.info('🏆 Calculando Top 10%...')
     
     userScores.sort((a, b) => b.score - a.score)
     
@@ -200,13 +201,13 @@ export async function buildDashboardStats(): Promise<void> {
     const top10Threshold = top10Count > 0 ? userScores[top10Count - 1]?.score || 0 : 0
     const topPerformers = userScores.filter(u => u.score >= top10Threshold).length
     
-    console.log(`   ✅ Top 10%: ${topPerformers} alunos (threshold: ${top10Threshold.toFixed(1)})`)
+    logger.info(`   ✅ Top 10%: ${topPerformers} alunos (threshold: ${top10Threshold.toFixed(1)})`)
     
     // ═══════════════════════════════════════════════════════════
     // STEP 5: DISTRIBUIÇÃO POR PLATAFORMA (USERS ÚNICOS)
     // ═══════════════════════════════════════════════════════════
     
-    console.log('🌐 Calculando distribuição por plataforma...')
+    logger.info('🌐 Calculando distribuição por plataforma...')
     
     const platformUsers = new Map<string, Set<string>>()
     const platformProducts = new Map<string, number>()
@@ -260,9 +261,9 @@ export async function buildDashboardStats(): Promise<void> {
       })
       .sort((a, b) => b.count - a.count)
     
-    console.log('   ✅ Distribuição (USERS ÚNICOS):')
+    logger.info('   ✅ Distribuição (USERS ÚNICOS):')
     byPlatform.forEach(p => {
-      console.log(`   - ${p.name}: ${p.count} users (${p.percentage}%) | ${p._debug.userProducts} UserProducts`)
+      logger.info(`   - ${p.name}: ${p.count} users (${p.percentage}%) | ${p._debug.userProducts} UserProducts`)
     })
     
     const platformDistribution = byPlatform.map(p => ({
@@ -275,7 +276,7 @@ export async function buildDashboardStats(): Promise<void> {
     // STEP 6: CALCULAR HEALTH SCORE
     // ═══════════════════════════════════════════════════════════
     
-    console.log('💊 Calculando Health Score...')
+    logger.info('💊 Calculando Health Score...')
     
     const { healthScore, healthLevel, healthBreakdown } = calculateHealthScore({
       avgEngagement,
@@ -285,7 +286,7 @@ export async function buildDashboardStats(): Promise<void> {
       avgProgress,
     })
     
-    console.log(`   ✅ Health Score: ${healthScore} (${healthLevel})`)
+    logger.info(`   ✅ Health Score: ${healthScore} (${healthLevel})`)
     
     // ═══════════════════════════════════════════════════════════
     // STEP 7: GUARDAR NA BD
@@ -296,7 +297,7 @@ export async function buildDashboardStats(): Promise<void> {
     
     const calculationDuration = Date.now() - startTime
     
-    console.log('💾 Guardando stats na BD...')
+    logger.info('💾 Guardando stats na BD...')
     
     await DashboardStats.deleteMany({ version: 'v3' })
     
@@ -336,21 +337,21 @@ export async function buildDashboardStats(): Promise<void> {
       }
     })
     
-    console.log('\n✅ ========================================')
-    console.log(`✅ Dashboard Stats construídos em ${Math.round(calculationDuration/1000)}s`)
-    console.log(`✅ ${uniqueStudents} alunos únicos processados`)
-    console.log(`✅ Quick Filters:`)
-    console.log(`   🚨 Em Risco: ${atRiskCount} (score < 30)`)
-    console.log(`   🏆 Top 10%: ${topPerformers} (threshold: ${top10Threshold.toFixed(1)})`)
-    console.log(`   😴 Inativos 30d: ${inactiveUsers30d}`)
-    console.log(`   📅 Novos 7d: ${newUsers7d}`)
-    console.log(`✅ Próxima atualização: ${nextUpdate.toLocaleString('pt-PT')}`)
-    console.log('✅ ========================================\n')
+    logger.info('\n✅ ========================================')
+    logger.info(`✅ Dashboard Stats construídos em ${Math.round(calculationDuration/1000)}s`)
+    logger.info(`✅ ${uniqueStudents} alunos únicos processados`)
+    logger.info(`✅ Quick Filters:`)
+    logger.info(`   🚨 Em Risco: ${atRiskCount} (score < 30)`)
+    logger.info(`   🏆 Top 10%: ${topPerformers} (threshold: ${top10Threshold.toFixed(1)})`)
+    logger.info(`   😴 Inativos 30d: ${inactiveUsers30d}`)
+    logger.info(`   📅 Novos 7d: ${newUsers7d}`)
+    logger.info(`✅ Próxima atualização: ${nextUpdate.toLocaleString('pt-PT')}`)
+    logger.info('✅ ========================================\n')
     
   } catch (error) {
-    console.error('\n❌ ========================================')
-    console.error('❌ ERRO ao construir Dashboard Stats:', error)
-    console.error('❌ ========================================\n')
+    logger.error('\n❌ ========================================')
+    logger.error('❌ ERRO ao construir Dashboard Stats:', error)
+    logger.error('❌ ========================================\n')
     throw error
   }
 }
@@ -359,12 +360,12 @@ export async function buildDashboardStats(): Promise<void> {
  * 📖 Ler stats do dashboard (RÁPIDO - 50ms)
  */
 export async function getDashboardStats(): Promise<any> {
-  console.log('📖 [GETTER] Lendo Dashboard Stats da BD...')
+  logger.info('📖 [GETTER] Lendo Dashboard Stats da BD...')
   
   const stats = await DashboardStats.findOne({ version: 'v3' }).lean()
   
   if (!stats) {
-    console.warn('⚠️  Dashboard Stats não encontrados! Construindo...')
+    logger.warn('⚠️  Dashboard Stats não encontrados! Construindo...')
     await buildDashboardStats()
     return await DashboardStats.findOne({ version: 'v3' }).lean()
   }

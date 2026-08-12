@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 src/jobs/guruTrialCheck.job.ts
 // Cron job — verificação diária de trials Guru
@@ -22,23 +23,23 @@ const guruTrialCheckJob = {
     markedForInactivation: number
     converted: number
   }> {
-    console.log('⏳ [GuruTrialCheck] Iniciando verificação de trials...')
+    logger.info('⏳ [GuruTrialCheck] Iniciando verificação de trials...')
     const startTime = Date.now()
 
     try {
       // 1. Sincronizar trials da API Guru (apanha novos + actualiza datas)
       const syncResult = await syncTrialsFromGuru()
-      console.log(`⏳ [GuruTrialCheck] Sync: ${syncResult.synced} trials sincronizados`)
+      logger.info(`⏳ [GuruTrialCheck] Sync: ${syncResult.synced} trials sincronizados`)
 
       // 2. Verificar expirados → marcar PARA_INATIVAR (NÃO inativa)
       const checkResult = await checkExpiredTrials()
-      console.log(
+      logger.info(
         `⏳ [GuruTrialCheck] Check: ${checkResult.markedForInactivation} marcados, ` +
         `${checkResult.converted} convertidos, ${checkResult.stillInTrial} ainda em trial`
       )
 
       const duration = Math.round((Date.now() - startTime) / 1000)
-      console.log(`✅ [GuruTrialCheck] Concluído em ${duration}s`)
+      logger.info(`✅ [GuruTrialCheck] Concluído em ${duration}s`)
 
       return {
         success: true,
@@ -51,7 +52,7 @@ const guruTrialCheckJob = {
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido'
-      console.error('❌ [GuruTrialCheck] Erro:', message)
+      logger.error('❌ [GuruTrialCheck] Erro:', message)
       return {
         success: false,
         total: 0,

@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 // ════════════════════════════════════════════════════════════════════════════
 // 📁 src/jobs/evaluateRules.job.ts
 // ✅ NOVO SISTEMA: Usa DecisionEngine por UserProduct
@@ -7,11 +8,11 @@ import { Product, UserProduct } from '../models'
 import decisionEngine from '../services/activeCampaign/decisionEngine.service'
 import tagOrchestrator from '../services/activeCampaign/tagOrchestrator.service'
 
-console.log('⚠️ EvaluateRules: DESATIVADO hardcoded (gerido pelo wizard)')
+logger.info('⚠️ EvaluateRules: DESATIVADO hardcoded (gerido pelo wizard)')
 
 export async function executeEvaluateRules() {
-  console.log('🕐 Iniciando avaliação diária automática...')
-  console.log('✅ NOVO SISTEMA: DecisionEngine por UserProduct\n')
+  logger.info('🕐 Iniciando avaliação diária automática...')
+  logger.info('✅ NOVO SISTEMA: DecisionEngine por UserProduct\n')
 
   const startTime = Date.now()
 
@@ -22,7 +23,7 @@ export async function executeEvaluateRules() {
 
     const products = await Product.find({ isActive: true }).populate('courseId')
 
-    console.log(`📦 Encontrados ${products.length} produtos ativos`)
+    logger.info(`📦 Encontrados ${products.length} produtos ativos`)
 
     let totalUserProducts = 0
     let totalDecisions = 0
@@ -37,8 +38,8 @@ export async function executeEvaluateRules() {
       try {
         const course = product.courseId as any
 
-        console.log(`\n📦 Processando produto: ${product.name} (${product.code})`)
-        console.log(`   📚 Course: ${course?.name || 'N/A'} (${course?.trackingType || 'N/A'})`)
+        logger.info(`\n📦 Processando produto: ${product.name} (${product.code})`)
+        logger.info(`   📚 Course: ${course?.name || 'N/A'} (${course?.trackingType || 'N/A'})`)
 
         // ═══════════════════════════════════════════════════════════
         // 3. BUSCAR USERPRODUCTS ATIVOS DESTE PRODUTO
@@ -50,11 +51,11 @@ export async function executeEvaluateRules() {
         })
 
         if (userProducts.length === 0) {
-          console.log(`   ⚠️  Nenhum UserProduct ativo`)
+          logger.info(`   ⚠️  Nenhum UserProduct ativo`)
           continue
         }
 
-        console.log(`   👥 ${userProducts.length} UserProduct(s) ativo(s)`)
+        logger.info(`   👥 ${userProducts.length} UserProduct(s) ativo(s)`)
 
         totalUserProducts += userProducts.length
 
@@ -73,7 +74,7 @@ export async function executeEvaluateRules() {
             totalExecutions += result.tagsApplied.length + result.tagsRemoved.length
 
           } catch (userError: any) {
-            console.error(`   ❌ Erro UserProduct ${up._id}:`, userError.message)
+            logger.error(`   ❌ Erro UserProduct ${up._id}:`, userError.message)
             errors.push({
               userProductId: up._id,
               productId: product._id,
@@ -82,10 +83,10 @@ export async function executeEvaluateRules() {
           }
         }
 
-        console.log(`   ✅ ${product.code}: ${userProducts.length} UserProducts avaliados`)
+        logger.info(`   ✅ ${product.code}: ${userProducts.length} UserProducts avaliados`)
 
       } catch (productError: any) {
-        console.error(`❌ Erro ao processar produto ${product._id}:`, productError.message)
+        logger.error(`❌ Erro ao processar produto ${product._id}:`, productError.message)
         errors.push({
           productId: product._id,
           error: productError.message
@@ -99,20 +100,20 @@ export async function executeEvaluateRules() {
 
     const duration = Date.now() - startTime
 
-    console.log(`\n${'═'.repeat(70)}`)
-    console.log(`✅ AVALIAÇÃO CONCLUÍDA (NOVO SISTEMA)`)
-    console.log(`${'═'.repeat(70)}`)
-    console.log(`📦 Produtos processados: ${products.length}`)
-    console.log(`👥 UserProducts avaliados: ${totalUserProducts}`)
-    console.log(`🎯 Decisões avaliadas: ${totalDecisions}`)
-    console.log(`⚡ Ações executadas: ${totalExecutions}`)
-    console.log(`⏱️  Duração: ${(duration / 1000).toFixed(2)}s`)
+    logger.info(`\n${'═'.repeat(70)}`)
+    logger.info(`✅ AVALIAÇÃO CONCLUÍDA (NOVO SISTEMA)`)
+    logger.info(`${'═'.repeat(70)}`)
+    logger.info(`📦 Produtos processados: ${products.length}`)
+    logger.info(`👥 UserProducts avaliados: ${totalUserProducts}`)
+    logger.info(`🎯 Decisões avaliadas: ${totalDecisions}`)
+    logger.info(`⚡ Ações executadas: ${totalExecutions}`)
+    logger.info(`⏱️  Duração: ${(duration / 1000).toFixed(2)}s`)
 
     if (errors.length > 0) {
-      console.log(`⚠️  Erros: ${errors.length}`)
+      logger.info(`⚠️  Erros: ${errors.length}`)
     }
 
-    console.log(`${'═'.repeat(70)}\n`)
+    logger.info(`${'═'.repeat(70)}\n`)
 
     // ✅ RETORNAR RESULTADO PARA O SCHEDULER
     return {
@@ -126,7 +127,7 @@ export async function executeEvaluateRules() {
     }
 
   } catch (error: any) {
-    console.error('❌ Erro na avaliação diária:', error)
+    logger.error('❌ Erro na avaliação diária:', error)
     throw new Error(`Erro na avaliação de regras: ${error.message}`)
   }
 }

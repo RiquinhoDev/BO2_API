@@ -24,7 +24,7 @@ import logger, { logJobStart, logJobEnd, logJobError } from '../utils/logger'
 const JOB_NAME = 'ResetCounters'
 const CRON_SCHEDULE = '0 1 * * 1' // 1h da manhã, toda segunda-feira
 
-console.log('⚠️ ResetCounters: DESATIVADO hardcoded (gerido pelo wizard)')
+logger.info('⚠️ ResetCounters: DESATIVADO hardcoded (gerido pelo wizard)')
 
 // ─────────────────────────────────────────────────────────────
 // FUNÇÃO PRINCIPAL DO JOB

@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 // ══════════════════════════════════════════════════════════════════════
 // 📁 src/controllers/dashboardQuick.controller.ts
 // Endpoints RÁPIDOS para dashboard usando agregação MongoDB
@@ -15,7 +16,7 @@ import { successResponse } from '../contracts/responseContract'
  */
 export const getProductComparison = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('\n📊 [Quick Comparison] Agregando dados por produto...')
+    logger.info('\n📊 [Quick Comparison] Agregando dados por produto...')
 
     // Agregação MongoDB otimizada
     const products = await UserProduct.aggregate([
@@ -97,7 +98,7 @@ export const getProductComparison = async (req: Request, res: Response, next: Ne
       { $limit: 10 }
     ], { allowDiskUse: true })
 
-    console.log(`✅ [Quick Comparison] ${products.length} produtos encontrados`)
+    logger.info(`✅ [Quick Comparison] ${products.length} produtos encontrados`)
 
     // Transformar para formato esperado pelo frontend
     const comparison = products.map((product: any) => {
@@ -147,7 +148,7 @@ export const getProductComparison = async (req: Request, res: Response, next: Ne
  */
 export const getEngagementHeatmap = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('\n🔥 [Quick Heatmap] Gerando heatmap simplificado...')
+    logger.info('\n🔥 [Quick Heatmap] Gerando heatmap simplificado...')
 
     // Por agora, retornar dados mockados
     // TODO: Implementar sistema de tracking temporal de engagement
@@ -195,7 +196,7 @@ export const getEngagementHeatmap = async (req: Request, res: Response, next: Ne
       }
     }
 
-    console.log('✅ [Quick Heatmap] Heatmap gerado')
+    logger.info('✅ [Quick Heatmap] Heatmap gerado')
 
     return res.status(200).json(successResponse(heatmapData, {
         isMock: true,
@@ -212,7 +213,7 @@ export const getEngagementHeatmap = async (req: Request, res: Response, next: Ne
  */
 export const getProductsBreakdown = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('\n📦 [Quick Products] Agregando breakdown por produto...')
+    logger.info('\n📦 [Quick Products] Agregando breakdown por produto...')
 
     const { platforms } = req.query
 
@@ -278,7 +279,7 @@ export const getProductsBreakdown = async (req: Request, res: Response, next: Ne
         : 0
     }))
 
-    console.log(`✅ [Quick Products] ${breakdown.length} produtos`)
+    logger.info(`✅ [Quick Products] ${breakdown.length} produtos`)
 
     return res.status(200).json(successResponse(breakdown, {
         calculatedAt: new Date(),

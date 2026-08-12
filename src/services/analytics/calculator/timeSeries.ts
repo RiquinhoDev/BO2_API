@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import mongoose, { type FilterQuery } from 'mongoose'
 import UserProduct, { type IUserProduct } from '../../../models/UserProduct'
 import type { TimeSeriesPoint } from '../../../types/analytics.types'
@@ -17,7 +18,7 @@ export async function generateCumulativeTimeSeries(
     productId?: string,
     platform?: string
   ) {
-    console.log('📈 [Time Series] Gerando série temporal acumulada...')
+    logger.info('📈 [Time Series] Gerando série temporal acumulada...')
     
     const timeSeries: TimeSeriesPoint[] = []
     const intervals = getIntervals(startDate, endDate, interval)
@@ -44,7 +45,7 @@ export async function generateCumulativeTimeSeries(
       })
     }
     
-    console.log(`✅ [Time Series] ${timeSeries.length} pontos gerados`)
+    logger.info(`✅ [Time Series] ${timeSeries.length} pontos gerados`)
     return timeSeries
   }
   
@@ -58,7 +59,7 @@ export async function generateNewStudentsTimeSeries(
     productId?: string,
     platform?: string
   ) {
-    console.log('📈 [Time Series] Gerando série de novas vendas...')
+    logger.info('📈 [Time Series] Gerando série de novas vendas...')
     
     const timeSeries: TimeSeriesPoint[] = []
     const intervals = getIntervals(startDate, endDate, interval)
@@ -85,7 +86,7 @@ export async function generateNewStudentsTimeSeries(
       })
     }
     
-    console.log(`✅ [Time Series] ${timeSeries.length} pontos gerados`)
+    logger.info(`✅ [Time Series] ${timeSeries.length} pontos gerados`)
     return timeSeries
   }
   

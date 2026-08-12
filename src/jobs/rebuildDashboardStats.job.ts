@@ -1,3 +1,4 @@
+import logger from '../utils/logger'
 // ═══════════════════════════════════════════════════════════════════════════
 // ⏰ CRON JOB: Rebuild Dashboard Stats
 // ═══════════════════════════════════════════════════════════════════════════
@@ -32,16 +33,16 @@ class DashboardStatsRebuildError extends Error {
  * ✅ CORRIGIDO: Agora usa await e retorna resultado
  */
 export async function rebuildDashboardStatsManual() {
-  console.log('\n🔄 ========================================');
-  console.log('🔄 MANUAL: Rebuild Dashboard Stats');
-  console.log(`🔄 Timestamp: ${new Date().toLocaleString('pt-PT')}`);
-  console.log('🔄 ========================================\n');
+  logger.info('\n🔄 ========================================');
+  logger.info('🔄 MANUAL: Rebuild Dashboard Stats');
+  logger.info(`🔄 Timestamp: ${new Date().toLocaleString('pt-PT')}`);
+  logger.info('🔄 ========================================\n');
   
   try {
     // ✅ CORRIGIDO: Usar await para esperar conclusão
     await buildDashboardStats()
     
-    console.log('✅ MANUAL: Dashboard Stats reconstruídos!\n')
+    logger.info('✅ MANUAL: Dashboard Stats reconstruídos!\n')
     
     // ✅ CORRIGIDO: Retornar resultado de sucesso
     return {
@@ -52,7 +53,7 @@ export async function rebuildDashboardStatsManual() {
   } catch (error: unknown) {
     const cause = error instanceof Error ? error : undefined
     const message = cause?.message ?? 'Erro desconhecido'
-    console.error('❌ MANUAL: Erro ao reconstruir:', message, '\n');
+    logger.error('❌ MANUAL: Erro ao reconstruir:', message, '\n');
     
     // ✅ CORRIGIDO: Lançar erro para CRON system capturar
     throw new DashboardStatsRebuildError(

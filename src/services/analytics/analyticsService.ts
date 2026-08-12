@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 // src/services/analyticsService.ts - Serviço Completo de Analytics com Cache - VERSÃO CORRIGIDA
 import User, { IUser } from '../../models/user'
 import { Class } from '../../models/Class'
@@ -12,24 +13,24 @@ export class AnalyticsService {
    * MÉTODO PRINCIPAL - Obter analytics de uma turma (sem cache por agora)
    */
   async getClassAnalytics(classId: string, forceRecalculate = false): Promise<IClassAnalytics | null> {
-    console.log(`📊 Buscando analytics para turma: ${classId}`)
+    logger.info(`📊 Buscando analytics para turma: ${classId}`)
     
     try {
       // Verificar se a turma existe
       const classData = await Class.findOne({ classId }).lean() as any
       if (!classData) {
-        console.log(`❌ Turma ${classId} não encontrada`)
+        logger.info(`❌ Turma ${classId} não encontrada`)
         return null
       }
       
       // Calcular métricas
       const analytics = await this.calculateClassAnalytics(classId, classData.name || 'Turma sem nome')
       
-      console.log(`✅ Analytics calculados para turma ${classId}`)
+      logger.info(`✅ Analytics calculados para turma ${classId}`)
       return analytics as IClassAnalytics
       
     } catch (error) {
-      console.error(`❌ Erro ao obter analytics da turma ${classId}:`, error)
+      logger.error(`❌ Erro ao obter analytics da turma ${classId}:`, error)
       return null
     }
   }
@@ -39,7 +40,7 @@ export class AnalyticsService {
    */
   private async calculateClassAnalytics(classId: string, className: string): Promise<Partial<IClassAnalytics>> {
     const startTime = Date.now()
-    console.log(`🔢 Calculando métricas para turma ${classId}...`)
+    logger.info(`🔢 Calculando métricas para turma ${classId}...`)
     
     // 1. Buscar todos os alunos da turma
 const students = await User.find({
@@ -47,7 +48,7 @@ const students = await User.find({
   isDeleted: { $ne: true }
 }).lean<IUser[]>()
     
-    console.log(`👥 Encontrados ${students.length} alunos na turma`)
+    logger.info(`👥 Encontrados ${students.length} alunos na turma`)
     
     if (students.length === 0) {
       return this.getEmptyAnalytics(classId, className)
@@ -150,9 +151,9 @@ const students = await User.find({
             engagementScore: score,
             engagementLevel: result.level,
             engagementCalculatedAt: new Date()
-          }).exec().catch(console.error)
+          }).exec().catch((error: unknown) => logger.error(error))
         } catch (error) {
-          console.error('Erro ao calcular engagement:', error)
+          logger.error('Erro ao calcular engagement:', error)
           score = 0
         }
       }
@@ -437,7 +438,7 @@ const students = await User.find({
    * FORÇAR RECÁLCULO DE UMA TURMA
    */
   async recalculateClass(classId: string): Promise<IClassAnalytics | null> {
-    console.log(`🔄 Forçando recálculo da turma ${classId}`)
+    logger.info(`🔄 Forçando recálculo da turma ${classId}`)
     return await this.getClassAnalytics(classId, true)
   }
   
