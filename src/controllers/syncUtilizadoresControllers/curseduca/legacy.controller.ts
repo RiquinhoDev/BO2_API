@@ -3,13 +3,6 @@ import { operationalSuccessResponse } from '../../../contracts/responseContract'
 import { syncCurseducaUsers } from './sync.controller'
 import { errorMessage, type SyncResponse } from '../../../services/curseducaServices/controllerSupport'
 
-export const getUserByEmail = async (_req: Request, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    message: 'Endpoint deprecado',
-    note: 'Use GET /api/users?email=:email'
-  })
-}
 // ✅ Alias para compatibilidade
 export const syncCurseducaUsersUniversal = syncCurseducaUsers
 

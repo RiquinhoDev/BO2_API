@@ -9,6 +9,7 @@ test('exposes only canonical ActiveCampaign, cron and Hotmart route identities',
   const cron = read('src/routes/cron/createCronManagementRouter.ts')
   const hotmart = read('src/routes/hotmart.routes.ts')
 
+  expect(activeCampaign).not.toContain("router.get('/debug/curseduca-data'")
   expect(activeCampaign).not.toContain("router.post('/courses/clareza/evaluate'")
   expect(activeCampaign).not.toContain("router.post('/courses/ogi/evaluate'")
   expect(activeCampaign).not.toContain("router.get('/tag-rules'")
@@ -29,5 +30,15 @@ test('products list has one canonical response and no legacy selector', () => {
   expect(controller).not.toContain("legacy === 'true'")
   expect(controller).not.toContain('_legacy')
   expect(controller).not.toContain('_v2')
+  const routes = read('src/routes/products.routes.ts')
+  expect(routes).not.toContain('legacy=true')
+  expect(routes).not.toContain('getLegacyProducts')
+  expect(routes).not.toContain('getLegacyProductById')
   expect(controller).toContain('successResponse({ products: productsWithCounts }, { total: products.length })')
+})
+
+
+test('production route sources contain no executable 501 response', () => {
+  const controllers = read('src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts')
+  expect(controllers).not.toContain('status(501)')
 })
