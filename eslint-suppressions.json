@@ -1,26 +1,7 @@
 {
-  "src/controllers/acTags/acReader.controller.ts": {
-    "no-console": {
-      "count": 4
-    }
-  },
-  "src/controllers/acTags/tagRule.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 3
-    }
-  },
   "src/controllers/acTags/tagRuleEstimate.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 12
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    },
-    "no-console": {
-      "count": 9
     }
   },
   "src/controllers/businessAnalytics.controller.ts": {
@@ -29,11 +10,6 @@
     },
     "no-console": {
       "count": 6
-    }
-  },
-  "src/controllers/clarezaController.ts": {
-    "no-console": {
-      "count": 5
     }
   },
   "src/controllers/cohortAnalytics.controller.ts": {
@@ -52,12 +28,6 @@
     },
     "@typescript-eslint/no-require-imports": {
       "count": 1
-    },
-    "no-console": {
-      "count": 6
-    },
-    "prefer-const": {
-      "count": 1
     }
   },
   "src/controllers/dashboardQuick.controller.ts": {
@@ -66,9 +36,6 @@
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    },
-    "no-console": {
-      "count": 6
     }
   },
   "src/controllers/discovery.controller.ts": {
@@ -96,66 +63,14 @@
       "count": 4
     }
   },
-  "src/controllers/guru.sso.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 8
-    }
-  },
   "src/controllers/guru.sync.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 6
-    },
-    "no-console": {
-      "count": 3
-    }
-  },
-  "src/controllers/guru.trials.controller.ts": {
-    "no-console": {
-      "count": 2
     }
   },
   "src/controllers/guru.webhook.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 7
-    },
-    "no-console": {
-      "count": 9
-    }
-  },
-  "src/controllers/guruAnalytics/churn.controller.ts": {
-    "no-console": {
-      "count": 2
-    }
-  },
-  "src/controllers/guruAnalytics/comparison.controller.ts": {
-    "no-console": {
-      "count": 19
-    }
-  },
-  "src/controllers/guruAnalytics/subscriptionRepair.controller.ts": {
-    "no-console": {
-      "count": 8
-    }
-  },
-  "src/controllers/guruSnapshots/crud.controller.ts": {
-    "no-console": {
-      "count": 22
-    }
-  },
-  "src/controllers/guruSnapshots/history.controller.ts": {
-    "no-console": {
-      "count": 21
-    },
-    "prefer-const": {
-      "count": 1
-    }
-  },
-  "src/controllers/guruWebhookAdmin.controller.ts": {
-    "no-console": {
-      "count": 3
     }
   },
   "src/controllers/lessons.controller.ts": {
@@ -168,12 +83,6 @@
       "count": 3
     },
     "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 11
-    },
-    "prefer-const": {
       "count": 1
     }
   },
@@ -304,17 +213,11 @@
   "src/controllers/testHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 5
-    },
-    "no-console": {
-      "count": 20
     }
   },
   "src/controllers/userHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 9
-    },
-    "prefer-const": {
-      "count": 1
     }
   },
   "src/controllers/webhooks.controller.ts": {
@@ -333,19 +236,11 @@
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    },
-    "no-console": {
-      "count": 32
     }
   },
   "src/jobs/dailyPipeline/tagEvaluation/engagementScore.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 2
-    }
-  },
-  "src/jobs/dailyPipeline/tagEvaluation/evaluateStudentTags.ts": {
-    "no-console": {
-      "count": 10
     }
   },
   "src/jobs/dailyPipeline/tagEvaluation/globalUserTags.ts": {
@@ -375,21 +270,8 @@
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
-    "no-console": {
-      "count": 22
-    },
     "preserve-caught-error": {
       "count": 1
-    }
-  },
-  "src/jobs/guruTrialCheck.job.ts": {
-    "no-console": {
-      "count": 5
-    }
-  },
-  "src/jobs/rebuildDashboardStats.job.ts": {
-    "no-console": {
-      "count": 6
     }
   },
   "src/jobs/resetCounters.job.ts": {
@@ -398,9 +280,6 @@
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
-    },
-    "no-console": {
-      "count": 1
     },
     "preserve-caught-error": {
       "count": 1
@@ -651,60 +530,28 @@
       "count": 1
     }
   },
-  "src/services/activeCampaign/contactTagReader.service.ts": {
-    "no-console": {
-      "count": 13
-    }
-  },
-  "src/services/activeCampaign/decisionEngine.service.ts": {
-    "no-console": {
-      "count": 1
-    }
-  },
   "src/services/activeCampaign/nativeTagProtection.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 3
+      "count": 2
     }
   },
   "src/services/activeCampaign/pipelineSnapshot.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 2
-    }
-  },
-  "src/services/activeCampaign/tagOrchestrator/core.ts": {
-    "no-console": {
-      "count": 6
+      "count": 1
     }
   },
   "src/services/activeCampaign/tagPreCreation.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
-    "no-console": {
-      "count": 6
+      "count": 1
     }
   },
   "src/services/activeCampaign/testimonialTagSync.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
-    }
-  },
-  "src/services/analytics/analyticsCache.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
-    "no-console": {
-      "count": 23
+      "count": 2
     }
   },
   "src/services/analytics/analyticsCalculator.service.ts": {
     "@typescript-eslint/no-unused-vars": {
-      "count": 4
-    },
-    "no-console": {
       "count": 4
     }
   },
@@ -714,21 +561,10 @@
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    },
-    "no-console": {
-      "count": 9
     }
   },
   "src/services/analytics/calculator/timeSeries.ts": {
     "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 4
-    }
-  },
-  "src/services/analytics/cohortAnalytics.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },
@@ -742,57 +578,12 @@
   },
   "src/services/clareza/clarezaEarningsService.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
-    "no-console": {
-      "count": 8
-    }
-  },
-  "src/services/clareza/clarezaFmpData.service.ts": {
-    "no-console": {
-      "count": 8
-    }
-  },
-  "src/services/clareza/clarezaFmpReit.service.ts": {
-    "no-useless-assignment": {
-      "count": 5
-    },
-    "preserve-caught-error": {
-      "count": 2
-    }
-  },
-  "src/services/clareza/clarezaFmpStock.service.ts": {
-    "preserve-caught-error": {
-      "count": 1
+      "count": 3
     }
   },
   "src/services/clareza/clarezaTop10Service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 15
-    },
-    "no-console": {
-      "count": 8
-    }
-  },
-  "src/services/clareza/raiox/data.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 3
-    },
-    "no-console": {
-      "count": 1
-    }
-  },
-  "src/services/clareza/raiox/runtime.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 7
-    }
-  },
-  "src/services/clareza/tickerUtils.ts": {
-    "no-useless-escape": {
-      "count": 1
+      "count": 12
     }
   },
   "src/services/courseLessonCatalog.service.ts": {
@@ -800,33 +591,9 @@
       "count": 1
     }
   },
-  "src/services/cron/dailyPipelineSyncSteps.ts": {
-    "prefer-const": {
-      "count": 1
-    }
-  },
-  "src/services/cron/scheduler/service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 17
-    }
-  },
-  "src/services/cron/tagRulesOnlyPipeline.service.ts": {
-    "no-console": {
-      "count": 53
-    }
-  },
   "src/services/dashboardStatsBuilder.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
-    "no-console": {
-      "count": 33
+      "count": 4
     }
   },
   "src/services/discovery/hotmartDiscovery.service.ts": {
@@ -840,48 +607,9 @@
       "count": 1
     }
   },
-  "src/services/guru/crossReference.service.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 26
-    }
-  },
-  "src/services/guru/guru.constants.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
-    "no-console": {
-      "count": 3
-    }
-  },
-  "src/services/guru/guruChurn.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    }
-  },
   "src/services/guru/guruTrialService.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 12
-    },
-    "no-console": {
-      "count": 12
-    }
-  },
-  "src/services/guru/sync/client.ts": {
-    "no-console": {
-      "count": 25
-    }
-  },
-  "src/services/guru/sync/orchestration.ts": {
-    "no-console": {
-      "count": 27
-    }
-  },
-  "src/services/guru/sync/persistence.ts": {
-    "no-console": {
-      "count": 4
+      "count": 9
     }
   },
   "src/services/notification.service.ts": {
@@ -1004,53 +732,23 @@
     }
   },
   "src/services/syncUtilizadoresServices/activitySnapshot.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 4
-    },
-    "no-console": {
-      "count": 14
     }
   },
   "src/services/syncUtilizadoresServices/conflictDetection.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
-    "no-console": {
-      "count": 17
-    }
-  },
-  "src/services/syncUtilizadoresServices/curseducaServices/curseducaAdapterSupport.ts": {
-    "no-console": {
       "count": 5
     }
   },
   "src/services/syncUtilizadoresServices/curseducaServices/curseducaBulkSync.adapter.ts": {
-    "no-console": {
-      "count": 37
-    },
     "preserve-caught-error": {
       "count": 2
     }
   },
-  "src/services/syncUtilizadoresServices/curseducaServices/curseducaReports.client.ts": {
-    "no-console": {
-      "count": 15
-    }
-  },
   "src/services/syncUtilizadoresServices/curseducaServices/curseducaSingleUser.adapter.ts": {
-    "no-console": {
-      "count": 16
-    },
     "preserve-caught-error": {
       "count": 1
-    }
-  },
-  "src/services/syncUtilizadoresServices/dualRead/runtime.ts": {
-    "no-console": {
-      "count": 33
     }
   },
   "src/services/syncUtilizadoresServices/engagement/engagementService.ts": {
@@ -1060,36 +758,14 @@
   },
   "src/services/syncUtilizadoresServices/engagement/recalculate-engagement-metrics.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 12
+      "count": 10
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 8
     },
-    "no-console": {
-      "count": 25
-    },
     "preserve-caught-error": {
-      "count": 1
-    }
-  },
-  "src/services/syncUtilizadoresServices/hotmartServices/hotmart/modules.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    },
-    "no-console": {
-      "count": 5
-    }
-  },
-  "src/services/syncUtilizadoresServices/hotmartServices/hotmart/processing.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
-    "no-console": {
       "count": 1
     }
   },
@@ -1100,9 +776,6 @@
     "@typescript-eslint/no-unused-vars": {
       "count": 3
     },
-    "no-console": {
-      "count": 20
-    },
     "preserve-caught-error": {
       "count": 2
     }
@@ -1111,40 +784,16 @@
     "@typescript-eslint/no-explicit-any": {
       "count": 3
     },
-    "no-console": {
-      "count": 20
-    },
     "preserve-caught-error": {
       "count": 2
     }
   },
   "src/services/syncUtilizadoresServices/syncReports.service.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 12
-    },
-    "no-console": {
-      "count": 25
+      "count": 1
     },
     "preserve-caught-error": {
       "count": 1
-    }
-  },
-  "src/services/syncUtilizadoresServices/universalSync/debugLog.ts": {
-    "no-console": {
-      "count": 1
-    }
-  },
-  "src/services/syncUtilizadoresServices/universalSync/executeUniversalSync.ts": {
-    "no-console": {
-      "count": 13
-    },
-    "no-useless-assignment": {
-      "count": 2
-    }
-  },
-  "src/services/syncUtilizadoresServices/universalSync/processSyncItem.ts": {
-    "no-console": {
-      "count": 10
     }
   },
   "src/services/systemMonitor.service.ts": {
