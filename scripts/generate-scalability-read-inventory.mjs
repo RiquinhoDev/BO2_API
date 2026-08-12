@@ -113,7 +113,7 @@ function validateScale02(scale02) {
   return { complete: scale02.entries.length, pending: 0 }
 }
 function validateScale03(scale03) {
-  const expectedSummary = { planned: 24, complete: 12, pending: 12, changed: 11, alreadyCompliant: 1 }
+  const expectedSummary = { planned: 24, complete: 14, pending: 10, changed: 13, alreadyCompliant: 1 }
   if (!scale03 || JSON.stringify(scale03.summary) !== JSON.stringify(expectedSummary)) fail('SCALE-03 stale summary')
   if (!Array.isArray(scale03.entries) || scale03.entries.length !== 24) fail('SCALE-03 expected 24 decisions')
   const ids = new Set(scale03.entries.map(entry => entry.id))
@@ -150,8 +150,8 @@ function validateScale03(scale03) {
   if (!scale03.operational || scale03.operational.status !== 'pending' || !scale03.operational.reason) {
     fail('SCALE-03 operational evidence must remain pending')
   }
-  if (complete.length !== 12 || pending.length !== 12) fail('SCALE-03 stale status counts')
-  if (complete.filter(entry => entry.disposition === 'changed').length !== 11 || complete.filter(entry => entry.disposition === 'already-compliant').length !== 1) {
+  if (complete.length !== 14 || pending.length !== 10) fail('SCALE-03 stale status counts')
+  if (complete.filter(entry => entry.disposition === 'changed').length !== 13 || complete.filter(entry => entry.disposition === 'already-compliant').length !== 1) {
     fail('SCALE-03 stale disposition counts')
   }
   for (const entry of scale03.entries) {

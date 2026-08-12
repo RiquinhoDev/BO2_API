@@ -7,7 +7,7 @@
   },
   "mongooseListBaseline": {
     "count": 344,
-    "hash": "b4269eedae97976995baa777a707c736de74d0a20a976eebf5b3ae78ba54a9cd"
+    "hash": "59a6f27bafb699d566693fba917a3b848e63fb2bc187246a232b4fbed9dc6b01"
   },
   "scale02": {
     "summary": {
@@ -627,9 +627,9 @@
   "scale03": {
     "summary": {
       "planned": 24,
-      "complete": 12,
-      "pending": 12,
-      "changed": 11,
+      "complete": 14,
+      "pending": 10,
+      "changed": 13,
       "alreadyCompliant": 1
     },
     "entries": [
@@ -789,8 +789,13 @@
         "id": "activecampaign.manual-actions",
         "file": "src/controllers/acTags/activeCampaignOps.controller.ts",
         "start": "export const testCron",
-        "status": "pending",
-        "reason": "Decision evaluation can execute external actions; concurrency cannot change provider order or per-item error accounting."
+        "status": "complete",
+        "disposition": "changed",
+        "end": "export const getCronLogs",
+        "require": [
+          "loadActiveUserProductsBounded(",
+          "await productReads[productIndex]"
+        ]
       },
       {
         "id": "native-tags.compensating-writes",
@@ -838,8 +843,12 @@
         "id": "activity-snapshot.cohort-fanout",
         "file": "src/services/syncUtilizadoresServices/activitySnapshot.service.ts",
         "start": "async getCohortRetention(",
-        "status": "pending",
-        "reason": "Milestone reads still use data-sized Promise.all and need a bounded pool with result-order and complete-accounting proof."
+        "status": "complete",
+        "disposition": "changed",
+        "end": "async getActiveUsersInMonth(",
+        "require": [
+          "mapCohortMilestonesBounded("
+        ]
       },
       {
         "id": "guru-trials.expired-writes",

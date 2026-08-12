@@ -22,16 +22,16 @@ test('SCALE-01 inventory reconciles 40 complete reads', () => {
   expect(inventory.scale02.entries).toHaveLength(11)
   expect(run()).toContain('40 complete / 0 pending')
   expect(run()).toContain('SCALE-02 11 complete / 0 pending')
-  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 12, pending: 12, changed: 11, alreadyCompliant: 1 })
+  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 14, pending: 10, changed: 13, alreadyCompliant: 1 })
   expect(inventory.scale03.entries).toHaveLength(24)
-  expect(run()).toContain('SCALE-03 12 complete / 12 pending')
+  expect(run()).toContain('SCALE-03 14 complete / 10 pending')
 })
 
 test('SCALE-03 records reviewed changes, compliance, and honest pending decisions', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(12)
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(12)
-  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(11)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(14)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(10)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(13)
   expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'already-compliant')).toHaveLength(1)
   expect(inventory.scale03.operational.status).toBe('pending')
 })
@@ -70,6 +70,22 @@ test('SCALE-03 ratchet rejects falsely closing operational evidence', () => {
     fs.rmSync(directory, { recursive: true, force: true })
   }
 })
+test.each([
+  ['activecampaign.manual-actions', 'src/controllers/acTags/activeCampaignOps.controller.ts', 'loadActiveUserProductsBounded(', 'removedActiveUserProductLoader('],
+  ['activity-snapshot.cohort-fanout', 'src/services/syncUtilizadoresServices/activitySnapshot.service.ts', 'mapCohortMilestonesBounded(', 'removedCohortMilestoneMapper('],
+])('SCALE-03 ratchet independently protects %s', (id, relativePath, required, replacement) => {
+  const overlay = fs.mkdtempSync(path.join(os.tmpdir(), 'scale03-read-overlay-'))
+  const target = path.join(overlay, relativePath)
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  fs.writeFileSync(target, fs.readFileSync(path.join(root, relativePath), 'utf8').split(required).join(replacement))
+  try {
+    expect(() => run({ NODE_ENV: 'test', SCALABILITY_READ_TEST_OVERLAY: overlay, SCALABILITY_READ_ALLOW_TEST_OVERLAY: '1' }))
+      .toThrow(new RegExp(`${id}: missing`))
+  } finally {
+    fs.rmSync(overlay, { recursive: true, force: true })
+  }
+})
+
 test('SCALE-02 ratchet records the exact set-based partition A decisions', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
   expect(inventory.scale02.entries.map(({ id }: { id: string }) => id)).toEqual([
