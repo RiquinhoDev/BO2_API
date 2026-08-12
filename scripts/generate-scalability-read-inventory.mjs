@@ -191,4 +191,3 @@ const currentBaseline = mongooseSites()
 const result = validate(inventory, currentBaseline)
 if (command === '--write') fs.writeFileSync(INVENTORY, `${JSON.stringify(inventory, null, 2)}\n`)
 process.stdout.write(`SCALE-01 inventory OK: ${result.complete} complete / ${result.pending} pending; SCALE-02 ${result.scale02.complete} complete / ${result.scale02.pending} pending; SCALE-03 ${result.scale03.complete} complete / ${result.scale03.pending} pending; ${currentBaseline.count} Mongoose list sites\n`)
-
