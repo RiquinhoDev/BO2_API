@@ -122,8 +122,10 @@ export async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurr
       try {
         results[i] = await tasks[i]()
       } catch (error) {
-        stopped = true
-        firstError = error
+        if (!stopped) {
+          stopped = true
+          firstError = error
+        }
       }
     }
   }

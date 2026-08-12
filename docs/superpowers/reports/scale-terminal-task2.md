@@ -69,3 +69,8 @@ Fresh evidence:
 - SCALE partition C: 12/12 passed, including fake-timer eviction, stale refresh, engagement rejection/key isolation, NaN, fail-fast, and 10k behavior.
 - TypeScript, owned ESLint, and scoped diff-check: exit 0.
 - Existing `engagementCache.controller.test.ts` remains red because it expects cache metadata at `body.data.cached`; the response contract and controller put it at `body.meta.cached`. This mismatch predates the review fix and no HTTP contract/test was changed to hide it.
+## Independent review fix round 2
+
+RED: two already-started provider workers rejected in controlled order; the later rejection overwrote the first observed error (`expected first observed`, `received later failure`).
+
+GREEN: the catch now assigns `stopped` and `firstError` only while not already stopped. The same controlled test proves the first observed rejection is retained and only the initial two indices start. Partition C passes 13/13; TypeScript, focused ESLint and scoped diff-check exit 0.

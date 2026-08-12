@@ -157,4 +157,25 @@ describe('SCALE-02 partition C contracts', () => {
     await expect(result).rejects.toThrow('provider failed')
     expect(started).toEqual(Array.from({ length: 10 }, (_, index) => index))
   })
+  it('retains the first observed provider failure while started workers settle', async () => {
+    const started: number[] = []
+    let rejectZero!: (error: Error) => void
+    let rejectOne!: (error: Error) => void
+    const zero = new Promise<number>((_, reject) => { rejectZero = reject })
+    const one = new Promise<number>((_, reject) => { rejectOne = reject })
+    const tasks = Array.from({ length: 20 }, (_, index) => async () => {
+      started.push(index)
+      if (index === 0) return zero
+      if (index === 1) return one
+      return index
+    })
+
+    const result = runWithConcurrency(tasks, 2)
+    rejectOne(new Error('first observed'))
+    await Promise.resolve()
+    rejectZero(new Error('later failure'))
+
+    await expect(result).rejects.toThrow('first observed')
+    expect(started).toEqual([0, 1])
+  })
 })
