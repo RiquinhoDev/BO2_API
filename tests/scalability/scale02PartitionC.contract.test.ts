@@ -1,5 +1,8 @@
 const calculateMetrics = jest.fn()
 const findOneAndUpdate: jest.Mock = jest.fn().mockResolvedValue(undefined)
+const aggregate: jest.Mock = jest.fn()
+const countDocuments: jest.Mock = jest.fn()
+const find: jest.Mock = jest.fn()
 const findOne: jest.Mock = jest.fn(() => ({
   sort: jest.fn().mockResolvedValue(null),
 }))
@@ -8,6 +11,9 @@ jest.mock('../../src/models/AnalyticsCache', () => ({
   __esModule: true,
   default: {
     findOne: (...args: unknown[]) => findOne(...args),
+    aggregate: (...args: unknown[]) => aggregate(...args),
+    countDocuments: (...args: unknown[]) => countDocuments(...args),
+    find: (...args: unknown[]) => find(...args),
     findOneAndUpdate: (...args: unknown[]) => findOneAndUpdate(...args),
   },
 }))
@@ -32,7 +38,34 @@ const metricsOptions = (productId: string) => ({
 describe('SCALE-02 partition C contracts', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    aggregate.mockReset()
+    countDocuments.mockReset().mockResolvedValueOnce(10_000).mockResolvedValueOnce(125)
+    find.mockReset()
     findOne.mockImplementation(() => ({ sort: jest.fn().mockResolvedValue(null) }))
+  })
+
+  it('computes complete cache statistics without materializing cache documents', async () => {
+    const oldest = new Date('2026-01-01T00:00:00.000Z')
+    const newest = new Date('2026-08-01T00:00:00.000Z')
+    findOne.mockImplementation(() => ({ sort: jest.fn((order: { calculatedAt: number }) => Promise.resolve({ calculatedAt: order.calculatedAt === 1 ? oldest : newest })) }))
+    aggregate.mockResolvedValueOnce([{ count: 750 }]).mockResolvedValueOnce([
+      { _id: 'daily', count: 9_000 }, { _id: 'monthly', count: 1_000 },
+    ])
+    await expect(analyticsCacheService.getCacheStats()).resolves.toEqual({
+      total: 10_000, expired: 125, needsRefresh: 750, valid: 9_875,
+      byPeriod: { daily: 9_000, monthly: 1_000 }, oldest, newest,
+    })
+    expect(find).not.toHaveBeenCalled()
+    expect(aggregate).toHaveBeenCalledTimes(2)
+  })
+
+  it('coalesces concurrent warmups by calendar window and fills both keys once', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-12T12:00:00.000Z'))
+    calculateMetrics.mockResolvedValue({ totalStudents: 1 })
+    const results = await Promise.all(Array.from({ length: 50 }, () => analyticsCacheService.warmUpCache()))
+    expect(calculateMetrics).toHaveBeenCalledTimes(2)
+    expect(results.every(result => result.map(item => item.period).join(',') === 'monthly,yearly')).toBe(true)
+    jest.useRealTimers()
   })
 
   it('coalesces 50 identical cache misses into one process-local calculation', async () => {

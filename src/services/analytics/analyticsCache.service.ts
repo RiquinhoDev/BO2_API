@@ -316,9 +316,16 @@ class AnalyticsCacheService {
       AnalyticsCache.countDocuments({ expiresAt: { $lt: new Date() } }),
       
       // Caches que precisam refresh
-      AnalyticsCache.find({}).then(caches => 
-        caches.filter(c => c.needsRefresh()).length
-      ),
+      AnalyticsCache.aggregate<{ count: number }>([
+        {
+          $match: {
+            $expr: {
+              $gt: [new Date(), { $add: ['$calculatedAt', { $divide: [{ $subtract: ['$expiresAt', '$calculatedAt'] }, 2] }] }]
+            }
+          }
+        },
+        { $count: 'count' }
+      ]).then(([result]) => result?.count ?? 0),
       
       // Por período
       AnalyticsCache.aggregate([
