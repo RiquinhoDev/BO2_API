@@ -6,7 +6,7 @@ export interface IInactivationList extends Document {
   name: string
   description?: string
   classIds: string[]
-  criteria?: Record<string, any>
+  criteria?: Record<string, unknown>
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED' | 'REVERTED'
   scheduledDate?: Date
   executedDate?: Date
@@ -18,7 +18,7 @@ export interface IInactivationList extends Document {
   results?: {
     success: number
     errors: number
-    details: any[]
+    details: unknown[]
   }
   createdAt: Date
   updatedAt: Date

@@ -189,7 +189,7 @@ guruWebhookSchema.statics.getStats = async function() {
     ])
   ])
 
-  const statusCounts = byStatus.reduce((acc: any, item: any) => {
+  const statusCounts = byStatus.reduce<Record<string, number>>((acc, item: { _id: string; count: number }) => {
     acc[item._id] = item.count
     return acc
   }, {})

@@ -179,27 +179,7 @@
       "count": 1
     }
   },
-  "src/models/ClarezaRaioxData.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/models/ClarezaTop10Data.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/models/GuruWebhook.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "src/models/StudentEngagementState.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/models/SyncModels/ActivitySnapshot.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
@@ -207,9 +187,6 @@
   "src/models/SyncModels/SyncHistory.ts": {
     "@typescript-eslint/no-empty-object-type": {
       "count": 1
-    },
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
     }
   },
   "src/models/SyncModels/SyncReport.ts": {
@@ -222,19 +199,9 @@
       "count": 1
     }
   },
-  "src/models/UserAction.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/models/UserHistory.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
-    }
-  },
-  "src/models/UserSnapshot.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
     }
   },
   "src/models/ValidationLog.ts": {
@@ -243,23 +210,10 @@
     }
   },
   "src/models/class/Class.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     },
     "no-useless-assignment": {
-      "count": 1
-    }
-  },
-  "src/models/class/InactivationList.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "src/models/cron/CronExecutionLog.ts": {
-    "@typescript-eslint/no-explicit-any": {
       "count": 1
     }
   },

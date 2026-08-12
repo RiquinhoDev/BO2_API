@@ -3,7 +3,7 @@
 // Modelo de UserAction - Tracking de ações (Clareza)
 // ════════════════════════════════════════════════════════════
 
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, { Schema, Document, type FilterQuery } from 'mongoose'
 
 // ─────────────────────────────────────────────────────────────
 // INTERFACES
@@ -95,7 +95,7 @@ UserActionSchema.statics.getLastActionByUser = async function(
   courseId: mongoose.Types.ObjectId,
   actionType?: ActionType
 ) {
-  const query: any = { userId, courseId }
+  const query: FilterQuery<IUserAction> = { userId, courseId }
   if (actionType) query.actionType = actionType
   
   return this.findOne(query).sort({ timestamp: -1 })
@@ -110,7 +110,7 @@ UserActionSchema.statics.countActionsInPeriod = async function(
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - days)
   
-  const query: any = {
+  const query: FilterQuery<IUserAction> = {
     userId,
     courseId,
     timestamp: { $gte: startDate }

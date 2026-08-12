@@ -4,7 +4,7 @@
 // Histórico detalhado de sincronizações com métricas avançadas
 // ════════════════════════════════════════════════════════════
 
-import mongoose, { Schema, model, Document, Model } from "mongoose"
+import mongoose, { Schema, model, Document, Model, type FilterQuery } from "mongoose"
 import { boundedQueryLimit } from '../../utils/queryBounds'
 
 // ─────────────────────────────────────────────────────────────
@@ -412,7 +412,7 @@ syncHistorySchema.statics.getSyncStats = async function(
   const cutoffDate = new Date()
   cutoffDate.setDate(cutoffDate.getDate() - days)
   
-  const query: any = {
+  const query: FilterQuery<ISyncHistory> = {
     startedAt: { $gte: cutoffDate },
     status: { $in: ['completed', 'failed'] }
   }
@@ -458,7 +458,7 @@ syncHistorySchema.statics.getSyncStats = async function(
     }
   }
   
-  const result = stats[0] as IAggregatedSyncStats & { _id?: any }
+  const result = stats[0] as IAggregatedSyncStats & { _id?: unknown }
   result.successRate = result.totalSyncs > 0 
     ? (result.successfulSyncs / result.totalSyncs) * 100 
     : 0
