@@ -11,6 +11,40 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Erro desconhecido'
 }
 
+interface TestimonialCommunicationData {
+  currentTags: string[]
+  lastSyncedAt?: Date | string
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function normalizeTestimonialData(value: unknown): TestimonialCommunicationData | null {
+  if (!isRecord(value)) return null
+
+  const currentTags = Array.isArray(value.currentTags)
+    ? value.currentTags.filter((tag): tag is string => typeof tag === 'string')
+    : []
+  const lastSyncedAt = value.lastSyncedAt
+
+  return {
+    currentTags,
+    ...(lastSyncedAt instanceof Date || typeof lastSyncedAt === 'string'
+      ? { lastSyncedAt }
+      : {}),
+  }
+}
+
+function getTestimonialData(communicationByCourse: unknown): TestimonialCommunicationData | null {
+  if (communicationByCourse instanceof Map) {
+    return normalizeTestimonialData(communicationByCourse.get('TESTIMONIALS'))
+  }
+
+  if (!isRecord(communicationByCourse)) return null
+  return normalizeTestimonialData(communicationByCourse.TESTIMONIALS)
+}
+
 /**
  * Interface para resultado da sincronização
  */
@@ -92,16 +126,14 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
           continue
         }
 
-        // Obter tags do TESTIMONIALS
-        const testimonialData = (user.communicationByCourse as any)?.get?.('TESTIMONIALS') ||
-                               (user.communicationByCourse as any)?.TESTIMONIALS
+        const testimonialData = getTestimonialData(user.communicationByCourse)
 
-        if (!testimonialData || !testimonialData.currentTags || testimonialData.currentTags.length === 0) {
+        if (!testimonialData || testimonialData.currentTags.length === 0) {
           result.stats.skipped++
           continue
         }
 
-        const tags = testimonialData.currentTags as string[]
+        const tags = testimonialData.currentTags
         result.stats.totalTags += tags.length
 
         logger.info(`   🔄 ${email}: ${tags.length} tag(s) - ${tags.join(', ')}`)
@@ -110,8 +142,6 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
         // 3. REMOVER TAGS ANTIGAS SE FOR TAG DE CONCLUSÃO
         // ═══════════════════════════════════════════════════════════
 
-        // Se user tem tag de conclusão (ex: OGI_TESTEMUNHO_CONCLUIDO),
-        // remover a tag de pedido correspondente (ex: OGI_TESTEMUNHO)
         const tagsToRemove: string[] = []
         for (const tag of tags) {
           if (tag.endsWith('_CONCLUIDO')) {
@@ -129,7 +159,6 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
               }
             } catch (removeError: unknown) {
               logger.warn(`   ⚠️  Erro ao remover tag antiga "${oldTag}" de ${email}: ${errorMessage(removeError)}`)
-              // Não falhar por causa de remoção de tag
             }
           }
         }
@@ -140,7 +169,6 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
 
         for (const tagName of tags) {
           try {
-            // Verificar se tag já foi sincronizada recentemente (últimas 24h)
             const lastSyncedAt = testimonialData.lastSyncedAt
             if (lastSyncedAt) {
               const hoursSinceSync = (Date.now() - new Date(lastSyncedAt).getTime()) / (1000 * 60 * 60)
@@ -151,7 +179,6 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
               }
             }
 
-            // Aplicar tag via Active Campaign Service
             await activeCampaignService.addTag(email, tagName)
 
             logger.info(`   ✅ Tag "${tagName}" aplicada em ${email}`)
@@ -195,10 +222,6 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
         result.stats.failed++
       }
     }
-
-    // ═══════════════════════════════════════════════════════════
-    // 5. RESULTADO FINAL
-    // ═══════════════════════════════════════════════════════════
 
     const duration = Math.floor((Date.now() - startTime) / 1000)
 
