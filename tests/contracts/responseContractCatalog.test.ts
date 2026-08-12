@@ -83,10 +83,11 @@ describe('response contract catalog', () => {
     }
   })
 
-  test('allows only terminal families and has the finite reviewed Clareza public documents', () => {
+  test('allows only terminal families and has the finite reviewed public documents and webhook ACKs', () => {
     expect(RESPONSE_FAMILIES).toEqual([
       'success-data',
       'public-document',
+      'webhook-ack',
       'redirect',
       'stream-or-file',
       'no-content',
@@ -111,6 +112,14 @@ describe('response contract catalog', () => {
       'GET /api/clareza/reit/:ticker',
       'GET /api/clareza/stock/:ticker',
       'GET /api/clareza/top10',
+      'GET /api/health',
+      'GET /api/info',
+    ])
+
+    expect(responseCatalog.filter((entry) => entry.family === 'webhook-ack').map(routeId).sort()).toEqual([
+      'POST /api/guru/webhook',
+      'POST /api/webhooks/ac/email-opened',
+      'POST /api/webhooks/ac/link-clicked',
     ])
   })
 

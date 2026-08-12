@@ -3,6 +3,7 @@ export type ApplicationResponseFamily = 'success-data'
 export type ResponseFamily =
   | ApplicationResponseFamily
   | 'public-document'
+  | 'webhook-ack'
   | 'redirect'
   | 'stream-or-file'
   | 'no-content'
@@ -10,6 +11,7 @@ export type ResponseFamily =
 export const RESPONSE_FAMILIES: readonly ResponseFamily[] = [
   'success-data',
   'public-document',
+  'webhook-ack',
   'redirect',
   'stream-or-file',
   'no-content',
