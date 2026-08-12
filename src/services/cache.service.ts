@@ -107,7 +107,7 @@ class CacheService {
     }
   }
 
-  async set(key: string, value: any, ttl = 300): Promise<void> {
+  async set(key: string, value: unknown, ttl = 300): Promise<void> {
     if (!this.isConnected || !this.redis) return
 
     try {
@@ -193,13 +193,13 @@ class CacheService {
     }
   }
 
-  getCacheKey(prefix: string, params: any): string {
+  getCacheKey(prefix: string, params: Record<string, unknown>): string {
     const sortedParams = Object.keys(params).sort().reduce((acc, key) => {
       if (params[key] !== undefined && params[key] !== null) {
         acc[key] = params[key]
       }
       return acc
-    }, {} as any)
+    }, {} as Record<string, unknown>)
 
     return `${prefix}:${JSON.stringify(sortedParams)}`
   }
