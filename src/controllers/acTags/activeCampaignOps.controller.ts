@@ -22,6 +22,42 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
+type ProductReadResult<T> =
+  | { ok: true; userProducts: T[] }
+  | { ok: false; error: unknown }
+
+export function loadActiveUserProductsBounded<P extends { _id: { toString(): string } | string }, T>(
+  products: P[],
+  loader: (productId: string) => Promise<T[]>,
+  concurrency = 10,
+): Array<Promise<ProductReadResult<T>>> {
+  if (!Number.isFinite(concurrency) || concurrency < 1) {
+    throw new Error('concurrency must be a finite positive number')
+  }
+  const resolvers: Array<(result: ProductReadResult<T>) => void> = []
+  const results = products.map(() => new Promise<ProductReadResult<T>>(resolve => {
+    resolvers.push(resolve)
+  }))
+  let nextIndex = 0
+  const workerCount = Math.min(products.length, Math.floor(concurrency), 10)
+  async function worker(): Promise<void> {
+    while (true) {
+      const index = nextIndex++
+      if (index >= products.length) return
+      try {
+        resolvers[index]({
+          ok: true,
+          userProducts: await loader(products[index]._id.toString()),
+        })
+      } catch (error) {
+        resolvers[index]({ ok: false, error })
+      }
+    }
+  }
+  void Promise.all(Array.from({ length: workerCount }, worker))
+  return results
+}
+
 export const testCron = async (
   _input: ActiveCampaignEmptyInput,
   _req: ValidatedRequest,
@@ -42,21 +78,26 @@ export const testCron = async (
 
     let totalUserProducts = 0
     let totalDecisions = 0
+    const productReads = loadActiveUserProductsBounded(
+      products,
+      productId => UserProduct.find({ productId, status: 'ACTIVE' }),
+      10,
+    )
+
     let totalExecutions = 0
     const errors: EvaluationError[] = []
 
     // ═══════════════════════════════════════════════════════════
     // 2. PROCESSAR CADA PRODUTO
     // ═══════════════════════════════════════════════════════════
-    for (const product of products) {
+    for (const [productIndex, product] of products.entries()) {
       try {
         logger.info(`\n📦 Processando produto: ${product.name} (${product.code})`)
 
         // ✅ BUSCAR USERPRODUCTS ATIVOS DESTE PRODUTO
-        const userProducts = await UserProduct.find({
-          productId: product._id,
-          status: 'ACTIVE'
-        })
+        const productRead = await productReads[productIndex]
+        if (!productRead.ok) throw productRead.error
+        const userProducts = productRead.userProducts
 
         if (userProducts.length === 0) {
           logger.info(`   ⚠️  Nenhum UserProduct ativo`)
