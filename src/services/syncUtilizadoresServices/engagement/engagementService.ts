@@ -1,11 +1,14 @@
 // src/services/engagementService.ts
 import User, { IUser } from '../../../models/user'
 
-// (opcional mas recomendado) tipar em vez de any
-export const calculateCombinedEngagement = (user: Pick<IUser, 'hotmart' | 'curseduca'> & any): number => {
+type CombinedEngagementUser = Pick<IUser, 'hotmart' | 'curseduca'> & {
+  engagement?: unknown
+}
+
+export const calculateCombinedEngagement = (user: CombinedEngagementUser): number => {
   const hotmartEng = user.hotmart?.engagement?.engagementScore
   const curseducaEng = user.curseduca?.engagement?.alternativeEngagement
-  const legacyEng = user.engagement
+  const legacyEng = typeof user.engagement === 'number' ? user.engagement : 0
 
   return hotmartEng || curseducaEng || legacyEng || 0
 }
@@ -26,7 +29,6 @@ export const getEngagementStatsByPlatform = async () => {
       stats.hotmart.sum += hotmartEng
     }
 
-    // ✅ AQUI: alternativeEngagement
     const curseducaEng = user.curseduca?.engagement?.alternativeEngagement
     if (curseducaEng) {
       stats.curseduca.total++
