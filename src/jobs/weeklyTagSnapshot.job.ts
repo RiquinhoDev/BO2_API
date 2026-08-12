@@ -17,20 +17,20 @@
 import { weeklyTagMonitoringService } from '../services/tagMonitoring'
 import logger from '../utils/logger'
 
-// ─────────────────────────────────────────────────────────────
-// CONFIGURAÇÕES
-// ─────────────────────────────────────────────────────────────
-
-const CRON_SCHEDULE = '0 2 * * 0' // Domingos às 02:00
+const CRON_SCHEDULE = '0 2 * * 0'
 const JOB_NAME = 'WeeklyTagSnapshot'
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function errorStack(error: unknown): string {
+  return error instanceof Error && error.stack ? error.stack : 'N/A'
+}
 
 logger.info(`📋 ${JOB_NAME}: Configurado`)
 logger.info(`   Schedule: ${CRON_SCHEDULE} (Domingos às 02:00)`)
 logger.info(`   Timezone: Europe/Lisbon`)
-
-// ─────────────────────────────────────────────────────────────
-// FUNÇÃO PRINCIPAL
-// ─────────────────────────────────────────────────────────────
 
 async function executeWeeklySnapshot(): Promise<{
   success: boolean
@@ -51,9 +51,7 @@ async function executeWeeklySnapshot(): Promise<{
   const startTime = Date.now()
 
   try {
-    // Executar snapshot semanal via serviço
     const result = await weeklyTagMonitoringService.performWeeklySnapshot()
-
     const duration = Date.now() - startTime
 
     logger.info('═══════════════════════════════════════════════════════════')
@@ -68,7 +66,6 @@ async function executeWeeklySnapshot(): Promise<{
     logger.info(`⏱️  Duração: ${result.duration}`)
     logger.info('═══════════════════════════════════════════════════════════')
 
-    // Retornar no formato esperado pelo CRON system
     return {
       success: result.success,
       total: result.totalStudents,
@@ -78,14 +75,15 @@ async function executeWeeklySnapshot(): Promise<{
       skipped: result.totalStudents - result.snapshotsCreated,
       duration: result.duration,
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     const duration = Date.now() - startTime
+    const message = errorMessage(error)
 
     logger.error('═══════════════════════════════════════════════════════════')
     logger.error(`❌ ERRO NO SNAPSHOT SEMANAL - ${executionId}`)
     logger.error('═══════════════════════════════════════════════════════════')
-    logger.error(`Erro: ${error.message}`)
-    logger.error(`Stack: ${error.stack}`)
+    logger.error(`Erro: ${message}`)
+    logger.error(`Stack: ${errorStack(error)}`)
     logger.error(`Tempo até falha: ${(duration / 1000).toFixed(2)}s`)
     logger.error('═══════════════════════════════════════════════════════════')
 
@@ -97,14 +95,10 @@ async function executeWeeklySnapshot(): Promise<{
       errors: 1,
       skipped: 0,
       duration: `${(duration / 1000).toFixed(2)}s`,
-      errorMessage: error.message,
+      errorMessage: message,
     }
   }
 }
-
-// ─────────────────────────────────────────────────────────────
-// EXPORTAR FUNÇÃO PARA EXECUÇÃO MANUAL
-// ─────────────────────────────────────────────────────────────
 
 export async function runWeeklySnapshotManually(): Promise<Awaited<ReturnType<typeof executeWeeklySnapshot>>> {
   logger.info('🚀 Executando snapshot semanal manual...')
