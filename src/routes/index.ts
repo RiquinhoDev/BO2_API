@@ -93,7 +93,7 @@ router.use('/sync', syncStatsRoutes)               // /api/sync/*
 router.use('/sync/reports', syncReports)           // /api/sync/reports/*
 
 // ✅ Sistema de CRON para gestão de Tags AC
-router.use('/cron-tags', cronManagementRoutes)     // /api/cron-tags/config, /api/cron-tags/execute
+router.use('/cron-tags', cronManagementRoutes)     // /api/cron-tags/config
 
 // 🏷️ TAG MONITORING SYSTEM (Monitorização Semanal de Tags Nativas)
 router.use('/tag-monitoring', tagMonitoringRoutes) // /api/tag-monitoring/*
