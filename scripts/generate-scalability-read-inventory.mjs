@@ -83,7 +83,8 @@ function validateEntry(entry) {
   for (const match of value.matchAll(/\.limit\(\s*(\d+)/g)) {
     if (Number(match[1]) > 200) fail(`${entry.id}: cap exceeds 200`)
   }
-  if (entry.policy !== 'aggregate' && !value.includes('_id')) fail(`${entry.id}: missing stable _id tie-breaker`)
+  if (!['aggregate', 'driver-cursor'].includes(entry.policy) && !value.includes('_id')) fail(`${entry.id}: missing stable _id tie-breaker`)
+  if (entry.policy === 'driver-cursor' && (!value.includes('.cursor({ batchSize: 200 })') || value.includes('.limit(50000)'))) fail(`${entry.id}: complete driver cursor is not bounded`)
   if (entry.policy === 'bounded') {
     if (!value.includes('.limit(') || !value.includes('boundedQueryLimit')) fail(`${entry.id}: selected limit is optional or unbounded`)
     if (/\.limit\(\s*(?:Number\(|parseInt\()/.test(value)) fail(`${entry.id}: selected limit is optional or unbounded`)
@@ -112,7 +113,7 @@ function validateScale02(scale02) {
   return { complete: scale02.entries.length, pending: 0 }
 }
 function validateScale03(scale03) {
-  const expectedSummary = { planned: 24, complete: 9, pending: 15, changed: 9 }
+  const expectedSummary = { planned: 24, complete: 12, pending: 12, changed: 11, alreadyCompliant: 1 }
   if (!scale03 || JSON.stringify(scale03.summary) !== JSON.stringify(expectedSummary)) fail('SCALE-03 stale summary')
   if (!Array.isArray(scale03.entries) || scale03.entries.length !== 24) fail('SCALE-03 expected 24 decisions')
   const ids = new Set(scale03.entries.map(entry => entry.id))
@@ -149,9 +150,9 @@ function validateScale03(scale03) {
   if (!scale03.operational || scale03.operational.status !== 'pending' || !scale03.operational.reason) {
     fail('SCALE-03 operational evidence must remain pending')
   }
-  if (complete.length !== 9 || pending.length !== 15) fail('SCALE-03 stale status counts')
-  if (complete.some(entry => entry.disposition !== 'changed') || complete.filter(entry => entry.disposition === 'changed').length !== 9) {
-    fail('SCALE-03 stale changed counts')
+  if (complete.length !== 12 || pending.length !== 12) fail('SCALE-03 stale status counts')
+  if (complete.filter(entry => entry.disposition === 'changed').length !== 11 || complete.filter(entry => entry.disposition === 'already-compliant').length !== 1) {
+    fail('SCALE-03 stale disposition counts')
   }
   for (const entry of scale03.entries) {
     if (!entry.id || !entry.file || !entry.start || !['complete', 'pending'].includes(entry.status)) fail('SCALE-03 invalid inventory entry')
@@ -172,8 +173,8 @@ function validate(inventory, currentBaseline) {
   if (ids.size !== inventory.entries.length) fail('duplicate inventory identity')
   const complete = inventory.entries.filter(entry => entry.status === 'complete').length
   const pending = inventory.entries.filter(entry => entry.status === 'pending').length
-  if (complete !== 36 || pending !== 4) fail(`expected 36 complete / 4 pending, found ${complete} / ${pending}`)
-  if (JSON.stringify(inventory.summary) !== JSON.stringify({ planned: 40, complete: 36, pending: 4 })) fail('stale summary')
+  if (complete !== 40 || pending !== 0) fail(`expected 40 complete / 0 pending, found ${complete} / ${pending}`)
+  if (JSON.stringify(inventory.summary) !== JSON.stringify({ planned: 40, complete: 40, pending: 0 })) fail('stale summary')
   for (const entry of inventory.entries) validateEntry(entry)
   const scale02 = validateScale02(inventory.scale02)
   const scale03 = validateScale03(inventory.scale03)
@@ -190,3 +191,4 @@ const currentBaseline = mongooseSites()
 const result = validate(inventory, currentBaseline)
 if (command === '--write') fs.writeFileSync(INVENTORY, `${JSON.stringify(inventory, null, 2)}\n`)
 process.stdout.write(`SCALE-01 inventory OK: ${result.complete} complete / ${result.pending} pending; SCALE-02 ${result.scale02.complete} complete / ${result.scale02.pending} pending; SCALE-03 ${result.scale03.complete} complete / ${result.scale03.pending} pending; ${currentBaseline.count} Mongoose list sites\n`)
+

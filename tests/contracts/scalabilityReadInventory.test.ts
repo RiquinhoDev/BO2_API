@@ -14,24 +14,25 @@ const run = (env: NodeJS.ProcessEnv = {}) => execFileSync(process.execPath, [scr
   encoding: 'utf8',
 })
 
-test('SCALE-01 inventory reconciles 36 complete and 4 pending reads', () => {
+test('SCALE-01 inventory reconciles 40 complete reads', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
-  expect(inventory.summary).toEqual({ planned: 40, complete: 36, pending: 4 })
+  expect(inventory.summary).toEqual({ planned: 40, complete: 40, pending: 0 })
   expect(inventory.entries).toHaveLength(40)
   expect(inventory.scale02.summary).toEqual({ planned: 11, complete: 11, pending: 0, changed: 10, alreadyCompliant: 1 })
   expect(inventory.scale02.entries).toHaveLength(11)
-  expect(run()).toContain('36 complete / 4 pending')
+  expect(run()).toContain('40 complete / 0 pending')
   expect(run()).toContain('SCALE-02 11 complete / 0 pending')
-  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 9, pending: 15, changed: 9 })
+  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 12, pending: 12, changed: 11, alreadyCompliant: 1 })
   expect(inventory.scale03.entries).toHaveLength(24)
-  expect(run()).toContain('SCALE-03 9 complete / 15 pending')
+  expect(run()).toContain('SCALE-03 12 complete / 12 pending')
 })
 
-test('SCALE-03 records exactly nine reviewed code changes and fifteen honest pending decisions', () => {
+test('SCALE-03 records reviewed changes, compliance, and honest pending decisions', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(9)
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(15)
-  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(9)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(12)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(12)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(11)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'already-compliant')).toHaveLength(1)
   expect(inventory.scale03.operational.status).toBe('pending')
 })
 
