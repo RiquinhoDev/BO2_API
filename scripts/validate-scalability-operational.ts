@@ -28,6 +28,19 @@ const sanitize = (value: unknown, key = ''): unknown => {
   return value
 }
 
+const productionMarker = /(?:^|[-_./])prod(?:uction)?(?:$|[-_./])/i
+
+const assertMongoTargetIsNonProduction = (env: HarnessOptions['env']): void => {
+  const uri = env.SCALABILITY_OPERATIONAL_MONGODB_URI
+  if (uri === undefined) return
+  let target: URL
+  try { target = new URL(uri) } catch { throw new Error('Mongo target URI is invalid') }
+  const database = env.SCALABILITY_OPERATIONAL_MONGO_DATABASE ?? ''
+  if (productionMarker.test(`${target.hostname}/${target.pathname}/${database}`)) {
+    throw new Error('production-looking Mongo target is forbidden')
+  }
+}
+
 const assertAuthorized = (env: HarnessOptions['env']): void => {
   if (env.SCALABILITY_OPERATIONAL_ALLOW_READ_ONLY !== 'true') throw new Error('explicit read-only authorization is required')
   if (env.SCALABILITY_OPERATIONAL_ALLOW_WRITES === 'true') throw new Error('write capability is forbidden')
@@ -36,10 +49,11 @@ const assertAuthorized = (env: HarnessOptions['env']): void => {
   const kind = env.SCALABILITY_OPERATIONAL_TARGET_KIND
   if (kind !== 'synthetic' && kind !== 'mongodb') throw new Error('target kind must be synthetic or mongodb')
   if (kind === 'mongodb' && env.SCALABILITY_OPERATIONAL_MONGO_READ_ONLY !== 'true') throw new Error('mongodb target requires explicit read-only target authorization')
+  if (kind === 'mongodb') assertMongoTargetIsNonProduction(env)
 }
 
 const commandList = (env: HarnessOptions['env']): OperationalCommand[] => {
-  const synthetic: OperationalCommand = { kind: 'syntheticRead', identity: 'synthetic-baseline', concurrency: 1 }
+  const synthetic: OperationalCommand = { kind: 'syntheticRead', identity: 'local-smoke-baseline', concurrency: 1 }
   if (env.SCALABILITY_OPERATIONAL_TARGET_KIND !== 'mongodb') return [synthetic]
   const identity = env.SCALABILITY_OPERATIONAL_QUERY_IDENTITY ?? 'authorized-mongo-find'
   return [synthetic, { kind: 'mongoFindExplain', identity, concurrency: 1 }, ...([1, 10, 50] as const).map(concurrency => ({ kind: 'mongoFindProbe' as const, identity, concurrency }))]
@@ -88,12 +102,26 @@ const withTimeout = async <T>(operation: Promise<T>, timeoutMs: number): Promise
   } finally { if (timer !== undefined) clearTimeout(timer) }
 }
 
+const isAllowlistedCommand = (command: OperationalCommand): boolean => {
+  if (!/^[a-z0-9][a-z0-9._:-]{0,127}$/i.test(command.identity)) return false
+  if (command.kind === 'mongoFindExplain') return command.concurrency === 1
+  if (command.kind === 'mongoFindProbe' || command.kind === 'syntheticRead') {
+    return command.concurrency === 1
+      || command.concurrency === 10
+      || command.concurrency === 50
+  }
+  return false
+}
+
 export const runOperationalValidation = async (options: HarnessOptions) => {
   assertAuthorized(options.env)
   const timeoutMs = Number(options.env.SCALABILITY_OPERATIONAL_TIMEOUT_MS ?? '10000')
   if (!Number.isFinite(timeoutMs) || timeoutMs < 1 || timeoutMs > 120_000) throw new Error('timeout must be between 1 and 120000 milliseconds')
   const commands = options.commands ?? commandList(options.env)
-  for (const command of commands) if (!allowedKinds.has(command.kind)) throw new Error('command is not in the read-only allowlist')
+  for (const command of commands) {
+    if (!allowedKinds.has(command.kind)) throw new Error('command is not in the read-only allowlist')
+    if (!isAllowlistedCommand(command)) throw new Error('command parameters are not in the read-only allowlist')
+  }
   const eventLoop = monitorEventLoopDelay({ resolution: 10 })
   eventLoop.enable()
   const memoryBefore = process.memoryUsage().heapUsed
