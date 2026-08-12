@@ -17,22 +17,42 @@ import User from '../models/user'
 import UserAction from '../models/UserAction'
 import logger, { logJobStart, logJobEnd, logJobError } from '../utils/logger'
 
-// ─────────────────────────────────────────────────────────────
-// CONFIGURAÇÃO DO JOB
-// ─────────────────────────────────────────────────────────────
-
 const JOB_NAME = 'ResetCounters'
-const CRON_SCHEDULE = '0 1 * * 1' // 1h da manhã, toda segunda-feira
+const CRON_SCHEDULE = '0 1 * * 1'
+
+interface CourseCounterState {
+  courseSpecificData?: {
+    reportsOpenedLastWeek?: number
+    reportsOpenedLastMonth?: number
+  }
+}
+
+function isCourseCounterState(value: unknown): value is CourseCounterState {
+  if (!value || typeof value !== 'object') return false
+  if (!('courseSpecificData' in value)) return true
+
+  const courseSpecificData = value.courseSpecificData
+  return courseSpecificData === undefined || (
+    courseSpecificData !== null && typeof courseSpecificData === 'object'
+  )
+}
+
+function communicationValues(value: unknown): CourseCounterState[] {
+  const rawValues = value instanceof Map
+    ? Array.from(value.values())
+    : value && typeof value === 'object'
+      ? Object.values(value)
+      : []
+
+  return rawValues.filter(isCourseCounterState)
+}
 
 logger.info('⚠️ ResetCounters: DESATIVADO hardcoded (gerido pelo wizard)')
-
-// ─────────────────────────────────────────────────────────────
-// FUNÇÃO PRINCIPAL DO JOB
-// ─────────────────────────────────────────────────────────────
+logger.info(`   Schedule original: ${CRON_SCHEDULE}`)
 
 async function executeJob() {
   logJobStart(JOB_NAME)
-  
+
   const startTime = Date.now()
   const stats = {
     usersUpdated: 0,
@@ -43,16 +63,10 @@ async function executeJob() {
 
   try {
     const now = new Date()
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const isFirstMondayOfMonth = now.getDate() <= 7
-
-    // ═══════════════════════════════════════════════════════════
-    // 1. RESET CONTADORES SEMANAIS (toda segunda)
-    // ═══════════════════════════════════════════════════════════
 
     logger.info('🔄 Resetando contadores semanais...')
 
-    // ✅ CORREÇÃO: Query compatível com Mongoose Maps
     const users = await User.find({
       $or: [
         { 'communicationByCourse.OGI': { $exists: true } },
@@ -66,25 +80,12 @@ async function executeJob() {
     for (const user of users) {
       try {
         if (user.communicationByCourse) {
-          // ✅ Lidar com Map ou Object
-          let coursesData: any
-          
-          if (user.communicationByCourse instanceof Map) {
-            // É Map - usar Map methods
-            coursesData = Array.from(user.communicationByCourse.entries())
-          } else {
-            // É Object - usar Object.entries
-            coursesData = Object.entries(user.communicationByCourse)
-          }
-          
-          for (const [courseId, courseData] of coursesData) {
-            const data = courseData as any
-            if (data?.courseSpecificData) {
+          for (const data of communicationValues(user.communicationByCourse)) {
+            if (data.courseSpecificData) {
               data.courseSpecificData.reportsOpenedLastWeek = 0
             }
           }
-          
-          // Salvar sem validação (por segurança durante migração)
+
           await user.save({ validateBeforeSave: false })
           stats.weeklyCountersReset++
         }
@@ -100,33 +101,18 @@ async function executeJob() {
     stats.usersUpdated = stats.weeklyCountersReset
     logger.info(`✅ Contadores semanais resetados: ${stats.weeklyCountersReset} users`)
 
-    // ═══════════════════════════════════════════════════════════
-    // 2. RESET CONTADORES MENSAIS (primeira segunda do mês)
-    // ═══════════════════════════════════════════════════════════
-
     if (isFirstMondayOfMonth) {
       logger.info('📅 Primeira segunda do mês - resetando contadores mensais...')
 
       for (const user of users) {
         try {
           if (user.communicationByCourse) {
-            // ✅ Lidar com Map ou Object
-            let coursesData: any
-            
-            if (user.communicationByCourse instanceof Map) {
-              coursesData = Array.from(user.communicationByCourse.entries())
-            } else {
-              coursesData = Object.entries(user.communicationByCourse)
-            }
-            
-            for (const [courseId, courseData] of coursesData) {
-              const data = courseData as any
-              if (data?.courseSpecificData) {
+            for (const data of communicationValues(user.communicationByCourse)) {
+              if (data.courseSpecificData) {
                 data.courseSpecificData.reportsOpenedLastMonth = 0
               }
             }
-            
-            // Salvar sem validação (por segurança durante migração)
+
             await user.save({ validateBeforeSave: false })
             stats.monthlyCountersReset++
           }
@@ -142,22 +128,14 @@ async function executeJob() {
       logger.info(`✅ Contadores mensais resetados: ${stats.monthlyCountersReset} users`)
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // 3. LIMPAR ACTIONS ANTIGAS (opcional - manter 90 dias)
-    // ═══════════════════════════════════════════════════════════
-
     const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - 90) // 90 dias atrás
+    cutoffDate.setDate(cutoffDate.getDate() - 90)
 
     const deletedActions = await UserAction.deleteMany({
       timestamp: { $lt: cutoffDate }
     })
 
     logger.info(`🗑️ Ações antigas deletadas: ${deletedActions.deletedCount}`)
-
-    // ═══════════════════════════════════════════════════════════
-    // 4. FINALIZAÇÃO
-    // ═══════════════════════════════════════════════════════════
 
     const duration = Date.now() - startTime
     const durationSeconds = Math.round(duration / 1000)
@@ -171,36 +149,24 @@ async function executeJob() {
       durationSeconds
     })
 
-    // ✅ RETORNAR RESULTADO
     return {
       success: true,
       ...stats,
       actionsDeleted: deletedActions.deletedCount,
       duration: durationSeconds
     }
-
   } catch (error: unknown) {
     stats.errors++
     logJobError(JOB_NAME, error)
-    
-    // ✅ LANÇAR ERRO PARA CRON CAPTURAR
     throw new Error(`Erro no reset de contadores: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
-
-// ─────────────────────────────────────────────────────────────
-// EXECUÇÃO AUTOMÁTICA PELO WIZARD
-// ─────────────────────────────────────────────────────────────
 
 export async function executeResetCounters() {
   logger.info('🚀 Executando reset de contadores (via wizard)')
   return await executeJob()
 }
 
-// ─────────────────────────────────────────────────────────────
-// EXPORT
-// ─────────────────────────────────────────────────────────────
-
 export default {
-  run: executeResetCounters  // ← Wizard chama isto automaticamente!
+  run: executeResetCounters
 }
