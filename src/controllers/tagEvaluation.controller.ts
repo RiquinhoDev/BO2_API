@@ -35,7 +35,7 @@ type EvaluateTagsSuccessBody = SuccessResponse<
 type EvaluateTagsDirectSuccessBody = {
   success: true
   user: UserEvaluationResult
-} & Record<string, unknown>
+}
 
 type EvaluateTagsErrorBody = {
   success: false
