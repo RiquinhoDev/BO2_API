@@ -266,6 +266,7 @@ const job = await CronJobConfig.create({
     jobId: mongoose.Types.ObjectId,
     _triggeredBy: mongoose.Types.ObjectId
   ): Promise<CronExecutionResult> {
+    void _triggeredBy
     const job = await CronJobConfig.findById(jobId)
     if (!job) throw new Error('Job não encontrado')
     if (this.isProtectedJob(job)) {
@@ -332,7 +333,7 @@ const job = await CronJobConfig.create({
       logger.info(
         `✅ Job agendado: ${job.name} (${job.schedule.cronExpression})`
       )
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error(`❌ Erro ao agendar job: ${job.name}`, error)
       throw error
     }
@@ -365,8 +366,8 @@ const job = await CronJobConfig.create({
     for (const job of activeJobs) {
       try {
         await this.scheduleJob(job)
-      } catch (error: any) {
-        logger.error(`⚠️ Erro ao agendar job ${job.name}:`, error.message)
+      } catch (error: unknown) {
+        logger.error(`⚠️ Erro ao agendar job ${job.name}:`, error instanceof Error ? error.message : String(error))
       }
     }
 

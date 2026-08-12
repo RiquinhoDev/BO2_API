@@ -31,19 +31,22 @@ class AnalyticsCacheService {
 
   // Helper para converter KPIMetric → number / comparação
   // Usamos `any` aqui para não nos chatearmos com o tipo exato do calculator
-  private mapToCacheMetrics(raw: any): ICacheMetrics {
-    const getValue = (m: any): number => {
+  private mapToCacheMetrics(raw: Record<string, unknown>): ICacheMetrics {
+    const getValue = (m: unknown): number => {
       if (m == null) return 0
       if (typeof m === 'number') return m
-      if (typeof m.value === 'number') return m.value
+      if (typeof m === 'object' && 'value' in m && typeof m.value === 'number') return m.value
       return 0
     }
 
-    const toComparison = (m: any) => ({
-      value: typeof m?.value === 'number' ? m.value : getValue(m),
-      change: typeof m?.change === 'number' ? m.change : 0,
-      changePercent: typeof m?.changePercent === 'number' ? m.changePercent : 0
-    })
+    const toComparison = (m: unknown) => {
+      const metric = typeof m === 'object' && m !== null ? m : {}
+      return {
+        value: 'value' in metric && typeof metric.value === 'number' ? metric.value : getValue(m),
+        change: 'change' in metric && typeof metric.change === 'number' ? metric.change : 0,
+        changePercent: 'changePercent' in metric && typeof metric.changePercent === 'number' ? metric.changePercent : 0
+      }
+    }
 
     return {
       // KPIs Principais

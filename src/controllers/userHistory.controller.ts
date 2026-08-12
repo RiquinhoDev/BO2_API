@@ -21,7 +21,7 @@ export const getUserHistory = async (req: Request, res: Response, next: NextFunc
     const UserHistoryModel = ensureUserHistoryModel()
     
     // Determinar filtro baseado no parâmetro fornecido
-    let filter: any = {}
+    const filter: any = {}
     if (userId) {
       if (!mongoose.Types.ObjectId.isValid(userId as string)) {
         res.status(400).json({

@@ -329,7 +329,7 @@ export const populateAllUsersHistory = async (req: Request, res: Response, next:
 
     logger.info(`✅ [POPULATE ALL] ${users.length} users encontrados`)
 
-    let totalRecords = 0
+    const totalRecords = 0
     const results = []
 
     for (const user of users) {
