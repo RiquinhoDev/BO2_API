@@ -1,4 +1,4 @@
-import { Document, Model } from 'mongoose'
+import { Document, Model, type FilterQuery } from 'mongoose'
 
 export interface IUser extends Document {
   // ðŸ”‘ CAMPOS PRINCIPAIS (ÃšNICOS E IMUTÃVEIS)
@@ -311,7 +311,49 @@ communicationByCourse?: Map<string, {
   getDisplayProgress(): number
   getDisplayEngagement(): number
   isDataEstimated(): boolean
-  getDataSourceInfo(): any
+  getDataSourceInfo(): UserDataSourceInfo
+}
+
+export interface UserDataSourceInfo {
+  primary: 'hotmart' | 'curseduca' | 'discord'
+  available: Array<'discord' | 'hotmart' | 'curseduca' | 'guru'>
+  quality: 'EXCELLENT' | 'GOOD' | 'BASIC' | 'LIMITED'
+  hasRealData: boolean
+  hasEstimatedData: boolean
+}
+
+export interface UserSourceStatistics {
+  _id: null
+  totalUsers: number
+  withDiscord: number
+  withHotmart: number
+  withCurseduca: number
+  excellent: number
+  good: number
+  basic: number
+  limited: number
+}
+
+export interface UserDataSourceStats {
+  hotmart: {
+    totalUsers: number
+    activeUsers: number
+    averageEngagement: number
+    averageProgress: number
+  }
+  curseduca: {
+    totalUsers: number
+    activeUsers: number
+    averageEstimatedProgress: number
+    averageAlternativeEngagement: number
+  }
+}
+
+export type EnhancedUser = Record<string, unknown> & {
+  displayProgress: number
+  displayEngagement: number
+  isEstimated: boolean
+  sourceInfo: Pick<UserDataSourceInfo, 'primary' | 'available' | 'quality'>
 }
 
 // Interface para mÃ©todos estÃ¡ticos
@@ -323,7 +365,7 @@ export interface IUserModel extends Model<IUser> {
   findByDiscordId(discordId: string): Promise<IUser | null>
   findByGuruContactId(guruContactId: string): Promise<IUser | null>  // ðŸ’°
   findByGuruSubscriptionCode(subscriptionCode: string): Promise<IUser | null>  // ðŸ’°
-  getDataSourceStats(): Promise<any>
-  getEnhancedUsersList(filters?: any): Promise<any[]>
-  getSourceStatistics(): Promise<any[]>
+  getDataSourceStats(): Promise<UserDataSourceStats>
+  getEnhancedUsersList(filters?: FilterQuery<IUser>): Promise<EnhancedUser[]>
+  getSourceStatistics(): Promise<UserSourceStatistics[]>
 }

@@ -75,7 +75,11 @@ export const getProductUsers = async (req: Request, res: Response, next: NextFun
       .cursor({ batchSize: 200 })
 
     // ✅ Type assertion para contornar o TypeScript
-    const usersAny: any[] = []
+    type ProductUserView = NonNullable<Awaited<ReturnType<typeof usersCursor.next>>> & {
+      curseducaUserId?: string
+      groupName?: string
+    }
+    const usersAny: ProductUserView[] = []
     for await (const user of usersCursor) usersAny.push(user)
 
     // ✅ DEBUG: Ver quantos têm curseducaUserId (em qualquer localização)

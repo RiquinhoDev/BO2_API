@@ -20,11 +20,6 @@
       "count": 1
     }
   },
-  "src/controllers/products/products.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/controllers/studentHistory.controller.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 5
@@ -187,19 +182,9 @@
       "count": 1
     }
   },
-  "src/models/user.behavior.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    }
-  },
   "src/models/user.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    }
-  },
-  "src/models/user.types.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
     }
   },
   "src/routes/users.routes.ts": {
