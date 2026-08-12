@@ -17,8 +17,23 @@ export interface StreakUpdateResult extends StreakResult {
   lastActiveDay: string
 }
 
-export function getTrackedStreak(user: any): StreakResult | null {
-  const streak = user?.engagement?.streak
+interface StreakState {
+  current?: number
+  best?: number
+  lastActiveDay?: string
+  updatedAt?: Date
+}
+
+interface StreakUser {
+  _id?: mongoose.Types.ObjectId
+  engagement?: Record<string, unknown> & {
+    streak?: StreakState
+  }
+  save?: () => Promise<unknown>
+}
+
+export function getTrackedStreak(user: Pick<StreakUser, 'engagement'>): StreakResult | null {
+  const streak = user.engagement?.streak
   if (!streak) return null
 
   const current = Number(streak.current || 0)
@@ -31,10 +46,10 @@ export function getTrackedStreak(user: any): StreakResult | null {
   }
 }
 
-export async function recordDailyActivity(user: any, now = new Date()): Promise<StreakUpdateResult> {
+export async function recordDailyActivity(user: StreakUser, now = new Date()): Promise<StreakUpdateResult> {
   const today = formatDateKey(now)
   const yesterday = formatDateKey(new Date(now.getTime() - 86400000))
-  const currentStreak = user?.engagement?.streak || {}
+  const currentStreak = user.engagement?.streak || {}
   const previousDay = currentStreak.lastActiveDay
   const previousCurrent = Number(currentStreak.current || 0)
   const previousBest = Number(currentStreak.best || 0)
@@ -100,7 +115,7 @@ export async function calculateStreak(
   const cutoffDate = new Date()
   cutoffDate.setDate(cutoffDate.getDate() - 400)
 
-  const actions = await (UserAction as any).find({
+  const actions = await UserAction.find({
     userId,
     timestamp: { $gte: cutoffDate }
   })
@@ -116,8 +131,7 @@ export async function calculateStreak(
   // Extrair dias únicos (YYYY-MM-DD em fuso de Lisboa)
   const uniqueDays = new Set<string>()
   for (const action of actions) {
-    const ts = action.timestamp as Date
-    const dayKey = formatDateKey(ts)
+    const dayKey = formatDateKey(action.timestamp)
     uniqueDays.add(dayKey)
   }
 
