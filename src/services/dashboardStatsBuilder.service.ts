@@ -41,7 +41,7 @@ export async function buildDashboardStats(): Promise<void> {
     logger.info('🔄 Agrupando por userId...')
     
     const byUserId = new Map<string, {
-      products: any[]
+      products: Array<Awaited<ReturnType<typeof getAllUsersUnified>>[number]>
       engagements: number[]
       progresses: number[]
       isActive: boolean
@@ -359,7 +359,7 @@ export async function buildDashboardStats(): Promise<void> {
 /**
  * 📖 Ler stats do dashboard (RÁPIDO - 50ms)
  */
-export async function getDashboardStats(): Promise<any> {
+export async function getDashboardStats() {
   logger.info('📖 [GETTER] Lendo Dashboard Stats da BD...')
   
   const stats = await DashboardStats.findOne({ version: 'v3' }).lean()

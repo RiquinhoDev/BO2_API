@@ -38,7 +38,7 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
     }
 
     // Se houver search, precisamos fazer lookup em User
-    let pipeline: any[] = [{ $match: matchStage }];
+    const pipeline: any[] = [{ $match: matchStage }];
 
     if (search) {
       pipeline.push(

@@ -1,7 +1,8 @@
 // ════════════════════════════════════════════════════════════
 // 📊 COHORT ANALYTICS SERVICE
 // ════════════════════════════════════════════════════════════
-import UserProduct from '../../models/UserProduct'
+import UserProduct, { IUserProduct } from '../../models/UserProduct'
+import type { FilterQuery } from 'mongoose'
 import { 
   CohortRetentionData, 
   CohortMetrics, 
@@ -94,7 +95,7 @@ class CohortAnalyticsService {
     const cohortDate = moment(cohortMonth, 'YYYY-MM')
     
     // Query para este cohort
-    const query: any = {
+    const query: FilterQuery<IUserProduct> = {
       enrolledAt: {
         $gte: cohortDate.toDate(),
         $lt: cohortDate.clone().add(1, 'month').toDate()

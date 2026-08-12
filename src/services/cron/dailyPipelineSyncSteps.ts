@@ -17,7 +17,7 @@ export async function executeSyncAndPreparationSteps(
     logStep(1, 'Sync Hotmart', 'START')
 
     try {
-      let totalStats = { total: 0, inserted: 0, updated: 0, errors: 0 }
+      const totalStats = { total: 0, inserted: 0, updated: 0, errors: 0 }
       const hotmartProductsCount = config.hotmart.products.length
 
       if (hotmartProductsCount > 0) {
