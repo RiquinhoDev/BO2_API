@@ -9,6 +9,21 @@ import ActivitySnapshot, { IActivitySnapshot, Platform } from '../../models/Sync
 import { User } from '../../models'
 import { calculateSnapshotEngagementScore, normalizeSnapshotMonth } from './activitySnapshot/metrics'
 import type { CohortRetentionData, CreateSnapshotDTO, MonthlyBatchDTO } from './activitySnapshot/contracts'
+export async function mapCohortMilestonesBounded<T>(milestones: number[], worker: (milestone: number, index: number) => Promise<T>): Promise<T[]> {
+  const results = new Array<T>(milestones.length)
+  let next = 0
+  let firstError: unknown
+  async function run(): Promise<void> {
+    while (firstError === undefined) {
+      const index = next++
+      if (index >= milestones.length) return
+      try { results[index] = await worker(milestones[index], index) } catch (error) { firstError = error }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(10, milestones.length) }, run))
+  if (firstError !== undefined) throw firstError
+  return results
+}
 
 
 // ─────────────────────────────────────────────────────────────
