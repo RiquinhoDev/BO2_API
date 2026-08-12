@@ -1,13 +1,8 @@
 import type { NextFunction, Request, Response } from 'express'
 import { successResponse } from '../contracts/responseContract'
 import GuruWebhook from '../models/GuruWebhook'
-import { guruTokenDebugStatus } from '../security/debugRoutes'
 import { internalError } from '../security/errorHandling'
-import { getGuruAccountToken } from '../services/requestDrivenRuntimeConfig'
 
-export const debugToken = async (req: Request, res: Response) => {
-  return res.json(guruTokenDebugStatus(getGuruAccountToken()))
-}
 
 export const migrateWebhookSource = async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -10,13 +10,6 @@ export function configureDebugRoutes(configuration: DebugRoutesConfiguration): v
   enabled = configuration.enableDebugRoutes
 }
 
-export function guruTokenDebugStatus(token: string | undefined) {
-  return {
-    success: true,
-    debug: { configured: Boolean(token) },
-  }
-}
-
 export const localDebugOnly: RequestHandler = (_req, res, next) => {
   if (!enabled) return res.sendStatus(404)
   next()
