@@ -16,6 +16,9 @@ router.get('/listClasses', classesController.listClasses)
 // POST /api/classes/addOrEditClass - Adiciona ou edita uma turma
 router.post('/addOrEditClass', classesController.addOrEditClass)
 
+// POST /api/classes/bulkAddOrEditClasses - Adiciona/edita várias turmas de uma vez
+router.post('/bulkAddOrEditClasses', classesController.bulkAddOrEditClasses)
+
 // POST /api/classes/syncHotmartClasses - Sincroniza turmas da Hotmart
 router.post('/syncHotmartClasses', classesController.syncHotmartClasses)
 
