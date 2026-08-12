@@ -1,20 +1,18 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/routes/products.routes.ts
-// ROTAS DE PRODUTOS - SUPORTA V1 (LEGACY) E V2 (NOVO)
+// ROTAS DE PRODUTOS - SUPERFÍCIE CANÓNICA ÚNICA
 // ════════════════════════════════════════════════════════════
 
 import { Router } from 'express'
 import { asyncRoute } from '../security/asyncRoute'
 
-// V1 - Legacy controllers (compatibilidade)
-import { 
-  getProducts as getLegacyProducts, 
-  getProductById as getLegacyProductById, 
-  getEngagementStats,
+// Leituras auxiliares do domínio de produtos
+import {
+    getEngagementStats,
   getProductUsers 
 } from '../controllers/products/products.controller'
 
-// V2 - Novo Product Controller
+// Product Controller
 import {
   getAllProducts,
   getProductById,
@@ -27,12 +25,8 @@ import {
 
 const router = Router()
 
-// ═══════════════════════════════════════════════════════════
-// ROTAS LEGACY (V1) - MANTIDAS PARA COMPATIBILIDADE
-// ═══════════════════════════════════════════════════════════
-
-// GET /api/products?legacy=true - Formato antigo
-router.get('/', asyncRoute(getAllProducts))  // Suporta legacy=true query param
+// GET /api/products
+router.get('/', asyncRoute(getAllProducts))
 
 // GET /api/products/engagement-stats - Stats de engagement
 router.get('/engagement-stats', asyncRoute(getEngagementStats))
@@ -41,7 +35,7 @@ router.get('/engagement-stats', asyncRoute(getEngagementStats))
 router.get('/users', asyncRoute(getProductUsers))
 
 // ═══════════════════════════════════════════════════════════
-// ROTAS V2 - NOVOS ENDPOINTS
+// ROTAS DE ESCRITA E DETALHE
 // ═══════════════════════════════════════════════════════════
 
 // CRUD básico

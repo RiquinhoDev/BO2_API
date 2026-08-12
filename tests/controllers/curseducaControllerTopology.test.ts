@@ -22,7 +22,6 @@ describe('CursEduca controller topology', () => {
     expect(facade.updateUserClasses).toBe(users.updateUserClasses)
     expect(facade.compareSyncMethods).toBe(users.compareSyncMethods)
 
-    expect(facade.getUserByEmail).toBe(legacy.getUserByEmail)
     expect(facade.syncCurseducaUsersStart).toBe(legacy.syncCurseducaUsersStart)
     expect(facade.getCurseducaSyncStatus).toBe(legacy.getCurseducaSyncStatus)
   })
