@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import axios from 'axios'
 import type { IUser } from '../../../models/user'
 import type { CrossReferenceResult } from '../crossReference.service'
@@ -5,7 +6,7 @@ import { getGuruUserToken } from '../../requestDrivenRuntimeConfig'
 
 const GURU_SUBSCRIPTIONS_API_URL = 'https://digitalmanager.guru/api/v2'
 
-console.log('ðŸ”§ [GURU CONFIG] Subscriptions API URL:', GURU_SUBSCRIPTIONS_API_URL)
+logger.info('ðŸ”§ [GURU CONFIG] Subscriptions API URL:', GURU_SUBSCRIPTIONS_API_URL)
 
 const guruApi = axios.create({
   baseURL: GURU_SUBSCRIPTIONS_API_URL,
@@ -15,7 +16,7 @@ const guruApi = axios.create({
 
 guruApi.interceptors.request.use((config) => {
   config.headers.Authorization = `Bearer ${getGuruUserToken()}`
-  console.log(`ðŸ“¡ [GURU API] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`)
+  logger.info(`ðŸ“¡ [GURU API] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`)
   return config
 })
 
@@ -191,7 +192,7 @@ export async function fetchAllSubscriptions(params?: {
   page?: number
   limit?: number
 }): Promise<GuruSubscription[]> {
-  console.log('📡 [GURU SYNC] Buscando subscrições da Guru...')
+  logger.info('📡 [GURU SYNC] Buscando subscrições da Guru...')
 
   try {
     const requestParams = {
@@ -199,7 +200,7 @@ export async function fetchAllSubscriptions(params?: {
       page: params?.page || 1,
       per_page: params?.limit || 100
     }
-    console.log('📤 [GURU SYNC] Params:', requestParams)
+    logger.info('📤 [GURU SYNC] Params:', requestParams)
 
     const response = await guruApi.get<GuruListResponse | GuruSubscription[]>('/subscriptions', {
       params: requestParams
@@ -208,16 +209,16 @@ export async function fetchAllSubscriptions(params?: {
     const subscriptions = Array.isArray(response.data)
       ? response.data
       : response.data.data || []
-    console.log(`✅ [GURU SYNC] Pedido: ${requestParams.per_page}, Recebido: ${subscriptions.length} subscrições`)
+    logger.info(`✅ [GURU SYNC] Pedido: ${requestParams.per_page}, Recebido: ${subscriptions.length} subscrições`)
 
     return subscriptions
   } catch (error: unknown) {
     const details = guruApiErrorDetails(error)
-    console.error('❌ [GURU SYNC] Erro ao buscar subscrições:')
-    console.error('   Status:', details.status)
-    console.error('   URL:', details.url)
-    console.error('   Data:', JSON.stringify(details.data, null, 2))
-    console.error('   Message:', details.message)
+    logger.error('❌ [GURU SYNC] Erro ao buscar subscrições:')
+    logger.error('   Status:', details.status)
+    logger.error('   URL:', details.url)
+    logger.error('   Data:', JSON.stringify(details.data, null, 2))
+    logger.error('   Message:', details.message)
     throw error
   }
 }
@@ -235,9 +236,9 @@ export async function fetchAllSubscriptionsPaginated(
   // Progresso página-a-página (fetched, totalEsperado) — usado pela barra de progresso do churn live
   onProgress?: (fetched: number, total: number | null) => void
 ): Promise<GuruSubscription[]> {
-  console.log('📡 [GURU SYNC] Buscando TODAS as subscrições (cursor-based pagination)...')
+  logger.info('📡 [GURU SYNC] Buscando TODAS as subscrições (cursor-based pagination)...')
   if (additionalParams?.started_at_ini || additionalParams?.started_at_end) {
-    console.log(`📅 [GURU SYNC] Filtros de data: ${additionalParams.started_at_ini || 'início'} até ${additionalParams.started_at_end || 'fim'}`)
+    logger.info(`📅 [GURU SYNC] Filtros de data: ${additionalParams.started_at_ini || 'início'} até ${additionalParams.started_at_end || 'fim'}`)
   }
 
   const allSubscriptions: GuruSubscription[] = []
@@ -281,7 +282,7 @@ export async function fetchAllSubscriptionsPaginated(
         requestParams.product_id = additionalParams.product_id
       }
 
-      console.log(`📤 [GURU SYNC] Requisição ${pageNumber} com params:`, requestParams)
+      logger.info(`📤 [GURU SYNC] Requisição ${pageNumber} com params:`, requestParams)
 
       const response = await guruApi.get<GuruListResponse>('/subscriptions', {
         params: requestParams
@@ -298,10 +299,10 @@ export async function fetchAllSubscriptionsPaginated(
       // Guardar total na primeira página
       if (pageNumber === 1 && typeof totalRows === 'number') {
         totalExpected = totalRows
-        console.log(`📊 [GURU SYNC] Total esperado: ${totalRows} subscrições`)
+        logger.info(`📊 [GURU SYNC] Total esperado: ${totalRows} subscrições`)
       }
 
-      console.log(`📄 [GURU SYNC] Página ${pageNumber}: ${data.length} subscrições | has_more=${hasMorePages} | on_last=${onLastPage} | acumulado=${allSubscriptions.length + data.length}/${totalExpected || '?'}`)
+      logger.info(`📄 [GURU SYNC] Página ${pageNumber}: ${data.length} subscrições | has_more=${hasMorePages} | on_last=${onLastPage} | acumulado=${allSubscriptions.length + data.length}/${totalExpected || '?'}`)
 
       // Adicionar dados ao array
       allSubscriptions.push(...data)
@@ -310,11 +311,11 @@ export async function fetchAllSubscriptionsPaginated(
       // Verificar se há mais páginas usando os flags da API
       if (onLastPage || !hasMorePages || data.length === 0 || !nextCursor) {
         hasMore = false
-        console.log('⏹️ [GURU SYNC] Última página alcançada!')
+        logger.info('⏹️ [GURU SYNC] Última página alcançada!')
       } else {
         cursor = nextCursor
         hasMore = true
-        console.log(`➡️ [GURU SYNC] Próximo cursor: ${nextCursor.substring(0, 50)}...`)
+        logger.info(`➡️ [GURU SYNC] Próximo cursor: ${nextCursor.substring(0, 50)}...`)
       }
 
       // Rate limiting - esperar 300ms entre requests
@@ -322,15 +323,15 @@ export async function fetchAllSubscriptionsPaginated(
 
     } catch (error: unknown) {
       const details = guruApiErrorDetails(error)
-      console.error(`❌ [GURU SYNC] Erro na requisição ${pageNumber}:`)
-      console.error('   Status:', details.status)
-      console.error('   URL:', details.url)
-      console.error('   Data:', JSON.stringify(details.data, null, 2))
+      logger.error(`❌ [GURU SYNC] Erro na requisição ${pageNumber}:`)
+      logger.error('   Status:', details.status)
+      logger.error('   URL:', details.url)
+      logger.error('   Data:', JSON.stringify(details.data, null, 2))
       hasMore = false
     }
   }
 
-  console.log(`✅ [GURU SYNC] Total obtido: ${allSubscriptions.length} subscrições (esperado: ${totalExpected || 'desconhecido'})`)
+  logger.info(`✅ [GURU SYNC] Total obtido: ${allSubscriptions.length} subscrições (esperado: ${totalExpected || 'desconhecido'})`)
   return allSubscriptions
 }
 
@@ -346,7 +347,7 @@ export async function fetchSubscriptionsByMonth(year: number, month: number): Pr
   const started_at_ini = startDate.toISOString().split('T')[0] // YYYY-MM-DD
   const started_at_end = endDate.toISOString().split('T')[0] // YYYY-MM-DD
 
-  console.log(`📅 [GURU SNAPSHOT] Buscando subscrições de ${month}/${year} (${started_at_ini} até ${started_at_end})`)
+  logger.info(`📅 [GURU SNAPSHOT] Buscando subscrições de ${month}/${year} (${started_at_ini} até ${started_at_end})`)
 
   return fetchAllSubscriptionsPaginated({
     started_at_ini,
@@ -361,7 +362,7 @@ export async function fetchSubscriptionsByMonth(year: number, month: number): Pr
 export async function fetchAllSubscriptionsComplete(
   onProgress?: (fetched: number, total: number | null) => void
 ): Promise<GuruSubscription[]> {
-  console.log('📡 [GURU SNAPSHOT] Buscando TODAS as subscrições (SEM FILTROS)...')
+  logger.info('📡 [GURU SNAPSHOT] Buscando TODAS as subscrições (SEM FILTROS)...')
 
   // Chamar sem parâmetros = busca tudo
   return fetchAllSubscriptionsPaginated(undefined, onProgress)
@@ -410,7 +411,7 @@ export async function fetchContactSubscriptions(contactId: string): Promise<Guru
     const response = await guruApi.get<GuruListResponse | GuruSubscription[]>(`/contacts/${contactId}/subscriptions`)
     return Array.isArray(response.data) ? response.data : response.data.data || []
   } catch (error: unknown) {
-    console.error(`❌ [GURU SYNC] Erro ao buscar subscrições do contacto ${contactId}:`, guruApiErrorDetails(error).message)
+    logger.error(`❌ [GURU SYNC] Erro ao buscar subscrições do contacto ${contactId}:`, guruApiErrorDetails(error).message)
     return []
   }
 }

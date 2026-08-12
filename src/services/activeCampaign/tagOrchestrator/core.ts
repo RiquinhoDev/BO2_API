@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import UserProduct from '../../../models/UserProduct'
 import Product from '../../../models/product/Product'
 import User from '../../../models/user'
@@ -61,7 +62,7 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
           `TAG_ORCHESTRATOR_${productCode}`
         )
       } catch (error: unknown) {
-        console.error(`[Orchestrator] ⚠️  Erro ao capturar tags nativas para ${user.email}:`, errorMessage(error))
+        logger.error(`[Orchestrator] ⚠️  Erro ao capturar tags nativas para ${user.email}:`, errorMessage(error))
       }
     }
 
@@ -115,8 +116,8 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
       tagsToRemove = filtered.safeTags
 
       if (filtered.blockedTags.length > 0) {
-        console.error(`[Orchestrator] 🚨 BLOQUEADAS ${filtered.blockedTags.length} tags nativas para ${user.email}:`, filtered.blockedTags)
-        console.error(`[Orchestrator] Motivos:`, filtered.reasons)
+        logger.error(`[Orchestrator] 🚨 BLOQUEADAS ${filtered.blockedTags.length} tags nativas para ${user.email}:`, filtered.blockedTags)
+        logger.error(`[Orchestrator] Motivos:`, filtered.reasons)
       }
     } else {
       tagsToRemove = tagsToRemoveCandidates
@@ -178,7 +179,7 @@ async orchestrateUserProduct(userId: string, productId: string): Promise<Orchest
     const message = errorMessage(error)
     result.success = false
     result.error = message
-    console.error(`❌ [Orchestrator] Erro ${result.productCode || 'unknown'}:`, message)
+    logger.error(`❌ [Orchestrator] Erro ${result.productCode || 'unknown'}:`, message)
   }
 
   return result
@@ -238,7 +239,7 @@ private getProductTagPrefixes(productCode: string): string[] {
 
       return { ok: true, fullTag }
     } catch (error: unknown) {
-      console.error(`❌ [Orchestrator] Erro ao aplicar ${fullTag}:`, errorMessage(error))
+      logger.error(`❌ [Orchestrator] Erro ao aplicar ${fullTag}:`, errorMessage(error))
       return { ok: false, fullTag }
     }
   }
@@ -264,7 +265,7 @@ private getProductTagPrefixes(productCode: string): string[] {
 
       return { ok: true, fullTag }
     } catch (error: unknown) {
-      console.error(`❌ [Orchestrator] Erro ao remover ${fullTag}:`, errorMessage(error))
+      logger.error(`❌ [Orchestrator] Erro ao remover ${fullTag}:`, errorMessage(error))
       return { ok: false, fullTag }
     }
   }

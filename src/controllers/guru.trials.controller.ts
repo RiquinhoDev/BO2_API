@@ -3,6 +3,7 @@
 // Endpoints para gestão de trials Guru
 // ════════════════════════════════════════════════════════════
 
+import logger from '../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { internalError } from '../security/errorHandling'
 import { successResponse } from '../contracts/responseContract'
@@ -55,7 +56,7 @@ export async function getTrialsStats(req: Request, res: Response, next: NextFunc
  */
 export async function checkExpired(req: Request, res: Response, next: NextFunction) {
   try {
-    console.log('⏳ [GURU TRIALS] Iniciando verificação de trials expirados...')
+    logger.info('⏳ [GURU TRIALS] Iniciando verificação de trials expirados...')
     const result = await checkExpiredTrials()
     res.json(successResponse({
       message: 'Verificação de trials concluída',
@@ -72,7 +73,7 @@ export async function checkExpired(req: Request, res: Response, next: NextFuncti
  */
 export async function syncTrials(req: Request, res: Response, next: NextFunction) {
   try {
-    console.log('🔄 [GURU TRIALS] Iniciando sync de trials da API Guru...')
+    logger.info('🔄 [GURU TRIALS] Iniciando sync de trials da API Guru...')
     const result = await syncTrialsFromGuru()
     res.json(successResponse({
       message: `Sync concluído: ${result.synced} trials sincronizados`,

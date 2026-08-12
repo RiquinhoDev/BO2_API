@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import axios from 'axios'
 import { cacheService } from '../cache.service'
 import { fmpThrottle } from './fmpThrottle'
@@ -300,7 +301,7 @@ function privateStockPayload() {
 export async function refreshClarezaTop10Data(): Promise<{ total: number; errors: number }> {
   getFmpApiKey()
 
-  console.log(`📈 [ClarezaTop10] Iniciando refresh de ${WATCHLIST.length} ações (${REVISION})...`)
+  logger.info(`📈 [ClarezaTop10] Iniciando refresh de ${WATCHLIST.length} ações (${REVISION})...`)
 
   let errors = 0
 
@@ -320,7 +321,7 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
         return { ticker: stock.ticker, payload }
       } catch (err: any) {
         errors++
-        console.error(`❌ [ClarezaTop10] Erro em ${stock.ticker}:`, err.message)
+        logger.error(`❌ [ClarezaTop10] Erro em ${stock.ticker}:`, err.message)
         return { ticker: stock.ticker, payload: null }
       }
     }),
@@ -362,12 +363,12 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
       const toDelete = all.slice(5).map((d: any) => d._id)
       await ClarezaTop10Data.deleteMany({ _id: { $in: toDelete } })
     }
-    console.log(`💾 [ClarezaTop10] Snapshot guardado na BD`)
+    logger.info(`💾 [ClarezaTop10] Snapshot guardado na BD`)
   } catch (err: any) {
-    console.error('⚠️ [ClarezaTop10] Erro ao guardar snapshot na BD:', err.message)
+    logger.error('⚠️ [ClarezaTop10] Erro ao guardar snapshot na BD:', err.message)
   }
 
-  console.log(`✅ [ClarezaTop10] Refresh completo — ${Object.keys(stocks).length} ok, ${errors} erros`)
+  logger.info(`✅ [ClarezaTop10] Refresh completo — ${Object.keys(stocks).length} ok, ${errors} erros`)
 
   return { total: WATCHLIST.length, errors }
 }
@@ -413,15 +414,15 @@ export async function getClarezaTop10Data(): Promise<any | null> {
   try {
     const latest = await ClarezaTop10Data.findOne().sort({ fetchedAt: -1 }).lean()
     if (latest?.payload?.stocks && Object.keys(latest.payload.stocks).length) {
-      console.log(`📦 [ClarezaTop10] Cache Redis vazio — a servir snapshot da BD (${latest.fetchedAt})`)
+      logger.info(`📦 [ClarezaTop10] Cache Redis vazio — a servir snapshot da BD (${latest.fetchedAt})`)
       await cacheService.set(CLAREZA_TOP10_CACHE_KEY, latest.payload, CACHE_TTL)
       return latest.payload
     }
   } catch (err: any) {
-    console.error('⚠️ [ClarezaTop10] Erro ao ler snapshot da BD:', err.message)
+    logger.error('⚠️ [ClarezaTop10] Erro ao ler snapshot da BD:', err.message)
   }
 
   // 3. Nenhum dado disponível. Não chamar FMP em load público.
-  console.warn('[ClarezaTop10] Sem cache Redis e sem snapshot MongoDB. Aguardar cron ClarezaRefresh.')
+  logger.warn('[ClarezaTop10] Sem cache Redis e sem snapshot MongoDB. Aguardar cron ClarezaRefresh.')
   return null
 }

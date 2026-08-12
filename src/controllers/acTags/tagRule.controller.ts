@@ -1,6 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/controllers/tagRule.controller.ts
 // Controller CRUD para TagRules
+import logger from '../../utils/logger'
 import { successResponse } from '../../contracts/responseContract'
 // ════════════════════════════════════════════════════════════
 
@@ -82,7 +83,7 @@ export const createRule: RequestHandler = async (req, res, next) => {
 
     const rule = await TagRule.create(ruleData)
 
-    console.log(`✅ Regra criada: ${rule.name}`)
+    logger.info(`✅ Regra criada: ${rule.name}`)
 
     res.status(201).json({
       success: true,
@@ -117,7 +118,7 @@ export const updateRule: RequestHandler = async (req, res, next) => {
       return
     }
 
-    console.log(`✅ Regra atualizada: ${rule.name}`)
+    logger.info(`✅ Regra atualizada: ${rule.name}`)
 
     res.json({
       success: true,
@@ -148,7 +149,7 @@ export const deleteRule: RequestHandler = async (req, res, next) => {
       return
     }
 
-    console.log(`🗑️ Regra desativada: ${rule.name}`)
+    logger.info(`🗑️ Regra desativada: ${rule.name}`)
 
     res.json(successResponse(null, { message: 'Regra desativada com sucesso' }))
     return

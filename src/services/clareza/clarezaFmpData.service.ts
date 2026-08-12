@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import { cacheService } from '../cache.service'
 import ClarezaMarketData from '../../models/ClarezaMarketData'
 import { getFmpApiKey } from '../requestDrivenRuntimeConfig'
@@ -11,7 +12,7 @@ import { CACHE_TTL, CLAREZA_CACHE_KEY, ClarezaStockEntry, errorMessage, fetchSto
 export async function refreshClarezaData(): Promise<{ total: number; errors: number }> {
   getFmpApiKey()
 
-  console.log(`ðŸ“ˆ [Clareza] Iniciando refresh de ${UNIVERSE.length} aÃ§Ãµes...`)
+  logger.info(`ðŸ“ˆ [Clareza] Iniciando refresh de ${UNIVERSE.length} aÃ§Ãµes...`)
 
   let errors = 0
 
@@ -22,7 +23,7 @@ export async function refreshClarezaData(): Promise<{ total: number; errors: num
         return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data }
       } catch (err: unknown) {
         errors++
-        console.error(`âŒ [Clareza] Erro em ${stock.ticker}:`, errorMessage(err))
+        logger.error(`âŒ [Clareza] Erro em ${stock.ticker}:`, errorMessage(err))
         return { ticker: stock.ticker, name: stock.name, type: stock.type, sector: stock.sector, data: null }
       }
     }),
@@ -49,12 +50,12 @@ export async function refreshClarezaData(): Promise<{ total: number; errors: num
       const toDelete = all.slice(5).map(d => d._id)
       await ClarezaMarketData.deleteMany({ _id: { $in: toDelete } })
     }
-    console.log(`ðŸ’¾ [Clareza] Snapshot guardado na BD`)
+    logger.info(`ðŸ’¾ [Clareza] Snapshot guardado na BD`)
   } catch (err: unknown) {
-    console.error('âš ï¸ [Clareza] Erro ao guardar snapshot na BD:', errorMessage(err))
+    logger.error('âš ï¸ [Clareza] Erro ao guardar snapshot na BD:', errorMessage(err))
   }
 
-  console.log(`âœ… [Clareza] Refresh completo â€” ${UNIVERSE.length - errors} ok, ${errors} erros`)
+  logger.info(`âœ… [Clareza] Refresh completo â€” ${UNIVERSE.length - errors} ok, ${errors} erros`)
 
   return { total: UNIVERSE.length, errors }
 }
@@ -72,16 +73,16 @@ export async function getClarezaData(): Promise<ClarezaStockEntry[] | null> {
   try {
     const latest = await ClarezaMarketData.findOne().sort({ fetchedAt: -1 }).lean()
     if (latest?.stocks?.length) {
-      console.log(`ðŸ“¦ [Clareza] Cache Redis vazio â€” a servir snapshot da BD (${latest.fetchedAt})`)
+      logger.info(`ðŸ“¦ [Clareza] Cache Redis vazio â€” a servir snapshot da BD (${latest.fetchedAt})`)
       // Repor em Redis para as prÃ³ximas chamadas
       await cacheService.set(CLAREZA_CACHE_KEY, latest.stocks, CACHE_TTL)
       return latest.stocks
     }
   } catch (err: unknown) {
-    console.error('âš ï¸ [Clareza] Erro ao ler snapshot da BD:', errorMessage(err))
+    logger.error('âš ï¸ [Clareza] Erro ao ler snapshot da BD:', errorMessage(err))
   }
 
   // 3. Nenhum dado disponivel. Nao chamar FMP em load publico.
-  console.warn('[Clareza] Sem cache Redis e sem snapshot MongoDB. Aguardar cron ClarezaRefresh.')
+  logger.warn('[Clareza] Sem cache Redis e sem snapshot MongoDB. Aguardar cron ClarezaRefresh.')
   return null
 }

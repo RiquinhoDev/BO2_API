@@ -44,7 +44,7 @@ export async function getStockAnalysis(rawTicker: string) {
           return partial
         }
       } catch { /* sem cache -> propaga o erro original */ }
-      throw new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`)
+      throw Object.assign(new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`), { cause: e })
     }
   }
   await sleep(150)

@@ -1,4 +1,5 @@
 // src/controllers/guru.sso.controller.ts - Controller para SSO MyOrders da Guru
+import logger from '../utils/logger'
 import { NextFunction, Request, Response } from 'express'
 import { internalError } from '../security/errorHandling'
 import axios from 'axios'
@@ -40,7 +41,7 @@ export const ssoMyOrders = async (req: Request, res: Response, next: NextFunctio
     // 1. VALIDAR EMAIL
     // ═══════════════════════════════════════════════════════════
     if (!email || typeof email !== 'string') {
-      console.warn('⚠️ [GURU SSO] Tentativa sem email')
+      logger.warn('⚠️ [GURU SSO] Tentativa sem email')
       return res.status(400).json({
         success: false,
         message: 'Email é obrigatório'
@@ -48,7 +49,7 @@ export const ssoMyOrders = async (req: Request, res: Response, next: NextFunctio
     }
 
     const normalizedEmail = email.toLowerCase().trim()
-    console.log(`🔐 [GURU SSO] Pedido de SSO para: ${normalizedEmail}`)
+    logger.info(`🔐 [GURU SSO] Pedido de SSO para: ${normalizedEmail}`)
 
     // ═══════════════════════════════════════════════════════════
     // 2. VALIDAR USER NA BD
@@ -56,7 +57,7 @@ export const ssoMyOrders = async (req: Request, res: Response, next: NextFunctio
     const user = await User.findOne({ email: normalizedEmail })
 
     if (!user) {
-      console.warn(`⚠️ [GURU SSO] User não encontrado: ${normalizedEmail}`)
+      logger.warn(`⚠️ [GURU SSO] User não encontrado: ${normalizedEmail}`)
       return res.status(404).json({
         success: false,
         message: 'Utilizador não encontrado'
@@ -64,7 +65,7 @@ export const ssoMyOrders = async (req: Request, res: Response, next: NextFunctio
     }
 
     if (!user.guru) {
-      console.warn(`⚠️ [GURU SSO] User sem subscrição Guru: ${normalizedEmail}`)
+      logger.warn(`⚠️ [GURU SSO] User sem subscrição Guru: ${normalizedEmail}`)
       return res.status(403).json({
         success: false,
         message: 'Utilizador não tem subscrição Guru'
@@ -75,7 +76,7 @@ export const ssoMyOrders = async (req: Request, res: Response, next: NextFunctio
     // 3. VERIFICAR STATUS PERMITIDO
     // ═══════════════════════════════════════════════════════════
     if (!GURU_SSO_ALLOWED_STATUSES.includes(user.guru.status)) {
-      console.warn(`⚠️ [GURU SSO] Status não permite SSO: ${user.guru.status} - ${normalizedEmail}`)
+      logger.warn(`⚠️ [GURU SSO] Status não permite SSO: ${user.guru.status} - ${normalizedEmail}`)
       return res.status(403).json({
         success: false,
         message: `Status de subscrição não permite acesso: ${user.guru.status}`,
@@ -94,7 +95,7 @@ export const ssoMyOrders = async (req: Request, res: Response, next: NextFunctio
     // ═══════════════════════════════════════════════════════════
     // Endpoint correto (v2): POST /api/v2/myorders/auth/sso/{email}
     const ssoEndpoint = `${GURU_API_BASE}/myorders/auth/sso/${encodeURIComponent(normalizedEmail)}`
-    console.log(`📡 [GURU SSO] Chamando API Guru: ${ssoEndpoint}`)
+    logger.info(`📡 [GURU SSO] Chamando API Guru: ${ssoEndpoint}`)
 
     const ssoResponse = await axios.post(
       ssoEndpoint,
@@ -115,13 +116,13 @@ export const ssoMyOrders = async (req: Request, res: Response, next: NextFunctio
       return next(internalError('Erro ao gerar link SSO', 'GURU_SSO_LINK_FAILED', ssoResponse.data))
     }
 
-    console.log(`✅ [GURU SSO] URL obtida: ${ssoUrl}`)
+    logger.info(`✅ [GURU SSO] URL obtida: ${ssoUrl}`)
 
     // ═══════════════════════════════════════════════════════════
     // 6. REDIRECIONAR
     // ═══════════════════════════════════════════════════════════
     const duration = Date.now() - startTime
-    console.log(`✅ [GURU SSO] Redirecionando ${normalizedEmail} (${duration}ms)`)
+    logger.info(`✅ [GURU SSO] Redirecionando ${normalizedEmail} (${duration}ms)`)
 
     return res.redirect(302, ssoUrl)
 

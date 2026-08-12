@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import axios from 'axios'
 import { cacheService } from '../cache.service'
 import { fmpThrottle } from './fmpThrottle'
@@ -229,7 +230,7 @@ export async function fetchEarningsForTicker(
 export async function refreshClarezaEarningsData(): Promise<{ total: number; errors: number }> {
   getFmpApiKey()
 
-  console.log(`[ClarezaEarnings] Iniciando refresh de ${COMPANIES.length} tickers...`)
+  logger.info(`[ClarezaEarnings] Iniciando refresh de ${COMPANIES.length} tickers...`)
   let errors = 0
   const today = isoDate()
   const limitDt = isoDate(120)
@@ -240,7 +241,7 @@ export async function refreshClarezaEarningsData(): Promise<{ total: number; err
         return await fetchEarningsForTicker(ticker, today, limitDt)
       } catch (err: any) {
         errors++
-        console.error(`[ClarezaEarnings] Erro em ${ticker}:`, err.message)
+        logger.error(`[ClarezaEarnings] Erro em ${ticker}:`, err.message)
         return null
       }
     }),
@@ -272,12 +273,12 @@ export async function refreshClarezaEarningsData(): Promise<{ total: number; err
       const toDelete = all.slice(5).map((d: any) => d._id)
       await ClarezaEarningsData.deleteMany({ _id: { $in: toDelete } })
     }
-    console.log('[ClarezaEarnings] Snapshot guardado na BD')
+    logger.info('[ClarezaEarnings] Snapshot guardado na BD')
   } catch (err: any) {
-    console.error('[ClarezaEarnings] Erro ao guardar snapshot na BD:', err.message)
+    logger.error('[ClarezaEarnings] Erro ao guardar snapshot na BD:', err.message)
   }
 
-  console.log(`[ClarezaEarnings] Refresh completo - ${earnings.length} ok, ${errors} erros`)
+  logger.info(`[ClarezaEarnings] Refresh completo - ${earnings.length} ok, ${errors} erros`)
   return { total: COMPANIES.length, errors }
 }
 
@@ -288,14 +289,14 @@ export async function getClarezaEarningsData(): Promise<EarningsPayload | null> 
   try {
     const latest = await ClarezaEarningsData.findOne().sort({ fetchedAt: -1 }).lean()
     if (latest?.earnings?.earnings?.length) {
-      console.log(`[ClarezaEarnings] Cache Redis vazio - a servir snapshot da BD (${latest.fetchedAt})`)
+      logger.info(`[ClarezaEarnings] Cache Redis vazio - a servir snapshot da BD (${latest.fetchedAt})`)
       await cacheService.set(CLAREZA_EARNINGS_CACHE_KEY, latest.earnings, CACHE_TTL)
       return latest.earnings as EarningsPayload
     }
   } catch (err: any) {
-    console.error('[ClarezaEarnings] Erro ao ler snapshot da BD:', err.message)
+    logger.error('[ClarezaEarnings] Erro ao ler snapshot da BD:', err.message)
   }
 
-  console.warn('[ClarezaEarnings] Sem cache Redis e sem snapshot MongoDB. Aguardar cron ClarezaRefresh.')
+  logger.warn('[ClarezaEarnings] Sem cache Redis e sem snapshot MongoDB. Aguardar cron ClarezaRefresh.')
   return null
 }

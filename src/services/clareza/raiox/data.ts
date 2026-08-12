@@ -1,9 +1,9 @@
+import logger from '../../../utils/logger'
 import axios from 'axios'
 import { cacheService } from '../../cache.service'
 import { UNIVERSE } from '../clarezaFmpService'
 import { fmpThrottle } from '../fmpThrottle'
-import { normalizeTicker, isValidTicker } from '../tickerUtils'
-import { getFmpApiKey, getOptionalFmpApiKey } from '../../requestDrivenRuntimeConfig'
+import { getOptionalFmpApiKey } from '../../requestDrivenRuntimeConfig'
 
 // ─────────────────────────────────────────────────────────────
 // RAIO-X DA AÇÃO — versão Node (migrada do clareza-raiox.php)
@@ -361,7 +361,7 @@ export async function pruneStaleRaiox(): Promise<void> {
       const ticker = key.slice(prefix.length)
       if (!valid.has(ticker)) {
         await cacheService.del(key)
-        console.log(`🧹 [Raiox] Removido da cache (fora do universo): ${ticker}`)
+        logger.info(`🧹 [Raiox] Removido da cache (fora do universo): ${ticker}`)
       }
     }
   }

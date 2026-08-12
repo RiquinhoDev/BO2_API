@@ -33,7 +33,7 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, 
   const startTime = Date.now()
   const requestId = (req.headers['x-request-id'] as string) || req.body.request_id || `guru_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-  console.log(`\n💰 [GURU WEBHOOK] Recebido - RequestID: ${requestId}`)
+  logger.info(`\n💰 [GURU WEBHOOK] Recebido - RequestID: ${requestId}`)
 
   try {
     // ═══════════════════════════════════════════════════════════
@@ -85,7 +85,7 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, 
     const guruAccountToken = getGuruAccountToken()
 
     if (!payload.api_token || payload.api_token !== guruAccountToken) {
-      console.error('❌ [GURU] Token inválido')
+      logger.error('❌ [GURU] Token inválido')
       return res.status(401).json({
         success: false,
         message: 'Token inválido'
@@ -97,7 +97,7 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, 
     // ═══════════════════════════════════════════════════════════
     const existingWebhook = await GuruWebhook.findOne({ requestId })
     if (existingWebhook) {
-      console.log(`⚠️ [GURU] Webhook duplicado ignorado: ${requestId}`)
+      logger.info(`⚠️ [GURU] Webhook duplicado ignorado: ${requestId}`)
       return res.status(200).json({
         success: true,
         message: 'Webhook já processado',
@@ -124,7 +124,7 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, 
       processed: false
     })
 
-    console.log(`📥 [GURU] Webhook guardado: ${payload.event} - ${payload.email}`)
+    logger.info(`📥 [GURU] Webhook guardado: ${payload.event} - ${payload.email}`)
 
     // ═══════════════════════════════════════════════════════════
     // 4. VALIDAR DADOS OBRIGATÓRIOS
@@ -136,7 +136,7 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, 
         processedAt: new Date(),
         error: 'Email ausente no payload'
       })
-      console.warn('⚠️ [GURU] Webhook sem email - ignorado')
+      logger.warn('⚠️ [GURU] Webhook sem email - ignorado')
       return res.status(200).json({
         success: true,
         message: 'Webhook processado (sem email)',
@@ -178,7 +178,7 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, 
       })
 
       await user.save()
-      console.log(`✅ [GURU] Novo user criado: ${email}`)
+      logger.info(`✅ [GURU] Novo user criado: ${email}`)
     } else {
       // Atualizar user existente — usar updateOne para não tocar em campos de outras plataformas
       const updateFields: Record<string, any> = {
@@ -207,7 +207,7 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, 
         { $set: updateFields },
         { runValidators: false } // Não validar campos de outras plataformas (Hotmart, etc.)
       )
-      console.log(`✅ [GURU] User atualizado: ${email}`)
+      logger.info(`✅ [GURU] User atualizado: ${email}`)
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -242,7 +242,7 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, 
         )
 
         markedForInactivation = true
-        console.log(`⚠️ [GURU] ${userProductsToMark.length} UserProduct(s) marcado(s) PARA_INATIVAR: ${email}`)
+        logger.info(`⚠️ [GURU] ${userProductsToMark.length} UserProduct(s) marcado(s) PARA_INATIVAR: ${email}`)
       }
     }
 
@@ -255,7 +255,7 @@ export const handleGuruWebhook = async (req: GuruWebhookRequest, res: Response, 
     })
 
     const duration = Date.now() - startTime
-    console.log(`✅ [GURU] Webhook processado em ${duration}ms`)
+    logger.info(`✅ [GURU] Webhook processado em ${duration}ms`)
 
     return res.status(200).json({
       success: true,

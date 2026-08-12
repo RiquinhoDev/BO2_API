@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 import { internalError } from '../../security/errorHandling'
@@ -42,7 +43,7 @@ export const createSnapshot = async (req: Request, res: Response, next: NextFunc
       })
     }
 
-    console.log(`ðŸ“¸ [SNAPSHOT] Criando snapshot para ${month}/${year} (fonte: ${source})...`)
+    logger.info(`ðŸ“¸ [SNAPSHOT] Criando snapshot para ${month}/${year} (fonte: ${source})...`)
 
     // Verificar se jÃ¡ existe snapshot para este mÃªs
     const existing = await GuruMonthlySnapshot.findOne({ year, month })
@@ -61,7 +62,7 @@ export const createSnapshot = async (req: Request, res: Response, next: NextFunc
     // OPÃ‡ÃƒO 1: BUSCAR DA GURU API (dados histÃ³ricos reais)
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (source === 'guru_api') {
-      console.log(`ðŸ“¡ [SNAPSHOT] Buscando subscriÃ§Ãµes de ${month}/${year} da Guru API...`)
+      logger.info(`ðŸ“¡ [SNAPSHOT] Buscando subscriÃ§Ãµes de ${month}/${year} da Guru API...`)
 
       // Buscar subscriÃ§Ãµes criadas neste mÃªs
       const guruSubscriptions = await fetchSubscriptionsByMonth(year, month)
@@ -80,14 +81,14 @@ export const createSnapshot = async (req: Request, res: Response, next: NextFunc
         value: sub.product?.offer?.value || sub.next_cycle_value
       }))
 
-      console.log(`âœ… [SNAPSHOT] Encontradas ${subscriptions.length} subscriÃ§Ãµes na Guru para ${month}/${year}`)
+      logger.info(`âœ… [SNAPSHOT] Encontradas ${subscriptions.length} subscriÃ§Ãµes na Guru para ${month}/${year}`)
       dataQuality = 'complete'
     }
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // OPÃ‡ÃƒO 2: USAR BASE DE DADOS (estimativa, menos preciso)
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     else if (source === 'database') {
-      console.log(`ðŸ’¾ [SNAPSHOT] Usando dados da base de dados (estimativa)...`)
+      logger.info(`ðŸ’¾ [SNAPSHOT] Usando dados da base de dados (estimativa)...`)
 
       const users = await User.find({
         guru: { $exists: true }
@@ -101,7 +102,7 @@ export const createSnapshot = async (req: Request, res: Response, next: NextFunc
         offerId: user.guru?.offerId
       }))
 
-      console.log(`âš ï¸ [SNAPSHOT] Usando ${subscriptions.length} subscriÃ§Ãµes da BD (dados atuais, nÃ£o histÃ³ricos)`)
+      logger.info(`âš ï¸ [SNAPSHOT] Usando ${subscriptions.length} subscriÃ§Ãµes da BD (dados atuais, nÃ£o histÃ³ricos)`)
       dataQuality = 'estimated'
     }
 
@@ -204,11 +205,11 @@ export const createSnapshot = async (req: Request, res: Response, next: NextFunc
         : `Snapshot criado a partir de ${subscriptions.length} subscriÃ§Ãµes da Guru API`
     })
 
-    console.log(`âœ… [SNAPSHOT] Snapshot criado com sucesso para ${month}/${year}`)
-    console.log(`   - Total: ${totals.total}`)
-    console.log(`   - Ativas: ${totals.active}`)
-    console.log(`   - Canceladas: ${totals.canceled}`)
-    console.log(`   - Churn: ${churn.rate}%`)
+    logger.info(`âœ… [SNAPSHOT] Snapshot criado com sucesso para ${month}/${year}`)
+    logger.info(`   - Total: ${totals.total}`)
+    logger.info(`   - Ativas: ${totals.active}`)
+    logger.info(`   - Canceladas: ${totals.canceled}`)
+    logger.info(`   - Churn: ${churn.rate}%`)
 
     return res.json(successResponse({ snapshot }, { message: `Snapshot criado para ${month}/${year}` }))
 
@@ -241,13 +242,13 @@ export const updateSnapshot = async (req: Request<SnapshotPeriodParams>, res: Re
       })
     }
 
-    console.log(`ðŸ”„ [SNAPSHOT] Atualizando snapshot para ${monthNum}/${yearNum}...`)
+    logger.info(`ðŸ”„ [SNAPSHOT] Atualizando snapshot para ${monthNum}/${yearNum}...`)
 
     // 1. Buscar TODAS as subscriÃ§Ãµes da Guru
     const { fetchAllSubscriptionsComplete } = await import('../../services/guru/guruSync.service')
     const allSubs = await fetchAllSubscriptionsComplete()
 
-    console.log(`ðŸ“Š [SNAPSHOT] Total de subscriÃ§Ãµes obtidas: ${allSubs.length}`)
+    logger.info(`ðŸ“Š [SNAPSHOT] Total de subscriÃ§Ãµes obtidas: ${allSubs.length}`)
 
     // 2. Apagar snapshot existente (se houver)
     const deleted = await GuruMonthlySnapshot.findOneAndDelete({
@@ -256,24 +257,24 @@ export const updateSnapshot = async (req: Request<SnapshotPeriodParams>, res: Re
     })
 
     if (deleted) {
-      console.log(`ðŸ—‘ï¸ [SNAPSHOT] Snapshot anterior apagado para ${monthNum}/${yearNum}`)
+      logger.info(`ðŸ—‘ï¸ [SNAPSHOT] Snapshot anterior apagado para ${monthNum}/${yearNum}`)
     } else {
-      console.log(`â„¹ï¸ [SNAPSHOT] NÃ£o havia snapshot anterior para ${monthNum}/${yearNum}`)
+      logger.info(`â„¹ï¸ [SNAPSHOT] NÃ£o havia snapshot anterior para ${monthNum}/${yearNum}`)
     }
 
     // 3. Criar novo snapshot com dados atuais
     const result = await createSnapshotFromSubscriptions(yearNum, monthNum, allSubs)
 
     if (result.skipped) {
-      console.log(`â­ï¸ [SNAPSHOT] ${result.reason}`)
+      logger.info(`â­ï¸ [SNAPSHOT] ${result.reason}`)
       return res.json(successResponse({ skipped: true }, { message: result.reason }))
     }
 
-    console.log(`âœ… [SNAPSHOT] Snapshot atualizado para ${monthNum}/${yearNum}`)
-    console.log(`   - Total: ${result.snapshot.totals.total}`)
-    console.log(`   - Ativas: ${result.snapshot.totals.active}`)
-    console.log(`   - Canceladas: ${result.snapshot.totals.canceled}`)
-    console.log(`   - Churn: ${result.snapshot.churn.rate}%`)
+    logger.info(`âœ… [SNAPSHOT] Snapshot atualizado para ${monthNum}/${yearNum}`)
+    logger.info(`   - Total: ${result.snapshot.totals.total}`)
+    logger.info(`   - Ativas: ${result.snapshot.totals.active}`)
+    logger.info(`   - Canceladas: ${result.snapshot.totals.canceled}`)
+    logger.info(`   - Churn: ${result.snapshot.churn.rate}%`)
 
     return res.json(successResponse({ snapshot: result.snapshot, previousExists: !!deleted }, { message: `Snapshot atualizado para ${monthNum}/${yearNum}` }))
 
@@ -381,11 +382,11 @@ export const deleteSnapshot = async (input: GuruSnapshotDeleteInput, res: Respon
 
 export const deleteAllSnapshots = async (_input: GuruEmptyInput, res: Response, next: NextFunction) => {
   try {
-    console.log('ðŸ—‘ï¸ [SNAPSHOT] Apagando todos os snapshots...')
+    logger.info('ðŸ—‘ï¸ [SNAPSHOT] Apagando todos os snapshots...')
 
     const result = await GuruMonthlySnapshot.deleteMany({})
 
-    console.log(`âœ… [SNAPSHOT] ${result.deletedCount} snapshots apagados`)
+    logger.info(`âœ… [SNAPSHOT] ${result.deletedCount} snapshots apagados`)
 
     return res.json(successResponse({ deletedCount: result.deletedCount }, { message: `${result.deletedCount} snapshots apagados` }))
 

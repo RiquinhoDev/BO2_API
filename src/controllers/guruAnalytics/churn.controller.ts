@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import User from '../../models/user'
 import { fetchAllSubscriptionsComplete } from '../../services/guru/guruSync.service'
@@ -69,7 +70,7 @@ export const getChurnLive = async (req: Request, res: Response, next: NextFuncti
     // Partilhar o fetch entre pedidos concorrentes (o fetch completo demora ~10-15s)
     if (!churnLiveInFlight) {
       churnLiveInFlight = (async () => {
-        console.log('ðŸ“¡ [CHURN LIVE] Recalculando churn a partir da Guru API...')
+        logger.info('ðŸ“¡ [CHURN LIVE] Recalculando churn a partir da Guru API...')
         churnLiveProgress = {
           running: true,
           phase: 'fetching',
@@ -85,7 +86,7 @@ export const getChurnLive = async (req: Request, res: Response, next: NextFuncti
         const churn = computeChurnSeries(allSubs)
         const entry = { computedAt: new Date(), churn }
         churnLiveCache = entry
-        console.log(
+        logger.info(
           `âœ… [CHURN LIVE] ${churn.totalSubscriptions} subscriÃ§Ãµes, ${churn.months.length} meses, mÃ©dia ${churn.average}%`
         )
         return entry

@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 import { type NextFunction, Request, Response } from 'express'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 import { internalError } from '../../security/errorHandling'
@@ -29,13 +30,13 @@ export const createHistoricalSnapshots = async (req: Request, res: Response, nex
       endMonth = now.getMonth() + 1
     } = req.body
 
-    console.log(`ðŸ“¸ [HISTORICAL] Criando snapshots histÃ³ricos de ${startMonth}/${startYear} atÃ© ${endMonth}/${endYear}...`)
+    logger.info(`ðŸ“¸ [HISTORICAL] Criando snapshots histÃ³ricos de ${startMonth}/${startYear} atÃ© ${endMonth}/${endYear}...`)
 
     // 1. Buscar TODAS as subscriÃ§Ãµes da Guru (sem filtros)
     const { fetchAllSubscriptionsComplete } = await import('../../services/guru/guruSync.service')
     const allSubs = await fetchAllSubscriptionsComplete()
 
-    console.log(`ðŸ“Š [HISTORICAL] Total de subscriÃ§Ãµes obtidas: ${allSubs.length}`)
+    logger.info(`ðŸ“Š [HISTORICAL] Total de subscriÃ§Ãµes obtidas: ${allSubs.length}`)
 
     // 2. Encontrar a data mais antiga de subscriÃ§Ã£o para nÃ£o criar snapshots antes disso
     // NOTA: A API Guru retorna campos no nÃ­vel raiz (started_at, cancelled_at)
@@ -61,7 +62,7 @@ export const createHistoricalSnapshots = async (req: Request, res: Response, nex
       })
     }
 
-    console.log(`ðŸ“… [HISTORICAL] Data da subscriÃ§Ã£o mais antiga: ${earliestDate.toISOString()}`)
+    logger.info(`ðŸ“… [HISTORICAL] Data da subscriÃ§Ã£o mais antiga: ${earliestDate.toISOString()}`)
     const earliestYear = earliestDate.getFullYear()
     const earliestMonth = earliestDate.getMonth() + 1
 
@@ -72,7 +73,7 @@ export const createHistoricalSnapshots = async (req: Request, res: Response, nex
     if (startYear < earliestYear || (startYear === earliestYear && startMonth < earliestMonth)) {
       effectiveStartYear = earliestYear
       effectiveStartMonth = earliestMonth
-      console.log(`âš ï¸ [HISTORICAL] Ajustando inÃ­cio para ${effectiveStartMonth}/${effectiveStartYear} (primeira subscriÃ§Ã£o)`)
+      logger.info(`âš ï¸ [HISTORICAL] Ajustando inÃ­cio para ${effectiveStartMonth}/${effectiveStartYear} (primeira subscriÃ§Ã£o)`)
     }
 
     // 4. Garantir que nÃ£o criamos snapshots para meses futuros
@@ -82,30 +83,30 @@ export const createHistoricalSnapshots = async (req: Request, res: Response, nex
     if (endYear > now.getFullYear() || (endYear === now.getFullYear() && endMonth > now.getMonth() + 1)) {
       effectiveEndYear = now.getFullYear()
       effectiveEndMonth = now.getMonth() + 1
-      console.log(`âš ï¸ [HISTORICAL] Ajustando fim para ${effectiveEndMonth}/${effectiveEndYear} (mÃªs atual)`)
+      logger.info(`âš ï¸ [HISTORICAL] Ajustando fim para ${effectiveEndMonth}/${effectiveEndYear} (mÃªs atual)`)
     }
 
     // 5. Criar snapshots para cada mÃªs no intervalo
     const snapshots = []
     const errors = []
     const skipped = []
-    let current = new Date(effectiveStartYear, effectiveStartMonth - 1, 1)
+    const current = new Date(effectiveStartYear, effectiveStartMonth - 1, 1)
     // CORRIGIDO: Usar dia 0 do mÃªs seguinte para obter Ãºltimo dia do mÃªs corretamente
     const end = new Date(effectiveEndYear, effectiveEndMonth, 0)
 
-    console.log(`ðŸ“… [HISTORICAL] Processando de ${effectiveStartMonth}/${effectiveStartYear} atÃ© ${effectiveEndMonth}/${effectiveEndYear}`)
+    logger.info(`ðŸ“… [HISTORICAL] Processando de ${effectiveStartMonth}/${effectiveStartYear} atÃ© ${effectiveEndMonth}/${effectiveEndYear}`)
 
     while (current <= end) {
       const year = current.getFullYear()
       const month = current.getMonth() + 1
 
       try {
-        console.log(`\nðŸ“… [HISTORICAL] Processando ${month}/${year}...`)
+        logger.info(`\nðŸ“… [HISTORICAL] Processando ${month}/${year}...`)
 
         // Verificar se jÃ¡ existe
         const existing = await GuruMonthlySnapshot.findOne({ year, month })
         if (existing) {
-          console.log(`   â­ï¸ Snapshot jÃ¡ existe para ${month}/${year}, pulando...`)
+          logger.info(`   â­ï¸ Snapshot jÃ¡ existe para ${month}/${year}, pulando...`)
           skipped.push({ year, month, reason: 'already_exists' })
           current.setMonth(current.getMonth() + 1)
           continue
@@ -115,16 +116,16 @@ export const createHistoricalSnapshots = async (req: Request, res: Response, nex
         const result = await createSnapshotFromSubscriptions(year, month, allSubs)
 
         if (result.skipped) {
-          console.log(`   â­ï¸ ${result.reason}`)
+          logger.info(`   â­ï¸ ${result.reason}`)
           skipped.push({ year, month, reason: result.reason })
         } else {
           snapshots.push(result.snapshot)
-          console.log(`   âœ… Snapshot criado: ${result.snapshot.totals.total} subscriÃ§Ãµes, ${result.snapshot.churn.rate}% churn`)
+          logger.info(`   âœ… Snapshot criado: ${result.snapshot.totals.total} subscriÃ§Ãµes, ${result.snapshot.churn.rate}% churn`)
         }
 
       } catch (error: unknown) {
         const message = errorMessage(error)
-        console.error(`   âŒ Erro ao criar snapshot ${month}/${year}:`, message)
+        logger.error(`   âŒ Erro ao criar snapshot ${month}/${year}:`, message)
         errors.push({
           year,
           month,
@@ -136,10 +137,10 @@ export const createHistoricalSnapshots = async (req: Request, res: Response, nex
       current.setMonth(current.getMonth() + 1)
     }
 
-    console.log(`\nâœ… [HISTORICAL] ConcluÃ­do!`)
-    console.log(`   - Snapshots criados: ${snapshots.length}`)
-    console.log(`   - Meses pulados: ${skipped.length}`)
-    console.log(`   - Erros: ${errors.length}`)
+    logger.info(`\nâœ… [HISTORICAL] ConcluÃ­do!`)
+    logger.info(`   - Snapshots criados: ${snapshots.length}`)
+    logger.info(`   - Meses pulados: ${skipped.length}`)
+    logger.info(`   - Erros: ${errors.length}`)
 
     return res.json(successResponse({ snapshots: snapshots.map(s => ({
         year: s.year,
@@ -212,7 +213,7 @@ export async function createSnapshotFromSubscriptions(
   const monthStart = new Date(year, month - 1, 1, 0, 0, 0)
   const monthEnd = new Date(year, month, 0, 23, 59, 59) // Ãšltimo dia do mÃªs
 
-  console.log(`   ðŸ“… PerÃ­odo: ${monthStart.toISOString()} atÃ© ${monthEnd.toISOString()}`)
+  logger.info(`   ðŸ“… PerÃ­odo: ${monthStart.toISOString()} atÃ© ${monthEnd.toISOString()}`)
 
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // CLASSIFICAR SUBSCRIÃ‡Ã•ES BASEADO EM DATAS (nÃ£o status atual!)
@@ -254,10 +255,10 @@ export async function createSnapshotFromSubscriptions(
     return canceled >= monthStart && canceled <= monthEnd
   })
 
-  console.log(`   ðŸ“Š Ativas no inÃ­cio do mÃªs: ${activeAtMonthStart.length}`)
-  console.log(`   ðŸ“Š Ativas no fim do mÃªs: ${activeAtMonthEnd.length}`)
-  console.log(`   ðŸ“Š Novas durante o mÃªs: ${newThisMonth.length}`)
-  console.log(`   ðŸ“Š Canceladas durante o mÃªs: ${canceledThisMonth.length}`)
+  logger.info(`   ðŸ“Š Ativas no inÃ­cio do mÃªs: ${activeAtMonthStart.length}`)
+  logger.info(`   ðŸ“Š Ativas no fim do mÃªs: ${activeAtMonthEnd.length}`)
+  logger.info(`   ðŸ“Š Novas durante o mÃªs: ${newThisMonth.length}`)
+  logger.info(`   ðŸ“Š Canceladas durante o mÃªs: ${canceledThisMonth.length}`)
 
   // Se nÃ£o hÃ¡ dados relevantes, pular este mÃªs
   if (activeAtMonthStart.length === 0 && newThisMonth.length === 0) {
@@ -339,7 +340,7 @@ export async function createSnapshotFromSubscriptions(
     lostSubscriptions
   }
 
-  console.log(`   ðŸ“ˆ Churn: ${churn.rate}% (${lostSubscriptions} perdidos de ${baseAtStart} base)`)
+  logger.info(`   ðŸ“ˆ Churn: ${churn.rate}% (${lostSubscriptions} perdidos de ${baseAtStart} base)`)
 
   // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // CRIAR SNAPSHOT

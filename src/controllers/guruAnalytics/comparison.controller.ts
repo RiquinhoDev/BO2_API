@@ -23,7 +23,7 @@ import { type ClarezaComparisonData, type ComparisonRecord, type CurseducaMember
  */
 export const compareGuruVsClareza = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('ðŸ“Š [COMPARE] Comparando cancelamentos Guru vs Clareza...')
+    logger.info('ðŸ“Š [COMPARE] Comparando cancelamentos Guru vs Clareza...')
 
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 1. BUSCAR TODOS OS USERS COM DADOS GURU
@@ -33,7 +33,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response, next: Ne
       'guru.status': { $exists: true }
     }).select('email name guru curseduca').lean()
 
-    console.log(`   ðŸ“Œ Users com dados Guru: ${usersWithGuru.length}`)
+    logger.info(`   ðŸ“Œ Users com dados Guru: ${usersWithGuru.length}`)
 
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 2. BUSCAR USERPRODUCTS DO CLAREZA (platform = curseduca)
@@ -43,7 +43,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response, next: Ne
       status: { $in: ['ACTIVE', 'PARA_INATIVAR'] }
     }).populate<{ userId: Pick<IUser, 'email' | 'name'> }>('userId', 'email name').lean()
 
-    console.log(`   ðŸ“Œ UserProducts Clareza: ${clarezaProducts.length}`)
+    logger.info(`   ðŸ“Œ UserProducts Clareza: ${clarezaProducts.length}`)
 
     // Criar mapa de Clareza por email (de UserProduct)
     const clarezaByEmail = new Map<string, ClarezaComparisonData>()
@@ -76,7 +76,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response, next: Ne
       ]
     }).select('email name curseduca').lean()
 
-    console.log(`   ðŸ“Œ Users com dados CursEduca direto: ${usersWithCurseduca.length}`)
+    logger.info(`   ðŸ“Œ Users com dados CursEduca direto: ${usersWithCurseduca.length}`)
 
     // Adicionar ao mapa os que tÃªm user.curseduca mas nÃ£o estÃ£o no UserProduct
     for (const user of usersWithCurseduca) {
@@ -99,7 +99,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response, next: Ne
       }
     }
 
-    console.log(`   ðŸ“Œ Emails Ãºnicos no Clareza (total): ${clarezaByEmail.size}`)
+    logger.info(`   ðŸ“Œ Emails Ãºnicos no Clareza (total): ${clarezaByEmail.size}`)
 
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 3. COMPARAR STATUS ENTRE AS PLATAFORMAS
@@ -269,17 +269,17 @@ export const compareGuruVsClareza = async (req: Request, res: Response, next: Ne
       verifyApiCallsUsed: verifyCallsUsed
     }
 
-    console.log(`   âœ… ComparaÃ§Ã£o concluÃ­da:`)
-    console.log(`      - DiscrepÃ¢ncias: ${stats.discrepancyCount}`)
-    console.log(`      - Guru cancelado, Clareza ativo: ${stats.guruCanceledClarezaActive}`)
-    console.log(`      - Guru ativo, Clareza cancelado: ${stats.guruActiveClarezaCanceled}`)
-    console.log(`      - Ambos cancelados: ${stats.bothCanceled}`)
-    console.log(`      - Ambos ativos: ${stats.bothActive}`)
+    logger.info(`   âœ… ComparaÃ§Ã£o concluÃ­da:`)
+    logger.info(`      - DiscrepÃ¢ncias: ${stats.discrepancyCount}`)
+    logger.info(`      - Guru cancelado, Clareza ativo: ${stats.guruCanceledClarezaActive}`)
+    logger.info(`      - Guru ativo, Clareza cancelado: ${stats.guruActiveClarezaCanceled}`)
+    logger.info(`      - Ambos cancelados: ${stats.bothCanceled}`)
+    logger.info(`      - Ambos ativos: ${stats.bothActive}`)
 
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 5. AUTO-CLEANUP: LIMPAR PARA_INATIVAR MAL IDENTIFICADOS
     // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    console.log(`   ðŸ§¹ Executando auto-cleanup de PARA_INATIVAR...`)
+    logger.info(`   ðŸ§¹ Executando auto-cleanup de PARA_INATIVAR...`)
 
     const pendingList = await UserProduct.find({
       platform: 'curseduca',
@@ -314,7 +314,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response, next: Ne
             }
           })
           cleanedInactiveCount++
-          console.log(`      âœ… ${user.email}: PARA_INATIVAR â†’ INACTIVE (CursEduca jÃ¡ INACTIVE)`)
+          logger.info(`      âœ… ${user.email}: PARA_INATIVAR â†’ INACTIVE (CursEduca jÃ¡ INACTIVE)`)
           continue
         }
 
@@ -339,7 +339,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response, next: Ne
             }
           })
           cleanedActiveCount++
-          console.log(`      âœ… ${user.email}: PARA_INATIVAR â†’ ACTIVE (Guru ${guruStatus})`)
+          logger.info(`      âœ… ${user.email}: PARA_INATIVAR â†’ ACTIVE (Guru ${guruStatus})`)
           continue
         }
 
@@ -379,7 +379,7 @@ export const compareGuruVsClareza = async (req: Request, res: Response, next: Ne
                 }
               })
               cleanedInactiveCount++
-              console.log(`      âœ… ${user.email}: PARA_INATIVAR â†’ INACTIVE (API CursEduca: ${realSituation}, BD stale)`)
+              logger.info(`      âœ… ${user.email}: PARA_INATIVAR â†’ INACTIVE (API CursEduca: ${realSituation}, BD stale)`)
               continue
             }
           } catch (apiError: unknown) {
@@ -398,10 +398,10 @@ export const compareGuruVsClareza = async (req: Request, res: Response, next: Ne
       }
     }
 
-    console.log(`   âœ… Auto-cleanup concluÃ­do:`)
-    console.log(`      - Marcados como ACTIVE: ${cleanedActiveCount}`)
-    console.log(`      - Marcados como INACTIVE: ${cleanedInactiveCount}`)
-    console.log(`      - Total limpo: ${cleanedActiveCount + cleanedInactiveCount}`)
+    logger.info(`   âœ… Auto-cleanup concluÃ­do:`)
+    logger.info(`      - Marcados como ACTIVE: ${cleanedActiveCount}`)
+    logger.info(`      - Marcados como INACTIVE: ${cleanedInactiveCount}`)
+    logger.info(`      - Total limpo: ${cleanedActiveCount + cleanedInactiveCount}`)
 
     return res.json(successResponse({
       stats,

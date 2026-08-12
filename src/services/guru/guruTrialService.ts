@@ -3,6 +3,7 @@
 // Gestão de trials Guru — detecção, listagem, auto-inactivação
 // ════════════════════════════════════════════════════════════
 
+import logger from '../../utils/logger'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { fetchAllSubscriptionsComplete, fetchSubscriptionById } from './guruSync.service'
@@ -148,7 +149,7 @@ export async function checkExpiredTrials(): Promise<CheckExpiredResult> {
     .exec()
 
   result.checked = expiredTrials.length
-  console.log(`⏳ [GURU TRIALS] Verificando ${expiredTrials.length} trials expirados...`)
+  logger.info(`⏳ [GURU TRIALS] Verificando ${expiredTrials.length} trials expirados...`)
 
   for (const user of expiredTrials) {
     try {
@@ -164,7 +165,7 @@ export async function checkExpiredTrials(): Promise<CheckExpiredResult> {
 
       if (currentStatus === 'active' || currentStatus === 'paid') {
         // Converteu para pago!
-        console.log(`✅ [GURU TRIALS] ${user.email} converteu para pago`)
+        logger.info(`✅ [GURU TRIALS] ${user.email} converteu para pago`)
         user.set('guru.isTrial', false)
         user.set('guru.trialConvertedAt', new Date())
         user.set('guru.status', 'active')
@@ -172,11 +173,11 @@ export async function checkExpiredTrials(): Promise<CheckExpiredResult> {
         result.converted++
       } else if (currentStatus === 'trial' || currentStatus === 'trialing') {
         // Ainda em trial (API pode ter datas diferentes)
-        console.log(`⏳ [GURU TRIALS] ${user.email} ainda em trial na API Guru`)
+        logger.info(`⏳ [GURU TRIALS] ${user.email} ainda em trial na API Guru`)
         result.stillInTrial++
       } else {
         // Trial expirou sem conversão → marcar para inativação
-        console.log(`❌ [GURU TRIALS] ${user.email} trial expirado (status=${currentStatus}) → PARA_INATIVAR`)
+        logger.info(`❌ [GURU TRIALS] ${user.email} trial expirado (status=${currentStatus}) → PARA_INATIVAR`)
 
         // Actualizar status do user
         user.set('guru.isTrial', false)
@@ -188,12 +189,12 @@ export async function checkExpiredTrials(): Promise<CheckExpiredResult> {
         result.markedForInactivation += markedCount
       }
     } catch (error: any) {
-      console.error(`❌ [GURU TRIALS] Erro ao verificar ${user.email}:`, error.message)
+      logger.error(`❌ [GURU TRIALS] Erro ao verificar ${user.email}:`, error.message)
       result.errors++
     }
   }
 
-  console.log(`⏳ [GURU TRIALS] Resultado: ${JSON.stringify(result)}`)
+  logger.info(`⏳ [GURU TRIALS] Resultado: ${JSON.stringify(result)}`)
   return result
 }
 
@@ -239,7 +240,7 @@ export async function syncTrialsFromGuru(): Promise<{ synced: number; errors: nu
           ? usersByEmail.get(email)
           : await User.findOne({ email }).select('_id')
         if (!user) {
-          console.log(`⏳ [GURU TRIALS SYNC] User ${email} não encontrado na BD — ignorado`)
+          logger.info(`⏳ [GURU TRIALS SYNC] User ${email} não encontrado na BD — ignorado`)
           continue
         }
 
@@ -277,14 +278,14 @@ export async function syncTrialsFromGuru(): Promise<{ synced: number; errors: nu
 
         await User.updateOne({ _id: user._id }, { $set: update })
         synced++
-        console.log(`✅ [GURU TRIALS SYNC] ${email} → trial (início=${startRaw || 'N/A'}, fim=${finishRaw || 'início+7d'})`)
+        logger.info(`✅ [GURU TRIALS SYNC] ${email} → trial (início=${startRaw || 'N/A'}, fim=${finishRaw || 'início+7d'})`)
       } catch (err: any) {
-        console.error(`❌ [GURU TRIALS SYNC] Erro ${email}:`, err.message)
+        logger.error(`❌ [GURU TRIALS SYNC] Erro ${email}:`, err.message)
         errors++
       }
     }
   } catch (err: any) {
-    console.error('❌ [GURU TRIALS SYNC] Erro global:', err.message)
+    logger.error('❌ [GURU TRIALS SYNC] Erro global:', err.message)
     errors++
   }
 
@@ -357,7 +358,7 @@ export async function manuallyInactivateTrial(email: string): Promise<ManualInac
   )
 
   const marked = await markUserProductsForInactivation(user._id as any, normalizedEmail)
-  console.log(`🔴 [GURU TRIALS] Inativação manual de ${normalizedEmail} → ${marked} UserProducts PARA_INATIVAR`)
+  logger.info(`🔴 [GURU TRIALS] Inativação manual de ${normalizedEmail} → ${marked} UserProducts PARA_INATIVAR`)
 
   return { email: normalizedEmail, marked, eligible: true }
 }
@@ -407,7 +408,7 @@ export async function revertTrial(email: string): Promise<RevertTrialResult> {
   user.set('guru.trialConvertedAt', undefined)
   await user.save()
 
-  console.log(`↩️ [GURU TRIALS] Trial revertido para ${normalizedEmail} (${result.modifiedCount || 0} UserProducts)`)
+  logger.info(`↩️ [GURU TRIALS] Trial revertido para ${normalizedEmail} (${result.modifiedCount || 0} UserProducts)`)
 
   return {
     reverted: result.modifiedCount || 0,
