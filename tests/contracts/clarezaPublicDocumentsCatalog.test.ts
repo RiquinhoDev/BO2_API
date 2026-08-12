@@ -24,6 +24,8 @@ const publicDocumentIdentities = [
   'GET /api/clareza/reit/:ticker',
   'GET /api/clareza/stock/:ticker',
   'GET /api/clareza/top10',
+  'GET /api/health',
+  'GET /api/info',
 ]
 
 const routeId = (entry: { method: string; path: string }): string => `${entry.method} ${entry.path}`
@@ -62,7 +64,7 @@ describe('Clareza public-document catalog protection', () => {
       status: string
     }> = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
     const inventoryPublicDocuments = inventory
-      .filter((entry) => entry.identity.startsWith('GET /api/clareza/') && entry.currentFamily === 'public-document')
+      .filter((entry) => entry.currentFamily === 'public-document')
       .sort((left, right) => left.identity.localeCompare(right.identity))
 
     expect(catalogPublicDocuments).toEqual(publicDocumentIdentities)
@@ -75,7 +77,7 @@ describe('Clareza public-document catalog protection', () => {
     expect(refreshes).toHaveLength(6)
     for (const refresh of refreshes) {
       expect(refresh.targetFamily).toBe('success-data')
-      expect(refresh.status).toBe('pending-migration')
+      expect(refresh.status).toBe('complete')
     }
   })
 
@@ -110,6 +112,6 @@ describe('Clareza public-document catalog protection', () => {
     const result = runChecker()
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('412 decisions; 213 Front calls; 188 consumers')
+    expect(result.stdout).toContain('410 decisions; 213 Front calls; 188 consumers')
   })
 })

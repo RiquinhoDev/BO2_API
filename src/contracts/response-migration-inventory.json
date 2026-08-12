@@ -794,26 +794,26 @@
   {
     "identity": "GET /api/curseduca/sync/status",
     "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/pages/guru/GuruDashboard.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/curseduca/sync/universal",
     "owner": "src/controllers/syncUtilizadoresControllers/curseduca/sync.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/curseduca/sync/universal/start",
     "owner": "src/controllers/syncUtilizadoresControllers/curseduca/legacy.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/pages/guru/GuruDashboard.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/curseduca/users-with-classes",
@@ -1064,14 +1064,6 @@
     "status": "complete"
   },
   {
-    "identity": "GET /api/guru/debug/token",
-    "owner": "src/controllers/guruWebhookAdmin.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
-  },
-  {
     "identity": "GET /api/guru/diagnose",
     "owner": "src/controllers/guru.sso.controller.ts",
     "currentFamily": "success-data",
@@ -1234,10 +1226,10 @@
   {
     "identity": "GET /api/health",
     "owner": "src/routes/index.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/hotmart/products",
@@ -1282,10 +1274,10 @@
   {
     "identity": "GET /api/hotmart/sync/universal",
     "owner": "src/controllers/hotmart/hotmartUniversalSync.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/hotmart/users",
@@ -1298,10 +1290,10 @@
   {
     "identity": "GET /api/info",
     "owner": "src/routes/index.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "GET /api/lessons/stats",
@@ -2114,26 +2106,26 @@
   {
     "identity": "POST /api/ac/contact/:email/sync",
     "owner": "src/controllers/acTags/acReader.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/ac/contacts/batch-sync",
     "owner": "src/controllers/acTags/acReader.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/ac/contacts/batch-tags",
     "owner": "src/controllers/acTags/acReader.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/achievements/evaluate-all",
@@ -2178,18 +2170,18 @@
   {
     "identity": "POST /api/activecampaign/products/:productId/tags/sync",
     "owner": "src/controllers/acTags/activeCampaignProductTags.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/activecampaign/test-cron",
     "owner": "src/controllers/acTags/activeCampaignOps.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/analytics/class/:classId/recalculate",
@@ -2266,50 +2258,50 @@
   {
     "identity": "POST /api/clareza/carteira/refresh",
     "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/clareza/comparador/refresh",
     "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/clareza/earnings/refresh",
     "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/clareza/raiox/refresh",
     "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/clareza/refresh",
     "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/clareza/top10/refresh",
     "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/classes/addOrEditClass",
@@ -2322,10 +2314,10 @@
   {
     "identity": "POST /api/classes/checkAndUpdateClassHistory",
     "owner": "src/controllers/classes/hotmartClassSync.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/classes/fetchClassData",
@@ -2370,18 +2362,18 @@
   {
     "identity": "POST /api/classes/syncComplete",
     "owner": "src/controllers/classes/hotmartClassSync.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/components/analytics/analytics/ClassAnalyticsTab.tsx",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/classes/syncHotmartClasses",
     "owner": "src/controllers/classes/hotmartClassSync.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/pages/gerirAlunos/turmas/hooks/useClassManagement.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/course-lessons/sync",
@@ -2402,26 +2394,18 @@
   {
     "identity": "POST /api/courses/clareza/evaluate",
     "owner": "src/controllers/acTags/activeCampaignCourse.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/courses/ogi/evaluate",
     "owner": "src/controllers/acTags/activeCampaignCourse.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/activecampaign/activecampaign.api.ts",
-    "status": "pending-migration"
-  },
-  {
-    "identity": "POST /api/cron-tags/execute",
-    "owner": "src/controllers/cron/cronManagement.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/cron-tags/validate",
@@ -2458,10 +2442,10 @@
   {
     "identity": "POST /api/cron/tag-rules-only",
     "owner": "src/controllers/syncUtilizadoresControllers/cronManagement/operations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/cron/validate",
@@ -2514,18 +2498,18 @@
   {
     "identity": "POST /api/discord-renewal/messages/send",
     "owner": "src/routes/discordRenewal.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/discordRenewal.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/discord-renewal/plan",
     "owner": "src/routes/discordRenewal.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/discordRenewal.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/discord-renewal/scheduled/:key/test",
@@ -2746,18 +2730,18 @@
   {
     "identity": "POST /api/guru/webhook",
     "owner": "src/controllers/guru.webhook.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
+    "currentFamily": "webhook-ack",
+    "targetFamily": "webhook-ack",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/webhooks/:id/reprocess",
     "owner": "src/controllers/guru.webhook.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/features/guru/guruCore.api.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/guru/webhooks/migrate-source",
@@ -2770,10 +2754,10 @@
   {
     "identity": "POST /api/hotmart/sync/universal/progress",
     "owner": "src/controllers/hotmart/hotmartUniversalSync.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/hotmart/syncProgressOnly",
@@ -2842,10 +2826,10 @@
   {
     "identity": "POST /api/renewal-ac/plan",
     "owner": "src/routes/renewalAc.routes.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": "src/services/renewalAcSync.service.ts",
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/renewal-ac/refunds/detect",
@@ -2906,26 +2890,26 @@
   {
     "identity": "POST /api/sync/curseduca",
     "owner": "src/controllers/sync/operations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/sync/curseduca/batch",
     "owner": "src/controllers/sync/operations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/sync/execute-pipeline",
     "owner": "src/controllers/sync/operations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/sync/history",
@@ -2946,18 +2930,18 @@
   {
     "identity": "POST /api/sync/hotmart",
     "owner": "src/controllers/sync/operations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/sync/hotmart/batch",
     "owner": "src/controllers/sync/operations.controller.ts",
-    "currentFamily": "domain-envelope",
+    "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/tag-monitoring/critical-tags",
@@ -3154,18 +3138,18 @@
   {
     "identity": "POST /api/webhooks/ac/email-opened",
     "owner": "src/controllers/webhooks.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
+    "currentFamily": "webhook-ack",
+    "targetFamily": "webhook-ack",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "POST /api/webhooks/ac/link-clicked",
     "owner": "src/controllers/webhooks.controller.ts",
-    "currentFamily": "domain-envelope",
-    "targetFamily": "success-data",
+    "currentFamily": "webhook-ack",
+    "targetFamily": "webhook-ack",
     "frontConsumer": null,
-    "status": "pending-migration"
+    "status": "complete"
   },
   {
     "identity": "PUT /api/classes/updateStatus",

@@ -533,10 +533,6 @@
   },
   {
     "method": "GET",
-    "path": "/api/guru/debug/token"
-  },
-  {
-    "method": "GET",
     "path": "/api/guru/diagnose"
   },
   {
@@ -1206,10 +1202,6 @@
   {
     "method": "POST",
     "path": "/api/courses/ogi/evaluate"
-  },
-  {
-    "method": "POST",
-    "path": "/api/cron-tags/execute"
   },
   {
     "method": "POST",
