@@ -6,10 +6,6 @@ import type {
   SyncType
 } from '../models/SyncModels/CronJobConfig'
 
-// ──────────────────────────────────────────────────────────────
-// DTOs
-// ──────────────────────────────────────────────────────────────
-
 export interface CronSyncConfigDTO {
   fullSync?: boolean
   includeProgress?: boolean
@@ -31,7 +27,6 @@ export interface CronRetryPolicyDTO {
   exponentialBackoff?: boolean
 }
 
-// ✨ Extra (versão “nova” com tag rules)
 export interface CronTagRuleOptionsDTO {
   enabled?: boolean
   executeAllRules?: boolean
@@ -45,16 +40,11 @@ export interface CreateCronJobDTO {
   syncType: SyncType
   cronExpression: string
   timezone?: string
-
   syncConfig?: CronSyncConfigDTO
-
-  // ✨ opcionais (para jobs que suportam regras de tags)
   tagRules?: mongoose.Types.ObjectId[]
   tagRuleOptions?: CronTagRuleOptionsDTO
-
   notifications?: CronNotificationsDTO
   retryPolicy?: CronRetryPolicyDTO
-
   createdBy: mongoose.Types.ObjectId
 }
 
@@ -64,18 +54,12 @@ export interface UpdateCronJobDTO {
   cronExpression?: string
   timezone?: string
   enabled?: boolean
-
   syncConfig?: Partial<CronSyncConfigDTO>
   tagRules?: mongoose.Types.ObjectId[]
   tagRuleOptions?: Partial<CronTagRuleOptionsDTO>
-
   notifications?: Partial<CronNotificationsDTO>
   retryPolicy?: Partial<CronRetryPolicyDTO>
 }
-
-// ──────────────────────────────────────────────────────────────
-// Execution Result
-// ──────────────────────────────────────────────────────────────
 
 export interface CronExecutionResult {
   success: boolean
@@ -84,14 +68,12 @@ export interface CronExecutionResult {
   errorMessage?: string
 }
 
-// ──────────────────────────────────────────────────────────────
-// Daily Pipeline Types
-// ──────────────────────────────────────────────────────────────
+export type PipelineStepStats = Record<string, unknown>
 
 export interface PipelineStepResult {
   success: boolean
   duration: number
-  stats: any
+  stats: PipelineStepStats
   error?: string
 }
 
@@ -115,9 +97,5 @@ export interface DailyPipelineResult {
     tagsApplied: number
   }
 }
-
-// ──────────────────────────────────────────────────────────────
-// Re-export useful model types
-// ──────────────────────────────────────────────────────────────
 
 export type { ICronJobConfig, ILastRunStats, SyncType }
