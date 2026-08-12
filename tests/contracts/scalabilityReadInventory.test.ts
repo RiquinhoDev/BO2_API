@@ -35,15 +35,22 @@ test('SCALE-03 records exactly nine reviewed code changes and fifteen honest pen
   expect(inventory.scale03.operational.status).toBe('pending')
 })
 
-test('SCALE-03 ratchet rejects removal of a bounded-concurrency invariant', () => {
+test.each([
+  ['fetchMultiple', 'return mapBounded(classes, cls => this.enrich(cls, options))', 'return classes.map(cls => this.enrich(cls, options))'],
+  ['fetchAll', 'return mapBounded(classes, cls => this.enrich(cls, options))', 'return classes.map(cls => this.enrich(cls, options))'],
+])('SCALE-03 ratchet independently rejects removal of %s bounded concurrency', (method, invariant, replacement) => {
   const relative = 'src/services/classes/mongooseClassDetails.reader.ts'
   const overlay = fs.mkdtempSync(path.join(os.tmpdir(), 'scale03-read-overlay-'))
   const target = path.join(overlay, relative)
   fs.mkdirSync(path.dirname(target), { recursive: true })
-  fs.writeFileSync(target, fs.readFileSync(path.join(root, relative), 'utf8').replace(/mapBounded\(classes/g, 'unboundedMap(classes'))
+  const source = fs.readFileSync(path.join(root, relative), 'utf8')
+  const methodStart = source.indexOf(`async ${method}(`)
+  const nextMethod = source.indexOf('\n  }', methodStart) + 4
+  const mutatedMethod = source.slice(methodStart, nextMethod).replace(invariant, replacement)
+  fs.writeFileSync(target, source.slice(0, methodStart) + mutatedMethod + source.slice(nextMethod))
   try {
     expect(() => run({ NODE_ENV: 'test', SCALABILITY_READ_TEST_OVERLAY: overlay, SCALABILITY_READ_ALLOW_TEST_OVERLAY: '1' }))
-      .toThrow(new RegExp('class-details.fetch-multiple: missing mapBounded'))
+      .toThrow(new RegExp(`class-details.${method === 'fetchMultiple' ? 'fetch-multiple' : 'fetch-all'}: missing mapBounded`))
   } finally {
     fs.rmSync(overlay, { recursive: true, force: true })
   }

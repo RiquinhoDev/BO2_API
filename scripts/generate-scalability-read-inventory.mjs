@@ -155,13 +155,13 @@ function validateScale03(scale03) {
   }
   for (const entry of scale03.entries) {
     if (!entry.id || !entry.file || !entry.start || !['complete', 'pending'].includes(entry.status)) fail('SCALE-03 invalid inventory entry')
-    segment(entry)
+    const selected = segment(entry)
     if (entry.status === 'pending') {
       if (!entry.reason || entry.reason.length < 20) fail(`${entry.id}: pending reason missing`)
       continue
     }
-    const text = source(entry.file)
-    for (const token of entry.require ?? []) if (!text.includes(token)) fail(`${entry.id}: missing ${token}`)
+    for (const token of entry.require ?? []) if (!selected.value.includes(token)) fail(`${entry.id}: missing ${token}`)
+    for (const token of entry.globalRequire ?? []) if (!selected.text.includes(token)) fail(`${entry.id}: missing global ${token}`)
   }
   return { complete: complete.length, pending: pending.length }
 }
