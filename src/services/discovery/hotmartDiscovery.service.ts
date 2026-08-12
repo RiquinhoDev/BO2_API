@@ -11,6 +11,18 @@ import {
   CATEGORY_PATTERNS 
 } from '../../types/discovery.types';
 
+interface HotmartDiscoveryProduct {
+  id: string | number;
+  name: string;
+  description?: string;
+  totalSales: number;
+  price: number;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export class HotmartDiscoveryService {
   
   /**
@@ -38,23 +50,23 @@ export class HotmartDiscoveryService {
           const discovered = this.processProduct(product);
           discoveredProducts.push(discovered);
           logger.info(`✅ Processado: ${discovered.detectedName}`);
-        } catch (error: any) {
+        } catch (error: unknown) {
           logger.error(`❌ Erro ao processar ${product.id}:`, error);
         }
       }
 
       return discoveredProducts;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('❌ Erro no discovery:', error);
-      throw new Error(`Discovery falhou: ${error.message}`);
+      throw new Error(`Discovery falhou: ${errorMessage(error)}`);
     }
   }
 
   /**
    * 📞 Buscar produtos da API Hotmart
    */
-  private async getHotmartProducts(): Promise<any[]> {
+  private async getHotmartProducts(): Promise<HotmartDiscoveryProduct[]> {
     // ⚠️ MOCK - Implementar integração real aqui
     // TODO: Integrar com sua API Hotmart existente
     logger.info('📦 Usando dados MOCK - Integre com API Hotmart real');
@@ -94,7 +106,7 @@ export class HotmartDiscoveryService {
   /**
    * 🧠 Processar produto individual
    */
-  private processProduct(apiProduct: any): DiscoveredProduct {
+  private processProduct(apiProduct: HotmartDiscoveryProduct): DiscoveredProduct {
     const category = this.inferCategory(apiProduct.name, apiProduct.description);
     const code = this.generateCode(apiProduct.name);
     const confidence = this.calculateConfidence(apiProduct);
@@ -154,7 +166,7 @@ export class HotmartDiscoveryService {
   /**
    * 🎯 Calcular confiança
    */
-  private calculateConfidence(apiProduct: any): ProductConfidence {
+  private calculateConfidence(apiProduct: HotmartDiscoveryProduct): ProductConfidence {
     let score = 30;
     const reasons: string[] = [];
 
@@ -165,7 +177,7 @@ export class HotmartDiscoveryService {
     }
 
     // Descrição
-    if (apiProduct.description?.length > 20) {
+    if ((apiProduct.description?.length ?? 0) > 20) {
       score += 20;
       reasons.push('Descrição presente');
     }
@@ -193,7 +205,7 @@ export class HotmartDiscoveryService {
   /**
    * 💡 Gerar insights
    */
-  private generateInsights(apiProduct: any, confidence: ProductConfidence): string[] {
+  private generateInsights(apiProduct: HotmartDiscoveryProduct, confidence: ProductConfidence): string[] {
     const insights: string[] = [];
 
     if (confidence.level === 'high') {
