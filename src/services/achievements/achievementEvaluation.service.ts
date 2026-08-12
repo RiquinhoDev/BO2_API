@@ -1,6 +1,12 @@
 import logger from '../../utils/logger'
+import mongoose from 'mongoose'
 import User from '../../models/user'
-import { evaluateAchievements } from './achievementEvaluator'
+import {
+  evaluateAchievements,
+  type AchievementItem,
+  type AchievementStats,
+  type UserData,
+} from './achievementEvaluator'
 
 const DEFAULT_STALE_MS = 12 * 60 * 60 * 1000
 
@@ -14,14 +20,15 @@ interface EvaluateAllOptions extends PersistOptions {
   limit?: number
 }
 
-interface AchievementWithSeen {
-  id: string
+type StoredAchievement = Omit<AchievementItem, 'unlockedAt' | 'seenAt'> & {
   unlockedAt: Date | string | null
   seenAt?: Date | string | null
-  progress?: {
-    current: number
-    target: number
-  }
+}
+
+type AchievementPersistenceUser = Omit<UserData, 'achievements' | 'achievementStats'> & {
+  achievements?: StoredAchievement[]
+  achievementStats?: AchievementStats
+  save?: () => Promise<unknown>
 }
 
 function toDateOrNull(value: unknown): Date | null {
@@ -34,23 +41,26 @@ function toDateOrNull(value: unknown): Date | null {
   return null
 }
 
-export function isAchievementsCacheStale(user: any, staleMs = DEFAULT_STALE_MS): boolean {
-  const achievements = Array.isArray(user?.achievements) ? user.achievements : []
+export function isAchievementsCacheStale(
+  user: Pick<AchievementPersistenceUser, 'achievements' | 'achievementStats'>,
+  staleMs = DEFAULT_STALE_MS,
+): boolean {
+  const achievements = Array.isArray(user.achievements) ? user.achievements : []
   if (achievements.length === 0) return true
 
-  const lastEvaluatedAt = toDateOrNull(user?.achievementStats?.lastEvaluatedAt)
+  const lastEvaluatedAt = toDateOrNull(user.achievementStats?.lastEvaluatedAt)
   if (!lastEvaluatedAt) return true
 
   return Date.now() - lastEvaluatedAt.getTime() > staleMs
 }
 
 function mergeSeenAt(
-  evaluatedAchievements: AchievementWithSeen[],
-  existingAchievements: AchievementWithSeen[] | undefined,
+  evaluatedAchievements: AchievementItem[],
+  existingAchievements: StoredAchievement[] | undefined,
   backfillUnlockedAsSeen: boolean
-): AchievementWithSeen[] {
+): AchievementItem[] {
   const now = new Date()
-  const existingMap = new Map<string, AchievementWithSeen>()
+  const existingMap = new Map<string, StoredAchievement>()
 
   for (const achievement of existingAchievements || []) {
     existingMap.set(achievement.id, achievement)
@@ -81,30 +91,41 @@ function mergeSeenAt(
 }
 
 export async function evaluateAndPersistAchievements(
-  user: any,
+  user: AchievementPersistenceUser,
   options: PersistOptions = {}
-): Promise<{ evaluated: boolean; achievements: AchievementWithSeen[]; stats: any }> {
+): Promise<{ evaluated: boolean; achievements: AchievementItem[]; stats: AchievementStats }> {
   const shouldEvaluate = options.force || isAchievementsCacheStale(user, options.staleMs)
 
-  if (!shouldEvaluate) {
+  if (!shouldEvaluate && user.achievementStats) {
     return {
       evaluated: false,
-      achievements: user.achievements || [],
+      achievements: (user.achievements || []).map((achievement) => ({
+        ...achievement,
+        unlockedAt: toDateOrNull(achievement.unlockedAt),
+        seenAt: toDateOrNull(achievement.seenAt),
+      })),
       stats: user.achievementStats
     }
   }
 
   const existingAchievements = Array.isArray(user.achievements) ? user.achievements : []
-  const result = await evaluateAchievements(typeof user.toObject === 'function' ? user.toObject() : user)
+  const result = await evaluateAchievements({
+    ...user,
+    achievements: existingAchievements.map((achievement) => ({
+      ...achievement,
+      unlockedAt: toDateOrNull(achievement.unlockedAt),
+      seenAt: toDateOrNull(achievement.seenAt),
+    })),
+  })
   const achievements = mergeSeenAt(
-    result.achievements as AchievementWithSeen[],
+    result.achievements,
     existingAchievements,
     options.backfillUnlockedAsSeen !== false
   )
 
   // Actualiza em memória (para quem usa o objecto a seguir, ex: o summary)
-  user.achievements = achievements as any
-  user.achievementStats = result.stats as any
+  user.achievements = achievements
+  user.achievementStats = result.stats
 
   // Persistir SÓ os campos dos achievements via $set targeted.
   // NÃO usar user.save(): validaria o doc inteiro e rebenta em dados sujos
@@ -137,7 +158,7 @@ export async function evaluateAllAchievements(
   errors: number
   durationMs: number
 }> {
-  const query: any = { 'hotmart.purchaseDate': { $exists: true } }
+  const query = { 'hotmart.purchaseDate': { $exists: true } }
   const users = await User.find(query)
     .select('email name hotmart curseduca discord combined inactivation achievements achievementStats')
     .limit(options.limit || 0)
@@ -157,9 +178,12 @@ export async function evaluateAllAchievements(
       })
       processed++
       if (result.evaluated) evaluated++
-    } catch (error: any) {
+    } catch (error: unknown) {
       errors++
-      logger.error(`Erro avaliação conquistas ${user.email}:`, error.message)
+      logger.error(
+        `Erro avaliação conquistas ${user.email}:`,
+        error instanceof Error ? error.message : String(error),
+      )
     }
   }
 
