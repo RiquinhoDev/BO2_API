@@ -1,3 +1,4 @@
+import logger from '../../../../utils/logger'
 import axios from 'axios'
 import { HotmartModule, HotmartModuleProgress } from '../../../../types/lesson.types'
 import { requestWithRetry } from './transport'
@@ -26,19 +27,19 @@ export const fetchCourseModules = async (
     // Ordenar por sequência
     modules.sort((a, b) => a.sequence - b.sequence)
 
-    console.log(`✅ [HotmartModules] ${modules.length} módulos encontrados para ${subdomain}`)
+    logger.info(`✅ [HotmartModules] ${modules.length} módulos encontrados para ${subdomain}`)
     return modules
   } catch (error: any) {
     const status = error.response?.status
     const errorMsg = error.response?.data?.message || error.message
 
     if (status === 401) {
-      console.warn(`⚠️ [HotmartModules] Endpoint /modules requer permissões adicionais (401)`)
-      console.warn(`⚠️ [HotmartModules] Sync continuará SEM dados de módulos`)
+      logger.warn(`⚠️ [HotmartModules] Endpoint /modules requer permissões adicionais (401)`)
+      logger.warn(`⚠️ [HotmartModules] Sync continuará SEM dados de módulos`)
     } else if (status === 429) {
-      console.warn(`⚠️ [HotmartModules] Rate limit atingido (429) - tente novamente mais tarde`)
+      logger.warn(`⚠️ [HotmartModules] Rate limit atingido (429) - tente novamente mais tarde`)
     } else {
-      console.error(`❌ [HotmartModules] Erro ao buscar módulos de ${subdomain}:`, errorMsg)
+      logger.error(`❌ [HotmartModules] Erro ao buscar módulos de ${subdomain}:`, errorMsg)
     }
 
     return []

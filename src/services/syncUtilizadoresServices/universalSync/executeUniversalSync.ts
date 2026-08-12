@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 universalSync/executeUniversalSync.ts
 // The universal-sync orchestration: create the SyncReport + SyncHistory, run
@@ -22,10 +23,10 @@ import { debugLog } from './debugLog'
 export const executeUniversalSync = async (
   config: UniversalSyncConfig
 ): Promise<UniversalSyncResult> => {
-  console.log('🚀 [UniversalSync] Iniciando sync:', config.jobName)
-  console.log(`   📊 Tipo: ${config.syncType}`)
-  console.log(`   🎯 Trigger: ${config.triggeredBy}`)
-  console.log(`   📦 Batch Size: ${config.batchSize}`)
+  logger.info('🚀 [UniversalSync] Iniciando sync:', config.jobName)
+  logger.info(`   📊 Tipo: ${config.syncType}`)
+  logger.info(`   🎯 Trigger: ${config.triggeredBy}`)
+  logger.info(`   📦 Batch Size: ${config.batchSize}`)
 
   const startTime = Date.now()
 
@@ -73,7 +74,7 @@ export const executeUniversalSync = async (
     rid = getDocId(report, 'SyncReport')
     reportId = rid
 
-    console.log(`✅ [UniversalSync] Report criado: ${rid}`)
+    logger.info(`✅ [UniversalSync] Report criado: ${rid}`)
 
     await syncReportsService.addReportLog(rid, 'info', `Iniciando sincronização ${config.syncType}`, {
       fullSync: config.fullSync,
@@ -108,7 +109,7 @@ export const executeUniversalSync = async (
     syncHistoryId = hid
     const snapshotContext = createUniversalSnapshotContext(config.syncType, hid)
 
-    console.log(`✅ [UniversalSync] SyncHistory criado: ${hid}`)
+    logger.info(`✅ [UniversalSync] SyncHistory criado: ${hid}`)
 
     // ═══════════════════════════════════════════════════════════
     // STEP 3: PROCESSAR DADOS
@@ -124,7 +125,7 @@ export const executeUniversalSync = async (
       const batchNumber = Math.floor(i / config.batchSize) + 1
       const totalBatches = Math.ceil(sourceArray.length / config.batchSize)
 
-      console.log(`📦 [UniversalSync] Processando batch ${batchNumber}/${totalBatches} (${batch.length} itens)`)
+      logger.info(`📦 [UniversalSync] Processando batch ${batchNumber}/${totalBatches} (${batch.length} itens)`)
 
       await syncReportsService.addReportLog(
         rid,
@@ -181,7 +182,7 @@ export const executeUniversalSync = async (
 
           if (config.onError) config.onError(syncError)
 
-          console.error('❌ [UniversalSync] Erro ao processar item:', syncError.message)
+          logger.error('❌ [UniversalSync] Erro ao processar item:', syncError.message)
         }
       }
 
@@ -227,7 +228,7 @@ export const executeUniversalSync = async (
       'metrics.avgTimePerUser': stats.total > 0 ? (durationSeconds * 1000) / stats.total : 0
     })
 
-    console.log(`✅ [UniversalSync] SyncHistory finalizado: ${syncHistoryId}`)
+    logger.info(`✅ [UniversalSync] SyncHistory finalizado: ${syncHistoryId}`)
 
     // ═══════════════════════════════════════════════════════════
     // STEP 7: CALCULAR DURAÇÃO E RETORNAR
@@ -235,9 +236,9 @@ export const executeUniversalSync = async (
 
     const duration = Math.floor((Date.now() - startTime) / 1000)
 
-    console.log('✅ [UniversalSync] Sync concluída!')
-    console.log(`   ⏱️ Duração: ${duration}s`)
-    console.log(`   📊 Stats: ${stats.inserted} novos, ${stats.updated} atualizados, ${stats.errors} erros`)
+    logger.info('✅ [UniversalSync] Sync concluída!')
+    logger.info(`   ⏱️ Duração: ${duration}s`)
+    logger.info(`   📊 Stats: ${stats.inserted} novos, ${stats.updated} atualizados, ${stats.errors} erros`)
 
     return {
       success: finalStatus !== 'failed',
@@ -253,7 +254,7 @@ export const executeUniversalSync = async (
     const message = typeof e.message === 'string' ? e.message : 'Erro desconhecido'
     const stack = typeof e.stack === 'string' ? e.stack : undefined
 
-    console.error('❌ [UniversalSync] Erro fatal:', message)
+    logger.error('❌ [UniversalSync] Erro fatal:', message)
 
     if (reportId) {
       await syncReportsService.addReportError(

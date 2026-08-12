@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 syncReports.service.ts - VERSÃO CORRIGIDA
 // ════════════════════════════════════════════════════════════
@@ -47,7 +48,7 @@ export const createSnapshot = async (): Promise<ISyncReportSnapshot> => {
       }
     }
   } catch (error: any) {
-    console.error('❌ Erro ao criar snapshot:', error)
+    logger.error('❌ Erro ao criar snapshot:', error)
     
     // ✅ MELHOR: Retornar com flag de erro
     return {
@@ -77,7 +78,7 @@ export interface CreateReportOptions {
 export const createSyncReport = async (
   options: CreateReportOptions
 ): Promise<ISyncReport> => {
-  console.log('📝 [SyncReports] Criando novo report:', options.jobName)
+  logger.info('📝 [SyncReports] Criando novo report:', options.jobName)
   
   try {
     // Criar snapshot inicial
@@ -89,7 +90,7 @@ export const createSyncReport = async (
       if (Types.ObjectId.isValid(options.jobId)) {
         jobIdObj = new Types.ObjectId(options.jobId)
       } else {
-        console.warn(`⚠️ [SyncReports] jobId inválido (ignorado): ${options.jobId}`)
+        logger.warn(`⚠️ [SyncReports] jobId inválido (ignorado): ${options.jobId}`)
       }
     }
     
@@ -99,7 +100,7 @@ export const createSyncReport = async (
       if (Types.ObjectId.isValid(options.triggeredByUser)) {
         triggeredByUserObj = new Types.ObjectId(options.triggeredByUser)
       } else {
-        console.warn(`⚠️ [SyncReports] triggeredByUser inválido (ignorado): ${options.triggeredByUser}`)
+        logger.warn(`⚠️ [SyncReports] triggeredByUser inválido (ignorado): ${options.triggeredByUser}`)
       }
     }
     
@@ -134,11 +135,11 @@ export const createSyncReport = async (
       }
     })
     
-    console.log(`✅ [SyncReports] Report criado: ${report._id}`)
+    logger.info(`✅ [SyncReports] Report criado: ${report._id}`)
     return report
     
   } catch (error: any) {
-    console.error('❌ [SyncReports] Erro ao criar report:', error)
+    logger.error('❌ [SyncReports] Erro ao criar report:', error)
     throw new Error(`Falha ao criar report: ${error.message}`)
   }
 }
@@ -154,7 +155,7 @@ export const updateReportStats = async (
   try {
     const report = await SyncReport.findById(reportId)
     if (!report) {
-      console.error(`❌ [SyncReports] Report não encontrado: ${reportId}`)
+      logger.error(`❌ [SyncReports] Report não encontrado: ${reportId}`)
       return null
     }
     
@@ -165,7 +166,7 @@ export const updateReportStats = async (
     return report
     
   } catch (error: any) {
-    console.error('❌ [SyncReports] Erro ao atualizar stats:', error)
+    logger.error('❌ [SyncReports] Erro ao atualizar stats:', error)
     return null
   }
 }
@@ -178,12 +179,12 @@ export const completeReport = async (
   reportId: string,
   status: 'success' | 'failed' | 'partial'
 ): Promise<ISyncReport | null> => {
-  console.log(`🏁 [SyncReports] Finalizando report ${reportId} com status: ${status}`)
+  logger.info(`🏁 [SyncReports] Finalizando report ${reportId} com status: ${status}`)
   
   try {
     const report = await SyncReport.findById(reportId)
     if (!report) {
-      console.error(`❌ [SyncReports] Report não encontrado: ${reportId}`)
+      logger.error(`❌ [SyncReports] Report não encontrado: ${reportId}`)
       return null
     }
     
@@ -200,15 +201,15 @@ export const completeReport = async (
     // Marcar como completo (última operação)
     await report.markAsComplete(status)
     
-    console.log(`✅ [SyncReports] Report finalizado: ${reportId}`)
-    console.log(`   📊 Stats: ${report.stats.total} processados, ${report.stats.errors} erros`)
-    console.log(`   ⏱️ Duração: ${report.duration}s`)
-    console.log(`   ✅ Success rate: ${report.getSuccessRate()}%`)
+    logger.info(`✅ [SyncReports] Report finalizado: ${reportId}`)
+    logger.info(`   📊 Stats: ${report.stats.total} processados, ${report.stats.errors} erros`)
+    logger.info(`   ⏱️ Duração: ${report.duration}s`)
+    logger.info(`   ✅ Success rate: ${report.getSuccessRate()}%`)
     
     return report
     
   } catch (error: any) {
-    console.error('❌ [SyncReports] Erro ao finalizar report:', error)
+    logger.error('❌ [SyncReports] Erro ao finalizar report:', error)
     return null
   }
 }
@@ -227,7 +228,7 @@ export const addReportError = async (
   try {
     const report = await SyncReport.findById(reportId)
     if (!report) {
-      console.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar erro: ${reportId}`)
+      logger.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar erro: ${reportId}`)
       return
     }
     
@@ -239,7 +240,7 @@ export const addReportError = async (
     })
     
   } catch (error: any) {
-    console.error('❌ [SyncReports] Erro ao adicionar erro ao report:', error)
+    logger.error('❌ [SyncReports] Erro ao adicionar erro ao report:', error)
   }
 }
 
@@ -256,7 +257,7 @@ export const addReportWarning = async (
   try {
     const report = await SyncReport.findById(reportId)
     if (!report) {
-      console.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar warning: ${reportId}`)
+      logger.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar warning: ${reportId}`)
       return
     }
     
@@ -267,7 +268,7 @@ export const addReportWarning = async (
     })
     
   } catch (error: any) {
-    console.error('❌ [SyncReports] Erro ao adicionar warning ao report:', error)
+    logger.error('❌ [SyncReports] Erro ao adicionar warning ao report:', error)
   }
 }
 
@@ -284,14 +285,14 @@ export const addReportLog = async (
   try {
     const report = await SyncReport.findById(reportId)
     if (!report) {
-      console.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar log: ${reportId}`)
+      logger.warn(`⚠️ [SyncReports] Report não encontrado ao adicionar log: ${reportId}`)
       return
     }
     
     await report.addLog(level, message, meta)
     
   } catch (error: any) {
-    console.error('❌ [SyncReports] Erro ao adicionar log ao report:', error)
+    logger.error('❌ [SyncReports] Erro ao adicionar log ao report:', error)
   }
 }
 
@@ -316,7 +317,7 @@ export const getReports = async (
     return reports
     
   } catch (error: any) {
-    console.error('❌ [SyncReports] Erro ao buscar reports:', error)
+    logger.error('❌ [SyncReports] Erro ao buscar reports:', error)
     return []
   }
 }
@@ -337,7 +338,7 @@ export const getReportById = async (
     return report
     
   } catch (error: any) {
-    console.error('❌ [SyncReports] Erro ao buscar report:', error)
+    logger.error('❌ [SyncReports] Erro ao buscar report:', error)
     return null
   }
 }
@@ -355,7 +356,7 @@ export const getReportsByJob = async (
     return reports
     
   } catch (error: any) {
-    console.error('❌ [SyncReports] Erro ao buscar reports do job:', error)
+    logger.error('❌ [SyncReports] Erro ao buscar reports do job:', error)
     return []
   }
 }
@@ -370,7 +371,7 @@ export const getAggregatedStats = async (days: number = 30) => {
     return stats
     
   } catch (error: any) {
-    console.error('❌ [SyncReports] Erro ao buscar stats agregados:', error)
+    logger.error('❌ [SyncReports] Erro ao buscar stats agregados:', error)
     return {
       totalSyncs: 0,
       successfulSyncs: 0,

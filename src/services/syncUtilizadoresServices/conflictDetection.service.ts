@@ -1,3 +1,4 @@
+import logger from '../../utils/logger'
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/conflictDetection.service.ts
 // Service: Conflict Detection
@@ -113,7 +114,7 @@ export class ConflictDetectionService {
     }).lean()
 
     if (existingUsers.length > 1) {
-      console.log(`⚠️ Email duplicado detectado: ${dto.email}`)
+      logger.info(`⚠️ Email duplicado detectado: ${dto.email}`)
 
       return await SyncConflict.create({
         email: dto.email,
@@ -145,7 +146,7 @@ export class ConflictDetectionService {
     const newId = dto.newUserData[platformIdField]
 
     if (existingId && newId && existingId !== newId) {
-      console.log(`⚠️ IDs diferentes detectados: ${existingId} vs ${newId}`)
+      logger.info(`⚠️ IDs diferentes detectados: ${existingId} vs ${newId}`)
 
       return await SyncConflict.create({
         email: dto.email,
@@ -179,7 +180,7 @@ export class ConflictDetectionService {
     const missingFields = requiredFields.filter(field => !dto.newUserData[field])
 
     if (missingFields.length > 0) {
-      console.log(`⚠️ Dados obrigatórios em falta: ${missingFields.join(', ')}`)
+      logger.info(`⚠️ Dados obrigatórios em falta: ${missingFields.join(', ')}`)
 
       return await SyncConflict.create({
         email: dto.email,
@@ -212,7 +213,7 @@ export class ConflictDetectionService {
     // Validar formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(dto.email)) {
-      console.log(`⚠️ Email inválido: ${dto.email}`)
+      logger.info(`⚠️ Email inválido: ${dto.email}`)
 
       return await SyncConflict.create({
         email: dto.email,
@@ -255,7 +256,7 @@ export class ConflictDetectionService {
     if (otherPlatforms.length > 0) {
       // Isto não é necessariamente um conflito (multi-plataforma é normal)
       // Mas pode ser útil registrar para auditoria
-      console.log(`ℹ️ User multi-plataforma: ${dto.email}`)
+      logger.info(`ℹ️ User multi-plataforma: ${dto.email}`)
     }
 
     return null
@@ -268,7 +269,7 @@ export class ConflictDetectionService {
     const newClassId = dto.newUserData.classId
 
     if (existingClassId && newClassId && existingClassId !== newClassId) {
-      console.log(`⚠️ Conflito de turmas: ${existingClassId} vs ${newClassId}`)
+      logger.info(`⚠️ Conflito de turmas: ${existingClassId} vs ${newClassId}`)
 
       return await SyncConflict.create({
         email: dto.email,
@@ -308,7 +309,7 @@ export class ConflictDetectionService {
     failed: number
     skipped: number
   }> {
-    console.log(`🤖 Auto-resolvendo ${conflictIds.length} conflitos...`)
+    logger.info(`🤖 Auto-resolvendo ${conflictIds.length} conflitos...`)
 
     let resolved = 0
     let failed = 0
@@ -324,7 +325,7 @@ export class ConflictDetectionService {
         }
 
         if (!canAutoResolveConflict(conflict)) {
-          console.log(`⏭️ Conflito ${conflictId} não pode ser auto-resolvido`)
+          logger.info(`⏭️ Conflito ${conflictId} não pode ser auto-resolvido`)
           skipped++
           continue
         }
@@ -339,15 +340,15 @@ export class ConflictDetectionService {
         await conflict.autoResolve(rule.action, rule.reason)
         resolved++
         
-        console.log(`✅ Conflito ${conflictId} auto-resolvido: ${rule.action}`)
+        logger.info(`✅ Conflito ${conflictId} auto-resolvido: ${rule.action}`)
 
       } catch (error: any) {
-        console.error(`❌ Erro ao auto-resolver conflito ${conflictId}:`, error.message)
+        logger.error(`❌ Erro ao auto-resolver conflito ${conflictId}:`, error.message)
         failed++
       }
     }
 
-    console.log(`✅ Auto-resolução completa: ${resolved} resolvidos, ${skipped} skipped, ${failed} falhas`)
+    logger.info(`✅ Auto-resolução completa: ${resolved} resolvidos, ${skipped} skipped, ${failed} falhas`)
 
     return { resolved, failed, skipped }
   }
@@ -357,7 +358,7 @@ export class ConflictDetectionService {
   // ═══════════════════════════════════════════════════════════
   
   async resolveConflict(dto: ResolveConflictDTO): Promise<ISyncConflict> {
-    console.log(`✅ Resolvendo conflito: ${dto.conflictId}`)
+    logger.info(`✅ Resolvendo conflito: ${dto.conflictId}`)
 
     const conflict = await SyncConflict.findById(dto.conflictId)
     
@@ -376,7 +377,7 @@ export class ConflictDetectionService {
       dto.appliedChanges
     )
 
-    console.log(`✅ Conflito resolvido: ${dto.action}`)
+    logger.info(`✅ Conflito resolvido: ${dto.action}`)
 
     return conflict
   }
@@ -387,7 +388,7 @@ export class ConflictDetectionService {
     adminId: mongoose.Types.ObjectId,
     notes?: string
   ): Promise<number> {
-    console.log(`✅ Resolvendo ${conflictIds.length} conflitos em bulk...`)
+    logger.info(`✅ Resolvendo ${conflictIds.length} conflitos em bulk...`)
 
     const resolved = await SyncConflict.bulkResolve(
       conflictIds,
@@ -396,7 +397,7 @@ export class ConflictDetectionService {
       notes
     )
 
-    console.log(`✅ ${resolved} conflitos resolvidos`)
+    logger.info(`✅ ${resolved} conflitos resolvidos`)
 
     return resolved
   }
@@ -406,7 +407,7 @@ export class ConflictDetectionService {
     adminId: mongoose.Types.ObjectId,
     reason?: string
   ): Promise<ISyncConflict> {
-    console.log(`🙈 Ignorando conflito: ${conflictId}`)
+    logger.info(`🙈 Ignorando conflito: ${conflictId}`)
 
     const conflict = await SyncConflict.findById(conflictId)
     
@@ -416,7 +417,7 @@ export class ConflictDetectionService {
 
     await conflict.ignore(adminId, reason)
 
-    console.log(`✅ Conflito ignorado`)
+    logger.info(`✅ Conflito ignorado`)
 
     return conflict
   }

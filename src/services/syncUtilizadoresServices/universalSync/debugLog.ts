@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import { getRuntimeConfig } from '../../../config/runtimeConfig'
 
 /**
@@ -6,6 +7,7 @@ import { getRuntimeConfig } from '../../../config/runtimeConfig'
  */
 export function debugLog(...args: unknown[]): void {
   if (getRuntimeConfig().observability.logLevel === 'debug') {
-    console.log(...args)
+    const [message, ...metadata] = args
+    logger.info(typeof message === 'string' ? message : String(message), ...metadata)
   }
 }

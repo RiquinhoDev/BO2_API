@@ -1,3 +1,4 @@
+import logger from '../../../utils/logger'
 import axios from 'axios'
 import { UniversalSourceItem } from '../../../types/universalSync.types'
 import { CursEducaMemberDetails } from '../../../types/curseduca.types'
@@ -14,7 +15,7 @@ import {
 export const fetchSingleUserData = async (
   curseducaUserId: number
 ): Promise<UniversalSourceItem[]> => {
-  console.log(`ðŸ” [CurseducaAdapter] Buscando dados do user ${curseducaUserId}...`)
+  logger.info(`ðŸ” [CurseducaAdapter] Buscando dados do user ${curseducaUserId}...`)
 
   try {
     const headers = getRequestHeaders()
@@ -23,21 +24,21 @@ export const fetchSingleUserData = async (
     // STEP 1: GET /members/{id} - Dados completos do user
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    console.log(`   ðŸ“¡ Buscando dados bÃ¡sicos...`)
+    logger.info(`   ðŸ“¡ Buscando dados bÃ¡sicos...`)
     const memberResponse = await axios.get<CursEducaMemberDetails>(
       `${curseducaApiUrl()}/members/${curseducaUserId}`,
       { headers, timeout: 15000 }
     )
 
     const memberData = memberResponse.data
-    console.log(`   âœ… User: ${memberData.email}`)
-    console.log(`   ðŸ“Š Groups: ${memberData.groups.length}`)
+    logger.info(`   âœ… User: ${memberData.email}`)
+    logger.info(`   ðŸ“Š Groups: ${memberData.groups.length}`)
 
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // STEP 2: GET /api/reports/enrollments?memberId={id}
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    console.log(`   ðŸ“¡ Buscando enrollments...`)
+    logger.info(`   ðŸ“¡ Buscando enrollments...`)
 
     let enrollments: CurseducaEnrollment[] = []
 
@@ -52,12 +53,12 @@ export const fetchSingleUserData = async (
       )
 
       enrollments = collectionItems(enrollmentsResponse.data)
-      console.log(`   âœ… Enrollments: ${enrollments.length}`)
+      logger.info(`   âœ… Enrollments: ${enrollments.length}`)
 
     } catch (enrollmentError: unknown) {
       if (errorStatus(enrollmentError) === 404) {
-        console.log(`   âš ï¸  Nenhum enrollment encontrado (404)`)
-        console.log(`   â„¹ï¸  Usando apenas dados dos groups (user pode ser admin)`)
+        logger.info(`   âš ï¸  Nenhum enrollment encontrado (404)`)
+        logger.info(`   â„¹ï¸  Usando apenas dados dos groups (user pode ser admin)`)
         enrollments = []
       } else {
         throw enrollmentError
@@ -79,7 +80,7 @@ export const fetchSingleUserData = async (
         )
 
         if (!group) {
-          console.warn(`   âš ï¸ Grupo ${enrollment.content?.id} nÃ£o encontrado para enrollment`)
+          logger.warn(`   âš ï¸ Grupo ${enrollment.content?.id} nÃ£o encontrado para enrollment`)
           continue
         }
 
@@ -119,7 +120,7 @@ export const fetchSingleUserData = async (
 
     } else {
       // CASO B: Sem enrollments - criar items baseados apenas nos groups
-      console.log(`   ðŸ“¦ Criando items baseados em ${memberData.groups.length} group(s)...`)
+      logger.info(`   ðŸ“¦ Criando items baseados em ${memberData.groups.length} group(s)...`)
 
       for (const groupData of memberData.groups) {
         const subscriptionType = detectSubscriptionType(groupData.group.name)
@@ -157,15 +158,15 @@ export const fetchSingleUserData = async (
       }
     }
 
-    console.log(`âœ… [CurseducaAdapter] ${results.length} items criados para user ${curseducaUserId}`)
+    logger.info(`âœ… [CurseducaAdapter] ${results.length} items criados para user ${curseducaUserId}`)
 
     return results
 
   } catch (error: unknown) {
-    console.error(`âŒ [CurseducaAdapter] Erro ao buscar user ${curseducaUserId}:`, errorMessage(error))
+    logger.error(`âŒ [CurseducaAdapter] Erro ao buscar user ${curseducaUserId}:`, errorMessage(error))
 
     if (errorStatus(error) === 404) {
-      console.error(`   User ${curseducaUserId} nÃ£o encontrado no CursEduca`)
+      logger.error(`   User ${curseducaUserId} nÃ£o encontrado no CursEduca`)
       return []
     }
 
@@ -180,9 +181,9 @@ export const fetchSingleUserData = async (
 export const fetchProgressForExistingUsers = async (
   userIds: string[]
 ): Promise<Map<string, { estimatedProgress: number }>> => {
-  console.log(`ðŸ“Š [CurseducaAdapter] Progresso para ${userIds.length} utilizadores...`)
-  console.warn('âš ï¸ CursEduca nÃ£o tem endpoint dedicado de progresso')
-  console.info('   ðŸ’¡ Use fetchCurseducaDataForSync completo ou fetchSingleUserData')
+  logger.info(`ðŸ“Š [CurseducaAdapter] Progresso para ${userIds.length} utilizadores...`)
+  logger.warn('âš ï¸ CursEduca nÃ£o tem endpoint dedicado de progresso')
+  logger.info('   ðŸ’¡ Use fetchCurseducaDataForSync completo ou fetchSingleUserData')
   return new Map()
 }
 
