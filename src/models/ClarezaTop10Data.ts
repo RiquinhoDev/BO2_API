@@ -1,11 +1,12 @@
 import mongoose, { Schema, type HydratedDocument } from 'mongoose'
+import type { ClarezaTop10Payload } from '../types/clareza.types'
 
 export interface IClarezaTop10Data {
   fetchedAt: Date
   stockCount: number
   errors: number
   // Payload completo servido ao HTML: { updated, source, stocks: { TICKER: {...} } }
-  payload: any
+  payload: ClarezaTop10Payload
 }
 
 export type ClarezaTop10DataDocument =
