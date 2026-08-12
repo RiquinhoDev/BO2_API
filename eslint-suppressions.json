@@ -5,24 +5,13 @@
     }
   },
   "src/controllers/dashboardQuick.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
   },
   "src/controllers/populateHistory.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
-    }
-  },
-  "src/controllers/studentHistory.controller.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
     }
   },
   "src/controllers/sync/operations.controller.ts": {
