@@ -806,7 +806,7 @@ Progresso controllers:
 ### Progresso estimado por pilar (2026-08-12)
 
 Esta tabela dá o mesmo peso aos oito pilares e é uma **estimativa de engenharia**, não uma contagem de
-checkboxes nem prova de prontidão operacional. Esta reconciliação macro incorpora SEC-10/ARCH-03 e SCALE-01/SCALE-02 sem declarar fecho operacional.
+checkboxes nem prova de prontidão operacional. Esta reconciliação macro incorpora SEC-10/ARCH-03 e SCALE-01/SCALE-02/SCALE-03 sem declarar fecho operacional.
 
 | Pilar | Antes da missão | Atual | Delta | Base da estimativa |
 | --- | ---: | ---: | ---: | --- |
@@ -815,12 +815,12 @@ checkboxes nem prova de prontidão operacional. Esta reconciliação macro incor
 | 3. Pastas & higiene | 100% | 100% | 0 pp | DOC-02 e artefactos fechados |
 | 4. Middleware & funções | 100% | 100% | 0 pp | SEC-10 mantém 0 respostas 500 locais e 0 detalhes técnicos públicos |
 | 5. Segurança & rotas | 70% | 70% | 0 pp | default-deny/JWT/CORS fechados; matriz de papéis e OPS-02 abertos |
-| 6. Escalabilidade | 61% | 61% | 0 pp | SCALE-01 mantém 36/40; SCALE-02 A mantém 11/11 decisões completas; OPS-02 e 4 decisões continuam abertos |
+| 6. Escalabilidade | 61% | 66% | +5 pp | SCALE-03 credita só 9/24 mudanças revistas; 15 decisões de código e o gate operacional real continuam pendentes |
 | 7. Contrato de resposta | 84,3% | 100% | +15,7 pp | 409/409 identidades têm contrato terminal revisto; 0 pendentes |
 | 8. Toolchain & qualidade | 75% | 75% | 0 pp | TS/tests/package manager fechados; ESLint debt e validação operacional abertos |
-| **Total, média simples** | **86,3%** | **88,3%** | **+2,0 pp** | `(100 + 100 + 100 + 100 + 70 + 61 + 100 + 75) / 8 = 88,25%` |
+| **Total, média simples** | **86,3%** | **88,9%** | **+2,6 pp** | `(100 + 100 + 100 + 100 + 70 + 66 + 100 + 75) / 8 = 88,875%` |
 
-Contratos fecha em **100%** porque as **409/409** identidades montadas têm uma decisão terminal revista e o inventário mantém **0 pendentes**. A média simples final é `(100 + 100 + 100 + 100 + 70 + 61 + 100 + 75) / 8 = 88,25%`, apresentada como **88,3%**. O ponto de partida desta ronda era **86,3%**; o avanço é **+2,0 pp** após arredondamento.
+Contratos fecha em **100%** porque as **409/409** identidades montadas têm uma decisão terminal revista e o inventário mantém **0 pendentes**. A média simples final é `(100 + 100 + 100 + 100 + 70 + 66 + 100 + 75) / 8 = 88,875%`, apresentada como **88,9%**. O ponto de partida desta ronda era **86,3%**; o avanço é **+2,6 pp** após arredondamento.
 
 Na contagem mecânica, as duas missões reconciliam `102/112 -> 105/112` (`91,1% -> 93,8%`). SEC-10 e o
 boundary de responsabilidade ARCH-02 são os deltas de código; SCALE-01 e os 10 débitos removidos em SCALE-02 A melhoram a estimativa sem fechar a caixa ampla de paginação restante. Outra caixa corrigiu estado ARCH-02 já provado no ledger abaixo. Nenhuma das
@@ -1184,8 +1184,8 @@ duas métricas inclui deploy, observação, equivalência de payloads ou prontid
 - [ ] **Paginação restante:** resolver os quatro itens SCALE-01 pendentes sem truncagem semântica e continuar a migração das restantes listagens HTTP/scans fora deste lote. Superfícies offset inadequadas exigem cursor; scans operacionais exigem batch completo; exceções full-set/configuração exigem decisão explícita e machine-checked.
   - **SCALE-01 (2026-08-11, code-complete parcial):** inventário canónico `40 = 36 complete + 4 pending`. Os 36 reads usam cap `<=200`, desempate estável por `_id`, agregação escalar, catálogo finito justificado ou scan completo em batches. Permanecem pendentes `products.users-full-set`, dois heatmaps cuja truncagem enviesaria métricas e `course-lessons.grouped`; exigem desenho de contrato/algoritmo, não um cap cego. `scalability:reads:check` fixa ponteiros, limites, allowlists e o baseline de sites Mongoose; a prova determinística de scan completo preservou 10 000/10 000 registos com pedidos `<=200`. Isto não fecha OPS-02 nem prova carga/latência operacional.
   - **SCALE-02 A (2026-08-11, code-complete; operacional aberto):** 11 = 11 complete + 0 pending, discriminados em 10 changed + 1 already-compliant. Comparação de produtos passou de quatro acessos para uma agregação; retenção de cohorts deixou de crescer por mês/milestone; stats de engagement incorporam contagens de plataforma; data-source stats usam um único facet; os restantes agregados completos preservam a população sem truncagem e explicitam allowDiskUse. O ratchet fixa ponteiros, tokens obrigatórios/proibidos e a distinção changed/no-op. Não prova índices implantados, explain, cardinalidade/latência real, cache distribuída nem OPS-02.
+  - **SCALE-03 B+C (2026-08-12, parcial; operacional aberto):** inventário canónico de código `24 = 9 complete changed + 15 pending`. O crédito factual cobre duas decisões de product-sales, `fetchMultiple`/`fetchAll` de class-details, preview dry-run de curso, singleflight process-local de analytics e engagement, e os scans raw/peer do Raio-X. Permanecem pendentes writers com ordem/compensação/falha parcial, scans de stats/warmup e fan-outs ainda não encerrados. O gate operacional é separado e permanece `pending`: houve apenas smoke sintético; nenhum target Mongo explicitamente autorizado, não-produtivo e read-only foi carregado para `executionStats` ou probes 1/10/50. Por isso Escalabilidade avança apenas **61% -> 66%**, não 100%.
 - [ ] Idempotência e caps como **política transversal**, não caso-a-caso (OPS-02).
-
 ### 7. Contrato de resposta
 - [x] Envelope **único** adaptado feature a feature com migrações atómicas Front + Back (ARCH-03); não permanecem versões paralelas, aliases legacy, debug público ou respostas 501.
   - **ARCH-03 fechado no código (2026-08-12):** **409/409** rotas montadas têm decisão terminal revista e o inventário mantém **409 complete / 0 pending**.
