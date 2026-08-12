@@ -13,7 +13,7 @@ const FRONT_EXTRA_SOURCE = process.env.RESPONSE_CONTRACT_FRONT_EXTRA_SOURCE
 const LEGACY_SOURCE_OVERLAY_ROOT = process.env.RESPONSE_CONTRACT_SOURCE_OVERLAY
 const TEST_SOURCE_OVERLAY_ROOT = process.env.RESPONSE_CONTRACT_TEST_SOURCE_OVERLAY
 const ALLOW_TEST_SOURCE_OVERLAY = process.env.RESPONSE_CONTRACT_ALLOW_TEST_OVERLAY
-const TERMINAL_FAMILIES = new Set(['success-data', 'public-document', 'redirect', 'stream-or-file', 'no-content'])
+const TERMINAL_FAMILIES = new Set(['success-data', 'public-document', 'webhook-ack', 'redirect', 'stream-or-file', 'no-content'])
 const CURRENT_FAMILIES = new Set([...TERMINAL_FAMILIES, 'domain-envelope', 'raw-json', '501-only'])
 const PUBLIC_DOCUMENT_IDENTITIES = new Set([
   'GET /api/clareza/carteira-search',
@@ -29,6 +29,13 @@ const PUBLIC_DOCUMENT_IDENTITIES = new Set([
   'GET /api/clareza/reit/:ticker',
   'GET /api/clareza/stock/:ticker',
   'GET /api/clareza/top10',
+  'GET /api/health',
+  'GET /api/info',
+])
+const WEBHOOK_ACK_IDENTITIES = new Set([
+  'POST /api/guru/webhook',
+  'POST /api/webhooks/ac/email-opened',
+  'POST /api/webhooks/ac/link-clicked',
 ])
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete'])
 const TERMINAL_METHODS = new Set(['json', 'send', 'sendStatus', 'redirect', 'download', 'sendFile', 'writeHead', 'write', 'end'])
@@ -1018,6 +1025,12 @@ function discoverDecisions(routes) {
           throw new Error(`${identity(route)} reviewed public document no longer resolves to a public JSON document`)
         }
         discovered.family = 'public-document'
+      }
+      if (WEBHOOK_ACK_IDENTITIES.has(identity(route))) {
+        if (!['domain-envelope', 'raw-json'].includes(discovered.family)) {
+          throw new Error(`${identity(route)} reviewed webhook ACK no longer resolves to provider JSON`)
+        }
+        discovered.family = 'webhook-ack'
       }
       decisions.push(discovered)
     } catch (error) {

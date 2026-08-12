@@ -26,8 +26,8 @@ describe('response migration inventory', () => {
     expect(identities).toEqual(routeCatalog.map(routeId).sort())
     for (const entry of inventory) {
       expect(entry.owner).toMatch(/^src\/.+\.ts$/)
-      expect(entry.currentFamily).toMatch(/^(?:success-data|public-document|redirect|stream-or-file|no-content|domain-envelope|raw-json|501-only)$/)
-      expect(entry.targetFamily).toMatch(/^(?:success-data|public-document|redirect|stream-or-file|no-content)$/)
+      expect(entry.currentFamily).toMatch(/^(?:success-data|public-document|webhook-ack|redirect|stream-or-file|no-content|domain-envelope|raw-json|501-only)$/)
+      expect(entry.targetFamily).toMatch(/^(?:success-data|public-document|webhook-ack|redirect|stream-or-file|no-content)$/)
       expect(entry.frontConsumer === null || /^src\/.+\.(?:ts|tsx)$/.test(entry.frontConsumer)).toBe(true)
       expect(entry.status).toMatch(/^(?:complete|pending-migration)$/)
     }
