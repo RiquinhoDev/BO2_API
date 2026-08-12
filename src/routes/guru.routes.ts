@@ -1,7 +1,6 @@
 // src/routes/guru.routes.ts - Routes para integração Guru
 import { asyncRoute } from '../security/asyncRoute'
 import { Router } from 'express'
-import { localDebugOnly } from '../security/debugRoutes'
 import { withValidatedInput } from '../security/validatedInput'
 import {
   guruEmptyInput,
@@ -16,7 +15,6 @@ import {
   listWebhooksGroupedByMonth,
   getGuruStats,
   reprocessWebhook,
-  debugToken,
   migrateWebhookSource
 } from '../controllers/guru.webhook.controller'
 import {
@@ -79,22 +77,9 @@ const router = Router()
 
 // ═══════════════════════════════════════════════════════════
 // WEBHOOKS
-// ═══════════════════════════════════════════════════════════
-
-/**
- * POST /guru/webhook
- * Receber webhooks da plataforma Guru
- * - Valida api_token
- * - Usa X-Request-ID para idempotência
- * - Guarda webhook raw e atualiza User
- */
+// POST /guru/webhook
+// Provider callback: preserve the exact external ACK status and body.
 router.post('/webhook', asyncRoute(handleGuruWebhook))
-
-/**
- * GET /guru/debug/token
- * Endpoint de debug para verificar configuração do token
- */
-router.get('/debug/token', localDebugOnly, asyncRoute(debugToken))
 
 // ═══════════════════════════════════════════════════════════
 // SSO

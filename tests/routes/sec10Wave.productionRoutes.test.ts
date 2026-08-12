@@ -113,7 +113,7 @@ jest.mock('../../src/controllers/guru.snapshot.controller', () => ({
 }))
 jest.mock('../../src/controllers/guru.webhook.controller', () => mockControllerModule([
   'handleGuruWebhook', 'listGuruWebhooks', 'listWebhooksGroupedByMonth',
-  'getGuruStats', 'reprocessWebhook', 'debugToken', 'migrateWebhookSource',
+  'getGuruStats', 'reprocessWebhook', 'migrateWebhookSource',
 ]))
 jest.mock('../../src/controllers/guru.sso.controller', () => mockControllerModule([
   'ssoMyOrders', 'getSubscriptionStatus', 'listSubscriptions', 'diagnosSubscription',

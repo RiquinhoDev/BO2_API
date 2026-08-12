@@ -9,7 +9,7 @@ import { GuruWebhookPayload } from '../types/guru.types'
 import { getGuruAccountToken } from '../services/requestDrivenRuntimeConfig'
 import logger from '../utils/logger'
 export { listGuruWebhooks } from './guruWebhookList.controller'
-export { debugToken, migrateWebhookSource } from './guruWebhookAdmin.controller'
+export { migrateWebhookSource } from './guruWebhookAdmin.controller'
 
 // Status da Guru que indicam cancelamento
 const GURU_CANCELED_STATUSES = ['canceled', 'expired', 'refunded']
@@ -433,16 +433,6 @@ export const getGuruStats = async (req: Request, res: Response, next: NextFuncti
     return next(internalError('Erro ao obter estatísticas Guru', 'GURU_WEBHOOK_STATS_FAILED', error))
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// DEBUG (VERIFICAR TOKEN)
-// ═══════════════════════════════════════════════════════════
-
-/**
- * Endpoint de debug para verificar configuração do token
- * GET /guru/debug/token
- */
-
 
 // ═══════════════════════════════════════════════════════════
 // REPROCESSAR WEBHOOK (ADMIN)
