@@ -135,6 +135,35 @@ describe.each([
     expect(mockEvaluateProduct).toHaveBeenNthCalledWith(2, 'product-2', true)
   })
 
+  it('bounds 100 dry-run product evaluations at ten and accounts for every result', async () => {
+    const products = Array.from({ length: 100 }, (_, index) => ({
+      _id: { toString: () => `product-${index}` },
+    }))
+    mockFindProducts.mockReturnValue({ select: jest.fn().mockResolvedValue(products) })
+    let active = 0
+    let peak = 0
+    mockEvaluateProduct.mockReset().mockImplementation(async (productId: string) => {
+      active += 1
+      peak = Math.max(peak, active)
+      await new Promise(resolve => setImmediate(resolve))
+      active -= 1
+      return [result(productId, ['ADD'], [], ['reported-error'])]
+    })
+
+    const app = express()
+    app.post(path, handler)
+    const response = await request(app).post(`${path}?__bo2_offline_loopback=1`).send({})
+
+    expect(response.body.data).toEqual({
+      studentsEvaluated: 100,
+      proposedAdditions: 100,
+      proposedRemovals: 0,
+      errors: 100,
+    })
+    expect(peak).toBe(10)
+    expect(mockEvaluateProduct).toHaveBeenCalledTimes(100)
+  })
+
   it('returns an empty preview when the course does not exist', async () => {
     mockFindCourse.mockResolvedValue(null)
 

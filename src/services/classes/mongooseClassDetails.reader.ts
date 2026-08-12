@@ -16,6 +16,22 @@ type Query = Record<string, unknown>
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
+const ENRICH_CONCURRENCY = 10
+
+async function mapBounded<T, R>(items: T[], worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let nextIndex = 0
+  const runners = Array.from({ length: Math.min(ENRICH_CONCURRENCY, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++
+      results[index] = await worker(items[index])
+    }
+  })
+  await Promise.all(runners)
+  return results
+}
+
+
 /**
  * Owns every Mongoose read for class details, migrated verbatim from
  * ClassesService (getClassStats/getClassDetails/getDetailedClassStats/
@@ -90,12 +106,12 @@ export class MongooseClassDetailsReader implements ClassDetailsReader {
 
   async fetchMultiple(classIds: string[], options: FetchOptions): Promise<ClassRecord[]> {
     const classes = await Class.find({ classId: { $in: classIds } }).lean() as unknown as ClassRecord[]
-    return Promise.all(classes.map(cls => this.enrich(cls, options)))
+    return mapBounded(classes, cls => this.enrich(cls, options))
   }
 
   async fetchAll(options: FetchOptions): Promise<ClassRecord[]> {
     const classes = await Class.find({ isActive: true }).lean() as unknown as ClassRecord[]
-    return Promise.all(classes.map(cls => this.enrich(cls, options)))
+    return mapBounded(classes, cls => this.enrich(cls, options))
   }
 
   private async enrich(cls: ClassRecord, options: FetchOptions): Promise<ClassRecord> {

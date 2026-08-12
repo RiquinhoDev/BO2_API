@@ -32,3 +32,12 @@
 
 - The ejected live candidates remain scalability debt and must stay explicit in the terminal inventory.
 - This task does not claim operational closure or external-provider safety.
+
+## Review fix round 1 evidence
+
+- Class-details RED: focused combined run exited 1; N=100 `fetchAll` expected peak `<= 10`, received `100` (1 failed, 5 passed in the partition-B suite).
+- Course-preview RED: `npm.cmd test -- --runInBand tests/controllers/courseEvaluationPreview.controller.test.ts` exited 1; both Clareza and OGI N=100 expected peak `10`, received `1` (2 failed, 10 passed).
+- GREEN: `npm.cmd test -- --runInBand tests/scalability/scale02PartitionB.contract.test.ts tests/controllers/courseEvaluationPreview.controller.test.ts` exited 0; 2 suites passed, 18 tests passed.
+- The shared class enrichment pool is used by both `fetchMultiple` and `fetchAll`, retains array indices, and caps active enrichments at 10.
+- Course dry-run product evaluations retain product/result ordering through indexed result slots, cap active evaluations at 10, and aggregate all 100 returned result errors.
+- The product-sales contract now asserts the literal `{ enrolledAt: 1, _id: 1 }` sort and uses reversed cross-product historical enrollments to prove current enrollments are classified as existing.

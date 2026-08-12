@@ -8,6 +8,22 @@ import decisionEngine from '../../services/activeCampaign/decisionEngine.service
 import type { DecisionResult } from '../../services/activeCampaign/decisionEngine.service'
 import logger from '../../utils/logger'
 
+const COURSE_PREVIEW_CONCURRENCY = 10
+
+async function mapCoursePreviewBounded<T, R>(items: T[], worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let nextIndex = 0
+  const runners = Array.from({ length: Math.min(COURSE_PREVIEW_CONCURRENCY, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++
+      results[index] = await worker(items[index])
+    }
+  })
+  await Promise.all(runners)
+  return results
+}
+
+
 /**
  * GET /api/courses/clareza/students
  * Buscar alunos do curso Clareza
@@ -319,14 +335,10 @@ async function previewCourseRules(courseLookup: CourseLookup): Promise<CourseRul
     isActive: true
   }).select('_id')
 
-  const results: DecisionResult[] = []
-  for (const product of products) {
-    const productResults = await decisionEngine.evaluateAllUsersOfProduct(
-      product._id.toString(),
-      true
-    )
-    results.push(...productResults)
-  }
+  const productResults = await mapCoursePreviewBounded(products, product =>
+    decisionEngine.evaluateAllUsersOfProduct(product._id.toString(), true)
+  )
+  const results: DecisionResult[] = productResults.flat()
 
   return {
     studentsEvaluated: new Set(results.map(result => result.userId)).size,
