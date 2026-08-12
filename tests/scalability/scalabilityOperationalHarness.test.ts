@@ -31,6 +31,43 @@ describe('read-only scalability operational harness', () => {
       .rejects.toThrow('command is not in the read-only allowlist')
   })
 
+  it('rejects a production-looking Mongo URI without leaking it', async () => {
+    const secretUri = 'mongodb://readonly:secret-value@prod-primary/prod-users'
+    let error: unknown
+    try {
+      await runOperationalValidation({ env: { ...authorizedEnv,
+        SCALABILITY_OPERATIONAL_TARGET_KIND: 'mongodb',
+        SCALABILITY_OPERATIONAL_TARGET_NAME: 'staging-read-only',
+        SCALABILITY_OPERATIONAL_MONGO_READ_ONLY: 'true',
+        SCALABILITY_OPERATIONAL_MONGODB_URI: secretUri } })
+    } catch (caught) { error = caught }
+    const serialized = JSON.stringify(error, Object.getOwnPropertyNames(error))
+    expect(serialized).toContain('production-looking Mongo target is forbidden')
+    expect(serialized).not.toContain('secret-value')
+    expect(serialized).not.toContain('prod-primary/prod-users')
+  })
+
+  it.each([
+    [{ kind: 'syntheticRead', identity: 'smoke', concurrency: 100 }],
+    [{ kind: 'mongoFindExplain', identity: 'users', concurrency: 10 }],
+    [{ kind: 'mongoFindProbe', identity: 'users', concurrency: 100 }],
+    [{ kind: 'mongoFindProbe', identity: 'users secret', concurrency: 10 }],
+  ])('rejects non-allowlisted command parameters: %j', async command => {
+    await expect(runOperationalValidation({ env: authorizedEnv,
+      commands: [command as unknown as OperationalCommand] }))
+      .rejects.toThrow('command parameters are not in the read-only allowlist')
+  })
+
+  it('labels the default synthetic command as a local smoke probe', async () => {
+    const identities: string[] = []
+    await runOperationalValidation({ env: authorizedEnv,
+      execute: async command => {
+        identities.push(command.identity)
+        return { latenciesMs: [1], writes: 0 }
+      } })
+    expect(identities).toEqual(['local-smoke-baseline'])
+  })
+
   it('sanitizes secret-bearing executor output and asserts zero writes', async () => {
     const evidence = await runOperationalValidation({
       env: authorizedEnv,
