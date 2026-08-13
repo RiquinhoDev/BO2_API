@@ -98,6 +98,58 @@ const routes: DestructiveRoute[] = [
   },
 ]
 
+type GuruArrayRoute = {
+  name: string
+  path: string
+  field: 'emails' | 'userProductIds'
+  item: string
+}
+
+const arrayRoutes: GuruArrayRoute[] = [
+  {
+    name: 'mark discrepancies',
+    path: '/api/guru/inactivation/mark-discrepancies',
+    field: 'emails',
+    item: 'alice@example.test',
+  },
+  {
+    name: 'inactivate bulk',
+    path: '/api/guru/inactivation/bulk',
+    field: 'userProductIds',
+    item: objectId,
+  },
+  {
+    name: 'cleanup duplicates',
+    path: '/api/guru/inactivation/cleanup-duplicates',
+    field: 'userProductIds',
+    item: objectId,
+  },
+  {
+    name: 'mark stale inactive',
+    path: '/api/guru/inactivation/mark-stale-inactive',
+    field: 'emails',
+    item: 'alice@example.test',
+  },
+  {
+    name: 'restore user products',
+    path: '/api/guru/inactivation/restore',
+    field: 'userProductIds',
+    item: objectId,
+  },
+  {
+    name: 'fix users to active',
+    path: '/api/guru/inactivation/fix-to-active',
+    field: 'emails',
+    item: 'alice@example.test',
+  },
+  {
+    name: 'diagnose users',
+    path: '/api/guru/inactivation/diagnose',
+    field: 'emails',
+    item: 'alice@example.test',
+  },
+]
+
 function buildApp() {
   const app = express()
   const errors = createErrorHandling({
@@ -133,4 +185,13 @@ test.each(routes)('$name rejects a nested Mongo operator', async (route) => {
     ...route.body,
     filter: { $where: 'unsafe' },
   }).expect(400)
+})
+
+test.each(arrayRoutes)('$name rejects more than 200 caller-selected items', async (route) => {
+  const values = Array.from({ length: 201 }, () => route.item)
+  await request(buildApp())
+    .post(route.path)
+    .query(marker)
+    .send({ [route.field]: values })
+    .expect(400)
 })
