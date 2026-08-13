@@ -1,0 +1,802 @@
+[
+  {
+    "method": "DELETE",
+    "path": "/api/classes/:classId",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/courses/:id",
+    "policy": "I"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/cron/jobs/:id",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/events/:id",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/guru/snapshots/:year/:month",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/guru/snapshots/all",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/product-profiles/:code",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/products/:id",
+    "policy": "I"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/sync/history/clean",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-monitoring/critical-tags/:id",
+    "policy": "I"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-monitoring/critical-tags/:id/permanent",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-monitoring/notifications/:id",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tag-rules/:id",
+    "policy": "I"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/testimonials/:id",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/:id",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/idsDiferentes/:id",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/student/:id",
+    "policy": "S"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/users/unmatchedUsers/:id",
+    "policy": "S"
+  },
+  {
+    "method": "GET",
+    "path": "/api/curseduca/sync/universal",
+    "policy": "MB:curseduca"
+  },
+  {
+    "method": "GET",
+    "path": "/api/curseduca/sync/universal/start",
+    "policy": "MB:curseduca"
+  },
+  {
+    "method": "GET",
+    "path": "/api/discord-renewal/templates",
+    "policy": "I"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guru/analytics/fix-multi-subscriptions",
+    "policy": "S"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guru/sync/all",
+    "policy": "MB:guru"
+  },
+  {
+    "method": "GET",
+    "path": "/api/guru/sync/email/:email",
+    "policy": "M:guru"
+  },
+  {
+    "method": "GET",
+    "path": "/api/hotmart/sync/universal",
+    "policy": "MB:hotmart"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/discord-renewal/scheduled/:key",
+    "policy": "I"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/events/:id/status",
+    "policy": "I"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/renewal/offers/:id",
+    "policy": "I"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/config/scope",
+    "policy": "I"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/config/toggle",
+    "policy": "I"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/critical-tags/:id/priority",
+    "policy": "I"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/critical-tags/:id/toggle",
+    "policy": "I"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/notifications/:id/read",
+    "policy": "I"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/notifications/:id/unread",
+    "policy": "I"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/tag-monitoring/notifications/mark-all-read",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac/contact/:email/sync",
+    "policy": "M:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/ac/contacts/batch-sync",
+    "policy": "MB:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/achievements/evaluate-all",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/achievements/evaluate/:email",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/achievements/mark-seen",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/product-tags/apply",
+    "policy": "PG:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/product-tags/remove",
+    "policy": "PG:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/products/:productId/tags/sync",
+    "policy": "PG:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/activecampaign/test-cron",
+    "policy": "P:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/analytics/class/:classId/recalculate",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/analytics/class/:classId/recalculate-individual",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/analytics/product-sales/rebuild",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/change-password",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/unlock",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/carteira/refresh",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/comparador/refresh",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/earnings/refresh",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/raiox/refresh",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/refresh",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/top10/refresh",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/addOrEditClass",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/checkAndUpdateClassHistory",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/inactivationLists/create",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/inactivationLists/revert/:id",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/moveMultipleStudents",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/moveStudent",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/syncComplete",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/classes/syncHotmartClasses",
+    "policy": "MB:hotmart"
+  },
+  {
+    "method": "POST",
+    "path": "/api/course-lessons/sync",
+    "policy": "MB:hotmart"
+  },
+  {
+    "method": "POST",
+    "path": "/api/courses",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/jobs",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/jobs/:id/toggle",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/jobs/:id/trigger",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/cron/tag-rules-only",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/dashboard/materialized-stats/rebuild",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/approve",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/execute",
+    "policy": "P:discord"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/messages/send",
+    "policy": "P:discord"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/scheduled/:key/test",
+    "policy": "P:discord"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discord-renewal/scheduled/run",
+    "policy": "PB:discord"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discovery/configure",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/discovery/run",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/:id/interest",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/seed",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/events/types",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/bulk",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/cleanup",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/cleanup-duplicates",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/diagnose",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/fix-to-active",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/mark-discrepancies",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/mark-stale-inactive",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/quarantine",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/restore",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/revert",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/inactivation/single",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/snapshots",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/snapshots/historical",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/check-expired",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/inactivate",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/revert",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/trials/sync",
+    "policy": "M:guru"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/webhooks/:id/reprocess",
+    "policy": "M:guru"
+  },
+  {
+    "method": "POST",
+    "path": "/api/guru/webhooks/migrate-source",
+    "policy": "MB:guru"
+  },
+  {
+    "method": "POST",
+    "path": "/api/hotmart/sync/universal/progress",
+    "policy": "MB:hotmart"
+  },
+  {
+    "method": "POST",
+    "path": "/api/hotmart/syncProgressOnly",
+    "policy": "MB:hotmart"
+  },
+  {
+    "method": "POST",
+    "path": "/api/product-profiles",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/product-profiles/:code/duplicate",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/products",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/approve",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/changes/:id/revert",
+    "policy": "P:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/execute",
+    "policy": "P:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/plan",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal-ac/refunds/detect",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal/offers",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/renewal/sync",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/:id/ignore",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/:id/resolve",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/auto-resolve",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/conflicts/bulk-resolve",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/curseduca",
+    "policy": "M:curseduca"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/curseduca/batch",
+    "policy": "MB:curseduca"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/execute-pipeline",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/history",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/history/:syncId/retry",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/hotmart",
+    "policy": "M:hotmart"
+  },
+  {
+    "method": "POST",
+    "path": "/api/sync/hotmart/batch",
+    "policy": "MB:hotmart"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tag-monitoring/critical-tags",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tag-monitoring/snapshots/manual",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tag-rules",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tags/evaluate",
+    "policy": "P:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/tags/evaluate-batch",
+    "policy": "PB:activecampaign"
+  },
+  {
+    "method": "POST",
+    "path": "/api/test/history/delete-test-events",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/test/history/make-changes",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/test/history/populate-all-users",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/test/history/populate-retroactive",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/test/history/revert-changes",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/testimonials",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/testimonials/request",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/user-history/manual",
+    "policy": "I"
+  },
+  {
+    "method": "POST",
+    "path": "/api/users/:id/sync",
+    "policy": "M:multiple"
+  },
+  {
+    "method": "POST",
+    "path": "/api/users/bulkDelete",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/users/bulkDeleteUnmatched",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/users/bulkMerge",
+    "policy": "SB"
+  },
+  {
+    "method": "POST",
+    "path": "/api/users/manualMatch",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/users/mergeDiscordId",
+    "policy": "S"
+  },
+  {
+    "method": "POST",
+    "path": "/api/users/student/:id/sync",
+    "policy": "M:multiple"
+  },
+  {
+    "method": "POST",
+    "path": "/api/users/syncDiscordAndHotmart",
+    "policy": "MB:multiple"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/classes/updateStatus",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/course-lessons/:pageId",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/courses/:id",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/cron-tags/config",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/cron/jobs/:id",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/curseduca/user/:userId/classes",
+    "policy": "M:curseduca"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/discord-renewal/templates/:key",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/events/:id",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/events/types/:id",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/guru/snapshots/:year/:month",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/product-profiles/:code",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/products/:id",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/tag-rules/:id",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/testimonials/:id",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/users/:id",
+    "policy": "I"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/users/editStudent/:id",
+    "policy": "I"
+  }
+]
