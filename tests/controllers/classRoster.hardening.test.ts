@@ -8,7 +8,13 @@ import { User } from '../../src/models'
 type Handler = (req: Request, res: Response, next?: NextFunction) => Promise<void>
 const searchStudents = rtSearch as unknown as Handler
 
-type Body = { success?: boolean; multiple?: boolean; name?: string; email?: string; [k: string]: unknown }
+type Student = { name?: string; email?: string; [k: string]: unknown }
+type Body = {
+  success?: boolean
+  data?: { students?: Student[] }
+  meta?: { multiple?: boolean; total?: number }
+  [k: string]: unknown
+}
 type Captured = { status?: number; body?: Body }
 
 function makeResponse(captured: Captured): Response {
@@ -59,15 +65,17 @@ describe('classRoster hardening — search', () => {
     await searchStudents(req({ name: 'A.B' }), makeResponse(captured))
     const body = captured.body as Body
     // Escaped: only the literal "A.B" matches, not "AXB".
-    expect(body.multiple).toBe(false)
-    expect(body.name).toBe('A.B')
+    expect(body.meta?.multiple).toBe(false)
+    expect(body.data?.students).toHaveLength(1)
+    expect(body.data?.students?.[0].name).toBe('A.B')
   })
 
   it('searches Discord by the canonical discord.discordIds schema path', async () => {
     const captured: Captured = {}
     await searchStudents(req({ discordId: 'dx' }), makeResponse(captured))
     const body = captured.body as Body
-    expect(body.multiple).toBe(false)
-    expect(body.email).toBe('disc@x.test')
+    expect(body.meta?.multiple).toBe(false)
+    expect(body.data?.students).toHaveLength(1)
+    expect(body.data?.students?.[0].email).toBe('disc@x.test')
   })
 })
