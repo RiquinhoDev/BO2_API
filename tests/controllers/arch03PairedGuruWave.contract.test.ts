@@ -20,10 +20,10 @@ test.each(selected)('%s canonicalizes every selected success exit', (file, count
   expect(source.match(/successResponse\(/g)).toHaveLength(count)
 })
 
-test('excluded Guru identities keep their existing behavior', () => {
+test('excluded Guru identities keep their reviewed behavior', () => {
   expect(read('src/controllers/guru.webhook.controller.ts'))
     .toMatch(/handleGuruWebhook[\s\S]*success: true/)
   expect(read('src/controllers/guruWebhookAdmin.controller.ts'))
-    .toContain('guruTokenDebugStatus')
+    .not.toContain('guruTokenDebugStatus')
   expect(read('src/controllers/guru.sso.controller.ts')).toContain('return res.redirect(302, ssoUrl)')
 })
