@@ -123,15 +123,17 @@ test('clamps large limits and preserves the subscriptions envelope', async () =>
 
   expect(payload).toMatchObject({
     success: true,
-    pagination: {
-      page: 1,
-      limit: 200,
-      total: 205,
-      pages: 2,
+    meta: {
+      pagination: {
+        page: 1,
+        limit: 200,
+        total: 205,
+        pages: 2,
+      },
     },
   })
-  expect(payload.subscriptions).toHaveLength(200)
-  expect(payload.subscriptions[0]).toEqual(
+  expect(payload.data.subscriptions).toHaveLength(200)
+  expect(payload.data.subscriptions[0]).toEqual(
     expect.objectContaining({
       email: expect.any(String),
       name: expect.any(String),
@@ -166,11 +168,11 @@ test.each([
         sortDirection,
       })
       emails.push(
-        ...payload.subscriptions.map(
+        ...payload.data.subscriptions.map(
           (subscription: { email: string }) => subscription.email,
         ),
       )
-      pages = payload.pagination.pages
+      pages = payload.meta.pagination.pages
       page += 1
     } while (page <= pages)
 
@@ -204,9 +206,9 @@ test('preserves filters while using the default date-descending order', async ()
     })
 
   expect(payload.success).toBe(true)
-  expect(payload.pagination.total).toBe(matching.length)
+  expect(payload.meta.pagination.total).toBe(matching.length)
   expect(
-    payload.subscriptions.map(
+    payload.data.subscriptions.map(
       (subscription: { email: string }) => subscription.email,
     ),
   ).toEqual(matching.map((fixture) => fixture.email))
