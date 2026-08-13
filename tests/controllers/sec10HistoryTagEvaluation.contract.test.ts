@@ -95,8 +95,10 @@ describe('SEC-10 histories and tag evaluation boundary', () => {
     expect(response.status).toBe(200)
     expect(response.body).toMatchObject({
       success: true,
-      summary: { totalUsers: 1, processed: 0, errors: 1 },
-      errors: [{ email: 'alice@example.test', error: 'Erro ao avaliar tags' }],
+      data: {
+        summary: { totalUsers: 1, processed: 0, errors: 1 },
+        errors: [{ email: 'alice@example.test', error: 'Erro ao avaliar tags' }],
+      },
     })
     expect(JSON.stringify(response.body)).not.toContain(secret.message)
   })
