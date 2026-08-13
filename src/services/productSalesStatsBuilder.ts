@@ -1,4 +1,4 @@
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ðŸ“ src/services/productSalesStatsBuilder.service.ts
 // SERVICE: Construtor de EstatÃ­sticas de Vendas por Produto
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -24,15 +24,12 @@ export async function buildProductSalesStats(): Promise<void> {
   const startTime = Date.now()
   
   try {
-    // 1. Buscar todos os produtos
     const products = await Product.find({ isActive: true })
     logger.info(`ðŸ“¦ ${products.length} produtos ativos encontrados\n`)
     
-    // 2. Processar cada produto
     for (const product of products) {
       logger.info(`\nðŸ“Š Processando produto: ${product.code} (${product.name})`)
       
-      // 2.1. Buscar UserProducts deste produto
       const userProducts = await UserProduct.find({ 
         productId: product._id 
       }).populate('userId').lean()
@@ -44,7 +41,6 @@ export async function buildProductSalesStats(): Promise<void> {
         continue
       }
       
-      // 2.2. Estruturas de agregaÃ§Ã£o
       const monthlyMap = new Map<string, IMonthlySales>()
       const yearlyMap = new Map<number, IYearlySales>()
       const overallSources: IDateSourceBreakdown = {
@@ -63,15 +59,13 @@ export async function buildProductSalesStats(): Promise<void> {
       let recordsWithValidDates = 0
       let recordsWithoutDates = 0
       
-      // 2.3. Buscar todos os users uma vez (performance)
       const userIds = userProducts.map(up => 
         typeof up.userId === 'object' && up.userId._id ? up.userId._id : up.userId
       )
       const users = await User.find({ _id: { $in: userIds } }).lean()
       const userMap = new Map(users.map(u => [u._id.toString(), u]))
       
-      // 2.4. Determinar quais users sÃ£o "novos" (primeiro produto)
-  const userFirstProducts = new Map<string, string>() // âœ… MUDANÃ‡A: mongoose.Types.ObjectId â†’ string
+      const userFirstProducts = new Map<string, string>()
       
       const uniqueUserIds = Array.from(
         new Map(userIds.map(userId => [userId.toString(), userId])).values()
@@ -87,7 +81,6 @@ export async function buildProductSalesStats(): Promise<void> {
         }
       }
 
-  // 2.5. Processar cada UserProduct
       for (const up of userProducts) {
         recordsProcessed++
         
@@ -95,9 +88,7 @@ export async function buildProductSalesStats(): Promise<void> {
           ? up.userId._id 
           : up.userId).toString()
         
-        // âœ… CORREÃ‡ÃƒO: Type assertion para up._id
         const userProductId = (up._id as mongoose.Types.ObjectId).toString()
-        
         const user = userMap.get(userId)
         
         if (!user) {
@@ -108,30 +99,17 @@ export async function buildProductSalesStats(): Promise<void> {
         }
         
         try {
-          // ðŸ†• Determinar data de venda (com registro de firstSystemEntry)
           const { date: saleDate, source } = await determineSaleDate(up, user)
-          
           recordsWithValidDates++
-          
-          // Atualizar contadores de fonte
           overallSources[source]++
           
-          // Atualizar oldest/newest
           if (!oldestSale || saleDate < oldestSale) oldestSale = saleDate
           if (!newestSale || saleDate > newestSale) newestSale = saleDate
           
-          // Extrair ano e mÃªs
           const year = saleDate.getFullYear()
           const month = saleDate.getMonth() + 1
           const monthKey = `${year}-${month.toString().padStart(2, '0')}`
-          
-          // âœ… CORREÃ‡ÃƒO: ComparaÃ§Ã£o usando strings
           const isNewStudent = userFirstProducts.get(userId) === userProductId
-          
-          
-          // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-          // AGREGAR POR MÃŠS
-          // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           
           if (!monthlyMap.has(monthKey)) {
             monthlyMap.set(monthKey, {
@@ -166,10 +144,6 @@ export async function buildProductSalesStats(): Promise<void> {
           
           if (saleDate < monthStats.oldestSale) monthStats.oldestSale = saleDate
           if (saleDate > monthStats.newestSale) monthStats.newestSale = saleDate
-          
-          // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-          // AGREGAR POR ANO
-          // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           
           if (!yearlyMap.has(year)) {
             yearlyMap.set(year, {
@@ -208,7 +182,6 @@ export async function buildProductSalesStats(): Promise<void> {
         }
       }
       
-      // 2.6. Converter Maps em Arrays
       const salesByMonth = Array.from(monthlyMap.values())
         .sort((a, b) => {
           if (a.year !== b.year) return a.year - b.year
@@ -218,7 +191,6 @@ export async function buildProductSalesStats(): Promise<void> {
       const salesByYear = Array.from(yearlyMap.values())
         .sort((a, b) => a.year - b.year)
       
-      // 2.7. Calcular totais
       const now = new Date()
       const currentYear = now.getFullYear()
       const currentMonth = now.getMonth() + 1
@@ -232,7 +204,6 @@ export async function buildProductSalesStats(): Promise<void> {
         currentMonth: 0
       }
       
-      // Calcular Ãºltimos N meses
       const sixMonthsAgo = new Date()
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
       
@@ -257,7 +228,6 @@ export async function buildProductSalesStats(): Promise<void> {
         }
       })
       
-      // 2.8. Guardar/Atualizar ProductSalesStats
       await ProductSalesStats.findOneAndUpdate(
         { productId: product._id },
         {
@@ -304,14 +274,10 @@ export async function buildProductSalesStats(): Promise<void> {
   }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// HELPER: OBTER STATS (LEITURA RÃPIDA)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 export async function getProductSalesStats(
   requestedLimit?: unknown,
   productId?: string
-): Promise<any> {
+) {
   try {
     const query = productId ? { productId } : {}
     
@@ -326,10 +292,6 @@ export async function getProductSalesStats(
     throw error
   }
 }
-
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// EXPORT
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default {
   buildProductSalesStats,
