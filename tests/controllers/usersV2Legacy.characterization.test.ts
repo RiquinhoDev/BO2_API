@@ -133,15 +133,17 @@ describe('legacy users V2 list boundary', () => {
         averageEngagementLevel: 'ALTO',
         products: [],
       }],
-      pagination: {
-        total: 1,
-        totalPages: 1,
-        page: 1,
-        limit: 100,
+      meta: {
+        pagination: {
+          total: 1,
+          totalPages: 1,
+          page: 1,
+          limit: 100,
+        },
+        filters: {},
       },
-      filters: {},
     })
-    expect(response.body.filters).not.toHaveProperty('benign')
+    expect(response.body.meta.filters).not.toHaveProperty('benign')
     expect(mockEnrollmentRead).toHaveBeenCalledTimes(1)
     expect(mockEnrollmentRead).toHaveBeenCalledWith({
       page: 1,
@@ -154,7 +156,7 @@ describe('legacy users V2 list boundary', () => {
       .get('/users?__bo2_offline_loopback=1')
 
     expect(response.status).toBe(200)
-    expect(response.body.pagination).toEqual({
+    expect(response.body.meta.pagination).toEqual({
       total: 1,
       totalPages: 1,
       page: 1,
@@ -173,8 +175,8 @@ describe('legacy users V2 list boundary', () => {
       limit: 50,
       minEngagement: 77,
     })
-    expect(response.body.filters).toEqual({ topPercentage: '0' })
-    expect(response.body.filters).not.toHaveProperty('minEngagement')
+    expect(response.body.meta.filters).toEqual({ topPercentage: '0' })
+    expect(response.body.meta.filters).not.toHaveProperty('minEngagement')
   })
 
   it('returns grouped product users with compatibility products and ignores other filters', async () => {
@@ -188,8 +190,10 @@ describe('legacy users V2 list boundary', () => {
     expect(response.body).toEqual({
       success: true,
       data: [{ _id: 'grouped-user', products: [] }],
-      pagination: { total: 1 },
-      filters: { productId },
+      meta: {
+        pagination: { total: 1 },
+        filters: { productId },
+      },
     })
     expect(mockEnrollmentRead).not.toHaveBeenCalled()
   })
@@ -207,7 +211,7 @@ describe('legacy users V2 list boundary', () => {
       page: 1,
       limit: 50,
     })
-    expect(response.body.filters).toEqual({})
+    expect(response.body.meta.filters).toEqual({})
   })
 
   it.each([
