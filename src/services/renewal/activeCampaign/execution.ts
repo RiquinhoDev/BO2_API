@@ -21,9 +21,10 @@ import {
   resolveOgiProductObjectId,
   TURMA_TAG_REGEX
 } from './planning'
-// ─────────────────────────────────────────────────────────────
-// APROVAÇÃO
-// ─────────────────────────────────────────────────────────────
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 export async function approveChanges(ids: string[], approvedBy: string): Promise<number> {
   const res = await RenewalAcChange.updateMany(
@@ -32,10 +33,6 @@ export async function approveChanges(ids: string[], approvedBy: string): Promise
   )
   return res.modifiedCount || 0
 }
-
-// ─────────────────────────────────────────────────────────────
-// EXECUTAR PLANO (única zona do código que escreve na AC)
-// ─────────────────────────────────────────────────────────────
 
 export interface ExecuteReport {
   attempted: number
@@ -48,10 +45,14 @@ export interface ExecuteReport {
 }
 
 interface ExecuteOptions {
-  /** true (cron auto): executa PLANNED+APPROVED. false (manual): só APPROVED. */
   includePlanned?: boolean
   batchId?: string
   executedBy: string
+}
+
+interface RenewalChangeQuery {
+  status: { $in: string[] }
+  planBatchId?: string
 }
 
 export async function executePlan(options: ExecuteOptions): Promise<ExecuteReport> {
@@ -65,7 +66,6 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
     masterEnabled: isMasterEnabled()
   }
 
-  // MASTER KILL SWITCH — sem isto, nada sai daqui (nível 2 da secção 13.2)
   if (!isMasterEnabled()) {
     logger.info('⛔ [RenewalAcSync] RENEWAL_AC_SYNC_ENABLED != true — execução recusada, nada escrito na AC')
     return report
@@ -74,12 +74,12 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
   await expireStaleChanges()
 
   const statuses = options.includePlanned ? ['APPROVED', 'PLANNED'] : ['APPROVED']
-  const query: any = { status: { $in: statuses } }
+  const query: RenewalChangeQuery = { status: { $in: statuses } }
   if (options.batchId) query.planBatchId = options.batchId
 
   const cap = maxChangesPerRun()
   const candidates = await RenewalAcChange.find(query)
-    .sort({ status: 1, plannedAt: 1 }) // APPROVED primeiro (ordem alfabética favorece), depois antigos
+    .sort({ status: 1, plannedAt: 1 })
     .limit(cap + 1)
     .exec() as IRenewalAcChange[]
 
@@ -96,13 +96,14 @@ export async function executePlan(options: ExecuteOptions): Promise<ExecuteRepor
       else if (outcome === 'already') report.alreadyInSync += 1
       else if (outcome === 'switch') report.blockedBySwitch += 1
       else report.failed += 1
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = errorText(error)
       report.failed += 1
       await RenewalAcChange.updateOne(
         { _id: change._id },
-        { $set: { status: 'FAILED', error: error.message }, $inc: { attempts: 1 } }
+        { $set: { status: 'FAILED', error: message }, $inc: { attempts: 1 } }
       )
-      logger.error(`❌ [RenewalAcSync] ${change.action} ${change.email}: ${error.message}`)
+      logger.error(`❌ [RenewalAcSync] ${change.action} ${change.email}: ${message}`)
     }
   }
 
@@ -132,13 +133,11 @@ async function executeSingleChange(
     )
   }
 
-  // ── UPDATE_EXPIRY ──────────────────────────────────────────
   if (change.action === 'UPDATE_EXPIRY') {
     if (!isWriteDatesEnabled()) return 'switch'
 
-    // Guard F3 re-verificado no momento da execução
     if (change.userId && ogiId) {
-      const up = await getOgiUserProduct(change.userId as any, ogiId)
+      const up = await getOgiUserProduct(change.userId, ogiId)
       if (up?.metadata?.refunded === true) {
         await RenewalAcChange.updateOne(
           { _id: change._id },
@@ -158,7 +157,6 @@ async function executeSingleChange(
       return 'failed'
     }
 
-    // Diff: só escrever se mudou (F5/F6)
     if (current.value === change.payload.after) {
       await markApplied(current.value, 'Valor já estava correcto na AC — nada escrito')
       return 'already'
@@ -170,7 +168,6 @@ async function executeSingleChange(
     return 'applied'
   }
 
-  // ── APPLY_TAG / REMOVE_TAG ─────────────────────────────────
   if (!isWriteTagsEnabled()) return 'switch'
 
   const tagName = change.payload.tagName || ''
@@ -206,7 +203,6 @@ async function executeSingleChange(
     return 'applied'
   }
 
-  // REMOVE_TAG
   if (!hasTag) {
     await markApplied('já não tinha a tag', 'Tag já não estava no contacto — nada escrito')
     await clearAppliedTurmaTagIfMatches(change, ogiId, tagName)
@@ -219,10 +215,9 @@ async function executeSingleChange(
   return 'applied'
 }
 
-/** Regista no UserProduct qual a tag de turma aplicada pelo BO (auditável; usado na reversão por reembolso). */
 async function recordAppliedTurmaTag(change: IRenewalAcChange, ogiId: mongoose.Types.ObjectId | null, tagName: string) {
   if (!change.userId || !ogiId) return
-  await (UserProduct as any).updateOne(
+  await UserProduct.updateOne(
     { userId: change.userId, productId: ogiId, platform: 'hotmart' },
     { $set: { 'platformData.renewalAc': { appliedTurmaTag: tagName, appliedAt: new Date(), changeId: String(change._id) } } }
   )
@@ -230,15 +225,11 @@ async function recordAppliedTurmaTag(change: IRenewalAcChange, ogiId: mongoose.T
 
 async function clearAppliedTurmaTagIfMatches(change: IRenewalAcChange, ogiId: mongoose.Types.ObjectId | null, tagName: string) {
   if (!change.userId || !ogiId) return
-  await (UserProduct as any).updateOne(
+  await UserProduct.updateOne(
     { userId: change.userId, productId: ogiId, platform: 'hotmart', 'platformData.renewalAc.appliedTurmaTag': tagName },
     { $unset: { 'platformData.renewalAc': '' } }
   )
 }
-
-// ─────────────────────────────────────────────────────────────
-// REVERTER (usa o "before" capturado na execução)
-// ─────────────────────────────────────────────────────────────
 
 export async function revertChange(changeId: string, revertedBy: string): Promise<{ success: boolean; message: string }> {
   if (!isMasterEnabled()) {
@@ -279,10 +270,6 @@ export async function revertChange(changeId: string, revertedBy: string): Promis
   return { success: true, message: 'Revertida' }
 }
 
-// ─────────────────────────────────────────────────────────────
-// ESTADO (para a UI e para o relatório do cron)
-// ─────────────────────────────────────────────────────────────
-
 export async function getRenewalAcStatus() {
   const byStatus = await RenewalAcChange.aggregate([
     { $group: { _id: '$status', n: { $sum: 1 } } }
@@ -316,10 +303,6 @@ export async function getRenewalAcStatus() {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// ENTRADA DO CRON (Fase B — job nasce DESLIGADO)
-// ─────────────────────────────────────────────────────────────
-
 export interface RenewalAcCronReport {
   expired: number
   refundDetection: RefundDetectionReport | null
@@ -327,13 +310,6 @@ export interface RenewalAcCronReport {
   execution: ExecuteReport | null
 }
 
-/**
- * Corpo do cron RenewalAcSync. Mesmo com o cron ligado:
- * - sem RENEWAL_AC_PROCESS_REFUNDS → não consulta reembolsos;
- * - gera plano (escreve SÓ na nossa BD);
- * - sem RENEWAL_AC_SYNC_ENABLED + RENEWAL_AC_AUTO_EXECUTE → NÃO executa
- *   (fica tudo PLANNED, à espera de revisão/aprovação na UI).
- */
 export async function runRenewalAcSyncJob(): Promise<RenewalAcCronReport> {
   const expired = await expireStaleChanges()
 
@@ -341,8 +317,8 @@ export async function runRenewalAcSyncJob(): Promise<RenewalAcCronReport> {
   if (isProcessRefundsEnabled()) {
     try {
       refundDetection = await detectHotmartRefunds(30)
-    } catch (error: any) {
-      logger.error('⚠️ [RenewalAcSync] Detecção de reembolsos falhou (segue sem ela):', error.message)
+    } catch (error: unknown) {
+      logger.error('⚠️ [RenewalAcSync] Detecção de reembolsos falhou (segue sem ela):', errorText(error))
     }
   }
 
