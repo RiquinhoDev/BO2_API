@@ -25,8 +25,10 @@ test('canonicalizes only the successful Discord preview and preserves its 404 br
   expect(text).toContain('res.json(successResponse({ preview: result.preview, target: result.target }))')
 })
 
-test('leaves the Front-consumed product-sales rebuild outside this Back-only partition', () => {
+test('canonicalizes the product-sales rebuild while preserving immediate response and background execution', () => {
   const text = source('src/controllers/products/productSalesStats.controller.ts')
+  expect(text).toContain("successResponse({ estimatedTime: '30-60 segundos' },")
   expect(text).toContain("message: 'Rebuild de Product Sales Stats iniciado em background'")
-  expect(text).not.toContain('successResponse({ estimatedTime:')
+  expect(text).toContain('buildProductSalesStats()')
+  expect(text.indexOf('res.json(successResponse({ estimatedTime:')).toBeLessThan(text.indexOf('buildProductSalesStats()'))
 })
