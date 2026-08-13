@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
+import ts from 'typescript'
 
 const ROOT = process.cwd()
 const INVENTORY = process.env.SCALABILITY_READ_INVENTORY ?? path.join(ROOT, 'src', 'contracts', 'scalability-read-inventory.json')
@@ -42,17 +43,31 @@ function walk(directory, files = []) {
   return files
 }
 
+function isTrackedMongooseReceiver(node) {
+  return (ts.isIdentifier(node) && /^[A-Z]/.test(node.text)) || node.kind === ts.SyntaxKind.ThisKeyword
+}
+
 function mongooseSites() {
   const sites = []
   for (const absolute of walk(path.join(ROOT, 'src'))) {
     const relative = slash(path.relative(ROOT, absolute))
     const text = source(relative)
-    const regex = /\b(?:[A-Z][A-Za-z0-9_]*|this)\.(find|aggregate)\s*\(/g
-    let match
-    while ((match = regex.exec(text))) {
-      const line = text.slice(0, match.index).split('\n').length
-      sites.push(`${relative}:${line}:${match[1]}`)
+    const sourceFile = ts.createSourceFile(relative, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+
+    function visit(node) {
+      if (
+        ts.isCallExpression(node)
+        && ts.isPropertyAccessExpression(node.expression)
+        && (node.expression.name.text === 'find' || node.expression.name.text === 'aggregate')
+        && isTrackedMongooseReceiver(node.expression.expression)
+      ) {
+        const line = sourceFile.getLineAndCharacterOfPosition(node.expression.getStart(sourceFile)).line + 1
+        sites.push(`${relative}:${line}:${node.expression.name.text}`)
+      }
+      ts.forEachChild(node, visit)
     }
+
+    visit(sourceFile)
   }
   sites.sort()
   return {
