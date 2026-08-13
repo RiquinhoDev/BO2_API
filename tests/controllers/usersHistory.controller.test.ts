@@ -61,6 +61,7 @@ test('loads user history through the registered model export', async () => {
     ]
   })
   expect(json).toHaveBeenCalledWith(expect.objectContaining({
-    userHistory: userRows
+    success: true,
+    data: expect.objectContaining({ userHistory: userRows })
   }))
 })
