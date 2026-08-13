@@ -1,5 +1,16 @@
 const mockProductFind = jest.fn()
 const mockCreateSyncReport = jest.fn()
+const mockLoggerInfo = jest.fn()
+
+jest.mock('../../src/utils/logger', () => ({
+  __esModule: true,
+  default: {
+    info: mockLoggerInfo,
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
+}))
 
 jest.mock('../../src/models', () => ({
   Product: {
@@ -28,7 +39,6 @@ jest.mock('../../src/models/Class', () => ({
   Class: {},
 }))
 
-
 jest.mock('../../src/models/UserSnapshot', () => ({
   __esModule: true,
   default: {},
@@ -45,6 +55,7 @@ afterEach(() => {
   jest.restoreAllMocks()
   mockProductFind.mockReset()
   mockCreateSyncReport.mockReset()
+  mockLoggerInfo.mockReset()
 })
 
 test('universal sync reads typed log level when the debug branch runs', async () => {
@@ -57,8 +68,6 @@ test('universal sync reads typed log level when the debug branch runs', async ()
     }),
   })
   mockCreateSyncReport.mockRejectedValue(new Error('stop before sync side effects'))
-  const log = jest.spyOn(console, 'log').mockImplementation(() => undefined)
-  jest.spyOn(console, 'error').mockImplementation(() => undefined)
 
   try {
     await expect(executeUniversalSync({
@@ -72,7 +81,7 @@ test('universal sync reads typed log level when the debug branch runs', async ()
       sourceData: [],
     })).rejects.toThrow('stop before sync side effects')
 
-    expect(log).toHaveBeenCalledWith(expect.stringContaining('[ProductCache] Carregando produtos'))
+    expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringContaining('[ProductCache] Carregando produtos'))
   } finally {
     if (previousLogLevel === undefined) delete process.env.LOG_LEVEL
     else process.env.LOG_LEVEL = previousLogLevel
