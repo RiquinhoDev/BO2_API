@@ -1,5 +1,4 @@
-import logger from '../utils/logger'
-import express from 'express';
+import express from 'express'; import logger from '../utils/logger'
 import { internalError } from '../security/errorHandling';
 import { successResponse } from '../contracts/responseContract';
 // ✅ DASHBOARD CONTROLLERS - Consolidado + Sprint 1 & 2
