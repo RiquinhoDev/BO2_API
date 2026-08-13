@@ -129,7 +129,7 @@ describe('Clareza comparator HTTP contract', () => {
     mockRefreshComparadorSymbols.mockResolvedValueOnce({ ok: true, updated: ['AAPL'], failed: [] })
     const refreshed = await request(app).post('/comparador/refresh?symbols=AAPL&__bo2_offline_loopback=1').send({})
     expect(refreshed.status).toBe(200)
-    expect(refreshed.body).toEqual({ ok: true, updated: ['AAPL'], failed: [] })
+    expect(refreshed.body).toEqual({ success: true, data: { ok: true, updated: ['AAPL'], failed: [] } })
     expect(mockRefreshComparadorSymbols).toHaveBeenCalledWith('AAPL')
 
     mockRefreshComparadorSymbols.mockRejectedValueOnce(new ComparadorPolicyError('EMPTY_SYMBOLS', 'Sem simbolos validos.'))
