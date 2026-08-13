@@ -19,6 +19,7 @@ import {
   type ErrorHandling,
 } from './security/errorHandling'
 import { createDefaultDenyAuth } from './security/defaultDenyAuth'
+import { routeAuthorization } from './security/routeAuthorization'
 import {
   createRouteUsageInstrumentation,
   type RouteUsageInstrumentation,
@@ -75,6 +76,7 @@ export function createApp(_deps: CreateAppDependencies): Application {
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.urlencodedParser)
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.replayGuard)
   app.use(defaultDenyAuth)
+  app.use(routeAuthorization)
   app.use(express.json({ limit: '100kb' }))
   _deps.registerRoutes(app)
   app.use(errorHandling.handler)
