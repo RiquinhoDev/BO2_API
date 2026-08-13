@@ -26,17 +26,21 @@ const mockProductCount = jest.fn()
 const mockEnrollmentCount = jest.fn()
 const mockProductAggregate = jest.fn()
 const mockEnrollmentAggregate = jest.fn()
-const mockLoggerInfo = jest.fn()
 
 jest.mock('../../src/utils/logger', () => ({
   __esModule: true,
   default: {
-    info: mockLoggerInfo,
+    info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
   },
 }))
+
+const mockedLogger = jest.requireMock<{
+  default: { info: jest.Mock }
+}>('../../src/utils/logger').default
+const mockLoggerInfo = mockedLogger.info
 
 jest.mock('../../src/models/RenewalOffer', () => ({
   __esModule: true,
