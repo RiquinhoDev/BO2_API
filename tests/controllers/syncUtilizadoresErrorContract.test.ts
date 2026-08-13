@@ -616,7 +616,7 @@ test('CursEduca product envelopes preserve product and membership cardinality', 
   })
 })
 
-test('CursEduca manual sync preserves its envelope when cross-reference fails safely', async () => {
+test('CursEduca manual sync preserves its canonical operational envelope when cross-reference fails safely', async () => {
   const sourceData = [{ email: 'member@example.test', curseducaUserId: 'member-1' }]
   const products = [{ _id: 'product-1', code: 'P1', name: 'One' }]
   mockGetOptionalCurseducaRuntimeSettings.mockReturnValueOnce({
@@ -651,8 +651,9 @@ test('CursEduca manual sync preserves its envelope when cross-reference fails sa
   expect(centralLogger).not.toHaveBeenCalled()
   expect(response.status).toBe(200)
   expect(response.body).toMatchObject({
-    success: false,
+    success: true,
     data: {
+      completed: false,
       reportId: 'report-finalized',
       syncHistoryId: 'history-finalized',
       errorsCount: 2,
@@ -660,9 +661,10 @@ test('CursEduca manual sync preserves its envelope when cross-reference fails sa
       reportUrl: '/api/sync/reports/report-finalized',
       syncHistoryUrl: '/api/sync/history/history-finalized',
     },
-    _universalSync: true,
-    _version: '3.1',
+    meta: { message: 'Sincronização concluída com erros' },
   })
+  expect(response.body).not.toHaveProperty('_universalSync')
+  expect(response.body).not.toHaveProperty('_version')
   expect(mockExecuteUniversalSync).toHaveBeenCalledWith(expect.objectContaining({
     syncType: 'curseduca',
     triggeredBy: 'MANUAL',
@@ -714,14 +716,24 @@ test('background CursEduca sync keeps the immediate 202 and records failure befo
     .query({ __bo2_offline_loopback: '1' })
 
   expect(startResponse.status).toBe(202)
-  expect(startResponse.body).toMatchObject({ success: true, started: true })
+  expect(startResponse.body).toMatchObject({
+    success: true,
+    data: {
+      completed: true,
+      started: true,
+      startedAt: expect.any(String),
+    },
+  })
   expect(startResponse.body).not.toHaveProperty('code')
   expect(statusResponse.status).toBe(200)
   expect(statusResponse.body).toMatchObject({
     success: true,
-    running: false,
-    error: 'Erro ao executar sincronização CursEduca',
-    result: null,
+    data: {
+      completed: true,
+      running: false,
+      error: 'Erro ao executar sincronização CursEduca',
+      result: null,
+    },
   })
-  expect(statusResponse.body.finishedAt).not.toBeNull()
+  expect(statusResponse.body.data.finishedAt).not.toBeNull()
 })
