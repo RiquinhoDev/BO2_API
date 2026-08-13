@@ -13,16 +13,23 @@ type Suppressions = Record<string, Record<string, { count: number }>>
 /**
  * Picks any still-suppressed no-console fixture programmatically rather than
  * hardcoding a specific file, so the ratchet survives that file being deleted
- * or cleaned up.
+ * or cleaned up. Zero remaining suppressions is also a valid ratchet state.
  */
-function pickSuppressedConsoleFixture(): { absolutePath: string; count: number } {
+function pickSuppressedConsoleFixture(): { absolutePath: string; count: number } | null {
   for (const [relativePath, rules] of Object.entries(suppressions as Suppressions)) {
     const consoleRule = rules['no-console']
     if (!consoleRule || consoleRule.count <= 0) continue
     const absolutePath = path.join(root, relativePath)
     if (fs.existsSync(absolutePath)) return { absolutePath, count: consoleRule.count }
   }
-  throw new Error('No suppressed no-console fixture available for the ratchet test')
+  return null
+}
+
+function countSuppressedRule(ruleId: string): number {
+  return Object.values(suppressions as Suppressions).reduce(
+    (total, rules) => total + (rules[ruleId]?.count ?? 0),
+    0,
+  )
 }
 
 function createLinter() {
@@ -49,8 +56,14 @@ describe('ESLint ratchet', () => {
     expect(ruleIds(result)).toEqual(['no-console'])
   })
 
-  test('rejeita o console seguinte num ficheiro já suprimido', async () => {
+  test('rejeita o console seguinte num ficheiro já suprimido ou confirma baseline zero', async () => {
     const fixture = pickSuppressedConsoleFixture()
+
+    if (!fixture) {
+      expect(countSuppressedRule('no-console')).toBe(0)
+      return
+    }
+
     const source = fs.readFileSync(fixture.absolutePath, 'utf8')
 
     const [result] = await createLinter().lintText(
