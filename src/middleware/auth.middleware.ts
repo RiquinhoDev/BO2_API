@@ -5,6 +5,7 @@ import { verifyAppToken } from '../security/jwt'
 import { getRequestRouteTemplate } from '../observability/requestRoute'
 import logger, { type AppLogger } from '../utils/logger'
 import { forwardApplicationError } from '../security/forwardApplicationError'
+import { isRoleAllowed, type AppRole } from '../security/roleAuthorization'
 
 // Extend Express Request type to include user
 declare global {
@@ -81,7 +82,7 @@ export function createAuthenticate(log: AppLogger = logger) {
 
 export const authenticate = createAuthenticate()
 
-export const authorize = (...roles: string[]) => {
+export const authorize = (...roles: AppRole[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({
@@ -90,7 +91,7 @@ export const authorize = (...roles: string[]) => {
       })
     }
 
-    if (!roles.includes(req.user.role)) {
+    if (!isRoleAllowed(req.user.role, roles)) {
       return res.status(403).json({
         success: false,
         message: "Sem permissões suficientes"
