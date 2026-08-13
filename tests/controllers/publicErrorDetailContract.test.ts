@@ -26,6 +26,17 @@ const mockProductCount = jest.fn()
 const mockEnrollmentCount = jest.fn()
 const mockProductAggregate = jest.fn()
 const mockEnrollmentAggregate = jest.fn()
+const mockLoggerInfo = jest.fn()
+
+jest.mock('../../src/utils/logger', () => ({
+  __esModule: true,
+  default: {
+    info: mockLoggerInfo,
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
+}))
 
 jest.mock('../../src/models/RenewalOffer', () => ({
   __esModule: true,
@@ -215,17 +226,13 @@ describe('public technical-error boundary', () => {
       .send({ contact: { email: 'student@example.test' } })
     expectCanonical(email, 'AC_WEBHOOK_EMAIL_OPENED_FAILED', 'Erro ao registar abertura de email')
 
-    const consoleLog = jest.spyOn(console, 'log').mockImplementationOnce(() => {
+    mockLoggerInfo.mockImplementationOnce(() => {
       throw secret
     })
-    try {
-      const link = await request(appFor(webhookController.linkClicked, 'post'))
-        .post('/target' + offline)
-        .send({ contact: { email: 'student@example.test' }, link: 'https://example.test' })
-      expectCanonical(link, 'AC_WEBHOOK_LINK_CLICKED_FAILED', 'Erro ao registar clique em link')
-    } finally {
-      consoleLog.mockRestore()
-    }
+    const link = await request(appFor(webhookController.linkClicked, 'post'))
+      .post('/target' + offline)
+      .send({ contact: { email: 'student@example.test' }, link: 'https://example.test' })
+    expectCanonical(link, 'AC_WEBHOOK_LINK_CLICKED_FAILED', 'Erro ao registar clique em link')
 
     mockUserCount.mockRejectedValueOnce(secret)
     const status = await request(appFor(getSyncStatus)).get('/target' + offline)
