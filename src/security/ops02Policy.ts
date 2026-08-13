@@ -29,6 +29,14 @@ export interface Ops02Decision {
   evidence: string
 }
 
+interface CatalogWriteRoute {
+  method: string
+  path: string
+  destructive: boolean
+}
+
+type CompactPolicy = 'I' | 'S' | 'SB' | 'M' | 'MB' | 'P' | 'PB' | 'PG'
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -40,82 +48,130 @@ function requiredString(value: unknown, field: string): string {
   return value
 }
 
-function requiredBoolean(value: unknown, field: string): boolean {
-  if (typeof value !== 'boolean') throw new Error(`Invalid OPS-02 ${field}`)
-  return value
-}
-
-function parseScope(value: unknown): Ops02Scope {
-  if (value === 'internal' || value === 'provider' || value === 'mixed') return value
-  throw new Error('Invalid OPS-02 scope')
-}
-
-function parseAuthorization(value: unknown): Ops02Authorization {
-  if (value === 'internal-write' || value === 'super-admin') return value
-  throw new Error('Invalid OPS-02 authorization')
-}
-
-function parseReviewStatus(value: unknown): Ops02ReviewStatus {
-  if (value === 'reviewed' || value === 'needs-hardening') return value
-  throw new Error('Invalid OPS-02 review status')
-}
-
-function parseProtectionStatus(value: unknown): Ops02ProtectionStatus {
-  if (value === 'verified' || value === 'required' || value === 'not-applicable') return value
-  throw new Error('Invalid OPS-02 protection status')
-}
-
-function parseProtection(value: unknown, field: string): Ops02ProtectionDisposition {
-  if (!isRecord(value)) throw new Error(`Invalid OPS-02 ${field}`)
-  const status = parseProtectionStatus(value.status)
-  const reason = requiredString(value.reason, `${field}.reason`)
-  const limit = value.limit
-  if (limit === undefined) return { status, reason }
-  if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0) {
-    throw new Error(`Invalid OPS-02 ${field}.limit`)
-  }
-  return { status, reason, limit }
-}
-
-function parseDecision(value: unknown): Ops02Decision {
-  if (!isRecord(value)) throw new Error('Invalid OPS-02 decision')
-  const scope = parseScope(value.scope)
-  const provider = value.provider === undefined
-    ? undefined
-    : requiredString(value.provider, 'provider')
-
-  return {
-    method: requiredString(value.method, 'method').toUpperCase(),
-    path: requiredString(value.path, 'path'),
-    scope,
-    ...(provider ? { provider } : {}),
-    authorization: parseAuthorization(value.authorization),
-    destructive: requiredBoolean(value.destructive, 'destructive'),
-    bulk: requiredBoolean(value.bulk, 'bulk'),
-    cap: parseProtection(value.cap, 'cap'),
-    idempotency: parseProtection(value.idempotency, 'idempotency'),
-    killSwitch: parseProtection(value.killSwitch, 'killSwitch'),
-    dryRun: parseProtection(value.dryRun, 'dryRun'),
-    reversibility: parseProtection(value.reversibility, 'reversibility'),
-    status: parseReviewStatus(value.status),
-    evidence: requiredString(value.evidence, 'evidence'),
-  }
-}
-
 function routeKey(method: string, path: string): string {
   return `${method.toUpperCase()} ${path}`
 }
 
-const parsedInventory: readonly Ops02Decision[] = ops02Inventory.map((entry) => parseDecision(entry))
+const catalogWrites: readonly CatalogWriteRoute[] = routeCatalog
+  .filter((route) => route.access === 'authenticated' && (route.writes || route.destructive))
+  .map((route) => ({
+    method: route.method.toUpperCase(),
+    path: route.path,
+    destructive: route.destructive,
+  }))
+
+const catalogByKey = new Map(catalogWrites.map((route) => [
+  routeKey(route.method, route.path),
+  route,
+]))
+
+function protection(
+  status: Ops02ProtectionStatus,
+  reason: string,
+  limit?: number,
+): Ops02ProtectionDisposition {
+  return limit === undefined ? { status, reason } : { status, reason, limit }
+}
+
+function parseCompactPolicy(value: string): { code: CompactPolicy; provider?: string } {
+  const [codeValue, providerValue] = value.split(':', 2)
+  if (codeValue !== 'I'
+    && codeValue !== 'S'
+    && codeValue !== 'SB'
+    && codeValue !== 'M'
+    && codeValue !== 'MB'
+    && codeValue !== 'P'
+    && codeValue !== 'PB'
+    && codeValue !== 'PG') {
+    throw new Error(`Invalid OPS-02 compact policy: ${value}`)
+  }
+
+  if ((codeValue === 'M'
+      || codeValue === 'MB'
+      || codeValue === 'P'
+      || codeValue === 'PB'
+      || codeValue === 'PG')
+    && (!providerValue || providerValue.trim().length === 0)) {
+    throw new Error(`OPS-02 provider policy requires provider: ${value}`)
+  }
+
+  return providerValue ? { code: codeValue, provider: providerValue } : { code: codeValue }
+}
+
+function expandCompactDecision(value: unknown): Ops02Decision {
+  if (!isRecord(value)) throw new Error('Invalid OPS-02 inventory row')
+
+  const method = requiredString(value.method, 'method').toUpperCase()
+  const path = requiredString(value.path, 'path')
+  const compact = parseCompactPolicy(requiredString(value.policy, 'policy'))
+  const catalogRoute = catalogByKey.get(routeKey(method, path))
+  if (!catalogRoute) throw new Error(`Unknown OPS-02 inventory route: ${method} ${path}`)
+
+  const bulk = compact.code === 'SB' || compact.code === 'MB' || compact.code === 'PB'
+  const scope: Ops02Scope = compact.code === 'M' || compact.code === 'MB'
+    ? 'mixed'
+    : compact.code === 'P' || compact.code === 'PB' || compact.code === 'PG'
+      ? 'provider'
+      : 'internal'
+  const authorization: Ops02Authorization = compact.code === 'I'
+    ? 'internal-write'
+    : 'super-admin'
+
+  const cap = bulk
+    ? protection('required', 'finite-cap-unverified')
+    : protection('not-applicable', 'not-caller-bulk')
+
+  let idempotency = protection('not-applicable', 'internal-write')
+  let killSwitch = protection('not-applicable', 'no-provider-mutation')
+  let dryRun = protection('not-applicable', 'no-provider-mutation')
+
+  if (scope === 'mixed') {
+    idempotency = protection('required', 'local-reconciliation-replay-unverified')
+    killSwitch = protection('not-applicable', 'provider-read-only')
+    dryRun = protection('not-applicable', 'provider-read-only')
+  } else if (scope === 'provider') {
+    idempotency = protection('required', 'external-replay-unverified')
+    killSwitch = compact.code === 'PG'
+      ? protection('verified', 'AC_TAG_APPLY_ENABLED')
+      : protection('required', 'provider-kill-switch-unverified')
+    dryRun = protection('required', 'dry-run-disposition-unverified')
+  }
+
+  const reversibility = catalogRoute.destructive
+    ? protection('not-applicable', 'super-admin-destructive')
+    : protection('not-applicable', 'not-destructive')
+
+  const hasGap = [cap, idempotency, killSwitch, dryRun, reversibility]
+    .some((item) => item.status === 'required')
+
+  return {
+    method,
+    path,
+    scope,
+    ...(compact.provider ? { provider: compact.provider } : {}),
+    authorization,
+    destructive: catalogRoute.destructive,
+    bulk,
+    cap,
+    idempotency,
+    killSwitch,
+    dryRun,
+    reversibility,
+    status: hasGap ? 'needs-hardening' : 'reviewed',
+    evidence: 'route-catalog+approved-family-policy',
+  }
+}
+
+const parsedInventory: readonly Ops02Decision[] = ops02Inventory.map((entry) => (
+  expandCompactDecision(entry)
+))
 const decisionByKey = new Map(parsedInventory.map((decision) => [
   routeKey(decision.method, decision.path),
   decision,
 ]))
 
 function expectedCatalogKeys(): readonly string[] {
-  return routeCatalog
-    .filter((route) => route.access === 'authenticated' && (route.writes || route.destructive))
-    .map((route) => routeKey(route.method, route.path))
+  return catalogWrites.map((route) => routeKey(route.method, route.path))
 }
 
 export function validateOps02Policy(decisions: readonly Ops02Decision[]): void {
