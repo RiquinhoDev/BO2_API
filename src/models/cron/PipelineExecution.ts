@@ -5,11 +5,12 @@
 // ════════════════════════════════════════════════════════════
 
 import mongoose, { Schema, Document } from 'mongoose'
+import type { PipelineStepStats } from '../../types/cron.types'
 
 export interface IPipelineStepStats {
   success: boolean
   duration: number
-  stats: unknown
+  stats: PipelineStepStats
   error?: string
 }
 
