@@ -12,7 +12,25 @@ export interface CatalogRouteEntry {
 
 export type CatalogRouteMatch = CatalogRouteEntry
 
-const catalog: readonly CatalogRouteEntry[] = routeCatalog
+function parseCatalogAccess(value: string): CatalogAccess {
+  switch (value) {
+    case 'public':
+    case 'authenticated':
+    case 'signature':
+    case 'dead':
+      return value
+    default:
+      throw new Error(`Unsupported route catalog access: ${value}`)
+  }
+}
+
+const catalog: readonly CatalogRouteEntry[] = routeCatalog.map((route) => ({
+  method: route.method,
+  path: route.path,
+  access: parseCatalogAccess(route.access),
+  writes: route.writes,
+  destructive: route.destructive,
+}))
 
 function normalizePath(value: string): string {
   const pathname = value.split(/[?#]/, 1)[0]
