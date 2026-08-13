@@ -11,15 +11,21 @@ import SyncConflict, { ConflictSeverity, ConflictType, ISyncConflict, Resolution
 import { User } from '../../models'
 import { canAutoResolveConflict, getAutoResolutionPlan, getSuggestedConflictAction } from './conflictDetection/resolutionPolicy'
 
-
-// ─────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────
+interface ConflictUserRecord extends Record<string, unknown> {
+  _id?: mongoose.Types.ObjectId
+  email?: string
+  name?: string
+  classId?: string
+  hotmartUserId?: string
+  curseducaUserId?: string
+  discordId?: string
+  userId?: string
+}
 
 interface DetectConflictDTO {
   email: string
-  existingUser?: any
-  newUserData: any
+  existingUser?: ConflictUserRecord
+  newUserData: ConflictUserRecord
   platform: 'hotmart' | 'curseduca' | 'discord'
   syncHistoryId: mongoose.Types.ObjectId
 }
@@ -36,63 +42,33 @@ interface ResolveConflictDTO {
   action: ResolutionAction
   adminId: mongoose.Types.ObjectId
   notes?: string
-  appliedChanges?: any
+  appliedChanges?: Record<string, unknown>
 }
 
-// ─────────────────────────────────────────────────────────────
-// SERVICE CLASS
-// ─────────────────────────────────────────────────────────────
-
 export class ConflictDetectionService {
-
-  // ═══════════════════════════════════════════════════════════
-  // CONFLICT DETECTION
-  // ═══════════════════════════════════════════════════════════
-  
   async detectConflicts(dto: DetectConflictDTO): Promise<ConflictDetectionResult> {
     const conflicts: ISyncConflict[] = []
 
-    // 1. Email duplicado (múltiplos users com mesmo email)
     const duplicateEmailConflict = await this.checkDuplicateEmail(dto)
-    if (duplicateEmailConflict) {
-      conflicts.push(duplicateEmailConflict)
-    }
+    if (duplicateEmailConflict) conflicts.push(duplicateEmailConflict)
 
-    // 2. IDs diferentes para mesmo email
     const differentIdsConflict = await this.checkDifferentIds(dto)
-    if (differentIdsConflict) {
-      conflicts.push(differentIdsConflict)
-    }
+    if (differentIdsConflict) conflicts.push(differentIdsConflict)
 
-    // 3. Dados obrigatórios em falta
     const missingDataConflict = await this.checkMissingData(dto)
-    if (missingDataConflict) {
-      conflicts.push(missingDataConflict)
-    }
+    if (missingDataConflict) conflicts.push(missingDataConflict)
 
-    // 4. Dados inválidos
     const invalidDataConflict = await this.checkInvalidData(dto)
-    if (invalidDataConflict) {
-      conflicts.push(invalidDataConflict)
-    }
+    if (invalidDataConflict) conflicts.push(invalidDataConflict)
 
-    // 5. Mismatch entre plataformas
     const platformMismatchConflict = await this.checkPlatformMismatch(dto)
-    if (platformMismatchConflict) {
-      conflicts.push(platformMismatchConflict)
-    }
+    if (platformMismatchConflict) conflicts.push(platformMismatchConflict)
 
-    // 6. Conflito de turmas
     const classConflict = await this.checkClassConflict(dto)
-    if (classConflict) {
-      conflicts.push(classConflict)
-    }
+    if (classConflict) conflicts.push(classConflict)
 
-    // Verificar se pode auto-resolver
-    const canAutoResolve = conflicts.length > 0 && 
-      conflicts.every(c => canAutoResolveConflict(c))
-
-    const suggestedAction = canAutoResolve 
+    const canAutoResolve = conflicts.length > 0 && conflicts.every(c => canAutoResolveConflict(c))
+    const suggestedAction = canAutoResolve
       ? getSuggestedConflictAction(conflicts[0])
       : undefined
 
@@ -104,14 +80,9 @@ export class ConflictDetectionService {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // INDIVIDUAL CONFLICT CHECKS
-  // ═══════════════════════════════════════════════════════════
-  
   private async checkDuplicateEmail(dto: DetectConflictDTO): Promise<ISyncConflict | null> {
-    // Verificar se já existe outro user com mesmo email
-    const existingUsers = await User.find({ 
-      email: dto.email.toLowerCase().trim() 
+    const existingUsers = await User.find({
+      email: dto.email.toLowerCase().trim()
     }).lean()
 
     if (existingUsers.length > 1) {
@@ -177,7 +148,7 @@ export class ConflictDetectionService {
   }
 
   private async checkMissingData(dto: DetectConflictDTO): Promise<ISyncConflict | null> {
-    const requiredFields = ['email', 'name']
+    const requiredFields: Array<'email' | 'name'> = ['email', 'name']
     const missingFields = requiredFields.filter(field => !dto.newUserData[field])
 
     if (missingFields.length > 0) {
@@ -211,7 +182,6 @@ export class ConflictDetectionService {
   }
 
   private async checkInvalidData(dto: DetectConflictDTO): Promise<ISyncConflict | null> {
-    // Validar formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(dto.email)) {
       logger.info(`⚠️ Email inválido: ${dto.email}`)
@@ -241,22 +211,18 @@ export class ConflictDetectionService {
   private async checkPlatformMismatch(dto: DetectConflictDTO): Promise<ISyncConflict | null> {
     if (!dto.existingUser) return null
 
-    // Exemplo: User tem hotmartUserId mas está sendo sincronizado do CursEduca
-    const platformFields = {
+    const platformFields: Record<'hotmart' | 'curseduca' | 'discord', keyof ConflictUserRecord> = {
       hotmart: 'hotmartUserId',
       curseduca: 'curseducaUserId',
       discord: 'discordId'
     }
 
     const otherPlatforms = Object.entries(platformFields)
-      .filter(([platform, field]) => 
-        platform !== dto.platform && 
-        dto.existingUser[field]
+      .filter(([platform, field]) =>
+        platform !== dto.platform && Boolean(dto.existingUser?.[field])
       )
 
     if (otherPlatforms.length > 0) {
-      // Isto não é necessariamente um conflito (multi-plataforma é normal)
-      // Mas pode ser útil registrar para auditoria
       logger.info(`ℹ️ User multi-plataforma: ${dto.email}`)
     }
 
@@ -299,10 +265,6 @@ export class ConflictDetectionService {
     return null
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // AUTO-RESOLUTION
-  // ═══════════════════════════════════════════════════════════
-  
   async autoResolveConflicts(
     conflictIds: mongoose.Types.ObjectId[]
   ): Promise<{
@@ -319,7 +281,7 @@ export class ConflictDetectionService {
     for (const conflictId of conflictIds) {
       try {
         const conflict = await SyncConflict.findById(conflictId)
-        
+
         if (!conflict) {
           skipped++
           continue
@@ -340,7 +302,7 @@ export class ConflictDetectionService {
 
         await conflict.autoResolve(rule.action, rule.reason)
         resolved++
-        
+
         logger.info(`✅ Conflito ${conflictId} auto-resolvido: ${rule.action}`)
 
       } catch (error: unknown) {
@@ -354,15 +316,11 @@ export class ConflictDetectionService {
     return { resolved, failed, skipped }
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // MANUAL RESOLUTION
-  // ═══════════════════════════════════════════════════════════
-  
   async resolveConflict(dto: ResolveConflictDTO): Promise<ISyncConflict> {
     logger.info(`✅ Resolvendo conflito: ${dto.conflictId}`)
 
     const conflict = await SyncConflict.findById(dto.conflictId)
-    
+
     if (!conflict) {
       throw new Error('Conflito não encontrado')
     }
@@ -411,7 +369,7 @@ export class ConflictDetectionService {
     logger.info(`🙈 Ignorando conflito: ${conflictId}`)
 
     const conflict = await SyncConflict.findById(conflictId)
-    
+
     if (!conflict) {
       throw new Error('Conflito não encontrado')
     }
@@ -423,10 +381,6 @@ export class ConflictDetectionService {
     return conflict
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // GET CONFLICTS
-  // ═══════════════════════════════════════════════════════════
-  
   async getPendingConflicts(filters?: {
     severity?: ConflictSeverity
     conflictType?: ConflictType
@@ -444,26 +398,21 @@ export class ConflictDetectionService {
     return SyncConflict.getOldPendingConflicts(daysOld)
   }
 
-  async getConflictStats(): Promise<any> {
+  async getConflictStats() {
     return SyncConflict.getConflictStats()
   }
 
-  async getConflictsByType(): Promise<any[]> {
+  async getConflictsByType() {
     return SyncConflict.getConflictsByType()
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // UTILITIES
-  // ═══════════════════════════════════════════════════════════
-  
-  private getPlatformIdField(platform: string): string {
-    const fieldMap: Record<string, string> = {
-      hotmart: 'hotmartUserId',
-      curseduca: 'curseducaUserId',
-      discord: 'discordId'
-    }
-    
-    return fieldMap[platform] || 'userId'
+  private getPlatformIdField(
+    platform: string
+  ): 'hotmartUserId' | 'curseducaUserId' | 'discordId' | 'userId' {
+    if (platform === 'hotmart') return 'hotmartUserId'
+    if (platform === 'curseduca') return 'curseducaUserId'
+    if (platform === 'discord') return 'discordId'
+    return 'userId'
   }
 
   async getConflictById(conflictId: mongoose.Types.ObjectId): Promise<ISyncConflict | null> {
@@ -484,10 +433,6 @@ export class ConflictDetectionService {
       .populate('userId', 'name email')
   }
 }
-
-// ─────────────────────────────────────────────────────────────
-// SINGLETON INSTANCE
-// ─────────────────────────────────────────────────────────────
 
 export const conflictDetectionService = new ConflictDetectionService()
 
