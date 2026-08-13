@@ -69,12 +69,17 @@ export interface CronExecutionResult {
 }
 
 /**
- * Métricas de resumo que os pipelines leem transversalmente para logging.
- * Os produtores podem expor campos adicionais; não exigimos index signature.
+ * Métricas produzidas pelos vários steps do pipeline.
+ * São opcionais porque cada step expõe apenas o seu subconjunto.
  */
 export interface PipelineStepStats {
   total?: number
   totalTags?: number
+  created?: number
+  existing?: number
+  cached?: number
+  failed?: number
+  successful?: number
   updated?: number
   tagsApplied?: number
   tagsRemoved?: number
