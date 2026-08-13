@@ -157,12 +157,16 @@ test('ratchet rejects a cap above 200 and leaves the production source restored'
   expect(restoredHash).toBe(originalHash)
 })
 
-test('ratchet rejects a new Mongoose list site', () => {
+test.each([
+  ['plain find', 'EventType.find({})'],
+  ['typed find', 'EventType.find<{ _id: string }>({})'],
+  ['nested typed aggregate', 'EventType.aggregate<{ rows: Array<{ id: string }> }>([])'],
+] as const)('ratchet rejects a new Mongoose list site written as %s', (_label, listSite) => {
   const relative = 'src/models/EventType.ts'
   const overlay = fs.mkdtempSync(path.join(os.tmpdir(), 'scale-read-overlay-'))
   const target = path.join(overlay, relative)
   fs.mkdirSync(path.dirname(target), { recursive: true })
-  fs.writeFileSync(target, `${fs.readFileSync(path.join(root, relative), 'utf8')}\nEventType.find({})\n`)
+  fs.writeFileSync(target, `${fs.readFileSync(path.join(root, relative), 'utf8')}\n${listSite}\n`)
   try {
     expect(() => run({
       NODE_ENV: 'test',
