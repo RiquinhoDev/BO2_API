@@ -7,7 +7,7 @@ const expectedCanonicalCalls: Record<string, number> = {
   'src/controllers/analytics/classAnalytics.controller.ts': 6,
   'src/controllers/classes/classHistory.controller.ts': 4,
   'src/controllers/classes/classDetails.controller.ts': 4,
-  'src/controllers/products/productSalesStats.controller.ts': 1,
+  'src/controllers/products/productSalesStats.controller.ts': 2,
   'src/controllers/syncUtilizadoresControllers/syncReports.controller.ts': 3,
 }
 
