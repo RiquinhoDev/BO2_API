@@ -135,6 +135,12 @@ const routes: DestructiveRoute[] = [
   },
 ]
 
+const bulkRoutes = routes.filter((route) => (
+  route.path === '/api/users/bulkMerge'
+  || route.path === '/api/users/bulkDelete'
+  || route.path === '/api/users/bulkDeleteUnmatched'
+))
+
 function buildApp() {
   const app = express()
   const errors = createErrorHandling({
@@ -175,4 +181,9 @@ test.each(routes)('$name rejects a nested Mongo operator', async (route) => {
     ...route.body,
     filter: { $where: 'unsafe' },
   }).expect(400)
+})
+
+test.each(bulkRoutes)('$name rejects more than 200 ids', async (route) => {
+  const ids = Array.from({ length: 201 }, (_, index) => `id-${index}`)
+  await callRoute(buildApp(), route, { ids }).expect(400)
 })
