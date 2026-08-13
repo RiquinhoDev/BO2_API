@@ -649,7 +649,7 @@
         "id": "product-sales.first-enrollment-order",
         "file": "src/services/productSalesStatsBuilder.ts",
         "start": "const allUserProducts = await UserProduct.find(",
-        "end": "// 2.5. Processar cada UserProduct",
+        "end": "for (const up of userProducts) {",
         "status": "complete",
         "disposition": "changed",
         "require": [
