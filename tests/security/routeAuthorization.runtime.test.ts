@@ -2,10 +2,23 @@ import express, { type RequestHandler } from 'express'
 import request from 'supertest'
 import {
   createRouteAuthorization,
+  type RouteAuthorizationAuditEvent,
   type RouteAuthorizationDependencies,
 } from '../../src/security/routeAuthorization'
 import type { CatalogRouteMatch } from '../../src/security/routeCatalogMatcher'
-import type { Ops02Decision } from '../../src/security/ops02Policy'
+import type {
+  Ops02Decision,
+  Ops02ProtectionDisposition,
+} from '../../src/security/ops02Policy'
+
+interface RuntimeRouteAuthorizationDependencies extends RouteAuthorizationDependencies {
+  audit: jest.Mock<void, [RouteAuthorizationAuditEvent]>
+}
+
+function offlineLoopback(path: string): string {
+  const separator = path.includes('?') ? '&' : '?'
+  return `${path}${separator}__bo2_offline_loopback=1`
+}
 
 function user(role: string): RequestHandler {
   return (req, _res, next) => {
@@ -33,7 +46,10 @@ function decision(
   path: string,
   authorization: 'internal-write' | 'super-admin',
 ): Ops02Decision {
-  const protection = { status: 'not-applicable' as const, reason: 'runtime-fixture' }
+  const protection: Ops02ProtectionDisposition = {
+    status: 'not-applicable',
+    reason: 'runtime-fixture',
+  }
   return {
     method,
     path,
@@ -51,7 +67,7 @@ function decision(
   }
 }
 
-function dependencies(): RouteAuthorizationDependencies {
+function dependencies(): RuntimeRouteAuthorizationDependencies {
   const routes = new Map<string, CatalogRouteMatch>([
     ['GET /api/read', route('GET', '/api/read', false)],
     ['POST /api/write', route('POST', '/api/write', true)],
@@ -61,15 +77,20 @@ function dependencies(): RouteAuthorizationDependencies {
     ['POST /api/write', decision('POST', '/api/write', 'internal-write')],
     ['POST /api/high-impact', decision('POST', '/api/high-impact', 'super-admin')],
   ])
+  const audit = jest.fn<void, [RouteAuthorizationAuditEvent]>()
 
   return {
     matchRoute: (method, path) => routes.get(`${method.toUpperCase()} ${path}`) ?? null,
     getDecision: (method, path) => decisions.get(`${method.toUpperCase()} ${path}`) ?? null,
-    audit: jest.fn(),
+    audit,
   }
 }
 
-function appFor(role: string, deps: RouteAuthorizationDependencies, handler = jest.fn((_req, res) => res.status(200).json({ ok: true }))) {
+function appFor(
+  role: string,
+  deps: RouteAuthorizationDependencies,
+  handler = jest.fn((_req, res) => res.status(200).json({ ok: true })),
+) {
   const app = express()
   app.use((req, res, next) => {
     res.locals.correlationId = 'request-id'
@@ -88,7 +109,7 @@ describe('central route authorization', () => {
     const deps = dependencies()
     const { app, handler } = appFor('MODERATOR', deps)
 
-    await request(app).get('/api/read').expect(200)
+    await request(app).get(offlineLoopback('/api/read')).expect(200)
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
@@ -96,7 +117,7 @@ describe('central route authorization', () => {
     const deps = dependencies()
     const { app, handler } = appFor('MODERATOR', deps)
 
-    await request(app).post('/api/write').expect(403)
+    await request(app).post(offlineLoopback('/api/write')).expect(403)
     expect(handler).not.toHaveBeenCalled()
   })
 
@@ -104,7 +125,7 @@ describe('central route authorization', () => {
     const deps = dependencies()
     const { app, handler } = appFor('ADMIN', deps)
 
-    await request(app).post('/api/write').expect(200)
+    await request(app).post(offlineLoopback('/api/write')).expect(200)
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
@@ -112,7 +133,7 @@ describe('central route authorization', () => {
     const deps = dependencies()
     const { app, handler } = appFor('ADMIN', deps)
 
-    await request(app).post('/api/high-impact').expect(403)
+    await request(app).post(offlineLoopback('/api/high-impact')).expect(403)
     expect(handler).not.toHaveBeenCalled()
   })
 
@@ -120,7 +141,7 @@ describe('central route authorization', () => {
     const deps = dependencies()
     const { app, handler } = appFor('SUPER_ADMIN', deps)
 
-    await request(app).post('/api/high-impact').expect(200)
+    await request(app).post(offlineLoopback('/api/high-impact')).expect(200)
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
@@ -128,7 +149,7 @@ describe('central route authorization', () => {
     const deps = dependencies()
     const { app } = appFor('MODERATOR', deps)
 
-    await request(app).get('/api/unknown').expect(404)
+    await request(app).get(offlineLoopback('/api/unknown')).expect(404)
   })
 
   test('fails closed when a cataloged write has no OPS-02 decision', async () => {
@@ -136,7 +157,7 @@ describe('central route authorization', () => {
     deps.getDecision = () => null
     const { app, handler } = appFor('ADMIN', deps)
 
-    await request(app).post('/api/write').expect(500)
+    await request(app).post(offlineLoopback('/api/write')).expect(500)
     expect(handler).not.toHaveBeenCalled()
   })
 
@@ -144,7 +165,10 @@ describe('central route authorization', () => {
     const deps = dependencies()
     const { app } = appFor('ADMIN', deps)
 
-    await request(app).post('/api/write?token=secret').set('Authorization', 'Bearer secret').expect(200)
+    await request(app)
+      .post(offlineLoopback('/api/write?token=secret'))
+      .set('Authorization', 'Bearer secret')
+      .expect(200)
 
     expect(deps.audit).toHaveBeenCalledWith(expect.objectContaining({
       actorId: 'admin-id',
@@ -155,6 +179,6 @@ describe('central route authorization', () => {
       outcome: 'allowed-write',
       correlationId: 'request-id',
     }))
-    expect(JSON.stringify((deps.audit as jest.Mock).mock.calls)).not.toMatch(/example\.test|Bearer|secret/i)
+    expect(JSON.stringify(deps.audit.mock.calls)).not.toMatch(/example\.test|Bearer|secret/i)
   })
 })
