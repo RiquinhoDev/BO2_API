@@ -1,4 +1,4 @@
-import type { RequestHandler } from 'express'
+import type { Request, RequestHandler, Response } from 'express'
 import request from 'supertest'
 import { createApp } from '../../src/app'
 
@@ -16,7 +16,9 @@ function authenticatedAs(role: string): RequestHandler {
 
 describe('createApp route authorization integration', () => {
   test('blocks ADMIN from a cataloged SUPER_ADMIN route before the handler', async () => {
-    const handler = jest.fn((_req, res) => res.status(200).json({ ok: true }))
+    const handler = jest.fn((_req: Request, res: Response) => (
+      res.status(200).json({ ok: true })
+    ))
     const app = createApp({
       authEnforce: true,
       authenticateRequest: authenticatedAs('ADMIN'),
