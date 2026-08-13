@@ -1,9 +1,4 @@
 import logger from '../../../../utils/logger'
-// ════════════════════════════════════════════════════════════
-// 📁 src/services/hotmartServices/hotmart.helpers.ts
-// Hotmart Helpers - Funções reutilizáveis
-// ════════════════════════════════════════════════════════════
-
 import axios from 'axios'
 import { HotmartModule, HotmartModuleProgress } from '../../../../types/lesson.types'
 import { getHotmartCredentials, getHotmartSubdomain } from '../../../requestDrivenRuntimeConfig'
@@ -11,9 +6,27 @@ import { calculateProgress } from './processing'
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-const getRetryDelayMs = (error: any, attempt: number, baseDelayMs: number) => {
-  const retryAfterHeader = error?.response?.headers?.['retry-after']
-  const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : NaN
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function responseData(error: unknown): unknown {
+  return axios.isAxiosError(error) ? error.response?.data : undefined
+}
+
+function errorDescription(error: unknown): string | undefined {
+  if (!axios.isAxiosError(error)) return undefined
+  const data: unknown = error.response?.data
+  if (typeof data !== 'object' || data === null || !('error_description' in data)) return undefined
+  const description = data.error_description
+  return typeof description === 'string' ? description : undefined
+}
+
+const getRetryDelayMs = (error: unknown, attempt: number, baseDelayMs: number) => {
+  const retryAfterHeader = axios.isAxiosError(error)
+    ? error.response?.headers?.['retry-after']
+    : undefined
+  const retryAfter = retryAfterHeader ? parseInt(String(retryAfterHeader), 10) : NaN
   if (!Number.isNaN(retryAfter) && retryAfter > 0) {
     return retryAfter * 1000
   }
@@ -31,8 +44,8 @@ export async function requestWithRetry<T>(
   while (true) {
     try {
       return await fn()
-    } catch (error: any) {
-      const status = error?.response?.status
+    } catch (error: unknown) {
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined
       if (status !== 429 || attempt >= options.maxRetries) {
         throw error
       }
@@ -46,10 +59,6 @@ export async function requestWithRetry<T>(
     }
   }
 }
-
-// ═══════════════════════════════════════════════════════════
-// TYPES
-// ═══════════════════════════════════════════════════════════
 
 export interface HotmartLesson {
   page_id: string
@@ -76,8 +85,7 @@ export interface HotmartUser {
   plus_access?: string
   access_count?: number
   engagement?: string
-  // ✅ NOVOS CAMPOS DA API HOTMART
-  status?: string  // ACTIVE, INACTIVE, etc
+  status?: string
   role?: string
   type?: string
   locale?: string
@@ -96,8 +104,6 @@ export interface ProgressData {
     isCompleted: boolean
     completedDate?: Date
   }[]
-
-  // ✅ MÓDULOS
   modulesList?: Array<{
     moduleId: string
     name: string
@@ -112,27 +118,39 @@ export interface ProgressData {
   totalModules?: number
   modulesCompleted?: string[]
   currentModule?: number
-
   lastUpdated: Date
 }
 
-// ═══════════════════════════════════════════════════════════
-// AUTHENTICATION
-// ═══════════════════════════════════════════════════════════
+interface HotmartTokenResponse {
+  access_token?: string
+  expires_in?: number
+}
 
-/**
- * Obter Access Token da Hotmart API
- * @returns {Promise<string>} Access token válido
- */
+interface HotmartPageInfo {
+  next_page_token?: string
+  nextPageToken?: string
+}
+
+interface HotmartUsersResponse {
+  users?: HotmartUser[]
+  items?: HotmartUser[]
+  data?: HotmartUser[]
+  page_info?: HotmartPageInfo
+  pageInfo?: HotmartPageInfo
+  pagination?: HotmartPageInfo
+}
+
+interface HotmartLessonsResponse {
+  lessons?: HotmartLesson[]
+}
+
 export const getHotmartAccessToken = async (): Promise<string> => {
   const { clientId, clientSecret } = getHotmartCredentials()
   try {
-
     const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+    logger.info('🔐 [HotmartAuth] Gerando token...')
 
-    logger.info(`🔐 [HotmartAuth] Gerando token...`)
-
-    const response = await axios.post(
+    const response = await axios.post<HotmartTokenResponse>(
       'https://api-sec-vlc.hotmart.com/security/oauth/token',
       new URLSearchParams({ grant_type: 'client_credentials' }),
       {
@@ -149,31 +167,19 @@ export const getHotmartAccessToken = async (): Promise<string> => {
 
     logger.info(`✅ [HotmartAuth] Token obtido - Expira em: ${response.data.expires_in}s`)
     return response.data.access_token
-
-  } catch (error: any) {
-    logger.error('❌ [HotmartAuth] Erro:', error.response?.data || error.message)
-    throw new Error(
-      `Falha ao obter token: ${error.response?.data?.error_description || error.message}`
-    )
+  } catch (error: unknown) {
+    logger.error('❌ [HotmartAuth] Erro:', responseData(error) || errorMessage(error))
+    throw new Error(`Falha ao obter token: ${errorDescription(error) || errorMessage(error)}`)
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// DATA FETCHING
-// ═══════════════════════════════════════════════════════════
-
-/**
- * Buscar TODOS os utilizadores da Hotmart (paginação automática)
- * @param {string} accessToken - Token de autenticação
- * @returns {Promise<HotmartUser[]>} Lista completa de utilizadores
- */
 export const fetchAllHotmartUsers = async (accessToken: string): Promise<HotmartUser[]> => {
   let allUsers: HotmartUser[] = []
   let nextPageToken: string | null = null
   let pageCount = 0
   const subdomain = getHotmartSubdomain()
 
-  logger.info(`📡 [HotmartFetch] Iniciando busca de utilizadores...`)
+  logger.info('📡 [HotmartFetch] Iniciando busca de utilizadores...')
 
   try {
     do {
@@ -186,18 +192,16 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
       logger.info(`📄 [HotmartFetch] Página ${pageCount}: ${requestUrl}`)
 
       const response = await requestWithRetry(
-        () =>
-          axios.get(requestUrl, {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            },
-            timeout: 30000 // ?o. 30s timeout por request
-          }),
+        () => axios.get<HotmartUsersResponse>(requestUrl, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 30000
+        }),
         { maxRetries: 5, baseDelayMs: 1000 }
       )
 
-      // Normalizar resposta (diferentes formatos possíveis)
       const users = response.data.users || response.data.items || response.data.data || []
       const pageInfo = response.data.page_info || response.data.pageInfo || response.data.pagination || {}
 
@@ -208,79 +212,60 @@ export const fetchAllHotmartUsers = async (accessToken: string): Promise<Hotmart
       allUsers = allUsers.concat(users)
       nextPageToken = pageInfo.next_page_token || pageInfo.nextPageToken || null
 
-logger.info(`✅ [HotmartFetch] Página ${pageCount}: ${users.length} utilizadores | Total: ${allUsers.length}`)
-logger.info(`   nextPageToken: ${nextPageToken ? 'exists' : 'null'}`)
+      logger.info(`✅ [HotmartFetch] Página ${pageCount}: ${users.length} utilizadores | Total: ${allUsers.length}`)
+      logger.info(`   nextPageToken: ${nextPageToken ? 'exists' : 'null'}`)
 
-// Rate limiting (só se houver próxima página)
-if (nextPageToken) {
-  await sleep(500)
-}
+      if (nextPageToken) {
+        await sleep(500)
+      }
     } while (nextPageToken)
 
     logger.info(`🎯 [HotmartFetch] Busca completa: ${allUsers.length} utilizadores em ${pageCount} páginas`)
     return allUsers
-
-  } catch (error: any) {
-    logger.error('❌ [HotmartFetch] Erro:', error.response?.data || error.message)
-    throw new Error(`Erro ao buscar utilizadores: ${error.message}`)
+  } catch (error: unknown) {
+    logger.error('❌ [HotmartFetch] Erro:', responseData(error) || errorMessage(error))
+    throw new Error(`Erro ao buscar utilizadores: ${errorMessage(error)}`)
   }
 }
 
-/**
- * Buscar lições de um utilizador específico
- * @param {string} userId - ID do utilizador na Hotmart
- * @param {string} accessToken - Token de autenticação
- * @returns {Promise<HotmartLesson[]>} Lista de lições
- */
 export const fetchUserLessons = async (
   userId: string,
   accessToken: string
 ): Promise<HotmartLesson[]> => {
   const subdomain = getHotmartSubdomain()
   try {
-
-const response = await requestWithRetry(
-  () =>
-    axios.get(
-      `https://developers.hotmart.com/club/api/v1/users/${userId}/lessons?subdomain=${subdomain}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000 // ?o. 10s timeout por request
-      }
-    ),
-  { maxRetries: 3, baseDelayMs: 500 }
-)
+    const response = await requestWithRetry(
+      () => axios.get<HotmartLessonsResponse>(
+        `https://developers.hotmart.com/club/api/v1/users/${userId}/lessons?subdomain=${subdomain}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000
+        }
+      ),
+      { maxRetries: 3, baseDelayMs: 500 }
+    )
 
     return response.data.lessons || []
-
-  } catch (error: any) {
-    logger.warn(`⚠️ [HotmartFetch] Erro ao buscar lições do user ${userId}:`, error.message)
+  } catch (error: unknown) {
+    logger.warn(`⚠️ [HotmartFetch] Erro ao buscar lições do user ${userId}:`, errorMessage(error))
     return []
   }
 }
 
-/**
- * Buscar progresso de múltiplos utilizadores em paralelo (com controle de concorrência)
- * @param {HotmartUser[]} users - Lista de utilizadores
- * @param {string} accessToken - Token de autenticação
- * @param {number} concurrency - Máximo de requests simultâneos (default: 5)
- * @returns {Promise<Map<string, ProgressData>>} Mapa de userId -> progressData
- */
 export const fetchBatchUserProgress = async (
   users: HotmartUser[],
   accessToken: string,
   concurrency: number = 5
 ): Promise<Map<string, ProgressData>> => {
-  
   const progressMap = new Map<string, ProgressData>()
   const userIds = users
     .map(u => u.id || u.user_id || u.uid || u.code)
-    .filter(Boolean) as string[]
+    .filter((value): value is string => Boolean(value))
 
-  logger.info(`📊 [HotmartProgress] Iniciando fetch de progresso...`)
+  logger.info('📊 [HotmartProgress] Iniciando fetch de progresso...')
   logger.info(`   👥 Total users: ${userIds.length}`)
   logger.info(`   🔢 Concurrency: ${concurrency}`)
   logger.info(`   ⏱️  Estimativa: ~${Math.ceil(userIds.length / concurrency * 0.5 / 60)} minutos`)
@@ -288,14 +273,12 @@ export const fetchBatchUserProgress = async (
   const startTime = Date.now()
   let processedCount = 0
 
-  // Processar em batches
   for (let i = 0; i < userIds.length; i += concurrency) {
     const batch = userIds.slice(i, i + concurrency)
     const batchNum = Math.floor(i / concurrency) + 1
     const totalBatches = Math.ceil(userIds.length / concurrency)
-    
     const batchStart = Date.now()
-    
+
     const progressPromises = batch.map(async (userId) => {
       try {
         const lessons = await fetchUserLessons(userId, accessToken)
@@ -303,45 +286,33 @@ export const fetchBatchUserProgress = async (
           const progress = calculateProgress(lessons)
           progressMap.set(userId, progress)
         }
-      } catch (error) {
+      } catch {
         // Silencioso - não logar cada erro
       }
     })
 
     await Promise.all(progressPromises)
-    
+
     processedCount += batch.length
     const batchDuration = Date.now() - batchStart
     const elapsed = Math.floor((Date.now() - startTime) / 1000)
     const percentage = Math.floor((processedCount / userIds.length) * 100)
-    
-    // ✅ LOG A CADA 10 BATCHES (não todos!)
+
     if (batchNum % 10 === 0 || batchNum === totalBatches) {
       const remaining = Math.ceil((userIds.length - processedCount) / concurrency * (batchDuration / 1000))
       logger.info(`   📦 Batch ${batchNum}/${totalBatches} (${percentage}%) - ${elapsed}s passados, ~${Math.ceil(remaining / 60)} min restantes`)
     }
-    
-    // Rate limiting entre batches
+
     if (i + concurrency < userIds.length) {
-      await new Promise(resolve => setTimeout(resolve, 100)) // 100ms
+      await sleep(100)
     }
   }
 
   const totalDuration = Math.floor((Date.now() - startTime) / 1000)
-  logger.info(`✅ [HotmartProgress] Completo!`)
+  logger.info('✅ [HotmartProgress] Completo!')
   logger.info(`   ⏱️  Duração: ${totalDuration}s (${Math.floor(totalDuration / 60)} min)`)
   logger.info(`   📊 Sucesso: ${progressMap.size}/${userIds.length} users (${Math.floor(progressMap.size / userIds.length * 100)}%)`)
   logger.info(`   ⚡ Velocidade: ${(userIds.length / totalDuration).toFixed(1)} users/s`)
 
   return progressMap
 }
-// ═══════════════════════════════════════════════════════════
-// DATA PROCESSING
-// ═══════════════════════════════════════════════════════════
-
-/**
- * Calcular progresso baseado nas lições
- * (Extrai módulos diretamente das lições - sem endpoint /modules)
- * @param {HotmartLesson[]} lessons - Lista de lições
- * @returns {ProgressData} Dados de progresso calculados
- */
