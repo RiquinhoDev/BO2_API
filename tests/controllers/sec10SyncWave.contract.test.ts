@@ -519,12 +519,17 @@ describe('preserved sync and conflict contracts', () => {
 
     expect(history.status).toBe(200)
     expect(history.body).toEqual({
-      history: [{ _id: 'history-id', stats: { total: 2, errors: 0 } }],
-      count: 1,
-      page: 2,
-      limit: 5,
-      totalPages: 1,
-      filters: { type: null, status: null, startDate: null, endDate: null },
+      success: true,
+      data: {
+        history: [{ _id: 'history-id', stats: { total: 2, errors: 0 } }],
+      },
+      meta: {
+        count: 1,
+        page: 2,
+        limit: 5,
+        totalPages: 1,
+        filters: { type: null, status: null, startDate: null, endDate: null },
+      },
     })
 
     mockSyncHistoryCountDocuments
@@ -539,10 +544,13 @@ describe('preserved sync and conflict contracts', () => {
 
     expect(stats.status).toBe(200)
     expect(stats.body).toEqual({
-      overview: { totalSyncs: 4, completedSyncs: 3, failedSyncs: 1, runningSyncs: 0, successRate: 75 },
-      recentSyncs: [],
-      typeStats: [{ _id: 'hotmart', count: 4 }],
-      performance: { avgDuration: 12, avgRecordsPerSync: 10, avgSuccessRate: 75 },
+      success: true,
+      data: {
+        overview: { totalSyncs: 4, completedSyncs: 3, failedSyncs: 1, runningSyncs: 0, successRate: 75 },
+        recentSyncs: [],
+        typeStats: [{ _id: 'hotmart', count: 4 }],
+        performance: { avgDuration: 12, avgRecordsPerSync: 10, avgSuccessRate: 75 },
+      },
     })
   })
 
@@ -550,10 +558,16 @@ describe('preserved sync and conflict contracts', () => {
     mockSyncHistoryDeleteMany.mockResolvedValueOnce({ deletedCount: 2 })
     const clean = await callRoute(syncRoute('delete', '/history/clean?days=30')).response
     expect(clean.status).toBe(200)
-    expect(clean.body).toEqual(expect.objectContaining({
-      message: 'Histórico limpo com sucesso. 2 registos removidos.',
-      deletedCount: 2,
-    }))
+    expect(clean.body).toEqual({
+      success: true,
+      data: {
+        deletedCount: 2,
+        cutoffDate: expect.any(String),
+      },
+      meta: {
+        message: 'Histórico limpo com sucesso. 2 registos removidos.',
+      },
+    })
     expect(mockSyncHistoryDeleteMany).toHaveBeenCalledWith({
       startedAt: { $lt: expect.any(Date) },
       status: { $in: ['completed', 'failed', 'cancelled'] },
@@ -565,13 +579,16 @@ describe('preserved sync and conflict contracts', () => {
     ).response
     expect(create.status).toBe(201)
     expect(create.body).toEqual({
-      message: 'Registo de sincronização criado.',
-      syncRecord: {
-        type: 'hotmart',
-        user: 'admin-id',
-        metadata: { source: 'manual' },
-        status: 'pending',
+      success: true,
+      data: {
+        syncRecord: {
+          type: 'hotmart',
+          user: 'admin-id',
+          metadata: { source: 'manual' },
+          status: 'pending',
+        },
       },
+      meta: { message: 'Registo de sincronização criado.' },
     })
     expect(mockSyncHistorySave).toHaveBeenCalledTimes(1)
   })
@@ -589,10 +606,13 @@ describe('preserved sync and conflict contracts', () => {
     expect(result.status).toBe(200)
     expect(result.body).toEqual({
       success: true,
-      message: 'Pipeline executado com sucesso',
-      duration: 14,
-      summary: { totalUsers: 3, totalUserProducts: 5, engagementUpdated: 2, tagsApplied: 1 },
-      steps: { syncHotmart: { success: true, duration: 2, stats: { total: 3 } } },
+      data: {
+        completed: true,
+        duration: 14,
+        summary: { totalUsers: 3, totalUserProducts: 5, engagementUpdated: 2, tagsApplied: 1 },
+        steps: { syncHotmart: { success: true, duration: 2, stats: { total: 3 } } },
+      },
+      meta: { message: 'Pipeline executado com sucesso' },
     })
   })
 
@@ -608,9 +628,12 @@ describe('preserved sync and conflict contracts', () => {
     expect(result.status).toBe(200)
     expect(result.body).toEqual({
       success: true,
-      stats: { total: 1, successful: 1, failed: 0 },
-      reportId: 'report-id',
-      ...(contract.duration ? { duration: 12 } : {}),
+      data: {
+        completed: true,
+        stats: { total: 1, successful: 1, failed: 0 },
+        reportId: 'report-id',
+        ...(contract.duration ? { duration: 12 } : {}),
+      },
     })
   })
 
@@ -753,9 +776,12 @@ describe('preserved sync and conflict contracts', () => {
 
     expect(result.status).toBe(200)
     expect(result.body).toEqual({
-      message: 'Sincronização marcada para retry.',
-      syncId: '507f1f77bcf86cd799439011',
-      newStatus: 'pending',
+      success: true,
+      data: {
+        syncId: '507f1f77bcf86cd799439011',
+        newStatus: 'pending',
+      },
+      meta: { message: 'Sincronização marcada para retry.' },
     })
     expect(mockSyncHistoryFindByIdAndUpdate).toHaveBeenCalledWith(
       '507f1f77bcf86cd799439011',
