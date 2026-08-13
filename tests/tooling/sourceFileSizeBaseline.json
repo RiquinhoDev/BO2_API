@@ -1,1 +1,4 @@
-﻿{}
+{
+  "src/controllers/guru.webhook.controller.ts": 504,
+  "src/services/tagMonitoring/weeklyTagMonitoring.service.ts": 509
+}
