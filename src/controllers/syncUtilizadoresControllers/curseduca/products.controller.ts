@@ -6,7 +6,7 @@ import { internalError } from '../../../security/errorHandling'
 
 interface ProductUserView {
   products?: Array<{
-    product?: { _id?: unknown }
+    product?: { _id?: unknown } | null
     progress?: { percentage?: number }
   }>
 }
