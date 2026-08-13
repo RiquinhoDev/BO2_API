@@ -22,6 +22,7 @@ interface PopulatedProduct {
   _id: mongoose.Types.ObjectId
   code: string
   name: string
+  platform?: string
 }
 
 interface LegacyGroupedEnrollmentLean {
@@ -60,28 +61,64 @@ interface LegacyGroupedProductLean {
   platform: string
 }
 
-// ─────────────────────────────────────────────────────────────
-// BUSCAR USER COM PRODUTOS (DUAL READ)
-// ─────────────────────────────────────────────────────────────
+interface UsersByProductUserLean {
+  _id: mongoose.Types.ObjectId
+  name?: string
+  email?: string
+  isActive?: boolean
+  metadata?: unknown
+}
+
+interface UsersByProductEnrollmentLean {
+  _id: mongoose.Types.ObjectId
+  userId: UsersByProductUserLean | null
+  productId: PopulatedProduct | null
+  status?: EnrollmentStatus
+  enrolledAt?: Date
+  progress?: IProgress
+  engagement?: IEngagement
+  classes?: IUserProduct['classes']
+  platform?: PlatformType
+  platformUserId?: string
+  platformUserUuid?: string
+  metadata?: IUserProduct['metadata']
+}
+
+interface UsersByProductEntry {
+  _id: mongoose.Types.ObjectId
+  name?: string
+  email?: string
+  isActive?: boolean
+  metadata?: unknown
+  products: Array<{
+    _id: mongoose.Types.ObjectId
+    product: PopulatedProduct | null
+    status?: EnrollmentStatus
+    enrolledAt?: Date
+    progress?: IProgress & { progressPercentage: number }
+    engagement?: IEngagement
+    classes?: IUserProduct['classes']
+    platform?: PlatformType
+    platformUserId?: string
+    platformUserUuid?: string
+    metadata?: IUserProduct['metadata']
+  }>
+  _v2Enabled: true
+}
 
 export async function getUserWithProducts(userId: string | mongoose.Types.ObjectId) {
-  // 1. Buscar user (V1 - mantém compatibilidade)
   const user = await User.findById(userId).lean()
   
   if (!user) {
     return null
   }
   
-  // 2. Buscar UserProducts (V2 - dados novos)
   const userProducts = await UserProduct.find({ userId: user._id })
     .populate('productId', 'code name platform')
     .lean<Array<Omit<IUserProduct, 'productId'> & { productId: PopulatedProduct }>>()
   
-  // 3. Montar resposta compatível
   return {
     ...user,
-    
-    // V2 data (novo campo)
     products: userProducts.map(up => ({
       _id: up._id,
       productId: up.productId._id,
@@ -97,16 +134,10 @@ export async function getUserWithProducts(userId: string | mongoose.Types.Object
       classes: up.classes,
       metadata: up.metadata
     })),
-    
-    // Metadata
     _v2Enabled: true,
     _hasProducts: userProducts.length > 0
   }
 }
-
-// ─────────────────────────────────────────────────────────────
-// DUAL WRITE: ATUALIZAR USER + USERPRODUCT
-// ─────────────────────────────────────────────────────────────
 
 export async function dualWriteUserData(
   userId: mongoose.Types.ObjectId,
@@ -119,14 +150,12 @@ export async function dualWriteUserData(
     status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CANCELLED'
   }
 ) {
-  // 1. Buscar produto
   const product = await Product.findOne({ code: productCode })
   
   if (!product) {
     throw new Error(`Produto ${productCode} não encontrado`)
   }
   
-  // 2. WRITE V2: UserProduct
   await UserProduct.findOneAndUpdate(
     {
       userId,
@@ -145,7 +174,6 @@ export async function dualWriteUserData(
     { upsert: true, new: true }
   )
   
-  // 3. WRITE V1: User (backward compatibility)
   const platform = product.platform
   
   if (platform === 'hotmart') {
@@ -176,10 +204,6 @@ export async function dualWriteUserData(
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// ENROLLAR USER EM PRODUTO
-// ─────────────────────────────────────────────────────────────
-
 export async function enrollUserInProduct(
   userId: mongoose.Types.ObjectId,
   productId: mongoose.Types.ObjectId,
@@ -190,7 +214,6 @@ export async function enrollUserInProduct(
     enrolledAt?: Date
   }
 ) {
-  // Verificar se já existe
   const existing = await UserProduct.findOne({
     userId,
     productId
@@ -204,14 +227,12 @@ export async function enrollUserInProduct(
     }
   }
   
-  // Buscar produto para pegar platform
   const product = await Product.findById(productId)
   
   if (!product) {
     throw new Error('Produto não encontrado')
   }
   
-  // Criar enrollment
   const userProduct = await UserProduct.create({
     userId,
     productId,
@@ -237,10 +258,6 @@ export async function enrollUserInProduct(
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// BUSCAR PRODUTOS DO USER
-// ─────────────────────────────────────────────────────────────
-
 export async function getUserProducts(
   userId: mongoose.Types.ObjectId,
   filters?: {
@@ -253,16 +270,10 @@ export async function getUserProducts(
   if (filters?.status) query.status = filters.status
   if (filters?.platform) query.platform = filters.platform
   
-  const userProducts = await UserProduct.find(query)
+  return UserProduct.find(query)
     .populate('productId')
     .sort({ enrolledAt: -1 })
-  
-  return userProducts
 }
-
-// ─────────────────────────────────────────────────────────────
-// BUSCAR PRODUTO ESPECÍFICO DO USER
-// ─────────────────────────────────────────────────────────────
 
 export async function getUserProductByCode(
   userId: mongoose.Types.ObjectId,
@@ -274,17 +285,11 @@ export async function getUserProductByCode(
     return null
   }
   
-  const userProduct = await UserProduct.findOne({
+  return UserProduct.findOne({
     userId,
     productId: product._id
   }).populate('productId')
-  
-  return userProduct
 }
-
-// ─────────────────────────────────────────────────────────────
-// ATUALIZAR CLASSES DO USERPRODUCT
-// ─────────────────────────────────────────────────────────────
 
 export async function updateUserProductClasses(
   userId: mongoose.Types.ObjectId,
@@ -307,10 +312,6 @@ export async function updateUserProductClasses(
   )
 }
 
-// ─────────────────────────────────────────────────────────────
-// VERIFICAR SE USER ESTÁ EM PRODUTO
-// ─────────────────────────────────────────────────────────────
-
 export async function isUserInProduct(
   userId: mongoose.Types.ObjectId,
   productCode: string
@@ -330,50 +331,45 @@ export async function isUserInProduct(
   return !!userProduct
 }
 
-// ─────────────────────────────────────────────────────────────
-// 🎯 SPRINT 5.2 - MÉTODOS HELPER ADICIONAIS
-// ─────────────────────────────────────────────────────────────
-
-/**
- * Conta users de um produto específico
- */
 export async function getUserCountForProduct(productId: string): Promise<number> {
   return await UserProduct.countDocuments({ productId })
 }
-// Lista users de um produto específico (helper para controllers, NÃO é Express handler)
-export async function getUsersByProduct(productId: string): Promise<any[]> {
+
+export async function getUsersByProduct(productId: string): Promise<UsersByProductEntry[]> {
   const userProducts = await UserProduct.find({ productId })
     .populate('userId', 'name email isActive metadata')
-    .populate('productId')
-    .lean()
+    .populate('productId', 'code name platform')
+    .lean<UsersByProductEnrollmentLean[]>()
 
-  // Agrupar por user (caso existam duplicados)
-  const byUser = new Map<string, any>()
+  const byUser = new Map<string, UsersByProductEntry>()
 
   for (const up of userProducts) {
-    const user = up.userId as any
+    const user = up.userId
     if (!user?._id) continue
 
-    const key = String(user._id)
-    const entry = byUser.get(key) || {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      isActive: user.isActive,
-      metadata: user.metadata,
-      products: [],
-      _v2Enabled: true
+    const key = user._id.toString()
+    let entry = byUser.get(key)
+    if (!entry) {
+      entry = {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isActive: user.isActive,
+        metadata: user.metadata,
+        products: [],
+        _v2Enabled: true
+      }
+      byUser.set(key, entry)
     }
 
     entry.products.push({
       _id: up._id,
-      product: up.productId, // <- para bater com p.product._id no controller
+      product: up.productId,
       status: up.status,
       enrolledAt: up.enrolledAt,
       progress: up.progress
         ? {
             ...up.progress,
-            // Alias do contrato legacy, derivado sempre do campo canónico.
             progressPercentage: up.progress.percentage ?? 0
           }
         : undefined,
@@ -384,8 +380,6 @@ export async function getUsersByProduct(productId: string): Promise<any[]> {
       platformUserUuid: up.platformUserUuid,
       metadata: up.metadata
     })
-
-    byUser.set(key, entry)
   }
 
   return Array.from(byUser.values())
