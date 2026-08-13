@@ -124,11 +124,11 @@ test('lists active CursEduca memberships from UserProduct', async () => {
   const response = await getStudents('class-a')
 
   expect(response.status).toBe(200)
-  expect(response.body.students.map((student: { email: string }) => student.email)).toEqual([
+  expect(response.body.data.students.map((student: { email: string }) => student.email)).toEqual([
     'ana@example.test',
     'zoe@example.test',
   ])
-  expect(response.body.pagination).toMatchObject({
+  expect(response.body.meta.pagination).toMatchObject({
     total: 2,
     limit: 100,
     offset: 0,
@@ -141,10 +141,10 @@ test('filters each membership by its own status', async () => {
   const includingInactive = await getStudents('class-b', '&includeInactive=true')
 
   expect(activeOnly.status).toBe(200)
-  expect(activeOnly.body.students).toEqual([])
+  expect(activeOnly.body.data.students).toEqual([])
   expect(includingInactive.status).toBe(200)
-  expect(includingInactive.body.students).toHaveLength(1)
-  expect(includingInactive.body.students[0].email).toBe('zoe@example.test')
+  expect(includingInactive.body.data.students).toHaveLength(1)
+  expect(includingInactive.body.data.students[0].email).toBe('zoe@example.test')
 })
 
 test('keeps User sorting, limiting and the response envelope', async () => {
@@ -156,20 +156,24 @@ test('keeps User sorting, limiting and the response envelope', async () => {
   expect(response.status).toBe(200)
   expect(response.body).toMatchObject({
     success: true,
-    classId: 'class-a',
-    className: 'Class A',
-    students: [{ name: 'Zoe', email: 'zoe@example.test', platform: 'curseduca' }],
-    pagination: { total: 2, limit: 1, offset: 0, hasMore: true },
-    filters: { includeInactive: false, sortBy: 'name', sortOrder: 'desc' },
+    data: {
+      classId: 'class-a',
+      className: 'Class A',
+      students: [{ name: 'Zoe', email: 'zoe@example.test', platform: 'curseduca' }],
+    },
+    meta: {
+      pagination: { total: 2, limit: 1, offset: 0, hasMore: true },
+      filters: { includeInactive: false, sortBy: 'name', sortOrder: 'desc' },
+    },
   })
 })
 
 test('uses the latest learner activity and excludes system actions', async () => {
   const response = await getStudents('class-a')
-  const ana = response.body.students.find(
+  const ana = response.body.data.students.find(
     (student: { email: string }) => student.email === 'ana@example.test',
   )
-  const zoe = response.body.students.find(
+  const zoe = response.body.data.students.find(
     (student: { email: string }) => student.email === 'zoe@example.test',
   )
 
