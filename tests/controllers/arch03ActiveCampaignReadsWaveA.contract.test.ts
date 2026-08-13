@@ -19,6 +19,6 @@ describe('ARCH03 ActiveCampaign reads wave A exact identity contract', () => {
 
     expect(routes).toContain("router.get('/stats', asyncRoute(getStats))")
     expect(routes).toContain("router.get('/communication-history', asyncRoute(getCommunicationHistory))")
-    expect(routes).toContain("router.get('/v2/products/:productId/tagged', asyncRoute(getUsersWithTagsInProduct))")
+    expect(routes).toContain("router.get('/products/:productId/tagged', asyncRoute(getUsersWithTagsInProduct))")
   })
 })
