@@ -7,6 +7,7 @@ import ts from 'typescript'
 
 const ROOT = process.cwd()
 const INVENTORY = process.env.SCALABILITY_READ_INVENTORY ?? path.join(ROOT, 'src', 'contracts', 'scalability-read-inventory.json')
+const MONGOOSE_BASELINE = path.join(ROOT, 'src', 'contracts', 'scalability-mongoose-baseline.json')
 const OVERLAY = process.env.SCALABILITY_READ_TEST_OVERLAY
 const ALLOW_OVERLAY = process.env.SCALABILITY_READ_ALLOW_TEST_OVERLAY
 const slash = value => value.split(path.sep).join('/')
@@ -193,9 +194,21 @@ function validate(inventory, currentBaseline) {
   for (const entry of inventory.entries) validateEntry(entry)
   const scale02 = validateScale02(inventory.scale02)
   const scale03 = validateScale03(inventory.scale03)
-  if (inventory.mongooseListBaseline.count !== currentBaseline.count || inventory.mongooseListBaseline.hash !== currentBaseline.hash) {
-    fail(`new Mongoose list site or baseline drift (${inventory.mongooseListBaseline.count}:${inventory.mongooseListBaseline.hash} -> ${currentBaseline.count}:${currentBaseline.hash})`)
+
+  const legacyBaseline = {
+    count: 344,
+    hash: '59a6f27bafb699d566693fba917a3b848e63fb2bc187246a232b4fbed9dc6b01',
   }
+  if (JSON.stringify(inventory.mongooseListBaseline) !== JSON.stringify(legacyBaseline)) {
+    fail('legacy Mongoose list baseline drift')
+  }
+
+  const astBaseline = readJson(MONGOOSE_BASELINE)
+  if (astBaseline.version !== 2 || astBaseline.scanner !== 'typescript-ast') fail('unsupported Mongoose baseline scanner')
+  if (astBaseline.count !== currentBaseline.count || astBaseline.hash !== currentBaseline.hash) {
+    fail(`new Mongoose list site or baseline drift (${astBaseline.count}:${astBaseline.hash} -> ${currentBaseline.count}:${currentBaseline.hash})`)
+  }
+
   return { complete, pending, scale02, scale03 }
 }
 
@@ -205,4 +218,4 @@ const inventory = readJson(INVENTORY)
 const currentBaseline = mongooseSites()
 const result = validate(inventory, currentBaseline)
 if (command === '--write') fs.writeFileSync(INVENTORY, `${JSON.stringify(inventory, null, 2)}\n`)
-process.stdout.write(`SCALE-01 inventory OK: ${result.complete} complete / ${result.pending} pending; SCALE-02 ${result.scale02.complete} complete / ${result.scale02.pending} pending; SCALE-03 ${result.scale03.complete} complete / ${result.scale03.pending} pending; ${currentBaseline.count} Mongoose list sites\n`)
+process.stdout.write(`SCALE-01 inventory OK: ${result.complete} complete / ${result.pending} pending; SCALE-02 ${result.scale02.complete} complete / ${result.scale02.pending} pending; SCALE-03 ${result.scale03.complete} complete / ${result.scale03.pending} pending; ${currentBaseline.count} Mongoose list sites (AST v2)\n`)
