@@ -87,12 +87,14 @@ describe('classDetails characterization — getClassStats (GET /stats)', () => {
     const captured: Captured = {}
     await getClassStats(req(), makeResponse(captured))
     const body = captured.body as Body
+    const data = body.data as Body
+    const meta = body.meta as Body
     expect(body.success).toBe(true)
-    expect(body).toMatchObject({ totalClasses: 3, activeClasses: 2, inactiveClasses: 1 })
-    expect(body.inactivationStats).toEqual({ pendingLists: 1, completedLists: 1 })
-    expect(body).toHaveProperty('sourceBreakdown')
-    expect(body).toHaveProperty('studentDistribution')
-    expect(typeof body.timestamp).toBe('string')
+    expect(data).toMatchObject({ totalClasses: 3, activeClasses: 2, inactiveClasses: 1 })
+    expect(data.inactivationStats).toEqual({ pendingLists: 1, completedLists: 1 })
+    expect(data).toHaveProperty('sourceBreakdown')
+    expect(data).toHaveProperty('studentDistribution')
+    expect(typeof meta.timestamp).toBe('string')
   })
 
   it('reports failure through next(HttpError) with CLASS_STATS_FAILED', async () => {
@@ -116,17 +118,20 @@ describe('classDetails characterization — getClassDetails (GET /:classId/detai
     const base: Captured = {}
     await getClassDetails(req({ classId: 'H' }), makeResponse(base))
     const body = base.body as Body
+    const data = body.data as Body
+    const meta = body.meta as Body
     expect(body.success).toBe(true)
-    expect(body.classId).toBe('H')
-    expect(body.stats).toMatchObject({ totalStudents: expect.any(Number), activeStudents: 2 })
-    expect(body.students).toBeUndefined()
-    expect(body.recentHistory).toBeUndefined()
-    expect(typeof body.timestamp).toBe('string')
+    expect(data.classId).toBe('H')
+    expect(data.stats).toMatchObject({ totalStudents: expect.any(Number), activeStudents: 2 })
+    expect(data.students).toBeUndefined()
+    expect(data.recentHistory).toBeUndefined()
+    expect(typeof meta.timestamp).toBe('string')
 
     const withExtras: Captured = {}
     await getClassDetails(req({ classId: 'H' }, { includeStudents: 'true', includeHistory: 'true' }), makeResponse(withExtras))
-    expect(Array.isArray((withExtras.body as Body).students)).toBe(true)
-    expect(Array.isArray((withExtras.body as Body).recentHistory)).toBe(true)
+    const extras = (withExtras.body as Body).data as Body
+    expect(Array.isArray(extras.students)).toBe(true)
+    expect(Array.isArray(extras.recentHistory)).toBe(true)
   })
 
   it('reports failure through next(HttpError) with CLASS_DETAILS_FAILED', async () => {
@@ -143,17 +148,21 @@ describe('classDetails characterization — fetchClassData (GET /fetchClassData)
     const captured: Captured = {}
     await fetchClassData(req({}, { classIds: 'H,C' }), makeResponse(captured))
     const body = captured.body as Body
+    const data = body.data as Body
+    const meta = body.meta as Body
+    const classes = data.classes as Row[]
     expect(body.success).toBe(true)
-    expect(body.count).toBe(2)
-    expect((body.classes as Row[]).map(c => c.classId).sort()).toEqual(['C', 'H'])
-    expect((body.classes as Row[])[0]).toHaveProperty('stats')
-    expect(typeof body.timestamp).toBe('string')
+    expect(meta.count).toBe(2)
+    expect(classes.map(c => c.classId).sort()).toEqual(['C', 'H'])
+    expect(classes[0]).toHaveProperty('stats')
+    expect(typeof meta.timestamp).toBe('string')
   })
 
   it('fetches all active classes when no ids are given', async () => {
     const captured: Captured = {}
     await fetchClassData(req(), makeResponse(captured))
-    expect(((captured.body as Body).classes as Row[]).map(c => c.classId).sort()).toEqual(['C', 'H'])
+    const data = (captured.body as Body).data as Body
+    expect((data.classes as Row[]).map(c => c.classId).sort()).toEqual(['C', 'H'])
   })
 
   it('reports failure through next(HttpError) with CLASS_FETCH_FAILED', async () => {
