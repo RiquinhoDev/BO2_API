@@ -28,7 +28,42 @@ import {
   RENEWAL_ROLES,
   ROLE_NAME_BY_ID
 } from './planning'
-// ─────────────────────────────────────────────────────────────
+
+interface DiscordRoleApplyResult {
+  discordUserId: string
+  ok: boolean
+  error?: string
+  notInGuild?: boolean
+}
+
+interface DiscordRoleApplyResponse {
+  results?: DiscordRoleApplyResult[]
+}
+
+interface DiscordMessageResponse {
+  messageIds?: string[]
+  parts?: number
+}
+
+interface DiscordBotHealth {
+  ok?: boolean
+  error?: string | number
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function errorStatus(error: unknown): number | undefined {
+  return axios.isAxiosError(error) ? error.response?.status : undefined
+}
+
+function responseMessage(error: unknown): string | undefined {
+  if (!axios.isAxiosError(error)) return undefined
+  const data: unknown = error.response?.data
+  if (typeof data !== 'object' || data === null || !('message' in data)) return undefined
+  return typeof data.message === 'string' ? data.message : undefined
+}
 
 export async function approveRoleChanges(ids: string[], approvedBy: string): Promise<number> {
   const res = await DiscordRoleChange.updateMany(
@@ -37,10 +72,6 @@ export async function approveRoleChanges(ids: string[], approvedBy: string): Pro
   )
   return res.modifiedCount || 0
 }
-
-// ─────────────────────────────────────────────────────────────
-// EXECUTAR (única zona que fala com o bot → Discord)
-// ─────────────────────────────────────────────────────────────
 
 export interface DiscordExecuteReport {
   attempted: number
@@ -51,13 +82,11 @@ export interface DiscordExecuteReport {
   masterEnabled: boolean
 }
 
-const BOT_BATCH_SIZE = 20 // ≤25 (limite do endpoint do bot); ~22s por lote a 1.1s/op
+const BOT_BATCH_SIZE = 20
 
 export async function executeDiscordRolesPlan(options: {
   includePlanned?: boolean
   batchId?: string
-  // Tamanho do lote pedido pela UI (ex.: 100 de cada vez durante o backfill).
-  // Sempre limitado pelo cap do env — o limit só pode APERTAR, nunca alargar.
   limit?: number
   executedBy: string
 }): Promise<DiscordExecuteReport> {
@@ -77,8 +106,10 @@ export async function executeDiscordRolesPlan(options: {
 
   await expireStaleRoleChanges()
 
-  const statuses = options.includePlanned ? ['APPROVED', 'PLANNED'] : ['APPROVED']
-  const query: any = { status: { $in: statuses } }
+  const statuses: Array<IDiscordRoleChange['status']> = options.includePlanned
+    ? ['APPROVED', 'PLANNED']
+    : ['APPROVED']
+  const query: mongoose.FilterQuery<IDiscordRoleChange> = { status: { $in: statuses } }
   if (options.batchId) query.planBatchId = options.batchId
 
   const requested = Number(options.limit)
@@ -97,9 +128,9 @@ export async function executeDiscordRolesPlan(options: {
     const batch = toRun.slice(i, i + BOT_BATCH_SIZE)
     report.attempted += batch.length
 
-    let results: Array<{ discordUserId: string; ok: boolean; error?: string; notInGuild?: boolean }> = []
+    let results: DiscordRoleApplyResult[] = []
     try {
-      const resp = await axios.post(
+      const resp = await axios.post<DiscordRoleApplyResponse>(
         `${botUrl()}/renewal/roles/apply`,
         {
           operations: batch.map((c) => ({
@@ -110,10 +141,9 @@ export async function executeDiscordRolesPlan(options: {
         },
         { headers: botHeaders(), timeout: 120000 }
       )
-      results = resp.data?.results || []
-    } catch (error: any) {
-      // lote inteiro falhou (bot em baixo?) — marcar FAILED re-tentável e parar
-      const msg = `Chamada ao bot falhou: ${error.response?.status || ''} ${error.message}`
+      results = resp.data.results || []
+    } catch (error: unknown) {
+      const msg = `Chamada ao bot falhou: ${errorStatus(error) || ''} ${errorMessage(error)}`
       logger.error(`❌ [DiscordRoles] ${msg}`)
       await DiscordRoleChange.updateMany(
         { _id: { $in: batch.map((c) => c._id) } },
@@ -131,7 +161,6 @@ export async function executeDiscordRolesPlan(options: {
           { _id: change._id },
           { $set: { status: 'APPLIED', appliedAt: new Date() }, $inc: { attempts: 1 } }
         )
-        // actualizar o estado aplicado (fonte da reconciliação)
         if (change.payload.addRoleId) {
           await DiscordRoleState.updateOne(
             { discordUserId: change.discordUserId },
@@ -170,10 +199,6 @@ export async function executeDiscordRolesPlan(options: {
   logger.info(`✅ [DiscordRoles] Execução: ${report.applied} aplicadas, ${report.notInGuild} fora do servidor, ${report.failed} falhas, ${report.leftForNextRun} para o próximo run`)
   return report
 }
-
-// ─────────────────────────────────────────────────────────────
-// MENSAGENS DO BOT
-// ─────────────────────────────────────────────────────────────
 
 const DEFAULT_TEMPLATES: Array<{ key: string; name: string; content: string }> = [
   {
@@ -233,12 +258,6 @@ export async function ensureDefaultTemplates(): Promise<void> {
   }
 }
 
-/**
- * Substitui placeholders: {cargos} → menções <@&id>; {dataFim} → texto.
- * GARANTIA DE MARCAÇÃO: se há meses seleccionados mas o texto não tem
- * {cargos}, as menções são acrescentadas no topo — seleccionar = marcar,
- * sem depender de o autor se lembrar do placeholder. Idem @everyone.
- */
 export function renderMessage(
   content: string,
   mentionRoleIds: string[],
@@ -291,7 +310,7 @@ export async function sendDiscordMessage(params: {
   if (!finalContent.trim()) return { success: false, message: 'Mensagem vazia' }
 
   try {
-    const resp = await axios.post(
+    const resp = await axios.post<DiscordMessageResponse>(
       `${botUrl()}/renewal/messages/send`,
       { channelId, content: finalContent, mentionRoleIds: roleIds, mentionEveryone },
       { headers: botHeaders(), timeout: 60000 }
@@ -307,20 +326,16 @@ export async function sendDiscordMessage(params: {
       ],
       templateKey: params.templateKey,
       sentBy: params.sentBy,
-      messageIds: resp.data?.messageIds || [],
-      parts: resp.data?.parts || 1,
+      messageIds: resp.data.messageIds || [],
+      parts: resp.data.parts || 1,
       sentAt: new Date()
     })
 
-    return { success: true, message: `Publicada (${resp.data?.parts || 1} parte(s))`, messageIds: resp.data?.messageIds }
-  } catch (error: any) {
-    return { success: false, message: `Bot recusou/falhou: ${error.response?.data?.message || error.message}` }
+    return { success: true, message: `Publicada (${resp.data.parts || 1} parte(s))`, messageIds: resp.data.messageIds }
+  } catch (error: unknown) {
+    return { success: false, message: `Bot recusou/falhou: ${responseMessage(error) || errorMessage(error)}` }
   }
 }
-
-// ─────────────────────────────────────────────────────────────
-// ESTADO (UI) + ENTRADA DO CRON
-// ─────────────────────────────────────────────────────────────
 
 export async function getDiscordRenewalStatus() {
   const byStatus = await DiscordRoleChange.aggregate([{ $group: { _id: '$status', n: { $sum: 1 } } }])
@@ -331,13 +346,13 @@ export async function getDiscordRenewalStatus() {
   const lastPlanned = await DiscordRoleChange.findOne({}).sort({ plannedAt: -1 }).select('planBatchId plannedAt').lean().exec() as { planBatchId?: string; plannedAt?: Date } | null
 
   const configuredUrl = configuredBotUrl()
-  let botHealth: any = { ok: false, error: 'DISCORD_NOT_CONFIGURED' }
+  let botHealth: DiscordBotHealth = { ok: false, error: 'DISCORD_NOT_CONFIGURED' }
   if (configuredUrl) {
     try {
-      const resp = await axios.get(`${configuredUrl}/renewal/health`, { headers: botHeaders(), timeout: 8000 })
+      const resp = await axios.get<DiscordBotHealth>(`${configuredUrl}/renewal/health`, { headers: botHeaders(), timeout: 8000 })
       botHealth = resp.data
-    } catch (error: any) {
-      botHealth = { ok: false, error: error.response?.status || error.message }
+    } catch (error: unknown) {
+      botHealth = { ok: false, error: errorStatus(error) || errorMessage(error) }
     }
   }
 
