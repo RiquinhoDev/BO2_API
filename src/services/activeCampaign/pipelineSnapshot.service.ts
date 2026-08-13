@@ -138,9 +138,8 @@ class PipelineSnapshotService {
 
     const totalUsers = new Set(snapshots.map(s => s.userId)).size
     const totalTags = snapshots.reduce((sum, s) => sum + s.tags.length, 0)
-    const avgEngagementScore = snapshots.length > 0
-      ? snapshots.reduce((sum, s) => sum + s.engagement.score, 0) / snapshots.length
-      : 0
+    const avgEngagementScore =
+      snapshots.reduce((sum, s) => sum + s.engagement.score, 0) / snapshots.length
 
     const productBreakdown: Record<string, { total: number; avgScore: number }> = {}
     snapshots.forEach(s => {
