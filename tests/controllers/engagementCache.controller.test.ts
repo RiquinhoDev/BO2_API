@@ -64,8 +64,8 @@ describe('global engagement cache', () => {
       .get('/stats?__bo2_offline_loopback=1')
       .expect(200)
 
-    expect(cachedResponse.body.data.cached).toBe(true)
-    expect(cachedResponse.body.data.cacheAge).toBe(1_250)
+    expect(cachedResponse.body.meta.cached).toBe(true)
+    expect(cachedResponse.body.meta.cacheAge).toBe(1_250)
     expect(mockAggregate).toHaveBeenCalledTimes(1)
   })
 })
