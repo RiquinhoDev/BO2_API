@@ -15,13 +15,7 @@ type Body = {
   success?: boolean
   message?: string
   data?: { classId?: string; className?: string; students?: Array<Record<string, unknown>> }
-  meta?: { pagination?: Record<string, unknown>; filters?: Record<string, unknown>; timestamp?: unknown }
-  students?: Array<Record<string, unknown>>
-  multiple?: boolean
-  total?: number
-  timestamp?: unknown
-  name?: string
-  email?: string
+  meta?: { pagination?: Record<string, unknown>; filters?: Record<string, unknown>; timestamp?: unknown; multiple?: boolean; total?: number }
   [key: string]: unknown
 }
 type Captured = { status?: number; body?: Body }
@@ -164,24 +158,25 @@ describe('classRoster characterization — searchStudents', () => {
     expect(captured.status).toBe(404)
   })
 
-  it('spreads a single result at the root with multiple=false', async () => {
+  it('returns a single result under data with multiple=false', async () => {
     const captured: Captured = {}
     await searchStudents(req({}, { email: 'ana@x.test' }), makeResponse(captured))
     const body = captured.body as Body
     expect(body.success).toBe(true)
-    expect(body.multiple).toBe(false)
-    expect(body.name).toBe('Ana')
-    expect(body.email).toBe('ana@x.test')
+    expect(body.meta!.multiple).toBe(false)
+    expect(body.meta!.total).toBe(1)
+    expect(body.data!.students).toHaveLength(1)
+    expect(body.data!.students![0]).toMatchObject({ name: 'Ana', email: 'ana@x.test' })
   })
 
   it('returns multiple=true with students + total, sorted by name asc, with resolved className', async () => {
     const captured: Captured = {}
     await searchStudents(req({}, { classId: 'HOT' }), makeResponse(captured))
     const body = captured.body as Body
-    expect(body.multiple).toBe(true)
-    expect(body.total).toBe(3)
-    expect(body.students!.map(s => s.name)).toEqual(['Caio', 'Dan', 'Eva'])
-    expect(body.students![0].className).toBe('Hotmart T')
+    expect(body.meta!.multiple).toBe(true)
+    expect(body.meta!.total).toBe(3)
+    expect(body.data!.students!.map(s => s.name)).toEqual(['Caio', 'Dan', 'Eva'])
+    expect(body.data!.students![0].className).toBe('Hotmart T')
   })
 
   it('reports failure through next(HttpError) with CLASS_STUDENT_SEARCH_FAILED', async () => {
