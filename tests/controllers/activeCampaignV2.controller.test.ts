@@ -102,7 +102,6 @@ it('returns the canonical UserProduct progress percentage', async () => {
     data: expect.arrayContaining([expect.objectContaining({ progress: 37 })]),
     meta: {
       count: 1,
-      _v2Enabled: true,
       filters: { productId: '507f191e810c19729de860ea' },
     },
   }))
