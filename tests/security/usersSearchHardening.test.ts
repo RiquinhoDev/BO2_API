@@ -118,7 +118,6 @@ describe('input validation', () => {
       .expect(400)
 
     expect(response.body.message).toContain('Pelo menos um critério de pesquisa é necessário')
-    // Never reaches the database, so it can never degrade into find({}).
     expect(mockUserFind).not.toHaveBeenCalled()
   })
 
@@ -164,14 +163,12 @@ describe('literal matching', () => {
     const pattern = await patternFor('a.b@x.com')
 
     expect(pattern.test('a.b@x.com')).toBe(true)
-    // Previously the dot was a wildcard and this unrelated address matched.
     expect(pattern.test('aXb@x.com')).toBe(false)
   })
 
   test('finds an address containing a plus sign', async () => {
     const pattern = await patternFor('user+tag@x.com')
 
-    // The legacy pattern read `+` as a quantifier and never matched the alias.
     expect(pattern.test('user+tag@x.com')).toBe(true)
     expect(pattern.test('userrrtag@x.com')).toBe(false)
   })
@@ -201,7 +198,6 @@ describe('literal matching', () => {
     const pattern = await patternFor('(a+)+$')
 
     expect(pattern.source).toBe('\\(a\\+\\)\\+\\$')
-    // Executed against a long hostile string it terminates immediately.
     expect(pattern.test('a'.repeat(200))).toBe(false)
   })
 })
@@ -226,8 +222,6 @@ describe('stable ordering', () => {
       .get(`/users/search?name=Student&${LOOPBACK}`)
       .expect(200)
 
-    // A limit applied before the sort would cap an arbitrary set and then
-    // order only that set, which is the bug this asserts against.
     expect(query.calls.indexOf('sort')).toBeGreaterThan(-1)
     expect(query.calls.indexOf('sort')).toBeLessThan(query.calls.indexOf('limit'))
   })
@@ -253,9 +247,9 @@ describe('result cap', () => {
       .get(`/users/search?name=Student&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.students).toHaveLength(MAX_SEARCH_RESULTS)
-    expect(response.body.truncated).toBe(false)
-    expect(response.body.message).toBe(`Encontrados ${MAX_SEARCH_RESULTS} alunos`)
+    expect(response.body.data).toHaveLength(MAX_SEARCH_RESULTS)
+    expect(response.body.meta.truncated).toBe(false)
+    expect(response.body.meta.message).toBe(`Encontrados ${MAX_SEARCH_RESULTS} alunos`)
   })
 
   test('caps the payload and says so when the extra row exists', async () => {
@@ -265,13 +259,12 @@ describe('result cap', () => {
       .get(`/users/search?name=Student&${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.students).toHaveLength(MAX_SEARCH_RESULTS)
-    expect(response.body.truncated).toBe(true)
-    // Never reports the cap as if it were the real total.
-    expect(response.body.message).toBe(
+    expect(response.body.data).toHaveLength(MAX_SEARCH_RESULTS)
+    expect(response.body.meta.truncated).toBe(true)
+    expect(response.body.meta.message).toBe(
       `Mais de ${MAX_SEARCH_RESULTS} alunos encontrados; refine a pesquisa`,
     )
-    expect(response.body.message).not.toContain(`Encontrados ${MAX_SEARCH_RESULTS}`)
+    expect(response.body.meta.message).not.toContain(`Encontrados ${MAX_SEARCH_RESULTS}`)
   })
 
   test('enriches only the students that are actually returned', async () => {
