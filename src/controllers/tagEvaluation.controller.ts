@@ -10,7 +10,8 @@ import User from '../models/user'
 import { UserProduct } from '../models'
 import Product from '../models/product/Product'
 import { forwardApplicationError } from '../security/forwardApplicationError'
-import { successResponse, type SuccessResponse } from '../contracts/responseContract'
+import { successResponse } from '../contracts/responseContract'
+import type { SuccessResponse } from '../contracts/responseContract'
 import { evaluateStudentTags } from '../jobs/dailyPipeline/tagEvaluation/evaluateStudentTags'
 import { evaluateGlobalUserTags } from '../jobs/dailyPipeline/tagEvaluation/globalUserTags'
 import { IProductForEvaluation } from '../jobs/dailyPipeline/tagEvaluation/types'
@@ -35,6 +36,7 @@ type EvaluateTagsSuccessBody = SuccessResponse<
 type EvaluateTagsDirectSuccessBody = {
   success: true
   user: UserEvaluationResult
+  data?: undefined
 }
 
 type EvaluateTagsErrorBody = {
@@ -360,7 +362,7 @@ export const evaluateTagsBatch = async (req: Request, res: Response, next: NextF
           status: (_code: number) => ({
             json: (data: EvaluateTagsJsonBody) => {
               if (data.success) {
-                const payload = 'data' in data ? data.data : data
+                const payload = data.data ?? data
                 results.push(payload.user)
               } else {
                 errors.push({ email: user.email, error: data.error })
