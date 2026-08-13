@@ -37,8 +37,8 @@ afterEach(() => {
   jest.useRealTimers()
 })
 
-describe('getStudentStats — characterization of the legacy contract', () => {
-  test('returns the full stats envelope with canonical field precedence', async () => {
+describe('getStudentStats — characterization of the canonical contract', () => {
+  test('returns the full stats data with canonical field precedence', async () => {
     mockFindById.mockResolvedValue({
       _id: 'student-1',
       email: 'student@example.test',
@@ -62,8 +62,9 @@ describe('getStudentStats — characterization of the legacy contract', () => {
       .get(`/users/student-1/stats${LOOPBACK}`)
       .expect(200)
 
-    // Exact key set: the façade split must not add or drop a field.
-    expect(Object.keys(response.body).sort()).toEqual([
+    expect(response.body.success).toBe(true)
+    // Exact data key set: the façade split must not add or drop a field.
+    expect(Object.keys(response.body.data).sort()).toEqual([
       'classId',
       'daysSinceLastAccess',
       'daysSincePurchase',
@@ -80,7 +81,7 @@ describe('getStudentStats — characterization of the legacy contract', () => {
       'validationStatus',
     ])
 
-    expect(response.body).toEqual({
+    expect(response.body.data).toEqual({
       hasEmail: true,
       hasName: true,
       hasDiscordIds: true,
@@ -113,7 +114,7 @@ describe('getStudentStats — characterization of the legacy contract', () => {
     const hotmartWins = await request(studentStatsApp())
       .get(`/users/student-1/stats${LOOPBACK}`)
       .expect(200)
-    expect(hotmartWins.body.daysSinceLastAccess).toBe(2)
+    expect(hotmartWins.body.data.daysSinceLastAccess).toBe(2)
 
     mockFindById.mockResolvedValue({
       email: 'student@example.test',
@@ -125,7 +126,7 @@ describe('getStudentStats — characterization of the legacy contract', () => {
     const curseducaWins = await request(studentStatsApp())
       .get(`/users/student-1/stats${LOOPBACK}`)
       .expect(200)
-    expect(curseducaWins.body.daysSinceLastAccess).toBe(1)
+    expect(curseducaWins.body.data.daysSinceLastAccess).toBe(1)
   })
 
   test('reports absent optional data as null and false, never as zero', async () => {
@@ -136,22 +137,25 @@ describe('getStudentStats — characterization of the legacy contract', () => {
       .expect(200)
 
     expect(response.body).toEqual({
-      hasEmail: false,
-      hasName: false,
-      hasDiscordIds: false,
-      totalDiscordIds: 0,
-      isActive: false,
-      hasProgress: false,
-      progressPercentage: 0,
-      hasPurchaseDate: false,
-      hasLastAccess: false,
-      daysSincePurchase: null,
-      daysSinceLastAccess: null,
-      hasClass: false,
-      classId: undefined,
-      // An empty discordIds array satisfies `.every()` vacuously — this is the
-      // current behaviour and must survive the extraction unchanged.
-      validationStatus: { email: false, discordIds: true, name: false },
+      success: true,
+      data: {
+        hasEmail: false,
+        hasName: false,
+        hasDiscordIds: false,
+        totalDiscordIds: 0,
+        isActive: false,
+        hasProgress: false,
+        progressPercentage: 0,
+        hasPurchaseDate: false,
+        hasLastAccess: false,
+        daysSincePurchase: null,
+        daysSinceLastAccess: null,
+        hasClass: false,
+        classId: undefined,
+        // An empty discordIds array satisfies `.every()` vacuously — this is the
+        // current behaviour and must survive the extraction unchanged.
+        validationStatus: { email: false, discordIds: true, name: false },
+      },
     })
   })
 
@@ -167,14 +171,14 @@ describe('getStudentStats — characterization of the legacy contract', () => {
       .get(`/users/student-1/stats${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.validationStatus).toEqual({
+    expect(response.body.data.validationStatus).toEqual({
       email: false,
       // 3 digits is outside the accepted 17-19 range.
       discordIds: false,
       name: false,
     })
     // A blank name is still "present" for hasName, but invalid for validationStatus.
-    expect(response.body.hasName).toBe(true)
+    expect(response.body.data.hasName).toBe(true)
   })
 
   test('treats a non-ACTIVE combined status as inactive', async () => {
@@ -184,7 +188,7 @@ describe('getStudentStats — characterization of the legacy contract', () => {
       .get(`/users/student-1/stats${LOOPBACK}`)
       .expect(200)
 
-    expect(response.body.isActive).toBe(false)
+    expect(response.body.data.isActive).toBe(false)
   })
 
   test('returns 404 with the legacy message when the student is missing', async () => {
@@ -215,7 +219,6 @@ describe('getStudentStats — characterization of the legacy contract', () => {
   // `{ message, details: <raw error message> }`, leaking internal detail.
   // The extracted controller forwards an HttpError to the central boundary,
   // so the public body is now the redacted correlation-aware envelope.
-  // The 200 and 404 contracts above are unchanged.
   // ─────────────────────────────────────────────────────────────────────────
   test('routes failures through the central boundary without leaking detail', async () => {
     mockFindById.mockRejectedValue(new Error('mongo exploded'))
