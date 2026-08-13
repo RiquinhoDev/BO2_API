@@ -4,14 +4,27 @@ import { getHotmartCredentials } from '../../requestDrivenRuntimeConfig'
 import { HotmartLessonsResponse, HotmartLesson, LessonProgress, UserLessonsData, LessonStats } from '../../../types/lesson.types'
 import logger from '../../../utils/logger'
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function responseStatus(error: unknown): number | undefined {
+  return axios.isAxiosError(error) ? error.response?.status : undefined
+}
+
+function responseMessage(error: unknown): string | undefined {
+  if (!axios.isAxiosError(error)) return undefined
+  const data: unknown = error.response?.data
+  if (typeof data !== 'object' || data === null || !('message' in data)) return undefined
+  return typeof data.message === 'string' ? data.message : undefined
+}
+
 class HotmartLessonsService {
-  private baseURL = 'https://developers.hotmart.com/club/api/v1' // ✅ CORRIGIDO: URL correta
+  private baseURL = 'https://developers.hotmart.com/club/api/v1'
   
-  // 🔑 Configurar token de acesso (usando as mesmas variáveis do projeto)
   private async getAuthHeaders() {
     const { clientId, clientSecret } = getHotmartCredentials()
 
-    // ✅ OBTER TOKEN USANDO O MESMO MÉTODO DO PROJETO
     try {
       const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
       logger.debug('Autenticação Hotmart preparada')
@@ -22,11 +35,9 @@ class HotmartLessonsService {
         endpoint: '/security/oauth/token',
       })
 
-      const response = await axios.post(
+      const response = await axios.post<{ access_token?: string; expires_in?: number }>(
         tokenUrl,
-        new URLSearchParams({
-          grant_type: 'client_credentials'
-        }),
+        new URLSearchParams({ grant_type: 'client_credentials' }),
         {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -48,24 +59,20 @@ class HotmartLessonsService {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${response.data.access_token}`
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Falha ao obter token Hotmart', {
         method: 'POST',
         endpoint: '/security/oauth/token',
-        status: error.response?.status,
+        status: responseStatus(error),
       })
-      
       throw new Error('Falha ao obter token de acesso da Hotmart')
     }
   }
 
-  // 📚 Buscar lições de um utilizador específico
   async getUserLessons(userId: string, subdomain: string): Promise<HotmartLessonsResponse> {
     const headers = await this.getAuthHeaders()
     try {
       logger.info(`🔍 Buscando lições do utilizador ${userId} no subdomínio ${subdomain}`)
-      
-      // 🧪 DEBUG: Log da requisição completa
       const requestUrl = `${this.baseURL}/users/${userId}/lessons`
       logger.debug('Pedido de lições Hotmart preparado', {
         method: 'GET',
@@ -73,15 +80,13 @@ class HotmartLessonsService {
         subdomainConfigured: Boolean(subdomain),
       })
       
-      const response = await axios.get(requestUrl, {
+      const response = await axios.get<HotmartLessonsResponse>(requestUrl, {
         headers,
         params: { subdomain }
       })
 
       logger.info(`✅ Resposta recebida - Status: ${response.status}`)
-      
-      // 🧪 DEBUG: Log da estrutura completa da resposta
-      logger.info(`📄 Estrutura da resposta:`, {
+      logger.info('📄 Estrutura da resposta:', {
         hasLessons: 'lessons' in response.data,
         lessonsType: typeof response.data.lessons,
         lessonsIsArray: Array.isArray(response.data.lessons),
@@ -89,34 +94,28 @@ class HotmartLessonsService {
         allKeys: Object.keys(response.data)
       })
       
-      // 🧪 DEBUG: Log da resposta completa se for pequena
       if (!response.data.lessons || response.data.lessons.length <= 5) {
-        logger.info(`📄 Resposta completa:`, JSON.stringify(response.data, null, 2))
+        logger.info('📄 Resposta completa:', JSON.stringify(response.data, null, 2))
       }
       
       logger.info(`📚 Lições encontradas: ${response.data.lessons?.length || 0}`)
       
-      // 🧪 DEBUG: Log da primeira lição (se existir)
       if (response.data.lessons && response.data.lessons.length > 0) {
-        logger.info(`📖 Exemplo de lição:`, JSON.stringify(response.data.lessons[0], null, 2))
+        logger.info('📖 Exemplo de lição:', JSON.stringify(response.data.lessons[0], null, 2))
       }
       
       return response.data
-    } catch (error: any) {
-      // 🧪 DEBUG: Log detalhado do erro
+    } catch (error: unknown) {
       logger.error('Falha ao obter lições Hotmart', {
         method: 'GET',
         endpoint: '/club/api/v1/users/:userId/lessons',
-        status: error.response?.status,
+        status: responseStatus(error),
       })
-      
-      throw new Error(`Erro ao buscar lições: ${error.response?.data?.message || error.message}`)
+      throw new Error(`Erro ao buscar lições: ${responseMessage(error) || errorMessage(error)}`)
     }
   }
 
-  // 🔄 Converter dados da Hotmart para formato interno
   private convertHotmartLessons(hotmartLessons: HotmartLesson[]): LessonProgress[] {
-    // 🛡️ PROTEÇÃO: Verificar se lessons existe e é array
     if (!hotmartLessons) {
       logger.info('⚠️ hotmartLessons é undefined/null, retornando array vazio')
       return []
@@ -139,24 +138,18 @@ class HotmartLessonsService {
     }))
   }
 
-  // 📊 Calcular estatísticas de progresso
   private calculateLessonStats(lessons: LessonProgress[]): LessonStats {
     const totalLessons = lessons.length
-    const completedLessons = lessons.filter(lesson => lesson.isCompleted).length // ✅ CORRIGIDO
+    const completedLessons = lessons.filter(lesson => lesson.isCompleted).length
     const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
 
-    // Agrupar por módulos
     const moduleMap = new Map<string, { total: number; completed: number }>()
     
     lessons.forEach(lesson => {
       const moduleName = lesson.moduleName
       const current = moduleMap.get(moduleName) || { total: 0, completed: 0 }
-      
       current.total++
-      if (lesson.isCompleted) {
-        current.completed++
-      }
-      
+      if (lesson.isCompleted) current.completed++
       moduleMap.set(moduleName, current)
     })
 
@@ -177,32 +170,23 @@ class HotmartLessonsService {
     }
   }
 
-  // 🎯 Método principal: buscar e processar lições de um utilizador
   async getUserLessonsData(userId: string, subdomain: string, userEmail?: string, userName?: string): Promise<UserLessonsData> {
     try {
       logger.info(`🎯 === PROCESSAMENTO DO UTILIZADOR ${userId} ===`)
-      
-      // Buscar dados da Hotmart
       const hotmartData = await this.getUserLessons(userId, subdomain)
-      
-      logger.info(`📦 Dados recebidos da Hotmart:`, {
+      logger.info('📦 Dados recebidos da Hotmart:', {
         hasLessons: 'lessons' in hotmartData,
         lessonsType: typeof hotmartData.lessons,
         lessonsLength: hotmartData.lessons?.length || 0,
         allKeys: Object.keys(hotmartData)
       })
       
-      // 🛡️ PROTEÇÃO: Garantir que lessons existe
       const lessonsArray = hotmartData.lessons || []
       logger.info(`📚 Array de lições a processar: ${lessonsArray.length} items`)
-      
-      // Converter para formato interno
       const lessons = this.convertHotmartLessons(lessonsArray)
       logger.info(`✅ Lições convertidas: ${lessons.length} items`)
-      
-      // Calcular estatísticas
       const stats = this.calculateLessonStats(lessons)
-      logger.info(`📊 Estatísticas calculadas:`, {
+      logger.info('📊 Estatísticas calculadas:', {
         totalLessons: stats.totalLessons,
         completedLessons: stats.completedLessons,
         progressPercentage: stats.progressPercentage
@@ -222,20 +206,18 @@ class HotmartLessonsService {
       
       logger.info(`🎯 === FIM DO PROCESSAMENTO ${userId} ===`)
       return result
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`❌ Erro ao processar lições do utilizador ${userId}:`, error)
       throw error
     }
   }
 
-  // 📈 Buscar lições de múltiplos utilizadores (para dashboard)
   async getMultipleUsersLessons(userIds: string[], subdomain: string): Promise<UserLessonsData[]> {
     logger.info(`🔄 Buscando lições de ${userIds.length} utilizadores...`)
     
     const results: UserLessonsData[] = []
     const errors: { userId: string; error: string }[] = []
 
-    // Processar em lotes para não sobrecarregar a API
     const batchSize = 5
     for (let i = 0; i < userIds.length; i += batchSize) {
       const batch = userIds.slice(i, i + batchSize)
@@ -244,30 +226,25 @@ class HotmartLessonsService {
         try {
           const lessonData = await this.getUserLessonsData(userId, subdomain)
           results.push(lessonData)
-        } catch (error: any) {
-          logger.error(`❌ Erro ao buscar lições do utilizador ${userId}:`, error.message)
-          errors.push({ userId, error: error.message })
+        } catch (error: unknown) {
+          const message = errorMessage(error)
+          logger.error(`❌ Erro ao buscar lições do utilizador ${userId}:`, message)
+          errors.push({ userId, error: message })
         }
       })
 
       await Promise.all(batchPromises)
       
-      // Pequena pausa entre lotes para não sobrecarregar a API
       if (i + batchSize < userIds.length) {
         await new Promise(resolve => setTimeout(resolve, 1000))
       }
     }
 
     logger.info(`✅ Processados: ${results.length} sucessos, ${errors.length} erros`)
-    
-    if (errors.length > 0) {
-      logger.warn('⚠️ Erros encontrados:', errors)
-    }
-
+    if (errors.length > 0) logger.warn('⚠️ Erros encontrados:', errors)
     return results
   }
 
-  // 🧮 Calcular estatísticas globais
   calculateGlobalStats(usersLessonsData: UserLessonsData[]): {
     totalUsers: number
     averageProgress: number
@@ -278,11 +255,9 @@ class HotmartLessonsService {
     const totalUsers = usersLessonsData.length
     const totalProgressSum = usersLessonsData.reduce((sum, user) => sum + user.progressPercentage, 0)
     const averageProgress = totalUsers > 0 ? Math.round(totalProgressSum / totalUsers) : 0
-
     const totalLessonsGlobal = usersLessonsData.reduce((sum, user) => sum + user.totalLessons, 0)
     const totalCompletedGlobal = usersLessonsData.reduce((sum, user) => sum + user.completedLessons, 0)
 
-    // Top 5 performers
     const topPerformers = usersLessonsData
       .map(user => ({
         userId: user.userId,
