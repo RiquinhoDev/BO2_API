@@ -24,21 +24,16 @@ const getClassCompleteHistory = rtCompleteHistory as unknown as AnyHandler
 type HistoryItem = { type?: string; dateMoved?: string | Date; [key: string]: unknown }
 type Body = {
   success?: boolean
-  history?: HistoryItem[]
-  total?: number
-  filters?: Record<string, unknown>
-  student?: { email?: string; [key: string]: unknown }
-  className?: string
-  pagination?: Record<string, unknown>
-  timestamp?: unknown
   message?: string
   data?: {
     classId?: string
     className?: string
+    student?: { email?: string; [key: string]: unknown }
     history?: HistoryItem[]
   }
   meta?: {
     total?: number
+    filters?: Record<string, unknown>
     pagination?: Record<string, unknown>
     timestamp?: unknown
   }
@@ -113,12 +108,12 @@ describe('class history characterization', () => {
 
       const body = captured.body as Body
       expect(body.success).toBe(true)
-      expect(body.total).toBe(2)
-      expect(body.history).toHaveLength(2)
-      expect(new Date(body.history![0].dateMoved!).getTime())
-        .toBeGreaterThan(new Date(body.history![1].dateMoved!).getTime())
-      expect(body.filters).toMatchObject({ classId: 'C1', limit: 50, offset: 0 })
-      expect(typeof body.timestamp).toBe('string')
+      expect(body.meta?.total).toBe(2)
+      expect(body.data?.history).toHaveLength(2)
+      expect(new Date(body.data!.history![0].dateMoved!).getTime())
+        .toBeGreaterThan(new Date(body.data!.history![1].dateMoved!).getTime())
+      expect(body.meta?.filters).toMatchObject({ classId: 'C1', limit: 50, offset: 0 })
+      expect(typeof body.meta?.timestamp).toBe('string')
     })
 
     it('reports failure through next(HttpError) with CLASS_HISTORY_FAILED', async () => {
@@ -148,8 +143,8 @@ describe('class history characterization', () => {
       await getStudentHistoryByDiscord(req({ discordId: 'd-1' }), makeResponse(captured))
       const body = captured.body as Body
       expect(body.success).toBe(true)
-      expect(body.student).toMatchObject({ email: 's1@x.test' })
-      expect(body.total).toBe(1)
+      expect(body.data?.student).toMatchObject({ email: 's1@x.test' })
+      expect(body.meta?.total).toBe(1)
     })
 
     it('reports failure through next(HttpError) with STUDENT_HISTORY_BY_DISCORD_FAILED', async () => {
@@ -178,8 +173,8 @@ describe('class history characterization', () => {
       await getStudentHistoryByEmail(req({ email: 'S1@X.TEST' }), makeResponse(captured))
       const body = captured.body as Body
       expect(body.success).toBe(true)
-      expect(body.student).toMatchObject({ email: 's1@x.test' })
-      expect(body.total).toBe(1)
+      expect(body.data?.student).toMatchObject({ email: 's1@x.test' })
+      expect(body.meta?.total).toBe(1)
     })
 
     it('reports failure through next(HttpError) with STUDENT_HISTORY_BY_EMAIL_FAILED', async () => {
