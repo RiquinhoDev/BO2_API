@@ -100,9 +100,12 @@ test('uses the authenticated principal and preserves the success envelope', asyn
       actorEmail: 'admin@example.test',
     })
     expect(response.body).toEqual({
-      message: 'Sincronização concluída',
-      syncId: 'sync-1',
-      stats: { added: 1, unmatched: 2, errors: 0 },
+      success: true,
+      data: {
+        syncId: 'sync-1',
+        stats: { added: 1, unmatched: 2, errors: 0 },
+      },
+      meta: { message: 'Sincronização concluída' },
     })
     expect(fs.existsSync(filePath)).toBe(false)
   } finally {
