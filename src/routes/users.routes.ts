@@ -1,6 +1,5 @@
 // src/routes/users.routes.ts - ROTAS ATUALIZADAS PARA COMPATIBILIDADE
-import logger from '../utils/logger'
-import { Router } from "express"
+import { Router } from "express"; import logger from '../utils/logger'
 import { asyncRoute } from '../security/asyncRoute'
 import { forwardApplicationError } from '../security/forwardApplicationError'
 import { createUsersImportUpload } from "../security/usersImportUpload"
