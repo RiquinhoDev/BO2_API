@@ -6,7 +6,7 @@ import {
 } from '../userProducts/userProductService'
 
 type ProductEnrollment = {
-  product: { _id: Types.ObjectId }
+  product: { _id: Types.ObjectId } | null
   platformSpecificData?: { hotmart?: { status?: string } }
   progress?: { progressPercentage?: number }
 }
@@ -55,7 +55,7 @@ export async function listHotmartProductUsers(
   if (filters.status) {
     users = users.filter(user =>
       user.products.some((enrollment: ProductUser['products'][number]) =>
-        String(enrollment.product._id) === productId &&
+        String(enrollment.product?._id) === productId &&
         enrollment.platformSpecificData?.hotmart?.status === filters.status
       )
     )
@@ -65,7 +65,7 @@ export async function listHotmartProductUsers(
     const minimum = Number.parseInt(filters.minProgress, 10)
     users = users.filter(user =>
       user.products.some((enrollment: ProductUser['products'][number]) =>
-        String(enrollment.product._id) === productId &&
+        String(enrollment.product?._id) === productId &&
         (enrollment.progress?.progressPercentage || 0) >= minimum
       )
     )
@@ -82,7 +82,7 @@ export async function getHotmartStatsSnapshot() {
     const users = await getUsersByProduct(productId)
     const activeUsers = users.filter(user =>
       user.products.some((enrollment: ProductUser['products'][number]) =>
-        String(enrollment.product._id) === productId &&
+        String(enrollment.product?._id) === productId &&
         enrollment.platformSpecificData?.hotmart?.status === 'active'
       )
     ).length
