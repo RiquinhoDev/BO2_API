@@ -1,39 +1,8 @@
 {
   "version": 1,
-  "summary": {
-    "planned": 40,
-    "complete": 40,
-    "pending": 0
-  },
-  "mongooseListBaseline": {
-    "count": 344,
-    "hash": "59a6f27bafb699d566693fba917a3b848e63fb2bc187246a232b4fbed9dc6b01"
-  },
-  "scale02": {
-    "summary": {
-      "planned": 11,
-      "complete": 11,
-      "pending": 0,
-      "changed": 10,
-      "alreadyCompliant": 1
-    },
-    "entries": [
-      {
-        "id": "dashboard-quick.product-comparison",
-        "file": "src/controllers/dashboardQuick.controller.ts",
-        "start": "export const getProductComparison =",
-        "end": "export const getEngagementHeatmap =",
-        "status": "complete",
-        "disposition": "changed",
-        "policy": "aggregate",
-        "require": ["$match", "$limit: 10", "allowDiskUse: true"]
-      }
-    ]
-  },
-  "entries": [],
-  "scale03": {
-    "summary": {"planned":24,"complete":14,"pending":10,"changed":13,"alreadyCompliant":1},
-    "entries": [],
-    "operational": {"status":"pending","reason":"No authorized non-production read-only Mongo target was loaded, so real executionStats and 1/10/50 probe evidence are absent."}
-  }
+  "summary": {"planned":40,"complete":40,"pending":0},
+  "mongooseListBaseline":{"count":344,"hash":"59a6f27bafb699d566693fba917a3b848e63fb2bc187246a232b4fbed9dc6b01"},
+  "scale02":{"summary":{"planned":11,"complete":11,"pending":0,"changed":10,"alreadyCompliant":1},"entries":[]},
+  "entries":[],
+  "scale03":{"summary":{"planned":24,"complete":14,"pending":10,"changed":13,"alreadyCompliant":1},"entries":[],"operational":{"status":"pending","reason":"No authorized non-production read-only Mongo target was loaded, so real executionStats and 1/10/50 probe evidence are absent."}}
 }
