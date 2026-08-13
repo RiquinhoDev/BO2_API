@@ -54,7 +54,7 @@
         "disposition": "changed",
         "policy": "aggregate",
         "require": [
-          "pipeline: any[] = [{ $match: matchStage }]",
+          "pipeline: mongoose.PipelineStage[] = [{ $match: matchStage }]",
           "pipeline.push(",
           "allowDiskUse: true"
         ],
