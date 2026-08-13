@@ -133,16 +133,6 @@
       "count": 1
     }
   },
-  "src/services/activeCampaign/pipelineSnapshot.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/services/activeCampaign/testimonialTagSync.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/services/analytics/analyticsCalculator.service.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 4
@@ -164,25 +154,16 @@
     }
   },
   "src/services/productSalesStatsBuilder.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "no-irregular-whitespace": {
       "count": 1
     }
   },
   "src/services/renewal/activeCampaign/execution.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
   },
   "src/services/renewal/discord/execution.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 5
     },
@@ -205,24 +186,9 @@
       "count": 1
     }
   },
-  "src/services/studentCompleteService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "src/services/studentOgiSummary.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/services/syncUtilizadoresServices/activitySnapshot.service.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 4
-    }
-  },
-  "src/services/syncUtilizadoresServices/conflictDetection.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
     }
   },
   "src/services/syncUtilizadoresServices/curseducaServices/curseducaBulkSync.adapter.ts": {
@@ -235,20 +201,12 @@
       "count": 1
     }
   },
-  "src/services/syncUtilizadoresServices/engagement/engagementService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart.adapter.ts": {
     "preserve-caught-error": {
       "count": 1
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart/transport.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    },
     "@typescript-eslint/no-unused-vars": {
       "count": 3
     },
@@ -257,29 +215,13 @@
     }
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmartLessonsService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
-    },
     "preserve-caught-error": {
       "count": 2
     }
   },
   "src/services/syncUtilizadoresServices/syncReports.service.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    },
     "preserve-caught-error": {
       "count": 1
-    }
-  },
-  "src/services/tagMonitoring/weekly/studentsByPriority.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "src/services/userProducts/userProductService.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
     }
   },
   "src/types/studentComplete.ts": {
