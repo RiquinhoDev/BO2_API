@@ -68,7 +68,18 @@ export interface CronExecutionResult {
   errorMessage?: string
 }
 
-export type PipelineStepStats = unknown
+/**
+ * Métricas de resumo que os pipelines leem transversalmente para logging.
+ * Os produtores podem expor campos adicionais; não exigimos index signature.
+ */
+export interface PipelineStepStats {
+  total?: number
+  totalTags?: number
+  updated?: number
+  tagsApplied?: number
+  tagsRemoved?: number
+  synced?: number
+}
 
 export interface PipelineStepResult {
   success: boolean
