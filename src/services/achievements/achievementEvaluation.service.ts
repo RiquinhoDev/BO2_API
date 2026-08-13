@@ -25,9 +25,16 @@ type StoredAchievement = Omit<AchievementItem, 'unlockedAt' | 'seenAt'> & {
   seenAt?: Date | string | null
 }
 
-type AchievementPersistenceUser = Omit<UserData, 'achievements' | 'achievementStats'> & {
+type AchievementPersistenceUser = Omit<
+  UserData,
+  'achievements' | 'achievementStats' | 'inactivation'
+> & {
   achievements?: StoredAchievement[]
   achievementStats?: AchievementStats
+  inactivation?: UserData['inactivation'] & {
+    isManuallyInactivated?: boolean
+    reason?: string
+  }
   save?: () => Promise<unknown>
 }
 
