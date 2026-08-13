@@ -3,7 +3,7 @@
 ## Goal
 
 Take **Security & routes** from the current 70% code baseline to a defensible
-100% code-complete state by closing the two remaining workplan items:
+100% state by closing the two remaining workplan items:
 
 1. a fail-closed role matrix for every authenticated route; and
 2. a transversal OPS-02 policy for every route that writes or is destructive.
@@ -68,10 +68,10 @@ The default classification is deterministic and fail-closed:
 A write route cannot be downgraded to `read`. A high-impact route cannot be
 implicitly downgraded to `internal-write`.
 
-The existing `authorize(...)` behavior remains the role-checking semantic
-authority. The central route-authorization middleware uses the resolved tier to
-apply equivalent role checks instead of duplicating hand-written
-`authorize(...)` calls across hundreds of route declarations.
+The role-checking semantics must have one implementation. Extract a small pure
+role-check helper from the current `authorize(...)` behavior; the existing
+`authorize(...)` middleware and the new central route-authorization middleware
+both call that helper. This prevents two subtly different role authorities.
 
 ## Runtime route matching
 
@@ -84,9 +84,15 @@ The matcher must:
 - support parameterized templates such as `/api/users/:id`;
 - normalize trailing slashes and method case consistently with the catalog;
 - reject ambiguous matches in tests;
-- fail closed for an authenticated catalog surface that has no authorization
-  decision;
-- preserve `public` and `signature` routes unchanged.
+- preserve `public` and `signature` routes unchanged;
+- return the normal not-found outcome for a request that matches no cataloged
+  route identity, so unknown paths do not become authorization errors;
+- fail closed for a cataloged authenticated route that has no authorization
+  decision.
+
+A newly added productive route therefore cannot become authorized merely by
+being placed under an authenticated root: exact-membership tests must add it to
+the catalog/policy before the gate can pass.
 
 No route handler is modified merely to add role logic.
 
@@ -98,8 +104,10 @@ Preserve current authentication semantics:
   boundary;
 - authenticated but insufficient role returns stable `403` without technical
   detail;
-- missing/ambiguous authorization policy is treated as a fail-closed security
-  configuration error and must never execute the handler.
+- a request matching no catalog route preserves the normal `404` path;
+- a cataloged authenticated route with missing/ambiguous authorization policy
+  is a fail-closed security configuration error and must never execute the
+  handler.
 
 No request body, token, provider payload, or raw error detail is returned or
 logged by the authorization layer.
@@ -178,13 +186,15 @@ input validation remains authoritative and is not duplicated by OPS-02.
 The backend policy is the security authority. Front-end gating is a paired UX
 requirement, not a substitute for backend enforcement.
 
-The Front must eventually consume the same three effective capabilities:
-read-only, internal-write, and super-admin. Controls unavailable to the current
-role should be hidden or disabled, but direct HTTP calls must still be rejected
-by the backend.
+The Front must consume the same three effective capabilities: read-only,
+internal-write, and super-admin. Controls unavailable to the current role should
+be hidden or disabled, but direct HTTP calls must still be rejected by the
+backend.
 
-Any Front route/contract regeneration remains under the existing reviewer
-process when required.
+Backend code-complete can be demonstrated independently, but **Security & routes
+must not be marked 100% in the macro table until the paired Front gating is also
+verified**. Any Front route/contract regeneration remains under the established
+reviewer process when required.
 
 ## Testing strategy
 
@@ -265,7 +275,7 @@ and cap guards fail closed.
 
 ## Definition of done
 
-Security & routes is code-complete only when:
+Backend security is code-complete only when:
 
 - every authenticated route has exactly one role decision;
 - `MODERATOR` is proven read-only;
@@ -281,5 +291,6 @@ Security & routes is code-complete only when:
   are GREEN;
 - the workplan is updated from factual evidence, not projected completion.
 
-Operational deployment/provisioning evidence remains distinct from code-complete
-security and is not fabricated by offline tests.
+The macro **Security & routes = 100%** additionally requires verified paired
+Front gating. Operational deployment/provisioning evidence remains distinct
+from code-complete security and is not fabricated by offline tests.
