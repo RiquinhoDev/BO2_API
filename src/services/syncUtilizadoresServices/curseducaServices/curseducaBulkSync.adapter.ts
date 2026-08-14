@@ -39,65 +39,80 @@ export const fetchCurseducaDataForSync = async (
     progressConcurrency: 5,
     enrichWithDetails: true
   }
-): Promise<UniversalSourceItem[]> => {
-  logger.info('🚀 [CurseducaAdapter] Iniciando busca de dados para sync...')
-  logger.info('   📊 Opções:', options)
-  logger.info(`   🔄 Estratégia: ${options.enrichWithDetails ? 'Híbrida (2 endpoints)' : 'Simples (1 endpoint)'}`)
+): Promise<UniversalSourceItem[]> => {  // âœ… CORRIGIDO!
+  
+  logger.info('ðŸš€ [CurseducaAdapter] Iniciando busca de dados para sync...')
+  logger.info('   ðŸ“Š OpÃ§Ãµes:', options)
+  logger.info(`   ðŸ”„ EstratÃ©gia: ${options.enrichWithDetails ? 'HÃ­brida (2 endpoints)' : 'Simples (1 endpoint)'}`)
 
   const startTime = Date.now()
 
   try {
+    // âœ… VALIDAR CREDENCIAIS
     const headers = getRequestHeaders()
 
-    logger.info('📚 [CurseducaAdapter] Step 1/5: Buscando grupos...')
-
+    // âœ… CRIAR HEADERS UMA ÃšNICA VEZ
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // STEP 1: BUSCAR GRUPOS
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    
+    logger.info('ðŸ“š [CurseducaAdapter] Step 1/5: Buscando grupos...')
+    
     const groupsResponse = await axios.get<CollectionPayload<CursEducaGroup>>(`${curseducaApiUrl()}/groups`, {
       headers,
       timeout: 30000
     })
-
+    
     let allGroups = collectionItems(groupsResponse.data)
-
-    allGroups = allGroups.filter(g =>
+    
+    allGroups = allGroups.filter(g => 
       g.name.toLowerCase().includes('clareza')
     )
 
     if (options.groupId) {
-      allGroups = allGroups.filter(g =>
-        g.id.toString() === options.groupId ||
+      allGroups = allGroups.filter(g => 
+        g.id.toString() === options.groupId || 
         g.uuid === options.groupId
       )
-
+      
       if (allGroups.length === 0) {
-        throw new Error(`Grupo não encontrado: ${options.groupId}`)
+        throw new Error(`Grupo nÃ£o encontrado: ${options.groupId}`)
       }
-
-      logger.info(`   🎯 Filtrando apenas grupo: ${allGroups[0].name}`)
+      
+      logger.info(`   ðŸŽ¯ Filtrando apenas grupo: ${allGroups[0].name}`)
     }
 
-    logger.info(`✅ [CurseducaAdapter] ${allGroups.length} grupos Clareza encontrados`)
-
+    logger.info(`âœ… [CurseducaAdapter] ${allGroups.length} grupos Clareza encontrados`)
+    
     if (allGroups.length === 0) {
-      logger.warn('⚠️ [CurseducaAdapter] Nenhum grupo Clareza encontrado!')
+      logger.warn('âš ï¸ [CurseducaAdapter] Nenhum grupo Clareza encontrado!')
       return []
     }
 
-    logger.info('👥 [CurseducaAdapter] Step 2/6: Buscando lista de membros (HÍBRIDO)...')
-    logger.info('   💡 Usando 2 endpoints para capturar TODOS os users:')
-    logger.info('   1️⃣  /reports/group/members (users com enrollments)')
-    logger.info('   2️⃣  /groups/{groupId}/members (TODOS, incluindo admins)')
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // STEP 2: BUSCAR LISTA DE MEMBROS (ESTRATÃ‰GIA HÃBRIDA)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+    logger.info('ðŸ‘¥ [CurseducaAdapter] Step 2/6: Buscando lista de membros (HÃBRIDO)...')
+    logger.info('   ðŸ’¡ Usando 2 endpoints para capturar TODOS os users:')
+    logger.info('   1ï¸âƒ£  /reports/group/members (users com enrollments)')
+    logger.info('   2ï¸âƒ£  /groups/{groupId}/members (TODOS, incluindo admins)')
 
     logger.info('   Buscando relatorio de acessos para engagement...')
     const accessReport = await fetchAccessReport(headers)
 
+    // ðŸš€ Buscar situation/lastAccess de TODOS os membros de uma vez (paginado),
+    // em vez de 1 chamada /members/{id} por membro (que sofre de 504s).
     const allMembersMap = await fetchAllMembersMap(headers)
     const allMembersWithMetadata: CursEducaMemberWithMetadata[] = []
     const errors: string[] = []
 
     for (const group of allGroups) {
       try {
-        logger.info(`   📚 Processando grupo: ${group.name} (ID: ${group.id})`)
-        logger.info(`   📡 1/2: Buscando lista via /groups/${group.id}/members...`)
+        logger.info(`   ðŸ“š Processando grupo: ${group.name} (ID: ${group.id})`)
+
+        // STEP 1: Buscar lista completa via /groups/{id}/members
+        logger.info(`   ðŸ“¡ 1/2: Buscando lista via /groups/${group.id}/members...`)
 
         const groupMembersResponse = await axios.get<CollectionPayload<CursEducaRosterMember>>(
           `${curseducaApiUrl()}/groups/${group.id}/members`,
@@ -110,11 +125,14 @@ export const fetchCurseducaDataForSync = async (
 
         const allGroupMembers = collectionItems(groupMembersResponse.data)
 
-        logger.info(`   ✅ ${allGroupMembers.length} members encontrados`)
-        logger.info(`   📡 2/2: Buscando progresso via /reports/group/members...`)
-        const membersWithProgress = await fetchGroupMembersList(group.id, headers)
-        logger.info(`   ✅ ${membersWithProgress.length} members com dados de progresso`)
+        logger.info(`   âœ… ${allGroupMembers.length} members encontrados`)
 
+        // STEP 2: Buscar progresso via /reports/group/members
+        logger.info(`   ðŸ“¡ 2/2: Buscando progresso via /reports/group/members...`)
+        const membersWithProgress = await fetchGroupMembersList(group.id, headers)
+        logger.info(`   âœ… ${membersWithProgress.length} members com dados de progresso`)
+
+        // STEP 3: Merge - adicionar progresso aos members (preferir email se IDs divergem)
         const progressById = new Map<number, CursEducaMemberFromReports>()
         const progressByEmail = new Map<string, CursEducaMemberFromReports>()
 
@@ -139,7 +157,7 @@ export const fetchCurseducaDataForSync = async (
             uuid: gm.uuid,
             name: gm.name,
             email: gm.email,
-            enteredAt: gm.enteredAt,
+            enteredAt: gm.enteredAt, // data de entrada no grupo (roster) -> enrolledAt
             progress: withProgress?.progress || 0,
             enrollmentsCount: withProgress?.enrollmentsCount || 0,
             expiresAt: withProgress?.expiresAt || gm.expiresAt,
@@ -179,7 +197,8 @@ export const fetchCurseducaDataForSync = async (
           }))
         }
 
-        logger.info(`   ✅ Dados mesclados: ${unifiedMembersList.length} members com progresso`)
+
+        logger.info(`   âœ… Dados mesclados: ${unifiedMembersList.length} members com progresso`)
 
         const progressReport = await fetchProgressReport(group.id, group.name, headers)
         if (progressReport.size > 0) {
@@ -203,9 +222,16 @@ export const fetchCurseducaDataForSync = async (
           }
         }
 
-        if (options.enrichWithDetails) {
-          logger.info('   🔄 Enriquecendo via mapa em massa (situation, lastLogin)...')
 
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // STEP 3: ENRIQUECER COM DETALHES
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+        if (options.enrichWithDetails) {
+          logger.info(`   ðŸ”„ Enriquecendo via mapa em massa (situation, lastLogin)...`)
+
+          // Sem chamadas 1-a-1 -> sem 504s, sem espera por lotes.
+          // Roster autoritativo deste grupo (para a regra de pertenÃ§a).
           const rosterIds = new Set<number>(
             allGroupMembers.map((gm: CursEducaRosterMember) => gm.id)
           )
@@ -225,8 +251,9 @@ export const fetchCurseducaDataForSync = async (
           }
 
           logger.info(`      Enriquecidos ${enrichedCount}/${unifiedMembersList.length} (${skippedOtherGroup} de outros grupos ignorados, 0 chamadas individuais)`)
+
         } else {
-          logger.info('   ℹ️  Modo simples (sem fetch de detalhes)')
+          logger.info(`   â„¹ï¸  Modo simples (sem fetch de detalhes)`)
 
           for (const member of unifiedMembersList) {
             try {
@@ -249,21 +276,28 @@ export const fetchCurseducaDataForSync = async (
                 lastAccess: member.lastAccess,
                 accessCount: member.accessCount
               })
+
             } catch (error: unknown) {
               errors.push(`${member.email || 'unknown'}: ${errorMessage(error)}`)
             }
           }
         }
-
+        
         await new Promise(resolve => setTimeout(resolve, 1000))
+        
       } catch (error: unknown) {
-        logger.error(`   ❌ Erro ao processar grupo ${group.name}:`, errorMessage(error))
+        logger.error(`   âŒ Erro ao processar grupo ${group.name}:`, errorMessage(error))
         errors.push(`Grupo ${group.name}: ${errorMessage(error)}`)
       }
     }
 
-    logger.info(`✅ [CurseducaAdapter] ${allMembersWithMetadata.length} membros processados`)
-    logger.info('🔄 [CurseducaAdapter] Step 4/5: Deduplicando membros...')
+    logger.info(`âœ… [CurseducaAdapter] ${allMembersWithMetadata.length} membros processados`)
+
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // STEP 4: DEDUPLICAR
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+    logger.info('ðŸ”„ [CurseducaAdapter] Step 4/5: Deduplicando membros...')
 
     const deduplicated = deduplicateMembers(allMembersWithMetadata)
 
@@ -273,43 +307,53 @@ export const fetchCurseducaDataForSync = async (
       duplicates: deduplicated.filter(m => m.isDuplicate && !m.isPrimary).length
     }
 
-    logger.info('✅ [CurseducaAdapter] Deduplicação completa:')
-    logger.info(`   📦 Total produtos: ${stats.total}`)
-    logger.info(`   📧 Users únicos: ${stats.unique}`)
-    logger.info(`   🔁 Produtos secundários: ${stats.duplicates}`)
+    logger.info(`âœ… [CurseducaAdapter] DeduplicaÃ§Ã£o completa:`)
+    logger.info(`   ðŸ“¦ Total produtos: ${stats.total}`)
+    logger.info(`   ðŸ“§ Users Ãºnicos: ${stats.unique}`)
+    logger.info(`   ðŸ” Produtos secundÃ¡rios: ${stats.duplicates}`)
 
-    logger.info('🔄 [CurseducaAdapter] Step 5/5: Normalizando dados...')
-
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // STEP 5: NORMALIZAR
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    
+    logger.info('ðŸ”„ [CurseducaAdapter] Step 5/5: Normalizando dados...')
+    
     const normalized = attachCurseducaMemberships(
       deduplicated.map(m => normalizeCurseducaMember(m)),
     )
     assertProviderReadBatchSize(normalized.length, 'curseduca')
 
     const duration = Math.floor((Date.now() - startTime) / 1000)
-
-    logger.info('✅ [CurseducaAdapter] Dados preparados!')
-    logger.info(`   ⏱️ Duração: ${duration}s`)
-    logger.info(`   ✅ Total: ${normalized.length}`)
-    logger.info(`   ❌ Erros: ${errors.length}`)
+    
+    logger.info('âœ… [CurseducaAdapter] Dados preparados!')
+    logger.info(`   â±ï¸ DuraÃ§Ã£o: ${duration}s`)
+    logger.info(`   âœ… Total: ${normalized.length}`)
+    logger.info(`   âŒ Erros: ${errors.length}`)
 
     if (errors.length > 0) {
-      logger.warn('⚠️ [CurseducaAdapter] Erros:', errors.slice(0, 5))
+      logger.warn('âš ï¸ [CurseducaAdapter] Erros:', errors.slice(0, 5))
       if (errors.length > 5) {
         logger.warn(`   ... e mais ${errors.length - 5} erros`)
       }
     }
 
     return normalized
+    
   } catch (error: unknown) {
-    logger.error('❌ [CurseducaAdapter] Erro fatal:', error)
-
+    logger.error('âŒ [CurseducaAdapter] Erro fatal:', error)
+    
     if (errorStatus(error) === 401) {
       throw new Error(
-        `Adapter falhou: Autenticação inválida (401)\n` +
-        `Verifique as credenciais CursEduca na configuração de arranque`
+        `Adapter falhou: AutenticaÃ§Ã£o invÃ¡lida (401)\n` +
+        `Verifique as credenciais CursEduca na configuraÃ§Ã£o de arranque`
       )
     }
-
+    
     throw new Error(`Adapter falhou: ${errorMessage(error)}`)
   }
 }
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ðŸ†• SYNC INDIVIDUAL - ESTRATÃ‰GIA OTIMIZADA (2 CHAMADAS)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
