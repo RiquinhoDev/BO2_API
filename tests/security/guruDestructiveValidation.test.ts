@@ -1,6 +1,7 @@
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import express from 'express'
 import request from 'supertest'
+import { bulkOperationGuard } from '../../src/security/bulkOperationPolicy'
 import { createErrorHandling } from '../../src/security/errorHandling'
 installTestRuntimeConfigHooks()
 
@@ -159,6 +160,7 @@ function buildApp() {
 
   app.use(errors.correlationId)
   app.use(express.json())
+  app.use(bulkOperationGuard)
   app.use('/api/guru', guruRouter)
   app.use(errors.handler)
   return app
