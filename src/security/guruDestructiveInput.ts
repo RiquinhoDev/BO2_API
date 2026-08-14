@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX_BULK_OPERATION_ITEMS } from './bulkOperationPolicy'
 import { validatedSchema } from './validatedInput'
 
 const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/)
@@ -18,7 +19,7 @@ export const guruInactivationBulkInput = validatedSchema({
   params: {},
   query: {},
   body: {
-    userProductIds: z.array(objectId).optional(),
+    userProductIds: z.array(objectId).max(MAX_BULK_OPERATION_ITEMS).optional(),
     all: z.boolean().optional(),
   },
 })
@@ -27,7 +28,7 @@ export const guruMarkDiscrepanciesInput = validatedSchema({
   params: {},
   query: {},
   body: {
-    emails: z.array(z.string().email()).optional(),
+    emails: z.array(z.string().email()).max(MAX_BULK_OPERATION_ITEMS).optional(),
   },
 })
 
