@@ -26,6 +26,17 @@ const callerBulkRoutes: readonly [string, string][] = [
   ['POST', '/api/test/history/populate-all-users'],
 ]
 
+const internalMaintenanceRoutes: readonly [string, string][] = [
+  ['POST', '/api/classes/syncComplete'],
+  ['POST', '/api/cron/tag-rules-only'],
+  ['POST', '/api/dashboard/materialized-stats/rebuild'],
+  ['POST', '/api/guru/inactivation/cleanup'],
+  ['POST', '/api/guru/trials/check-expired'],
+  ['POST', '/api/renewal/sync'],
+  ['POST', '/api/sync/execute-pipeline'],
+  ['POST', '/api/test/history/populate-retroactive'],
+]
+
 describe('OPS-02 policy inventory', () => {
   test('covers every authenticated write or destructive route exactly once', () => {
     const expected = routeCatalog
@@ -58,6 +69,21 @@ describe('OPS-02 policy inventory', () => {
         status: 'verified',
         reason: 'central-bulk-operation-guard',
         limit: 200,
+      })
+    },
+  )
+
+  test.each(internalMaintenanceRoutes)(
+    '%s %s is high-impact maintenance, not caller bulk',
+    (method, path) => {
+      const decision = getOps02Decision(method, path)
+      if (!decision) throw new Error(`Missing OPS-02 decision for ${method} ${path}`)
+
+      expect(decision.authorization).toBe('super-admin')
+      expect(decision.bulk).toBe(false)
+      expect(decision.cap).toEqual({
+        status: 'not-applicable',
+        reason: 'not-caller-bulk',
       })
     },
   )
