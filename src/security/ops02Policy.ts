@@ -109,8 +109,8 @@ function expandCompactDecision(value: unknown): Ops02Decision {
   if (!catalogRoute) throw new Error(`Unknown OPS-02 inventory route: ${method} ${path}`)
 
   const configuredBulkLimit = getBulkOperationLimit(method, path)
-  const compactBulk = compact.code === 'SB' || compact.code === 'MB' || compact.code === 'PB'
-  const bulk = compactBulk || configuredBulkLimit !== undefined
+  const providerFamilyBulk = compact.code === 'MB' || compact.code === 'PB'
+  const bulk = providerFamilyBulk || configuredBulkLimit !== undefined
   const scope: Ops02Scope = compact.code === 'M' || compact.code === 'MB'
     ? 'mixed'
     : compact.code === 'P' || compact.code === 'PB' || compact.code === 'PG'
