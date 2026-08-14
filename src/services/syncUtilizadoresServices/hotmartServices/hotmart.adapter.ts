@@ -7,6 +7,7 @@ import logger from '../../../utils/logger'
 
 
 import { UniversalSourceItem } from '../../../types/universalSync.types'
+import { assertProviderReadBatchSize } from '../../../security/providerReadBatchPolicy'
 import hotmartHelpers from './hotmart.helpers'
 import type { ProgressData } from './hotmart.helpers'
 function errorMessage(error: unknown): string {
@@ -56,6 +57,7 @@ export const fetchHotmartDataForSync = async (
     // STEP 2: BUSCAR UTILIZADORES
     logger.info('📡 [HotmartAdapter] Step 2/4: Buscando utilizadores...')
     const rawUsers = await hotmartHelpers.fetchAllHotmartUsers(accessToken)
+    assertProviderReadBatchSize(rawUsers.length, 'hotmart')
 
     if (rawUsers.length === 0) {
       logger.warn('⚠️ [HotmartAdapter] Nenhum utilizador encontrado!')
