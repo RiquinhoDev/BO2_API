@@ -1,4 +1,5 @@
 import ops02Inventory from '../contracts/ops02-policy-inventory.json'
+import { getBulkOperationLimit } from './bulkOperationPolicy'
 import routeCatalog from './route-catalog.json'
 
 export type Ops02Scope = 'internal' | 'provider' | 'mixed'
@@ -107,7 +108,9 @@ function expandCompactDecision(value: unknown): Ops02Decision {
   const catalogRoute = catalogByKey.get(routeKey(method, path))
   if (!catalogRoute) throw new Error(`Unknown OPS-02 inventory route: ${method} ${path}`)
 
-  const bulk = compact.code === 'SB' || compact.code === 'MB' || compact.code === 'PB'
+  const configuredBulkLimit = getBulkOperationLimit(method, path)
+  const compactBulk = compact.code === 'SB' || compact.code === 'MB' || compact.code === 'PB'
+  const bulk = compactBulk || configuredBulkLimit !== undefined
   const scope: Ops02Scope = compact.code === 'M' || compact.code === 'MB'
     ? 'mixed'
     : compact.code === 'P' || compact.code === 'PB' || compact.code === 'PG'
@@ -117,9 +120,11 @@ function expandCompactDecision(value: unknown): Ops02Decision {
     ? 'internal-write'
     : 'super-admin'
 
-  const cap = bulk
-    ? protection('required', 'finite-cap-unverified')
-    : protection('not-applicable', 'not-caller-bulk')
+  const cap = configuredBulkLimit !== undefined
+    ? protection('verified', 'central-bulk-operation-guard', configuredBulkLimit)
+    : bulk
+      ? protection('required', 'finite-cap-unverified')
+      : protection('not-applicable', 'not-caller-bulk')
 
   let idempotency = protection('not-applicable', 'internal-write')
   let killSwitch = protection('not-applicable', 'no-provider-mutation')
@@ -158,7 +163,9 @@ function expandCompactDecision(value: unknown): Ops02Decision {
     dryRun,
     reversibility,
     status: hasGap ? 'needs-hardening' : 'reviewed',
-    evidence: 'route-catalog+approved-family-policy',
+    evidence: configuredBulkLimit === undefined
+      ? 'route-catalog+approved-family-policy'
+      : 'route-catalog+approved-family-policy+central-bulk-operation-guard',
   }
 }
 
