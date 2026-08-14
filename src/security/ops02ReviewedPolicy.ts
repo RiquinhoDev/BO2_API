@@ -1,3 +1,5 @@
+import { MAX_PROVIDER_READ_ITEMS } from './providerReadBatchPolicy'
+
 export type ReviewedLocalAuthorization = 'internal-write' | 'super-admin'
 
 export interface ReviewedLocalPolicy {
@@ -63,6 +65,14 @@ const REVIEWED_LOCAL_POLICY = new Map<string, ReviewedLocalPolicy>([
   ],
   [
     'PUT /api/curseduca/user/:userId/classes',
+    { scope: 'internal', authorization: 'internal-write' },
+  ],
+  [
+    'POST /api/users/:id/sync',
+    { scope: 'internal', authorization: 'internal-write' },
+  ],
+  [
+    'POST /api/users/student/:id/sync',
     { scope: 'internal', authorization: 'internal-write' },
   ],
 ])
@@ -162,12 +172,67 @@ const REVIEWED_PROVIDER_POLICY = new Map<string, ReviewedProviderPolicy>([
   ],
 ])
 
+const providerReadCap: ReviewedProtection = {
+  status: 'verified',
+  reason: 'provider-read-max-items',
+  limit: MAX_PROVIDER_READ_ITEMS,
+}
+
 const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
   [
     'POST /api/ac/contacts/batch-sync',
     {
       cap: { status: 'verified', reason: 'ac-batch-sync-max-20', limit: 20 },
       idempotency: { status: 'verified', reason: 'ac-contact-state-upsert-converges' },
+    },
+  ],
+  [
+    'GET /api/curseduca/sync/universal',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'curseduca-reconciliation-converges' },
+    },
+  ],
+  [
+    'GET /api/curseduca/sync/universal/start',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'curseduca-reconciliation-converges' },
+    },
+  ],
+  [
+    'GET /api/hotmart/sync/universal',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'universal-sync-unique-enrollment-converges' },
+    },
+  ],
+  [
+    'POST /api/hotmart/sync/universal/progress',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'hotmart-progress-state-replacement-converges' },
+    },
+  ],
+  [
+    'POST /api/hotmart/syncProgressOnly',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'hotmart-progress-state-replacement-converges' },
+    },
+  ],
+  [
+    'POST /api/sync/curseduca/batch',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'curseduca-reconciliation-converges' },
+    },
+  ],
+  [
+    'POST /api/sync/hotmart/batch',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'universal-sync-unique-enrollment-converges' },
     },
   ],
   [
