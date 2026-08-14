@@ -2,6 +2,7 @@ import ops02Inventory from '../contracts/ops02-policy-inventory.json'
 import { getBulkOperationLimit } from './bulkOperationPolicy'
 import {
   getReviewedLocalPolicy,
+  getReviewedProviderPolicy,
   getVerifiedReconciliationReplayReason,
 } from './ops02ReviewedPolicy'
 import routeCatalog from './route-catalog.json'
@@ -114,19 +115,29 @@ function expandCompactDecision(value: unknown): Ops02Decision {
 
   const configuredBulkLimit = getBulkOperationLimit(method, path)
   const providerFamilyBulk = compact.code === 'MB' || compact.code === 'PB'
-  const bulk = providerFamilyBulk || configuredBulkLimit !== undefined
   const reviewedLocalPolicy = getReviewedLocalPolicy(method, path)
+  const reviewedProviderPolicy = getReviewedProviderPolicy(method, path)
+
   const compactScope: Ops02Scope = compact.code === 'M' || compact.code === 'MB'
     ? 'mixed'
     : compact.code === 'P' || compact.code === 'PB' || compact.code === 'PG'
       ? 'provider'
       : 'internal'
-  const scope = reviewedLocalPolicy?.scope ?? compactScope
+  const scope = reviewedLocalPolicy?.scope ?? reviewedProviderPolicy?.scope ?? compactScope
+
   const compactAuthorization: Ops02Authorization = compact.code === 'I'
     ? 'internal-write'
     : 'super-admin'
-  const authorization = reviewedLocalPolicy?.authorization ?? compactAuthorization
-  const provider = scope === 'internal' ? undefined : compact.provider
+  const authorization = reviewedLocalPolicy?.authorization
+    ?? reviewedProviderPolicy?.authorization
+    ?? compactAuthorization
+
+  const provider = scope === 'internal'
+    ? undefined
+    : reviewedProviderPolicy?.provider ?? compact.provider
+
+  const bulk = reviewedProviderPolicy?.bulk
+    ?? (providerFamilyBulk || configuredBulkLimit !== undefined)
 
   const cap = configuredBulkLimit !== undefined
     ? protection('verified', 'central-bulk-operation-guard', configuredBulkLimit)
@@ -147,7 +158,8 @@ function expandCompactDecision(value: unknown): Ops02Decision {
     dryRun = protection('not-applicable', 'provider-read-only')
   } else if (scope === 'provider') {
     idempotency = protection('required', 'external-replay-unverified')
-    killSwitch = compact.code === 'PG'
+    const compactKillSwitchIsReviewed = reviewedProviderPolicy === undefined && compact.code === 'PG'
+    killSwitch = compactKillSwitchIsReviewed
       ? protection('verified', 'AC_TAG_APPLY_ENABLED')
       : protection('required', 'provider-kill-switch-unverified')
     dryRun = protection('required', 'dry-run-disposition-unverified')
@@ -165,6 +177,7 @@ function expandCompactDecision(value: unknown): Ops02Decision {
     'approved-family-policy',
     configuredBulkLimit === undefined ? undefined : 'central-bulk-operation-guard',
     reviewedLocalPolicy === undefined ? undefined : 'reviewed-local-policy',
+    reviewedProviderPolicy === undefined ? undefined : 'reviewed-provider-policy',
     verifiedReplayReason === undefined ? undefined : 'verified-convergent-replay',
   ].filter((item): item is string => item !== undefined).join('+')
 
