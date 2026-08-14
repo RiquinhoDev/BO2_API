@@ -66,17 +66,3 @@ export const bulkOperationGuard: RequestHandler = (req, _res, next) => {
 
   return next(bulkLimitError())
 }
-
-export function enforceBulkBodyArrayLimit(field: string): RequestHandler {
-  return (req, _res, next) => {
-    const body = bodyObject(req.body)
-    if (!body) return next()
-
-    const value = Reflect.get(body, field)
-    if (Array.isArray(value) && value.length > MAX_BULK_OPERATION_ITEMS) {
-      return next(bulkLimitError())
-    }
-
-    return next()
-  }
-}
