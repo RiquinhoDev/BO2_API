@@ -54,6 +54,15 @@ function exceedsRule(body: object, rule: BulkLimitRule): boolean {
     && value > MAX_BULK_OPERATION_ITEMS
 }
 
+export function getBulkOperationLimit(
+  method: string,
+  path: string,
+): number | undefined {
+  return BULK_LIMIT_RULES.has(routeKey(method, path))
+    ? MAX_BULK_OPERATION_ITEMS
+    : undefined
+}
+
 export const bulkOperationGuard: RequestHandler = (req, _res, next) => {
   const route = matchCatalogRoute(req.method, req.path)
   if (!route) return next()
