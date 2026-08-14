@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express'
 import { operationalSuccessResponse } from '../../contracts/responseContract'
 import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
 import { internalError } from '../../security/errorHandling'
+import { assertProviderReadBatchSize } from '../../security/providerReadBatchPolicy'
 import { User } from '../../models'
 import hotmartAdapter from '../../services/syncUtilizadoresServices/hotmartServices/hotmart.adapter'
 import universalSyncService from '../../services/syncUtilizadoresServices/universalSync'
@@ -103,6 +104,7 @@ export const syncProgressOnlyUniversal = async (req: Request, res: Response, nex
     const existingUsers = await User.find({
       'hotmart.hotmartUserId': { $exists: true, $nin: [null, ''] }
     }).select('hotmart.hotmartUserId email name').lean()
+    assertProviderReadBatchSize(existingUsers.length, 'hotmart-progress')
 
     logger.info('[HotmartProgress] Utilizadores com Hotmart ID', { total: existingUsers.length })
 
