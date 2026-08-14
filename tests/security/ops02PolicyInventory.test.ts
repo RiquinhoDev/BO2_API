@@ -27,13 +27,7 @@ const callerBulkRoutes: readonly [string, string][] = [
 ]
 
 const internalMaintenanceRoutes: readonly [string, string][] = [
-  ['POST', '/api/classes/syncComplete'],
-  ['POST', '/api/cron/tag-rules-only'],
   ['POST', '/api/dashboard/materialized-stats/rebuild'],
-  ['POST', '/api/guru/inactivation/cleanup'],
-  ['POST', '/api/guru/trials/check-expired'],
-  ['POST', '/api/renewal/sync'],
-  ['POST', '/api/sync/execute-pipeline'],
   ['POST', '/api/test/history/populate-retroactive'],
 ]
 
@@ -53,6 +47,40 @@ const internalReclassifications: readonly [
   ['POST', '/api/guru/webhooks/:id/reprocess', 'super-admin'],
   ['POST', '/api/guru/webhooks/migrate-source', 'super-admin'],
   ['PUT', '/api/curseduca/user/:userId/classes', 'internal-write'],
+]
+
+type ProviderScope = 'mixed' | 'provider'
+
+type ProviderScopeRoute = readonly [
+  method: string,
+  path: string,
+  scope: ProviderScope,
+  provider: string,
+  bulk: boolean,
+]
+
+const factualProviderScopes: readonly ProviderScopeRoute[] = [
+  ['POST', '/api/classes/syncComplete', 'mixed', 'hotmart', true],
+  ['POST', '/api/classes/checkAndUpdateClassHistory', 'mixed', 'hotmart', true],
+  ['POST', '/api/guru/inactivation/cleanup', 'mixed', 'curseduca', true],
+  ['POST', '/api/guru/trials/check-expired', 'mixed', 'guru', true],
+  ['POST', '/api/renewal/sync', 'mixed', 'hotmart', true],
+  ['POST', '/api/guru/snapshots', 'mixed', 'guru', false],
+  ['POST', '/api/guru/snapshots/historical', 'mixed', 'guru', true],
+  ['PUT', '/api/guru/snapshots/:year/:month', 'mixed', 'guru', false],
+  ['POST', '/api/clareza/refresh', 'mixed', 'fmp', true],
+  ['POST', '/api/clareza/top10/refresh', 'mixed', 'fmp', true],
+  ['POST', '/api/clareza/raiox/refresh', 'mixed', 'fmp', true],
+  ['POST', '/api/clareza/carteira/refresh', 'mixed', 'fmp', true],
+  ['POST', '/api/clareza/earnings/refresh', 'mixed', 'fmp', true],
+  ['POST', '/api/clareza/comparador/refresh', 'mixed', 'fmp', true],
+  ['POST', '/api/guru/inactivation/single', 'provider', 'curseduca', false],
+  ['POST', '/api/guru/inactivation/bulk', 'provider', 'curseduca', true],
+  ['POST', '/api/cron/tag-rules-only', 'provider', 'activecampaign', true],
+  ['POST', '/api/sync/execute-pipeline', 'provider', 'multiple', true],
+  ['POST', '/api/cron/jobs/:id/trigger', 'provider', 'multiple', true],
+  ['POST', '/api/activecampaign/test-cron', 'provider', 'activecampaign', true],
+  ['POST', '/api/activecampaign/products/:productId/tags/sync', 'provider', 'activecampaign', true],
 ]
 
 describe('OPS-02 policy inventory', () => {
@@ -133,6 +161,19 @@ describe('OPS-02 policy inventory', () => {
         status: 'not-applicable',
         reason: 'internal-write',
       })
+    },
+  )
+
+  test.each(factualProviderScopes)(
+    '%s %s records its factual provider scope',
+    (method, path, scope, provider, bulk) => {
+      const decision = getOps02Decision(method, path)
+      if (!decision) throw new Error(`Missing OPS-02 decision for ${method} ${path}`)
+
+      expect(decision.scope).toBe(scope)
+      expect(decision.provider).toBe(provider)
+      expect(decision.authorization).toBe('super-admin')
+      expect(decision.bulk).toBe(bulk)
     },
   )
 })
