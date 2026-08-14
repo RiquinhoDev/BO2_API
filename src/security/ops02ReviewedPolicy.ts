@@ -12,6 +12,19 @@ export interface ReviewedProviderPolicy {
   bulk: boolean
 }
 
+export interface ReviewedProtection {
+  status: 'verified' | 'required' | 'not-applicable'
+  reason: string
+  limit?: number
+}
+
+export interface ReviewedProtectionPolicy {
+  cap?: ReviewedProtection
+  idempotency?: ReviewedProtection
+  killSwitch?: ReviewedProtection
+  dryRun?: ReviewedProtection
+}
+
 function routeKey(method: string, path: string): string {
   return `${method.toUpperCase()} ${path}`
 }
@@ -139,6 +152,69 @@ const REVIEWED_PROVIDER_POLICY = new Map<string, ReviewedProviderPolicy>([
     'POST /api/activecampaign/products/:productId/tags/sync',
     { scope: 'provider', provider: 'activecampaign', authorization: 'super-admin', bulk: true },
   ],
+  [
+    'POST /api/discord-renewal/execute',
+    { scope: 'provider', provider: 'discord', authorization: 'super-admin', bulk: true },
+  ],
+  [
+    'POST /api/renewal-ac/execute',
+    { scope: 'provider', provider: 'activecampaign', authorization: 'super-admin', bulk: true },
+  ],
+])
+
+const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
+  [
+    'POST /api/ac/contacts/batch-sync',
+    {
+      cap: { status: 'verified', reason: 'ac-batch-sync-max-20', limit: 20 },
+      idempotency: { status: 'verified', reason: 'ac-contact-state-upsert-converges' },
+    },
+  ],
+  [
+    'POST /api/guru/snapshots',
+    {
+      idempotency: {
+        status: 'verified',
+        reason: 'guru-snapshot-unique-period-prevents-duplicate',
+      },
+    },
+  ],
+  [
+    'POST /api/discord-renewal/execute',
+    {
+      cap: { status: 'verified', reason: 'discord-roles-max-ops-per-run', limit: 10_000 },
+      idempotency: {
+        status: 'verified',
+        reason: 'discord-role-change-state-prevents-reapply',
+      },
+      killSwitch: { status: 'verified', reason: 'DISCORD_ROLES_SYNC_ENABLED' },
+      dryRun: { status: 'verified', reason: 'POST /api/discord-renewal/plan' },
+    },
+  ],
+  [
+    'POST /api/renewal-ac/execute',
+    {
+      cap: { status: 'verified', reason: 'renewal-ac-max-changes-per-run', limit: 10_000 },
+      idempotency: {
+        status: 'verified',
+        reason: 'renewal-ac-change-state-and-provider-diff',
+      },
+      killSwitch: { status: 'verified', reason: 'RENEWAL_AC_RUNTIME_SWITCHES' },
+      dryRun: { status: 'verified', reason: 'POST /api/renewal-ac/plan' },
+    },
+  ],
+  [
+    'POST /api/renewal-ac/changes/:id/revert',
+    {
+      cap: { status: 'not-applicable', reason: 'single-provider-change' },
+      idempotency: {
+        status: 'verified',
+        reason: 'renewal-ac-applied-to-reverted-state',
+      },
+      killSwitch: { status: 'verified', reason: 'RENEWAL_AC_RUNTIME_SWITCHES' },
+      dryRun: { status: 'not-applicable', reason: 'single-recorded-reversal' },
+    },
+  ],
 ])
 
 export function getVerifiedReconciliationReplayReason(
@@ -160,4 +236,11 @@ export function getReviewedProviderPolicy(
   path: string,
 ): ReviewedProviderPolicy | undefined {
   return REVIEWED_PROVIDER_POLICY.get(routeKey(method, path))
+}
+
+export function getReviewedProtectionPolicy(
+  method: string,
+  path: string,
+): ReviewedProtectionPolicy | undefined {
+  return REVIEWED_PROTECTION_POLICY.get(routeKey(method, path))
 }
