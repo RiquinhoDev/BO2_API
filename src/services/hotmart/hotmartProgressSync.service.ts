@@ -1,5 +1,6 @@
 import { SyncHistory, User } from '../../models'
 import type { ISyncHistory } from '../../models/SyncHistory'
+import { assertProviderReadBatchSize } from '../../security/providerReadBatchPolicy'
 import { hotmartLegacyClient } from './hotmartLegacyClient'
 import { calculateHotmartProgress } from './hotmartProgress'
 
@@ -34,6 +35,7 @@ export async function executeHotmartProgressSync(): Promise<ProgressSyncResponse
     const existingUsers = await User.find({
       'hotmart.hotmartUserId': { $exists: true, $nin: [null, ''] }
     }).select('_id email name hotmart.hotmartUserId')
+    assertProviderReadBatchSize(existingUsers.length, 'hotmart-progress')
 
     if (existingUsers.length === 0) {
       await SyncHistory.findByIdAndUpdate(syncRecord._id, {
