@@ -20,6 +20,7 @@ import {
 } from './security/errorHandling'
 import { createDefaultDenyAuth } from './security/defaultDenyAuth'
 import { routeAuthorization } from './security/routeAuthorization'
+import { bulkOperationGuard } from './security/bulkOperationPolicy'
 import {
   createRouteUsageInstrumentation,
   type RouteUsageInstrumentation,
@@ -78,6 +79,7 @@ export function createApp(_deps: CreateAppDependencies): Application {
   app.use(defaultDenyAuth)
   app.use(routeAuthorization)
   app.use(express.json({ limit: '100kb' }))
+  app.use(bulkOperationGuard)
   _deps.registerRoutes(app)
   app.use(errorHandling.handler)
   return app
