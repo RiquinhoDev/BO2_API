@@ -1,5 +1,9 @@
 import ops02Inventory from '../contracts/ops02-policy-inventory.json'
 import { getBulkOperationLimit } from './bulkOperationPolicy'
+import {
+  getReviewedLocalPolicy,
+  getVerifiedReconciliationReplayReason,
+} from './ops02ReviewedPolicy'
 import routeCatalog from './route-catalog.json'
 
 export type Ops02Scope = 'internal' | 'provider' | 'mixed'
@@ -111,14 +115,18 @@ function expandCompactDecision(value: unknown): Ops02Decision {
   const configuredBulkLimit = getBulkOperationLimit(method, path)
   const providerFamilyBulk = compact.code === 'MB' || compact.code === 'PB'
   const bulk = providerFamilyBulk || configuredBulkLimit !== undefined
-  const scope: Ops02Scope = compact.code === 'M' || compact.code === 'MB'
+  const reviewedLocalPolicy = getReviewedLocalPolicy(method, path)
+  const compactScope: Ops02Scope = compact.code === 'M' || compact.code === 'MB'
     ? 'mixed'
     : compact.code === 'P' || compact.code === 'PB' || compact.code === 'PG'
       ? 'provider'
       : 'internal'
-  const authorization: Ops02Authorization = compact.code === 'I'
+  const scope = reviewedLocalPolicy?.scope ?? compactScope
+  const compactAuthorization: Ops02Authorization = compact.code === 'I'
     ? 'internal-write'
     : 'super-admin'
+  const authorization = reviewedLocalPolicy?.authorization ?? compactAuthorization
+  const provider = scope === 'internal' ? undefined : compact.provider
 
   const cap = configuredBulkLimit !== undefined
     ? protection('verified', 'central-bulk-operation-guard', configuredBulkLimit)
@@ -129,9 +137,12 @@ function expandCompactDecision(value: unknown): Ops02Decision {
   let idempotency = protection('not-applicable', 'internal-write')
   let killSwitch = protection('not-applicable', 'no-provider-mutation')
   let dryRun = protection('not-applicable', 'no-provider-mutation')
+  const verifiedReplayReason = getVerifiedReconciliationReplayReason(method, path)
 
   if (scope === 'mixed') {
-    idempotency = protection('required', 'local-reconciliation-replay-unverified')
+    idempotency = verifiedReplayReason
+      ? protection('verified', verifiedReplayReason)
+      : protection('required', 'local-reconciliation-replay-unverified')
     killSwitch = protection('not-applicable', 'provider-read-only')
     dryRun = protection('not-applicable', 'provider-read-only')
   } else if (scope === 'provider') {
@@ -149,11 +160,19 @@ function expandCompactDecision(value: unknown): Ops02Decision {
   const hasGap = [cap, idempotency, killSwitch, dryRun, reversibility]
     .some((item) => item.status === 'required')
 
+  const evidence = [
+    'route-catalog',
+    'approved-family-policy',
+    configuredBulkLimit === undefined ? undefined : 'central-bulk-operation-guard',
+    reviewedLocalPolicy === undefined ? undefined : 'reviewed-local-policy',
+    verifiedReplayReason === undefined ? undefined : 'verified-convergent-replay',
+  ].filter((item): item is string => item !== undefined).join('+')
+
   return {
     method,
     path,
     scope,
-    ...(compact.provider ? { provider: compact.provider } : {}),
+    ...(provider ? { provider } : {}),
     authorization,
     destructive: catalogRoute.destructive,
     bulk,
@@ -163,9 +182,7 @@ function expandCompactDecision(value: unknown): Ops02Decision {
     dryRun,
     reversibility,
     status: hasGap ? 'needs-hardening' : 'reviewed',
-    evidence: configuredBulkLimit === undefined
-      ? 'route-catalog+approved-family-policy'
-      : 'route-catalog+approved-family-policy+central-bulk-operation-guard',
+    evidence,
   }
 }
 
