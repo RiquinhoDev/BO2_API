@@ -2,6 +2,7 @@ import ops02Inventory from '../contracts/ops02-policy-inventory.json'
 import { getBulkOperationLimit } from './bulkOperationPolicy'
 import {
   getReviewedLocalPolicy,
+  getReviewedProtectionPolicy,
   getReviewedProviderPolicy,
   getVerifiedReconciliationReplayReason,
 } from './ops02ReviewedPolicy'
@@ -117,6 +118,7 @@ function expandCompactDecision(value: unknown): Ops02Decision {
   const providerFamilyBulk = compact.code === 'MB' || compact.code === 'PB'
   const reviewedLocalPolicy = getReviewedLocalPolicy(method, path)
   const reviewedProviderPolicy = getReviewedProviderPolicy(method, path)
+  const reviewedProtectionPolicy = getReviewedProtectionPolicy(method, path)
 
   const compactScope: Ops02Scope = compact.code === 'M' || compact.code === 'MB'
     ? 'mixed'
@@ -139,11 +141,12 @@ function expandCompactDecision(value: unknown): Ops02Decision {
   const bulk = reviewedProviderPolicy?.bulk
     ?? (providerFamilyBulk || configuredBulkLimit !== undefined)
 
-  const cap = configuredBulkLimit !== undefined
+  const defaultCap = configuredBulkLimit !== undefined
     ? protection('verified', 'central-bulk-operation-guard', configuredBulkLimit)
     : bulk
       ? protection('required', 'finite-cap-unverified')
       : protection('not-applicable', 'not-caller-bulk')
+  const cap: Ops02ProtectionDisposition = reviewedProtectionPolicy?.cap ?? defaultCap
 
   let idempotency = protection('not-applicable', 'internal-write')
   let killSwitch = protection('not-applicable', 'no-provider-mutation')
@@ -158,12 +161,13 @@ function expandCompactDecision(value: unknown): Ops02Decision {
     dryRun = protection('not-applicable', 'provider-read-only')
   } else if (scope === 'provider') {
     idempotency = protection('required', 'external-replay-unverified')
-    const compactKillSwitchIsReviewed = reviewedProviderPolicy === undefined && compact.code === 'PG'
-    killSwitch = compactKillSwitchIsReviewed
-      ? protection('verified', 'AC_TAG_APPLY_ENABLED')
-      : protection('required', 'provider-kill-switch-unverified')
+    killSwitch = protection('required', 'provider-kill-switch-unverified')
     dryRun = protection('required', 'dry-run-disposition-unverified')
   }
+
+  idempotency = reviewedProtectionPolicy?.idempotency ?? idempotency
+  killSwitch = reviewedProtectionPolicy?.killSwitch ?? killSwitch
+  dryRun = reviewedProtectionPolicy?.dryRun ?? dryRun
 
   const reversibility = catalogRoute.destructive
     ? protection('not-applicable', 'super-admin-destructive')
@@ -178,6 +182,7 @@ function expandCompactDecision(value: unknown): Ops02Decision {
     configuredBulkLimit === undefined ? undefined : 'central-bulk-operation-guard',
     reviewedLocalPolicy === undefined ? undefined : 'reviewed-local-policy',
     reviewedProviderPolicy === undefined ? undefined : 'reviewed-provider-policy',
+    reviewedProtectionPolicy === undefined ? undefined : 'reviewed-protection-policy',
     verifiedReplayReason === undefined ? undefined : 'verified-convergent-replay',
   ].filter((item): item is string => item !== undefined).join('+')
 
