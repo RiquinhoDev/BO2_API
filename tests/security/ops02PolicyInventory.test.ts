@@ -37,6 +37,24 @@ const internalMaintenanceRoutes: readonly [string, string][] = [
   ['POST', '/api/test/history/populate-retroactive'],
 ]
 
+const convergentMixedRoutes: readonly [string, string, string][] = [
+  ['GET', '/api/guru/sync/email/:email', 'guru-email-state-converges'],
+  ['POST', '/api/ac/contact/:email/sync', 'ac-contact-state-upsert-converges'],
+  ['POST', '/api/guru/trials/sync', 'guru-trial-state-set-converges'],
+  ['POST', '/api/sync/curseduca', 'universal-sync-unique-enrollment-converges'],
+  ['POST', '/api/sync/hotmart', 'universal-sync-unique-enrollment-converges'],
+]
+
+const internalReclassifications: readonly [
+  string,
+  string,
+  'internal-write' | 'super-admin',
+][] = [
+  ['POST', '/api/guru/webhooks/:id/reprocess', 'super-admin'],
+  ['POST', '/api/guru/webhooks/migrate-source', 'super-admin'],
+  ['PUT', '/api/curseduca/user/:userId/classes', 'internal-write'],
+]
+
 describe('OPS-02 policy inventory', () => {
   test('covers every authenticated write or destructive route exactly once', () => {
     const expected = routeCatalog
@@ -84,6 +102,36 @@ describe('OPS-02 policy inventory', () => {
       expect(decision.cap).toEqual({
         status: 'not-applicable',
         reason: 'not-caller-bulk',
+      })
+    },
+  )
+
+  test.each(convergentMixedRoutes)(
+    '%s %s records verified convergent replay',
+    (method, path, reason) => {
+      const decision = getOps02Decision(method, path)
+      if (!decision) throw new Error(`Missing OPS-02 decision for ${method} ${path}`)
+
+      expect(decision.scope).toBe('mixed')
+      expect(decision.authorization).toBe('super-admin')
+      expect(decision.idempotency).toEqual({
+        status: 'verified',
+        reason,
+      })
+    },
+  )
+
+  test.each(internalReclassifications)(
+    '%s %s is classified as a local write',
+    (method, path, authorization) => {
+      const decision = getOps02Decision(method, path)
+      if (!decision) throw new Error(`Missing OPS-02 decision for ${method} ${path}`)
+
+      expect(decision.scope).toBe('internal')
+      expect(decision.authorization).toBe(authorization)
+      expect(decision.idempotency).toEqual({
+        status: 'not-applicable',
+        reason: 'internal-write',
       })
     },
   )
