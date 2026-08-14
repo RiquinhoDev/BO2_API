@@ -13,11 +13,11 @@ describe('OPS-02 hardening debt ratchet', () => {
     }
 
     expect(summary).toEqual({
-      total: 41,
-      mixed: 26,
+      total: 32,
+      mixed: 17,
       provider: 14,
       internal: 1,
-      bulk: 32,
+      bulk: 25,
     })
 
     expect(internal.map((decision) => `${decision.method} ${decision.path}`)).toEqual([
