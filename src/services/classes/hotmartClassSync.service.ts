@@ -1,4 +1,5 @@
 import logger from '../../utils/logger'
+import { assertProviderReadBatchSize } from '../../security/providerReadBatchPolicy'
 import { HotmartNotConfiguredError, type HotmartClubClient, type HotmartClubUser } from './hotmartClubClient'
 import type { Sleeper } from './sleeper'
 
@@ -66,6 +67,10 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+function isProviderReadCapError(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith('PROVIDER_READ_BATCH_')
+}
+
 export interface ClassSyncStats {
   totalProcessed: number
   newClassesCreated: number
@@ -118,12 +123,15 @@ export class HotmartClassSyncService {
       const classStudentCount: Record<string, number> = {}
       let nextPageToken: string | null = null
       let pageCount = 0
+      let providerUsersSeen = 0
 
       do {
         pageCount++
         await this.writer.updateSyncStep(ref, `Buscando turmas - Página ${pageCount}`, pageCount * 10)
 
         const page = await this.client.fetchUsersPage(accessToken, nextPageToken)
+        providerUsersSeen += page.users.length
+        assertProviderReadBatchSize(providerUsersSeen, 'hotmart-classes')
         page.users.forEach((user) => {
           if (user.class_id && user.class_id.trim()) {
             const classId = user.class_id.trim()
@@ -194,6 +202,7 @@ export class HotmartClassSyncService {
     let changesDetected = 0
     let usersProcessed = 0
     let pagesProcessed = 0
+    let providerUsersSeen = 0
     const errors: string[] = []
     let nextPageToken: string | null = null
 
@@ -202,6 +211,8 @@ export class HotmartClassSyncService {
       try {
         const page = await this.client.fetchUsersPage(accessToken, nextPageToken)
         const items = page.users
+        providerUsersSeen += items.length
+        assertProviderReadBatchSize(providerUsersSeen, 'hotmart-class-history')
 
         if (Array.isArray(items) && items.length > 0) {
           for (const hotmartUser of items) {
@@ -231,6 +242,7 @@ export class HotmartClassSyncService {
         nextPageToken = page.nextPageToken
         if (nextPageToken) await this.sleeper.wait(PAGE_DELAY_MS)
       } catch (pageError: unknown) {
+        if (isProviderReadCapError(pageError)) throw pageError
         errors.push(`Erro ao processar página ${pagesProcessed}: ${errorMessage(pageError)}`)
         nextPageToken = null
       }
@@ -263,6 +275,7 @@ export class HotmartClassSyncService {
 
       let totalProcessed = 0
       let pagesProcessed = 0
+      let providerUsersSeen = 0
       let classChangesDetected = 0
       const uniqueClassIds = new Set<string>()
       const classStudentCount: Record<string, number> = {}
@@ -275,6 +288,8 @@ export class HotmartClassSyncService {
 
         try {
           const page = await this.client.fetchUsersPage(accessToken, nextPageToken)
+          providerUsersSeen += page.users.length
+          assertProviderReadBatchSize(providerUsersSeen, 'hotmart-complete-sync')
           for (const hotmartUser of page.users) {
             if (!hotmartUser.email) continue
             totalProcessed++
@@ -295,6 +310,7 @@ export class HotmartClassSyncService {
           nextPageToken = page.nextPageToken
           await this.sleeper.wait(PAGE_DELAY_MS)
         } catch (pageError: unknown) {
+          if (isProviderReadCapError(pageError)) throw pageError
           errors.push(`Erro na página ${pagesProcessed}: ${errorMessage(pageError)}`)
           break
         }
