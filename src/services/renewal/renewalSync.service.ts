@@ -5,6 +5,7 @@ import Product from '../../models/product/Product'
 import RenewalOffer, { type IRenewalOffer } from '../../models/RenewalOffer'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
+import { assertProviderReadBatchSize } from '../../security/providerReadBatchPolicy'
 import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServices/hotmart.helpers'
 import { parseOfferName, parseTurmaName } from './turmaParser'
 
@@ -26,8 +27,8 @@ interface SuggestedTurma {
 
 interface SuggestionResult {
   suggestedTurmas: SuggestedTurma[]
-  confidence: number // 0..1 = turma topo / total analisado
-  sampleSize: number // nº de compradores OGI activos analisados
+  confidence: number
+  sampleSize: number
 }
 
 interface HotmartOfferSnapshot {
@@ -36,7 +37,7 @@ interface HotmartOfferSnapshot {
   paymentModes: Set<string>
   priceValue: number | null
   currency: string | null
-  eurPriceCounts: Map<number, number> // só EUR: valor → nº de vezes visto
+  eurPriceCounts: Map<number, number>
   salesCount: number
   buyerEmails: Set<string>
 }
@@ -97,10 +98,7 @@ function extractOfferFromSale(item: unknown): { offerCode: string; offerName: st
     'offer_name'
   ])
 
-  if (!offerName) {
-    return { offerCode, offerName: '' }
-  }
-
+  if (!offerName) return { offerCode, offerName: '' }
   return { offerCode, offerName }
 }
 
@@ -237,7 +235,6 @@ async function fetchHotmartOffers(
       const paymentMode = extractPaymentMode(item)
       if (paymentMode) snapshot.paymentModes.add(paymentMode)
 
-      // preço SEMPRE em EUR — ignora vendas noutras moedas (ex: USD)
       const price = extractPrice(item)
       if (price.value !== null && price.currency === 'EUR') {
         snapshot.eurPriceCounts.set(price.value, (snapshot.eurPriceCounts.get(price.value) || 0) + 1)
@@ -250,8 +247,6 @@ async function fetchHotmartOffers(
     pageToken = extractNextPageToken(response.data)
   } while (pageToken)
 
-  // preço final = maior valor EUR observado (= preço-cheio; ofertas a prestações
-  // registam parcelas mais baixas, ficamos com o total)
   for (const snapshot of offers.values()) {
     const eurValues = [...snapshot.eurPriceCounts.keys()]
     if (eurValues.length > 0) {
@@ -263,16 +258,6 @@ async function fetchHotmartOffers(
   return [...offers.values()]
 }
 
-/**
- * Calcula a turma sugerida a partir das turmas dos compradores da oferta.
- * Sinal real (sem seed): a turma dominante entre quem comprou ≈ turma da oferta.
- *
- * SEGURANÇA — não confiar 100%:
- * - valida cada comprador via UserProduct (só conta quem é aluno OGI ACTIVO,
- *   excluindo reembolsados/cancelados que enviesam);
- * - devolve confiança (topo/total) e tamanho de amostra para o staff escrutinar;
- * - é só sugestão: nunca define a turma autoritativa nem chega ao aluno sozinha.
- */
 async function computeSuggestedTurmas(
   buyerEmails: Set<string>,
   ogiProductObjectId: mongoose.Types.ObjectId | null
@@ -285,7 +270,6 @@ async function computeSuggestedTurmas(
     .lean()
     .exec()
 
-  // Validação: quais destes compradores são alunos OGI ACTIVOS (UserProduct)?
   let activeUserIds: Set<string> | null = null
   if (ogiProductObjectId && users.length > 0) {
     const enrollments = await UserProduct.find({
@@ -303,7 +287,6 @@ async function computeSuggestedTurmas(
   const tally = new Map<number, number>()
   let counted = 0
   for (const u of users) {
-    // se temos validação OGI, só contamos compradores activos
     if (activeUserIds && !activeUserIds.has(String(u._id))) continue
     const classes = u.hotmart?.enrolledClasses || []
     const className = classes.find((c) => c.className && c.isActive !== false)?.className
@@ -350,6 +333,7 @@ export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
   const ogiProductObjectId = await resolveOgiProductObjectId()
   const now = new Date()
   const seenOffers = await fetchHotmartOffers(accessToken, ogiHotmartProductId)
+  assertProviderReadBatchSize(seenOffers.length, 'hotmart-renewal-offers')
   const unknownNames = new Set<string>()
   let upserted = 0
 
@@ -359,13 +343,9 @@ export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
       .lean()
       .exec()
 
-    // A API de vendas Hotmart só devolve o offer code, não o nome.
-    // Registamos o código na mesma (offerName='') para aparecer no Backoffice,
-    // onde o staff lhe dá nome/turma/link à mão. Não saltamos códigos sem nome.
     const offerName = offer.offerName || existing?.offerName || ''
     const parsed = parseOfferName(offerName)
 
-    // Código por nomear/mapear → entra no relatório para revisão no BO.
     if (!offerName || !parsed.valid) unknownNames.add(offer.offerCode)
 
     const suggestion = await computeSuggestedTurmas(offer.buyerEmails, ogiProductObjectId)
@@ -374,7 +354,6 @@ export async function syncRenewalOffers(): Promise<RenewalSyncReport> {
       $set: {
         lastSeenAt: now,
         isActive: true,
-        // observacional (info p/ o BO) — actualiza sempre, mesmo em ofertas editadas
         priceValue: offer.priceValue,
         currency: offer.currency,
         paymentModes: [...offer.paymentModes],
