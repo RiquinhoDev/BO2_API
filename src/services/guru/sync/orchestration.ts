@@ -1,6 +1,7 @@
 import logger from '../../../utils/logger'
 import User, { type IUser } from '../../../models/user'
 import UserProduct from '../../../models/UserProduct'
+import { assertProviderReadBatchSize } from '../../../security/providerReadBatchPolicy'
 import { getStatusPriority, getEffectiveStatus, type GuruDateInfo } from '../guru.constants'
 import { fetchAllSubscriptionsPaginated, fetchContactByEmail, fetchContactSubscriptions, guruApiErrorDetails, subscriptionEmail, type GuruSubscription, type GuruSyncData, type SyncResult } from './client'
 import { mapGuruStatus } from './persistence'
@@ -27,6 +28,7 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
   try {
     // 1. Buscar todas as subscrições da Guru
     const subscriptions = await fetchAllSubscriptionsPaginated()
+    assertProviderReadBatchSize(subscriptions.length, 'guru')
     result.total = subscriptions.length
 
     logger.info(`\n📊 [GURU SYNC] Total subscrições: ${subscriptions.length}`)
