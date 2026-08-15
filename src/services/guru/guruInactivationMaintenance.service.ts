@@ -1,3 +1,4 @@
+import { assertProviderReadBatchSize } from '../../security/providerReadBatchPolicy'
 import { getEffectiveStatus } from './guru.constants'
 import type { CurseducaMemberClient } from './curseducaMember.client'
 import { isCurseducaEnrollmentActive } from '../syncUtilizadoresServices/curseducaServices/curseducaMemberships'
@@ -62,6 +63,7 @@ export const createGuruInactivationMaintenanceService = (
 ) => ({
   async cleanup(): Promise<CleanupResult> {
     const pending = await repository.listPending()
+    assertProviderReadBatchSize(pending.length, 'curseduca-inactivation-cleanup')
     const result: CleanupResult = {
       cleanedInactive: 0,
       cleanedGuruActive: 0,
