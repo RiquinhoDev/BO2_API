@@ -6,6 +6,10 @@
 import logger from '../../utils/logger'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
+import {
+  MAX_PROVIDER_READ_ITEMS,
+  assertProviderReadBatchSize,
+} from '../../security/providerReadBatchPolicy'
 import { fetchAllSubscriptionsComplete, fetchSubscriptionById } from './guruSync.service'
 import { TrialNotEndedError, TrialUserNotFoundError } from './guruTrialErrors'
 
@@ -157,8 +161,10 @@ export async function checkExpiredTrials(): Promise<CheckExpiredResult> {
     'guru.trialConvertedAt': { $exists: false },
   })
     .select('email name guru')
+    .limit(MAX_PROVIDER_READ_ITEMS + 1)
     .exec()
 
+  assertProviderReadBatchSize(expiredTrials.length, 'guru-trials-expired')
   result.checked = expiredTrials.length
   logger.info(`⏳ [GURU TRIALS] Verificando ${expiredTrials.length} trials expirados...`)
 
