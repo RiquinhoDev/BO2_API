@@ -75,6 +75,10 @@ const REVIEWED_LOCAL_POLICY = new Map<string, ReviewedLocalPolicy>([
     'POST /api/users/student/:id/sync',
     { scope: 'internal', authorization: 'internal-write' },
   ],
+  [
+    'POST /api/users/syncDiscordAndHotmart',
+    { scope: 'internal', authorization: 'super-admin' },
+  ],
 ])
 
 const REVIEWED_PROVIDER_POLICY = new Map<string, ReviewedProviderPolicy>([
@@ -233,6 +237,69 @@ const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
     {
       cap: providerReadCap,
       idempotency: { status: 'verified', reason: 'universal-sync-unique-enrollment-converges' },
+    },
+  ],
+  [
+    'GET /api/guru/sync/all',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'guru-best-subscription-state-converges' },
+    },
+  ],
+  [
+    'POST /api/classes/syncHotmartClasses',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'hotmart-class-upsert-converges' },
+    },
+  ],
+  [
+    'POST /api/classes/checkAndUpdateClassHistory',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'hotmart-class-diff-history-converges' },
+    },
+  ],
+  [
+    'POST /api/classes/syncComplete',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'hotmart-complete-sync-state-converges' },
+    },
+  ],
+  [
+    'POST /api/course-lessons/sync',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'course-lesson-page-upsert-converges' },
+    },
+  ],
+  [
+    'POST /api/renewal/sync',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'renewal-offer-upsert-converges' },
+    },
+  ],
+  [
+    'POST /api/guru/snapshots/historical',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'guru-snapshot-period-create-once' },
+    },
+  ],
+  [
+    'POST /api/guru/trials/check-expired',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'guru-trial-terminal-state-converges' },
+    },
+  ],
+  [
+    'POST /api/guru/inactivation/cleanup',
+    {
+      cap: providerReadCap,
+      idempotency: { status: 'verified', reason: 'curseduca-inactivation-cleanup-converges' },
     },
   ],
   [
