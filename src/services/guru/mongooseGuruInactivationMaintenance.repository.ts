@@ -1,5 +1,6 @@
 import User, { type IUser } from '../../models/user'
 import UserProduct, { type IUserProduct } from '../../models/UserProduct'
+import { MAX_PROVIDER_READ_ITEMS } from '../../security/providerReadBatchPolicy'
 import type {
   DiagnosticRecord,
   GuruInactivationMaintenanceRepository,
@@ -32,7 +33,7 @@ export const mongooseGuruInactivationMaintenanceRepository: GuruInactivationMain
     }).populate<{ userId: MaintenanceUser | null }>(
       'userId',
       'email name curseduca guru',
-    ).lean()
+    ).limit(MAX_PROVIDER_READ_ITEMS + 1).lean()
     return documents.map(pendingRecord)
   },
 
