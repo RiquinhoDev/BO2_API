@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import { IntegrationUnavailableError } from '../errors/integrationUnavailableError'
+import { assertProviderReadBatchSize } from '../security/providerReadBatchPolicy'
 import { getHotmartSyncUserId, getOptionalHotmartSubdomain } from './requestDrivenRuntimeConfig'
 import CourseLesson from '../models/CourseLesson'
 import Product from '../models/product/Product'
@@ -61,6 +62,7 @@ export async function syncCourseLessonCatalog(): Promise<CourseLessonCatalogSync
   const response = await hotmartLessonsService.getUserLessons(representativeUserId, subdomain)
   const lessons = Array.isArray(response.lessons) ? response.lessons : []
   const entries = buildCatalogEntries(lessons, product)
+  assertProviderReadBatchSize(entries.length, 'hotmart-course-lessons')
 
   let created = 0
   let updated = 0
