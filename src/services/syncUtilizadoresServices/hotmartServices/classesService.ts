@@ -60,7 +60,8 @@ class ClassesService {
       
       // ── Contagem de alunos por turma ────────────────────────────────
       // Quantos alunos estão inscritos na turma. Activo ou inactivo é
-      // irrelevante: este número existe para espelhar a Hotmart.
+      // irrelevante: este número existe para espelhar a plataforma de
+      // origem — a Hotmart nas turmas OGI, a CursEduca nas da Clareza.
       //
       // Duas correcções face à versão anterior:
       //   1. contava por `classId` na raiz do utilizador, campo que fica
@@ -74,12 +75,18 @@ class ClassesService {
       // Uma agregação em vez de um countDocuments por turma: ~75ms para
       // todas, contra ~7s somando as chamadas individuais.
       const idsHotmart: string[] = classes
-        .filter((cls: any) => !(cls.source === 'curseduca_sync' && cls.curseducaUuid))
+        .filter((cls: any) => cls.source !== 'curseduca_sync')
         .map((cls: any) => cls.classId)
         .filter(Boolean)
-      const uuidsCurseduca: string[] = classes
-        .filter((cls: any) => cls.source === 'curseduca_sync' && cls.curseducaUuid)
-        .map((cls: any) => cls.curseducaUuid)
+      // As turmas CursEduca (Clareza) não têm curseducaUuid — são
+      // identificadas pelo id próprio da CursEduca, que fica em
+      // Class.curseducaId. Do lado do utilizador a inscrição vive em
+      // combined.allClasses, com source 'curseduca': é o equivalente
+      // directo do hotmart.enrolledClasses.
+      const idsCurseduca: string[] = classes
+        .filter((cls: any) => cls.source === 'curseduca_sync')
+        .map((cls: any) => cls.curseducaId ?? cls.classId)
+        .filter(Boolean)
 
       const [porTurmaHotmart, porGrupoCurseduca] = await Promise.all([
         idsHotmart.length
@@ -90,10 +97,12 @@ class ClassesService {
               { $group: { _id: '$hotmart.enrolledClasses.classId', n: { $sum: 1 } } }
             ])
           : Promise.resolve([] as any[]),
-        uuidsCurseduca.length
+        idsCurseduca.length
           ? User.aggregate([
-              { $match: { 'curseduca.groupCurseducaUuid': { $in: uuidsCurseduca } } },
-              { $group: { _id: '$curseduca.groupCurseducaUuid', n: { $sum: 1 } } }
+              { $match: { 'combined.allClasses': { $elemMatch: { classId: { $in: idsCurseduca }, source: 'curseduca' } } } },
+              { $unwind: '$combined.allClasses' },
+              { $match: { 'combined.allClasses.source': 'curseduca', 'combined.allClasses.classId': { $in: idsCurseduca } } },
+              { $group: { _id: '$combined.allClasses.classId', n: { $sum: 1 } } }
             ])
           : Promise.resolve([] as any[])
       ])
@@ -108,8 +117,8 @@ class ClassesService {
       const classesWithStats = classes.map((cls: any) => ({
         ...cls,
         studentCount:
-          cls.source === 'curseduca_sync' && cls.curseducaUuid
-            ? contagemCurseduca.get(String(cls.curseducaUuid)) ?? 0
+          cls.source === 'curseduca_sync'
+            ? contagemCurseduca.get(String(cls.curseducaId ?? cls.classId)) ?? 0
             : contagemHotmart.get(String(cls.classId)) ?? 0
       }))
       
