@@ -1214,7 +1214,13 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
   // ✅ Criar lista de inativação por turmas + Discord + Histórico
   createInactivationList = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name, classIds, description, userId, platforms = ['all'] } = req.body
+      // Default = OGI apenas (Hotmart + Discord). NÃO inclui 'curseduca':
+      // o Clareza vem do CursEduca, é um produto à parte com o seu próprio
+      // ciclo de subscrição e tem sistema de inactivação próprio. Com o
+      // default anterior ('all') a inactivação de uma turma OGI cortava
+      // também o Clareza — o wizard do Front não envia `platforms`, por isso
+      // ninguém escolhia isso conscientemente.
+      const { name, classIds, description, userId, platforms = ['hotmart', 'discord'] } = req.body
 
       if (!classIds || !Array.isArray(classIds) || classIds.length === 0) {
         res.status(400).json({
