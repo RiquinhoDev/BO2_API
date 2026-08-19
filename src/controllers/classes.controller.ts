@@ -1515,11 +1515,17 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         executedDate: d.execution?.completedAt ?? d.execution?.startedAt,
         revertedAt: d.reversal?.reversedAt,
         performedBy: d.execution?.executedBy,
-        results: {
-          success: d.execution?.successCount ?? 0,
-          errors: d.execution?.errorCount ?? 0,
-          details: d.execution?.errors ?? []
-        }
+        // Só se manda 'results' quando o bloco 'execution' existe mesmo. A
+        // maioria das listas antigas não o tem, e mandar zeros faria a tabela
+        // pintar "(0✓ 0✗)" numa lista de 1642 alunos — o Front esconde a
+        // coluna quando o campo vem indefinido, que é o correcto aqui.
+        results: d.execution
+          ? {
+              success: d.execution.successCount ?? 0,
+              errors: d.execution.errorCount ?? 0,
+              details: d.execution.errors ?? []
+            }
+          : undefined
       }))
 
       res.json({
