@@ -22,7 +22,11 @@ import Product from '../../models/product/Product'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServices/hotmart.helpers'
-import { HOTMART_SALES_HISTORY_MAX_LOOKBACK_DAYS } from './renewalConstants'
+import {
+  HOTMART_SALES_HISTORY_MAX_LOOKBACK_DAYS,
+  HOTMART_PER_EMAIL_STATUS_SWEEP,
+  OGI_PRODUCT_FAMILY_IDS
+} from './renewalConstants'
 
 const HOTMART_SALES_HISTORY_URL = 'https://developers.hotmart.com/payments/api/v1/sales/history'
 const PAGE_DELAY_MS = 500
@@ -166,6 +170,8 @@ function parseSaleItem(item: any): IHotmartSale {
   const offer = extractOfferFromSale(item)
   const price = extractPrice(item)
   return {
+    hotmartProductId: extractProductIdFromSale(item),
+    productName: firstString(item, ['product.name', 'productName', 'product_name']),
     transaction: firstString(item, ['purchase.transaction', 'transaction']),
     offerCode: offer.offerCode,
     offerName: offer.offerName,
@@ -380,6 +386,74 @@ export function aggregateMonthlySalesStats(salesByEmail: Map<string, IHotmartSal
   return [...buckets.values()].sort((a, b) => a.month.localeCompare(b.month))
 }
 
+/**
+ * Vendas de UM email, sem limite de data.
+ *
+ * A varredura em massa (fetchAllOgiSalesGroupedByEmail) tem de mandar
+ * start_date, e a Hotmart não aceita mais do que 730 dias de recuo — o que
+ * significa que o histórico de cada aluno ia sendo cortado pela frente à
+ * medida que o tempo passa. Uma compra de 2024-05 já caiu fora da janela em
+ * Agosto de 2026.
+ *
+ * Com buyer_email o comportamento é outro: confirmado contra a API real que
+ * devolve o histórico completo sem start_date nenhum (foi assim que
+ * apareceram as três transacções de simaopedroliveira@gmail.com, incluindo a
+ * de 2024-05-27, que a varredura em massa não trazia).
+ *
+ * Sem transaction_status a Hotmart devolve só COMPLETE e APPROVED, por isso
+ * varremos também os estados de HOTMART_PER_EMAIL_STATUS_SWEEP — sem eles um
+ * reembolso ou um incumprimento não apareciam em lado nenhum.
+ */
+export async function fetchSalesForEmail(
+  accessToken: string,
+  email: string,
+  productIds: string[] = OGI_PRODUCT_FAMILY_IDS
+): Promise<{ sales: IHotmartSale[]; requests: number }> {
+  const porTransacao = new Map<string, IHotmartSale>()
+  let requests = 0
+
+  for (const status of HOTMART_PER_EMAIL_STATUS_SWEEP) {
+    let pageToken: string | null = null
+    let paginas = 0
+
+    do {
+      const response = await requestSalesPage(accessToken, {
+        buyer_email: email,
+        max_results: 100,
+        ...(status ? { transaction_status: status } : {}),
+        ...(pageToken ? { page_token: pageToken } : {})
+      })
+      requests += 1
+      paginas += 1
+
+      for (const item of extractSalesItems(response.data)) {
+        const productId = extractProductIdFromSale(item)
+        if (!productId || !productIds.includes(productId)) continue
+        const venda = parseSaleItem(item)
+        // a mesma transacção pode vir em mais do que uma passagem; a chave
+        // evita duplicá-la, e o fallback cobre respostas sem transaction
+        const chave = venda.transaction ?? `${productId}|${venda.orderDate?.toISOString() ?? ''}|${venda.priceValue ?? ''}`
+        if (!porTransacao.has(chave)) porTransacao.set(chave, venda)
+      }
+
+      pageToken = extractNextPageToken(response.data)
+      if (pageToken) await sleep(PAGE_DELAY_MS)
+    } while (pageToken && paginas < 20)
+  }
+  // Sem pausa entre estados: são 4 chamadas curtas para o mesmo email e o
+  // requestSalesPage já recua sozinho perante um 429. Com a pausa, uma corrida
+  // completa levava perto de uma hora; sem ela fica em cerca de metade.
+
+  // mais recente primeiro, para latestApprovedDate sair de sales[0]
+  const sales = [...porTransacao.values()].sort((a, b) => {
+    const da = a.approvedDate?.getTime() ?? a.orderDate?.getTime() ?? 0
+    const db = b.approvedDate?.getTime() ?? b.orderDate?.getTime() ?? 0
+    return db - da
+  })
+
+  return { sales, requests }
+}
+
 export async function resolveOgiProduct(): Promise<{ hotmartProductId: string; objectId: mongoose.Types.ObjectId }> {
   const ogiProduct = await ProductReadModel.findOne({
     platform: 'hotmart',
@@ -432,16 +506,20 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
     .lean()
     .exec() as Array<{ _id: mongoose.Types.ObjectId; email: string }>
 
-  // uma única passagem por TODO o histórico de vendas OGI — não uma
-  // chamada por aluno. O custo é do volume de vendas, não de alunos.
-  const { salesByEmail, salesChecked, pagesFetched, totalResultsReportedByHotmart, paginationComplete } =
-    await fetchAllOgiSalesGroupedByEmail(accessToken, hotmartProductId)
+  // Uma consulta por aluno, com buyer_email. Custa mais chamadas do que a
+  // varredura em massa, mas é a única forma de ter o histórico completo:
+  // a varredura obriga a start_date (máximo 730 dias na Hotmart) e ia
+  // cortando as compras antigas à medida que o tempo passa. Ver
+  // fetchSalesForEmail. A varredura continua a existir e a ser usada pelos
+  // agregados mensais, onde a janela não faz mal.
+  let pedidos = 0
+  let vendasVistas = 0
 
   const report: SalesHistorySyncReport = {
-    salesChecked,
-    pagesFetched,
-    totalResultsReportedByHotmart,
-    paginationComplete,
+    salesChecked: 0,
+    pagesFetched: 0,
+    totalResultsReportedByHotmart: null,
+    paginationComplete: true,
     totalActiveStudents: users.length,
     processed: 0,
     updated: 0,
@@ -453,7 +531,9 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
   for (const user of users) {
     report.processed += 1
     try {
-      const sales = salesByEmail.get(user.email) || []
+      const { sales, requests } = await fetchSalesForEmail(accessToken, user.email)
+      pedidos += requests
+      vendasVistas += sales.length
       const latest = sales[0] || null
 
       await HotmartSaleHistory.updateOne(
@@ -475,6 +555,8 @@ export async function syncActiveStudentSalesHistory(emails?: string[]): Promise<
       )
 
       report.updated += 1
+      report.salesChecked = vendasVistas
+      report.pagesFetched = pedidos
       if (sales.length > 0) report.withSales += 1
       else report.withoutSales += 1
     } catch (error: any) {
