@@ -4,6 +4,7 @@ import { classesService, studentService } from '../services/syncUtilizadoresServ
 import SyncHistory from '../models/SyncHistory'
 
 import axios from 'axios'
+import mongoose from 'mongoose'
 import jwt from 'jsonwebtoken'
 import { Class } from '../models/Class'
 import StudentClassHistory from '../models/StudentClassHistory'
@@ -1678,6 +1679,162 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
       res.status(500).json({
         success: false,
         message: 'Erro ao reverter inativação',
+        error: (error as Error).message
+      })
+    }
+  }
+
+  // Alunos de uma lista de inativação, paginados.
+  //
+  // O array students[] vive dentro do documento da lista e há listas com mais
+  // de 1600 entradas, por isso não vai na listagem — vem por aqui, à página.
+  // As entradas guardam pouco (studentId, classId, previousState) e nem sempre
+  // o email, por isso o nome e o email são buscados ao utilizador.
+  getInactivationListStudents = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params
+      const { limit = 25, offset = 0, search } = req.query
+
+      const limitNum = Math.min(Number(limit) || 25, 200)
+      const offsetNum = Number(offset) || 0
+
+      if (!mongoose.Types.ObjectId.isValid(String(id))) {
+        res.status(400).json({ success: false, message: 'ID inválido' })
+        return
+      }
+
+      const { default: InactivationList } = await import('../models/InactivationList')
+      const lista: any = await (InactivationList as any).findById(id).select('name status classIds').lean()
+      if (!lista) {
+        res.status(404).json({ success: false, message: 'Lista não encontrada' })
+        return
+      }
+
+      const termo = String(search ?? '').trim()
+      const filtroBusca = termo
+        ? [{
+            $match: {
+              $or: [
+                { email: { $regex: termo, $options: 'i' } },
+                { nome: { $regex: termo, $options: 'i' } },
+                { turma: { $regex: termo, $options: 'i' } }
+              ]
+            }
+          }]
+        : []
+
+      const resultado = await (InactivationList as any).aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(String(id)) } },
+        { $unwind: '$students' },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'students.studentId',
+            foreignField: '_id',
+            as: 'utilizador'
+          }
+        },
+        {
+          $lookup: {
+            from: 'classes',
+            localField: 'students.classId',
+            foreignField: 'classId',
+            as: 'turmaDoc'
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            studentId: '$students.studentId',
+            email: { $ifNull: ['$students.email', { $first: '$utilizador.email' }] },
+            nome: { $first: '$utilizador.name' },
+            classId: '$students.classId',
+            turma: { $ifNull: [{ $first: '$turmaDoc.name' }, '$students.classId'] },
+            estadoAnterior: '$students.previousState',
+            processado: { $ifNull: ['$students.processed', null] },
+            erro: { $ifNull: ['$students.error', null] },
+            // estado actual do aluno, para se ver se a inactivação pegou
+            estadoActual: { $first: '$utilizador.combined.status' }
+          }
+        },
+        ...filtroBusca,
+        {
+          $facet: {
+            total: [{ $count: 'n' }],
+            linhas: [
+              { $sort: { nome: 1, email: 1 } },
+              { $skip: offsetNum },
+              { $limit: limitNum }
+            ]
+          }
+        }
+      ])
+
+      const total = resultado?.[0]?.total?.[0]?.n ?? 0
+      const students = resultado?.[0]?.linhas ?? []
+
+      res.json({
+        success: true,
+        list: { _id: lista._id, name: lista.name, status: lista.status },
+        students,
+        pagination: { total, limit: limitNum, offset: offsetNum },
+        timestamp: new Date().toISOString()
+      })
+    } catch (error) {
+      console.error('❌ Erro ao buscar alunos da lista:', error)
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao buscar alunos da lista',
+        error: (error as Error).message
+      })
+    }
+  }
+
+  // Apagar uma lista do histórico.
+  //
+  // Apaga SÓ o registo. Não mexe em nenhum aluno: quem foi inactivado continua
+  // inactivo. Se a intenção for devolver o acesso, é o reverter, não isto.
+  //
+  // Consequência a ter em conta: o registo é o único sítio onde ficam guardados
+  // os alunos abrangidos e o estado que cada um tinha antes, portanto apagá-lo
+  // torna a inactivação irreversível. Por isso devolve-se o que se apagou.
+  deleteInactivationList = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params
+
+      if (!mongoose.Types.ObjectId.isValid(String(id))) {
+        res.status(400).json({ success: false, message: 'ID inválido' })
+        return
+      }
+
+      const { default: InactivationList } = await import('../models/InactivationList')
+      const lista: any = await (InactivationList as any).findById(id).lean()
+      if (!lista) {
+        res.status(404).json({ success: false, message: 'Lista não encontrada' })
+        return
+      }
+
+      const abrangidos = lista.students?.length ?? 0
+      await (InactivationList as any).findByIdAndDelete(id)
+
+      console.log(`🗑️  [InactivationList] Registo apagado: "${lista.name}" (${abrangidos} alunos abrangidos, estado ${lista.status}). Nenhum aluno foi alterado.`)
+
+      res.json({
+        success: true,
+        message: 'Registo removido do histórico. Nenhum aluno foi alterado.',
+        removed: {
+          _id: lista._id,
+          name: lista.name,
+          status: lista.status,
+          studentsAbrangidos: abrangidos
+        },
+        timestamp: new Date().toISOString()
+      })
+    } catch (error) {
+      console.error('❌ Erro ao apagar lista de inativação:', error)
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao apagar lista de inativação',
         error: (error as Error).message
       })
     }

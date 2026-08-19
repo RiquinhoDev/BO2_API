@@ -76,6 +76,13 @@ router.get('/inactivationLists', classesController.getInactivationLists)
 // POST /api/classes/inactivationLists/revert/:id - Reverte inativação
 router.post('/inactivationLists/revert/:id', classesController.revertInactivation)
 
+// GET /api/classes/inactivationLists/:id/students - Alunos da lista, paginados
+router.get('/inactivationLists/:id/students', classesController.getInactivationListStudents)
+
+// DELETE /api/classes/inactivationLists/:id - Apaga só o registo do histórico.
+// Não mexe em nenhum aluno; para devolver acesso é a rota de revert.
+router.delete('/inactivationLists/:id', classesController.deleteInactivationList)
+
 
 
 // ===== PESQUISA DE ESTUDANTES =====
