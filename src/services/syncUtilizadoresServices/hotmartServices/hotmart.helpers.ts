@@ -19,6 +19,37 @@ const getRetryDelayMs = (error: any, attempt: number, baseDelayMs: number) => {
   return Math.min(baseDelayMs * Math.pow(2, attempt) + jitter, 10000)
 }
 
+// Erros de rede em que a resposta nem chega a existir. Não trazem
+// error.response, por isso não têm status HTTP nenhum para comparar.
+const CODIGOS_DE_REDE_REPETIVEIS = new Set([
+  'ECONNRESET',    // a Hotmart cortou a ligação a meio — o mais frequente
+  'ECONNABORTED',  // timeout do axios
+  'ETIMEDOUT',
+  'ECONNREFUSED',
+  'ENOTFOUND',
+  'EAI_AGAIN',     // falha temporária de DNS
+  'EPIPE',
+  'ERR_NETWORK'
+])
+
+/**
+ * Vale a pena repetir este erro?
+ *
+ * Só para falhas transitórias. Um 401 (token mau), um 400 (pedido mau) ou um
+ * 404 continuam a rebentar à primeira, que é o que se quer: repetir esses só
+ * atrasaria o sync sem nunca resolver nada.
+ */
+function vaiValerARepetir(error: any): boolean {
+  const status = error?.response?.status
+
+  if (status === 429) return true
+  if (typeof status === 'number') return status >= 500 && status < 600
+
+  // Sem status = a ligação falhou antes de haver resposta.
+  const codigo = error?.code ?? error?.cause?.code
+  return CODIGOS_DE_REDE_REPETIVEIS.has(codigo)
+}
+
 async function requestWithRetry<T>(
   fn: () => Promise<T>,
   options: { maxRetries: number; baseDelayMs: number }
@@ -29,14 +60,20 @@ async function requestWithRetry<T>(
     try {
       return await fn()
     } catch (error: any) {
-      const status = error?.response?.status
-      if (status !== 429 || attempt >= options.maxRetries) {
+      // Antes só se repetiam os 429. Um ECONNRESET não traz error.response,
+      // pelo que `status !== 429` era verdade e o erro passava directo — e
+      // como a paginação dos ~4400 utilizadores rebenta inteira à primeira
+      // falha, bastava uma ligação cortada para deitar abaixo o sync todo.
+      // Aconteceu 4 vezes em 2 dias, sempre com ECONNRESET.
+      if (!vaiValerARepetir(error) || attempt >= options.maxRetries) {
         throw error
       }
 
+      const status = error?.response?.status
+      const motivo = status ? `HTTP ${status}` : (error?.code ?? error?.cause?.code ?? 'erro de rede')
       const delay = getRetryDelayMs(error, attempt, options.baseDelayMs)
       console.warn(
-        `[HotmartFetch] Rate limited (429). Retry in ${delay}ms (attempt ${attempt + 1}/${options.maxRetries})`
+        `[HotmartFetch] ${motivo}. Nova tentativa em ${delay}ms (${attempt + 1}/${options.maxRetries})`
       )
       await sleep(delay)
       attempt += 1
