@@ -1273,17 +1273,29 @@ if (lastAccessDate) {
         // Mudança de turma
         try {
           const StudentClassHistory = (await import('../../models/StudentClassHistory')).default
+          // Gravar o nome REAL, não o que vem da Hotmart.
+          //
+          // A Hotmart devolve item.className vazio em muitas turmas, e isto
+          // caía no fallback `Turma ${classId}` — daí o histórico estar cheio
+          // de entradas como "Turma vROxKGWK7D", que não dizem nada a ninguém.
+          // O nome bom já tinha sido resolvido acima em realClassName (via
+          // ensureClassExists, que devolve o nome da BD, incluindo nomes postos
+          // à mão no Backoffice); só não estava a ser usado aqui.
+          const previousClassNameReal =
+            oldClassName && !/^Turma [A-Za-z0-9]{6,}$/.test(oldClassName)
+              ? oldClassName
+              : (await (Class as any).findOne({ classId: oldClassId }).select('name').lean())?.name || oldClassName
           await StudentClassHistory.create({
             studentId: user._id,
             classId: item.classId,
-            className: item.className || `Turma ${item.classId}`,
+            className: realClassName,
             previousClassId: oldClassId,
-            previousClassName: oldClassName,
+            previousClassName: previousClassNameReal,
             dateMoved: new Date(),
             reason: 'Mudança detectada no sync Hotmart',
             movedBy: 'Sistema - Sync Automático'
           })
-          console.log(`   📝 [ClassChange] ${user.email}: "${oldClassName}" → "${item.className || item.classId}"`)
+          console.log(`   📝 [ClassChange] ${user.email}: "${previousClassNameReal}" → "${realClassName}"`)
         } catch (error: any) {
           console.warn(`   ⚠️ Erro ao registrar mudança de turma para ${user.email}:`, error.message)
         }
@@ -1295,7 +1307,7 @@ if (lastAccessDate) {
           await StudentClassHistory.create({
             studentId: user._id,
             classId: item.classId,
-            className: item.className || `Turma ${item.classId}`,
+            className: realClassName,
             dateMoved: purchaseDate || new Date(),
             reason: 'Primeira inscrição na turma (data de compra)',
             movedBy: 'Sistema - Sync Automático'
