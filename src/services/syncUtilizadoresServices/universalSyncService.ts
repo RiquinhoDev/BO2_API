@@ -609,6 +609,30 @@ interface RenewalDetectionResult {
  * Deteta se um utilizador foi inativado manualmente e se renovou a subscrição
  * Compara a data de compra com a data de inativação
  */
+/**
+ * Uma inactivação decidida por uma pessoa pode ser desfeita pelo sync?
+ *
+ * Só se o aluno tiver comprado DEPOIS da decisão. Nesse caso voltou e pagou,
+ * e a decisão anterior deixou de fazer sentido. Em qualquer outro caso a
+ * decisão humana prevalece.
+ *
+ * Antes disto não havia verificação nenhuma: o campo isManuallyInactivated
+ * existia mas nenhuma das duas vias de reactivação lhe tocava, apesar de um
+ * comentário no código afirmar o contrário. Em Agosto de 2026 isso desfez 14
+ * de 15 inactivações feitas à mão, e o applyAutoReactivation ainda repunha o
+ * campo a false — apagando o rasto de que alguém tinha decidido.
+ */
+function decisaoHumanaProtege(user: any, purchaseDate: Date | null): boolean {
+  const inact = user?.inactivation
+  if (inact?.isManuallyInactivated !== true) return false
+
+  const inactivatedAt = inact.inactivatedAt ? new Date(inact.inactivatedAt) : null
+  const comprouDepois =
+    !!purchaseDate && !!inactivatedAt && purchaseDate.getTime() > inactivatedAt.getTime()
+
+  return !comprouDepois
+}
+
 async function detectRenewal(
   user: IUser,
   purchaseDate: Date | null,
@@ -633,6 +657,10 @@ async function detectRenewal(
   const userStatus = (user as any).status
   const combinedStatus = (user as any).combined?.status
   const isInactiveInDB = userStatus === 'INACTIVE' || combinedStatus === 'INACTIVE'
+
+  if (decisaoHumanaProtege(user, purchaseDate)) {
+    return result
+  }
 
   if (purchaseDate) {
     result.purchaseDate = purchaseDate
@@ -1736,7 +1764,8 @@ if (lastAccessDate) {
   // ═══════════════════════════════════════════════════════════
   if (
     config.syncType === 'hotmart' &&
-    !renewalResult.shouldReactivate
+    !renewalResult.shouldReactivate &&
+    !decisaoHumanaProtege(user, purchaseDate)
   ) {
     const userStatus = (user as any).status
     const combinedStatus = (user as any).combined?.status
