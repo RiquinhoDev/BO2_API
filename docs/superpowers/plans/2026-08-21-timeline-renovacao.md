@@ -888,9 +888,12 @@ test('ciclo de 2 anos: duas coortes, duas tags, e a turma da segunda', () => {
   assert.equal(t.ciclos[0].coortes[1].tag?.id, '11')
   assert.equal(t.ciclos[0].turma?.classId, 'c')
   assert.equal(t.tagsOrfas.length, 0)
-  assert.ok(!t.ciclos[0].alertas.includes('sem-tag'))
-  assert.ok(!t.ciclos[0].alertas.includes('sem-tag-ano-2'))
-  assert.ok(!t.ciclos[0].alertas.includes('tag-tardia'))
+  // As duas coortes estão marcadas e nenhuma tag chegou tarde. Fica
+  // um alerta só, e é verdadeiro: ele está na turma de renovação de
+  // 2601 e nenhuma das suas tags é a dessa turma, por isso não
+  // apanha a automação dela.
+  assert.deepEqual(t.ciclos[0].alertas, ['tag-diferente-da-turma'])
+  assert.equal(t.ciclos[0].tagEsperada, 'Aluno OGI 2601 - Renovação')
 })
 
 test('ciclo de 2 anos sem a tag do ano 2 leva o alerta proprio', () => {
@@ -1086,6 +1089,65 @@ test('venda posterior a sync de tags levanta a bandeira de desactualizado', () =
   assert.equal(t.cadeia.tagsDesatualizadas, true)
 })
 
+test('empate entre duas tags: ganha a da frente, venha na ordem que vier', () => {
+  // ciclo em 2501, uma tag a 2411 (dois meses atrás) e outra a 2503
+  // (dois meses à frente). Empatadas na distância — decide a regra,
+  // não a ordem de chegada.
+  const base = {
+    vendas: [venda({ approvedDate: new Date('2025-01-15T00:00:00Z'), transaction: 'A' })],
+    turmaAtual: null
+  }
+  const atras = { tagId: '900', nome: 'Aluno OGI L2411 - Turma 12', aplicadaEm: null }
+  const frente = { tagId: '100', nome: 'Aluno OGI 2503 - Renovação', aplicadaEm: null }
+
+  const t1 = gerarTimeline(entrada({ ...base, tags: [atras, frente] }))
+  const t2 = gerarTimeline(entrada({ ...base, tags: [frente, atras] }))
+
+  assert.equal(t1.ciclos[0].coortes[0].tag?.id, '100')
+  assert.equal(t2.ciclos[0].coortes[0].tag?.id, '100')
+  assert.deepEqual(t1.tagsOrfas.map((o) => o.id), ['900'])
+  assert.deepEqual(t2.tagsOrfas.map((o) => o.id), ['900'])
+})
+
+test('empate entre turmas: ganha a actual, nao a que ele ja deixou', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-01-15T00:00:00Z'), transaction: 'A' })],
+      tags: [],
+      movimentacoes: [{ classId: 'velha', className: 'Turma 1 | 2411', entrouEm: null }],
+      turmaAtual: { classId: 'nova', className: 'Turma 2 | 2503', entrouEm: null }
+    })
+  )
+  assert.equal(t.ciclos[0].turma?.classId, 'nova')
+})
+
+test('turma fora da tolerancia continua a ser reportada', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-05-19T00:00:00Z'), transaction: 'A' })],
+      tags: [],
+      turmaAtual: { classId: 'c', className: 'Turmas 1, 2 e 3 [3a renov] | 2601', entrouEm: null }
+    })
+  )
+  // longe demais para pertencer ao ciclo, mas não se cala uma turma
+  // que a convenção não sabe resolver
+  assert.equal(t.ciclos[0].turma, null)
+  assert.ok(t.ciclos[0].alertas.includes('sem-mudanca-turma'))
+  assert.deepEqual(t.turmasPorMapear, ['Turmas 1, 2 e 3 [3a renov] | 2601'])
+})
+
+test('prestacoes: a AC guarda a data da ultima cobranca, nao da primeira', () => {
+  const meses = ['2025-12-04', '2026-01-04', '2026-02-04', '2026-03-04', '2026-04-04']
+  const vendas = meses.map((d, i) =>
+    venda({ approvedDate: new Date(`${d}T00:00:00Z`), priceValue: 99, offerCode: 'sub99', transaction: `P${i}` })
+  )
+  const comUltima = gerarTimeline(entrada({ vendas, acDataCompra: new Date('2026-04-04T00:00:00Z') }))
+  const comPrimeira = gerarTimeline(entrada({ vendas, acDataCompra: new Date('2025-12-04T00:00:00Z') }))
+
+  assert.equal(comUltima.cadeia.acCompraIgualUltimaVenda, 'ok')
+  assert.equal(comPrimeira.cadeia.acCompraIgualUltimaVenda, 'divergente')
+})
+
 test('correr duas vezes da exactamente o mesmo resultado', () => {
   const e = entrada({
     vendas: [venda({ approvedDate: new Date('2025-11-30T00:00:00Z'), transaction: 'C' })],
@@ -1241,9 +1303,9 @@ interface Lugar {
  */
 function emparelhar(
   lugares: Lugar[],
-  candidatos: Array<{ indice: number; periodo: string | null }>
+  candidatos: Array<{ indice: number; periodo: string | null; desempate: string }>
 ): Map<number, number> {
-  const pares: Array<{ lugar: number; candidato: number; dist: number }> = []
+  const pares: Array<{ lugar: number; candidato: number; dist: number; atras: number; desempate: string }> = []
 
   lugares.forEach((lug, iLugar) => {
     const idxLugar = indiceDePeriodo(lug.periodo)
@@ -1253,11 +1315,30 @@ function emparelhar(
       if (idxCand === null) continue
       const dist = Math.abs(idxCand - idxLugar)
       if (dist > TOLERANCIA_MESES) continue
-      pares.push({ lugar: iLugar, candidato: cand.indice, dist })
+      // à mesma distância, o candidato à frente da coorte ganha ao de
+      // trás: a tolerância para a frente existe porque não há coortes
+      // em Abril, Agosto, Outubro nem Dezembro e o comprador cai na
+      // seguinte; a de trás é só a entrada numa coorte já aberta.
+      pares.push({
+        lugar: iLugar,
+        candidato: cand.indice,
+        dist,
+        atras: idxCand >= idxLugar ? 0 : 1,
+        desempate: cand.desempate
+      })
     }
   })
 
-  pares.sort((a, b) => a.dist - b.dist || a.lugar - b.lugar || a.candidato - b.candidato)
+  // o último critério é uma chave do próprio candidato (id da tag,
+  // antiguidade da turma) e NUNCA a ordem em que chegou — dois
+  // candidatos empatados têm de dar sempre o mesmo vencedor.
+  pares.sort(
+    (a, b) =>
+      a.dist - b.dist ||
+      a.atras - b.atras ||
+      a.lugar - b.lugar ||
+      (a.desempate < b.desempate ? -1 : a.desempate > b.desempate ? 1 : 0)
+  )
 
   const porLugar = new Map<number, number>()
   const usados = new Set<number>()
@@ -1309,12 +1390,23 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
 
   const parTags = emparelhar(
     lugares,
-    tagsPercurso.map((x) => ({ indice: x.indice, periodo: periodoDaTag(x.tag.nome) }))
+    tagsPercurso.map((x) => ({
+      indice: x.indice,
+      periodo: periodoDaTag(x.tag.nome),
+      desempate: String(x.tag.tagId).padStart(12, '0')
+    }))
   )
 
+  // `turmas` vem da mais antiga para a mais recente, e a turma actual
+  // é a última — por isso a chave de desempate é a posição a contar
+  // do fim: empatada com uma turma antiga, ganha a de agora.
   const parTurmas = emparelhar(
     lugares,
-    turmas.map((t, i) => ({ indice: i, periodo: parseTurmaName(t.className).periodYYMM }))
+    turmas.map((t, i) => ({
+      indice: i,
+      periodo: parseTurmaName(t.className).periodYYMM,
+      desempate: String(turmas.length - i).padStart(4, '0')
+    }))
   )
 
   // a turma do ciclo é a que caiu em qualquer uma das suas coortes;
@@ -1326,6 +1418,13 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
   })
 
   const turmasPorMapear = new Set<string>()
+
+  // A turma actual é avaliada mesmo que não caia em coorte nenhuma —
+  // senão uma turma que a convenção não resolve desaparecia sem
+  // deixar rasto, e a regra é nunca calar o que não se sabe.
+  if (e.turmaAtual && !resolverTagDaTurma(e.turmaAtual.className, e.excepcoesTurmaTag).tagNome) {
+    turmasPorMapear.add(e.turmaAtual.className)
+  }
 
   const ciclos: Ciclo[] = base.map((c, i) => {
     const turma = turmaDoCiclo.get(i) ?? null
@@ -1414,9 +1513,14 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
 function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
   const ultimo = ciclos[ciclos.length - 1] ?? null
 
+  // a última venda é a última COBRANÇA, não a compra âncora do ciclo:
+  // num plano de prestações a AC guarda a data da última, e comparar
+  // com a âncora dava divergente em todos eles.
+  const ultimaVendaDoCiclo = ultimo?.compras[ultimo.compras.length - 1]?.data ?? null
+
   let acCompraIgualUltimaVenda: Veredicto = 'sem-dados'
-  if (e.acDataCompra && ultimo) {
-    acCompraIgualUltimaVenda = mesmoDia(e.acDataCompra, ultimo.compras[0].data) ? 'ok' : 'divergente'
+  if (e.acDataCompra && ultimaVendaDoCiclo) {
+    acCompraIgualUltimaVenda = mesmoDia(e.acDataCompra, ultimaVendaDoCiclo) ? 'ok' : 'divergente'
   }
 
   let expiracaoIgualTurma: Veredicto = 'sem-dados'
@@ -1436,8 +1540,11 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
 
   // Uma venda mais recente do que a última sync de tags explica
   // sozinha um desvio — dizê-lo evita acusar quem só está à espera.
-  const ultimaVenda = ultimo?.compras[ultimo.compras.length - 1]?.data ?? null
-  const tagsDesatualizadas = !!(ultimaVenda && e.fontes.tags && ultimaVenda.getTime() > e.fontes.tags.getTime())
+  const tagsDesatualizadas = !!(
+    ultimaVendaDoCiclo &&
+    e.fontes.tags &&
+    ultimaVendaDoCiclo.getTime() > e.fontes.tags.getTime()
+  )
 
   return {
     acCompraIgualUltimaVenda,
@@ -1457,7 +1564,7 @@ export default gerarTimeline
 cd ~/Documents/GitHub/BO2_API && npx tsx --test src/services/renewal/__tests__/renewalTimeline.generator.test.ts
 ```
 
-Esperado: `pass 17`, `fail 0`.
+Esperado: `pass 21`, `fail 0`.
 
 - [ ] **Step 5: Commit**
 
@@ -3403,6 +3510,6 @@ As tarefas 1, 2, 4 e 5 são independentes entre si e podem correr em paralelo. A
 cd ~/Documents/GitHub/BO2_API && npx tsx --test "src/services/renewal/__tests__/*.test.ts"
 ```
 
-Esperado: `pass 55`, `fail 0` (13 ciclos + 10 resolver + 17 gerador + 6 modelos + 5 classificar + 4 serviço).
+Esperado: `pass 59`, `fail 0` (13 ciclos + 10 resolver + 21 gerador + 6 modelos + 5 classificar + 4 serviço).
 
 E na ficha de um aluno com percurso longo, o separador Ciclos mostra uma linha por compra — o caso que motivou isto (três extensões, uma só mudança de turma) passa a ler-se de relance, com o alerta `sem-mudança-turma` nos dois ciclos que ficaram sem ela.
