@@ -12,9 +12,17 @@
 //   3. prestações       5 x 99€ mensais da mesma oferta = 1 ciclo
 //
 // A regra 3 tem de distinguir uma prestação de uma renovação
-// anual feita na mesma oferta ao mesmo preço. O corte está nos
-// 335 dias (11 meses): prestações mensais cabem lá dentro, uma
-// renovação a 12 meses não.
+// anual feita na mesma oferta ao mesmo preço. O intervalo mede-se
+// desde a compra ANTERIOR do ciclo, não desde a âncora — medir
+// desde a âncora fundia duas renovações anuais quando a segunda
+// era feita cedo (a happyhome.carla renovou a 23/01/2024 e a
+// 17/12/2024, 329 dias, e perdia um ano inteiro).
+//
+// O corte dos 90 dias vem dos dados: das 195 compras consecutivas
+// com o mesmo produto, oferta e valor, 185 estão a 59 dias ou
+// menos (prestações, incluindo as atrasadas da kukuruzickosa) e
+// as restantes a 329 dias ou mais (renovações). Entre 60 e 328
+// dias não há nenhuma.
 // ════════════════════════════════════════════════════════════
 
 import type { VendaEntrada, CompraCiclo, CicloBase } from './renewalTimeline.types'
@@ -25,8 +33,8 @@ export const ID_PRODUTO_EXTENSAO = '3100292'
 /** Só estes contam como compra. Reembolso e falha não dão acesso. */
 const ESTADOS_VALIDOS = new Set(['APPROVED', 'COMPLETE'])
 
-/** Máximo entre a âncora e uma prestação para ainda ser o mesmo ciclo. */
-const DIAS_MAX_PRESTACAO = 335
+/** Máximo entre duas cobranças seguidas para ainda serem o mesmo ciclo. */
+const DIAS_MAX_ENTRE_PRESTACOES = 90
 
 const DIA_MS = 24 * 60 * 60 * 1000
 
@@ -88,8 +96,9 @@ function pertenceAoMesmoCiclo(
   const mesmaOferta = !!vendaAncora.offerCode && vendaAncora.offerCode === vendaCompra.offerCode
   const mesmoProduto = compra.produtoId === ancora.produtoId
   const mesmoValor = compra.valor != null && compra.valor === ancora.valor
-  const dias = (compra.data.getTime() - ancora.data.getTime()) / DIA_MS
-  return mesmaOferta && mesmoProduto && mesmoValor && dias < DIAS_MAX_PRESTACAO
+  // desde a compra anterior, não desde a âncora — ver o cabeçalho
+  const dias = (compra.data.getTime() - ultima.data.getTime()) / DIA_MS
+  return mesmaOferta && mesmoProduto && mesmoValor && dias <= DIAS_MAX_ENTRE_PRESTACOES
 }
 
 /**

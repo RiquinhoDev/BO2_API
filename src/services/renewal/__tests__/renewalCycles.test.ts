@@ -101,6 +101,29 @@ test('renovacao anual na mesma oferta nao e confundida com prestacao', () => {
   assert.equal(ciclos.length, 2)
 })
 
+test('renovacao anual antecipada nao e absorvida como prestacao', () => {
+  // happyhome.carla: 23/01/2024 e 17/12/2024, mesma oferta, 49€ cada,
+  // 329 dias — duas renovações, não uma prestação.
+  const ciclos = agruparCiclos([
+    venda({ approvedDate: new Date('2024-01-23T00:00:00Z'), priceValue: 49, offerCode: 'b9grqqzt', transaction: 'A' }),
+    venda({ approvedDate: new Date('2024-12-17T00:00:00Z'), priceValue: 49, offerCode: 'b9grqqzt', transaction: 'B' })
+  ])
+  assert.equal(ciclos.length, 2)
+})
+
+test('prestacoes com cobrancas atrasadas continuam um ciclo so', () => {
+  // kukuruzickosa: 90€ em prestações com falhas pelo meio — entre
+  // cobranças bem sucedidas chega a haver 59 dias.
+  const datas = ['2026-03-31', '2026-05-01', '2026-06-05', '2026-08-03']
+  const ciclos = agruparCiclos(
+    datas.map((d, i) =>
+      venda({ approvedDate: new Date(`${d}T00:00:00Z`), priceValue: 90, offerCode: 'gyar28ac', transaction: `K${i}` })
+    )
+  )
+  assert.equal(ciclos.length, 1)
+  assert.equal(ciclos[0].periodo, '2603')
+})
+
 test('reembolso nao gera ciclo', () => {
   const ciclos = agruparCiclos([
     venda({ approvedDate: new Date('2026-05-25T00:00:00Z'), transactionStatus: 'REFUNDED' }),
