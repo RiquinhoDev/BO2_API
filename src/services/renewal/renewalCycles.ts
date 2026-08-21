@@ -23,6 +23,12 @@
 // menos (prestações, incluindo as atrasadas da kukuruzickosa) e
 // as restantes a 329 dias ou mais (renovações). Entre 60 e 328
 // dias não há nenhuma.
+//
+// Há um SEGUNDO limite, esse sim contado da âncora: o ciclo
+// inteiro não passa dos 335 dias. Sem ele, uma corrente de
+// compras a menos de 90 dias umas das outras esticaria o mesmo
+// ciclo sem fim, e um plano de prestações nunca dura mais de um
+// ano. Os dois limites aplicam-se em conjunto.
 // ════════════════════════════════════════════════════════════
 
 import type { VendaEntrada, CompraCiclo, CicloBase } from './renewalTimeline.types'
