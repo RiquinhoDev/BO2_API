@@ -6,7 +6,7 @@
 
 **Architecture:** O raciocínio vive em funções puras (`renewalCycles`, `turmaTagResolver`, `renewalTimeline.generator`) que não sabem o que é uma base de dados nem uma API — recebem arrays, devolvem objectos. Uma camada fina por cima (`renewalTimeline.service`) lê os espelhos locais que já existem (`hotmartsalehistories`, `acstudenttags`, `acrenewaldata`, `studentclasshistories`, `users`), chama o gerador e faz upsert em `studentrenewaltimelines`. **Zero chamadas à Hotmart ou à AC no gerador.** O front lê a colecção pronta.
 
-**Tech Stack:** TypeScript 5.9, Express 5, Mongoose 8, Node 24. Testes com o runner nativo (`node:test`) executado por `tsx` — o repo tem `"test": "jest"` mas o **jest não está instalado**; `npx tsx --test` corre `.ts` directamente sem acrescentar dependências.
+**Tech Stack:** TypeScript 5.9, Express 5, Mongoose 8, Node 24. Os testes correm sempre por ficheiro ou por glob entre aspas — `npx tsx --test <directório>` dá `ERR_UNSUPPORTED_DIR_IMPORT` nesta combinação de Node e tsx no Windows. Testes com o runner nativo (`node:test`) executado por `tsx` — o repo tem `"test": "jest"` mas o **jest não está instalado**; `npx tsx --test` corre `.ts` directamente sem acrescentar dependências.
 
 ## Global Constraints
 
@@ -1704,7 +1704,7 @@ Inserir a passagem de datas logo a seguir a `report.contactosDistintos = porEmai
 - [ ] **Step 7: Confirmar que compila e que os testes puros continuam a passar**
 
 ```bash
-cd ~/Documents/GitHub/BO2_API && npx tsc --noEmit -p tsconfig.json 2>&1 | grep -E "renewal|ACStudentTag" ; npx tsx --test src/services/renewal/__tests__/
+cd ~/Documents/GitHub/BO2_API && npx tsc --noEmit -p tsconfig.json 2>&1 | grep -E "renewal|ACStudentTag" ; npx tsx --test "src/services/renewal/__tests__/*.test.ts"
 ```
 
 Esperado: nenhuma linha de erro dos ficheiros filtrados, e todos os testes a passar.
@@ -3099,7 +3099,7 @@ As tarefas 1, 2, 4 e 5 são independentes entre si e podem correr em paralelo. A
 ## Como se sabe que está feito
 
 ```bash
-cd ~/Documents/GitHub/BO2_API && npx tsx --test src/services/renewal/__tests__/
+cd ~/Documents/GitHub/BO2_API && npx tsx --test "src/services/renewal/__tests__/*.test.ts"
 ```
 
 Esperado: `pass 48`, `fail 0` (10 ciclos + 10 resolver + 14 gerador + 5 modelos + 5 classificar + 4 serviço).
