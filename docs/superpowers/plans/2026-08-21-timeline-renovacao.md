@@ -708,7 +708,6 @@ const entrada = (p: Partial<EntradaGerador>): EntradaGerador => ({
   acDataCompra: null,
   excepcoesTurmaTag: new Map(),
   fontes: { vendas: AGORA, tags: AGORA, ac: AGORA },
-  agora: AGORA,
   ...p
 })
 
@@ -988,7 +987,6 @@ export interface EntradaGerador {
   acDataCompra: Date | null
   excepcoesTurmaTag: Map<string, string>
   fontes: { vendas: Date | null; tags: Date | null; ac: Date | null }
-  agora: Date
 }
 
 /** Uma coorte a mais de distância ainda é a mesma; três já não. */
@@ -1727,7 +1725,7 @@ git add src/models/ACStudentTag.ts src/services/renewal/acStudentTagsSync.servic
 
 **Interfaces:**
 - Consumes: `gerarTimeline`, `EntradaGerador` de `./renewalTimeline.generator`; os modelos `HotmartSaleHistory`, `ACStudentTag`, `ACRenewalData`, `StudentClassHistory`, `TurmaTagMap`, `StudentRenewalTimeline`, `User`.
-- Produces: `montarEntrada(dados: DadosAluno, excepcoes: Map<string, string>, agora: Date): EntradaGerador` (pura, testável); `gerarTimelinesEmLote(emails?: string[], agora?: Date): Promise<TimelineSyncReport>`; `gerarTimelineDeAluno(userId: string): Promise<IStudentRenewalTimeline | null>`.
+- Produces: `montarEntrada(dados: DadosAluno, excepcoes: Map<string, string>): EntradaGerador` (pura, testável); `gerarTimelinesEmLote(emails?: string[], agora?: Date): Promise<TimelineSyncReport>`; `gerarTimelineDeAluno(userId: string): Promise<IStudentRenewalTimeline | null>`.
 
 A separação importa: `montarEntrada` faz a tradução dos documentos da BD para o input do gerador e é **pura**, por isso leva teste. O resto lê e escreve na BD e não leva teste automático — valida-se contra dados reais no Step 6.
 
@@ -1774,12 +1772,10 @@ test('montarEntrada traduz as vendas e as fontes', () => {
       }
     }),
     new Map(),
-    AGORA
   )
   assert.equal(e.vendas.length, 1)
   assert.equal(e.vendas[0].priceValue, 145)
   assert.equal(e.fontes.vendas?.toISOString(), '2026-08-20T00:00:00.000Z')
-  assert.equal(e.agora, AGORA)
 })
 
 test('montarEntrada so leva tags de turma para o gerador decidir, incluindo as de estado', () => {
@@ -1794,7 +1790,6 @@ test('montarEntrada so leva tags de turma para o gerador decidir, incluindo as d
       }
     }),
     new Map(),
-    AGORA
   )
   assert.equal(e.tags.length, 2)
   assert.equal(e.fontes.tags?.toISOString(), '2026-08-19T00:00:00.000Z')
@@ -1809,13 +1804,12 @@ test('montarEntrada ordena as movimentacoes da mais antiga para a mais recente',
       ]
     }),
     new Map(),
-    AGORA
   )
   assert.deepEqual(e.movimentacoes.map((m) => m.classId), ['a', 'b'])
 })
 
 test('montarEntrada aguenta o aluno sem espelho nenhum', () => {
-  const e = montarEntrada(dados({}), new Map(), AGORA)
+  const e = montarEntrada(dados({}), new Map())
   assert.deepEqual(e.vendas, [])
   assert.deepEqual(e.tags, [])
   assert.equal(e.turmaAtual, null)
@@ -1888,11 +1882,7 @@ export interface TimelineSyncReport {
  * propósito — é aqui que os enganos de forma aparecem, e assim
  * ficam cobertos por testes sem precisar de base de dados.
  */
-export function montarEntrada(
-  d: DadosAluno,
-  excepcoes: Map<string, string>,
-  agora: Date
-): EntradaGerador {
+export function montarEntrada(d: DadosAluno, excepcoes: Map<string, string>): EntradaGerador {
   return {
     vendas: d.vendas?.sales ?? [],
     tags: (d.tags?.tags ?? []).map((t) => ({
@@ -1912,8 +1902,7 @@ export function montarEntrada(
       vendas: d.vendas?.lastSyncedAt ?? null,
       tags: d.tags?.syncedAt ?? null,
       ac: d.ac?.lastSyncedAt ?? null
-    },
-    agora
+    }
   }
 }
 
@@ -2029,8 +2018,7 @@ export async function gerarTimelinesEmLote(
           })),
           turmaAtual: turmaActualDoUser(user)
         },
-        excepcoes,
-        agora
+        excepcoes
       )
 
       const timeline = gerarTimeline(entrada)
@@ -2062,7 +2050,9 @@ export async function gerarTimelinesEmLote(
 
   if (ops.length) {
     const r = await (StudentRenewalTimeline as any).bulkWrite(ops, { ordered: false })
-    report.gerados = (r.upsertedCount ?? 0) + (r.modifiedCount ?? 0) + (r.matchedCount ?? 0)
+    // matchedCount já inclui os modificados — somar os dois contava
+    // cada documento duas vezes
+    report.gerados = (r.upsertedCount ?? 0) + (r.matchedCount ?? 0)
   }
 
   report.turmasPorMapear = [...porMapear].sort()
@@ -2146,8 +2136,7 @@ async function main() {
         movimentacoes: movs.map((m: any) => ({ classId: m.classId ?? null, className: m.className, dateMoved: m.dateMoved ?? null })),
         turmaAtual: actual ? { classId: actual.classId ?? null, className: actual.className, entrouEm: actual.enrolledAt ?? null } : null
       },
-      excepcoes,
-      new Date()
+      excepcoes
     )
 
     const t = gerarTimeline(entrada)
@@ -2442,6 +2431,8 @@ import ACStudentTag from '../src/models/ACStudentTag'
 import TurmaTagMap from '../src/models/TurmaTagMap'
 import { resolverTagDaTurma, normalizarNomeTurma } from '../src/services/renewal/turmaTagResolver'
 import { periodoDaTag } from '../src/services/renewal/renewalTimeline.generator'
+import { parseTurmaName } from '../src/services/renewal/turmaParser'
+import { indiceDePeriodo } from '../src/services/renewal/renewalCycles'
 
 /** Abaixo desta fracção de concordância não se escreve nada. */
 const CONCORDANCIA_MINIMA = 0.7
@@ -2479,16 +2470,19 @@ async function main() {
     const reg = porTurma.get(chave)!
     reg.alunos += 1
 
-    const periodoDaTurma = normalizarNomeTurma(actual.className).match(/(\d{4})/)?.[1] ?? null
+    // pelo parser, não por regex: um nome pode ter outros grupos de
+    // 4 dígitos além do período (preços, anos soltos).
+    const idxTurma = indiceDePeriodo(parseTurmaName(actual.className).periodYYMM)
 
     for (const tag of tagsPorEmail.get(email) ?? []) {
       if (!MENCIONA_PERCURSO.test(tag.nome)) continue
-      const p = periodoDaTag(tag.nome)
-      if (!p) continue
+      const idxTag = indiceDePeriodo(periodoDaTag(tag.nome))
+      if (idxTag === null) continue
       // só tags do período da turma (ou do mês seguinte) — as de
       // ciclos anteriores estão lá de propósito e não dizem nada
-      // sobre ESTA turma.
-      if (periodoDaTurma && Math.abs(Number(p) - Number(periodoDaTurma)) > 1) continue
+      // sobre ESTA turma. A distância vai por índice de mês: subtrair
+      // YYMM directamente daria 89 entre Dezembro e Janeiro.
+      if (idxTurma !== null && Math.abs(idxTag - idxTurma) > 1) continue
 
       const actualCont = reg.contagem.get(tag.nome) ?? { id: tag.tagId, n: 0 }
       actualCont.n += 1
