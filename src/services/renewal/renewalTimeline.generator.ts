@@ -107,9 +107,9 @@ interface Lugar {
  */
 function emparelhar(
   lugares: Lugar[],
-  candidatos: Array<{ indice: number; periodo: string | null }>
+  candidatos: Array<{ indice: number; periodo: string | null; desempate: string }>
 ): Map<number, number> {
-  const pares: Array<{ lugar: number; candidato: number; dist: number }> = []
+  const pares: Array<{ lugar: number; candidato: number; dist: number; atras: number; desempate: string }> = []
 
   lugares.forEach((lug, iLugar) => {
     const idxLugar = indiceDePeriodo(lug.periodo)
@@ -119,11 +119,30 @@ function emparelhar(
       if (idxCand === null) continue
       const dist = Math.abs(idxCand - idxLugar)
       if (dist > TOLERANCIA_MESES) continue
-      pares.push({ lugar: iLugar, candidato: cand.indice, dist })
+      // à mesma distância, o candidato à frente da coorte ganha ao de
+      // trás: a tolerância para a frente existe porque não há coortes
+      // em Abril, Agosto, Outubro nem Dezembro e o comprador cai na
+      // seguinte; a de trás é só a entrada numa coorte já aberta.
+      pares.push({
+        lugar: iLugar,
+        candidato: cand.indice,
+        dist,
+        atras: idxCand >= idxLugar ? 0 : 1,
+        desempate: cand.desempate
+      })
     }
   })
 
-  pares.sort((a, b) => a.dist - b.dist || a.lugar - b.lugar || a.candidato - b.candidato)
+  // o último critério é uma chave do próprio candidato (id da tag,
+  // antiguidade da turma) e NUNCA a ordem em que chegou — dois
+  // candidatos empatados têm de dar sempre o mesmo vencedor.
+  pares.sort(
+    (a, b) =>
+      a.dist - b.dist ||
+      a.atras - b.atras ||
+      a.lugar - b.lugar ||
+      (a.desempate < b.desempate ? -1 : a.desempate > b.desempate ? 1 : 0)
+  )
 
   const porLugar = new Map<number, number>()
   const usados = new Set<number>()
@@ -175,12 +194,23 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
 
   const parTags = emparelhar(
     lugares,
-    tagsPercurso.map((x) => ({ indice: x.indice, periodo: periodoDaTag(x.tag.nome) }))
+    tagsPercurso.map((x) => ({
+      indice: x.indice,
+      periodo: periodoDaTag(x.tag.nome),
+      desempate: String(x.tag.tagId).padStart(12, '0')
+    }))
   )
 
+  // `turmas` vem da mais antiga para a mais recente, e a turma actual
+  // é a última — por isso a chave de desempate é a posição a contar
+  // do fim: empatada com uma turma antiga, ganha a de agora.
   const parTurmas = emparelhar(
     lugares,
-    turmas.map((t, i) => ({ indice: i, periodo: parseTurmaName(t.className).periodYYMM }))
+    turmas.map((t, i) => ({
+      indice: i,
+      periodo: parseTurmaName(t.className).periodYYMM,
+      desempate: String(turmas.length - i).padStart(4, '0')
+    }))
   )
 
   // a turma do ciclo é a que caiu em qualquer uma das suas coortes;
@@ -192,6 +222,13 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
   })
 
   const turmasPorMapear = new Set<string>()
+
+  // A turma actual é avaliada mesmo que não caia em coorte nenhuma —
+  // senão uma turma que a convenção não resolve desaparecia sem
+  // deixar rasto, e a regra é nunca calar o que não se sabe.
+  if (e.turmaAtual && !resolverTagDaTurma(e.turmaAtual.className, e.excepcoesTurmaTag).tagNome) {
+    turmasPorMapear.add(e.turmaAtual.className)
+  }
 
   const ciclos: Ciclo[] = base.map((c, i) => {
     const turma = turmaDoCiclo.get(i) ?? null
@@ -280,9 +317,14 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
 function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
   const ultimo = ciclos[ciclos.length - 1] ?? null
 
+  // a última venda é a última COBRANÇA, não a compra âncora do ciclo:
+  // num plano de prestações a AC guarda a data da última, e comparar
+  // com a âncora dava divergente em todos eles.
+  const ultimaVendaDoCiclo = ultimo?.compras[ultimo.compras.length - 1]?.data ?? null
+
   let acCompraIgualUltimaVenda: Veredicto = 'sem-dados'
-  if (e.acDataCompra && ultimo) {
-    acCompraIgualUltimaVenda = mesmoDia(e.acDataCompra, ultimo.compras[0].data) ? 'ok' : 'divergente'
+  if (e.acDataCompra && ultimaVendaDoCiclo) {
+    acCompraIgualUltimaVenda = mesmoDia(e.acDataCompra, ultimaVendaDoCiclo) ? 'ok' : 'divergente'
   }
 
   let expiracaoIgualTurma: Veredicto = 'sem-dados'
@@ -302,8 +344,11 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
 
   // Uma venda mais recente do que a última sync de tags explica
   // sozinha um desvio — dizê-lo evita acusar quem só está à espera.
-  const ultimaVenda = ultimo?.compras[ultimo.compras.length - 1]?.data ?? null
-  const tagsDesatualizadas = !!(ultimaVenda && e.fontes.tags && ultimaVenda.getTime() > e.fontes.tags.getTime())
+  const tagsDesatualizadas = !!(
+    ultimaVendaDoCiclo &&
+    e.fontes.tags &&
+    ultimaVendaDoCiclo.getTime() > e.fontes.tags.getTime()
+  )
 
   return {
     acCompraIgualUltimaVenda,
