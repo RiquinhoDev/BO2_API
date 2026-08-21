@@ -29,7 +29,9 @@ const PADRAO_MEMBRESIA = /^aluno ogi\s+l?\d{4}\s*-\s*(renova(ç|c)(ã|a)o\s+)?tu
 
 /** Tags que mencionam turmas sem serem de pertença (mentorias, "25 primeiros", ofertas). */
 const MENCIONA_TURMA = /\bturma\b/i
-const MENCIONA_OGI = /^aluno ogi\b/i
+// "Alunos OGI Ativos" falhava com /^aluno ogi\b/ — o `s` do plural
+// partia o \b e a tag de estado nunca chegava ao espelho.
+const MENCIONA_OGI = /^alunos?\s+ogi\b/i
 const MENCIONA_RENOVACAO = /renova(ç|c)(ã|a)o/i
 
 export interface AcStudentTagsSyncReport {
@@ -37,12 +39,13 @@ export interface AcStudentTagsSyncReport {
   tagsCanonicas: number
   associacoesLidas: number
   contactosDistintos: number
+  contactosComData: number
   alunosGravados: number
   semUtilizador: number
   errors: Array<{ contexto: string; error: string }>
 }
 
-function classificar(nome: string, canonicas: Set<string>): TipoTagTurma | null {
+export function classificar(nome: string, canonicas: Set<string>): TipoTagTurma | null {
   if (canonicas.has(normalizar(nome))) return 'canonica'
   if (PADRAO_MEMBRESIA.test(nome)) return 'membresia'
   if (MENCIONA_TURMA.test(nome) || MENCIONA_OGI.test(nome) || MENCIONA_RENOVACAO.test(nome)) return 'outra'
@@ -90,11 +93,32 @@ async function contactosDaTag(tagId: string): Promise<Array<{ id: string; email:
 }
 
 /**
+ * Datas de aplicação das tags de UM contacto.
+ * O varrimento principal vai por tag (`/contacts?tagid=`) porque são
+ * ~120 tags contra ~940 alunos — mas essa resposta não traz o `cdate`
+ * da associação. Só `/contacts/{id}/contactTags` o traz, e isso é um
+ * pedido por contacto. Fica numa passagem à parte, opcional.
+ */
+async function datasDasTagsDoContacto(contactId: string): Promise<Map<string, Date>> {
+  const r: any = await axios.get(`${AC_URL()}/api/3/contacts/${contactId}/contactTags`, {
+    headers: AC_HEADERS(),
+    timeout: 45000
+  })
+  const out = new Map<string, Date>()
+  for (const ct of r.data?.contactTags ?? []) {
+    const d = ct?.cdate ? new Date(ct.cdate) : null
+    if (ct?.tag && d && !Number.isNaN(d.getTime())) out.set(String(ct.tag), d)
+  }
+  return out
+}
+
+/**
  * @param tagsCanonicas nomes das tags da tabela oficial, para as marcar como
  *        `canonica`. Sem esta lista tudo o que siga o padrão fica `membresia`.
  */
 export async function syncAcStudentTags(
-  tagsCanonicas: string[] = []
+  tagsCanonicas: string[] = [],
+  opcoes: { comDatas?: boolean } = {}
 ): Promise<AcStudentTagsSyncReport> {
   const canonicas = new Set(tagsCanonicas.map(normalizar))
 
@@ -103,6 +127,7 @@ export async function syncAcStudentTags(
     tagsCanonicas: 0,
     associacoesLidas: 0,
     contactosDistintos: 0,
+    contactosComData: 0,
     alunosGravados: 0,
     semUtilizador: 0,
     errors: []
@@ -117,7 +142,10 @@ export async function syncAcStudentTags(
   report.tagsCanonicas = relevantes.filter((t) => t.tipo === 'canonica').length
 
   // email -> tags
-  const porEmail = new Map<string, { contactId: string; tags: Array<{ tagId: string; nome: string; tipo: TipoTagTurma }> }>()
+  const porEmail = new Map<
+    string,
+    { contactId: string; tags: Array<{ tagId: string; nome: string; tipo: TipoTagTurma; aplicadaEm: Date | null }> }
+  >()
 
   for (const t of relevantes) {
     try {
@@ -130,7 +158,7 @@ export async function syncAcStudentTags(
           porEmail.set(c.email, reg)
         }
         if (!reg.tags.some((x) => x.tagId === String(t.id))) {
-          reg.tags.push({ tagId: String(t.id), nome: t.tag, tipo: t.tipo })
+          reg.tags.push({ tagId: String(t.id), nome: t.tag, tipo: t.tipo, aplicadaEm: null })
         }
       }
     } catch (error: any) {
@@ -140,6 +168,20 @@ export async function syncAcStudentTags(
   }
 
   report.contactosDistintos = porEmail.size
+
+  if (opcoes.comDatas !== false) {
+    for (const [, reg] of porEmail) {
+      try {
+        const datas = await datasDasTagsDoContacto(reg.contactId)
+        for (const tag of reg.tags) tag.aplicadaEm = datas.get(tag.tagId) ?? null
+        report.contactosComData += 1
+      } catch (error: any) {
+        report.errors.push({ contexto: `datas do contacto ${reg.contactId}`, error: error?.message ?? 'erro' })
+      }
+      // a AC limita a 5 pedidos/s — 200ms deixa margem confortável
+      await new Promise((r) => setTimeout(r, 200))
+    }
+  }
 
   // ligar ao utilizador da nossa BD
   const emails = [...porEmail.keys()]

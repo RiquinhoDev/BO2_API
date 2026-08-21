@@ -25,6 +25,8 @@ export interface IACTag {
   tagId: string
   nome: string
   tipo: TipoTagTurma
+  /** `cdate` da associação na AC — quando a tag foi posta no contacto. */
+  aplicadaEm: Date | null
 }
 
 export interface IACStudentTag extends Document {
@@ -45,7 +47,8 @@ const acTagSchema = new Schema<IACTag>(
   {
     tagId: { type: String, required: true },
     nome: { type: String, required: true },
-    tipo: { type: String, enum: ['canonica', 'membresia', 'outra'], required: true }
+    tipo: { type: String, enum: ['canonica', 'membresia', 'outra'], required: true },
+    aplicadaEm: { type: Date, default: null }
   },
   { _id: false }
 )
