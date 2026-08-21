@@ -52,13 +52,31 @@ export interface CicloBase {
 
 export type AlertaCiclo =
   | 'sem-tag'
+  | 'sem-tag-ano-2'
   | 'tag-tardia'
   | 'sem-mudanca-turma'
   | 'tag-por-definir'
   | 'tag-diferente-da-turma'
 
-export interface Ciclo extends CicloBase {
+/**
+ * Um ano de acesso dentro do ciclo. Um ciclo de 1 ano tem uma
+ * coorte; um de 2 anos tem duas, e a segunda é a coorte de 12
+ * meses depois, que o aluno recebe sem comprar outra vez.
+ *
+ * Medido nos dados a 21/08/2026: dos 148 ciclos de 2 anos, 99%
+ * têm a tag da coorte do ano 1 e 77% têm também a do ano 2.
+ * Tratar as duas como uma só marcaria 114 alunos certos como
+ * tendo uma tag órfã.
+ */
+export interface CoorteCiclo {
+  /** YYMM da coorte: o período do ciclo, ou 12 meses depois. */
+  periodo: string
+  ano: 1 | 2
   tag: { id: string; nome: string; aplicadaEm: Date | null } | null
+}
+
+export interface Ciclo extends CicloBase {
+  coortes: CoorteCiclo[]
   turma: { nome: string; classId: string | null; entrouEm: Date | null } | null
   /** O que a convenção/excepção diz que a tag desta turma devia ser. */
   tagEsperada: string | null
