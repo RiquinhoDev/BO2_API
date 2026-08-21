@@ -336,6 +336,41 @@ test('empate entre turmas: ganha a actual, nao a que ele ja deixou', () => {
   assert.equal(t.ciclos[0].turma?.classId, 'nova')
 })
 
+test('empate entre duas tags do MESMO periodo decide-se pelo id', () => {
+  // as duas estão à mesma distância E do mesmo lado, por isso não é
+  // a regra da frente que decide — é a chave do próprio candidato.
+  const base = {
+    vendas: [venda({ approvedDate: new Date('2025-01-15T00:00:00Z'), transaction: 'A' })],
+    turmaAtual: null
+  }
+  const alta = { tagId: '500', nome: 'Aluno OGI 2503 - Renovação', aplicadaEm: null }
+  const baixa = { tagId: '100', nome: 'Aluno OGI 2503 - Renovação Turma 5', aplicadaEm: null }
+
+  const t1 = gerarTimeline(entrada({ ...base, tags: [alta, baixa] }))
+  const t2 = gerarTimeline(entrada({ ...base, tags: [baixa, alta] }))
+
+  assert.equal(t1.ciclos[0].coortes[0].tag?.id, '100')
+  assert.equal(t2.ciclos[0].coortes[0].tag?.id, '100')
+})
+
+test('a turma actual ganha o empate mesmo vindo primeiro no historico', () => {
+  // o histórico entregue do mais recente para o mais antigo, e a
+  // turma actual também lá dentro — a chave tem de vir da turma,
+  // não da posição, senão a antiga voltava a ganhar.
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-01-15T00:00:00Z'), transaction: 'A' })],
+      tags: [],
+      movimentacoes: [
+        { classId: 'nova', className: 'Turma 2 | 2503', entrouEm: new Date('2025-03-01T00:00:00Z') },
+        { classId: 'velha', className: 'Turma 1 | 2503', entrouEm: new Date('2024-03-01T00:00:00Z') }
+      ],
+      turmaAtual: { classId: 'nova', className: 'Turma 2 | 2503', entrouEm: new Date('2025-03-01T00:00:00Z') }
+    })
+  )
+  assert.equal(t.ciclos[0].turma?.classId, 'nova')
+})
+
 test('turma fora da tolerancia continua a ser reportada', () => {
   const t = gerarTimeline(
     entrada({

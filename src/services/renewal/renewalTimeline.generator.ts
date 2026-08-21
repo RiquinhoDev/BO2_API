@@ -60,6 +60,9 @@ const DIAS_TAG_TARDIA = 90
 
 const DIA_MS = 24 * 60 * 60 * 1000
 
+/** Só serve para inverter uma data numa chave de ordenação. */
+const MAX_TEMPO = 9999999999999
+
 /**
  * Extrai o YYMM de um nome de tag. Aceita os dois formatos:
  * "Aluno OGI L2311 - Turma 7" e "Aluno OGI 2606 - Renovação".
@@ -133,9 +136,10 @@ function emparelhar(
     }
   })
 
-  // o último critério é uma chave do próprio candidato (id da tag,
-  // antiguidade da turma) e NUNCA a ordem em que chegou — dois
-  // candidatos empatados têm de dar sempre o mesmo vencedor.
+  // o último critério é uma chave do PRÓPRIO candidato — o id da tag,
+  // ou "é a turma actual / quando entrou nela" — e nunca a ordem nem
+  // a posição em que chegou. Dois candidatos empatados têm de dar
+  // sempre o mesmo vencedor, venha a lista como vier.
   pares.sort(
     (a, b) =>
       a.dist - b.dist ||
@@ -201,16 +205,26 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     }))
   )
 
-  // `turmas` vem da mais antiga para a mais recente, e a turma actual
-  // é a última — por isso a chave de desempate é a posição a contar
-  // do fim: empatada com uma turma antiga, ganha a de agora.
+  // A chave da turma não pode ser a posição no array: quem chama
+  // decide essa ordem, e o desempate voltaria a depender dela. Vem
+  // da própria turma — primeiro se é a actual, depois quando entrou
+  // (mais recente ganha), e o nome como último critério.
+  const chaveDaAtual = e.turmaAtual
+    ? e.turmaAtual.classId ?? normalizarNomeTurma(e.turmaAtual.className)
+    : null
+
   const parTurmas = emparelhar(
     lugares,
-    turmas.map((t, i) => ({
-      indice: i,
-      periodo: parseTurmaName(t.className).periodYYMM,
-      desempate: String(turmas.length - i).padStart(4, '0')
-    }))
+    turmas.map((t, i) => {
+      const chave = t.classId ?? normalizarNomeTurma(t.className)
+      const ehAtual = chaveDaAtual !== null && chave === chaveDaAtual
+      const entrada = t.entrouEm ? t.entrouEm.getTime() : 0
+      return {
+        indice: i,
+        periodo: parseTurmaName(t.className).periodYYMM,
+        desempate: `${ehAtual ? '0' : '1'}${String(MAX_TEMPO - entrada).padStart(14, '0')}${normalizarNomeTurma(t.className)}`
+      }
+    })
   )
 
   // a turma do ciclo é a que caiu em qualquer uma das suas coortes;
