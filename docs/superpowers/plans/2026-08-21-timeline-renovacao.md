@@ -120,13 +120,31 @@ export interface CicloBase {
 
 export type AlertaCiclo =
   | 'sem-tag'
+  | 'sem-tag-ano-2'
   | 'tag-tardia'
   | 'sem-mudanca-turma'
   | 'tag-por-definir'
   | 'tag-diferente-da-turma'
 
-export interface Ciclo extends CicloBase {
+/**
+ * Um ano de acesso dentro do ciclo. Um ciclo de 1 ano tem uma
+ * coorte; um de 2 anos tem duas, e a segunda é a coorte de 12
+ * meses depois, que o aluno recebe sem comprar outra vez.
+ *
+ * Medido nos dados a 21/08/2026: dos 148 ciclos de 2 anos, 99%
+ * têm a tag da coorte do ano 1 e 77% têm também a do ano 2.
+ * Tratar as duas como uma só marcaria 114 alunos certos como
+ * tendo uma tag órfã.
+ */
+export interface CoorteCiclo {
+  /** YYMM da coorte: o período do ciclo, ou 12 meses depois. */
+  periodo: string
+  ano: 1 | 2
   tag: { id: string; nome: string; aplicadaEm: Date | null } | null
+}
+
+export interface Ciclo extends CicloBase {
+  coortes: CoorteCiclo[]
   turma: { nome: string; classId: string | null; entrouEm: Date | null } | null
   /** O que a convenção/excepção diz que a tag desta turma devia ser. */
   tagEsperada: string | null
@@ -743,10 +761,22 @@ git add src/services/renewal/turmaTagResolver.ts src/services/renewal/__tests__/
 - Test: `src/services/renewal/__tests__/renewalTimeline.generator.test.ts`
 
 **Interfaces:**
-- Consumes: `agruparCiclos`, `indiceDePeriodo` de `./renewalCycles`; `resolverTagDaTurma` de `./turmaTagResolver`; `parseTurmaName` de `./turmaParser`; os tipos de `./renewalTimeline.types`.
+- Consumes: `agruparCiclos`, `indiceDePeriodo` de `./renewalCycles`; `resolverTagDaTurma`, `normalizarNomeTurma` de `./turmaTagResolver`; `parseTurmaName` de `./turmaParser`; os tipos de `./renewalTimeline.types`.
 - Produces: `gerarTimeline(entrada: EntradaGerador): TimelineGerada`; `periodoDaTag(nome: string): string | null`; `EntradaGerador` (interface exportada).
 
-**Nota sobre o desenho:** o spec descreve `ciclos`, `tagsOrfas` e `tagsEstado`. Este plano acrescenta ao documento dois campos que o spec pede na secção do Painel mas não lista no modelo: `cadeia` (os quatro veredictos da faixa) e `turmasPorMapear`. Ficam calculados no gerador para o painel não ter de repetir a lógica.
+**Nota sobre o desenho:** o spec descreve `ciclos`, `tagsOrfas` e `tagsEstado`. Este plano acrescenta dois campos que o spec pede na secção do Painel mas não lista no modelo: `cadeia` (os quatro veredictos da faixa) e `turmasPorMapear`. Ficam calculados no gerador para o painel não repetir a lógica.
+
+**A unidade de emparelhamento é a coorte, não o ciclo.** Um ciclo de 2 anos atravessa duas coortes — a do ano em que comprou e a de 12 meses depois — e recebe uma tag por cada, sem comprar outra vez. Medido nos 922 alunos com tags a 21/08/2026:
+
+```
+ciclos de 2 anos   148   99% têm a tag da coorte do ano 1
+                         77% têm também a do ano 2
+ciclos de 1 ano   1486   94% têm a tag da própria coorte
+                         620 têm uma tag a +12 meses, e só 11 delas
+                         não são explicadas por uma compra seguinte
+```
+
+A tolerância é de **±2 meses** em torno de cada coorte, nas duas direcções. Para a frente porque nunca houve coortes em Abril, Agosto, Outubro nem Dezembro e quem compra nesses meses cai na seguinte; para trás porque quem compra a meio do mês entra na coorte que já estava aberta — o `zz.carlos` comprou a 03/12/2024 e tem a tag `L2411`. A janela de ±2 apanha 90,5% de todas as tags; o que fica fora é órfão a sério.
 
 - [ ] **Step 1: Escrever os testes que falham**
 
@@ -815,13 +845,75 @@ test('percurso limpo: 3 ciclos, 3 tags, 3 turmas, zero alertas', () => {
   )
 
   assert.equal(t.ciclos.length, 3)
-  assert.deepEqual(t.ciclos.map((c) => c.tag?.id), ['1', '2', '3'])
+  assert.deepEqual(t.ciclos.map((c) => c.coortes.length), [1, 1, 1])
+  assert.deepEqual(t.ciclos.map((c) => c.coortes[0].tag?.id), ['1', '2', '3'])
   assert.deepEqual(t.ciclos.map((c) => c.turma?.classId), ['c1', 'c2', 'c3'])
   assert.deepEqual(t.ciclos.flatMap((c) => c.alertas), [])
   assert.equal(t.cadeia.acCompraIgualUltimaVenda, 'ok')
   assert.equal(t.cadeia.expiracaoIgualTurma, 'ok')
   assert.equal(t.cadeia.tagIgualTurma, 'ok')
   assert.equal(t.cadeia.ciclosSemMudancaTurma, 0)
+})
+
+test('ciclo de 2 anos: duas coortes, duas tags, e a turma da segunda', () => {
+  // zz.carlos@hotmail.com — comprou a 03/12/2024 (99€ + 97€ de
+  // extensão = 2 anos), tem a tag L2411 da coorte de Novembro em
+  // que entrou e a 2511 da coorte do ano 2, e está na turma de
+  // renovação de 2601. Nada disto é erro.
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2024-12-03T00:00:00Z'), priceValue: 99, transaction: 'A' }),
+        venda({
+          approvedDate: new Date('2024-12-03T00:10:00Z'),
+          priceValue: 97,
+          transaction: 'B',
+          hotmartProductId: '3100292'
+        })
+      ],
+      tags: [
+        { tagId: '10', nome: 'Aluno OGI L2411 - Turma 12', aplicadaEm: new Date('2024-12-03T00:00:00Z') },
+        { tagId: '11', nome: 'Aluno OGI 2511 - Renovação Turma 12', aplicadaEm: new Date('2025-11-10T00:00:00Z') }
+      ],
+      turmaAtual: { classId: 'c', className: 'Turma Renovação | 2601', entrouEm: null }
+    })
+  )
+
+  assert.equal(t.ciclos.length, 1)
+  assert.equal(t.ciclos[0].periodo, '2412')
+  assert.equal(t.ciclos[0].anos, 2)
+  assert.deepEqual(t.ciclos[0].coortes.map((c) => c.periodo), ['2412', '2512'])
+  assert.deepEqual(t.ciclos[0].coortes.map((c) => c.ano), [1, 2])
+  assert.equal(t.ciclos[0].coortes[0].tag?.id, '10')
+  assert.equal(t.ciclos[0].coortes[1].tag?.id, '11')
+  assert.equal(t.ciclos[0].turma?.classId, 'c')
+  assert.equal(t.tagsOrfas.length, 0)
+  assert.ok(!t.ciclos[0].alertas.includes('sem-tag'))
+  assert.ok(!t.ciclos[0].alertas.includes('sem-tag-ano-2'))
+  assert.ok(!t.ciclos[0].alertas.includes('tag-tardia'))
+})
+
+test('ciclo de 2 anos sem a tag do ano 2 leva o alerta proprio', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2024-12-03T00:00:00Z'), priceValue: 99, transaction: 'A' }),
+        venda({
+          approvedDate: new Date('2024-12-03T00:10:00Z'),
+          priceValue: 97,
+          transaction: 'B',
+          hotmartProductId: '3100292'
+        })
+      ],
+      tags: [
+        { tagId: '10', nome: 'Aluno OGI L2411 - Turma 12', aplicadaEm: null }
+      ],
+      turmaAtual: { classId: 'c', className: 'Turma 12 | 2411', entrouEm: null }
+    })
+  )
+  assert.equal(t.ciclos[0].coortes[1].tag, null)
+  assert.ok(t.ciclos[0].alertas.includes('sem-tag-ano-2'))
+  assert.ok(!t.ciclos[0].alertas.includes('sem-tag'))
 })
 
 test('ciclo sem mudanca de turma: 3 compras, 1 turma so', () => {
@@ -855,8 +947,32 @@ test('tag tardia: cdate a 14 meses da compra (carimbo de 2026-08-07)', () => {
     })
   )
   assert.equal(t.ciclos.length, 1)
-  assert.equal(t.ciclos[0].tag?.id, '9')
+  assert.equal(t.ciclos[0].coortes[0].tag?.id, '9')
   assert.ok(t.ciclos[0].alertas.includes('tag-tardia'))
+})
+
+test('a tag do ano 2 chega um ano depois e isso nao e tardio', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2024-12-03T00:00:00Z'), priceValue: 99, transaction: 'A' }),
+        venda({
+          approvedDate: new Date('2024-12-03T00:10:00Z'),
+          priceValue: 97,
+          transaction: 'B',
+          hotmartProductId: '3100292'
+        })
+      ],
+      tags: [
+        { tagId: '10', nome: 'Aluno OGI L2411 - Turma 12', aplicadaEm: new Date('2024-12-03T00:00:00Z') },
+        { tagId: '11', nome: 'Aluno OGI 2511 - Renovação Turma 12', aplicadaEm: new Date('2025-12-04T00:00:00Z') }
+      ],
+      turmaAtual: { classId: 'c', className: 'Turma Renovação | 2601', entrouEm: null }
+    })
+  )
+  // 366 dias depois da compra, mas só 1 dia depois do início da
+  // coorte do ano 2 — medir contra a compra dava um falso alarme.
+  assert.ok(!t.ciclos[0].alertas.includes('tag-tardia'))
 })
 
 test('tag orfa: tag de renovacao sem compra que a justifique', () => {
@@ -889,7 +1005,7 @@ test('tags de estado ficam a parte e nunca entram em ciclos', () => {
   )
   assert.deepEqual(t.tagsEstado.map((x) => x.id).sort(), ['347', '676'])
   assert.equal(t.tagsOrfas.length, 0)
-  assert.equal(t.ciclos[0].tag?.id, '9')
+  assert.equal(t.ciclos[0].coortes[0].tag?.id, '9')
 })
 
 test('compra sem tag: ciclo pago e nao marcado', () => {
@@ -902,31 +1018,6 @@ test('compra sem tag: ciclo pago e nao marcado', () => {
   )
   assert.ok(t.ciclos[0].alertas.includes('sem-tag'))
   assert.equal(t.ciclos[0].tagEsperada, 'Aluno OGI 2607 - Renovação')
-})
-
-test('mes sem coorte: compra em Dezembro cai na turma de Janeiro', () => {
-  const t = gerarTimeline(
-    entrada({
-      vendas: [
-        venda({ approvedDate: new Date('2024-12-03T00:00:00Z'), transaction: 'A', priceValue: 167 }),
-        venda({
-          approvedDate: new Date('2024-12-03T00:10:00Z'),
-          transaction: 'B',
-          priceValue: 97,
-          hotmartProductId: '3100292'
-        })
-      ],
-      tags: [{ tagId: '5', nome: 'Aluno OGI 2601 - Renovação', aplicadaEm: null }],
-      turmaAtual: { classId: 'c', className: 'Turma Renovação | 2601', entrouEm: null },
-      acExpiracao: new Date('2027-01-31T00:00:00Z')
-    })
-  )
-  assert.equal(t.ciclos.length, 1)
-  assert.equal(t.ciclos[0].periodo, '2412')
-  assert.equal(t.ciclos[0].anos, 2)
-  assert.equal(t.ciclos[0].tag?.id, '5')
-  assert.equal(t.ciclos[0].turma?.classId, 'c')
-  assert.deepEqual(t.ciclos[0].alertas, [])
 })
 
 test('turma sem mapa: alerta tag-por-definir e entrada em turmasPorMapear', () => {
@@ -952,7 +1043,7 @@ test('tag diferente da turma: a turma diz uma coisa, a tag diz outra', () => {
       turmaAtual: { classId: 'c', className: 'Turma Renovação | 2606', entrouEm: null }
     })
   )
-  assert.equal(t.ciclos[0].tag?.id, '684')
+  assert.equal(t.ciclos[0].coortes[0].tag?.id, '684')
   assert.equal(t.ciclos[0].tagEsperada, 'Aluno OGI 2606 - Renovação')
   assert.ok(t.ciclos[0].alertas.includes('tag-diferente-da-turma'))
   assert.equal(t.cadeia.tagIgualTurma, 'divergente')
@@ -1003,6 +1094,29 @@ test('correr duas vezes da exactamente o mesmo resultado', () => {
   })
   assert.deepEqual(JSON.parse(JSON.stringify(gerarTimeline(e))), JSON.parse(JSON.stringify(gerarTimeline(e))))
 })
+
+test('a ordem das tags a entrada nao muda o resultado', () => {
+  const base = {
+    vendas: [
+      venda({ approvedDate: new Date('2023-11-06T00:00:00Z'), transaction: 'A' }),
+      venda({ approvedDate: new Date('2024-11-05T00:00:00Z'), transaction: 'B' })
+    ],
+    turmaAtual: { classId: 'c', className: 'Turma 7 [renov] | 2411', entrouEm: null }
+  }
+  const t1 = gerarTimeline(entrada({ ...base, tags: [
+    { tagId: '1', nome: 'Aluno OGI L2311 - Turma 7', aplicadaEm: null },
+    { tagId: '2', nome: 'Aluno OGI 2411 - Renovação Turma 7', aplicadaEm: null }
+  ] }))
+  const t2 = gerarTimeline(entrada({ ...base, tags: [
+    { tagId: '2', nome: 'Aluno OGI 2411 - Renovação Turma 7', aplicadaEm: null },
+    { tagId: '1', nome: 'Aluno OGI L2311 - Turma 7', aplicadaEm: null }
+  ] }))
+  assert.deepEqual(
+    t1.ciclos.map((c) => c.coortes[0].tag?.id),
+    t2.ciclos.map((c) => c.coortes[0].tag?.id)
+  )
+  assert.deepEqual(t1.ciclos.map((c) => c.coortes[0].tag?.id), ['1', '2'])
+})
 ```
 
 - [ ] **Step 2: Correr os testes e confirmar que falham**
@@ -1022,17 +1136,25 @@ Criar `src/services/renewal/renewalTimeline.generator.ts`:
 // 📁 src/services/renewal/renewalTimeline.generator.ts
 // O gerador. Puro e determinístico: recebe as vendas, as tags, a
 // turma e as movimentações de UM aluno e devolve a timeline.
-// Não lê BD, não chama APIs, não olha para o relógio (a data
-// corrente entra por parâmetro).
+// Não lê BD, não chama APIs, não olha para o relógio.
 //
 // A linha do tempo é a das VENDAS. Tags e turmas penduram-se
 // nela, nunca o contrário — assim um desvio aponta sempre para
 // quem se desviou.
 //
-// O emparelhamento é por PERÍODO, não por data: a tag e a turma
-// carregam o YYMM da coorte, e nunca houve coortes em Abril,
-// Agosto, Outubro nem Dezembro — quem compra nesses meses cai na
-// seguinte. Daí a tolerância de 2 meses para a frente.
+// A unidade de emparelhamento é a COORTE, não o ciclo. Um ciclo
+// de 2 anos atravessa duas coortes — a do ano da compra e a de
+// 12 meses depois — e recebe uma tag por cada, sem nova compra.
+// Dos 148 ciclos de 2 anos medidos a 21/08/2026, 77% tinham as
+// duas tags; tratá-las como uma só marcava 114 alunos certos
+// como tendo tag órfã.
+//
+// O emparelhamento é por PERÍODO, com ±2 meses de tolerância nas
+// duas direcções: para a frente porque nunca houve coortes em
+// Abril, Agosto, Outubro nem Dezembro e quem compra nesses meses
+// cai na seguinte; para trás porque quem compra a meio do mês
+// entra na coorte já aberta (o zz.carlos comprou a 03/12/2024 e
+// tem a tag L2411). A janela apanha 90,5% das tags reais.
 // ════════════════════════════════════════════════════════════
 
 import { agruparCiclos, indiceDePeriodo } from './renewalCycles'
@@ -1043,6 +1165,7 @@ import type {
   TagEntrada,
   TurmaEntrada,
   Ciclo,
+  CoorteCiclo,
   AlertaCiclo,
   Cadeia,
   Veredicto,
@@ -1066,7 +1189,7 @@ export interface EntradaGerador {
 /** Uma coorte a mais de distância ainda é a mesma; três já não. */
 const TOLERANCIA_MESES = 2
 
-/** Acima disto a tag foi posta muito depois da compra que representa. */
+/** Acima disto a tag foi posta muito depois da coorte que representa. */
 const DIAS_TAG_TARDIA = 90
 
 const DIA_MS = 24 * 60 * 60 * 1000
@@ -1091,44 +1214,59 @@ function ehTagDePercurso(nome: string): boolean {
   return periodoDaTag(nome) !== null && MENCIONA_PERCURSO.test(nome)
 }
 
+/** "YYMM" mais `meses`, de volta a "YYMM". */
+function somarMeses(yymm: string, meses: number): string {
+  const yy = Number(yymm.slice(0, 2))
+  const mm = Number(yymm.slice(2, 4))
+  const total = (2000 + yy) * 12 + (mm - 1) + meses
+  const ano = Math.floor(total / 12)
+  const mes = (total % 12) + 1
+  return `${String(ano % 100).padStart(2, '0')}${String(mes).padStart(2, '0')}`
+}
+
+/** Um lugar por preencher: a coorte N de um ciclo. */
+interface Lugar {
+  ciclo: number
+  ano: 1 | 2
+  periodo: string
+}
+
 /**
- * Emparelha candidatos (tags ou turmas) com ciclos, um para um,
- * pela distância em meses entre o período do candidato e o do
- * ciclo. Só conta 0..TOLERANCIA_MESES para a frente — um período
- * ANTERIOR ao ciclo nunca pertence a esse ciclo.
+ * Emparelha candidatos (tags ou turmas) com lugares, um para um,
+ * pela distância em meses. Só conta |distância| ≤ TOLERANCIA_MESES.
  *
- * Greedy pela distância: a correspondência mais próxima ganha,
- * e ordena-se por índice para o resultado não depender da ordem
- * de entrada (o gerador tem de ser determinístico).
+ * Greedy pela distância, com desempate por índice para o resultado
+ * não depender da ordem de entrada — o gerador tem de ser
+ * determinístico e há um teste que o exige.
  */
 function emparelhar(
-  periodosCiclo: Array<string>,
+  lugares: Lugar[],
   candidatos: Array<{ indice: number; periodo: string | null }>
 ): Map<number, number> {
-  const pares: Array<{ ciclo: number; candidato: number; dist: number }> = []
+  const pares: Array<{ lugar: number; candidato: number; dist: number }> = []
 
-  periodosCiclo.forEach((pc, iCiclo) => {
-    const idxCiclo = indiceDePeriodo(pc)
-    if (idxCiclo === null) return
+  lugares.forEach((lug, iLugar) => {
+    const idxLugar = indiceDePeriodo(lug.periodo)
+    if (idxLugar === null) return
     for (const cand of candidatos) {
       const idxCand = indiceDePeriodo(cand.periodo)
       if (idxCand === null) continue
-      const dist = idxCand - idxCiclo
-      if (dist < 0 || dist > TOLERANCIA_MESES) continue
-      pares.push({ ciclo: iCiclo, candidato: cand.indice, dist })
+      const dist = Math.abs(idxCand - idxLugar)
+      if (dist > TOLERANCIA_MESES) continue
+      pares.push({ lugar: iLugar, candidato: cand.indice, dist })
     }
   })
 
-  pares.sort((a, b) => a.dist - b.dist || a.ciclo - b.ciclo || a.candidato - b.candidato)
+  pares.sort((a, b) => a.dist - b.dist || a.lugar - b.lugar || a.candidato - b.candidato)
 
-  const porCiclo = new Map<number, number>()
+  const porLugar = new Map<number, number>()
   const usados = new Set<number>()
   for (const p of pares) {
-    if (porCiclo.has(p.ciclo) || usados.has(p.candidato)) continue
-    porCiclo.set(p.ciclo, p.candidato)
+    if (porLugar.has(p.lugar) || usados.has(p.candidato)) continue
+    porLugar.set(p.lugar, p.candidato)
     usados.add(p.candidato)
   }
-  return porCiclo
+  return porLugar
 }
 
 /** Duas datas no mesmo dia (UTC). */
@@ -1158,57 +1296,94 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     turmas.push(t)
   }
 
-  const periodosCiclo = base.map((c) => c.periodo)
+  // ── um lugar por coorte: 1 no ciclo de um ano, 2 no de dois ──
+  const lugares: Lugar[] = []
+  base.forEach((c, i) => {
+    lugares.push({ ciclo: i, ano: 1, periodo: c.periodo })
+    if (c.anos === 2) lugares.push({ ciclo: i, ano: 2, periodo: somarMeses(c.periodo, 12) })
+  })
 
   const tagsPercurso = e.tags
     .map((t, i) => ({ tag: t, indice: i }))
     .filter((x) => ehTagDePercurso(x.tag.nome))
 
   const parTags = emparelhar(
-    periodosCiclo,
+    lugares,
     tagsPercurso.map((x) => ({ indice: x.indice, periodo: periodoDaTag(x.tag.nome) }))
   )
 
   const parTurmas = emparelhar(
-    periodosCiclo,
+    lugares,
     turmas.map((t, i) => ({ indice: i, periodo: parseTurmaName(t.className).periodYYMM }))
   )
+
+  // a turma do ciclo é a que caiu em qualquer uma das suas coortes;
+  // havendo duas, fica a da coorte mais recente
+  const turmaDoCiclo = new Map<number, TurmaEntrada>()
+  lugares.forEach((lug, iLugar) => {
+    const iTurma = parTurmas.get(iLugar)
+    if (iTurma !== undefined) turmaDoCiclo.set(lug.ciclo, turmas[iTurma])
+  })
 
   const turmasPorMapear = new Set<string>()
 
   const ciclos: Ciclo[] = base.map((c, i) => {
-    const iTag = parTags.get(i)
-    const tag = iTag === undefined ? null : e.tags[iTag]
-    const iTurma = parTurmas.get(i)
-    const turma = iTurma === undefined ? null : turmas[iTurma]
-
+    const turma = turmaDoCiclo.get(i) ?? null
     const resolucao = turma ? resolverTagDaTurma(turma.className, e.excepcoesTurmaTag) : null
     if (turma && resolucao && !resolucao.tagNome) turmasPorMapear.add(turma.className)
 
+    const coortes: CoorteCiclo[] = lugares
+      .map((lug, iLugar) => ({ lug, iLugar }))
+      .filter((x) => x.lug.ciclo === i)
+      .map(({ lug, iLugar }) => {
+        const iTag = parTags.get(iLugar)
+        const tag = iTag === undefined ? null : e.tags[iTag]
+        return {
+          periodo: lug.periodo,
+          ano: lug.ano,
+          tag: tag ? { id: tag.tagId, nome: tag.nome, aplicadaEm: tag.aplicadaEm } : null
+        }
+      })
+
     const alertas: AlertaCiclo[] = []
-    if (!tag) alertas.push('sem-tag')
+    if (!coortes[0]?.tag) alertas.push('sem-tag')
+    if (coortes[1] && !coortes[1].tag) alertas.push('sem-tag-ano-2')
     if (!turma) alertas.push('sem-mudanca-turma')
     if (turma && resolucao && !resolucao.tagNome) alertas.push('tag-por-definir')
 
-    if (tag?.aplicadaEm) {
-      const dias = (tag.aplicadaEm.getTime() - c.compras[0].data.getTime()) / DIA_MS
-      if (dias > DIAS_TAG_TARDIA) alertas.push('tag-tardia')
+    // a tag tardia mede-se contra o início da SUA coorte, não contra
+    // a compra: a do ano 2 chega legitimamente um ano depois
+    const ancora = c.compras[0].data
+    for (const coorte of coortes) {
+      if (!coorte.tag?.aplicadaEm) continue
+      const inicio = new Date(ancora.getTime())
+      inicio.setUTCFullYear(inicio.getUTCFullYear() + (coorte.ano - 1))
+      const dias = (coorte.tag.aplicadaEm.getTime() - inicio.getTime()) / DIA_MS
+      if (dias > DIAS_TAG_TARDIA) {
+        if (!alertas.includes('tag-tardia')) alertas.push('tag-tardia')
+      }
     }
 
-    if (tag && resolucao?.tagNome && normalizarNomeTurma(tag.nome) !== normalizarNomeTurma(resolucao.tagNome)) {
+    if (
+      resolucao?.tagNome &&
+      coortes.some((x) => x.tag) &&
+      !coortes.some((x) => x.tag && normalizarNomeTurma(x.tag.nome) === normalizarNomeTurma(resolucao.tagNome!))
+    ) {
       alertas.push('tag-diferente-da-turma')
     }
 
     return {
       ...c,
-      tag: tag ? { id: tag.tagId, nome: tag.nome, aplicadaEm: tag.aplicadaEm } : null,
+      coortes,
       turma: turma ? { nome: turma.className, classId: turma.classId, entrouEm: turma.entrouEm } : null,
       tagEsperada: resolucao?.tagNome ?? null,
       alertas
     }
   })
 
-  const idsEmCiclos = new Set(ciclos.map((c) => c.tag?.id).filter(Boolean) as string[])
+  const idsEmCiclos = new Set(
+    ciclos.flatMap((c) => c.coortes.map((x) => x.tag?.id)).filter(Boolean) as string[]
+  )
 
   const tagsOrfas: TagOrfa[] = tagsPercurso
     .filter((x) => !idsEmCiclos.has(x.tag.tagId))
@@ -1252,10 +1427,11 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
 
   let tagIgualTurma: Veredicto = 'sem-dados'
   if (ultimo && ultimo.tagEsperada) {
-    tagIgualTurma =
-      ultimo.tag && normalizarNomeTurma(ultimo.tag.nome) === normalizarNomeTurma(ultimo.tagEsperada)
-        ? 'ok'
-        : 'divergente'
+    tagIgualTurma = ultimo.coortes.some(
+      (x) => x.tag && normalizarNomeTurma(x.tag.nome) === normalizarNomeTurma(ultimo.tagEsperada!)
+    )
+      ? 'ok'
+      : 'divergente'
   }
 
   // Uma venda mais recente do que a última sync de tags explica
@@ -1281,12 +1457,12 @@ export default gerarTimeline
 cd ~/Documents/GitHub/BO2_API && npx tsx --test src/services/renewal/__tests__/renewalTimeline.generator.test.ts
 ```
 
-Esperado: `pass 14`, `fail 0`.
+Esperado: `pass 17`, `fail 0`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/services/renewal/renewalTimeline.generator.ts src/services/renewal/__tests__/renewalTimeline.generator.test.ts && git commit -m "feat(renovacao): gerador puro da timeline com alertas e cadeia"
+git add src/services/renewal/renewalTimeline.generator.ts src/services/renewal/renewalTimeline.types.ts src/services/renewal/__tests__/renewalTimeline.generator.test.ts && git commit -m "feat(renovacao): gerador puro da timeline por coorte, com alertas e cadeia"
 ```
 
 ---
@@ -1333,8 +1509,16 @@ test('a timeline tem os campos do desenho', () => {
 test('o ciclo guarda compras, anos, acessoAte, tag, turma e alertas', () => {
   const ciclo: any = StudentRenewalTimeline.schema.path('ciclos')
   const sub = ciclo.schema
-  for (const campo of ['periodo', 'compras', 'anos', 'acessoAte', 'tag', 'turma', 'tagEsperada', 'alertas']) {
+  for (const campo of ['periodo', 'compras', 'anos', 'acessoAte', 'coortes', 'turma', 'tagEsperada', 'alertas']) {
     assert.ok(sub.path(campo), `falta o campo ${campo} no ciclo`)
+  }
+})
+
+test('a coorte guarda periodo, ano e a sua tag', () => {
+  const ciclo: any = StudentRenewalTimeline.schema.path('ciclos')
+  const coorte: any = ciclo.schema.path('coortes')
+  for (const campo of ['periodo', 'ano', 'tag']) {
+    assert.ok(coorte.schema.path(campo), `falta o campo ${campo} na coorte`)
   }
 })
 
@@ -1391,7 +1575,11 @@ export interface IStudentRenewalTimeline extends Document {
     }>
     anos: number
     acessoAte: Date
-    tag: { id: string; nome: string; aplicadaEm: Date | null } | null
+    coortes: Array<{
+      periodo: string
+      ano: number
+      tag: { id: string; nome: string; aplicadaEm: Date | null } | null
+    }>
     turma: { nome: string; classId: string | null; entrouEm: Date | null } | null
     tagEsperada: string | null
     alertas: string[]
@@ -1447,13 +1635,27 @@ const turmaDoCicloSchema = new Schema(
   { _id: false }
 )
 
+/**
+ * Um ano de acesso dentro do ciclo. O ciclo de 2 anos tem duas
+ * coortes e uma tag por cada — a segunda chega 12 meses depois
+ * sem nova compra.
+ */
+const coorteSchema = new Schema(
+  {
+    periodo: { type: String, required: true },
+    ano: { type: Number, required: true },
+    tag: { type: tagDoCicloSchema, default: null }
+  },
+  { _id: false }
+)
+
 const cicloSchema = new Schema(
   {
     periodo: { type: String, required: true },
     compras: { type: [compraSchema], default: [] },
     anos: { type: Number, default: 1 },
     acessoAte: { type: Date, required: true },
-    tag: { type: tagDoCicloSchema, default: null },
+    coortes: { type: [coorteSchema], default: [] },
     turma: { type: turmaDoCicloSchema, default: null },
     tagEsperada: { type: String, default: null },
     alertas: { type: [String], default: [] }
@@ -1584,7 +1786,7 @@ export default TurmaTagMap
 cd ~/Documents/GitHub/BO2_API && npx tsx --test src/services/renewal/__tests__/models.timeline.test.ts
 ```
 
-Esperado: `pass 5`, `fail 0`.
+Esperado: `pass 6`, `fail 0`.
 
 - [ ] **Step 6: Commit**
 
@@ -2691,12 +2893,18 @@ export interface TimelineCompra {
   extensao: boolean
 }
 
+export interface TimelineCoorte {
+  periodo: string
+  ano: number
+  tag: { id: string; nome: string; aplicadaEm: string | null } | null
+}
+
 export interface TimelineCiclo {
   periodo: string
   compras: TimelineCompra[]
   anos: number
   acessoAte: string
-  tag: { id: string; nome: string; aplicadaEm: string | null } | null
+  coortes: TimelineCoorte[]
   turma: { nome: string; classId: string | null; entrouEm: string | null } | null
   tagEsperada: string | null
   alertas: string[]
@@ -2811,6 +3019,7 @@ import type { TimelineCiclo } from '../../../services/renewalTimeline.service'
 
 const LEGENDA_ALERTAS: Record<string, string> = {
   'sem-tag': 'pagou e a AC não o marcou',
+  'sem-tag-ano-2': 'está no 2º ano do acesso e a AC não o marcou nessa coorte',
   'tag-tardia': 'a tag foi posta muito depois da compra',
   'sem-mudanca-turma': 'pagou, foi marcado, e ficou onde estava',
   'tag-por-definir': 'esta turma não tem tag definida — ver turmatagmap',
@@ -2863,16 +3072,27 @@ export function CiclosTab({ ciclos }: { ciclos: TimelineCiclo[] }) {
                   {c.anos === 2 && <span className="ml-1 text-xs text-muted-foreground">(2 anos)</span>}
                 </td>
                 <td className="px-3 py-2">
-                  {c.tag ? (
-                    <>
-                      <div>{c.tag.nome}</div>
-                      {c.tag.aplicadaEm && (
-                        <div className="text-xs text-muted-foreground">posta a {formatDate(c.tag.aplicadaEm)}</div>
+                  {/* uma linha por coorte: o ciclo de 2 anos tem duas,
+                      e a segunda chega um ano depois sem nova compra */}
+                  {c.coortes.map((co) => (
+                    <div key={co.periodo} className="mb-1 last:mb-0">
+                      {c.coortes.length > 1 && (
+                        <span className="mr-1 font-mono text-xs text-muted-foreground">ano {co.ano}</span>
                       )}
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
+                      {co.tag ? (
+                        <>
+                          <span>{co.tag.nome}</span>
+                          {co.tag.aplicadaEm && (
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              · posta a {formatDate(co.tag.aplicadaEm)}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  ))}
                   {c.tagEsperada && c.alertas.includes('tag-diferente-da-turma') && (
                     <div className="text-xs text-red-700">esperada: {c.tagEsperada}</div>
                   )}
@@ -2962,9 +3182,16 @@ function Lista({
 }
 
 export function TagsTab({ timeline }: { timeline: RenewalTimeline }) {
-  const percurso = timeline.ciclos
-    .filter((c) => c.tag)
-    .map((c) => ({ id: c.tag!.id, nome: c.tag!.nome, extra: `ciclo ${c.periodo}`, aplicadaEm: c.tag!.aplicadaEm }))
+  const percurso = timeline.ciclos.flatMap((c) =>
+    c.coortes
+      .filter((co) => co.tag)
+      .map((co) => ({
+        id: co.tag!.id,
+        nome: co.tag!.nome,
+        extra: c.coortes.length > 1 ? `ciclo ${c.periodo} · ano ${co.ano}` : `ciclo ${c.periodo}`,
+        aplicadaEm: co.tag!.aplicadaEm
+      }))
+  )
 
   return (
     <div className="space-y-4">
@@ -3176,6 +3403,6 @@ As tarefas 1, 2, 4 e 5 são independentes entre si e podem correr em paralelo. A
 cd ~/Documents/GitHub/BO2_API && npx tsx --test "src/services/renewal/__tests__/*.test.ts"
 ```
 
-Esperado: `pass 51`, `fail 0` (13 ciclos + 10 resolver + 14 gerador + 5 modelos + 5 classificar + 4 serviço).
+Esperado: `pass 55`, `fail 0` (13 ciclos + 10 resolver + 17 gerador + 6 modelos + 5 classificar + 4 serviço).
 
 E na ficha de um aluno com percurso longo, o separador Ciclos mostra uma linha por compra — o caso que motivou isto (três extensões, uma só mudança de turma) passa a ler-se de relance, com o alerta `sem-mudança-turma` nos dois ciclos que ficaram sem ela.
