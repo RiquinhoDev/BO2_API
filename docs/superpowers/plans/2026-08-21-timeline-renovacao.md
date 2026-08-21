@@ -275,6 +275,29 @@ test('renovacao anual na mesma oferta nao e confundida com prestacao', () => {
   assert.equal(ciclos.length, 2)
 })
 
+test('renovacao anual antecipada nao e absorvida como prestacao', () => {
+  // happyhome.carla: 23/01/2024 e 17/12/2024, mesma oferta, 49€ cada,
+  // 329 dias — duas renovações, não uma prestação.
+  const ciclos = agruparCiclos([
+    venda({ approvedDate: new Date('2024-01-23T00:00:00Z'), priceValue: 49, offerCode: 'b9grqqzt', transaction: 'A' }),
+    venda({ approvedDate: new Date('2024-12-17T00:00:00Z'), priceValue: 49, offerCode: 'b9grqqzt', transaction: 'B' })
+  ])
+  assert.equal(ciclos.length, 2)
+})
+
+test('prestacoes com cobrancas atrasadas continuam um ciclo so', () => {
+  // kukuruzickosa: 90€ em prestações com falhas pelo meio — entre
+  // cobranças bem sucedidas chega a haver 59 dias.
+  const datas = ['2026-03-31', '2026-05-01', '2026-06-05', '2026-08-03']
+  const ciclos = agruparCiclos(
+    datas.map((d, i) =>
+      venda({ approvedDate: new Date(`${d}T00:00:00Z`), priceValue: 90, offerCode: 'gyar28ac', transaction: `K${i}` })
+    )
+  )
+  assert.equal(ciclos.length, 1)
+  assert.equal(ciclos[0].periodo, '2603')
+})
+
 test('reembolso nao gera ciclo', () => {
   const ciclos = agruparCiclos([
     venda({ approvedDate: new Date('2026-05-25T00:00:00Z'), transactionStatus: 'REFUNDED' }),
@@ -322,9 +345,17 @@ Criar `src/services/renewal/renewalCycles.ts`:
 //   3. prestações       5 x 99€ mensais da mesma oferta = 1 ciclo
 //
 // A regra 3 tem de distinguir uma prestação de uma renovação
-// anual feita na mesma oferta ao mesmo preço. O corte está nos
-// 335 dias (11 meses): prestações mensais cabem lá dentro, uma
-// renovação a 12 meses não.
+// anual feita na mesma oferta ao mesmo preço. O intervalo mede-se
+// desde a compra ANTERIOR do ciclo, não desde a âncora — medir
+// desde a âncora fundia duas renovações anuais quando a segunda
+// era feita cedo (a happyhome.carla renovou a 23/01/2024 e a
+// 17/12/2024, 329 dias, e perdia um ano inteiro).
+//
+// O corte dos 90 dias vem dos dados: das 195 compras consecutivas
+// com o mesmo produto, oferta e valor, 185 estão a 59 dias ou
+// menos (prestações, incluindo as atrasadas da kukuruzickosa) e
+// as restantes a 329 dias ou mais (renovações). Entre 60 e 328
+// dias não há nenhuma.
 // ════════════════════════════════════════════════════════════
 
 import type { VendaEntrada, CompraCiclo, CicloBase } from './renewalTimeline.types'
@@ -335,8 +366,8 @@ export const ID_PRODUTO_EXTENSAO = '3100292'
 /** Só estes contam como compra. Reembolso e falha não dão acesso. */
 const ESTADOS_VALIDOS = new Set(['APPROVED', 'COMPLETE'])
 
-/** Máximo entre a âncora e uma prestação para ainda ser o mesmo ciclo. */
-const DIAS_MAX_PRESTACAO = 335
+/** Máximo entre duas cobranças seguidas para ainda serem o mesmo ciclo. */
+const DIAS_MAX_ENTRE_PRESTACOES = 90
 
 const DIA_MS = 24 * 60 * 60 * 1000
 
@@ -398,8 +429,9 @@ function pertenceAoMesmoCiclo(
   const mesmaOferta = !!vendaAncora.offerCode && vendaAncora.offerCode === vendaCompra.offerCode
   const mesmoProduto = compra.produtoId === ancora.produtoId
   const mesmoValor = compra.valor != null && compra.valor === ancora.valor
-  const dias = (compra.data.getTime() - ancora.data.getTime()) / DIA_MS
-  return mesmaOferta && mesmoProduto && mesmoValor && dias < DIAS_MAX_PRESTACAO
+  // desde a compra anterior, não desde a âncora — ver o cabeçalho
+  const dias = (compra.data.getTime() - ultima.data.getTime()) / DIA_MS
+  return mesmaOferta && mesmoProduto && mesmoValor && dias <= DIAS_MAX_ENTRE_PRESTACOES
 }
 
 /**
@@ -468,7 +500,7 @@ export function agruparCiclos(vendas: VendaEntrada[]): CicloBase[] {
 cd ~/Documents/GitHub/BO2_API && npx tsx --test src/services/renewal/__tests__/renewalCycles.test.ts
 ```
 
-Esperado: `pass 10`, `fail 0`.
+Esperado: `pass 12`, `fail 0`.
 
 - [ ] **Step 6: Commit**
 
@@ -3102,6 +3134,6 @@ As tarefas 1, 2, 4 e 5 são independentes entre si e podem correr em paralelo. A
 cd ~/Documents/GitHub/BO2_API && npx tsx --test "src/services/renewal/__tests__/*.test.ts"
 ```
 
-Esperado: `pass 48`, `fail 0` (10 ciclos + 10 resolver + 14 gerador + 5 modelos + 5 classificar + 4 serviço).
+Esperado: `pass 50`, `fail 0` (12 ciclos + 10 resolver + 14 gerador + 5 modelos + 5 classificar + 4 serviço).
 
 E na ficha de um aluno com percurso longo, o separador Ciclos mostra uma linha por compra — o caso que motivou isto (três extensões, uma só mudança de turma) passa a ler-se de relance, com o alerta `sem-mudança-turma` nos dois ciclos que ficaram sem ela.
