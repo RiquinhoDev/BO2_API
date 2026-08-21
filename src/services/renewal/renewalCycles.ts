@@ -36,6 +36,14 @@ const ESTADOS_VALIDOS = new Set(['APPROVED', 'COMPLETE'])
 /** Máximo entre duas cobranças seguidas para ainda serem o mesmo ciclo. */
 const DIAS_MAX_ENTRE_PRESTACOES = 90
 
+/**
+ * Tecto do ciclo inteiro, contado da âncora. Sem ele, uma corrente
+ * de compras a menos de 90 dias umas das outras esticaria o mesmo
+ * ciclo indefinidamente — e um plano de prestações nunca passa de
+ * um ano.
+ */
+const DIAS_MAX_TOTAL_PRESTACOES = 335
+
 const DIA_MS = 24 * 60 * 60 * 1000
 
 /** Último instante do mês, em UTC. `mes` é 1..12. */
@@ -98,7 +106,14 @@ function pertenceAoMesmoCiclo(
   const mesmoValor = compra.valor != null && compra.valor === ancora.valor
   // desde a compra anterior, não desde a âncora — ver o cabeçalho
   const dias = (compra.data.getTime() - ultima.data.getTime()) / DIA_MS
-  return mesmaOferta && mesmoProduto && mesmoValor && dias <= DIAS_MAX_ENTRE_PRESTACOES
+  const total = (compra.data.getTime() - ancora.data.getTime()) / DIA_MS
+  return (
+    mesmaOferta &&
+    mesmoProduto &&
+    mesmoValor &&
+    dias <= DIAS_MAX_ENTRE_PRESTACOES &&
+    total < DIAS_MAX_TOTAL_PRESTACOES
+  )
 }
 
 /**

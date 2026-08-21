@@ -114,6 +114,12 @@ test('renovacao anual antecipada nao e absorvida como prestacao', () => {
 test('prestacoes com cobrancas atrasadas continuam um ciclo so', () => {
   // kukuruzickosa: 90€ em prestações com falhas pelo meio — entre
   // cobranças bem sucedidas chega a haver 59 dias.
+  //
+  // Não é regressão da regra antiga (estas cabiam nos 335 dias
+  // contados da âncora): guarda a correcção pela metade, em que
+  // alguém baixasse o corte para 90 sem mudar o ponto de medida —
+  // aí a compra de Agosto ficaria a 125 dias da âncora e partia o
+  // ciclo em dois.
   const datas = ['2026-03-31', '2026-05-01', '2026-06-05', '2026-08-03']
   const ciclos = agruparCiclos(
     datas.map((d, i) =>
@@ -122,6 +128,27 @@ test('prestacoes com cobrancas atrasadas continuam um ciclo so', () => {
   )
   assert.equal(ciclos.length, 1)
   assert.equal(ciclos[0].periodo, '2603')
+})
+
+test('a corrente de prestacoes nao estica para alem de um ano', () => {
+  // cada cobrança a 85 dias da anterior — todas passam o corte dos
+  // 90 — mas a quinta cai a 340 dias da âncora, e um plano de
+  // prestações não dura mais de um ano.
+  const dias = [0, 85, 170, 255, 340]
+  const base = Date.UTC(2025, 0, 10)
+  const ciclos = agruparCiclos(
+    dias.map((d, i) =>
+      venda({
+        approvedDate: new Date(base + d * 86400000),
+        priceValue: 60,
+        offerCode: 'longa',
+        transaction: `L${i}`
+      })
+    )
+  )
+  assert.equal(ciclos.length, 2)
+  assert.equal(ciclos[0].compras.length, 4)
+  assert.equal(ciclos[1].compras.length, 1)
 })
 
 test('reembolso nao gera ciclo', () => {
