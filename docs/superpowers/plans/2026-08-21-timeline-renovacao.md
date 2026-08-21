@@ -288,6 +288,12 @@ test('renovacao anual antecipada nao e absorvida como prestacao', () => {
 test('prestacoes com cobrancas atrasadas continuam um ciclo so', () => {
   // kukuruzickosa: 90€ em prestações com falhas pelo meio — entre
   // cobranças bem sucedidas chega a haver 59 dias.
+  //
+  // Não é regressão da regra antiga (estas cabiam nos 335 dias
+  // contados da âncora): guarda a correcção pela metade, em que
+  // alguém baixasse o corte para 90 sem mudar o ponto de medida —
+  // aí a compra de Agosto ficaria a 125 dias da âncora e partia o
+  // ciclo em dois.
   const datas = ['2026-03-31', '2026-05-01', '2026-06-05', '2026-08-03']
   const ciclos = agruparCiclos(
     datas.map((d, i) =>
@@ -296,6 +302,27 @@ test('prestacoes com cobrancas atrasadas continuam um ciclo so', () => {
   )
   assert.equal(ciclos.length, 1)
   assert.equal(ciclos[0].periodo, '2603')
+})
+
+test('a corrente de prestacoes nao estica para alem de um ano', () => {
+  // cada cobrança a 85 dias da anterior — todas passam o corte dos
+  // 90 — mas a quinta cai a 340 dias da âncora, e um plano de
+  // prestações não dura mais de um ano.
+  const dias = [0, 85, 170, 255, 340]
+  const base = Date.UTC(2025, 0, 10)
+  const ciclos = agruparCiclos(
+    dias.map((d, i) =>
+      venda({
+        approvedDate: new Date(base + d * 86400000),
+        priceValue: 60,
+        offerCode: 'longa',
+        transaction: `L${i}`
+      })
+    )
+  )
+  assert.equal(ciclos.length, 2)
+  assert.equal(ciclos[0].compras.length, 4)
+  assert.equal(ciclos[1].compras.length, 1)
 })
 
 test('reembolso nao gera ciclo', () => {
@@ -369,6 +396,14 @@ const ESTADOS_VALIDOS = new Set(['APPROVED', 'COMPLETE'])
 /** Máximo entre duas cobranças seguidas para ainda serem o mesmo ciclo. */
 const DIAS_MAX_ENTRE_PRESTACOES = 90
 
+/**
+ * Tecto do ciclo inteiro, contado da âncora. Sem ele, uma corrente
+ * de compras a menos de 90 dias umas das outras esticaria o mesmo
+ * ciclo indefinidamente — e um plano de prestações nunca passa de
+ * um ano.
+ */
+const DIAS_MAX_TOTAL_PRESTACOES = 335
+
 const DIA_MS = 24 * 60 * 60 * 1000
 
 /** Último instante do mês, em UTC. `mes` é 1..12. */
@@ -431,7 +466,14 @@ function pertenceAoMesmoCiclo(
   const mesmoValor = compra.valor != null && compra.valor === ancora.valor
   // desde a compra anterior, não desde a âncora — ver o cabeçalho
   const dias = (compra.data.getTime() - ultima.data.getTime()) / DIA_MS
-  return mesmaOferta && mesmoProduto && mesmoValor && dias <= DIAS_MAX_ENTRE_PRESTACOES
+  const total = (compra.data.getTime() - ancora.data.getTime()) / DIA_MS
+  return (
+    mesmaOferta &&
+    mesmoProduto &&
+    mesmoValor &&
+    dias <= DIAS_MAX_ENTRE_PRESTACOES &&
+    total < DIAS_MAX_TOTAL_PRESTACOES
+  )
 }
 
 /**
@@ -500,7 +542,7 @@ export function agruparCiclos(vendas: VendaEntrada[]): CicloBase[] {
 cd ~/Documents/GitHub/BO2_API && npx tsx --test src/services/renewal/__tests__/renewalCycles.test.ts
 ```
 
-Esperado: `pass 12`, `fail 0`.
+Esperado: `pass 13`, `fail 0`.
 
 - [ ] **Step 6: Commit**
 
@@ -3134,6 +3176,6 @@ As tarefas 1, 2, 4 e 5 são independentes entre si e podem correr em paralelo. A
 cd ~/Documents/GitHub/BO2_API && npx tsx --test "src/services/renewal/__tests__/*.test.ts"
 ```
 
-Esperado: `pass 50`, `fail 0` (12 ciclos + 10 resolver + 14 gerador + 5 modelos + 5 classificar + 4 serviço).
+Esperado: `pass 51`, `fail 0` (13 ciclos + 10 resolver + 14 gerador + 5 modelos + 5 classificar + 4 serviço).
 
 E na ficha de um aluno com percurso longo, o separador Ciclos mostra uma linha por compra — o caso que motivou isto (três extensões, uma só mudança de turma) passa a ler-se de relance, com o alerta `sem-mudança-turma` nos dois ciclos que ficaram sem ela.
