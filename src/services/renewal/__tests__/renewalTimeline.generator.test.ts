@@ -134,6 +134,29 @@ test('ciclo de 2 anos sem a tag do ano 2 leva o alerta proprio', () => {
   assert.ok(!t.ciclos[0].alertas.includes('sem-tag'))
 })
 
+test('ciclo de 2 anos prefere a tag explicita 2anos quando o periodo e igual', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2025-06-03T00:00:00Z'), priceValue: 167, transaction: 'A' }),
+        venda({
+          approvedDate: new Date('2025-06-03T00:10:00Z'),
+          priceValue: 97,
+          transaction: 'B',
+          hotmartProductId: '3100292'
+        })
+      ],
+      tags: [
+        { tagId: '100', nome: 'Aluno OGI 2505 - Renovação Turma 5', aplicadaEm: null },
+        { tagId: '900', nome: 'Aluno OGI 2505 - Renovação Turma 5 [2anos]', aplicadaEm: null }
+      ]
+    })
+  )
+
+  assert.equal(t.ciclos[0].coortes[0].tag?.id, '900')
+  assert.deepEqual(t.tagsOrfas.map((tag) => tag.id), ['100'])
+})
+
 test('ciclo sem mudanca de turma: 3 compras, 1 turma so', () => {
   const t = gerarTimeline(
     entrada({
@@ -425,6 +448,21 @@ test('turma historica sem mapa e fora da tolerancia continua a ser reportada', (
   )
 
   assert.deepEqual(t.turmasPorMapear, ['Turmas 1, 2 e 3 [3a renov] | 2401'])
+})
+
+test('sentinela historica sem periodo nao entra nas turmas por mapear', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-05-19T00:00:00Z'), transaction: 'A' })],
+      tags: [],
+      movimentacoes: [
+        { classId: 'antiga', className: 'Nome não disponível', entrouEm: null }
+      ],
+      turmaAtual: { classId: 'actual', className: 'Turma 14 | 2505', entrouEm: null }
+    })
+  )
+
+  assert.deepEqual(t.turmasPorMapear, [])
 })
 
 test('prestacoes: a AC guarda a data da ultima cobranca, nao da primeira', () => {

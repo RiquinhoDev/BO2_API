@@ -98,6 +98,7 @@ interface Lugar {
   ciclo: number
   ano: 1 | 2
   periodo: string
+  doisAnos: boolean
 }
 
 /**
@@ -110,9 +111,16 @@ interface Lugar {
  */
 function emparelhar(
   lugares: Lugar[],
-  candidatos: Array<{ indice: number; periodo: string | null; desempate: string }>
+  candidatos: Array<{ indice: number; periodo: string | null; desempate: string; doisAnos?: boolean }>
 ): Map<number, number> {
-  const pares: Array<{ lugar: number; candidato: number; dist: number; atras: number; desempate: string }> = []
+  const pares: Array<{
+    lugar: number
+    candidato: number
+    dist: number
+    atras: number
+    tipoIncompativel: number
+    desempate: string
+  }> = []
 
   lugares.forEach((lug, iLugar) => {
     const idxLugar = indiceDePeriodo(lug.periodo)
@@ -131,6 +139,10 @@ function emparelhar(
         candidato: cand.indice,
         dist,
         atras: idxCand >= idxLugar ? 0 : 1,
+        // Quando o período empata, o marcador explícito [2anos]
+        // distingue a tag da compra com extensão da tag anual.
+        tipoIncompativel:
+          cand.doisAnos === undefined || cand.doisAnos === lug.doisAnos ? 0 : 1,
         desempate: cand.desempate
       })
     }
@@ -144,6 +156,7 @@ function emparelhar(
     (a, b) =>
       a.dist - b.dist ||
       a.atras - b.atras ||
+      a.tipoIncompativel - b.tipoIncompativel ||
       a.lugar - b.lugar ||
       (a.desempate < b.desempate ? -1 : a.desempate > b.desempate ? 1 : 0)
   )
@@ -188,8 +201,10 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
   // ── um lugar por coorte: 1 no ciclo de um ano, 2 no de dois ──
   const lugares: Lugar[] = []
   base.forEach((c, i) => {
-    lugares.push({ ciclo: i, ano: 1, periodo: c.periodo })
-    if (c.anos === 2) lugares.push({ ciclo: i, ano: 2, periodo: somarMeses(c.periodo, 12) })
+    lugares.push({ ciclo: i, ano: 1, periodo: c.periodo, doisAnos: c.anos === 2 })
+    if (c.anos === 2) {
+      lugares.push({ ciclo: i, ano: 2, periodo: somarMeses(c.periodo, 12), doisAnos: true })
+    }
   })
 
   const tagsPercurso = e.tags
@@ -201,6 +216,7 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     tagsPercurso.map((x) => ({
       indice: x.indice,
       periodo: periodoDaTag(x.tag.nome),
+      doisAnos: /\[\s*2\s*anos?\s*\]/i.test(x.tag.nome),
       desempate: String(x.tag.tagId).padStart(12, '0')
     }))
   )
@@ -236,13 +252,22 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
   })
 
   const turmasPorMapear = new Set<string>()
+  const chaveAtualParaMapa = e.turmaAtual
+    ? e.turmaAtual.classId ?? normalizarNomeTurma(e.turmaAtual.className)
+    : null
 
   // Todas as turmas são avaliadas mesmo que não caiam em coorte
-  // nenhuma. O histórico humano é tolerante no emparelhamento, mas
-  // uma turma que não sabemos traduzir nunca pode desaparecer.
+  // nenhuma. No histórico, só nomes com período são accionáveis;
+  // sentinelas antigas como "Nome não disponível" não são turmas
+  // para mapear. A turma actual é sempre avaliada.
   for (const t of turmas) {
     const resolucao = resolverTagDaTurma(t.className, e.excepcoesTurmaTag)
-    if (resolucao.origem === null) turmasPorMapear.add(t.className)
+    const chave = t.classId ?? normalizarNomeTurma(t.className)
+    const ehAtual = chaveAtualParaMapa !== null && chave === chaveAtualParaMapa
+    const temPeriodo = parseTurmaName(t.className).periodYYMM !== null
+    if (resolucao.origem === null && (ehAtual || temPeriodo)) {
+      turmasPorMapear.add(t.className)
+    }
   }
 
   const ciclos: Ciclo[] = base.map((c, i) => {
