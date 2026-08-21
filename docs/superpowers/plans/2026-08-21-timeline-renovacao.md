@@ -1121,6 +1121,41 @@ test('empate entre turmas: ganha a actual, nao a que ele ja deixou', () => {
   assert.equal(t.ciclos[0].turma?.classId, 'nova')
 })
 
+test('empate entre duas tags do MESMO periodo decide-se pelo id', () => {
+  // as duas estão à mesma distância E do mesmo lado, por isso não é
+  // a regra da frente que decide — é a chave do próprio candidato.
+  const base = {
+    vendas: [venda({ approvedDate: new Date('2025-01-15T00:00:00Z'), transaction: 'A' })],
+    turmaAtual: null
+  }
+  const alta = { tagId: '500', nome: 'Aluno OGI 2503 - Renovação', aplicadaEm: null }
+  const baixa = { tagId: '100', nome: 'Aluno OGI 2503 - Renovação Turma 5', aplicadaEm: null }
+
+  const t1 = gerarTimeline(entrada({ ...base, tags: [alta, baixa] }))
+  const t2 = gerarTimeline(entrada({ ...base, tags: [baixa, alta] }))
+
+  assert.equal(t1.ciclos[0].coortes[0].tag?.id, '100')
+  assert.equal(t2.ciclos[0].coortes[0].tag?.id, '100')
+})
+
+test('a turma actual ganha o empate mesmo vindo primeiro no historico', () => {
+  // o histórico entregue do mais recente para o mais antigo, e a
+  // turma actual também lá dentro — a chave tem de vir da turma,
+  // não da posição, senão a antiga voltava a ganhar.
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-01-15T00:00:00Z'), transaction: 'A' })],
+      tags: [],
+      movimentacoes: [
+        { classId: 'nova', className: 'Turma 2 | 2503', entrouEm: new Date('2025-03-01T00:00:00Z') },
+        { classId: 'velha', className: 'Turma 1 | 2503', entrouEm: new Date('2024-03-01T00:00:00Z') }
+      ],
+      turmaAtual: { classId: 'nova', className: 'Turma 2 | 2503', entrouEm: new Date('2025-03-01T00:00:00Z') }
+    })
+  )
+  assert.equal(t.ciclos[0].turma?.classId, 'nova')
+})
+
 test('turma fora da tolerancia continua a ser reportada', () => {
   const t = gerarTimeline(
     entrada({
@@ -1256,6 +1291,9 @@ const DIAS_TAG_TARDIA = 90
 
 const DIA_MS = 24 * 60 * 60 * 1000
 
+/** Só serve para inverter uma data numa chave de ordenação. */
+const MAX_TEMPO = 9999999999999
+
 /**
  * Extrai o YYMM de um nome de tag. Aceita os dois formatos:
  * "Aluno OGI L2311 - Turma 7" e "Aluno OGI 2606 - Renovação".
@@ -1329,9 +1367,10 @@ function emparelhar(
     }
   })
 
-  // o último critério é uma chave do próprio candidato (id da tag,
-  // antiguidade da turma) e NUNCA a ordem em que chegou — dois
-  // candidatos empatados têm de dar sempre o mesmo vencedor.
+  // o último critério é uma chave do PRÓPRIO candidato — o id da tag,
+  // ou "é a turma actual / quando entrou nela" — e nunca a ordem nem
+  // a posição em que chegou. Dois candidatos empatados têm de dar
+  // sempre o mesmo vencedor, venha a lista como vier.
   pares.sort(
     (a, b) =>
       a.dist - b.dist ||
@@ -1397,16 +1436,26 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     }))
   )
 
-  // `turmas` vem da mais antiga para a mais recente, e a turma actual
-  // é a última — por isso a chave de desempate é a posição a contar
-  // do fim: empatada com uma turma antiga, ganha a de agora.
+  // A chave da turma não pode ser a posição no array: quem chama
+  // decide essa ordem, e o desempate voltaria a depender dela. Vem
+  // da própria turma — primeiro se é a actual, depois quando entrou
+  // (mais recente ganha), e o nome como último critério.
+  const chaveDaAtual = e.turmaAtual
+    ? e.turmaAtual.classId ?? normalizarNomeTurma(e.turmaAtual.className)
+    : null
+
   const parTurmas = emparelhar(
     lugares,
-    turmas.map((t, i) => ({
-      indice: i,
-      periodo: parseTurmaName(t.className).periodYYMM,
-      desempate: String(turmas.length - i).padStart(4, '0')
-    }))
+    turmas.map((t, i) => {
+      const chave = t.classId ?? normalizarNomeTurma(t.className)
+      const ehAtual = chaveDaAtual !== null && chave === chaveDaAtual
+      const entrada = t.entrouEm ? t.entrouEm.getTime() : 0
+      return {
+        indice: i,
+        periodo: parseTurmaName(t.className).periodYYMM,
+        desempate: `${ehAtual ? '0' : '1'}${String(MAX_TEMPO - entrada).padStart(14, '0')}${normalizarNomeTurma(t.className)}`
+      }
+    })
   )
 
   // a turma do ciclo é a que caiu em qualquer uma das suas coortes;
@@ -1564,7 +1613,7 @@ export default gerarTimeline
 cd ~/Documents/GitHub/BO2_API && npx tsx --test src/services/renewal/__tests__/renewalTimeline.generator.test.ts
 ```
 
-Esperado: `pass 21`, `fail 0`.
+Esperado: `pass 23`, `fail 0`.
 
 - [ ] **Step 5: Commit**
 
@@ -3510,6 +3559,6 @@ As tarefas 1, 2, 4 e 5 são independentes entre si e podem correr em paralelo. A
 cd ~/Documents/GitHub/BO2_API && npx tsx --test "src/services/renewal/__tests__/*.test.ts"
 ```
 
-Esperado: `pass 59`, `fail 0` (13 ciclos + 10 resolver + 21 gerador + 6 modelos + 5 classificar + 4 serviço).
+Esperado: `pass 61`, `fail 0` (13 ciclos + 10 resolver + 23 gerador + 6 modelos + 5 classificar + 4 serviço).
 
 E na ficha de um aluno com percurso longo, o separador Ciclos mostra uma linha por compra — o caso que motivou isto (três extensões, uma só mudança de turma) passa a ler-se de relance, com o alerta `sem-mudança-turma` nos dois ciclos que ficaram sem ela.
