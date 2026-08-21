@@ -38,8 +38,11 @@ export function resolverTagDaTurma(
   className: string,
   excepcoes: Map<string, string> = new Map()
 ): ResolucaoTag {
-  const excepcao = excepcoes.get(normalizarNomeTurma(className))
-  if (excepcao) return { tagNome: excepcao, origem: 'excepcao', motivo: null }
+  const chave = normalizarNomeTurma(className)
+  if (excepcoes.has(chave)) {
+    const excepcao = excepcoes.get(chave)?.trim() ?? ''
+    return { tagNome: excepcao || null, origem: 'excepcao', motivo: null }
+  }
 
   const parsed = parseTurmaName(className)
   if (!parsed.periodYYMM) return { tagNome: null, origem: null, motivo: 'sem-periodo' }

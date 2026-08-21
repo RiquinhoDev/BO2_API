@@ -324,6 +324,31 @@ test('empate entre duas tags: ganha a da frente, venha na ordem que vier', () =>
   assert.deepEqual(t2.tagsOrfas.map((o) => o.id), ['900'])
 })
 
+test('nova compra a meio de um ciclo de 2 anos ganha a tag que fica a sua frente', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2025-01-15T00:00:00Z'), transaction: 'A' }),
+        venda({
+          approvedDate: new Date('2025-01-15T00:10:00Z'),
+          transaction: 'B',
+          hotmartProductId: '3100292'
+        }),
+        venda({ approvedDate: new Date('2025-11-15T00:00:00Z'), transaction: 'C' })
+      ],
+      tags: [
+        { tagId: '10', nome: 'Aluno OGI 2512 - Renovação', aplicadaEm: null }
+      ]
+    })
+  )
+
+  // 2512 fica um mês antes da coorte 2601 do ciclo antigo e um
+  // mês depois da nova compra 2511. A nova compra é a causa mais
+  // próxima no sentido normal da cadeia, por isso ganha o empate.
+  assert.equal(t.ciclos[0].coortes[1].tag, null)
+  assert.equal(t.ciclos[1].coortes[0].tag?.id, '10')
+})
+
 test('empate entre turmas: ganha a actual, nao a que ele ja deixou', () => {
   const t = gerarTimeline(
     entrada({
@@ -383,7 +408,23 @@ test('turma fora da tolerancia continua a ser reportada', () => {
   // que a convenção não sabe resolver
   assert.equal(t.ciclos[0].turma, null)
   assert.ok(t.ciclos[0].alertas.includes('sem-mudanca-turma'))
+  assert.ok(t.ciclos[0].alertas.includes('tag-por-definir'))
   assert.deepEqual(t.turmasPorMapear, ['Turmas 1, 2 e 3 [3a renov] | 2601'])
+})
+
+test('turma historica sem mapa e fora da tolerancia continua a ser reportada', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-05-19T00:00:00Z'), transaction: 'A' })],
+      tags: [],
+      movimentacoes: [
+        { classId: 'antiga', className: 'Turmas 1, 2 e 3 [3a renov] | 2401', entrouEm: null }
+      ],
+      turmaAtual: { classId: 'actual', className: 'Turma 14 | 2505', entrouEm: null }
+    })
+  )
+
+  assert.deepEqual(t.turmasPorMapear, ['Turmas 1, 2 e 3 [3a renov] | 2401'])
 })
 
 test('prestacoes: a AC guarda a data da ultima cobranca, nao da primeira', () => {

@@ -23,6 +23,11 @@ test('2 anos no nome da turma vira [2anos] na tag, sem espaco', () => {
   assert.equal(r.tagNome, 'Aluno OGI 2505 - Renovação Turma 14 [2anos]')
 })
 
+test('2 anos no ramo base tambem vira [2anos] na tag', () => {
+  const r = resolverTagDaTurma('Turma 14 [2 anos] | 2505')
+  assert.equal(r.tagNome, 'Aluno OGI L2505 - Turma 14 [2anos]')
+})
+
 test('turma agrupada nao e resolvida por convencao', () => {
   const r = resolverTagDaTurma('Turmas 1, 2 e 3 [3a renov] | 2605')
   assert.equal(r.tagNome, null)
@@ -57,6 +62,14 @@ test('a excepcao resolve mesmo uma turma agrupada', () => {
   const r = resolverTagDaTurma('Turmas 1, 2 e 3 [3a renov] | 2605', excepcoes)
   assert.equal(r.tagNome, 'Aluno OGI 2605 - Renovação Turma 1 a 5')
   assert.equal(r.origem, 'excepcao')
+})
+
+test('a excepcao vazia significa deliberadamente que a turma nao tem tag', () => {
+  const turma = 'Turma 15 | 2509'
+  const r = resolverTagDaTurma(turma, new Map([[normalizarNomeTurma(turma), '']]))
+  assert.equal(r.tagNome, null)
+  assert.equal(r.origem, 'excepcao')
+  assert.equal(r.motivo, null)
 })
 
 test('normalizarNomeTurma colapsa espacos e caixa', () => {

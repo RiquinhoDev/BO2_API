@@ -237,17 +237,18 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
 
   const turmasPorMapear = new Set<string>()
 
-  // A turma actual é avaliada mesmo que não caia em coorte nenhuma —
-  // senão uma turma que a convenção não resolve desaparecia sem
-  // deixar rasto, e a regra é nunca calar o que não se sabe.
-  if (e.turmaAtual && !resolverTagDaTurma(e.turmaAtual.className, e.excepcoesTurmaTag).tagNome) {
-    turmasPorMapear.add(e.turmaAtual.className)
+  // Todas as turmas são avaliadas mesmo que não caiam em coorte
+  // nenhuma. O histórico humano é tolerante no emparelhamento, mas
+  // uma turma que não sabemos traduzir nunca pode desaparecer.
+  for (const t of turmas) {
+    const resolucao = resolverTagDaTurma(t.className, e.excepcoesTurmaTag)
+    if (resolucao.origem === null) turmasPorMapear.add(t.className)
   }
 
   const ciclos: Ciclo[] = base.map((c, i) => {
     const turma = turmaDoCiclo.get(i) ?? null
     const resolucao = turma ? resolverTagDaTurma(turma.className, e.excepcoesTurmaTag) : null
-    if (turma && resolucao && !resolucao.tagNome) turmasPorMapear.add(turma.className)
+    if (turma && resolucao?.origem === null) turmasPorMapear.add(turma.className)
 
     const coortes: CoorteCiclo[] = lugares
       .map((lug, iLugar) => ({ lug, iLugar }))
@@ -266,7 +267,7 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     if (!coortes[0]?.tag) alertas.push('sem-tag')
     if (coortes[1] && !coortes[1].tag) alertas.push('sem-tag-ano-2')
     if (!turma) alertas.push('sem-mudanca-turma')
-    if (turma && resolucao && !resolucao.tagNome) alertas.push('tag-por-definir')
+    if (turma && resolucao?.origem === null) alertas.push('tag-por-definir')
 
     // a tag tardia mede-se contra o início da SUA coorte, não contra
     // a compra: a do ano 2 chega legitimamente um ano depois
@@ -297,6 +298,21 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
       alertas
     }
   })
+
+  // Uma turma actual fora da janela não é falsamente pendurada num
+  // ciclo. Se também não tem mapa, o último ciclo leva o alerta para
+  // o problema continuar visível na ficha, além da lista global.
+  if (e.turmaAtual && ciclos.length > 0) {
+    const chaveAtual = e.turmaAtual.classId ?? normalizarNomeTurma(e.turmaAtual.className)
+    const atualFoiEmparelhada = ciclos.some(
+      (c) => (c.turma?.classId ?? (c.turma ? normalizarNomeTurma(c.turma.nome) : null)) === chaveAtual
+    )
+    const resolucaoAtual = resolverTagDaTurma(e.turmaAtual.className, e.excepcoesTurmaTag)
+    if (!atualFoiEmparelhada && resolucaoAtual.origem === null) {
+      const alertas = ciclos[ciclos.length - 1].alertas
+      if (!alertas.includes('tag-por-definir')) alertas.push('tag-por-definir')
+    }
+  }
 
   const idsEmCiclos = new Set(
     ciclos.flatMap((c) => c.coortes.map((x) => x.tag?.id)).filter(Boolean) as string[]
