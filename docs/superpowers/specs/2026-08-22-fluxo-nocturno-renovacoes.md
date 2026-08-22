@@ -244,3 +244,33 @@ Divisão de trabalho, confirmada com a chefia:
 O sinal não são duas tags: são 28 na AC, uma por coorte, mais as duas novas de
 renovação (`712` genérica e `713` antigos alunos), ambas ainda com zero
 contactos. Atraso acumulado: **8 alunos activos** com tag de turma por remover.
+
+### Premissa de trabalho enquanto a chefia não responde — 2026-08-22
+
+Assumir que a automação da AC faz o que lhe compete (tirar tags que deixaram
+de ser verdade) e **compensar depois** se não fizer.
+
+Isto só é seguro com uma condição: o sistema tem de **medir** a diferença,
+não de a assumir. Por isso o passo das tags não é "aplicar as regras" — é
+**comparar e reportar**:
+
+- o que falta e é inequívoco → acrescenta
+- o que sobra → fica listado no Backoffice à espera de decisão
+
+Assim nunca há dois donos a disputar a mesma tag. É o mesmo erro que já vimos
+nas datas de expiração, onde o sync desfazia a correcção humana.
+
+### Medição que responde à pergunta 3
+
+A `Alunos OGI Ativos` (tag 347, 929 contactos) **é** removida quando o acesso
+acaba — o contacto expirado mais antigo que ainda a tem expirou a 31/07/2026.
+Não há ninguém de Junho ou antes.
+
+O que existe é atraso: **30 alunos** expiraram a 31/07 e ainda a têm, 22 dias
+depois e uma semana depois de a janela de renovação fechar.
+
+No sentido inverso quase nada: 3 contactos válidos sem a tag, dois deles
+contas internas.
+
+A pergunta a levar deixa de ser "a AC trata disso?" e passa a ser **"ao fim de
+quanto tempo, e quem dispara?"**.
