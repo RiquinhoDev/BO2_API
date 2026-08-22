@@ -274,12 +274,21 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     })
   )
 
-  // a turma do ciclo é a que caiu em qualquer uma das suas coortes;
-  // havendo duas, fica a da coorte mais recente
+  // A turma do ciclo é a que caiu em qualquer uma das suas coortes. Num
+  // ciclo de 2 anos há duas coortes e podem cair duas turmas — e aí a
+  // ACTUAL ganha sempre, mesmo que a do histórico esteja mais perto em
+  // período. É ela que decide a tag esperada e a expiração; comparar
+  // contra uma turma que o aluno já deixou acusa-o de um desvio que não
+  // tem. Medido a 22/08: apanhava 4 alunos, entre eles a gaelle.pires,
+  // que foi movida e devolvida em dois dias e ficou com a turma errada.
   const turmaDoCiclo = new Map<number, TurmaEntrada>()
   lugares.forEach((lug, iLugar) => {
     const iTurma = parTurmas.get(iLugar)
-    if (iTurma !== undefined) turmaDoCiclo.set(lug.ciclo, turmas[iTurma])
+    if (iTurma === undefined) return
+    const candidata = turmas[iTurma]
+    const chave = candidata.classId ?? normalizarNomeTurma(candidata.className)
+    const ehAtual = chaveDaAtual !== null && chave === chaveDaAtual
+    if (!turmaDoCiclo.has(lug.ciclo) || ehAtual) turmaDoCiclo.set(lug.ciclo, candidata)
   })
 
   const turmasPorMapear = new Set<string>()

@@ -643,6 +643,49 @@ test('nao ter a tag em lado nenhum continua a ser divergencia', () => {
   assert.equal(t.cadeia.tagIgualTurma, 'divergente')
   assert.equal(t.cadeia.comparacoes.tag.encontrado, 'Aluno OGI 2601 - Renovação Turma 4')
 })
+test('num ciclo de 2 anos a turma actual ganha a do historico', () => {
+  // gaelle.pires: comprou 2 anos em Jan/2025 e esta na turma de 2 anos
+  // de 2501. Foi movida para a de 2601 a 24/01/2026 e devolvida a 26/01.
+  // A coorte do ano 2 (2601) apanhava a turma do historico e a tag
+  // esperada saia dai — acusando-a de um desvio que nao tem.
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2025-01-17T00:00:00Z'), priceValue: 147, transaction: 'A' }),
+        venda({
+          approvedDate: new Date('2025-01-17T00:10:00Z'),
+          priceValue: 97,
+          transaction: 'B',
+          hotmartProductId: '3100292'
+        })
+      ],
+      tags: [
+        { tagId: '1', nome: 'Aluno OGI 2501 - Renovação Turma 8 [2anos]', aplicadaEm: null }
+      ],
+      movimentacoes: [
+        {
+          classId: 'velha',
+          className: 'Turma 8 [2a renov] + REITs | 2601',
+          entrouEm: new Date('2026-01-24T00:00:00Z')
+        }
+      ],
+      turmaAtual: {
+        classId: 'actual',
+        className: 'Turma 8 [renov] + REITs + [2 anos] | 2501',
+        entrouEm: new Date('2025-01-17T00:00:00Z')
+      }
+    })
+  )
+
+  assert.equal(t.ciclos.length, 1)
+  assert.equal(t.ciclos[0].anos, 2)
+  assert.deepEqual(t.ciclos[0].coortes.map((c) => c.periodo), ['2501', '2601'])
+  // a coorte do ano 2 apanha a turma do historico, mas o ciclo fica com a actual
+  assert.equal(t.ciclos[0].turma?.classId, 'actual')
+  assert.equal(t.ciclos[0].tagEsperada, 'Aluno OGI 2501 - Renovação Turma 8 [2anos]')
+  assert.ok(!t.ciclos[0].alertas.includes('tag-diferente-da-turma'))
+  assert.equal(t.cadeia.tagIgualTurma, 'ok')
+})
 test('correr duas vezes da exactamente o mesmo resultado', () => {
   const e = entrada({
     vendas: [venda({ approvedDate: new Date('2025-11-30T00:00:00Z'), transaction: 'C' })],
