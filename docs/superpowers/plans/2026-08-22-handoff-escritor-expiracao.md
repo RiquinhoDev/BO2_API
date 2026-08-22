@@ -13,6 +13,9 @@ Ligar depende de respostas da chefia que ainda não chegaram.
 - **Não** ligar o `RenewalPipeline`.
 - **Não** correr nada que escreva na ActiveCampaign.
 - A verificação faz-se em **dry-run**, que não escreve nada.
+- **Commit sim, push não.** O trabalho fica commitado no `main` local e **não
+  é enviado para o remoto** — um push dispara deploy. Quem faz o push é o
+  João, depois de validar a saída do dry-run e de ter a resposta da chefia.
 
 Quem implementa não decide ligar. Isso é do João, depois da chefia responder.
 
@@ -269,10 +272,11 @@ O que se espera ver, com base no que foi medido a 22/08:
 
 Entregar esta saída no relatório. É ela que o João leva à validação.
 
-## Commit
+## Commit (sem push)
 
-No `main`, nos dois repos. **Não criar branches** e **nunca tocar nos branches
-`remake`**. Mensagem em português. Terminar com:
+No `main` local. **Não criar branches** e **nunca tocar nos branches
+`remake`**. Mensagem em português. **Não fazer `git push`** — deixa os commits locais.
+Terminar a mensagem com:
 
 ```
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
