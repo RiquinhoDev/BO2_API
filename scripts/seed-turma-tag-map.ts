@@ -78,7 +78,15 @@ async function main() {
         if (!MENCIONA_PERCURSO.test(tag.nome)) continue
         const idxTag = indiceDePeriodo(periodoDaTag(tag.nome))
         if (idxTag === null) continue
-        if (idxTurma !== null && Math.abs(idxTag - idxTurma) > 1) continue
+        // Mesma janela assimétrica do gerador: a tag pode estar até 4
+        // meses à FRENTE da turma (quem compra espera que ela abra) e 2
+        // ATRÁS (entrou numa coorte já aberta). Com o antigo ±1 a tag da
+        // Turma 19 era descartada — a turma chamava-se | 2606 e a tag
+        // 2610 — e a turma ficava de fora do mapa.
+        if (idxTurma !== null) {
+          const delta = idxTag - idxTurma
+          if (delta > 4 || delta < -2) continue
+        }
 
         const actualContagem = registo.contagem.get(tag.nome) ?? { id: tag.tagId, n: 0 }
         actualContagem.n += 1
