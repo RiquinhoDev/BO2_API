@@ -221,3 +221,26 @@ da data da compra, não da turma. Afecta só a comparação do painel.
   com os meses sem coorte. Com coortes mensais a partir de 2027 essa folga
   deixa de ser necessária e passa a poder roubar uma tag à coorte vizinha.
   Deveria depender de existir coorte no mês da compra, em vez de ser fixa.
+
+### Reembolsos — decidido a 2026-08-22
+
+Divisão de trabalho, confirmada com a chefia:
+
+- **A AC trata das tags de nome fixo.** Tira a `Aluno OGI - Renovação` e
+  acrescenta a de compra reembolsada. Não precisa de nós.
+- **O Backoffice tira a tag da turma** — a `Aluno OGI 2608 - Renovação` e
+  equivalentes — porque é criada por coorte e a AC não sabe o nome dela.
+
+Âmbito, que a instrução original não cobria e os dados obrigaram a fixar:
+
+- **Só reembolsos do OGI.** O Clareza e o OTF ficam inteiramente de fora
+  desta automação. A `vaniagandra@gmail.com` foi reembolsada no Clareza e tem
+  quatro tags OGI válidas; uma regra cega tirava-lhas todas.
+- **Só a tag da própria coorte.** O nome da tag de reembolso identifica o
+  produto e a coorte: `[L2509] [OGI15] Compra reembolsada`. O
+  `exec@henriqueblanc.com` devolveu a Turma 15 e comprou a 16 — só a primeira
+  tag sai.
+
+O sinal não são duas tags: são 28 na AC, uma por coorte, mais as duas novas de
+renovação (`712` genérica e `713` antigos alunos), ambas ainda com zero
+contactos. Atraso acumulado: **8 alunos activos** com tag de turma por remover.
