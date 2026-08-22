@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { construirLinhasRelatorioDataCompra, gerarCsvRelatorioDataCompra } from '../../../../scripts/relatorio-data-compra'
+import {
+  construirLinhasRelatorioDataCompra,
+  filtrarEntradasAcAtivas,
+  gerarCsvRelatorioDataCompra
+} from '../../../../scripts/relatorio-data-compra'
 
 const venda = (dados: Partial<{
   hotmartProductId: string | null
@@ -47,6 +51,18 @@ test('lista a ultima cobrança, preserva a primeira compra e exclui AC alinhada 
         email: 'alinhada@example.com',
         purchaseDate: new Date('2026-06-10T23:59:59.000Z'),
         firstPurchaseDate: null
+      },
+      {
+        userId: 'sem-334',
+        email: 'bruno@example.com',
+        purchaseDate: null,
+        firstPurchaseDate: null
+      },
+      {
+        userId: 'sem-data',
+        email: 'sem-data@example.com',
+        purchaseDate: new Date('2025-01-01T00:00:00.000Z'),
+        firstPurchaseDate: null
       }
     ],
     [
@@ -62,14 +78,23 @@ test('lista a ultima cobrança, preserva a primeira compra e exclui AC alinhada 
       },
       {
         userId: 'normal',
-        sales: [
-          venda({ approvedDate: new Date('2024-03-01T00:00:00.000Z'), transaction: 'N1' }),
-          venda({ approvedDate: new Date('2025-03-01T00:00:00.000Z'), transaction: 'N2' })
-        ]
+        sales: [venda({ approvedDate: new Date('2024-03-01T00:00:00.000Z'), transaction: 'N1' })]
+      },
+      {
+        userId: 'normal',
+        sales: [venda({ approvedDate: new Date('2025-03-01T00:00:00.000Z'), transaction: 'N2' })]
       },
       {
         userId: 'alinhada',
         sales: [venda({ approvedDate: new Date('2026-06-10T08:00:00.000Z'), transaction: 'A1' })]
+      },
+      {
+        userId: 'sem-334',
+        sales: [venda({ approvedDate: new Date('2026-07-20T08:00:00.000Z'), transaction: 'S1' })]
+      },
+      {
+        userId: 'sem-data',
+        sales: [venda({ transaction: 'SEM-DATA' })]
       }
     ]
   )
@@ -92,8 +117,26 @@ test('lista a ultima cobrança, preserva a primeira compra e exclui AC alinhada 
       carimbo_2026_08_07: 'não',
       ac_337_primeira_compra: '',
       hotmart_primeira_compra_real: '2024-03-01T00:00:00.000Z'
+    },
+    {
+      email: 'bruno@example.com',
+      ac_334_data_compra: '',
+      hotmart_ultima_cobranca: '2026-07-20T08:00:00.000Z',
+      hotmart_primeira_cobranca_ultimo_ciclo: '2026-07-20T08:00:00.000Z',
+      carimbo_2026_08_07: 'não',
+      ac_337_primeira_compra: '',
+      hotmart_primeira_compra_real: '2026-07-20T08:00:00.000Z'
     }
   ])
+})
+
+test('filtra o espelho acumulativo para apenas os userIds OGI activos', () => {
+  const entradas = [
+    { userId: 'activo', email: 'activo@example.com', purchaseDate: null, firstPurchaseDate: null },
+    { userId: 'inactivo', email: 'inactivo@example.com', purchaseDate: null, firstPurchaseDate: null }
+  ]
+
+  assert.deepEqual(filtrarEntradasAcAtivas(entradas, ['activo']), [entradas[0]])
 })
 
 test('gera CSV com cabeçalho ordenado e escapa vírgulas e aspas', () => {

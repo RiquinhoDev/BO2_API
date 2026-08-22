@@ -1,8 +1,10 @@
-import { writeFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname, resolve } from 'node:path'
 import mongoose from 'mongoose'
 import ACRenewalData from '../src/models/ACRenewalData'
 import HotmartSaleHistory from '../src/models/HotmartSaleHistory'
+import Product from '../src/models/product/Product'
+import UserProduct from '../src/models/UserProduct'
 import { agruparCiclos } from '../src/services/renewal/renewalCycles'
 import type { VendaEntrada } from '../src/services/renewal/renewalTimeline.types'
 
@@ -41,9 +43,11 @@ const COLUNAS_CSV: Array<keyof LinhaRelatorioDataCompra> = [
   'hotmart_primeira_compra_real'
 ]
 
-type ModeloLeitura = { find: (...args: any[]) => any }
+type ModeloLeitura = { find: (...args: any[]) => any; findOne?: (...args: any[]) => any }
 const ACRenewalDataLeitura = ACRenewalData as unknown as ModeloLeitura
 const HotmartSaleHistoryLeitura = HotmartSaleHistory as unknown as ModeloLeitura
+const ProductLeitura = Product as unknown as ModeloLeitura
+const UserProductLeitura = UserProduct as unknown as ModeloLeitura
 
 function mesmoDiaUtc(a: Date, b: Date): boolean {
   return a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10)
@@ -55,6 +59,39 @@ function paraIso(data: Date | null | undefined): string {
 
 function eCarimbo(data: Date | null): boolean {
   return data !== null && data.toISOString().slice(0, 10) === DATA_CARIMBO
+}
+
+/** Restringe o espelho acumulativo da AC aos alunos OGI actualmente activos. */
+export function filtrarEntradasAcAtivas(
+  entradasAc: EntradaAcRelatorioDataCompra[],
+  userIdsAtivos: Iterable<unknown>
+): EntradaAcRelatorioDataCompra[] {
+  const ids = new Set([...userIdsAtivos].map(String))
+  return entradasAc.filter((entrada) => ids.has(String(entrada.userId)))
+}
+
+async function resolverUserIdsOgiAtivos(): Promise<unknown[]> {
+  const produtoOgi = await ProductLeitura.findOne!({
+    platform: 'hotmart',
+    isActive: true,
+    $or: [{ code: /^OGI/i }, { courseCode: /^OGI/i }, { name: /Grande Investimento/i }]
+  })
+    .select('_id')
+    .lean()
+    .exec() as { _id?: unknown } | null
+
+  if (!produtoOgi?._id) throw new Error('Produto OGI Hotmart activo não encontrado')
+
+  const inscricoes = await UserProductLeitura.find({
+    platform: 'hotmart',
+    productId: produtoOgi._id,
+    status: 'ACTIVE'
+  })
+    .select('userId')
+    .lean()
+    .exec() as Array<{ userId: unknown }>
+
+  return inscricoes.map((inscricao) => inscricao.userId)
 }
 
 /**
@@ -121,18 +158,21 @@ export async function executarRelatorioDataCompra(): Promise<{ caminho: string; 
 
   await mongoose.connect(mongoUri)
   try {
-    const entradasAc = await ACRenewalDataLeitura.find({})
+    const userIdsAtivos = await resolverUserIdsOgiAtivos()
+    const entradasAc = await ACRenewalDataLeitura.find({ userId: { $in: userIdsAtivos } })
       .select('userId email purchaseDate firstPurchaseDate')
       .lean()
       .exec() as EntradaAcRelatorioDataCompra[]
-    const userIds = entradasAc.map((entrada) => entrada.userId)
+    const entradasActivas = filtrarEntradasAcAtivas(entradasAc, userIdsAtivos)
+    const userIds = entradasActivas.map((entrada) => entrada.userId)
     const entradasHotmart = await HotmartSaleHistoryLeitura.find({ userId: { $in: userIds } })
       .select('userId sales')
       .lean()
       .exec() as EntradaHotmartRelatorioDataCompra[]
-    const linhas = construirLinhasRelatorioDataCompra(entradasAc, entradasHotmart)
+    const linhas = construirLinhasRelatorioDataCompra(entradasActivas, entradasHotmart)
     const totalCarimbo = linhas.filter((linha) => linha.carimbo_2026_08_07 === 'sim').length
 
+    await mkdir(dirname(CAMINHO_RELATORIO), { recursive: true })
     await writeFile(CAMINHO_RELATORIO, gerarCsvRelatorioDataCompra(linhas), 'utf8')
 
     return { caminho: CAMINHO_RELATORIO, totalDivergentes: linhas.length, totalCarimbo }
