@@ -233,10 +233,12 @@ function mesmoMes(a: Date, b: Date): boolean {
 export function gerarTimeline(e: EntradaGerador): TimelineGerada {
   const base = agruparCiclos(e.vendas)
 
-  // ── turmas: movimentações + turma actual, sem duplicar classId ──
+  // ── turmas históricas, sem duplicar classId ──
+  // A turma actual é um retrato do presente, não uma movimentação que
+  // possa provar onde o aluno esteve num ciclo anterior.
   const turmas: TurmaEntrada[] = []
   const vistos = new Set<string>()
-  for (const t of [...e.movimentacoes, ...(e.turmaAtual ? [e.turmaAtual] : [])]) {
+  for (const t of e.movimentacoes) {
     const chave = t.classId ?? normalizarNomeTurma(t.className)
     if (vistos.has(chave)) continue
     vistos.add(chave)
@@ -266,43 +268,31 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     }))
   )
 
-  // A chave da turma não pode ser a posição no array: quem chama
-  // decide essa ordem, e o desempate voltaria a depender dela. Vem
-  // da própria turma — primeiro se é a actual, depois quando entrou
-  // (mais recente ganha), e o nome como último critério.
-  const chaveDaAtual = e.turmaAtual
-    ? e.turmaAtual.classId ?? normalizarNomeTurma(e.turmaAtual.className)
-    : null
-
+  // A chave da turma não pode ser a posição no array: quem chama decide
+  // essa ordem. Entre movimentações ganha a entrada mais recente e, por
+  // fim, o nome normalizado torna o resultado determinístico.
   const parTurmas = emparelhar(
     lugares,
     turmas.map((t, i) => {
-      const chave = t.classId ?? normalizarNomeTurma(t.className)
-      const ehAtual = chaveDaAtual !== null && chave === chaveDaAtual
       const entrada = t.entrouEm ? t.entrouEm.getTime() : 0
       return {
         indice: i,
         periodo: parseTurmaName(t.className).periodYYMM,
-        desempate: `${ehAtual ? '0' : '1'}${String(MAX_TEMPO - entrada).padStart(14, '0')}${normalizarNomeTurma(t.className)}`
+        desempate: `${String(MAX_TEMPO - entrada).padStart(14, '0')}${normalizarNomeTurma(t.className)}`
       }
     })
   )
 
   // A turma do ciclo é a que caiu em qualquer uma das suas coortes. Num
-  // ciclo de 2 anos há duas coortes e podem cair duas turmas — e aí a
-  // ACTUAL ganha sempre, mesmo que a do histórico esteja mais perto em
-  // período. É ela que decide a tag esperada e a expiração; comparar
-  // contra uma turma que o aluno já deixou acusa-o de um desvio que não
-  // tem. Medido a 22/08: apanhava 4 alunos, entre eles a gaelle.pires,
-  // que foi movida e devolvida em dois dias e ficou com a turma errada.
+  // ciclo de 2 anos há duas coortes e podem cair duas movimentações;
+  // conserva-se a primeira escolha do emparelhamento. A turma actual
+  // substitui-a abaixo, exclusivamente no último ciclo.
   const turmaDoCiclo = new Map<number, TurmaEntrada>()
   lugares.forEach((lug, iLugar) => {
     const iTurma = parTurmas.get(iLugar)
     if (iTurma === undefined) return
     const candidata = turmas[iTurma]
-    const chave = candidata.classId ?? normalizarNomeTurma(candidata.className)
-    const ehAtual = chaveDaAtual !== null && chave === chaveDaAtual
-    if (!turmaDoCiclo.has(lug.ciclo) || ehAtual) turmaDoCiclo.set(lug.ciclo, candidata)
+    if (!turmaDoCiclo.has(lug.ciclo)) turmaDoCiclo.set(lug.ciclo, candidata)
   })
 
   // A turma actual pertence sempre ao ÚLTIMO ciclo — é onde o aluno está
@@ -321,7 +311,8 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
   // nenhuma. No histórico, só nomes com período são accionáveis;
   // sentinelas antigas como "Nome não disponível" não são turmas
   // para mapear. A turma actual é sempre avaliada.
-  for (const t of turmas) {
+  const turmasParaAvaliar = [...turmas, ...(e.turmaAtual ? [e.turmaAtual] : [])]
+  for (const t of turmasParaAvaliar) {
     const resolucao = resolverTagDaTurma(t.className, e.excepcoesTurmaTag)
     const chave = t.classId ?? normalizarNomeTurma(t.className)
     const ehAtual = chaveAtualParaMapa !== null && chave === chaveAtualParaMapa

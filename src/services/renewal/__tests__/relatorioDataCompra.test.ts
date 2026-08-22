@@ -31,7 +31,7 @@ const venda = (dados: Partial<{
   ...dados
 })
 
-test('lista a ultima cobrança, preserva a primeira compra e exclui AC alinhada no dia UTC', () => {
+test('define divergência pela âncora e mantém a última cobrança como contexto', () => {
   const linhas = construirLinhasRelatorioDataCompra(
     [
       {
@@ -50,6 +50,12 @@ test('lista a ultima cobrança, preserva a primeira compra e exclui AC alinhada 
         userId: 'alinhada',
         email: 'alinhada@example.com',
         purchaseDate: new Date('2026-06-10T23:59:59.000Z'),
+        firstPurchaseDate: null
+      },
+      {
+        userId: 'ultima-cobranca',
+        email: 'ultima@example.com',
+        purchaseDate: new Date('2026-10-07T23:59:59.000Z'),
         firstPurchaseDate: null
       },
       {
@@ -89,6 +95,14 @@ test('lista a ultima cobrança, preserva a primeira compra e exclui AC alinhada 
         sales: [venda({ approvedDate: new Date('2026-06-10T08:00:00.000Z'), transaction: 'A1' })]
       },
       {
+        userId: 'ultima-cobranca',
+        sales: [
+          venda({ approvedDate: new Date('2026-08-07T09:00:00.000Z'), transaction: 'U1', offerCode: 'parcelas', paymentMode: 'MULTIPLE_PAYMENTS' }),
+          venda({ approvedDate: new Date('2026-09-07T09:00:00.000Z'), transaction: 'U2', offerCode: 'parcelas', paymentMode: 'MULTIPLE_PAYMENTS' }),
+          venda({ approvedDate: new Date('2026-10-07T09:00:00.000Z'), transaction: 'U3', offerCode: 'parcelas', paymentMode: 'MULTIPLE_PAYMENTS' })
+        ]
+      },
+      {
         userId: 'sem-334',
         sales: [venda({ approvedDate: new Date('2026-07-20T08:00:00.000Z'), transaction: 'S1' })]
       },
@@ -100,15 +114,6 @@ test('lista a ultima cobrança, preserva a primeira compra e exclui AC alinhada 
   )
 
   assert.deepEqual(linhas, [
-    {
-      email: 'zeta,"especial"@example.com',
-      ac_334_data_compra: '2026-08-07T12:00:00.000Z',
-      hotmart_ultima_cobranca: '2026-10-07T09:00:00.000Z',
-      hotmart_primeira_cobranca_ultimo_ciclo: '2026-08-07T09:00:00.000Z',
-      carimbo_2026_08_07: 'sim',
-      ac_337_primeira_compra: '2025-01-03T09:00:00.000Z',
-      hotmart_primeira_compra_real: '2024-01-03T09:00:00.000Z'
-    },
     {
       email: 'ana@example.com',
       ac_334_data_compra: '2025-02-28T00:00:00.000Z',
@@ -126,6 +131,15 @@ test('lista a ultima cobrança, preserva a primeira compra e exclui AC alinhada 
       carimbo_2026_08_07: 'não',
       ac_337_primeira_compra: '',
       hotmart_primeira_compra_real: '2026-07-20T08:00:00.000Z'
+    },
+    {
+      email: 'ultima@example.com',
+      ac_334_data_compra: '2026-10-07T23:59:59.000Z',
+      hotmart_ultima_cobranca: '2026-10-07T09:00:00.000Z',
+      hotmart_primeira_cobranca_ultimo_ciclo: '2026-08-07T09:00:00.000Z',
+      carimbo_2026_08_07: 'não',
+      ac_337_primeira_compra: '',
+      hotmart_primeira_compra_real: '2026-08-07T09:00:00.000Z'
     }
   ])
 })

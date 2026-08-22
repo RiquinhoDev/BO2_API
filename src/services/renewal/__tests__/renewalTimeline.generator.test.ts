@@ -159,7 +159,7 @@ test('ciclo de 2 anos prefere a tag explicita 2anos quando o periodo e igual', (
   assert.equal(t.tagsDuplicadas[0].coortePeriodo, '2506')
 })
 
-test('ciclo sem mudanca de turma: 3 compras, 1 turma so', () => {
+test('três compras e só a turma actual deixam os ciclos anteriores sem registo', () => {
   const t = gerarTimeline(
     entrada({
       vendas: [
@@ -174,10 +174,12 @@ test('ciclo sem mudanca de turma: 3 compras, 1 turma so', () => {
     })
   )
   assert.equal(t.ciclos.length, 3)
-  assert.ok(t.ciclos[1].alertas.includes('sem-mudanca-turma'))
+  assert.ok(t.ciclos[0].alertas.includes('sem-registo-turma'))
+  assert.ok(t.ciclos[1].alertas.includes('sem-registo-turma'))
   assert.ok(t.ciclos[1].alertas.includes('sem-tag'))
   assert.equal(t.ciclos[2].turma?.classId, 'c1')
-  assert.equal(t.cadeia.ciclosSemMudancaTurma, 1)
+  assert.equal(t.cadeia.ciclosSemRegistoTurma, 2)
+  assert.equal(t.cadeia.ciclosSemMudancaTurma, 0)
 })
 
 test('tag tardia: cdate a 14 meses da compra (carimbo de 2026-08-07)', () => {
@@ -552,8 +554,9 @@ test('ciclos sem turma aparecem na contagem da comparacao', () => {
       turmaAtual: { classId: 'c1', className: 'Turma 7 | 2311', entrouEm: null }
     })
   )
-  assert.deepEqual(t.cadeia.comparacoes.ciclosComTurma, { esperado: 3, encontrado: 2 })
-  assert.equal(t.cadeia.ciclosSemMudancaTurma, 1)
+  assert.deepEqual(t.cadeia.comparacoes.ciclosComTurma, { esperado: 3, encontrado: 1 })
+  assert.equal(t.cadeia.ciclosSemRegistoTurma, 2)
+  assert.equal(t.cadeia.ciclosSemMudancaTurma, 0)
 })
 
 test('sem turma conhecida antes, o alerta e de falta de registo', () => {
@@ -582,7 +585,7 @@ test('sem turma conhecida antes, o alerta e de falta de registo', () => {
   assert.equal(t.cadeia.registoDeTurmas, 'sem-dados')
 })
 
-test('turma actual distante fecha o ultimo ciclo sem inventar falta de mudanca', () => {
+test('uma única turma actual ocupa só o último ciclo', () => {
   const t = gerarTimeline(
     entrada({
       vendas: [
@@ -595,12 +598,13 @@ test('turma actual distante fecha o ultimo ciclo sem inventar falta de mudanca',
   )
 
   assert.ok(t.ciclos[0].alertas.includes('sem-tag'))
-  assert.ok(!t.ciclos[0].alertas.includes('sem-registo-turma'))
+  assert.equal(t.ciclos[0].turma, null)
+  assert.ok(t.ciclos[0].alertas.includes('sem-registo-turma'))
   assert.equal(t.ciclos[1].turma?.classId, 'c1')
   assert.ok(!t.ciclos[1].alertas.includes('sem-mudanca-turma'))
   assert.equal(t.cadeia.ciclosSemMudancaTurma, 0)
-  assert.equal(t.cadeia.ciclosSemRegistoTurma, 0)
-  assert.equal(t.cadeia.registoDeTurmas, 'ok')
+  assert.equal(t.cadeia.ciclosSemRegistoTurma, 1)
+  assert.equal(t.cadeia.registoDeTurmas, 'sem-dados')
 })
 
 test('todos os ciclos com turma dao veredicto correto', () => {

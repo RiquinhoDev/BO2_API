@@ -120,7 +120,7 @@ export function construirLinhasRelatorioDataCompra(
     const ultimaCobranca = ultimoCiclo?.compras.at(-1)?.data
 
     if (!primeiroCiclo || !primeiraCompraUltimoCiclo || !ultimaCobranca) continue
-    if (ac.purchaseDate && mesmoDiaUtc(ac.purchaseDate, ultimaCobranca)) continue
+    if (ac.purchaseDate && mesmoDiaUtc(ac.purchaseDate, primeiraCompraUltimoCiclo)) continue
 
     linhas.push({
       email: ac.email,

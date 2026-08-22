@@ -47,6 +47,7 @@ export async function executarSeed() {
     const tagsMaisRecentes: any[] = []
 
     for (const tag of doc.tags ?? []) {
+      if (tag.tipo !== 'canonica' && tag.tipo !== 'membresia') continue
       if (!MENCIONA_PERCURSO.test(tag.nome)) continue
       const indiceTag = indiceDePeriodo(periodoDaTag(tag.nome))
       if (indiceTag === null) continue
@@ -67,28 +68,24 @@ export async function executarSeed() {
 
   for (const user of users) {
     const email = String(user.email ?? '').toLowerCase().trim()
-    const turmas = (user.hotmart?.enrolledClasses ?? [])
-      .filter((turma: any) => turma?.className)
-    const turmasVistas = new Set<string>()
+    const turmasActivas = (user.hotmart?.enrolledClasses ?? [])
+      .filter((turma: any) => turma?.className && turma?.isActive !== false)
+    const turmaActual = turmasActivas.at(-1)
+    if (!turmaActual) continue
 
     // O seed observa a turma actual; mapas históricos já persistidos não
     // podem ser inferidos a partir das tags actuais do aluno.
-    for (const turma of turmas) {
-      const chave = normalizarNomeTurma(turma.className)
-      if (turmasVistas.has(chave)) continue
-      turmasVistas.add(chave)
+    const chave = normalizarNomeTurma(turmaActual.className)
+    if (!porTurma.has(chave)) {
+      porTurma.set(chave, { className: turmaActual.className, contagem: new Map(), alunos: 0 })
+    }
+    const registo = porTurma.get(chave)!
+    registo.alunos += 1
 
-      if (!porTurma.has(chave)) {
-        porTurma.set(chave, { className: turma.className, contagem: new Map(), alunos: 0 })
-      }
-      const registo = porTurma.get(chave)!
-      registo.alunos += 1
-
-      for (const tag of tagsPorEmail.get(email) ?? []) {
-        const actualContagem = registo.contagem.get(tag.nome) ?? { id: tag.tagId, n: 0 }
-        actualContagem.n += 1
-        registo.contagem.set(tag.nome, actualContagem)
-      }
+    for (const tag of tagsPorEmail.get(email) ?? []) {
+      const actualContagem = registo.contagem.get(tag.nome) ?? { id: tag.tagId, n: 0 }
+      actualContagem.n += 1
+      registo.contagem.set(tag.nome, actualContagem)
     }
   }
 
