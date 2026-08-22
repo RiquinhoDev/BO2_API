@@ -114,6 +114,7 @@ test('dataBaseDoAluno devolve a compra âncora do último ciclo', () => {
 test('encurtaria só bloqueia uma expiração calculada anterior à existente na AC', () => {
   assert.equal(encurtaria(new Date('2026-05-31T23:59:59.999Z'), new Date('2027-05-31T23:59:59.999Z')), true)
   assert.equal(encurtaria(new Date('2026-05-31T23:59:59.999Z'), new Date('2026-05-31T23:59:59.999Z')), false)
+  assert.equal(encurtaria(new Date('2027-05-31T23:59:59.999Z'), new Date('2026-05-31T23:59:59.999Z')), false)
   assert.equal(encurtaria(new Date('2026-05-31T23:59:59.999Z'), null), false)
 })
 
@@ -149,6 +150,38 @@ test('syncAcExpirationDates em dry-run por defeito só reporta a escrita que far
   assert.equal(fixtures.escritas.length, 0)
 })
 
+test('syncAcExpirationDates reporta encurtaria quando há sales válidas mas falta latestApprovedDate', async (t) => {
+  const compra = new Date('2025-05-15T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2027-05-31T23:59:59.999Z') })],
+    [alunoHotmart(compra, { latestApprovedDate: null })]
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates()
+
+  assert.equal(report.skippedWouldShorten, 1)
+  assert.equal(report.divergentes.length, 1)
+  assert.equal(report.divergentes[0].motivo, 'encurtaria')
+  assert.equal(fixtures.escritas.length, 0)
+})
+
+test('syncAcExpirationDates só conta falta de latestApprovedDate depois de avaliar divergência segura', async (t) => {
+  const compra = new Date('2025-05-15T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2025-05-31T23:59:59.999Z') })],
+    [alunoHotmart(compra, { latestApprovedDate: null })]
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates()
+
+  assert.equal(report.divergentes.length, 1)
+  assert.equal(report.divergentes[0].motivo, 'diferente')
+  assert.equal(report.skippedNoHotmartData, 1)
+  assert.equal(fixtures.escritas.length, 0)
+})
+
 test('syncAcExpirationDates só escreve quando dryRun é explicitamente falso', async (t) => {
   const compraAntiga = new Date('2025-05-15T00:00:00Z')
   const compraNova = new Date('2026-05-15T00:00:00Z')
@@ -162,5 +195,5 @@ test('syncAcExpirationDates só escreve quando dryRun é explicitamente falso', 
 
   assert.equal(report.wouldWrite, 0)
   assert.equal(report.written, 1)
-  assert.equal(fixtures.escritas.length, 1)
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-05-31']])
 })

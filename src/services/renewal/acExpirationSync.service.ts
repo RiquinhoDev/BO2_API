@@ -131,7 +131,7 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
 
     const hm = hotmartByUserId.get(String(ac.userId))
     const dataBase = dataBaseDoAluno(hm?.sales ?? [])
-    if (!dataBase || !hm?.latestApprovedDate) {
+    if (!dataBase) {
       report.skippedNoHotmartData += 1
       continue
     }
@@ -154,6 +154,11 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
 
     if (encurta) {
       report.skippedWouldShorten += 1
+      continue
+    }
+
+    if (!hm?.latestApprovedDate) {
+      report.skippedNoHotmartData += 1
       continue
     }
 

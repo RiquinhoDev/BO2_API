@@ -26,6 +26,16 @@ npx tsx --test "src/services/renewal/__tests__/*.test.ts"
 
 Resultado: 80 passaram, 1 falhou. Com `purchaseDate` e `latestApprovedDate` alinhados, `syncAcExpirationDates` devolveu `skippedWouldShorten: 0` em vez de `1`; o `continue` do gatilho antigo era executado antes da guarda de encurtamento.
 
+### RED — segunda correção da revisão
+
+Comando executado depois de acrescentar os cenários com `sales` válidas e `latestApprovedDate: null`:
+
+```text
+npx tsx --test "src/services/renewal/__tests__/*.test.ts"
+```
+
+Resultado: 81 passaram, 2 falharam. A condição conjunta `!dataBase || !latestApprovedDate` terminava antes de calcular a expiração; por isso não registava `encurtaria` nem a divergência segura quando só faltava `latestApprovedDate`.
+
 ## Decisões
 
 - A expiração é calculada a partir da compra âncora do último ciclo válido de vendas, não da última cobrança de uma prestação.
@@ -34,6 +44,7 @@ Resultado: 80 passaram, 1 falhou. Com `purchaseDate` e `latestApprovedDate` alin
 - Uma data mais curta é registada como divergência `encurtaria` e nunca é escrita; essa razão prevalece sobre `diferente`.
 - A guarda de encurtamento é avaliada imediatamente depois da divergência, antes de `contactId` e do gatilho de compra, para contabilizar todos os casos.
 - O relatório lista divergências calculadas mesmo quando o gatilho de escrita não dispara.
+- A falta de `latestApprovedDate` é avaliada apenas depois das vendas válidas, das guardas de reembolso e da avaliação da expiração; nunca autoriza escrita sem o gatilho.
 
 ## GREEN
 
@@ -48,6 +59,10 @@ Resultado: 78 passaram, 0 falharam (duração: 675 ms). O runner emite avisos pr
 ### GREEN — correção da revisão
 
 Depois de mover a guarda antes de `contactId` e do gatilho de compra, o mesmo comando terminou com 81 testes passados e 0 falhados (duração: 690 ms). Os três testes operacionais isolam as leituras da BD e a escrita AC: cobrem `encurtaria` com gatilho alinhado, o dry-run por defeito (`wouldWrite` sem chamada externa) e a escrita apenas com `{ dryRun: false }`.
+
+### GREEN — segunda correção da revisão
+
+Depois de separar as ausências de `dataBase` e de `latestApprovedDate`, a suite completa terminou com 83 testes passados e 0 falhados (duração: 747 ms). Os novos cenários confirmam que `sales` válidas ainda produzem divergência/guarda de encurtamento sem `latestApprovedDate`, e que, quando não encurta, a ausência só então conta em `skippedNoHotmartData`, sem escrita.
 
 ## Ficheiros
 
