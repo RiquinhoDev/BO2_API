@@ -32,6 +32,7 @@ import renewalRoutes from './renewal.routes'
 import renewalAcRoutes from './renewalAc.routes'
 import hotmartSalesHistoryRoutes from './hotmartSalesHistory.routes'
 import acRenewalDataRoutes from './acRenewalData.routes'
+import renewalTimelineRoutes from './renewalTimeline.routes'
 import discordRenewalRoutes from './discordRenewal.routes'
 import productSalesPerformanceRoutes from './productSalesPerformance.routes'
 
@@ -74,6 +75,7 @@ router.use("/renewal", renewalRoutes)            // 🔁 Ofertas de renovação 
 router.use("/renewal-ac", renewalAcRoutes)       // 🔁 Sync Renovação OGI → AC (Fase B, desligado por defeito)
 router.use("/renewal-hotmart-sales", hotmartSalesHistoryRoutes) // 🛒 Sync Hotmart: histórico de vendas por aluno OGI ativo
 router.use("/renewal-ac-data", acRenewalDataRoutes) // 📇 AC (só leitura): data compra/1ª compra/expiração por aluno OGI ativo
+router.use("/renewal-timeline", renewalTimelineRoutes) // 🧬 Timeline derivada, só na nossa BD
 router.use("/discord-renewal", discordRenewalRoutes) // 🎮 Cargos R.{Mês} + mensagens do bot (desligado por defeito)
 router.use("/products-sales-performance", productSalesPerformanceRoutes) // 💰 Desempenho de vendas por produto (OGI + Clareza)
 

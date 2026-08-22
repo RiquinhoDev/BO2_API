@@ -29,7 +29,9 @@
 import CronJobConfig from '../../models/SyncModels/CronJobConfig'
 import { syncActiveStudentSalesHistory, SalesHistorySyncReport } from './hotmartSalesHistory.service'
 import { syncActiveStudentAcRenewalData, AcRenewalDataSyncReport } from './acRenewalDataSync.service'
+import { syncAcStudentTags, AcStudentTagsSyncReport } from './acStudentTagsSync.service'
 import { syncAcExpirationDates, AcExpirationSyncReport } from './acExpirationSync.service'
+import { gerarTimelinesEmLote, TimelineSyncReport } from './renewalTimeline.service'
 import { runDiscordRolesSyncJob, DiscordCronReport } from './discordRolesSync.service'
 
 const AC_EXPIRATION_SYNC_JOB_NAME = 'AcExpirationSync'
@@ -45,7 +47,9 @@ export interface RenewalPipelineStepResult<T> {
 export interface RenewalPipelineReport {
   hotmartSales: RenewalPipelineStepResult<SalesHistorySyncReport>
   acRenewalData: RenewalPipelineStepResult<AcRenewalDataSyncReport>
+  acStudentTags: RenewalPipelineStepResult<AcStudentTagsSyncReport>
   acExpiration: RenewalPipelineStepResult<AcExpirationSyncReport>
+  timelines: RenewalPipelineStepResult<TimelineSyncReport>
   discordRoles: RenewalPipelineStepResult<DiscordCronReport>
   success: boolean
 }
@@ -98,15 +102,26 @@ async function runGatedStep<T>(label: string, jobName: string, fn: () => Promise
 export async function runRenewalPipeline(): Promise<RenewalPipelineReport> {
   const hotmartSales = await runStep('Sync Hotmart (vendas)', () => syncActiveStudentSalesHistory())
   const acRenewalData = await runStep('Sync AC (leitura)', () => syncActiveStudentAcRenewalData())
+  const acStudentTags = await runStep('Sync AC (tags)', () => syncAcStudentTags())
   const acExpiration = await runGatedStep('AC Expiração (escrita)', AC_EXPIRATION_SYNC_JOB_NAME, () => syncAcExpirationDates())
   const discordRoles = await runStep('Discord Roles', () => runDiscordRolesSyncJob())
+  // Último de propósito: só faz sentido com os três espelhos frescos.
+  const timelines = await runStep('Timelines de renovação', () => gerarTimelinesEmLote())
 
   return {
     hotmartSales,
     acRenewalData,
+    acStudentTags,
     acExpiration,
+    timelines,
     discordRoles,
-    success: hotmartSales.success && acRenewalData.success && acExpiration.success && discordRoles.success
+    success:
+      hotmartSales.success &&
+      acRenewalData.success &&
+      acStudentTags.success &&
+      acExpiration.success &&
+      timelines.success &&
+      discordRoles.success
   }
 }
 
