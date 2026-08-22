@@ -152,6 +152,11 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
       })
     }
 
+    if (encurta) {
+      report.skippedWouldShorten += 1
+      continue
+    }
+
     if (!ac.contactId) {
       report.skippedNoContact += 1
       continue
@@ -161,11 +166,6 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
 
     if (ac.purchaseDate && sameDay(ac.purchaseDate, hm.latestApprovedDate)) {
       report.alreadyInSync += 1
-      continue
-    }
-
-    if (encurta) {
-      report.skippedWouldShorten += 1
       continue
     }
 
