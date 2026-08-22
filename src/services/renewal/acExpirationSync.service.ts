@@ -130,14 +130,14 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
     }
 
     const hm = hotmartByUserId.get(String(ac.userId))
-    const dataBase = dataBaseDoAluno(hm?.sales ?? [])
-    if (!dataBase) {
-      report.skippedNoHotmartData += 1
+    if (hm?.latestTransactionStatus && REFUND_TRANSACTION_STATUSES.has(hm.latestTransactionStatus)) {
+      report.skippedRefunded += 1
       continue
     }
 
-    if (hm.latestTransactionStatus && REFUND_TRANSACTION_STATUSES.has(hm.latestTransactionStatus)) {
-      report.skippedRefunded += 1
+    const dataBase = dataBaseDoAluno(hm?.sales ?? [])
+    if (!dataBase) {
+      report.skippedNoHotmartData += 1
       continue
     }
 

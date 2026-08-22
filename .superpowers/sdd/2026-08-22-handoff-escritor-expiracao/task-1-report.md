@@ -36,6 +36,16 @@ npx tsx --test "src/services/renewal/__tests__/*.test.ts"
 
 Resultado: 81 passaram, 2 falharam. A condição conjunta `!dataBase || !latestApprovedDate` terminava antes de calcular a expiração; por isso não registava `encurtaria` nem a divergência segura quando só faltava `latestApprovedDate`.
 
+### RED — terceira correção da revisão
+
+Comando executado depois de acrescentar o cenário de venda exclusivamente reembolsada:
+
+```text
+npx tsx --test "src/services/renewal/__tests__/*.test.ts"
+```
+
+Resultado: 83 passaram, 1 falhou. A validação de `dataBaseDoAluno` precedia `latestTransactionStatus`, pelo que uma venda `REFUNDED` era contada como `skippedNoHotmartData` em vez de `skippedRefunded`.
+
 ## Decisões
 
 - A expiração é calculada a partir da compra âncora do último ciclo válido de vendas, não da última cobrança de uma prestação.
@@ -45,6 +55,7 @@ Resultado: 81 passaram, 2 falharam. A condição conjunta `!dataBase || !latestA
 - A guarda de encurtamento é avaliada imediatamente depois da divergência, antes de `contactId` e do gatilho de compra, para contabilizar todos os casos.
 - O relatório lista divergências calculadas mesmo quando o gatilho de escrita não dispara.
 - A falta de `latestApprovedDate` é avaliada apenas depois das vendas válidas, das guardas de reembolso e da avaliação da expiração; nunca autoriza escrita sem o gatilho.
+- O estado Hotmart reembolsado/chargeback é verificado antes de formar ciclos, para que vendas exclusivamente reembolsadas sejam classificadas como reembolso.
 
 ## GREEN
 
@@ -63,6 +74,10 @@ Depois de mover a guarda antes de `contactId` e do gatilho de compra, o mesmo co
 ### GREEN — segunda correção da revisão
 
 Depois de separar as ausências de `dataBase` e de `latestApprovedDate`, a suite completa terminou com 83 testes passados e 0 falhados (duração: 747 ms). Os novos cenários confirmam que `sales` válidas ainda produzem divergência/guarda de encurtamento sem `latestApprovedDate`, e que, quando não encurta, a ausência só então conta em `skippedNoHotmartData`, sem escrita.
+
+### GREEN — terceira correção da revisão
+
+Depois de antecipar a guarda de `latestTransactionStatus`, a suite completa terminou com 84 testes passados e 0 falhados (duração: 673 ms). O cenário novo confirma que uma venda exclusivamente `REFUNDED` conta em `skippedRefunded`, não cria divergência nem tentativa de escrita, e não incrementa `skippedNoHotmartData`.
 
 ## Ficheiros
 

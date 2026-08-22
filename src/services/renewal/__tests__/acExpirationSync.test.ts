@@ -150,6 +150,27 @@ test('syncAcExpirationDates em dry-run por defeito só reporta a escrita que far
   assert.equal(fixtures.escritas.length, 0)
 })
 
+test('syncAcExpirationDates trata vendas apenas reembolsadas como reembolso Hotmart', async (t) => {
+  const compra = new Date('2025-05-15T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc()],
+    [
+      alunoHotmart(compra, {
+        sales: [venda({ approvedDate: compra, transactionStatus: 'REFUNDED' })],
+        latestTransactionStatus: 'REFUNDED'
+      })
+    ]
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates()
+
+  assert.equal(report.skippedRefunded, 1)
+  assert.equal(report.skippedNoHotmartData, 0)
+  assert.equal(report.divergentes.length, 0)
+  assert.equal(fixtures.escritas.length, 0)
+})
+
 test('syncAcExpirationDates reporta encurtaria quando há sales válidas mas falta latestApprovedDate', async (t) => {
   const compra = new Date('2025-05-15T00:00:00Z')
   const fixtures = instalarFixturesSync(
