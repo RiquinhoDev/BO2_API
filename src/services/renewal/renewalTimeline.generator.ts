@@ -452,14 +452,19 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
 function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
   const ultimo = ciclos[ciclos.length - 1] ?? null
 
-  // a última venda é a última COBRANÇA, não a compra âncora do ciclo:
-  // num plano de prestações a AC guarda a data da última, e comparar
-  // com a âncora dava divergente em todos eles.
-  const ultimaVendaDoCiclo = ultimo?.compras[ultimo.compras.length - 1]?.data ?? null
+  // A AC guarda a data da COMPRA, que é a âncora do ciclo — a primeira
+  // cobrança. Medido a 22/08/2026: em 47 alunos o campo 334 bate com a
+  // âncora e em ZERO bate com a última cobrança. Comparar com a última
+  // marcava como erradas 47 datas que estavam certas.
+  const compraDoCiclo = ultimo?.compras[0]?.data ?? null
+
+  // Para a frescura das tags é outra coisa: interessa a cobrança mais
+  // recente, porque é essa que pode ser posterior à última sync.
+  const ultimaCobranca = ultimo?.compras[ultimo.compras.length - 1]?.data ?? null
 
   let acCompraIgualUltimaVenda: Veredicto = 'sem-dados'
-  if (e.acDataCompra && ultimaVendaDoCiclo) {
-    acCompraIgualUltimaVenda = mesmoDia(e.acDataCompra, ultimaVendaDoCiclo) ? 'ok' : 'divergente'
+  if (e.acDataCompra && compraDoCiclo) {
+    acCompraIgualUltimaVenda = mesmoDia(e.acDataCompra, compraDoCiclo) ? 'ok' : 'divergente'
   }
 
   let expiracaoIgualTurma: Veredicto = 'sem-dados'
@@ -487,9 +492,9 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
   // Uma venda mais recente do que a última sync de tags explica
   // sozinha um desvio — dizê-lo evita acusar quem só está à espera.
   const tagsDesatualizadas = !!(
-    ultimaVendaDoCiclo &&
+    ultimaCobranca &&
     e.fontes.tags &&
-    ultimaVendaDoCiclo.getTime() > e.fontes.tags.getTime()
+    ultimaCobranca.getTime() > e.fontes.tags.getTime()
   )
 
   const semMudanca = ciclos.filter((c) => c.alertas.includes('sem-mudanca-turma')).length
@@ -516,7 +521,7 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
     registoDeTurmas,
     tagsDesatualizadas,
     comparacoes: {
-      acCompra: { esperado: ultimaVendaDoCiclo, encontrado: e.acDataCompra },
+      acCompra: { esperado: compraDoCiclo, encontrado: e.acDataCompra },
       expiracao: { esperado: fimDaTurma, encontrado: e.acExpiracao },
       tag: { esperado: ultimo?.tagEsperada ?? null, encontrado: tagEncontrada },
       ciclosComTurma: {

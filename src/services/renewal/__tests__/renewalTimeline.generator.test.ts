@@ -471,16 +471,25 @@ test('sentinela historica sem periodo nao entra nas turmas por mapear', () => {
   assert.deepEqual(t.turmasPorMapear, [])
 })
 
-test('prestacoes: a AC guarda a data da ultima cobranca, nao da primeira', () => {
+test('prestacoes: a AC guarda a data da COMPRA, nao da ultima cobranca', () => {
+  // Medido a 22/08/2026 nos alunos activos: em 47 o campo 334 bate com a
+  // ancora do ciclo e em ZERO bate com a ultima cobranca. A data de compra
+  // e quando a pessoa comprou, nao quando a ultima prestacao foi cobrada.
   const meses = ['2025-12-04', '2026-01-04', '2026-02-04', '2026-03-04', '2026-04-04']
   const vendas = meses.map((d, i) =>
-    venda({ approvedDate: new Date(`${d}T00:00:00Z`), priceValue: 99, offerCode: 'sub99', transaction: `P${i}` })
+    venda({
+      approvedDate: new Date(`${d}T00:00:00Z`),
+      priceValue: 99,
+      offerCode: 'sub99',
+      transaction: `P${i}`
+    })
   )
+  const comAncora = gerarTimeline(entrada({ vendas, acDataCompra: new Date('2025-12-04T00:00:00Z') }))
   const comUltima = gerarTimeline(entrada({ vendas, acDataCompra: new Date('2026-04-04T00:00:00Z') }))
-  const comPrimeira = gerarTimeline(entrada({ vendas, acDataCompra: new Date('2025-12-04T00:00:00Z') }))
 
-  assert.equal(comUltima.cadeia.acCompraIgualUltimaVenda, 'ok')
-  assert.equal(comPrimeira.cadeia.acCompraIgualUltimaVenda, 'divergente')
+  assert.equal(comAncora.cadeia.acCompraIgualUltimaVenda, 'ok')
+  assert.equal(comUltima.cadeia.acCompraIgualUltimaVenda, 'divergente')
+  assert.equal(comAncora.cadeia.comparacoes.acCompra.esperado?.toISOString(), '2025-12-04T00:00:00.000Z')
 })
 
 test('a cadeia guarda os dois lados de cada comparacao', () => {
