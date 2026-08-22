@@ -305,24 +305,11 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     if (!turmaDoCiclo.has(lug.ciclo) || ehAtual) turmaDoCiclo.set(lug.ciclo, candidata)
   })
 
-  // A turma actual pertence ao ÚLTIMO ciclo — é onde o aluno está agora.
-  // O emparelhamento é um-para-um e por distância, por isso uma turma do
-  // histórico podia ficar-lhe com o lugar por estar mais perto em período.
-  // Aconteceu ao simaoleal94 e à beatriz: estão na Turma 19, e o ciclo
-  // comparava contra a turma de renovação por onde passaram.
+  // A turma actual pertence sempre ao ÚLTIMO ciclo — é onde o aluno está
+  // agora. O período é informação para as comparações, não uma condição
+  // para apagar esse facto.
   if (e.turmaAtual && base.length > 0) {
-    const iUltimo = base.length - 1
-    const idxAtual = indiceDePeriodo(parseTurmaName(e.turmaAtual.className).periodYYMM)
-    const cabeNoUltimo =
-      idxAtual !== null &&
-      lugares.some((l) => {
-        if (l.ciclo !== iUltimo) return false
-        const idxLugar = indiceDePeriodo(l.periodo)
-        if (idxLugar === null) return false
-        const delta = idxAtual - idxLugar
-        return delta <= TOLERANCIA_FRENTE && delta >= -TOLERANCIA_ATRAS
-      })
-    if (cabeNoUltimo) turmaDoCiclo.set(iUltimo, e.turmaAtual)
+    turmaDoCiclo.set(base.length - 1, e.turmaAtual)
   }
 
   const turmasPorMapear = new Set<string>()
@@ -415,21 +402,6 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
       alertas
     }
   })
-
-  // Uma turma actual fora da janela não é falsamente pendurada num
-  // ciclo. Se também não tem mapa, o último ciclo leva o alerta para
-  // o problema continuar visível na ficha, além da lista global.
-  if (e.turmaAtual && ciclos.length > 0) {
-    const chaveAtual = e.turmaAtual.classId ?? normalizarNomeTurma(e.turmaAtual.className)
-    const atualFoiEmparelhada = ciclos.some(
-      (c) => (c.turma?.classId ?? (c.turma ? normalizarNomeTurma(c.turma.nome) : null)) === chaveAtual
-    )
-    const resolucaoAtual = resolverTagDaTurma(e.turmaAtual.className, e.excepcoesTurmaTag)
-    if (!atualFoiEmparelhada && resolucaoAtual.origem === null) {
-      const alertas = ciclos[ciclos.length - 1].alertas
-      if (!alertas.includes('tag-por-definir')) alertas.push('tag-por-definir')
-    }
-  }
 
   const idsEmCiclos = new Set(
     ciclos.flatMap((c) => c.coortes.map((x) => x.tag?.id)).filter(Boolean) as string[]

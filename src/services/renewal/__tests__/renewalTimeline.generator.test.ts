@@ -176,7 +176,8 @@ test('ciclo sem mudanca de turma: 3 compras, 1 turma so', () => {
   assert.equal(t.ciclos.length, 3)
   assert.ok(t.ciclos[1].alertas.includes('sem-mudanca-turma'))
   assert.ok(t.ciclos[1].alertas.includes('sem-tag'))
-  assert.equal(t.cadeia.ciclosSemMudancaTurma, 2)
+  assert.equal(t.ciclos[2].turma?.classId, 'c1')
+  assert.equal(t.cadeia.ciclosSemMudancaTurma, 1)
 })
 
 test('tag tardia: cdate a 14 meses da compra (carimbo de 2026-08-07)', () => {
@@ -425,7 +426,7 @@ test('a turma actual ganha o empate mesmo vindo primeiro no historico', () => {
   assert.equal(t.ciclos[0].turma?.classId, 'nova')
 })
 
-test('turma fora da tolerancia continua a ser reportada', () => {
+test('turma actual fora da tolerancia fica no ultimo ciclo e continua reportada', () => {
   const t = gerarTimeline(
     entrada({
       vendas: [venda({ approvedDate: new Date('2025-05-19T00:00:00Z'), transaction: 'A' })],
@@ -433,10 +434,9 @@ test('turma fora da tolerancia continua a ser reportada', () => {
       turmaAtual: { classId: 'c', className: 'Turmas 1, 2 e 3 [3a renov] | 2601', entrouEm: null }
     })
   )
-  // longe demais para pertencer ao ciclo, mas não se cala uma turma
-  // que a convenção não sabe resolver
-  assert.equal(t.ciclos[0].turma, null)
-  assert.ok(t.ciclos[0].alertas.includes('sem-registo-turma'))
+  // O período distante não apaga a turma actual, e a falta de mapa
+  // mantém-se visível no ciclo e na lista global.
+  assert.equal(t.ciclos[0].turma?.classId, 'c')
   assert.ok(t.ciclos[0].alertas.includes('tag-por-definir'))
   assert.deepEqual(t.turmasPorMapear, ['Turmas 1, 2 e 3 [3a renov] | 2601'])
 })
@@ -543,8 +543,8 @@ test('ciclos sem turma aparecem na contagem da comparacao', () => {
       turmaAtual: { classId: 'c1', className: 'Turma 7 | 2311', entrouEm: null }
     })
   )
-  assert.deepEqual(t.cadeia.comparacoes.ciclosComTurma, { esperado: 3, encontrado: 1 })
-  assert.equal(t.cadeia.ciclosSemMudancaTurma, 2)
+  assert.deepEqual(t.cadeia.comparacoes.ciclosComTurma, { esperado: 3, encontrado: 2 })
+  assert.equal(t.cadeia.ciclosSemMudancaTurma, 1)
 })
 
 test('sem turma conhecida antes, o alerta e de falta de registo', () => {
@@ -573,7 +573,7 @@ test('sem turma conhecida antes, o alerta e de falta de registo', () => {
   assert.equal(t.cadeia.registoDeTurmas, 'sem-dados')
 })
 
-test('com turma conhecida antes, ficar parado continua a ser desvio', () => {
+test('turma actual distante fecha o ultimo ciclo sem inventar falta de mudanca', () => {
   const t = gerarTimeline(
     entrada({
       vendas: [
@@ -587,10 +587,11 @@ test('com turma conhecida antes, ficar parado continua a ser desvio', () => {
 
   assert.ok(t.ciclos[0].alertas.includes('sem-tag'))
   assert.ok(!t.ciclos[0].alertas.includes('sem-registo-turma'))
-  assert.ok(t.ciclos[1].alertas.includes('sem-mudanca-turma'))
-  assert.equal(t.cadeia.ciclosSemMudancaTurma, 1)
+  assert.equal(t.ciclos[1].turma?.classId, 'c1')
+  assert.ok(!t.ciclos[1].alertas.includes('sem-mudanca-turma'))
+  assert.equal(t.cadeia.ciclosSemMudancaTurma, 0)
   assert.equal(t.cadeia.ciclosSemRegistoTurma, 0)
-  assert.equal(t.cadeia.registoDeTurmas, 'divergente')
+  assert.equal(t.cadeia.registoDeTurmas, 'ok')
 })
 
 test('todos os ciclos com turma dao veredicto correto', () => {
@@ -753,6 +754,27 @@ test('quem compra 3 meses antes de a turma base abrir fica emparelhado', () => {
   assert.equal(t.ciclos[0].coortes[0].tag?.id, '633')
   assert.equal(t.ciclos[0].turma?.classId, 'c')
   assert.ok(!t.ciclos[0].alertas.includes('sem-tag'))
+})
+
+test('turma actual de periodo muito distante fica no ultimo ciclo e mostra o desvio', () => {
+  // Se a regra voltar a limitar a turma actual pela distância, ela deixa
+  // de chegar ao ciclo e esconde tanto a turma como a comparação da tag.
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-01-15T00:00:00Z'), transaction: 'A' })],
+      tags: [{ tagId: '1', nome: 'Aluno OGI 2501 - Renovação', aplicadaEm: null }],
+      turmaAtual: { classId: 'actual', className: 'Turma Renovação | 2606', entrouEm: null }
+    })
+  )
+
+  assert.equal(t.ciclos[0].turma?.classId, 'actual')
+  assert.equal(t.ciclos[0].tagEsperada, 'Aluno OGI 2606 - Renovação')
+  assert.equal(t.cadeia.tagIgualTurma, 'divergente')
+  assert.deepEqual(t.cadeia.comparacoes.tag, {
+    esperado: 'Aluno OGI 2606 - Renovação',
+    encontrado: 'Aluno OGI 2501 - Renovação'
+  })
+  assert.deepEqual(t.cadeia.comparacoes.ciclosComTurma, { esperado: 1, encontrado: 1 })
 })
 
 test('para tras a janela continua apertada', () => {
