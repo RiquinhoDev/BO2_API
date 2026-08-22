@@ -213,3 +213,85 @@ forma ficam em palpites.
 E quando um teste e o código do plano se contradizem, **escalar em vez de
 ajustar um dos lados** — foi o que evitou que o modelo errado fosse
 implementado.
+
+---
+
+## Validação do backend — 2026-08-22
+
+69 testes, 0 falhas. 4.426 timelines, das quais **917 têm ciclos**; as outras
+3.509 são de contactos com tag na AC e sem compra nenhuma (ex-alunos, leads).
+922 dos alunos `ACTIVE` têm timeline.
+
+A cadeia, só para alunos activos:
+
+```
+AC compra = última venda   ok 716   divergente 169   sem dados 37
+Expiração = turma          ok 873   divergente  17   sem dados 32
+Tag = turma                ok 742   divergente  19   sem dados 161
+```
+
+Os 169 divergentes na primeira linha batem com uma medição feita à mão a
+20/08 por outro caminho — o campo 334 da AC estava errado em 192 de 884
+contactos. A timeline reproduziu o número sozinha, o que é bom sinal.
+
+Casos conhecidos verificados um a um: a `kukuruzickosa` (4 prestações com
+falhas → um ciclo), a `happyhome.carla` (5 ciclos, com os de Jan e Dez/2024
+separados como deviam), o `fmmazzoco` (5 prestações → um ciclo, com o
+`tag-diferente-da-turma` correcto), a `eva.lrei` e o `zz.carlos`.
+
+### Um defeito por corrigir antes do Front
+
+**164 dos 922 alunos activos têm uma tag marcada como órfã que não é órfã.**
+
+O emparelhamento é um-para-um, por isso quando um aluno tem duas tags do mesmo
+período — tipicamente `Aluno OGI L2411 - Turma 12` e a variante
+`[2anos]` — uma fica com a coorte e a outra cai na lista de órfãs. Mas a
+lista de órfãs diz "sem compra que as justifique", e isso é falso: a compra
+existe e está ali ao lado, já emparelhada.
+
+```
+alexandre.alcantara.melo   coorte 2411 = L2411 - Turma 12 [2anos]
+                           "órfã"      = L2411 - Turma 12
+```
+
+Correcção: uma tag de percurso só é órfã se o período dela estiver **fora da
+tolerância de todas as coortes**. Se está dentro e apenas perdeu o
+emparelhamento, é uma tag **duplicada** dessa coorte — outra lista, outra
+frase. Sem isto o separador Tags mente a 18% dos alunos.
+
+Há um segundo caso, mais raro, dentro do mesmo sintoma: no `zz.carlos` a
+coorte do ano 2 (2512) ficou com a `2601 - Renovação`, que está um mês à
+frente, em vez da `2511 - Renovação Turma 12`, que está um mês atrás e é a
+da linhagem dele. A regra "frente antes de trás" decidiu. Corrigida a
+etiquetagem acima, o painel mostra as duas de qualquer forma.
+
+## Contexto visual para o Front
+
+**Como se deve sentir: sóbrio, denso, inequívoco.**
+
+É uma ferramenta de julgamento, não de persuasão. Quem abre este painel quer
+decidir se um aluno está bem — density porque interessa ver tudo sem
+navegar, e inequívoco porque a única coisa que o painel vende é confiança no
+veredicto.
+
+**Modo claro e escuro, os dois.** Não é preferência, é o que o repo já é:
+`darkMode: ['class']` no `tailwind.config`, um bloco `.dark` no
+`src/index.css`, e 48 componentes já com variantes `dark:`.
+
+Usar os tokens semânticos do ShadCN (`bg-card`, `text-foreground`,
+`text-muted-foreground`, `border`), nunca cores fixas. O
+`RenewalDataPanel.tsx` actual ainda tem `text-gray-800` e `text-gray-500`
+cravados, que não acompanham o tema — ao mover os blocos para os separadores,
+trocar por tokens.
+
+Atenção a um detalhe do tema: o `--foreground` deste projecto é **verde
+escuro** (`156 80% 25%`), não preto, e o `--primary` é o verde `#17b169`. Um
+verde de "está tudo bem" corre o risco de se confundir com a cor da marca —
+distinguir os estados por ícone e palavra, não só por cor.
+
+**WCAG:** não há requisito formal escrito em lado nenhum do repo. A fasquia
+sensata é **2.1 AA** — 4,5:1 para texto, 3:1 para elementos de interface. E
+uma regra que aqui não é opcional: **nenhum veredicto pode viver só na cor**.
+A faixa da cadeia tem três estados (ok / divergente / sem dados) e cada um
+precisa de ícone e palavra além da cor, senão é ilegível para quem não
+distingue verde de vermelho — que é 8% dos homens.
