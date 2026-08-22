@@ -40,6 +40,8 @@ export interface AcStudentTagsSyncReport {
   associacoesLidas: number
   contactosDistintos: number
   contactosComData: number
+  /** Quantos contactos exigiram GET /contactTags nesta corrida. */
+  contactosConsultados: number
   alunosGravados: number
   semUtilizador: number
   errors: Array<{ contexto: string; error: string }>
@@ -50,6 +52,29 @@ export function classificar(nome: string, canonicas: Set<string>): TipoTagTurma 
   if (PADRAO_MEMBRESIA.test(nome)) return 'membresia'
   if (MENCIONA_TURMA.test(nome) || MENCIONA_OGI.test(nome) || MENCIONA_RENOVACAO.test(nome)) return 'outra'
   return null
+}
+
+/**
+ * Reaproveita `aplicadaEm` do espelho anterior. Devolve true
+ * quando todas as tags actuais ficaram preenchidas e, portanto,
+ * não é preciso voltar a consultar este contacto na AC.
+ */
+export function reutilizarDatasExistentes(
+  tagsAtuais: Array<{ tagId: string; aplicadaEm: Date | null }>,
+  tagsExistentes: Array<{ tagId: string; aplicadaEm: Date | string | null | undefined }>
+): boolean {
+  const porId = new Map(tagsExistentes.map((tag) => [String(tag.tagId), tag.aplicadaEm]))
+  let completas = true
+  for (const tag of tagsAtuais) {
+    const valor = porId.get(String(tag.tagId))
+    const data = valor ? new Date(valor) : null
+    if (data && !Number.isNaN(data.getTime())) {
+      tag.aplicadaEm = data
+    } else {
+      completas = false
+    }
+  }
+  return completas
 }
 
 async function todasAsTags(): Promise<Array<{ id: string; tag: string }>> {
@@ -128,6 +153,7 @@ export async function syncAcStudentTags(
     associacoesLidas: 0,
     contactosDistintos: 0,
     contactosComData: 0,
+    contactosConsultados: 0,
     alunosGravados: 0,
     semUtilizador: 0,
     errors: []
@@ -168,9 +194,28 @@ export async function syncAcStudentTags(
   }
 
   report.contactosDistintos = porEmail.size
+  const emails = [...porEmail.keys()]
 
   if (opcoes.comDatas !== false) {
-    for (const [, reg] of porEmail) {
+    const existentes = (await (ACStudentTag as any)
+      .find({ email: { $in: emails } })
+      .select('email tags.tagId tags.aplicadaEm')
+      .lean()
+      .exec()) as Array<{
+        email: string
+        tags: Array<{ tagId: string; aplicadaEm: Date | string | null }>
+      }>
+    const existentesPorEmail = new Map(
+      existentes.map((doc) => [String(doc.email).toLowerCase().trim(), doc.tags ?? []])
+    )
+
+    for (const [email, reg] of porEmail) {
+      if (reutilizarDatasExistentes(reg.tags, existentesPorEmail.get(email) ?? [])) {
+        report.contactosComData += 1
+        continue
+      }
+
+      report.contactosConsultados += 1
       try {
         const datas = await datasDasTagsDoContacto(reg.contactId)
         for (const tag of reg.tags) tag.aplicadaEm = datas.get(tag.tagId) ?? null
@@ -184,7 +229,6 @@ export async function syncAcStudentTags(
   }
 
   // ligar ao utilizador da nossa BD
-  const emails = [...porEmail.keys()]
   const users = (await (User as any)
     .find({ email: { $in: emails } })
     .select('_id email')
