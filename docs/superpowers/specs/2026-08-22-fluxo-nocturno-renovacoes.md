@@ -160,3 +160,64 @@ escritor da expiração é que não.
 O passo 4 é fácil de fazer: o serviço já devolve `needsWrite` separado de
 `written`. Basta uma corrida com o interruptor de escrita fechado para ter a
 lista completa sem tocar em nada.
+
+---
+
+## Decisões fechadas com o João — 2026-08-22
+
+### O que o nocturno tem de fazer, pela ordem dele
+
+```
+Hotmart: dados dos alunos
+Hotmart: vendas — detectar compras novas
+   se há compra nova → escrever a expiração: +12 meses, FIM DO MÊS
+                       (é a expiração que alinha a turma, não o contrário)
+AC: garantir as tags obrigatórias que faltem, na versão actual
+BD: actualizar tudo
+Discord: por último
+```
+
+### Regras confirmadas
+
+- **A expiração é sempre até ao FIM do mês.** Nunca o dia 1 do mês seguinte.
+  Foi assim que se corrigiu a AC à mão e é assim que continua. O
+  `computeExpirationFromPurchaseDate()` está sozinho e tem de mudar.
+- **As tags obrigatórias são três** — `Alunos OGI`, `Alunos OGI Ativos`,
+  `OGI - Aluno ou Ex-Aluno` — e o contacto tem de estar na lista
+  `Alunos OGI`. Nenhum código faz isto hoje.
+- **Sem coortes em Abril/Agosto/Outubro/Dezembro é história.** A partir de
+  2027 há turmas todos os meses, porque passaram a vender todos os dias em
+  vez de quatro lançamentos por ano.
+- **Compras de 2 anos acabaram** (última extensão a 30/09/2025). Restam 142
+  vivas, todas a terminar até 2027. Conservar, não recalcular.
+- **A Hotmart é sempre gerida à mão.** O sistema nunca lá escreve.
+
+### A janela do fim do mês
+
+Quem renova hoje entra numa turma de renovação genérica e só no fim do mês é
+movido para a turma definitiva. Nessa janela a turma é provisória.
+
+Decisão: **o painel deve acusar na mesma**, e além de acusar deve dizer o que
+falta fazer — "mover no fim do mês para a turma X". O aviso fica no BO; não é
+para silenciar.
+
+Nota: a janela não afecta o que o escritor da expiração escreve — ele calcula
+da data da compra, não da turma. Afecta só a comparação do painel.
+
+### Adiado por decisão
+
+- **O sync desfazer correcções humanas** fica para o fim: hoje só se reflecte
+  no ACTIVO/INACTIVO dentro do BO, não toca na Hotmart nem na AC.
+- **Cargo do Discord provisório** durante a janela: não é grave, corre todas
+  as noites e ajusta-se sozinho à medida que as turmas se corrigem.
+
+### Para rever quando o desenho da automação fechar
+
+- `simaoleal94@gmail.com` (396,98€, 06/08) e `beatriz.sadrudin@outlook.com`
+  (447€, 02/08) compraram a preço cheio — clientes novos — e estão na
+  `Turma Renovação | 2608`. A tag deles já diz `Aluno OGI 2610 - Turma 19`.
+  Falta decidir onde é que um aluno novo espera até a turma base abrir.
+- A **tolerância de ±2 meses** no emparelhamento tag↔ciclo foi justificada
+  com os meses sem coorte. Com coortes mensais a partir de 2027 essa folga
+  deixa de ser necessária e passa a poder roubar uma tag à coorte vizinha.
+  Deveria depender de existir coorte no mês da compra, em vez de ser fixa.
