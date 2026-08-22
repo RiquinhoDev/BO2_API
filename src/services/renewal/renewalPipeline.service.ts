@@ -103,7 +103,7 @@ export async function runRenewalPipeline(): Promise<RenewalPipelineReport> {
   const hotmartSales = await runStep('Sync Hotmart (vendas)', () => syncActiveStudentSalesHistory())
   const acRenewalData = await runStep('Sync AC (leitura)', () => syncActiveStudentAcRenewalData())
   const acStudentTags = await runStep('Sync AC (tags)', () => syncAcStudentTags())
-  const acExpiration = await runGatedStep('AC Expiração (escrita)', AC_EXPIRATION_SYNC_JOB_NAME, () => syncAcExpirationDates())
+  const acExpiration = await runGatedStep('AC Expiração (escrita)', AC_EXPIRATION_SYNC_JOB_NAME, () => syncAcExpirationDates({ dryRun: false }))
   const discordRoles = await runStep('Discord Roles', () => runDiscordRolesSyncJob())
   // Último de propósito: só faz sentido com os três espelhos frescos.
   const timelines = await runStep('Timelines de renovação', () => gerarTimelinesEmLote())
