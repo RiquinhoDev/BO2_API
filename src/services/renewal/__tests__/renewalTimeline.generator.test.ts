@@ -154,7 +154,9 @@ test('ciclo de 2 anos prefere a tag explicita 2anos quando o periodo e igual', (
   )
 
   assert.equal(t.ciclos[0].coortes[0].tag?.id, '900')
-  assert.deepEqual(t.tagsOrfas.map((tag) => tag.id), ['100'])
+  assert.deepEqual(t.tagsOrfas, [])
+  assert.deepEqual(t.tagsDuplicadas.map((tag) => tag.id), ['100'])
+  assert.equal(t.tagsDuplicadas[0].coortePeriodo, '2506')
 })
 
 test('ciclo sem mudanca de turma: 3 compras, 1 turma so', () => {
@@ -230,6 +232,7 @@ test('tag orfa: tag de renovacao sem compra que a justifique', () => {
   assert.equal(t.tagsOrfas.length, 1)
   assert.equal(t.tagsOrfas[0].id, '10')
   assert.equal(t.tagsOrfas[0].periodo, '2607')
+  assert.equal(t.tagsDuplicadas.length, 0)
 })
 
 test('tags de estado ficam a parte e nunca entram em ciclos', () => {
@@ -343,8 +346,11 @@ test('empate entre duas tags: ganha a da frente, venha na ordem que vier', () =>
 
   assert.equal(t1.ciclos[0].coortes[0].tag?.id, '100')
   assert.equal(t2.ciclos[0].coortes[0].tag?.id, '100')
-  assert.deepEqual(t1.tagsOrfas.map((o) => o.id), ['900'])
-  assert.deepEqual(t2.tagsOrfas.map((o) => o.id), ['900'])
+  assert.deepEqual(t1.tagsOrfas, [])
+  assert.deepEqual(t2.tagsOrfas, [])
+  assert.deepEqual(t1.tagsDuplicadas.map((o) => o.id), ['900'])
+  assert.deepEqual(t2.tagsDuplicadas.map((o) => o.id), ['900'])
+  assert.equal(t1.tagsDuplicadas[0].coortePeriodo, '2501')
 })
 
 test('nova compra a meio de um ciclo de 2 anos ganha a tag que fica a sua frente', () => {

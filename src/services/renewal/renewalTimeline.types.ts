@@ -101,6 +101,15 @@ export interface TagOrfa {
   aplicadaEm: Date | null
 }
 
+/**
+ * Tag de percurso excedente que ainda é explicada por uma coorte.
+ * Não ganhou o emparelhamento exclusivo porque já havia outra tag
+ * mais adequada para o mesmo lugar; por isso não é órfã.
+ */
+export interface TagDuplicada extends TagOrfa {
+  coortePeriodo: string
+}
+
 export interface TagEstado {
   id: string
   nome: string
@@ -110,6 +119,7 @@ export interface TagEstado {
 export interface TimelineGerada {
   ciclos: Ciclo[]
   tagsOrfas: TagOrfa[]
+  tagsDuplicadas: TagDuplicada[]
   tagsEstado: TagEstado[]
   cadeia: Cadeia
   /** Nomes de turma que nem a convenção nem as excepções resolveram. */

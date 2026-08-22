@@ -42,6 +42,13 @@ export interface IStudentRenewalTimeline extends Document {
   }>
 
   tagsOrfas: Array<{ id: string; nome: string; periodo: string | null; aplicadaEm: Date | null }>
+  tagsDuplicadas: Array<{
+    id: string
+    nome: string
+    periodo: string | null
+    aplicadaEm: Date | null
+    coortePeriodo: string
+  }>
   tagsEstado: Array<{ id: string; nome: string; aplicadaEm: Date | null }>
 
   cadeia: {
@@ -129,6 +136,17 @@ const tagOrfaSchema = new Schema(
   { _id: false }
 )
 
+const tagDuplicadaSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    nome: { type: String, required: true },
+    periodo: { type: String, default: null },
+    aplicadaEm: { type: Date, default: null },
+    coortePeriodo: { type: String, required: true }
+  },
+  { _id: false }
+)
+
 const tagEstadoSchema = new Schema(
   {
     id: { type: String, required: true },
@@ -146,6 +164,7 @@ const studentRenewalTimelineSchema = new Schema<IStudentRenewalTimeline>(
 
     ciclos: { type: [cicloSchema], default: [] },
     tagsOrfas: { type: [tagOrfaSchema], default: [] },
+    tagsDuplicadas: { type: [tagDuplicadaSchema], default: [] },
     tagsEstado: { type: [tagEstadoSchema], default: [] },
 
     cadeia: {

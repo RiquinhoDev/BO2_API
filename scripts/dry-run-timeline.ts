@@ -85,6 +85,12 @@ async function main() {
     if (timeline.tagsOrfas.length) {
       console.log('  órfãs:', timeline.tagsOrfas.map((x) => x.nome).join(' | '))
     }
+    if (timeline.tagsDuplicadas.length) {
+      console.log(
+        '  duplicadas:',
+        timeline.tagsDuplicadas.map((x) => `${x.nome} → coorte ${x.coortePeriodo}`).join(' | ')
+      )
+    }
     if (timeline.tagsEstado.length) {
       console.log('  estado:', timeline.tagsEstado.map((x) => x.nome).join(' | '))
     }

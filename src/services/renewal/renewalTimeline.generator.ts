@@ -36,6 +36,7 @@ import type {
   Cadeia,
   Veredicto,
   TagOrfa,
+  TagDuplicada,
   TagEstado,
   TimelineGerada
 } from './renewalTimeline.types'
@@ -169,6 +170,30 @@ function emparelhar(
     usados.add(p.candidato)
   }
   return porLugar
+}
+
+/** A coorte mais próxima que explica um período, sem consumir o lugar. */
+function coorteCompativel(periodo: string | null, lugares: Lugar[]): Lugar | null {
+  const idxTag = indiceDePeriodo(periodo)
+  if (idxTag === null) return null
+
+  const compativeis = lugares
+    .map((lugar, indice) => {
+      const idxCoorte = indiceDePeriodo(lugar.periodo)
+      if (idxCoorte === null) return null
+      const diferenca = idxTag - idxCoorte
+      if (Math.abs(diferenca) > TOLERANCIA_MESES) return null
+      return {
+        lugar,
+        indice,
+        distancia: Math.abs(diferenca),
+        atras: diferenca >= 0 ? 0 : 1
+      }
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => a.distancia - b.distancia || a.atras - b.atras || a.indice - b.indice)
+
+  return compativeis[0]?.lugar ?? null
 }
 
 /** Duas datas no mesmo dia (UTC). */
@@ -343,14 +368,29 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     ciclos.flatMap((c) => c.coortes.map((x) => x.tag?.id)).filter(Boolean) as string[]
   )
 
-  const tagsOrfas: TagOrfa[] = tagsPercurso
-    .filter((x) => !idsEmCiclos.has(x.tag.tagId))
+  const tagsNaoEmparelhadas = tagsPercurso.filter((x) => !idsEmCiclos.has(x.tag.tagId))
+
+  const tagsOrfas: TagOrfa[] = tagsNaoEmparelhadas
+    .filter((x) => coorteCompativel(periodoDaTag(x.tag.nome), lugares) === null)
     .map((x) => ({
       id: x.tag.tagId,
       nome: x.tag.nome,
       periodo: periodoDaTag(x.tag.nome),
       aplicadaEm: x.tag.aplicadaEm
     }))
+
+  const tagsDuplicadas: TagDuplicada[] = tagsNaoEmparelhadas.flatMap((x) => {
+    const periodo = periodoDaTag(x.tag.nome)
+    const coorte = coorteCompativel(periodo, lugares)
+    if (!coorte) return []
+    return [{
+      id: x.tag.tagId,
+      nome: x.tag.nome,
+      periodo,
+      aplicadaEm: x.tag.aplicadaEm,
+      coortePeriodo: coorte.periodo
+    }]
+  })
 
   const tagsEstado: TagEstado[] = e.tags
     .filter((t) => !ehTagDePercurso(t.nome))
@@ -359,6 +399,7 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
   return {
     ciclos,
     tagsOrfas,
+    tagsDuplicadas,
     tagsEstado,
     cadeia: calcularCadeia(e, ciclos),
     turmasPorMapear: [...turmasPorMapear]

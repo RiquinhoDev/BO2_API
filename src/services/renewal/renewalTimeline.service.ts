@@ -195,6 +195,7 @@ export async function gerarTimelinesEmLote(
               email,
               ciclos: timeline.ciclos,
               tagsOrfas: timeline.tagsOrfas,
+              tagsDuplicadas: timeline.tagsDuplicadas,
               tagsEstado: timeline.tagsEstado,
               cadeia: timeline.cadeia,
               turmasPorMapear: timeline.turmasPorMapear,

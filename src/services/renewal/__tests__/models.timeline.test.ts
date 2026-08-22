@@ -14,7 +14,7 @@ test('userId da timeline e unico', () => {
 
 test('a timeline tem os campos do desenho', () => {
   const s = StudentRenewalTimeline.schema
-  for (const campo of ['email', 'ciclos', 'tagsOrfas', 'tagsEstado', 'cadeia', 'turmasPorMapear', 'geradoEm', 'fontes']) {
+  for (const campo of ['email', 'ciclos', 'tagsOrfas', 'tagsDuplicadas', 'tagsEstado', 'cadeia', 'turmasPorMapear', 'geradoEm', 'fontes']) {
     assert.ok(s.path(campo) || s.nested[campo], `falta o campo ${campo}`)
   }
 })
