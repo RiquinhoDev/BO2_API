@@ -291,6 +291,24 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     if (!turmaDoCiclo.has(lug.ciclo) || ehAtual) turmaDoCiclo.set(lug.ciclo, candidata)
   })
 
+  // A turma actual pertence ao ÚLTIMO ciclo — é onde o aluno está agora.
+  // O emparelhamento é um-para-um e por distância, por isso uma turma do
+  // histórico podia ficar-lhe com o lugar por estar mais perto em período.
+  // Aconteceu ao simaoleal94 e à beatriz: estão na Turma 19, e o ciclo
+  // comparava contra a turma de renovação por onde passaram.
+  if (e.turmaAtual && base.length > 0) {
+    const iUltimo = base.length - 1
+    const idxAtual = indiceDePeriodo(parseTurmaName(e.turmaAtual.className).periodYYMM)
+    const cabeNoUltimo =
+      idxAtual !== null &&
+      lugares.some((l) => {
+        if (l.ciclo !== iUltimo) return false
+        const idxLugar = indiceDePeriodo(l.periodo)
+        return idxLugar !== null && Math.abs(idxAtual - idxLugar) <= TOLERANCIA_MESES
+      })
+    if (cabeNoUltimo) turmaDoCiclo.set(iUltimo, e.turmaAtual)
+  }
+
   const turmasPorMapear = new Set<string>()
   const chaveAtualParaMapa = e.turmaAtual
     ? e.turmaAtual.classId ?? normalizarNomeTurma(e.turmaAtual.className)

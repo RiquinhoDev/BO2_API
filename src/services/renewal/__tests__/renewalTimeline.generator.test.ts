@@ -717,3 +717,24 @@ test('a ordem das tags a entrada nao muda o resultado', () => {
   )
   assert.deepEqual(t1.ciclos.map((c) => c.coortes[0].tag?.id), ['1', '2'])
 })
+
+test('a turma actual fica no ultimo ciclo mesmo vindo de mais longe', () => {
+  // simaoleal94: comprou a preco cheio em Agosto (ciclo 2608), passou por
+  // uma turma de renovacao e esta hoje na Turma 19, que e a coorte de
+  // Outubro. A turma do historico estava a distancia 0 do ciclo e ficava
+  // com o lugar; a actual, a 2 meses, era ignorada.
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2026-08-06T00:00:00Z'), priceValue: 397, transaction: 'A' })],
+      tags: [{ tagId: '633', nome: 'Aluno OGI 2610 - Turma 19', aplicadaEm: null }],
+      movimentacoes: [
+        { classId: 'velha', className: 'Turma Renovação | 2608', entrouEm: new Date('2026-08-06T00:00:00Z') }
+      ],
+      turmaAtual: { classId: 'actual', className: 'Turma 19 | 2610', entrouEm: null }
+    })
+  )
+
+  assert.equal(t.ciclos.length, 1)
+  assert.equal(t.ciclos[0].turma?.classId, 'actual')
+  assert.equal(t.ciclos[0].tagEsperada, 'Aluno OGI L2610 - Turma 19')
+})
