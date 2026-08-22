@@ -15,12 +15,19 @@ import StudentClassHistory from '../src/models/StudentClassHistory'
 import TurmaTagMap from '../src/models/TurmaTagMap'
 import { resolverTagDaTurma, normalizarNomeTurma } from '../src/services/renewal/turmaTagResolver'
 import { periodoDaTag } from '../src/services/renewal/renewalTimeline.generator'
-import { parseTurmaName } from '../src/services/renewal/turmaParser'
 import { indiceDePeriodo } from '../src/services/renewal/renewalCycles'
 
 const CONCORDANCIA_MINIMA = 0.7
 const ALUNOS_MINIMOS = 3
 const MENCIONA_PERCURSO = /turma|renova(ç|c)(ã|a)o/i
+
+function normalizarTagSemPeriodo(nome: string): string {
+  return String(nome)
+    .replace(/\bL?\d{4}\b/gi, (token) => (periodoDaTag(token) ? '' : token))
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .toLowerCase()
+}
 
 async function main() {
   const escrever = process.argv.includes('--write')
@@ -35,7 +42,25 @@ async function main() {
     .exec()) as any[]
 
   const tagsDocs = (await (ACStudentTag as any).find({}).select('email tags').lean().exec()) as any[]
-  const tagsPorEmail = new Map<string, any[]>(tagsDocs.map((doc) => [doc.email, doc.tags ?? []]))
+  const tagsPorEmail = new Map<string, any[]>()
+  for (const doc of tagsDocs) {
+    let indiceMaisRecente: number | null = null
+    const tagsMaisRecentes: any[] = []
+
+    for (const tag of doc.tags ?? []) {
+      if (!MENCIONA_PERCURSO.test(tag.nome)) continue
+      const indiceTag = indiceDePeriodo(periodoDaTag(tag.nome))
+      if (indiceTag === null) continue
+
+      if (indiceMaisRecente === null || indiceTag > indiceMaisRecente) {
+        indiceMaisRecente = indiceTag
+        tagsMaisRecentes.length = 0
+      }
+      if (indiceTag === indiceMaisRecente) tagsMaisRecentes.push(tag)
+    }
+
+    tagsPorEmail.set(doc.email, tagsMaisRecentes)
+  }
   const historicos = (await (StudentClassHistory as any)
     .find({})
     .select('studentId classId className')
@@ -72,22 +97,8 @@ async function main() {
       }
       const registo = porTurma.get(chave)!
       registo.alunos += 1
-      const idxTurma = indiceDePeriodo(parseTurmaName(turma.className).periodYYMM)
 
       for (const tag of tagsPorEmail.get(email) ?? []) {
-        if (!MENCIONA_PERCURSO.test(tag.nome)) continue
-        const idxTag = indiceDePeriodo(periodoDaTag(tag.nome))
-        if (idxTag === null) continue
-        // Mesma janela assimétrica do gerador: a tag pode estar até 4
-        // meses à FRENTE da turma (quem compra espera que ela abra) e 2
-        // ATRÁS (entrou numa coorte já aberta). Com o antigo ±1 a tag da
-        // Turma 19 era descartada — a turma chamava-se | 2606 e a tag
-        // 2610 — e a turma ficava de fora do mapa.
-        if (idxTurma !== null) {
-          const delta = idxTag - idxTurma
-          if (delta > 4 || delta < -2) continue
-        }
-
         const actualContagem = registo.contagem.get(tag.nome) ?? { id: tag.tagId, n: 0 }
         actualContagem.n += 1
         registo.contagem.set(tag.nome, actualContagem)
@@ -105,6 +116,7 @@ async function main() {
   }> = []
   const semSinal: string[] = []
   const conflitosProtegidos: string[] = []
+  const conflitosDeNomeProtegidos: string[] = []
 
   for (const [chave, registo] of porTurma) {
     if (registo.alunos < ALUNOS_MINIMOS) continue
@@ -134,6 +146,16 @@ async function main() {
       continue
     }
 
+    if (
+      convencao &&
+      normalizarTagSemPeriodo(convencao) !== normalizarTagSemPeriodo(nomeDominante)
+    ) {
+      conflitosDeNomeProtegidos.push(
+        `${registo.className} → observado ${nomeDominante}`
+      )
+      continue
+    }
+
     excepcoes.push({
       chave,
       className: registo.className,
@@ -158,6 +180,10 @@ async function main() {
   if (conflitosProtegidos.length) {
     console.log(`\nConflitos [2anos] protegidos (não escritos): ${conflitosProtegidos.length}`)
     conflitosProtegidos.forEach((linha) => console.log(`  ${linha}`))
+  }
+  if (conflitosDeNomeProtegidos.length) {
+    console.log(`\nConflitos de nome protegidos (não escritos): ${conflitosDeNomeProtegidos.length}`)
+    conflitosDeNomeProtegidos.forEach((linha) => console.log(`  ${linha}`))
   }
 
   if (!escrever) {
