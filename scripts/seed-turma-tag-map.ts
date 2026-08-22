@@ -11,7 +11,6 @@
 import mongoose from 'mongoose'
 import { User } from '../src/models'
 import ACStudentTag from '../src/models/ACStudentTag'
-import StudentClassHistory from '../src/models/StudentClassHistory'
 import TurmaTagMap from '../src/models/TurmaTagMap'
 import { resolverTagDaTurma, normalizarNomeTurma } from '../src/services/renewal/turmaTagResolver'
 import { periodoDaTag } from '../src/services/renewal/renewalTimeline.generator'
@@ -29,7 +28,7 @@ function normalizarTagSemPeriodo(nome: string): string {
     .toLowerCase()
 }
 
-async function main() {
+export async function executarSeed() {
   const escrever = process.argv.includes('--write')
   const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || ''
   if (!mongoUri) throw new Error('MONGO_URI ou MONGODB_URI não definido')
@@ -61,17 +60,6 @@ async function main() {
 
     tagsPorEmail.set(doc.email, tagsMaisRecentes)
   }
-  const historicos = (await (StudentClassHistory as any)
-    .find({})
-    .select('studentId classId className')
-    .lean()
-    .exec()) as any[]
-  const historicosPorUser = new Map<string, any[]>()
-  for (const historico of historicos) {
-    const chaveUser = String(historico.studentId)
-    if (!historicosPorUser.has(chaveUser)) historicosPorUser.set(chaveUser, [])
-    historicosPorUser.get(chaveUser)!.push(historico)
-  }
   const porTurma = new Map<
     string,
     { className: string; contagem: Map<string, { id: string; n: number }>; alunos: number }
@@ -79,14 +67,12 @@ async function main() {
 
   for (const user of users) {
     const email = String(user.email ?? '').toLowerCase().trim()
-    const turmas = [
-      ...(user.hotmart?.enrolledClasses ?? []),
-      ...(historicosPorUser.get(String(user._id)) ?? [])
-    ].filter((turma: any) => turma?.className)
+    const turmas = (user.hotmart?.enrolledClasses ?? [])
+      .filter((turma: any) => turma?.className)
     const turmasVistas = new Set<string>()
 
-    // O mapa também serve os ciclos históricos. Olhar apenas para a
-    // turma actual escondia excepções antigas como a Turma 2 | 2306.
+    // O seed observa a turma actual; mapas históricos já persistidos não
+    // podem ser inferidos a partir das tags actuais do aluno.
     for (const turma of turmas) {
       const chave = normalizarNomeTurma(turma.className)
       if (turmasVistas.has(chave)) continue
@@ -117,6 +103,7 @@ async function main() {
   const semSinal: string[] = []
   const conflitosProtegidos: string[] = []
   const conflitosDeNomeProtegidos: string[] = []
+  const ambiguas: string[] = []
 
   for (const [chave, registo] of porTurma) {
     if (registo.alunos < ALUNOS_MINIMOS) continue
@@ -125,6 +112,16 @@ async function main() {
     const [nomeDominante, dados] = ordenadas[0] ?? [null, null]
     if (!nomeDominante || !dados || dados.n / registo.alunos < CONCORDANCIA_MINIMA) {
       semSinal.push(registo.className)
+      continue
+    }
+
+    const empatadas = ordenadas.filter(([, candidata]) => candidata.n === dados.n)
+    if (empatadas.length > 1) {
+      ambiguas.push(
+        `${registo.className} → ${empatadas
+          .map(([nome, candidata]) => `${nome} (${candidata.n} alunos)`)
+          .join(' | ')}`
+      )
       continue
     }
 
@@ -185,10 +182,22 @@ async function main() {
     console.log(`\nConflitos de nome protegidos (não escritos): ${conflitosDeNomeProtegidos.length}`)
     conflitosDeNomeProtegidos.forEach((linha) => console.log(`  ${linha}`))
   }
+  if (ambiguas.length) {
+    console.log(`\nSinais ambíguos (não escritos): ${ambiguas.length}`)
+    ambiguas.forEach((linha) => console.log(`  ${linha}`))
+  }
+
+  const resultado = {
+    excepcoes,
+    semSinal,
+    conflitosProtegidos,
+    conflitosDeNomeProtegidos,
+    ambiguas
+  }
 
   if (!escrever) {
     console.log('\nDry-run. Corre com --write para gravar.')
-    return
+    return resultado
   }
 
   const ops = excepcoes.map((excepcao) => ({
@@ -212,13 +221,17 @@ async function main() {
     const resultado = await (TurmaTagMap as any).bulkWrite(ops, { ordered: false })
     console.log(`\nGravadas: ${(resultado.upsertedCount ?? 0) + (resultado.modifiedCount ?? 0)}`)
   }
+
+  return resultado
 }
 
-main()
-  .catch((error) => {
-    console.error(error)
-    process.exitCode = 1
-  })
-  .finally(async () => {
-    await mongoose.disconnect()
-  })
+if (require.main === module) {
+  executarSeed()
+    .catch((error) => {
+      console.error(error)
+      process.exitCode = 1
+    })
+    .finally(async () => {
+      await mongoose.disconnect()
+    })
+}
