@@ -55,6 +55,7 @@ export type AlertaCiclo =
   | 'sem-tag-ano-2'
   | 'tag-tardia'
   | 'sem-mudanca-turma'
+  | 'sem-registo-turma'
   | 'tag-por-definir'
   | 'tag-diferente-da-turma'
 
@@ -101,7 +102,17 @@ export interface Cadeia {
   acCompraIgualUltimaVenda: Veredicto
   expiracaoIgualTurma: Veredicto
   tagIgualTurma: Veredicto
+  /** Havia turma conhecida antes e este ciclo não a mudou. Isso é desvio. */
   ciclosSemMudancaTurma: number
+  /**
+   * Não há turma nenhuma conhecida até este ciclo. Não é desvio do aluno:
+   * o `studentclasshistories` só regista mudanças feitas à mão, e o sync
+   * substitui a turma em vez de a registar. Medido a 22/08/2026: 684 dos
+   * 696 ciclos sem turma são isto, e só 12 são mudança em falta.
+   */
+  ciclosSemRegistoTurma: number
+  /** Veredicto do elo das turmas, já com a distinção acima. */
+  registoDeTurmas: Veredicto
   /** Há venda posterior à última sync de tags — o desvio pode ser só atraso. */
   tagsDesatualizadas: boolean
   comparacoes: {

@@ -295,6 +295,9 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     }
   }
 
+  // passa a true assim que um ciclo anterior tiver turma conhecida
+  let conheceTurmaAnterior = false
+
   const ciclos: Ciclo[] = base.map((c, i) => {
     const turma = turmaDoCiclo.get(i) ?? null
     const resolucao = turma ? resolverTagDaTurma(turma.className, e.excepcoesTurmaTag) : null
@@ -316,7 +319,15 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     const alertas: AlertaCiclo[] = []
     if (!coortes[0]?.tag) alertas.push('sem-tag')
     if (coortes[1] && !coortes[1].tag) alertas.push('sem-tag-ano-2')
-    if (!turma) alertas.push('sem-mudanca-turma')
+    // Sem turma há duas leituras muito diferentes: ou já se conhecia
+    // uma turma antes e este ciclo não a mudou (desvio real), ou nunca
+    // se conheceu nenhuma e não sabemos onde ele esteve (lacuna nossa,
+    // porque o sync substitui a turma em vez de registar a mudança).
+    // Dizer "ficou na mesma turma" no segundo caso é afirmar o que não
+    // se sabe — e são 98% dos casos.
+    if (!turma) {
+      alertas.push(conheceTurmaAnterior ? 'sem-mudanca-turma' : 'sem-registo-turma')
+    }
     if (turma && resolucao?.origem === null) alertas.push('tag-por-definir')
 
     // a tag tardia mede-se contra o início da SUA coorte, não contra
@@ -339,6 +350,8 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
     ) {
       alertas.push('tag-diferente-da-turma')
     }
+
+    if (turma) conheceTurmaAnterior = true
 
     return {
       ...c,
@@ -451,19 +464,37 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
     ultimaVendaDoCiclo.getTime() > e.fontes.tags.getTime()
   )
 
-  const semTurma = ciclos.filter((c) => c.alertas.includes('sem-mudanca-turma')).length
+  const semMudanca = ciclos.filter((c) => c.alertas.includes('sem-mudanca-turma')).length
+  const semRegisto = ciclos.filter((c) => c.alertas.includes('sem-registo-turma')).length
+
+  // 'divergente' só quando o aluno tinha turma e ela não acompanhou. A
+  // falta de registo é lacuna de dados nossa, e um painel que serve para
+  // validar não a pode apresentar como erro do aluno.
+  const registoDeTurmas: Veredicto =
+    ciclos.length === 0
+      ? 'sem-dados'
+      : semMudanca > 0
+        ? 'divergente'
+        : semRegisto > 0
+          ? 'sem-dados'
+          : 'ok'
 
   return {
     acCompraIgualUltimaVenda,
     expiracaoIgualTurma,
     tagIgualTurma,
-    ciclosSemMudancaTurma: semTurma,
+    ciclosSemMudancaTurma: semMudanca,
+    ciclosSemRegistoTurma: semRegisto,
+    registoDeTurmas,
     tagsDesatualizadas,
     comparacoes: {
       acCompra: { esperado: ultimaVendaDoCiclo, encontrado: e.acDataCompra },
       expiracao: { esperado: fimDaTurma, encontrado: e.acExpiracao },
       tag: { esperado: ultimo?.tagEsperada ?? null, encontrado: tagEncontrada },
-      ciclosComTurma: { esperado: ciclos.length, encontrado: ciclos.length - semTurma }
+      ciclosComTurma: {
+        esperado: ciclos.length,
+        encontrado: ciclos.length - semMudanca - semRegisto
+      }
     }
   }
 }

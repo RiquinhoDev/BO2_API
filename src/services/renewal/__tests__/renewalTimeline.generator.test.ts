@@ -436,7 +436,7 @@ test('turma fora da tolerancia continua a ser reportada', () => {
   // longe demais para pertencer ao ciclo, mas não se cala uma turma
   // que a convenção não sabe resolver
   assert.equal(t.ciclos[0].turma, null)
-  assert.ok(t.ciclos[0].alertas.includes('sem-mudanca-turma'))
+  assert.ok(t.ciclos[0].alertas.includes('sem-registo-turma'))
   assert.ok(t.ciclos[0].alertas.includes('tag-por-definir'))
   assert.deepEqual(t.turmasPorMapear, ['Turmas 1, 2 e 3 [3a renov] | 2601'])
 })
@@ -547,6 +547,62 @@ test('ciclos sem turma aparecem na contagem da comparacao', () => {
   assert.equal(t.cadeia.ciclosSemMudancaTurma, 2)
 })
 
+test('sem turma conhecida antes, o alerta e de falta de registo', () => {
+  // o guirod13: comprou em 2409 e em 2509, mas a BD so conhece a turma
+  // de 2509 e o historico dele esta vazio. Nao ficou na mesma turma —
+  // nao sabemos em que turma esteve no primeiro ciclo.
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2024-09-16T00:00:00Z'), transaction: 'A' }),
+        venda({ approvedDate: new Date('2025-09-05T00:00:00Z'), transaction: 'B' })
+      ],
+      tags: [
+        { tagId: '1', nome: 'Aluno OGI L2409 - Turma 11', aplicadaEm: null },
+        { tagId: '2', nome: 'Aluno OGI 2509 - Renovação Turma 11', aplicadaEm: null }
+      ],
+      turmaAtual: { classId: 'c', className: 'Turma 11 [renov] + REITs | 2509', entrouEm: null }
+    })
+  )
+
+  assert.deepEqual(t.ciclos[0].alertas, ['sem-registo-turma'])
+  assert.deepEqual(t.ciclos[1].alertas, [])
+  assert.equal(t.cadeia.ciclosSemRegistoTurma, 1)
+  assert.equal(t.cadeia.ciclosSemMudancaTurma, 0)
+  // lacuna de registo nossa nao e desvio do aluno
+  assert.equal(t.cadeia.registoDeTurmas, 'sem-dados')
+})
+
+test('com turma conhecida antes, ficar parado continua a ser desvio', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2023-11-06T00:00:00Z'), transaction: 'A' }),
+        venda({ approvedDate: new Date('2024-11-05T00:00:00Z'), transaction: 'B' })
+      ],
+      tags: [],
+      turmaAtual: { classId: 'c1', className: 'Turma 7 | 2311', entrouEm: null }
+    })
+  )
+
+  assert.ok(t.ciclos[0].alertas.includes('sem-tag'))
+  assert.ok(!t.ciclos[0].alertas.includes('sem-registo-turma'))
+  assert.ok(t.ciclos[1].alertas.includes('sem-mudanca-turma'))
+  assert.equal(t.cadeia.ciclosSemMudancaTurma, 1)
+  assert.equal(t.cadeia.ciclosSemRegistoTurma, 0)
+  assert.equal(t.cadeia.registoDeTurmas, 'divergente')
+})
+
+test('todos os ciclos com turma dao veredicto correto', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-09-10T00:00:00Z'), transaction: 'A' })],
+      tags: [],
+      turmaAtual: { classId: 'c', className: 'Turma 15 | 2509', entrouEm: null }
+    })
+  )
+  assert.equal(t.cadeia.registoDeTurmas, 'ok')
+})
 test('correr duas vezes da exactamente o mesmo resultado', () => {
   const e = entrada({
     vendas: [venda({ approvedDate: new Date('2025-11-30T00:00:00Z'), transaction: 'C' })],
