@@ -169,3 +169,36 @@ test('venda sem data nenhuma e ignorada, e orderDate serve de recurso', () => {
   assert.equal(ciclos.length, 1)
   assert.equal(ciclos[0].compras[0].transacao, 'COM')
 })
+
+test('plano de prestacoes com falhas e valores diferentes fica um ciclo', () => {
+  // cm.love.ar: comprou em Maio/2025 a pagar em prestacoes, falhou as de
+  // Setembro e recuperou a 18/01/2026 — 150 dias depois da ultima boa e
+  // com outro valor (cambio USD). Sao a mesma oferta e o mesmo plano.
+  const ciclos = agruparCiclos([
+    venda({ approvedDate: new Date('2025-05-21T00:00:00Z'), priceValue: 118.31, currency: 'USD', offerCode: 'tvqaads3', paymentMode: 'MULTIPLE_PAYMENTS', transaction: 'A' }),
+    venda({ approvedDate: new Date('2025-06-21T00:00:00Z'), priceValue: 118.31, currency: 'USD', offerCode: 'tvqaads3', paymentMode: 'MULTIPLE_PAYMENTS', transaction: 'B' }),
+    venda({ approvedDate: new Date('2025-08-21T00:00:00Z'), priceValue: 118.31, currency: 'USD', offerCode: 'tvqaads3', paymentMode: 'MULTIPLE_PAYMENTS', transaction: 'C' }),
+    venda({ approvedDate: new Date('2026-01-18T00:00:00Z'), priceValue: 145.52, currency: 'USD', offerCode: 'tvqaads3', paymentMode: 'MULTIPLE_PAYMENTS', transaction: 'D' })
+  ])
+  assert.equal(ciclos.length, 1)
+  assert.equal(ciclos[0].periodo, '2505')
+  assert.equal(ciclos[0].compras.length, 4)
+})
+
+test('duas compras a pronto na mesma oferta continuam dois ciclos', () => {
+  // o marcador de prestacoes nao pode abrir a porta a fundir renovacoes:
+  // PAY_IN_FULL mantem a regra antiga do valor e do intervalo.
+  const ciclos = agruparCiclos([
+    venda({ approvedDate: new Date('2025-02-24T00:00:00Z'), priceValue: 167, offerCode: 'ren', paymentMode: 'PAY_IN_FULL', transaction: 'A' }),
+    venda({ approvedDate: new Date('2025-12-20T00:00:00Z'), priceValue: 167, offerCode: 'ren', paymentMode: 'PAY_IN_FULL', transaction: 'B' })
+  ])
+  assert.equal(ciclos.length, 2)
+})
+
+test('o tecto de um ano trava tambem o plano de prestacoes', () => {
+  const ciclos = agruparCiclos([
+    venda({ approvedDate: new Date('2025-01-10T00:00:00Z'), priceValue: 99, offerCode: 'sub', paymentMode: 'MULTIPLE_PAYMENTS', transaction: 'A' }),
+    venda({ approvedDate: new Date('2026-01-05T00:00:00Z'), priceValue: 99, offerCode: 'sub', paymentMode: 'MULTIPLE_PAYMENTS', transaction: 'B' })
+  ])
+  assert.equal(ciclos.length, 2)
+})

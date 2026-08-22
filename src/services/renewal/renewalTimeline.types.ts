@@ -16,6 +16,8 @@ export interface VendaEntrada {
   orderDate: Date | null
   priceValue: number | null
   currency: string | null
+  /** MULTIPLE_PAYMENTS marca um plano de prestações; PAY_IN_FULL uma compra única. */
+  paymentMode?: string | null
 }
 
 /** Uma tag do aluno tal como vem do espelho `acstudenttags`. */

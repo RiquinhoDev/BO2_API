@@ -39,6 +39,9 @@ export const ID_PRODUTO_EXTENSAO = '3100292'
 /** Só estes contam como compra. Reembolso e falha não dão acesso. */
 const ESTADOS_VALIDOS = new Set(['APPROVED', 'COMPLETE'])
 
+/** A Hotmart marca assim as cobranças de um plano de prestações. */
+const MODO_PRESTACOES = 'MULTIPLE_PAYMENTS'
+
 /** Máximo entre duas cobranças seguidas para ainda serem o mesmo ciclo. */
 const DIAS_MAX_ENTRE_PRESTACOES = 90
 
@@ -106,20 +109,26 @@ function pertenceAoMesmoCiclo(
   if (compra.transacao && compra.transacao === ultima.transacao) return true
   if (mesmoDia(compra.data, ancora.data)) return true
 
-  // prestação: mesma oferta, mesmo produto, mesmo valor, dentro da janela
   const mesmaOferta = !!vendaAncora.offerCode && vendaAncora.offerCode === vendaCompra.offerCode
   const mesmoProduto = compra.produtoId === ancora.produtoId
   const mesmoValor = compra.valor != null && compra.valor === ancora.valor
+
+  // A própria Hotmart diz que é um plano de prestações. Isso vale mais do
+  // que o intervalo ou o valor: uma cobrança que falha é retentada dias ou
+  // meses depois, e às vezes com outro valor (taxas, câmbio). Medido a
+  // 22/08: 4 alunos activos tinham o plano partido em dois ou três ciclos,
+  // o cm.love.ar por 150 dias entre a prestação falhada e a recuperada.
+  const planoDePrestacoes =
+    mesmaOferta &&
+    mesmoProduto &&
+    String(vendaAncora.paymentMode) === MODO_PRESTACOES &&
+    String(vendaCompra.paymentMode) === MODO_PRESTACOES
   // desde a compra anterior, não desde a âncora — ver o cabeçalho
   const dias = (compra.data.getTime() - ultima.data.getTime()) / DIA_MS
   const total = (compra.data.getTime() - ancora.data.getTime()) / DIA_MS
-  return (
-    mesmaOferta &&
-    mesmoProduto &&
-    mesmoValor &&
-    dias <= DIAS_MAX_ENTRE_PRESTACOES &&
-    total < DIAS_MAX_TOTAL_PRESTACOES
-  )
+  if (total >= DIAS_MAX_TOTAL_PRESTACOES) return false
+  if (planoDePrestacoes) return true
+  return mesmaOferta && mesmoProduto && mesmoValor && dias <= DIAS_MAX_ENTRE_PRESTACOES
 }
 
 /**
