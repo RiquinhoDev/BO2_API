@@ -738,3 +738,33 @@ test('a turma actual fica no ultimo ciclo mesmo vindo de mais longe', () => {
   assert.equal(t.ciclos[0].turma?.classId, 'actual')
   assert.equal(t.ciclos[0].tagEsperada, 'Aluno OGI L2610 - Turma 19')
 })
+
+test('quem compra 3 meses antes de a turma base abrir fica emparelhado', () => {
+  // franciscovintem19: comprou a 29/07/2026 e a Turma 19 e a coorte de
+  // Outubro. Dez alunos fizeram o mesmo entre 2506 e a turma de 2509.
+  // Com a janela simetrica de 2 meses ficavam marcados como sem tag.
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2026-07-29T00:00:00Z'), priceValue: 397, transaction: 'A' })],
+      tags: [{ tagId: '633', nome: 'Aluno OGI 2610 - Turma 19', aplicadaEm: null }],
+      turmaAtual: { classId: 'c', className: 'Turma 19 | 2610', entrouEm: null }
+    })
+  )
+  assert.equal(t.ciclos[0].coortes[0].tag?.id, '633')
+  assert.equal(t.ciclos[0].turma?.classId, 'c')
+  assert.ok(!t.ciclos[0].alertas.includes('sem-tag'))
+})
+
+test('para tras a janela continua apertada', () => {
+  // entrar numa coorte ja aberta e outra coisa: dois meses e o limite.
+  // Uma tag tres meses ANTES da compra nao pertence aquele ciclo.
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2026-06-10T00:00:00Z'), transaction: 'A' })],
+      tags: [{ tagId: '9', nome: 'Aluno OGI 2603 - Renovação Turma 9', aplicadaEm: null }],
+      turmaAtual: null
+    })
+  )
+  assert.equal(t.ciclos[0].coortes[0].tag, null)
+  assert.deepEqual(t.tagsOrfas.map((o) => o.id), ['9'])
+})

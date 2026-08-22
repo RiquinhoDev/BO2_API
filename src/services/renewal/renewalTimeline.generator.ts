@@ -53,8 +53,21 @@ export interface EntradaGerador {
   fontes: { vendas: Date | null; tags: Date | null; ac: Date | null }
 }
 
-/** Uma coorte a mais de distância ainda é a mesma; três já não. */
-const TOLERANCIA_MESES = 2
+/**
+ * A tolerância é assimétrica porque os dois lados são coisas diferentes.
+ *
+ * Para TRÁS é entrar numa coorte que já estava aberta — acontece a quem
+ * compra a meio do mês (o zz.carlos comprou a 03/12/2024 e tem a tag
+ * L2411). Não passa de dois meses: só 5 dos 308 alunos de turmas base
+ * estão deste lado.
+ *
+ * Para a FRENTE é esperar que a turma abra, e isso demora. Medido a
+ * 22/08/2026 nos 308: +2 cobre 94,5%, +3 cobre 97,7% e +4 cobre 99%.
+ * Dez alunos compraram em 2506 e entraram na turma de 2509. Com uma
+ * janela de 2 ficavam marcados como não tendo tag.
+ */
+const TOLERANCIA_ATRAS = 2
+const TOLERANCIA_FRENTE = 4
 
 /** Acima disto a tag foi posta muito depois da coorte que representa. */
 const DIAS_TAG_TARDIA = 90
@@ -135,8 +148,9 @@ function emparelhar(
     for (const cand of candidatos) {
       const idxCand = indiceDePeriodo(cand.periodo)
       if (idxCand === null) continue
-      const dist = Math.abs(idxCand - idxLugar)
-      if (dist > TOLERANCIA_MESES) continue
+      const delta = idxCand - idxLugar
+      if (delta > TOLERANCIA_FRENTE || delta < -TOLERANCIA_ATRAS) continue
+      const dist = Math.abs(delta)
       // à mesma distância, o candidato à frente da coorte ganha ao de
       // trás: a tolerância para a frente existe porque não há coortes
       // em Abril, Agosto, Outubro nem Dezembro e o comprador cai na
@@ -188,7 +202,7 @@ function coorteCompativel(periodo: string | null, lugares: Lugar[]): Lugar | nul
       const idxCoorte = indiceDePeriodo(lugar.periodo)
       if (idxCoorte === null) return null
       const diferenca = idxTag - idxCoorte
-      if (Math.abs(diferenca) > TOLERANCIA_MESES) return null
+      if (diferenca > TOLERANCIA_FRENTE || diferenca < -TOLERANCIA_ATRAS) return null
       return {
         lugar,
         indice,
@@ -304,7 +318,9 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
       lugares.some((l) => {
         if (l.ciclo !== iUltimo) return false
         const idxLugar = indiceDePeriodo(l.periodo)
-        return idxLugar !== null && Math.abs(idxAtual - idxLugar) <= TOLERANCIA_MESES
+        if (idxLugar === null) return false
+        const delta = idxAtual - idxLugar
+        return delta <= TOLERANCIA_FRENTE && delta >= -TOLERANCIA_ATRAS
       })
     if (cabeNoUltimo) turmaDoCiclo.set(iUltimo, e.turmaAtual)
   }
