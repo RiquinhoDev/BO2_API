@@ -85,6 +85,18 @@ export interface Ciclo extends CicloBase {
 
 export type Veredicto = 'ok' | 'divergente' | 'sem-dados'
 
+/**
+ * Os dois lados de um elo da cadeia. `esperado` é o que a fonte de cima
+ * na hierarquia implica; `encontrado` é o que a de baixo tem de facto.
+ * Guardados para o painel poder mostrar a comparação e não só o
+ * veredicto — dizer "divergente" sem dizer entre o quê obriga a ir
+ * procurar noutro separador.
+ */
+export interface ComparacaoElo<T> {
+  esperado: T | null
+  encontrado: T | null
+}
+
 export interface Cadeia {
   acCompraIgualUltimaVenda: Veredicto
   expiracaoIgualTurma: Veredicto
@@ -92,6 +104,16 @@ export interface Cadeia {
   ciclosSemMudancaTurma: number
   /** Há venda posterior à última sync de tags — o desvio pode ser só atraso. */
   tagsDesatualizadas: boolean
+  comparacoes: {
+    /** esperado = data da última cobrança; encontrado = campo 334 da AC. */
+    acCompra: ComparacaoElo<Date>
+    /** esperado = fim do acesso pelo nome da turma; encontrado = campo 332. */
+    expiracao: ComparacaoElo<Date>
+    /** esperado = tag que a turma pede; encontrado = tag que o aluno tem. */
+    tag: ComparacaoElo<string>
+    /** esperado = ciclos pagos; encontrado = quantos têm turma. */
+    ciclosComTurma: { esperado: number; encontrado: number }
+  }
 }
 
 export interface TagOrfa {

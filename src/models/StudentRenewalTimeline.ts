@@ -57,6 +57,12 @@ export interface IStudentRenewalTimeline extends Document {
     tagIgualTurma: string
     ciclosSemMudancaTurma: number
     tagsDesatualizadas: boolean
+    comparacoes: {
+      acCompra: { esperado: Date | null; encontrado: Date | null }
+      expiracao: { esperado: Date | null; encontrado: Date | null }
+      tag: { esperado: string | null; encontrado: string | null }
+      ciclosComTurma: { esperado: number; encontrado: number }
+    }
   }
 
   turmasPorMapear: string[]
@@ -172,7 +178,27 @@ const studentRenewalTimelineSchema = new Schema<IStudentRenewalTimeline>(
       expiracaoIgualTurma: { type: String, default: 'sem-dados' },
       tagIgualTurma: { type: String, default: 'sem-dados' },
       ciclosSemMudancaTurma: { type: Number, default: 0 },
-      tagsDesatualizadas: { type: Boolean, default: false }
+      tagsDesatualizadas: { type: Boolean, default: false },
+      // os dois lados de cada elo, para o painel mostrar a comparacao
+      // e nao so o veredicto
+      comparacoes: {
+        acCompra: {
+          esperado: { type: Date, default: null },
+          encontrado: { type: Date, default: null }
+        },
+        expiracao: {
+          esperado: { type: Date, default: null },
+          encontrado: { type: Date, default: null }
+        },
+        tag: {
+          esperado: { type: String, default: null },
+          encontrado: { type: String, default: null }
+        },
+        ciclosComTurma: {
+          esperado: { type: Number, default: 0 },
+          encontrado: { type: Number, default: 0 }
+        }
+      }
     },
 
     turmasPorMapear: { type: [String], default: [] },

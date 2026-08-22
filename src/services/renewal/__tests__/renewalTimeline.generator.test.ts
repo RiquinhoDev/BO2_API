@@ -483,6 +483,70 @@ test('prestacoes: a AC guarda a data da ultima cobranca, nao da primeira', () =>
   assert.equal(comPrimeira.cadeia.acCompraIgualUltimaVenda, 'divergente')
 })
 
+test('a cadeia guarda os dois lados de cada comparacao', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2023-11-06T00:00:00Z'), transaction: 'A' }),
+        venda({ approvedDate: new Date('2024-11-05T00:00:00Z'), transaction: 'B' }),
+        venda({ approvedDate: new Date('2025-11-30T00:00:00Z'), transaction: 'C' })
+      ],
+      tags: [
+        { tagId: '1', nome: 'Aluno OGI L2311 - Turma 7', aplicadaEm: null },
+        { tagId: '2', nome: 'Aluno OGI 2411 - Renovação Turma 7', aplicadaEm: null },
+        { tagId: '3', nome: 'Aluno OGI 2511 - Renovação Turma 7', aplicadaEm: null }
+      ],
+      turmaAtual: { classId: 'c3', className: 'Turma 7 [2a renov] | 2511', entrouEm: null },
+      movimentacoes: [
+        { classId: 'c1', className: 'Turma 7 | 2311', entrouEm: null },
+        { classId: 'c2', className: 'Turma 7 [renov] | 2411', entrouEm: null }
+      ],
+      acDataCompra: new Date('2025-11-30T00:00:00Z'),
+      acExpiracao: new Date('2026-11-30T00:00:00Z')
+    })
+  )
+
+  const c = t.cadeia.comparacoes
+  assert.equal(c.acCompra.esperado?.toISOString(), '2025-11-30T00:00:00.000Z')
+  assert.equal(c.acCompra.encontrado?.toISOString(), '2025-11-30T00:00:00.000Z')
+  assert.equal(c.expiracao.esperado?.toISOString(), '2026-11-30T23:59:59.999Z')
+  assert.equal(c.expiracao.encontrado?.toISOString(), '2026-11-30T00:00:00.000Z')
+  assert.equal(c.tag.esperado, 'Aluno OGI 2511 - Renovação Turma 7')
+  assert.equal(c.tag.encontrado, 'Aluno OGI 2511 - Renovação Turma 7')
+  assert.deepEqual(c.ciclosComTurma, { esperado: 3, encontrado: 3 })
+})
+
+test('numa divergencia a comparacao diz de que valores se trata', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2026-06-10T00:00:00Z'), transaction: 'A' })],
+      tags: [
+        { tagId: '684', nome: 'Aluno OGI 2607 - Renovação Turma 6', aplicadaEm: null }
+      ],
+      turmaAtual: { classId: 'c', className: 'Turma Renovação | 2606', entrouEm: null }
+    })
+  )
+  assert.equal(t.cadeia.tagIgualTurma, 'divergente')
+  assert.equal(t.cadeia.comparacoes.tag.esperado, 'Aluno OGI 2606 - Renovação')
+  assert.equal(t.cadeia.comparacoes.tag.encontrado, 'Aluno OGI 2607 - Renovação Turma 6')
+})
+
+test('ciclos sem turma aparecem na contagem da comparacao', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2023-11-06T00:00:00Z'), transaction: 'A' }),
+        venda({ approvedDate: new Date('2024-11-05T00:00:00Z'), transaction: 'B' }),
+        venda({ approvedDate: new Date('2025-11-30T00:00:00Z'), transaction: 'C' })
+      ],
+      tags: [],
+      turmaAtual: { classId: 'c1', className: 'Turma 7 | 2311', entrouEm: null }
+    })
+  )
+  assert.deepEqual(t.cadeia.comparacoes.ciclosComTurma, { esperado: 3, encontrado: 1 })
+  assert.equal(t.cadeia.ciclosSemMudancaTurma, 2)
+})
+
 test('correr duas vezes da exactamente o mesmo resultado', () => {
   const e = entrada({
     vendas: [venda({ approvedDate: new Date('2025-11-30T00:00:00Z'), transaction: 'C' })],

@@ -438,6 +438,11 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
       : 'divergente'
   }
 
+  // a tag a mostrar é a da coorte mais recente que tenha alguma; sem
+  // isso o painel dizia "divergente" sem dizer divergente de quê
+  const tagEncontrada =
+    [...(ultimo?.coortes ?? [])].reverse().find((x) => x.tag)?.tag?.nome ?? null
+
   // Uma venda mais recente do que a última sync de tags explica
   // sozinha um desvio — dizê-lo evita acusar quem só está à espera.
   const tagsDesatualizadas = !!(
@@ -446,12 +451,20 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
     ultimaVendaDoCiclo.getTime() > e.fontes.tags.getTime()
   )
 
+  const semTurma = ciclos.filter((c) => c.alertas.includes('sem-mudanca-turma')).length
+
   return {
     acCompraIgualUltimaVenda,
     expiracaoIgualTurma,
     tagIgualTurma,
-    ciclosSemMudancaTurma: ciclos.filter((c) => c.alertas.includes('sem-mudanca-turma')).length,
-    tagsDesatualizadas
+    ciclosSemMudancaTurma: semTurma,
+    tagsDesatualizadas,
+    comparacoes: {
+      acCompra: { esperado: ultimaVendaDoCiclo, encontrado: e.acDataCompra },
+      expiracao: { esperado: fimDaTurma, encontrado: e.acExpiracao },
+      tag: { esperado: ultimo?.tagEsperada ?? null, encontrado: tagEncontrada },
+      ciclosComTurma: { esperado: ciclos.length, encontrado: ciclos.length - semTurma }
+    }
   }
 }
 
