@@ -603,6 +603,46 @@ test('todos os ciclos com turma dao veredicto correto', () => {
   )
   assert.equal(t.cadeia.registoDeTurmas, 'ok')
 })
+test('ter a tag certa noutra coorte nao e divergencia', () => {
+  // Caso real: 12 de 12 alunos da Turma 8 | 2601 tem a tag da turma,
+  // mas o emparelhamento e um-para-um e a coorte ficou com outra tag
+  // do mesmo periodo. Perguntar "a coorte tem esta tag?" acusava-os;
+  // a pergunta certa e "o aluno tem esta tag?".
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2026-01-20T00:00:00Z'), transaction: 'A' })],
+      tags: [
+        { tagId: '100', nome: 'Aluno OGI 2601 - Renovação Turma 4', aplicadaEm: null },
+        { tagId: '500', nome: 'Aluno OGI 2601 - Renovação Turma 8', aplicadaEm: null }
+      ],
+      turmaAtual: { classId: 'c', className: 'Turma 8 [2a renov] | 2601', entrouEm: null }
+    })
+  )
+
+  assert.equal(t.ciclos[0].tagEsperada, 'Aluno OGI 2601 - Renovação Turma 8')
+  // o desempate por id deu a coorte a tag da Turma 4
+  assert.equal(t.ciclos[0].coortes[0].tag?.id, '100')
+  // mas o aluno tem a da Turma 8, por isso nao ha divergencia
+  assert.ok(!t.ciclos[0].alertas.includes('tag-diferente-da-turma'))
+  assert.equal(t.cadeia.tagIgualTurma, 'ok')
+  // e a comparacao mostra as duas iguais em vez de acusar sem razao
+  assert.equal(t.cadeia.comparacoes.tag.encontrado, 'Aluno OGI 2601 - Renovação Turma 8')
+})
+
+test('nao ter a tag em lado nenhum continua a ser divergencia', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2026-01-20T00:00:00Z'), transaction: 'A' })],
+      tags: [
+        { tagId: '100', nome: 'Aluno OGI 2601 - Renovação Turma 4', aplicadaEm: null }
+      ],
+      turmaAtual: { classId: 'c', className: 'Turma 8 [2a renov] | 2601', entrouEm: null }
+    })
+  )
+  assert.ok(t.ciclos[0].alertas.includes('tag-diferente-da-turma'))
+  assert.equal(t.cadeia.tagIgualTurma, 'divergente')
+  assert.equal(t.cadeia.comparacoes.tag.encontrado, 'Aluno OGI 2601 - Renovação Turma 4')
+})
 test('correr duas vezes da exactamente o mesmo resultado', () => {
   const e = entrada({
     vendas: [venda({ approvedDate: new Date('2025-11-30T00:00:00Z'), transaction: 'C' })],

@@ -77,6 +77,12 @@ export function periodoDaTag(nome: string): string | null {
   return m[1]
 }
 
+/** O aluno tem esta tag, esteja ela emparelhada com que coorte estiver. */
+function temATag(tags: TagEntrada[], nome: string): boolean {
+  const alvo = normalizarNomeTurma(nome)
+  return tags.some((t) => normalizarNomeTurma(t.nome) === alvo)
+}
+
 const MENCIONA_PERCURSO = /turma|renova(ç|c)(ã|a)o/i
 
 /** Tag de percurso = tem período E fala de turma/renovação. */
@@ -343,10 +349,15 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
       }
     }
 
+    // A pergunta é "o aluno TEM a tag que esta turma pede?", não "foi a
+    // esta coorte que ela calhou". O emparelhamento é um-para-um, por
+    // isso a tag certa pode ter ficado noutra coorte do mesmo aluno —
+    // e acusá-lo por isso era um falso alarme. Medido a 22/08: de 16
+    // marcados, 4 tinham a tag certa noutro lugar.
     if (
       resolucao?.tagNome &&
       coortes.some((x) => x.tag) &&
-      !coortes.some((x) => x.tag && normalizarNomeTurma(x.tag.nome) === normalizarNomeTurma(resolucao.tagNome!))
+      !temATag(e.tags, resolucao.tagNome)
     ) {
       alertas.push('tag-diferente-da-turma')
     }
@@ -442,19 +453,21 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
     expiracaoIgualTurma = mesmoMes(e.acExpiracao, fimDaTurma) ? 'ok' : 'divergente'
   }
 
+  // Basta o aluno ter a tag — não interessa a que coorte ela ficou
+  // agarrada no emparelhamento. Ver a nota em `tag-diferente-da-turma`.
+  const temAEsperada = !!ultimo?.tagEsperada && temATag(e.tags, ultimo.tagEsperada)
+
   let tagIgualTurma: Veredicto = 'sem-dados'
   if (ultimo && ultimo.tagEsperada) {
-    tagIgualTurma = ultimo.coortes.some(
-      (x) => x.tag && normalizarNomeTurma(x.tag.nome) === normalizarNomeTurma(ultimo.tagEsperada!)
-    )
-      ? 'ok'
-      : 'divergente'
+    tagIgualTurma = temAEsperada ? 'ok' : 'divergente'
   }
 
-  // a tag a mostrar é a da coorte mais recente que tenha alguma; sem
-  // isso o painel dizia "divergente" sem dizer divergente de quê
-  const tagEncontrada =
-    [...(ultimo?.coortes ?? [])].reverse().find((x) => x.tag)?.tag?.nome ?? null
+  // Quando a tem, mostra-se a própria — o painel diria "divergente" com
+  // as duas colunas iguais, o que confundia. Quando não a tem, mostra-se
+  // a tag mais recente que tem, para se ver de que é que difere.
+  const tagEncontrada = temAEsperada
+    ? ultimo!.tagEsperada
+    : [...(ultimo?.coortes ?? [])].reverse().find((x) => x.tag)?.tag?.nome ?? null
 
   // Uma venda mais recente do que a última sync de tags explica
   // sozinha um desvio — dizê-lo evita acusar quem só está à espera.
