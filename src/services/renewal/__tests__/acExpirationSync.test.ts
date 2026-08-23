@@ -5,6 +5,7 @@ import HotmartSaleHistory from '../../../models/HotmartSaleHistory'
 import RenewalOffer from '../../../models/RenewalOffer'
 import { activeCampaignService } from '../../activeCampaign/activeCampaignService'
 import * as acExpirationSync from '../acExpirationSync.service'
+import { TURMA_1_RENEWAL_OFFER_CODE, TURMA_2_RENEWAL_OFFER_CODE } from '../renewalConstants'
 import type { VendaEntrada } from '../renewalTimeline.types'
 
 const venda = (partial: Partial<VendaEntrada>): VendaEntrada => ({
@@ -247,21 +248,27 @@ test('compra base preserva os dois anos do nome e escreve a expiração do perí
   assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-09-30']])
 })
 
-test('ofertas especiais autoritativas das Turmas 1 e 2 continuam renovações', async (t) => {
+test('códigos reais das Turmas 1 e 2 usam compra mais anos mesmo com nome base e isRenewal falso', async (t) => {
   const compraTurma1 = new Date('2026-01-05T00:00:00Z')
-  const compraTurma2 = new Date('2026-06-05T00:00:00Z')
+  const compraTurma2 = new Date('2025-06-05T00:00:00Z')
   const fixtures = instalarFixturesSync(
     [
       alunoAc({ userId: 'turma-1', email: 'turma1@example.com' }),
       alunoAc({ userId: 'turma-2', email: 'turma2@example.com' })
     ],
     [
-      alunoHotmart(compraTurma1, { userId: 'turma-1', sales: [venda({ approvedDate: compraTurma1, transaction: 'RENOV-T1', offerCode: 'renov-turma-1' })] }),
-      alunoHotmart(compraTurma2, { userId: 'turma-2', sales: [venda({ approvedDate: compraTurma2, transaction: 'RENOV-T2', offerCode: 'renov-turma-2' })] })
+      alunoHotmart(compraTurma1, { userId: 'turma-1', sales: [venda({ approvedDate: compraTurma1, transaction: 'RENOV-T1', offerCode: TURMA_1_RENEWAL_OFFER_CODE })] }),
+      alunoHotmart(compraTurma2, {
+        userId: 'turma-2',
+        sales: [
+          venda({ approvedDate: compraTurma2, transaction: 'RENOV-T2', offerCode: TURMA_2_RENEWAL_OFFER_CODE }),
+          venda({ approvedDate: compraTurma2, transaction: 'EXT-T2', offerCode: 'extensao', hotmartProductId: '3100292', priceValue: 97 })
+        ]
+      })
     ],
     [
-      oferta({ offerCode: 'renov-turma-1', offerName: 'OGI Turma 1 | L2701 | 397', periodYYMM: '2701', isRenewal: true }),
-      oferta({ offerCode: 'renov-turma-2', offerName: 'OGI Turma 2 | L2706 | 397', periodYYMM: '2706', isRenewal: true })
+      oferta({ offerCode: TURMA_1_RENEWAL_OFFER_CODE, offerName: 'OGI Turma 1 | L2701 | 397', periodYYMM: '2701', isRenewal: false }),
+      oferta({ offerCode: TURMA_2_RENEWAL_OFFER_CODE, offerName: 'OGI Turma 2 | L2706 | 397', periodYYMM: '2706', isRenewal: false })
     ]
   )
   t.after(fixtures.restaurar)

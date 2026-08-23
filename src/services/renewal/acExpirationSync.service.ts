@@ -27,6 +27,7 @@ import HotmartSaleHistory from '../../models/HotmartSaleHistory'
 import RenewalOffer from '../../models/RenewalOffer'
 import { activeCampaignService } from '../activeCampaign/activeCampaignService'
 import { AC_EXPIRATION_DATE_FIELD_ID } from './acRenewalDataSync.service'
+import { TURMA_1_RENEWAL_OFFER_CODE, TURMA_2_RENEWAL_OFFER_CODE } from './renewalConstants'
 import { agruparCiclos } from './renewalCycles'
 import { parseOfferName, parseTurmaName, tipoDeTurma } from './turmaParser'
 import type { CicloBase, VendaEntrada } from './renewalTimeline.types'
@@ -34,6 +35,7 @@ import type { CicloBase, VendaEntrada } from './renewalTimeline.types'
 // mesmos 2 estados usados em hotmartRefunds.service.ts — uma compra
 // nestes estados nunca deve gerar escrita de expiração.
 const REFUND_TRANSACTION_STATUSES = new Set(['REFUNDED', 'CHARGEBACK'])
+const CODIGOS_RENOVACAO_ESPECIAIS = new Set([TURMA_1_RENEWAL_OFFER_CODE, TURMA_2_RENEWAL_OFFER_CODE])
 
 export interface AcExpirationSyncReport {
   candidatesChecked: number
@@ -87,7 +89,10 @@ export function dataBaseDoAluno(sales: VendaEntrada[]): Date | null {
 function calcularExpiracao(ciclo: CicloBase, oferta: OfertaDaAncora | undefined): Date | null {
   const ancora = ciclo.compras[0]
   const nome = typeof oferta?.offerName === 'string' ? oferta.offerName.trim() : ''
-  const renovacao = oferta?.isRenewal === true || (nome !== '' && tipoDeTurma(nome) === 'renovacao')
+  const renovacao =
+    CODIGOS_RENOVACAO_ESPECIAIS.has(ancora.offerCode ?? '') ||
+    oferta?.isRenewal === true ||
+    (nome !== '' && tipoDeTurma(nome) === 'renovacao')
 
   if (renovacao) return computeExpirationFromPurchaseDate(ancora.data, ciclo.anos)
   if (!nome) return null
