@@ -80,11 +80,19 @@ export function indiceDePeriodo(yymm: string | null | undefined): number | null 
   return (2000 + yy) * 12 + mm
 }
 
-function dataDaVenda(v: VendaEntrada): Date | null {
+type VendaComEstadoEData = Pick<VendaEntrada, 'transactionStatus' | 'approvedDate' | 'orderDate'>
+
+function dataDaVenda(v: VendaComEstadoEData): Date | null {
   const d = v.approvedDate ?? v.orderDate
   if (!d) return null
   const data = d instanceof Date ? d : new Date(d)
   return Number.isNaN(data.getTime()) ? null : data
+}
+
+/** Critério canónico: só cobranças confirmadas com uma data aproveitável dão acesso. */
+export function isValidSale(venda: VendaComEstadoEData): boolean {
+  return ESTADOS_VALIDOS.has(String(venda.transactionStatus ?? '').toUpperCase())
+    && dataDaVenda(venda) !== null
 }
 
 function mesmoDia(a: Date, b: Date): boolean {
@@ -138,7 +146,7 @@ function pertenceAoMesmoCiclo(
  */
 export function agruparCiclos(vendas: VendaEntrada[]): CicloBase[] {
   const validas = vendas
-    .filter((v) => ESTADOS_VALIDOS.has(String(v.transactionStatus ?? '').toUpperCase()))
+    .filter(isValidSale)
     .map((v) => ({ venda: v, data: dataDaVenda(v) }))
     .filter((x): x is { venda: VendaEntrada; data: Date } => x.data !== null)
     .sort((a, b) => a.data.getTime() - b.data.getTime())

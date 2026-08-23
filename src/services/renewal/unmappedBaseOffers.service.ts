@@ -3,6 +3,7 @@ import Product from '../../models/product/Product'
 import RenewalOffer from '../../models/RenewalOffer'
 import UserProduct from '../../models/UserProduct'
 import { TURMA_1_RENEWAL_OFFER_CODE, TURMA_2_RENEWAL_OFFER_CODE } from './renewalConstants'
+import { isValidSale } from './renewalCycles'
 import { parseOfferName, tipoDeTurma } from './turmaParser'
 
 const CODIGOS_RENOVACAO_ESPECIAIS = new Set([
@@ -32,6 +33,9 @@ interface OfertaBase {
 
 interface VendaHistorico {
   offerCode: string | null
+  transactionStatus: string | null
+  approvedDate: Date | null
+  orderDate: Date | null
 }
 
 export interface OfertaBaseSemTurma {
@@ -119,7 +123,7 @@ export async function getUnmappedBaseOffers(): Promise<OfertaBaseSemTurma[]> {
   for (const history of histories) {
     for (const sale of history.sales ?? []) {
       const offerCode = sale.offerCode?.trim()
-      if (!offerCode || !candidates.has(offerCode)) continue
+      if (!offerCode || !candidates.has(offerCode) || !isValidSale(sale)) continue
 
       const current = counters.get(offerCode) ?? { students: new Set<string>(), salesCount: 0 }
       current.students.add(String(history.userId))

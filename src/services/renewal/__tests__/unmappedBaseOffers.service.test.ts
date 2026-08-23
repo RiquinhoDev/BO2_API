@@ -34,9 +34,12 @@ const offer = (partial: Record<string, unknown> = {}) => ({
   ...partial
 })
 
-const sale = (offerCode: string) => ({
+const sale = (offerCode: string, partial: Record<string, unknown> = {}) => ({
   offerCode,
-  transactionStatus: 'APPROVED'
+  transactionStatus: 'APPROVED',
+  approvedDate: new Date('2026-08-20T10:00:00.000Z'),
+  orderDate: null,
+  ...partial,
 })
 
 function installFixtures({
@@ -120,6 +123,30 @@ test('exclui vendas de aluno sem matrícula OGI Hotmart ACTIVE', async (t) => {
     histories: [
       { userId: 'ativo', sales: [sale('base-sem-turma')] },
       { userId: 'inativo', sales: [sale('base-sem-turma'), sale('base-sem-turma')] },
+    ],
+  })
+  t.after(restore)
+
+  assert.deepEqual(
+    (await getUnmappedBaseOffers()).map((entry) => [entry.alunosAfetados, entry.salesCount]),
+    [[1, 1]],
+  )
+})
+
+test('conta só vendas válidas do escritor e ignora reembolsos, chargebacks e datas inválidas', async (t) => {
+  const restore = installFixtures({
+    offers: [offer()],
+    activeUsers: [{ userId: 'sem-acesso' }, { userId: 'com-acesso' }],
+    histories: [
+      {
+        userId: 'sem-acesso',
+        sales: [
+          sale('base-sem-turma', { transactionStatus: 'REFUNDED' }),
+          sale('base-sem-turma', { transactionStatus: 'CHARGEBACK' }),
+          sale('base-sem-turma', { transactionStatus: 'APPROVED', approvedDate: null, orderDate: null }),
+        ],
+      },
+      { userId: 'com-acesso', sales: [sale('base-sem-turma', { transactionStatus: 'COMPLETE' })] },
     ],
   })
   t.after(restore)
