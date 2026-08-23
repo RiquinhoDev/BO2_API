@@ -19,6 +19,7 @@
 // tags, nem mais nada — só a expiração, e só quando faz sentido).
 // ════════════════════════════════════════════════════════════
 
+import { randomUUID } from 'node:crypto'
 import mongoose from 'mongoose'
 import ACRenewalData from '../../models/ACRenewalData'
 import AcExpirationEventState from '../../models/AcExpirationEventState'
@@ -49,6 +50,8 @@ export interface AcExpirationSyncReport {
   skippedWouldShorten: number
   bootstrapped: number
   skippedNoNewEvent: number
+  claimConflicts: number
+  confirmationPending: number
   divergentes: Array<{ email: string; acTem: Date | null; calculado: Date; motivo: 'encurtaria' | 'diferente' }>
   errors: Array<{ email: string; error: string }>
 }
@@ -58,6 +61,9 @@ const ACRenewalDataReadModel = ACRenewalData as unknown as MongooseReadModel
 const HotmartSaleHistoryReadModel = HotmartSaleHistory as unknown as MongooseReadModel
 const RenewalOfferReadModel = RenewalOffer as unknown as MongooseReadModel
 const AcExpirationEventStateReadModel = AcExpirationEventState as unknown as MongooseReadModel
+const AcExpirationEventStateWriteModel = AcExpirationEventState as any
+
+const CLAIM_LEASE_MS = 5 * 60 * 1000
 
 interface OfertaDaAncora {
   offerCode: string
@@ -112,16 +118,36 @@ export function encurtaria(calculado: Date, acTem: Date | null): boolean {
   return acTem !== null && calculado.getTime() < acTem.getTime()
 }
 
-/** Identidade estável do ciclo: âncora, venda/oferta e duração do acesso. */
+/** Só a âncora temporal e a duração são imutáveis durante o ciclo. */
 export function identidadeDoEvento(ciclo: CicloBase): string {
   const ancora = ciclo.compras[0]
-  return JSON.stringify([
-    ancora.data.toISOString(),
-    ancora.transacao ?? null,
-    ancora.offerCode ?? null,
-    ancora.produtoId ?? null,
-    ciclo.anos
-  ])
+  return JSON.stringify([ancora.data.toISOString(), ciclo.anos])
+}
+
+interface EstadoEvento {
+  userId: mongoose.Types.ObjectId
+  status?: 'livre' | 'tratado' | 'confirmacao-pendente'
+  eventIdentity: string | null
+  anchorDate: Date | null
+  cycleYears: 1 | 2 | null
+  claimToken?: string | null
+  leaseUntil?: Date | null
+  claimedAt?: Date | null
+  pendingEventIdentity?: string | null
+  pendingAnchorDate?: Date | null
+  pendingCycleYears?: 1 | 2 | null
+  pendingExpiration?: Date | null
+}
+
+function compararComWatermark(ciclo: CicloBase, estado: EstadoEvento | undefined): -1 | 0 | 1 {
+  if (!estado?.anchorDate || !estado.cycleYears) return 1
+  const ancora = ciclo.compras[0].data.getTime()
+  const anterior = new Date(estado.anchorDate).getTime()
+  if (ancora < anterior) return -1
+  if (ancora > anterior) return 1
+  if (ciclo.anos < estado.cycleYears) return -1
+  if (ciclo.anos > estado.cycleYears) return 1
+  return 0
 }
 
 interface SeletorManual {
@@ -159,6 +185,8 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
     skippedWouldShorten: 0,
     bootstrapped: 0,
     skippedNoNewEvent: 0,
+    claimConflicts: 0,
+    confirmationPending: 0,
     divergentes: [],
     errors: []
   }
@@ -196,9 +224,9 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
   const estados = userIds.length === 0
     ? []
     : await AcExpirationEventStateReadModel.find({ userId: { $in: userIds } })
-      .select('userId eventIdentity')
+      .select('userId status eventIdentity anchorDate cycleYears claimToken leaseUntil claimedAt pendingEventIdentity pendingAnchorDate pendingCycleYears pendingExpiration')
       .lean()
-      .exec() as Array<{ userId: mongoose.Types.ObjectId; eventIdentity: string }>
+      .exec() as EstadoEvento[]
   const estadoByUserId = new Map(estados.map((estado) => [String(estado.userId), estado]))
 
   const cicloByUserId = new Map(
@@ -217,122 +245,324 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       .exec() as OfertaDaAncora[]
   const ofertaByCode = new Map(ofertas.map((oferta) => [oferta.offerCode, oferta]))
 
-  const avancarWatermark = async (userId: mongoose.Types.ObjectId, ciclo: CicloBase, eventIdentity: string) => {
-    const ancora = ciclo.compras[0]
-    await AcExpirationEventState.updateOne(
-      { userId },
+  const reclamarEvento = async (
+    userId: mongoose.Types.ObjectId,
+    ciclo: CicloBase,
+    eventIdentity: string,
+    expiration: Date
+  ): Promise<EstadoEvento | null> => {
+    const agora = new Date()
+    const ancora = ciclo.compras[0].data
+    const leaseUntil = new Date(agora.getTime() + CLAIM_LEASE_MS)
+    const claimToken = randomUUID()
+    const filtroStatus = manual
+      ? {
+          $or: [
+            { status: { $ne: 'confirmacao-pendente' } },
+            { leaseUntil: { $lte: agora } }
+          ]
+        }
+      : { status: { $ne: 'confirmacao-pendente' } }
+
+    try {
+      return await AcExpirationEventStateWriteModel.findOneAndUpdate(
+        {
+          userId,
+          $and: [
+            filtroStatus,
+            {
+              $or: [
+                { anchorDate: null },
+                { anchorDate: { $exists: false } },
+                { anchorDate: { $lt: ancora } },
+                { anchorDate: ancora, cycleYears: { $lte: ciclo.anos } }
+              ]
+            },
+            {
+              $or: [
+                { pendingAnchorDate: null },
+                { pendingAnchorDate: { $exists: false } },
+                { pendingAnchorDate: { $lte: ancora } }
+              ]
+            }
+          ]
+        },
+        {
+          $setOnInsert: { userId },
+          $set: {
+            status: 'confirmacao-pendente',
+            claimToken,
+            leaseUntil,
+            claimedAt: agora,
+            pendingEventIdentity: eventIdentity,
+            pendingAnchorDate: ancora,
+            pendingCycleYears: ciclo.anos,
+            pendingExpiration: expiration
+          }
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      ).lean().exec() as EstadoEvento | null
+    } catch (error: any) {
+      // Duas corridas podem tentar o upsert inicial; o índice único decide a vencedora.
+      if (error?.code === 11000) return null
+      throw error
+    }
+  }
+
+  const finalizarEvento = async (
+    userId: mongoose.Types.ObjectId,
+    eventIdentity: string,
+    anchorDate: Date,
+    cycleYears: 1 | 2,
+    filtroCas: { claimToken?: string; pendingEventIdentity?: string }
+  ): Promise<EstadoEvento | null> => {
+    return await AcExpirationEventStateWriteModel.findOneAndUpdate(
+      { userId, status: 'confirmacao-pendente', ...filtroCas },
       {
         $set: {
+          status: 'tratado',
           eventIdentity,
-          anchorDate: ancora.data,
-          anchorTransaction: ancora.transacao,
-          anchorOfferCode: ancora.offerCode,
-          anchorProductId: ancora.produtoId,
-          cycleYears: ciclo.anos,
+          anchorDate,
+          cycleYears,
           handledAt: new Date()
+        },
+        $unset: {
+          claimToken: 1,
+          leaseUntil: 1,
+          claimedAt: 1,
+          pendingEventIdentity: 1,
+          pendingAnchorDate: 1,
+          pendingCycleYears: 1,
+          pendingExpiration: 1
         }
       },
-      { upsert: true }
-    )
-    estadoByUserId.set(String(userId), { userId, eventIdentity })
+      { new: true }
+    ).lean().exec() as EstadoEvento | null
+  }
+
+  const libertarClaim = async (estado: EstadoEvento): Promise<void> => {
+    if (!estado.claimToken) return
+    await AcExpirationEventStateWriteModel.findOneAndUpdate(
+      { userId: estado.userId, status: 'confirmacao-pendente', claimToken: estado.claimToken },
+      {
+        $set: { status: estado.eventIdentity ? 'tratado' : 'livre' },
+        $unset: {
+          claimToken: 1,
+          leaseUntil: 1,
+          claimedAt: 1,
+          pendingEventIdentity: 1,
+          pendingAnchorDate: 1,
+          pendingCycleYears: 1,
+          pendingExpiration: 1
+        }
+      },
+      { new: true }
+    ).lean().exec()
+  }
+
+  const registarErro = (email: string, error: unknown) => {
+    const mensagem = error instanceof Error ? error.message : 'Erro desconhecido no watermark'
+    report.errors.push({ email, error: mensagem })
   }
 
   for (const ac of acEntries) {
-    if (ac.refundDate || ac.purchaseStatus === 'Reembolsada') {
-      report.skippedRefunded += 1
-      continue
-    }
-
-    const hm = hotmartByUserId.get(String(ac.userId))
-    if (hm?.latestTransactionStatus && REFUND_TRANSACTION_STATUSES.has(hm.latestTransactionStatus)) {
-      report.skippedRefunded += 1
-      continue
-    }
-
-    const ciclo = cicloByUserId.get(String(ac.userId))
-    const ancora = ciclo?.compras[0]
-    if (!ciclo || !ancora) {
-      report.skippedNoHotmartData += 1
-      continue
-    }
-
-    const expiration = calcularExpiracao(ciclo, ofertaByCode.get(ancora.offerCode ?? ''))
-    if (!expiration) {
-      report.semTurma += 1
-      continue
-    }
-    const encurta = encurtaria(expiration, ac.expirationDate)
-    const eventIdentity = identidadeDoEvento(ciclo)
-    const estado = estadoByUserId.get(String(ac.userId))
-    const eventoNovo = estado?.eventIdentity !== eventIdentity
-    const expiracaoVazia = !ac.expirationDate
-    const elegivel = Boolean(manual) || expiracaoVazia || eventoNovo
-    if (!ac.expirationDate || !sameDay(expiration, ac.expirationDate)) {
-      report.divergentes.push({
-        email: ac.email,
-        acTem: ac.expirationDate,
-        calculado: expiration,
-        motivo: encurta ? 'encurtaria' : 'diferente'
-      })
-    }
-
-    if (!hm?.latestApprovedDate) {
-      if (encurta) report.skippedWouldShorten += 1
-      report.skippedNoHotmartData += 1
-      continue
-    }
-
-    if (!ac.contactId) {
-      report.skippedNoContact += 1
-      continue
-    }
-
-    if (encurta) {
-      report.skippedWouldShorten += 1
-      if (!dryRun && eventoNovo) await avancarWatermark(ac.userId, ciclo, eventIdentity)
-      continue
-    }
-
-    if (ac.expirationDate && sameDay(expiration, ac.expirationDate)) {
-      report.alreadyInSync += 1
-      if (!dryRun && eventoNovo) await avancarWatermark(ac.userId, ciclo, eventIdentity)
-      continue
-    }
-
-    if (!elegivel) {
-      report.skippedNoNewEvent += 1
-      continue
-    }
-
-    if (!estado && !manual && !expiracaoVazia) {
-      if (!dryRun) {
-        await avancarWatermark(ac.userId, ciclo, eventIdentity)
-        report.bootstrapped += 1
-      }
-      continue
-    }
-
-    report.candidatesChecked += 1
-
-    report.needsWrite += 1
-    if (dryRun) {
-      report.wouldWrite += 1
-      continue
-    }
-
     try {
-      const ok = await activeCampaignService.updateContactField(
-        ac.email,
-        AC_EXPIRATION_DATE_FIELD_ID,
-        formatDateYYYYMMDD(expiration)
-      )
-      if (ok) {
-        report.written += 1
-        await avancarWatermark(ac.userId, ciclo, eventIdentity)
+      if (ac.refundDate || ac.purchaseStatus === 'Reembolsada') {
+        report.skippedRefunded += 1
+        continue
       }
-      else report.errors.push({ email: ac.email, error: 'updateContactField devolveu false' })
-    } catch (error: any) {
-      report.errors.push({ email: ac.email, error: error?.message || 'Erro desconhecido ao escrever na AC' })
+
+      const hm = hotmartByUserId.get(String(ac.userId))
+      if (hm?.latestTransactionStatus && REFUND_TRANSACTION_STATUSES.has(hm.latestTransactionStatus)) {
+        report.skippedRefunded += 1
+        continue
+      }
+
+      const ciclo = cicloByUserId.get(String(ac.userId))
+      const ancora = ciclo?.compras[0]
+      if (!ciclo || !ancora) {
+        report.skippedNoHotmartData += 1
+        continue
+      }
+
+      const expiration = calcularExpiracao(ciclo, ofertaByCode.get(ancora.offerCode ?? ''))
+      if (!expiration) {
+        report.semTurma += 1
+        continue
+      }
+
+      const encurta = encurtaria(expiration, ac.expirationDate)
+      const eventIdentity = identidadeDoEvento(ciclo)
+      let estado = estadoByUserId.get(String(ac.userId))
+
+      if (estado?.status === 'confirmacao-pendente') {
+        if (dryRun) {
+          report.confirmationPending += 1
+          continue
+        }
+        const pendenteConfirmado = Boolean(
+          estado.pendingExpiration &&
+          ac.expirationDate &&
+          sameDay(new Date(estado.pendingExpiration), ac.expirationDate)
+        )
+        const leaseExpirada = Boolean(
+          estado.leaseUntil && new Date(estado.leaseUntil).getTime() <= Date.now()
+        )
+        const retomaManual = Boolean(manual) && leaseExpirada
+        if (!pendenteConfirmado && !retomaManual) {
+          report.confirmationPending += 1
+          continue
+        }
+
+        if (pendenteConfirmado) {
+          const finalizado = await finalizarEvento(
+            ac.userId,
+            estado.pendingEventIdentity!,
+            new Date(estado.pendingAnchorDate!),
+            estado.pendingCycleYears!,
+            { pendingEventIdentity: estado.pendingEventIdentity! }
+          )
+          if (!finalizado) {
+            report.claimConflicts += 1
+            continue
+          }
+          estado = finalizado
+          estadoByUserId.set(String(ac.userId), finalizado)
+          report.alreadyInSync += 1
+        }
+      }
+
+      const relacao = compararComWatermark(ciclo, estado)
+      if (relacao < 0) {
+        report.skippedNoNewEvent += 1
+        continue
+      }
+      const eventoNovo = relacao > 0
+      const expiracaoVazia = !ac.expirationDate
+      const elegivel = Boolean(manual) || expiracaoVazia || eventoNovo
+
+      if (!ac.expirationDate || !sameDay(expiration, ac.expirationDate)) {
+        report.divergentes.push({
+          email: ac.email,
+          acTem: ac.expirationDate,
+          calculado: expiration,
+          motivo: encurta ? 'encurtaria' : 'diferente'
+        })
+      }
+
+      if (!hm?.latestApprovedDate) {
+        if (encurta) report.skippedWouldShorten += 1
+        report.skippedNoHotmartData += 1
+        continue
+      }
+
+      if (!ac.contactId) {
+        report.skippedNoContact += 1
+        continue
+      }
+
+      if (encurta || (ac.expirationDate && sameDay(expiration, ac.expirationDate))) {
+        if (encurta) report.skippedWouldShorten += 1
+        else if (estado?.status !== 'tratado' || eventoNovo) report.alreadyInSync += 1
+        if (!dryRun && eventoNovo) {
+          const claim = await reclamarEvento(ac.userId, ciclo, eventIdentity, expiration)
+          if (!claim) {
+            report.claimConflicts += 1
+            continue
+          }
+          const finalizado = await finalizarEvento(
+            ac.userId,
+            eventIdentity,
+            ancora.data,
+            ciclo.anos,
+            { claimToken: claim.claimToken! }
+          )
+          if (!finalizado) report.claimConflicts += 1
+          else estadoByUserId.set(String(ac.userId), finalizado)
+        }
+        continue
+      }
+
+      if (!elegivel) {
+        report.skippedNoNewEvent += 1
+        continue
+      }
+
+      if (!estado && !manual && !expiracaoVazia) {
+        if (!dryRun) {
+          const claim = await reclamarEvento(ac.userId, ciclo, eventIdentity, expiration)
+          if (!claim) {
+            report.claimConflicts += 1
+            continue
+          }
+          const finalizado = await finalizarEvento(
+            ac.userId,
+            eventIdentity,
+            ancora.data,
+            ciclo.anos,
+            { claimToken: claim.claimToken! }
+          )
+          if (!finalizado) report.claimConflicts += 1
+          else {
+            estadoByUserId.set(String(ac.userId), finalizado)
+            report.bootstrapped += 1
+          }
+        }
+        continue
+      }
+
+      report.candidatesChecked += 1
+      report.needsWrite += 1
+      if (dryRun) {
+        report.wouldWrite += 1
+        continue
+      }
+
+      const claim = await reclamarEvento(ac.userId, ciclo, eventIdentity, expiration)
+      if (!claim) {
+        report.claimConflicts += 1
+        continue
+      }
+
+      let ok = false
+      try {
+        ok = await activeCampaignService.updateContactField(
+          ac.email,
+          AC_EXPIRATION_DATE_FIELD_ID,
+          formatDateYYYYMMDD(expiration)
+        )
+      } catch (error) {
+        registarErro(ac.email, error)
+        try {
+          await libertarClaim(claim)
+        } catch (releaseError) {
+          registarErro(ac.email, releaseError)
+        }
+        continue
+      }
+
+      if (!ok) {
+        report.errors.push({ email: ac.email, error: 'updateContactField devolveu false' })
+        try {
+          await libertarClaim(claim)
+        } catch (releaseError) {
+          registarErro(ac.email, releaseError)
+        }
+        continue
+      }
+
+      report.written += 1
+      const finalizado = await finalizarEvento(
+        ac.userId,
+        eventIdentity,
+        ancora.data,
+        ciclo.anos,
+        { claimToken: claim.claimToken! }
+      )
+      if (!finalizado) report.claimConflicts += 1
+      else estadoByUserId.set(String(ac.userId), finalizado)
+    } catch (error) {
+      registarErro(ac.email, error)
     }
   }
 

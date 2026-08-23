@@ -33,6 +33,25 @@ const query = <T>(entries: T[]) => ({
   })
 })
 
+const mutationQuery = <T>(executar: () => Promise<T>) => ({
+  lean: () => ({ exec: executar })
+})
+
+const estadoTratado = (userId: string, anchorDate: string, cycleYears: 1 | 2 = 1) => ({
+  userId,
+  status: 'tratado',
+  eventIdentity: JSON.stringify([new Date(anchorDate).toISOString(), cycleYears]),
+  anchorDate: new Date(anchorDate),
+  cycleYears,
+  claimToken: null,
+  leaseUntil: null,
+  pendingEventIdentity: null,
+  pendingAnchorDate: null,
+  pendingCycleYears: null,
+  pendingExpiration: null,
+  claimedAt: null
+})
+
 const oferta = (partial: Record<string, unknown> = {}) => ({
   offerCode: 'oferta-renovacao',
   offerName: 'Renovação Turma 11 | 2509',
@@ -45,7 +64,12 @@ function instalarFixturesSync(
   acEntries: any[],
   hotmartDocs: any[],
   ofertas = [oferta()],
-  opcoes: { estados?: any[]; respostasAc?: Array<boolean | Error> } = {}
+  opcoes: {
+    estados?: any[]
+    respostasAc?: Array<boolean | Error>
+    falharFinalizacoes?: number
+    falharWatermarkUserIds?: string[]
+  } = {}
 ) {
   const acFindOriginal = (ACRenewalData as any).find
   const hotmartFindOriginal = (HotmartSaleHistory as any).find
@@ -54,6 +78,7 @@ function instalarFixturesSync(
   const estadoModel = (mongoose.models as any).AcExpirationEventState
   const estadoFindOriginal = estadoModel?.find
   const estadoUpdateOneOriginal = estadoModel?.updateOne
+  const estadoFindOneAndUpdateOriginal = estadoModel?.findOneAndUpdate
   const escritas: Array<[string, number, string]> = []
   const estados: any[] = [...(opcoes.estados ?? [])]
   const filtrosAc: any[] = []
@@ -72,12 +97,55 @@ function instalarFixturesSync(
   if (estadoModel) {
     estadoModel.find = () => query(estados)
     estadoModel.updateOne = async (filtro: { userId: unknown }, atualizacao: { $set: Record<string, unknown> }) => {
+      if (opcoes.falharWatermarkUserIds?.includes(String(filtro.userId))) {
+        throw new Error(`watermark indisponível para ${String(filtro.userId)}`)
+      }
+      if ((opcoes.falharFinalizacoes ?? 0) > 0) {
+        opcoes.falharFinalizacoes = (opcoes.falharFinalizacoes ?? 0) - 1
+        throw new Error('falha ao finalizar watermark')
+      }
       const indice = estados.findIndex((estado) => String(estado.userId) === String(filtro.userId))
-      const novoEstado = { userId: filtro.userId, ...atualizacao.$set }
+      const novoEstado = { ...(indice === -1 ? {} : estados[indice]), userId: filtro.userId, ...atualizacao.$set }
       if (indice === -1) estados.push(novoEstado)
       else estados[indice] = novoEstado
       return { acknowledged: true }
     }
+    estadoModel.findOneAndUpdate = (filtro: any, atualizacao: any) => mutationQuery(async () => {
+      const userId = String(filtro.userId)
+      const set = atualizacao.$set ?? {}
+      const indice = estados.findIndex((estado) => String(estado.userId) === userId)
+      const actual = indice === -1 ? null : estados[indice]
+      const eClaim = set.status === 'confirmacao-pendente' && typeof set.claimToken === 'string'
+      const eFinalizacao = set.status === 'tratado' && typeof set.eventIdentity === 'string'
+
+      if (eClaim) {
+        if (opcoes.falharWatermarkUserIds?.includes(userId)) {
+          throw new Error(`watermark indisponível para ${userId}`)
+        }
+        const alvo = new Date(set.pendingAnchorDate).getTime()
+        if (actual?.anchorDate && new Date(actual.anchorDate).getTime() > alvo) return null
+        if (actual?.pendingAnchorDate && new Date(actual.pendingAnchorDate).getTime() > alvo) return null
+        if (
+          actual?.status === 'confirmacao-pendente' &&
+          (!actual.leaseUntil || new Date(actual.leaseUntil).getTime() > Date.now())
+        ) return null
+      } else if (filtro.claimToken && actual?.claimToken !== filtro.claimToken) {
+        return null
+      } else if (filtro.pendingEventIdentity && actual?.pendingEventIdentity !== filtro.pendingEventIdentity) {
+        return null
+      }
+
+      if (eFinalizacao && (opcoes.falharFinalizacoes ?? 0) > 0) {
+        opcoes.falharFinalizacoes = (opcoes.falharFinalizacoes ?? 0) - 1
+        throw new Error('falha ao finalizar watermark')
+      }
+
+      const novo = { ...(actual ?? { userId }), ...set }
+      for (const campo of Object.keys(atualizacao.$unset ?? {})) delete novo[campo]
+      if (indice === -1) estados.push(novo)
+      else estados[indice] = novo
+      return { ...novo }
+    })
   }
   activeCampaignService.updateContactField = async (email, fieldId, value) => {
     escritas.push([email, fieldId, value])
@@ -97,6 +165,7 @@ function instalarFixturesSync(
       if (estadoModel) {
         estadoModel.find = estadoFindOriginal
         estadoModel.updateOne = estadoUpdateOneOriginal
+        estadoModel.findOneAndUpdate = estadoFindOneAndUpdateOriginal
       }
       activeCampaignService.updateContactField = updateOriginal
     }
@@ -348,8 +417,8 @@ test('uma renovação nova dispara apenas o aluno cujo ciclo mudou', async (t) =
     [oferta()],
     {
       estados: [
-        { userId: 'estavel', eventIdentity: '["2025-01-10T00:00:00.000Z","ESTAVEL","oferta-renovacao","1733154",1]' },
-        { userId: 'renovou', eventIdentity: '["2025-02-10T00:00:00.000Z","ANTIGA","oferta-renovacao","1733154",1]' }
+        estadoTratado('estavel', '2025-01-10T00:00:00.000Z'),
+        estadoTratado('renovou', '2025-02-10T00:00:00.000Z')
       ]
     }
   )
@@ -373,7 +442,7 @@ test('uma prestação posterior do mesmo ciclo não cria evento', async (t) => {
       ]
     })],
     [oferta()],
-    { estados: [{ userId: 'aluno-1', eventIdentity: '["2026-03-10T00:00:00.000Z","P-1","oferta-renovacao","1733154",1]' }] }
+    { estados: [estadoTratado('aluno-1', '2026-03-10T00:00:00.000Z')] }
   )
   t.after(fixtures.restaurar)
 
@@ -381,7 +450,7 @@ test('uma prestação posterior do mesmo ciclo não cria evento', async (t) => {
 
   assert.equal(report.skippedNoNewEvent, 1)
   assert.equal(fixtures.escritas.length, 0)
-  assert.equal(fixtures.estados[0].eventIdentity, '["2026-03-10T00:00:00.000Z","P-1","oferta-renovacao","1733154",1]')
+  assert.equal(fixtures.estados[0].eventIdentity, '["2026-03-10T00:00:00.000Z",1]')
 })
 
 test('uma extensão que muda o ciclo de um para dois anos cria evento', async (t) => {
@@ -395,7 +464,7 @@ test('uma extensão que muda o ciclo de um para dois anos cria evento', async (t
       ]
     })],
     [oferta()],
-    { estados: [{ userId: 'aluno-1', eventIdentity: '["2026-06-05T00:00:00.000Z","RENOV-EXT","oferta-renovacao","1733154",1]' }] }
+    { estados: [estadoTratado('aluno-1', '2026-06-05T00:00:00.000Z')] }
   )
   t.after(fixtures.restaurar)
 
@@ -419,7 +488,7 @@ test('expiração vazia continua elegível durante o bootstrap', async (t) => {
 
 test('execução manual por email não varre os outros alunos', async (t) => {
   const compra = new Date('2026-08-05T00:00:00Z')
-  const estado = '["2026-08-05T00:00:00.000Z","TX-1","oferta-renovacao","1733154",1]'
+  const estado = estadoTratado('manual', '2026-08-05T00:00:00.000Z')
   const fixtures = instalarFixturesSync(
     [
       alunoAc({ userId: 'manual', email: 'manual@example.com', expirationDate: new Date('2026-08-31T23:59:59.999Z') }),
@@ -430,7 +499,7 @@ test('execução manual por email não varre os outros alunos', async (t) => {
       alunoHotmart(compra, { userId: 'outro' })
     ],
     [oferta()],
-    { estados: [{ userId: 'manual', eventIdentity: estado }, { userId: 'outro', eventIdentity: estado }] }
+    { estados: [estado, estadoTratado('outro', '2026-08-05T00:00:00.000Z')] }
   )
   t.after(fixtures.restaurar)
 
@@ -442,12 +511,12 @@ test('execução manual por email não varre os outros alunos', async (t) => {
 
 test('dry-run não chama a AC nem avança o watermark de um evento novo', async (t) => {
   const compra = new Date('2026-09-05T00:00:00Z')
-  const identidadeAntiga = '["2025-09-05T00:00:00.000Z","ANTIGA","oferta-renovacao","1733154",1]'
+  const identidadeAntiga = '["2025-09-05T00:00:00.000Z",1]'
   const fixtures = instalarFixturesSync(
     [alunoAc({ expirationDate: new Date('2026-09-30T23:59:59.999Z') })],
     [alunoHotmart(compra)],
     [oferta()],
-    { estados: [{ userId: 'aluno-1', eventIdentity: identidadeAntiga }] }
+    { estados: [estadoTratado('aluno-1', '2025-09-05T00:00:00.000Z')] }
   )
   t.after(fixtures.restaurar)
 
@@ -460,12 +529,12 @@ test('dry-run não chama a AC nem avança o watermark de um evento novo', async 
 
 test('falha da AC não avança o watermark e a corrida seguinte tenta de novo', async (t) => {
   const compra = new Date('2026-10-05T00:00:00Z')
-  const identidadeAntiga = '["2025-10-05T00:00:00.000Z","ANTIGA","oferta-renovacao","1733154",1]'
+  const identidadeAntiga = '["2025-10-05T00:00:00.000Z",1]'
   const fixtures = instalarFixturesSync(
     [alunoAc({ expirationDate: new Date('2026-10-31T23:59:59.999Z') })],
     [alunoHotmart(compra)],
     [oferta()],
-    { estados: [{ userId: 'aluno-1', eventIdentity: identidadeAntiga }], respostasAc: [false, true] }
+    { estados: [estadoTratado('aluno-1', '2025-10-05T00:00:00.000Z')], respostasAc: [false, true] }
   )
   t.after(fixtures.restaurar)
 
@@ -476,7 +545,164 @@ test('falha da AC não avança o watermark e a corrida seguinte tenta de novo', 
   const repetiu = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
   assert.equal(repetiu.written, 1)
   assert.equal(fixtures.escritas.length, 2)
-  assert.equal(fixtures.estados[0].eventIdentity, '["2026-10-05T00:00:00.000Z","TX-1","oferta-renovacao","1733154",1]')
+  assert.equal(fixtures.estados[0].eventIdentity, '["2026-10-05T00:00:00.000Z",1]')
+})
+
+test('duas corridas simultâneas reclamam o evento uma vez e fazem uma chamada à AC', async (t) => {
+  const compra = new Date('2026-11-05T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2026-11-30T23:59:59.999Z') })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    { estados: [estadoTratado('aluno-1', '2025-11-05T00:00:00.000Z')] }
+  )
+  t.after(fixtures.restaurar)
+
+  await Promise.all([
+    acExpirationSync.syncAcExpirationDates({ dryRun: false }),
+    acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  ])
+
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-11-30']])
+})
+
+test('preencher a transação da mesma âncora não cria um evento falso', async (t) => {
+  const compra = new Date('2026-11-12T00:00:00Z')
+  const sales = [venda({ approvedDate: compra, transaction: null, offerCode: 'oferta-renovacao' })]
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2026-11-30T23:59:59.999Z') })],
+    [alunoHotmart(compra, { sales })]
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  sales[0].transaction = 'TX-PREENCHIDA'
+  const segunda = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(segunda.skippedNoNewEvent, 1)
+  assert.equal(fixtures.escritas.length, 0)
+})
+
+test('sucesso na AC com falha de finalização fica pendente e reconcilia sem duplicar', async (t) => {
+  const compra = new Date('2026-12-05T00:00:00Z')
+  const acEntries = [alunoAc({ expirationDate: new Date('2026-12-31T23:59:59.999Z') })]
+  const fixtures = instalarFixturesSync(
+    acEntries,
+    [alunoHotmart(compra)],
+    [oferta()],
+    {
+      estados: [estadoTratado('aluno-1', '2025-12-05T00:00:00.000Z')],
+      falharFinalizacoes: 1
+    }
+  )
+  t.after(fixtures.restaurar)
+
+  const primeira = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  assert.equal(primeira.errors.length, 1)
+  assert.equal(fixtures.estados[0].status, 'confirmacao-pendente')
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  assert.equal(fixtures.escritas.length, 1)
+  assert.equal(fixtures.estados[0].status, 'confirmacao-pendente')
+
+  acEntries[0].expirationDate = new Date('2027-12-31T23:59:59.999Z')
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  assert.equal(fixtures.escritas.length, 1)
+  assert.equal(fixtures.estados[0].status, 'tratado')
+})
+
+test('falha de CAS num aluno é reportada e não impede o bootstrap do seguinte', async (t) => {
+  const compra = new Date('2026-12-10T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [
+      alunoAc({ userId: 'falha', email: 'falha@example.com', expirationDate: new Date('2026-12-31T23:59:59.999Z') }),
+      alunoAc({ userId: 'continua', email: 'continua@example.com', expirationDate: new Date('2026-12-31T23:59:59.999Z') })
+    ],
+    [
+      alunoHotmart(compra, { userId: 'falha' }),
+      alunoHotmart(compra, { userId: 'continua' })
+    ],
+    [oferta()],
+    { falharWatermarkUserIds: ['falha'] }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.errors.length, 1)
+  assert.equal(report.bootstrapped, 1)
+  assert.equal(fixtures.estados.some((estado) => estado.userId === 'continua' && estado.status === 'tratado'), true)
+})
+
+test('uma fotografia antiga nunca faz regredir a âncora já tratada', async (t) => {
+  const compraAntiga = new Date('2025-01-05T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: null })],
+    [alunoHotmart(compraAntiga)],
+    [oferta()],
+    { estados: [estadoTratado('aluno-1', '2026-01-05T00:00:00.000Z')] }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.skippedNoNewEvent, 1)
+  assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.estados[0].anchorDate.toISOString(), '2026-01-05T00:00:00.000Z')
+})
+
+test('chamada manual pode retomar um claim expirado que a libertação não removeu', async (t) => {
+  const compra = new Date('2026-02-05T00:00:00Z')
+  const pendente = {
+    ...estadoTratado('aluno-1', '2025-02-05T00:00:00.000Z'),
+    status: 'confirmacao-pendente',
+    claimToken: 'claim-abandonado',
+    leaseUntil: new Date('2026-02-06T00:00:00.000Z'),
+    claimedAt: new Date('2026-02-05T00:00:00.000Z'),
+    pendingEventIdentity: '["2026-02-05T00:00:00.000Z",1]',
+    pendingAnchorDate: compra,
+    pendingCycleYears: 1,
+    pendingExpiration: new Date('2027-02-28T23:59:59.999Z')
+  }
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2026-02-28T23:59:59.999Z') })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    { estados: [pendente] }
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false, manual: { email: 'aluno@example.com' } })
+
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-02-28']])
+  assert.equal(fixtures.estados[0].status, 'tratado')
+})
+
+test('dry-run observa uma confirmação pendente sem finalizar o watermark', async (t) => {
+  const compra = new Date('2026-03-05T00:00:00Z')
+  const pendente = {
+    ...estadoTratado('aluno-1', '2025-03-05T00:00:00.000Z'),
+    status: 'confirmacao-pendente',
+    claimToken: 'claim-pendente',
+    leaseUntil: new Date('2099-03-05T00:05:00.000Z'),
+    pendingEventIdentity: '["2026-03-05T00:00:00.000Z",1]',
+    pendingAnchorDate: compra,
+    pendingCycleYears: 1,
+    pendingExpiration: new Date('2027-03-31T23:59:59.999Z')
+  }
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2027-03-31T23:59:59.999Z') })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    { estados: [pendente] }
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: true })
+
+  assert.equal(fixtures.estados[0].status, 'confirmacao-pendente')
+  assert.equal(fixtures.estados[0].eventIdentity, '["2025-03-05T00:00:00.000Z",1]')
+  assert.equal(fixtures.escritas.length, 0)
 })
 
 test('compra base preserva os dois anos do nome e escreve a expiração do período da oferta', async (t) => {
@@ -538,7 +764,7 @@ test('nome classificado como renovação escreve os dois anos do ciclo', async (
       ]
     })],
     [oferta({ offerCode: 'renov-nome', offerName: 'Turma 11 [renov] | 2509', periodYYMM: '2509', isRenewal: false })],
-    { estados: [{ userId: 'aluno-1', eventIdentity: '["2025-08-11T00:00:00.000Z","RENOV-2A","renov-nome","1733154",1]' }] }
+    { estados: [estadoTratado('aluno-1', '2025-08-11T00:00:00.000Z')] }
   )
   t.after(fixtures.restaurar)
 
