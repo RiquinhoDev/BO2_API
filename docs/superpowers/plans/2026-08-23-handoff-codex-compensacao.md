@@ -126,6 +126,37 @@ Base de dados real: `railway run npx tsx <ficheiro>.ts`. Não há `.env` local.
 Contexto: `docs/superpowers/specs/2026-08-22-fluxo-nocturno-renovacoes.md` e
 `docs/superpowers/plans/2026-08-23-revisao-fugas.md`.
 
+## O que dá para fechar agora
+
+Tudo o que está abaixo. Nenhuma das onze tarefas depende da chefia — foram
+escolhidas por isso.
+
+```
+1   distinguir turma base de turma de renovação          a raiz de tudo
+2   o gerador escolhe a regra certa
+3   o escritor escolhe a regra certa
+4   escrever só por evento
+5   reconciliar a data de compra                         a compensação
+6   ofertas sem turma associada
+7   nenhuma escrita sem rasto
+8   desarmar o que está armado
+9   corrigir os três ciclos partidos
+10  a tua avaliação do fluxo
+11  medir o buraco do Discord na turma genérica
+```
+
+**O que fica de fora, à espera da chefia** — não começar nenhuma destas:
+
+```
+o passo 4 do nocturno    que tags aplicar e remover
+o passo 5 do nocturno    reembolsos
+a tag dos Antigos Alunos antes de serem movidos
+o cargo do Discord       segue a turma ou o acesso?
+```
+
+Fazer as tarefas por ordem. A 1 é pré-requisito da 2 e da 3; as restantes são
+independentes entre si.
+
 ---
 
 ## Tarefa 1 — Distinguir turma base de turma de renovação
@@ -502,6 +533,43 @@ os três casos conhecidos.
 - [ ] Medir: confirmar que os três passam a ter um ciclo de 2 anos e que mais
       ninguém muda.
 - [ ] Commit.
+
+---
+
+## Tarefa 11 — Medir o buraco do Discord na turma genérica
+
+**Não alterar o Discord.** Esta tarefa é medição e relatório.
+
+Verificado a 23/08 em `discordRolesSync.service.ts`:
+
+```
+linha 182   quem não tem período datável no nome da turma é saltado (continue)
+linha 225   quem não está no desiredByAccount -> desired: null -> remover R.*
+```
+
+A `Turma Renovação Genérica` não tem período no nome. Logo, **cada aluno que
+renova perde o cargo `R.*` enquanto espera pela mudança de fim de mês**, e
+recebe o novo quando for movido. `DISCORD_ROLES_AUTO_EXECUTE=true`, portanto
+executa sozinho.
+
+Hoje a genérica está vazia, logo o impacto é zero. Passa a haver assim que o
+fluxo novo arrancar.
+
+**O que fazer:**
+
+- [ ] Confirmar por leitura do código que a cadeia acima está certa (é a minha
+      leitura, não uma medição — se estiver errada, diz).
+- [ ] Estimar quantos alunos por mês passariam pela genérica, a partir das
+      renovações dos últimos 6 meses.
+- [ ] Descrever as três saídas possíveis, sem escolher:
+      dar período ao nome da genérica (`Turma Renovação Genérica | YYMM`);
+      fazer o sync ignorar quem está na genérica em vez de o tratar como
+      inelegível; ou aceitar que o cargo pisca durante uns dias.
+- [ ] Dizer para que serve o cargo `R.*` — se é só para as menções dos dias 8
+      e 15, a terceira saída não custa nada a ninguém. Se algum acesso depende
+      dele, custa. **Esta é a informação que falta para decidir.**
+
+Sem commit de código. Entra no documento da Tarefa 10.
 
 ---
 
