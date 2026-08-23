@@ -330,3 +330,97 @@ Duas saídas, ambas por decidir:
    limpeza de 23/08 sobre um campo que se suja sozinho.
 
 Enquanto não se decide, **não voltar a escrever o 334**.
+
+---
+
+## Mecanismo de compensação — decidido a 2026-08-23
+
+A secção anterior terminava com "não voltar a escrever o 334" à espera da
+chefia. Isso resolvia-se esperando; **mas espera bloqueia o passo 4**, e o
+passo 4 é o que aplica as tags obrigatórias. Fica assim, em vez disso:
+
+> **O cron pode escrever o campo 334, e só para o repor na data da venda da
+> Hotmart.** Nunca para outro valor, nunca por outro motivo, e nunca quando não
+> conhece a venda.
+
+Não é passar a gerir o campo. É não o deixar mentir depois de lhe termos
+mexido — o BO aplica uma tag, a automação da AC reage e carimba, o BO desfaz o
+carimbo. A responsabilidade pelo estrago é nossa, a reparação também.
+
+### O que mudou face à secção anterior
+
+A regra "o cron escreve uma data e só uma" continua a valer para a **intenção**:
+a expiração é o único campo que o BO decide. O 334 é reparação, não decisão.
+
+### Reconciliar no fim, não logo a seguir
+
+O instinto é corrigir o 334 na linha a seguir a aplicar a tag. **Não fazer
+isso.** Se a automação da AC tiver latência, a correcção imediata é sobreposta
+por ela segundos depois e o resultado fica pior do que não ter feito nada — o
+carimbo passa a existir sem deixar rasto de que tentámos.
+
+A reconciliação é o **último passo da corrida**:
+
+```
+1  sincronizar turmas/vendas
+2  gerar timelines
+3  escrever expiração (332)
+4  aplicar tags obrigatórias          ← pode disparar carimbos
+5  reembolsos
+6  reconciliar a data de compra (334) ← desfaz o que o passo 4 provocou
+```
+
+O que a automação carimbar depois do passo 6 fica para a noite seguinte. É
+auto-curável: cada corrida repõe o que a anterior não apanhou, e uma corrida
+sem tags aplicadas não escreve nada. Não depende de ganhar uma corrida contra
+a AC.
+
+### A regra do passo 6
+
+Para cada aluno activo com timeline:
+
+```
+data real   = compras[0].data do ULTIMO ciclo     (a âncora, não a última cobrança)
+```
+
+Escreve o 334 apenas se **todas** estas forem verdade:
+
+- há `data real` — existe venda na Hotmart para o último ciclo;
+- o 334 actual difere da `data real` em mais de um dia;
+- o aluno está activo.
+
+Nunca inventa: sem venda conhecida, não escreve e regista `sem-dados`.
+Nunca toca no **337** — continua fora de alcance sem autorização explícita.
+Nunca toca no **332** — esse é do passo 3.
+
+A âncora e não a última cobrança porque em planos de prestações o acesso começa
+na primeira, e foi essa a regra que já corrigiu 47 contactos que quase perdemos.
+
+### Registo obrigatório
+
+Cada escrita do passo 6 grava o valor anterior antes de escrever. Sem
+snapshot, uma reconciliação errada é irreversível — e este passo corre todas
+as noites, sem ninguém a ver.
+
+### A sonda que ainda não confirmou a causa
+
+A 23/08 apliquei a tag `Aluno OGI 2606 - Renovação` (id 725) à `eva.lrei`, com
+o 334 dela em `2025-06-03`. Minutos depois, **o 334 continuava intacto**. A
+automação não disparou.
+
+Isso não desmente a correlação de 20/21 de Agosto — 23 carimbos em 25 no mesmo
+dia das tags — mas impede afirmar a causa. Três hipóteses vivas:
+
+1. a automação reage a **tags específicas** e a `2606 - Renovação` não é uma;
+2. tem **latência** e o carimbo da eva ainda vai aparecer;
+3. o que houve a 20/21 teve **outra causa comum** — uma operação em bloco que
+   aplicou tags e escreveu datas ao mesmo tempo.
+
+**O passo 6 é correcto nas três.** Se o carimbo acontece, desfá-lo; se não
+acontece, não escreve nada. Não é preciso saber a causa para ficar protegido —
+é exactamente por isso que a compensação vale mais do que a investigação.
+
+A `eva.lrei` fica como sonda: se o 334 dela aparecer a `2026-08-23`, a
+hipótese 2 confirma-se e a latência entra no desenho. Se continuar
+`2025-06-03`, o gatilho é outro e vale a pena procurá-lo antes de ligar o
+passo 4.
