@@ -6,9 +6,10 @@
 // escrita nossa — por isso não há urgência de "só escrever se mudou"
 // por causa de retrigger, mas fazemo-lo na mesma para poupar chamadas.
 //
-// Regra da expiração: compra âncora do último ciclo Hotmart → último
-// instante UTC do mesmo mês, um ano depois.
-//   compra 11/08/2026 → expira 31/08/2027 23:59:59.999Z
+// Regra da expiração, escolhida pela oferta da compra âncora:
+//   base       → período/nome da oferta (incluindo [2 anos]);
+//   renovação  → compra âncora + 12 meses × anos do ciclo.
+// Nos dois ramos, o resultado é o último instante UTC do mês.
 //
 // Fonte da "compra nova": compara HotmartSaleHistory.latestApprovedDate
 // (o que a Hotmart diz agora — já sincronizado por outro cron/botão)
@@ -23,10 +24,12 @@
 import mongoose from 'mongoose'
 import ACRenewalData from '../../models/ACRenewalData'
 import HotmartSaleHistory from '../../models/HotmartSaleHistory'
+import RenewalOffer from '../../models/RenewalOffer'
 import { activeCampaignService } from '../activeCampaign/activeCampaignService'
 import { AC_EXPIRATION_DATE_FIELD_ID } from './acRenewalDataSync.service'
 import { agruparCiclos } from './renewalCycles'
-import type { VendaEntrada } from './renewalTimeline.types'
+import { parseOfferName, parseTurmaName, tipoDeTurma } from './turmaParser'
+import type { CicloBase, VendaEntrada } from './renewalTimeline.types'
 
 // mesmos 2 estados usados em hotmartRefunds.service.ts — uma compra
 // nestes estados nunca deve gerar escrita de expiração.
@@ -41,6 +44,7 @@ export interface AcExpirationSyncReport {
   skippedRefunded: number
   skippedNoContact: number
   skippedNoHotmartData: number
+  semTurma: number
   skippedWouldShorten: number
   divergentes: Array<{ email: string; acTem: Date | null; calculado: Date; motivo: 'encurtaria' | 'diferente' }>
   errors: Array<{ email: string; error: string }>
@@ -49,6 +53,14 @@ export interface AcExpirationSyncReport {
 type MongooseReadModel = { find: (...args: any[]) => any }
 const ACRenewalDataReadModel = ACRenewalData as unknown as MongooseReadModel
 const HotmartSaleHistoryReadModel = HotmartSaleHistory as unknown as MongooseReadModel
+const RenewalOfferReadModel = RenewalOffer as unknown as MongooseReadModel
+
+interface OfertaDaAncora {
+  offerCode: string
+  offerName: string | null
+  periodYYMM: string | null
+  isRenewal: boolean
+}
 
 function sameDay(a: Date, b: Date): boolean {
   return a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10)
@@ -59,16 +71,33 @@ function formatDateYYYYMMDD(d: Date): string {
 }
 
 /**
- * Último instante UTC do mesmo mês, um ano depois da compra.
+ * Último instante UTC do mesmo mês, `anos` depois da compra.
  */
-export function computeExpirationFromPurchaseDate(purchaseDate: Date): Date {
-  return new Date(Date.UTC(purchaseDate.getUTCFullYear() + 1, purchaseDate.getUTCMonth() + 1, 0, 23, 59, 59, 999))
+export function computeExpirationFromPurchaseDate(purchaseDate: Date, anos = 1): Date {
+  return new Date(Date.UTC(purchaseDate.getUTCFullYear() + anos, purchaseDate.getUTCMonth() + 1, 0, 23, 59, 59, 999))
 }
 
 /** Compra âncora do ciclo de acesso mais recente; vendas inválidas não contam. */
 export function dataBaseDoAluno(sales: VendaEntrada[]): Date | null {
   const ultimoCiclo = agruparCiclos(sales).at(-1)
   return ultimoCiclo?.compras[0]?.data ?? null
+}
+
+/** Decide a fórmula a partir da oferta da compra âncora do ciclo. */
+function calcularExpiracao(ciclo: CicloBase, oferta: OfertaDaAncora | undefined): Date | null {
+  const ancora = ciclo.compras[0]
+  const nome = typeof oferta?.offerName === 'string' ? oferta.offerName.trim() : ''
+  const renovacao = oferta?.isRenewal === true || (nome !== '' && tipoDeTurma(nome) === 'renovacao')
+
+  if (renovacao) return computeExpirationFromPurchaseDate(ancora.data, ciclo.anos)
+  if (!nome) return null
+
+  const nomeComPeriodo = oferta?.periodYYMM ? `${nome} | ${oferta.periodYYMM}` : nome
+  const ofertaParsed = parseOfferName(nomeComPeriodo)
+  if (!ofertaParsed.valid) return null
+
+  // parseTurmaName preserva o marcador histórico [2 anos] das ofertas base.
+  return parseTurmaName(nomeComPeriodo).accessEndOgi
 }
 
 /** Uma escrita só é segura se nunca reduzir a expiração já guardada na AC. */
@@ -93,6 +122,7 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
     skippedRefunded: 0,
     skippedNoContact: 0,
     skippedNoHotmartData: 0,
+    semTurma: 0,
     skippedWouldShorten: 0,
     divergentes: [],
     errors: []
@@ -123,6 +153,22 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
     }>
   const hotmartByUserId = new Map(hotmartDocs.map((h) => [String(h.userId), h]))
 
+  const cicloByUserId = new Map(
+    hotmartDocs.map((h) => [String(h.userId), agruparCiclos(h.sales ?? []).at(-1) ?? null])
+  )
+  const codigosOferta = [...new Set(
+    [...cicloByUserId.values()]
+      .map((ciclo) => ciclo?.compras[0]?.offerCode)
+      .filter((codigo): codigo is string => typeof codigo === 'string' && codigo !== '')
+  )]
+  const ofertas = codigosOferta.length === 0
+    ? []
+    : await RenewalOfferReadModel.find({ offerCode: { $in: codigosOferta } })
+      .select('offerCode offerName periodYYMM isRenewal')
+      .lean()
+      .exec() as OfertaDaAncora[]
+  const ofertaByCode = new Map(ofertas.map((oferta) => [oferta.offerCode, oferta]))
+
   for (const ac of acEntries) {
     if (ac.refundDate || ac.purchaseStatus === 'Reembolsada') {
       report.skippedRefunded += 1
@@ -135,13 +181,18 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
       continue
     }
 
-    const dataBase = dataBaseDoAluno(hm?.sales ?? [])
-    if (!dataBase) {
+    const ciclo = cicloByUserId.get(String(ac.userId))
+    const ancora = ciclo?.compras[0]
+    if (!ciclo || !ancora) {
       report.skippedNoHotmartData += 1
       continue
     }
 
-    const expiration = computeExpirationFromPurchaseDate(dataBase)
+    const expiration = calcularExpiracao(ciclo, ofertaByCode.get(ancora.offerCode ?? ''))
+    if (!expiration) {
+      report.semTurma += 1
+      continue
+    }
     const encurta = encurtaria(expiration, ac.expirationDate)
     if (!ac.expirationDate || !sameDay(expiration, ac.expirationDate)) {
       report.divergentes.push({

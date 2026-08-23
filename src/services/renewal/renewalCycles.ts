@@ -148,6 +148,7 @@ export function agruparCiclos(vendas: VendaEntrada[]): CicloBase[] {
   for (const { venda, data } of validas) {
     const compra: CompraCiclo = {
       data,
+      offerCode: venda.offerCode,
       valor: venda.priceValue,
       moeda: venda.currency,
       produtoId: venda.hotmartProductId,

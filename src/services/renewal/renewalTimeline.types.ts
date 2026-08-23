@@ -36,6 +36,8 @@ export interface TurmaEntrada {
 
 export interface CompraCiclo {
   data: Date
+  /** Código da oferta da própria compra; na posição 0 identifica a oferta âncora. */
+  offerCode: string | null
   valor: number | null
   moeda: string | null
   produtoId: string | null
