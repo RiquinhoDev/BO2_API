@@ -14,6 +14,12 @@
 //   2505 → acesso OGI termina a 31 de maio de 2026.
 // ════════════════════════════════════════════════════════════
 
+export type TipoTurma = 'base' | 'renovacao'
+
+export function tipoDeTurma(nome: string): TipoTurma {
+  return /\[\s*\d*\s*a?\s*renov|renova[çc]/i.test(nome) ? 'renovacao' : 'base'
+}
+
 export interface ParsedTurma {
   raw: string
   turmaNumber: number | null // primeira turma (conveniência); ver turmaNumbers
