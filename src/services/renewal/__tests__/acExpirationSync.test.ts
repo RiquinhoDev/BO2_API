@@ -5,6 +5,7 @@ import ACRenewalData from '../../../models/ACRenewalData'
 import HotmartSaleHistory from '../../../models/HotmartSaleHistory'
 import RenewalOffer from '../../../models/RenewalOffer'
 import AcWriteLog from '../../../models/renewal/AcWriteLog'
+import User from '../../../models/user'
 import { activeCampaignService } from '../../activeCampaign/activeCampaignService'
 import * as acExpirationSync from '../acExpirationSync.service'
 import { TURMA_1_RENEWAL_OFFER_CODE, TURMA_2_RENEWAL_OFFER_CODE } from '../renewalConstants'
@@ -91,11 +92,13 @@ function instalarFixturesSync(
     falharWatermarkUserIds?: string[]
     atrasarSegundoClaimAteFinalizar?: boolean
     falharCreateLog?: boolean
+    users?: any[]
   } = {}
 ) {
   const acFindOriginal = (ACRenewalData as any).find
   const hotmartFindOriginal = (HotmartSaleHistory as any).find
   const renewalOfferFindOriginal = (RenewalOffer as any).find
+  const userFindOriginal = (User as any).find
   const updateOriginal = activeCampaignService.updateContactField
   const logCreateOriginal = (AcWriteLog as any).create
   const logFindByIdAndUpdateOriginal = (AcWriteLog as any).findByIdAndUpdate
@@ -123,6 +126,7 @@ function instalarFixturesSync(
     hotmartDocs.filter((entrada) => !filtro.userId?.$in || filtro.userId.$in.some((id: unknown) => String(id) === String(entrada.userId)))
   )
   ;(RenewalOffer as any).find = () => query(ofertas)
+  ;(User as any).find = () => query(opcoes.users ?? [])
   ;(AcWriteLog as any).create = async (entrada: any) => {
     ordem.push('log')
     if (opcoes.falharCreateLog) throw new Error('log indisponível')
@@ -249,6 +253,7 @@ function instalarFixturesSync(
       ;(ACRenewalData as any).find = acFindOriginal
       ;(HotmartSaleHistory as any).find = hotmartFindOriginal
       ;(RenewalOffer as any).find = renewalOfferFindOriginal
+      ;(User as any).find = userFindOriginal
       ;(AcWriteLog as any).create = logCreateOriginal
       ;(AcWriteLog as any).findByIdAndUpdate = logFindByIdAndUpdateOriginal
       if (estadoModel) {
@@ -1125,6 +1130,85 @@ test('compra base preserva os dois anos do nome e escreve a expiração do perí
 
   assert.equal(report.semTurma, 0)
   assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-09-30']])
+})
+
+test('aluno em turma base datável usa a turma quando a oferta não tem nome', async (t) => {
+  const compra = new Date('2026-03-04T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc()],
+    [alunoHotmart(compra, { sales: [venda({ approvedDate: compra, transaction: 'BASE-TURMA', offerCode: 'oferta-sem-nome' })] })],
+    [oferta({ offerCode: 'oferta-sem-nome', offerName: null, periodYYMM: null, isRenewal: false })],
+    {
+      users: [{
+        _id: 'aluno-1',
+        hotmart: { enrolledClasses: [{ className: 'OGI Turma 14 + [2 anos] | L2509 | 397', isActive: true }] }
+      }]
+    }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.semTurma, 0)
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-09-30']])
+})
+
+test('aluno em turma de renovação datável usa a compra quando a oferta não tem nome', async (t) => {
+  const compra = new Date('2026-08-11T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc()],
+    [alunoHotmart(compra, { sales: [venda({ approvedDate: compra, transaction: 'RENOV-TURMA', offerCode: 'oferta-sem-nome' })] })],
+    [oferta({ offerCode: 'oferta-sem-nome', offerName: null, periodYYMM: null, isRenewal: false })],
+    {
+      users: [{
+        _id: 'aluno-1',
+        hotmart: { enrolledClasses: [{ className: 'Renovação Turma 11 | 2509', isActive: true }] }
+      }]
+    }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.semTurma, 0)
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-08-31']])
+})
+
+test('aluno sem turma usa a oferta nomeada como recurso', async (t) => {
+  const compra = new Date('2025-07-10T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc()],
+    [alunoHotmart(compra, { sales: [venda({ approvedDate: compra, transaction: 'BASE-OFERTA', offerCode: 'oferta-base' })] })],
+    [oferta({ offerCode: 'oferta-base', offerName: 'OGI Turma 14 + [2 anos] | L2509 | 397', periodYYMM: '2509', isRenewal: false })],
+    { users: [] }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.semTurma, 0)
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-09-30']])
+})
+
+test('código da linhagem Turma 1 usa renovação mesmo numa turma base datável', async (t) => {
+  const compra = new Date('2026-01-05T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc()],
+    [alunoHotmart(compra, { sales: [venda({ approvedDate: compra, transaction: 'RENOV-T1-TURMA', offerCode: TURMA_1_RENEWAL_OFFER_CODE })] })],
+    [oferta({ offerCode: TURMA_1_RENEWAL_OFFER_CODE, offerName: null, periodYYMM: null, isRenewal: false })],
+    {
+      users: [{
+        _id: 'aluno-1',
+        hotmart: { enrolledClasses: [{ className: 'OGI Turma 14 | L2509 | 397', isActive: true }] }
+      }]
+    }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.semTurma, 0)
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-01-31']])
 })
 
 test('códigos reais das Turmas 1 e 2 usam compra mais anos mesmo com nome base e isRenewal falso', async (t) => {

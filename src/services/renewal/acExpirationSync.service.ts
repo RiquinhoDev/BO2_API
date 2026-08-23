@@ -6,9 +6,10 @@
 // escrita nossa — por isso não há urgência de "só escrever se mudou"
 // por causa de retrigger, mas fazemo-lo na mesma para poupar chamadas.
 //
-// Regra da expiração, escolhida pela oferta da compra âncora:
-//   base       → período/nome da oferta (incluindo [2 anos]);
+// Regra da expiração, escolhida primeiro pela turma actual do aluno:
+//   base       → período/nome da turma (incluindo [2 anos]);
 //   renovação  → compra âncora + 12 meses × anos do ciclo.
+// Sem turma datável, a oferta da compra âncora é o recurso para compras novas.
 // Nos dois ramos, o resultado é o último instante UTC do mês.
 //
 // Um estado interno por aluno identifica o último ciclo tratado. O campo
@@ -26,6 +27,7 @@ import AcExpirationEventState from '../../models/AcExpirationEventState'
 import HotmartSaleHistory from '../../models/HotmartSaleHistory'
 import RenewalOffer from '../../models/RenewalOffer'
 import AcWriteLog from '../../models/renewal/AcWriteLog'
+import User from '../../models/user'
 import { activeCampaignService } from '../activeCampaign/activeCampaignService'
 import { AC_EXPIRATION_DATE_FIELD_ID } from './acRenewalDataSync.service'
 import { TURMA_1_RENEWAL_OFFER_CODE, TURMA_2_RENEWAL_OFFER_CODE } from './renewalConstants'
@@ -61,6 +63,7 @@ type MongooseReadModel = { find: (...args: any[]) => any }
 const ACRenewalDataReadModel = ACRenewalData as unknown as MongooseReadModel
 const HotmartSaleHistoryReadModel = HotmartSaleHistory as unknown as MongooseReadModel
 const RenewalOfferReadModel = RenewalOffer as unknown as MongooseReadModel
+const UserReadModel = User as unknown as MongooseReadModel
 const AcExpirationEventStateReadModel = AcExpirationEventState as unknown as MongooseReadModel
 const AcExpirationEventStateWriteModel = AcExpirationEventState as any
 
@@ -102,12 +105,37 @@ export function dataBaseDoAluno(sales: VendaEntrada[]): Date | null {
   return ultimoCiclo?.compras[0]?.data ?? null
 }
 
-/** Decide a fórmula a partir da oferta da compra âncora do ciclo. */
-function calcularExpiracao(ciclo: CicloBase, oferta: OfertaDaAncora | undefined): Date | null {
+/** Turma actual: a entrada activa mais recente da Hotmart. */
+function nomeDaTurmaActual(user: {
+  hotmart?: { enrolledClasses?: Array<{ className?: string; isActive?: boolean }> }
+} | undefined): string | null {
+  const turmas = user?.hotmart?.enrolledClasses ?? []
+  const activas = turmas.filter((turma) => turma.className?.trim() && turma.isActive !== false)
+  const escolhida = activas.at(-1) ?? turmas.filter((turma) => turma.className?.trim()).at(-1)
+  const nome = escolhida?.className?.trim() ?? ''
+  return nome && parseTurmaName(nome).hasExpiry ? nome : null
+}
+
+/** Decide a fórmula pela turma actual; sem turma datável, usa a oferta. */
+function calcularExpiracao(
+  ciclo: CicloBase,
+  oferta: OfertaDaAncora | undefined,
+  nomeTurmaActual: string | null
+): Date | null {
   const ancora = ciclo.compras[0]
+  if (CODIGOS_RENOVACAO_ESPECIAIS.has(ancora.offerCode ?? '')) {
+    return computeExpirationFromPurchaseDate(ancora.data, ciclo.anos)
+  }
+
+  if (nomeTurmaActual) {
+    if (tipoDeTurma(nomeTurmaActual) === 'renovacao') {
+      return computeExpirationFromPurchaseDate(ancora.data, ciclo.anos)
+    }
+    return parseTurmaName(nomeTurmaActual).accessEndOgi
+  }
+
   const nome = typeof oferta?.offerName === 'string' ? oferta.offerName.trim() : ''
   const renovacao =
-    CODIGOS_RENOVACAO_ESPECIAIS.has(ancora.offerCode ?? '') ||
     oferta?.isRenewal === true ||
     (nome !== '' && tipoDeTurma(nome) === 'renovacao')
 
@@ -247,16 +275,28 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
     }>
 
   const userIds = acEntries.map((e) => e.userId)
-  const hotmartDocs = await HotmartSaleHistoryReadModel.find({ userId: { $in: userIds } })
-    .select('userId sales latestApprovedDate latestTransactionStatus')
-    .lean()
-    .exec() as Array<{
-      userId: mongoose.Types.ObjectId
-      sales: VendaEntrada[] | null
-      latestApprovedDate: Date | null
-      latestTransactionStatus: string | null
-    }>
+  const [hotmartDocs, users] = await Promise.all([
+    HotmartSaleHistoryReadModel.find({ userId: { $in: userIds } })
+      .select('userId sales latestApprovedDate latestTransactionStatus')
+      .lean()
+      .exec() as Promise<Array<{
+        userId: mongoose.Types.ObjectId
+        sales: VendaEntrada[] | null
+        latestApprovedDate: Date | null
+        latestTransactionStatus: string | null
+      }>>,
+    UserReadModel.find({ _id: { $in: userIds } })
+      .select('_id hotmart.enrolledClasses')
+      .lean()
+      .exec() as Promise<Array<{
+        _id: mongoose.Types.ObjectId
+        hotmart?: { enrolledClasses?: Array<{ className?: string; isActive?: boolean }> }
+      }>>
+  ])
   const hotmartByUserId = new Map(hotmartDocs.map((h) => [String(h.userId), h]))
+  const turmaActualByUserId = new Map(
+    users.map((user) => [String(user._id), nomeDaTurmaActual(user)])
+  )
 
   const estados = userIds.length === 0
     ? []
@@ -569,7 +609,11 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         continue
       }
 
-      const expiration = calcularExpiracao(ciclo, ofertaByCode.get(ancora.offerCode ?? ''))
+      const expiration = calcularExpiracao(
+        ciclo,
+        ofertaByCode.get(ancora.offerCode ?? ''),
+        turmaActualByUserId.get(String(ac.userId)) ?? null
+      )
       if (!expiration) {
         report.semTurma += 1
         const antes = ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null
