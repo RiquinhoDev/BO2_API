@@ -11,11 +11,9 @@
 //   renovação  → compra âncora + 12 meses × anos do ciclo.
 // Nos dois ramos, o resultado é o último instante UTC do mês.
 //
-// Fonte da "compra nova": compara HotmartSaleHistory.latestApprovedDate
-// (o que a Hotmart diz agora — já sincronizado por outro cron/botão)
-// com ACRenewalData.purchaseDate (o que a AC tinha na última leitura).
-// Só escreve quando os dois não batem certo. Por defeito corre em dry-run;
-// o pipeline é o único ponto que pode autorizar a escrita real.
+// Um estado interno por aluno identifica o último ciclo tratado. O campo
+// de compra da AC não é watermark: prestações podem mudá-lo sem criarem
+// um ciclo, e atrasos de sincronização fariam perder eventos.
 //
 // NUNCA escreve para quem está reembolsado (nem data de compra, nem
 // tags, nem mais nada — só a expiração, e só quando faz sentido).
@@ -23,6 +21,7 @@
 
 import mongoose from 'mongoose'
 import ACRenewalData from '../../models/ACRenewalData'
+import AcExpirationEventState from '../../models/AcExpirationEventState'
 import HotmartSaleHistory from '../../models/HotmartSaleHistory'
 import RenewalOffer from '../../models/RenewalOffer'
 import { activeCampaignService } from '../activeCampaign/activeCampaignService'
@@ -48,6 +47,8 @@ export interface AcExpirationSyncReport {
   skippedNoHotmartData: number
   semTurma: number
   skippedWouldShorten: number
+  bootstrapped: number
+  skippedNoNewEvent: number
   divergentes: Array<{ email: string; acTem: Date | null; calculado: Date; motivo: 'encurtaria' | 'diferente' }>
   errors: Array<{ email: string; error: string }>
 }
@@ -56,6 +57,7 @@ type MongooseReadModel = { find: (...args: any[]) => any }
 const ACRenewalDataReadModel = ACRenewalData as unknown as MongooseReadModel
 const HotmartSaleHistoryReadModel = HotmartSaleHistory as unknown as MongooseReadModel
 const RenewalOfferReadModel = RenewalOffer as unknown as MongooseReadModel
+const AcExpirationEventStateReadModel = AcExpirationEventState as unknown as MongooseReadModel
 
 interface OfertaDaAncora {
   offerCode: string
@@ -110,14 +112,40 @@ export function encurtaria(calculado: Date, acTem: Date | null): boolean {
   return acTem !== null && calculado.getTime() < acTem.getTime()
 }
 
+/** Identidade estável do ciclo: âncora, venda/oferta e duração do acesso. */
+export function identidadeDoEvento(ciclo: CicloBase): string {
+  const ancora = ciclo.compras[0]
+  return JSON.stringify([
+    ancora.data.toISOString(),
+    ancora.transacao ?? null,
+    ancora.offerCode ?? null,
+    ancora.produtoId ?? null,
+    ciclo.anos
+  ])
+}
+
+interface SeletorManual {
+  email?: string
+  userId?: string
+}
+
+interface SyncOpcoes {
+  dryRun?: boolean
+  manual?: SeletorManual
+}
+
 /**
  * Percorre os alunos já sincronizados (ACRenewalData + HotmartSaleHistory,
- * ambos populados por outros processos) e escreve a expiração só para
- * quem tem uma compra na Hotmart mais recente do que a AC ainda reflecte.
+ * ambos populados por outros processos) e escreve a expiração só por um
+ * evento novo, por expiração vazia ou por uma selecção manual explícita.
  * SÓ escreve o campo de expiração — nunca mais nada.
  */
-export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): Promise<AcExpirationSyncReport> {
+export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<AcExpirationSyncReport> {
   const dryRun = opcoes.dryRun !== false
+  const manual = opcoes.manual
+  if (manual && !manual.email && !manual.userId) {
+    throw new Error('A execução manual exige email ou userId')
+  }
   const report: AcExpirationSyncReport = {
     candidatesChecked: 0,
     alreadyInSync: 0,
@@ -129,18 +157,25 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
     skippedNoHotmartData: 0,
     semTurma: 0,
     skippedWouldShorten: 0,
+    bootstrapped: 0,
+    skippedNoNewEvent: 0,
     divergentes: [],
     errors: []
   }
 
-  const acEntries = await ACRenewalDataReadModel.find({})
-    .select('userId email contactId purchaseDate expirationDate refundDate purchaseStatus')
+  const filtroAc = manual
+    ? {
+        ...(manual.email ? { email: manual.email.trim().toLowerCase() } : {}),
+        ...(manual.userId ? { userId: manual.userId } : {})
+      }
+    : {}
+  const acEntries = await ACRenewalDataReadModel.find(filtroAc)
+    .select('userId email contactId expirationDate refundDate purchaseStatus')
     .lean()
     .exec() as Array<{
       userId: mongoose.Types.ObjectId
       email: string
       contactId: string | null
-      purchaseDate: Date | null
       expirationDate: Date | null
       refundDate: Date | null
       purchaseStatus: string | null
@@ -158,6 +193,14 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
     }>
   const hotmartByUserId = new Map(hotmartDocs.map((h) => [String(h.userId), h]))
 
+  const estados = userIds.length === 0
+    ? []
+    : await AcExpirationEventStateReadModel.find({ userId: { $in: userIds } })
+      .select('userId eventIdentity')
+      .lean()
+      .exec() as Array<{ userId: mongoose.Types.ObjectId; eventIdentity: string }>
+  const estadoByUserId = new Map(estados.map((estado) => [String(estado.userId), estado]))
+
   const cicloByUserId = new Map(
     hotmartDocs.map((h) => [String(h.userId), agruparCiclos(h.sales ?? []).at(-1) ?? null])
   )
@@ -173,6 +216,26 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
       .lean()
       .exec() as OfertaDaAncora[]
   const ofertaByCode = new Map(ofertas.map((oferta) => [oferta.offerCode, oferta]))
+
+  const avancarWatermark = async (userId: mongoose.Types.ObjectId, ciclo: CicloBase, eventIdentity: string) => {
+    const ancora = ciclo.compras[0]
+    await AcExpirationEventState.updateOne(
+      { userId },
+      {
+        $set: {
+          eventIdentity,
+          anchorDate: ancora.data,
+          anchorTransaction: ancora.transacao,
+          anchorOfferCode: ancora.offerCode,
+          anchorProductId: ancora.produtoId,
+          cycleYears: ciclo.anos,
+          handledAt: new Date()
+        }
+      },
+      { upsert: true }
+    )
+    estadoByUserId.set(String(userId), { userId, eventIdentity })
+  }
 
   for (const ac of acEntries) {
     if (ac.refundDate || ac.purchaseStatus === 'Reembolsada') {
@@ -199,6 +262,11 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
       continue
     }
     const encurta = encurtaria(expiration, ac.expirationDate)
+    const eventIdentity = identidadeDoEvento(ciclo)
+    const estado = estadoByUserId.get(String(ac.userId))
+    const eventoNovo = estado?.eventIdentity !== eventIdentity
+    const expiracaoVazia = !ac.expirationDate
+    const elegivel = Boolean(manual) || expiracaoVazia || eventoNovo
     if (!ac.expirationDate || !sameDay(expiration, ac.expirationDate)) {
       report.divergentes.push({
         email: ac.email,
@@ -208,12 +276,8 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
       })
     }
 
-    if (encurta) {
-      report.skippedWouldShorten += 1
-      continue
-    }
-
     if (!hm?.latestApprovedDate) {
+      if (encurta) report.skippedWouldShorten += 1
       report.skippedNoHotmartData += 1
       continue
     }
@@ -223,12 +287,32 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
       continue
     }
 
-    report.candidatesChecked += 1
-
-    if (ac.purchaseDate && sameDay(ac.purchaseDate, hm.latestApprovedDate)) {
-      report.alreadyInSync += 1
+    if (encurta) {
+      report.skippedWouldShorten += 1
+      if (!dryRun && eventoNovo) await avancarWatermark(ac.userId, ciclo, eventIdentity)
       continue
     }
+
+    if (ac.expirationDate && sameDay(expiration, ac.expirationDate)) {
+      report.alreadyInSync += 1
+      if (!dryRun && eventoNovo) await avancarWatermark(ac.userId, ciclo, eventIdentity)
+      continue
+    }
+
+    if (!elegivel) {
+      report.skippedNoNewEvent += 1
+      continue
+    }
+
+    if (!estado && !manual && !expiracaoVazia) {
+      if (!dryRun) {
+        await avancarWatermark(ac.userId, ciclo, eventIdentity)
+        report.bootstrapped += 1
+      }
+      continue
+    }
+
+    report.candidatesChecked += 1
 
     report.needsWrite += 1
     if (dryRun) {
@@ -242,7 +326,10 @@ export async function syncAcExpirationDates(opcoes: { dryRun?: boolean } = {}): 
         AC_EXPIRATION_DATE_FIELD_ID,
         formatDateYYYYMMDD(expiration)
       )
-      if (ok) report.written += 1
+      if (ok) {
+        report.written += 1
+        await avancarWatermark(ac.userId, ciclo, eventIdentity)
+      }
       else report.errors.push({ email: ac.email, error: 'updateContactField devolveu false' })
     } catch (error: any) {
       report.errors.push({ email: ac.email, error: error?.message || 'Erro desconhecido ao escrever na AC' })

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import mongoose from 'mongoose'
 import ACRenewalData from '../../../models/ACRenewalData'
 import HotmartSaleHistory from '../../../models/HotmartSaleHistory'
 import RenewalOffer from '../../../models/RenewalOffer'
@@ -40,27 +41,63 @@ const oferta = (partial: Record<string, unknown> = {}) => ({
   ...partial
 })
 
-function instalarFixturesSync(acEntries: any[], hotmartDocs: any[], ofertas = [oferta()]) {
+function instalarFixturesSync(
+  acEntries: any[],
+  hotmartDocs: any[],
+  ofertas = [oferta()],
+  opcoes: { estados?: any[]; respostasAc?: Array<boolean | Error> } = {}
+) {
   const acFindOriginal = (ACRenewalData as any).find
   const hotmartFindOriginal = (HotmartSaleHistory as any).find
   const renewalOfferFindOriginal = (RenewalOffer as any).find
   const updateOriginal = activeCampaignService.updateContactField
+  const estadoModel = (mongoose.models as any).AcExpirationEventState
+  const estadoFindOriginal = estadoModel?.find
+  const estadoUpdateOneOriginal = estadoModel?.updateOne
   const escritas: Array<[string, number, string]> = []
+  const estados: any[] = [...(opcoes.estados ?? [])]
+  const filtrosAc: any[] = []
 
-  ;(ACRenewalData as any).find = () => query(acEntries)
-  ;(HotmartSaleHistory as any).find = () => query(hotmartDocs)
+  ;(ACRenewalData as any).find = (filtro: Record<string, unknown> = {}) => {
+    filtrosAc.push(filtro)
+    return query(acEntries.filter((entrada) =>
+      (!filtro.email || entrada.email === filtro.email) &&
+      (!filtro.userId || String(entrada.userId) === String(filtro.userId))
+    ))
+  }
+  ;(HotmartSaleHistory as any).find = (filtro: any = {}) => query(
+    hotmartDocs.filter((entrada) => !filtro.userId?.$in || filtro.userId.$in.some((id: unknown) => String(id) === String(entrada.userId)))
+  )
   ;(RenewalOffer as any).find = () => query(ofertas)
+  if (estadoModel) {
+    estadoModel.find = () => query(estados)
+    estadoModel.updateOne = async (filtro: { userId: unknown }, atualizacao: { $set: Record<string, unknown> }) => {
+      const indice = estados.findIndex((estado) => String(estado.userId) === String(filtro.userId))
+      const novoEstado = { userId: filtro.userId, ...atualizacao.$set }
+      if (indice === -1) estados.push(novoEstado)
+      else estados[indice] = novoEstado
+      return { acknowledged: true }
+    }
+  }
   activeCampaignService.updateContactField = async (email, fieldId, value) => {
     escritas.push([email, fieldId, value])
-    return true
+    const resposta = opcoes.respostasAc?.shift() ?? true
+    if (resposta instanceof Error) throw resposta
+    return resposta
   }
 
   return {
     escritas,
+    estados,
+    filtrosAc,
     restaurar: () => {
       ;(ACRenewalData as any).find = acFindOriginal
       ;(HotmartSaleHistory as any).find = hotmartFindOriginal
       ;(RenewalOffer as any).find = renewalOfferFindOriginal
+      if (estadoModel) {
+        estadoModel.find = estadoFindOriginal
+        estadoModel.updateOne = estadoUpdateOneOriginal
+      }
       activeCampaignService.updateContactField = updateOriginal
     }
   }
@@ -140,12 +177,13 @@ test('syncAcExpirationDates conta encurtaria e diverge mesmo com o gatilho alinh
   )
   t.after(fixtures.restaurar)
 
-  const report = await acExpirationSync.syncAcExpirationDates()
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
 
   assert.equal(report.skippedWouldShorten, 1)
   assert.equal(report.divergentes.length, 1)
   assert.equal(report.divergentes[0].motivo, 'encurtaria')
   assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.estados.length, 1)
 })
 
 test('syncAcExpirationDates em dry-run por defeito só reporta a escrita que faria', async (t) => {
@@ -185,7 +223,7 @@ test('syncAcExpirationDates trata vendas apenas reembolsadas como reembolso Hotm
   assert.equal(fixtures.escritas.length, 0)
 })
 
-test('syncAcExpirationDates reporta encurtaria quando há sales válidas mas falta latestApprovedDate', async (t) => {
+test('syncAcExpirationDates reporta encurtaria mas não avança sem latestApprovedDate', async (t) => {
   const compra = new Date('2025-05-15T00:00:00Z')
   const fixtures = instalarFixturesSync(
     [alunoAc({ expirationDate: new Date('2027-05-31T23:59:59.999Z') })],
@@ -193,12 +231,13 @@ test('syncAcExpirationDates reporta encurtaria quando há sales válidas mas fal
   )
   t.after(fixtures.restaurar)
 
-  const report = await acExpirationSync.syncAcExpirationDates()
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
 
   assert.equal(report.skippedWouldShorten, 1)
   assert.equal(report.divergentes.length, 1)
   assert.equal(report.divergentes[0].motivo, 'encurtaria')
   assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.estados.length, 0)
 })
 
 test('syncAcExpirationDates só conta falta de latestApprovedDate depois de avaliar divergência segura', async (t) => {
@@ -231,6 +270,213 @@ test('syncAcExpirationDates só escreve quando dryRun é explicitamente falso', 
   assert.equal(report.wouldWrite, 0)
   assert.equal(report.written, 1)
   assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-05-31']])
+})
+
+test('bootstrap real com expiração preenchida grava só o watermark sem chamar a AC', async (t) => {
+  const compra = new Date('2026-05-15T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ purchaseDate: new Date('2025-05-15T00:00:00Z'), expirationDate: new Date('2026-05-31T23:59:59.999Z') })],
+    [alunoHotmart(compra)]
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal((report as any).bootstrapped, 1)
+  assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.estados.length, 1)
+})
+
+test('segunda corrida real sem evento novo escreve zero', async (t) => {
+  const compra = new Date('2026-05-15T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2026-05-31T23:59:59.999Z') })],
+    [alunoHotmart(compra)]
+  )
+  t.after(fixtures.restaurar)
+
+  const primeira = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  const segunda = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(primeira.bootstrapped, 1)
+  assert.equal(segunda.skippedNoNewEvent, 1)
+  assert.equal(fixtures.escritas.length, 0)
+})
+
+test('evento já certo na AC avança o watermark sem escrever', async (t) => {
+  const compra = new Date('2026-05-15T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2027-05-31T23:59:59.999Z') })],
+    [alunoHotmart(compra)]
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.alreadyInSync, 1)
+  assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.estados.length, 1)
+})
+
+test('falta de contacto mantém o evento pendente', async (t) => {
+  const compra = new Date('2026-05-15T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ contactId: null, expirationDate: new Date('2026-05-31T23:59:59.999Z') })],
+    [alunoHotmart(compra)]
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.skippedNoContact, 1)
+  assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.estados.length, 0)
+})
+
+test('uma renovação nova dispara apenas o aluno cujo ciclo mudou', async (t) => {
+  const compraEstavel = new Date('2025-01-10T00:00:00Z')
+  const compraNova = new Date('2026-02-10T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [
+      alunoAc({ userId: 'estavel', email: 'estavel@example.com', expirationDate: new Date('2025-01-31T23:59:59.999Z') }),
+      alunoAc({ userId: 'renovou', email: 'renovou@example.com', expirationDate: new Date('2026-02-28T23:59:59.999Z') })
+    ],
+    [
+      alunoHotmart(compraEstavel, { userId: 'estavel', sales: [venda({ approvedDate: compraEstavel, transaction: 'ESTAVEL', offerCode: 'oferta-renovacao' })] }),
+      alunoHotmart(compraNova, { userId: 'renovou', sales: [venda({ approvedDate: compraNova, transaction: 'NOVA', offerCode: 'oferta-renovacao' })] })
+    ],
+    [oferta()],
+    {
+      estados: [
+        { userId: 'estavel', eventIdentity: '["2025-01-10T00:00:00.000Z","ESTAVEL","oferta-renovacao","1733154",1]' },
+        { userId: 'renovou', eventIdentity: '["2025-02-10T00:00:00.000Z","ANTIGA","oferta-renovacao","1733154",1]' }
+      ]
+    }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.written, 1)
+  assert.deepEqual(fixtures.escritas, [['renovou@example.com', 332, '2027-02-28']])
+})
+
+test('uma prestação posterior do mesmo ciclo não cria evento', async (t) => {
+  const ancora = new Date('2026-03-10T00:00:00Z')
+  const prestacao = new Date('2026-04-10T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2026-03-31T23:59:59.999Z') })],
+    [alunoHotmart(prestacao, {
+      sales: [
+        venda({ approvedDate: ancora, transaction: 'P-1', offerCode: 'oferta-renovacao' }),
+        venda({ approvedDate: prestacao, transaction: 'P-2', offerCode: 'oferta-renovacao' })
+      ]
+    })],
+    [oferta()],
+    { estados: [{ userId: 'aluno-1', eventIdentity: '["2026-03-10T00:00:00.000Z","P-1","oferta-renovacao","1733154",1]' }] }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.skippedNoNewEvent, 1)
+  assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.estados[0].eventIdentity, '["2026-03-10T00:00:00.000Z","P-1","oferta-renovacao","1733154",1]')
+})
+
+test('uma extensão que muda o ciclo de um para dois anos cria evento', async (t) => {
+  const compra = new Date('2026-06-05T00:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2027-06-30T23:59:59.999Z') })],
+    [alunoHotmart(compra, {
+      sales: [
+        venda({ approvedDate: compra, transaction: 'RENOV-EXT', offerCode: 'oferta-renovacao' }),
+        venda({ approvedDate: compra, transaction: 'EXT', offerCode: 'extensao', hotmartProductId: '3100292', priceValue: 97 })
+      ]
+    })],
+    [oferta()],
+    { estados: [{ userId: 'aluno-1', eventIdentity: '["2026-06-05T00:00:00.000Z","RENOV-EXT","oferta-renovacao","1733154",1]' }] }
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2028-06-30']])
+  assert.equal(fixtures.estados[0].cycleYears, 2)
+})
+
+test('expiração vazia continua elegível durante o bootstrap', async (t) => {
+  const compra = new Date('2026-07-05T00:00:00Z')
+  const fixtures = instalarFixturesSync([alunoAc({ expirationDate: null })], [alunoHotmart(compra)])
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.written, 1)
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-07-31']])
+  assert.equal(fixtures.estados.length, 1)
+})
+
+test('execução manual por email não varre os outros alunos', async (t) => {
+  const compra = new Date('2026-08-05T00:00:00Z')
+  const estado = '["2026-08-05T00:00:00.000Z","TX-1","oferta-renovacao","1733154",1]'
+  const fixtures = instalarFixturesSync(
+    [
+      alunoAc({ userId: 'manual', email: 'manual@example.com', expirationDate: new Date('2026-08-31T23:59:59.999Z') }),
+      alunoAc({ userId: 'outro', email: 'outro@example.com', expirationDate: new Date('2026-08-31T23:59:59.999Z') })
+    ],
+    [
+      alunoHotmart(compra, { userId: 'manual' }),
+      alunoHotmart(compra, { userId: 'outro' })
+    ],
+    [oferta()],
+    { estados: [{ userId: 'manual', eventIdentity: estado }, { userId: 'outro', eventIdentity: estado }] }
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false, manual: { email: 'MANUAL@example.com' } })
+
+  assert.deepEqual(fixtures.filtrosAc, [{ email: 'manual@example.com' }])
+  assert.deepEqual(fixtures.escritas, [['manual@example.com', 332, '2027-08-31']])
+})
+
+test('dry-run não chama a AC nem avança o watermark de um evento novo', async (t) => {
+  const compra = new Date('2026-09-05T00:00:00Z')
+  const identidadeAntiga = '["2025-09-05T00:00:00.000Z","ANTIGA","oferta-renovacao","1733154",1]'
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2026-09-30T23:59:59.999Z') })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    { estados: [{ userId: 'aluno-1', eventIdentity: identidadeAntiga }] }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: true })
+
+  assert.equal(report.wouldWrite, 1)
+  assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.estados[0].eventIdentity, identidadeAntiga)
+})
+
+test('falha da AC não avança o watermark e a corrida seguinte tenta de novo', async (t) => {
+  const compra = new Date('2026-10-05T00:00:00Z')
+  const identidadeAntiga = '["2025-10-05T00:00:00.000Z","ANTIGA","oferta-renovacao","1733154",1]'
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2026-10-31T23:59:59.999Z') })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    { estados: [{ userId: 'aluno-1', eventIdentity: identidadeAntiga }], respostasAc: [false, true] }
+  )
+  t.after(fixtures.restaurar)
+
+  const falhou = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  assert.equal(falhou.errors.length, 1)
+  assert.equal(fixtures.estados[0].eventIdentity, identidadeAntiga)
+
+  const repetiu = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  assert.equal(repetiu.written, 1)
+  assert.equal(fixtures.escritas.length, 2)
+  assert.equal(fixtures.estados[0].eventIdentity, '["2026-10-05T00:00:00.000Z","TX-1","oferta-renovacao","1733154",1]')
 })
 
 test('compra base preserva os dois anos do nome e escreve a expiração do período da oferta', async (t) => {
@@ -291,7 +537,8 @@ test('nome classificado como renovação escreve os dois anos do ciclo', async (
         venda({ approvedDate: compra, transaction: 'EXT-2A', offerCode: 'extensao', hotmartProductId: '3100292', priceValue: 97 })
       ]
     })],
-    [oferta({ offerCode: 'renov-nome', offerName: 'Turma 11 [renov] | 2509', periodYYMM: '2509', isRenewal: false })]
+    [oferta({ offerCode: 'renov-nome', offerName: 'Turma 11 [renov] | 2509', periodYYMM: '2509', isRenewal: false })],
+    { estados: [{ userId: 'aluno-1', eventIdentity: '["2025-08-11T00:00:00.000Z","RENOV-2A","renov-nome","1733154",1]' }] }
   )
   t.after(fixtures.restaurar)
 
@@ -333,6 +580,7 @@ test('oferta base sem nome e período válidos não escreve e conta semTurma', a
   assert.equal(report.semTurma, 1)
   assert.equal(report.needsWrite, 0)
   assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.estados.length, 0)
 })
 
 test('encurtaria recusa escritas calculadas pelos ramos base e renovação', async (t) => {
