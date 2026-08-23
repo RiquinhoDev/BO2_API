@@ -129,7 +129,11 @@ export async function reconcilePurchaseDates(
   const libertarClaim = async (estado: any): Promise<void> => {
     if (!estado?.claimToken) return
     await (AcPurchaseDateEventState as any).findOneAndUpdate(
-      { userId: estado.userId, status: 'claimado', claimToken: estado.claimToken },
+      {
+        userId: estado.userId,
+        status: { $in: ['claimado', 'confirmacao-pendente'] },
+        claimToken: estado.claimToken
+      },
       {
         $set: { status: estado.eventIdentity ? 'tratado' : 'livre' },
         $unset: {
@@ -144,9 +148,22 @@ export async function reconcilePurchaseDates(
     ).lean().exec()
   }
 
-  const finalizarEvento = async (estado: any, eventIdentity: string): Promise<void> => {
-    const finalizado = await (AcPurchaseDateEventState as any).findOneAndUpdate(
+  const marcarConfirmacaoPendente = async (estado: any, pendingValue: string): Promise<any | null> => {
+    return await (AcPurchaseDateEventState as any).findOneAndUpdate(
       { userId: estado.userId, status: 'claimado', claimToken: estado.claimToken },
+      { $set: { status: 'confirmacao-pendente', pendingValue } },
+      { new: true }
+    ).lean().exec()
+  }
+
+  const finalizarEvento = async (estado: any, eventIdentity: string): Promise<any> => {
+    const finalizado = await (AcPurchaseDateEventState as any).findOneAndUpdate(
+      {
+        userId: estado.userId,
+        status: 'confirmacao-pendente',
+        claimToken: estado.claimToken,
+        pendingEventIdentity: eventIdentity
+      },
       {
         $set: { status: 'tratado', eventIdentity },
         $unset: {
@@ -160,6 +177,7 @@ export async function reconcilePurchaseDates(
       { new: true }
     ).lean().exec()
     if (!finalizado) throw new Error('Falha ao finalizar claim do campo 334')
+    return finalizado
   }
 
   const userIdsAtivos = await resolverUserIdsOgiAtivos()
@@ -174,6 +192,14 @@ export async function reconcilePurchaseDates(
     }>
 
   const userIds = entradasAc.map((entrada) => entrada.userId)
+  const estados = userIds.length === 0
+    ? []
+    : await (AcPurchaseDateEventState as any).find({ userId: { $in: userIds } })
+      .select('userId status eventIdentity pendingEventIdentity pendingValue claimToken leaseUntil claimedAt')
+      .lean()
+      .exec() as any[]
+  const estadoByUserId = new Map(estados.map((estado) => [String(estado.userId), estado]))
+
   const entradasHotmart = await HotmartSaleHistoryLeitura.find({ userId: { $in: userIds } })
     .select('userId sales')
     .lean()
@@ -187,6 +213,28 @@ export async function reconcilePurchaseDates(
 
   for (const entrada of entradasAc) {
     report.verificados += 1
+    const estadoPendente = estadoByUserId.get(String(entrada.userId)) as any
+    if (estadoPendente?.status === 'confirmacao-pendente') {
+      const fotografiaConfirma = Boolean(
+        entrada.purchaseDate &&
+        estadoPendente.pendingValue &&
+        formatarData(entrada.purchaseDate) === estadoPendente.pendingValue
+      )
+      if (!dryRun && fotografiaConfirma && estadoPendente.pendingEventIdentity) {
+        try {
+          const finalizado = await finalizarEvento(
+            estadoPendente,
+            estadoPendente.pendingEventIdentity
+          )
+          estadoByUserId.set(String(entrada.userId), finalizado)
+          report.jaCertos += 1
+        } catch {
+          report.erros += 1
+        }
+      }
+      continue
+    }
+
     const ultimoCiclo = agruparCiclos(vendasPorAluno.get(String(entrada.userId)) ?? []).at(-1)
     const dataReal = ultimoCiclo?.compras[0]?.data
 
@@ -298,6 +346,28 @@ export async function reconcilePurchaseDates(
       continue
     }
 
+    let confirmado: any
+    try {
+      confirmado = await marcarConfirmacaoPendente(claim, alteracao.depois)
+      if (!confirmado) throw new Error('Falha ao persistir confirmação pendente do campo 334')
+      estadoByUserId.set(String(entrada.userId), confirmado)
+    } catch {
+      report.erros += 1
+      try {
+        await AcWriteLog.findByIdAndUpdate(rasto._id, {
+          $set: { accao: 'recusado', motivo: 'falhaInterna' }
+        })
+      } catch {
+        // A intenção prévia continua a preservar a tentativa bloqueada.
+      }
+      try {
+        await libertarClaim(claim)
+      } catch {
+        report.erros += 1
+      }
+      continue
+    }
+
     let escrito = false
     try {
       escrito = await activeCampaignService.updateContactField(
@@ -315,7 +385,7 @@ export async function reconcilePurchaseDates(
         // A intenção criada antes da chamada continua a preservar a tentativa.
       }
       try {
-        await libertarClaim(claim)
+        await libertarClaim(confirmado)
       } catch {
         report.erros += 1
       }
@@ -332,7 +402,7 @@ export async function reconcilePurchaseDates(
         // A intenção criada antes da chamada continua a preservar a tentativa.
       }
       try {
-        await libertarClaim(claim)
+        await libertarClaim(confirmado)
       } catch {
         report.erros += 1
       }
@@ -341,7 +411,8 @@ export async function reconcilePurchaseDates(
 
     report.escritos += 1
     try {
-      await finalizarEvento(claim, eventIdentity)
+      const finalizado = await finalizarEvento(confirmado, eventIdentity)
+      estadoByUserId.set(String(entrada.userId), finalizado)
     } catch {
       // O sucesso externo fica auditado; o claim impede uma repetição cega.
       report.erros += 1

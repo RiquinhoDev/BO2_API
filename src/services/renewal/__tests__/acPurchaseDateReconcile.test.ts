@@ -52,6 +52,7 @@ function instalarFixtures(
     falharCreateLog?: boolean
     estados?: any[]
     falharFinalizacoes?: number
+    falharConfirmacoes?: number
   } = {}
 ) {
   const productFindOneOriginal = (Product as any).findOne
@@ -62,6 +63,7 @@ function instalarFixtures(
   const logCreateOriginal = (AcWriteLog as any).create
   const logFindByIdAndUpdateOriginal = (AcWriteLog as any).findByIdAndUpdate
   const estadoFindOneAndUpdateOriginal = (AcPurchaseDateEventState as any).findOneAndUpdate
+  const estadoFindOriginal = (AcPurchaseDateEventState as any).find
   const activos = opcoes.activos ?? acEntries.map((entrada) => String(entrada.userId))
   const escritas: Array<[string, number, string]> = []
   const logs: any[] = []
@@ -124,6 +126,12 @@ function instalarFixtures(
           throw new Error('falha ao finalizar claim 334')
         }
 
+        if (set.status === 'confirmacao-pendente' && (opcoes.falharConfirmacoes ?? 0) > 0) {
+          opcoes.falharConfirmacoes = (opcoes.falharConfirmacoes ?? 0) - 1
+          throw new Error('falha ao persistir confirmação 334')
+        }
+        if (set.status === 'confirmacao-pendente') ordem.push('confirmacao')
+
         const novo = { ...(actual ?? { userId }), ...set }
         for (const campo of Object.keys(atualizacao.$unset ?? {})) delete novo[campo]
         if (indice === -1) estados.push(novo)
@@ -132,6 +140,10 @@ function instalarFixtures(
       }
     })
   })
+  ;(AcPurchaseDateEventState as any).find = (filtro: any) => {
+    const ids = new Set((filtro.userId?.$in ?? []).map(String))
+    return query(estados.filter((estado) => ids.has(String(estado.userId))))
+  }
   activeCampaignService.updateContactField = async (email, fieldId, value) => {
     ordem.push('ac')
     escritas.push([email, fieldId, value])
@@ -154,6 +166,7 @@ function instalarFixtures(
       ;(AcWriteLog as any).create = logCreateOriginal
       ;(AcWriteLog as any).findByIdAndUpdate = logFindByIdAndUpdateOriginal
       ;(AcPurchaseDateEventState as any).findOneAndUpdate = estadoFindOneAndUpdateOriginal
+      ;(AcPurchaseDateEventState as any).find = estadoFindOriginal
       activeCampaignService.updateContactField = updateOriginal
     }
   }
@@ -332,7 +345,7 @@ test('334 cria o rasto antes da AC e conserva escrito em sucesso', async (t) => 
 
   await reconcilePurchaseDates({ dryRun: false })
 
-  assert.deepEqual(fixtures.ordem, ['claim', 'log', 'ac'])
+  assert.deepEqual(fixtures.ordem, ['claim', 'log', 'confirmacao', 'ac'])
   assert.equal(fixtures.logs[0].accao, 'escrito')
   assert.equal(fixtures.logs[0].dryRun, false)
 })
@@ -433,18 +446,43 @@ test('uma falha externa do 334 liberta o claim e o retry cria novo rasto', async
   assert.equal(fixtures.escritas.length, 2)
 })
 
-test('sucesso externo do 334 não vira recusa nem repete AC se a finalização falhar', async (t) => {
+test('334 confirmado antes da AC não repete após lease e finaliza pela fotografia posterior', async (t) => {
+  const entradaAc = alunoAc('finalizacao', { purchaseDate: null })
   const fixtures = instalarFixtures(
-    [alunoAc('finalizacao', { purchaseDate: null })],
+    [entradaAc],
     [alunoHotmart('finalizacao')],
     { falharFinalizacoes: 1 }
   )
   t.after(fixtures.restaurar)
 
   await reconcilePurchaseDates({ dryRun: false })
+
+  assert.equal(fixtures.estados[0].status, 'confirmacao-pendente')
+  fixtures.estados[0].leaseUntil = new Date('2000-01-01T00:00:00.000Z')
   await reconcilePurchaseDates({ dryRun: false })
 
   assert.equal(fixtures.logs.length, 1)
   assert.equal(fixtures.logs[0].accao, 'escrito')
   assert.equal(fixtures.escritas.length, 1)
+  assert.equal(fixtures.estados[0].status, 'confirmacao-pendente')
+
+  entradaAc.purchaseDate = new Date('2026-05-20T09:00:00.000Z')
+  await reconcilePurchaseDates({ dryRun: false })
+
+  assert.equal(fixtures.escritas.length, 1)
+  assert.equal(fixtures.estados[0].status, 'tratado')
+})
+
+test('falha ao persistir confirmação do 334 bloqueia a chamada AC', async (t) => {
+  const fixtures = instalarFixtures(
+    [alunoAc('sem-confirmacao', { purchaseDate: null })],
+    [alunoHotmart('sem-confirmacao')],
+    { falharConfirmacoes: 1 }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await reconcilePurchaseDates({ dryRun: false })
+
+  assert.equal(report.erros >= 1, true)
+  assert.equal(fixtures.escritas.length, 0)
 })
