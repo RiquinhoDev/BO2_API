@@ -5,6 +5,7 @@ import { canonical, desligar, ligar, turmaActual } from './lib'
 async function main() {
   const db = await ligar()
   try {
+    const lidosEm = new Date().toISOString()
     const emails = new Set<string>()
     const [vendas, tags, ac] = await Promise.all([
       db.collection('hotmartsalehistories').find({}).toArray(),
@@ -47,7 +48,7 @@ async function main() {
       generated += 1
       if (JSON.stringify(a) !== JSON.stringify(b)) different += 1
     }
-    console.log(JSON.stringify({ timelinesComparadas: generated, documentosDiferentes: different, camposDiferentes: [...fields] }, null, 2))
+    console.log(JSON.stringify({ lidosEm, timelinesComparadas: generated, documentosDiferentes: different, camposDiferentes: [...fields] }, null, 2))
   } finally {
     await desligar()
   }

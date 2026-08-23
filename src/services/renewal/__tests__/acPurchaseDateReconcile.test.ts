@@ -65,6 +65,29 @@ test('334 usa a primeira cobrança para um plano de prestações', () => {
   assert.equal(dataCompraDoCiclo(ciclo)?.toISOString(), '2026-05-20T00:00:00.000Z')
 })
 
+test('334 usa a primeira cobrança quando as prestações têm uma extensão avulsa', () => {
+  const ciclo: any = {
+    compras: [
+      { data: new Date('2024-12-03T00:00:00Z'), paymentMode: 'MULTIPLE_PAYMENTS', produtoId: '4346330' },
+      { data: new Date('2024-12-03T00:00:00Z'), paymentMode: 'PAY_IN_FULL', produtoId: '3100292' },
+      { data: new Date('2025-04-03T00:00:00Z'), paymentMode: 'MULTIPLE_PAYMENTS', produtoId: '4346330' }
+    ]
+  }
+
+  assert.equal(dataCompraDoCiclo(ciclo)?.toISOString(), '2024-12-03T00:00:00.000Z')
+})
+
+test('334 usa a última compra em avulsas de produtos diferentes', () => {
+  const ciclo: any = {
+    compras: [
+      { data: new Date('2024-11-25T00:00:00Z'), paymentMode: 'PAY_IN_FULL', produtoId: '4346330' },
+      { data: new Date('2024-12-02T00:00:00Z'), paymentMode: 'PAY_IN_FULL', produtoId: '3100292' }
+    ]
+  }
+
+  assert.equal(dataCompraDoCiclo(ciclo)?.toISOString(), '2024-12-02T00:00:00.000Z')
+})
+
 function instalarFixtures(
   acEntries: any[],
   hotmartDocs: any[],

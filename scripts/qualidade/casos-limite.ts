@@ -27,4 +27,4 @@ const casos: Array<[string, () => void]> = [
 ]
 
 for (const [nome, caso] of casos) caso()
-console.log(JSON.stringify({ casos: casos.length, passaram: casos.length, falharam: 0, nomes: casos.map(([nome]) => nome) }, null, 2))
+console.log(JSON.stringify({ lidosEm: new Date().toISOString(), casos: casos.length, passaram: casos.length, falharam: 0, nomes: casos.map(([nome]) => nome) }, null, 2))

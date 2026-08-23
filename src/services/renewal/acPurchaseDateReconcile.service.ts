@@ -18,7 +18,7 @@ const MODO_PRESTACOES = 'MULTIPLE_PAYMENTS'
 export function dataCompraDoCiclo(ciclo: CicloBase): Date | null {
   const compras = ciclo.compras
   if (!compras.length) return null
-  const ePrestacao = compras.length > 1 && compras.every(
+  const ePrestacao = compras.length > 1 && compras.some(
     (compra) => String(compra.paymentMode ?? '').toUpperCase() === MODO_PRESTACOES
   )
   return (ePrestacao ? compras[0] : compras[compras.length - 1])?.data ?? null

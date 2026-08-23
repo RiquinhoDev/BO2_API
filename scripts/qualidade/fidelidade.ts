@@ -20,6 +20,7 @@ const ehTagRelevante = (nome: string) =>
 async function main() {
   const db = await ligar()
   try {
+    const lidosEm = new Date().toISOString()
     const { userProducts, users } = await activosOgi(db)
     const usersById = new Map(users.map((u) => [String(u._id), u]))
     const ids = userProducts.map((u) => u.userId)
@@ -62,9 +63,17 @@ async function main() {
       }
     }
     const latest = (rows: any[], field: string) => rows.map((r) => r[field]).filter(Boolean).sort().at(-1) ?? null
+    const coberturaPercent = sample.length / users.length * 100
     console.log(JSON.stringify({
+      lidosEm,
       criterioAmostra: '40 primeiros emails em ordem lexicográfica entre UserProduct OGI/Hotmart ACTIVE com User resolvido',
+      populacaoResolvida: users.length,
       amostrados: sample.length,
+      margem: {
+        coberturaPercent,
+        foraDaAmostraPercent: 100 - coberturaPercent,
+        nota: 'A amostra observa 40/911; até 95,61% da população pode passar despercebida.'
+      },
       falhasApi,
       divergencias,
       ultimaSyncVendas: latest(localSales, 'lastSyncedAt'),
