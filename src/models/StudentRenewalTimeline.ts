@@ -27,6 +27,8 @@ export interface IStudentRenewalTimeline extends Document {
       moeda: string | null
       produtoId: string | null
       transacao: string | null
+      offerCode: string | null
+      paymentMode: string | null
       extensao: boolean
     }>
     anos: number
@@ -83,6 +85,8 @@ const compraSchema = new Schema(
     moeda: { type: String, default: null },
     produtoId: { type: String, default: null },
     transacao: { type: String, default: null },
+    offerCode: { type: String, default: null },
+    paymentMode: { type: String, default: null },
     extensao: { type: Boolean, default: false }
   },
   { _id: false }

@@ -7,11 +7,22 @@ import AcWriteLog from '../../models/renewal/AcWriteLog'
 import AcPurchaseDateEventState from '../../models/renewal/AcPurchaseDateEventState'
 import { activeCampaignService } from '../activeCampaign/activeCampaignService'
 import { agruparCiclos } from './renewalCycles'
-import type { VendaEntrada } from './renewalTimeline.types'
+import type { CicloBase, VendaEntrada } from './renewalTimeline.types'
 
 const CAMPO_DATA_COMPRA_AC = 334
 const VINTE_QUATRO_HORAS_MS = 24 * 60 * 60 * 1000
 const CLAIM_LEASE_MS = 5 * 60 * 1000
+const MODO_PRESTACOES = 'MULTIPLE_PAYMENTS'
+
+/** R1: prestações usam a primeira cobrança; compras avulsas, a última. */
+export function dataCompraDoCiclo(ciclo: CicloBase): Date | null {
+  const compras = ciclo.compras
+  if (!compras.length) return null
+  const ePrestacao = compras.length > 1 && compras.every(
+    (compra) => String(compra.paymentMode ?? '').toUpperCase() === MODO_PRESTACOES
+  )
+  return (ePrestacao ? compras[0] : compras[compras.length - 1])?.data ?? null
+}
 
 export interface ReconcileReport {
   verificados: number
@@ -246,7 +257,7 @@ export async function reconcilePurchaseDates(
     }
 
     const ultimoCiclo = agruparCiclos(vendasPorAluno.get(String(entrada.userId)) ?? []).at(-1)
-    const dataReal = ultimoCiclo?.compras[0]?.data
+    const dataReal = ultimoCiclo ? dataCompraDoCiclo(ultimoCiclo) : null
 
     if (!dataReal) {
       report.semDados += 1

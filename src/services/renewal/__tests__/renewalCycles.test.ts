@@ -21,6 +21,30 @@ test('periodoDeData devolve YYMM', () => {
   assert.equal(periodoDeData(new Date('2026-01-02T23:00:00Z')), '2601')
 })
 
+test('cada compra do ciclo conserva paymentMode e offerCode para o reconciliador', () => {
+  const ciclos = agruparCiclos([
+    venda({
+      approvedDate: new Date('2026-08-01T00:00:00Z'),
+      offerCode: 'base-397',
+      paymentMode: 'PAY_IN_FULL',
+      transaction: 'BASE'
+    }),
+    venda({
+      approvedDate: new Date('2026-08-07T00:00:00Z'),
+      hotmartProductId: '3100292',
+      offerCode: 'extensao-97',
+      paymentMode: 'PAY_IN_FULL',
+      transaction: 'EXT'
+    })
+  ])
+
+  assert.equal(ciclos.length, 1)
+  assert.equal(ciclos[0].compras[0].offerCode, 'base-397')
+  assert.equal(ciclos[0].compras[0].paymentMode, 'PAY_IN_FULL')
+  assert.equal(ciclos[0].compras[1].offerCode, 'extensao-97')
+  assert.equal(ciclos[0].compras[1].paymentMode, 'PAY_IN_FULL')
+})
+
 test('indiceDePeriodo ordena meses e rejeita lixo', () => {
   const a = indiceDePeriodo('2512')!
   const b = indiceDePeriodo('2601')!

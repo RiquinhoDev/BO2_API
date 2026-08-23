@@ -73,6 +73,20 @@ const toNumber = (value: unknown, fallback = 0): number => {
   return fallback
 }
 
+/**
+ * `$set` em caminhos irmãos não aplica defaults do schema a `combined.status`.
+ * Toda actualização que reconstrói `combined.*` passa por esta guarda para que
+ * um utilizador novo ou legado nunca fique sem estado.
+ */
+export function garantirCombinedStatus(
+  user: { combined?: { status?: string | null }; status?: string | null; hotmart?: { status?: string | null } },
+  updateFields: Record<string, unknown>
+): void {
+  if (updateFields['combined.status'] != null) return
+  updateFields['combined.status'] =
+    user.combined?.status ?? user.status ?? user.hotmart?.status ?? 'ACTIVE'
+}
+
 // ═══════════════════════════════════════════════════════════
 // ✅ CACHE GLOBAL DE PRODUTOS (OTIMIZAÇÃO FASE 1)
 // ═══════════════════════════════════════════════════════════
@@ -1715,6 +1729,13 @@ if (lastAccessDate) {
     updateFields['metadata.updatedAt'] = new Date()
     updateFields['metadata.sources.discord.lastSync'] = new Date()
     needsUpdate = true
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(updateFields, 'combined.allClasses') ||
+    Object.prototype.hasOwnProperty.call(updateFields, 'combined.primaryClass')
+  ) {
+    garantirCombinedStatus(user as any, updateFields)
   }
 
   // ═══════════════════════════════════════════════════════════

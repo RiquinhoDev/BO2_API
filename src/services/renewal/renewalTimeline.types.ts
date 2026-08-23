@@ -38,6 +38,8 @@ export interface CompraCiclo {
   data: Date
   /** Código da oferta da própria compra; na posição 0 identifica a oferta âncora. */
   offerCode: string | null
+  /** Modo de cobrança da compra, necessário para distinguir prestações de avulsas. */
+  paymentMode: string | null
   valor: number | null
   moeda: string | null
   produtoId: string | null
