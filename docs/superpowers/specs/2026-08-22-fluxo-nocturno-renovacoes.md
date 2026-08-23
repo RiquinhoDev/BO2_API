@@ -274,3 +274,59 @@ contas internas.
 
 A pergunta a levar deixa de ser "a AC trata disso?" e passa a ser **"ao fim de
 quanto tempo, e quem dispara?"**.
+
+---
+
+## Quem escreve as datas — decidido a 2026-08-23
+
+**O cron escreve UMA data e só uma: a expiração (campo 332).**
+
+Nunca escreve a data de compra (334) nem a da 1ª compra (337). As tags, essas,
+acrescenta e remove conforme a chefia decidir.
+
+### Porque é que isto ficou explícito
+
+A 22/08 encontrámos 191 contactos com a data de compra desalinhada e
+concluímos que havia uma "escrita em massa" de origem desconhecida. Estava
+errado: **fomos nós**.
+
+Medido a 23/08 sobre os contactos carimbados:
+
+```
+carimbo 2026-08-20    10 de 10 com tags aplicadas nesse mesmo dia
+carimbo 2026-08-21     7 de  9
+carimbo 2026-08-07     6 de  6
+```
+
+E sempre o mesmo padrão de tags:
+
+```
+Aluno OGI 2602 - Renovação Turma 13  +  Renovou
+Aluno OGI 2603 - Renovação Turma 9   +  Renovou
+Alunos OGI Ativos + Aluno OGI 26xx - Renovação Turma N + Renovou
+```
+
+**Aplicar a tag de renovação dispara uma automação da AC que acrescenta a
+`Renovou` e escreve a data de compra com o dia de hoje.** As tags aplicadas à
+mão a 20 e 21 de Agosto produziram os carimbos desses dias.
+
+### A consequência, que fica em aberto
+
+Quando o passo das tags obrigatórias entrar em funcionamento, **a AC vai
+carimbar a data de compra de cada vez que o BO aplicar uma tag**. Não é o BO a
+escrever — é a automação dela a reagir.
+
+Isto significa que o elo "Data da compra" do painel mede um campo que não
+controlamos, e que vai desalinhar-se sozinho. Os 144 corrigidos a 23/08
+voltarão a desalinhar assim que lhes tocarem numa tag.
+
+Duas saídas, ambas por decidir:
+
+1. **A automação da AC deixa de escrever a data de compra.** Pergunta concreta
+   para a chefia: *quando aplicam a tag de renovação, há uma automação que
+   preenche a data de compra com o dia de hoje — é intencional?*
+2. **Aceita-se que o campo é da AC** e o painel deixa de o tratar como "por
+   corrigir": passa a informação, não a alarme. Sem isto, alguém vai repetir a
+   limpeza de 23/08 sobre um campo que se suja sozinho.
+
+Enquanto não se decide, **não voltar a escrever o 334**.
