@@ -78,3 +78,9 @@ test('montarEntrada aguenta o aluno sem espelho nenhum', () => {
   assert.equal(e.acExpiracao, null)
   assert.deepEqual(e.fontes, { vendas: null, tags: null, ac: null })
 })
+
+test('montarEntrada conserva a ancora do evento legado anterior', () => {
+  const anchor = new Date('2025-08-12T00:00:00Z')
+  const e = montarEntrada(dados({}), new Map(), anchor)
+  assert.equal(e.legadoExpiracaoAncora?.toISOString(), anchor.toISOString())
+})

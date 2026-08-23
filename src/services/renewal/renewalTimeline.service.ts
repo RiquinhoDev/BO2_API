@@ -45,7 +45,11 @@ export interface TimelineSyncReport {
 }
 
 /** Traduz documentos da BD para o input puro do gerador. */
-export function montarEntrada(d: DadosAluno, excepcoes: Map<string, string>): EntradaGerador {
+export function montarEntrada(
+  d: DadosAluno,
+  excepcoes: Map<string, string>,
+  legadoExpiracaoAncora: Date | null = null
+): EntradaGerador {
   return {
     vendas: d.vendas?.sales ?? [],
     tags: (d.tags?.tags ?? []).map((t) => ({
@@ -65,7 +69,8 @@ export function montarEntrada(d: DadosAluno, excepcoes: Map<string, string>): En
       vendas: d.vendas?.lastSyncedAt ?? null,
       tags: d.tags?.syncedAt ?? null,
       ac: d.ac?.lastSyncedAt ?? null
-    }
+    },
+    legadoExpiracaoAncora
   }
 }
 
@@ -137,11 +142,22 @@ export async function gerarTimelinesEmLote(
     .exec()) as any[]
   const userPorEmail = new Map(users.map((u) => [String(u.email).toLowerCase().trim(), u]))
 
-  const movimentacoes = (await (StudentClassHistory as any)
-    .find({ studentId: { $in: users.map((u) => u._id) } })
-    .select('studentId classId className dateMoved')
-    .lean()
-    .exec()) as any[]
+  const [movimentacoes, timelinesAnteriores] = await Promise.all([
+    (StudentClassHistory as any)
+      .find({ studentId: { $in: users.map((u) => u._id) } })
+      .select('studentId classId className dateMoved')
+      .lean()
+      .exec(),
+    (StudentRenewalTimeline as any)
+      .find({ userId: { $in: users.map((u) => u._id) } })
+      .select('userId ciclos cadeia.expiracaoIgualTurma')
+      .lean()
+      .exec()
+  ]) as [any[], any[]]
+
+  const timelineAnteriorPorUser = new Map(
+    timelinesAnteriores.map((timeline: any) => [String(timeline.userId), timeline])
+  )
   const movsPorUser = new Map<string, any[]>()
   for (const m of movimentacoes) {
     const chave = String(m.studentId)
@@ -160,6 +176,12 @@ export async function gerarTimelinesEmLote(
       const venda = porEmailVendas.get(email)
       const tag = porEmailTags.get(email)
       const ac = porEmailAc.get(email)
+      const timelineAnterior = timelineAnteriorPorUser.get(String(user._id)) as any
+      const ultimoCicloAnterior = timelineAnterior?.ciclos?.[timelineAnterior.ciclos.length - 1]
+      const legadoExpiracaoAncora =
+        timelineAnterior?.cadeia?.expiracaoIgualTurma === 'legado'
+          ? ultimoCicloAnterior?.compras?.[0]?.data ?? null
+          : null
       const entrada = montarEntrada(
         {
           userId: String(user._id),
@@ -180,7 +202,8 @@ export async function gerarTimelinesEmLote(
           })),
           turmaAtual: turmaActualDoUser(user)
         },
-        excepcoes
+        excepcoes,
+        legadoExpiracaoAncora
       )
 
       const timeline = gerarTimeline(entrada)

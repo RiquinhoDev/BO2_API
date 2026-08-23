@@ -396,12 +396,13 @@ test('prestacoes usam a primeira cobranca como ancora da expiracao', () => {
   assert.equal(t.cadeia.comparacoes.expiracao.esperado?.toISOString(), '2026-12-31T23:59:59.999Z')
 })
 
-test('mismatch de renovacao anterior a fotografia da AC e legado', () => {
+test('mismatch do mesmo evento previamente marcado continua legado', () => {
   const t = gerarTimeline(
     entrada({
       vendas: [venda({ approvedDate: new Date('2025-08-12T00:00:00Z'), transaction: 'A' })],
       turmaAtual: { classId: 'c', className: 'Turma 11 [renov] | 2509', entrouEm: null },
       acExpiracao: new Date('2026-09-30T00:00:00Z'),
+      legadoExpiracaoAncora: new Date('2025-08-12T00:00:00Z'),
       fontes: { vendas: AGORA, tags: AGORA, ac: new Date('2026-08-01T00:00:00Z') }
     })
   )
@@ -416,6 +417,36 @@ test('venda de renovacao posterior a fotografia da AC e divergente', () => {
       turmaAtual: { classId: 'c', className: 'Turma 11 [renov] | 2609', entrouEm: null },
       acExpiracao: new Date('2027-09-30T00:00:00Z'),
       fontes: { vendas: AGORA, tags: AGORA, ac: new Date('2026-08-01T00:00:00Z') }
+    })
+  )
+
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'divergente')
+})
+
+test('fotografia AC posterior a uma venda nova nao transforma falha do escritor em legado', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2026-08-20T00:00:00Z'), transaction: 'NOVA' })],
+      turmaAtual: { classId: 'c', className: 'Turma Renovação | 2608', entrouEm: null },
+      acExpiracao: new Date('2026-08-31T00:00:00Z'),
+      fontes: { vendas: AGORA, tags: AGORA, ac: new Date('2026-08-23T00:00:00Z') }
+    })
+  )
+
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'divergente')
+})
+
+test('uma compra nova nao herda o legado do ciclo anterior', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2025-08-12T00:00:00Z'), transaction: 'ANTIGA' }),
+        venda({ approvedDate: new Date('2026-08-20T00:00:00Z'), transaction: 'NOVA' })
+      ],
+      turmaAtual: { classId: 'c', className: 'Turma Renovação | 2608', entrouEm: null },
+      acExpiracao: new Date('2026-08-31T00:00:00Z'),
+      legadoExpiracaoAncora: new Date('2025-08-12T00:00:00Z'),
+      fontes: { vendas: AGORA, tags: AGORA, ac: new Date('2026-08-23T00:00:00Z') }
     })
   )
 

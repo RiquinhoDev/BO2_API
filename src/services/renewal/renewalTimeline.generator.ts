@@ -51,6 +51,11 @@ export interface EntradaGerador {
   acDataCompra: Date | null
   excepcoesTurmaTag: Map<string, string>
   fontes: { vendas: Date | null; tags: Date | null; ac: Date | null }
+  /**
+   * Âncora que já estava classificada como legado na timeline anterior.
+   * O marcador fica preso ao evento; uma compra nova nunca o herda.
+   */
+  legadoExpiracaoAncora?: Date | null
 }
 
 /**
@@ -466,13 +471,13 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
     if (mesmoMes(e.acExpiracao, fimEsperado)) {
       expiracaoIgualTurma = 'ok'
     } else {
-      const vendaJaVistaNaAc = !!(
+      const mesmoEventoLegado = !!(
         turmaRenovacao &&
         compraDoCiclo &&
-        e.fontes.ac &&
-        compraDoCiclo.getTime() <= e.fontes.ac.getTime()
+        e.legadoExpiracaoAncora &&
+        mesmoDia(compraDoCiclo, e.legadoExpiracaoAncora)
       )
-      expiracaoIgualTurma = vendaJaVistaNaAc ? 'legado' : 'divergente'
+      expiracaoIgualTurma = mesmoEventoLegado ? 'legado' : 'divergente'
     }
   }
 
