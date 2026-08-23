@@ -61,15 +61,41 @@ segunda. O que falta é **escolher qual usar por aluno**.
 
 ## Onde fica cada aluno
 
-```
-compra base        a oferta identifica a turma desde o primeiro dia
-                   renewaloffers.offerName -> "OGI Turma 18 | L2605 | 397"
+**Compra base** — a oferta identifica a turma desde o primeiro dia:
+`renewaloffers.offerName` → `"OGI Turma 18 | L2605 | 397"`.
 
-compra renovação   entra na turma genérica e no fim do mês é movido para a
-                   turma final, que se chama sempre
-                       "Turma Renovação | <YYMM do mês da compra>"
-                   portanto sabemos o destino desde o primeiro dia
+**Compra de renovação** — passa sempre por uma sala de espera:
+
 ```
+1. o aluno renova
+2. entra na "Turma Renovação Genérica"     código sempre 3V4VBR3n42
+                                            (é a turma da oferta)
+3. no fim desse mês é movido para a turma final
+       "Turma Renovação | <YY MM do mês da COMPRA>"
+```
+
+O destino sabe-se desde o primeiro dia: quem renova em Outubro/2026 acaba em
+`Turma Renovação | 2610`, com acesso até 31/10/2027 — o mesmo que a regra da
+compra dá. A genérica **não trava nada**: numa renovação a expiração sai da
+compra e não precisa da turma.
+
+Estado a 23/08: a genérica está vazia; já existem `Turma Renovação | 2601,
+2606, 2607, 2608` com 34 activos.
+
+### As três excepções — e são só três
+
+```
+Turma 1 | 2701          fica SEMPRE na linhagem da Turma 1. Preço diferente.
+Turma 2 | 2706          fica SEMPRE na linhagem da Turma 2. Preço diferente.
+Turma antigos alunos    leva uma TAG ESPECIAL e só depois é movida para
+                        "Turma Renovação | YYMM". A tag está POR VALIDAR
+                        com a chefia — não implementar sem resposta.
+```
+
+**Nada que mova alunos para `Turma Renovação | YYMM` pode apanhar as duas
+primeiras.** Têm preço próprio; o erro aqui é de facturação, não cosmético.
+Origens na BD: `Turma 1 | 2112` e `Turma 2 | 2204`. A `Turma antigos alunos |
+2606` tem 10 activos.
 
 ## Regras que não se negoceiam
 
@@ -513,6 +539,18 @@ mediste, diz que não mediste.
 nome da turma (`DISCORD_ROLES_AUTO_EXECUTE=true`, sem aprovação humana). Com a
 Tarefa 3 ligada, alguns alunos ficam com acesso na AC até ao fim de Outubro e
 perdem o cargo a 30 de Setembro. Reporta, não resolvas.
+
+**O Discord tira o cargo a quem está na turma genérica.** Verificado a 23/08 em
+`discordRolesSync.service.ts:182`: quem não tem período datável no nome da
+turma é saltado (`continue`), cai fora do `desiredByAccount`, e a regra D4
+(linha 225) empurra-o para `desired: null` — remover todos os cargos `R.*`.
+
+A `Turma Renovação Genérica` não tem período. Portanto **cada aluno que renova
+perde o cargo de renovação enquanto espera pela mudança de fim de mês**, e
+recebe o novo quando for movido.
+
+Hoje a genérica está vazia, logo não há impacto — mas passa a haver assim que
+o fluxo novo arrancar. Mede e reporta; não mexas nos interruptores do Discord.
 
 **A `silviabelbute`.** Renovou em Setembro/2025 — tem a tag, está na turma de
 renovação, a AC dá-lhe acesso até Set/2026 — mas não há venda nenhuma na
