@@ -172,6 +172,29 @@ function instalarFixtures(
   }
 }
 
+test('configurar o reconciliador para 337 falha fechado antes de qualquer rasto ou escrita', async (t) => {
+  const campoOriginal = process.env.AC_PURCHASE_DATE_FIELD_ID
+  process.env.AC_PURCHASE_DATE_FIELD_ID = '337'
+  const fixtures = instalarFixtures(
+    [alunoAc('campo-errado', { purchaseDate: null })],
+    [alunoHotmart('campo-errado')]
+  )
+  t.after(() => {
+    if (campoOriginal === undefined) delete process.env.AC_PURCHASE_DATE_FIELD_ID
+    else process.env.AC_PURCHASE_DATE_FIELD_ID = campoOriginal
+    fixtures.restaurar()
+  })
+
+  await assert.rejects(
+    reconcilePurchaseDates({ dryRun: false }),
+    /tem de ser 334/i
+  )
+
+  assert.deepEqual(fixtures.logs, [])
+  assert.deepEqual(fixtures.escritas, [])
+  assert.deepEqual(fixtures.filtros, { produto: [], inscricoes: [], ac: [], hotmart: [] })
+})
+
 test('334 igual à âncora fica contado como já certo e não escreve', async (t) => {
   const fixtures = instalarFixtures([alunoAc('igual')], [alunoHotmart('igual')])
   t.after(fixtures.restaurar)

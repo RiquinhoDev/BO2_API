@@ -6,10 +6,10 @@ import UserProduct from '../../models/UserProduct'
 import AcWriteLog from '../../models/renewal/AcWriteLog'
 import AcPurchaseDateEventState from '../../models/renewal/AcPurchaseDateEventState'
 import { activeCampaignService } from '../activeCampaign/activeCampaignService'
-import { AC_PURCHASE_DATE_FIELD_ID } from './acRenewalDataSync.service'
 import { agruparCiclos } from './renewalCycles'
 import type { VendaEntrada } from './renewalTimeline.types'
 
+const CAMPO_DATA_COMPRA_AC = 334
 const VINTE_QUATRO_HORAS_MS = 24 * 60 * 60 * 1000
 const CLAIM_LEASE_MS = 5 * 60 * 1000
 
@@ -38,6 +38,15 @@ function chaveIdempotente(partes: unknown[]): string {
 
 function erroDeChaveDuplicada(error: unknown): boolean {
   return typeof error === 'object' && error !== null && (error as { code?: number }).code === 11000
+}
+
+function validarCampoDataCompra(): void {
+  const configurado = process.env.AC_PURCHASE_DATE_FIELD_ID
+  if (configurado !== undefined && Number(configurado) !== CAMPO_DATA_COMPRA_AC) {
+    throw new Error(
+      `Reconciliação bloqueada: o campo de data de compra tem de ser 334 (configurado: ${configurado})`
+    )
+  }
 }
 
 async function resolverUserIdsOgiAtivos(): Promise<unknown[]> {
@@ -71,6 +80,7 @@ async function resolverUserIdsOgiAtivos(): Promise<unknown[]> {
 export async function reconcilePurchaseDates(
   opcoes: { dryRun?: boolean } = {}
 ): Promise<ReconcileReport> {
+  validarCampoDataCompra()
   const dryRun = opcoes.dryRun !== false
   const report: ReconcileReport = {
     verificados: 0,
@@ -245,7 +255,7 @@ export async function reconcilePurchaseDates(
         await criarRasto({
           servico: 'dataCompra',
           email: entrada.email,
-          campo: AC_PURCHASE_DATE_FIELD_ID,
+          campo: CAMPO_DATA_COMPRA_AC,
           antes,
           depois: null,
           accao: 'recusado',
@@ -267,7 +277,7 @@ export async function reconcilePurchaseDates(
         await criarRasto({
           servico: 'dataCompra',
           email: entrada.email,
-          campo: AC_PURCHASE_DATE_FIELD_ID,
+          campo: CAMPO_DATA_COMPRA_AC,
           antes,
           depois,
           accao: 'recusado',
@@ -302,7 +312,7 @@ export async function reconcilePurchaseDates(
         await criarRasto({
           servico: 'dataCompra',
           email: entrada.email,
-          campo: AC_PURCHASE_DATE_FIELD_ID,
+          campo: CAMPO_DATA_COMPRA_AC,
           antes: alteracao.antes,
           depois: alteracao.depois,
           accao: 'escrito',
@@ -329,7 +339,7 @@ export async function reconcilePurchaseDates(
       rasto = await criarRasto({
         servico: 'dataCompra',
         email: entrada.email,
-        campo: AC_PURCHASE_DATE_FIELD_ID,
+        campo: CAMPO_DATA_COMPRA_AC,
         antes: alteracao.antes,
         depois: alteracao.depois,
         accao: 'escrito',
@@ -372,7 +382,7 @@ export async function reconcilePurchaseDates(
     try {
       escrito = await activeCampaignService.updateContactField(
         entrada.email,
-        AC_PURCHASE_DATE_FIELD_ID,
+        CAMPO_DATA_COMPRA_AC,
         alteracao.depois
       )
     } catch {
