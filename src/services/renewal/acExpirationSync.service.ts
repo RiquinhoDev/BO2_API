@@ -152,6 +152,7 @@ interface EstadoEvento {
   saleIdentity?: string | null
   anchorDate: Date | null
   cycleYears: 1 | 2 | null
+  emptyExpirationSnapshotAt?: Date | null
   claimToken?: string | null
   leaseUntil?: Date | null
   claimedAt?: Date | null
@@ -160,6 +161,7 @@ interface EstadoEvento {
   pendingAnchorDate?: Date | null
   pendingCycleYears?: 1 | 2 | null
   pendingExpiration?: Date | null
+  pendingEmptyExpirationSnapshotAt?: Date | null
   pendingReason?: 'bootstrap' | 'already-right' | 'would-shorten' | 'external-write' | null
 }
 
@@ -222,7 +224,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       }
     : {}
   const acEntries = await ACRenewalDataReadModel.find(filtroAc)
-    .select('userId email contactId expirationDate refundDate purchaseStatus')
+    .select('userId email contactId expirationDate refundDate purchaseStatus lastSyncedAt')
     .lean()
     .exec() as Array<{
       userId: mongoose.Types.ObjectId
@@ -231,6 +233,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       expirationDate: Date | null
       refundDate: Date | null
       purchaseStatus: string | null
+      lastSyncedAt: Date
     }>
 
   const userIds = acEntries.map((e) => e.userId)
@@ -248,7 +251,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
   const estados = userIds.length === 0
     ? []
     : await AcExpirationEventStateReadModel.find({ userId: { $in: userIds } })
-      .select('userId status eventIdentity saleIdentity anchorDate cycleYears claimToken leaseUntil claimedAt pendingEventIdentity pendingSaleIdentity pendingAnchorDate pendingCycleYears pendingExpiration pendingReason')
+      .select('userId status eventIdentity saleIdentity anchorDate cycleYears emptyExpirationSnapshotAt claimToken leaseUntil claimedAt pendingEventIdentity pendingSaleIdentity pendingAnchorDate pendingCycleYears pendingExpiration pendingEmptyExpirationSnapshotAt pendingReason')
       .lean()
       .exec() as EstadoEvento[]
   const estadoByUserId = new Map(estados.map((estado) => [String(estado.userId), estado]))
@@ -275,7 +278,8 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
     eventIdentity: string,
     saleIdentity: string,
     expiration: Date,
-    reason: 'bootstrap' | 'already-right' | 'would-shorten' | 'external-write'
+    reason: 'bootstrap' | 'already-right' | 'would-shorten' | 'external-write',
+    emptyExpirationSnapshotAt: Date | null = null
   ): Promise<EstadoEvento | null> => {
     const agora = new Date()
     const ancora = ciclo.compras[0].data
@@ -295,12 +299,24 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
             { status: { $exists: false } }
           ]
         }
-    const progressoTratado = manual
+    const progressoTratado = manual && !emptyExpirationSnapshotAt
       ? { anchorDate: ancora, cycleYears: { $lte: ciclo.anos } }
       : { anchorDate: ancora, cycleYears: { $lt: ciclo.anos } }
     const progressoPendente = manual
       ? { pendingAnchorDate: ancora, pendingCycleYears: { $lte: ciclo.anos } }
       : { pendingAnchorDate: ancora, pendingCycleYears: { $lt: ciclo.anos } }
+
+    const episodioVazio = emptyExpirationSnapshotAt
+      ? {
+          anchorDate: ancora,
+          cycleYears: ciclo.anos,
+          $or: [
+            { emptyExpirationSnapshotAt: null },
+            { emptyExpirationSnapshotAt: { $exists: false } },
+            { emptyExpirationSnapshotAt: { $lt: emptyExpirationSnapshotAt } }
+          ]
+        }
+      : null
 
     try {
       return await AcExpirationEventStateWriteModel.findOneAndUpdate(
@@ -313,7 +329,8 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
                 { anchorDate: null },
                 { anchorDate: { $exists: false } },
                 { anchorDate: { $lt: ancora } },
-                progressoTratado
+                progressoTratado,
+                ...(episodioVazio ? [episodioVazio] : [])
               ]
             },
             {
@@ -338,6 +355,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
             pendingAnchorDate: ancora,
             pendingCycleYears: ciclo.anos,
             pendingExpiration: expiration,
+            pendingEmptyExpirationSnapshotAt: emptyExpirationSnapshotAt,
             pendingReason: reason
           }
         },
@@ -357,6 +375,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
     cycleYears: 1 | 2,
     saleIdentity: string,
     expectedStatus: 'claimado' | 'finalizacao-pendente' | 'confirmacao-pendente',
+    emptyExpirationSnapshotAt: Date | null,
     filtroCas: { claimToken?: string; pendingEventIdentity?: string }
   ): Promise<EstadoEvento | null> => {
     return await AcExpirationEventStateWriteModel.findOneAndUpdate(
@@ -368,7 +387,8 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
           saleIdentity,
           anchorDate,
           cycleYears,
-          handledAt: new Date()
+          handledAt: new Date(),
+          ...(emptyExpirationSnapshotAt ? { emptyExpirationSnapshotAt } : {})
         },
         $unset: {
           claimToken: 1,
@@ -379,6 +399,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
           pendingAnchorDate: 1,
           pendingCycleYears: 1,
           pendingExpiration: 1,
+          pendingEmptyExpirationSnapshotAt: 1,
           pendingReason: 1
         }
       },
@@ -401,6 +422,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
           pendingAnchorDate: 1,
           pendingCycleYears: 1,
           pendingExpiration: 1,
+          pendingEmptyExpirationSnapshotAt: 1,
           pendingReason: 1
         }
       },
@@ -467,6 +489,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
           estado.pendingCycleYears!,
           saleIdentityPendente,
           'finalizacao-pendente',
+          null,
           { claimToken: estado.claimToken! }
         )
         if (!finalizado) {
@@ -509,6 +532,9 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
             estado.pendingCycleYears!,
             saleIdentityPendente,
             estado.status,
+            estado.pendingEmptyExpirationSnapshotAt
+              ? new Date(estado.pendingEmptyExpirationSnapshotAt)
+              : null,
             { pendingEventIdentity: estado.pendingEventIdentity! }
           )
           if (!finalizado) {
@@ -543,7 +569,13 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         identidadeDaVenda(ciclo)
       const eventIdentity = identidadeDoEvento(ciclo, saleIdentity)
       const expiracaoVazia = !ac.expirationDate
-      const elegivel = Boolean(manual) || expiracaoVazia || eventoNovo
+      const emptyExpirationSnapshotAt = expiracaoVazia ? new Date(ac.lastSyncedAt) : null
+      const episodioVazioNovo = Boolean(
+        emptyExpirationSnapshotAt &&
+        (!estado?.emptyExpirationSnapshotAt ||
+          new Date(estado.emptyExpirationSnapshotAt).getTime() < emptyExpirationSnapshotAt.getTime())
+      )
+      const elegivel = Boolean(manual) || episodioVazioNovo || eventoNovo
 
       if (!ac.expirationDate || !sameDay(expiration, ac.expirationDate)) {
         report.divergentes.push({
@@ -582,6 +614,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
             ciclo.anos,
             saleIdentity,
             'finalizacao-pendente',
+            null,
             { claimToken: claim.claimToken! }
           )
           if (!finalizado) report.claimConflicts += 1
@@ -616,6 +649,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
             ciclo.anos,
             saleIdentity,
             'finalizacao-pendente',
+            null,
             { claimToken: claim.claimToken! }
           )
           if (!finalizado) report.claimConflicts += 1
@@ -640,7 +674,8 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         eventIdentity,
         saleIdentity,
         expiration,
-        'external-write'
+        'external-write',
+        emptyExpirationSnapshotAt
       )
       if (!claim) {
         report.claimConflicts += 1
@@ -687,6 +722,9 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         ciclo.anos,
         saleIdentity,
         'confirmacao-pendente',
+        confirmado.pendingEmptyExpirationSnapshotAt
+          ? new Date(confirmado.pendingEmptyExpirationSnapshotAt)
+          : null,
         { claimToken: confirmado.claimToken! }
       )
       if (!finalizado) report.claimConflicts += 1

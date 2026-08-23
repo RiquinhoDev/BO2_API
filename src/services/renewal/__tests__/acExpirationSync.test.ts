@@ -142,13 +142,28 @@ function instalarFixturesSync(
         const anosAlvo = Number(set.pendingCycleYears)
         const ramoTratadoIgual = filtro.$and?.[1]?.$or?.find((ramo: any) => ramo.anchorDate instanceof Date && ramo.cycleYears)
         const permiteTratadoIgual = Boolean(ramoTratadoIgual?.cycleYears?.$lte)
+        const ramoEpisodioVazio = filtro.$and?.[1]?.$or?.find((ramo: any) =>
+          ramo.anchorDate instanceof Date &&
+          typeof ramo.cycleYears === 'number' &&
+          ramo.$or?.some((guarda: any) => guarda.emptyExpirationSnapshotAt)
+        )
+        const snapshotVazioAlvo = set.pendingEmptyExpirationSnapshotAt
+          ? new Date(set.pendingEmptyExpirationSnapshotAt).getTime()
+          : null
+        const episodioVazioNovo = Boolean(
+          ramoEpisodioVazio &&
+          snapshotVazioAlvo !== null &&
+          (!actual?.emptyExpirationSnapshotAt ||
+            new Date(actual.emptyExpirationSnapshotAt).getTime() < snapshotVazioAlvo)
+        )
         const ramoPendenteIgual = filtro.$and?.[2]?.$or?.find((ramo: any) => ramo.pendingAnchorDate instanceof Date && ramo.pendingCycleYears)
         const permitePendenteIgual = Boolean(ramoPendenteIgual?.pendingCycleYears?.$lte)
         if (actual?.anchorDate && new Date(actual.anchorDate).getTime() > alvo) return null
         if (
           actual?.anchorDate &&
           new Date(actual.anchorDate).getTime() === alvo &&
-          (Number(actual.cycleYears) > anosAlvo || (Number(actual.cycleYears) === anosAlvo && !permiteTratadoIgual))
+          (Number(actual.cycleYears) > anosAlvo ||
+            (Number(actual.cycleYears) === anosAlvo && !permiteTratadoIgual && !episodioVazioNovo))
         ) return null
         if (actual?.pendingAnchorDate && new Date(actual.pendingAnchorDate).getTime() > alvo) return null
         if (
@@ -214,6 +229,7 @@ const alunoAc = (partial: Record<string, unknown> = {}) => ({
   expirationDate: null,
   refundDate: null,
   purchaseStatus: null,
+  lastSyncedAt: new Date('2026-08-23T10:00:00.000Z'),
   ...partial
 })
 
@@ -518,6 +534,96 @@ test('expiração vazia continua elegível durante o bootstrap', async (t) => {
   assert.equal(report.written, 1)
   assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-07-31']])
   assert.equal(fixtures.estados.length, 1)
+})
+
+test('o mesmo ciclo tratado abre um episódio para uma fotografia AC vazia', async (t) => {
+  const compra = new Date('2026-07-10T00:00:00Z')
+  const fotografia = new Date('2026-08-23T11:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: null, lastSyncedAt: fotografia })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    { estados: [estadoTratado('aluno-1', compra.toISOString(), 1, 'transaction:TX-1')] }
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-07-31']])
+  assert.equal(fixtures.estados[0].emptyExpirationSnapshotAt?.toISOString(), fotografia.toISOString())
+})
+
+test('concorrência e repetição da mesma fotografia AC vazia não duplicam a escrita', async (t) => {
+  const compra = new Date('2026-07-12T00:00:00Z')
+  const fotografia = new Date('2026-08-23T12:00:00Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: null, lastSyncedAt: fotografia })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    { estados: [estadoTratado('aluno-1', compra.toISOString(), 1, 'transaction:TX-1')] }
+  )
+  t.after(fixtures.restaurar)
+
+  await Promise.all([
+    acExpirationSync.syncAcExpirationDates({ dryRun: false }),
+    acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  ])
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-07-31']])
+  assert.equal(fixtures.estados[0].emptyExpirationSnapshotAt?.toISOString(), fotografia.toISOString())
+})
+
+test('uma fotografia AC vazia posterior abre um novo episódio observável', async (t) => {
+  const compra = new Date('2026-07-14T00:00:00Z')
+  const acEntries = [alunoAc({
+    expirationDate: null,
+    lastSyncedAt: new Date('2026-08-23T13:00:00Z')
+  })]
+  const fixtures = instalarFixturesSync(
+    acEntries,
+    [alunoHotmart(compra)],
+    [oferta()],
+    { estados: [estadoTratado('aluno-1', compra.toISOString(), 1, 'transaction:TX-1')] }
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  acEntries[0].lastSyncedAt = new Date('2026-08-23T14:00:00Z')
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(fixtures.escritas.length, 2)
+  assert.equal(fixtures.estados[0].emptyExpirationSnapshotAt.toISOString(), '2026-08-23T14:00:00.000Z')
+})
+
+test('confirmação externa pendente não reabre com uma fotografia AC vazia posterior', async (t) => {
+  const compra = new Date('2026-07-16T00:00:00Z')
+  const pendente = {
+    ...estadoTratado('aluno-1', compra.toISOString(), 1, 'transaction:TX-1'),
+    status: 'confirmacao-pendente',
+    claimToken: 'claim-externo',
+    leaseUntil: new Date('2099-01-01T00:00:00Z'),
+    pendingEventIdentity: '["2026-07-16T00:00:00.000Z",1,"transaction:TX-1"]',
+    pendingSaleIdentity: 'transaction:TX-1',
+    pendingAnchorDate: compra,
+    pendingCycleYears: 1,
+    pendingExpiration: new Date('2027-07-31T23:59:59.999Z'),
+    pendingEmptyExpirationSnapshotAt: new Date('2026-08-23T15:00:00Z'),
+    pendingReason: 'external-write'
+  }
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: null, lastSyncedAt: new Date('2026-08-23T16:00:00Z') })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    { estados: [pendente] }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.confirmationPending, 1)
+  assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.estados[0].claimToken, 'claim-externo')
 })
 
 test('execução manual por email não varre os outros alunos', async (t) => {

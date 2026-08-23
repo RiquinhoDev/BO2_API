@@ -12,6 +12,7 @@ export interface IAcExpirationEventState extends Document {
   anchorDate: Date | null
   cycleYears: 1 | 2 | null
   handledAt: Date | null
+  emptyExpirationSnapshotAt: Date | null
   claimToken: string | null
   leaseUntil: Date | null
   claimedAt: Date | null
@@ -20,6 +21,7 @@ export interface IAcExpirationEventState extends Document {
   pendingAnchorDate: Date | null
   pendingCycleYears: 1 | 2 | null
   pendingExpiration: Date | null
+  pendingEmptyExpirationSnapshotAt: Date | null
   pendingReason: 'bootstrap' | 'already-right' | 'would-shorten' | 'external-write' | null
   createdAt: Date
   updatedAt: Date
@@ -39,6 +41,7 @@ const acExpirationEventStateSchema = new Schema<IAcExpirationEventState>(
     anchorDate: { type: Date, default: null },
     cycleYears: { type: Number, enum: [1, 2], default: null },
     handledAt: { type: Date, default: null },
+    emptyExpirationSnapshotAt: { type: Date, default: null },
     claimToken: { type: String, default: null },
     leaseUntil: { type: Date, default: null },
     claimedAt: { type: Date, default: null },
@@ -47,6 +50,7 @@ const acExpirationEventStateSchema = new Schema<IAcExpirationEventState>(
     pendingAnchorDate: { type: Date, default: null },
     pendingCycleYears: { type: Number, enum: [1, 2], default: null },
     pendingExpiration: { type: Date, default: null },
+    pendingEmptyExpirationSnapshotAt: { type: Date, default: null },
     pendingReason: {
       type: String,
       enum: ['bootstrap', 'already-right', 'would-shorten', 'external-write'],
