@@ -410,6 +410,24 @@ test('reembolso sinalizado pela AC deixa uma recusa exacta e idempotente sem cha
   )
 })
 
+test('estado Reembolsada sem refundDate não cria nova recusa em fotografias AC posteriores', async (t) => {
+  const entradaAc = alunoAc({
+    purchaseStatus: 'Reembolsada',
+    expirationDate: new Date('2027-08-31T23:59:59.999Z'),
+    lastSyncedAt: new Date('2026-08-23T10:00:00.000Z')
+  })
+  const fixtures = instalarFixturesSync([entradaAc], [])
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  entradaAc.lastSyncedAt = new Date('2026-08-24T10:00:00.000Z')
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.deepEqual(fixtures.escritas, [])
+  assert.equal(fixtures.logs.length, 1)
+  assert.equal(fixtures.logs[0].motivo, 'reembolsado')
+})
+
 test('refund e chargeback sinalizados pela Hotmart deixam uma recusa por evento em dry-run', async (t) => {
   const compra = new Date('2026-08-20T00:00:00.000Z')
   const fixtures = instalarFixturesSync(

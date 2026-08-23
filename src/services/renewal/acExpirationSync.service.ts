@@ -502,7 +502,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         const antes = ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null
         const eventoReembolsoAc = ac.refundDate
           ? ac.refundDate.toISOString()
-          : `estado:${ac.purchaseStatus}:${new Date(ac.lastSyncedAt).toISOString()}`
+          : `estado:${ac.purchaseStatus}`
         await criarRasto(
           ac.email,
           antes,
