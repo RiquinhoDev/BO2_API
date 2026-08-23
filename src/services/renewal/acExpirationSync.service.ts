@@ -118,25 +118,49 @@ export function encurtaria(calculado: Date, acTem: Date | null): boolean {
   return acTem !== null && calculado.getTime() < acTem.getTime()
 }
 
-/** Só a âncora temporal e a duração são imutáveis durante o ciclo. */
-export function identidadeDoEvento(ciclo: CicloBase): string {
+/** Chave da venda congelada no primeiro avistamento do ciclo. */
+export function identidadeDaVenda(ciclo: CicloBase): string {
   const ancora = ciclo.compras[0]
-  return JSON.stringify([ancora.data.toISOString(), ciclo.anos])
+  const transaction = ancora.transacao?.trim()
+  if (transaction) return `transaction:${transaction}`
+  const offerCode = ancora.offerCode?.trim()
+  if (offerCode) return `offer:${offerCode}`
+  const productId = ancora.produtoId?.trim()
+  if (productId) return `product:${productId}`
+  return `anchor:${ancora.data.toISOString()}`
+}
+
+export function identidadeDoEvento(ciclo: CicloBase, saleIdentity = identidadeDaVenda(ciclo)): string {
+  const ancora = ciclo.compras[0]
+  return JSON.stringify([ancora.data.toISOString(), ciclo.anos, saleIdentity])
+}
+
+function identidadeDaVendaPersistida(eventIdentity: string | null | undefined): string | null {
+  if (!eventIdentity) return null
+  try {
+    const partes = JSON.parse(eventIdentity)
+    return Array.isArray(partes) && typeof partes[2] === 'string' ? partes[2] : null
+  } catch {
+    return null
+  }
 }
 
 interface EstadoEvento {
   userId: mongoose.Types.ObjectId
-  status?: 'livre' | 'tratado' | 'confirmacao-pendente'
+  status?: 'livre' | 'tratado' | 'claimado' | 'finalizacao-pendente' | 'confirmacao-pendente'
   eventIdentity: string | null
+  saleIdentity?: string | null
   anchorDate: Date | null
   cycleYears: 1 | 2 | null
   claimToken?: string | null
   leaseUntil?: Date | null
   claimedAt?: Date | null
   pendingEventIdentity?: string | null
+  pendingSaleIdentity?: string | null
   pendingAnchorDate?: Date | null
   pendingCycleYears?: 1 | 2 | null
   pendingExpiration?: Date | null
+  pendingReason?: 'bootstrap' | 'already-right' | 'would-shorten' | 'external-write' | null
 }
 
 function compararComWatermark(ciclo: CicloBase, estado: EstadoEvento | undefined): -1 | 0 | 1 {
@@ -224,7 +248,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
   const estados = userIds.length === 0
     ? []
     : await AcExpirationEventStateReadModel.find({ userId: { $in: userIds } })
-      .select('userId status eventIdentity anchorDate cycleYears claimToken leaseUntil claimedAt pendingEventIdentity pendingAnchorDate pendingCycleYears pendingExpiration')
+      .select('userId status eventIdentity saleIdentity anchorDate cycleYears claimToken leaseUntil claimedAt pendingEventIdentity pendingSaleIdentity pendingAnchorDate pendingCycleYears pendingExpiration pendingReason')
       .lean()
       .exec() as EstadoEvento[]
   const estadoByUserId = new Map(estados.map((estado) => [String(estado.userId), estado]))
@@ -249,7 +273,9 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
     userId: mongoose.Types.ObjectId,
     ciclo: CicloBase,
     eventIdentity: string,
-    expiration: Date
+    saleIdentity: string,
+    expiration: Date,
+    reason: 'bootstrap' | 'already-right' | 'would-shorten' | 'external-write'
   ): Promise<EstadoEvento | null> => {
     const agora = new Date()
     const ancora = ciclo.compras[0].data
@@ -258,11 +284,23 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
     const filtroStatus = manual
       ? {
           $or: [
-            { status: { $ne: 'confirmacao-pendente' } },
+            { status: { $in: ['livre', 'tratado'] } },
+            { status: { $exists: false } },
             { leaseUntil: { $lte: agora } }
           ]
         }
-      : { status: { $ne: 'confirmacao-pendente' } }
+      : {
+          $or: [
+            { status: { $in: ['livre', 'tratado'] } },
+            { status: { $exists: false } }
+          ]
+        }
+    const progressoTratado = manual
+      ? { anchorDate: ancora, cycleYears: { $lte: ciclo.anos } }
+      : { anchorDate: ancora, cycleYears: { $lt: ciclo.anos } }
+    const progressoPendente = manual
+      ? { pendingAnchorDate: ancora, pendingCycleYears: { $lte: ciclo.anos } }
+      : { pendingAnchorDate: ancora, pendingCycleYears: { $lt: ciclo.anos } }
 
     try {
       return await AcExpirationEventStateWriteModel.findOneAndUpdate(
@@ -275,14 +313,15 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
                 { anchorDate: null },
                 { anchorDate: { $exists: false } },
                 { anchorDate: { $lt: ancora } },
-                { anchorDate: ancora, cycleYears: { $lte: ciclo.anos } }
+                progressoTratado
               ]
             },
             {
               $or: [
                 { pendingAnchorDate: null },
                 { pendingAnchorDate: { $exists: false } },
-                { pendingAnchorDate: { $lte: ancora } }
+                { pendingAnchorDate: { $lt: ancora } },
+                progressoPendente
               ]
             }
           ]
@@ -290,14 +329,16 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         {
           $setOnInsert: { userId },
           $set: {
-            status: 'confirmacao-pendente',
+            status: reason === 'external-write' ? 'claimado' : 'finalizacao-pendente',
             claimToken,
             leaseUntil,
             claimedAt: agora,
             pendingEventIdentity: eventIdentity,
+            pendingSaleIdentity: saleIdentity,
             pendingAnchorDate: ancora,
             pendingCycleYears: ciclo.anos,
-            pendingExpiration: expiration
+            pendingExpiration: expiration,
+            pendingReason: reason
           }
         },
         { new: true, upsert: true, setDefaultsOnInsert: true }
@@ -314,14 +355,17 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
     eventIdentity: string,
     anchorDate: Date,
     cycleYears: 1 | 2,
+    saleIdentity: string,
+    expectedStatus: 'claimado' | 'finalizacao-pendente' | 'confirmacao-pendente',
     filtroCas: { claimToken?: string; pendingEventIdentity?: string }
   ): Promise<EstadoEvento | null> => {
     return await AcExpirationEventStateWriteModel.findOneAndUpdate(
-      { userId, status: 'confirmacao-pendente', ...filtroCas },
+      { userId, status: expectedStatus, ...filtroCas },
       {
         $set: {
           status: 'tratado',
           eventIdentity,
+          saleIdentity,
           anchorDate,
           cycleYears,
           handledAt: new Date()
@@ -331,9 +375,11 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
           leaseUntil: 1,
           claimedAt: 1,
           pendingEventIdentity: 1,
+          pendingSaleIdentity: 1,
           pendingAnchorDate: 1,
           pendingCycleYears: 1,
-          pendingExpiration: 1
+          pendingExpiration: 1,
+          pendingReason: 1
         }
       },
       { new: true }
@@ -343,7 +389,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
   const libertarClaim = async (estado: EstadoEvento): Promise<void> => {
     if (!estado.claimToken) return
     await AcExpirationEventStateWriteModel.findOneAndUpdate(
-      { userId: estado.userId, status: 'confirmacao-pendente', claimToken: estado.claimToken },
+      { userId: estado.userId, status: 'claimado', claimToken: estado.claimToken },
       {
         $set: { status: estado.eventIdentity ? 'tratado' : 'livre' },
         $unset: {
@@ -351,13 +397,24 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
           leaseUntil: 1,
           claimedAt: 1,
           pendingEventIdentity: 1,
+          pendingSaleIdentity: 1,
           pendingAnchorDate: 1,
           pendingCycleYears: 1,
-          pendingExpiration: 1
+          pendingExpiration: 1,
+          pendingReason: 1
         }
       },
       { new: true }
     ).lean().exec()
+  }
+
+  const marcarConfirmacaoPendente = async (estado: EstadoEvento): Promise<EstadoEvento | null> => {
+    if (!estado.claimToken) return null
+    return await AcExpirationEventStateWriteModel.findOneAndUpdate(
+      { userId: estado.userId, status: 'claimado', claimToken: estado.claimToken },
+      { $set: { status: 'confirmacao-pendente' } },
+      { new: true }
+    ).lean().exec() as EstadoEvento | null
   }
 
   const registarErro = (email: string, error: unknown) => {
@@ -392,10 +449,37 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       }
 
       const encurta = encurtaria(expiration, ac.expirationDate)
-      const eventIdentity = identidadeDoEvento(ciclo)
       let estado = estadoByUserId.get(String(ac.userId))
 
-      if (estado?.status === 'confirmacao-pendente') {
+      if (estado?.status === 'finalizacao-pendente') {
+        if (dryRun) {
+          report.confirmationPending += 1
+          continue
+        }
+        const saleIdentityPendente = estado.pendingSaleIdentity ??
+          identidadeDaVendaPersistida(estado.pendingEventIdentity) ??
+          identidadeDaVenda(ciclo)
+        const motivoPendente = estado.pendingReason
+        const finalizado = await finalizarEvento(
+          ac.userId,
+          estado.pendingEventIdentity!,
+          new Date(estado.pendingAnchorDate!),
+          estado.pendingCycleYears!,
+          saleIdentityPendente,
+          'finalizacao-pendente',
+          { claimToken: estado.claimToken! }
+        )
+        if (!finalizado) {
+          report.claimConflicts += 1
+          continue
+        }
+        estado = finalizado
+        estadoByUserId.set(String(ac.userId), finalizado)
+        if (motivoPendente === 'bootstrap') report.bootstrapped += 1
+        if (motivoPendente === 'already-right') report.alreadyInSync += 1
+      }
+
+      if (estado?.status === 'claimado' || estado?.status === 'confirmacao-pendente') {
         if (dryRun) {
           report.confirmationPending += 1
           continue
@@ -415,11 +499,16 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         }
 
         if (pendenteConfirmado) {
+          const saleIdentityPendente = estado.pendingSaleIdentity ??
+            identidadeDaVendaPersistida(estado.pendingEventIdentity) ??
+            identidadeDaVenda(ciclo)
           const finalizado = await finalizarEvento(
             ac.userId,
             estado.pendingEventIdentity!,
             new Date(estado.pendingAnchorDate!),
             estado.pendingCycleYears!,
+            saleIdentityPendente,
+            estado.status,
             { pendingEventIdentity: estado.pendingEventIdentity! }
           )
           if (!finalizado) {
@@ -438,6 +527,21 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         continue
       }
       const eventoNovo = relacao > 0
+      const mesmaAncoraTratada = Boolean(
+        estado?.anchorDate && new Date(estado.anchorDate).getTime() === ancora.data.getTime()
+      )
+      const mesmaAncoraPendente = Boolean(
+        estado?.pendingAnchorDate && new Date(estado.pendingAnchorDate).getTime() === ancora.data.getTime()
+      )
+      const saleIdentity =
+        (mesmaAncoraPendente
+          ? estado?.pendingSaleIdentity ?? identidadeDaVendaPersistida(estado?.pendingEventIdentity)
+          : null) ??
+        (mesmaAncoraTratada
+          ? estado?.saleIdentity ?? identidadeDaVendaPersistida(estado?.eventIdentity)
+          : null) ??
+        identidadeDaVenda(ciclo)
+      const eventIdentity = identidadeDoEvento(ciclo, saleIdentity)
       const expiracaoVazia = !ac.expirationDate
       const elegivel = Boolean(manual) || expiracaoVazia || eventoNovo
 
@@ -465,7 +569,8 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         if (encurta) report.skippedWouldShorten += 1
         else if (estado?.status !== 'tratado' || eventoNovo) report.alreadyInSync += 1
         if (!dryRun && eventoNovo) {
-          const claim = await reclamarEvento(ac.userId, ciclo, eventIdentity, expiration)
+          const reason = encurta ? 'would-shorten' : 'already-right'
+          const claim = await reclamarEvento(ac.userId, ciclo, eventIdentity, saleIdentity, expiration, reason)
           if (!claim) {
             report.claimConflicts += 1
             continue
@@ -475,6 +580,8 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
             eventIdentity,
             ancora.data,
             ciclo.anos,
+            saleIdentity,
+            'finalizacao-pendente',
             { claimToken: claim.claimToken! }
           )
           if (!finalizado) report.claimConflicts += 1
@@ -490,7 +597,14 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
 
       if (!estado && !manual && !expiracaoVazia) {
         if (!dryRun) {
-          const claim = await reclamarEvento(ac.userId, ciclo, eventIdentity, expiration)
+          const claim = await reclamarEvento(
+            ac.userId,
+            ciclo,
+            eventIdentity,
+            saleIdentity,
+            expiration,
+            'bootstrap'
+          )
           if (!claim) {
             report.claimConflicts += 1
             continue
@@ -500,6 +614,8 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
             eventIdentity,
             ancora.data,
             ciclo.anos,
+            saleIdentity,
+            'finalizacao-pendente',
             { claimToken: claim.claimToken! }
           )
           if (!finalizado) report.claimConflicts += 1
@@ -518,7 +634,14 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         continue
       }
 
-      const claim = await reclamarEvento(ac.userId, ciclo, eventIdentity, expiration)
+      const claim = await reclamarEvento(
+        ac.userId,
+        ciclo,
+        eventIdentity,
+        saleIdentity,
+        expiration,
+        'external-write'
+      )
       if (!claim) {
         report.claimConflicts += 1
         continue
@@ -552,12 +675,19 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       }
 
       report.written += 1
+      const confirmado = await marcarConfirmacaoPendente(claim)
+      if (!confirmado) {
+        report.claimConflicts += 1
+        continue
+      }
       const finalizado = await finalizarEvento(
         ac.userId,
         eventIdentity,
         ancora.data,
         ciclo.anos,
-        { claimToken: claim.claimToken! }
+        saleIdentity,
+        'confirmacao-pendente',
+        { claimToken: confirmado.claimToken! }
       )
       if (!finalizado) report.claimConflicts += 1
       else estadoByUserId.set(String(ac.userId), finalizado)

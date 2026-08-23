@@ -6,8 +6,9 @@ import mongoose, { Document, Schema } from 'mongoose'
 
 export interface IAcExpirationEventState extends Document {
   userId: mongoose.Types.ObjectId
-  status: 'livre' | 'tratado' | 'confirmacao-pendente'
+  status: 'livre' | 'tratado' | 'claimado' | 'finalizacao-pendente' | 'confirmacao-pendente'
   eventIdentity: string | null
+  saleIdentity: string | null
   anchorDate: Date | null
   cycleYears: 1 | 2 | null
   handledAt: Date | null
@@ -15,9 +16,11 @@ export interface IAcExpirationEventState extends Document {
   leaseUntil: Date | null
   claimedAt: Date | null
   pendingEventIdentity: string | null
+  pendingSaleIdentity: string | null
   pendingAnchorDate: Date | null
   pendingCycleYears: 1 | 2 | null
   pendingExpiration: Date | null
+  pendingReason: 'bootstrap' | 'already-right' | 'would-shorten' | 'external-write' | null
   createdAt: Date
   updatedAt: Date
 }
@@ -25,8 +28,14 @@ export interface IAcExpirationEventState extends Document {
 const acExpirationEventStateSchema = new Schema<IAcExpirationEventState>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-    status: { type: String, enum: ['livre', 'tratado', 'confirmacao-pendente'], default: 'tratado', required: true },
+    status: {
+      type: String,
+      enum: ['livre', 'tratado', 'claimado', 'finalizacao-pendente', 'confirmacao-pendente'],
+      default: 'tratado',
+      required: true
+    },
     eventIdentity: { type: String, default: null },
+    saleIdentity: { type: String, default: null },
     anchorDate: { type: Date, default: null },
     cycleYears: { type: Number, enum: [1, 2], default: null },
     handledAt: { type: Date, default: null },
@@ -34,9 +43,15 @@ const acExpirationEventStateSchema = new Schema<IAcExpirationEventState>(
     leaseUntil: { type: Date, default: null },
     claimedAt: { type: Date, default: null },
     pendingEventIdentity: { type: String, default: null },
+    pendingSaleIdentity: { type: String, default: null },
     pendingAnchorDate: { type: Date, default: null },
     pendingCycleYears: { type: Number, enum: [1, 2], default: null },
-    pendingExpiration: { type: Date, default: null }
+    pendingExpiration: { type: Date, default: null },
+    pendingReason: {
+      type: String,
+      enum: ['bootstrap', 'already-right', 'would-shorten', 'external-write'],
+      default: null
+    }
   },
   { timestamps: true, collection: 'acexpirationeventstates' }
 )
