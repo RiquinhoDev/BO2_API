@@ -62,6 +62,65 @@ test('extensao de 2 anos: 167 mais 97 no mesmo dia sao um ciclo de 2 anos', () =
   assert.equal(ciclos[0].acessoAte.toISOString(), '2026-08-31T23:59:59.999Z')
 })
 
+test('paulo: extensao sete dias depois acompanha a compra e da dois anos', () => {
+  const ciclos = agruparCiclos([
+    venda({ approvedDate: new Date('2024-11-25T00:00:00Z'), priceValue: 397, transaction: 'PAULO-BASE' }),
+    venda({
+      approvedDate: new Date('2024-12-02T00:00:00Z'),
+      priceValue: 97,
+      transaction: 'PAULO-EXT',
+      hotmartProductId: '3100292'
+    })
+  ])
+
+  assert.equal(ciclos.length, 1)
+  assert.equal(ciclos[0].compras.length, 2)
+  assert.equal(ciclos[0].anos, 2)
+  assert.equal(ciclos[0].acessoAte.toISOString(), '2026-11-30T23:59:59.999Z')
+})
+
+test('n510: extensao no dia seguinte acompanha a compra e da dois anos', () => {
+  const ciclos = agruparCiclos([
+    venda({ approvedDate: new Date('2025-05-07T00:00:00Z'), priceValue: 167, transaction: 'N510-BASE' }),
+    venda({
+      approvedDate: new Date('2025-05-08T00:00:00Z'),
+      priceValue: 97,
+      transaction: 'N510-EXT',
+      hotmartProductId: '3100292'
+    })
+  ])
+
+  assert.equal(ciclos.length, 1)
+  assert.equal(ciclos[0].compras.length, 2)
+  assert.equal(ciclos[0].anos, 2)
+})
+
+test('maria: extensao de 85 euros no dia seguinte acompanha a compra e da dois anos', () => {
+  const ciclos = agruparCiclos([
+    venda({ approvedDate: new Date('2023-07-10T00:00:00Z'), priceValue: 302, transaction: 'MARIA-BASE' }),
+    venda({
+      approvedDate: new Date('2023-07-11T00:00:00Z'),
+      priceValue: 85,
+      transaction: 'MARIA-EXT',
+      hotmartProductId: '3100292'
+    })
+  ])
+
+  assert.equal(ciclos.length, 1)
+  assert.equal(ciclos[0].compras.length, 2)
+  assert.equal(ciclos[0].anos, 2)
+})
+
+test('uma compra normal ate sete dias depois continua a abrir outro ciclo', () => {
+  const ciclos = agruparCiclos([
+    venda({ approvedDate: new Date('2025-05-07T00:00:00Z'), priceValue: 167, transaction: 'BASE' }),
+    venda({ approvedDate: new Date('2025-05-08T00:00:00Z'), priceValue: 97, transaction: 'NORMAL' })
+  ])
+
+  assert.equal(ciclos.length, 2)
+  assert.deepEqual(ciclos.map((c) => c.anos), [1, 1])
+})
+
 test('extensao sozinha vale um ano, nao dois', () => {
   const ciclos = agruparCiclos([
     venda({

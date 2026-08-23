@@ -7,7 +7,7 @@
 // período de acesso. Três situações obrigam a agrupar mais do
 // que uma venda no mesmo ciclo:
 //
-//   1. mesmo dia        167€ (renovação) + 97€ (extensão) = 2 anos
+//   1. extensão         compra + produto 3100292 até 7 dias depois = 2 anos
 //   2. mesma transação  a Hotmart repete a linha
 //   3. prestações       5 x 99€ mensais da mesma oferta = 1 ciclo
 //
@@ -44,6 +44,9 @@ const MODO_PRESTACOES = 'MULTIPLE_PAYMENTS'
 
 /** Máximo entre duas cobranças seguidas para ainda serem o mesmo ciclo. */
 const DIAS_MAX_ENTRE_PRESTACOES = 90
+
+/** Janela observada entre uma compra e o produto que prolonga o acesso. */
+const DIAS_MAX_ATE_EXTENSAO = 7
 
 /**
  * Tecto do ciclo inteiro, contado da âncora. Sem ele, uma corrente
@@ -117,6 +120,13 @@ function pertenceAoMesmoCiclo(
   if (compra.transacao && compra.transacao === ultima.transacao) return true
   if (mesmoDia(compra.data, ancora.data)) return true
 
+  const dias = (compra.data.getTime() - ultima.data.getTime()) / DIA_MS
+
+  // A extensão é uma segunda venda autónoma. Nos dados reais pode ser
+  // cobrada até sete dias depois da compra que prolonga; não abre esta
+  // janela para produtos normais nem para uma terceira venda do ciclo.
+  if (compra.extensao && ultima === ancora && dias <= DIAS_MAX_ATE_EXTENSAO) return true
+
   const mesmaOferta = !!vendaAncora.offerCode && vendaAncora.offerCode === vendaCompra.offerCode
   const mesmoProduto = compra.produtoId === ancora.produtoId
   const mesmoValor = compra.valor != null && compra.valor === ancora.valor
@@ -132,7 +142,6 @@ function pertenceAoMesmoCiclo(
     String(vendaAncora.paymentMode) === MODO_PRESTACOES &&
     String(vendaCompra.paymentMode) === MODO_PRESTACOES
   // desde a compra anterior, não desde a âncora — ver o cabeçalho
-  const dias = (compra.data.getTime() - ultima.data.getTime()) / DIA_MS
   const total = (compra.data.getTime() - ancora.data.getTime()) / DIA_MS
   if (total >= DIAS_MAX_TOTAL_PRESTACOES) return false
   if (planoDePrestacoes) return true
