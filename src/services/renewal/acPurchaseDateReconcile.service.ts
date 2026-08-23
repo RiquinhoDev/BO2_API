@@ -1,14 +1,17 @@
+import { randomUUID } from 'node:crypto'
 import ACRenewalData from '../../models/ACRenewalData'
 import HotmartSaleHistory from '../../models/HotmartSaleHistory'
 import Product from '../../models/product/Product'
 import UserProduct from '../../models/UserProduct'
 import AcWriteLog from '../../models/renewal/AcWriteLog'
+import AcPurchaseDateEventState from '../../models/renewal/AcPurchaseDateEventState'
 import { activeCampaignService } from '../activeCampaign/activeCampaignService'
 import { AC_PURCHASE_DATE_FIELD_ID } from './acRenewalDataSync.service'
 import { agruparCiclos } from './renewalCycles'
 import type { VendaEntrada } from './renewalTimeline.types'
 
 const VINTE_QUATRO_HORAS_MS = 24 * 60 * 60 * 1000
+const CLAIM_LEASE_MS = 5 * 60 * 1000
 
 export interface ReconcileReport {
   verificados: number
@@ -27,6 +30,14 @@ const UserProductLeitura = UserProduct as unknown as ModeloLeitura
 
 function formatarData(data: Date): string {
   return data.toISOString().slice(0, 10)
+}
+
+function chaveIdempotente(partes: unknown[]): string {
+  return JSON.stringify(partes)
+}
+
+function erroDeChaveDuplicada(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { code?: number }).code === 11000
 }
 
 async function resolverUserIdsOgiAtivos(): Promise<unknown[]> {
@@ -70,6 +81,87 @@ export async function reconcilePurchaseDates(
     alteracoes: []
   }
 
+  const criarRasto = async (dados: Record<string, unknown>, tolerarDuplicado = false): Promise<any | null> => {
+    try {
+      return await AcWriteLog.create({ quando: new Date(), ...dados })
+    } catch (error) {
+      if (tolerarDuplicado && erroDeChaveDuplicada(error)) return null
+      throw error
+    }
+  }
+
+  const reclamarEvento = async (userId: unknown, eventIdentity: string): Promise<any | null> => {
+    const agora = new Date()
+    const claimToken = randomUUID()
+    try {
+      return await (AcPurchaseDateEventState as any).findOneAndUpdate(
+        {
+          userId,
+          $and: [
+            {
+              $or: [
+                { status: { $in: ['livre', 'tratado'] } },
+                { status: { $exists: false } },
+                { status: 'claimado', leaseUntil: { $lte: agora } }
+              ]
+            },
+            { eventIdentity: { $ne: eventIdentity } }
+          ]
+        },
+        {
+          $setOnInsert: { userId },
+          $set: {
+            status: 'claimado',
+            claimToken,
+            leaseUntil: new Date(agora.getTime() + CLAIM_LEASE_MS),
+            claimedAt: agora,
+            pendingEventIdentity: eventIdentity
+          }
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      ).lean().exec()
+    } catch (error) {
+      if (erroDeChaveDuplicada(error)) return null
+      throw error
+    }
+  }
+
+  const libertarClaim = async (estado: any): Promise<void> => {
+    if (!estado?.claimToken) return
+    await (AcPurchaseDateEventState as any).findOneAndUpdate(
+      { userId: estado.userId, status: 'claimado', claimToken: estado.claimToken },
+      {
+        $set: { status: estado.eventIdentity ? 'tratado' : 'livre' },
+        $unset: {
+          claimToken: 1,
+          leaseUntil: 1,
+          claimedAt: 1,
+          pendingEventIdentity: 1,
+          pendingValue: 1
+        }
+      },
+      { new: true }
+    ).lean().exec()
+  }
+
+  const finalizarEvento = async (estado: any, eventIdentity: string): Promise<void> => {
+    const finalizado = await (AcPurchaseDateEventState as any).findOneAndUpdate(
+      { userId: estado.userId, status: 'claimado', claimToken: estado.claimToken },
+      {
+        $set: { status: 'tratado', eventIdentity },
+        $unset: {
+          claimToken: 1,
+          leaseUntil: 1,
+          claimedAt: 1,
+          pendingEventIdentity: 1,
+          pendingValue: 1
+        }
+      },
+      { new: true }
+    ).lean().exec()
+    if (!finalizado) throw new Error('Falha ao finalizar claim do campo 334')
+  }
+
   const userIdsAtivos = await resolverUserIdsOgiAtivos()
   const entradasAc = await ACRenewalDataLeitura.find({ userId: { $in: userIdsAtivos } })
     .select('userId email contactId purchaseDate')
@@ -101,17 +193,18 @@ export async function reconcilePurchaseDates(
     if (!dataReal) {
       report.semDados += 1
       try {
-        await AcWriteLog.create({
-          quando: new Date(),
+        const antes = entrada.purchaseDate ? formatarData(entrada.purchaseDate) : null
+        await criarRasto({
           servico: 'dataCompra',
           email: entrada.email,
           campo: AC_PURCHASE_DATE_FIELD_ID,
-          antes: entrada.purchaseDate ? formatarData(entrada.purchaseDate) : null,
+          antes,
           depois: null,
           accao: 'recusado',
           motivo: 'semVenda',
-          dryRun
-        })
+          dryRun,
+          idempotencyKey: chaveIdempotente(['dataCompra', String(entrada.userId), antes, null, 'semVenda', dryRun])
+        }, true)
       } catch {
         report.erros += 1
       }
@@ -121,17 +214,19 @@ export async function reconcilePurchaseDates(
     if (!entrada.contactId) {
       report.semDados += 1
       try {
-        await AcWriteLog.create({
-          quando: new Date(),
+        const antes = entrada.purchaseDate ? formatarData(entrada.purchaseDate) : null
+        const depois = formatarData(dataReal)
+        await criarRasto({
           servico: 'dataCompra',
           email: entrada.email,
           campo: AC_PURCHASE_DATE_FIELD_ID,
-          antes: entrada.purchaseDate ? formatarData(entrada.purchaseDate) : null,
-          depois: formatarData(dataReal),
+          antes,
+          depois,
           accao: 'recusado',
           motivo: 'semContacto',
-          dryRun
-        })
+          dryRun,
+          idempotencyKey: chaveIdempotente(['dataCompra', String(entrada.userId), antes, depois, 'semContacto', dryRun])
+        }, true)
       } catch {
         report.erros += 1
       }
@@ -153,42 +248,63 @@ export async function reconcilePurchaseDates(
     }
     report.alteracoes.push(alteracao)
 
+    const eventIdentity = chaveIdempotente([alteracao.antes, alteracao.depois])
+    if (dryRun) {
+      try {
+        await criarRasto({
+          servico: 'dataCompra',
+          email: entrada.email,
+          campo: AC_PURCHASE_DATE_FIELD_ID,
+          antes: alteracao.antes,
+          depois: alteracao.depois,
+          accao: 'escrito',
+          dryRun,
+          idempotencyKey: chaveIdempotente(['dataCompra', String(entrada.userId), eventIdentity, 'proposta', dryRun])
+        }, true)
+      } catch {
+        report.erros += 1
+      }
+      continue
+    }
+
+    let claim: any
+    try {
+      claim = await reclamarEvento(entrada.userId, eventIdentity)
+    } catch {
+      report.erros += 1
+      continue
+    }
+    if (!claim) continue
+
     let rasto: any
     try {
-      rasto = await AcWriteLog.create({
-        quando: new Date(),
+      rasto = await criarRasto({
         servico: 'dataCompra',
         email: entrada.email,
         campo: AC_PURCHASE_DATE_FIELD_ID,
         antes: alteracao.antes,
         depois: alteracao.depois,
         accao: 'escrito',
-        dryRun
+        dryRun,
+        idempotencyKey: chaveIdempotente(['dataCompra', String(entrada.userId), eventIdentity, 'tentativa', claim.claimToken])
       })
     } catch {
       report.erros += 1
+      try {
+        await libertarClaim(claim)
+      } catch {
+        report.erros += 1
+      }
       continue
     }
 
-    if (dryRun) continue
-
+    let escrito = false
     try {
-      const escrito = await activeCampaignService.updateContactField(
+      escrito = await activeCampaignService.updateContactField(
         entrada.email,
         AC_PURCHASE_DATE_FIELD_ID,
         alteracao.depois
       )
-      if (escrito) report.escritos += 1
-      else {
-        report.erros += 1
-        try {
-          await AcWriteLog.findByIdAndUpdate(rasto._id, {
-            $set: { accao: 'recusado', motivo: 'falhaExterna' }
-          })
-        } catch {
-          // A intenção criada antes da chamada continua a preservar a tentativa.
-        }
-      }
     } catch {
       report.erros += 1
       try {
@@ -198,6 +314,37 @@ export async function reconcilePurchaseDates(
       } catch {
         // A intenção criada antes da chamada continua a preservar a tentativa.
       }
+      try {
+        await libertarClaim(claim)
+      } catch {
+        report.erros += 1
+      }
+      continue
+    }
+
+    if (!escrito) {
+      report.erros += 1
+      try {
+        await AcWriteLog.findByIdAndUpdate(rasto._id, {
+          $set: { accao: 'recusado', motivo: 'falhaExterna' }
+        })
+      } catch {
+        // A intenção criada antes da chamada continua a preservar a tentativa.
+      }
+      try {
+        await libertarClaim(claim)
+      } catch {
+        report.erros += 1
+      }
+      continue
+    }
+
+    report.escritos += 1
+    try {
+      await finalizarEvento(claim, eventIdentity)
+    } catch {
+      // O sucesso externo fica auditado; o claim impede uma repetição cega.
+      report.erros += 1
     }
   }
 

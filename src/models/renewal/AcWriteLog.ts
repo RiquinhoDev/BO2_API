@@ -10,6 +10,7 @@ export interface IAcWriteLog extends Document {
   accao: 'escrito' | 'recusado'
   motivo?: string
   dryRun: boolean
+  idempotencyKey: string
 }
 
 const acWriteLogSchema = new Schema<IAcWriteLog>(
@@ -22,13 +23,15 @@ const acWriteLogSchema = new Schema<IAcWriteLog>(
     depois: { type: String, default: null },
     accao: { type: String, enum: ['escrito', 'recusado'], required: true },
     motivo: { type: String },
-    dryRun: { type: Boolean, required: true }
+    dryRun: { type: Boolean, required: true },
+    idempotencyKey: { type: String, required: true }
   },
   { collection: 'acwritelogs' }
 )
 
 acWriteLogSchema.index({ email: 1 })
 acWriteLogSchema.index({ quando: 1 })
+acWriteLogSchema.index({ idempotencyKey: 1 }, { unique: true })
 
 const AcWriteLog = (mongoose.models.AcWriteLog ||
   mongoose.model<IAcWriteLog>('AcWriteLog', acWriteLogSchema)) as mongoose.Model<IAcWriteLog>

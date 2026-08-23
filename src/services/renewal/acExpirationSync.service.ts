@@ -81,6 +81,14 @@ function formatDateYYYYMMDD(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
+function chaveIdempotente(partes: unknown[]): string {
+  return JSON.stringify(partes)
+}
+
+function erroDeChaveDuplicada(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { code?: number }).code === 11000
+}
+
 /**
  * Último instante UTC do mesmo mês, `anos` depois da compra.
  */
@@ -412,7 +420,11 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
   const libertarClaim = async (estado: EstadoEvento): Promise<void> => {
     if (!estado.claimToken) return
     await AcExpirationEventStateWriteModel.findOneAndUpdate(
-      { userId: estado.userId, status: 'claimado', claimToken: estado.claimToken },
+      {
+        userId: estado.userId,
+        status: { $in: ['claimado', 'finalizacao-pendente'] },
+        claimToken: estado.claimToken
+      },
       {
         $set: { status: estado.eventIdentity ? 'tratado' : 'livre' },
         $unset: {
@@ -451,18 +463,28 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
     antes: string | null,
     depois: string | null,
     accao: 'escrito' | 'recusado',
-    motivo?: string
-  ) => AcWriteLog.create({
-    quando: new Date(),
-    servico: 'expiracao',
-    email,
-    campo: AC_EXPIRATION_DATE_FIELD_ID,
-    antes,
-    depois,
-    accao,
-    ...(motivo ? { motivo } : {}),
-    dryRun
-  })
+    motivo: string | undefined,
+    idempotencyKey: string,
+    tolerarDuplicado = false
+  ): Promise<any | null> => {
+    try {
+      return await AcWriteLog.create({
+        quando: new Date(),
+        servico: 'expiracao',
+        email,
+        campo: AC_EXPIRATION_DATE_FIELD_ID,
+        antes,
+        depois,
+        accao,
+        ...(motivo ? { motivo } : {}),
+        dryRun,
+        idempotencyKey
+      })
+    } catch (error) {
+      if (tolerarDuplicado && erroDeChaveDuplicada(error)) return null
+      throw error
+    }
+  }
 
   const marcarRastoRecusado = async (id: unknown): Promise<void> => {
     try {
@@ -491,12 +513,18 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       const ancora = ciclo?.compras[0]
       if (!ciclo || !ancora) {
         report.skippedNoHotmartData += 1
+        const antes = ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null
         await criarRasto(
           ac.email,
-          ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
+          antes,
           null,
           'recusado',
-          'semVenda'
+          'semVenda',
+          chaveIdempotente([
+            'expiracao', String(ac.userId), antes, null, 'semVenda', dryRun,
+            new Date(ac.lastSyncedAt).toISOString()
+          ]),
+          true
         )
         continue
       }
@@ -504,12 +532,16 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       const expiration = calcularExpiracao(ciclo, ofertaByCode.get(ancora.offerCode ?? ''))
       if (!expiration) {
         report.semTurma += 1
+        const antes = ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null
+        const identidadeSemTurma = identidadeDoEvento(ciclo)
         await criarRasto(
           ac.email,
-          ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
+          antes,
           null,
           'recusado',
-          'semTurma'
+          'semTurma',
+          chaveIdempotente(['expiracao', String(ac.userId), identidadeSemTurma, antes, null, 'semTurma', dryRun]),
+          true
         )
         continue
       }
@@ -639,7 +671,9 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
             ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
             formatDateYYYYMMDD(expiration),
             'recusado',
-            'semVenda'
+            'semVenda',
+            chaveIdempotente(['expiracao', String(ac.userId), eventIdentity, 'semVenda', dryRun]),
+            true
           )
         }
         continue
@@ -653,7 +687,12 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
             ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
             formatDateYYYYMMDD(expiration),
             'recusado',
-            'semContacto'
+            'semContacto',
+            chaveIdempotente([
+              'expiracao', String(ac.userId), eventIdentity, 'semContacto', dryRun,
+              emptyExpirationSnapshotAt?.toISOString() ?? null
+            ]),
+            true
           )
         }
         continue
@@ -662,22 +701,40 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       if (encurta || (ac.expirationDate && sameDay(expiration, ac.expirationDate))) {
         if (encurta) report.skippedWouldShorten += 1
         else if (estado?.status !== 'tratado' || eventoNovo) report.alreadyInSync += 1
-        if (encurta && elegivel) {
-          await criarRasto(
-            ac.email,
-            formatDateYYYYMMDD(ac.expirationDate!),
-            formatDateYYYYMMDD(expiration),
-            'recusado',
-            'encurtaria'
-          )
-        }
-        if (!dryRun && eventoNovo) {
+        let claim: EstadoEvento | null = null
+        if (!dryRun && (eventoNovo || Boolean(manual))) {
           const reason = encurta ? 'would-shorten' : 'already-right'
-          const claim = await reclamarEvento(ac.userId, ciclo, eventIdentity, saleIdentity, expiration, reason)
+          claim = await reclamarEvento(ac.userId, ciclo, eventIdentity, saleIdentity, expiration, reason)
           if (!claim) {
             report.claimConflicts += 1
             continue
           }
+        }
+        if (encurta && elegivel) {
+          try {
+            await criarRasto(
+              ac.email,
+              formatDateYYYYMMDD(ac.expirationDate!),
+              formatDateYYYYMMDD(expiration),
+              'recusado',
+              'encurtaria',
+              dryRun
+                ? chaveIdempotente(['expiracao', String(ac.userId), eventIdentity, 'encurtaria', dryRun])
+                : chaveIdempotente(['expiracao', String(ac.userId), eventIdentity, 'encurtaria', claim!.claimToken]),
+              dryRun
+            )
+          } catch (error) {
+            if (claim) {
+              try {
+                await libertarClaim(claim)
+              } catch (releaseError) {
+                registarErro(ac.email, releaseError)
+              }
+            }
+            throw error
+          }
+        }
+        if (claim) {
           const finalizado = await finalizarEvento(
             ac.userId,
             eventIdentity,
@@ -739,7 +796,13 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
           ac.email,
           ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
           formatDateYYYYMMDD(expiration),
-          'escrito'
+          'escrito',
+          undefined,
+          chaveIdempotente([
+            'expiracao', String(ac.userId), eventIdentity, 'proposta', dryRun,
+            emptyExpirationSnapshotAt?.toISOString() ?? null
+          ]),
+          true
         )
         report.wouldWrite += 1
         continue
@@ -765,7 +828,9 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
           ac.email,
           ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
           formatDateYYYYMMDD(expiration),
-          'escrito'
+          'escrito',
+          undefined,
+          chaveIdempotente(['expiracao', String(ac.userId), eventIdentity, 'tentativa', claim.claimToken])
         )
       } catch (error) {
         registarErro(ac.email, error)

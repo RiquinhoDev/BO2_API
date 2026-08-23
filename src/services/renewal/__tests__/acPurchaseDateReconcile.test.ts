@@ -5,6 +5,7 @@ import HotmartSaleHistory from '../../../models/HotmartSaleHistory'
 import Product from '../../../models/product/Product'
 import UserProduct from '../../../models/UserProduct'
 import AcWriteLog from '../../../models/renewal/AcWriteLog'
+import AcPurchaseDateEventState from '../../../models/renewal/AcPurchaseDateEventState'
 import { activeCampaignService } from '../../activeCampaign/activeCampaignService'
 import { AC_PURCHASE_DATE_FIELD_ID } from '../acRenewalDataSync.service'
 import { reconcilePurchaseDates } from '../acPurchaseDateReconcile.service'
@@ -49,6 +50,8 @@ function instalarFixtures(
     activos?: string[]
     respostasAc?: Array<boolean | Error>
     falharCreateLog?: boolean
+    estados?: any[]
+    falharFinalizacoes?: number
   } = {}
 ) {
   const productFindOneOriginal = (Product as any).findOne
@@ -58,9 +61,11 @@ function instalarFixtures(
   const updateOriginal = activeCampaignService.updateContactField
   const logCreateOriginal = (AcWriteLog as any).create
   const logFindByIdAndUpdateOriginal = (AcWriteLog as any).findByIdAndUpdate
+  const estadoFindOneAndUpdateOriginal = (AcPurchaseDateEventState as any).findOneAndUpdate
   const activos = opcoes.activos ?? acEntries.map((entrada) => String(entrada.userId))
   const escritas: Array<[string, number, string]> = []
   const logs: any[] = []
+  const estados = [...(opcoes.estados ?? [])]
   const ordem: string[] = []
   const filtros = { produto: [] as any[], inscricoes: [] as any[], ac: [] as any[], hotmart: [] as any[] }
 
@@ -85,6 +90,9 @@ function instalarFixtures(
   ;(AcWriteLog as any).create = async (entrada: any) => {
     ordem.push('log')
     if (opcoes.falharCreateLog) throw new Error('log indisponível')
+    if (logs.some((log) => log.idempotencyKey === entrada.idempotencyKey)) {
+      throw Object.assign(new Error('idempotencyKey duplicada'), { code: 11000 })
+    }
     const log = { _id: `log-${logs.length + 1}`, ...entrada }
     logs.push(log)
     return log
@@ -94,6 +102,36 @@ function instalarFixtures(
     if (log) Object.assign(log, atualizacao.$set ?? {})
     return log
   }
+  ;(AcPurchaseDateEventState as any).findOneAndUpdate = (filtro: any, atualizacao: any) => ({
+    lean: () => ({
+      exec: async () => {
+        const userId = String(filtro.userId)
+        const indice = estados.findIndex((estado) => String(estado.userId) === userId)
+        const actual = indice === -1 ? null : estados[indice]
+        const set = atualizacao.$set ?? {}
+        const eClaim = typeof set.claimToken === 'string' && typeof set.pendingEventIdentity === 'string'
+
+        if (eClaim) {
+          ordem.push('claim')
+          if (actual?.status === 'claimado' || actual?.status === 'confirmacao-pendente') return null
+          if (actual?.status === 'tratado' && actual.eventIdentity === set.pendingEventIdentity) return null
+        } else if (filtro.claimToken && actual?.claimToken !== filtro.claimToken) {
+          return null
+        }
+
+        if (set.status === 'tratado' && (opcoes.falharFinalizacoes ?? 0) > 0) {
+          opcoes.falharFinalizacoes = (opcoes.falharFinalizacoes ?? 0) - 1
+          throw new Error('falha ao finalizar claim 334')
+        }
+
+        const novo = { ...(actual ?? { userId }), ...set }
+        for (const campo of Object.keys(atualizacao.$unset ?? {})) delete novo[campo]
+        if (indice === -1) estados.push(novo)
+        else estados[indice] = novo
+        return { ...novo }
+      }
+    })
+  })
   activeCampaignService.updateContactField = async (email, fieldId, value) => {
     ordem.push('ac')
     escritas.push([email, fieldId, value])
@@ -105,6 +143,7 @@ function instalarFixtures(
   return {
     escritas,
     logs,
+    estados,
     ordem,
     filtros,
     restaurar: () => {
@@ -114,6 +153,7 @@ function instalarFixtures(
       ;(HotmartSaleHistory as any).find = hotmartFindOriginal
       ;(AcWriteLog as any).create = logCreateOriginal
       ;(AcWriteLog as any).findByIdAndUpdate = logFindByIdAndUpdateOriginal
+      ;(AcPurchaseDateEventState as any).findOneAndUpdate = estadoFindOneAndUpdateOriginal
       activeCampaignService.updateContactField = updateOriginal
     }
   }
@@ -232,7 +272,7 @@ test('dry-run por omissão relata a alteração sem chamar a AC', async (t) => {
   assert.equal(report.escritos, 0)
   assert.deepEqual(report.alteracoes, [{ email: 'dry-run@example.com', antes: null, depois: '2026-05-20' }])
   assert.deepEqual(fixtures.escritas, [])
-  assert.deepEqual(fixtures.logs.map(({ _id, quando, ...log }) => log), [{
+  assert.deepEqual(fixtures.logs.map(({ _id, quando, idempotencyKey, ...log }) => log), [{
     servico: 'dataCompra',
     email: 'dry-run@example.com',
     campo: AC_PURCHASE_DATE_FIELD_ID,
@@ -292,7 +332,7 @@ test('334 cria o rasto antes da AC e conserva escrito em sucesso', async (t) => 
 
   await reconcilePurchaseDates({ dryRun: false })
 
-  assert.deepEqual(fixtures.ordem, ['log', 'ac'])
+  assert.deepEqual(fixtures.ordem, ['claim', 'log', 'ac'])
   assert.equal(fixtures.logs[0].accao, 'escrito')
   assert.equal(fixtures.logs[0].dryRun, false)
 })
@@ -323,7 +363,7 @@ test('334 regista recusas semVenda e semContacto com valores exactos', async (t)
 
   await reconcilePurchaseDates({ dryRun: false })
 
-  assert.deepEqual(fixtures.logs.map(({ _id, quando, ...log }) => log), [
+  assert.deepEqual(fixtures.logs.map(({ _id, quando, idempotencyKey, ...log }) => log), [
     {
       servico: 'dataCompra', email: 'sem-venda@example.com', campo: AC_PURCHASE_DATE_FIELD_ID,
       antes: '2026-04-01', depois: null, accao: 'recusado', motivo: 'semVenda', dryRun: false
@@ -333,4 +373,78 @@ test('334 regista recusas semVenda e semContacto com valores exactos', async (t)
       antes: null, depois: '2026-05-20', accao: 'recusado', motivo: 'semContacto', dryRun: false
     }
   ])
+})
+
+test('duas corridas do 334 reclamam o evento uma vez, criam um rasto e chamam a AC uma vez', async (t) => {
+  const fixtures = instalarFixtures(
+    [alunoAc('concorrente', { purchaseDate: null })],
+    [alunoHotmart('concorrente')]
+  )
+  t.after(fixtures.restaurar)
+
+  await Promise.all([
+    reconcilePurchaseDates({ dryRun: false }),
+    reconcilePurchaseDates({ dryRun: false })
+  ])
+
+  assert.equal(fixtures.logs.length, 1)
+  assert.equal(fixtures.escritas.length, 1)
+  assert.equal(fixtures.estados[0].status, 'tratado')
+})
+
+test('dry-run repetido do 334 grava uma única proposta determinística', async (t) => {
+  const fixtures = instalarFixtures(
+    [alunoAc('dry-idempotente', { purchaseDate: null })],
+    [alunoHotmart('dry-idempotente')]
+  )
+  t.after(fixtures.restaurar)
+
+  await reconcilePurchaseDates({ dryRun: true })
+  await reconcilePurchaseDates({ dryRun: true })
+
+  assert.equal(fixtures.logs.length, 1)
+  assert.equal(fixtures.escritas.length, 0)
+})
+
+test('semVenda repetido do 334 grava uma única recusa por snapshot', async (t) => {
+  const fixtures = instalarFixtures([alunoAc('sem-venda-idem')], [])
+  t.after(fixtures.restaurar)
+
+  await reconcilePurchaseDates({ dryRun: false })
+  await reconcilePurchaseDates({ dryRun: false })
+
+  assert.equal(fixtures.logs.length, 1)
+  assert.equal(fixtures.logs[0].motivo, 'semVenda')
+})
+
+test('uma falha externa do 334 liberta o claim e o retry cria novo rasto', async (t) => {
+  const fixtures = instalarFixtures(
+    [alunoAc('retry', { purchaseDate: null })],
+    [alunoHotmart('retry')],
+    { respostasAc: [false, true] }
+  )
+  t.after(fixtures.restaurar)
+
+  await reconcilePurchaseDates({ dryRun: false })
+  await reconcilePurchaseDates({ dryRun: false })
+
+  assert.equal(fixtures.logs.length, 2)
+  assert.deepEqual(fixtures.logs.map((log) => log.accao), ['recusado', 'escrito'])
+  assert.equal(fixtures.escritas.length, 2)
+})
+
+test('sucesso externo do 334 não vira recusa nem repete AC se a finalização falhar', async (t) => {
+  const fixtures = instalarFixtures(
+    [alunoAc('finalizacao', { purchaseDate: null })],
+    [alunoHotmart('finalizacao')],
+    { falharFinalizacoes: 1 }
+  )
+  t.after(fixtures.restaurar)
+
+  await reconcilePurchaseDates({ dryRun: false })
+  await reconcilePurchaseDates({ dryRun: false })
+
+  assert.equal(fixtures.logs.length, 1)
+  assert.equal(fixtures.logs[0].accao, 'escrito')
+  assert.equal(fixtures.escritas.length, 1)
 })

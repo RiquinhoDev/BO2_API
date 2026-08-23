@@ -126,6 +126,9 @@ function instalarFixturesSync(
   ;(AcWriteLog as any).create = async (entrada: any) => {
     ordem.push('log')
     if (opcoes.falharCreateLog) throw new Error('log indisponível')
+    if (logs.some((log) => log.idempotencyKey === entrada.idempotencyKey)) {
+      throw Object.assign(new Error('idempotencyKey duplicada'), { code: 11000 })
+    }
     const log = { _id: `log-${logs.length + 1}`, ...entrada }
     logs.push(log)
     return log
@@ -158,6 +161,7 @@ function instalarFixturesSync(
       const eFinalizacao = set.status === 'tratado' && typeof set.eventIdentity === 'string'
 
       if (eClaim) {
+        ordem.push('claim')
         claims += 1
         if (opcoes.atrasarSegundoClaimAteFinalizar && claims === 2) await primeiraFinalizacao
         if (opcoes.falharWatermarkUserIds?.includes(userId)) {
@@ -741,7 +745,7 @@ test('dry-run não chama a AC nem avança o watermark de um evento novo', async 
   assert.equal(report.wouldWrite, 1)
   assert.equal(fixtures.escritas.length, 0)
   assert.equal(fixtures.estados[0].eventIdentity, identidadeAntiga)
-  assert.deepEqual(fixtures.logs.map(({ _id, quando, ...log }) => log), [{
+  assert.deepEqual(fixtures.logs.map(({ _id, quando, idempotencyKey, ...log }) => log), [{
     servico: 'expiracao', email: 'aluno@example.com', campo: 332,
     antes: '2026-09-30', depois: '2027-09-30', accao: 'escrito', dryRun: true
   }])
@@ -1194,7 +1198,7 @@ test('332 regista recusas encurtaria, semVenda e semTurma com valores exactos', 
 
   await acExpirationSync.syncAcExpirationDates({ dryRun: false })
 
-  assert.deepEqual(fixtures.logs.map(({ _id, quando, ...log }) => log), [
+  assert.deepEqual(fixtures.logs.map(({ _id, quando, idempotencyKey, ...log }) => log), [
     {
       servico: 'expiracao', email: 'encurta@example.com', campo: 332,
       antes: '2028-05-31', depois: '2027-05-31', accao: 'recusado', motivo: 'encurtaria', dryRun: false
@@ -1222,9 +1226,9 @@ test('332 cria o rasto antes da AC e conserva escrito em sucesso', async (t) => 
 
   await acExpirationSync.syncAcExpirationDates({ dryRun: false })
 
-  assert.deepEqual(fixtures.ordem, ['log', 'ac'])
+  assert.deepEqual(fixtures.ordem, ['claim', 'log', 'ac'])
   assert.deepEqual(
-    (({ _id, quando, ...log }) => log)(fixtures.logs[0]),
+    (({ _id, quando, idempotencyKey, ...log }) => log)(fixtures.logs[0]),
     {
       servico: 'expiracao', email: 'aluno@example.com', campo: 332,
       antes: '2026-06-30', depois: '2027-06-30', accao: 'escrito', dryRun: false
@@ -1278,4 +1282,69 @@ test('false e throw da AC transformam a intenção do 332 em recusado', async (t
     ['false@example.com', 'recusado', 'falhaExterna'],
     ['throw@example.com', 'recusado', 'falhaExterna']
   ])
+})
+
+test('duas corridas concorrentes de encurtaria criam uma única recusa depois do claim', async (t) => {
+  const compra = new Date('2026-09-20T00:00:00.000Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2028-09-30T23:59:59.999Z') })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    {
+      estados: [estadoTratado('aluno-1', '2025-09-20T00:00:00.000Z')],
+      atrasarSegundoClaimAteFinalizar: true
+    }
+  )
+  t.after(fixtures.restaurar)
+
+  await Promise.all([
+    acExpirationSync.syncAcExpirationDates({ dryRun: false }),
+    acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  ])
+
+  assert.equal(fixtures.logs.length, 1)
+  assert.equal(fixtures.logs[0].motivo, 'encurtaria')
+  assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.ordem[0], 'claim')
+})
+
+test('dry-run repetido da expiração grava uma única proposta determinística', async (t) => {
+  const compra = new Date('2026-10-20T00:00:00.000Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2026-10-31T23:59:59.999Z') })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    { estados: [estadoTratado('aluno-1', '2025-10-20T00:00:00.000Z')] }
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: true })
+  await acExpirationSync.syncAcExpirationDates({ dryRun: true })
+
+  assert.equal(fixtures.logs.length, 1)
+  assert.equal(fixtures.escritas.length, 0)
+})
+
+test('semVenda e semTurma repetidos da expiração gravam uma recusa por snapshot/evento', async (t) => {
+  const compra = new Date('2026-11-20T00:00:00.000Z')
+  const fixtures = instalarFixturesSync(
+    [
+      alunoAc({ userId: 'sem-venda', email: 'sem-venda@example.com' }),
+      alunoAc({ userId: 'sem-turma', email: 'sem-turma@example.com' })
+    ],
+    [
+      alunoHotmart(compra, {
+        userId: 'sem-turma',
+        sales: [venda({ approvedDate: compra, transaction: 'SEM-TURMA-IDEM', offerCode: 'incompleta-idem' })]
+      })
+    ],
+    [oferta({ offerCode: 'incompleta-idem', offerName: 'OGI sem turma', periodYYMM: null, isRenewal: false })]
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(fixtures.logs.length, 2)
+  assert.deepEqual(fixtures.logs.map((log) => log.motivo), ['semVenda', 'semTurma'])
 })
