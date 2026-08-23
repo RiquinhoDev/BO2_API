@@ -31,6 +31,7 @@ import { syncActiveStudentSalesHistory, SalesHistorySyncReport } from './hotmart
 import { syncActiveStudentAcRenewalData, AcRenewalDataSyncReport } from './acRenewalDataSync.service'
 import { syncAcStudentTags, AcStudentTagsSyncReport } from './acStudentTagsSync.service'
 import { syncAcExpirationDates, AcExpirationSyncReport } from './acExpirationSync.service'
+import { reconcilePurchaseDates, ReconcileReport } from './acPurchaseDateReconcile.service'
 import { gerarTimelinesEmLote, TimelineSyncReport } from './renewalTimeline.service'
 import { runDiscordRolesSyncJob, DiscordCronReport } from './discordRolesSync.service'
 
@@ -51,7 +52,19 @@ export interface RenewalPipelineReport {
   acExpiration: RenewalPipelineStepResult<AcExpirationSyncReport>
   timelines: RenewalPipelineStepResult<TimelineSyncReport>
   discordRoles: RenewalPipelineStepResult<DiscordCronReport>
+  acPurchaseDate: RenewalPipelineStepResult<ReconcileReport>
   success: boolean
+}
+
+export interface RenewalPipelineDependencies {
+  isJobSwitchEnabled: (jobName: string) => Promise<boolean>
+  syncActiveStudentSalesHistory: typeof syncActiveStudentSalesHistory
+  syncActiveStudentAcRenewalData: typeof syncActiveStudentAcRenewalData
+  syncAcStudentTags: typeof syncAcStudentTags
+  syncAcExpirationDates: typeof syncAcExpirationDates
+  runDiscordRolesSyncJob: typeof runDiscordRolesSyncJob
+  gerarTimelinesEmLote: typeof gerarTimelinesEmLote
+  reconcilePurchaseDates: typeof reconcilePurchaseDates
 }
 
 type CronJobConfigReadModel = { findOne: (...args: any[]) => any }
@@ -85,8 +98,13 @@ async function runStep<T>(label: string, fn: () => Promise<T>): Promise<RenewalP
  * ligado na BD — usado para o passo de escrita (AC Expiração), que
  * precisa do seu próprio "sim" independente do interruptor geral.
  */
-async function runGatedStep<T>(label: string, jobName: string, fn: () => Promise<T>): Promise<RenewalPipelineStepResult<T>> {
-  const enabled = await isJobSwitchEnabled(jobName)
+async function runGatedStep<T>(
+  label: string,
+  jobName: string,
+  fn: () => Promise<T>,
+  jobSwitchEnabled: (name: string) => Promise<boolean> = isJobSwitchEnabled
+): Promise<RenewalPipelineStepResult<T>> {
+  const enabled = await jobSwitchEnabled(jobName)
   if (!enabled) {
     console.log(`[RenewalPipeline] ⏭ ${label} — interruptor "${jobName}" desligado, a saltar`)
     return { success: true, skipped: true, durationMs: 0 }
@@ -99,14 +117,28 @@ async function runGatedStep<T>(label: string, jobName: string, fn: () => Promise
  * Um passo que falhe não impede os seguintes de correr (o próximo passo
  * simplesmente trabalha com os dados que já existem em BD).
  */
-export async function runRenewalPipeline(): Promise<RenewalPipelineReport> {
-  const hotmartSales = await runStep('Sync Hotmart (vendas)', () => syncActiveStudentSalesHistory())
-  const acRenewalData = await runStep('Sync AC (leitura)', () => syncActiveStudentAcRenewalData())
-  const acStudentTags = await runStep('Sync AC (tags)', () => syncAcStudentTags())
-  const acExpiration = await runGatedStep('AC Expiração (escrita)', AC_EXPIRATION_SYNC_JOB_NAME, () => syncAcExpirationDates({ dryRun: false }))
-  const discordRoles = await runStep('Discord Roles', () => runDiscordRolesSyncJob())
-  // Último de propósito: só faz sentido com os três espelhos frescos.
-  const timelines = await runStep('Timelines de renovação', () => gerarTimelinesEmLote())
+export async function runRenewalPipelineComDependencias(
+  dependencias: RenewalPipelineDependencies
+): Promise<RenewalPipelineReport> {
+  const hotmartSales = await runStep('Sync Hotmart (vendas)', () => dependencias.syncActiveStudentSalesHistory())
+  const acRenewalData = await runStep('Sync AC (leitura)', () => dependencias.syncActiveStudentAcRenewalData())
+  const acStudentTags = await runStep('Sync AC (tags)', () => dependencias.syncAcStudentTags())
+  const acExpiration = await runGatedStep(
+    'AC Expiração (escrita)',
+    AC_EXPIRATION_SYNC_JOB_NAME,
+    () => dependencias.syncAcExpirationDates({ dryRun: false }),
+    dependencias.isJobSwitchEnabled
+  )
+  const discordRoles = await runStep('Discord Roles', () => dependencias.runDiscordRolesSyncJob())
+  // Só faz sentido depois de os três espelhos estarem frescos.
+  const timelines = await runStep('Timelines de renovação', () => dependencias.gerarTimelinesEmLote())
+  // Compensação final: corrige o 334 depois de todas as leituras/timelines.
+  const acPurchaseDate = await runGatedStep(
+    'AC Data de compra (reconciliação)',
+    AC_EXPIRATION_SYNC_JOB_NAME,
+    () => dependencias.reconcilePurchaseDates({ dryRun: false }),
+    dependencias.isJobSwitchEnabled
+  )
 
   return {
     hotmartSales,
@@ -115,14 +147,29 @@ export async function runRenewalPipeline(): Promise<RenewalPipelineReport> {
     acExpiration,
     timelines,
     discordRoles,
+    acPurchaseDate,
     success:
       hotmartSales.success &&
       acRenewalData.success &&
       acStudentTags.success &&
       acExpiration.success &&
       timelines.success &&
-      discordRoles.success
+      discordRoles.success &&
+      acPurchaseDate.success
   }
+}
+
+export async function runRenewalPipeline(): Promise<RenewalPipelineReport> {
+  return runRenewalPipelineComDependencias({
+    isJobSwitchEnabled,
+    syncActiveStudentSalesHistory,
+    syncActiveStudentAcRenewalData,
+    syncAcStudentTags,
+    syncAcExpirationDates,
+    runDiscordRolesSyncJob,
+    gerarTimelinesEmLote,
+    reconcilePurchaseDates
+  })
 }
 
 export default runRenewalPipeline
