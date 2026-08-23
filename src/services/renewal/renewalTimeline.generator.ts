@@ -477,7 +477,11 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
         e.legadoExpiracaoAncora &&
         mesmoDia(compraDoCiclo, e.legadoExpiracaoAncora)
       )
-      expiracaoIgualTurma = mesmoEventoLegado ? 'legado' : 'divergente'
+      expiracaoIgualTurma = mesmoEventoLegado
+        ? fimEsperado.getTime() > e.acExpiracao.getTime()
+          ? 'a-menos'
+          : 'legado'
+        : 'divergente'
     }
   }
 

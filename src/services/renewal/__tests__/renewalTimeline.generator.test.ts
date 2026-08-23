@@ -410,6 +410,20 @@ test('mismatch do mesmo evento previamente marcado continua legado', () => {
   assert.equal(t.cadeia.expiracaoIgualTurma, 'legado')
 })
 
+test('mismatch legado com acesso pago em falta fica a-menos', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-08-12T00:00:00Z'), transaction: 'A' })],
+      turmaAtual: { classId: 'c', className: 'Turma 11 [renov] | 2509', entrouEm: null },
+      acExpiracao: new Date('2026-07-31T00:00:00Z'),
+      legadoExpiracaoAncora: new Date('2025-08-12T00:00:00Z'),
+      fontes: { vendas: AGORA, tags: AGORA, ac: new Date('2026-08-01T00:00:00Z') }
+    })
+  )
+
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'a-menos')
+})
+
 test('venda de renovacao posterior a fotografia da AC e divergente', () => {
   const t = gerarTimeline(
     entrada({

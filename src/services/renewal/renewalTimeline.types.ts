@@ -88,7 +88,7 @@ export interface Ciclo extends CicloBase {
   alertas: AlertaCiclo[]
 }
 
-export type Veredicto = 'ok' | 'divergente' | 'legado' | 'sem-dados'
+export type Veredicto = 'ok' | 'divergente' | 'legado' | 'a-menos' | 'sem-dados'
 
 /**
  * Os dois lados de um elo da cadeia. `esperado` é o que a fonte de cima
