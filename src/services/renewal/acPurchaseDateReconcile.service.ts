@@ -2,6 +2,7 @@ import ACRenewalData from '../../models/ACRenewalData'
 import HotmartSaleHistory from '../../models/HotmartSaleHistory'
 import Product from '../../models/product/Product'
 import UserProduct from '../../models/UserProduct'
+import AcWriteLog from '../../models/renewal/AcWriteLog'
 import { activeCampaignService } from '../activeCampaign/activeCampaignService'
 import { AC_PURCHASE_DATE_FIELD_ID } from './acRenewalDataSync.service'
 import { agruparCiclos } from './renewalCycles'
@@ -97,8 +98,43 @@ export async function reconcilePurchaseDates(
     const ultimoCiclo = agruparCiclos(vendasPorAluno.get(String(entrada.userId)) ?? []).at(-1)
     const dataReal = ultimoCiclo?.compras[0]?.data
 
-    if (!entrada.contactId || !dataReal) {
+    if (!dataReal) {
       report.semDados += 1
+      try {
+        await AcWriteLog.create({
+          quando: new Date(),
+          servico: 'dataCompra',
+          email: entrada.email,
+          campo: AC_PURCHASE_DATE_FIELD_ID,
+          antes: entrada.purchaseDate ? formatarData(entrada.purchaseDate) : null,
+          depois: null,
+          accao: 'recusado',
+          motivo: 'semVenda',
+          dryRun
+        })
+      } catch {
+        report.erros += 1
+      }
+      continue
+    }
+
+    if (!entrada.contactId) {
+      report.semDados += 1
+      try {
+        await AcWriteLog.create({
+          quando: new Date(),
+          servico: 'dataCompra',
+          email: entrada.email,
+          campo: AC_PURCHASE_DATE_FIELD_ID,
+          antes: entrada.purchaseDate ? formatarData(entrada.purchaseDate) : null,
+          depois: formatarData(dataReal),
+          accao: 'recusado',
+          motivo: 'semContacto',
+          dryRun
+        })
+      } catch {
+        report.erros += 1
+      }
       continue
     }
 
@@ -117,6 +153,23 @@ export async function reconcilePurchaseDates(
     }
     report.alteracoes.push(alteracao)
 
+    let rasto: any
+    try {
+      rasto = await AcWriteLog.create({
+        quando: new Date(),
+        servico: 'dataCompra',
+        email: entrada.email,
+        campo: AC_PURCHASE_DATE_FIELD_ID,
+        antes: alteracao.antes,
+        depois: alteracao.depois,
+        accao: 'escrito',
+        dryRun
+      })
+    } catch {
+      report.erros += 1
+      continue
+    }
+
     if (dryRun) continue
 
     try {
@@ -126,9 +179,25 @@ export async function reconcilePurchaseDates(
         alteracao.depois
       )
       if (escrito) report.escritos += 1
-      else report.erros += 1
+      else {
+        report.erros += 1
+        try {
+          await AcWriteLog.findByIdAndUpdate(rasto._id, {
+            $set: { accao: 'recusado', motivo: 'falhaExterna' }
+          })
+        } catch {
+          // A intenção criada antes da chamada continua a preservar a tentativa.
+        }
+      }
     } catch {
       report.erros += 1
+      try {
+        await AcWriteLog.findByIdAndUpdate(rasto._id, {
+          $set: { accao: 'recusado', motivo: 'falhaExterna' }
+        })
+      } catch {
+        // A intenção criada antes da chamada continua a preservar a tentativa.
+      }
     }
   }
 

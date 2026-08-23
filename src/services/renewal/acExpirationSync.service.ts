@@ -25,6 +25,7 @@ import ACRenewalData from '../../models/ACRenewalData'
 import AcExpirationEventState from '../../models/AcExpirationEventState'
 import HotmartSaleHistory from '../../models/HotmartSaleHistory'
 import RenewalOffer from '../../models/RenewalOffer'
+import AcWriteLog from '../../models/renewal/AcWriteLog'
 import { activeCampaignService } from '../activeCampaign/activeCampaignService'
 import { AC_EXPIRATION_DATE_FIELD_ID } from './acRenewalDataSync.service'
 import { TURMA_1_RENEWAL_OFFER_CODE, TURMA_2_RENEWAL_OFFER_CODE } from './renewalConstants'
@@ -445,6 +446,34 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
     report.errors.push({ email, error: mensagem })
   }
 
+  const criarRasto = async (
+    email: string,
+    antes: string | null,
+    depois: string | null,
+    accao: 'escrito' | 'recusado',
+    motivo?: string
+  ) => AcWriteLog.create({
+    quando: new Date(),
+    servico: 'expiracao',
+    email,
+    campo: AC_EXPIRATION_DATE_FIELD_ID,
+    antes,
+    depois,
+    accao,
+    ...(motivo ? { motivo } : {}),
+    dryRun
+  })
+
+  const marcarRastoRecusado = async (id: unknown): Promise<void> => {
+    try {
+      await AcWriteLog.findByIdAndUpdate(id, {
+        $set: { accao: 'recusado', motivo: 'falhaExterna' }
+      })
+    } catch {
+      // A intenção criada antes da chamada continua a preservar a tentativa.
+    }
+  }
+
   for (const ac of acEntries) {
     try {
       if (ac.refundDate || ac.purchaseStatus === 'Reembolsada') {
@@ -462,12 +491,26 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       const ancora = ciclo?.compras[0]
       if (!ciclo || !ancora) {
         report.skippedNoHotmartData += 1
+        await criarRasto(
+          ac.email,
+          ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
+          null,
+          'recusado',
+          'semVenda'
+        )
         continue
       }
 
       const expiration = calcularExpiracao(ciclo, ofertaByCode.get(ancora.offerCode ?? ''))
       if (!expiration) {
         report.semTurma += 1
+        await criarRasto(
+          ac.email,
+          ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
+          null,
+          'recusado',
+          'semTurma'
+        )
         continue
       }
 
@@ -590,17 +633,44 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       if (!hm?.latestApprovedDate) {
         if (encurta) report.skippedWouldShorten += 1
         report.skippedNoHotmartData += 1
+        if (elegivel) {
+          await criarRasto(
+            ac.email,
+            ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
+            formatDateYYYYMMDD(expiration),
+            'recusado',
+            'semVenda'
+          )
+        }
         continue
       }
 
       if (!ac.contactId) {
         report.skippedNoContact += 1
+        if (elegivel) {
+          await criarRasto(
+            ac.email,
+            ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
+            formatDateYYYYMMDD(expiration),
+            'recusado',
+            'semContacto'
+          )
+        }
         continue
       }
 
       if (encurta || (ac.expirationDate && sameDay(expiration, ac.expirationDate))) {
         if (encurta) report.skippedWouldShorten += 1
         else if (estado?.status !== 'tratado' || eventoNovo) report.alreadyInSync += 1
+        if (encurta && elegivel) {
+          await criarRasto(
+            ac.email,
+            formatDateYYYYMMDD(ac.expirationDate!),
+            formatDateYYYYMMDD(expiration),
+            'recusado',
+            'encurtaria'
+          )
+        }
         if (!dryRun && eventoNovo) {
           const reason = encurta ? 'would-shorten' : 'already-right'
           const claim = await reclamarEvento(ac.userId, ciclo, eventIdentity, saleIdentity, expiration, reason)
@@ -665,6 +735,12 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       report.candidatesChecked += 1
       report.needsWrite += 1
       if (dryRun) {
+        await criarRasto(
+          ac.email,
+          ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
+          formatDateYYYYMMDD(expiration),
+          'escrito'
+        )
         report.wouldWrite += 1
         continue
       }
@@ -683,12 +759,13 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         continue
       }
 
-      let ok = false
+      let rasto: any
       try {
-        ok = await activeCampaignService.updateContactField(
+        rasto = await criarRasto(
           ac.email,
-          AC_EXPIRATION_DATE_FIELD_ID,
-          formatDateYYYYMMDD(expiration)
+          ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null,
+          formatDateYYYYMMDD(expiration),
+          'escrito'
         )
       } catch (error) {
         registarErro(ac.email, error)
@@ -700,7 +777,26 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
         continue
       }
 
+      let ok = false
+      try {
+        ok = await activeCampaignService.updateContactField(
+          ac.email,
+          AC_EXPIRATION_DATE_FIELD_ID,
+          formatDateYYYYMMDD(expiration)
+        )
+      } catch (error) {
+        await marcarRastoRecusado(rasto._id)
+        registarErro(ac.email, error)
+        try {
+          await libertarClaim(claim)
+        } catch (releaseError) {
+          registarErro(ac.email, releaseError)
+        }
+        continue
+      }
+
       if (!ok) {
+        await marcarRastoRecusado(rasto._id)
         report.errors.push({ email: ac.email, error: 'updateContactField devolveu false' })
         try {
           await libertarClaim(claim)

@@ -4,6 +4,7 @@ import ACRenewalData from '../../../models/ACRenewalData'
 import HotmartSaleHistory from '../../../models/HotmartSaleHistory'
 import Product from '../../../models/product/Product'
 import UserProduct from '../../../models/UserProduct'
+import AcWriteLog from '../../../models/renewal/AcWriteLog'
 import { activeCampaignService } from '../../activeCampaign/activeCampaignService'
 import { AC_PURCHASE_DATE_FIELD_ID } from '../acRenewalDataSync.service'
 import { reconcilePurchaseDates } from '../acPurchaseDateReconcile.service'
@@ -47,6 +48,7 @@ function instalarFixtures(
   opcoes: {
     activos?: string[]
     respostasAc?: Array<boolean | Error>
+    falharCreateLog?: boolean
   } = {}
 ) {
   const productFindOneOriginal = (Product as any).findOne
@@ -54,8 +56,12 @@ function instalarFixtures(
   const acFindOriginal = (ACRenewalData as any).find
   const hotmartFindOriginal = (HotmartSaleHistory as any).find
   const updateOriginal = activeCampaignService.updateContactField
+  const logCreateOriginal = (AcWriteLog as any).create
+  const logFindByIdAndUpdateOriginal = (AcWriteLog as any).findByIdAndUpdate
   const activos = opcoes.activos ?? acEntries.map((entrada) => String(entrada.userId))
   const escritas: Array<[string, number, string]> = []
+  const logs: any[] = []
+  const ordem: string[] = []
   const filtros = { produto: [] as any[], inscricoes: [] as any[], ac: [] as any[], hotmart: [] as any[] }
 
   ;(Product as any).findOne = (filtro: any) => {
@@ -76,7 +82,20 @@ function instalarFixtures(
     const ids = new Set((filtro.userId?.$in ?? []).map(String))
     return query(hotmartDocs.filter((entrada) => ids.has(String(entrada.userId))))
   }
+  ;(AcWriteLog as any).create = async (entrada: any) => {
+    ordem.push('log')
+    if (opcoes.falharCreateLog) throw new Error('log indisponível')
+    const log = { _id: `log-${logs.length + 1}`, ...entrada }
+    logs.push(log)
+    return log
+  }
+  ;(AcWriteLog as any).findByIdAndUpdate = async (id: string, atualizacao: any) => {
+    const log = logs.find((entrada) => entrada._id === id)
+    if (log) Object.assign(log, atualizacao.$set ?? {})
+    return log
+  }
   activeCampaignService.updateContactField = async (email, fieldId, value) => {
+    ordem.push('ac')
     escritas.push([email, fieldId, value])
     const resposta = opcoes.respostasAc?.shift() ?? true
     if (resposta instanceof Error) throw resposta
@@ -85,12 +104,16 @@ function instalarFixtures(
 
   return {
     escritas,
+    logs,
+    ordem,
     filtros,
     restaurar: () => {
       ;(Product as any).findOne = productFindOneOriginal
       ;(UserProduct as any).find = userProductFindOriginal
       ;(ACRenewalData as any).find = acFindOriginal
       ;(HotmartSaleHistory as any).find = hotmartFindOriginal
+      ;(AcWriteLog as any).create = logCreateOriginal
+      ;(AcWriteLog as any).findByIdAndUpdate = logFindByIdAndUpdateOriginal
       activeCampaignService.updateContactField = updateOriginal
     }
   }
@@ -111,6 +134,7 @@ test('334 igual à âncora fica contado como já certo e não escreve', async (t
     alteracoes: []
   })
   assert.deepEqual(fixtures.escritas, [])
+  assert.deepEqual(fixtures.logs, [])
 })
 
 test('334 com a data de hoje é reposto na âncora de há três meses', async (t) => {
@@ -208,6 +232,15 @@ test('dry-run por omissão relata a alteração sem chamar a AC', async (t) => {
   assert.equal(report.escritos, 0)
   assert.deepEqual(report.alteracoes, [{ email: 'dry-run@example.com', antes: null, depois: '2026-05-20' }])
   assert.deepEqual(fixtures.escritas, [])
+  assert.deepEqual(fixtures.logs.map(({ _id, quando, ...log }) => log), [{
+    servico: 'dataCompra',
+    email: 'dry-run@example.com',
+    campo: AC_PURCHASE_DATE_FIELD_ID,
+    antes: null,
+    depois: '2026-05-20',
+    accao: 'escrito',
+    dryRun: true
+  }])
 })
 
 test('334 vazio escreve em modo real e diferença até 24 horas não escreve', async (t) => {
@@ -244,4 +277,60 @@ test('false e throw da AC contam erro sem inventar sucesso', async (t) => {
   assert.equal(report.escritos, 0)
   assert.equal(report.erros, 2)
   assert.equal(report.alteracoes.length, 2)
+  assert.deepEqual(fixtures.logs.map((log) => [log.email, log.accao, log.motivo]), [
+    ['false@example.com', 'recusado', 'falhaExterna'],
+    ['throw@example.com', 'recusado', 'falhaExterna']
+  ])
+})
+
+test('334 cria o rasto antes da AC e conserva escrito em sucesso', async (t) => {
+  const fixtures = instalarFixtures(
+    [alunoAc('ordem', { purchaseDate: null })],
+    [alunoHotmart('ordem')]
+  )
+  t.after(fixtures.restaurar)
+
+  await reconcilePurchaseDates({ dryRun: false })
+
+  assert.deepEqual(fixtures.ordem, ['log', 'ac'])
+  assert.equal(fixtures.logs[0].accao, 'escrito')
+  assert.equal(fixtures.logs[0].dryRun, false)
+})
+
+test('falha ao criar rasto do 334 bloqueia a AC', async (t) => {
+  const fixtures = instalarFixtures(
+    [alunoAc('sem-log', { purchaseDate: null })],
+    [alunoHotmart('sem-log')],
+    { falharCreateLog: true }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await reconcilePurchaseDates({ dryRun: false })
+
+  assert.equal(report.erros, 1)
+  assert.deepEqual(fixtures.escritas, [])
+})
+
+test('334 regista recusas semVenda e semContacto com valores exactos', async (t) => {
+  const fixtures = instalarFixtures(
+    [
+      alunoAc('sem-venda', { purchaseDate: new Date('2026-04-01T00:00:00.000Z') }),
+      alunoAc('sem-contacto', { contactId: null, purchaseDate: null })
+    ],
+    [alunoHotmart('sem-contacto')]
+  )
+  t.after(fixtures.restaurar)
+
+  await reconcilePurchaseDates({ dryRun: false })
+
+  assert.deepEqual(fixtures.logs.map(({ _id, quando, ...log }) => log), [
+    {
+      servico: 'dataCompra', email: 'sem-venda@example.com', campo: AC_PURCHASE_DATE_FIELD_ID,
+      antes: '2026-04-01', depois: null, accao: 'recusado', motivo: 'semVenda', dryRun: false
+    },
+    {
+      servico: 'dataCompra', email: 'sem-contacto@example.com', campo: AC_PURCHASE_DATE_FIELD_ID,
+      antes: null, depois: '2026-05-20', accao: 'recusado', motivo: 'semContacto', dryRun: false
+    }
+  ])
 })

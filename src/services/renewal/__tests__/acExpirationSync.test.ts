@@ -4,6 +4,7 @@ import mongoose from 'mongoose'
 import ACRenewalData from '../../../models/ACRenewalData'
 import HotmartSaleHistory from '../../../models/HotmartSaleHistory'
 import RenewalOffer from '../../../models/RenewalOffer'
+import AcWriteLog from '../../../models/renewal/AcWriteLog'
 import { activeCampaignService } from '../../activeCampaign/activeCampaignService'
 import * as acExpirationSync from '../acExpirationSync.service'
 import { TURMA_1_RENEWAL_OFFER_CODE, TURMA_2_RENEWAL_OFFER_CODE } from '../renewalConstants'
@@ -89,17 +90,22 @@ function instalarFixturesSync(
     falharFinalizacoes?: number
     falharWatermarkUserIds?: string[]
     atrasarSegundoClaimAteFinalizar?: boolean
+    falharCreateLog?: boolean
   } = {}
 ) {
   const acFindOriginal = (ACRenewalData as any).find
   const hotmartFindOriginal = (HotmartSaleHistory as any).find
   const renewalOfferFindOriginal = (RenewalOffer as any).find
   const updateOriginal = activeCampaignService.updateContactField
+  const logCreateOriginal = (AcWriteLog as any).create
+  const logFindByIdAndUpdateOriginal = (AcWriteLog as any).findByIdAndUpdate
   const estadoModel = (mongoose.models as any).AcExpirationEventState
   const estadoFindOriginal = estadoModel?.find
   const estadoUpdateOneOriginal = estadoModel?.updateOne
   const estadoFindOneAndUpdateOriginal = estadoModel?.findOneAndUpdate
   const escritas: Array<[string, number, string]> = []
+  const logs: any[] = []
+  const ordem: string[] = []
   const estados: any[] = [...(opcoes.estados ?? [])]
   const filtrosAc: any[] = []
   let claims = 0
@@ -117,6 +123,18 @@ function instalarFixturesSync(
     hotmartDocs.filter((entrada) => !filtro.userId?.$in || filtro.userId.$in.some((id: unknown) => String(id) === String(entrada.userId)))
   )
   ;(RenewalOffer as any).find = () => query(ofertas)
+  ;(AcWriteLog as any).create = async (entrada: any) => {
+    ordem.push('log')
+    if (opcoes.falharCreateLog) throw new Error('log indisponível')
+    const log = { _id: `log-${logs.length + 1}`, ...entrada }
+    logs.push(log)
+    return log
+  }
+  ;(AcWriteLog as any).findByIdAndUpdate = async (id: string, atualizacao: any) => {
+    const log = logs.find((entrada) => entrada._id === id)
+    if (log) Object.assign(log, atualizacao.$set ?? {})
+    return log
+  }
   if (estadoModel) {
     estadoModel.find = () => query(estados)
     estadoModel.updateOne = async (filtro: { userId: unknown }, atualizacao: { $set: Record<string, unknown> }) => {
@@ -210,6 +228,7 @@ function instalarFixturesSync(
     })
   }
   activeCampaignService.updateContactField = async (email, fieldId, value) => {
+    ordem.push('ac')
     escritas.push([email, fieldId, value])
     const resposta = opcoes.respostasAc?.shift() ?? true
     if (resposta instanceof Error) throw resposta
@@ -218,12 +237,16 @@ function instalarFixturesSync(
 
   return {
     escritas,
+    logs,
+    ordem,
     estados,
     filtrosAc,
     restaurar: () => {
       ;(ACRenewalData as any).find = acFindOriginal
       ;(HotmartSaleHistory as any).find = hotmartFindOriginal
       ;(RenewalOffer as any).find = renewalOfferFindOriginal
+      ;(AcWriteLog as any).create = logCreateOriginal
+      ;(AcWriteLog as any).findByIdAndUpdate = logFindByIdAndUpdateOriginal
       if (estadoModel) {
         estadoModel.find = estadoFindOriginal
         estadoModel.updateOne = estadoUpdateOneOriginal
@@ -434,6 +457,7 @@ test('segunda corrida real sem evento novo escreve zero', async (t) => {
   assert.equal(primeira.bootstrapped, 1)
   assert.equal(segunda.skippedNoNewEvent, 1)
   assert.equal(fixtures.escritas.length, 0)
+  assert.equal(fixtures.logs.length, 0)
 })
 
 test('evento já certo na AC avança o watermark sem escrever', async (t) => {
@@ -717,6 +741,10 @@ test('dry-run não chama a AC nem avança o watermark de um evento novo', async 
   assert.equal(report.wouldWrite, 1)
   assert.equal(fixtures.escritas.length, 0)
   assert.equal(fixtures.estados[0].eventIdentity, identidadeAntiga)
+  assert.deepEqual(fixtures.logs.map(({ _id, quando, ...log }) => log), [{
+    servico: 'expiracao', email: 'aluno@example.com', campo: 332,
+    antes: '2026-09-30', depois: '2027-09-30', accao: 'escrito', dryRun: true
+  }])
 })
 
 test('falha da AC não avança o watermark e a corrida seguinte tenta de novo', async (t) => {
@@ -1142,4 +1170,112 @@ test('a compra âncora, não a última prestação, escolhe a oferta e a data', 
   await acExpirationSync.syncAcExpirationDates({ dryRun: false })
 
   assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2026-09-30']])
+})
+
+test('332 regista recusas encurtaria, semVenda e semTurma com valores exactos', async (t) => {
+  const compra = new Date('2026-05-20T00:00:00.000Z')
+  const fixtures = instalarFixturesSync(
+    [
+      alunoAc({ userId: 'encurta', email: 'encurta@example.com', expirationDate: new Date('2028-05-31T23:59:59.999Z') }),
+      alunoAc({ userId: 'sem-venda', email: 'sem-venda@example.com', expirationDate: null }),
+      alunoAc({ userId: 'sem-turma', email: 'sem-turma@example.com', expirationDate: new Date('2026-05-31T23:59:59.999Z') })
+    ],
+    [
+      alunoHotmart(compra, { userId: 'encurta' }),
+      alunoHotmart(compra, {
+        userId: 'sem-turma',
+        sales: [venda({ approvedDate: compra, transaction: 'SEM-TURMA', offerCode: 'incompleta' })]
+      })
+    ],
+    [oferta(), oferta({ offerCode: 'incompleta', offerName: 'OGI sem turma', periodYYMM: null, isRenewal: false })],
+    { estados: [estadoTratado('encurta', '2025-05-20T00:00:00.000Z')] }
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.deepEqual(fixtures.logs.map(({ _id, quando, ...log }) => log), [
+    {
+      servico: 'expiracao', email: 'encurta@example.com', campo: 332,
+      antes: '2028-05-31', depois: '2027-05-31', accao: 'recusado', motivo: 'encurtaria', dryRun: false
+    },
+    {
+      servico: 'expiracao', email: 'sem-venda@example.com', campo: 332,
+      antes: null, depois: null, accao: 'recusado', motivo: 'semVenda', dryRun: false
+    },
+    {
+      servico: 'expiracao', email: 'sem-turma@example.com', campo: 332,
+      antes: '2026-05-31', depois: null, accao: 'recusado', motivo: 'semTurma', dryRun: false
+    }
+  ])
+})
+
+test('332 cria o rasto antes da AC e conserva escrito em sucesso', async (t) => {
+  const compra = new Date('2026-06-20T00:00:00.000Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2026-06-30T23:59:59.999Z') })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    { estados: [estadoTratado('aluno-1', '2025-06-20T00:00:00.000Z')] }
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.deepEqual(fixtures.ordem, ['log', 'ac'])
+  assert.deepEqual(
+    (({ _id, quando, ...log }) => log)(fixtures.logs[0]),
+    {
+      servico: 'expiracao', email: 'aluno@example.com', campo: 332,
+      antes: '2026-06-30', depois: '2027-06-30', accao: 'escrito', dryRun: false
+    }
+  )
+})
+
+test('falha ao criar rasto do 332 bloqueia a AC e liberta o claim', async (t) => {
+  const compra = new Date('2026-07-20T00:00:00.000Z')
+  const fixtures = instalarFixturesSync(
+    [alunoAc({ expirationDate: new Date('2026-07-31T23:59:59.999Z') })],
+    [alunoHotmart(compra)],
+    [oferta()],
+    {
+      estados: [estadoTratado('aluno-1', '2025-07-20T00:00:00.000Z')],
+      falharCreateLog: true
+    }
+  )
+  t.after(fixtures.restaurar)
+
+  const report = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(report.errors[0].error, 'log indisponível')
+  assert.deepEqual(fixtures.escritas, [])
+  assert.equal(fixtures.estados[0].status, 'tratado')
+  assert.equal(fixtures.estados[0].claimToken, undefined)
+})
+
+test('false e throw da AC transformam a intenção do 332 em recusado', async (t) => {
+  const compra = new Date('2026-08-20T00:00:00.000Z')
+  const fixtures = instalarFixturesSync(
+    [
+      alunoAc({ userId: 'false', email: 'false@example.com', expirationDate: new Date('2026-08-31T23:59:59.999Z') }),
+      alunoAc({ userId: 'throw', email: 'throw@example.com', expirationDate: new Date('2026-08-31T23:59:59.999Z') })
+    ],
+    [alunoHotmart(compra, { userId: 'false' }), alunoHotmart(compra, { userId: 'throw' })],
+    [oferta()],
+    {
+      estados: [
+        estadoTratado('false', '2025-08-20T00:00:00.000Z'),
+        estadoTratado('throw', '2025-08-20T00:00:00.000Z')
+      ],
+      respostasAc: [false, new Error('AC indisponível')]
+    }
+  )
+  t.after(fixtures.restaurar)
+
+  await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.deepEqual(fixtures.logs.map((log) => [log.email, log.accao, log.motivo]), [
+    ['false@example.com', 'recusado', 'falhaExterna'],
+    ['throw@example.com', 'recusado', 'falhaExterna']
+  ])
 })
