@@ -44,6 +44,24 @@ export interface TimelineSyncReport {
   errors: Array<{ email: string; error: string }>
 }
 
+/**
+ * Mantém a âncora do evento cuja divergência já foi classificada. Tanto
+ * `legado` como `a-menos` descrevem o mesmo evento histórico; só diferem na
+ * direcção do desvio. Perder a âncora faria a geração seguinte voltar a
+ * chamar-lhe uma divergência nova.
+ */
+export function ancoraDoEventoLegado(timelineAnterior: any): Date | null {
+  const veredicto = timelineAnterior?.cadeia?.expiracaoIgualTurma
+  if (veredicto !== 'legado' && veredicto !== 'a-menos') return null
+
+  const ciclos = timelineAnterior?.ciclos ?? []
+  const valor = ciclos[ciclos.length - 1]?.compras?.[0]?.data
+  if (!valor) return null
+
+  const data = valor instanceof Date ? valor : new Date(valor)
+  return Number.isNaN(data.getTime()) ? null : data
+}
+
 /** Traduz documentos da BD para o input puro do gerador. */
 export function montarEntrada(
   d: DadosAluno,
@@ -177,11 +195,7 @@ export async function gerarTimelinesEmLote(
       const tag = porEmailTags.get(email)
       const ac = porEmailAc.get(email)
       const timelineAnterior = timelineAnteriorPorUser.get(String(user._id)) as any
-      const ultimoCicloAnterior = timelineAnterior?.ciclos?.[timelineAnterior.ciclos.length - 1]
-      const legadoExpiracaoAncora =
-        timelineAnterior?.cadeia?.expiracaoIgualTurma === 'legado'
-          ? ultimoCicloAnterior?.compras?.[0]?.data ?? null
-          : null
+      const legadoExpiracaoAncora = ancoraDoEventoLegado(timelineAnterior)
       const entrada = montarEntrada(
         {
           userId: String(user._id),

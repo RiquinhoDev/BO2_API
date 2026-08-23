@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { montarEntrada, type DadosAluno } from '../renewalTimeline.service'
+import { ancoraDoEventoLegado, montarEntrada, type DadosAluno } from '../renewalTimeline.service'
 
 const dados = (p: Partial<DadosAluno>): DadosAluno => ({
   userId: 'u1',
@@ -83,4 +83,14 @@ test('montarEntrada conserva a ancora do evento legado anterior', () => {
   const anchor = new Date('2025-08-12T00:00:00Z')
   const e = montarEntrada(dados({}), new Map(), anchor)
   assert.equal(e.legadoExpiracaoAncora?.toISOString(), anchor.toISOString())
+})
+
+test('a-menos conserva a mesma ancora historica nas geracoes seguintes', () => {
+  const anchor = new Date('2025-08-12T00:00:00Z')
+  const timelineAnterior = {
+    cadeia: { expiracaoIgualTurma: 'a-menos' },
+    ciclos: [{ compras: [{ data: anchor }] }]
+  }
+
+  assert.equal(ancoraDoEventoLegado(timelineAnterior)?.toISOString(), anchor.toISOString())
 })
