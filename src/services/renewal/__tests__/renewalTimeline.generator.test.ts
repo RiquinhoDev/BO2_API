@@ -321,6 +321,120 @@ test('expiracao divergente da turma marca a cadeia', () => {
   assert.equal(t.cadeia.expiracaoIgualTurma, 'divergente')
 })
 
+test('turma base continua a usar o fim derivado do nome da turma', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-07-10T00:00:00Z'), transaction: 'A' })],
+      turmaAtual: { classId: 'c', className: 'Turma 15 | 2509', entrouEm: null },
+      acExpiracao: new Date('2026-09-30T00:00:00Z')
+    })
+  )
+
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'ok')
+  assert.equal(t.cadeia.comparacoes.expiracao.esperado?.toISOString(), '2026-09-30T23:59:59.999Z')
+})
+
+test('turma de renovacao anual usa a primeira compra do ultimo ciclo', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-08-12T00:00:00Z'), transaction: 'A' })],
+      turmaAtual: { classId: 'c', className: 'Turma 11 [renov] | 2509', entrouEm: null },
+      acExpiracao: new Date('2026-08-31T00:00:00Z')
+    })
+  )
+
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'ok')
+  assert.equal(t.cadeia.comparacoes.expiracao.esperado?.toISOString(), '2026-08-31T23:59:59.999Z')
+})
+
+test('turma de renovacao de dois anos preserva os dois anos do ciclo', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2025-05-03T00:00:00Z'), priceValue: 167, transaction: 'A' }),
+        venda({
+          approvedDate: new Date('2025-05-03T00:10:00Z'),
+          hotmartProductId: '3100292',
+          priceValue: 97,
+          transaction: 'B'
+        })
+      ],
+      turmaAtual: {
+        classId: 'c',
+        className: 'Turma 11 [renov] + [2 anos] | 2509',
+        entrouEm: null
+      },
+      acExpiracao: new Date('2027-05-31T00:00:00Z')
+    })
+  )
+
+  assert.equal(t.ciclos[0].anos, 2)
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'ok')
+  assert.equal(t.cadeia.comparacoes.expiracao.esperado?.toISOString(), '2027-05-31T23:59:59.999Z')
+})
+
+test('prestacoes usam a primeira cobranca como ancora da expiracao', () => {
+  const vendas = ['2025-12-04', '2026-01-04', '2026-02-04'].map((data, indice) =>
+    venda({
+      approvedDate: new Date(`${data}T00:00:00Z`),
+      offerCode: 'plano-99',
+      paymentMode: 'MULTIPLE_PAYMENTS',
+      priceValue: 99,
+      transaction: `P${indice}`
+    })
+  )
+  const t = gerarTimeline(
+    entrada({
+      vendas,
+      turmaAtual: { classId: 'c', className: 'Turma Renovação | 2605', entrouEm: null },
+      acExpiracao: new Date('2026-12-31T00:00:00Z')
+    })
+  )
+
+  assert.equal(t.ciclos.length, 1)
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'ok')
+  assert.equal(t.cadeia.comparacoes.expiracao.esperado?.toISOString(), '2026-12-31T23:59:59.999Z')
+})
+
+test('mismatch de renovacao anterior a fotografia da AC e legado', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-08-12T00:00:00Z'), transaction: 'A' })],
+      turmaAtual: { classId: 'c', className: 'Turma 11 [renov] | 2509', entrouEm: null },
+      acExpiracao: new Date('2026-09-30T00:00:00Z'),
+      fontes: { vendas: AGORA, tags: AGORA, ac: new Date('2026-08-01T00:00:00Z') }
+    })
+  )
+
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'legado')
+})
+
+test('venda de renovacao posterior a fotografia da AC e divergente', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2026-08-20T00:00:00Z'), transaction: 'A' })],
+      turmaAtual: { classId: 'c', className: 'Turma 11 [renov] | 2609', entrouEm: null },
+      acExpiracao: new Date('2027-09-30T00:00:00Z'),
+      fontes: { vendas: AGORA, tags: AGORA, ac: new Date('2026-08-01T00:00:00Z') }
+    })
+  )
+
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'divergente')
+})
+
+test('mismatch de renovacao sem fotografia da AC nao presume legado', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-08-12T00:00:00Z'), transaction: 'A' })],
+      turmaAtual: { classId: 'c', className: 'Turma 11 [renov] | 2509', entrouEm: null },
+      acExpiracao: new Date('2026-09-30T00:00:00Z'),
+      fontes: { vendas: AGORA, tags: AGORA, ac: null }
+    })
+  )
+
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'divergente')
+})
+
 test('venda posterior a sync de tags levanta a bandeira de desactualizado', () => {
   const t = gerarTimeline(
     entrada({

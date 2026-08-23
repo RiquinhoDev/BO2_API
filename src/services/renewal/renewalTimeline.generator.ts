@@ -25,7 +25,7 @@
 
 import { agruparCiclos, indiceDePeriodo } from './renewalCycles'
 import { resolverTagDaTurma, normalizarNomeTurma } from './turmaTagResolver'
-import { parseTurmaName } from './turmaParser'
+import { parseTurmaName, tipoDeTurma } from './turmaParser'
 import type {
   VendaEntrada,
   TagEntrada,
@@ -460,8 +460,20 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
 
   let expiracaoIgualTurma: Veredicto = 'sem-dados'
   const fimDaTurma = e.turmaAtual ? parseTurmaName(e.turmaAtual.className).accessEndOgi : null
-  if (e.acExpiracao && fimDaTurma) {
-    expiracaoIgualTurma = mesmoMes(e.acExpiracao, fimDaTurma) ? 'ok' : 'divergente'
+  const turmaRenovacao = e.turmaAtual ? tipoDeTurma(e.turmaAtual.className) === 'renovacao' : false
+  const fimEsperado = turmaRenovacao ? ultimo?.acessoAte ?? null : fimDaTurma
+  if (e.acExpiracao && fimEsperado) {
+    if (mesmoMes(e.acExpiracao, fimEsperado)) {
+      expiracaoIgualTurma = 'ok'
+    } else {
+      const vendaJaVistaNaAc = !!(
+        turmaRenovacao &&
+        compraDoCiclo &&
+        e.fontes.ac &&
+        compraDoCiclo.getTime() <= e.fontes.ac.getTime()
+      )
+      expiracaoIgualTurma = vendaJaVistaNaAc ? 'legado' : 'divergente'
+    }
   }
 
   // Basta o aluno ter a tag — não interessa a que coorte ela ficou
@@ -513,7 +525,7 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
     tagsDesatualizadas,
     comparacoes: {
       acCompra: { esperado: compraDoCiclo, encontrado: e.acDataCompra },
-      expiracao: { esperado: fimDaTurma, encontrado: e.acExpiracao },
+      expiracao: { esperado: fimEsperado, encontrado: e.acExpiracao },
       tag: { esperado: ultimo?.tagEsperada ?? null, encontrado: tagEncontrada },
       ciclosComTurma: {
         esperado: ciclos.length,
