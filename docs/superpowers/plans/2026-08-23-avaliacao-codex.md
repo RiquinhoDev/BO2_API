@@ -102,7 +102,13 @@ Fora desta lista:
 ### A cadeia de tags responde a uma pergunta mais estreita do que o rótulo
 
 `tagIgualTurma` fica `ok` quando a tag esperada existe, mesmo que sobrem tags
-de percurso. Nos 933 `UserProduct` OGI activos, 911 tinham timeline:
+de percurso. O universo desta tabela é `UserProduct` da plataforma Hotmart,
+produto OGI e `status: ACTIVE`. Não apliquei filtro em
+`User.combined.status`: são 933 inscrições activas, das quais 911 resolvem
+para uma timeline. É por isso que a medição inclui as contas sem
+`combined.status` que um filtro apenas por `ACTIVE` esconderia.
+
+Nas 911 timelines:
 
 - 886 tinham `Tag = turma` como `ok`;
 - 168 desses tinham também pelo menos uma tag duplicada;
@@ -120,11 +126,14 @@ com extras”. Caso contrário há nove falsos “está tudo bem” no resumo.
 - Dos 791 `Expiração` classificados `ok`, zero estava fora do último dia civil
   do mês esperado. A diferença entre `00:00` e `23:59:59.999` é representação
   do campo de data, não um dia de acesso diferente.
-- O elo 334 compara o dia da compra âncora, não a última prestação. O dry-run
-  da reconciliação verificou 911 activos: 888 certos, 23 sem dados, zero
-  divergentes no momento da medição. Os sem dados aparecem como tal.
-- As 100 divergências históricas do ramo renovação passaram a `legado`; isso
-  corrige um falso alarme, não esconde um erro novo.
+- O elo 334 compara o dia da compra âncora, não a última prestação. No `HEAD`,
+  o dry-run verificou 911 activos: 887 certos, 23 sem dados e uma alteração
+  proposta, `paulo_rodrigues_08@hotmail.com`, de 02/12/2024 para 25/11/2024.
+  Não foi executada.
+- O elo da expiração ficou com 791 `ok`, 64 `legado`, 34 `a-menos`, 4
+  `divergente` e 18 `sem-dados`. Os 98 desvios do mesmo evento antigo eram
+  duas coisas opostas: nos 64 a AC dá mais acesso e continuam `legado`; nos
+  34 a regra dá mais do que a AC e passam a `a-menos`, uma lista de trabalho.
 
 Não encontrei outro “ok” demonstravelmente falso na cadeia actual. Não medi
 o conteúdo visual fora do painel de renovação.
@@ -148,6 +157,11 @@ associações da turma actual fora da janela, preservadas por regra explícita.
 Nas tags, os 270 distribuem-se por `-2: 1`, `-1: 64`, `+1: 134`, `+2: 53`,
 `+3: 14`, `+4: 4`.
 
+Uma simulação pura com 12 coortes e 12 tags mensais torna a ambiguidade
+inequívoca: a janela actual aceita 71 pares onde só 12 são exactos; todas as
+12 coortes têm mais de um candidato, há 59 alternativas erradas e 63.424
+emparelhamentos perfeitos admissíveis.
+
 Isto não quer dizer que 270 associações actuais estejam erradas: mede quanto
 do legado depende da tolerância. Quer dizer que manter a mesma janela em 2027
 pode roubar a tag ou a turma à coorte mensal vizinha, tornar uma tag correcta
@@ -156,11 +170,17 @@ duplicada/órfã e produzir um `Tag = turma` enganador.
 A saída segura é uma regra temporal, não uma troca global:
 
 - coortes anteriores a 2027 conservam a tolerância histórica;
-- coortes mensais usam correspondência exacta por `YYMM`, salvo excepção
-  explícita e auditada;
+- coortes a partir de `2701` usam tolerâncias `0/0`, correspondência exacta
+  por `YYMM`, salvo excepção explícita e auditada;
 - os ciclos `[2anos]` continuam intactos até a última extensão terminar em
   Setembro de 2027; o segundo ano continua a criar a sua própria coorte;
 - Turma 1 e Turma 2 nunca entram na linhagem genérica de renovação.
+
+`DIAS_MAX_ENTRE_PRESTACOES=90` não deve mudar só por existirem coortes
+mensais: agrupa cobranças do mesmo aluno/oferta/produto/valor, não coortes. Se
+passarem a existir ciclos autónomos mensais no mesmo SKU, o tempo deixa de
+distinguir ciclo de prestação e será necessário um identificador de plano ou
+transacção.
 
 ### A janela na turma genérica e o Discord
 
@@ -178,6 +198,132 @@ enquanto está na genérica, ou aceitar a remoção temporária. Como o cargo s�
 serve para avisar quem ainda não renovou, a decisão registada é aceitar a
 remoção temporária: quem já pagou não perde acesso nem uma comunicação
 necessária e recebe o novo cargo quando entrar na turma final.
+
+## 5. Validação final dos escritores e testes
+
+### Campo 332 — antes e depois de a turma decidir o ramo
+
+Ambos os comandos foram corridos com `dryRun: true`; nenhuma alteração foi
+enviada à ActiveCampaign.
+
+| Contador | Antes | Depois |
+|---|---:|---:|
+| `alreadyInSync` | 549 | 800 |
+| `semTurma` | 268 | 1 |
+| `skippedWouldShorten` | 62 | 73 |
+| `skippedNoHotmartData` | 15 | 17 |
+| `wouldWrite` | 0 | 0 |
+
+O resultado confirma a correcção estrutural: 251 alunos deixaram de ser
+recusados e passaram a já alinhados; só sobra a conta de equipa conhecida. A
+fotografia final teve +11 em `skippedWouldShorten` e +2 em
+`skippedNoHotmartData`, em vez dos +13 encurtamentos previstos na medição
+preparatória. Estes deltas são observados, mas o segundo não explica o
+primeiro: o ramo `semVenda` também conta `skippedWouldShorten` quando encurta.
+As datas que aumentariam aparecem na lista completa de divergentes, mas não
+em `wouldWrite`: a guarda “só por evento novo” impede que um evento antigo
+seja escrito. Isto é segurança do escritor, não autorização para contornar a
+guarda.
+
+### Campo 334
+
+O dry-run final verificou 911: 887 já certos, 23 sem dados, zero escritos e a
+única alteração proposta de `paulo_rodrigues_08@hotmail.com` já descrita
+acima. Não foi executada.
+
+### Testes reproduzíveis
+
+```powershell
+npx tsx --test "src/services/renewal/__tests__/*.test.ts"
+# 197 testes
+
+npx tsx --test "src/services/renewal/__tests__/*.test.ts" `
+  "src/models/renewal/__tests__/*.test.ts" `
+  "tests/jobs/cron-job-change-plans.test.ts"
+# 203 testes
+```
+
+O total 197 corrigido no handoff estava certo antes destas alterações. A1 e
+A2 acrescentaram seis testes; por isso, no `HEAD` final, o comando alargado
+passa a 203 e o comando só dos serviços passa de 191 para 197.
+
+Os ficheiros `tests/load/load.test.ts` e
+`tests/sprint1/architecture.test.ts` não pertencem a esta suite nem foram
+executados; convém decidir separadamente se ainda são testes suportados.
+
+## 6. As seis contas sem `combined.status`
+
+| Email | Turma actual | Compra AC | Expiração AC |
+|---|---|---:|---:|
+| `emergesense@gmail.com` | — | — | — |
+| `ruifilipeteixeiragamer@gmail.com` | — | — | — |
+| `cmbcosta@gmail.com` | Turma 19 \| 2610 | 09/07/2026 | 31/07/2027 |
+| `aurelio.cavaleiro@gmail.com` | Turma 19 \| 2610 | 03/08/2026 | 31/08/2027 |
+| `asdrubal.sff@gmail.com` | Turma 19 \| 2610 | 20/08/2026 | 30/06/2027 |
+| `gabriel_figueiredo1999@hotmail.com` | Turma 19 \| 2610 | 22/08/2026 | 30/06/2027 |
+
+O `HotmartSync` chama o Universal Sync. Um utilizador novo recebe `ACTIVE` por
+defeito, mas um utilizador existente com estado nulo não é normalizado: o
+serviço só escreve `ACTIVE` numa reactivação ou quando o estado actual já é
+`INACTIVE` e há compra válida. `null` não satisfaz essa condição.
+
+O escritor 332 parte de todos os `ACRenewalData` e consulta `User` em bloco
+apenas para obter `hotmart.enrolledClasses`; não selecciona nem filtra
+`combined.status`. Portanto não ignora estas seis contas quando existe
+espelho AC. As quatro com Turma 19 são precisamente as quatro divergências
+reais do elo da expiração. Esta tarefa não alterou qualquer estado.
+
+## 7. Renovações sem compra no espelho
+
+No universo operacional de 911 utilizadores OGI activos resolvidos, há três
+casos materiais — dois além da Silvia:
+
+| Email | Evidência de renovação | Última venda no espelho | Expiração AC |
+|---|---|---|---:|
+| `silviabelbute@gmail.com` | Turma/tag 2509 | 23/01/2025, última de 5 prestações iniciadas em 23/09/2024 | 30/09/2026 |
+| `ruir41@gmail.com` | Turma/tag 2509 | nenhuma | 30/09/2026 |
+| `marianapenasimoes@gmail.com` | tag 2507; turma `Equipa` | nenhuma | 31/07/2026 |
+
+A Mariana tem `UserProduct` OGI `ACTIVE`, origem `PURCHASE`, mas o nome e a
+turma `Equipa` exigem validação humana. `santosnascimentogca@gmail.com` foi
+excluído por ser a conta de equipa já conhecida.
+
+Há ainda um caso comprado noutro email: `simaopedrooliveira@sapo.pt` não tem
+venda, mas o nome exacto coincide com `simaopedroliveira@gmail.com`, onde as
+compras de 22/05/2025 e 27/05/2024 sustentam o ciclo de dois anos. Não entra
+nos três. A confirmação directa na API Hotmart ficou fora desta medição; a
+conclusão usa os espelhos locais e `UserProduct`.
+
+## 8. Reembolsos no painel
+
+Há uma correcção factual à avaliação inicial: o painel já carrega o histórico
+Hotmart bruto e mostra `REFUNDED`/`CHARGEBACK` no separador Compras. O que não
+os mostra é a timeline/cadeia, porque `renewalCycles` só aceita `APPROVED` e
+`COMPLETE`, e `StudentRenewalTimeline` persiste apenas os ciclos resultantes.
+
+Incorporá-los na timeline tem custo baixo a moderado: novo campo de eventos
+não válidos nos tipos/modelo/gerador e upsert, representação no Front e
+regeneração. Não exige nova chamada à Hotmart. Uma alternativa mínima é só
+destacá-los melhor no separador Compras que já existe.
+
+Os 11 `UserProduct` OGI activos cujo histórico tem zero pago e apenas valores
+devolvidos são:
+
+| Email | Pago | Devolvido | Turma actual |
+|---|---:|---:|---|
+| `afonso.mlurdes.73@gmail.com` | 0€ | 447€ | Turma 15 \| 2509 |
+| `dpcosta.11@gmail.com` | 0€ | 397€ | Turma 18 \| 2605 |
+| `inunorodrigues@icloud.com` | 0€ | 90€ | Turma 15 \| 2509 |
+| `miguelfilipe2132@gmail.com` | 0€ | 397€ | Turma 15 \| 2509 |
+| `mlurdesrodriguesafonso@gmail.com` | 0€ | 397€ | Turma 16 \| 2511 |
+| `nd_design10@hotmail.com` | 0€ | 180€ | Turma 18 \| 2605 |
+| `rfndsantos@gmail.com` | 0€ | 3,97€ | Turma 18 \| 2605 |
+| `ruimiguelpoliveira@gmail.com` | 0€ | 447€ | Turma 18 \| 2605 |
+| `ruir41@gmail.com` | 0€ | 196€ | Turma 11 [renov] + REITs \| 2509 |
+| `savelha@gmail.com` | 0€ | 99€ | Turma 16 \| 2511 |
+| `sonia.c.carvalho@gmail.com` | 0€ | 197€ | Turma 3 \| 2211 |
+
+Esta lista é para decisão da chefia; não implica nem propõe inactivação.
 
 ## Condições antes de ligar
 
