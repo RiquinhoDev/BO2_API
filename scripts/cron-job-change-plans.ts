@@ -17,6 +17,20 @@ export type DisableTagRulesSyncPlan =
       after: JobRecord & { isActive: false }
     }
 
+export type RenameProductionJobPlan =
+  | {
+      action: 'rename'
+      before: JobRecord
+      after: JobRecord
+      filter: { _id: unknown; name: string }
+      update: { $set: { name: string } }
+    }
+  | {
+      action: 'already-renamed'
+      before: JobRecord
+      after: JobRecord
+    }
+
 export function planDisableTagRulesSync(records: JobRecord[]): DisableTagRulesSyncPlan {
   if (records.length !== 1) {
     throw new Error(`Estado inesperado: esperado exactamente um TAG_RULES_SYNC, encontrados ${records.length}.`)
@@ -38,4 +52,41 @@ export function planDisableTagRulesSync(records: JobRecord[]): DisableTagRulesSy
     filter: { _id: record._id, name: 'TAG_RULES_SYNC', isActive: true },
     update: { $set: { isActive: false } },
   }
+}
+
+export const productionJobRenames = [
+  { from: 'TEST_CURSEDUCA_4MIN', to: 'CursEducaSync' },
+  { from: '1º', to: 'HotmartSync' },
+] as const
+
+function exactlyOne(records: JobRecord[], name: string): JobRecord | undefined {
+  if (records.length > 1) {
+    throw new Error(`Estado inesperado: nome de job duplicado: ${name}.`)
+  }
+  return records[0]
+}
+
+export function planRenameProductionJobs(records: JobRecord[]): RenameProductionJobPlan[] {
+  return productionJobRenames.map(({ from, to }) => {
+    const source = exactlyOne(records.filter(record => record.name === from), from)
+    const destination = exactlyOne(records.filter(record => record.name === to), to)
+
+    if (source && destination) {
+      throw new Error(`Estado inesperado: colisão entre ${from} e ${to}; nada será alterado.`)
+    }
+    if (destination) {
+      return { action: 'already-renamed', before: destination, after: destination }
+    }
+    if (!source) {
+      throw new Error(`Estado inesperado: job ${from} não encontrado e destino ${to} também não encontrado.`)
+    }
+
+    return {
+      action: 'rename',
+      before: source,
+      after: { ...source, name: to },
+      filter: { _id: source._id, name: from },
+      update: { $set: { name: to } },
+    }
+  })
 }

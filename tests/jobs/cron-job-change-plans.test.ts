@@ -1,4 +1,4 @@
-import { planDisableTagRulesSync } from '../../scripts/cron-job-change-plans'
+import { planDisableTagRulesSync, planRenameProductionJobs } from '../../scripts/cron-job-change-plans'
 
 describe('cron job change plans', () => {
   it('plans only the isActive change for TAG_RULES_SYNC and is idempotent once disabled', () => {
@@ -29,5 +29,53 @@ describe('cron job change plans', () => {
     expect(() => planDisableTagRulesSync([
       { _id: '1', name: 'TAG_RULES_SYNC', isActive: 'true' as unknown as boolean },
     ])).toThrow('isActive')
+  })
+
+  it('renames only the two requested production job names and is idempotent', () => {
+    const curseduca = {
+      _id: 'job-1', name: 'TEST_CURSEDUCA_4MIN', description: 'keep', syncType: 'curseduca',
+      schedule: { cronExpression: '*/4 * * * *', enabled: true },
+    }
+    const hotmart = {
+      _id: 'job-2', name: '1º', description: 'keep', syncType: 'hotmart',
+      schedule: { cronExpression: '0 4 * * *', enabled: false },
+    }
+
+    expect(planRenameProductionJobs([curseduca, hotmart])).toEqual([
+      {
+        action: 'rename',
+        before: curseduca,
+        after: { ...curseduca, name: 'CursEducaSync' },
+        filter: { _id: 'job-1', name: 'TEST_CURSEDUCA_4MIN' },
+        update: { $set: { name: 'CursEducaSync' } },
+      },
+      {
+        action: 'rename',
+        before: hotmart,
+        after: { ...hotmart, name: 'HotmartSync' },
+        filter: { _id: 'job-2', name: '1º' },
+        update: { $set: { name: 'HotmartSync' } },
+      },
+    ])
+
+    expect(planRenameProductionJobs([
+      { ...curseduca, name: 'CursEducaSync' },
+      { ...hotmart, name: 'HotmartSync' },
+    ])).toEqual([
+      { action: 'already-renamed', before: { ...curseduca, name: 'CursEducaSync' }, after: { ...curseduca, name: 'CursEducaSync' } },
+      { action: 'already-renamed', before: { ...hotmart, name: 'HotmartSync' }, after: { ...hotmart, name: 'HotmartSync' } },
+    ])
+  })
+
+  it('rejects rename collisions and a state where neither name exists', () => {
+    expect(() => planRenameProductionJobs([
+      { _id: 'old', name: 'TEST_CURSEDUCA_4MIN' },
+      { _id: 'new', name: 'CursEducaSync' },
+    ])).toThrow('colisão')
+    expect(() => planRenameProductionJobs([])).toThrow('não encontrado')
+    expect(() => planRenameProductionJobs([
+      { _id: 'a', name: '1º' },
+      { _id: 'b', name: '1º' },
+    ])).toThrow('duplicado')
   })
 })
