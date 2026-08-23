@@ -383,6 +383,77 @@ test('syncAcExpirationDates trata vendas apenas reembolsadas como reembolso Hotm
   assert.equal(fixtures.escritas.length, 0)
 })
 
+test('reembolso sinalizado pela AC deixa uma recusa exacta e idempotente sem chamar a AC', async (t) => {
+  const fixtures = instalarFixturesSync(
+    [alunoAc({
+      expirationDate: new Date('2027-08-31T23:59:59.999Z'),
+      refundDate: new Date('2026-08-22T12:00:00.000Z')
+    })],
+    []
+  )
+  t.after(fixtures.restaurar)
+
+  await Promise.all([
+    acExpirationSync.syncAcExpirationDates({ dryRun: false }),
+    acExpirationSync.syncAcExpirationDates({ dryRun: false })
+  ])
+
+  assert.deepEqual(fixtures.escritas, [])
+  assert.equal(fixtures.logs.length, 1)
+  assert.deepEqual(
+    (({ _id, quando, idempotencyKey, ...log }) => log)(fixtures.logs[0]),
+    {
+      servico: 'expiracao', email: 'aluno@example.com', campo: 332,
+      antes: '2027-08-31', depois: null, accao: 'recusado',
+      motivo: 'reembolsado', dryRun: false
+    }
+  )
+})
+
+test('refund e chargeback sinalizados pela Hotmart deixam uma recusa por evento em dry-run', async (t) => {
+  const compra = new Date('2026-08-20T00:00:00.000Z')
+  const fixtures = instalarFixturesSync(
+    [
+      alunoAc({ userId: 'refund', email: 'refund@example.com' }),
+      alunoAc({ userId: 'chargeback', email: 'chargeback@example.com', expirationDate: new Date('2027-08-31T23:59:59.999Z') })
+    ],
+    [
+      alunoHotmart(compra, {
+        userId: 'refund',
+        latestTransactionStatus: 'REFUNDED',
+        sales: [venda({ approvedDate: compra, transaction: 'REFUND-1', transactionStatus: 'REFUNDED' })]
+      }),
+      alunoHotmart(compra, {
+        userId: 'chargeback',
+        latestTransactionStatus: 'CHARGEBACK',
+        sales: [venda({ approvedDate: compra, transaction: 'CHARGEBACK-1', transactionStatus: 'CHARGEBACK' })]
+      })
+    ]
+  )
+  t.after(fixtures.restaurar)
+
+  await Promise.all([
+    acExpirationSync.syncAcExpirationDates(),
+    acExpirationSync.syncAcExpirationDates()
+  ])
+
+  assert.deepEqual(fixtures.escritas, [])
+  assert.equal(fixtures.logs.length, 2)
+  assert.deepEqual(
+    fixtures.logs.map(({ _id, quando, idempotencyKey, ...log }) => log),
+    [
+      {
+        servico: 'expiracao', email: 'refund@example.com', campo: 332,
+        antes: null, depois: null, accao: 'recusado', motivo: 'reembolsado', dryRun: true
+      },
+      {
+        servico: 'expiracao', email: 'chargeback@example.com', campo: 332,
+        antes: '2027-08-31', depois: null, accao: 'recusado', motivo: 'reembolsado', dryRun: true
+      }
+    ]
+  )
+})
+
 test('syncAcExpirationDates reporta encurtaria mas não avança sem latestApprovedDate', async (t) => {
   const compra = new Date('2025-05-15T00:00:00Z')
   const fixtures = instalarFixturesSync(

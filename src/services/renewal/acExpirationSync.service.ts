@@ -499,12 +499,52 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
   for (const ac of acEntries) {
     try {
       if (ac.refundDate || ac.purchaseStatus === 'Reembolsada') {
+        const antes = ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null
+        const eventoReembolsoAc = ac.refundDate
+          ? ac.refundDate.toISOString()
+          : `estado:${ac.purchaseStatus}:${new Date(ac.lastSyncedAt).toISOString()}`
+        await criarRasto(
+          ac.email,
+          antes,
+          null,
+          'recusado',
+          'reembolsado',
+          chaveIdempotente([
+            'expiracao', String(ac.userId), 'reembolso-ac', eventoReembolsoAc, 'reembolsado', dryRun
+          ]),
+          true
+        )
         report.skippedRefunded += 1
         continue
       }
 
       const hm = hotmartByUserId.get(String(ac.userId))
       if (hm?.latestTransactionStatus && REFUND_TRANSACTION_STATUSES.has(hm.latestTransactionStatus)) {
+        const antes = ac.expirationDate ? formatDateYYYYMMDD(ac.expirationDate) : null
+        const vendaReembolsada = [...(hm.sales ?? [])]
+          .filter((venda) => venda.transactionStatus === hm.latestTransactionStatus)
+          .sort((a, b) => {
+            const dataA = a.orderDate ?? a.approvedDate
+            const dataB = b.orderDate ?? b.approvedDate
+            return (dataA?.getTime() ?? 0) - (dataB?.getTime() ?? 0)
+          })
+          .at(-1)
+        const eventoReembolsoHotmart = chaveIdempotente([
+          hm.latestTransactionStatus,
+          vendaReembolsada?.transaction ?? null,
+          (vendaReembolsada?.orderDate ?? vendaReembolsada?.approvedDate ?? hm.latestApprovedDate)?.toISOString() ?? null
+        ])
+        await criarRasto(
+          ac.email,
+          antes,
+          null,
+          'recusado',
+          'reembolsado',
+          chaveIdempotente([
+            'expiracao', String(ac.userId), 'reembolso-hotmart', eventoReembolsoHotmart, 'reembolsado', dryRun
+          ]),
+          true
+        )
         report.skippedRefunded += 1
         continue
       }
