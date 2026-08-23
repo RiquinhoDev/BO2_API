@@ -111,6 +111,32 @@ Origens na BD: `Turma 1 | 2112` e `Turma 2 | 2204`. A `Turma antigos alunos |
 - **Commit sim, push não.** O push é do João.
 - Comentários e nomes em **português**.
 
+## Como os interruptores estão ligados hoje
+
+Verificado a 23/08 por leitura de código. Há **dois** caminhos até ao escritor
+da expiração, e são diferentes:
+
+```
+scheduler.ts:1080          syncAcExpirationDates()               sem args
+                           -> dryRun = true por omissão -> NUNCA escreve
+                           (o job AcExpirationSync está enabled: false)
+
+renewalPipeline.ts:106     syncAcExpirationDates({ dryRun: false })
+                           -> escreve a sério, mas dentro de runGatedStep,
+                              que verifica isJobSwitchEnabled('AcExpirationSync')
+                           (esse job está off, e o RenewalPipeline também)
+```
+
+Os dois interruptores vivem na **base de dados** (`cronjobconfigs`), não no
+código. Um deploy não os muda. O arranque do `index.ts` só cria automaticamente
+`ClarezaRefresh` e `GuruTrialCheck`, ambos com `if (!existe)` e ambos já
+presentes — não cria nem activa mais nada.
+
+**Nota para quem ligar isto um dia:** activar só o job `AcExpirationSync`
+não escreve nada, porque o `scheduler.ts` chama a função sem `dryRun: false`.
+É preciso o `RenewalPipeline`. Se isso for indesejado, é um bug a corrigir —
+alguém vai ligar o interruptor, ver zero escritas e não perceber porquê.
+
 ## Ambiente
 
 ```bash
@@ -565,9 +591,13 @@ fluxo novo arrancar.
       dar período ao nome da genérica (`Turma Renovação Genérica | YYMM`);
       fazer o sync ignorar quem está na genérica em vez de o tratar como
       inelegível; ou aceitar que o cargo pisca durante uns dias.
-- [ ] Dizer para que serve o cargo `R.*` — se é só para as menções dos dias 8
-      e 15, a terceira saída não custa nada a ninguém. Se algum acesso depende
-      dele, custa. **Esta é a informação que falta para decidir.**
+**RESPONDIDO pelo João a 23/08: o cargo `R.*` serve SÓ para os avisos.**
+Não há acesso nenhum dependente dele, e ficar sem ele durante semanas ou meses
+não tem consequência — é o que já acontece hoje.
+
+**Logo a saída é a terceira: deixar o cargo piscar durante a espera.** Não
+mudar nada no Discord por causa disto. A medição continua a valer para o
+relatório, mas deixa de ser um bloqueio.
 
 Sem commit de código. Entra no documento da Tarefa 10.
 
