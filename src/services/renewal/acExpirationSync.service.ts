@@ -224,7 +224,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       }
     : {}
   const acEntries = await ACRenewalDataReadModel.find(filtroAc)
-    .select('userId email contactId expirationDate refundDate purchaseStatus lastSyncedAt')
+    .select('userId email contactId expirationDate refundDate purchaseStatus lastSyncedAt syncError')
     .lean()
     .exec() as Array<{
       userId: mongoose.Types.ObjectId
@@ -234,6 +234,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
       refundDate: Date | null
       purchaseStatus: string | null
       lastSyncedAt: Date
+      syncError: string | null
     }>
 
   const userIds = acEntries.map((e) => e.userId)
@@ -568,7 +569,7 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
           : null) ??
         identidadeDaVenda(ciclo)
       const eventIdentity = identidadeDoEvento(ciclo, saleIdentity)
-      const expiracaoVazia = !ac.expirationDate
+      const expiracaoVazia = !ac.expirationDate && ac.syncError === null
       const emptyExpirationSnapshotAt = expiracaoVazia ? new Date(ac.lastSyncedAt) : null
       const episodioVazioNovo = Boolean(
         emptyExpirationSnapshotAt &&

@@ -33,6 +33,19 @@ const query = <T>(entries: T[]) => ({
   })
 })
 
+const queryComSelecao = <T extends Record<string, unknown>>(entries: T[]) => ({
+  select: (campos: string) => {
+    const seleccionados = new Set(campos.split(/\s+/).filter(Boolean))
+    return {
+      lean: () => ({
+        exec: async () => entries.map((entrada) => Object.fromEntries(
+          Object.entries(entrada).filter(([campo]) => seleccionados.has(campo))
+        ))
+      })
+    }
+  }
+})
+
 const mutationQuery = <T>(executar: () => Promise<T>) => ({
   lean: () => ({ exec: executar })
 })
@@ -95,7 +108,7 @@ function instalarFixturesSync(
 
   ;(ACRenewalData as any).find = (filtro: Record<string, unknown> = {}) => {
     filtrosAc.push(filtro)
-    return query(acEntries.filter((entrada) =>
+    return queryComSelecao(acEntries.filter((entrada) =>
       (!filtro.email || entrada.email === filtro.email) &&
       (!filtro.userId || String(entrada.userId) === String(filtro.userId))
     ))
@@ -230,6 +243,7 @@ const alunoAc = (partial: Record<string, unknown> = {}) => ({
   refundDate: null,
   purchaseStatus: null,
   lastSyncedAt: new Date('2026-08-23T10:00:00.000Z'),
+  syncError: null,
   ...partial
 })
 
@@ -594,6 +608,44 @@ test('uma fotografia AC vazia posterior abre um novo episódio observável', asy
 
   assert.equal(fixtures.escritas.length, 2)
   assert.equal(fixtures.estados[0].emptyExpirationSnapshotAt.toISOString(), '2026-08-23T14:00:00.000Z')
+})
+
+test('syncError não abre episódio vazio nem consome a recuperação da leitura seguinte', async (t) => {
+  const compra = new Date('2026-07-15T00:00:00Z')
+  const fotografiaTratada = new Date('2026-08-23T13:00:00Z')
+  const fotografiaComErro = new Date('2026-08-23T14:00:00Z')
+  const fotografiaRecuperada = new Date('2026-08-23T15:00:00Z')
+  const acEntries = [alunoAc({
+    expirationDate: null,
+    lastSyncedAt: fotografiaComErro,
+    syncError: 'falha ao ler a ActiveCampaign'
+  })]
+  const fixtures = instalarFixturesSync(
+    acEntries,
+    [alunoHotmart(compra)],
+    [oferta()],
+    {
+      estados: [{
+        ...estadoTratado('aluno-1', compra.toISOString(), 1, 'transaction:TX-1'),
+        emptyExpirationSnapshotAt: fotografiaTratada
+      }]
+    }
+  )
+  t.after(fixtures.restaurar)
+
+  const reportErro = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(reportErro.written, 0)
+  assert.deepEqual(fixtures.escritas, [])
+  assert.equal(fixtures.estados[0].emptyExpirationSnapshotAt.toISOString(), fotografiaTratada.toISOString())
+
+  acEntries[0].lastSyncedAt = fotografiaRecuperada
+  acEntries[0].syncError = null
+  const reportRecuperado = await acExpirationSync.syncAcExpirationDates({ dryRun: false })
+
+  assert.equal(reportRecuperado.written, 1)
+  assert.deepEqual(fixtures.escritas, [['aluno@example.com', 332, '2027-07-31']])
+  assert.equal(fixtures.estados[0].emptyExpirationSnapshotAt.toISOString(), fotografiaRecuperada.toISOString())
 })
 
 test('confirmação externa pendente não reabre com uma fotografia AC vazia posterior', async (t) => {
