@@ -1,10 +1,12 @@
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
 import { planDisableTagRulesSync, planRenameProductionJobs } from '../../scripts/cron-job-change-plans'
 
 describe('cron job change plans', () => {
   it('plans only the isActive change for TAG_RULES_SYNC and is idempotent once disabled', () => {
     const active = { _id: 'legacy-1', name: 'TAG_RULES_SYNC', isActive: true, cronExpression: '0 2 * * *' }
 
-    expect(planDisableTagRulesSync([active])).toEqual({
+    assert.deepStrictEqual(planDisableTagRulesSync([active]), {
       action: 'disable',
       before: active,
       after: { ...active, isActive: false },
@@ -13,7 +15,7 @@ describe('cron job change plans', () => {
     })
 
     const disabled = { ...active, isActive: false }
-    expect(planDisableTagRulesSync([disabled])).toEqual({
+    assert.deepStrictEqual(planDisableTagRulesSync([disabled]), {
       action: 'already-disabled',
       before: disabled,
       after: disabled,
@@ -21,14 +23,14 @@ describe('cron job change plans', () => {
   })
 
   it('rejects a missing, duplicated, or malformed TAG_RULES_SYNC state', () => {
-    expect(() => planDisableTagRulesSync([])).toThrow('exactamente um')
-    expect(() => planDisableTagRulesSync([
+    assert.throws(() => planDisableTagRulesSync([]), /exactamente um/)
+    assert.throws(() => planDisableTagRulesSync([
       { _id: '1', name: 'TAG_RULES_SYNC', isActive: true },
       { _id: '2', name: 'TAG_RULES_SYNC', isActive: true },
-    ])).toThrow('exactamente um')
-    expect(() => planDisableTagRulesSync([
+    ]), /exactamente um/)
+    assert.throws(() => planDisableTagRulesSync([
       { _id: '1', name: 'TAG_RULES_SYNC', isActive: 'true' as unknown as boolean },
-    ])).toThrow('isActive')
+    ]), /isActive/)
   })
 
   it('renames only the two requested production job names and is idempotent', () => {
@@ -41,7 +43,7 @@ describe('cron job change plans', () => {
       schedule: { cronExpression: '0 4 * * *', enabled: false },
     }
 
-    expect(planRenameProductionJobs([curseduca, hotmart])).toEqual([
+    assert.deepStrictEqual(planRenameProductionJobs([curseduca, hotmart]), [
       {
         action: 'rename',
         before: curseduca,
@@ -58,24 +60,25 @@ describe('cron job change plans', () => {
       },
     ])
 
-    expect(planRenameProductionJobs([
+    assert.deepStrictEqual(planRenameProductionJobs([
       { ...curseduca, name: 'CursEducaSync' },
       { ...hotmart, name: 'HotmartSync' },
-    ])).toEqual([
+    ]), [
       { action: 'already-renamed', before: { ...curseduca, name: 'CursEducaSync' }, after: { ...curseduca, name: 'CursEducaSync' } },
       { action: 'already-renamed', before: { ...hotmart, name: 'HotmartSync' }, after: { ...hotmart, name: 'HotmartSync' } },
     ])
   })
 
   it('rejects rename collisions and a state where neither name exists', () => {
-    expect(() => planRenameProductionJobs([
+    assert.throws(() => planRenameProductionJobs([
       { _id: 'old', name: 'TEST_CURSEDUCA_4MIN' },
       { _id: 'new', name: 'CursEducaSync' },
-    ])).toThrow('colisão')
-    expect(() => planRenameProductionJobs([])).toThrow('não encontrado')
-    expect(() => planRenameProductionJobs([
+    ]), /colisão/)
+    assert.throws(() => planRenameProductionJobs([]), /não encontrado/)
+    assert.throws(() => planRenameProductionJobs([
+      { _id: 'c', name: 'CursEducaSync' },
       { _id: 'a', name: '1º' },
       { _id: 'b', name: '1º' },
-    ])).toThrow('duplicado')
+    ]), /duplicado/)
   })
 })
