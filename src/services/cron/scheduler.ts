@@ -1156,7 +1156,7 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
         inserted: 0,
         updated: report.aplicadas,
         errors: report.erros.length,
-        skipped: report.jaTem + report.semMapeamento + report.semCompraValida + report.tagInexistente,
+        skipped: report.jaTem + report.semMapeamento + report.semCompraValida + report.tagInexistente + report.inactivos,
         errorMessage: report.erros.map((e) => `${e.email}: ${e.error}`).join(' | ') || undefined
       }
 

@@ -83,6 +83,30 @@ async function logRemocao(
 type HistoryDoc = { userId: any; productId?: any; email: string; sales?: any[] }
 type TimelineDoc = { userId: any; ciclos?: any[] }
 
+function temRecompraNoMesmoPeriodo(timeline: TimelineDoc | undefined, ciclo: any, refundDate: Date): boolean {
+  if (!ciclo) return false
+  const periodo = ciclo.periodo
+  const comprasValidas = (timeline?.ciclos ?? []).flatMap((item: any) =>
+    (item.compras ?? []).flatMap((compra: any) => {
+      if (compra.reembolsada === true) return []
+      const data = dataDaVenda({ approvedDate: compra.data, orderDate: compra.data })
+      return data ? [{ periodo: item.periodo, data }] : []
+    })
+  )
+  const recompraNoPeriodo = comprasValidas.some((compra: any) =>
+    compra.periodo === periodo && compra.data.getTime() >= refundDate.getTime()
+  )
+  if (!recompraNoPeriodo) return false
+
+  // Se já houve uma compra válida posterior noutro período, essa é a
+  // linhagem actual e a tag do período reembolsado continua a dever sair.
+  const compraMaisRecente = comprasValidas.reduce((maisRecente: any, compra: any) =>
+    !maisRecente || compra.data.getTime() > maisRecente.data.getTime() ? compra : maisRecente,
+    null
+  )
+  return compraMaisRecente?.periodo === periodo
+}
+
 /** Processa os eventos que já estão no espelho; não consulta a Hotmart. */
 export async function handleRefunds(opcoes: RefundHandlerOptions = {}): Promise<RefundHandlerReport> {
   const dryRun = opcoes.dryRun !== false
@@ -121,14 +145,10 @@ export async function handleRefunds(opcoes: RefundHandlerOptions = {}): Promise<
       const ciclo = (timeline?.ciclos ?? []).find((item: any) =>
         (item.compras ?? []).some((compra: any) => compra.transacao && compra.transacao === refund.transaction)
       )
-      // A recompra que protege o aluno tem de pertencer ao mesmo ciclo do
-      // reembolso. Uma compra anual posterior de outro ciclo não torna a
-      // tag da turma reembolsada legítima.
-      const validSalesAfter = (ciclo?.compras ?? []).filter((compra: any) => {
-        if (compra.reembolsada === true) return false
-        const data = dataDaVenda({ approvedDate: compra.data, orderDate: compra.data })
-        return data && data.getTime() > refundDate.getTime()
-      }).length
+      // A recompra que protege o aluno tem de pertencer ao mesmo período do
+      // reembolso, mesmo quando o gerador a colocou noutro ciclo. Uma compra
+      // de outro período não torna a tag da turma reembolsada legítima.
+      const validSalesAfter = temRecompraNoMesmoPeriodo(timeline, ciclo, refundDate) ? 1 : 0
       const nomesDaCiclo = new Set<string>([
         ...(ciclo?.coortes ?? []).map((coorte: any) => coorte.tag?.nome).filter(Boolean),
         ciclo?.tagEsperada
@@ -138,7 +158,7 @@ export async function handleRefunds(opcoes: RefundHandlerOptions = {}): Promise<
         .filter((tag: any) => nomesDaCiclo.has(tag.nome))
         .map((tag: any) => ({ id: String(tag.tagId), nome: String(tag.nome), aplicadaEm: tag.aplicadaEm ?? null }))
       const decisao = deveTratarReembolso({ refundDate, validSalesAfter, turmaTags })
-      if (!decisao.tratar) {
+      if (!decisao.tratar && turmaTags.length > 0) {
         report.protegidosPorRecompra += 1
         continue
       }
