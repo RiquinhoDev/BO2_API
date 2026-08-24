@@ -234,14 +234,16 @@ test('a corrente de prestacoes nao estica para alem de um ano', () => {
   assert.equal(ciclos[1].compras.length, 1)
 })
 
-test('reembolso nao gera ciclo', () => {
+test('reembolso aparece no ciclo marcado sem criar acesso novo', () => {
   const ciclos = agruparCiclos([
-    venda({ approvedDate: new Date('2026-05-25T00:00:00Z'), transactionStatus: 'REFUNDED' }),
+    venda({ approvedDate: new Date('2026-05-25T00:00:00Z'), transactionStatus: 'REFUNDED', transaction: 'REF' }),
     venda({ approvedDate: new Date('2026-05-26T00:00:00Z'), transactionStatus: 'EXPIRED' }),
     venda({ approvedDate: new Date('2026-05-27T00:00:00Z'), transactionStatus: 'COMPLETE', transaction: 'OK' })
   ])
-  assert.equal(ciclos.length, 1)
-  assert.equal(ciclos[0].compras[0].transacao, 'OK')
+  assert.equal(ciclos.length, 2)
+  assert.equal(ciclos[0].compras[0].transacao, 'REF')
+  assert.equal(ciclos[0].compras[0].reembolsada, true)
+  assert.equal(ciclos[1].compras[0].transacao, 'OK')
 })
 
 test('venda sem data nenhuma e ignorada, e orderDate serve de recurso', () => {

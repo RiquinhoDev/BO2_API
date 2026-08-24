@@ -40,10 +40,16 @@ test('turma sem periodo nao e resolvida', () => {
   assert.equal(r.motivo, 'sem-periodo')
 })
 
-test('turma base sem numero nao e resolvida', () => {
+test('antigos alunos entra na tag da renovação genérica', () => {
   const r = resolverTagDaTurma('Turma antigos alunos | 2606')
+  assert.equal(r.tagNome, 'Aluno OGI 2606 - Renovação')
+  assert.equal(r.origem, 'convencao')
+})
+
+test('turma sem periodo nao e resolvida', () => {
+  const r = resolverTagDaTurma('Turma antigos alunos')
   assert.equal(r.tagNome, null)
-  assert.equal(r.motivo, 'sem-numero-turma')
+  assert.equal(r.motivo, 'sem-periodo')
 })
 
 test('a excepcao ganha a convencao', () => {

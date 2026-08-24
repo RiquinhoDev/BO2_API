@@ -30,6 +30,7 @@ export interface IStudentRenewalTimeline extends Document {
       offerCode: string | null
       paymentMode: string | null
       extensao: boolean
+      reembolsada?: boolean
     }>
     anos: number
     acessoAte: Date
@@ -57,6 +58,8 @@ export interface IStudentRenewalTimeline extends Document {
     acCompraIgualUltimaVenda: string
     expiracaoIgualTurma: string
     tagIgualTurma: string
+    compraMuitoAntesDaTurma: string
+    anosCompradosIgualTurma: string
     ciclosSemMudancaTurma: number
     ciclosSemRegistoTurma: number
     registoDeTurmas: string
@@ -65,6 +68,8 @@ export interface IStudentRenewalTimeline extends Document {
       acCompra: { esperado: Date | null; encontrado: Date | null }
       expiracao: { esperado: Date | null; encontrado: Date | null }
       tag: { esperado: string | null; encontrado: string | null }
+      compraTurma: { compra: Date | null; abertura: Date | null; meses: number | null }
+      anos: { comprados: number | null; turma: number | null }
       ciclosComTurma: { esperado: number; encontrado: number }
     }
   }
@@ -87,7 +92,8 @@ const compraSchema = new Schema(
     transacao: { type: String, default: null },
     offerCode: { type: String, default: null },
     paymentMode: { type: String, default: null },
-    extensao: { type: Boolean, default: false }
+    extensao: { type: Boolean, default: false },
+    reembolsada: { type: Boolean, default: false }
   },
   { _id: false }
 )
@@ -183,6 +189,8 @@ const studentRenewalTimelineSchema = new Schema<IStudentRenewalTimeline>(
       acCompraIgualUltimaVenda: { type: String, default: 'sem-dados' },
       expiracaoIgualTurma: { type: String, default: 'sem-dados' },
       tagIgualTurma: { type: String, default: 'sem-dados' },
+      compraMuitoAntesDaTurma: { type: String, default: 'sem-dados' },
+      anosCompradosIgualTurma: { type: String, default: 'sem-dados' },
       ciclosSemMudancaTurma: { type: Number, default: 0 },
       ciclosSemRegistoTurma: { type: Number, default: 0 },
       registoDeTurmas: { type: String, default: 'sem-dados' },
@@ -201,6 +209,15 @@ const studentRenewalTimelineSchema = new Schema<IStudentRenewalTimeline>(
         tag: {
           esperado: { type: String, default: null },
           encontrado: { type: String, default: null }
+        },
+        compraTurma: {
+          compra: { type: Date, default: null },
+          abertura: { type: Date, default: null },
+          meses: { type: Number, default: null }
+        },
+        anos: {
+          comprados: { type: Number, default: null },
+          turma: { type: Number, default: null }
         },
         ciclosComTurma: {
           esperado: { type: Number, default: 0 },

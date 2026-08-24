@@ -256,7 +256,9 @@ export async function reconcilePurchaseDates(
       continue
     }
 
-    const ultimoCiclo = agruparCiclos(vendasPorAluno.get(String(entrada.userId)) ?? []).at(-1)
+    const ultimoCiclo = agruparCiclos(vendasPorAluno.get(String(entrada.userId)) ?? [])
+      .filter((c) => c.compras.some((compra) => !compra.reembolsada))
+      .at(-1)
     const dataReal = ultimoCiclo ? dataCompraDoCiclo(ultimoCiclo) : null
 
     if (!dataReal) {

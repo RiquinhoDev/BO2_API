@@ -38,6 +38,7 @@ export const ID_PRODUTO_EXTENSAO = '3100292'
 
 /** Só estes contam como compra. Reembolso e falha não dão acesso. */
 const ESTADOS_VALIDOS = new Set(['APPROVED', 'COMPLETE'])
+const ESTADOS_REEMBOLSO = new Set(['REFUNDED', 'CHARGEBACK'])
 
 /** A Hotmart marca assim as cobranças de um plano de prestações. */
 const MODO_PRESTACOES = 'MULTIPLE_PAYMENTS'
@@ -95,6 +96,11 @@ function dataDaVenda(v: VendaComEstadoEData): Date | null {
 /** Critério canónico: só cobranças confirmadas com uma data aproveitável dão acesso. */
 export function isValidSale(venda: VendaComEstadoEData): boolean {
   return ESTADOS_VALIDOS.has(String(venda.transactionStatus ?? '').toUpperCase())
+    && dataDaVenda(venda) !== null
+}
+
+export function isRefundSale(venda: VendaComEstadoEData): boolean {
+  return ESTADOS_REEMBOLSO.has(String(venda.transactionStatus ?? '').toUpperCase())
     && dataDaVenda(venda) !== null
 }
 
@@ -171,7 +177,8 @@ export function agruparCiclos(vendas: VendaEntrada[]): CicloBase[] {
       moeda: venda.currency,
       produtoId: venda.hotmartProductId,
       transacao: venda.transaction,
-      extensao: venda.hotmartProductId === ID_PRODUTO_EXTENSAO
+      extensao: venda.hotmartProductId === ID_PRODUTO_EXTENSAO,
+      reembolsada: false
     }
 
     const actual = grupos[grupos.length - 1]
@@ -192,7 +199,7 @@ export function agruparCiclos(vendas: VendaEntrada[]): CicloBase[] {
     }
   }
 
-  return grupos.map(({ compras }) => {
+  const ciclos = grupos.map(({ compras }) => {
     const ancora = compras[0]
     // 2 anos só quando a extensão acompanha uma compra de outro
     // produto — a extensão sozinha vale 1 ano como qualquer outra.
@@ -207,4 +214,54 @@ export function agruparCiclos(vendas: VendaEntrada[]): CicloBase[] {
       acessoAte: fimDoMes(ancora.data.getUTCFullYear() + anos, ancora.data.getUTCMonth() + 1)
     }
   })
+
+  // A venda reembolsada não dá acesso, mas não pode desaparecer da timeline:
+  // é o evento que autoriza retirar a tag da turma. Se não houver compra
+  // confirmada correspondente, fica num ciclo próprio marcado, sem nunca
+  // contaminar o agrupamento das prestações.
+  const reembolsos = vendas
+    .filter(isRefundSale)
+    .map((venda) => {
+      const data = dataDaVenda(venda)!
+      return {
+        venda,
+        compra: {
+          data,
+          offerCode: venda.offerCode,
+          paymentMode: venda.paymentMode ?? null,
+          valor: venda.priceValue,
+          moeda: venda.currency,
+          produtoId: venda.hotmartProductId,
+          transacao: venda.transaction,
+          extensao: venda.hotmartProductId === ID_PRODUTO_EXTENSAO,
+          reembolsada: true
+        } satisfies CompraCiclo
+      }
+    })
+
+  for (const reembolso of reembolsos) {
+    const porTransacao = reembolso.compra.transacao
+      ? ciclos.find((c) => c.compras.some((compra) => compra.transacao === reembolso.compra.transacao))
+      : undefined
+    const porOferta = !porTransacao && reembolso.compra.offerCode
+      ? ciclos.find((c) =>
+          c.compras[0]?.offerCode === reembolso.compra.offerCode &&
+          c.compras[0]?.produtoId === reembolso.compra.produtoId &&
+          reembolso.compra.data.getTime() >= c.compras[0].data.getTime()
+        )
+      : undefined
+    const destino = porTransacao ?? porOferta
+    if (destino) {
+      destino.compras.push(reembolso.compra)
+      continue
+    }
+    ciclos.push({
+      periodo: periodoDeData(reembolso.compra.data),
+      compras: [reembolso.compra],
+      anos: 1,
+      acessoAte: fimDoMes(reembolso.compra.data.getUTCFullYear() + 1, reembolso.compra.data.getUTCMonth() + 1)
+    })
+  }
+
+  return ciclos.sort((a, b) => a.compras[0].data.getTime() - b.compras[0].data.getTime())
 }

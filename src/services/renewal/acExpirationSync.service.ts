@@ -101,7 +101,7 @@ export function computeExpirationFromPurchaseDate(purchaseDate: Date, anos = 1):
 
 /** Compra âncora do ciclo de acesso mais recente; vendas inválidas não contam. */
 export function dataBaseDoAluno(sales: VendaEntrada[]): Date | null {
-  const ultimoCiclo = agruparCiclos(sales).at(-1)
+  const ultimoCiclo = agruparCiclos(sales).filter((c) => c.compras.some((compra) => !compra.reembolsada)).at(-1)
   return ultimoCiclo?.compras[0]?.data ?? null
 }
 
@@ -307,7 +307,10 @@ export async function syncAcExpirationDates(opcoes: SyncOpcoes = {}): Promise<Ac
   const estadoByUserId = new Map(estados.map((estado) => [String(estado.userId), estado]))
 
   const cicloByUserId = new Map(
-    hotmartDocs.map((h) => [String(h.userId), agruparCiclos(h.sales ?? []).at(-1) ?? null])
+    hotmartDocs.map((h) => [
+      String(h.userId),
+      agruparCiclos(h.sales ?? []).filter((c) => c.compras.some((compra) => !compra.reembolsada)).at(-1) ?? null
+    ])
   )
   const codigosOferta = [...new Set(
     [...cicloByUserId.values()]

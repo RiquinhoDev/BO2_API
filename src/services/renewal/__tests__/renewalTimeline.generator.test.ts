@@ -36,6 +36,61 @@ test('periodoDaTag apanha os dois formatos de tag', () => {
   assert.equal(periodoDaTag('Alunos OGI Ativos'), null)
 })
 
+test('a partir de 2701 o emparelhamento exige o mesmo periodo', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2027-01-15T00:00:00Z'), transaction: 'A' })],
+      tags: [{ tagId: '1', nome: 'Aluno OGI L2702 - Turma 19', aplicadaEm: null }],
+      turmaAtual: { classId: 'c', className: 'Turma 19 | 2702', entrouEm: null }
+    })
+  )
+  assert.equal(t.ciclos[0].coortes[0].tag, null)
+  assert.ok(t.ciclos[0].alertas.includes('sem-tag'))
+  assert.equal(t.tagsOrfas.length, 1)
+})
+
+test('a-menos passa a ser legado sem perder a ancora historica', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-09-23T00:00:00Z'), transaction: 'A' })],
+      turmaAtual: { classId: 'c', className: 'Turma 11 [renov] | 2509', entrouEm: null },
+      legadoExpiracaoAncora: new Date('2025-09-23T00:00:00Z'),
+      acExpiracao: new Date('2025-09-01T00:00:00Z')
+    })
+  )
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'legado')
+})
+
+test('antigos alunos usa a tag da renovação genérica', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2026-06-03T00:00:00Z'), transaction: 'A' })],
+      turmaAtual: { classId: 'old', className: 'Turma antigos alunos | 2606', entrouEm: null }
+    })
+  )
+  assert.equal(t.ciclos[0].tagEsperada, 'Aluno OGI 2606 - Renovação')
+})
+
+test('sinaliza turma que abre mais de seis meses depois da compra', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2024-07-08T00:00:00Z'), transaction: 'A' })],
+      turmaAtual: { classId: 'c', className: 'Turma 11 [renov] | 2509', entrouEm: null }
+    })
+  )
+  assert.equal(t.cadeia.compraMuitoAntesDaTurma, 'divergente')
+})
+
+test('sinaliza turma de dois anos quando o ciclo só comprou um', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-04-19T00:00:00Z'), transaction: 'A', priceValue: 97 })],
+      turmaAtual: { classId: 'c', className: 'Turma 5 [2a renov] + REITs + [2 anos] | 2505', entrouEm: null }
+    })
+  )
+  assert.equal(t.cadeia.anosCompradosIgualTurma, 'divergente')
+})
+
 test('percurso limpo: 3 ciclos, 3 tags, 3 turmas, zero alertas', () => {
   const t = gerarTimeline(
     entrada({
@@ -255,6 +310,17 @@ test('tags de estado ficam a parte e nunca entram em ciclos', () => {
   assert.equal(t.ciclos[0].coortes[0].tag?.id, '9')
 })
 
+test('Alunos OGI Ativos expirado fica fora dos alarmes do BO', () => {
+  const t = gerarTimeline(
+    entrada({
+      tags: [{ tagId: 'state', nome: 'Alunos OGI Ativos', aplicadaEm: null }],
+      acExpiracao: new Date('2026-07-31T23:59:59Z'),
+      fontes: { vendas: AGORA, tags: AGORA, ac: new Date('2026-08-21T12:00:00Z') }
+    })
+  )
+  assert.deepEqual(t.tagsEstado, [])
+})
+
 test('compra sem tag: ciclo pago e nao marcado', () => {
   const t = gerarTimeline(
     entrada({
@@ -296,7 +362,7 @@ test('tag diferente da turma: a turma diz uma coisa, a tag diz outra', () => {
   assert.equal(t.cadeia.tagIgualTurma, 'divergente')
 })
 
-test('reembolso: sem ciclos e sem alertas inventados', () => {
+test('reembolso: ciclo visível e marcado sem acesso novo', () => {
   const t = gerarTimeline(
     entrada({
       vendas: [venda({ approvedDate: new Date('2026-05-25T00:00:00Z'), transactionStatus: 'REFUNDED' })],
@@ -304,9 +370,9 @@ test('reembolso: sem ciclos e sem alertas inventados', () => {
       turmaAtual: { classId: 'c', className: 'Turma 18 | 2605', entrouEm: null }
     })
   )
-  assert.equal(t.ciclos.length, 0)
+  assert.equal(t.ciclos.length, 1)
+  assert.equal(t.ciclos[0].compras[0].reembolsada, true)
   assert.equal(t.cadeia.acCompraIgualUltimaVenda, 'sem-dados')
-  assert.equal(t.cadeia.tagIgualTurma, 'sem-dados')
 })
 
 test('expiracao divergente da turma marca a cadeia', () => {
@@ -410,7 +476,7 @@ test('mismatch do mesmo evento previamente marcado continua legado', () => {
   assert.equal(t.cadeia.expiracaoIgualTurma, 'legado')
 })
 
-test('mismatch legado com acesso pago em falta fica a-menos', () => {
+test('mismatch legado com acesso pago em falta continua legado', () => {
   const t = gerarTimeline(
     entrada({
       vendas: [venda({ approvedDate: new Date('2025-08-12T00:00:00Z'), transaction: 'A' })],
@@ -421,7 +487,7 @@ test('mismatch legado com acesso pago em falta fica a-menos', () => {
     })
   )
 
-  assert.equal(t.cadeia.expiracaoIgualTurma, 'a-menos')
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'legado')
 })
 
 test('venda de renovacao posterior a fotografia da AC e divergente', () => {

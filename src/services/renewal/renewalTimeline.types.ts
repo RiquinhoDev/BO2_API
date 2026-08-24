@@ -46,6 +46,8 @@ export interface CompraCiclo {
   transacao: string | null
   /** true quando é o produto 3100292 (a extensão de 97€). */
   extensao: boolean
+  /** true quando a linha da Hotmart terminou em REFUNDED/CHARGEBACK. */
+  reembolsada?: boolean
 }
 
 export interface CicloBase {
@@ -108,6 +110,10 @@ export interface Cadeia {
   acCompraIgualUltimaVenda: Veredicto
   expiracaoIgualTurma: Veredicto
   tagIgualTurma: Veredicto
+  /** A turma abre mais de seis meses depois da compra que lhe deu acesso. */
+  compraMuitoAntesDaTurma: Veredicto
+  /** Os anos de acesso da turma não coincidem com o que foi comprado. */
+  anosCompradosIgualTurma: Veredicto
   /** Havia turma conhecida antes e este ciclo não a mudou. Isso é desvio. */
   ciclosSemMudancaTurma: number
   /**
@@ -128,6 +134,8 @@ export interface Cadeia {
     expiracao: ComparacaoElo<Date>
     /** esperado = tag que a turma pede; encontrado = tag que o aluno tem. */
     tag: ComparacaoElo<string>
+    compraTurma: { compra: Date | null; abertura: Date | null; meses: number | null }
+    anos: { comprados: number | null; turma: number | null }
     /** esperado = ciclos pagos; encontrado = quantos têm turma. */
     ciclosComTurma: { esperado: number; encontrado: number }
   }

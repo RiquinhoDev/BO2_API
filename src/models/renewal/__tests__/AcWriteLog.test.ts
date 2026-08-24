@@ -7,7 +7,7 @@ test('AcWriteLog exige o contrato do rasto e indexa email e quando', () => {
   const campos = AcWriteLog.schema.paths
   assert.equal(campos.quando.options.required, true)
   assert.equal(campos.servico.options.required, true)
-  assert.deepEqual(campos.servico.options.enum, ['expiracao', 'dataCompra'])
+  assert.deepEqual(campos.servico.options.enum, ['expiracao', 'dataCompra', 'turmaTag', 'reembolso'])
   assert.equal(campos.email.options.required, true)
   assert.equal(campos.campo.options.required, true)
   assert.equal(campos.antes.options.default, null)

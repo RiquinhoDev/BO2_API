@@ -17,7 +17,7 @@
 export type TipoTurma = 'base' | 'renovacao'
 
 export function tipoDeTurma(nome: string): TipoTurma {
-  return /\[\s*\d*\s*a?\s*renov|renova[çc]/i.test(nome) ? 'renovacao' : 'base'
+  return /\[\s*\d*\s*a?\s*renov|renova[çc]|antigos\s+alunos/i.test(nome) ? 'renovacao' : 'base'
 }
 
 export interface ParsedTurma {

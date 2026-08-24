@@ -12,6 +12,8 @@ import { Router, type Request, type RequestHandler, type Response } from 'expres
 import RenewalAcChange from '../models/RenewalAcChange'
 import CronJobConfig from '../models/SyncModels/CronJobConfig'
 import { detectHotmartRefunds } from '../services/renewal/hotmartRefunds.service'
+import { syncTurmaTags } from '../services/renewal/acTurmaTagSync.service'
+import { handleRefunds } from '../services/renewal/refundHandler.service'
 import {
   approveChanges,
   executePlan,
@@ -84,6 +86,32 @@ router.post('/plan', asyncRoute(async (req: Request, res: Response) => {
 router.post('/refunds/detect', asyncRoute(async (req: Request, res: Response) => {
   const windowDays = Number(req.body?.windowDays) || 30
   const report = await detectHotmartRefunds(windowDays)
+  res.json({ success: true, data: report })
+}))
+
+/**
+ * POST /api/renewal-ac/turma-tags/sync
+ * Omitir dryRun (ou enviá-lo true) é sempre só relatório. A AC só é tocada
+ * quando o chamador passa dryRun:false explicitamente.
+ */
+router.post('/turma-tags/sync', asyncRoute(async (req: Request, res: Response) => {
+  const report = await syncTurmaTags({
+    dryRun: req.body?.dryRun === false ? false : true,
+    emails: Array.isArray(req.body?.emails) ? req.body.emails : undefined,
+    manual: req.body?.manual === true
+  })
+  res.json({ success: true, data: report })
+}))
+
+/**
+ * POST /api/renewal-ac/refunds/handle
+ * Marca a nossa BD e remove tags de turma apenas quando dryRun:false.
+ */
+router.post('/refunds/handle', asyncRoute(async (req: Request, res: Response) => {
+  const report = await handleRefunds({
+    dryRun: req.body?.dryRun === false ? false : true,
+    emails: Array.isArray(req.body?.emails) ? req.body.emails : undefined
+  })
   res.json({ success: true, data: report })
 }))
 

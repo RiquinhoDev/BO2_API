@@ -74,6 +74,16 @@ export interface EntradaGerador {
 const TOLERANCIA_ATRAS = 2
 const TOLERANCIA_FRENTE = 4
 
+/** Desde a coorte 2701 só se aceita o período exacto: o calendário passou a
+ * ter uma coorte mensal estável e a janela antiga esconderia erros. */
+function toleranciasParaPeriodo(periodo: string): { atras: number; frente: number } {
+  const indice = indiceDePeriodo(periodo)
+  const corte = indiceDePeriodo('2701')
+  return indice !== null && corte !== null && indice >= corte
+    ? { atras: 0, frente: 0 }
+    : { atras: TOLERANCIA_ATRAS, frente: TOLERANCIA_FRENTE }
+}
+
 /** Acima disto a tag foi posta muito depois da coorte que representa. */
 const DIAS_TAG_TARDIA = 90
 
@@ -154,7 +164,8 @@ function emparelhar(
       const idxCand = indiceDePeriodo(cand.periodo)
       if (idxCand === null) continue
       const delta = idxCand - idxLugar
-      if (delta > TOLERANCIA_FRENTE || delta < -TOLERANCIA_ATRAS) continue
+      const tolerancias = toleranciasParaPeriodo(lug.periodo)
+      if (delta > tolerancias.frente || delta < -tolerancias.atras) continue
       const dist = Math.abs(delta)
       // à mesma distância, o candidato à frente da coorte ganha ao de
       // trás: a tolerância para a frente existe porque não há coortes
@@ -207,7 +218,8 @@ function coorteCompativel(periodo: string | null, lugares: Lugar[]): Lugar | nul
       const idxCoorte = indiceDePeriodo(lugar.periodo)
       if (idxCoorte === null) return null
       const diferenca = idxTag - idxCoorte
-      if (diferenca > TOLERANCIA_FRENTE || diferenca < -TOLERANCIA_ATRAS) return null
+      const tolerancias = toleranciasParaPeriodo(lugar.periodo)
+      if (diferenca > tolerancias.frente || diferenca < -tolerancias.atras) return null
       return {
         lugar,
         indice,
@@ -429,6 +441,13 @@ export function gerarTimeline(e: EntradaGerador): TimelineGerada {
 
   const tagsEstado: TagEstado[] = e.tags
     .filter((t) => !ehTagDePercurso(t.nome))
+    // A gestão da tag de estado é da AC. Quando o espelho já mostra que o
+    // acesso expirou, nem sequer a elevamos a uma linha de vigilância do BO.
+    .filter((t) => {
+      const nome = normalizarNomeTurma(t.nome)
+      const expirada = e.acExpiracao && e.fontes.ac && e.acExpiracao.getTime() <= e.fontes.ac.getTime()
+      return !(nome === 'alunos ogi ativos' && expirada)
+    })
     .map((t) => ({ id: t.tagId, nome: t.nome, aplicadaEm: t.aplicadaEm }))
 
   return {
@@ -477,11 +496,7 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
         e.legadoExpiracaoAncora &&
         mesmoDia(compraDoCiclo, e.legadoExpiracaoAncora)
       )
-      expiracaoIgualTurma = mesmoEventoLegado
-        ? fimEsperado.getTime() > e.acExpiracao.getTime()
-          ? 'a-menos'
-          : 'legado'
-        : 'divergente'
+      expiracaoIgualTurma = mesmoEventoLegado ? 'legado' : 'divergente'
     }
   }
 
@@ -524,10 +539,29 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
           ? 'sem-dados'
           : 'ok'
 
+  const ultimoComCompra = [...ciclos].reverse().find((ciclo) => ciclo.compras.some((compra) => !compra.reembolsada)) ?? null
+  const nomeTurmaParaSinal = ultimoComCompra?.turma?.nome ?? e.turmaAtual?.className ?? null
+  const parsedTurma = nomeTurmaParaSinal ? parseTurmaName(nomeTurmaParaSinal) : null
+  const compraTurma = ultimoComCompra?.compras.find((compra) => !compra.reembolsada)?.data ?? null
+  const aberturaTurma = parsedTurma?.periodStart ?? null
+  const indiceCompra = compraTurma ? indiceDePeriodo(`${String(compraTurma.getUTCFullYear() % 100).padStart(2, '0')}${String(compraTurma.getUTCMonth() + 1).padStart(2, '0')}`) : null
+  const indiceAbertura = parsedTurma?.periodYYMM ? indiceDePeriodo(parsedTurma.periodYYMM) : null
+  const mesesCompraAntes = indiceCompra !== null && indiceAbertura !== null ? indiceAbertura - indiceCompra : null
+  const compraMuitoAntesDaTurma: Veredicto =
+    compraTurma && aberturaTurma && mesesCompraAntes !== null
+      ? mesesCompraAntes > 6 ? 'divergente' : 'ok'
+      : 'sem-dados'
+  const anosCompradosIgualTurma: Veredicto =
+    ultimoComCompra && parsedTurma?.accessYears
+      ? ultimoComCompra.anos === parsedTurma.accessYears ? 'ok' : 'divergente'
+      : 'sem-dados'
+
   return {
     acCompraIgualUltimaVenda,
     expiracaoIgualTurma,
     tagIgualTurma,
+    compraMuitoAntesDaTurma,
+    anosCompradosIgualTurma,
     ciclosSemMudancaTurma: semMudanca,
     ciclosSemRegistoTurma: semRegisto,
     registoDeTurmas,
@@ -536,6 +570,8 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
       acCompra: { esperado: compraDoCiclo, encontrado: e.acDataCompra },
       expiracao: { esperado: fimEsperado, encontrado: e.acExpiracao },
       tag: { esperado: ultimo?.tagEsperada ?? null, encontrado: tagEncontrada },
+      compraTurma: { compra: compraTurma, abertura: aberturaTurma, meses: mesesCompraAntes },
+      anos: { comprados: ultimoComCompra?.anos ?? null, turma: parsedTurma?.accessYears ?? null },
       ciclosComTurma: {
         esperado: ciclos.length,
         encontrado: ciclos.length - semMudanca - semRegisto

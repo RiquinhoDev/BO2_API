@@ -10,8 +10,8 @@ test('Turma 14 + [2 anos] | 2505', () => {
   assert.equal(tipoDeTurma('Turma 14 + [2 anos] | 2505'), 'base')
 })
 
-test('Turma antigos alunos | 2606', () => {
-  assert.equal(tipoDeTurma('Turma antigos alunos | 2606'), 'base')
+test('Turma antigos alunos | 2606 segue o ramo da renovação genérica', () => {
+  assert.equal(tipoDeTurma('Turma antigos alunos | 2606'), 'renovacao')
 })
 
 test('Turma 11 [renov] + REITs | 2509', () => {

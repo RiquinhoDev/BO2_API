@@ -32,7 +32,7 @@ export function normalizarNomeTurma(s: string): string {
   return String(s).toLowerCase().replace(/\s+/g, ' ').trim()
 }
 
-const MENCIONA_RENOVACAO = /renova(ç|c)(ã|a)o/i
+const MENCIONA_RENOVACAO = /renova(ç|c)(ã|a)o|antigos\s+alunos/i
 
 export function resolverTagDaTurma(
   className: string,
