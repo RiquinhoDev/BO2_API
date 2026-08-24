@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════
 // 📁 src/services/renewal/renewalPipeline.service.ts
 // Orquestrador sequencial de renovações: Sync Hotmart (vendas) →
-// Sync AC (leitura) → AC Expiração (escrita) → Discord Roles. Cada
+// Sync AC (leitura) → AC Expiração/Tags/Reembolsos → Discord Roles. Cada
 // passo só arranca depois do anterior terminar — evita a fragilidade
 // de horas fixas onde um passo demorado ("corre mais") parte a
 // cadência dos seguintes. Um erro num passo não trava os seguintes
@@ -18,12 +18,10 @@
 // manuais. NASCE DESLIGADO — ligar é acção manual na UI, só depois
 // de validar localmente.
 //
-// O passo de escrita (AC Expiração) tem o SEU PRÓPRIO interruptor
-// ("AcExpirationSync" em CronJobConfig), independente do interruptor
-// geral deste pipeline — ligar o RenewalPipeline corre só as partes
-// só-leitura (Hotmart, AC, Discord); a escrita na AC só acontece se
-// esse segundo interruptor também estiver ligado. Mantém a regra
-// "não escrever na AC" isolada e explícita, mesmo dentro da cadeia.
+// Cada fase que escreve na AC tem o SEU PRÓPRIO interruptor
+// (AcExpirationSync, AcTurmaTagSync e AcRefundHandler), independente do
+// interruptor geral deste pipeline. Mantém a regra "não escrever na AC"
+// isolada e explícita, mesmo dentro da cadeia.
 // ════════════════════════════════════════════════════════════
 
 import CronJobConfig from '../../models/SyncModels/CronJobConfig'
@@ -32,10 +30,14 @@ import { syncActiveStudentAcRenewalData, AcRenewalDataSyncReport } from './acRen
 import { syncAcStudentTags, AcStudentTagsSyncReport } from './acStudentTagsSync.service'
 import { syncAcExpirationDates, AcExpirationSyncReport } from './acExpirationSync.service'
 import { reconcilePurchaseDates, ReconcileReport } from './acPurchaseDateReconcile.service'
+import { syncTurmaTags, TurmaTagSyncReport } from './acTurmaTagSync.service'
+import { handleRefunds, RefundHandlerReport } from './refundHandler.service'
 import { gerarTimelinesEmLote, TimelineSyncReport } from './renewalTimeline.service'
 import { runDiscordRolesSyncJob, DiscordCronReport } from './discordRolesSync.service'
 
 const AC_EXPIRATION_SYNC_JOB_NAME = 'AcExpirationSync'
+const AC_TURMA_TAG_SYNC_JOB_NAME = 'AcTurmaTagSync'
+const AC_REFUND_HANDLER_JOB_NAME = 'AcRefundHandler'
 
 export interface RenewalPipelineStepResult<T> {
   success: boolean
@@ -50,6 +52,8 @@ export interface RenewalPipelineReport {
   acRenewalData: RenewalPipelineStepResult<AcRenewalDataSyncReport>
   acStudentTags: RenewalPipelineStepResult<AcStudentTagsSyncReport>
   acExpiration: RenewalPipelineStepResult<AcExpirationSyncReport>
+  acTurmaTags: RenewalPipelineStepResult<TurmaTagSyncReport>
+  acRefunds: RenewalPipelineStepResult<RefundHandlerReport>
   timelines: RenewalPipelineStepResult<TimelineSyncReport>
   discordRoles: RenewalPipelineStepResult<DiscordCronReport>
   acPurchaseDate: RenewalPipelineStepResult<ReconcileReport>
@@ -62,6 +66,8 @@ export interface RenewalPipelineDependencies {
   syncActiveStudentAcRenewalData: typeof syncActiveStudentAcRenewalData
   syncAcStudentTags: typeof syncAcStudentTags
   syncAcExpirationDates: typeof syncAcExpirationDates
+  syncTurmaTags: typeof syncTurmaTags
+  handleRefunds: typeof handleRefunds
   runDiscordRolesSyncJob: typeof runDiscordRolesSyncJob
   gerarTimelinesEmLote: typeof gerarTimelinesEmLote
   reconcilePurchaseDates: typeof reconcilePurchaseDates
@@ -113,7 +119,7 @@ async function runGatedStep<T>(
 }
 
 /**
- * Corre os 4 passos em sequência, cada um só depois do anterior terminar.
+ * Corre os passos em sequência, cada um só depois do anterior terminar.
  * Um passo que falhe não impede os seguintes de correr (o próximo passo
  * simplesmente trabalha com os dados que já existem em BD).
  */
@@ -127,6 +133,18 @@ export async function runRenewalPipelineComDependencias(
     'AC Expiração (escrita)',
     AC_EXPIRATION_SYNC_JOB_NAME,
     () => dependencias.syncAcExpirationDates({ dryRun: false }),
+    dependencias.isJobSwitchEnabled
+  )
+  const acTurmaTags = await runGatedStep(
+    'AC Tags de turma',
+    AC_TURMA_TAG_SYNC_JOB_NAME,
+    () => dependencias.syncTurmaTags({ dryRun: false }),
+    dependencias.isJobSwitchEnabled
+  )
+  const acRefunds = await runGatedStep(
+    'Reembolsos',
+    AC_REFUND_HANDLER_JOB_NAME,
+    () => dependencias.handleRefunds({ dryRun: false }),
     dependencias.isJobSwitchEnabled
   )
   const discordRoles = await runStep('Discord Roles', () => dependencias.runDiscordRolesSyncJob())
@@ -145,6 +163,8 @@ export async function runRenewalPipelineComDependencias(
     acRenewalData,
     acStudentTags,
     acExpiration,
+    acTurmaTags,
+    acRefunds,
     timelines,
     discordRoles,
     acPurchaseDate,
@@ -153,6 +173,8 @@ export async function runRenewalPipelineComDependencias(
       acRenewalData.success &&
       acStudentTags.success &&
       acExpiration.success &&
+      acTurmaTags.success &&
+      acRefunds.success &&
       timelines.success &&
       discordRoles.success &&
       acPurchaseDate.success
@@ -166,6 +188,8 @@ export async function runRenewalPipeline(): Promise<RenewalPipelineReport> {
     syncActiveStudentAcRenewalData,
     syncAcStudentTags,
     syncAcExpirationDates,
+    syncTurmaTags,
+    handleRefunds,
     runDiscordRolesSyncJob,
     gerarTimelinesEmLote,
     reconcilePurchaseDates

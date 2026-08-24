@@ -27,6 +27,8 @@ const RENEWAL_AC_SYNC_JOB_NAME = 'RenewalAcSync'
 const DISCORD_ROLES_SYNC_JOB_NAME = 'DiscordRolesSync'
 const DISCORD_SCHEDULED_MESSAGES_JOB_NAME = 'DiscordScheduledMessages'
 const AC_EXPIRATION_SYNC_JOB_NAME = 'AcExpirationSync'
+const AC_TURMA_TAG_SYNC_JOB_NAME = 'AcTurmaTagSync'
+const AC_REFUND_HANDLER_JOB_NAME = 'AcRefundHandler'
 const RENEWAL_PIPELINE_JOB_NAME = 'RenewalPipeline'
 const SYSTEM_CRON_ADMIN_ID = new mongoose.Types.ObjectId('000000000000000000000001')
 
@@ -804,6 +806,58 @@ const job = await CronJobConfig.create({
     console.log('[AcExpirationSync] Cron criado DESLIGADO (08:00 Lisboa) — ligar manualmente na UI depois de validar localmente')
   }
 
+  /** Interruptor da aplicação de tags de turma dentro do RenewalPipeline. */
+  private async ensureAcTurmaTagSyncJob(): Promise<void> {
+    const existingJob = await CronJobConfig.findOne({ name: AC_TURMA_TAG_SYNC_JOB_NAME })
+    if (existingJob) return
+
+    await CronJobConfig.create({
+      name: AC_TURMA_TAG_SYNC_JOB_NAME,
+      description: 'Aplica tags de turma na AC depois do Sync AC (tags), usando o resolvedor e confirmando que a tag já existe. Sem trigger próprio: interruptor independente dentro do RenewalPipeline. Nasce desligado.',
+      syncType: 'hotmart',
+      schedule: { cronExpression: '0 9 * * *', timezone: 'Europe/Lisbon', enabled: false },
+      syncConfig: { fullSync: false, includeProgress: false, includeTags: true, batchSize: 100 },
+      tagRules: [],
+      tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
+      notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: true, recipients: [] },
+      retryPolicy: { maxRetries: 1, retryDelayMinutes: 30, exponentialBackoff: false },
+      nextRun: this.calculateNextRun('0 9 * * *'),
+      createdBy: SYSTEM_CRON_ADMIN_ID,
+      isActive: true,
+      totalRuns: 0,
+      successfulRuns: 0,
+      failedRuns: 0
+    })
+
+    console.log('[AcTurmaTagSync] Interruptor criado DESLIGADO — corre apenas como fase gated do RenewalPipeline')
+  }
+
+  /** Interruptor do tratamento de reembolsos dentro do RenewalPipeline. */
+  private async ensureAcRefundHandlerJob(): Promise<void> {
+    const existingJob = await CronJobConfig.findOne({ name: AC_REFUND_HANDLER_JOB_NAME })
+    if (existingJob) return
+
+    await CronJobConfig.create({
+      name: AC_REFUND_HANDLER_JOB_NAME,
+      description: 'Marca reembolsos na nossa BD e remove tags de turma na AC apenas quando o ciclo não tem recompra. Sem trigger próprio: interruptor independente dentro do RenewalPipeline. Nasce desligado.',
+      syncType: 'hotmart',
+      schedule: { cronExpression: '0 9 * * *', timezone: 'Europe/Lisbon', enabled: false },
+      syncConfig: { fullSync: false, includeProgress: false, includeTags: true, batchSize: 100 },
+      tagRules: [],
+      tagRuleOptions: { enabled: false, executeAllRules: false, runInParallel: false, stopOnError: false },
+      notifications: { enabled: false, emailOnSuccess: false, emailOnFailure: true, recipients: [] },
+      retryPolicy: { maxRetries: 1, retryDelayMinutes: 30, exponentialBackoff: false },
+      nextRun: this.calculateNextRun('0 9 * * *'),
+      createdBy: SYSTEM_CRON_ADMIN_ID,
+      isActive: true,
+      totalRuns: 0,
+      successfulRuns: 0,
+      failedRuns: 0
+    })
+
+    console.log('[AcRefundHandler] Interruptor criado DESLIGADO — corre apenas como fase gated do RenewalPipeline')
+  }
+
   /**
    * Cadência sequencial de renovações: Sync Hotmart (vendas) → Sync AC
    * (leitura) → AC Expiração (escrita) → Discord Roles, cada passo só
@@ -829,7 +883,7 @@ const job = await CronJobConfig.create({
 
     await CronJobConfig.create({
       name: RENEWAL_PIPELINE_JOB_NAME,
-      description: 'Cadência sequencial de renovações: Sync Hotmart (vendas) → Sync AC (leitura) → AC Expiração (escrita, gate próprio via AcExpirationSync) → Discord Roles. Sem hora própria — corre logo a seguir ao "1º" terminar de facto (chamado a partir de dailyPipeline.service.ts), não a uma hora fixa estimada. Este registo serve só de interruptor (ligar/desligar) + histórico de execuções manuais. Ver renewalPipeline.service.ts.',
+      description: 'Cadência sequencial de renovações: Sync Hotmart (vendas) → Sync AC (leitura) → AC Expiração → AC Tags de turma → Reembolsos → Discord Roles → Timelines → reconciliação 334. As três escritas AC têm interruptores próprios. Sem hora própria — corre logo a seguir ao "1º" terminar de facto (chamado a partir de dailyPipeline.service.ts), não a uma hora fixa estimada. Este registo serve só de interruptor (ligar/desligar) + histórico de execuções manuais. Ver renewalPipeline.service.ts.',
       syncType: 'hotmart',
       schedule: {
         cronExpression: '0 5 * * *', // referência apenas — este job não tem trigger próprio, ver scheduleJob()
@@ -865,6 +919,8 @@ const job = await CronJobConfig.create({
     await this.ensureDiscordScheduledMessagesJob()
     await this.ensureAcExpirationSyncJob()
     await this.ensureRenewalPipelineJob()
+    await this.ensureAcTurmaTagSyncJob()
+    await this.ensureAcRefundHandlerJob()
 
     // Carregar todos os jobs ativos
     const activeJobs = await CronJobConfig.getActiveJobs()
@@ -919,6 +975,8 @@ private async executeSyncJob(job: ICronJobConfig): Promise<{
     DISCORD_ROLES_SYNC_JOB_NAME,
     DISCORD_SCHEDULED_MESSAGES_JOB_NAME,
     AC_EXPIRATION_SYNC_JOB_NAME,
+    AC_TURMA_TAG_SYNC_JOB_NAME,
+    AC_REFUND_HANDLER_JOB_NAME,
     RENEWAL_PIPELINE_JOB_NAME
   ]
 
@@ -1088,6 +1146,34 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
         errorMessage: report.errors.map((e) => `${e.email}: ${e.error}`).join(' | ') || undefined
       }
 
+    } else if (job.name.includes(AC_TURMA_TAG_SYNC_JOB_NAME)) {
+      console.log('Executando: AcTurmaTagSync (dry-run seguro)')
+      const { syncTurmaTags } = await import('../renewal/acTurmaTagSync.service')
+      const report = await syncTurmaTags()
+      result = {
+        success: report.erros.length === 0,
+        total: report.candidatos,
+        inserted: 0,
+        updated: report.aplicadas,
+        errors: report.erros.length,
+        skipped: report.jaTem + report.semMapeamento + report.semCompraValida + report.tagInexistente,
+        errorMessage: report.erros.map((e) => `${e.email}: ${e.error}`).join(' | ') || undefined
+      }
+
+    } else if (job.name.includes(AC_REFUND_HANDLER_JOB_NAME)) {
+      console.log('Executando: AcRefundHandler (dry-run seguro)')
+      const { handleRefunds } = await import('../renewal/refundHandler.service')
+      const report = await handleRefunds()
+      result = {
+        success: report.erros.length === 0,
+        total: report.reembolsos,
+        inserted: 0,
+        updated: report.marcadosBd + report.removidas,
+        errors: report.erros.length,
+        skipped: report.protegidosPorRecompra + report.semTag,
+        errorMessage: report.erros.map((e) => `${e.email}: ${e.error}`).join(' | ') || undefined
+      }
+
     } else if (job.name.includes(RENEWAL_AC_SYNC_JOB_NAME)) {
       console.log('Executando: RenewalAcSync (Renovação OGI → AC, Fase B)')
       const { runRenewalAcSyncJob } = await import('../renewal/renewalAcSync.service')
@@ -1106,12 +1192,28 @@ private async executeSpecificJob(job: ICronJobConfig): Promise<{
       console.log('Executando: RenewalPipeline (Sync Hotmart → Sync AC → AC Expiração → Discord Roles, sequencial)')
       const { runRenewalPipeline } = await import('../renewal/renewalPipeline.service')
       const report = await runRenewalPipeline()
-      const steps = [report.hotmartSales, report.acRenewalData, report.acExpiration, report.discordRoles]
+      const steps = [
+        report.hotmartSales,
+        report.acRenewalData,
+        report.acExpiration,
+        report.acTurmaTags,
+        report.acRefunds,
+        report.discordRoles,
+        report.timelines,
+        report.acPurchaseDate
+      ]
       result = {
         success: report.success,
         total: (report.hotmartSales.report?.totalActiveStudents || 0) + (report.acRenewalData.report?.totalActiveStudents || 0),
         inserted: 0,
-        updated: (report.hotmartSales.report?.updated || 0) + (report.acRenewalData.report?.updated || 0) + (report.acExpiration.report?.written || 0) + (report.discordRoles.report?.execution?.applied || 0),
+        updated:
+          (report.hotmartSales.report?.updated || 0) +
+          (report.acRenewalData.report?.updated || 0) +
+          (report.acExpiration.report?.written || 0) +
+          (report.acTurmaTags.report?.aplicadas || 0) +
+          (report.acRefunds.report?.removidas || 0) +
+          (report.discordRoles.report?.execution?.applied || 0) +
+          (report.acPurchaseDate.report?.escritos || 0),
         errors: steps.filter((s) => !s.success).length,
         skipped: steps.filter((s) => s.skipped).length,
         errorMessage: steps.map((s) => s.error).filter(Boolean).join(' | ') || undefined

@@ -1,17 +1,18 @@
 // Aplicação da tag da turma na ActiveCampaign.
 //
-// O mapa é a fonte de verdade: este serviço nunca constrói nomes nem cria
-// tags. Por omissão é dry-run; a escrita exige `dryRun: false` explícito.
+// O mapa guarda excepções; o resolvedor cobre a convenção e nunca cria tags.
+// A aplicação só avança depois de confirmar o nome na AC. Por omissão é
+// dry-run; a escrita exige `dryRun: false` explícito.
 
 import ACStudentTag from '../../models/ACStudentTag'
 import StudentRenewalTimeline from '../../models/StudentRenewalTimeline'
 import TurmaTagMap from '../../models/TurmaTagMap'
 import AcWriteLog from '../../models/renewal/AcWriteLog'
 import activeCampaignService from '../activeCampaign/activeCampaignService'
-import { normalizarNomeTurma } from './turmaTagResolver'
+import { normalizarNomeTurma, resolverTagDaTurma, type ResolucaoTag } from './turmaTagResolver'
 import { parseTurmaName } from './turmaParser'
 
-export type TurmaTagMotivo = 'semMapeamento' | 'jaTem' | 'semContacto' | 'aEsperaDeTurma'
+export type TurmaTagMotivo = 'semMapeamento' | 'jaTem' | 'semContacto' | 'aEsperaDeTurma' | 'semCompraValida' | 'tagInexistente'
 
 export interface TurmaTagDecision {
   acao: 'aplicar' | 'ignorar'
@@ -22,28 +23,43 @@ export interface TurmaTagDecision {
 
 export interface TurmaTagInput {
   turmaNome: string
-  mapa: { tagNome: string; tagId: string | null } | null
+  mapa?: { tagNome: string; tagId: string | null } | null
+  resolucao?: ResolucaoTag | null
   tags: Array<{ id: string; nome: string }>
   contactId: string | null
+  temCompraValida?: boolean
+  confirmacaoAc?: boolean
+  tagIdConfirmado?: string | null
 }
 
 export function decidirTurmaTag(input: TurmaTagInput): TurmaTagDecision {
   const parsed = parseTurmaName(input.turmaNome)
   if (!parsed.periodYYMM) {
-    return { acao: 'ignorar', motivo: 'aEsperaDeTurma', tagNome: null, tagId: null }
+    return { acao: 'ignorar', motivo: 'semMapeamento', tagNome: null, tagId: null }
+  }
+  const tagNome = input.resolucao?.tagNome ?? input.mapa?.tagNome ?? null
+  if (!tagNome) {
+    return { acao: 'ignorar', motivo: 'semMapeamento', tagNome: null, tagId: null }
+  }
+  if (input.temCompraValida === false) {
+    return { acao: 'ignorar', motivo: 'semCompraValida', tagNome, tagId: null }
   }
   if (!input.contactId) {
-    return { acao: 'ignorar', motivo: 'semContacto', tagNome: input.mapa?.tagNome ?? null, tagId: input.mapa?.tagId ?? null }
+    return { acao: 'ignorar', motivo: 'semContacto', tagNome, tagId: input.tagIdConfirmado ?? input.mapa?.tagId ?? null }
   }
-  if (!input.mapa?.tagNome || !input.mapa.tagId) {
-    return { acao: 'ignorar', motivo: 'semMapeamento', tagNome: input.mapa?.tagNome ?? null, tagId: input.mapa?.tagId ?? null }
+  if (input.confirmacaoAc === false) {
+    return { acao: 'ignorar', motivo: 'tagInexistente', tagNome, tagId: null }
   }
-  const nome = normalizarNomeTurma(input.mapa.tagNome)
-  const jaTem = input.tags.some((tag) => String(tag.id) === String(input.mapa!.tagId) || normalizarNomeTurma(tag.nome) === nome)
+  const tagId = input.tagIdConfirmado ?? input.mapa?.tagId ?? null
+  const nome = normalizarNomeTurma(tagNome)
+  const jaTem = input.tags.some((tag) => (tagId && String(tag.id) === String(tagId)) || normalizarNomeTurma(tag.nome) === nome)
   if (jaTem) {
-    return { acao: 'ignorar', motivo: 'jaTem', tagNome: input.mapa.tagNome, tagId: input.mapa.tagId }
+    return { acao: 'ignorar', motivo: 'jaTem', tagNome, tagId }
   }
-  return { acao: 'aplicar', motivo: null, tagNome: input.mapa.tagNome, tagId: input.mapa.tagId }
+  if (input.confirmacaoAc === true && !tagId) {
+    return { acao: 'ignorar', motivo: 'tagInexistente', tagNome, tagId: null }
+  }
+  return { acao: 'aplicar', motivo: null, tagNome, tagId }
 }
 
 export interface TurmaTagSyncOptions {
@@ -61,13 +77,18 @@ export interface TurmaTagSyncReport {
   semMapeamento: number
   aEsperaDeTurma: number
   semContacto: number
+  semCompraValida: number
+  tagInexistente: number
   erros: Array<{ email: string; error: string }>
   recusas: Array<{ email: string; turma: string; motivo: TurmaTagMotivo }>
 }
 
 type TimelineDoc = {
   email: string
-  ciclos?: Array<{ turma?: { nome?: string; classId?: string | null; entrouEm?: Date | null } | null }>
+  ciclos?: Array<{
+    turma?: { nome?: string; classId?: string | null; entrouEm?: Date | null } | null
+    compras?: Array<{ reembolsada?: boolean }>
+  }>
 }
 
 function idempotencyKey(email: string, turma: string, tagId: string | null, dryRun: boolean): string {
@@ -121,16 +142,18 @@ export async function syncTurmaTags(opcoes: TurmaTagSyncOptions = {}): Promise<T
     semMapeamento: 0,
     aEsperaDeTurma: 0,
     semContacto: 0,
+    semCompraValida: 0,
+    tagInexistente: 0,
     erros: [],
     recusas: []
   }
 
   const [timelines, mapas, tags] = await Promise.all([
     (StudentRenewalTimeline as any).find(filtro).select('email ciclos').lean().exec() as Promise<TimelineDoc[]>,
-    (TurmaTagMap as any).find({}).select('classNameNormalizado tagNome tagId').lean().exec() as Promise<Array<{ classNameNormalizado: string; tagNome: string; tagId: string | null }>>,
+    (TurmaTagMap as any).find({}).select('classNameNormalizado tagNome').lean().exec() as Promise<Array<{ classNameNormalizado: string; tagNome: string }>>,
     (ACStudentTag as any).find(filtro).select('email contactId tags').lean().exec() as Promise<Array<{ email: string; contactId?: string; tags?: Array<{ tagId: string; nome: string }> }>>
   ])
-  const mapaPorTurma = new Map(mapas.map((mapa) => [normalizarNomeTurma(mapa.classNameNormalizado), mapa]))
+  const excepcoesPorTurma = new Map(mapas.map((mapa) => [normalizarNomeTurma(mapa.classNameNormalizado), mapa.tagNome]))
   const tagsPorEmail = new Map(tags.map((doc) => [String(doc.email).toLowerCase().trim(), doc]))
 
   for (const timeline of timelines) {
@@ -139,13 +162,20 @@ export async function syncTurmaTags(opcoes: TurmaTagSyncOptions = {}): Promise<T
     report.candidatos += 1
     const email = timeline.email.toLowerCase().trim()
     const tagDoc = tagsPorEmail.get(email)
-    const decision = decidirTurmaTag({
+    const temCompraValida = (ciclo.compras ?? []).some((compra: any) => compra.reembolsada !== true)
+    const entradaDecision: TurmaTagInput = {
       turmaNome: ciclo.turma.nome,
-      mapa: mapaPorTurma.get(normalizarNomeTurma(ciclo.turma.nome)) ?? null,
+      resolucao: resolverTagDaTurma(ciclo.turma.nome, excepcoesPorTurma),
       tags: (tagDoc?.tags ?? []).map((tag) => ({ id: String(tag.tagId), nome: tag.nome })),
-      contactId: tagDoc?.contactId ? String(tagDoc.contactId) : null
-    })
+      contactId: tagDoc?.contactId ? String(tagDoc.contactId) : null,
+      temCompraValida
+    }
+    let decision = decidirTurmaTag(entradaDecision)
     try {
+      if (decision.acao === 'aplicar' && decision.tagNome) {
+        const tagId = await activeCampaignService.findExistingTagByName(decision.tagNome)
+        decision = decidirTurmaTag({ ...entradaDecision, confirmacaoAc: Boolean(tagId), tagIdConfirmado: tagId })
+      }
       await registar(email, ciclo.turma.nome, decision, dryRun)
       if (decision.acao === 'aplicar') {
         report.aAplicar += 1
@@ -159,6 +189,8 @@ export async function syncTurmaTags(opcoes: TurmaTagSyncOptions = {}): Promise<T
       if (decision.motivo === 'semMapeamento') report.semMapeamento += 1
       if (decision.motivo === 'aEsperaDeTurma') report.aEsperaDeTurma += 1
       if (decision.motivo === 'semContacto') report.semContacto += 1
+      if (decision.motivo === 'semCompraValida') report.semCompraValida += 1
+      if (decision.motivo === 'tagInexistente') report.tagInexistente += 1
       if (decision.motivo) report.recusas.push({ email, turma: ciclo.turma.nome, motivo: decision.motivo })
     } catch (error: any) {
       report.erros.push({ email, error: error?.message ?? 'erro' })
