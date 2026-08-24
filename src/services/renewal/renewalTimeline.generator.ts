@@ -51,6 +51,10 @@ export interface EntradaGerador {
   acDataCompra: Date | null
   excepcoesTurmaTag: Map<string, string>
   fontes: { vendas: Date | null; tags: Date | null; ac: Date | null }
+  /** Inventário global dos períodos onde existiu uma turma de renovação. */
+  periodosComTurma?: string[]
+  /** Janela da campanha em dias; 5 é o valor operacional por defeito. */
+  janelaCampanhaDias?: number
   /**
    * Âncora que já estava classificada como legado na timeline anterior.
    * O marcador fica preso ao evento; uma compra nova nunca o herda.
@@ -88,6 +92,61 @@ function toleranciasParaPeriodo(periodo: string): { atras: number; frente: numbe
 const DIAS_TAG_TARDIA = 90
 
 const DIA_MS = 24 * 60 * 60 * 1000
+
+export type MotivoColocacaoCampanha = 'buraco-calendario' | 'janela-campanha'
+
+function inicioDoDia(data: Date): Date {
+  return new Date(Date.UTC(data.getUTCFullYear(), data.getUTCMonth(), data.getUTCDate()))
+}
+
+function periodoDaData(data: Date): string {
+  return `${String(data.getUTCFullYear() % 100).padStart(2, '0')}${String(data.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+function inicioDoFimDoMes(periodo: Date): Date {
+  return new Date(Date.UTC(periodo.getUTCFullYear(), periodo.getUTCMonth() + 1, 0))
+}
+
+/**
+ * Classifica uma colocação de renovação sem transformar meses em tolerância.
+ * A janela é de fronteira de calendário, medida em dias: 24/02 → 01/03 são
+ * 5 dias; uma compra a 01/03 pode ficar na turma de Fevereiro.
+ */
+export function classificarColocacaoCampanha(
+  compra: Date | null,
+  turmaNome: string | null,
+  periodosComTurma?: Iterable<string>,
+  janelaDias = 5
+): MotivoColocacaoCampanha | null {
+  if (!compra || !turmaNome || janelaDias < 0) return null
+  const turma = parseTurmaName(turmaNome)
+  if (tipoDeTurma(turmaNome) !== 'renovacao' || !turma.periodYYMM || !turma.periodStart) return null
+
+  const periodoCompra = periodoDaData(compra)
+  if (turma.periodYYMM === periodoCompra) return null
+
+  if (periodosComTurma) {
+    const periodos = [...new Set(periodosComTurma)]
+      .map(indiceDePeriodo)
+      .filter((indice): indice is number => indice !== null)
+      .sort((a, b) => a - b)
+    const indiceCompra = indiceDePeriodo(periodoCompra)
+    if (indiceCompra !== null && periodos.length > 0) {
+      const cobertoPeloInventario = indiceCompra >= periodos[0] && indiceCompra <= periodos[periodos.length - 1]
+      if (cobertoPeloInventario && !periodos.includes(indiceCompra)) return 'buraco-calendario'
+    }
+  }
+
+  const compraDia = inicioDoDia(compra)
+  const turmaIndice = indiceDePeriodo(turma.periodYYMM)
+  const compraIndice = indiceDePeriodo(periodoCompra)
+  if (turmaIndice === null || compraIndice === null) return null
+
+  const dias = turmaIndice > compraIndice
+    ? (turma.periodStart.getTime() - compraDia.getTime()) / DIA_MS
+    : (compraDia.getTime() - inicioDoFimDoMes(turma.periodStart).getTime()) / DIA_MS
+  return dias >= 0 && dias <= janelaDias ? 'janela-campanha' : null
+}
 
 /** Só serve para inverter uma data numa chave de ordenação. */
 const MAX_TEMPO = 9999999999999
@@ -486,6 +545,12 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
   const fimDaTurma = e.turmaAtual ? parseTurmaName(e.turmaAtual.className).accessEndOgi : null
   const turmaRenovacao = e.turmaAtual ? tipoDeTurma(e.turmaAtual.className) === 'renovacao' : false
   const fimEsperado = turmaRenovacao ? ultimo?.acessoAte ?? null : fimDaTurma
+  const colocacaoCampanha = classificarColocacaoCampanha(
+    compraDoCiclo,
+    ultimo?.turma?.nome ?? e.turmaAtual?.className ?? null,
+    e.periodosComTurma,
+    e.janelaCampanhaDias ?? 5
+  )
   if (e.acExpiracao && fimEsperado) {
     if (mesmoMes(e.acExpiracao, fimEsperado)) {
       expiracaoIgualTurma = 'ok'
@@ -496,7 +561,7 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
         e.legadoExpiracaoAncora &&
         mesmoDia(compraDoCiclo, e.legadoExpiracaoAncora)
       )
-      expiracaoIgualTurma = mesmoEventoLegado ? 'legado' : 'divergente'
+      expiracaoIgualTurma = mesmoEventoLegado || colocacaoCampanha ? 'legado' : 'divergente'
     }
   }
 
@@ -547,9 +612,17 @@ function calcularCadeia(e: EntradaGerador, ciclos: Ciclo[]): Cadeia {
   const indiceCompra = compraTurma ? indiceDePeriodo(`${String(compraTurma.getUTCFullYear() % 100).padStart(2, '0')}${String(compraTurma.getUTCMonth() + 1).padStart(2, '0')}`) : null
   const indiceAbertura = parsedTurma?.periodYYMM ? indiceDePeriodo(parsedTurma.periodYYMM) : null
   const mesesCompraAntes = indiceCompra !== null && indiceAbertura !== null ? indiceAbertura - indiceCompra : null
+  const periodoCompraSinal = compraTurma ? periodoDaData(compraTurma) : null
+  const periodoTurmaSinal = parsedTurma?.periodYYMM ?? null
+  const indiceCompraSinal = periodoCompraSinal ? indiceDePeriodo(periodoCompraSinal) : null
+  const indiceTurmaSinal = periodoTurmaSinal ? indiceDePeriodo(periodoTurmaSinal) : null
+  const deltaDepoisDoAnoUm = indiceCompraSinal !== null && indiceTurmaSinal !== null
+    ? indiceTurmaSinal - indiceCompraSinal - 12
+    : null
+  const turmaECoorteAnoDois = ultimoComCompra?.anos === 2 && deltaDepoisDoAnoUm !== null && deltaDepoisDoAnoUm >= 0 && deltaDepoisDoAnoUm <= 6
   const compraMuitoAntesDaTurma: Veredicto =
     compraTurma && aberturaTurma && mesesCompraAntes !== null
-      ? mesesCompraAntes > 6 ? 'divergente' : 'ok'
+      ? turmaECoorteAnoDois || mesesCompraAntes <= 6 ? 'ok' : 'divergente'
       : 'sem-dados'
   const anosCompradosIgualTurma: Veredicto =
     ultimoComCompra && parsedTurma?.accessYears

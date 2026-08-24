@@ -1,5 +1,6 @@
 import { gerarTimeline } from '../../src/services/renewal/renewalTimeline.generator'
 import { montarEntrada, ancoraDoEventoLegado } from '../../src/services/renewal/renewalTimeline.service'
+import { parseTurmaName, tipoDeTurma } from '../../src/services/renewal/turmaParser'
 import { canonical, desligar, ligar, turmaActual } from './lib'
 
 async function main() {
@@ -17,6 +18,16 @@ async function main() {
     const userByEmail = new Map(users.map((u: any) => [String(u.email).toLowerCase(), u]))
     const userIds = users.map((u) => u._id)
     const histories = await db.collection('studentclasshistories').find({ studentId: { $in: userIds } }).toArray()
+    const periodosComTurma = new Set<string>()
+    const registarPeriodo = (nome: string | null | undefined) => {
+      if (!nome || tipoDeTurma(nome) !== 'renovacao') return
+      const periodo = parseTurmaName(nome).periodYYMM
+      if (periodo) periodosComTurma.add(periodo)
+    }
+    for (const user of users) {
+      for (const turma of user?.hotmart?.enrolledClasses ?? []) registarPeriodo(turma?.className)
+    }
+    for (const history of histories) registarPeriodo(history.className)
     const maps = await db.collection('turmatagmap').find({}).project({ classNameNormalizado: 1, tagNome: 1 }).toArray()
     const excecoes = new Map(maps.map((m: any) => [m.classNameNormalizado, m.tagNome]))
     const previous = new Map((await db.collection('studentrenewaltimelines').find({ userId: { $in: userIds } }).project({ userId: 1, ciclos: 1, cadeia: 1 }).toArray()).map((t: any) => [String(t.userId), t]))
@@ -41,7 +52,8 @@ async function main() {
         tags: tag ? { tags: tag.tags ?? [], syncedAt: tag.syncedAt ?? null } : null,
         ac: acRow ? { purchaseDate: acRow.purchaseDate ?? null, expirationDate: acRow.expirationDate ?? null, lastSyncedAt: acRow.lastSyncedAt ?? null } : null,
         movimentacoes: (historyBy.get(String(user._id)) ?? []).map((h) => ({ classId: h.classId ?? null, className: h.className, dateMoved: h.dateMoved ?? null })),
-        turmaAtual: (() => { const nome = turmaActual(user); return nome ? { classId: null, className: nome, entrouEm: null } : null })()
+        turmaAtual: (() => { const nome = turmaActual(user); return nome ? { classId: null, className: nome, entrouEm: null } : null })(),
+        periodosComTurma: [...periodosComTurma].sort()
       }, excecoes, ancoraDoEventoLegado(anterior))
       const a = canonical(gerarTimeline(entrada))
       const b = canonical(gerarTimeline(entrada))

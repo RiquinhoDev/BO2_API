@@ -22,6 +22,7 @@ import TurmaTagMap from '../../models/TurmaTagMap'
 import { User } from '../../models'
 import { gerarTimeline, type EntradaGerador } from './renewalTimeline.generator'
 import type { VendaEntrada } from './renewalTimeline.types'
+import { parseTurmaName, tipoDeTurma } from './turmaParser'
 
 export interface DadosAluno {
   userId: string
@@ -34,6 +35,8 @@ export interface DadosAluno {
   ac: { purchaseDate: Date | null; expirationDate: Date | null; lastSyncedAt: Date | null } | null
   movimentacoes: Array<{ classId: string | null; className: string; dateMoved: Date | null }>
   turmaAtual: { classId: string | null; className: string; entrouEm: Date | null } | null
+  periodosComTurma?: string[]
+  janelaCampanhaDias?: number
 }
 
 export interface TimelineSyncReport {
@@ -83,6 +86,8 @@ export function montarEntrada(
     acExpiracao: d.ac?.expirationDate ?? null,
     acDataCompra: d.ac?.purchaseDate ?? null,
     excepcoesTurmaTag: excepcoes,
+    periodosComTurma: d.periodosComTurma,
+    janelaCampanhaDias: d.janelaCampanhaDias,
     fontes: {
       vendas: d.vendas?.lastSyncedAt ?? null,
       tags: d.tags?.syncedAt ?? null,
@@ -183,6 +188,21 @@ export async function gerarTimelinesEmLote(
     movsPorUser.get(chave)!.push(m)
   }
 
+  // O buraco de calendário é uma afirmação global (não depende apenas das
+  // turmas de um aluno). O universo desta corrida já contém todos os alunos
+  // com algum dos três espelhos, por isso o inventário pode ser construído
+  // uma vez e partilhado por todas as entradas.
+  const periodosComTurma = new Set<string>()
+  const registarPeriodo = (nome: string | null | undefined) => {
+    if (!nome || tipoDeTurma(nome) !== 'renovacao') return
+    const periodo = parseTurmaName(nome).periodYYMM
+    if (periodo) periodosComTurma.add(periodo)
+  }
+  for (const user of users) {
+    for (const turma of user?.hotmart?.enrolledClasses ?? []) registarPeriodo(turma?.className)
+  }
+  for (const movimento of movimentacoes) registarPeriodo(movimento.className)
+
   const porMapear = new Set<string>()
   const ops: any[] = []
 
@@ -214,7 +234,8 @@ export async function gerarTimelinesEmLote(
             className: m.className,
             dateMoved: m.dateMoved ?? null
           })),
-          turmaAtual: turmaActualDoUser(user)
+          turmaAtual: turmaActualDoUser(user),
+          periodosComTurma: [...periodosComTurma].sort()
         },
         excepcoes,
         legadoExpiracaoAncora

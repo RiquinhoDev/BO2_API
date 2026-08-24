@@ -23,7 +23,11 @@ const casos: Array<[string, () => void]> = [
   ['turma genérica calcula expiração', () => assert.equal(gerarTimeline(entrada([venda('2025-05-01')], { turmaAtual: { classId: 'g', className: 'Turma Renovação Genérica | 2505', entrouEm: null }, acExpiracao: new Date('2026-05-31T23:59:59.999Z') })).cadeia.expiracaoIgualTurma, 'ok')],
   ['oferta sem nome com turma usa a turma', () => assert.equal(gerarTimeline(entrada([venda('2025-05-01')], { turmaAtual: { classId: 'b', className: 'Turma 18 | 2505', entrouEm: null }, acExpiracao: new Date('2026-05-31T23:59:59.999Z') })).cadeia.expiracaoIgualTurma, 'ok')],
   ['sem turma e sem oferta não inventa expiração', () => assert.equal(gerarTimeline(entrada([venda('2025-05-01')])).cadeia.expiracaoIgualTurma, 'sem-dados')],
-  ['reembolso a meio não cria ciclo', () => assert.equal(agruparCiclos([venda('2025-05-01'), venda('2025-06-01', { transactionStatus: 'REFUNDED' })]).length, 1)]
+  ['reembolso a meio fica visível e marcado', () => {
+    const ciclos = agruparCiclos([venda('2025-05-01'), venda('2025-06-01', { transactionStatus: 'REFUNDED' })])
+    assert.equal(ciclos.length, 1)
+    assert.equal(ciclos[0].compras.some((compra) => compra.reembolsada === true), true)
+  }]
 ]
 
 for (const [nome, caso] of casos) caso()

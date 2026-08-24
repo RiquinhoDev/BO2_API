@@ -85,6 +85,19 @@ test('montarEntrada conserva a ancora do evento legado anterior', () => {
   assert.equal(e.legadoExpiracaoAncora?.toISOString(), anchor.toISOString())
 })
 
+test('montarEntrada conserva o inventário global de períodos de renovação', () => {
+  const e = montarEntrada(
+    dados({ periodosComTurma: ['2601', '2602', '2603', '2605'] }),
+    new Map()
+  )
+  assert.deepEqual(e.periodosComTurma, ['2601', '2602', '2603', '2605'])
+})
+
+test('montarEntrada conserva a janela de campanha configurada', () => {
+  const e = montarEntrada(dados({ janelaCampanhaDias: 3 }), new Map())
+  assert.equal(e.janelaCampanhaDias, 3)
+})
+
 test('a-menos conserva a mesma ancora historica nas geracoes seguintes', () => {
   const anchor = new Date('2025-08-12T00:00:00Z')
   const timelineAnterior = {

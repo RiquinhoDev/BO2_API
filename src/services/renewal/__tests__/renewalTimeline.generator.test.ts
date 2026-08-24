@@ -1,6 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { gerarTimeline, periodoDaTag, type EntradaGerador } from '../renewalTimeline.generator'
+import {
+  classificarColocacaoCampanha,
+  gerarTimeline,
+  periodoDaTag,
+  type EntradaGerador
+} from '../renewalTimeline.generator'
 import type { VendaEntrada } from '../renewalTimeline.types'
 
 const AGORA = new Date('2026-08-21T12:00:00Z')
@@ -69,6 +74,125 @@ test('antigos alunos usa a tag da renovação genérica', () => {
     })
   )
   assert.equal(t.ciclos[0].tagEsperada, 'Aluno OGI 2606 - Renovação')
+})
+
+test('tiagofranco71 — Abril sem turma de renovação fica legado pela regra do buraco', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2026-04-17T00:00:00Z'), transaction: 'TIAGO' })],
+      turmaAtual: { classId: 'c', className: 'Turma Renovação | 2605', entrouEm: null },
+      periodosComTurma: ['2601', '2602', '2603', '2605', '2606', '2607', '2608'],
+      acExpiracao: new Date('2027-05-31T00:00:00Z')
+    })
+  )
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'legado')
+})
+
+test('azevedo.vera — Fevereiro para Março fica legado pela janela da campanha', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2026-02-28T00:00:00Z'), transaction: 'AZEVEDO' })],
+      turmaAtual: { classId: 'c', className: 'Turma Renovação | 2603', entrouEm: null },
+      periodosComTurma: ['2602', '2603'],
+      acExpiracao: new Date('2027-03-31T00:00:00Z')
+    })
+  )
+  assert.equal(t.cadeia.expiracaoIgualTurma, 'legado')
+})
+
+test('janela de campanha — a sensibilidade é explícita em dias 3, 5 e 7', () => {
+  const compra = new Date('2026-02-24T00:00:00Z')
+  const turma = 'Turma Renovação | 2603'
+  const periodos = ['2602', '2603']
+  assert.equal(classificarColocacaoCampanha(compra, turma, periodos, 3), null)
+  assert.equal(classificarColocacaoCampanha(compra, turma, periodos, 5), 'janela-campanha')
+  assert.equal(classificarColocacaoCampanha(compra, turma, periodos, 7), 'janela-campanha')
+  assert.equal(classificarColocacaoCampanha(new Date('2026-03-01T00:00:00Z'), 'Turma Renovação | 2602', periodos, 5), 'janela-campanha')
+})
+
+test('janela de campanha — o gerador aplica o limite configurado', () => {
+  const comum = {
+    vendas: [venda({ approvedDate: new Date('2026-02-24T00:00:00Z'), transaction: 'JANELA' })],
+    turmaAtual: { classId: 'c', className: 'Turma Renovação | 2603', entrouEm: null },
+    periodosComTurma: ['2602', '2603'],
+    acExpiracao: new Date('2027-04-30T00:00:00Z')
+  }
+  assert.equal(gerarTimeline(entrada({ ...comum, janelaCampanhaDias: 3 })).cadeia.expiracaoIgualTurma, 'divergente')
+  assert.equal(gerarTimeline(entrada({ ...comum, janelaCampanhaDias: 5 })).cadeia.expiracaoIgualTurma, 'legado')
+  assert.equal(gerarTimeline(entrada({ ...comum, janelaCampanhaDias: 7 })).cadeia.expiracaoIgualTurma, 'legado')
+})
+
+test('silviabelbute — turma um ano à frente é divergente', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2024-09-23T00:00:00Z'), transaction: 'SILVIA' })],
+      turmaAtual: { classId: 'c', className: 'Turma 11 [renov] | 2509', entrouEm: null },
+      periodosComTurma: ['2409', '2509']
+    })
+  )
+  assert.equal(t.cadeia.compraMuitoAntesDaTurma, 'divergente')
+})
+
+test('crisisabelfer — turma de 2 anos com compra de 1 é divergente', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [venda({ approvedDate: new Date('2025-04-19T00:00:00Z'), priceValue: 97, transaction: 'CRISIS' })],
+      turmaAtual: { classId: 'c', className: 'Turma 5 [2a renov] + REITs + [2 anos] | 2505', entrouEm: null }
+    })
+  )
+  assert.equal(t.cadeia.anosCompradosIgualTurma, 'divergente')
+})
+
+test('nunesnt — coorte do ano 2 de um ciclo de 2 anos é OK', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2025-05-03T00:00:00Z'), priceValue: 167, transaction: 'NUNES-BASE' }),
+        venda({ approvedDate: new Date('2025-05-03T00:00:00Z'), priceValue: 97, transaction: 'NUNES-EXT', hotmartProductId: '3100292' })
+      ],
+      turmaAtual: { classId: 'c', className: 'Turma 8 [2a renov] + [2 anos] | 2605', entrouEm: null }
+    })
+  )
+  assert.equal(t.cadeia.anosCompradosIgualTurma, 'ok')
+  assert.equal(t.cadeia.compraMuitoAntesDaTurma, 'ok')
+})
+
+test('ariane.gouvea — ciclo de 2 anos não é falso alarme de distância', () => {
+  const t = gerarTimeline(
+    entrada({
+      vendas: [
+        venda({ approvedDate: new Date('2024-07-08T00:00:00Z'), priceValue: 447, transaction: 'ARIANE-BASE' }),
+        venda({ approvedDate: new Date('2024-07-08T00:00:00Z'), priceValue: 97, transaction: 'ARIANE-EXT', hotmartProductId: '3100292' })
+      ],
+      turmaAtual: { classId: 'c', className: 'Turma 8 [2a renov] + [2 anos] | 2509', entrouEm: null }
+    })
+  )
+  assert.equal(t.cadeia.compraMuitoAntesDaTurma, 'ok')
+})
+
+test('arredondamento — compra a 01/10 termina a 31/10 do ano seguinte, 395 dias', () => {
+  const t = gerarTimeline(
+    entrada({ vendas: [venda({ approvedDate: new Date('2025-10-01T00:00:00Z'), transaction: 'OUTUBRO' })] })
+  )
+  assert.equal(t.ciclos[0].acessoAte.toISOString(), '2026-10-31T23:59:59.999Z')
+  assert.equal(Math.floor((t.ciclos[0].acessoAte.getTime() - new Date('2025-10-01T00:00:00Z').getTime()) / 86_400_000), 395)
+})
+
+test('ordem das compras, coortes e tags não altera a timeline', () => {
+  const base = entrada({
+    vendas: [
+      venda({ approvedDate: new Date('2025-05-03T00:00:00Z'), priceValue: 167, transaction: 'ORD-BASE' }),
+      venda({ approvedDate: new Date('2025-05-03T00:10:00Z'), priceValue: 97, transaction: 'ORD-EXT', hotmartProductId: '3100292' }),
+      venda({ approvedDate: new Date('2026-05-04T00:00:00Z'), priceValue: 167, transaction: 'ORD-RENOV' })
+    ],
+    tags: [
+      { tagId: '1', nome: 'Aluno OGI 2505 - Renovação Turma 8 [2anos]', aplicadaEm: null },
+      { tagId: '2', nome: 'Aluno OGI 2605 - Renovação Turma 8', aplicadaEm: null }
+    ],
+    turmaAtual: { classId: 'c', className: 'Turma 8 [renov] | 2605', entrouEm: null }
+  })
+  const invertida = { ...base, vendas: [...base.vendas].reverse(), tags: [...base.tags].reverse() }
+  assert.deepEqual(gerarTimeline(base), gerarTimeline(invertida))
 })
 
 test('sinaliza turma que abre mais de seis meses depois da compra', () => {
@@ -387,7 +511,7 @@ test('expiracao divergente da turma marca a cadeia', () => {
   assert.equal(t.cadeia.expiracaoIgualTurma, 'divergente')
 })
 
-test('turma base continua a usar o fim derivado do nome da turma', () => {
+test('aurelio.cavaleiro — expiração da turma base vence a compra', () => {
   const t = gerarTimeline(
     entrada({
       vendas: [venda({ approvedDate: new Date('2025-07-10T00:00:00Z'), transaction: 'A' })],

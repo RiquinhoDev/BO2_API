@@ -43,7 +43,7 @@ const alunoAc = (userId: string, partial: Record<string, unknown> = {}) => ({
 
 const alunoHotmart = (userId: string, sales: VendaEntrada[] = [venda()]) => ({ userId, sales })
 
-test('334 usa a última compra para um ciclo de compras avulsas', () => {
+test('paulo_rodrigues_08 — 334 usa a última compra em avulsas', () => {
   const ciclo: any = {
     compras: [
       { data: new Date('2024-11-25T00:00:00Z'), paymentMode: 'PAY_IN_FULL' },
@@ -54,7 +54,7 @@ test('334 usa a última compra para um ciclo de compras avulsas', () => {
   assert.equal(dataCompraDoCiclo(ciclo)?.toISOString(), '2024-12-02T00:00:00.000Z')
 })
 
-test('334 usa a primeira cobrança para um plano de prestações', () => {
+test('zz.carlos — 334 usa a primeira cobrança em prestações', () => {
   const ciclo: any = {
     compras: [
       { data: new Date('2026-05-20T00:00:00Z'), paymentMode: 'MULTIPLE_PAYMENTS' },
