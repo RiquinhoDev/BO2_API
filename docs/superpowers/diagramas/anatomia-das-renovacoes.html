@@ -1,0 +1,509 @@
+<title>Anatomia das Renovações</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --ground: #fbfbfc;
+    --panel: #ffffff;
+    --ink: #1b1d22;
+    --ink-soft: #4a505c;
+    --muted: #767d8c;
+    --line: #e2e5ea;
+    --line-soft: #eef0f4;
+    --accent: #2f4f7a;
+    --accent-soft: #eaeff6;
+    --ok: #2f6f4f;
+    --ok-bg: #e9f2ec;
+    --legado: #8a6a1c;
+    --legado-bg: #f7f0dd;
+    --diverge: #a03a2c;
+    --diverge-bg: #f8eae7;
+    --off: #6b7280;
+    --off-bg: #eef0f3;
+    --plate: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #131417;
+      --panel: #191b1f;
+      --ink: #e8eaee;
+      --ink-soft: #b6bcc7;
+      --muted: #878e9c;
+      --line: #2b2f36;
+      --line-soft: #23262b;
+      --accent: #8fb2df;
+      --accent-soft: #1d2733;
+      --ok: #7fc39c;
+      --ok-bg: #16241d;
+      --legado: #d6b263;
+      --legado-bg: #262015;
+      --diverge: #e0897a;
+      --diverge-bg: #2a1a17;
+      --off: #8b93a1;
+      --off-bg: #1f2227;
+      --plate: #eef1f5;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #131417;
+    --panel: #191b1f;
+    --ink: #e8eaee;
+    --ink-soft: #b6bcc7;
+    --muted: #878e9c;
+    --line: #2b2f36;
+    --line-soft: #23262b;
+    --accent: #8fb2df;
+    --accent-soft: #1d2733;
+    --ok: #7fc39c;
+    --ok-bg: #16241d;
+    --legado: #d6b263;
+    --legado-bg: #262015;
+    --diverge: #e0897a;
+    --diverge-bg: #2a1a17;
+    --off: #8b93a1;
+    --off-bg: #1f2227;
+    --plate: #eef1f5;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    font-size: 16.5px;
+    line-height: 1.75;
+    margin: 0;
+    padding: 0 1.5rem 7rem;
+  }
+  .wrap { max-width: 60rem; margin: 0 auto; }
+  .prose { max-width: 40rem; }
+
+  header.top { padding: 5rem 0 2.5rem; border-bottom: 1px solid var(--line); margin-bottom: 2.5rem; }
+  h1 {
+    font-family: Newsreader, Georgia, serif;
+    font-size: clamp(2.4rem, 6vw, 3.6rem);
+    font-weight: 600; line-height: 1.05; letter-spacing: -0.02em;
+    margin: 0 0 1rem; text-wrap: balance;
+  }
+  .standfirst { font-size: 1.14rem; line-height: 1.7; color: var(--ink-soft); max-width: 36rem; margin: 0 0 2rem; }
+  .meta { font-family: "IBM Plex Mono", monospace; font-size: 0.78rem; color: var(--muted); letter-spacing: 0.03em; }
+
+  h2 {
+    font-family: Newsreader, Georgia, serif;
+    font-size: 1.9rem; font-weight: 600; letter-spacing: -0.01em;
+    margin: 5.5rem 0 0.9rem; text-wrap: balance;
+  }
+  h2 .num {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; font-weight: 500;
+    color: var(--accent); display: block; margin-bottom: 0.7rem; letter-spacing: 0.14em;
+  }
+  h3 { font-size: 1.04rem; font-weight: 600; margin: 2.75rem 0 0.75rem; letter-spacing: -0.005em; }
+  p { margin: 0 0 1.2rem; }
+  strong { font-weight: 600; }
+  code { font-family: "IBM Plex Mono", monospace; font-size: 0.87em; background: var(--line-soft); padding: 0.12em 0.36em; border-radius: 3px; }
+
+  .switches { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.5rem; }
+  .sw {
+    display: inline-flex; align-items: baseline; gap: 0.5rem;
+    background: var(--off-bg); border: 1px solid var(--line);
+    border-radius: 999px; padding: 0.3rem 0.85rem;
+    font-family: "IBM Plex Mono", monospace; font-size: 0.78rem; color: var(--ink-soft);
+  }
+  .sw b { font-weight: 500; color: var(--off); font-size: 0.7rem; letter-spacing: 0.08em; }
+
+  figure { margin: 2.25rem 0 3.25rem; }
+  /* Placa clara fixa: os diagramas trazem cores proprias e o texto e escuro,
+     por isso a figura mantem-se legivel nos dois temas. */
+  .diagram {
+    background: var(--plate); border: 1px solid var(--line); border-radius: 10px;
+    padding: 2.25rem 1.5rem; overflow-x: auto;
+  }
+  .diagram pre.mermaid { margin: 0; background: none; display: flex; justify-content: center; min-width: min-content; }
+  figcaption { font-size: 0.86rem; line-height: 1.65; color: var(--muted); margin-top: 1.1rem; max-width: 38rem; }
+
+  .note {
+    border-left: 2px solid var(--accent); background: var(--accent-soft);
+    padding: 1.2rem 1.4rem; margin: 2rem 0; border-radius: 0 6px 6px 0;
+    max-width: 40rem;
+  }
+  .note p:last-child { margin-bottom: 0; }
+  .note .label {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.68rem; letter-spacing: 0.1em;
+    color: var(--accent); display: block; margin-bottom: 0.65rem; font-weight: 500;
+  }
+
+  pre.data {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.82rem; line-height: 1.75;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 1.4rem 1.5rem; overflow-x: auto; margin: 1.75rem 0;
+  }
+
+  table { border-collapse: collapse; width: 100%; font-size: 0.89rem; line-height: 1.6; margin: 1.75rem 0 2rem; }
+  th, td { text-align: left; padding: 0.75rem 0.9rem; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; border-bottom-color: var(--line); }
+  td.n { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .tw { overflow-x: auto; }
+
+  .pill { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 4px; font-weight: 500; }
+  .p-ok { background: var(--ok-bg); color: var(--ok); }
+  .p-leg { background: var(--legado-bg); color: var(--legado); }
+  .p-div { background: var(--diverge-bg); color: var(--diverge); }
+  .p-off { background: var(--off-bg); color: var(--off); }
+
+  footer { margin-top: 6.5rem; padding-top: 2rem; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <h1>Anatomia das Renovações</h1>
+  <p class="standfirst">O que o sistema faz todas as noites, em que condições escreve, e onde é que decidimos deliberadamente não fazer nada. Tudo o que está aqui foi medido contra a base de dados real.</p>
+  <p class="meta">24 de Agosto de 2026 · quatro interruptores, todos desligados</p>
+  <div class="switches">
+    <span class="sw"><b>OFF</b> RenewalPipeline</span>
+    <span class="sw"><b>OFF</b> AcExpirationSync</span>
+    <span class="sw"><b>OFF</b> AcTurmaTagSync</span>
+    <span class="sw"><b>OFF</b> AcRefundHandler</span>
+  </div>
+</header>
+
+<div class="prose">
+<p>O sistema existe para resolver um problema simples de enunciar: <strong>quatro plataformas guardam pedaços do mesmo aluno e nenhuma sabe da outra.</strong> A Hotmart tem as vendas, a ActiveCampaign tem as datas e as tags, a CursEduca tem as turmas, o Discord tem os acessos à comunidade. Até agora, mantê-las de acordo era trabalho manual.</p>
+<p>A regra que organiza tudo o resto: <strong>as vendas da Hotmart são a verdade.</strong> Nunca escrevemos lá. Tudo o que o sistema faz é fazer as outras plataformas concordarem com elas.</p>
+</div>
+
+<h2><span class="num">DIAGRAMA 1</span>O que corre todas as noites</h2>
+
+<div class="prose">
+<p>Nove passos, em sequência. Os quatro a tracejado só correm se o seu interruptor estiver ligado — hoje nenhum está. Os outros cinco já correm há meses e só lêem ou escrevem na nossa base de dados.</p>
+</div>
+
+<figure>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    S1["1 · Vendas da Hotmart<br/><small>lê a Hotmart, escreve na BD</small>"]
+    S2["2 · Datas da AC<br/><small>lê a AC, escreve na BD</small>"]
+    S3["3 · Tags da AC<br/><small>lê a AC, escreve na BD</small>"]
+    S4["4 · <b>Data de expiração</b><br/><small>ESCREVE NA AC</small>"]
+    S5["5 · Tag da turma<br/><small>ESCREVE NA AC</small>"]
+    S6["6 · Reembolsos<br/><small>ESCREVE NA AC e na BD</small>"]
+    S7["7 · Cargos do Discord<br/><small>escreve no Discord</small>"]
+    S8["8 · Timelines<br/><small>a fotografia, só na BD</small>"]
+    S9["9 · Reconciliar a <b>Data da compra</b><br/><small>ESCREVE NA AC</small>"]
+
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
+
+    classDef leitura fill:#ffffff,stroke:#c8cdd6,stroke-width:1px,color:#1b1d22
+    classDef escrita fill:#eaeff6,stroke:#2f4f7a,stroke-width:1.5px,stroke-dasharray:5 3,color:#1b1d22
+    class S1,S2,S3,S7,S8 leitura
+    class S4,S5,S6,S9 escrita
+</pre>
+</div>
+<figcaption>A tracejado, os quatro passos que escrevem para fora e que têm interruptor próprio. As timelines ficam em penúltimo de propósito: só fazem sentido com os espelhos já frescos.</figcaption>
+</figure>
+
+<div class="note">
+<span class="label">PORQUE É QUE A ORDEM IMPORTA</span>
+<p>O passo 9 desfaz um efeito lateral do passo 5. Aplicar uma tag na AC parece disparar uma automação deles que carimba a data de compra com o dia de hoje. Corrigir isso <em>imediatamente</em> a seguir à tag seria perder uma corrida contra a automação; no fim da noite, apanha-se o que já disparou e o resto fica para a noite seguinte.</p>
+</div>
+
+<h2><span class="num">DIAGRAMA 2</span>Quando é que o acesso acaba</h2>
+
+<div class="prose">
+<p>É a decisão mais importante do sistema e a que demorou mais a acertar. Não há uma regra — há duas, e o que as separa é o <strong>tipo de turma</strong>.</p>
+</div>
+
+<figure>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    A["Aluno com venda na Hotmart"] --> B{"Está numa turma?"}
+    B -->|"não, ainda"| C{"A oferta da compra<br/>tem nome?"}
+    C -->|não| D["RECUSA<br/><small>semTurma · não inventa</small>"]
+    C -->|sim| E["A oferta diz qual é a turma"]
+    B -->|sim| F{"Que tipo de turma?"}
+    E --> F
+
+    F -->|BASE| G["Fim do período do nome<br/>+ 12 meses × anos<br/><small>Turma 20 &#124; 2703 → 31/03/2028</small>"]
+    F -->|RENOVAÇÃO| H["Data da compra<br/>+ 12 meses × anos<br/><small>comprou 06/10 → 31/10 do ano seguinte</small>"]
+
+    G --> I{"É menor do que<br/>o que a AC já tem?"}
+    H --> I
+    I -->|sim| J["NÃO ESCREVE<br/><small>nunca encurtamos</small>"]
+    I -->|não| K["Escreve a <b>Data de expiração</b>"]
+
+    classDef ok fill:#e9f2ec,stroke:#2f6f4f,color:#1b1d22
+    classDef stop fill:#f8eae7,stroke:#a03a2c,color:#1b1d22
+    classDef calc fill:#eaeff6,stroke:#2f4f7a,color:#1b1d22
+    class K ok
+    class D,J stop
+    class G,H calc
+</pre>
+</div>
+<figcaption>A turma decide qual das duas regras se aplica. A oferta da compra só entra quando o aluno ainda não foi colocado — a janela entre comprar e ser colocado.</figcaption>
+</figure>
+
+<div class="note">
+<span class="label">A ASSIMETRIA, E É DELIBERADA</span>
+<p><strong>Na turma base, comprar tarde custa.</strong> Quem compra a 6 de Outubro e entra na turma que abriu em Setembro fica com acesso até Setembro do ano seguinte — menos de doze meses. A coorte é o produto: entra-se na turma que está a abrir.</p>
+<p><strong>Na renovação, não custa.</strong> São doze meses a contar do dia em que se paga, e a turma é só onde a pessoa fica agrupada.</p>
+</div>
+
+<div class="note">
+<span class="label">O ARREDONDAMENTO É GENEROSO, DE PROPÓSITO</span>
+<p>«Fim do mês da compra» arredonda sempre para cima. Quem compra a 1 de Outubro fica com 31 de Outubro do ano seguinte — <strong>395 dias, não 365.</strong> Uma diferença face a esta regra não é uma dívida: os 34 alunos que o painel chegou a marcar como «a menos um mês» perdiam, medido em dias, entre <strong>um e treze</strong>.</p>
+</div>
+
+<h2><span class="num">DIAGRAMA 3</span>Onde é que o aluno fica</h2>
+
+<div class="prose">
+<p>Uma compra base e uma renovação seguem caminhos diferentes. A base é colocada de imediato; a renovação passa por uma sala de espera.</p>
+</div>
+
+<figure>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    A["Compra na Hotmart"] --> B{"Base ou renovação?"}
+
+    B -->|BASE| C["A oferta identifica a turma<br/>desde o primeiro dia"]
+    C --> D["Turma 18 &#124; 2605"]
+
+    B -->|RENOVAÇÃO| E["Turma Renovação Genérica<br/><small>código 3V4VBR3n42 · sala de espera</small>"]
+    E --> F{"Fim do mês"}
+    F --> G{"Linhagem especial?"}
+    G -->|"Turma 1"| H["Fica na linhagem<br/>da Turma 1"]
+    G -->|"Turma 2"| I["Fica na linhagem<br/>da Turma 2"]
+    G -->|não| J["Turma Renovação &#124; YYMM<br/><small>do mês da coorte</small>"]
+
+    D --> K["Recebe a tag da turma"]
+    H --> K
+    I --> K
+    J --> K
+
+    classDef espera fill:#f7f0dd,stroke:#8a6a1c,color:#1b1d22
+    classDef excep fill:#f8eae7,stroke:#a03a2c,color:#1b1d22
+    class E,F espera
+    class H,I excep
+</pre>
+</div>
+<figcaption>As duas linhagens a vermelho são as únicas excepções que sobram. Têm preço próprio: apanhá-las num movimento em massa seria erro de facturação, não cosmético.</figcaption>
+</figure>
+
+<div class="note">
+<span class="label">DUAS COISAS QUE SE APRENDERAM À CUSTA</span>
+<p><strong>Enquanto está na genérica, não leva tag nenhuma.</strong> A genérica não tem período no nome. Pôr-lhe a tag da coorte anterior seria mentir; inventar uma para a genérica criaria lixo na AC.</p>
+<p><strong>Num ciclo de dois anos, a turma do segundo ano abre um ano depois da compra.</strong> Isso não é anomalia — é a definição de segundo ano. Cheguei a marcar dois alunos como problema por comparar a compra com a turma sem contar com isso.</p>
+</div>
+
+<h2><span class="num">DIAGRAMA 4</span>Como se decide a tag da turma</h2>
+
+<div class="prose">
+<p>A regra de ouro é <strong>ler, nunca construir</strong>. As tags são criadas por vocês e nem sempre seguem a convenção — a da Turma 19 não leva o <code>L</code> porque não houve lançamento. Se o sistema adivinhasse o nome, criaria uma tag nova na AC que ninguém pediu.</p>
+</div>
+
+<figure>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    A["Aluno colocado numa turma"] --> B{"Está activo?"}
+    B -->|não| C["Ignora<br/><small>14 alunos hoje</small>"]
+    B -->|sim| D{"Tem compra válida,<br/>não reembolsada?"}
+    D -->|não| E["Ignora<br/><small>11 alunos hoje</small>"]
+    D -->|sim| F{"A turma está na<br/>tabela de excepções?"}
+    F -->|sim| G["Usa a excepção"]
+    F -->|não| H{"A convenção<br/>resolve o nome?"}
+    H -->|não| I["RECUSA<br/><small>Equipa, genérica, agrupadas</small>"]
+    H -->|sim| J["Nome pela convenção"]
+    G --> K{"Essa tag existe<br/>mesmo na AC?"}
+    J --> K
+    K -->|não| L["RECUSA<br/><small>nunca cria uma tag</small>"]
+    K -->|sim| M{"O aluno já a tem?"}
+    M -->|sim| N["Nada a fazer<br/><small>902 alunos hoje</small>"]
+    M -->|não| O["Aplica"]
+
+    classDef stop fill:#f8eae7,stroke:#a03a2c,color:#1b1d22
+    classDef skip fill:#eef0f3,stroke:#6b7280,color:#1b1d22
+    classDef ok fill:#e9f2ec,stroke:#2f6f4f,color:#1b1d22
+    class I,L stop
+    class C,E,N skip
+    class O ok
+</pre>
+</div>
+<figcaption>Cinco guardas antes de qualquer escrita. Correndo hoje contra produção, este caminho aplicaria <strong>zero</strong> tags — porque 902 alunos já as têm e os restantes estão correctamente excluídos.</figcaption>
+</figure>
+
+<div class="tw">
+<table>
+  <thead><tr><th>Resultado</th><th class="n">Alunos</th><th>Porquê</th></tr></thead>
+  <tbody>
+    <tr><td>Já tem a tag</td><td class="n">902</td><td>Nada a fazer</td></tr>
+    <tr><td>Inactivo</td><td class="n">14</td><td>Perderam o acesso a 31/07; não se tagam</td></tr>
+    <tr><td>Sem compra válida</td><td class="n">11</td><td>Reembolsados ou sem compras; tagá-los inventaria alunos</td></tr>
+    <tr><td>Turma sem tag possível</td><td class="n">3</td><td>Equipa, genérica, turma agrupada</td></tr>
+    <tr><td><strong>A aplicar</strong></td><td class="n"><strong>0</strong></td><td>—</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2><span class="num">DIAGRAMA 5</span>Reembolsos</h2>
+
+<div class="prose">
+<p>O sistema faz duas coisas e nenhuma mais: tira a tag da turma <em>do ciclo que foi reembolsado</em> e marca o produto do aluno na nossa base de dados. <strong>Não inactiva ninguém</strong> — a inactivação continua a ser decisão humana.</p>
+</div>
+
+<figure>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    A["Venda REFUNDED<br/>ou CHARGEBACK"] --> B["Encontra o ciclo<br/>dessa transacção"]
+    B --> C{"Há compra válida<br/>no MESMO período,<br/>depois do reembolso?"}
+    C -->|sim| D["PROTEGIDO<br/><small>voltou a comprar · 2 alunos hoje</small>"]
+    C -->|não| E["Marca o produto<br/>como reembolsado na BD"]
+    E --> F{"Tem a tag desse ciclo?"}
+    F -->|não| G["Nada a remover<br/><small>9 casos hoje</small>"]
+    F -->|sim| H["Remove só a tag<br/>desse ciclo<br/><small>11 alunos hoje</small>"]
+
+    classDef ok fill:#e9f2ec,stroke:#2f6f4f,color:#1b1d22
+    classDef skip fill:#eef0f3,stroke:#6b7280,color:#1b1d22
+    classDef act fill:#eaeff6,stroke:#2f4f7a,color:#1b1d22
+    class D ok
+    class G skip
+    class E,H act
+</pre>
+</div>
+<figcaption>A tag removida é a do ciclo reembolsado, não a da turma onde o aluno está hoje. Quem foi reembolsado em Setembro e comprou outra vez em Novembro perde a tag de Setembro e mantém a de Novembro.</figcaption>
+</figure>
+
+<div class="note">
+<span class="label">A GUARDA QUE QUASE FALHOU</span>
+<p>Quem é reembolsado e volta a comprar fica com <strong>dois ciclos do mesmo período</strong>, não com um ciclo que contém as duas compras. A primeira versão da guarda procurava a recompra <em>dentro</em> do ciclo reembolsado e nunca a encontrava. Duas alunas — uma que recomprou sete dias depois, outra no mesmo dia — iam perder a tag de uma turma que pagaram.</p>
+</div>
+
+<h2><span class="num">DIAGRAMA 6</span>Como o painel julga cada aluno</h2>
+
+<div class="prose">
+<p>Todas as noites o sistema reconstrói a história de cada aluno e compara quatro elos. Cada elo compara-se com o que está <em>acima</em> dele na hierarquia — nunca abaixo.</p>
+</div>
+
+<figure>
+<div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    A["Vendas<br/>Hotmart"] -->|"elo 1"| B["<b>Data da compra</b><br/><small>ActiveCampaign</small>"]
+    B -->|"elo 2"| C["<b>Data de expiração</b><br/><small>ActiveCampaign</small>"]
+    C -->|"elo 3"| D["Turma"]
+    D -->|"elo 4"| E["Tag"]
+
+    classDef verdade fill:#eaeff6,stroke:#2f4f7a,stroke-width:2px,color:#1b1d22
+    classDef elo fill:#ffffff,stroke:#c8cdd6,color:#1b1d22
+    class A verdade
+    class B,C,D,E elo
+</pre>
+</div>
+<figcaption>A Hotmart é a origem. Um elo que não bate diz-nos onde a cadeia partiu, não que o aluno esteja errado.</figcaption>
+</figure>
+
+<div class="prose">
+<h3>Os quatro veredictos</h3>
+</div>
+
+<div class="tw">
+<table>
+  <thead><tr><th>Veredicto</th><th>Quer dizer</th><th class="n">Hoje</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill p-ok">ok</span></td><td>O elo bate</td><td class="n">710</td></tr>
+    <tr><td><span class="pill p-leg">legado</span></td><td>Diverge por causa conhecida e aceite — a coorte a funcionar como desenhada. Informação, não trabalho.</td><td class="n">84</td></tr>
+    <tr><td><span class="pill p-div">divergente</span></td><td>Diverge sem explicação. É uma lista de trabalho.</td><td class="n">2</td></tr>
+    <tr><td><span class="pill p-off">sem dados</span></td><td>Falta a informação para julgar</td><td class="n">17</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">
+<span class="label">OS DOIS DIVERGENTES DE HOJE NÃO SÃO REAIS</span>
+<p>São dois alunos cuja expiração foi corrigida à mão na AC a 23 de Agosto. O nosso espelho da AC ainda tem o valor antigo, porque a leitura da AC só corre dentro do fluxo nocturno — que está desligado. Na primeira noite depois de ligar, desaparecem sozinhos.</p>
+</div>
+
+<h2><span class="num">DIAGRAMA 7</span>Quando é que uma divergência é aceitável</h2>
+
+<div class="prose">
+<p>Nem toda a diferença entre o mês da compra e o mês da turma é um erro. Duas situações são normais e o sistema tem de as reconhecer, senão enche o painel de alarmes que ninguém pode resolver.</p>
+</div>
+
+<figure>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    A["O mês da compra é diferente<br/>do mês da turma"] --> B{"Existia turma de renovação<br/>no mês da compra?"}
+    B -->|não| C["ACEITE<br/><small>colocação forçada · Abril de 2026 não teve turma</small>"]
+    B -->|sim| D{"A compra caiu a poucos dias<br/>da fronteira do mês?"}
+    D -->|sim| E["ACEITE<br/><small>janela da campanha</small>"]
+    D -->|não| F["DIVERGENTE<br/><small>colocação a rever</small>"]
+
+    classDef ok fill:#e9f2ec,stroke:#2f6f4f,color:#1b1d22
+    classDef stop fill:#f8eae7,stroke:#a03a2c,color:#1b1d22
+    class C,E ok
+    class F stop
+</pre>
+</div>
+<figcaption>Das 136 renovações desde Fevereiro, 22 tinham o mês da compra diferente do da turma. Dez porque Abril não teve turma nenhuma; onze pela janela da campanha. Sobrou uma a rever.</figcaption>
+</figure>
+
+<div class="note">
+<span class="label">A COLOCAÇÃO SEGUE A CAMPANHA, NÃO O CALENDÁRIO</span>
+<p>Quem compra nos últimos dias do mês entra na turma seguinte; quem compra no dia 1 entra na anterior. Isto não estava escrito em lado nenhum — descobriu-se ao medir, quando 24, 26, 27 e 28 de Fevereiro foram todos para a turma de Março, e três compras de 1 de Março foram para a de Fevereiro.</p>
+</div>
+
+<h2><span class="num">DIAGRAMA 8</span>O que o sistema nunca faz</h2>
+
+<div class="prose">
+<p>Tão importante como o que faz. Cada uma destas linhas foi escrita depois de um incidente concreto.</p>
+</div>
+
+<figure>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+    A(["O sistema NUNCA"])
+    A --> B["escreve na Hotmart<br/><small>é gerida à mão</small>"]
+    A --> C["encurta o acesso de alguém<br/><small>só um humano o pode fazer</small>"]
+    A --> D["cria uma tag nova na AC<br/><small>se não existe, recusa</small>"]
+    A --> E["remove uma tag<br/>fora de um reembolso"]
+    A --> F["inactiva um aluno<br/><small>continua a ser decisão humana</small>"]
+    A --> G["toca na <b>Data da 1ª compra</b><br/><small>nunca, sem autorização</small>"]
+    A --> H["escreve sem deixar rasto<br/><small>valor anterior sempre gravado</small>"]
+
+    classDef never fill:#f8eae7,stroke:#a03a2c,color:#1b1d22
+    classDef root fill:#1b1d22,stroke:#1b1d22,color:#ffffff
+    class B,C,D,E,F,G,H never
+    class A root
+</pre>
+</div>
+<figcaption>A última é a que torna todas as outras verificáveis: cada escrita, e cada recusa, fica gravada com o valor anterior.</figcaption>
+</figure>
+
+<h2><span class="num">ESTADO</span>O que falta para ligar</h2>
+
+<div class="prose">
+<p>Do lado do desenvolvimento, nada. A cadeia mede bem, os três passos que a chefia definiu estão construídos e testados, e os ensaios contra a base de dados real mostram que nenhum deles aplicaria uma tag indevida nem removeria a de quem pagou.</p>
+<p><strong>Falta uma decisão:</strong> ligar os quatro interruptores.</p>
+<p>Na primeira noite, duas coisas resolvem-se sozinhas. O espelho da AC actualiza-se e os dois falsos divergentes desaparecem. E uma renovação nova passa a ter a expiração escrita na mesma noite em que a venda entra, em vez de esperar que alguém repare — como aconteceu com um aluno que renovou a 23 de Agosto e cuja ficha dizia que o acesso acabava cinco semanas depois.</p>
+</div>
+
+<pre class="data">ENSAIO CONTRA PRODUÇÃO, 24 DE AGOSTO
+
+  expiração        0 escritas propostas    tudo já alinhado
+  tags de turma    0 escritas propostas    902 já têm, o resto excluído
+  reembolsos      11 tags a remover        2 protegidos por recompra
+  data de compra   0 alterações            nada carimbado desde a limpeza
+
+  escritas reais executadas: nenhuma</pre>
+
+<footer>
+  <p>Sistema de renovações OGI · backoffice. Todos os números foram medidos contra a base de dados de produção a 24 de Agosto de 2026, em modo de leitura.</p>
+</footer>
+
+</div>
