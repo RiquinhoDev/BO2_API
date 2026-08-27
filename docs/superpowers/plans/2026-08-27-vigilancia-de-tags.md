@@ -6,6 +6,11 @@ O que se constrói: um registo de **quem mexeu nas tags de turma de um aluno
 quando não fomos nós**, para servir duas coisas ao mesmo tempo — uma fila de
 avisos que se esvazia, e um histórico por aluno que nunca se apaga.
 
+**Só tags de turma.** O espelho tem 116 tags distintas; vigiam-se as 75 de
+pertença (`tipo === 'membresia'`) e mais nada. É o escopo exacto do que o
+pipeline nocturno escreve. As tags de estado e as de marketing ficam de fora,
+e a secção *Escopo* abaixo mostra os números que levaram a essa decisão.
+
 **Não aplica tags. Não remove tags. Não toca na AC.** Nada aqui é o antigo
 sistema de aplicar tags por produto e actividade (`tagOrchestrator`,
 `decisionEngine`). Esse não entra, nem como referência.
@@ -41,21 +46,62 @@ alunos activos     1.328     (3.719 associações)
 espelho de     23/08/2026     4 dias velho
 ```
 
-Aplicações por mês, alunos activos:
-
-```
-2025-07  52   2025-11 145   2026-03  80   2026-07  40
-2025-08  15   2025-12  37   2026-04 109   2026-08 121
-2025-09 267   2026-01 648   2026-05 450
-2025-10  24   2026-02  67   2026-06  46
-```
-
-Janeiro e Maio são meses de campanha — atribuições em massa da turma de
-renovação, legítimas. Os outros correm aos 40-120, ou seja **1 a 4 por noite**.
-
 **O `syncAcStudentTags` só corre dentro do `RenewalPipeline`, que está `off`.**
 Daí o espelho de 4 dias. A vigilância precisa de cron próprio, independente do
 pipeline, para poder ligar sem esperar pela chefia.
+
+---
+
+## Escopo — só tags de turma, e porquê
+
+116 tags distintas no espelho. Repartidas por associações de **alunos activos**:
+
+```
+membresia   75 tags    1.598 associações   "Aluno OGI L2605 - Turma 18"
+estado       4 tags    1.415 associações   "Alunos OGI Ativos", "…subscrição ativa",
+                                           "Alunos OGI Antigos", "…Ainda não investem"
+ruído       37 tags      706 associações   mentorias, "25 primeiros", ofertas, eventos
+```
+
+Aplicações por mês, alunos activos, repartidas da mesma forma:
+
+```
+mes        membresia   estado   ruído
+2025-09          142       37      88
+2025-11          107       38       0
+2026-01           54      594       0     <- o pico de Janeiro é ESTADO
+2026-03           41       39       0
+2026-05          184      124     142
+2026-06           11        9      26
+2026-07           16       17       7
+2026-08           73       33      15
+```
+
+**O que enche a fila são as tags de estado, não as de marketing.** Cortar as
+mentorias e os "25 primeiros" tira 706 de 3.719 — 19%, e não resolve nada.
+Cortar as de estado tira o pico de 594 de uma vez.
+
+E as de estado saem pelo critério certo, não por conveniência: **o pipeline
+nocturno não lhes toca**. Só o `acTurmaTagSync` e o `refundHandler` escrevem
+tags, e ambos escrevem tags de turma. Há também uma decisão do João de 25/08
+a aceitar as `Alunos OGI Ativos` caducadas como estão — não se reconstrói aqui
+o que já foi largado.
+
+Sobra:
+
+```
+membresia por mês, alunos activos
+
+2026-06   11      2026-07   16      2026-08   73
+                                     0,4 a 2,4 por noite
+```
+
+Uma fila que se lê ao pequeno-almoço.
+
+**A regra é uma só e o código já a calcula:** `classificar()` no
+`acStudentTagsSync.service.ts` devolve `'membresia'` para o padrão
+`^aluno ogi\s+l?\d{4}\s*-\s*(renovação\s+)?turma`. A vigilância filtra por aí e
+não tem lista de nomes nenhuma para manter.
 
 ---
 
@@ -208,7 +254,27 @@ export function periodoDaTag(nome: string): string | null {
 }
 ```
 
-### 2.2 — O diff
+### 2.2 — O filtro do escopo
+
+Uma linha, e é o que impede a fila de nascer morta.
+
+```ts
+/**
+ * Só se vigia o que o pipeline nocturno escreve: tags de turma.
+ * As de estado ("Alunos OGI Ativos") e as de marketing ("Turma 18 -
+ * 25 primeiros") ficam de fora — ver a secção Escopo.
+ */
+export function tagVigiada(tag: { tipo: 'canonica' | 'membresia' | 'outra' }): boolean {
+  return tag.tipo === 'membresia'
+}
+```
+
+- [ ] Teste: `"Aluno OGI L2605 - Turma 18"` (membresia) → vigiada.
+- [ ] Teste: `"Alunos OGI Ativos"` (outra) → **não** vigiada.
+- [ ] Teste: `"Turma 18 - 25 primeiros"` (outra) → **não** vigiada.
+- [ ] Teste: `"Mentoria em grupo - Turma 11"` (outra) → **não** vigiada.
+
+### 2.3 — O diff
 
 ```ts
 export interface FotoTag {
@@ -233,7 +299,7 @@ export function diffTags(antes: FotoTag[], depois: FotoTag[]): DiffTags {
 }
 ```
 
-### 2.3 — Os lotes
+### 2.4 — Os lotes
 
 A mesma tag, no mesmo minuto, em muitos contactos, é uma automação. Uma linha,
 não 168.
@@ -268,7 +334,7 @@ export function marcarLotes<T extends { tagId: string; quando: Date | null }>(
 **O limiar é do João.** Propõe `5` e mostra a sensibilidade com 3, 5 e 10 —
 quantos lotes e quantas linhas soltas dá cada um, sobre o histórico real.
 
-### 2.4 — A severidade
+### 2.5 — A severidade
 
 Uma lista plana ninguém lê. Foi assim que a Silvia esteve dois anos à vista.
 
@@ -292,7 +358,8 @@ export function classificarSeveridade(
 ): Veredicto {
   if (!ctx.activo) return { severidade: 'ruido', desalinha: null }
 
-  // mentorias, "25 primeiros", ofertas: mencionam turma mas não dão acesso
+  // Guarda defensiva: com o `tagVigiada()` no sítio certo isto nunca dispara.
+  // Fica para o dia em que alguém alargar o escopo e se esquecer desta função.
   if (evento.tipo === 'outra') return { severidade: 'aviso', desalinha: null }
 
   const periodo = periodoDaTag(evento.tagNome)
@@ -337,7 +404,8 @@ export function classificarSeveridade(
       não grave. É o que o `AcRefundHandler` faria de legítimo.
 - [ ] **duas tags do mesmo período** → grave.
 - [ ] Aluno inactivo → **ruido**, seja o que for.
-- [ ] Tag `outra` (mentoria) num aluno activo → **aviso**.
+- [ ] Tag `outra` (mentoria) num aluno activo → **aviso**. É a guarda defensiva;
+      na prática o `tagVigiada()` já a apanhou antes.
 - [ ] `diffTags` com as duas listas iguais → zero aplicadas, zero removidas.
 - [ ] `diffTags` é indiferente à ordem dos arrays. **Tivemos dois bugs de
       emparelhamento por ordem de array esta semana** — este teste não é
@@ -426,6 +494,10 @@ Passos, por esta ordem:
 1  lerTagsDaAc()                       leitura pura
 2  ler o espelho acstudenttags         a base, com o seu syncedAt
 3  diffTags por aluno                  aplicadas + removidas
+3b tagVigiada()                        deita fora estado e marketing.
+                                       AQUI, antes de tudo o resto — filtrar
+                                       no fim é fazer trabalho para o lixo e
+                                       contar lotes com eventos que não contam.
 4  marcarLotes(limiar)                 aplicações em massa -> uma linha
 5  origem:
       coincide com AcWriteLog          -> nosso        (dryRun:false, mesma tag,
@@ -468,6 +540,10 @@ que perdi 4 divergências numa medição desta semana.
       mesmo `tagId` dentro da janela → `origem: 'nosso'` e não entra na fila.
 - [ ] Teste: a mesma escrita com `dryRun:true` **não** protege — continua
       `maoHumana`. Um dry-run não mexeu em nada, logo não explica nada.
+- [ ] Teste: um aluno que ganha `Alunos OGI Ativos` e `Turma 18 - 25 primeiros`
+      e mais nada → **zero eventos**. O filtro do escopo corre antes dos lotes.
+- [ ] Teste: `porSeveridade.ruido` só conta alunos inactivos com tag de turma —
+      nunca tags fora do escopo, que não chegam a existir como evento.
 
 - [ ] Commit: `feat(vigilancia): serviço de vigilância de tags, só de leitura`
 
@@ -477,11 +553,13 @@ que perdi 4 divergências numa medição desta semana.
 
 **Criar:** `scripts/qualidade/fundacao-tags.ts`
 
-As 13.567 associações já têm `aplicadaEm`. O histórico das **aplicações**
-constrói-se hoje, sem esperar noite nenhuma.
+As associações já têm `aplicadaEm`. O histórico das **aplicações** constrói-se
+hoje, sem esperar noite nenhuma. Dentro do escopo são **5.963**, das quais 1.598
+em alunos activos — não as 13.567 do espelho todo.
 
 ```
 para cada aluno, para cada tag do espelho:
+   tagVigiada()? senão salta
    evento accao:'aplicada', quando: aplicadaEm
    marcarLotes com o limiar escolhido
    origem: em lote -> automacaoAC, senão maoHumana
@@ -489,8 +567,8 @@ para cada aluno, para cada tag do espelho:
    estado: 'aceite', aceiteMotivo: 'fundação — anterior à vigilância'
 ```
 
-**Tudo nasce `aceite`.** É histórico, não é fila. Ninguém tem de rever 13.567
-linhas de coisas que já aconteceram.
+**Tudo nasce `aceite`.** É histórico, não é fila. Ninguém tem de rever milhares
+de linhas de coisas que já aconteceram.
 
 As remoções não têm fundação possível — a AC não guarda lápide. Começam a zero
 no dia da primeira corrida.
@@ -590,6 +668,12 @@ o ler, e não regista no `AcWriteLog`. Está `off`, portanto não é urgente hoj
 mas é a fuga mais séria que sobra. Fica no
 `docs/superpowers/plans/2026-08-24-vigilancia.md`, tarefa 1.
 
+**As tags de estado.** `Alunos OGI Ativos` e as outras três ficam fora por
+decisão, não por esquecimento — 594 aplicações só em Janeiro afogariam a fila,
+e o pipeline não lhes toca. Se algum dia entrarem, entram com uma regra estreita
+e própria: **só alerta quando contradizem a nossa BD** — `Alunos OGI Ativos`
+num aluno que temos como `INACTIVE`. Nunca como fluxo geral.
+
 **A tabela no Front.** Depois de vermos os dados reais.
 
 ---
@@ -607,7 +691,9 @@ mas é a fuga mais séria que sobra. Fica no
 
 ## Relatório
 
-- A saída completa do `fundacao-tags.ts` em dry-run.
+- A saída completa do `fundacao-tags.ts` em dry-run. **Confirmação de que
+  nenhum evento tem `tipo !== 'membresia'`** — se aparecer um, o filtro está no
+  sítio errado.
 - A saída completa do `dry-run-vigilancia.ts`, com a tabela de sensibilidade.
 - Os `grave` listados um a um, com a razão.
 - Confirmação de que a suite passa: `npx tsx --test "src/**/__tests__/*.test.ts"`
