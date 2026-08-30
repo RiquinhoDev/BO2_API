@@ -1,6 +1,6 @@
 # Vigilância de tags — ver e avisar, nunca escrever
 
-Data: 2026-08-27. Para o Codex. O João valida.
+Data: 2026-08-30. Para o Codex. O João valida.
 
 O que se constrói: um registo de **quem mexeu nas tags de turma de um aluno
 quando não fomos nós**, para servir duas coisas ao mesmo tempo — uma fila de
@@ -55,7 +55,7 @@ pipeline, para poder ligar sem esperar pela chefia.
 
 O spec do fluxo nocturno já as fixa
 (`docs/superpowers/specs/2026-08-22-fluxo-nocturno-renovacoes.md:185`). São
-estas, e mais nada. Medidas a 27/08 contra os **914 alunos OGI activos**:
+estas, e mais nada. Medidas a 30/08 contra os **914 alunos OGI activos**:
 
 ```
                                         têm    faltam   onde vive
@@ -263,7 +263,7 @@ export function periodoDaTag(nome: string): string | null {
 O que impede a fila de nascer morta.
 
 ```ts
-/** As duas obrigatórias que são tags nomeadas. Ids da AC, medidos a 27/08. */
+/** As duas obrigatórias que são tags nomeadas. Ids da AC, medidos a 30/08. */
 export const TAGS_OBRIGATORIAS = [
   { id: '347', nome: 'Alunos OGI Ativos' },
   { id: '676', nome: 'OGI - Aluno ou Ex-Aluno' }
@@ -365,7 +365,7 @@ export function marcarLotes<T extends { tagId: string; quando: Date | null }>(
 }
 ```
 
-**O limiar é `10`, decidido pelo João a 27/08.** O critério foi: mais
+**O limiar é `10`, decidido pelo João a 30/08.** O critério foi: mais
 informação, menos impacto negativo.
 
 ```
@@ -715,7 +715,7 @@ Além dos eventos, o report devolve a fotografia — quantos alunos OGI activos
 têm cada uma das quatro **agora**. É o número que diz se o sistema está são,
 e os eventos dizem porque deixou de estar.
 
-Referência medida a 27/08, em 914 alunos OGI activos:
+Referência medida a 30/08, em 914 alunos OGI activos:
 
 ```
 tag da turma actual                794 têm    20 faltam
@@ -889,7 +889,7 @@ num aluno que temos como `INACTIVE`. Nunca como fluxo geral.
 - A saída completa do `fundacao-tags.ts` em dry-run. **Confirmação de que todos
   os eventos são de uma das quatro obrigatórias** — se aparecer uma tag de
   marketing ou de turma antiga, o filtro está no sítio errado.
-- O `estadoDasQuatro`, comparado com a referência de 27/08 (794/20, 895/19,
+- O `estadoDasQuatro`, comparado com a referência de 30/08 (794/20, 895/19,
   908/6, 906/8).
 - A saída completa do `dry-run-vigilancia.ts`, com a tabela de sensibilidade.
 - Os `grave` listados um a um, com a razão.

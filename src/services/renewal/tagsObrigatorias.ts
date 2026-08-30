@@ -17,7 +17,7 @@
  * As duas obrigatórias que são tags nomeadas.
  *
  * Identificadas pelo **id** e não pelo nome: o nome na AC pode ser
- * renomeado a qualquer momento e o id não. Medidos a 27/08/2026.
+ * renomeado a qualquer momento e o id não. Medidos a 30/08/2026.
  */
 export const TAGS_OBRIGATORIAS = [
   { id: '347', nome: 'Alunos OGI Ativos' },

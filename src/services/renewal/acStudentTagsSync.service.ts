@@ -156,7 +156,7 @@ async function contactosDaTag(tagId: string): Promise<Array<{ id: string; email:
  * leitura paginada por corrida, nunca um pedido por contacto.
  *
  * Sem filtro de estado: conta-se estar na lista, não estar subscrito às
- * comunicações. Foi assim que os 906 de 914 foram medidos a 27/08.
+ * comunicações. Foi assim que os 906 de 914 foram medidos a 30/08.
  */
 async function emailsDaLista(listId: string): Promise<Set<string>> {
   const out = new Set<string>()
