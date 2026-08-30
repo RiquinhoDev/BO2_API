@@ -70,9 +70,18 @@ test('grava por chave unica com $setOnInsert — correr duas vezes nao duplica',
 
 // ── As armadilhas que ja custaram caro ──────────────────────────────
 
-test('"activo" e combined.status, nunca userproducts.status', () => {
+test('"activo" e combined.status — o userproducts diz QUEM e de OGI, nao se esta activo', () => {
+  // Duas coisas distintas, e confundi-las ja custou caro nos dois sentidos:
+  //  - usar userproducts.status como "activo" deu 4 alertas graves onde havia 1
+  //  - nao filtrar por produto deu 552 tags "em falta" onde ha 27, por contar
+  //    alunos de Clareza e OTF que nao devem ter tags de OGI
   assert.match(fonte, /'combined\.status': 'ACTIVE'/)
-  assert.equal(/userproducts/i.test(fonte), false)
+  assert.match(fonte, /status: 'ACTIVE'/, 'o userproducts filtra a coorte OGI')
+  assert.match(fonte, /Grande Investimento/, 'tem de identificar o produto OGI')
+})
+
+test('sem produto OGI a corrida para, em vez de medir contra uma coorte vazia', () => {
+  assert.match(fonte, /Produto OGI activo não encontrado/)
 })
 
 test('um dry-run nosso nao protege — so escritas reais contam como nossas', () => {

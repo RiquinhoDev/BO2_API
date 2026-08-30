@@ -389,8 +389,33 @@ interface Contexto {
 }
 
 async function construirContexto(): Promise<Contexto> {
+  // A coorte é OGI, não "toda a gente activa".
+  //
+  // `combined.status: ACTIVE` sozinho traz 1.342 pessoas — inclui Clareza e
+  // OTF, que não têm nem devem ter tags de OGI. Contá-las dava 552 tags de
+  // turma "em falta" onde há 27. São duas coisas: o produto diz QUEM é aluno
+  // de OGI, o `combined.status` diz se está activo.
+  const produto = (await mongoose.connection
+    .collection('products')
+    .findOne(
+      {
+        platform: 'hotmart',
+        isActive: true,
+        $or: [{ code: /^OGI/i }, { courseCode: /^OGI/i }, { name: /Grande Investimento/i }]
+      },
+      { projection: { _id: 1 } }
+    )) as { _id: mongoose.Types.ObjectId } | null
+
+  if (!produto) throw new Error('Produto OGI activo não encontrado — a coorte ficaria vazia')
+
+  const userProducts = (await mongoose.connection
+    .collection('userproducts')
+    .find({ platform: 'hotmart', productId: produto._id, status: 'ACTIVE' })
+    .project({ userId: 1 })
+    .toArray()) as Array<{ userId: mongoose.Types.ObjectId }>
+
   const users = (await (User as any)
-    .find({ 'combined.status': 'ACTIVE' })
+    .find({ _id: { $in: userProducts.map((u) => u.userId) }, 'combined.status': 'ACTIVE' })
     .select('_id email hotmart.enrolledClasses')
     .lean()
     .exec()) as Array<{
