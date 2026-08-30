@@ -10,7 +10,12 @@
  */
 import fs from 'fs'
 import { desligar, ligar, turmaActual } from './lib'
-import { TAGS_OBRIGATORIAS, eTagObrigatoria } from '../../src/services/renewal/tagsObrigatorias'
+import {
+  TAGS_ESTADO_VIGIADAS,
+  TAGS_OBRIGATORIAS,
+  eTagEstadoVigiada,
+  eTagObrigatoria
+} from '../../src/services/renewal/tagsObrigatorias'
 import { resolverTagDaTurma } from '../../src/services/renewal/turmaTagResolver'
 
 const LIMIAR_LOTE = 10
@@ -85,8 +90,24 @@ async function main() {
   const users = await db
     .collection('users')
     .find({ _id: { $in: ups.map((u: any) => u.userId) } })
-    .project({ email: 1, hotmart: 1 })
+    .project({ email: 1, hotmart: 1, combined: 1 })
     .toArray()
+
+  // Até quando é que o acesso pago vai. Usado para decidir se ganhar a
+  // "Aluno OGI Antigo" ou perder a "Alunos OGI Ativos" é desalinhamento.
+  const timelines = await db
+    .collection('studentrenewaltimelines')
+    .find({ userId: { $in: users.map((u: any) => u._id) } })
+    .project({ userId: 1, ciclos: 1 })
+    .toArray()
+  const acessoAtePorId = new Map<string, Date>()
+  for (const tl of timelines) {
+    const datas = (tl.ciclos ?? [])
+      .map((c: any) => dataOuNull(c.acessoAte))
+      .filter(Boolean) as Date[]
+    const max = datas.sort((a, b) => b.getTime() - a.getTime())[0]
+    if (max) acessoAtePorId.set(String(tl.userId), max)
+  }
 
   const excepcoes = new Map<string, string>(
     (await db.collection('turmatagmap').find({}).toArray()).map((m: any) => [
@@ -95,11 +116,24 @@ async function main() {
     ])
   )
 
+  // "Activo" é `combined.status`, NÃO `userproducts.status`. São coisas
+  // diferentes e confundi-las já me deu quatro alertas graves onde havia um.
   const activos = new Set<string>()
+  const acessoAtePorEmail = new Map<string, Date>()
   const tagDaTurmaPorEmail = new Map<string, string>()
+  let semEstado = 0
+  let inactivosComProduto = 0
+
   for (const u of users) {
     const email = norm(u.email)
-    activos.add(email)
+    const estado = u?.combined?.status
+    if (estado === 'ACTIVE') activos.add(email)
+    else if (!estado) semEstado += 1
+    else inactivosComProduto += 1
+
+    const ate = acessoAtePorId.get(String(u._id))
+    if (ate) acessoAtePorEmail.set(email, ate)
+
     const turma = turmaActual(u)
     if (turma) {
       const nome = resolverTagDaTurma(turma, excepcoes).tagNome
@@ -151,6 +185,7 @@ async function main() {
 
     const escopo = (t: TagFoto): { dentro: boolean; porque: string } => {
       if (eTagObrigatoria(t.tagId)) return { dentro: true, porque: 'obrigatoria' }
+      if (eTagEstadoVigiada(t.tagId)) return { dentro: true, porque: 'estado-vigiado' }
       if (tagTurma && String(t.nome).toLowerCase().trim() === tagTurma) {
         return { dentro: true, porque: 'turma-actual' }
       }
@@ -225,7 +260,10 @@ async function main() {
 
   console.log(`fotografia   ${antes.length} docs   de ${fotoEm?.toISOString()}`)
   console.log(`agora        ${agora.length} docs   de ${mapaAgora.values().next().value?.syncedAt}`)
-  console.log(`alunos OGI activos ${activos.size}`)
+  console.log(
+    `alunos OGI: ${users.length} com produto activo, dos quais ${activos.size} com ` +
+      `combined.status ACTIVE  (${inactivosComProduto} inactivos, ${semEstado} sem estado)`
+  )
   if (soVisiveis.size) {
     console.log('\ntags que o espelho passou a ver, com aplicacao anterior a fotografia')
     console.log('(nao sao eventos -- so mudou quem as le)')
@@ -270,16 +308,47 @@ async function main() {
     console.log(`  ${String(evs.length).padStart(4)}  ${evs[0].tagNome}  ${evs[0].quando?.toISOString()}`)
   }
 
-  console.log('\n── eventos no escopo, em alunos activos ──')
-  const paraVer = dentro.filter((e) => e.activo && !e.lote)
+  // ── gravidade ─────────────────────────────────────────────────────
+  const hoje = new Date()
+  const desalinha = (e: Evento): string | null => {
+    if (!e.activo) return null
+    const ate = acessoAtePorEmail.get(e.email)
+    const comAcesso = !!ate && ate > hoje
+    const ateStr = ate ? ate.toISOString().slice(0, 10) : '—'
+
+    if (e.accao === 'removida' && eTagObrigatoria(e.tagId) && comAcesso) {
+      return `perdeu a obrigatoria "${e.tagNome}" e tem acesso pago ate ${ateStr}`
+    }
+    if (e.accao === 'aplicada' && eTagEstadoVigiada(e.tagId) && comAcesso) {
+      return `marcado como "${e.tagNome}" e tem acesso pago ate ${ateStr}`
+    }
+    if (e.accao === 'removida' && e.porqueEscopo === 'turma-actual' && comAcesso) {
+      return `perdeu a tag da turma actual e tem acesso pago ate ${ateStr}`
+    }
+    return null
+  }
+
+  const graves = dentro.map((e) => ({ e, porque: desalinha(e) })).filter((x) => x.porque)
+
+  console.log(`\n── GRAVE: desalinha alguma coisa (${graves.length}) ──`)
+  if (!graves.length) console.log('  nenhum')
+  for (const { e, porque } of graves.sort((x, y) => x.e.email.localeCompare(y.e.email))) {
+    console.log(`  ${e.email}`)
+    console.log(`      ${porque}`)
+    console.log(`      lote: ${e.lote ? `${e.loteTamanho} de uma vez` : 'sozinho'}   origem: ${e.origem}`)
+  }
+
+  console.log('\n── restantes eventos no escopo, em alunos activos ──')
+  const paraVer = dentro.filter((e) => e.activo && !desalinha(e))
   if (!paraVer.length) console.log('  nenhum')
   for (const e of paraVer.sort((x, y) => x.email.localeCompare(y.email))) {
     const q = e.quando ? e.quando.toISOString().slice(0, 16) : '—'
-    console.log(`  ${e.accao.padEnd(9)} ${e.email.padEnd(34)} ${q}  ${e.tagNome}`)
+    const l = e.lote ? ` [lote ${e.loteTamanho}]` : ''
+    console.log(`  ${e.accao.padEnd(9)} ${e.email.padEnd(34)} ${q}  ${e.tagNome}${l}`)
   }
 
   // ── estado das quatro obrigatórias, agora ─────────────────────────
-  console.log('\n── estado das quatro, em alunos OGI activos ──')
+  console.log('\n── estado das quatro, em alunos com combined.status ACTIVE ──')
   for (const t of TAGS_OBRIGATORIAS) {
     let tem = 0
     for (const email of activos) {
@@ -306,6 +375,15 @@ async function main() {
       activos.size - naLista - listaPorLer
     )} faltam  ${p(listaPorLer)} por ler`
   )
+
+  console.log('\n── vigiada mas nao obrigatoria ──')
+  for (const t of TAGS_ESTADO_VIGIADAS) {
+    let tem = 0
+    for (const email of activos) {
+      if ((mapaAgora.get(email)?.tags ?? []).some((x) => String(x.tagId) === t.id)) tem++
+    }
+    console.log(`  ${t.nome.padEnd(26)} ${p(tem)} activos a tem`)
+  }
 
   await desligar()
 }

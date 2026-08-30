@@ -33,6 +33,20 @@ export const TAGS_OBRIGATORIAS = [
  */
 export const LISTA_OBRIGATORIA = { id: '2', nome: 'Alunos OGI' } as const
 
+/**
+ * Tags de estado que se vigiam sem serem obrigatórias.
+ *
+ * A `Aluno OGI Antigo` é o outro lado da `Alunos OGI Ativos`: quem perde uma
+ * ganha a outra. Não é obrigatória — exigi-la a todos os activos daria
+ * centenas de faltas falsas —, mas sem ela a vigilância vê a perda da
+ * `Ativos` e não vê para onde a pessoa foi.
+ *
+ * E não é um fim de linha. É uma passagem: a campanha de recuperação de
+ * ex-alunos marca-os `Antigo`, e quem compra vai depois para uma turma de
+ * renovação normal, como qualquer renovação.
+ */
+export const TAGS_ESTADO_VIGIADAS = [{ id: '710', nome: 'Aluno OGI Antigo' }] as const
+
 /** True quando o id é o de uma das obrigatórias nomeadas. */
 export function eTagObrigatoria(tagId: string | number | null | undefined): boolean {
   if (tagId === null || tagId === undefined) return false
@@ -40,9 +54,28 @@ export function eTagObrigatoria(tagId: string | number | null | undefined): bool
   return TAGS_OBRIGATORIAS.some((tag) => tag.id === id)
 }
 
-/** O nome oficial da obrigatória, para mensagens. Null se não for uma. */
+/** True quando é de estado e vigiada, mas NÃO obrigatória. */
+export function eTagEstadoVigiada(tagId: string | number | null | undefined): boolean {
+  if (tagId === null || tagId === undefined) return false
+  const id = String(tagId)
+  return TAGS_ESTADO_VIGIADAS.some((tag) => tag.id === id)
+}
+
+/**
+ * True para qualquer tag nomeada dentro do escopo da vigilância.
+ * A tag da turma actual entra por outro caminho — não tem id fixo.
+ */
+export function eTagVigiada(tagId: string | number | null | undefined): boolean {
+  return eTagObrigatoria(tagId) || eTagEstadoVigiada(tagId)
+}
+
+/** O nome oficial da tag vigiada, para mensagens. Null se não for uma. */
 export function nomeDaTagObrigatoria(tagId: string | number | null | undefined): string | null {
   if (tagId === null || tagId === undefined) return null
   const id = String(tagId)
-  return TAGS_OBRIGATORIAS.find((tag) => tag.id === id)?.nome ?? null
+  return (
+    TAGS_OBRIGATORIAS.find((tag) => tag.id === id)?.nome ??
+    TAGS_ESTADO_VIGIADAS.find((tag) => tag.id === id)?.nome ??
+    null
+  )
 }

@@ -38,35 +38,66 @@ vigilância vir hoje é mão humana ou automação da AC.
 associação e o espelho já o guarda em `aplicadaEm`:
 
 ```
-associações       13.567
-   com data       13.567
+associações       17.998      depois de a 676 passar a ser lida
+   com data       17.998
    sem data            0
-alunos activos     1.328     (3.719 associações)
-espelho de     23/08/2026     4 dias velho
+alunos OGI activos    817     combined.status
 ```
 
 **O `syncAcStudentTags` só corre dentro do `RenewalPipeline`, que está `off`.**
-Daí o espelho de 4 dias. A vigilância precisa de cron próprio, independente do
-pipeline, para poder ligar sem esperar pela chefia.
+O espelho tinha 7 dias quando isto foi medido. A vigilância precisa de cron
+próprio, independente do pipeline, para poder ligar sem esperar pela chefia.
+
+**E já provou que funciona.** A primeira comparação a sério — fotografia de
+23/08 contra a AC de 30/08 — devolveu **um** caso grave, e é real:
+
+```
+simaopedroliveira@gmail.com   activo, acesso pago até 31/05/2027
+                              perdeu "Alunos OGI Ativos" a 30/08
+                              numa remoção em massa de 34
+```
+
+Os outros 33 dessa mesma remoção estão certos: já não tinham acesso em curso.
+A automação da AC que os despromoveu correu às 08:04:55–08:05:01 de 30/08 e
+marcou 36 pessoas com `Aluno OGI Antigo`. Nenhum job nosso está ligado — não
+fomos nós.
 
 ---
 
 ## Escopo — as quatro obrigatórias
 
 O spec do fluxo nocturno já as fixa
-(`docs/superpowers/specs/2026-08-22-fluxo-nocturno-renovacoes.md:185`). São
-estas, e mais nada. Medidas a 30/08 contra os **914 alunos OGI activos**:
+(`docs/superpowers/specs/2026-08-22-fluxo-nocturno-renovacoes.md:185`).
+
+**"Activo" é `combined.status`, não `userproducts.status`.** São 914 com
+produto activo mas **817 com `combined.status: 'ACTIVE'`**. Confundi as duas na
+primeira medição e passei de um alerta grave para quatro. Todos os números
+abaixo são contra os 817.
 
 ```
                                         têm    faltam   onde vive
-1  tag da turma actual                  794        20   acstudenttags, membresia
-2  "Alunos OGI Ativos"        (id 347)  895        19   acstudenttags, tipo 'outra'
-3  "OGI - Aluno ou Ex-Aluno"  (id 676)  908         6   NÃO ESTÁ NO ESPELHO
-4  lista "Alunos OGI"         (id   2)  906         8   NÃO É UMA TAG
+1  tag da turma actual                  790        27   acstudenttags, membresia
+2  "Alunos OGI Ativos"        (id 347)  798        19   acstudenttags, tipo 'outra'
+3  "OGI - Aluno ou Ex-Aluno"  (id 676)  811         6   entrou no espelho a 30/08
+4  lista "Alunos OGI"         (id   2)  809         2   NÃO É UMA TAG (+6 por ler)
 ```
 
-**Os desvios de hoje são 20, 19, 6 e 8.** É uma fila que se lê num minuto, e é
-esse o argumento a favor deste escopo — não a pureza da regra.
+**Os desvios são 27, 19, 6 e 2.** É uma fila que se lê num minuto, e é esse o
+argumento a favor deste escopo — não a pureza da regra.
+
+### Uma quinta que se vigia sem ser obrigatória
+
+`Aluno OGI Antigo` (id **710**). Não é obrigatória — exigi-la a todos os
+activos daria centenas de faltas falsas, porque só **1** activo a tem. Mas é o
+outro lado da `Alunos OGI Ativos`: quem perde uma ganha a outra, e sem ela a
+vigilância vê a saída e não vê o destino.
+
+Não é fim de linha. É passagem: a campanha de recuperação de ex-alunos marca-os
+`Antigo`, e quem compra vai depois para uma turma de renovação normal, como
+qualquer renovação.
+
+Vive em `TAGS_ESTADO_VIGIADAS`, separada das obrigatórias, e há um teste a
+garantir que as duas listas nunca se sobrepõem.
 
 ### Duas surpresas que mudam trabalho
 
@@ -338,13 +369,48 @@ lhe aconteceu naquela noite?" — pergunta que uma linha agregada não responde.
 Isto tem consequência directa no limiar: como nada se perde por agrupar,
 **o limiar só decide apresentação e rótulo**, nunca se um evento existe.
 
+**Não agrupar por balde de minuto.** Medido a 30/08: uma automação aplicou a
+`Aluno OGI Antigo` a 36 contactos entre as 08:04:55 e as 08:05:01. Um balde ao
+minuto parte isso em **21 + 15** e inventa duas automações onde houve uma. Uma
+rajada de seis segundos que atravessa a fronteira do minuto é o caso normal,
+não o excepcional.
+
+Agrupa-se por **proximidade**: mesma tag, e cada evento a menos de
+`JANELA_LOTE_SEGUNDOS` (propõe 120) do anterior.
+
 ```ts
-export function chaveDoLote(tagId: string, quando: Date | null): string | null {
-  if (!quando) return null
-  const m = new Date(quando)
-  if (Number.isNaN(m.getTime())) return null
-  m.setSeconds(0, 0)
-  return `${tagId}|${m.toISOString()}`
+export const JANELA_LOTE_SEGUNDOS = 120
+
+/**
+ * Agrupa por proximidade, não por balde de relógio. Um balde ao minuto
+ * partia a rajada de 30/08 (08:04:55 → 08:05:01) em dois lotes.
+ */
+export function agruparPorProximidade(
+  eventos: Array<{ tagId: string; quando: Date | null }>,
+  janelaSegundos = JANELA_LOTE_SEGUNDOS
+): Map<number, string> {
+  const porTag = new Map<string, Array<{ i: number; t: number }>>()
+  eventos.forEach((e, i) => {
+    if (!e.quando || Number.isNaN(e.quando.getTime())) return
+    const lista = porTag.get(String(e.tagId)) ?? []
+    lista.push({ i, t: e.quando.getTime() })
+    porTag.set(String(e.tagId), lista)
+  })
+
+  const lotes = new Map<number, string>()
+  for (const [tagId, lista] of porTag) {
+    lista.sort((a, b) => a.t - b.t)
+    let inicio = 0
+    for (let k = 1; k <= lista.length; k++) {
+      const partiu = k === lista.length || lista[k].t - lista[k - 1].t > janelaSegundos * 1000
+      if (!partiu) continue
+      const grupo = lista.slice(inicio, k)
+      const chave = `${tagId}|${new Date(grupo[0].t).toISOString()}`
+      for (const { i } of grupo) lotes.set(i, chave)
+      inicio = k
+    }
+  }
+  return lotes
 }
 
 export function marcarLotes<T extends { tagId: string; quando: Date | null }>(
@@ -391,7 +457,12 @@ Uma lista plana ninguém lê. Foi assim que a Silvia esteve dois anos à vista.
 
 ```ts
 export interface ContextoAluno {
+  /** `combined.status === 'ACTIVE'`. NUNCA `userproducts.status`. */
   activo: boolean
+  /** O maior `acessoAte` dos ciclos ainda está no futuro. */
+  comAcessoPago: boolean
+  /** Esse `acessoAte`, em YYYY-MM-DD, para a mensagem. */
+  acessoAte: string
   /** YYMM com compra não reembolsada. Inclui a coorte do ano 2 dos ciclos de 2 anos. */
   periodosPagos: Set<string>
   /** Quantas tags de pertença o aluno já tinha por período, antes deste evento. */
@@ -415,14 +486,31 @@ export function classificarSeveridade(
   if (!ctx.activo) return { severidade: 'ruido', desalinha: null }
 
   // ── As duas obrigatórias nomeadas ────────────────────────────
-  // Perder uma é grave por definição: o aluno fica fora do estado que a AC
-  // devia garantir. Ganhá-la nunca é problema — é o estado correcto.
+  // Perder uma é grave quando ainda há acesso pago: o aluno fica fora do
+  // estado que a AC devia garantir. Ganhá-la nunca é problema.
+  //
+  // A condição do acesso pago não é decoração. Sem ela, os 33 que a
+  // automação de 30/08 despromoveu com razão apareciam todos como graves.
   const obrigatoria = TAGS_OBRIGATORIAS.find((t) => t.id === String(evento.tagId))
   if (obrigatoria) {
-    if (evento.accao === 'removida') {
+    if (evento.accao === 'removida' && ctx.comAcessoPago) {
       return {
         severidade: 'grave',
-        desalinha: `aluno activo perdeu a tag obrigatória "${obrigatoria.nome}"`
+        desalinha: `perdeu a obrigatória "${obrigatoria.nome}" e tem acesso pago até ${ctx.acessoAte}`
+      }
+    }
+    return { severidade: 'aviso', desalinha: null }
+  }
+
+  // ── A "Aluno OGI Antigo", vigiada sem ser obrigatória ────────
+  // O espelho da anterior: recebê-la com acesso pago em curso é dizer que
+  // o aluno é antigo quando não é.
+  const estado = TAGS_ESTADO_VIGIADAS.find((t) => t.id === String(evento.tagId))
+  if (estado) {
+    if (evento.accao === 'aplicada' && ctx.comAcessoPago) {
+      return {
+        severidade: 'grave',
+        desalinha: `marcado como "${estado.nome}" e tem acesso pago até ${ctx.acessoAte}`
       }
     }
     return { severidade: 'aviso', desalinha: null }
@@ -496,11 +584,19 @@ corrida acusaria 4.453 saídas da lista que nunca aconteceram.
 ### Testes, com os nomes dos casos reais
 
 - [ ] `periodoDaTag` lê `L2409` e `2505`; devolve null para `"Alunos OGI Ativos"`.
-- [ ] Aluno activo perde a tag 347 → **grave**, `perdeu a tag obrigatória
-      "Alunos OGI Ativos"`.
-- [ ] Aluno activo perde a tag 676 → **grave**.
+- [ ] **simaopedroliveira** — activo, acesso pago até 31/05/2027, perde a 347
+      numa remoção em massa de 34 → **grave**. É o único caso real que a
+      primeira medição a sério devolveu; se este teste passar a falhar, a
+      vigilância deixou de servir para nada.
+- [ ] Aluno activo perde a 347 **sem acesso pago em curso** → **aviso**. São
+      os 33 restantes daquela mesma remoção, e estão certos.
+- [ ] Aluno activo perde a tag 676 com acesso pago → **grave**.
 - [ ] Aluno activo **ganha** a 347 → **aviso**. Ganhar uma obrigatória é o
       estado certo, não um alarme.
+- [ ] Aluno activo **ganha** a 710 com acesso pago até 2027 → **grave**,
+      `marcado como "Aluno OGI Antigo" e tem acesso pago até …`.
+- [ ] Aluno activo ganha a 710 **sem acesso em curso** → **aviso**. É a
+      campanha de ex-alunos a fazer o seu trabalho.
 - [ ] Aluno **inactivo** perde a 347 → **ruido**. É a decisão do João de 25/08:
       as caducadas em inactivos aceitam-se como estão.
 - [ ] `mudancaNaLista(null, true)` → `primeira-leitura`, e **não gera evento**.
@@ -519,7 +615,11 @@ corrida acusaria 4.453 saídas da lista que nunca aconteceram.
 - [ ] `diffTags` é indiferente à ordem dos arrays. **Tivemos dois bugs de
       emparelhamento por ordem de array esta semana** — este teste não é
       decorativo.
-- [ ] **lote de 168** — 168 eventos com a mesma tag e o mesmo minuto, limiar 10
+- [ ] **a rajada de 30/08** — 36 eventos da mesma tag entre 08:04:55 e 08:05:01
+      → **um** lote de 36, não dois de 21 e 15. É o caso real que reprova o
+      balde ao minuto.
+- [ ] Dois grupos da mesma tag separados por 10 minutos → **dois** lotes.
+- [ ] **lote de 168** — 168 eventos da mesma tag no mesmo instante, limiar 10
       → **168 linhas**, todas com o mesmo `lote` e `loteTamanho: 168`. Nenhuma
       desaparece. Este é o teste que prova que o agrupamento não colapsa dados.
 - [ ] 8 eventos da mesma tag e minuto, limiar 10 → `lote: null`, 8 linhas
@@ -715,20 +815,23 @@ Além dos eventos, o report devolve a fotografia — quantos alunos OGI activos
 têm cada uma das quatro **agora**. É o número que diz se o sistema está são,
 e os eventos dizem porque deixou de estar.
 
-Referência medida a 30/08, em 914 alunos OGI activos:
+Referência medida a 30/08, em **817 alunos com `combined.status: 'ACTIVE'`**:
 
 ```
-tag da turma actual                794 têm    20 faltam
-"Alunos OGI Ativos"       (347)    895 têm    19 faltam
-"OGI - Aluno ou Ex-Aluno" (676)    908 têm     6 faltam
-lista "Alunos OGI"        (id 2)   906 têm     8 faltam
+tag da turma actual                790 têm    27 faltam
+"Alunos OGI Ativos"       (347)    798 têm    19 faltam
+"OGI - Aluno ou Ex-Aluno" (676)    811 têm     6 faltam
+lista "Alunos OGI"        (id 2)   809 têm     2 faltam   (+6 sem contacto na AC)
+
+"Aluno OGI Antigo"        (710)      1 activo a tem       vigiada, não obrigatória
 ```
 
 - [ ] `AcTagWatchReport` ganha `estadoDasQuatro: { tagTurma, tag347, tag676, lista }`,
-      cada um `{ tem: number; faltam: number }`.
+      cada um `{ tem: number; faltam: number }`, mais `tag710: { tem: number }`
+      — que não tem "faltam" porque não é obrigatória.
 - [ ] Se algum destes números se afastar muito da referência acima, **investiga
-      antes de reportar**. Uma queda de 895 para 400 é um bug de leitura, não
-      495 alunos a perderem a tag numa noite.
+      antes de reportar**. Uma queda de 798 para 400 é um bug de leitura, não
+      398 alunos a perderem a tag numa noite.
 
 - [ ] Commit: `feat(vigilancia): serviço de vigilância de tags, só de leitura`
 
@@ -887,10 +990,10 @@ num aluno que temos como `INACTIVE`. Nunca como fluxo geral.
 ## Relatório
 
 - A saída completa do `fundacao-tags.ts` em dry-run. **Confirmação de que todos
-  os eventos são de uma das quatro obrigatórias** — se aparecer uma tag de
-  marketing ou de turma antiga, o filtro está no sítio errado.
-- O `estadoDasQuatro`, comparado com a referência de 30/08 (794/20, 895/19,
-  908/6, 906/8).
+  os eventos são de uma das quatro obrigatórias ou da 710** — se aparecer uma
+  tag de marketing ou de turma antiga, o filtro está no sítio errado.
+- O `estadoDasQuatro`, comparado com a referência de 30/08 (790/27, 798/19,
+  811/6, 809/2), sempre contra `combined.status`.
 - A saída completa do `dry-run-vigilancia.ts`, com a tabela de sensibilidade.
 - Os `grave` listados um a um, com a razão.
 - Confirmação de que a suite passa: `npx tsx --test "src/**/__tests__/*.test.ts"`
