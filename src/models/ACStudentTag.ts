@@ -38,6 +38,15 @@ export interface IACStudentTag extends Document {
   totalTags: number
   totalMembresia: number
 
+  /**
+   * Está na lista "Alunos OGI" (id 2), uma das quatro obrigatórias.
+   *
+   * `null` é "ainda não foi lido", que é diferente de `false`. Sem esta
+   * distinção, a primeira leitura acusaria milhares de saídas da lista
+   * que nunca aconteceram.
+   */
+  naListaAlunosOgi: boolean | null
+
   syncedAt: Date
   createdAt: Date
   updatedAt: Date
@@ -63,6 +72,9 @@ const acStudentTagSchema = new Schema<IACStudentTag>(
     totalTags: { type: Number, default: 0 },
     // quantas dizem efectivamente em que turma o aluno está
     totalMembresia: { type: Number, default: 0, index: true },
+
+    // null = por ler. Ver o comentário na interface.
+    naListaAlunosOgi: { type: Boolean, default: null },
 
     syncedAt: { type: Date, required: true, default: Date.now, index: true }
   },
