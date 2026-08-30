@@ -107,8 +107,38 @@ async function main() {
     }
   }
 
+  // ── o que é "primeira leitura" e o que é aplicação a sério ────────
+  //
+  // Uma tag ausente da fotografia e presente agora tem duas explicações
+  // opostas, e a diferença entre elas é a data de aplicação:
+  //
+  //   cdate ANTES da fotografia   -> o espelho é que não a via.  Não é evento.
+  //                                  Foi o caso da 676, com cdates de anos.
+  //   cdate DEPOIS da fotografia  -> aconteceu mesmo.            É evento.
+  //                                  Foi o caso da 710: 36 contactos em 6
+  //                                  segundos na manhã de 30/08.
+  //
+  // Assumir que a ausência da fotografia basta esconde exactamente os
+  // eventos que interessam.
+  const fotoEm = (() => {
+    const datas = antes.map((d) => dataOuNull(d.syncedAt)).filter(Boolean) as Date[]
+    return datas.sort((a, b) => b.getTime() - a.getTime())[0] ?? null
+  })()
+
+  const idsNaFoto = new Set<string>()
+  for (const d of antes) for (const t of d.tags ?? []) idsNaFoto.add(String(t.tagId))
+
+  /** True quando a associação já lá estava e o espelho é que não a via. */
+  const soAgoraVisivel = (t: TagFoto): boolean => {
+    if (idsNaFoto.has(String(t.tagId))) return false
+    const quando = dataOuNull(t.aplicadaEm)
+    if (!quando || !fotoEm) return true
+    return quando <= fotoEm
+  }
+
   // ── o diff ────────────────────────────────────────────────────────
   const eventos: Evento[] = []
+  const soVisiveis = new Map<string, number>()
   const todosOsEmails = new Set([...mapaAntes.keys(), ...mapaAgora.keys()])
 
   for (const email of todosOsEmails) {
@@ -129,6 +159,10 @@ async function main() {
 
     for (const t of b) {
       if (idsA.has(String(t.tagId))) continue
+      if (soAgoraVisivel(t)) {
+        soVisiveis.set(String(t.tagId), (soVisiveis.get(String(t.tagId)) ?? 0) + 1)
+        continue
+      }
       const e = escopo(t)
       eventos.push({
         email, tagId: String(t.tagId), tagNome: t.nome, tipo: t.tipo,
@@ -150,13 +184,22 @@ async function main() {
   }
 
   // ── lotes, limiar 10: agrupa a vista, nunca colapsa dados ─────────
+  //
+  // As aplicações têm hora da AC e agrupam-se ao minuto. As remoções NÃO
+  // TÊM HORA — a AC não guarda lápide —, portanto agrupá-las ao minuto é
+  // fingir precisão que não existe: ficariam todas no mesmo lote só por
+  // partilharem a hora da fotografia. Agrupam-se por tag, dentro da janela
+  // entre as duas leituras, que é tudo o que se sabe.
   const contagem = new Map<string, number>()
+  const chaveDe = (e: Evento): string | null =>
+    e.accao === 'aplicada' ? chaveLote(e.tagId, e.quando) : `removida|${e.tagId}`
+
   for (const e of eventos) {
-    const k = chaveLote(e.tagId, e.quando)
+    const k = chaveDe(e)
     if (k) contagem.set(k, (contagem.get(k) ?? 0) + 1)
   }
   for (const e of eventos) {
-    const k = chaveLote(e.tagId, e.quando)
+    const k = chaveDe(e)
     const n = k ? contagem.get(k) ?? 0 : 0
     if (n >= LIMIAR_LOTE) {
       e.lote = k
@@ -180,9 +223,20 @@ async function main() {
   const fora = eventos.filter((e) => !e.noEscopo)
   const p = (n: number) => String(n).padStart(6)
 
-  console.log(`fotografia   ${antes.length} docs   de ${mapaAntes.values().next().value?.syncedAt}`)
+  console.log(`fotografia   ${antes.length} docs   de ${fotoEm?.toISOString()}`)
   console.log(`agora        ${agora.length} docs   de ${mapaAgora.values().next().value?.syncedAt}`)
-  console.log(`alunos OGI activos ${activos.size}\n`)
+  console.log(`alunos OGI activos ${activos.size}`)
+  if (soVisiveis.size) {
+    console.log('\ntags que o espelho passou a ver, com aplicacao anterior a fotografia')
+    console.log('(nao sao eventos -- so mudou quem as le)')
+    for (const [id, n] of soVisiveis) {
+      const nome = agora
+        .flatMap((d) => d.tags ?? [])
+        .find((t) => String(t.tagId) === id)?.nome
+      console.log(`  ${id.padStart(5)}  ${String(n).padStart(5)} associacoes  ${nome}`)
+    }
+  }
+  console.log('')
 
   console.log('                       eventos   activos   inactivos')
   const linha = (nome: string, lista: Evento[]) =>
