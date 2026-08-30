@@ -65,6 +65,24 @@ function responseMessage(error: unknown): string | undefined {
   return typeof data.message === 'string' ? data.message : undefined
 }
 
+/**
+ * Respostas do bot que significam "esta conta não se alcança", e não
+ * "a operação correu mal".
+ *
+ * O Discord responde `Unknown User` (10013) a um id que não existe, e
+ * `Unknown Member` (10007) a quem não está no servidor. Nenhum dos dois
+ * passa a funcionar por se tentar outra vez amanhã — e uma delas ficava
+ * a falhar todas as noites, a marcar a corrida inteira como falhada.
+ *
+ * Não apanha falhas de rede nem do bot: essas têm de continuar a
+ * retentar-se.
+ */
+const CONTA_INALCANCAVEL = /\bunknown\s+(user|member)\b|\b1001[37]\b|\b10007\b/i
+
+export function contaInalcancavel(erro?: string | null): boolean {
+  return !!erro && CONTA_INALCANCAVEL.test(String(erro))
+}
+
 export async function approveRoleChanges(ids: string[], approvedBy: string): Promise<number> {
   const res = await DiscordRoleChange.updateMany(
     { _id: { $in: ids }, status: 'PLANNED' },
@@ -180,10 +198,22 @@ export async function executeDiscordRolesPlan(options: {
           await DiscordRoleState.deleteOne({ discordUserId: change.discordUserId })
         }
         report.applied += 1
-      } else if (r?.notInGuild) {
+      } else if (r?.notInGuild || contaInalcancavel(r?.error)) {
+        // Mesmo tratamento nos dois casos: a conta não se alcança, portanto
+        // bloqueia-se e não se retenta antes da janela. O `notInGuild` é o
+        // que a geração do plano lê para saltar; o motivo guarda a verdade.
         await DiscordRoleChange.updateOne(
           { _id: change._id },
-          { $set: { status: 'BLOCKED', notInGuild: true, blockedReason: 'Membro não está no servidor Discord' }, $inc: { attempts: 1 } }
+          {
+            $set: {
+              status: 'BLOCKED',
+              notInGuild: true,
+              blockedReason: r?.notInGuild
+                ? 'Membro não está no servidor Discord'
+                : `Conta inalcançável no Discord: ${r?.error}`
+            },
+            $inc: { attempts: 1 }
+          }
         )
         report.notInGuild += 1
       } else {
