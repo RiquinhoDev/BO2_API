@@ -97,8 +97,9 @@ O que se vigia é a falta delas em quem está activo, não a sobra em quem não 
 ### Sobre o volume
 
 Uma aplicação em massa continua a ser possível — Janeiro de 2026 teve 594
-aplicações de tags de estado num mês. A regra do lote resolve-o por
-construção: mesma tag, mesmo minuto, N contactos → **uma linha**, não 594.
+aplicações de tags de estado num mês. O agrupamento resolve-o **na vista**: as
+594 linhas ficam gravadas, partilham o mesmo `lote`, e a fila mostra uma linha
+que se expande. Nada se perde e nada afoga.
 
 ---
 
@@ -327,8 +328,15 @@ export function diffTags(antes: FotoTag[], depois: FotoTag[]): DiffTags {
 
 ### 2.4 — Os lotes
 
-A mesma tag, no mesmo minuto, em muitos contactos, é uma automação. Uma linha,
-não 168.
+A mesma tag, no mesmo minuto, em muitos contactos, é uma automação.
+
+**O lote nunca colapsa dados. Só a vista.** Os 168 alunos dão 168 linhas em
+`actagevents`, todas com o mesmo `lote`. É a fila no Front que mostra uma linha
+expansível. Assim continua a ser possível perguntar "e o aluno X, o que é que
+lhe aconteceu naquela noite?" — pergunta que uma linha agregada não responde.
+
+Isto tem consequência directa no limiar: como nada se perde por agrupar,
+**o limiar só decide apresentação e rótulo**, nunca se um evento existe.
 
 ```ts
 export function chaveDoLote(tagId: string, quando: Date | null): string | null {
@@ -357,8 +365,25 @@ export function marcarLotes<T extends { tagId: string; quando: Date | null }>(
 }
 ```
 
-**O limiar é do João.** Propõe `5` e mostra a sensibilidade com 3, 5 e 10 —
-quantos lotes e quantas linhas soltas dá cada um, sobre o histórico real.
+**O limiar é `10`, decidido pelo João a 27/08.** O critério foi: mais
+informação, menos impacto negativo.
+
+```
+limiar baixo (3)    uma pessoa que mexe em 3 alunos seguidos é rotulada
+                    `automacaoAC` e a remexida passa por rotina
+                    -> perde-se informação
+
+limiar alto (10)    uma automação de 8 aparece como 8 linhas soltas
+                    -> mais ruído na fila, zero informação perdida
+```
+
+Como o lote não colapsa dados, o erro do limiar alto custa ruído e o do limiar
+baixo custa um rótulo errado numa remexida humana. Entre os dois, escolhe-se o
+que só custa ruído.
+
+- [ ] Mostra na mesma a tabela de sensibilidade com 3, 5 e 10 sobre o histórico
+      real. Não é para decidir — é para o João ver o que 10 lhe dá. Se a 10 a
+      fila ficar irreconhecível, diz, mas **não mudes o valor sem ele**.
 
 ### 2.5 — A severidade
 
@@ -494,9 +519,13 @@ corrida acusaria 4.453 saídas da lista que nunca aconteceram.
 - [ ] `diffTags` é indiferente à ordem dos arrays. **Tivemos dois bugs de
       emparelhamento por ordem de array esta semana** — este teste não é
       decorativo.
-- [ ] **lote de 168** — 168 eventos com a mesma tag e o mesmo minuto, limiar 5
-      → um lote de 168, e nenhum evento fica solto.
-- [ ] 4 eventos da mesma tag e minuto, limiar 5 → **nenhum lote**, 4 linhas soltas.
+- [ ] **lote de 168** — 168 eventos com a mesma tag e o mesmo minuto, limiar 10
+      → **168 linhas**, todas com o mesmo `lote` e `loteTamanho: 168`. Nenhuma
+      desaparece. Este é o teste que prova que o agrupamento não colapsa dados.
+- [ ] 8 eventos da mesma tag e minuto, limiar 10 → `lote: null`, 8 linhas
+      soltas, rotuladas `maoHumana`.
+- [ ] O mesmo conjunto com limiar 5 → `lote` preenchido. Mesma contagem de
+      linhas nos dois casos: **8 e 8**.
 - [ ] Eventos com `aplicadaEm: null` nunca entram em lote.
 
 - [ ] Commit: `feat(vigilancia): regras puras do diff, lotes e severidade`
@@ -596,6 +625,8 @@ export interface AcTagWatchOpcoes {
   actualizarEspelho?: boolean
   /** Por omissão não grava eventos. Igual ao resto do sistema: dryRun !== false. */
   dryRun?: boolean
+  /** Por omissão 10. Ver 2.4 — só afecta rótulo e agrupamento, nunca se um
+   *  evento é gravado. */
   limiarLote?: number
   /** Minutos de tolerância ao cruzar com o AcWriteLog. */
   janelaNossaMinutos?: number
@@ -795,8 +826,11 @@ Só leitura e só duas coisas. O Front vem depois; isto é para poder ver os dad
 
 ```
 GET  /api/renewal/tag-events            fila: estado=aberto, ordenada por
-                                        severidade e depois por data
+                                        severidade e depois por data.
+                                        AGRUPA por `lote`: um lote dá uma
+                                        entrada com `loteTamanho`, não N.
      ?severidade=grave|aviso|ruido
+     ?lote=<id>                         as linhas todas de um lote, para expandir
      ?email=<aluno>                     histórico de um aluno, aberto e aceite
 
 POST /api/renewal/tag-events/:id/aceitar   { por, motivo }
@@ -808,6 +842,10 @@ POST /api/renewal/tag-events/:id/aceitar   { por, motivo }
 - [ ] Teste: aceitar e correr a vigilância outra vez → **não reaparece na fila**.
       É a lição da semana toda: uma lista que não se pode limpar deixa de ser
       lida.
+- [ ] Teste: um lote de 168 dá **uma** entrada na fila com `loteTamanho: 168`,
+      e `?lote=<id>` devolve as 168.
+- [ ] Teste: aceitar pelo `lote` aceita as 168 de uma vez, com o mesmo autor e
+      motivo. Aceitar 168 linhas à mão é o mesmo que não as aceitar.
 
 - [ ] Commit: `feat(vigilancia): rotas de leitura e aceitação`
 
