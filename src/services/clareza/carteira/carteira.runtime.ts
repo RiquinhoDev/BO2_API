@@ -1,7 +1,9 @@
+import axios from 'axios'
 import { getRuntimeConfig } from '../../../config/runtimeConfig'
 import type { IClarezaCarteiraItem } from '../../../models/ClarezaCarteiraData'
 import { UNIVERSE } from './carteiraUniverse'
-import { AxiosFmpCarteiraClient } from './fmpCarteiraClient'
+import { fmpThrottle } from '../fmpThrottle'
+import { AxiosFmpCarteiraClient, type FmpCarteiraHttpPort } from './fmpCarteiraClient'
 import { CarteiraMetricsFetcher, type Clock } from './carteiraMetrics'
 import { RedisMongoCarteiraStore } from './carteiraStore'
 import { ClarezaCarteiraService } from './carteira.service'
@@ -11,6 +13,13 @@ export const CLAREZA_CARTEIRA_CACHE_TTL = 28800 // 8 hours
 const REFRESH_CONCURRENCY = 12
 
 const clock: Clock = { now: () => new Date() }
+const http: FmpCarteiraHttpPort = {
+  get: async (url, options) => axios.get<unknown>(url, options),
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
 
 // Built lazily so importing this module never requires the config bootstrap;
 // the canonical FMP key comes from typed config (getRuntimeConfig().fmp), never
@@ -22,7 +31,12 @@ function getService(): ClarezaCarteiraService {
   const apiKey = fmp.configured ? fmp.value.apiKey : undefined
 
   service = new ClarezaCarteiraService(
-    new CarteiraMetricsFetcher(new AxiosFmpCarteiraClient(apiKey), clock),
+    new CarteiraMetricsFetcher(new AxiosFmpCarteiraClient({
+      apiKey,
+      http,
+      throttle: fmpThrottle,
+      sleep,
+    }), clock),
     new RedisMongoCarteiraStore(CLAREZA_CARTEIRA_CACHE_KEY),
     UNIVERSE,
     clock,
