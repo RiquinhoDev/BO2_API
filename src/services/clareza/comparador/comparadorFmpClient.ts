@@ -1,20 +1,23 @@
 import type { ComparadorStock } from './comparador.types'
+import { executeFmpRequest } from '../fmpRequestPolicy'
 
 const FMP_BASE_URL = 'https://financialmodelingprep.com/stable'
 const FMP_TIMEOUT_MS = 15000
-const FMP_RETRY_DELAY_MS = 2000
-const FMP_MAX_ATTEMPTS = 3
 
 type JsonObject = Readonly<Record<string, unknown>>
 
 export interface ComparadorFmpPort {
-  fetchCompany(ticker: string): Promise<ComparadorStock | null>
+  fetchCompany(ticker: string, signal?: AbortSignal): Promise<ComparadorStock | null>
 }
 
 export interface ComparadorFmpHttpPort {
   get(
     url: string,
-    options: { readonly params: Readonly<Record<string, string>>; readonly timeout: number },
+    options: {
+      readonly params: Readonly<Record<string, string>>
+      readonly timeout: number
+      readonly signal?: AbortSignal
+    },
   ): Promise<{ readonly data: unknown }>
 }
 
@@ -76,11 +79,6 @@ function perf12m(profile: JsonObject, price: number | null): number | null {
   return round(((price - low) / low) * 100, 2)
 }
 
-function isRateLimitError(error: unknown): boolean {
-  if (!isJsonObject(error) || !isJsonObject(error.response)) return false
-  return error.response.status === 429
-}
-
 function calculateFfo(
   price: number | null,
   income: JsonObject,
@@ -106,25 +104,25 @@ function calculateFfo(
 export class AxiosComparadorFmpClient implements ComparadorFmpPort {
   constructor(private readonly dependencies: ComparadorFmpClientDependencies) {}
 
-  async fetchCompany(ticker: string): Promise<ComparadorStock | null> {
+  async fetchCompany(ticker: string, signal?: AbortSignal): Promise<ComparadorStock | null> {
     const apiKey = this.getApiKey()
     if (!apiKey) return null
 
-    let profile = await this.fetchObject('/profile', ticker, apiKey)
-    if (!profile) profile = await this.fetchObject('/quote', ticker, apiKey)
+    let profile = await this.fetchObject('/profile', ticker, apiKey, {}, signal)
+    if (!profile) profile = await this.fetchObject('/quote', ticker, apiKey, {}, signal)
     if (!profile) return null
 
-    const ratios = (await this.fetchObject('/ratios-ttm', ticker, apiKey)) ?? {}
-    const keyMetrics = (await this.fetchObject('/key-metrics-ttm', ticker, apiKey)) ?? {}
-    const grades = (await this.fetchObject('/grades-consensus', ticker, apiKey)) ?? {}
-    const priceTarget = (await this.fetchObject('/price-target-consensus', ticker, apiKey)) ?? {}
+    const ratios = (await this.fetchObject('/ratios-ttm', ticker, apiKey, {}, signal)) ?? {}
+    const keyMetrics = (await this.fetchObject('/key-metrics-ttm', ticker, apiKey, {}, signal)) ?? {}
+    const grades = (await this.fetchObject('/grades-consensus', ticker, apiKey, {}, signal)) ?? {}
+    const priceTarget = (await this.fetchObject('/price-target-consensus', ticker, apiKey, {}, signal)) ?? {}
     const price = nullableNumber(profile.price)
     const isReit = profileIsReit(profile)
     const ffo = isReit
       ? calculateFfo(
         price,
-        (await this.fetchObject('/income-statement', ticker, apiKey, { period: 'annual', limit: '1' })) ?? {},
-        (await this.fetchObject('/cash-flow-statement', ticker, apiKey, { period: 'annual', limit: '1' })) ?? {},
+        (await this.fetchObject('/income-statement', ticker, apiKey, { period: 'annual', limit: '1' }, signal)) ?? {},
+        (await this.fetchObject('/cash-flow-statement', ticker, apiKey, { period: 'annual', limit: '1' }, signal)) ?? {},
       )
       : { pFfo: null, ffoPayout: null }
     const targetConsensus = nullableNumber(priceTarget.targetConsensus)
@@ -189,23 +187,22 @@ export class AxiosComparadorFmpClient implements ComparadorFmpPort {
     ticker: string,
     apiKey: string,
     params: Readonly<Record<string, string>> = {},
+    signal?: AbortSignal,
   ): Promise<JsonObject | null> {
-    for (let attempt = 0; attempt < FMP_MAX_ATTEMPTS; attempt += 1) {
-      await this.dependencies.throttle()
-      try {
-        const response = await this.dependencies.http.get(`${FMP_BASE_URL}${path}`, {
+    try {
+      const response = await executeFmpRequest({
+        request: () => this.dependencies.http.get(`${FMP_BASE_URL}${path}`, {
           params: { apikey: apiKey, symbol: ticker, ...params },
           timeout: FMP_TIMEOUT_MS,
-        })
-        return firstObject(response.data)
-      } catch (error: unknown) {
-        if (isRateLimitError(error) && attempt < FMP_MAX_ATTEMPTS - 1) {
-          await this.dependencies.sleep(FMP_RETRY_DELAY_MS)
-          continue
-        }
-        return null
-      }
+          ...(signal ? { signal } : {}),
+        }),
+        throttle: this.dependencies.throttle,
+        sleep: this.dependencies.sleep,
+        signal,
+      })
+      return firstObject(response.data)
+    } catch {
+      return null
     }
-    return null
   }
 }
