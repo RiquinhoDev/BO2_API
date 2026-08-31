@@ -1,0 +1,17 @@
+[
+  {"ticker":"BTCUSD","name":"Bitcoin","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"ETHUSD","name":"Ethereum","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"BNBUSD","name":"BNB","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"XRPUSD","name":"XRP","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"SOLUSD","name":"Solana","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"TRXUSD","name":"TRON","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"DOGEUSD","name":"Dogecoin","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"ADAUSD","name":"Cardano","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"LINKUSD","name":"Chainlink","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"XLMUSD","name":"Stellar","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"ZECUSD","name":"Zcash","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"XMRUSD","name":"Monero","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"CROUSD","name":"Cronos","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"FETUSD","name":"Fetch.ai","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"},
+  {"ticker":"RENDERUSD","name":"Render","kind":"crypto","type":"cripto","bucket":"cripto","sector":"Cripto"}
+]
