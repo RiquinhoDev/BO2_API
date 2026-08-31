@@ -39,6 +39,7 @@ const INTEGRATION_TEST_FILES = Object.freeze([
   'tests/services/clareza/carteiraStore.test.ts',
   'tests/services/clareza/comparadorStore.test.ts',
   'tests/services/clareza/coreGenerationStore.test.ts',
+  'tests/services/clareza/coreCollectionRun.test.ts',
   'tests/services/discovery/configureDiscoveredProduct.service.test.ts',
   'tests/services/guru/mongooseGuruDiscrepancy.repository.test.ts',
   'tests/services/syncUtilizadores/universalSyncCurseduca.characterization.test.ts',
