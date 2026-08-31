@@ -118,4 +118,20 @@ describe('Clareza earnings FMP configuration boundary', () => {
       }),
     )
   })
+
+  test('deduplicates equivalent concurrent earnings requests', async () => {
+    initializeRuntimeConfig(configWithFmp({
+      configured: true,
+      value: { apiKey: 'typed-fmp-key' },
+    }))
+    mockedAxios.get.mockResolvedValue({ data: [] })
+
+    await Promise.all([
+      fetchEarningsForTicker('AAPL'),
+      fetchEarningsForTicker('AAPL'),
+    ])
+
+    expect(mockedAxios.get).toHaveBeenCalledTimes(1)
+    expect(mockedFmpThrottle).toHaveBeenCalledTimes(1)
+  })
 })

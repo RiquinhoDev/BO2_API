@@ -11,6 +11,11 @@ import {
   type ClarezaEarningsEntry,
   type ClarezaEarningsPayload,
 } from '../../types/clareza.types'
+import {
+  FmpJsonClient,
+  FMP_STABLE_BASE_URL,
+  type FmpJsonHttpPort,
+} from './fmpJsonClient'
 
 // Limits concurrency without adding p-queue to this hot path.
 function errorMessage(error: unknown): string {
@@ -30,7 +35,6 @@ async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurrency: n
   return results
 }
 
-const FMP_BASE = 'https://financialmodelingprep.com/stable'
 export const CLAREZA_EARNINGS_CACHE_KEY = 'clareza:earnings-data'
 export const CACHE_TTL = 43200
 
@@ -107,19 +111,25 @@ function getFmpApiKey(): string {
   return integration.value.apiKey
 }
 
+const fmpHttp: FmpJsonHttpPort = {
+  get: async (url, options) => axios.get<unknown>(url, options),
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
+
+const fmpClient = new FmpJsonClient({
+  getApiKey: getFmpApiKey,
+  http: fmpHttp,
+  throttle: fmpThrottle,
+  sleep,
+})
+
 async function fmpGet(path: string, params: Record<string, string> = {}): Promise<unknown | null> {
-  const apiKey = getFmpApiKey()
-  try {
-    await fmpThrottle()
-    const { data } = await axios.get<unknown>(`${FMP_BASE}${path}`, {
-      params: { apikey: apiKey, ...params },
-      timeout: 15000
-    })
-    if (!data || hasProviderError(data)) return null
-    return data
-  } catch {
-    return null
-  }
+  const data = await fmpClient.get({ baseUrl: FMP_STABLE_BASE_URL, path, params })
+  if (!data || hasProviderError(data)) return null
+  return data
 }
 
 function isoDate(offsetDays = 0): string {
