@@ -5,7 +5,7 @@ type JsonObject = Readonly<Record<string, unknown>>
 
 export interface FmpRequestPolicyOptions<T> {
   readonly request: () => Promise<T>
-  readonly throttle: () => Promise<void>
+  readonly throttle: (signal?: AbortSignal) => Promise<void>
   readonly sleep: (milliseconds: number) => Promise<void>
   readonly signal?: AbortSignal
   readonly maxAttempts?: number
@@ -79,7 +79,7 @@ export async function executeFmpRequest<T>(options: FmpRequestPolicyOptions<T>):
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     throwIfAborted(options.signal)
-    await options.throttle()
+    await options.throttle(options.signal)
     throwIfAborted(options.signal)
 
     try {

@@ -70,6 +70,20 @@ describe('executeFmpRequest', () => {
     expect(sleep).not.toHaveBeenCalled()
   })
 
+  it('passes the cancellation signal into the throttle boundary', async () => {
+    const controller = new AbortController()
+    const request = jest.fn().mockResolvedValue('ok')
+    const throttle = jest.fn().mockResolvedValue(undefined)
+
+    await expect(executeFmpRequest({
+      request,
+      throttle,
+      sleep: async () => undefined,
+      signal: controller.signal,
+    })).resolves.toBe('ok')
+    expect(throttle).toHaveBeenCalledWith(controller.signal)
+  })
+
   it('cancels an outstanding retry backoff without starting another request', async () => {
     const controller = new AbortController()
     const request = jest.fn().mockRejectedValue(httpError(503))
