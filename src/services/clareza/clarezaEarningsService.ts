@@ -1,10 +1,7 @@
 import logger from '../../utils/logger'
-import axios from 'axios'
 import { cacheService } from '../cache.service'
-import { fmpThrottle } from './fmpThrottle'
 import ClarezaEarningsData from '../../models/ClarezaEarningsData'
-import { getRuntimeConfig } from '../../config/runtimeConfig'
-import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { getFmpApiKey } from '../requestDrivenRuntimeConfig'
 import {
   hasProviderError,
   isRecord,
@@ -12,10 +9,9 @@ import {
   type ClarezaEarningsPayload,
 } from '../../types/clareza.types'
 import {
-  FmpJsonClient,
   FMP_STABLE_BASE_URL,
-  type FmpJsonHttpPort,
 } from './fmpJsonClient'
+import { clarezaFmpJsonClient } from './fmpJsonRuntime'
 
 // Limits concurrency without adding p-queue to this hot path.
 function errorMessage(error: unknown): string {
@@ -136,29 +132,8 @@ function isEarningsRow(value: unknown): value is EarningsRow {
   return isRecord(value)
 }
 
-function getFmpApiKey(): string {
-  const integration = getRuntimeConfig().integrations.fmp
-  if (!integration.configured) throw new IntegrationUnavailableError('fmp')
-  return integration.value.apiKey
-}
-
-const fmpHttp: FmpJsonHttpPort = {
-  get: async (url, options) => axios.get<unknown>(url, options),
-}
-
-function sleep(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds))
-}
-
-const fmpClient = new FmpJsonClient({
-  getApiKey: getFmpApiKey,
-  http: fmpHttp,
-  throttle: fmpThrottle,
-  sleep,
-})
-
 async function fmpGet(path: string, params: Record<string, string> = {}): Promise<unknown | null> {
-  const data = await fmpClient.get({ baseUrl: FMP_STABLE_BASE_URL, path, params })
+  const data = await clarezaFmpJsonClient.get({ baseUrl: FMP_STABLE_BASE_URL, path, params })
   if (!data || hasProviderError(data)) return null
   return data
 }

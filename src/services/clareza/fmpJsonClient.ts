@@ -74,13 +74,29 @@ export class FmpJsonClient {
   }
 
   async get(request: FmpJsonRequest): Promise<unknown | null> {
+    const execute = this.prepare(request)
+    if (!execute) return null
+
+    try {
+      return await execute()
+    } catch {
+      return null
+    }
+  }
+
+  async getOrThrow(request: FmpJsonRequest): Promise<unknown | null> {
+    const execute = this.prepare(request)
+    return execute ? execute() : null
+  }
+
+  private prepare(request: FmpJsonRequest): (() => Promise<unknown>) | null {
     const url = requestUrl(request.baseUrl, request.path)
     const timeout = requestTimeout(request.timeoutMs)
     const apiKey = this.dependencies.getApiKey()
     if (!apiKey) return null
     const requestParams = withoutApiKey(request.params ?? {})
 
-    try {
+    return async () => {
       const execute = () => executeFmpRequest({
         request: () => this.dependencies.http.get(url, {
           params: { ...requestParams, apikey: apiKey },
@@ -95,8 +111,6 @@ export class FmpJsonClient {
         ? await execute()
         : await this.deduplicator.run(requestIdentity(url, requestParams, timeout), execute)
       return response.data
-    } catch {
-      return null
     }
   }
 }
