@@ -1,9 +1,8 @@
 import logger from '../../../utils/logger'
-import axios from 'axios'
 import { cacheService } from '../../cache.service'
 import { UNIVERSE } from '../clarezaFmpService'
-import { fmpThrottle } from '../fmpThrottle'
-import { getOptionalFmpApiKey } from '../../requestDrivenRuntimeConfig'
+import { FMP_STABLE_BASE_URL } from '../fmpJsonClient'
+import { clarezaFmpJsonClient } from '../fmpJsonRuntime'
 
 // ─────────────────────────────────────────────────────────────
 // RAIO-X DA AÇÃO — versão Node (migrada do clareza-raiox.php)
@@ -17,7 +16,7 @@ import { getOptionalFmpApiKey } from '../../requestDrivenRuntimeConfig'
 // "gate" global que garante ~4 req/s (240/min) com retry a 429.
 // ─────────────────────────────────────────────────────────────
 
-export const FMP_STABLE = 'https://financialmodelingprep.com/stable'
+export const FMP_STABLE = FMP_STABLE_BASE_URL
 
 export const RAIOX_CACHE_PREFIX = 'clareza:raiox:v1:'      // clareza:raiox:v1:AAPL → payload rico (objeto)
 export const RAIOX_JSON_PREFIX  = 'clareza:raiox:json:v1:' // resposta já serializada (payload + sectorPe) p/ servir raw
@@ -136,28 +135,14 @@ export async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurr
 // Todas as chamadas passam pelo limitador global partilhado (fmpThrottle),
 // comum às 3 ferramentas Clareza → a soma nunca passa do limite do plano.
 export async function fmpRaw(path: string, params: Record<string, string> = {}): Promise<unknown> {
-  const apiKey = getOptionalFmpApiKey()
-  if (!apiKey) return null
-  for (let attempt = 0; attempt < 3; attempt++) {
-    await fmpThrottle()
-    try {
-      const { data } = await axios.get<unknown>(`${FMP_STABLE}${path}`, {
-        params: { apikey: apiKey, ...params },
-        timeout: 15000
-      })
-      if (!data) return null
-      if (isJsonObject(data) && data['Error Message']) return null
-      return data
-    } catch (error: unknown) {
-      const status = axios.isAxiosError(error) ? error.response?.status : undefined
-      if (status === 429 && attempt < 2) {
-        await sleep(2000) // rate limit → espera e tenta de novo
-        continue
-      }
-      return null
-    }
+  try {
+    const data = await clarezaFmpJsonClient.get({ baseUrl: FMP_STABLE, path, params })
+    if (!data) return null
+    if (isJsonObject(data) && data['Error Message']) return null
+    return data
+  } catch {
+    return null
   }
-  return null
 }
 
 export function fmpFirst(data: unknown): JsonObject | null {

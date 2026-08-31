@@ -1,11 +1,9 @@
-import axios from 'axios'
 import { cacheService } from '../cache.service'
-import { fmpThrottle } from './fmpThrottle'
 import { normalizeTicker, isValidTicker } from './tickerUtils'
 import { getFmpApiKey } from '../requestDrivenRuntimeConfig'
 import { getClarezaData } from './clarezaFmpData.service'
 import { UNIVERSE } from './clarezaFmpUniverse'
-import { FMP_BASE, FmpRecord, REIT_CACHE_PREFIX, REIT_CACHE_TTL, REIT_VALUATION_CACHE_PREFIX, aggregateDividends, average, buildFfoRow, calcCagr, cashFlowByYear, div, firstRecord, fmpErrorDetails, fmpGet, fmpGetArray, isRecord, mapClarezaToReit, metricNum, num, round2, roundOrNull, roundedRatio, runWithConcurrency, safe, sleep, yearOf } from './clarezaFmpAnalysisSupport'
+import { FmpRecord, REIT_CACHE_PREFIX, REIT_CACHE_TTL, REIT_VALUATION_CACHE_PREFIX, aggregateDividends, average, buildFfoRow, calcCagr, cashFlowByYear, div, fmpErrorDetails, fmpGet, fmpGetArray, fmpGetOrThrow, isRecord, mapClarezaToReit, metricNum, num, round2, roundOrNull, roundedRatio, runWithConcurrency, safe, sleep, yearOf } from './clarezaFmpAnalysisSupport'
 
 export async function getReitAnalysis(rawTicker: string) {
   getFmpApiKey()
@@ -30,26 +28,14 @@ export async function getReitAnalysis(rawTicker: string) {
     /* cache indisponÃ­vel â†’ segue para fetch live */
   }
 
-  // 2. Fora do universo â†’ fetch live (com retry a 429) e cache 24h.
+  // 2. Fora do universo â†’ fetch live com a política comum e cache 24h.
   // Profile com diagnÃ³stico: distingue falha da FMP (key/plano/quota) de ticker inexistente.
-  let profile: FmpRecord | null = null
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      await fmpThrottle()
-      const { data } = await axios.get<unknown>(`${FMP_BASE}/profile`, {
-        params: { apikey: getFmpApiKey(), symbol: ticker },
-        timeout: 15000
-      })
-      profile = firstRecord(data)
-      break
-    } catch (e: unknown) {
-      const { status, body, message } = fmpErrorDetails(e)
-      if (status === 429 && attempt === 0) {
-        await sleep(1500) // rate limit momentÃ¢neo (refresh do cron) â†’ 1 retry
-        continue
-      }
-      throw Object.assign(new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`), { cause: e })
-    }
+  let profile: FmpRecord | null
+  try {
+    profile = await fmpGetOrThrow('/profile', { symbol: ticker })
+  } catch (e: unknown) {
+    const { status, body, message } = fmpErrorDetails(e)
+    throw Object.assign(new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`), { cause: e })
   }
   await sleep(150)
   if (!profile || !profile.symbol) throw new Error('Ticker nao encontrado')
@@ -133,24 +119,12 @@ export async function getReitValuation(rawTicker: string) {
   const cached = await cacheService.get<unknown>(cacheKey)
   if (isRecord(cached)) return cached
 
-  let profile: FmpRecord | null = null
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      await fmpThrottle()
-      const { data } = await axios.get<unknown>(`${FMP_BASE}/profile`, {
-        params: { apikey: getFmpApiKey(), symbol: ticker },
-        timeout: 15000
-      })
-      profile = firstRecord(data)
-      break
-    } catch (e: unknown) {
-      const { status, body, message } = fmpErrorDetails(e)
-      if (status === 429 && attempt === 0) {
-        await sleep(1500)
-        continue
-      }
-      throw Object.assign(new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`), { cause: e })
-    }
+  let profile: FmpRecord | null
+  try {
+    profile = await fmpGetOrThrow('/profile', { symbol: ticker })
+  } catch (e: unknown) {
+    const { status, body, message } = fmpErrorDetails(e)
+    throw Object.assign(new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`), { cause: e })
   }
   await sleep(150)
   if (!profile || !profile.symbol) throw new Error('Ticker nao encontrado')

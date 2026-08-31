@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { fmpThrottle } from './fmpThrottle'
-import { getFmpApiKey } from '../requestDrivenRuntimeConfig'
+import { FMP_STABLE_BASE_URL } from './fmpJsonClient'
+import { clarezaFmpJsonClient } from './fmpJsonRuntime'
 
 type FmpNumericField =
   | 'price'
@@ -147,7 +147,7 @@ export async function runWithConcurrency<T>(
   return results
 }
 
-export const FMP_BASE = 'https://financialmodelingprep.com/stable'
+export const FMP_BASE = FMP_STABLE_BASE_URL
 export const CLAREZA_CACHE_KEY = 'clareza:stock-data'
 export const CACHE_TTL = 28800 // 8 horas
 
@@ -155,15 +155,19 @@ export const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 export async function fmpGet(path: string, params: Record<string, string> = {}): Promise<FmpRecord | null> {
   try {
-    await fmpThrottle()
-    const { data } = await axios.get<unknown>(`${FMP_BASE}${path}`, {
-      params: { apikey: getFmpApiKey(), ...params },
-      timeout: 15000
-    })
+    const data = await clarezaFmpJsonClient.get({ baseUrl: FMP_BASE, path, params })
     return firstRecord(data)
   } catch {
     return null
   }
+}
+
+export async function fmpGetOrThrow(
+  path: string,
+  params: Record<string, string> = {},
+): Promise<FmpRecord | null> {
+  const data = await clarezaFmpJsonClient.getOrThrow({ baseUrl: FMP_BASE, path, params })
+  return firstRecord(data)
 }
 
 export function safe(val: unknown, mult = 1): number | null {
@@ -251,11 +255,7 @@ export async function fetchStock(ticker: string, isReit: boolean) {
 // Variante de fmpGet que devolve o array completo (nÃ£o sÃ³ o [0]).
 export async function fmpGetArray(path: string, params: Record<string, string> = {}): Promise<FmpRecord[]> {
   try {
-    await fmpThrottle()
-    const { data } = await axios.get<unknown>(`${FMP_BASE}${path}`, {
-      params: { apikey: getFmpApiKey(), ...params },
-      timeout: 15000
-    })
+    const data = await clarezaFmpJsonClient.get({ baseUrl: FMP_BASE, path, params })
     return recordArray(data)
   } catch {
     return []
