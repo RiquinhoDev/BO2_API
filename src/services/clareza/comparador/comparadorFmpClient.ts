@@ -1,5 +1,9 @@
 import type { ComparadorStock } from './comparador.types'
 import { executeFmpRequest } from '../fmpRequestPolicy'
+import {
+  FmpInFlightDeduplicator,
+  type FmpRequestDeduplicator,
+} from '../fmpRequestDeduplicator'
 
 const FMP_BASE_URL = 'https://financialmodelingprep.com/stable'
 const FMP_TIMEOUT_MS = 15000
@@ -27,6 +31,16 @@ export interface ComparadorFmpClientDependencies {
   readonly throttle: (signal?: AbortSignal) => Promise<void>
   readonly sleep: (milliseconds: number) => Promise<void>
   readonly now: () => string
+  readonly deduplicator?: FmpRequestDeduplicator
+}
+
+function requestIdentity(
+  path: string,
+  ticker: string,
+  params: Readonly<Record<string, string>>,
+): string {
+  const sortedParams = Object.entries(params).sort(([left], [right]) => left.localeCompare(right))
+  return JSON.stringify([path, ticker, sortedParams])
 }
 
 function isJsonObject(value: unknown): value is JsonObject {
@@ -102,7 +116,11 @@ function calculateFfo(
 }
 
 export class AxiosComparadorFmpClient implements ComparadorFmpPort {
-  constructor(private readonly dependencies: ComparadorFmpClientDependencies) {}
+  private readonly deduplicator: FmpRequestDeduplicator
+
+  constructor(private readonly dependencies: ComparadorFmpClientDependencies) {
+    this.deduplicator = dependencies.deduplicator ?? new FmpInFlightDeduplicator()
+  }
 
   async fetchCompany(ticker: string, signal?: AbortSignal): Promise<ComparadorStock | null> {
     const apiKey = this.getApiKey()
@@ -190,7 +208,7 @@ export class AxiosComparadorFmpClient implements ComparadorFmpPort {
     signal?: AbortSignal,
   ): Promise<JsonObject | null> {
     try {
-      const response = await executeFmpRequest({
+      const request = () => executeFmpRequest({
         request: () => this.dependencies.http.get(`${FMP_BASE_URL}${path}`, {
           params: { apikey: apiKey, symbol: ticker, ...params },
           timeout: FMP_TIMEOUT_MS,
@@ -200,6 +218,9 @@ export class AxiosComparadorFmpClient implements ComparadorFmpPort {
         sleep: this.dependencies.sleep,
         signal,
       })
+      const response = signal
+        ? await request()
+        : await this.deduplicator.run(requestIdentity(path, ticker, params), request)
       return firstObject(response.data)
     } catch {
       return null
