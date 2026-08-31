@@ -299,4 +299,50 @@ function expectFmpRequest(call: RecordedFmpCall, path: string, ticker: string): 
     expect(sleepCalls).toBe(2)
     expect(throttleCalls).toBe(4)
   })
+
+  it('deduplicates equivalent concurrent requests without putting the API key in the identity', async () => {
+    const profile = { companyName: 'Apple Inc.', price: 213.49 }
+    const http = new ScriptedFmpHttp(endpointResponses(profile))
+    const client = new AxiosComparadorFmpClient({
+      http,
+      getApiKey: () => 'immutable-test-key',
+      throttle: async () => undefined,
+      sleep: async () => undefined,
+      now: () => '2026-08-11T09:30:00.000Z',
+    })
+
+    const [first, second] = await Promise.all([
+      client.fetchCompany('AAPL'),
+      client.fetchCompany('AAPL'),
+    ])
+
+    expect(first).toEqual(second)
+    expect(calledPaths(http)).toEqual([
+      '/stable/profile',
+      '/stable/ratios-ttm',
+      '/stable/key-metrics-ttm',
+      '/stable/grades-consensus',
+      '/stable/price-target-consensus',
+    ])
+  })
+
+  it('does not share cancelable requests owned by different callers', async () => {
+    const profile = { companyName: 'Apple Inc.', price: 213.49 }
+    const http = new ScriptedFmpHttp(endpointResponses(profile))
+    const client = new AxiosComparadorFmpClient({
+      http,
+      getApiKey: () => 'immutable-test-key',
+      throttle: async () => undefined,
+      sleep: async () => undefined,
+      now: () => '2026-08-11T09:30:00.000Z',
+    })
+
+    await Promise.all([
+      client.fetchCompany('AAPL', new AbortController().signal),
+      client.fetchCompany('AAPL', new AbortController().signal),
+    ])
+
+    expect(calledPaths(http).filter((path) => path === '/stable/profile')).toHaveLength(2)
+    expect(http.calls).toHaveLength(10)
+  })
 })
