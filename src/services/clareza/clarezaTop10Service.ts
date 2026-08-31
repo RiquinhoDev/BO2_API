@@ -1,10 +1,7 @@
 import logger from '../../utils/logger'
-import axios from 'axios'
 import { cacheService } from '../cache.service'
-import { fmpThrottle } from './fmpThrottle'
 import ClarezaTop10Data from '../../models/ClarezaTop10Data'
-import { getRuntimeConfig } from '../../config/runtimeConfig'
-import { IntegrationUnavailableError } from '../../errors/integrationUnavailableError'
+import { getFmpApiKey } from '../requestDrivenRuntimeConfig'
 import {
   hasProviderError,
   isRecord,
@@ -12,6 +9,11 @@ import {
   type ClarezaTop10Payload,
   type ClarezaTop10StockPayload,
 } from '../../types/clareza.types'
+import {
+  FMP_STABLE_BASE_URL,
+  FMP_V3_BASE_URL,
+} from './fmpJsonClient'
+import { clarezaFmpJsonClient } from './fmpJsonRuntime'
 
 // Limita concorrência sem depender de p-queue (ESM-only)
 function errorMessage(error: unknown): string {
@@ -34,8 +36,6 @@ async function runWithConcurrency<T>(
   return results
 }
 
-const FMP_STABLE = 'https://financialmodelingprep.com/stable'
-const FMP_V3 = 'https://financialmodelingprep.com/api/v3'
 export const CLAREZA_TOP10_CACHE_KEY = 'clareza:top10-data'
 // String JSON já serializada — servida diretamente ao HTML sem JSON.parse/stringify por request.
 export const CLAREZA_TOP10_JSON_KEY = 'clareza:top10-data:json'
@@ -84,12 +84,6 @@ const WATCHLIST = [
 const isEmpty = (value: unknown) => value === null || value === undefined ||
   (isRecord(value) && Object.keys(value).length === 0)
 
-function getFmpApiKey(): string {
-  const integration = getRuntimeConfig().integrations.fmp
-  if (!integration.configured) throw new IntegrationUnavailableError('fmp')
-  return integration.value.apiKey
-}
-
 function firstProviderRecord(value: unknown): Record<string, unknown> | null {
   if (Array.isArray(value)) {
     return value.find(isRecord) ?? null
@@ -99,34 +93,19 @@ function firstProviderRecord(value: unknown): Record<string, unknown> | null {
 
 // Primeiro elemento — endpoints STABLE (?symbol=)
 async function fmpFirstStable(path: string, params: Record<string, string> = {}): Promise<Record<string, unknown> | null> {
-  const apiKey = getFmpApiKey()
-  try {
-    await fmpThrottle()
-    const { data } = await axios.get<unknown>(`${FMP_STABLE}${path}`, {
-      params: { apikey: apiKey, ...params },
-      timeout: 15000
-    })
-    if (!data || hasProviderError(data)) return null
-    return firstProviderRecord(data)
-  } catch {
-    return null
-  }
+  const data = await clarezaFmpJsonClient.get({ baseUrl: FMP_STABLE_BASE_URL, path, params })
+  if (!data || hasProviderError(data)) return null
+  return firstProviderRecord(data)
 }
 
 // Primeiro elemento — endpoints v3 (ticker no path)
 async function fmpFirstV3(pathWithTicker: string): Promise<Record<string, unknown> | null> {
-  const apiKey = getFmpApiKey()
-  try {
-    await fmpThrottle()
-    const { data } = await axios.get<unknown>(`${FMP_V3}${pathWithTicker}`, {
-      params: { apikey: apiKey },
-      timeout: 15000
-    })
-    if (!data || hasProviderError(data)) return null
-    return firstProviderRecord(data)
-  } catch {
-    return null
-  }
+  const data = await clarezaFmpJsonClient.get({
+    baseUrl: FMP_V3_BASE_URL,
+    path: pathWithTicker,
+  })
+  if (!data || hasProviderError(data)) return null
+  return firstProviderRecord(data)
 }
 
 function ymd(date: Date): string {
@@ -158,26 +137,23 @@ function downsampleHistory(rows: ClarezaHistoricalPoint[]): ClarezaHistoricalPoi
 
 // Histórico: STABLE light → fallback v3 historical-price-full → normalizado {date, close}
 async function fetchHistorical(ticker: string, from: string, to: string): Promise<ClarezaHistoricalPoint[]> {
-  const apiKey = getFmpApiKey()
   let rows: unknown[] = []
-  try {
-    await fmpThrottle()
-    const { data } = await axios.get<unknown>(`${FMP_STABLE}/historical-price-eod/light`, {
-      params: { apikey: apiKey, symbol: ticker, from, to },
-      timeout: 20000
-    })
-    if (Array.isArray(data)) rows = data
-  } catch { /* ignora */ }
+  const stableData = await clarezaFmpJsonClient.get({
+    baseUrl: FMP_STABLE_BASE_URL,
+    path: '/historical-price-eod/light',
+    params: { symbol: ticker, from, to },
+    timeoutMs: 20000,
+  })
+  if (Array.isArray(stableData)) rows = stableData
 
   if (!rows.length) {
-    try {
-      await fmpThrottle()
-      const { data } = await axios.get<unknown>(`${FMP_V3}/historical-price-full/${ticker}`, {
-        params: { apikey: apiKey, from, to },
-        timeout: 20000
-      })
-      if (isRecord(data) && Array.isArray(data.historical)) rows = data.historical
-    } catch { /* ignora */ }
+    const legacyData = await clarezaFmpJsonClient.get({
+      baseUrl: FMP_V3_BASE_URL,
+      path: `/historical-price-full/${ticker}`,
+      params: { from, to },
+      timeoutMs: 20000,
+    })
+    if (isRecord(legacyData) && Array.isArray(legacyData.historical)) rows = legacyData.historical
   }
 
   const out: ClarezaHistoricalPoint[] = []

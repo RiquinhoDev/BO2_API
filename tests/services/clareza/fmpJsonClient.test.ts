@@ -99,6 +99,20 @@ describe('FmpJsonClient', () => {
     expect(sleep).toHaveBeenCalledTimes(1)
   })
 
+  it('propagates the final transport error when the caller needs diagnostics', async () => {
+    const finalError = { response: { status: 503, data: 'provider unavailable' } }
+    const { client, http, throttle, sleep } = createClient([
+      { error: { response: { status: 503 } } },
+      { error: { response: { status: 503 } } },
+      { error: finalError },
+    ])
+
+    await expect(client.getOrThrow(request)).rejects.toBe(finalError)
+    expect(http.calls).toHaveLength(3)
+    expect(throttle).toHaveBeenCalledTimes(3)
+    expect(sleep).toHaveBeenCalledTimes(2)
+  })
+
   it('deduplicates equivalent owners and isolates cancelable owners', async () => {
     const shared = createClient([{ data: [] }])
     await Promise.all([shared.client.get(request), shared.client.get(request)])
