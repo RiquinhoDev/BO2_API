@@ -52,8 +52,13 @@ function productionApp(correlationId = 'comparador-production-request') {
   })
 }
 
-function adminToken(): string {
-  return signAppToken({ id: 'admin-1', email: 'admin@example.test', role: 'ADMIN', permissions: [] })
+function tokenFor(role: 'ADMIN' | 'SUPER_ADMIN'): string {
+  return signAppToken({
+    id: `test-${role.toLowerCase()}`,
+    email: 'operator@example.test',
+    role,
+    permissions: [],
+  })
 }
 
 beforeEach(() => {
@@ -85,11 +90,49 @@ describe('Clareza comparator production mount contract', () => {
     mockIsClarezaRefreshAuthorized.mockReturnValueOnce(false)
     const badClarezaToken = await request(app)
       .post('/api/clareza/comparador/refresh')
-      .set('Authorization', `Bearer ${adminToken()}`)
+      .set('Authorization', `Bearer ${tokenFor('SUPER_ADMIN')}`)
       .query(marker)
       .send({})
     expect(badClarezaToken.status).toBe(403)
     expect(badClarezaToken.body).toEqual({ error: 'Refresh Clareza nao autorizado' })
+    expect(mockIsClarezaRefreshAuthorized).toHaveBeenCalledTimes(1)
+    expect(mockRefreshClarezaComparadorData).not.toHaveBeenCalled()
+  })
+
+  it('rejects ADMIN before checking the Clareza credential or calling refresh', async () => {
+    mockIsClarezaRefreshAuthorized.mockReturnValue(true)
+    const response = await request(productionApp())
+      .post('/api/clareza/comparador/refresh')
+      .set('Authorization', `Bearer ${tokenFor('ADMIN')}`)
+      .query(marker)
+      .send({})
+
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({
+      success: false,
+      message: 'Sem permissões suficientes',
+    })
+    expect(mockIsClarezaRefreshAuthorized).not.toHaveBeenCalled()
+    expect(mockRefreshClarezaComparadorData).not.toHaveBeenCalled()
+  })
+
+  it('allows SUPER_ADMIN through the Clareza credential and preserves the success envelope', async () => {
+    const report = { ok: true, updated: ['EXM'], failed: [] }
+    mockIsClarezaRefreshAuthorized.mockReturnValueOnce(true)
+    mockRefreshClarezaComparadorData.mockResolvedValueOnce(report)
+
+    const response = await request(productionApp())
+      .post('/api/clareza/comparador/refresh')
+      .set('Authorization', `Bearer ${tokenFor('SUPER_ADMIN')}`)
+      .set('x-clareza-refresh-token', 'synthetic-test-credential')
+      .query(marker)
+      .send({})
+
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual({ success: true, data: report })
+    expect(mockIsClarezaRefreshAuthorized)
+      .toHaveBeenCalledWith('synthetic-test-credential')
+    expect(mockRefreshClarezaComparadorData).toHaveBeenCalledTimes(1)
   })
 
   it('preserves integration and SEC-10 failures through the production middleware chain', async () => {
@@ -99,7 +142,7 @@ describe('Clareza comparator production mount contract', () => {
 
     const unavailable = await request(app)
       .post('/api/clareza/comparador/refresh')
-      .set('Authorization', `Bearer ${adminToken()}`)
+      .set('Authorization', `Bearer ${tokenFor('SUPER_ADMIN')}`)
       .query(marker)
       .send({})
     expect(unavailable.status).toBe(503)
@@ -109,6 +152,7 @@ describe('Clareza comparator production mount contract', () => {
       message: 'Serviço temporariamente indisponível',
       correlationId: 'comparador-production-error',
     })
+    expect(mockRefreshClarezaComparadorData).toHaveBeenCalledTimes(1)
 
     mockSearchComparador.mockRejectedValueOnce(new Error('secret token'))
     const unexpected = await request(app).get('/api/clareza/comparador').query({ ...marker, search: 'apple' })
