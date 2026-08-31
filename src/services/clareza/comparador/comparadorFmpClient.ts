@@ -24,7 +24,7 @@ export interface ComparadorFmpHttpPort {
 export interface ComparadorFmpClientDependencies {
   readonly http: ComparadorFmpHttpPort
   readonly getApiKey: () => string | undefined
-  readonly throttle: () => Promise<void>
+  readonly throttle: (signal?: AbortSignal) => Promise<void>
   readonly sleep: (milliseconds: number) => Promise<void>
   readonly now: () => string
 }
