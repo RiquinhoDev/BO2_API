@@ -123,10 +123,43 @@ function expectFmpRequest(call: RecordedFmpCall, path: string, ticker: string): 
     expectFmpRequest(http.calls[0], '/stable/profile', 'AAPL')
   })
 
-  it('does not retry a non-429 response failure', async () => {
+  it('uses the shared policy to retry a 5xx response failure', async () => {
+    const profile = { companyName: 'Apple Inc.', price: 213.49 }
+    const responses = endpointResponses(profile)
+    responses.set('/stable/profile', [
+      { error: { response: { status: 500 } } },
+      { data: [profile] },
+    ])
+    const http = new ScriptedFmpHttp(responses)
+    let sleepCalls = 0
+    const client = new AxiosComparadorFmpClient({
+      http,
+      getApiKey: () => 'immutable-test-key',
+      throttle: async () => undefined,
+      sleep: async () => { sleepCalls += 1 },
+      now: () => '2026-08-11T09:30:00.000Z',
+    })
+
+    await expect(client.fetchCompany('AAPL')).resolves.toMatchObject({
+      ticker: 'AAPL',
+      name: 'Apple Inc.',
+      price: 213.49,
+    })
+    expect(calledPaths(http)).toEqual([
+      '/stable/profile',
+      '/stable/profile',
+      '/stable/ratios-ttm',
+      '/stable/key-metrics-ttm',
+      '/stable/grades-consensus',
+      '/stable/price-target-consensus',
+    ])
+    expect(sleepCalls).toBe(1)
+  })
+
+  it('does not retry a non-rate-limit 4xx response failure', async () => {
     const http = new ScriptedFmpHttp(new Map([
-      ['/stable/profile', [{ error: { response: { status: 500 } } }]],
-      ['/stable/quote', [{ error: { response: { status: 500 } } }]],
+      ['/stable/profile', [{ error: { response: { status: 404 } } }]],
+      ['/stable/quote', [{ error: { response: { status: 404 } } }]],
     ]))
     let sleepCalls = 0
     const client = new AxiosComparadorFmpClient({
