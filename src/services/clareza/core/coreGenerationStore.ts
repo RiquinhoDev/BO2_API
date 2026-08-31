@@ -8,6 +8,7 @@ import type {
 } from './coreGeneration.types'
 
 const POINTER_KEY = 'core'
+const MAX_CANDIDATE_RETENTION = 20
 
 type ErrorWithCode = { readonly code?: unknown }
 
@@ -133,8 +134,10 @@ export class MongooseCoreGenerationStore implements CoreGenerationStore {
   }
 
   async retainCandidates(limit: number): Promise<void> {
-    if (!Number.isInteger(limit) || limit < 0) {
-      throw new RangeError('candidate retention limit must be a non-negative integer')
+    if (!Number.isInteger(limit) || limit < 0 || limit > MAX_CANDIDATE_RETENTION) {
+      throw new RangeError(
+        `candidate retention limit must be an integer between 0 and ${MAX_CANDIDATE_RETENTION}`,
+      )
     }
 
     const [pointer, newest] = await Promise.all([

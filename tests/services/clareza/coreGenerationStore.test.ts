@@ -122,4 +122,12 @@ describe('MongooseCoreGenerationStore', () => {
       candidate('generation-a', '2026-09-01T01:00:00.000Z'),
     )
   })
+
+  it('rejects retention limits above the bounded generation ceiling', async () => {
+    const store = new MongooseCoreGenerationStore()
+
+    await expect(store.retainCandidates(21)).rejects.toThrow(
+      'candidate retention limit must be an integer between 0 and 20',
+    )
+  })
 })
