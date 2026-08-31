@@ -1,10 +1,8 @@
-import axios from 'axios'
 import { cacheService } from '../cache.service'
-import { fmpThrottle } from './fmpThrottle'
 import { normalizeTicker, isValidTicker } from './tickerUtils'
 import { getFmpApiKey } from '../requestDrivenRuntimeConfig'
 import { getClarezaData } from './clarezaFmpData.service'
-import { FMP_BASE, FmpRecord, REIT_CACHE_TTL, STOCK_CACHE_PREFIX, div, firstRecord, fmpErrorDetails, fmpGet, fmpGetArray, isRecord, mapClarezaToStock, metricNum, num, round2, roundedRatio, safe, sleep } from './clarezaFmpAnalysisSupport'
+import { FmpRecord, REIT_CACHE_TTL, STOCK_CACHE_PREFIX, div, fmpErrorDetails, fmpGet, fmpGetArray, fmpGetOrThrow, isRecord, mapClarezaToStock, metricNum, num, round2, roundedRatio, safe, sleep } from './clarezaFmpAnalysisSupport'
 
 export async function getStockAnalysis(rawTicker: string) {
   getFmpApiKey()
@@ -18,34 +16,22 @@ export async function getStockAnalysis(rawTicker: string) {
 
   // Calcula sempre live (16 indicadores das demonstraÃ§Ãµes). A cache do cron
   // (parcial) Ã© usada apenas como fallback se a FMP falhar (ver catch abaixo).
-  let profile: FmpRecord | null = null
-  for (let attempt = 0; attempt < 2; attempt++) {
+  let profile: FmpRecord | null
+  try {
+    profile = await fmpGetOrThrow('/profile', { symbol: ticker })
+  } catch (e: unknown) {
+    const { status, body, message } = fmpErrorDetails(e)
+    // Live falhou (rate limit / erro) -> fallback parcial da cache do cron.
     try {
-      await fmpThrottle()
-      const { data } = await axios.get<unknown>(`${FMP_BASE}/profile`, {
-        params: { apikey: getFmpApiKey(), symbol: ticker },
-        timeout: 15000
-      })
-      profile = firstRecord(data)
-      break
-    } catch (e: unknown) {
-      const { status, body, message } = fmpErrorDetails(e)
-      if (status === 429 && attempt === 0) {
-        await sleep(1500)
-        continue
+      const universe = await getClarezaData()
+      const hit = universe?.find(s => s.ticker === ticker && s.data)
+      if (hit) {
+        const partial = mapClarezaToStock(hit)
+        await cacheService.set(cacheKey, partial, REIT_CACHE_TTL)
+        return partial
       }
-      // Live falhou (rate limit / erro) -> fallback parcial da cache do cron.
-      try {
-        const universe = await getClarezaData()
-        const hit = universe?.find(s => s.ticker === ticker && s.data)
-        if (hit) {
-          const partial = mapClarezaToStock(hit)
-          await cacheService.set(cacheKey, partial, REIT_CACHE_TTL)
-          return partial
-        }
-      } catch { /* sem cache -> propaga o erro original */ }
-      throw Object.assign(new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`), { cause: e })
-    }
+    } catch { /* sem cache -> propaga o erro original */ }
+    throw Object.assign(new Error(`Falha ao contactar a FMP${status ? ` (HTTP ${status})` : ''}${body ? `: ${body}` : `: ${message || 'erro de rede'}`}`), { cause: e })
   }
   await sleep(150)
   if (!profile || !profile.symbol) throw new Error('Ticker nao encontrado')
