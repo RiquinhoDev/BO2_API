@@ -55,6 +55,10 @@ function isCoverage(value: number): boolean {
   return Number.isFinite(value) && value >= 0 && value <= 1
 }
 
+function isCount(value: number): boolean {
+  return Number.isInteger(value) && value >= 0
+}
+
 function validatePolicy(policy: CorePublicationPolicy): void {
   if (!policy.requiredDatasets.length || new Set(policy.requiredDatasets).size !== policy.requiredDatasets.length) {
     throw new RangeError('publication policy requires unique datasets')
@@ -82,7 +86,19 @@ export function validateCoreCandidate(
 ): CoreCandidateDecision {
   validatePolicy(policy)
   const reasons: string[] = []
-  if (!Number.isInteger(report.totalAssets) || report.totalAssets <= 0) {
+  const datasetCountsValid = Object.values(report.datasets).every(result => (
+    isCount(result.successfulAssets)
+    && isCount(result.failedAssets)
+    && result.successfulAssets + result.failedAssets <= report.totalAssets
+  ))
+  const countsValid = isCount(report.totalAssets)
+    && isCount(report.scoredAssets)
+    && isCount(report.failedScoringAssets)
+    && report.scoredAssets + report.failedScoringAssets <= report.totalAssets
+    && datasetCountsValid
+  if (!countsValid) {
+    reasons.push('candidate-counts-invalid')
+  } else if (report.totalAssets === 0) {
     reasons.push('candidate-empty')
   } else {
     for (const dataset of policy.requiredDatasets) {

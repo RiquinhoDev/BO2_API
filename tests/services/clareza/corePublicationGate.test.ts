@@ -40,7 +40,9 @@ describe('core publication gate', () => {
     }), policy, now).reasonCodes).toEqual(['dataset-coverage:ratios'])
     expect(validateCoreCandidate(report({ failedScoringAssets: 1 }), policy, now).reasonCodes)
       .toEqual(['scoring-failures'])
-    expect(validateCoreCandidate(report({ totalAssets: 0, scoredAssets: 0 }), policy, now).reasonCodes)
+    expect(validateCoreCandidate(report({
+      totalAssets: 0, scoredAssets: 0, datasets: {},
+    }), policy, now).reasonCodes)
       .toContain('candidate-empty')
     expect(validateCoreCandidate(report({
       createdAt: new Date('2026-09-01T08:00:00.000Z'),
@@ -54,6 +56,14 @@ describe('core publication gate', () => {
       report: report(), policy, now, mode: 'preview', expectedCurrentGenerationId: null, publisher,
     })).resolves.toMatchObject({ status: 'preview', eligible: true, wouldPublish: true, published: false })
     expect(publisher.publishCandidate).not.toHaveBeenCalled()
+  })
+
+  it('rejects impossible candidate counters before calculating coverage', () => {
+    expect(validateCoreCandidate(report({ scoredAssets: 11 }), policy, now).reasonCodes)
+      .toEqual(['candidate-counts-invalid'])
+    expect(validateCoreCandidate(report({
+      datasets: { profile: { successfulAssets: -1, failedAssets: 0 } },
+    }), policy, now).reasonCodes).toEqual(['candidate-counts-invalid'])
   })
 
   it('does not publish a rejected candidate and preserves the current generation', async () => {
