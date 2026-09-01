@@ -46,7 +46,7 @@ export function createClarezaCoreController(dependencies: ClarezaCoreControllerD
         return res.json(payload)
       } catch (error: unknown) {
         if (error instanceof CoreGenerationUnavailableError) return unavailable(res)
-        next(internalError('Erro interno do servidor', 'CLAREZA_CORE_CARTEIRA_READ_FAILED', error))
+        next(internalError('Erro interno do servidor', 'CLAREZA_CARTEIRA_READ_FAILED', error))
         return
       }
     },
