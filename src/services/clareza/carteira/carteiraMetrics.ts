@@ -56,12 +56,7 @@ interface FmpQuote {
 }
 
 export function hasCoreMetricsData(metrics: IClarezaCarteiraMetrics): boolean {
-  return Object.entries(metrics).some(([key, value]) => (
-    key !== 'updated'
-    && value !== null
-    && value !== undefined
-    && value !== ''
-  ))
+  return typeof metrics.price === 'number' && Number.isFinite(metrics.price) && metrics.price > 0
 }
 
 function safe(val: unknown, mult = 1): number | null {

@@ -45,4 +45,50 @@ describe('core asset evaluation', () => {
     expect(evaluation.verdict.key).toBe('indefinido')
     expect(evaluation.radarRank).toBeNull()
   })
+
+  it('preserves the PHP divergence warning without changing the weighted score', () => {
+    const evaluation = evaluateCoreAsset({
+      ticker: 'DIVERGENT', bucket: 'growth', sector: 'Technology',
+      data: {
+        price: 100, dcf: 70, pe: 10, epsCagr: 20, evEbitda: 10,
+        histMedians: { evEbitda: 15 }, roic: 18,
+      },
+    }, { groups: { '["Technology","growth","evEbitda"]': { value: 15, sampleSize: 5 } } })
+
+    expect(evaluation.valuation.divergence).toMatchObject({ type: 'otimismo' })
+    expect(evaluation.valuation.rawScore).toBe(evaluation.valuation.score)
+  })
+
+  it('matches PHP turnaround and financial health fallbacks with visible metric evidence', () => {
+    const turnaround = evaluateCoreAsset({
+      ticker: 'TURN', bucket: 'value', sector: 'Other', data: { epsTurnaround: true },
+    }, { groups: {} })
+    const financial = evaluateCoreAsset({
+      ticker: 'BANK', bucket: 'financials', sector: 'Financial Services', data: { roe: 18 },
+    }, { groups: {} })
+
+    expect(turnaround.quality.parts).toEqual([
+      expect.objectContaining({ key: 'cresc', score: 85, metrics: [
+        expect.objectContaining({ value: 'Saiu de prejuízo' }),
+      ] }),
+    ])
+    expect(financial.quality.parts.find(part => part.key === 'saude')).toMatchObject({
+      score: 80,
+      metrics: [{ label: 'ROE', value: '18.0%' }],
+    })
+  })
+
+  it('keeps PHP multiple limits and falls back from invalid FCF yield to REIT FFO yield', () => {
+    const value = evaluateCoreAsset({
+      ticker: 'HIGHPE', bucket: 'value', sector: 'Other', data: { pe: 250 },
+    }, { groups: {} })
+    const reit = evaluateCoreAsset({
+      ticker: 'O', bucket: 'reit', sector: 'Real Estate', data: { fcfYield: 0, ffoYield: 8 },
+    }, { groups: {} })
+
+    expect(value.multiple).toMatchObject({ key: 'pe', value: 250 })
+    expect(reit.valuation.pillars).toEqual([
+      expect.objectContaining({ key: 'intrinsic', label: 'Rendimento do FFO', score: 78 }),
+    ])
+  })
 })
