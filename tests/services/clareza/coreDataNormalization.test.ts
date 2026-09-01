@@ -85,7 +85,7 @@ describe('core data normalization', () => {
 
   it('reports partial historical coverage instead of hiding malformed rows', () => {
     const normalized = normalizeCoreAssetSnapshot({
-      ticker: 'O', kind: 'reit', asOf: '2026-09-01', currency: 'USD',
+      ticker: 'O', kind: 'stock', asOf: '2026-09-01', currency: 'USD',
       price: 80, changePercentage: 1, dividendYieldFraction: 0.05, pe: 25,
       history: [
         { date: '2025-09-01', close: 100 },
@@ -108,7 +108,7 @@ describe('core data normalization', () => {
     expect(normalizeCurrency(null)).toBeNull()
   })
 
-  it.each<CoreAssetKind>(['stock', 'reit', 'fund', 'crypto'])(
+  it.each<CoreAssetKind>(['stock', 'fund', 'crypto'])(
     'keeps %s identity with the same normalized metric contract',
     kind => {
       const normalized = normalizeCoreAssetSnapshot({
@@ -119,7 +119,7 @@ describe('core data normalization', () => {
         price: 10,
         changePercentage: 0,
         dividendYieldFraction: kind === 'crypto' ? null : 0,
-        pe: kind === 'stock' || kind === 'reit' ? 15 : null,
+        pe: kind === 'stock' ? 15 : null,
         history: [
           { date: '2025-09-01', close: 8 },
           { date: '2026-09-01', close: 10 },

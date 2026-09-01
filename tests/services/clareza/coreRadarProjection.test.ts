@@ -10,7 +10,7 @@ describe('core Radar projection', () => {
       generationId: 'generation-a', universeVersion: 'universe-v1', dataVersion: 'data-v1',
       createdAt: new Date('2026-09-01T10:00:00.000Z'),
       assets: [
-        { ticker: 'O', name: 'Realty Income', kind: 'reit', type: 'reit', bucket: 'reit', sector: 'Real Estate',
+        { ticker: 'O', name: 'Realty Income', kind: 'stock', type: 'reit', bucket: 'reit', sector: 'Real Estate',
           data: { price: 60, currency: 'USD' }, evaluation },
         { ticker: 'AAPL', name: 'Apple', kind: 'stock', type: 'growth', bucket: 'growth', sector: 'Technology',
           data: { price: 200, currency: 'USD' }, evaluation },
@@ -27,7 +27,7 @@ describe('core Radar projection', () => {
     expect(result.stocks[0]).toMatchObject({
       ticker: 'AAPL', type: 'growth', kind: 'stock', bucket: 'growth', evaluation,
     })
-    expect(result.stocks[1]).toMatchObject({ ticker: 'O', type: 'reit', kind: 'reit' })
+    expect(result.stocks[1]).toMatchObject({ ticker: 'O', type: 'reit', kind: 'stock' })
   })
 
   it('keeps a known eligible asset with null data instead of deleting it', () => {

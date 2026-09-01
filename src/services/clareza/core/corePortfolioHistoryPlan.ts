@@ -76,7 +76,7 @@ export function planPortfolioHistoryRequest(
       rejected.push({ ticker, reason: 'unknown-symbol' })
       continue
     }
-    if (asset.kind !== 'stock' && asset.kind !== 'reit') {
+    if (asset.kind !== 'stock') {
       rejected.push({ ticker, reason: 'unsupported-kind' })
       continue
     }

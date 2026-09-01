@@ -6,6 +6,7 @@ interface SearchUniverseAsset {
   readonly ticker: string
   readonly name: string
   readonly kind: 'stock' | 'fund' | 'crypto'
+  readonly type: 'growth' | 'value' | 'reit' | 'etf' | 'cripto'
 }
 
 interface CoreCarteiraSearchRuntimeDependencies {
