@@ -21,13 +21,21 @@ describe('Carteira to core snapshot bridge', () => {
         data: { price: 200, change: 1, perf12m: 10, dividendYield: 0, currency: 'USD', exchange: 'NASDAQ', updated: '2026-09-01' } }],
       universe, store, now: new Date('2026-09-01T14:00:00.000Z'),
       universeVersion: 'universe-test',
+      complementsByTicker: new Map([['AAPL', {
+        annualIncome: [{ date: '2025-12-31', revenue: 100 }],
+        earnings: [{ date: '2026-07-31', epsActual: 2.1 }],
+      }]]),
     })
 
     expect(created).toMatchObject({
       generationId: expect.stringMatching(/^core-20260901T140000000Z-[a-f0-9]{12}$/),
       universeVersion: 'universe-test',
       records: [
-        { ticker: 'AAPL', kind: 'stock', datasets: { data: { price: 200 }, evaluation: null } },
+        { ticker: 'AAPL', kind: 'stock', datasets: {
+          data: { price: 200 }, evaluation: { ticker: 'AAPL', valuation: { score: null } },
+          'annual-income': [{ date: '2025-12-31', revenue: 100 }],
+          earnings: [{ date: '2026-07-31', epsActual: 2.1 }],
+        } },
         { ticker: 'BTC-USD', kind: 'crypto', datasets: { data: null, evaluation: null } },
       ],
     })

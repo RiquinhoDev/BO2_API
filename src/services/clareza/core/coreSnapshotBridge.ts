@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto'
 import type { IClarezaCarteiraItem } from '../../../models/ClarezaCarteiraData'
 import type { ClarezaAsset } from '../universe/clarezaUniverse.types'
 import type { CoreGenerationStore } from './coreGeneration.types'
+import { evaluateCoreAsset } from './coreAssetEvaluation'
+import { buildSectorContext } from './coreEvaluationContext'
 
 interface PublishCarteiraSnapshotInput {
   readonly items: readonly IClarezaCarteiraItem[]
@@ -10,6 +12,10 @@ interface PublishCarteiraSnapshotInput {
   readonly store: CoreGenerationStore
   readonly now: Date
   readonly universeVersion: string
+  readonly complementsByTicker?: ReadonlyMap<string, {
+    readonly annualIncome: readonly unknown[]
+    readonly earnings: readonly unknown[]
+  }>
 }
 
 export async function publishCarteiraSnapshot(input: PublishCarteiraSnapshotInput) {
@@ -26,14 +32,46 @@ export async function publishCarteiraSnapshot(input: PublishCarteiraSnapshotInpu
     if (asset.kind !== item.kind) throw new RangeError(`Carteira snapshot kind mismatch: ${item.ticker}`)
   }
   const itemByTicker = new Map(input.items.map(item => [item.ticker.trim().toUpperCase(), item]))
-  const records = input.universe.map(asset => {
+  const baseRecords = input.universe.map(asset => {
     const item = itemByTicker.get(asset.ticker)
+    return {
+      asset,
+      data: item?.data ? { ...item.data } : null,
+    }
+  })
+  const sectorContext = buildSectorContext(baseRecords
+    .filter(item => item.asset.kind === 'stock')
+    .map(item => ({
+      ticker: item.asset.ticker,
+      sector: item.asset.sector,
+      bucket: item.asset.bucket,
+      metrics: {
+        pe: item.data?.pe,
+        ps: item.data?.ps,
+        pb: item.data?.pb,
+        evEbitda: item.data?.evEbitda,
+        pFfo: item.data?.pFfo,
+      },
+    })))
+  const complements = new Map([...(input.complementsByTicker ?? new Map())]
+    .map(([ticker, value]) => [ticker.trim().toUpperCase(), value] as const))
+  const records = baseRecords.map(({ asset, data }) => {
+    const complement = complements.get(asset.ticker)
     return {
       ticker: asset.ticker,
       kind: asset.kind,
       datasets: {
-        data: item?.data ? { ...item.data } : null,
-        evaluation: null,
+        data,
+        evaluation: asset.kind === 'stock'
+          ? evaluateCoreAsset({
+          ticker: asset.ticker,
+          bucket: asset.bucket,
+          sector: asset.sector,
+          data: data ?? {},
+          }, sectorContext)
+          : null,
+        'annual-income': complement ? [...complement.annualIncome] : [],
+        earnings: complement ? [...complement.earnings] : [],
       },
     }
   })
