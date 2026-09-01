@@ -528,6 +528,22 @@
     "status": "complete"
   },
   {
+    "identity": "GET /api/clareza/suggestions/admin",
+    "owner": "src/controllers/clarezaSuggestionAdmin.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "GET /api/clareza/suggestions/admin/export",
+    "owner": "src/controllers/clarezaSuggestionAdmin.controller.ts",
+    "currentFamily": "stream-or-file",
+    "targetFamily": "stream-or-file",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/clareza/top10",
     "owner": "src/controllers/clarezaController.ts",
     "currentFamily": "public-document",

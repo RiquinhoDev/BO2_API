@@ -3,6 +3,8 @@ import { clarezaController } from '../controllers/clarezaController'
 import { asyncRoute } from '../security/asyncRoute'
 import { submitClarezaSuggestion } from '../controllers/clarezaSuggestion.controller'
 import { clarezaCoreController } from '../controllers/clarezaCore.controller'
+import { clarezaSuggestionAdminController } from '../controllers/clarezaSuggestionAdmin.controller'
+import { authorize } from '../middleware/auth.middleware'
 
 const router = Router()
 
@@ -51,6 +53,8 @@ router.post('/comparador/refresh', asyncRoute(clarezaController.refreshComparado
 
 // Escrita pública limitada e idempotente; nunca altera o universo publicado.
 router.post('/suggestions', asyncRoute(submitClarezaSuggestion))
+router.get('/suggestions/admin', authorize('SUPER_ADMIN'), asyncRoute(clarezaSuggestionAdminController.list))
+router.get('/suggestions/admin/export', authorize('SUPER_ADMIN'), asyncRoute(clarezaSuggestionAdminController.exportCsv))
 
 
 // Endpoint publico — Comparador de Ações. Contrato igual ao PHP original:

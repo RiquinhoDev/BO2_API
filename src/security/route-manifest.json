@@ -265,6 +265,14 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/suggestions/admin"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/suggestions/admin/export"
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/top10"
   },
   {
