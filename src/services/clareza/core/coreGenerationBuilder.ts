@@ -19,6 +19,7 @@ export interface BuildCoreGenerationInput {
   readonly master: CoreMasterReport
   readonly now: Date
   readonly universeVersion: string
+  readonly generationId?: string
 }
 
 export interface CoreGenerationBuildResult {
@@ -128,7 +129,8 @@ export class CoreGenerationBuilder {
       coverage: input.master.coverage,
     })).digest('hex')
     const timestamp = input.now.toISOString().replace(/[-:.]/g, '')
-    const generationId = `core-${timestamp}-${hash.slice(0, 12)}`
+    const generationId = input.generationId ?? `core-${timestamp}-${hash.slice(0, 12)}`
+    if (!generationId.trim()) throw new RangeError('core generation id is required')
     const candidate: CoreGenerationCandidate = {
       generationId,
       universeVersion: input.universeVersion,

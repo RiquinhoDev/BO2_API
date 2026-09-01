@@ -54,6 +54,30 @@ describe('CoreCollectionRunner', () => {
     expect(seen).toEqual(['AAPL', 'MSFT', 'O'])
   })
 
+  it('persists collected item data so an expired-lease resume can build the same generation', async () => {
+    const seen: string[] = []
+    const store = new MongooseCoreCollectionRunStore()
+    const runner = new CoreCollectionRunner(store, async key => {
+      seen.push(key)
+      return { status: 'success', data: { price: key === 'AAPL' ? 100 : 200 } }
+    }, { batchSize: 1, leaseMs: 60_000 })
+    await runner.create({
+      runId: 'run-data', generationId: 'generation-data', universeVersion: 'universe-v1',
+      itemKeys: ['AAPL', 'MSFT'], now,
+    })
+
+    await runner.executeNext('run-data', 'worker-a', now)
+    const resumed = await runner.executeNext(
+      'run-data', 'worker-b', new Date(now.getTime() + 61_000),
+    )
+
+    expect(seen).toEqual(['AAPL', 'MSFT'])
+    expect(resumed.collectedItems).toEqual([
+      { key: 'AAPL', data: { price: 100 } },
+      { key: 'MSFT', data: { price: 200 } },
+    ])
+  })
+
   it('records partial failures as failures rather than successful coverage', async () => {
     const store = new MongooseCoreCollectionRunStore()
     const runner = new CoreCollectionRunner(store, async key => (

@@ -6,7 +6,7 @@ import type {
 } from './coreCollectionRun.types'
 
 export type CoreItemResult =
-  | { readonly status: 'success' }
+  | { readonly status: 'success'; readonly data?: unknown }
   | { readonly status: 'failure'; readonly errorCode: string }
 
 export type CoreItemProcessor = (key: string) => Promise<CoreItemResult>
@@ -14,6 +14,14 @@ export type CoreItemProcessor = (key: string) => Promise<CoreItemResult>
 interface CoreCollectionRunnerOptions {
   readonly batchSize: number
   readonly leaseMs: number
+}
+
+function processorErrorCode(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    const code = (error as { readonly code?: unknown }).code
+    if (typeof code === 'string' && /^[A-Z0-9_-]{1,64}$/.test(code)) return code
+  }
+  return 'processor-error'
 }
 
 export class CoreCollectionRunner {
@@ -46,17 +54,22 @@ export class CoreCollectionRunner {
     const results = await Promise.all(keys.map(async key => {
       try {
         return { key, result: await this.processor(key) }
-      } catch {
-        return { key, result: { status: 'failure', errorCode: 'processor-error' } as const }
+      } catch (error: unknown) {
+        return { key, result: { status: 'failure', errorCode: processorErrorCode(error) } as const }
       }
     }))
     const successfulItems = results.filter(entry => entry.result.status === 'success').map(entry => entry.key)
+    const collectedItems = results.flatMap(entry => (
+      entry.result.status === 'success' && 'data' in entry.result
+        ? [{ key: entry.key, data: entry.result.data }]
+        : []
+    ))
     const failedItems: CoreRunFailure[] = results.flatMap(entry => (
       entry.result.status === 'failure' ? [{ key: entry.key, errorCode: entry.result.errorCode }] : []
     ))
     const updated = await this.store.completeBatch({
       runId, ownerId, expectedRevision: claimed.revision,
-      nextIndex: end, successfulItems, failedItems,
+      nextIndex: end, successfulItems, collectedItems, failedItems,
       completed: end === claimed.itemKeys.length, now,
     })
     if (!updated) throw new Error('collection run checkpoint conflict')

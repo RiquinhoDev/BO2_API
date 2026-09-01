@@ -5,6 +5,11 @@ export interface IClarezaCoreRunFailure {
   errorCode: string
 }
 
+export interface IClarezaCoreRunCollectedItem {
+  key: string
+  data: unknown
+}
+
 export interface IClarezaCoreCollectionRun {
   runId: string
   generationId: string
@@ -13,6 +18,7 @@ export interface IClarezaCoreCollectionRun {
   status: 'pending' | 'running' | 'completed'
   nextIndex: number
   successfulItems: string[]
+  collectedItems: IClarezaCoreRunCollectedItem[]
   failedItems: IClarezaCoreRunFailure[]
   ownerId: string | null
   leaseUntil: Date | null
@@ -26,6 +32,11 @@ const FailureSchema = new Schema<IClarezaCoreRunFailure>({
   errorCode: { type: String, required: true },
 }, { _id: false, strict: 'throw' })
 
+const CollectedItemSchema = new Schema<IClarezaCoreRunCollectedItem>({
+  key: { type: String, required: true },
+  data: { type: Schema.Types.Mixed, required: true },
+}, { _id: false, strict: 'throw' })
+
 const CollectionRunSchema = new Schema<IClarezaCoreCollectionRun>({
   runId: { type: String, required: true, unique: true, immutable: true },
   generationId: { type: String, required: true, immutable: true },
@@ -34,6 +45,7 @@ const CollectionRunSchema = new Schema<IClarezaCoreCollectionRun>({
   status: { type: String, enum: ['pending', 'running', 'completed'], required: true },
   nextIndex: { type: Number, required: true, min: 0 },
   successfulItems: { type: [String], required: true },
+  collectedItems: { type: [CollectedItemSchema], required: true },
   failedItems: { type: [FailureSchema], required: true },
   ownerId: { type: String, default: null },
   leaseUntil: { type: Date, default: null },
