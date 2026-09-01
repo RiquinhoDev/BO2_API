@@ -178,6 +178,7 @@ export class MongooseHotmartClassSyncWriter implements HotmartClassSyncWriter {
     const errors: string[] = []
     let userNeedsUpdate = false
     const userUpdates: UpdateQuery<IUser> = {}
+    let classHistory: Parameters<typeof StudentClassHistory.create>[0] | null = null
 
     const currentClassId = localUser.combined?.classId || localUser.classId || null
     let classChanged = false
@@ -193,7 +194,7 @@ export class MongooseHotmartClassSyncWriter implements HotmartClassSyncWriter {
         const oldClassData = currentClassId ? await Class.findOne({ classId: currentClassId }) : null
         const oldClassName = oldClassData?.name || `Turma ${currentClassId || 'Indefinida'}`
 
-        await StudentClassHistory.create({
+        classHistory = {
           studentId: localUser._id,
           classId: hotmartUser.class_id,
           className: newClassName,
@@ -202,7 +203,7 @@ export class MongooseHotmartClassSyncWriter implements HotmartClassSyncWriter {
           dateMoved: now,
           reason: 'Mudança detectada via sincronização completa Hotmart',
           movedBy: 'complete_sync',
-        })
+        }
       } catch (historyError: unknown) {
         errors.push(`Erro ao criar histórico para ${hotmartUser.email}: ${errorMessage(historyError)}`)
       }
@@ -231,6 +232,7 @@ export class MongooseHotmartClassSyncWriter implements HotmartClassSyncWriter {
     if (userNeedsUpdate) {
       try {
         await User.findByIdAndUpdate(localUser._id, { ...userUpdates, lastSyncAt: now })
+        if (classHistory) await StudentClassHistory.create(classHistory)
       } catch (updateError: unknown) {
         errors.push(`Erro ao atualizar utilizador ${hotmartUser.email}: ${errorMessage(updateError)}`)
       }

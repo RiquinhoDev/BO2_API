@@ -41,6 +41,7 @@ export interface CreateAppDependencies {
 
 export function createApp(_deps: CreateAppDependencies): Application {
   const app = express()
+  const authEnforce = _deps.authEnforce ?? true
   const allowedOrigins = _deps.allowedOrigins ?? []
   const httpPerimeter = (_deps.createHttpPerimeter ?? createHttpPerimeter)()
   const errorHandling = (_deps.createErrorHandling ?? createErrorHandling)()
@@ -48,7 +49,7 @@ export function createApp(_deps: CreateAppDependencies): Application {
     _deps.createRouteUsageInstrumentation ?? createRouteUsageInstrumentation
   )()
   const defaultDenyAuth = createDefaultDenyAuth({
-    enabled: _deps.authEnforce,
+    enabled: authEnforce,
     authenticateRequest: _deps.authenticateRequest,
   })
   const acWebhookSecurity = createAcWebhookSecurity({
@@ -79,7 +80,7 @@ export function createApp(_deps: CreateAppDependencies): Application {
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.urlencodedParser)
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.replayGuard)
   app.use(defaultDenyAuth)
-  app.use(routeAuthorization)
+  if (authEnforce) app.use(routeAuthorization)
   app.use(express.json({ limit: '100kb' }))
   app.use(bulkOperationGuard)
   _deps.registerRoutes(app)

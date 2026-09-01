@@ -469,7 +469,8 @@ test('critical tag soft and permanent delete preserve IDs, semantics and order',
   expect(permanent.status).toBe(200)
   expect(permanent.body).toEqual({
     success: true,
-    message: 'Tag crítica deletada permanentemente',
+    data: null,
+    meta: { message: 'Tag crítica deletada permanentemente' },
   })
   expect(criticalTagServiceMock.deleteCriticalTag).toHaveBeenCalledWith(
     '507f1f77bcf86cd799439011',
@@ -726,7 +727,11 @@ test('manual snapshot preserves the service result envelope', async () => {
   expect(weeklyTagMonitoringService.performWeeklySnapshot).toHaveBeenCalledTimes(1)
 })
 test('global stats preserve the service result envelope', async () => {
-  const stats = { totalSnapshots: 42, activeStudents: 9 }
+  const stats = {
+    totalSnapshots: 42,
+    uniqueStudents: 9,
+    lastWeek: { weekNumber: 35, year: 2026, snapshots: 12 },
+  }
   jest.mocked(weeklyTagMonitoringService.getSnapshotStats).mockResolvedValueOnce(stats)
 
   const response = await request(buildApp())

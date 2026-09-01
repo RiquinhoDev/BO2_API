@@ -26,7 +26,7 @@ describe('OPS-02 replay repair ordering', () => {
     const value = source('src/services/classes/mongooseHotmartClassSync.writer.ts')
     const method = between(value, '  async applyUserSync(', '  async syncCompleteClass(')
     const userWrite = method.indexOf('await User.findByIdAndUpdate(localUser._id')
-    const historyWrite = method.indexOf('await StudentClassHistory.create({')
+    const historyWrite = method.indexOf('await StudentClassHistory.create(classHistory)')
 
     expect(userWrite).toBeGreaterThanOrEqual(0)
     expect(historyWrite).toBeGreaterThanOrEqual(0)
@@ -53,7 +53,7 @@ describe('OPS-02 replay repair ordering', () => {
     const checkExpired = between(
       value,
       'export async function checkExpiredTrials()',
-      '// ─────────────────────────────────────────────────────────────\n// SYNC TRIALS DA API GURU',
+      'export async function syncTrialsFromGuru()',
     )
     const repairs = checkExpired.match(/await revertUserProductsFromTrialInactivation\(user\._id\)/g) ?? []
 

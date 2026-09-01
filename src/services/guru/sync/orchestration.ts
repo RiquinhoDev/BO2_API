@@ -128,8 +128,6 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
         let action: 'created' | 'updated' | 'skipped'
 
         if (existingUser) {
-          const currentGuruStatus = existingUser.guru?.status || null
-
           // Atualizar user com dados da melhor subscrição
           await User.updateOne(
             { _id: existingUser._id },
@@ -147,12 +145,8 @@ export async function syncAllSubscriptions(): Promise<SyncResult> {
 
           // Se melhorou de canceled → active, reverter PARA_INATIVAR
           // NOTA: pending stale é tratado como canceled
-          const prevEffective = getEffectiveStatus(currentGuruStatus, {
-            updatedAt: existingUser.guru?.updatedAt,
-            nextCycleAt: existingUser.guru?.nextCycleAt
-          })
           const newEffectiveSync = getEffectiveStatus(bestStatus, bestDatesForCheck)
-          if (currentGuruStatus && prevEffective.isCanceled && !newEffectiveSync.isCanceled) {
+          if (!newEffectiveSync.isCanceled) {
             const revertResult = await UserProduct.updateMany(
               {
                 userId,

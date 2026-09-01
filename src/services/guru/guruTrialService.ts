@@ -183,6 +183,7 @@ export async function checkExpiredTrials(): Promise<CheckExpiredResult> {
       if (currentStatus === 'active' || currentStatus === 'paid') {
         // Converteu para pago!
         logger.info(`✅ [GURU TRIALS] ${user.email} converteu para pago`)
+        await revertUserProductsFromTrialInactivation(user._id)
         user.set('guru.isTrial', false)
         user.set('guru.trialConvertedAt', new Date())
         user.set('guru.status', 'active')
@@ -191,19 +192,20 @@ export async function checkExpiredTrials(): Promise<CheckExpiredResult> {
       } else if (currentStatus === 'trial' || currentStatus === 'trialing') {
         // Ainda em trial (API pode ter datas diferentes)
         logger.info(`⏳ [GURU TRIALS] ${user.email} ainda em trial na API Guru`)
+        await revertUserProductsFromTrialInactivation(user._id)
         result.stillInTrial++
       } else {
         // Trial expirou sem conversão → marcar para inativação
         logger.info(`❌ [GURU TRIALS] ${user.email} trial expirado (status=${currentStatus}) → PARA_INATIVAR`)
 
+        // Marcar dependências antes do estado terminal para permitir replay seguro.
+        const markedCount = await markUserProductsForInactivation(user._id, user.email)
+        result.markedForInactivation += markedCount
+
         // Actualizar status do user
         user.set('guru.isTrial', false)
         user.set('guru.status', currentStatus === 'canceled' || currentStatus === 'expired' ? currentStatus : 'expired')
         await user.save()
-
-        // Marcar UserProducts CursEduca como PARA_INATIVAR
-        const markedCount = await markUserProductsForInactivation(user._id, user.email)
-        result.markedForInactivation += markedCount
       }
     } catch (error: unknown) {
       logger.error(`❌ [GURU TRIALS] Erro ao verificar ${user.email}:`, errorMessage(error))
@@ -330,6 +332,32 @@ async function markUserProductsForInactivation(userId: string | import('mongoose
     }
   )
 
+  return result.modifiedCount || 0
+}
+
+async function revertUserProductsFromTrialInactivation(
+  userId: string | import('mongoose').Types.ObjectId,
+): Promise<number> {
+  const result = await UserProduct.updateMany(
+    {
+      userId,
+      platform: 'curseduca',
+      status: 'PARA_INATIVAR',
+      'metadata.guruTrialExpired': true,
+    },
+    {
+      $set: {
+        status: 'ACTIVE',
+        'metadata.revertedAt': new Date(),
+        'metadata.revertedBy': 'guru_trial_provider_repair',
+      },
+      $unset: {
+        'metadata.markedForInactivationAt': 1,
+        'metadata.markedForInactivationReason': 1,
+        'metadata.guruTrialExpired': 1,
+      },
+    },
+  )
   return result.modifiedCount || 0
 }
 

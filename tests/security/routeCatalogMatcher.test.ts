@@ -49,6 +49,29 @@ describe('route catalog matcher', () => {
     )
   })
 
+  test('prefers an exact static route over a parameterized sibling', () => {
+    const routes: readonly CatalogRouteEntry[] = [
+      {
+        method: 'GET',
+        path: '/api/items/:id',
+        access: 'authenticated',
+        writes: false,
+        destructive: false,
+      },
+      {
+        method: 'GET',
+        path: '/api/items/period',
+        access: 'authenticated',
+        writes: false,
+        destructive: false,
+      },
+    ]
+
+    expect(matchCatalogRouteFrom(routes, 'GET', '/api/items/period')).toMatchObject({
+      path: '/api/items/period',
+    })
+  })
+
   test('does not match a different HTTP method', () => {
     const routes: readonly CatalogRouteEntry[] = [
       {
