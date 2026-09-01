@@ -55,6 +55,15 @@ interface FmpQuote {
   yearLow?: NumericFmpValue
 }
 
+export function hasCoreMetricsData(metrics: IClarezaCarteiraMetrics): boolean {
+  return Object.entries(metrics).some(([key, value]) => (
+    key !== 'updated'
+    && value !== null
+    && value !== undefined
+    && value !== ''
+  ))
+}
+
 function safe(val: unknown, mult = 1): number | null {
   if (val === null || val === undefined || isNaN(Number(val))) return null
   return Math.round(Number(val) * mult * 10000) / 10000
