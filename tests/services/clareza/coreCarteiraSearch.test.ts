@@ -2,9 +2,9 @@ import { searchCoreCarteira } from '../../../src/services/clareza/core/coreCarte
 
 describe('core Carteira search', () => {
   const assets = [
-    { ticker: 'CSP1.L', name: 'iShares Core S&P 500', kind: 'fund' as const, data: { currency: 'USD' } },
-    { ticker: 'SXR8.DE', name: 'Independent Xetra Fund', kind: 'fund' as const, data: { currency: 'EUR' } },
-    { ticker: 'AAPL', name: 'Apple Inc.', kind: 'stock' as const, data: null },
+    { ticker: 'CSP1.L', name: 'iShares Core S&P 500', kind: 'fund' as const, type: 'etf' as const, data: { currency: 'USD' } },
+    { ticker: 'SXR8.DE', name: 'Independent Xetra Fund', kind: 'fund' as const, type: 'etf' as const, data: { currency: 'EUR' } },
+    { ticker: 'AAPL', name: 'Apple Inc.', kind: 'stock' as const, type: 'growth' as const, data: null },
   ]
 
   it('gives a canonical ticker precedence over an alias with the same symbol', () => {
@@ -42,7 +42,7 @@ describe('core Carteira search', () => {
     const response = searchCoreCarteira('apple', assets, [])
 
     expect(response.results).toEqual([expect.objectContaining({
-      ticker: 'AAPL', currency: null, via_alias: null,
+      ticker: 'AAPL', type: 'growth', kind: 'stock', currency: null, via_alias: null,
     })])
   })
 })

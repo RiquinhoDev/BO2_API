@@ -7,7 +7,7 @@ import {
 describe('core portfolio history plan', () => {
   const universe = [
     { ticker: 'AAPL', kind: 'stock' as const },
-    { ticker: 'O', kind: 'reit' as const },
+    { ticker: 'O', kind: 'stock' as const },
     { ticker: 'VWCE.DE', kind: 'fund' as const },
     { ticker: 'BTC-USD', kind: 'crypto' as const },
   ]

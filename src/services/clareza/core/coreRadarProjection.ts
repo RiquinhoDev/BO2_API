@@ -23,7 +23,7 @@ export interface CoreRadarEntry {
   readonly ticker: string
   readonly name: string
   readonly type: 'growth' | 'value' | 'reit'
-  readonly kind: 'stock' | 'reit'
+  readonly kind: 'stock'
   readonly bucket: string
   readonly sector: string
   readonly data: Readonly<Record<string, unknown>> | null
@@ -56,9 +56,9 @@ export function projectRadarGeneration(
     throw new RangeError('core Radar generation identity is invalid')
   }
   const eligible = source.assets.filter((asset): asset is CoreRadarAssetSource & {
-    readonly kind: 'stock' | 'reit'
+    readonly kind: 'stock'
     readonly type: 'growth' | 'value' | 'reit'
-  } => (asset.kind === 'stock' || asset.kind === 'reit')
+  } => asset.kind === 'stock'
     && (asset.type === 'growth' || asset.type === 'value' || asset.type === 'reit'))
   const tickers = eligible.map(asset => asset.ticker.trim().toUpperCase())
   if (new Set(tickers).size !== tickers.length) {

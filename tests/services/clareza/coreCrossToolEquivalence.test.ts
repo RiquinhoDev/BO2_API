@@ -19,7 +19,7 @@ describe('core cross-tool equivalence', () => {
         bucket: 'growth', sector: 'Technology', data: { price: 200, currency: 'USD' }, evaluation,
       },
       {
-        ticker: 'o', name: 'Realty Income', kind: 'reit' as const, type: 'reit' as const,
+        ticker: 'o', name: 'Realty Income', kind: 'stock' as const, type: 'reit' as const,
         bucket: 'reit', sector: 'Real Estate', data: { price: 60, currency: 'USD' }, evaluation,
       },
     ],

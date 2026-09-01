@@ -19,7 +19,7 @@ export interface CoreDatasetDefinition {
 export const CORE_DATASET_CATALOG = [
   {
     name: 'company-profile', path: '/profile',
-    assetKinds: ['stock', 'reit', 'fund'],
+    assetKinds: ['stock', 'fund'],
     consumers: ['core', 'raiox', 'carteira', 'comparador', 'top10'],
     coverage: 'latest',
   },
@@ -29,44 +29,44 @@ export const CORE_DATASET_CATALOG = [
   },
   {
     name: 'ratios-ttm', path: '/ratios-ttm',
-    assetKinds: ['stock', 'reit', 'fund'],
+    assetKinds: ['stock', 'fund'],
     consumers: ['core', 'raiox', 'carteira', 'comparador', 'top10'],
     coverage: 'latest',
   },
   {
     name: 'key-metrics-ttm', path: '/key-metrics-ttm',
-    assetKinds: ['stock', 'reit'],
+    assetKinds: ['stock'],
     consumers: ['core', 'raiox', 'carteira', 'comparador', 'top10'],
     coverage: 'latest',
   },
   {
     name: 'annual-income', path: '/income-statement',
-    assetKinds: ['stock', 'reit'],
+    assetKinds: ['stock'],
     consumers: ['core', 'raiox', 'carteira'], coverage: 'annual-history',
   },
   {
     name: 'annual-cash-flow', path: '/cash-flow-statement',
-    assetKinds: ['stock', 'reit'],
+    assetKinds: ['stock'],
     consumers: ['core', 'raiox', 'carteira'], coverage: 'annual-history',
   },
   {
     name: 'price-history', path: '/historical-price-eod/light',
-    assetKinds: ['stock', 'reit', 'fund', 'crypto'],
+    assetKinds: ['stock', 'fund', 'crypto'],
     consumers: ['core', 'raiox', 'carteira', 'top10'], coverage: 'price-history',
   },
   {
     name: 'dividends', path: '/dividends',
-    assetKinds: ['stock', 'reit', 'fund'],
+    assetKinds: ['stock', 'fund'],
     consumers: ['core', 'raiox'], coverage: 'event-history',
   },
   {
     name: 'earnings', path: '/earnings',
-    assetKinds: ['stock', 'reit'],
+    assetKinds: ['stock'],
     consumers: ['core', 'raiox', 'earnings'], coverage: 'event-history',
   },
   {
     name: 'analyst-consensus', path: '/grades-consensus',
-    assetKinds: ['stock', 'reit'],
+    assetKinds: ['stock'],
     consumers: ['core', 'raiox', 'comparador'], coverage: 'latest',
   },
 ] as const satisfies readonly CoreDatasetDefinition[]

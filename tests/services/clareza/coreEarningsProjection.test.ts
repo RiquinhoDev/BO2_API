@@ -2,9 +2,9 @@ import { projectCoreEarnings } from '../../../src/services/clareza/core/coreEarn
 
 describe('core Earnings projection', () => {
   const assets = [
-    { ticker: 'AAPL', name: 'Apple', kind: 'stock' as const, data: { currency: 'USD' } },
-    { ticker: 'O', name: 'Realty Income', kind: 'reit' as const, data: {} },
-    { ticker: 'VWCE.DE', name: 'Vanguard', kind: 'fund' as const, data: { currency: 'EUR' } },
+    { ticker: 'AAPL', name: 'Apple', kind: 'stock' as const, type: 'growth' as const, data: { currency: 'USD' } },
+    { ticker: 'O', name: 'Realty Income', kind: 'stock' as const, type: 'reit' as const, data: {} },
+    { ticker: 'VWCE.DE', name: 'Vanguard', kind: 'fund' as const, type: 'etf' as const, data: { currency: 'EUR' } },
   ]
 
   it('selects the nearest future and latest reported event from unordered rows', () => {
@@ -23,7 +23,7 @@ describe('core Earnings projection', () => {
       coverage: { eligible: 2, available: 1, missing: ['O'] },
     })
     expect(payload.earnings).toEqual([{
-      t: 'AAPL', name: 'Apple', kind: 'stock', d: '2026-09-15', e: 1.8, c: 'USD',
+      t: 'AAPL', name: 'Apple', kind: 'stock', type: 'growth', d: '2026-09-15', e: 1.8, c: 'USD',
       lr: { d: '2026-07-20', r: 1.6, e: 1.5, b: true },
     }])
   })
@@ -33,7 +33,7 @@ describe('core Earnings projection', () => {
       { ticker: 'O', events: [{ date: '2026-09-10', epsEstimated: null }] },
     ], '2026-09-01', '2026-10-01')
 
-    expect(payload.earnings).toEqual([expect.objectContaining({ t: 'O', kind: 'reit', c: null })])
+    expect(payload.earnings).toEqual([expect.objectContaining({ t: 'O', kind: 'stock', type: 'reit', c: null })])
   })
 
   it('ignores malformed and out-of-window future dates', () => {

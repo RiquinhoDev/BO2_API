@@ -1,4 +1,4 @@
-export type CoreAssetKind = 'stock' | 'reit' | 'fund' | 'crypto'
+export type CoreAssetKind = 'stock' | 'fund' | 'crypto'
 
 export interface CoreAssetRecord {
   readonly ticker: string

@@ -7,6 +7,7 @@ export interface CoreCarteiraAssetSource {
   readonly ticker: string
   readonly name: string
   readonly kind: CoreAssetKind
+  readonly type: 'growth' | 'value' | 'reit' | 'etf' | 'cripto'
   readonly bucket: string
   readonly sector: string
   readonly data: JsonRecord | null
@@ -49,10 +50,11 @@ export function projectCarteiraGeneration(
     ticker: asset.ticker.trim().toUpperCase(),
     name: asset.name,
     kind: asset.kind,
+    type: asset.type,
     bucket: asset.bucket,
     sector: asset.sector,
     data: asset.data ? { ...asset.data } : null,
-    evaluation: asset.kind === 'stock' || asset.kind === 'reit'
+    evaluation: asset.kind === 'stock'
       ? asset.evaluation ? { ...asset.evaluation } : null
       : null,
   })).sort((left, right) => left.ticker.localeCompare(right.ticker))

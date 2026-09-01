@@ -12,13 +12,13 @@ describe('core Carteira search runtime', () => {
     const search = createCoreCarteiraSearchRuntime({
       generationStore,
       aliasStore,
-      universe: [{ ticker: 'CSP1.L', name: 'iShares Core S&P 500', kind: 'fund' }],
+      universe: [{ ticker: 'CSP1.L', name: 'iShares Core S&P 500', kind: 'fund', type: 'etf' }],
     })
 
     await expect(search('cspx.as')).resolves.toEqual({
       query: 'CSPX.AS', count: 1,
       results: [{
-        ticker: 'CSP1.L', name: 'iShares Core S&P 500', type: 'fund', kind: 'fund',
+        ticker: 'CSP1.L', name: 'iShares Core S&P 500', type: 'etf', kind: 'fund',
         currency: 'USD', via_alias: 'CSPX.AS',
       }],
     })

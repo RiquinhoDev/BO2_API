@@ -6,6 +6,7 @@ export interface CoreCarteiraSearchAsset {
   readonly ticker: string
   readonly name: string
   readonly kind: CoreAssetKind
+  readonly type: 'growth' | 'value' | 'reit' | 'etf' | 'cripto'
   readonly data: JsonRecord | null
 }
 
@@ -17,7 +18,7 @@ export interface CoreCarteiraSearchAlias {
 export interface CoreCarteiraSearchResult {
   readonly ticker: string
   readonly name: string
-  readonly type: CoreAssetKind
+  readonly type: 'growth' | 'value' | 'reit' | 'etf' | 'cripto'
   readonly kind: CoreAssetKind
   readonly currency: string | null
   readonly via_alias: string | null
@@ -55,7 +56,7 @@ export function searchCoreCarteira(
       result: {
         ticker,
         name: asset.name,
-        type: asset.kind,
+        type: asset.type,
         kind: asset.kind,
         currency: currencyOf(asset.data),
         via_alias: viaAlias,
