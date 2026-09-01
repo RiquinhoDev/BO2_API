@@ -23,7 +23,7 @@ describe('core Raio-X composition', () => {
       quarterlyIncome: [], quarterlyCashFlow: [], annualRatios: [],
       gradesConsensus: {}, priceTargetConsensus: {}, earnings: [], dividends: [],
       peerRatios: {}, momentum: null, segmentation: [], updated: '2026-09-01T11:00:00.000Z',
-    })
+    }, [{ sector: 'Technology', pe: 25 }])
 
     expect(payload).toMatchObject({
       generationId: 'generation-a', ticker: 'ASML.AS', evaluation,
@@ -32,6 +32,7 @@ describe('core Raio-X composition', () => {
         returnOnEquityTTM: 0.42, dividendYieldTTM: 0.009 },
       km: { returnOnInvestedCapitalTTM: 0.33, freeCashFlowYieldTTM: 0.03 },
       inc: [{ date: '2025-12-31' }], companion_updated: '2026-09-01T11:00:00.000Z',
+      sectorPe: [{ sector: 'Technology', pe: 25 }],
     })
     expect(payload.complementCoverage.profileExtra).toBe('available')
   })

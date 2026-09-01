@@ -64,6 +64,7 @@ function coverage(
 export function composeCoreRaioxPayload(
   core: CoreRaioxAssetSource | null,
   complement: CoreRaioxComplementSource | null,
+  sectorPe: readonly unknown[] = [],
 ): Record<string, unknown> & {
   readonly generationId: string
   readonly ticker: string
@@ -131,6 +132,7 @@ export function composeCoreRaioxPayload(
     seg: complement?.segmentation ?? [],
     dcf: { dcf: finite(data.dcf) },
     evaluation: core.evaluation ? { ...core.evaluation } : null,
+    sectorPe: [...sectorPe],
     companion_updated: complement?.updated ?? null,
     complementCoverage: coverage(complement),
   }

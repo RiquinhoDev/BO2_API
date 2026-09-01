@@ -22,7 +22,7 @@ describe('ClarezaDailyRefresh', () => {
       assertRefreshEnabled: () => calls.push('enabled'),
       refreshCore: async () => { calls.push('core'); return published },
       companions: [
-        { name: 'Raio-X', refresh: async () => { calls.push('raiox'); return { total: 1, errors: 0 } } },
+        { name: 'Raio-X', refresh: async generationId => { calls.push(`raiox:${generationId}`); return { total: 1, errors: 0 } } },
         { name: 'Comparador', refresh: async () => { calls.push('comparador'); return { total: 2, errors: 0 } } },
         { name: 'Earnings', refresh: async () => { calls.push('earnings'); return { total: 3, errors: 0 } } },
       ],
@@ -32,7 +32,7 @@ describe('ClarezaDailyRefresh', () => {
     await expect(job.run()).resolves.toEqual({ success: true, total: 879, errors: 0 })
     expect(calls[0]).toBe('enabled')
     expect(calls[1]).toBe('core')
-    expect(calls.slice(2).sort()).toEqual(['comparador', 'earnings', 'raiox'])
+    expect(calls.slice(2).sort()).toEqual(['comparador', 'earnings', 'raiox:generation-a'])
   })
 
   it('runs companion refreshes in parallel', async () => {

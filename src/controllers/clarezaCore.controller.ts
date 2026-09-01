@@ -5,15 +5,20 @@ import {
   getPublishedCarteira,
   getPublishedPortfolioAnalysis,
   getPublishedRadar,
+  getPublishedRaiox,
+  searchPublishedRaiox,
 } from '../services/clareza/core/corePublished.runtime'
 import { CoreGenerationUnavailableError } from '../services/clareza/core/coreRadarProjection'
 import { searchPublishedCarteira } from '../services/clareza/core/coreCarteiraSearch.runtime'
+import { CoreRaioxAssetUnavailableError } from '../services/clareza/core/coreRaioxComposition'
 
 interface ClarezaCoreControllerDependencies {
   readonly radar: typeof getPublishedRadar
   readonly carteira: typeof getPublishedCarteira
   readonly portfolioAnalysis: typeof getPublishedPortfolioAnalysis
   readonly search: typeof searchPublishedCarteira
+  readonly raiox: typeof getPublishedRaiox
+  readonly raioxSearch: typeof searchPublishedRaiox
 }
 
 const unavailable = (res: Response) => res.status(503).json({
@@ -25,6 +30,8 @@ export function createClarezaCoreController(dependencies: ClarezaCoreControllerD
   readonly carteira: RequestHandler
   readonly portfolioAnalysis: RequestHandler
   readonly search: RequestHandler
+  readonly raiox: RequestHandler
+  readonly raioxByTicker: RequestHandler
 } {
   return {
     radar: async (_req: Request, res: Response, next: NextFunction) => {
@@ -75,6 +82,50 @@ export function createClarezaCoreController(dependencies: ClarezaCoreControllerD
         return
       }
     },
+
+    raiox: async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const search = req.query.search
+        if (search !== undefined) {
+          const payload = await dependencies.raioxSearch(String(search))
+          res.setHeader('Cache-Control', 'public, max-age=600')
+          return res.json(payload)
+        }
+        const rawSymbol = String(req.query.symbol ?? '')
+        if (!rawSymbol) return res.status(400).json({ error: 'Parâmetro symbol ou search em falta.' })
+        const payload = await dependencies.raiox(rawSymbol)
+        res.setHeader('Cache-Control', 'public, max-age=3600')
+        return res.json(payload)
+      } catch (error: unknown) {
+        if (error instanceof CoreGenerationUnavailableError) return unavailable(res)
+        if (error instanceof CoreRaioxAssetUnavailableError) {
+          return res.status(404).json({ error: 'Ticker nao encontrado' })
+        }
+        if (error instanceof RangeError) return res.status(400).json({ error: 'Pesquisa ou símbolo inválido.' })
+        next(internalError(
+          'Erro interno do servidor',
+          req.query.search !== undefined ? 'CLAREZA_RAIOX_SEARCH_FAILED' : 'CLAREZA_RAIOX_READ_FAILED',
+          error,
+        ))
+        return
+      }
+    },
+
+    raioxByTicker: async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const payload = await dependencies.raiox(String(req.params.ticker ?? ''))
+        res.setHeader('Cache-Control', 'public, max-age=3600')
+        return res.json(payload)
+      } catch (error: unknown) {
+        if (error instanceof CoreGenerationUnavailableError) return unavailable(res)
+        if (error instanceof CoreRaioxAssetUnavailableError) {
+          return res.status(404).json({ error: 'Ticker nao encontrado' })
+        }
+        if (error instanceof RangeError) return res.status(400).json({ error: 'Símbolo inválido.' })
+        next(internalError('Erro interno do servidor', 'CLAREZA_RAIOX_READ_FAILED', error))
+        return
+      }
+    },
   }
 }
 
@@ -83,4 +134,6 @@ export const clarezaCoreController = createClarezaCoreController({
   carteira: getPublishedCarteira,
   portfolioAnalysis: getPublishedPortfolioAnalysis,
   search: searchPublishedCarteira,
+  raiox: getPublishedRaiox,
+  raioxSearch: searchPublishedRaiox,
 })

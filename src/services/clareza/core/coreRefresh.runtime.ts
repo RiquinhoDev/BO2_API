@@ -1,18 +1,11 @@
-import { randomUUID } from 'node:crypto'
-
-import { cacheService } from '../../cache.service'
 import { assertClarezaRefreshEnabled, getFmpApiKey } from '../../requestDrivenRuntimeConfig'
-import { RefreshJobCoordinator, type RefreshJobExecutionContext } from '../operations/refreshJobCoordinator'
-import { RedisRefreshJobStore } from '../operations/redisRefreshJobStore'
 import { CLAREZA_UNIVERSE, CLAREZA_UNIVERSE_SOURCE } from '../universe/clarezaUniverse.catalog'
 import { MongooseCoreCollectionRunStore } from './coreCollectionRunStore'
 import { MongooseCoreGenerationStore } from './coreGenerationStore'
 import { createCoreMasterFetcher } from './coreMaster.runtime'
 import { CoreRefreshExecution, type CoreRefreshExecutionResult } from './coreRefreshExecution'
 
-const CORE_JOB_KEY = 'clareza:jobs:canonical-daily-refresh'
 const CORE_LEASE_MS = 15 * 60 * 1_000
-const CORE_HEARTBEAT_MS = 60 * 1_000
 const CORE_BATCH_SIZE = 12
 
 const generationStore = new MongooseCoreGenerationStore()
@@ -36,38 +29,23 @@ function identity(startedAt: string): string {
   return startedAt.replace(/[^0-9]/g, '')
 }
 
-async function executeOwned(context: RefreshJobExecutionContext): Promise<CoreRefreshExecutionResult> {
+async function executeOwned(startedAt: string): Promise<CoreRefreshExecutionResult> {
   const current = await generationStore.readPublished()
-  const suffix = identity(context.startedAt)
+  const suffix = identity(startedAt)
   return execution.execute({
     runId: `core-run-${suffix}`,
     generationId: `core-generation-${suffix}`,
     universeVersion: `sha256:${CLAREZA_UNIVERSE_SOURCE.sha256}`,
     ownerId: `core-owner-${suffix}`,
-    now: new Date(context.startedAt),
+    now: new Date(startedAt),
     mode: 'publish',
     expectedCurrentGenerationId: current?.generationId ?? null,
   })
 }
 
-let coordinator: RefreshJobCoordinator<CoreRefreshExecutionResult> | null = null
-
-function getCoordinator(): RefreshJobCoordinator<CoreRefreshExecutionResult> {
-  coordinator ??= new RefreshJobCoordinator(
-    executeOwned,
-    () => undefined,
-    new RedisRefreshJobStore(cacheService.getRefreshJobCommandPort(), CORE_JOB_KEY),
-    {
-      leaseMs: CORE_LEASE_MS,
-      heartbeatMs: CORE_HEARTBEAT_MS,
-      ownerId: randomUUID,
-    },
-  )
-  return coordinator
-}
-
-export async function executeCanonicalCoreRefresh(): Promise<CoreRefreshExecutionResult> {
+export async function executeCanonicalCoreRefresh(startedAt: string): Promise<CoreRefreshExecutionResult> {
   assertClarezaRefreshEnabled()
   getFmpApiKey()
-  return getCoordinator().execute()
+  if (Number.isNaN(new Date(startedAt).getTime())) throw new RangeError('core refresh start is invalid')
+  return executeOwned(startedAt)
 }

@@ -29,10 +29,10 @@ router.post('/top10/refresh', asyncRoute(clarezaController.refreshTop10))
 // Endpoint público — Raio-X da Ação por ticker (cache-first) + pesquisa
 // /raiox?symbol=X ou /raiox?search=X — contrato compatível com o PHP original,
 // usado pelo HTML de produção (raio-x-acao.html).
-router.get('/raiox', asyncRoute(clarezaController.getRaioxByQuery))
+router.get('/raiox', asyncRoute(clarezaCoreController.raiox))
 router.get('/raiox-search', asyncRoute(clarezaController.searchRaiox))
 router.get('/raiox-diagnose', asyncRoute(clarezaController.diagnoseRaiox))
-router.get('/raiox/:ticker', asyncRoute(clarezaController.getRaiox))
+router.get('/raiox/:ticker', asyncRoute(clarezaCoreController.raioxByTicker))
 
 // Refresh manual do Raio-X — mesmo token que /refresh
 router.post('/raiox/refresh', asyncRoute(clarezaController.refreshRaiox))

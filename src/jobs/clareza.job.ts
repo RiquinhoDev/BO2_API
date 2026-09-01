@@ -1,7 +1,11 @@
 import { executeCanonicalCoreRefresh } from '../services/clareza/core/coreRefresh.runtime'
 import type { CoreRefreshExecutionResult } from '../services/clareza/core/coreRefreshExecution'
 import { refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
+import { refreshCoreRaioxCompanion } from '../services/clareza/core/coreRaioxCompanion.runtime'
 import { assertClarezaRefreshEnabled, getFmpApiKey } from '../services/requestDrivenRuntimeConfig'
+import { cacheService } from '../services/cache.service'
+import { RefreshJobCoordinator } from '../services/clareza/operations/refreshJobCoordinator'
+import { RedisRefreshJobStore } from '../services/clareza/operations/redisRefreshJobStore'
 import logger, { type AppLogger } from '../utils/logger'
 
 interface ClarezaRefreshResult {
@@ -9,7 +13,11 @@ interface ClarezaRefreshResult {
   readonly errors: number
 }
 
-type ClarezaRefresh = () => Promise<ClarezaRefreshResult>
+interface ClarezaDailyResult extends ClarezaRefreshResult {
+  readonly success: boolean
+}
+
+type ClarezaRefresh = (generationId: string) => Promise<ClarezaRefreshResult>
 
 export interface NamedClarezaRefresh {
   readonly name: string
@@ -18,7 +26,7 @@ export interface NamedClarezaRefresh {
 
 export interface ClarezaJobDependencies {
   readonly assertRefreshEnabled: () => void
-  readonly refreshCore: () => Promise<CoreRefreshExecutionResult>
+  readonly refreshCore: (startedAt: string) => Promise<CoreRefreshExecutionResult>
   readonly companions: readonly NamedClarezaRefresh[]
   readonly top10?: NamedClarezaRefresh
   readonly logger: Pick<AppLogger, 'info' | 'error'>
@@ -26,10 +34,11 @@ export interface ClarezaJobDependencies {
 
 async function refreshBestEffort(
   target: NamedClarezaRefresh,
+  generationId: string,
   loggerPort: Pick<AppLogger, 'info' | 'error'>,
 ): Promise<number> {
   try {
-    const result = await target.refresh()
+    const result = await target.refresh(generationId)
     loggerPort.info(`Clareza ${target.name} refresh completed`, {
       total: result.total,
       errors: result.errors,
@@ -43,10 +52,10 @@ async function refreshBestEffort(
 
 export function createClarezaJob(dependencies: ClarezaJobDependencies) {
   return {
-    async run(): Promise<{ success: boolean; total: number; errors: number }> {
+    async run(startedAt = new Date().toISOString()): Promise<{ success: boolean; total: number; errors: number }> {
       try {
         dependencies.assertRefreshEnabled()
-        const core = await dependencies.refreshCore()
+        const core = await dependencies.refreshCore(startedAt)
         const coreErrors = core.missingAssets + core.failedAssets
         if (core.status !== 'published') {
           const errors = Math.max(1, coreErrors)
@@ -58,10 +67,12 @@ export function createClarezaJob(dependencies: ClarezaJobDependencies) {
         }
 
         const companionErrors = await Promise.all(
-          dependencies.companions.map(target => refreshBestEffort(target, dependencies.logger)),
+          dependencies.companions.map(target => refreshBestEffort(
+            target, core.generationId, dependencies.logger,
+          )),
         )
         const top10Errors = dependencies.top10
-          ? await refreshBestEffort(dependencies.top10, dependencies.logger)
+          ? await refreshBestEffort(dependencies.top10, core.generationId, dependencies.logger)
           : 0
         return {
           success: true,
@@ -76,16 +87,39 @@ export function createClarezaJob(dependencies: ClarezaJobDependencies) {
   }
 }
 
-const clarezaJob = createClarezaJob({
+const pipeline = createClarezaJob({
   assertRefreshEnabled: () => {
     assertClarezaRefreshEnabled()
     getFmpApiKey()
   },
   refreshCore: executeCanonicalCoreRefresh,
   companions: [
+    { name: 'Raio-X', refresh: refreshCoreRaioxCompanion },
     { name: 'Earnings', refresh: refreshClarezaEarningsData },
   ],
   logger,
 })
 
-export default clarezaJob
+const coordinator = new RefreshJobCoordinator<ClarezaDailyResult>(
+  async context => {
+    const result = await pipeline.run(context.startedAt)
+    if (!result.success) throw new Error('Clareza canonical daily refresh failed')
+    return result
+  },
+  () => undefined,
+  new RedisRefreshJobStore<ClarezaDailyResult>(
+    cacheService.getRefreshJobCommandPort(),
+    'clareza:jobs:canonical-daily-refresh',
+  ),
+  { leaseMs: 15 * 60 * 1_000, heartbeatMs: 60 * 1_000 },
+)
+
+export default {
+  async run(): Promise<{ success: boolean; total: number; errors: number }> {
+    try {
+      return await coordinator.execute()
+    } catch {
+      return { success: false, total: 0, errors: 1 }
+    }
+  },
+}

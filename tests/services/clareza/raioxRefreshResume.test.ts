@@ -6,6 +6,7 @@ const freshMsft = { p: { companyName: 'Microsoft', price: 200 } }
 
 function context(completedItems: readonly string[] = []): RefreshJobExecutionContext {
   return {
+    startedAt: '2026-09-02T03:00:00.000Z',
     completedItems,
     assertLease: jest.fn().mockResolvedValue(undefined),
     markCompleted: jest.fn().mockResolvedValue(undefined),
