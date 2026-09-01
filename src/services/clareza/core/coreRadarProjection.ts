@@ -4,6 +4,7 @@ export interface CoreRadarAssetSource {
   readonly ticker: string
   readonly name: string
   readonly kind: CoreAssetKind
+  readonly type: 'growth' | 'value' | 'reit' | 'etf' | 'cripto'
   readonly bucket: string
   readonly sector: string
   readonly data: Readonly<Record<string, unknown>> | null
@@ -21,7 +22,7 @@ export interface CoreRadarGenerationSource {
 export interface CoreRadarEntry {
   readonly ticker: string
   readonly name: string
-  readonly type: 'stock' | 'reit'
+  readonly type: 'growth' | 'value' | 'reit'
   readonly kind: 'stock' | 'reit'
   readonly bucket: string
   readonly sector: string
@@ -56,7 +57,9 @@ export function projectRadarGeneration(
   }
   const eligible = source.assets.filter((asset): asset is CoreRadarAssetSource & {
     readonly kind: 'stock' | 'reit'
-  } => asset.kind === 'stock' || asset.kind === 'reit')
+    readonly type: 'growth' | 'value' | 'reit'
+  } => (asset.kind === 'stock' || asset.kind === 'reit')
+    && (asset.type === 'growth' || asset.type === 'value' || asset.type === 'reit'))
   const tickers = eligible.map(asset => asset.ticker.trim().toUpperCase())
   if (new Set(tickers).size !== tickers.length) {
     throw new RangeError('core Radar generation contains duplicate tickers')
@@ -64,7 +67,7 @@ export function projectRadarGeneration(
   const stocks = eligible.map(asset => ({
     ticker: asset.ticker.trim().toUpperCase(),
     name: asset.name,
-    type: asset.kind,
+    type: asset.type,
     kind: asset.kind,
     bucket: asset.bucket,
     sector: asset.sector,

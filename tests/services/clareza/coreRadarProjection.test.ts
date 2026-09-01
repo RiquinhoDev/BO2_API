@@ -10,11 +10,11 @@ describe('core Radar projection', () => {
       generationId: 'generation-a', universeVersion: 'universe-v1', dataVersion: 'data-v1',
       createdAt: new Date('2026-09-01T10:00:00.000Z'),
       assets: [
-        { ticker: 'O', name: 'Realty Income', kind: 'reit', bucket: 'reit', sector: 'Real Estate',
+        { ticker: 'O', name: 'Realty Income', kind: 'reit', type: 'reit', bucket: 'reit', sector: 'Real Estate',
           data: { price: 60, currency: 'USD' }, evaluation },
-        { ticker: 'AAPL', name: 'Apple', kind: 'stock', bucket: 'growth', sector: 'Technology',
+        { ticker: 'AAPL', name: 'Apple', kind: 'stock', type: 'growth', bucket: 'growth', sector: 'Technology',
           data: { price: 200, currency: 'USD' }, evaluation },
-        { ticker: 'VWCE.DE', name: 'ETF', kind: 'fund', bucket: 'fund', sector: 'Fund',
+        { ticker: 'VWCE.DE', name: 'ETF', kind: 'fund', type: 'etf', bucket: 'fund', sector: 'Fund',
           data: { price: 120 }, evaluation: null },
       ],
     })
@@ -25,7 +25,7 @@ describe('core Radar projection', () => {
     })
     expect(result.stocks.map(stock => stock.ticker)).toEqual(['AAPL', 'O'])
     expect(result.stocks[0]).toMatchObject({
-      ticker: 'AAPL', type: 'stock', kind: 'stock', bucket: 'growth', evaluation,
+      ticker: 'AAPL', type: 'growth', kind: 'stock', bucket: 'growth', evaluation,
     })
     expect(result.stocks[1]).toMatchObject({ ticker: 'O', type: 'reit', kind: 'reit' })
   })
@@ -34,7 +34,7 @@ describe('core Radar projection', () => {
     const result = projectRadarGeneration({
       generationId: 'generation-a', universeVersion: 'universe-v1', dataVersion: 'data-v1',
       createdAt: new Date('2026-09-01T10:00:00.000Z'),
-      assets: [{ ticker: 'MISSING', name: 'Known', kind: 'stock', bucket: 'value',
+      assets: [{ ticker: 'MISSING', name: 'Known', kind: 'stock', type: 'value', bucket: 'value',
         sector: 'Other', data: null, evaluation: null }],
     })
     expect(result.stocks[0]).toMatchObject({ ticker: 'MISSING', data: null, evaluation: null })
