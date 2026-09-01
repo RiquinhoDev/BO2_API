@@ -597,7 +597,7 @@
     "method": "GET",
     "path": "/api/clareza/suggestions/admin",
     "access": "authenticated",
-    "consumer": "backoffice",
+    "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
     "evidence": "SUPER_ADMIN: lista agregada; rota em src/routes/clareza.routes.ts:56"
@@ -606,7 +606,7 @@
     "method": "GET",
     "path": "/api/clareza/suggestions/admin/export",
     "access": "authenticated",
-    "consumer": "backoffice",
+    "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
     "evidence": "SUPER_ADMIN: export CSV limitado; rota em src/routes/clareza.routes.ts:57"
