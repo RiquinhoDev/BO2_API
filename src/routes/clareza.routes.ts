@@ -42,7 +42,7 @@ router.post('/raiox/refresh', asyncRoute(clarezaController.refreshRaiox))
 router.get('/carteira/data', asyncRoute(clarezaCoreController.carteira))
 router.get('/carteira/legacy-data', asyncRoute(clarezaController.getCarteira))
 router.get('/carteira-search', asyncRoute(clarezaController.searchCarteira))
-router.get('/carteira/search', asyncRoute(clarezaController.searchCarteira))
+router.get('/carteira/search', asyncRoute(clarezaCoreController.search))
 router.get('/carteira/analysis', asyncRoute(clarezaCoreController.portfolioAnalysis))
 router.post('/carteira/refresh', asyncRoute(clarezaController.refreshCarteira))
 // Endpoint publico - Calendario de Resultados

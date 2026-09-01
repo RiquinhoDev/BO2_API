@@ -18,6 +18,7 @@ const mockGetClarezaEarningsData = jest.fn<Promise<unknown>, []>()
 const mockGetComparadorSymbols = jest.fn<Promise<unknown>, [string]>()
 const mockSearchComparador = jest.fn<Promise<unknown>, [string]>()
 const mockGetPublishedCarteira = jest.fn<Promise<unknown>, []>()
+const mockSearchPublishedCarteira = jest.fn<Promise<unknown>, [string]>()
 
 jest.mock('../../src/services/clareza/clarezaFmpService', () => ({
   getClarezaData: mockGetClarezaData,
@@ -55,6 +56,9 @@ jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
   getPublishedRadar: jest.fn(),
   getPublishedCarteira: mockGetPublishedCarteira,
   getPublishedPortfolioAnalysis: jest.fn(),
+}))
+jest.mock('../../src/services/clareza/core/coreCarteiraSearch.runtime', () => ({
+  searchPublishedCarteira: mockSearchPublishedCarteira,
 }))
 
 import clarezaRouter from '../../src/routes/clareza.routes'
@@ -107,8 +111,10 @@ function configureDocument(path: string, body: unknown, rawBody: string | null):
     mockGetRaioxJson.mockResolvedValueOnce(rawBody ?? JSON.stringify(body))
   } else if (path === '/carteira/data') {
     mockGetPublishedCarteira.mockResolvedValueOnce(body)
-  } else if (path.startsWith('/carteira-search') || path.startsWith('/carteira/search')) {
+  } else if (path.startsWith('/carteira-search')) {
     mockSearchCarteira.mockResolvedValueOnce(body)
+  } else if (path.startsWith('/carteira/search')) {
+    mockSearchPublishedCarteira.mockResolvedValueOnce(body)
   } else if (path === '/earnings/data') {
     mockGetClarezaEarningsData.mockResolvedValueOnce(body)
   } else if (path.startsWith('/comparador?symbols=')) {
@@ -133,7 +139,7 @@ describe('Clareza public documents', () => {
 
   test('canonical Carteira search alias preserves the reviewed search document', async () => {
     const body = { query: 'apple', count: 1, results: [{ ticker: 'AAPL', name: 'Apple Inc.' }] }
-    mockSearchCarteira.mockResolvedValueOnce(body)
+    mockSearchPublishedCarteira.mockResolvedValueOnce(body)
 
     const response = await request(appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter }))
       .get(requestPath('/carteira/search?q=apple'))

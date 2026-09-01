@@ -5,6 +5,8 @@ import request from 'supertest'
 import { assertSafeTestMongoUri } from '../../src/config/testDatabase'
 import ClarezaCoreGeneration from '../../src/models/ClarezaCoreGeneration'
 import ClarezaCorePublication from '../../src/models/ClarezaCorePublication'
+import ClarezaCoreAliasState from '../../src/models/ClarezaCoreAliasState'
+import { MongooseCoreAliasStore } from '../../src/services/clareza/core/coreAliasStore'
 import { MongooseCoreGenerationStore } from '../../src/services/clareza/core/coreGenerationStore'
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
 import { appForCentralError } from '../support/centralErrorContract'
@@ -32,6 +34,7 @@ beforeEach(async () => {
   await Promise.all([
     ClarezaCoreGeneration.collection.deleteMany({}),
     ClarezaCorePublication.collection.deleteMany({}),
+    ClarezaCoreAliasState.collection.deleteMany({}),
   ])
   const store = new MongooseCoreGenerationStore()
   await store.createCandidate({
@@ -49,16 +52,24 @@ beforeEach(async () => {
     }],
   })
   await store.publishCandidate('dry-run-generation', null)
+  await new MongooseCoreAliasStore().replace({
+    aliases: [{
+      aliasTicker: 'APPLE.TEST', canonicalTicker: 'AAPL', instrumentId: 'US0378331005',
+      provenance: 'fmp-exchange-variants', observedAt: '2026-09-01T18:00:00.000Z',
+    }],
+    processed: [{ ticker: 'AAPL', processedAt: '2026-09-01T18:00:00.000Z' }],
+  }, 0)
 })
 
 describe('Clareza core production mount offline dry-run', () => {
   const app = appForCentralError({ kind: 'router', mountPath: '/api/clareza', router: clarezaRouter })
 
   it('serves Radar, Carteira and bounded histories from one published Mongo generation', async () => {
-    const [radar, carteira, analysis] = await Promise.all([
+    const [radar, carteira, analysis, search] = await Promise.all([
       request(app).get('/api/clareza/radar?__bo2_offline_loopback=1').expect(200),
       request(app).get('/api/clareza/carteira/data?__bo2_offline_loopback=1').expect(200),
       request(app).get('/api/clareza/carteira/analysis?symbols=AAPL&__bo2_offline_loopback=1').expect(200),
+      request(app).get('/api/clareza/carteira/search?q=APPLE.TEST&__bo2_offline_loopback=1').expect(200),
     ])
 
     expect(radar.body).toMatchObject({ generationId: 'dry-run-generation', count: 1 })
@@ -73,5 +84,9 @@ describe('Clareza core production mount offline dry-run', () => {
       missing: [],
     })
     expect(radar.body.stocks[0].evaluation).toEqual(carteira.body.items[0].evaluation)
+    expect(search.body).toMatchObject({
+      query: 'APPLE.TEST', count: 1,
+      results: [{ ticker: 'AAPL', currency: null, via_alias: 'APPLE.TEST' }],
+    })
   })
 })

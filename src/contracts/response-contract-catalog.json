@@ -637,7 +637,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaController.ts:247",
+    "evidence": "src/controllers/clarezaCore.controller.ts:71",
     "frontConsumer": null
   },
   {
