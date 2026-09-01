@@ -416,6 +416,14 @@
     "status": "complete"
   },
   {
+    "identity": "GET /api/clareza/carteira/search",
+    "owner": "src/controllers/clarezaController.ts",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/clareza/comparador",
     "owner": "src/controllers/clarezaController.ts",
     "currentFamily": "public-document",
@@ -2282,6 +2290,14 @@
   {
     "identity": "POST /api/clareza/refresh",
     "owner": "src/controllers/clarezaController.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
+    "identity": "POST /api/clareza/suggestions",
+    "owner": "src/controllers/clarezaSuggestion.controller.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,

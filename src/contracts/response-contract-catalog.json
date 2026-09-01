@@ -610,6 +610,18 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/carteira/search",
+    "family": "public-document",
+    "shapeKeys": [
+      "count",
+      "query",
+      "results"
+    ],
+    "evidence": "src/controllers/clarezaController.ts:247",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/comparador",
     "family": "public-document",
     "shapeKeys": [
@@ -3521,6 +3533,17 @@
       "success"
     ],
     "evidence": "src/controllers/clarezaController.ts:48",
+    "frontConsumer": null
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/suggestions",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/clarezaSuggestion.controller.ts:21",
     "frontConsumer": null
   },
   {
