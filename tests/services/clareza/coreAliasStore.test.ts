@@ -16,6 +16,9 @@ beforeAll(async () => {
     binary: { version: '8.2.6' }, instance: { dbName: 'clareza_alias_test' },
   })
   await mongoose.connect(assertSafeTestMongoUri(mongoServer.getUri('clareza_alias_test')))
+  // The model may have been compiled against another integration-test database.
+  // Recreate its unique CAS index on this isolated database before exercising stale writers.
+  await ClarezaCoreAliasState.syncIndexes()
 })
 
 afterAll(async () => {
