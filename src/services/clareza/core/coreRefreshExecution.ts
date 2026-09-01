@@ -125,7 +125,10 @@ export class CoreRefreshExecution {
       universeVersion: input.universeVersion,
       generationId: input.generationId,
     })
-    if (input.mode === 'publish') await this.dependencies.generationStore.createCandidate(built.candidate)
+    if (input.mode === 'publish'
+      && !await this.dependencies.generationStore.readCandidate(input.generationId)) {
+      await this.dependencies.generationStore.createCandidate(built.candidate)
+    }
     const gate = await executePublicationGate({
       report: built.report,
       policy: this.dependencies.policy,

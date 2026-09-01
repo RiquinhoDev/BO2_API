@@ -13,6 +13,7 @@ export type RefreshJobStart<TResult> = RefreshJobState<TResult> & {
 }
 
 export interface RefreshJobExecutionContext {
+  readonly startedAt: string
   readonly completedItems: readonly string[]
   assertLease(): Promise<void>
   markCompleted(item: string): Promise<void>
@@ -212,6 +213,7 @@ export class RefreshJobCoordinator<TResult> {
       if (leaseLost || !await this.store.owns(ownerId)) throw new RefreshJobLeaseLostError()
     }
     const context: RefreshJobExecutionContext = {
+      startedAt: claim.state.status === 'running' ? claim.state.startedAt : new Date(this.now()).toISOString(),
       completedItems: [...claim.completedItems],
       assertLease,
       markCompleted: async item => {

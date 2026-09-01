@@ -29,6 +29,7 @@ import {
   sleep
 } from './data'
 const uncoordinatedExecution: RefreshJobExecutionContext = {
+  startedAt: new Date(0).toISOString(),
   completedItems: [],
   assertLease: async () => undefined,
   markCompleted: async () => undefined,

@@ -52,7 +52,7 @@ describe('CronJobDispatcher', () => {
     ['RebuildDashboardStats', 'rebuildDashboardStats'],
     ['CronExecutionCleanup', 'cleanupExecutions'],
     ['WeeklyTagSnapshot', 'weeklyTagSnapshot'],
-    ['ClarezaRefresh', 'clarezaRefresh'],
+    ['ClarezaDailyRefresh', 'clarezaRefresh'],
     ['GuruTrialCheck', 'guruTrialCheck']
   ] as const)('dispatches %s to its dedicated runner', async (name, dependency) => {
     const dependencies = createDependencies()

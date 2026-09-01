@@ -50,6 +50,10 @@ export function createCoreMasterCollector(
   )
 }
 
+export function createCoreMasterFetcher(): CoreMasterMetricsFetcher {
+  return new CoreMasterMetricsFetcher(strictFmp, clock)
+}
+
 let collector: CoreMasterCollector | null = null
 
 export function collectCoreMasterData(): Promise<CoreMasterReport> {

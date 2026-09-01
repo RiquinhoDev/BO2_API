@@ -49,6 +49,7 @@ export interface CronSeedRepositoryPort {
   findByName(name: string): Promise<CronSeedState | null>
   create(seed: CronSeedDefinition): Promise<void>
   update(name: string, updates: CronSeedUpdate): Promise<void>
+  remove(name: string): Promise<void>
 }
 
 interface CronSeedProvisionerDependencies {
@@ -59,12 +60,12 @@ interface CronSeedProvisionerDependencies {
 
 const CRON_SEEDS: readonly CronSeedDefinition[] = [
   {
-    name: 'ClarezaRefresh',
+    name: 'ClarezaDailyRefresh',
     description:
       'Atualiza dados Clareza diariamente via Financial Modeling Prep API',
     syncType: 'clareza',
     schedule: {
-      cronExpression: '0 6 * * *',
+      cronExpression: '0 3 * * *',
       timezone: 'Europe/Lisbon',
       enabled: true,
     },
@@ -130,6 +131,8 @@ const CRON_SEEDS: readonly CronSeedDefinition[] = [
   },
 ]
 
+const LEGACY_CLAREZA_SEEDS = ['ClarezaRefresh'] as const
+
 function buildUpdate(
   current: CronSeedState,
   expected: CronSeedDefinition,
@@ -171,6 +174,20 @@ export function createCronSeedProvisioner(
           error,
         )
       }
+    }
+
+    try {
+      const canonical = await dependencies.repository.findByName('ClarezaDailyRefresh')
+      if (canonical) {
+        for (const legacyName of LEGACY_CLAREZA_SEEDS) {
+          if (await dependencies.repository.findByName(legacyName)) {
+            await dependencies.repository.remove(legacyName)
+            schedulerNeedsRefresh = true
+          }
+        }
+      }
+    } catch (error) {
+      dependencies.logError('Erro ao remover cron Clareza legacy', error)
     }
 
     if (schedulerNeedsRefresh) {
