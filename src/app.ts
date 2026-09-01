@@ -10,6 +10,7 @@ import {
 import {
   HEAVY_OPERATION_PATHS,
   LOGIN_PATHS,
+  SUGGESTION_PATHS,
   WEBHOOK_PATHS,
   createHttpPerimeter,
   type HttpPerimeter,
@@ -73,6 +74,7 @@ export function createApp(_deps: CreateAppDependencies): Application {
   app.use(LOGIN_PATHS, httpPerimeter.login)
   app.use(WEBHOOK_PATHS, httpPerimeter.webhook)
   app.use(HEAVY_OPERATION_PATHS, httpPerimeter.heavy)
+  app.use(SUGGESTION_PATHS, httpPerimeter.suggestion)
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.jsonParser)
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.urlencodedParser)
   app.use(AC_WEBHOOK_PATHS, acWebhookSecurity.replayGuard)

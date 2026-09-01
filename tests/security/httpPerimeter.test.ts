@@ -4,6 +4,7 @@ import { createApp } from '../../src/app'
 import {
   DEFAULT_RATE_LIMITS,
   HEAVY_OPERATION_PATHS,
+  SUGGESTION_PATHS,
   createHttpPerimeter,
   type HttpPerimeterLimits,
 } from '../../src/security/httpPerimeter'
@@ -95,6 +96,7 @@ function buildApp(
       app.post('/api/auth/login', (_req, res) => res.sendStatus(204))
       app.post('/api/guru/webhook', (_req, res) => res.sendStatus(204))
       app.post('/api/sync/execute-pipeline', (_req, res) => res.sendStatus(204))
+      app.post('/api/clareza/suggestions', (_req, res) => res.sendStatus(204))
       app.post('/echo', (req, res) => res.json(req.body))
     },
   })
@@ -227,6 +229,17 @@ test('operacao pesada devolve 429 depois do limite', async () => {
   await attempt().expect(429)
 })
 
+test('sugestao publica tem limite proprio por cliente', async () => {
+  const app = buildApp({ suggestion: { limit: 1, windowMs: 60_000 } })
+  const attempt = () => request(app)
+    .post('/api/clareza/suggestions')
+    .set('X-Forwarded-For', '198.51.100.31')
+    .query(marker)
+
+  await attempt().expect(204)
+  await attempt().expect(429)
+})
+
 test('cada app recebe stores de rate limit independentes', async () => {
   const first = buildApp({ login: { limit: 1, windowMs: 60_000 } })
   const second = buildApp({ login: { limit: 1, windowMs: 60_000 } })
@@ -279,7 +292,9 @@ test('limites de producao e paths pesados ficam explicitos', () => {
     login: { limit: 10, windowMs: 15 * 60_000 },
     webhook: { limit: 10_000, windowMs: 60_000 },
     heavy: { limit: 10, windowMs: 15 * 60_000 },
+    suggestion: { limit: 20, windowMs: 15 * 60_000 },
   })
+  expect(SUGGESTION_PATHS).toEqual(['/api/clareza/suggestions'])
   expect(HEAVY_OPERATION_PATHS).toEqual([
     '/api/sync/execute-pipeline',
     '/api/sync/hotmart',

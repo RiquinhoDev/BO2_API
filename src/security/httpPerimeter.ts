@@ -13,6 +13,7 @@ export interface HttpPerimeterLimits {
   login: RateLimitPolicy
   webhook: RateLimitPolicy
   heavy: RateLimitPolicy
+  suggestion: RateLimitPolicy
 }
 
 export type RateLimitPolicyName = keyof HttpPerimeterLimits
@@ -22,6 +23,7 @@ export interface HttpPerimeter {
   login: RequestHandler
   webhook: RequestHandler
   heavy: RequestHandler
+  suggestion: RequestHandler
 }
 
 export interface HttpPerimeterOptions {
@@ -34,6 +36,7 @@ export const DEFAULT_RATE_LIMITS: HttpPerimeterLimits = {
   login: { limit: 10, windowMs: 15 * 60_000 },
   webhook: { limit: 10_000, windowMs: 60_000 },
   heavy: { limit: 10, windowMs: 15 * 60_000 },
+  suggestion: { limit: 20, windowMs: 15 * 60_000 },
 }
 
 export const LOGIN_PATHS = ['/api/auth/login']
@@ -43,6 +46,8 @@ export const WEBHOOK_PATHS = [
   '/api/webhooks/ac/email-opened',
   '/api/webhooks/ac/link-clicked',
 ]
+
+export const SUGGESTION_PATHS = ['/api/clareza/suggestions']
 
 export const HEAVY_OPERATION_PATHS = [
   '/api/sync/execute-pipeline',
@@ -103,6 +108,7 @@ export function createHttpPerimeter(options: HttpPerimeterOptions = {}): HttpPer
     login: options.limits?.login ?? DEFAULT_RATE_LIMITS.login,
     webhook: options.limits?.webhook ?? DEFAULT_RATE_LIMITS.webhook,
     heavy: options.limits?.heavy ?? DEFAULT_RATE_LIMITS.heavy,
+    suggestion: options.limits?.suggestion ?? DEFAULT_RATE_LIMITS.suggestion,
   }
   const storeFactory = options.storeFactory ?? (() => new MemoryStore())
 
@@ -130,5 +136,6 @@ export function createHttpPerimeter(options: HttpPerimeterOptions = {}): HttpPer
     login: createLimiter('login', limits.login, onRateLimit, storeFactory),
     webhook: createLimiter('webhook', limits.webhook, onRateLimit, storeFactory),
     heavy: createLimiter('heavy', limits.heavy, onRateLimit, storeFactory),
+    suggestion: createLimiter('suggestion', limits.suggestion, onRateLimit, storeFactory),
   }
 }

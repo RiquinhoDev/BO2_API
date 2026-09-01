@@ -101,6 +101,7 @@ describe('response contract catalog', () => {
     expect(publicDocuments).toEqual([
       'GET /api/clareza/carteira-search',
       'GET /api/clareza/carteira/data',
+      'GET /api/clareza/carteira/search',
       'GET /api/clareza/comparador',
       'GET /api/clareza/data',
       'GET /api/clareza/earnings/data',

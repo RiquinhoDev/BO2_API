@@ -17,6 +17,7 @@ const TERMINAL_FAMILIES = new Set(['success-data', 'public-document', 'webhook-a
 const CURRENT_FAMILIES = new Set([...TERMINAL_FAMILIES, 'domain-envelope', 'raw-json', '501-only'])
 const PUBLIC_DOCUMENT_IDENTITIES = new Set([
   'GET /api/clareza/carteira-search',
+  'GET /api/clareza/carteira/search',
   'GET /api/clareza/carteira/data',
   'GET /api/clareza/comparador',
   'GET /api/clareza/data',

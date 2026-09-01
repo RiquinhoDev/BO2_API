@@ -209,6 +209,10 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/carteira/search"
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/comparador"
   },
   {
@@ -1142,6 +1146,10 @@
   {
     "method": "POST",
     "path": "/api/clareza/refresh"
+  },
+  {
+    "method": "POST",
+    "path": "/api/clareza/suggestions"
   },
   {
     "method": "POST",

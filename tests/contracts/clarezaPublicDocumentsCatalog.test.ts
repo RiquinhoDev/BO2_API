@@ -13,6 +13,7 @@ const clarezaControllerPath = path.join(process.cwd(), 'src', 'controllers', 'cl
 const publicDocumentIdentities = [
   'GET /api/clareza/carteira-search',
   'GET /api/clareza/carteira/data',
+  'GET /api/clareza/carteira/search',
   'GET /api/clareza/comparador',
   'GET /api/clareza/data',
   'GET /api/clareza/earnings/data',
@@ -73,12 +74,16 @@ describe('Clareza public-document catalog protection', () => {
       expect(entry.targetFamily).toBe('public-document')
       expect(entry.status).toBe('complete')
     }
-    const refreshes = inventory.filter((entry) => entry.identity.startsWith('POST /api/clareza/'))
+    const refreshes = inventory.filter((entry) => entry.identity.startsWith('POST /api/clareza/')
+      && entry.identity.endsWith('/refresh'))
     expect(refreshes).toHaveLength(6)
     for (const refresh of refreshes) {
       expect(refresh.targetFamily).toBe('success-data')
       expect(refresh.status).toBe('complete')
     }
+    expect(inventory.find((entry) => entry.identity === 'POST /api/clareza/suggestions')).toMatchObject({
+      currentFamily: 'success-data', targetFamily: 'success-data', status: 'complete',
+    })
   })
 
   test('rejects a success-data wrapper mutation for a public Clareza GET without rewriting the catalog', () => {
@@ -112,6 +117,6 @@ describe('Clareza public-document catalog protection', () => {
     const result = runChecker()
 
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain('409 decisions; 213 Front calls; 188 consumers')
+    expect(result.stdout).toContain('411 decisions; 213 Front calls; 188 consumers')
   })
 })

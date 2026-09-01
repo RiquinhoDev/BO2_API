@@ -101,7 +101,7 @@ function configureDocument(path: string, body: unknown, rawBody: string | null):
     mockGetRaioxJson.mockResolvedValueOnce(rawBody ?? JSON.stringify(body))
   } else if (path === '/carteira/data') {
     mockGetClarezaCarteiraData.mockResolvedValueOnce(body)
-  } else if (path.startsWith('/carteira-search')) {
+  } else if (path.startsWith('/carteira-search') || path.startsWith('/carteira/search')) {
     mockSearchCarteira.mockResolvedValueOnce(body)
   } else if (path === '/earnings/data') {
     mockGetClarezaEarningsData.mockResolvedValueOnce(body)
@@ -123,6 +123,18 @@ describe('Clareza public documents', () => {
     const identities = publicDocumentFixtures.documents.map((fixture) => fixture.identity)
     expect([...new Set(identities)].sort()).toEqual(publicDocumentIdentities)
     expect(publicDocumentFixtures.documents).toHaveLength(15)
+  })
+
+  test('canonical Carteira search alias preserves the reviewed search document', async () => {
+    const body = { query: 'apple', count: 1, results: [{ ticker: 'AAPL', name: 'Apple Inc.' }] }
+    mockSearchCarteira.mockResolvedValueOnce(body)
+
+    const response = await request(appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter }))
+      .get(requestPath('/carteira/search?q=apple'))
+
+    expect(response.status).toBe(200)
+    expect(response.headers['cache-control']).toBe('public, max-age=600')
+    expect(response.body).toEqual(body)
   })
 
   test.each(publicDocumentFixtures.documents)(

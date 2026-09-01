@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { clarezaController } from '../controllers/clarezaController'
 import { asyncRoute } from '../security/asyncRoute'
+import { submitClarezaSuggestion } from '../controllers/clarezaSuggestion.controller'
 
 const router = Router()
 
@@ -36,12 +37,16 @@ router.post('/raiox/refresh', asyncRoute(clarezaController.refreshRaiox))
 // Endpoint publico - Raio-X da Carteira
 router.get('/carteira/data', asyncRoute(clarezaController.getCarteira))
 router.get('/carteira-search', asyncRoute(clarezaController.searchCarteira))
+router.get('/carteira/search', asyncRoute(clarezaController.searchCarteira))
 router.post('/carteira/refresh', asyncRoute(clarezaController.refreshCarteira))
 // Endpoint publico - Calendario de Resultados
 router.get('/earnings/data', asyncRoute(clarezaController.getEarnings))
 router.post('/earnings/refresh', asyncRoute(clarezaController.refreshEarnings))
 router.get('/comparador', asyncRoute(clarezaController.getComparador))
 router.post('/comparador/refresh', asyncRoute(clarezaController.refreshComparador))
+
+// Escrita pública limitada e idempotente; nunca altera o universo publicado.
+router.post('/suggestions', asyncRoute(submitClarezaSuggestion))
 
 
 export default router
