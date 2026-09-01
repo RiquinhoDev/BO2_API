@@ -46,7 +46,7 @@ router.get('/carteira/search', asyncRoute(clarezaCoreController.search))
 router.get('/carteira/analysis', asyncRoute(clarezaCoreController.portfolioAnalysis))
 router.post('/carteira/refresh', asyncRoute(clarezaController.refreshCarteira))
 // Endpoint publico - Calendario de Resultados
-router.get('/earnings/data', asyncRoute(clarezaController.getEarnings))
+router.get('/earnings/data', asyncRoute(clarezaCoreController.earnings))
 router.post('/earnings/refresh', asyncRoute(clarezaController.refreshEarnings))
 router.get('/comparador', asyncRoute(clarezaCoreController.comparador))
 router.post('/comparador/refresh', asyncRoute(clarezaController.refreshComparador))

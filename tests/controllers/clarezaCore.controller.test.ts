@@ -20,6 +20,7 @@ describe('Clareza published core controller', () => {
       raioxSearch: jest.fn().mockResolvedValue({ query: 'APP', count: 1, results: [] }),
       comparador: jest.fn().mockResolvedValue({ generationId: 'g1', count: 1, companies: [] }),
       comparadorSearch: jest.fn().mockResolvedValue({ query: 'APP', count: 1, results: [] }),
+      earnings: jest.fn().mockResolvedValue({ generationId: 'g1', earnings: [] }),
     }
     const controller = createClarezaCoreController(dependencies)
     const radarResponse = responseDouble()
@@ -50,6 +51,7 @@ describe('Clareza published core controller', () => {
       search: jest.fn(),
       raiox: jest.fn(), raioxSearch: jest.fn(),
       comparador: jest.fn(), comparadorSearch: jest.fn(),
+      earnings: jest.fn(),
     })
     const invalid = createClarezaCoreController({
       radar: jest.fn(), carteira: jest.fn(),
@@ -57,6 +59,7 @@ describe('Clareza published core controller', () => {
       search: jest.fn(),
       raiox: jest.fn(), raioxSearch: jest.fn(),
       comparador: jest.fn(), comparadorSearch: jest.fn(),
+      earnings: jest.fn(),
     })
     const unavailableResponse = responseDouble()
     const invalidResponse = responseDouble()

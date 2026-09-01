@@ -609,7 +609,7 @@
       "missing",
       "results"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:71",
+    "evidence": "src/controllers/clarezaCore.controller.ts:74",
     "frontConsumer": null
   },
   {
@@ -624,7 +624,7 @@
       "universeVersion",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:59",
+    "evidence": "src/controllers/clarezaCore.controller.ts:62",
     "frontConsumer": null
   },
   {
@@ -644,7 +644,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:84",
+    "evidence": "src/controllers/clarezaCore.controller.ts:87",
     "frontConsumer": null
   },
   {
@@ -659,7 +659,7 @@
       "rejected",
       "results"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:142",
+    "evidence": "src/controllers/clarezaCore.controller.ts:145",
     "frontConsumer": null
   },
   {
@@ -676,11 +676,15 @@
     "family": "public-document",
     "shapeKeys": [
       "count",
+      "coverage",
+      "dataVersion",
       "earnings",
+      "generationId",
+      "universeVersion",
       "updated",
       "window"
     ],
-    "evidence": "src/controllers/clarezaController.ts:261",
+    "evidence": "src/controllers/clarezaCore.controller.ts:173",
     "frontConsumer": null
   },
   {
@@ -695,7 +699,7 @@
       "universeVersion",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:47",
+    "evidence": "src/controllers/clarezaCore.controller.ts:50",
     "frontConsumer": null
   },
   {
@@ -712,7 +716,7 @@
       "results",
       "ticker"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:98",
+    "evidence": "src/controllers/clarezaCore.controller.ts:101",
     "frontConsumer": null
   },
   {
@@ -751,7 +755,7 @@
       "inc",
       "ticker"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:124",
+    "evidence": "src/controllers/clarezaCore.controller.ts:127",
     "frontConsumer": null
   },
   {

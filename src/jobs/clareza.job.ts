@@ -1,6 +1,6 @@
 import { executeCanonicalCoreRefresh } from '../services/clareza/core/coreRefresh.runtime'
 import type { CoreRefreshExecutionResult } from '../services/clareza/core/coreRefreshExecution'
-import { refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
+import { refreshCoreEarningsCompanion } from '../services/clareza/core/coreEarningsCompanion.runtime'
 import { refreshCoreRaioxCompanion } from '../services/clareza/core/coreRaioxCompanion.runtime'
 import { assertClarezaRefreshEnabled, getFmpApiKey } from '../services/requestDrivenRuntimeConfig'
 import { cacheService } from '../services/cache.service'
@@ -95,7 +95,7 @@ const pipeline = createClarezaJob({
   refreshCore: executeCanonicalCoreRefresh,
   companions: [
     { name: 'Raio-X', refresh: refreshCoreRaioxCompanion },
-    { name: 'Earnings', refresh: refreshClarezaEarningsData },
+    { name: 'Earnings', refresh: refreshCoreEarningsCompanion },
   ],
   logger,
 })

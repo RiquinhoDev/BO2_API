@@ -7,6 +7,7 @@ import ClarezaCoreGeneration from '../../src/models/ClarezaCoreGeneration'
 import ClarezaCorePublication from '../../src/models/ClarezaCorePublication'
 import ClarezaCoreAliasState from '../../src/models/ClarezaCoreAliasState'
 import ClarezaCoreRaioxCompanion from '../../src/models/ClarezaCoreRaioxCompanion'
+import ClarezaCoreEarningsCompanion from '../../src/models/ClarezaCoreEarningsCompanion'
 import { MongooseCoreAliasStore } from '../../src/services/clareza/core/coreAliasStore'
 import { MongooseCoreGenerationStore } from '../../src/services/clareza/core/coreGenerationStore'
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
@@ -37,6 +38,7 @@ beforeEach(async () => {
     ClarezaCorePublication.collection.deleteMany({}),
     ClarezaCoreAliasState.collection.deleteMany({}),
     ClarezaCoreRaioxCompanion.collection.deleteMany({}),
+    ClarezaCoreEarningsCompanion.collection.deleteMany({}),
   ])
   const store = new MongooseCoreGenerationStore()
   await store.createCandidate({
@@ -69,6 +71,14 @@ beforeEach(async () => {
     createdAt: new Date('2026-09-01T18:10:00.000Z'), data: null,
     sectorPe: [{ sector: 'Technology', pe: 25 }],
   }])
+  await ClarezaCoreEarningsCompanion.create([{
+    generationId: 'dry-run-generation', ticker: 'AAPL',
+    createdAt: new Date('2026-09-01T18:12:00.000Z'),
+    events: [{ date: '2026-10-01', epsEstimated: 2.2 }, { date: '2026-07-31', epsActual: 2.1, epsEstimated: 2 }], failures: [],
+  }, {
+    generationId: 'dry-run-generation', ticker: '__META__',
+    createdAt: new Date('2026-09-01T18:12:00.000Z'), events: [], failures: [],
+  }])
   await new MongooseCoreAliasStore().replace({
     aliases: [{
       aliasTicker: 'APPLE.TEST', canonicalTicker: 'AAPL', instrumentId: 'US0378331005',
@@ -81,8 +91,8 @@ beforeEach(async () => {
 describe('Clareza core production mount offline dry-run', () => {
   const app = appForCentralError({ kind: 'router', mountPath: '/api/clareza', router: clarezaRouter })
 
-  it('serves Radar, Carteira and bounded histories from one published Mongo generation', async () => {
-    const [radar, carteira, analysis, search, raiox, raioxSearch, comparador, comparadorSearch] = await Promise.all([
+  it('serves canonical tools from one published Mongo generation and matching companions', async () => {
+    const [radar, carteira, analysis, search, raiox, raioxSearch, comparador, comparadorSearch, earnings] = await Promise.all([
       request(app).get('/api/clareza/radar?__bo2_offline_loopback=1').expect(200),
       request(app).get('/api/clareza/carteira/data?__bo2_offline_loopback=1').expect(200),
       request(app).get('/api/clareza/carteira/analysis?symbols=AAPL&__bo2_offline_loopback=1').expect(200),
@@ -91,6 +101,7 @@ describe('Clareza core production mount offline dry-run', () => {
       request(app).get('/api/clareza/raiox?search=app&__bo2_offline_loopback=1').expect(200),
       request(app).get('/api/clareza/comparador?symbols=AAPL&__bo2_offline_loopback=1').expect(200),
       request(app).get('/api/clareza/comparador?search=app&__bo2_offline_loopback=1').expect(200),
+      request(app).get('/api/clareza/earnings/data?__bo2_offline_loopback=1').expect(200),
     ])
 
     expect(radar.body).toMatchObject({ generationId: 'dry-run-generation', count: 1 })
@@ -125,6 +136,11 @@ describe('Clareza core production mount offline dry-run', () => {
     })
     expect(comparadorSearch.body).toMatchObject({
       query: 'APP', count: 1, results: [{ symbol: 'AAPL', name: 'Apple' }],
+    })
+    expect(earnings.body).toMatchObject({
+      generationId: 'dry-run-generation', dataVersion: 'dry-run-data', count: 1,
+      earnings: [{ t: 'AAPL', n: 'Apple', type: 'stock', d: '2026-10-01', e: 2.2 }],
+      coverage: { eligible: 1, available: 1, missing: [] },
     })
   })
 })
