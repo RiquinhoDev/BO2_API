@@ -457,7 +457,7 @@
   },
   {
     "identity": "GET /api/clareza/earnings/data",
-    "owner": "src/controllers/clarezaController.ts",
+    "owner": "src/controllers/clarezaCore.controller.ts",
     "currentFamily": "public-document",
     "targetFamily": "public-document",
     "frontConsumer": null,

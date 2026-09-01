@@ -9,6 +9,7 @@ import {
   searchPublishedRaiox,
   getPublishedComparador,
   searchPublishedComparador,
+  getPublishedEarnings,
 } from '../services/clareza/core/corePublished.runtime'
 import { CoreGenerationUnavailableError } from '../services/clareza/core/coreRadarProjection'
 import { searchPublishedCarteira } from '../services/clareza/core/coreCarteiraSearch.runtime'
@@ -24,6 +25,7 @@ interface ClarezaCoreControllerDependencies {
   readonly raioxSearch: typeof searchPublishedRaiox
   readonly comparador: typeof getPublishedComparador
   readonly comparadorSearch: typeof searchPublishedComparador
+  readonly earnings: typeof getPublishedEarnings
 }
 
 const unavailable = (res: Response) => res.status(503).json({
@@ -38,6 +40,7 @@ export function createClarezaCoreController(dependencies: ClarezaCoreControllerD
   readonly raiox: RequestHandler
   readonly raioxByTicker: RequestHandler
   readonly comparador: RequestHandler
+  readonly earnings: RequestHandler
 } {
   return {
     radar: async (_req: Request, res: Response, next: NextFunction) => {
@@ -162,6 +165,18 @@ export function createClarezaCoreController(dependencies: ClarezaCoreControllerD
         return
       }
     },
+
+    earnings: async (_req: Request, res: Response, next: NextFunction) => {
+      try {
+        const payload = await dependencies.earnings()
+        res.setHeader('Cache-Control', 'public, max-age=3600')
+        return res.json(payload)
+      } catch (error: unknown) {
+        if (error instanceof CoreGenerationUnavailableError) return unavailable(res)
+        next(internalError('Erro interno do servidor', 'CLAREZA_EARNINGS_READ_FAILED', error))
+        return
+      }
+    },
   }
 }
 
@@ -174,4 +189,5 @@ export const clarezaCoreController = createClarezaCoreController({
   raioxSearch: searchPublishedRaiox,
   comparador: getPublishedComparador,
   comparadorSearch: searchPublishedComparador,
+  earnings: getPublishedEarnings,
 })

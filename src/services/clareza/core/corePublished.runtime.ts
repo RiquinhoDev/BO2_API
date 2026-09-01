@@ -4,6 +4,8 @@ import { createCorePublishedRuntime } from './corePublishedRuntime'
 import { createCoreRaioxRuntime } from './coreRaioxRuntime'
 import { MongooseCoreRaioxCompanionStore } from './coreRaioxCompanionStore'
 import { createCoreComparadorRuntime } from './coreComparadorRuntime'
+import { createCoreEarningsRuntime } from './coreEarningsRuntime'
+import { MongooseCoreEarningsCompanionStore } from './coreEarningsCompanionStore'
 
 const runtime = createCorePublishedRuntime({
   store: new MongooseCoreGenerationStore(),
@@ -31,3 +33,12 @@ const comparadorRuntime = createCoreComparadorRuntime({
 
 export const getPublishedComparador = comparadorRuntime.compare
 export const searchPublishedComparador = comparadorRuntime.search
+
+const earningsRuntime = createCoreEarningsRuntime({
+  generationStore: new MongooseCoreGenerationStore(),
+  companionStore: new MongooseCoreEarningsCompanionStore(),
+  universe: CLAREZA_UNIVERSE,
+  now: () => new Date(),
+})
+
+export const getPublishedEarnings = earningsRuntime.read

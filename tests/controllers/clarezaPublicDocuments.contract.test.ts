@@ -23,6 +23,7 @@ const mockGetPublishedRaiox = jest.fn<Promise<unknown>, [string]>()
 const mockSearchPublishedRaiox = jest.fn<Promise<unknown>, [string]>()
 const mockGetPublishedComparador = jest.fn<Promise<unknown>, [string]>()
 const mockSearchPublishedComparador = jest.fn<Promise<unknown>, [string]>()
+const mockGetPublishedEarnings = jest.fn<Promise<unknown>, []>()
 
 jest.mock('../../src/services/clareza/clarezaFmpService', () => ({
   getClarezaData: mockGetClarezaData,
@@ -66,6 +67,7 @@ jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
   searchPublishedRaiox: mockSearchPublishedRaiox,
   getPublishedComparador: mockGetPublishedComparador,
   searchPublishedComparador: mockSearchPublishedComparador,
+  getPublishedEarnings: mockGetPublishedEarnings,
 }))
 jest.mock('../../src/services/clareza/core/coreCarteiraSearch.runtime', () => ({
   searchPublishedCarteira: mockSearchPublishedCarteira,
@@ -126,7 +128,7 @@ function configureDocument(path: string, body: unknown, rawBody: string | null):
   } else if (path.startsWith('/carteira/search')) {
     mockSearchPublishedCarteira.mockResolvedValueOnce(body)
   } else if (path === '/earnings/data') {
-    mockGetClarezaEarningsData.mockResolvedValueOnce(body)
+    mockGetPublishedEarnings.mockResolvedValueOnce(body)
   } else if (path.startsWith('/comparador?symbols=')) {
     mockGetPublishedComparador.mockResolvedValueOnce(body)
   } else if (path.startsWith('/comparador?search=')) {

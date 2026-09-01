@@ -23,7 +23,7 @@ describe('core Earnings projection', () => {
       coverage: { eligible: 2, available: 1, missing: ['O'] },
     })
     expect(payload.earnings).toEqual([{
-      t: 'AAPL', name: 'Apple', kind: 'stock', type: 'growth', d: '2026-09-15', e: 1.8, c: 'USD',
+      t: 'AAPL', n: 'Apple', type: 'stock', d: '2026-09-15', e: 1.8, c: 'USD',
       lr: { d: '2026-07-20', r: 1.6, e: 1.5, b: true },
     }])
   })
@@ -33,7 +33,7 @@ describe('core Earnings projection', () => {
       { ticker: 'O', events: [{ date: '2026-09-10', epsEstimated: null }] },
     ], '2026-09-01', '2026-10-01')
 
-    expect(payload.earnings).toEqual([expect.objectContaining({ t: 'O', kind: 'stock', type: 'reit', c: null })])
+    expect(payload.earnings).toEqual([expect.objectContaining({ t: 'O', n: 'Realty Income', type: 'reit', c: null })])
   })
 
   it('ignores malformed and out-of-window future dates', () => {

@@ -52,7 +52,7 @@ export function projectCoreEarnings(
     && (asset.type === 'growth' || asset.type === 'value' || asset.type === 'reit'))
   const seriesByTicker = new Map(series.map(item => [normalize(item.ticker), item.events]))
   const earnings = [] as Array<{
-    t: string; name: string; kind: 'stock'; type: 'growth' | 'value' | 'reit'; d: string; e: number | null; c: string | null
+    t: string; n: string; type: 'stock' | 'reit'; d: string; e: number | null; c: string | null
     lr?: { d: string; r: number | null; e: number | null; b: boolean | null }
   }>
   const missing: string[] = []
@@ -75,9 +75,8 @@ export function projectCoreEarnings(
       .sort((left, right) => right.date.localeCompare(left.date))[0]
     const entry: typeof earnings[number] = {
       t: ticker,
-      name: asset.name,
-      kind: asset.kind,
-      type: asset.type,
+      n: asset.name,
+      type: asset.type === 'reit' ? 'reit' : 'stock',
       d: next.date,
       e: numberOrNull(next.epsEstimated),
       c: typeof asset.data?.currency === 'string' ? asset.data.currency : null,

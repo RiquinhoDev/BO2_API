@@ -24,6 +24,7 @@ jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
   getPublishedPortfolioHistory: jest.fn(), getPublishedRaiox: jest.fn(), searchPublishedRaiox: jest.fn(),
   getPublishedComparador: mockGetPublishedComparador,
   searchPublishedComparador: mockSearchPublishedComparador,
+  getPublishedEarnings: jest.fn(),
 }))
 
 jest.mock('../../src/services/clareza/comparador/comparador.runtime', () => ({
