@@ -441,7 +441,7 @@
   },
   {
     "identity": "GET /api/clareza/comparador",
-    "owner": "src/controllers/clarezaController.ts",
+    "owner": "src/controllers/clarezaCore.controller.ts",
     "currentFamily": "public-document",
     "targetFamily": "public-document",
     "frontConsumer": null,
@@ -473,7 +473,7 @@
   },
   {
     "identity": "GET /api/clareza/raiox",
-    "owner": "src/controllers/clarezaController.ts",
+    "owner": "src/controllers/clarezaCore.controller.ts",
     "currentFamily": "public-document",
     "targetFamily": "public-document",
     "frontConsumer": null,
@@ -497,7 +497,7 @@
   },
   {
     "identity": "GET /api/clareza/raiox/:ticker",
-    "owner": "src/controllers/clarezaController.ts",
+    "owner": "src/controllers/clarezaCore.controller.ts",
     "currentFamily": "public-document",
     "targetFamily": "public-document",
     "frontConsumer": null,

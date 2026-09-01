@@ -3,6 +3,7 @@ installTestRuntimeConfigHooks()
 import request from 'supertest'
 import { IntegrationUnavailableError } from '../../src/errors/integrationUnavailableError'
 import { ComparadorPolicyError } from '../../src/services/clareza/comparador/comparadorPolicy'
+import { CoreComparadorRequestError } from '../../src/services/clareza/core/coreComparadorProjection'
 import type {
   ComparadorRefreshReport,
   ComparadorSearchResponse,
@@ -15,6 +16,15 @@ const mockSearchComparador = jest.fn<Promise<ComparadorSearchResponse>, [string]
 const mockRefreshComparadorSymbols = jest.fn<Promise<ComparadorRefreshReport>, [string]>()
 const mockRefreshClarezaComparadorData = jest.fn<Promise<{ readonly total: number; readonly errors: number }>, []>()
 const mockIsClarezaRefreshAuthorized = jest.fn<boolean, [string]>()
+const mockGetPublishedComparador = jest.fn()
+const mockSearchPublishedComparador = jest.fn()
+
+jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
+  getPublishedRadar: jest.fn(), getPublishedCarteira: jest.fn(), getPublishedPortfolioAnalysis: jest.fn(),
+  getPublishedPortfolioHistory: jest.fn(), getPublishedRaiox: jest.fn(), searchPublishedRaiox: jest.fn(),
+  getPublishedComparador: mockGetPublishedComparador,
+  searchPublishedComparador: mockSearchPublishedComparador,
+}))
 
 jest.mock('../../src/services/clareza/comparador/comparador.runtime', () => ({
   getComparadorSymbols: mockGetComparadorSymbols,
@@ -58,7 +68,7 @@ describe('Clareza comparator HTTP contract', () => {
   })
 
   it('preserves the search document and its short public cache lifetime', async () => {
-    mockSearchComparador.mockResolvedValue({
+    mockSearchPublishedComparador.mockResolvedValue({
       query: 'APPLE', count: 1,
       results: [{ symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology', exchange: 'NASDAQ', image: null, isReit: false }],
     })
@@ -72,13 +82,13 @@ describe('Clareza comparator HTTP contract', () => {
       query: 'APPLE', count: 1,
       results: [{ symbol: 'AAPL', name: 'Apple Inc.', sector: 'Technology', exchange: 'NASDAQ', image: null, isReit: false }],
     })
-    expect(mockSearchComparador).toHaveBeenCalledWith('apple')
+    expect(mockSearchPublishedComparador).toHaveBeenCalledWith('apple')
   })
 
   it('preserves the comparison document and its long public cache lifetime', async () => {
-    mockGetComparadorSymbols.mockResolvedValue({
-      count: 2, updated: '2026-08-11T09:30:00.000Z',
-      companies: [company, { ticker: 'MSFT', error: 'MSFT ainda nao esta disponivel no Comparador.' }],
+    mockGetPublishedComparador.mockResolvedValue({
+      generationId: 'generation-a', count: 1,
+      companies: [company], rejected: [{ ticker: 'MSFT', reason: 'unknown-symbol' }],
     })
 
     const response = await request(appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter }))
@@ -87,10 +97,10 @@ describe('Clareza comparator HTTP contract', () => {
     expect(response.status).toBe(200)
     expect(response.headers['cache-control']).toBe('public, max-age=3600')
     expect(response.body).toEqual({
-      count: 2, updated: '2026-08-11T09:30:00.000Z',
-      companies: [company, { ticker: 'MSFT', error: 'MSFT ainda nao esta disponivel no Comparador.' }],
+      generationId: 'generation-a', count: 1,
+      companies: [company], rejected: [{ ticker: 'MSFT', reason: 'unknown-symbol' }],
     })
-    expect(mockGetComparadorSymbols).toHaveBeenCalledWith('AAPL,MSFT')
+    expect(mockGetPublishedComparador).toHaveBeenCalledWith('AAPL,MSFT')
   })
 
   it('keeps comparator query validation in the legacy 400 shape', async () => {
@@ -99,7 +109,7 @@ describe('Clareza comparator HTTP contract', () => {
     expect(absent.status).toBe(400)
     expect(absent.body).toEqual({ error: 'Indica ?symbols=AAPL,MSFT para comparar ou ?search=apple para pesquisar.' })
 
-    mockGetComparadorSymbols.mockRejectedValueOnce(new ComparadorPolicyError('EMPTY_SYMBOLS', 'Sem simbolos validos.'))
+    mockGetPublishedComparador.mockRejectedValueOnce(new CoreComparadorRequestError('invalid'))
     const invalid = await request(app).get('/comparador?symbols=invalid/ticker&__bo2_offline_loopback=1')
     expect(invalid.status).toBe(400)
     expect(invalid.body).toEqual({ error: 'Sem s\u00edmbolos v\u00e1lidos.' })
@@ -108,7 +118,7 @@ describe('Clareza comparator HTTP contract', () => {
   it('maps known comparator policy errors without exposing a forged message', async () => {
     const app = appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter })
 
-    mockGetComparadorSymbols.mockRejectedValueOnce(new ComparadorPolicyError('EMPTY_SYMBOLS', 'forged comparator detail'))
+    mockGetPublishedComparador.mockRejectedValueOnce(new CoreComparadorRequestError('forged comparator detail'))
     const read = await request(app).get('/comparador?symbols=invalid/ticker&__bo2_offline_loopback=1')
     expect(read.status).toBe(400)
     expect(read.body).toEqual({ error: 'Sem s\u00edmbolos v\u00e1lidos.' })
@@ -154,7 +164,7 @@ describe('Clareza comparator HTTP contract', () => {
       message: 'Serviço temporariamente indisponível', correlationId: 'comparador-unavailable',
     })
 
-    mockSearchComparador.mockRejectedValueOnce(new Error('secret token'))
+    mockSearchPublishedComparador.mockRejectedValueOnce(new Error('secret token'))
     const failed = await request(appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter }, 'comparador-failure'))
       .get('/comparador?search=apple&__bo2_offline_loopback=1')
     expectCentralError(failed, { code: 'CLAREZA_COMPARADOR_SEARCH_FAILED', message: 'Erro interno do servidor', correlationId: 'comparador-failure' })

@@ -18,6 +18,8 @@ describe('Clareza published core controller', () => {
       search: jest.fn().mockResolvedValue({ query: 'AAPL', count: 1, results: [] }),
       raiox: jest.fn().mockResolvedValue({ generationId: 'g1', ticker: 'AAPL' }),
       raioxSearch: jest.fn().mockResolvedValue({ query: 'APP', count: 1, results: [] }),
+      comparador: jest.fn().mockResolvedValue({ generationId: 'g1', count: 1, companies: [] }),
+      comparadorSearch: jest.fn().mockResolvedValue({ query: 'APP', count: 1, results: [] }),
     }
     const controller = createClarezaCoreController(dependencies)
     const radarResponse = responseDouble()
@@ -47,12 +49,14 @@ describe('Clareza published core controller', () => {
       carteira: jest.fn(), portfolioAnalysis: jest.fn(),
       search: jest.fn(),
       raiox: jest.fn(), raioxSearch: jest.fn(),
+      comparador: jest.fn(), comparadorSearch: jest.fn(),
     })
     const invalid = createClarezaCoreController({
       radar: jest.fn(), carteira: jest.fn(),
       portfolioAnalysis: jest.fn().mockRejectedValue(new RangeError('invalid')),
       search: jest.fn(),
       raiox: jest.fn(), raioxSearch: jest.fn(),
+      comparador: jest.fn(), comparadorSearch: jest.fn(),
     })
     const unavailableResponse = responseDouble()
     const invalidResponse = responseDouble()

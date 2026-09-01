@@ -7,10 +7,13 @@ import {
   getPublishedRadar,
   getPublishedRaiox,
   searchPublishedRaiox,
+  getPublishedComparador,
+  searchPublishedComparador,
 } from '../services/clareza/core/corePublished.runtime'
 import { CoreGenerationUnavailableError } from '../services/clareza/core/coreRadarProjection'
 import { searchPublishedCarteira } from '../services/clareza/core/coreCarteiraSearch.runtime'
 import { CoreRaioxAssetUnavailableError } from '../services/clareza/core/coreRaioxComposition'
+import { CoreComparadorRequestError } from '../services/clareza/core/coreComparadorProjection'
 
 interface ClarezaCoreControllerDependencies {
   readonly radar: typeof getPublishedRadar
@@ -19,6 +22,8 @@ interface ClarezaCoreControllerDependencies {
   readonly search: typeof searchPublishedCarteira
   readonly raiox: typeof getPublishedRaiox
   readonly raioxSearch: typeof searchPublishedRaiox
+  readonly comparador: typeof getPublishedComparador
+  readonly comparadorSearch: typeof searchPublishedComparador
 }
 
 const unavailable = (res: Response) => res.status(503).json({
@@ -32,6 +37,7 @@ export function createClarezaCoreController(dependencies: ClarezaCoreControllerD
   readonly search: RequestHandler
   readonly raiox: RequestHandler
   readonly raioxByTicker: RequestHandler
+  readonly comparador: RequestHandler
 } {
   return {
     radar: async (_req: Request, res: Response, next: NextFunction) => {
@@ -126,6 +132,36 @@ export function createClarezaCoreController(dependencies: ClarezaCoreControllerD
         return
       }
     },
+
+    comparador: async (req: Request, res: Response, next: NextFunction) => {
+      const isSearch = req.query.search !== undefined
+      try {
+        if (isSearch) {
+          const payload = await dependencies.comparadorSearch(String(req.query.search ?? ''))
+          res.setHeader('Cache-Control', 'public, max-age=600')
+          return res.json(payload)
+        }
+        if (req.query.symbols === undefined) {
+          return res.status(400).json({
+            error: 'Indica ?symbols=AAPL,MSFT para comparar ou ?search=apple para pesquisar.',
+          })
+        }
+        const payload = await dependencies.comparador(String(req.query.symbols ?? ''))
+        res.setHeader('Cache-Control', 'public, max-age=3600')
+        return res.json(payload)
+      } catch (error: unknown) {
+        if (error instanceof CoreGenerationUnavailableError) return unavailable(res)
+        if (error instanceof CoreComparadorRequestError || error instanceof RangeError) {
+          return res.status(400).json({ error: 'Sem símbolos válidos.' })
+        }
+        next(internalError(
+          'Erro interno do servidor',
+          isSearch ? 'CLAREZA_COMPARADOR_SEARCH_FAILED' : 'CLAREZA_COMPARADOR_READ_FAILED',
+          error,
+        ))
+        return
+      }
+    },
   }
 }
 
@@ -136,4 +172,6 @@ export const clarezaCoreController = createClarezaCoreController({
   search: searchPublishedCarteira,
   raiox: getPublishedRaiox,
   raioxSearch: searchPublishedRaiox,
+  comparador: getPublishedComparador,
+  comparadorSearch: searchPublishedComparador,
 })

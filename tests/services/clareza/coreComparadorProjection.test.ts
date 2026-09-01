@@ -13,15 +13,16 @@ describe('core Comparador projection', () => {
     { ticker: 'AAPL', gradesConsensus: { consensus: 'buy' }, priceTargetConsensus: { targetConsensus: 230 }, updatedAt: '2026-09-01T12:00:00.000Z' },
   ]
 
-  it('deduplicates symbols in request order and keeps core evaluation separate', () => {
+  it('deduplicates symbols and maps the exact PHP/HTML company contract', () => {
     const result = projectCoreComparison('asml.as,AAPL,ASML.AS', assets, consensus)
 
     expect(result.companies.map(company => company.ticker)).toEqual(['ASML.AS', 'AAPL'])
     expect(result.companies[0]).toMatchObject({ type: 'growth', currency: 'EUR', pe: null, analystConsensus: null })
     expect(result.companies[1]).toMatchObject({
-      price: 200, analystConsensus: { consensus: 'buy' },
-      priceTargetConsensus: { targetConsensus: 230 }, coreEvaluation: { verdict: 'justa' },
+      price: 200, analystConsensus: 'buy', targetConsensus: 230, upside: 15,
+      coreEvaluation: { verdict: 'justa' }, evaluation: { verdict: 'justa' },
     })
+    expect(result.companies[1]).not.toHaveProperty('priceTargetConsensus')
   })
 
   it('reports unknown and ineligible REIT symbols without collecting data', () => {

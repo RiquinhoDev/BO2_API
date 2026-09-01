@@ -609,7 +609,7 @@
       "missing",
       "results"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:58",
+    "evidence": "src/controllers/clarezaCore.controller.ts:71",
     "frontConsumer": null
   },
   {
@@ -624,7 +624,7 @@
       "universeVersion",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:46",
+    "evidence": "src/controllers/clarezaCore.controller.ts:59",
     "frontConsumer": null
   },
   {
@@ -644,7 +644,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:71",
+    "evidence": "src/controllers/clarezaCore.controller.ts:84",
     "frontConsumer": null
   },
   {
@@ -654,11 +654,12 @@
     "shapeKeys": [
       "companies",
       "count",
+      "generationId",
       "query",
-      "results",
-      "updated"
+      "rejected",
+      "results"
     ],
-    "evidence": "src/controllers/clarezaController.ts:307",
+    "evidence": "src/controllers/clarezaCore.controller.ts:142",
     "frontConsumer": null
   },
   {
@@ -694,7 +695,7 @@
       "universeVersion",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:34",
+    "evidence": "src/controllers/clarezaCore.controller.ts:47",
     "frontConsumer": null
   },
   {
@@ -702,11 +703,16 @@
     "path": "/api/clareza/raiox",
     "family": "public-document",
     "shapeKeys": [
+      "complementCoverage",
       "count",
+      "evaluation",
+      "generationId",
+      "inc",
       "query",
-      "results"
+      "results",
+      "ticker"
     ],
-    "evidence": "src/controllers/clarezaController.ts:163",
+    "evidence": "src/controllers/clarezaCore.controller.ts:98",
     "frontConsumer": null
   },
   {
@@ -738,8 +744,14 @@
     "method": "GET",
     "path": "/api/clareza/raiox/:ticker",
     "family": "public-document",
-    "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:144",
+    "shapeKeys": [
+      "complementCoverage",
+      "evaluation",
+      "generationId",
+      "inc",
+      "ticker"
+    ],
+    "evidence": "src/controllers/clarezaCore.controller.ts:124",
     "frontConsumer": null
   },
   {

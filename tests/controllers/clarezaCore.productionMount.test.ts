@@ -82,13 +82,15 @@ describe('Clareza core production mount offline dry-run', () => {
   const app = appForCentralError({ kind: 'router', mountPath: '/api/clareza', router: clarezaRouter })
 
   it('serves Radar, Carteira and bounded histories from one published Mongo generation', async () => {
-    const [radar, carteira, analysis, search, raiox, raioxSearch] = await Promise.all([
+    const [radar, carteira, analysis, search, raiox, raioxSearch, comparador, comparadorSearch] = await Promise.all([
       request(app).get('/api/clareza/radar?__bo2_offline_loopback=1').expect(200),
       request(app).get('/api/clareza/carteira/data?__bo2_offline_loopback=1').expect(200),
       request(app).get('/api/clareza/carteira/analysis?symbols=AAPL&__bo2_offline_loopback=1').expect(200),
       request(app).get('/api/clareza/carteira/search?q=APPLE.TEST&__bo2_offline_loopback=1').expect(200),
       request(app).get('/api/clareza/raiox?symbol=AAPL&__bo2_offline_loopback=1').expect(200),
       request(app).get('/api/clareza/raiox?search=app&__bo2_offline_loopback=1').expect(200),
+      request(app).get('/api/clareza/comparador?symbols=AAPL&__bo2_offline_loopback=1').expect(200),
+      request(app).get('/api/clareza/comparador?search=app&__bo2_offline_loopback=1').expect(200),
     ])
 
     expect(radar.body).toMatchObject({ generationId: 'dry-run-generation', count: 1 })
@@ -114,6 +116,14 @@ describe('Clareza core production mount offline dry-run', () => {
       sectorPe: [{ sector: 'Technology', pe: 25 }],
     })
     expect(raioxSearch.body).toMatchObject({
+      query: 'APP', count: 1, results: [{ symbol: 'AAPL', name: 'Apple' }],
+    })
+    expect(comparador.body).toMatchObject({
+      generationId: 'dry-run-generation', count: 1,
+      companies: [{ ticker: 'AAPL', price: 200, targetConsensus: null,
+        evaluation: { valuation: { score: 77 }, quality: { score: 77 } } }],
+    })
+    expect(comparadorSearch.body).toMatchObject({
       query: 'APP', count: 1, results: [{ symbol: 'AAPL', name: 'Apple' }],
     })
   })
