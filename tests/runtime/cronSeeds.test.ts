@@ -12,6 +12,7 @@ class InMemoryCronSeedRepository implements CronSeedRepositoryPort {
     name: string
     updates: CronSeedUpdate
   }> = []
+  readonly removed: string[] = []
 
   constructor(
     private readonly jobs = new Map<string, CronSeedState>(),
@@ -46,6 +47,11 @@ class InMemoryCronSeedRepository implements CronSeedRepositoryPort {
       ...(updates.ensureCreatedBy ? { hasCreatedBy: true } : {}),
     })
   }
+
+  async remove(name: string): Promise<void> {
+    this.removed.push(name)
+    this.jobs.delete(name)
+  }
 }
 
 test('creates both canonical seeds and initializes the scheduler once', async () => {
@@ -62,12 +68,12 @@ test('creates both canonical seeds and initializes the scheduler once', async ()
   await provision()
 
   expect(repository.created.map(seed => seed.name)).toEqual([
-    'ClarezaRefresh',
+    'ClarezaDailyRefresh',
     'GuruTrialCheck',
   ])
   expect(repository.created.map(seed => seed.schedule)).toEqual([
     {
-      cronExpression: '0 6 * * *',
+      cronExpression: '0 3 * * *',
       timezone: 'Europe/Lisbon',
       enabled: true,
     },
@@ -82,8 +88,8 @@ test('creates both canonical seeds and initializes the scheduler once', async ()
 
 test('does not write or reinitialize when canonical seeds already exist', async () => {
   const repository = new InMemoryCronSeedRepository(new Map([
-    ['ClarezaRefresh', {
-      cronExpression: '0 6 * * *',
+    ['ClarezaDailyRefresh', {
+      cronExpression: '0 3 * * *',
       timezone: 'Europe/Lisbon',
       hasCreatedBy: true,
     }],
@@ -110,7 +116,7 @@ test('does not write or reinitialize when canonical seeds already exist', async 
 
 test('repairs the Clareza schedule and audit owner through one repository update', async () => {
   const repository = new InMemoryCronSeedRepository(new Map([
-    ['ClarezaRefresh', {
+    ['ClarezaDailyRefresh', {
       cronExpression: '0 0 * * *',
       timezone: 'UTC',
       hasCreatedBy: false,
@@ -129,13 +135,30 @@ test('repairs the Clareza schedule and audit owner through one repository update
   })()
 
   expect(repository.updated).toEqual([{
-    name: 'ClarezaRefresh',
+    name: 'ClarezaDailyRefresh',
     updates: {
-      cronExpression: '0 6 * * *',
+      cronExpression: '0 3 * * *',
       timezone: 'Europe/Lisbon',
       ensureCreatedBy: true,
     },
   }])
+})
+
+test('removes the old Clareza scheduler only after the canonical job exists', async () => {
+  const repository = new InMemoryCronSeedRepository(new Map([
+    ['ClarezaRefresh', {
+      cronExpression: '0 6 * * *', timezone: 'Europe/Lisbon', hasCreatedBy: true,
+    }],
+  ]))
+
+  await createCronSeedProvisioner({
+    repository,
+    initializeScheduler: async () => undefined,
+    logError: () => undefined,
+  })()
+
+  expect(repository.created.map(seed => seed.name)).toContain('ClarezaDailyRefresh')
+  expect(repository.removed).toEqual(['ClarezaRefresh'])
 })
 
 test('logs scheduler refresh failure without aborting application startup', async () => {

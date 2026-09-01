@@ -20,7 +20,7 @@ import { createLoggingCronNotification } from './notificationPort'
 import { CronJobProvisioner } from './jobProvisioning'
 import logger from '../../../utils/logger'
 
-const PROTECTED_JOB_NAMES = new Set(['ClarezaRefresh'])
+const PROTECTED_JOB_NAMES = new Set(['ClarezaDailyRefresh'])
 
 // ─────────────────────────────────────────────────────────────
 // IN-MEMORY SCHEDULER REGISTRY
@@ -152,7 +152,7 @@ const job = await CronJobConfig.create({
     }
 
     if (this.isProtectedJob(job)) {
-      throw new Error('Job protegido: ClarezaRefresh e apenas leitura')
+      throw new Error('Job protegido: ClarezaDailyRefresh e apenas leitura')
     }
 
     // Atualizar campos
@@ -213,7 +213,7 @@ const job = await CronJobConfig.create({
     }
 
     if (this.isProtectedJob(job)) {
-      throw new Error('Job protegido: ClarezaRefresh nao pode ser apagado')
+      throw new Error('Job protegido: ClarezaDailyRefresh nao pode ser apagado')
     }
 
     // Cancelar schedule
@@ -241,7 +241,7 @@ const job = await CronJobConfig.create({
     }
 
     if (this.isProtectedJob(job)) {
-      throw new Error('Job protegido: ClarezaRefresh nao pode ser pausado')
+      throw new Error('Job protegido: ClarezaDailyRefresh nao pode ser pausado')
     }
 
     job.schedule.enabled = enabled
@@ -270,7 +270,7 @@ const job = await CronJobConfig.create({
     const job = await CronJobConfig.findById(jobId)
     if (!job) throw new Error('Job não encontrado')
     if (this.isProtectedJob(job)) {
-      throw new Error('Job protegido: ClarezaRefresh nao permite execucao manual')
+      throw new Error('Job protegido: ClarezaDailyRefresh nao permite execucao manual')
     }
 
     return this.jobExecutor.execute(job, {

@@ -51,6 +51,10 @@ class MongooseCronSeedRepository implements CronSeedRepositoryPort {
 
     await CronJobConfig.updateOne({ name }, { $set: set }).exec()
   }
+
+  async remove(name: string): Promise<void> {
+    await CronJobConfig.deleteOne({ name }).exec()
+  }
 }
 
 export const mongooseCronSeedRepository = new MongooseCronSeedRepository()

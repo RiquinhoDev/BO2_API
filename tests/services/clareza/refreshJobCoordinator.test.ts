@@ -66,6 +66,7 @@ describe('RefreshJobCoordinator', () => {
     })
     const resumed = new RefreshJobCoordinator(async context => {
       expect(context.completedItems).toEqual(['AAPL'])
+      expect(context.startedAt).toBe(new Date(1_000).toISOString())
       return resumedTask.promise
     }, undefined, store, {
       ownerId: () => 'owner-b', leaseMs: 100, heartbeatMs: 10_000, now: () => now,

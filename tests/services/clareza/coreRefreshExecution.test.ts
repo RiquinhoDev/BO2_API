@@ -75,6 +75,21 @@ describe('canonical core refresh execution', () => {
     })
   })
 
+  it('reuses the persisted run and candidate when the same owned execution resumes', async () => {
+    const fetchItem = jest.fn(async (asset: ClarezaAsset) => metrics(asset.ticker === 'AAPL' ? 100 : 200))
+    const execution = new CoreRefreshExecution({
+      runStore: new MongooseCoreCollectionRunStore(),
+      generationStore: new MongooseCoreGenerationStore(),
+      fetcher: { fetchItem }, universe, policy, batchSize: 1, leaseMs: 60_000,
+    })
+
+    await expect(execution.execute(baseInput)).resolves.toMatchObject({ status: 'published' })
+    await expect(execution.execute(baseInput)).resolves.toMatchObject({ status: 'published' })
+    expect(fetchItem).toHaveBeenCalledTimes(2)
+    await expect(ClarezaCoreGeneration.countDocuments({ generationId: 'generation-a' }))
+      .resolves.toBe(1)
+  })
+
   it('resumes persisted item data after lease expiry without refetching it', async () => {
     const runStore = new MongooseCoreCollectionRunStore()
     const firstRunner = new CoreCollectionRunner(runStore, async key => ({

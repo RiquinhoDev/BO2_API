@@ -50,7 +50,7 @@ const SPECIFIC_JOB_NAMES = [
   'RebuildDashboardStats',
   'CronExecutionCleanup',
   'WeeklyTagSnapshot',
-  'ClarezaRefresh',
+  'ClarezaDailyRefresh',
   'GuruTrialCheck',
   'RenewalOfferSync',
   'AchievementEvaluation',
@@ -245,7 +245,7 @@ export class CronJobDispatcher {
     if (name.includes('RebuildDashboardStats')) return this.dependencies.rebuildDashboardStats
     if (name.includes('CronExecutionCleanup')) return this.dependencies.cleanupExecutions
     if (name.includes('WeeklyTagSnapshot')) return this.dependencies.weeklyTagSnapshot
-    if (name.includes('ClarezaRefresh')) return this.dependencies.clarezaRefresh
+    if (name.includes('ClarezaDailyRefresh')) return this.dependencies.clarezaRefresh
     if (name.includes('GuruTrialCheck')) return this.dependencies.guruTrialCheck
     return undefined
   }
