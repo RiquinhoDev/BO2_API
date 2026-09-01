@@ -991,6 +991,25 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/suggestions/admin",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/clarezaSuggestionAdmin.controller.ts:32",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/suggestions/admin/export",
+    "family": "stream-or-file",
+    "shapeKeys": [],
+    "evidence": "mixed success exits (no-content, stream-or-file); src/controllers/clarezaSuggestionAdmin.controller.ts:51",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/top10",
     "family": "public-document",
     "shapeKeys": [],
