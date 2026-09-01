@@ -4,6 +4,14 @@ export interface IClarezaCarteiraMetrics {
   price: number | null
   change: number | null
   perf12m: number | null
+  chgDay?: number | null
+  chgWeek?: number | null
+  chgMonth?: number | null
+  marketCap?: number | null
+  beta?: number | null
+  range?: string | null
+  country?: string | null
+  industry?: string | null
   pe?: number | null
   peg?: number | null
   ps?: number | null
@@ -19,6 +27,19 @@ export interface IClarezaCarteiraMetrics {
   debtEbitda?: number | null
   revenueGrowth?: number | null
   perf3m?: number | null
+  roic?: number | null
+  interestCoverage?: number | null
+  fcfConversion?: number | null
+  growthYears?: number | null
+  latestFiscalYear?: string | null
+  revenueYoY?: number | null
+  epsYoY?: number | null
+  epsTurnaround?: boolean
+  histMedians?: Readonly<Record<string, number | null>>
+  epsCagr?: number | null
+  revenueCagr?: number | null
+  dcf?: number | null
+  marginStability?: number | null
   pFfo?: number | null
   ffoYield?: number | null
   ffoPayoutRatio?: number | null
