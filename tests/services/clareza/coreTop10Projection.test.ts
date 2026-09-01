@@ -2,7 +2,7 @@ import { projectCoreTop10 } from '../../../src/services/clareza/core/coreTop10Pr
 
 describe('core Top 10 projection', () => {
   const source = {
-    generationId: 'generation-a', dataVersion: 'data-a', createdAt: new Date('2026-09-01T12:00:00.000Z'),
+    generationId: 'generation-a', universeVersion: 'universe-a', dataVersion: 'data-a', createdAt: new Date('2026-09-01T12:00:00.000Z'),
     assets: [
       { ticker: 'AAPL', name: 'Apple', kind: 'stock' as const, data: { price: 200, currency: 'USD', isActivelyTrading: true } },
       { ticker: 'ASML.AS', name: 'ASML', kind: 'stock' as const, data: { price: 900, currency: 'EUR', isActivelyTrading: true } },
@@ -12,38 +12,40 @@ describe('core Top 10 projection', () => {
 
   it('validates editorial aliases against the universe and emits flat common data with history', () => {
     const payload = projectCoreTop10(source, [
-      { key: 'ASML', canonicalTicker: 'ASML.AS' },
-      { key: 'AAPL', canonicalTicker: 'AAPL' },
+      { key: 'ASML', canonicalTicker: 'ASML.AS', currency: '€' },
+      { key: 'AAPL', canonicalTicker: 'AAPL', currency: '$' },
     ], [
       { ticker: 'ASML.AS', points: [{ date: '2026-08-31', close: 890 }, { date: 'bad', close: 1 }] },
       { ticker: 'AAPL', points: [{ date: '2026-08-31', close: 198 }] },
     ], 'Q3 2026')
 
-    expect(payload).toMatchObject({ generationId: 'generation-a', dataVersion: 'data-a', revision: 'Q3 2026' })
+    expect(payload).toMatchObject({
+      generationId: 'generation-a', universeVersion: 'universe-a', dataVersion: 'data-a',
+      revision: 'Q3 2026', coverage: { selected: 2, available: 2, missing: [] },
+    })
     expect(Object.keys(payload.stocks)).toEqual(['ASML', 'AAPL'])
     expect(payload.stocks.ASML).toEqual(expect.objectContaining({
-      ticker: 'ASML.AS', editorialTicker: 'ASML', currency: 'EUR', price: 900,
+      currency: '€', price: 900,
       historical: [{ date: '2026-08-31', close: 890 }],
     }))
   })
 
-  it('rejects missing and unvalidated non-tradable selections without manual quote fallbacks', () => {
+  it('keeps a known editorial asset explicit without inventing a manual quote fallback', () => {
     const payload = projectCoreTop10(source, [
-      { key: 'SPCX', canonicalTicker: 'SPCX' },
-      { key: 'UNKNOWN', canonicalTicker: 'MISSING' },
+      { key: 'SPCX', canonicalTicker: 'SPCX', currency: '$' },
+      { key: 'UNKNOWN', canonicalTicker: 'MISSING', currency: '$' },
     ], [], 'Q3 2026')
 
-    expect(payload.stocks).toEqual({})
+    expect(payload.stocks.SPCX).toEqual(expect.objectContaining({ price: 160, historical: [], isPrivate: false }))
     expect(payload.rejected).toEqual([
-      { key: 'SPCX', canonicalTicker: 'SPCX', reason: 'not-tradable' },
       { key: 'UNKNOWN', canonicalTicker: 'MISSING', reason: 'unknown-symbol' },
     ])
   })
 
   it('rejects duplicate editorial keys and duplicate canonical selections', () => {
     expect(() => projectCoreTop10(source, [
-      { key: 'APPLE', canonicalTicker: 'AAPL' },
-      { key: 'AAPL', canonicalTicker: 'AAPL' },
+      { key: 'APPLE', canonicalTicker: 'AAPL', currency: '$' },
+      { key: 'AAPL', canonicalTicker: 'AAPL', currency: '$' },
     ], [], 'Q3 2026')).toThrow('duplicate canonical')
   })
 })

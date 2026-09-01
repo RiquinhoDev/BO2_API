@@ -25,6 +25,7 @@ jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
   getPublishedComparador: jest.fn(),
   searchPublishedComparador: mockSearchPublishedComparador,
   getPublishedEarnings: jest.fn(),
+  getPublishedTop10: jest.fn(),
 }))
 
 jest.mock('../../src/security/clarezaRefreshAuthorization', () => ({

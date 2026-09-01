@@ -75,6 +75,7 @@ jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
   getPublishedComparador: mockGetPublishedComparador,
   searchPublishedComparador: mockSearchPublishedComparador,
   getPublishedEarnings: mockGetClarezaEarningsData,
+  getPublishedTop10: mockGetClarezaTop10Json,
 }))
 
 const mockTestimonialAggregate: AsyncBoundaryMock = jest.fn()

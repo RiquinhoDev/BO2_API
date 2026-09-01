@@ -21,7 +21,7 @@ router.get('/reit/:ticker', asyncRoute(clarezaController.getReit))
 router.get('/stock/:ticker', asyncRoute(clarezaController.getStock))
 
 // Endpoint público — chamado pelo HTML Top 10 Ações da Equipa
-router.get('/top10', asyncRoute(clarezaController.getTop10))
+router.get('/top10', asyncRoute(clarezaCoreController.top10))
 
 // Refresh manual do Top 10 — mesmo token que /refresh
 router.post('/top10/refresh', asyncRoute(clarezaController.refreshTop10))

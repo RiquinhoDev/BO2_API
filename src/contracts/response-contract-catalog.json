@@ -609,7 +609,7 @@
       "missing",
       "results"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:74",
+    "evidence": "src/controllers/clarezaCore.controller.ts:77",
     "frontConsumer": null
   },
   {
@@ -624,7 +624,7 @@
       "universeVersion",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:62",
+    "evidence": "src/controllers/clarezaCore.controller.ts:65",
     "frontConsumer": null
   },
   {
@@ -644,7 +644,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:87",
+    "evidence": "src/controllers/clarezaCore.controller.ts:90",
     "frontConsumer": null
   },
   {
@@ -659,7 +659,7 @@
       "rejected",
       "results"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:145",
+    "evidence": "src/controllers/clarezaCore.controller.ts:148",
     "frontConsumer": null
   },
   {
@@ -684,7 +684,7 @@
       "updated",
       "window"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:173",
+    "evidence": "src/controllers/clarezaCore.controller.ts:176",
     "frontConsumer": null
   },
   {
@@ -699,7 +699,7 @@
       "universeVersion",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:50",
+    "evidence": "src/controllers/clarezaCore.controller.ts:53",
     "frontConsumer": null
   },
   {
@@ -716,7 +716,7 @@
       "results",
       "ticker"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:101",
+    "evidence": "src/controllers/clarezaCore.controller.ts:104",
     "frontConsumer": null
   },
   {
@@ -755,7 +755,7 @@
       "inc",
       "ticker"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:127",
+    "evidence": "src/controllers/clarezaCore.controller.ts:130",
     "frontConsumer": null
   },
   {
@@ -1046,8 +1046,18 @@
     "method": "GET",
     "path": "/api/clareza/top10",
     "family": "public-document",
-    "shapeKeys": [],
-    "evidence": "src/controllers/clarezaController.ts:67",
+    "shapeKeys": [
+      "coverage",
+      "dataVersion",
+      "generationId",
+      "rejected",
+      "revision",
+      "source",
+      "stocks",
+      "universeVersion",
+      "updated"
+    ],
+    "evidence": "src/controllers/clarezaCore.controller.ts:188",
     "frontConsumer": null
   },
   {

@@ -6,6 +6,9 @@ import { MongooseCoreRaioxCompanionStore } from './coreRaioxCompanionStore'
 import { createCoreComparadorRuntime } from './coreComparadorRuntime'
 import { createCoreEarningsRuntime } from './coreEarningsRuntime'
 import { MongooseCoreEarningsCompanionStore } from './coreEarningsCompanionStore'
+import { createCoreTop10Runtime } from './coreTop10Runtime'
+import { MongooseCoreTop10CompanionStore } from './coreTop10CompanionStore'
+import { CORE_TOP10_REVISION, CORE_TOP10_SELECTIONS } from './coreTop10Selection'
 
 const runtime = createCorePublishedRuntime({
   store: new MongooseCoreGenerationStore(),
@@ -42,3 +45,13 @@ const earningsRuntime = createCoreEarningsRuntime({
 })
 
 export const getPublishedEarnings = earningsRuntime.read
+
+const top10Runtime = createCoreTop10Runtime({
+  generationStore: new MongooseCoreGenerationStore(),
+  companionStore: new MongooseCoreTop10CompanionStore(),
+  universe: CLAREZA_UNIVERSE,
+  selections: CORE_TOP10_SELECTIONS,
+  revision: CORE_TOP10_REVISION,
+})
+
+export const getPublishedTop10 = top10Runtime.read
