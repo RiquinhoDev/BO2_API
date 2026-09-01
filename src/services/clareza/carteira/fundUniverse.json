@@ -1806,12 +1806,6 @@
     "sector": "ETF"
   },
   {
-    "ticker": "IUVF.L",
-    "name": "iShares Edge MSCI USA Value Factor UCITS ETF",
-    "type": "etf",
-    "sector": "ETF"
-  },
-  {
     "ticker": "IVOA.MI",
     "name": "iShares iBonds Dec 2028 Term EUR Corporate UCITS ETF EUR (Acc)",
     "type": "etf",

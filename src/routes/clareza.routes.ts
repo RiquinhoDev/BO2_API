@@ -2,11 +2,13 @@ import { Router } from 'express'
 import { clarezaController } from '../controllers/clarezaController'
 import { asyncRoute } from '../security/asyncRoute'
 import { submitClarezaSuggestion } from '../controllers/clarezaSuggestion.controller'
+import { clarezaCoreController } from '../controllers/clarezaCore.controller'
 
 const router = Router()
 
 // Endpoint público — chamado pelo tremómetro HTML
 router.get('/data', asyncRoute(clarezaController.getData))
+router.get('/radar', asyncRoute(clarezaCoreController.radar))
 
 // Refresh manual — protegido por api_key no header (verificado via CORS + allowedHeaders)
 router.post('/refresh', asyncRoute(clarezaController.refresh))
@@ -35,9 +37,11 @@ router.post('/raiox/refresh', asyncRoute(clarezaController.refreshRaiox))
 
 
 // Endpoint publico - Raio-X da Carteira
-router.get('/carteira/data', asyncRoute(clarezaController.getCarteira))
+router.get('/carteira/data', asyncRoute(clarezaCoreController.carteira))
+router.get('/carteira/legacy-data', asyncRoute(clarezaController.getCarteira))
 router.get('/carteira-search', asyncRoute(clarezaController.searchCarteira))
 router.get('/carteira/search', asyncRoute(clarezaController.searchCarteira))
+router.get('/carteira/analysis', asyncRoute(clarezaCoreController.portfolioAnalysis))
 router.post('/carteira/refresh', asyncRoute(clarezaController.refreshCarteira))
 // Endpoint publico - Calendario de Resultados
 router.get('/earnings/data', asyncRoute(clarezaController.getEarnings))

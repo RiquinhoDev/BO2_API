@@ -7,6 +7,9 @@ import { AxiosFmpCarteiraClient, type FmpCarteiraHttpPort } from './fmpCarteiraC
 import { CarteiraMetricsFetcher, type Clock } from './carteiraMetrics'
 import { RedisMongoCarteiraStore } from './carteiraStore'
 import { ClarezaCarteiraService } from './carteira.service'
+import { CLAREZA_UNIVERSE, CLAREZA_UNIVERSE_SOURCE } from '../universe/clarezaUniverse.catalog'
+import { MongooseCoreGenerationStore } from '../core/coreGenerationStore'
+import { publishCarteiraSnapshot } from '../core/coreSnapshotBridge'
 
 export const CLAREZA_CARTEIRA_CACHE_KEY = 'clareza:carteira-data'
 export const CLAREZA_CARTEIRA_CACHE_TTL = 28800 // 8 hours
@@ -45,8 +48,25 @@ function getService(): ClarezaCarteiraService {
   return service
 }
 
-export function refreshClarezaCarteiraData(): Promise<{ total: number; errors: number }> {
-  return getService().refresh()
+export async function refreshClarezaCarteiraData(): Promise<{
+  total: number
+  errors: number
+  generationId: string
+}> {
+  const result = await getService().refresh()
+  const items = await getService().getData()
+  if (!items) throw new Error('Carteira refresh completed without a readable snapshot')
+  const publication = await publishCarteiraSnapshot({
+    items,
+    universe: CLAREZA_UNIVERSE,
+    store: new MongooseCoreGenerationStore(),
+    now: clock.now(),
+    universeVersion: `sha256:${CLAREZA_UNIVERSE_SOURCE.sha256}`,
+  })
+  if (publication.status !== 'published') {
+    throw new Error(`Carteira core publication failed: ${publication.status}`)
+  }
+  return { ...result, generationId: publication.currentGenerationId }
 }
 
 export function getClarezaCarteiraData(): Promise<IClarezaCarteiraItem[] | null> {
