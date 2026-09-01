@@ -205,7 +205,15 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/carteira/analysis"
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/carteira/data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/carteira/legacy-data"
   },
   {
     "method": "GET",
@@ -222,6 +230,10 @@
   {
     "method": "GET",
     "path": "/api/clareza/earnings/data"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/radar"
   },
   {
     "method": "GET",

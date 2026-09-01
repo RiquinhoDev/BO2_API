@@ -146,7 +146,7 @@ describe('CarteiraMetricsFetcher — known debt', () => {
   it('DEBT: a total FMP outage (client returns null) yields empty metrics without throwing', async () => {
     // The client turns every FMP failure into null and the fetcher maps that to
     // a fully-null metrics object, never throwing. So a complete outage is
-    // reported by refresh as errors:0 / itemCount:731. This is pinned as known
+    // reported by refresh as errors:0 / itemCount:730. This is pinned as known
     // debt on purpose — fixing the semantic (distinguish "no data" from
     // "unavailable") is a separate commit, not this characterization.
     const { client } = clientReturning({}) // every path -> null

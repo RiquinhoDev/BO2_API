@@ -602,10 +602,30 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/carteira/analysis",
+    "family": "public-document",
+    "shapeKeys": [
+      "generationId",
+      "missing",
+      "results"
+    ],
+    "evidence": "src/controllers/clarezaCore.controller.ts:55",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/carteira/data",
     "family": "public-document",
     "shapeKeys": [],
     "evidence": "src/controllers/clarezaController.ts:235",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/carteira/legacy-data",
+    "family": "public-document",
+    "shapeKeys": [],
+    "evidence": "src/controllers/clarezaController.ts:236",
     "frontConsumer": null
   },
   {
@@ -653,6 +673,21 @@
       "window"
     ],
     "evidence": "src/controllers/clarezaController.ts:260",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/radar",
+    "family": "public-document",
+    "shapeKeys": [
+      "count",
+      "dataVersion",
+      "generationId",
+      "stocks",
+      "universeVersion",
+      "updated"
+    ],
+    "evidence": "src/controllers/clarezaCore.controller.ts:31",
     "frontConsumer": null
   },
   {
