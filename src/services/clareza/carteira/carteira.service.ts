@@ -51,7 +51,7 @@ export class ClarezaCarteiraService {
   constructor(
     private readonly fetcher: Pick<CarteiraMetricsFetcher, 'fetchItem'>,
     private readonly store: CarteiraStore,
-    private readonly universe: CarteiraItem[],
+    private readonly universe: readonly CarteiraItem[],
     private readonly clock: Clock,
     private readonly config: CarteiraServiceConfig,
   ) {}

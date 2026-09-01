@@ -10,16 +10,17 @@ import { CLAREZA_UNIVERSE } from '../../../src/services/clareza/universe/clareza
 // JSON. Doubles as the dead-data audit: the catalogs must stay unique, valid,
 // and completely typed — no duplicates, no malformed tickers, no empty fields.
 describe('Carteira universe data', () => {
-  it('keeps the expected catalog sizes', () => {
-    expect(STOCK_UNIVERSE).toHaveLength(205)
-    expect(FUND_UNIVERSE).toHaveLength(510)
+  it('derives the complete portfolio universe from the canonical Clareza catalog', () => {
+    expect(STOCK_UNIVERSE).toHaveLength(347)
+    expect(FUND_UNIVERSE).toHaveLength(517)
     expect(CRYPTO_UNIVERSE).toHaveLength(15)
-    expect(UNIVERSE).toHaveLength(730)
+    expect(UNIVERSE).toHaveLength(879)
+    expect(UNIVERSE).toEqual(CLAREZA_UNIVERSE)
   })
 
   it('assigns the correct kind per source catalog', () => {
-    expect(UNIVERSE.filter((i) => i.kind === 'stock')).toHaveLength(205)
-    expect(UNIVERSE.filter((i) => i.kind === 'fund')).toHaveLength(510)
+    expect(UNIVERSE.filter((i) => i.kind === 'stock')).toHaveLength(347)
+    expect(UNIVERSE.filter((i) => i.kind === 'fund')).toHaveLength(517)
     expect(UNIVERSE.filter((i) => i.kind === 'crypto')).toHaveLength(15)
   })
 
@@ -30,9 +31,10 @@ describe('Carteira universe data', () => {
     expect(duplicates).toEqual([])
   })
 
-  it('is a strict subset of the canonical Clareza core universe', () => {
-    const canonical = new Set(CLAREZA_UNIVERSE.map(item => item.ticker))
-    expect(UNIVERSE.filter(item => !canonical.has(item.ticker)).map(item => item.ticker)).toEqual([])
+  it('has no second runtime catalog outside the canonical Clareza universe', () => {
+    expect(UNIVERSE.map(item => item.ticker)).toEqual(
+      CLAREZA_UNIVERSE.map(item => item.ticker),
+    )
   })
 
   it('has valid, fully populated entries', () => {

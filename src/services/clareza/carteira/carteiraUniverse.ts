@@ -1,19 +1,13 @@
-// Canonical Clareza Carteira universe: static catalog data (the stock/fund/crypto
-// JSON files) assembled into a typed list. Data only — no I/O, no logic.
-import stockUniverse from './stockUniverse.json'
-import fundUniverse from './fundUniverse.json'
-import cryptoUniverse from './cryptoUniverse.json'
+import { CLAREZA_UNIVERSE } from '../universe/clarezaUniverse.catalog'
+import type { ClarezaAsset } from '../universe/clarezaUniverse.types'
 
-export type CarteiraKind = 'stock' | 'fund' | 'crypto'
-export type CarteiraUniverseItem = { ticker: string; name: string; type: string; sector: string }
-export type CarteiraItem = CarteiraUniverseItem & { kind: CarteiraKind }
+export type CarteiraKind = ClarezaAsset['kind']
+export type CarteiraUniverseItem = Pick<ClarezaAsset, 'ticker' | 'name' | 'type' | 'sector'>
+export type CarteiraItem = CarteiraUniverseItem & Pick<ClarezaAsset, 'kind'>
 
-export const STOCK_UNIVERSE = stockUniverse as CarteiraUniverseItem[]
-export const FUND_UNIVERSE = fundUniverse as CarteiraUniverseItem[]
-export const CRYPTO_UNIVERSE = cryptoUniverse as CarteiraUniverseItem[]
-
-export const UNIVERSE: CarteiraItem[] = [
-  ...STOCK_UNIVERSE.map((item) => ({ ...item, kind: 'stock' as const })),
-  ...FUND_UNIVERSE.map((item) => ({ ...item, kind: 'fund' as const })),
-  ...CRYPTO_UNIVERSE.map((item) => ({ ...item, kind: 'crypto' as const })),
-]
+// Compatibility views derived from the single canonical catalog. They contain
+// no independent data and can be removed when their remaining imports migrate.
+export const STOCK_UNIVERSE = CLAREZA_UNIVERSE.filter((item) => item.kind === 'stock')
+export const FUND_UNIVERSE = CLAREZA_UNIVERSE.filter((item) => item.kind === 'fund')
+export const CRYPTO_UNIVERSE = CLAREZA_UNIVERSE.filter((item) => item.kind === 'crypto')
+export const UNIVERSE: readonly CarteiraItem[] = CLAREZA_UNIVERSE
