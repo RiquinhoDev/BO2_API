@@ -433,7 +433,7 @@
   },
   {
     "identity": "GET /api/clareza/carteira/search",
-    "owner": "src/controllers/clarezaController.ts",
+    "owner": "src/controllers/clarezaCore.controller.ts",
     "currentFamily": "public-document",
     "targetFamily": "public-document",
     "frontConsumer": null,
