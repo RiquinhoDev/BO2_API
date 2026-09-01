@@ -19,6 +19,8 @@ const mockGetComparadorSymbols = jest.fn<Promise<unknown>, [string]>()
 const mockSearchComparador = jest.fn<Promise<unknown>, [string]>()
 const mockGetPublishedCarteira = jest.fn<Promise<unknown>, []>()
 const mockSearchPublishedCarteira = jest.fn<Promise<unknown>, [string]>()
+const mockGetPublishedRaiox = jest.fn<Promise<unknown>, [string]>()
+const mockSearchPublishedRaiox = jest.fn<Promise<unknown>, [string]>()
 
 jest.mock('../../src/services/clareza/clarezaFmpService', () => ({
   getClarezaData: mockGetClarezaData,
@@ -58,6 +60,8 @@ jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
   getPublishedRadar: jest.fn(),
   getPublishedCarteira: mockGetPublishedCarteira,
   getPublishedPortfolioAnalysis: jest.fn(),
+  getPublishedRaiox: mockGetPublishedRaiox,
+  searchPublishedRaiox: mockSearchPublishedRaiox,
 }))
 jest.mock('../../src/services/clareza/core/coreCarteiraSearch.runtime', () => ({
   searchPublishedCarteira: mockSearchPublishedCarteira,
@@ -108,9 +112,9 @@ function configureDocument(path: string, body: unknown, rawBody: string | null):
   } else if (path.startsWith('/raiox-search')) {
     mockSearchRaiox.mockResolvedValueOnce(body)
   } else if (path.startsWith('/raiox?search=')) {
-    mockSearchRaiox.mockResolvedValueOnce(body)
+    mockSearchPublishedRaiox.mockResolvedValueOnce(body)
   } else if (path.startsWith('/raiox')) {
-    mockGetRaioxJson.mockResolvedValueOnce(rawBody ?? JSON.stringify(body))
+    mockGetPublishedRaiox.mockResolvedValueOnce(body)
   } else if (path === '/carteira/data') {
     mockGetPublishedCarteira.mockResolvedValueOnce(body)
   } else if (path.startsWith('/carteira-search')) {

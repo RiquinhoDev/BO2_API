@@ -16,6 +16,8 @@ describe('Clareza published core controller', () => {
       carteira: jest.fn(),
       portfolioAnalysis: jest.fn().mockResolvedValue({ generationId: 'g1', results: {}, missing: [] }),
       search: jest.fn().mockResolvedValue({ query: 'AAPL', count: 1, results: [] }),
+      raiox: jest.fn().mockResolvedValue({ generationId: 'g1', ticker: 'AAPL' }),
+      raioxSearch: jest.fn().mockResolvedValue({ query: 'APP', count: 1, results: [] }),
     }
     const controller = createClarezaCoreController(dependencies)
     const radarResponse = responseDouble()
@@ -32,6 +34,10 @@ describe('Clareza published core controller', () => {
     await controller.search({ query: { q: 'aapl' } } as unknown as Request, searchResponse, jest.fn())
     expect(dependencies.search).toHaveBeenCalledWith('aapl')
     expect(searchResponse.setHeader).toHaveBeenCalledWith('Cache-Control', 'public, max-age=600')
+    const raioxResponse = responseDouble()
+    await controller.raiox({ query: { symbol: 'aapl' } } as unknown as Request, raioxResponse, jest.fn())
+    expect(dependencies.raiox).toHaveBeenCalledWith('aapl')
+    expect(raioxResponse.json).toHaveBeenCalledWith({ generationId: 'g1', ticker: 'AAPL' })
   })
 
   it('maps missing generations to 503 and invalid symbols to 400', async () => {
@@ -40,11 +46,13 @@ describe('Clareza published core controller', () => {
       radar: jest.fn().mockRejectedValue(new CoreGenerationUnavailableError()),
       carteira: jest.fn(), portfolioAnalysis: jest.fn(),
       search: jest.fn(),
+      raiox: jest.fn(), raioxSearch: jest.fn(),
     })
     const invalid = createClarezaCoreController({
       radar: jest.fn(), carteira: jest.fn(),
       portfolioAnalysis: jest.fn().mockRejectedValue(new RangeError('invalid')),
       search: jest.fn(),
+      raiox: jest.fn(), raioxSearch: jest.fn(),
     })
     const unavailableResponse = responseDouble()
     const invalidResponse = responseDouble()

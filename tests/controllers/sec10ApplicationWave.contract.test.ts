@@ -18,6 +18,9 @@ const mockSearchRaiox: AsyncBoundaryMock = jest.fn()
 const mockStartRaioxRefresh: AsyncBoundaryMock = jest.fn()
 const mockReadRaioxRefreshStatus: AsyncBoundaryMock = jest.fn()
 const mockDiagnoseRaiox: AsyncBoundaryMock = jest.fn()
+const mockGetPublishedRaiox: AsyncBoundaryMock = jest.fn()
+const mockSearchPublishedRaiox: AsyncBoundaryMock = jest.fn()
+const mockGetPublishedCarteira: AsyncBoundaryMock = jest.fn()
 const mockGetClarezaCarteiraData: AsyncBoundaryMock = jest.fn()
 const mockSearchCarteira: AsyncBoundaryMock = jest.fn()
 const mockRefreshClarezaCarteiraData: AsyncBoundaryMock = jest.fn()
@@ -59,6 +62,14 @@ jest.mock('../../src/services/clareza/carteira/carteira.runtime', () => ({
 jest.mock('../../src/services/clareza/clarezaEarningsService', () => ({
   getClarezaEarningsData: mockGetClarezaEarningsData,
   refreshClarezaEarningsData: mockRefreshClarezaEarningsData,
+}))
+
+jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
+  getPublishedRadar: jest.fn(),
+  getPublishedCarteira: mockGetPublishedCarteira,
+  getPublishedPortfolioAnalysis: jest.fn(),
+  getPublishedRaiox: mockGetPublishedRaiox,
+  searchPublishedRaiox: mockSearchPublishedRaiox,
 }))
 
 const mockTestimonialAggregate: AsyncBoundaryMock = jest.fn()
@@ -143,12 +154,12 @@ const clarezaOperations: ClarezaOperation[] = [
   { name: 'read stock analysis', method: 'get', path: '/stock/AAPL', dependency: mockGetStockAnalysis, code: 'CLAREZA_STOCK_READ_FAILED', message: 'Erro interno do servidor' },
   { name: 'read Top 10', method: 'get', path: '/top10', dependency: mockGetClarezaTop10Json, code: 'CLAREZA_TOP10_READ_FAILED', message: 'Erro interno do servidor' },
   { name: 'refresh Top 10', method: 'post', path: '/top10/refresh', dependency: mockRefreshClarezaTop10Data, code: 'CLAREZA_TOP10_REFRESH_FAILED', message: 'Erro interno do servidor' },
-  { name: 'read Raio-X query', method: 'get', path: '/raiox?symbol=AAPL', dependency: mockGetRaioxJson, code: 'CLAREZA_RAIOX_READ_FAILED', message: 'Erro interno do servidor' },
-  { name: 'search Raio-X query', method: 'get', path: '/raiox?search=apple', dependency: mockSearchRaiox, code: 'CLAREZA_RAIOX_SEARCH_FAILED', message: 'Erro interno do servidor' },
+  { name: 'read Raio-X query', method: 'get', path: '/raiox?symbol=AAPL', dependency: mockGetPublishedRaiox, code: 'CLAREZA_RAIOX_READ_FAILED', message: 'Erro interno do servidor' },
+  { name: 'search Raio-X query', method: 'get', path: '/raiox?search=apple', dependency: mockSearchPublishedRaiox, code: 'CLAREZA_RAIOX_SEARCH_FAILED', message: 'Erro interno do servidor' },
   { name: 'search Raio-X', method: 'get', path: '/raiox-search?q=apple', dependency: mockSearchRaiox, code: 'CLAREZA_RAIOX_SEARCH_FAILED', message: 'Erro interno do servidor' },
   { name: 'diagnose Raio-X', method: 'get', path: '/raiox-diagnose', dependency: mockDiagnoseRaiox, code: 'CLAREZA_RAIOX_DIAGNOSE_FAILED', message: 'Erro interno do servidor' },
-  { name: 'read Raio-X ticker', method: 'get', path: '/raiox/AAPL', dependency: mockGetRaioxJson, code: 'CLAREZA_RAIOX_READ_FAILED', message: 'Erro interno do servidor' },
-  { name: 'read portfolio', method: 'get', path: '/carteira/data', dependency: mockGetClarezaCarteiraData, code: 'CLAREZA_CARTEIRA_READ_FAILED', message: 'Erro interno do servidor' },
+  { name: 'read Raio-X ticker', method: 'get', path: '/raiox/AAPL', dependency: mockGetPublishedRaiox, code: 'CLAREZA_RAIOX_READ_FAILED', message: 'Erro interno do servidor' },
+  { name: 'read portfolio', method: 'get', path: '/carteira/data', dependency: mockGetPublishedCarteira, code: 'CLAREZA_CARTEIRA_READ_FAILED', message: 'Erro interno do servidor' },
   { name: 'search portfolio', method: 'get', path: '/carteira-search?q=apple', dependency: mockSearchCarteira, code: 'CLAREZA_CARTEIRA_SEARCH_FAILED', message: 'Erro interno do servidor' },
   { name: 'refresh portfolio', method: 'post', path: '/carteira/refresh', dependency: mockRefreshClarezaCarteiraData, code: 'CLAREZA_CARTEIRA_REFRESH_FAILED', message: 'Erro interno do servidor' },
   { name: 'read earnings', method: 'get', path: '/earnings/data', dependency: mockGetClarezaEarningsData, code: 'CLAREZA_EARNINGS_READ_FAILED', message: 'Erro interno do servidor' },
@@ -366,7 +377,8 @@ describe('SEC-10 remaining application wave', () => {
     })
 
     it('preserves typed not-found handling without leaking through the central boundary', async () => {
-      mockGetRaioxJson.mockRejectedValueOnce(new Error('Ticker nao encontrado'))
+      const { CoreRaioxAssetUnavailableError } = await import('../../src/services/clareza/core/coreRaioxComposition')
+      mockGetPublishedRaiox.mockRejectedValueOnce(new CoreRaioxAssetUnavailableError())
       const response = await request(appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter }))
         .get('/raiox/MISSING' + offline)
 

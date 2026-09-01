@@ -9,6 +9,7 @@ const modelLoaders = [
   () => import('../models/ClarezaCarteiraData'),
   () => import('../models/ClarezaEarningsData'),
   () => import('../models/ClarezaMarketData'),
+  () => import('../models/ClarezaCoreRaioxCompanion'),
   () => import('../models/ClarezaRaioxData'),
   () => import('../models/ClarezaTop10Data'),
   () => import('../models/Class'),
