@@ -8,6 +8,7 @@ import { createHttpPerimeter } from '../../src/security/httpPerimeter'
 import { configureJwt, signAppToken } from '../../src/security/jwt'
 
 const mockSearchComparador = jest.fn()
+const mockSearchPublishedComparador = jest.fn()
 const mockRefreshClarezaComparadorData = jest.fn()
 const mockIsClarezaRefreshAuthorized = jest.fn<boolean, [string]>()
 
@@ -16,6 +17,13 @@ jest.mock('../../src/services/clareza/comparador/comparador.runtime', () => ({
   searchComparador: mockSearchComparador,
   refreshComparadorSymbols: jest.fn(),
   refreshClarezaComparadorData: mockRefreshClarezaComparadorData,
+}))
+
+jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
+  getPublishedRadar: jest.fn(), getPublishedCarteira: jest.fn(), getPublishedPortfolioAnalysis: jest.fn(),
+  getPublishedPortfolioHistory: jest.fn(), getPublishedRaiox: jest.fn(), searchPublishedRaiox: jest.fn(),
+  getPublishedComparador: jest.fn(),
+  searchPublishedComparador: mockSearchPublishedComparador,
 }))
 
 jest.mock('../../src/security/clarezaRefreshAuthorization', () => ({
@@ -72,7 +80,7 @@ beforeEach(() => {
 
 describe('Clareza comparator production mount contract', () => {
   it('keeps GET public while default-deny protects refresh before Clareza token authorization', async () => {
-    mockSearchComparador.mockResolvedValueOnce({ query: 'APPLE', count: 1, results: [] })
+    mockSearchPublishedComparador.mockResolvedValueOnce({ query: 'APPLE', count: 1, results: [] })
     const app = productionApp()
 
     const publicRead = await request(app).get('/api/clareza/comparador').query({ ...marker, search: 'apple' })
@@ -154,7 +162,7 @@ describe('Clareza comparator production mount contract', () => {
     })
     expect(mockRefreshClarezaComparadorData).toHaveBeenCalledTimes(1)
 
-    mockSearchComparador.mockRejectedValueOnce(new Error('secret token'))
+    mockSearchPublishedComparador.mockRejectedValueOnce(new Error('secret token'))
     const unexpected = await request(app).get('/api/clareza/comparador').query({ ...marker, search: 'apple' })
     expect(unexpected.status).toBe(500)
     expect(unexpected.body).toEqual({

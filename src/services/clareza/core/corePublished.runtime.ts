@@ -3,6 +3,7 @@ import { MongooseCoreGenerationStore } from './coreGenerationStore'
 import { createCorePublishedRuntime } from './corePublishedRuntime'
 import { createCoreRaioxRuntime } from './coreRaioxRuntime'
 import { MongooseCoreRaioxCompanionStore } from './coreRaioxCompanionStore'
+import { createCoreComparadorRuntime } from './coreComparadorRuntime'
 
 const runtime = createCorePublishedRuntime({
   store: new MongooseCoreGenerationStore(),
@@ -21,3 +22,12 @@ const raioxRuntime = createCoreRaioxRuntime({
 
 export const getPublishedRaiox = raioxRuntime.asset
 export const searchPublishedRaiox = raioxRuntime.search
+
+const comparadorRuntime = createCoreComparadorRuntime({
+  generationStore: new MongooseCoreGenerationStore(),
+  companionStore: new MongooseCoreRaioxCompanionStore(),
+  universe: CLAREZA_UNIVERSE,
+})
+
+export const getPublishedComparador = comparadorRuntime.compare
+export const searchPublishedComparador = comparadorRuntime.search

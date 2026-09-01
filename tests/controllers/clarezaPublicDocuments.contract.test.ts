@@ -21,6 +21,8 @@ const mockGetPublishedCarteira = jest.fn<Promise<unknown>, []>()
 const mockSearchPublishedCarteira = jest.fn<Promise<unknown>, [string]>()
 const mockGetPublishedRaiox = jest.fn<Promise<unknown>, [string]>()
 const mockSearchPublishedRaiox = jest.fn<Promise<unknown>, [string]>()
+const mockGetPublishedComparador = jest.fn<Promise<unknown>, [string]>()
+const mockSearchPublishedComparador = jest.fn<Promise<unknown>, [string]>()
 
 jest.mock('../../src/services/clareza/clarezaFmpService', () => ({
   getClarezaData: mockGetClarezaData,
@@ -62,6 +64,8 @@ jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
   getPublishedPortfolioAnalysis: jest.fn(),
   getPublishedRaiox: mockGetPublishedRaiox,
   searchPublishedRaiox: mockSearchPublishedRaiox,
+  getPublishedComparador: mockGetPublishedComparador,
+  searchPublishedComparador: mockSearchPublishedComparador,
 }))
 jest.mock('../../src/services/clareza/core/coreCarteiraSearch.runtime', () => ({
   searchPublishedCarteira: mockSearchPublishedCarteira,
@@ -124,9 +128,9 @@ function configureDocument(path: string, body: unknown, rawBody: string | null):
   } else if (path === '/earnings/data') {
     mockGetClarezaEarningsData.mockResolvedValueOnce(body)
   } else if (path.startsWith('/comparador?symbols=')) {
-    mockGetComparadorSymbols.mockResolvedValueOnce(body)
+    mockGetPublishedComparador.mockResolvedValueOnce(body)
   } else if (path.startsWith('/comparador?search=')) {
-    mockSearchComparador.mockResolvedValueOnce(body)
+    mockSearchPublishedComparador.mockResolvedValueOnce(body)
   } else {
     throw new Error(`Missing Clareza public-document fixture arrangement for ${path}`)
   }

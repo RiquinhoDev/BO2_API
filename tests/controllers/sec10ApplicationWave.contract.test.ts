@@ -21,6 +21,8 @@ const mockDiagnoseRaiox: AsyncBoundaryMock = jest.fn()
 const mockGetPublishedRaiox: AsyncBoundaryMock = jest.fn()
 const mockSearchPublishedRaiox: AsyncBoundaryMock = jest.fn()
 const mockGetPublishedCarteira: AsyncBoundaryMock = jest.fn()
+const mockGetPublishedComparador: AsyncBoundaryMock = jest.fn()
+const mockSearchPublishedComparador: AsyncBoundaryMock = jest.fn()
 const mockGetClarezaCarteiraData: AsyncBoundaryMock = jest.fn()
 const mockSearchCarteira: AsyncBoundaryMock = jest.fn()
 const mockRefreshClarezaCarteiraData: AsyncBoundaryMock = jest.fn()
@@ -70,6 +72,8 @@ jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
   getPublishedPortfolioAnalysis: jest.fn(),
   getPublishedRaiox: mockGetPublishedRaiox,
   searchPublishedRaiox: mockSearchPublishedRaiox,
+  getPublishedComparador: mockGetPublishedComparador,
+  searchPublishedComparador: mockSearchPublishedComparador,
 }))
 
 const mockTestimonialAggregate: AsyncBoundaryMock = jest.fn()
