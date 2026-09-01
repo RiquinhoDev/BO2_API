@@ -7,6 +7,7 @@ export interface CoreComparadorAsset {
   readonly ticker: string
   readonly name: string
   readonly kind: CoreAssetKind
+  readonly type: 'growth' | 'value' | 'reit' | 'etf' | 'cripto'
   readonly data: JsonRecord | null
   readonly evaluation: JsonRecord | null
 }
@@ -14,6 +15,7 @@ export interface CoreComparadorAsset {
 export interface CoreComparadorCompany extends JsonRecord {
   readonly ticker: string
   readonly name: string
+  readonly type: 'growth' | 'value'
   readonly currency: string | null
   readonly analystConsensus: JsonRecord | null
   readonly priceTargetConsensus: JsonRecord | null
@@ -59,7 +61,7 @@ export function projectCoreComparison(
       rejected.push({ ticker, reason: 'unknown-symbol' })
       continue
     }
-    if (asset.kind !== 'stock') {
+    if (asset.kind !== 'stock' || (asset.type !== 'growth' && asset.type !== 'value')) {
       rejected.push({ ticker, reason: 'ineligible-kind' })
       continue
     }
@@ -69,6 +71,7 @@ export function projectCoreComparison(
       ...data,
       ticker,
       name: asset.name,
+      type: asset.type,
       currency: typeof data.currency === 'string' ? data.currency : null,
       analystConsensus: consensus?.gradesConsensus ?? null,
       priceTargetConsensus: consensus?.priceTargetConsensus ?? null,
