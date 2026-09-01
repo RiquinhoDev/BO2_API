@@ -7,6 +7,12 @@ export interface RedisConfig {
   readonly password?: string
 }
 
+export interface OperationalControlsConfig {
+  readonly schedulerEnabled: boolean
+  readonly clarezaRefreshEnabled: boolean
+  readonly clarezaFmpEgressEnabled: boolean
+}
+
 export interface CoreConfig {
   readonly nodeEnv: NodeEnvironment
   readonly serverVersion?: string
@@ -132,4 +138,5 @@ export interface AppConfig extends CoreConfig {
   readonly observability: Readonly<ObservabilityConfig>
   readonly integrations: Readonly<IntegrationConfigs>
   readonly renewal: Readonly<RenewalConfig>
+  readonly operationalControls?: Readonly<OperationalControlsConfig>
 }

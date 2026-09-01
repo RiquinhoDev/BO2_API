@@ -3,6 +3,7 @@ import { cacheService } from '../../cache.service'
 import { UNIVERSE } from '../clarezaFmpService'
 import { FMP_STABLE_BASE_URL } from '../fmpJsonClient'
 import { clarezaFmpJsonClient } from '../fmpJsonRuntime'
+import { CLAREZA_DAILY_CACHE_TTL_SECONDS } from '../cachePolicy'
 
 // ─────────────────────────────────────────────────────────────
 // RAIO-X DA AÇÃO — versão Node (migrada do clareza-raiox.php)
@@ -24,9 +25,7 @@ export const RAIOX_INDEX_KEY    = 'clareza:raiox:index'    // [{symbol,name,pric
 export const RAIOX_SECTORPE_KEY = 'clareza:raiox:sectorpe' // snapshot setorial (P/E médio)
 export const RAIOX_SPY_KEY      = 'clareza:raiox:spy'      // histórico SPY comprimido (momentum)
 
-// 25h: cobre a maior janela entre refreshes do cron (18h→6h) com folga.
-// O cron 6h/12h/18h reescreve as chaves 3×/dia → GET é sempre hit rápido.
-export const RAIOX_TTL = 90000
+export const RAIOX_TTL = CLAREZA_DAILY_CACHE_TTL_SECONDS
 
 export type JsonObject = Record<string, unknown>
 export type PricePoint = { d: string; c: number }

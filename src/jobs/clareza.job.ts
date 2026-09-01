@@ -1,6 +1,6 @@
 import { refreshClarezaData } from '../services/clareza/clarezaFmpService'
 import { refreshClarezaTop10Data } from '../services/clareza/clarezaTop10Service'
-import { refreshClarezaRaioxData } from '../services/clareza/clarezaRaioxService'
+import { executeRaioxRefresh } from '../services/clareza/clarezaRaioxService'
 import { refreshClarezaCarteiraData } from '../services/clareza/carteira/carteira.runtime'
 import { refreshClarezaEarningsData } from '../services/clareza/clarezaEarningsService'
 import { refreshClarezaComparadorData } from '../services/clareza/comparador/comparador.runtime'
@@ -68,7 +68,7 @@ export function createClarezaJob(dependencies: ClarezaJobDependencies) {
 const clarezaJob = createClarezaJob({
   refreshClarezaData,
   refreshClarezaTop10Data,
-  refreshClarezaRaioxData,
+  refreshClarezaRaioxData: executeRaioxRefresh,
   refreshClarezaCarteiraData,
   refreshClarezaEarningsData,
   refreshClarezaComparadorData,

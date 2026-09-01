@@ -67,7 +67,7 @@ test('creates both canonical seeds and initializes the scheduler once', async ()
   ])
   expect(repository.created.map(seed => seed.schedule)).toEqual([
     {
-      cronExpression: '0 6,12,18 * * *',
+      cronExpression: '0 6 * * *',
       timezone: 'Europe/Lisbon',
       enabled: true,
     },
@@ -83,7 +83,7 @@ test('creates both canonical seeds and initializes the scheduler once', async ()
 test('does not write or reinitialize when canonical seeds already exist', async () => {
   const repository = new InMemoryCronSeedRepository(new Map([
     ['ClarezaRefresh', {
-      cronExpression: '0 6,12,18 * * *',
+      cronExpression: '0 6 * * *',
       timezone: 'Europe/Lisbon',
       hasCreatedBy: true,
     }],
@@ -131,7 +131,7 @@ test('repairs the Clareza schedule and audit owner through one repository update
   expect(repository.updated).toEqual([{
     name: 'ClarezaRefresh',
     updates: {
-      cronExpression: '0 6,12,18 * * *',
+      cronExpression: '0 6 * * *',
       timezone: 'Europe/Lisbon',
       ensureCreatedBy: true,
     },

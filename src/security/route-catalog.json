@@ -568,6 +568,15 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/raiox/refresh/status",
+    "access": "authenticated",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "Backoffice Clareza: polling do refresh assíncrono; rota em src/routes/clareza.routes.ts:59"
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/reit-valuation/:ticker",
     "access": "authenticated",
     "consumer": "desconhecido",

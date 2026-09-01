@@ -1,7 +1,7 @@
 import logger from '../../utils/logger'
 import { cacheService } from '../cache.service'
 import ClarezaTop10Data from '../../models/ClarezaTop10Data'
-import { getFmpApiKey } from '../requestDrivenRuntimeConfig'
+import { assertClarezaRefreshEnabled, getFmpApiKey } from '../requestDrivenRuntimeConfig'
 import {
   hasProviderError,
   isRecord,
@@ -14,6 +14,7 @@ import {
   FMP_V3_BASE_URL,
 } from './fmpJsonClient'
 import { clarezaFmpJsonClient } from './fmpJsonRuntime'
+import { CLAREZA_DAILY_CACHE_TTL_SECONDS } from './cachePolicy'
 
 // Limita concorrência sem depender de p-queue (ESM-only)
 function errorMessage(error: unknown): string {
@@ -39,10 +40,7 @@ async function runWithConcurrency<T>(
 export const CLAREZA_TOP10_CACHE_KEY = 'clareza:top10-data'
 // String JSON já serializada — servida diretamente ao HTML sem JSON.parse/stringify por request.
 export const CLAREZA_TOP10_JSON_KEY = 'clareza:top10-data:json'
-// 25h: cobre a maior janela entre refreshes do cron (18h→6h = 12h) com folga.
-// O cron (6h/12h/18h) reescreve a chave 3×/dia, por isso o Redis nunca expira
-// entre refreshes e o GET é sempre um hit rápido (sem fallback ao MongoDB).
-const CACHE_TTL = 90000
+const CACHE_TTL = CLAREZA_DAILY_CACHE_TTL_SECONDS
 const HISTORY_YEARS = 5 // histórico máximo por ação
 const REVISION = 'Q2 2026'
 const SPACEX_IPO_DATE = '2026-06-12'
@@ -291,6 +289,7 @@ function privateStockPayload(): ClarezaTop10StockPayload {
 // ─────────────────────────────────────────────────────────────
 
 export async function refreshClarezaTop10Data(): Promise<{ total: number; errors: number }> {
+  assertClarezaRefreshEnabled()
   getFmpApiKey()
 
   logger.info(`📈 [ClarezaTop10] Iniciando refresh de ${WATCHLIST.length} ações (${REVISION})...`)
@@ -371,7 +370,7 @@ export async function refreshClarezaTop10Data(): Promise<{ total: number; errors
 
 // Rede de segurança em memória do processo: garante <1s mesmo se o Redis estiver
 // desligado/indisponível (evita re-ler Mongo + re-serializar a cada request).
-// TTL curto; o cron (6/12/18h) e o refresh manual mantêm-no fresco.
+// TTL curto apenas para a cópia em memória; Redis mantém duas janelas diárias.
 let memJson: { value: string; expires: number } | null = null
 const MEM_TTL_MS = 10 * 60 * 1000 // 10 min
 

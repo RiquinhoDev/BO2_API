@@ -26,16 +26,18 @@ export function createJobStarter(
   dependencies: JobRuntimeDependencies,
 ): JobStarter {
   return async (config) => {
-    try {
-      await dependencies.initializeScheduler()
-    } catch (error) {
-      dependencies.logError(
-        'Erro ao inicializar Sync Utilizadores',
-        error,
-      )
-    }
+    if (config.operationalControls?.schedulerEnabled !== false) {
+      try {
+        await dependencies.initializeScheduler()
+      } catch (error) {
+        dependencies.logError(
+          'Erro ao inicializar Sync Utilizadores',
+          error,
+        )
+      }
 
-    await dependencies.ensureCronSeeds()
+      await dependencies.ensureCronSeeds()
+    }
 
     if (config.nodeEnv === 'production') {
       dependencies.startSystemMonitor()

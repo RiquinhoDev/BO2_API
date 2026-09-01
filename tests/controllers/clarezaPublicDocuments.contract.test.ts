@@ -32,6 +32,8 @@ jest.mock('../../src/services/clareza/clarezaTop10Service', () => ({
   refreshClarezaTop10Data: jest.fn(),
 }))
 jest.mock('../../src/services/clareza/clarezaRaioxService', () => ({
+  startRaioxRefresh: jest.fn(),
+  readRaioxRefreshStatus: jest.fn(),
   getRaioxJson: mockGetRaioxJson,
   searchRaiox: mockSearchRaiox,
   refreshClarezaRaioxData: jest.fn(),

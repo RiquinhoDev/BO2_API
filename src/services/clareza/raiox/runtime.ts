@@ -1,8 +1,10 @@
 import logger from '../../../utils/logger'
 import { cacheService } from '../../cache.service'
 import ClarezaRaioxData from '../../../models/ClarezaRaioxData'
-import { getFmpApiKey } from '../../requestDrivenRuntimeConfig'
+import { assertClarezaRefreshEnabled, getFmpApiKey } from '../../requestDrivenRuntimeConfig'
 import { normalizeTicker, isValidTicker } from '../tickerUtils'
+import { RefreshJobLeaseLostError, type RefreshJobExecutionContext } from '../operations/refreshJobCoordinator'
+import { processRaioxUniverse } from './refreshUniverse'
 import {
   compressHist,
   errorMessage,
@@ -26,7 +28,16 @@ import {
   RAIOX_UNIVERSE,
   sleep
 } from './data'
-export async function refreshClarezaRaioxData(): Promise<{ total: number; errors: number }> {
+const uncoordinatedExecution: RefreshJobExecutionContext = {
+  completedItems: [],
+  assertLease: async () => undefined,
+  markCompleted: async () => undefined,
+}
+
+export async function refreshClarezaRaioxData(
+  execution: RefreshJobExecutionContext = uncoordinatedExecution,
+): Promise<{ total: number; errors: number }> {
+  assertClarezaRefreshEnabled()
   getFmpApiKey()
 
   logger.info(`📊 [Raiox] Iniciando refresh de ${RAIOX_UNIVERSE.length} ações...`)
@@ -40,53 +51,39 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
   })
   const spyHist = compressHist(spyRaw ?? [])
 
+  await execution.assertLease()
   await cacheService.set(RAIOX_SECTORPE_KEY, sectorPe, RAIOX_TTL)
   await cacheService.set(RAIOX_SPY_KEY, spyHist, RAIOX_TTL)
 
   // 2. Empresas — sequencial (o gate global trata do ritmo).
-  let errors = 0
-  const index: Array<{
-    symbol: string; name: string; price: unknown; image: unknown
-    currency: unknown; exchange: unknown; country: unknown
-  }> = []
-  const snapshot: Record<string, RaioxPayload> = {}
+  const { errors, index, snapshot } = await processRaioxUniverse<RaioxPayload>({
+    universe: RAIOX_UNIVERSE,
+    execution,
+    readCached: ticker => cacheService.get<RaioxPayload>(RAIOX_CACHE_PREFIX + ticker),
+    fetchCompany: ticker => fetchCompanyRaiox(ticker, spyHist),
+    persistCompany: async (ticker, data) => {
+      await cacheService.set(RAIOX_CACHE_PREFIX + ticker, data, RAIOX_TTL)
+      await cacheService.setRaw(
+        RAIOX_JSON_PREFIX + ticker,
+        JSON.stringify({ ...data, sectorPe }),
+        RAIOX_TTL,
+      )
+    },
+    onMissing: ticker => logger.warn(`⚠️ [Raiox] Sem dados para ${ticker}`),
+    onError: (ticker, error) => logger.error(`❌ [Raiox] Erro em ${ticker}:`, errorMessage(error)),
+  })
 
-  for (const stock of RAIOX_UNIVERSE) {
-    try {
-      const data = await fetchCompanyRaiox(stock.ticker, spyHist)
-      if (data) {
-        await cacheService.set(RAIOX_CACHE_PREFIX + stock.ticker, data, RAIOX_TTL)
-        // String já serializada (com sectorPe embutido) → GET serve raw, sem stringify por pedido.
-        await cacheService.setRaw(RAIOX_JSON_PREFIX + stock.ticker, JSON.stringify({ ...data, sectorPe }), RAIOX_TTL)
-        snapshot[stock.ticker] = data
-        index.push({
-          symbol:   stock.ticker,
-          name:     String(data.p.companyName ?? data.p.name ?? stock.name),
-          price:    data.p?.price ?? null,
-          image:    data.p?.image ?? null,
-          currency: data.p?.currency ?? null,
-          exchange: data.p?.exchangeShortName ?? data.p?.exchange ?? null,
-          country:  data.p?.country ?? null
-        })
-      } else {
-        errors++
-        logger.warn(`⚠️ [Raiox] Sem dados para ${stock.ticker}`)
-      }
-    } catch (error: unknown) {
-      errors++
-      logger.error(`❌ [Raiox] Erro em ${stock.ticker}:`, errorMessage(error))
-    }
-  }
-
+  await execution.assertLease()
   await cacheService.set(RAIOX_INDEX_KEY, index, RAIOX_TTL)
 
   // 2.5 Remove do Redis tickers que já não estão no universo (ex.: troca de
   // cotação como RACE → RACE.MI) — sem isto ficavam servidos em cache até
-  // expirar o TTL (~25h), mesmo já não fazendo parte da lista curada.
+  // expirar o TTL (48h), mesmo já não fazendo parte da lista curada.
   await pruneStaleRaiox()
 
   // 3. Snapshot durável em MongoDB (sobrevive a reinício do Redis).
   try {
+    await execution.assertLease()
     await ClarezaRaioxData.create({
       fetchedAt:  new Date(),
       stockCount: RAIOX_UNIVERSE.length - errors,
@@ -101,6 +98,7 @@ export async function refreshClarezaRaioxData(): Promise<{ total: number; errors
     }
     logger.info('💾 [Raiox] Snapshot guardado na BD')
   } catch (error: unknown) {
+    if (error instanceof RefreshJobLeaseLostError) throw error
     logger.error('⚠️ [Raiox] Erro ao guardar snapshot na BD:', errorMessage(error))
   }
 

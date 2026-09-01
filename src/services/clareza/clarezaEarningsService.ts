@@ -1,7 +1,7 @@
 import logger from '../../utils/logger'
 import { cacheService } from '../cache.service'
 import ClarezaEarningsData from '../../models/ClarezaEarningsData'
-import { getFmpApiKey } from '../requestDrivenRuntimeConfig'
+import { assertClarezaRefreshEnabled, getFmpApiKey } from '../requestDrivenRuntimeConfig'
 import {
   hasProviderError,
   isRecord,
@@ -12,6 +12,7 @@ import {
   FMP_STABLE_BASE_URL,
 } from './fmpJsonClient'
 import { clarezaFmpJsonClient } from './fmpJsonRuntime'
+import { CLAREZA_DAILY_CACHE_TTL_SECONDS } from './cachePolicy'
 
 // Limits concurrency without adding p-queue to this hot path.
 function errorMessage(error: unknown): string {
@@ -32,7 +33,7 @@ async function runWithConcurrency<T>(tasks: (() => Promise<T>)[], concurrency: n
 }
 
 export const CLAREZA_EARNINGS_CACHE_KEY = 'clareza:earnings-data'
-export const CACHE_TTL = 43200
+export const CACHE_TTL = CLAREZA_DAILY_CACHE_TTL_SECONDS
 
 export const COMPANIES: string[] = [
   'NVDA','AAPL','GOOGL','MSFT','AMZN','AVGO','META','TSLA','AMD','NFLX',
@@ -207,6 +208,7 @@ export async function fetchEarningsForTicker(
 }
 
 export async function refreshClarezaEarningsData(): Promise<{ total: number; errors: number }> {
+  assertClarezaRefreshEnabled()
   getFmpApiKey()
 
   logger.info(`[ClarezaEarnings] Iniciando refresh de ${COMPANIES.length} tickers...`)

@@ -149,7 +149,7 @@ export async function runWithConcurrency<T>(
 
 export const FMP_BASE = FMP_STABLE_BASE_URL
 export const CLAREZA_CACHE_KEY = 'clareza:stock-data'
-export const CACHE_TTL = 28800 // 8 horas
+export { CLAREZA_DAILY_CACHE_TTL_SECONDS as CACHE_TTL } from './cachePolicy'
 
 export const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
@@ -269,10 +269,10 @@ export const num = (v: unknown): number | null =>
 export const REIT_CACHE_PREFIX = 'clareza:reit:'
 export const STOCK_CACHE_PREFIX = 'clareza:stock:v2:'
 export const REIT_VALUATION_CACHE_PREFIX = 'clareza:reitval:'
-export const REIT_CACHE_TTL = 86400 // 24 horas
+export { CLAREZA_DAILY_CACHE_TTL_SECONDS as REIT_CACHE_TTL } from './cachePolicy'
 
 // Mapeia uma entrada da cache do cron clareza para o formato da anÃ¡lise REIT.
-// Evita chamadas FMP para os tickers que o cron jÃ¡ atualiza 3Ã—/dia.
+// Evita chamadas FMP para os tickers que o cron já atualiza diariamente.
 export function mapClarezaToReit(entry: ClarezaStockEntry) {
   const d = entry?.data ?? {}
   return {

@@ -61,10 +61,10 @@ const CRON_SEEDS: readonly CronSeedDefinition[] = [
   {
     name: 'ClarezaRefresh',
     description:
-      'Atualiza dados do Termómetro Clareza 3×/dia via Financial Modeling Prep API',
+      'Atualiza dados Clareza diariamente via Financial Modeling Prep API',
     syncType: 'clareza',
     schedule: {
-      cronExpression: '0 6,12,18 * * *',
+      cronExpression: '0 6 * * *',
       timezone: 'Europe/Lisbon',
       enabled: true,
     },

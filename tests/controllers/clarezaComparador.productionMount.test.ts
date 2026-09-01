@@ -27,7 +27,7 @@ jest.mock('../../src/services/clareza/clarezaFmpService', () => ({
   getReitValuation: jest.fn(), getStockAnalysis: jest.fn(),
 }))
 jest.mock('../../src/services/clareza/clarezaTop10Service', () => ({ getClarezaTop10Json: jest.fn(), refreshClarezaTop10Data: jest.fn() }))
-jest.mock('../../src/services/clareza/clarezaRaioxService', () => ({ getRaioxJson: jest.fn(), searchRaiox: jest.fn(), refreshClarezaRaioxData: jest.fn(), diagnoseRaiox: jest.fn() }))
+jest.mock('../../src/services/clareza/clarezaRaioxService', () => ({ getRaioxJson: jest.fn(), searchRaiox: jest.fn(), startRaioxRefresh: jest.fn(), readRaioxRefreshStatus: jest.fn(), diagnoseRaiox: jest.fn() }))
 jest.mock('../../src/services/clareza/carteira/carteira.runtime', () => ({ getClarezaCarteiraData: jest.fn(), searchCarteira: jest.fn(), refreshClarezaCarteiraData: jest.fn() }))
 jest.mock('../../src/services/clareza/clarezaEarningsService', () => ({ getClarezaEarningsData: jest.fn(), refreshClarezaEarningsData: jest.fn() }))
 

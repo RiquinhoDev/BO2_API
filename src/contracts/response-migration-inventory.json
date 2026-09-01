@@ -504,6 +504,14 @@
     "status": "complete"
   },
   {
+    "identity": "GET /api/clareza/raiox/refresh/status",
+    "owner": "src/controllers/clarezaController.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/clareza/reit-valuation/:ticker",
     "owner": "src/controllers/clarezaController.ts",
     "currentFamily": "public-document",
