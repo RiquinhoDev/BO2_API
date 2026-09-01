@@ -53,6 +53,7 @@ describe('core suggestion service', () => {
     expect(replay).toMatchObject({ outcome: 'replayed', record: { count: 1 } })
     await expect(service.submit('   ', 'submission_000002')).rejects.toBeInstanceOf(CoreSuggestionValidationError)
     await expect(service.submit('x'.repeat(81), 'submission_000003')).rejects.toBeInstanceOf(CoreSuggestionValidationError)
+    await expect(service.submit('A\0B', 'submission_000004')).rejects.toBeInstanceOf(CoreSuggestionValidationError)
     await expect(service.submit('AAPL', 'short')).rejects.toBeInstanceOf(CoreSuggestionValidationError)
   })
 

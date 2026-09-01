@@ -34,7 +34,11 @@ export class CoreSuggestionValidationError extends Error {
 function normalizeQuery(rawQuery: string): string {
   const query = rawQuery.normalize('NFKC').replace(/\s+/gu, ' ').trim()
   const length = [...query].length
-  if (length < 1 || length > 80 || /[\u0000-\u001F\u007F]/u.test(query)) {
+  const hasControlCharacter = [...query].some(character => {
+    const code = character.codePointAt(0) ?? 0
+    return code <= 31 || code === 127
+  })
+  if (length < 1 || length > 80 || hasControlCharacter) {
     throw new CoreSuggestionValidationError('suggestion must contain between 1 and 80 safe characters')
   }
   return query
