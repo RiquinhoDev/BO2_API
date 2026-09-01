@@ -25,23 +25,34 @@
                           "requestPath":  "/top10",
                           "body":  {
                                        "updated":  "2026-08-11T09:30:00.000Z",
-                                       "stocks":  [
-                                                      {
-                                                          "ticker":  "AAPL",
-                                                          "score":  9
-                                                      }
-                                                  ]
+                                       "source":  "Clareza (cérebro + universo partilhados)",
+                                       "revision":  "Q2 2026",
+                                       "generationId":  "generation-fixture",
+                                       "universeVersion":  "universe-fixture",
+                                       "dataVersion":  "data-fixture",
+                                       "stocks":  {
+                                                      "MU":  {
+                                                                 "price":  250,
+                                                                 "historical":  []
+                                                             }
+                                                  },
+                                       "rejected":  [],
+                                       "coverage":  {
+                                                        "selected":  1,
+                                                        "available":  1,
+                                                        "missing":  []
+                                                    }
                                    },
                           "cacheControl":  "public, max-age=3600",
                           "status":  200,
                           "bodyMode":  "raw",
-                          "rawBody":  "{\"updated\":\"2026-08-11T09:30:00.000Z\",\"stocks\":[{\"ticker\":\"AAPL\",\"score\":9}]}",
+                          "rawBody":  "{\"updated\":\"2026-08-11T09:30:00.000Z\",\"source\":\"Clareza (cérebro + universo partilhados)\",\"revision\":\"Q2 2026\",\"generationId\":\"generation-fixture\",\"universeVersion\":\"universe-fixture\",\"dataVersion\":\"data-fixture\",\"stocks\":{\"MU\":{\"price\":250,\"historical\":[]}},\"rejected\":[],\"coverage\":{\"selected\":1,\"available\":1,\"missing\":[]}}",
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "getClarezaTop10Json serialized cache",
-                                             "boundary":  "cache-seeded passthrough"
+                                             "producer":  "coreTop10Runtime generation projection",
+                                             "boundary":  "published generation plus matching companion"
                                          },
-                          "dynamicRecordException":  "Producer may return a cache-backed record or serialized document whose top-level keys are data-dependent."
+                          "dynamicRecordException":  null
                       },
                       {
                           "identity":  "GET /api/clareza/reit-valuation/:ticker",
@@ -276,14 +287,27 @@
                           "requestPath":  "/earnings/data",
                           "body":  {
                                        "updated":  "2026-08-11T09:30:00.000Z",
-                                       "window":  "week",
+                                       "generationId":  "generation-fixture",
+                                       "universeVersion":  "universe-fixture",
+                                       "dataVersion":  "data-fixture",
+                                       "window":  {
+                                                      "from":  "2026-08-11",
+                                                      "to":  "2026-12-09"
+                                                  },
                                        "count":  1,
                                        "earnings":  [
                                                         {
-                                                            "ticker":  "AAPL",
-                                                            "date":  "2026-08-12"
+                                                            "t":  "AAPL",
+                                                            "n":  "Apple Inc.",
+                                                            "type":  "stock",
+                                                            "d":  "2026-08-12"
                                                         }
-                                                    ]
+                                                    ],
+                                       "coverage":  {
+                                                        "eligible":  1,
+                                                        "available":  1,
+                                                        "missing":  []
+                                                    }
                                    },
                           "cacheControl":  "public, max-age=3600",
                           "status":  200,
@@ -291,8 +315,8 @@
                           "rawBody":  null,
                           "provenance":  {
                                              "sourceCommit":  "b300df5fa6fb0450fd57dfd94ea77cb1f2ec00d2",
-                                             "producer":  "getClarezaEarningsData cache",
-                                             "boundary":  "cache-seeded passthrough"
+                                             "producer":  "coreEarningsRuntime generation projection",
+                                             "boundary":  "published generation plus matching companion"
                                          },
                           "dynamicRecordException":  null
                       },

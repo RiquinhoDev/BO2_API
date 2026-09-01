@@ -24,6 +24,7 @@ const mockSearchPublishedRaiox = jest.fn<Promise<unknown>, [string]>()
 const mockGetPublishedComparador = jest.fn<Promise<unknown>, [string]>()
 const mockSearchPublishedComparador = jest.fn<Promise<unknown>, [string]>()
 const mockGetPublishedEarnings = jest.fn<Promise<unknown>, []>()
+const mockGetPublishedTop10 = jest.fn<Promise<unknown>, []>()
 
 jest.mock('../../src/services/clareza/clarezaFmpService', () => ({
   getClarezaData: mockGetClarezaData,
@@ -68,6 +69,7 @@ jest.mock('../../src/services/clareza/core/corePublished.runtime', () => ({
   getPublishedComparador: mockGetPublishedComparador,
   searchPublishedComparador: mockSearchPublishedComparador,
   getPublishedEarnings: mockGetPublishedEarnings,
+  getPublishedTop10: mockGetPublishedTop10,
 }))
 jest.mock('../../src/services/clareza/core/coreCarteiraSearch.runtime', () => ({
   searchPublishedCarteira: mockSearchPublishedCarteira,
@@ -106,7 +108,7 @@ function configureDocument(path: string, body: unknown, rawBody: string | null):
   if (path === '/data') {
     mockGetClarezaData.mockResolvedValueOnce(body)
   } else if (path === '/top10') {
-    mockGetClarezaTop10Json.mockResolvedValueOnce(rawBody ?? JSON.stringify(body))
+    mockGetPublishedTop10.mockResolvedValueOnce(body)
   } else if (path.startsWith('/reit-valuation/')) {
     mockGetReitValuation.mockResolvedValueOnce(body)
   } else if (path.startsWith('/reit/')) {

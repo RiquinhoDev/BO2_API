@@ -6,11 +6,13 @@ export interface CoreTop10Asset {
   readonly ticker: string
   readonly name: string
   readonly kind: CoreAssetKind
+  readonly sector?: string
   readonly data: JsonRecord | null
 }
 
 export interface CoreTop10Source {
   readonly generationId: string
+  readonly universeVersion: string
   readonly dataVersion: string
   readonly createdAt: Date
   readonly assets: readonly CoreTop10Asset[]
@@ -19,6 +21,7 @@ export interface CoreTop10Source {
 export interface CoreTop10Selection {
   readonly key: string
   readonly canonicalTicker: string
+  readonly currency: string
 }
 
 export interface CoreTop10History {
@@ -27,6 +30,12 @@ export interface CoreTop10History {
 }
 
 const normalize = (ticker: string): string => ticker.trim().toUpperCase()
+const finite = (value: unknown): number | null => (
+  typeof value === 'number' && Number.isFinite(value) ? value : null
+)
+const text = (value: unknown): string | null => (
+  typeof value === 'string' && value.trim() ? value : null
+)
 const validDate = (value: string): boolean => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const parsed = new Date(`${value}T00:00:00.000Z`)
@@ -52,8 +61,10 @@ export function projectCoreTop10(
   const rejected: Array<{
     key: string
     canonicalTicker: string
-    reason: 'unknown-symbol' | 'ineligible-kind' | 'not-tradable' | 'missing-price'
+    reason: 'unknown-symbol' | 'ineligible-kind'
   }> = []
+  const missing: string[] = []
+  let available = 0
   for (const selection of selections) {
     const key = normalize(selection.key)
     const canonicalTicker = normalize(selection.canonicalTicker)
@@ -66,34 +77,37 @@ export function projectCoreTop10(
       rejected.push({ key, canonicalTicker, reason: 'ineligible-kind' })
       continue
     }
-    if (asset.data?.isActivelyTrading !== true) {
-      rejected.push({ key, canonicalTicker, reason: 'not-tradable' })
-      continue
-    }
-    const price = asset.data.price
-    if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
-      rejected.push({ key, canonicalTicker, reason: 'missing-price' })
-      continue
-    }
+    const data = asset.data ?? {}
+    const price = finite(data.price)
+    if (price === null) missing.push(canonicalTicker)
+    else available += 1
     const historical = (historyByTicker.get(canonicalTicker) ?? [])
       .filter(point => validDate(point.date) && Number.isFinite(point.close))
       .map(point => ({ date: point.date, close: point.close }))
       .sort((left, right) => left.date.localeCompare(right.date))
     stocks[key] = {
-      ...asset.data,
-      ticker: canonicalTicker,
-      editorialTicker: key,
-      name: asset.name,
-      kind: asset.kind,
+      price,
+      change: finite(data.change),
+      sector: text(data.sector) ?? asset.sector ?? null,
+      country: text(data.country),
+      pe: finite(data.pe), pb: finite(data.pb), ps: finite(data.ps), peg: finite(data.peg),
+      evEbitda: finite(data.evEbitda), grossMargin: finite(data.grossMarginTTM),
+      netMargin: finite(data.netMargin), roe: finite(data.roe), debtEbitda: finite(data.debtEbitda),
+      dividendYield: finite(data.dividendYield), currency: selection.currency,
       historical,
+      isPrivate: false,
+      updated: text(data.updated),
     }
   }
   return {
     generationId: source.generationId,
+    universeVersion: source.universeVersion,
     dataVersion: source.dataVersion,
     updated: source.createdAt.toISOString(),
     revision,
+    source: 'Clareza (cérebro + universo partilhados)',
     stocks,
     rejected,
+    coverage: { selected: selections.length, available, missing },
   }
 }
