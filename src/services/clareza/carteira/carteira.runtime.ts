@@ -10,6 +10,7 @@ import { ClarezaCarteiraService } from './carteira.service'
 import { CLAREZA_UNIVERSE, CLAREZA_UNIVERSE_SOURCE } from '../universe/clarezaUniverse.catalog'
 import { MongooseCoreGenerationStore } from '../core/coreGenerationStore'
 import { publishCarteiraSnapshot } from '../core/coreSnapshotBridge'
+import { readLatestRaioxComplements } from '../core/coreRaioxComplementReader'
 
 export const CLAREZA_CARTEIRA_CACHE_KEY = 'clareza:carteira-data'
 export const CLAREZA_CARTEIRA_CACHE_TTL = 28800 // 8 hours
@@ -56,12 +57,14 @@ export async function refreshClarezaCarteiraData(): Promise<{
   const result = await getService().refresh()
   const items = await getService().getData()
   if (!items) throw new Error('Carteira refresh completed without a readable snapshot')
+  const complementsByTicker = await readLatestRaioxComplements()
   const publication = await publishCarteiraSnapshot({
     items,
     universe: CLAREZA_UNIVERSE,
     store: new MongooseCoreGenerationStore(),
     now: clock.now(),
     universeVersion: `sha256:${CLAREZA_UNIVERSE_SOURCE.sha256}`,
+    complementsByTicker,
   })
   if (publication.status !== 'published') {
     throw new Error(`Carteira core publication failed: ${publication.status}`)
