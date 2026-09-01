@@ -1,4 +1,5 @@
 const mockUserFind = jest.fn()
+const mockUserLimit = jest.fn()
 const mockUpdateMany = jest.fn()
 const mockFetchSubscriptionById = jest.fn()
 
@@ -16,6 +17,18 @@ jest.mock('../../src/services/guru/guruSync.service', () => ({
 }))
 
 import { checkExpiredTrials } from '../../src/services/guru/guruTrialService'
+import { MAX_PROVIDER_READ_ITEMS } from '../../src/security/providerReadBatchPolicy'
+
+function mockExpiredTrialQuery(users: unknown[]) {
+  const query = {
+    select: jest.fn(),
+    limit: mockUserLimit,
+    exec: jest.fn().mockResolvedValue(users),
+  }
+  query.select.mockReturnValue(query)
+  mockUserLimit.mockReturnValue(query)
+  mockUserFind.mockReturnValue(query)
+}
 
 describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
   test('preserves provider, user-save and enrollment-write order with one item in flight', async () => {
@@ -37,10 +50,7 @@ describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
       set: jest.fn(),
       save: jest.fn(async () => boundary(`save:${index}`)),
     }))
-    mockUserFind.mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue(users),
-    })
+    mockExpiredTrialQuery(users)
     mockFetchSubscriptionById.mockImplementation(async (code: string) => {
       await boundary(`provider:${code.slice(4)}`)
       return { last_status: 'expired' }
@@ -52,11 +62,12 @@ describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
 
     const result = await checkExpiredTrials()
 
+    expect(mockUserLimit).toHaveBeenCalledWith(MAX_PROVIDER_READ_ITEMS + 1)
     expect(peak).toBe(1)
     expect(events).toEqual(Array.from({ length: size }, (_, index) => [
       `provider:${index}`,
-      `save:${index}`,
       `products:${index}`,
+      `save:${index}`,
     ]).flat())
     expect(result).toEqual({
       checked: size,
@@ -76,10 +87,7 @@ describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
       set: jest.fn(),
       save: jest.fn(async () => undefined),
     }))
-    mockUserFind.mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue(users),
-    })
+    mockExpiredTrialQuery(users)
     let call = 0
     mockFetchSubscriptionById.mockImplementation(async () => {
       const index = call++
@@ -88,10 +96,18 @@ describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
     })
 
     const result = await checkExpiredTrials()
+    expect(mockUserLimit).toHaveBeenCalledWith(MAX_PROVIDER_READ_ITEMS + 1)
     const errors = Math.ceil(size / 10)
     expect(mockFetchSubscriptionById).toHaveBeenCalledTimes(size)
     expect(result.errors).toBe(errors)
     expect(result.stillInTrial).toBe(size - errors)
-    expect(mockUpdateMany).not.toHaveBeenCalled()
+    expect(mockUpdateMany).toHaveBeenCalledTimes(size - errors)
+    for (const [filter] of mockUpdateMany.mock.calls) {
+      expect(filter).toMatchObject({
+        platform: 'curseduca',
+        status: 'PARA_INATIVAR',
+        'metadata.guruTrialExpired': true,
+      })
+    }
   })
 })

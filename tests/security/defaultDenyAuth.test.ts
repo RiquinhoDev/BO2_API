@@ -85,18 +85,19 @@ test('o catalogo inteiro aplica 401 ou bypass sem JWT conforme o access', async 
   }
 })
 
-test('token valido atravessa todas as rotas authenticated', async () => {
+test('token SUPER_ADMIN valido atravessa todas as rotas authenticated', async () => {
   const app = buildCatalogProbe()
-  const token = signAppToken({ id: 'admin-1', email: 'admin@example.test', role: 'ADMIN', permissions: [] })
+  const token = signAppToken({ id: 'admin-1', email: 'admin@example.test', role: 'SUPER_ADMIN', permissions: [] })
   const authenticated = catalog.filter((route) => route.access === 'authenticated')
   expect(authenticated).toHaveLength(400)
 
   for (const route of authenticated) {
     const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete'
-    await request(app)[method](concretePath(route.path))
+    const response = await request(app)[method](concretePath(route.path))
       .set('Authorization', ['Bearer', token].join(' '))
       .query(marker)
-      .expect(204)
+    expect({ route: `${route.method} ${route.path}`, status: response.status, body: response.body })
+      .toEqual({ route: `${route.method} ${route.path}`, status: 204, body: {} })
   }
 })
 
@@ -122,8 +123,8 @@ test('preflight CORS termina antes da guarda JWT', async () => {
 })
 
 test('AUTH_ENFORCE=false preserva explicitamente o comportamento antigo', async () => {
-  await request(buildCatalogProbe(false))
+  const response = await request(buildCatalogProbe(false))
     .get('/api/users/analytics')
     .query(marker)
-    .expect(204)
+  expect({ status: response.status, body: response.body }).toEqual({ status: 204, body: {} })
 })

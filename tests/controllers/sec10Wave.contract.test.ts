@@ -276,11 +276,12 @@ jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
   default: {},
 }))
 
+const mockLoggerInfo = jest.fn()
 const mockLoggerError = jest.fn()
 
 jest.mock('../../src/utils/logger', () => ({
   __esModule: true,
-  default: { info: jest.fn(), error: mockLoggerError, warn: jest.fn() },
+  default: { info: mockLoggerInfo, error: mockLoggerError, warn: jest.fn() },
 }))
 import {
   batchSyncContacts,
@@ -744,7 +745,7 @@ const operations: WaveOperation[] = [
   {
     name: 'list available tag-rule fields',
     route: requestHandler(getAvailableFields),
-    arrange: () => { consoleLogSpy.mockImplementationOnce(() => { throw secret }) },
+    arrange: () => { mockLoggerInfo.mockImplementationOnce(() => { throw secret }) },
     expected: { code: 'TAG_RULE_FIELDS_READ_FAILED', message: 'Erro interno do servidor' },
   },
 ]
@@ -835,9 +836,11 @@ const productOperations: Sec10BoundaryOperation[] = [
     name: 'list products',
     route: requestHandler(getAllProductsV2),
     arrange: (failure) => {
-      mockProductFind.mockReturnValue({
-        populate: jest.fn().mockReturnValue({ sort: jest.fn().mockRejectedValue(failure) }),
-      })
+      const chain = { populate: jest.fn(), sort: jest.fn(), limit: jest.fn() }
+      chain.populate.mockReturnValue(chain)
+      chain.sort.mockReturnValue(chain)
+      chain.limit.mockRejectedValue(failure)
+      mockProductFind.mockReturnValue(chain)
     },
     expected: { code: 'PRODUCT_LIST_FAILED', message: 'Erro ao buscar produtos' },
   },
@@ -969,7 +972,7 @@ const productOperations: Sec10BoundaryOperation[] = [
     family: 'products',
     name: 'start product sales rebuild',
     route: requestHandler(rebuildProductSalesStatsEndpoint),
-    arrange: (failure) => { consoleLogSpy.mockImplementationOnce(() => { throw failure }) },
+    arrange: (failure) => { mockLoggerInfo.mockImplementationOnce(() => { throw failure }) },
     expected: { code: 'PRODUCT_SALES_REBUILD_FAILED', message: 'Erro ao iniciar rebuild' },
   },
   {
@@ -987,7 +990,10 @@ const productOperations: Sec10BoundaryOperation[] = [
     name: 'list product profiles',
     route: requestHandler(getAllProductProfiles),
     arrange: (failure) => {
-      mockProductProfileFind.mockReturnValue({ sort: jest.fn().mockRejectedValue(failure) })
+      const chain = { sort: jest.fn(), limit: jest.fn() }
+      chain.sort.mockReturnValue(chain)
+      chain.limit.mockRejectedValue(failure)
+      mockProductProfileFind.mockReturnValue(chain)
     },
     expected: { code: 'PRODUCT_PROFILE_LIST_FAILED', message: 'Erro ao buscar perfis de produto' },
   },
