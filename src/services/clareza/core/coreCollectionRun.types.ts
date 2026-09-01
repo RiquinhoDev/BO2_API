@@ -5,6 +5,11 @@ export interface CoreRunFailure {
   readonly errorCode: string
 }
 
+export interface CoreRunCollectedItem {
+  readonly key: string
+  readonly data: unknown
+}
+
 export interface CoreCollectionRun {
   readonly runId: string
   readonly generationId: string
@@ -13,6 +18,7 @@ export interface CoreCollectionRun {
   readonly status: CoreCollectionRunStatus
   readonly nextIndex: number
   readonly successfulItems: readonly string[]
+  readonly collectedItems: readonly CoreRunCollectedItem[]
   readonly failedItems: readonly CoreRunFailure[]
   readonly ownerId: string | null
   readonly leaseUntil: Date | null
@@ -35,6 +41,7 @@ export interface CompleteCoreBatchInput {
   readonly expectedRevision: number
   readonly nextIndex: number
   readonly successfulItems: readonly string[]
+  readonly collectedItems: readonly CoreRunCollectedItem[]
   readonly failedItems: readonly CoreRunFailure[]
   readonly completed: boolean
   readonly now: Date

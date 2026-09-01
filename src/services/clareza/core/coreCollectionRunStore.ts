@@ -15,6 +15,7 @@ function decode(value: CoreCollectionRun): CoreCollectionRun {
     status: value.status,
     nextIndex: value.nextIndex,
     successfulItems: [...value.successfulItems],
+    collectedItems: value.collectedItems.map(item => ({ key: item.key, data: item.data })),
     failedItems: value.failedItems.map(failure => ({ ...failure })),
     ownerId: value.ownerId,
     leaseUntil: value.leaseUntil,
@@ -34,6 +35,7 @@ export class MongooseCoreCollectionRunStore implements CoreCollectionRunStore {
       status: 'pending',
       nextIndex: 0,
       successfulItems: [],
+      collectedItems: [],
       failedItems: [],
       ownerId: null,
       leaseUntil: null,
@@ -90,6 +92,7 @@ export class MongooseCoreCollectionRunStore implements CoreCollectionRunStore {
       },
       $push: {
         successfulItems: { $each: [...input.successfulItems] },
+        collectedItems: { $each: [...input.collectedItems] },
         failedItems: { $each: [...input.failedItems] },
       },
       $inc: { revision: 1 },
