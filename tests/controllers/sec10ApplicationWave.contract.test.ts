@@ -15,7 +15,8 @@ const mockGetClarezaTop10Json: AsyncBoundaryMock = jest.fn()
 const mockRefreshClarezaTop10Data: AsyncBoundaryMock = jest.fn()
 const mockGetRaioxJson: AsyncBoundaryMock = jest.fn()
 const mockSearchRaiox: AsyncBoundaryMock = jest.fn()
-const mockRefreshClarezaRaioxData: AsyncBoundaryMock = jest.fn()
+const mockStartRaioxRefresh: AsyncBoundaryMock = jest.fn()
+const mockReadRaioxRefreshStatus: AsyncBoundaryMock = jest.fn()
 const mockDiagnoseRaiox: AsyncBoundaryMock = jest.fn()
 const mockGetClarezaCarteiraData: AsyncBoundaryMock = jest.fn()
 const mockSearchCarteira: AsyncBoundaryMock = jest.fn()
@@ -44,7 +45,8 @@ jest.mock('../../src/services/clareza/clarezaTop10Service', () => ({
 jest.mock('../../src/services/clareza/clarezaRaioxService', () => ({
   getRaioxJson: mockGetRaioxJson,
   searchRaiox: mockSearchRaiox,
-  refreshClarezaRaioxData: mockRefreshClarezaRaioxData,
+  startRaioxRefresh: mockStartRaioxRefresh,
+  readRaioxRefreshStatus: mockReadRaioxRefreshStatus,
   diagnoseRaiox: mockDiagnoseRaiox,
 }))
 
@@ -146,7 +148,6 @@ const clarezaOperations: ClarezaOperation[] = [
   { name: 'search Raio-X', method: 'get', path: '/raiox-search?q=apple', dependency: mockSearchRaiox, code: 'CLAREZA_RAIOX_SEARCH_FAILED', message: 'Erro interno do servidor' },
   { name: 'diagnose Raio-X', method: 'get', path: '/raiox-diagnose', dependency: mockDiagnoseRaiox, code: 'CLAREZA_RAIOX_DIAGNOSE_FAILED', message: 'Erro interno do servidor' },
   { name: 'read Raio-X ticker', method: 'get', path: '/raiox/AAPL', dependency: mockGetRaioxJson, code: 'CLAREZA_RAIOX_READ_FAILED', message: 'Erro interno do servidor' },
-  { name: 'refresh Raio-X', method: 'post', path: '/raiox/refresh', dependency: mockRefreshClarezaRaioxData, code: 'CLAREZA_RAIOX_REFRESH_FAILED', message: 'Erro interno do servidor' },
   { name: 'read portfolio', method: 'get', path: '/carteira/data', dependency: mockGetClarezaCarteiraData, code: 'CLAREZA_CARTEIRA_READ_FAILED', message: 'Erro interno do servidor' },
   { name: 'search portfolio', method: 'get', path: '/carteira-search?q=apple', dependency: mockSearchCarteira, code: 'CLAREZA_CARTEIRA_SEARCH_FAILED', message: 'Erro interno do servidor' },
   { name: 'refresh portfolio', method: 'post', path: '/carteira/refresh', dependency: mockRefreshClarezaCarteiraData, code: 'CLAREZA_CARTEIRA_REFRESH_FAILED', message: 'Erro interno do servidor' },
@@ -248,8 +249,8 @@ describe('SEC-10 remaining application wave', () => {
 
   describe('Clareza router', () => {
     it('covers all 12 literal sites and five dynamic unexpected-500 branches', () => {
-      expect(clarezaOperations).toHaveLength(18)
-      expect(new Set(clarezaOperations.map(({ code }) => code)).size).toBe(16)
+      expect(clarezaOperations).toHaveLength(17)
+      expect(new Set(clarezaOperations.map(({ code }) => code)).size).toBe(15)
     })
 
     it.each(clarezaOperations)('$name returns its stable redacted central envelope', async (operation) => {
@@ -282,6 +283,40 @@ describe('SEC-10 remaining application wave', () => {
 
       expect(response.status).toBe(403)
       expect(response.body).toEqual({ error: 'Refresh Clareza nao autorizado' })
+    })
+
+    it('starts Raio-X refresh in background and exposes polling status', async () => {
+      mockStartRaioxRefresh.mockResolvedValueOnce({
+        status: 'running', startedAt: '2026-09-01T00:00:00.000Z', completedItems: 0,
+        reused: false, resumed: false,
+      })
+      mockReadRaioxRefreshStatus
+        .mockResolvedValueOnce({
+          status: 'running', startedAt: '2026-09-01T00:00:00.000Z',
+          completedItems: 0, resumed: false,
+        })
+        .mockResolvedValueOnce({
+          status: 'succeeded', startedAt: '2026-09-01T00:00:00.000Z',
+          finishedAt: '2026-09-01T00:01:00.000Z', completedItems: 185,
+          result: { total: 185, errors: 0 },
+        })
+      const app = appForCentralError({ kind: 'router', mountPath: '/', router: clarezaRouter })
+
+      const started = await request(app).post('/raiox/refresh' + offline).send({})
+      expect(started.status).toBe(202)
+      expect(started.body).toMatchObject({
+        success: true,
+        data: { status: 'running', reused: false },
+      })
+
+      const running = await request(app).get('/raiox/refresh/status' + offline)
+      expect(running.body).toMatchObject({ success: true, data: { status: 'running' } })
+
+      const completed = await request(app).get('/raiox/refresh/status' + offline)
+      expect(completed.body).toMatchObject({
+        success: true,
+        data: { status: 'succeeded', result: { total: 185, errors: 0 } },
+      })
     })
 
     it('preserves the unavailable-data response', async () => {

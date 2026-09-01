@@ -99,6 +99,22 @@ test('starts runtime components in dependency order without production monitorin
   ])
 })
 
+test('global scheduler kill switch skips scheduler and seeds but keeps safe lifecycle work', async () => {
+  const events: string[] = []
+  const disabled = {
+    ...config('test'),
+    operationalControls: {
+      schedulerEnabled: false,
+      clarezaRefreshEnabled: true,
+      clarezaFmpEgressEnabled: true,
+    },
+  }
+
+  await createJobStarter(dependencies(events))(disabled)
+
+  expect(events).toEqual(['warmups', 'shutdown'])
+})
+
 test('starts monitoring only after seeds in production', async () => {
   const events: string[] = []
 

@@ -1,7 +1,7 @@
 import logger from '../../utils/logger'
 import { cacheService } from '../cache.service'
 import ClarezaMarketData from '../../models/ClarezaMarketData'
-import { getFmpApiKey } from '../requestDrivenRuntimeConfig'
+import { assertClarezaRefreshEnabled, getFmpApiKey } from '../requestDrivenRuntimeConfig'
 import { UNIVERSE } from './clarezaFmpUniverse'
 import { CACHE_TTL, CLAREZA_CACHE_KEY, ClarezaStockEntry, errorMessage, fetchStock, runWithConcurrency } from './clarezaFmpAnalysisSupport'
 
@@ -10,6 +10,7 @@ import { CACHE_TTL, CLAREZA_CACHE_KEY, ClarezaStockEntry, errorMessage, fetchSto
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function refreshClarezaData(): Promise<{ total: number; errors: number }> {
+  assertClarezaRefreshEnabled()
   getFmpApiKey()
 
   logger.info(`ðŸ“ˆ [Clareza] Iniciando refresh de ${UNIVERSE.length} aÃ§Ãµes...`)

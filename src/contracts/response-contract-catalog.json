@@ -744,6 +744,17 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/raiox/refresh/status",
+    "family": "success-data",
+    "shapeKeys": [
+      "data",
+      "success"
+    ],
+    "evidence": "src/controllers/clarezaController.ts:358",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/reit-valuation/:ticker",
     "family": "public-document",
     "shapeKeys": [

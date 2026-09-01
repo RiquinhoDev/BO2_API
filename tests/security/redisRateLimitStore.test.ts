@@ -261,3 +261,27 @@ test('cache connection rejection disconnects the client and resets the singleton
     await cacheService.disconnect()
   }
 })
+
+test('refresh job command port can be created before Redis connects and resolves the live client per call', async () => {
+  const Redis = (await import('ioredis')).default
+  const { cacheService } = await import('../../src/services/cache.service')
+  const commands = cacheService.getRefreshJobCommandPort()
+
+  await expect(commands.eval('return 1', ['job'], ['owner']))
+    .rejects.toThrow('Redis is not connected')
+
+  const connect = jest.spyOn(Redis.prototype, 'connect').mockResolvedValue(undefined)
+  const evalCommand = jest.spyOn(Redis.prototype, 'eval').mockResolvedValue('ok')
+  const disconnect = jest.spyOn(Redis.prototype, 'disconnect').mockImplementation(() => undefined)
+
+  try {
+    await cacheService.connect({ host: 'redis.test', port: 6380, username: 'api' })
+    await expect(commands.eval('return 1', ['job'], ['owner'])).resolves.toBe('ok')
+    expect(evalCommand).toHaveBeenCalledWith('return 1', 1, 'job', 'owner')
+  } finally {
+    await cacheService.disconnect()
+    connect.mockRestore()
+    evalCommand.mockRestore()
+    disconnect.mockRestore()
+  }
+})

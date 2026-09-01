@@ -43,14 +43,24 @@ export function getStudentSummaryToken(): string | undefined {
 }
 
 export function getOptionalFmpApiKey(): string | undefined {
+  if (getRuntimeConfig().operationalControls?.clarezaFmpEgressEnabled === false) return undefined
   const integration = getRuntimeConfig().integrations.fmp
   return integration.configured ? integration.value.apiKey : undefined
 }
 
 export function getFmpApiKey(): string {
+  if (getRuntimeConfig().operationalControls?.clarezaFmpEgressEnabled === false) {
+    throw new IntegrationUnavailableError('fmp')
+  }
   const integration = getRuntimeConfig().integrations.fmp
   if (!integration.configured) throw new IntegrationUnavailableError('fmp')
   return integration.value.apiKey
+}
+
+export function assertClarezaRefreshEnabled(): void {
+  if (getRuntimeConfig().operationalControls?.clarezaRefreshEnabled === false) {
+    throw new IntegrationUnavailableError('clareza')
+  }
 }
 
 export interface HotmartCredentials {

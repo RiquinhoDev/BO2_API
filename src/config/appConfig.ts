@@ -14,6 +14,7 @@ import type {
   LegacyApiIntegration,
   NodeEnvironment,
   ObservabilityConfig,
+  OperationalControlsConfig,
   RedisConfig,
   RenewalConfig,
   SlackIntegration,
@@ -394,6 +395,17 @@ function parseRedisConfig(env: NodeJS.ProcessEnv, nodeEnv: NodeEnvironment): Red
   }
 }
 
+function parseOperationalControls(env: NodeJS.ProcessEnv): OperationalControlsConfig {
+  const enabledByDefault = (name: string): boolean =>
+    env[name] === undefined ? true : parseBooleanFlag(env[name], name)
+
+  return {
+    schedulerEnabled: enabledByDefault('SCHEDULER_ENABLED'),
+    clarezaRefreshEnabled: enabledByDefault('CLAREZA_REFRESH_ENABLED'),
+    clarezaFmpEgressEnabled: enabledByDefault('CLAREZA_FMP_EGRESS_ENABLED'),
+  }
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const mongoUri = env.MONGO_URI?.trim()
   if (!mongoUri) throw new Error('CONFIG_INVÁLIDA: MONGO_URI é obrigatória')
@@ -432,6 +444,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const observability = parseObservability(env, nodeEnv)
   const integrations = parseIntegrations(env, acWebhookSecret)
   const renewal = parseRenewal(env, integrations)
+  const operationalControls = parseOperationalControls(env)
 
   const core = {
     nodeEnv,
@@ -454,6 +467,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     observability,
     integrations,
     renewal,
+    operationalControls,
   }
 
   return freezeRecursively(config)

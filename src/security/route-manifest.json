@@ -253,6 +253,10 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/raiox/refresh/status"
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/reit-valuation/:ticker"
   },
   {

@@ -56,5 +56,7 @@ router.post('/suggestions', asyncRoute(submitClarezaSuggestion))
 router.get('/suggestions/admin', authorize('SUPER_ADMIN'), asyncRoute(clarezaSuggestionAdminController.list))
 router.get('/suggestions/admin/export', authorize('SUPER_ADMIN'), asyncRoute(clarezaSuggestionAdminController.exportCsv))
 
+router.get('/raiox/refresh/status', asyncRoute(clarezaController.getRaioxRefreshStatus))
+
 
 export default router

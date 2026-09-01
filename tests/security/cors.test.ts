@@ -89,15 +89,20 @@ test('createApp sem allowlist injetada rejeita origem browser e permite pedido s
     },
   })
 
-  await request(app)
+  const blocked = await request(app)
     .get('/probe')
     .set('Origin', 'https://browser.example')
     .query(marker)
-    .expect(500)
+    .expect(403)
+  expect(blocked.body).toEqual(expect.objectContaining({
+      success: false,
+      code: 'CORS_ORIGIN_DENIED',
+      message: 'Origem não autorizada',
+  }))
   await request(app)
     .get('/probe')
     .set('Origin', 'https://backoffice.serriquinho.com')
     .query(marker)
-    .expect(500)
+    .expect(403)
   await request(app).get('/probe').query(marker).expect(204)
 })

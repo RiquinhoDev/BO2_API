@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { getRuntimeConfig } from '../../../config/runtimeConfig'
 import type { IClarezaCarteiraItem } from '../../../models/ClarezaCarteiraData'
 import { UNIVERSE } from './carteiraUniverse'
 import { fmpThrottle } from '../fmpThrottle'
@@ -11,9 +10,11 @@ import { CLAREZA_UNIVERSE, CLAREZA_UNIVERSE_SOURCE } from '../universe/clarezaUn
 import { MongooseCoreGenerationStore } from '../core/coreGenerationStore'
 import { publishCarteiraSnapshot } from '../core/coreSnapshotBridge'
 import { readLatestRaioxComplements } from '../core/coreRaioxComplementReader'
+import { CLAREZA_DAILY_CACHE_TTL_SECONDS } from '../cachePolicy'
+import { assertClarezaRefreshEnabled, getOptionalFmpApiKey } from '../../requestDrivenRuntimeConfig'
 
 export const CLAREZA_CARTEIRA_CACHE_KEY = 'clareza:carteira-data'
-export const CLAREZA_CARTEIRA_CACHE_TTL = 28800 // 8 hours
+export const CLAREZA_CARTEIRA_CACHE_TTL = CLAREZA_DAILY_CACHE_TTL_SECONDS
 const REFRESH_CONCURRENCY = 12
 
 const clock: Clock = { now: () => new Date() }
@@ -31,8 +32,7 @@ function sleep(milliseconds: number): Promise<void> {
 let service: ClarezaCarteiraService | null = null
 function getService(): ClarezaCarteiraService {
   if (service) return service
-  const fmp = getRuntimeConfig().integrations.fmp
-  const apiKey = fmp.configured ? fmp.value.apiKey : undefined
+  const apiKey = getOptionalFmpApiKey()
 
   service = new ClarezaCarteiraService(
     new CarteiraMetricsFetcher(new AxiosFmpCarteiraClient({
@@ -54,6 +54,7 @@ export async function refreshClarezaCarteiraData(): Promise<{
   errors: number
   generationId: string
 }> {
+  assertClarezaRefreshEnabled()
   const result = await getService().refresh()
   const items = await getService().getData()
   if (!items) throw new Error('Carteira refresh completed without a readable snapshot')

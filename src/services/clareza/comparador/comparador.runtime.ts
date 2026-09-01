@@ -1,6 +1,6 @@
 import axios from 'axios'
 import ClarezaComparadorData from '../../../models/ClarezaComparadorData'
-import { getFmpApiKey } from '../../requestDrivenRuntimeConfig'
+import { assertClarezaRefreshEnabled, getFmpApiKey } from '../../requestDrivenRuntimeConfig'
 import { cacheService } from '../../cache.service'
 import { UNIVERSE } from '../clarezaFmpUniverse'
 import { fmpThrottle } from '../fmpThrottle'
@@ -10,9 +10,10 @@ import {
 } from './comparadorFmpClient'
 import { MongooseComparadorSnapshotRepository, RedisMongoComparadorStore } from './comparadorStore'
 import { createComparadorService } from './comparador.service'
+import { CLAREZA_DAILY_CACHE_TTL_SECONDS } from '../cachePolicy'
 
 const COMPARADOR_CACHE_KEY = 'clareza:comparador:v1'
-const COMPARADOR_CACHE_TTL_SECONDS = 90000
+const COMPARADOR_CACHE_TTL_SECONDS = CLAREZA_DAILY_CACHE_TTL_SECONDS
 const COMPARADOR_CONCURRENCY = 8
 
 const http: ComparadorFmpHttpPort = {
@@ -52,5 +53,12 @@ const service = createComparadorService({
 
 export const getComparadorSymbols = service.getComparadorSymbols
 export const searchComparador = service.searchComparador
-export const refreshComparadorSymbols = service.refreshComparadorSymbols
-export const refreshClarezaComparadorData = service.refreshClarezaComparadorData
+export async function refreshComparadorSymbols(rawSymbols: string) {
+  assertClarezaRefreshEnabled()
+  return service.refreshComparadorSymbols(rawSymbols)
+}
+
+export async function refreshClarezaComparadorData() {
+  assertClarezaRefreshEnabled()
+  return service.refreshClarezaComparadorData()
+}

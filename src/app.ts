@@ -17,6 +17,7 @@ import {
 } from './security/httpPerimeter'
 import {
   createErrorHandling,
+  HttpError,
   type ErrorHandling,
 } from './security/errorHandling'
 import { createDefaultDenyAuth } from './security/defaultDenyAuth'
@@ -64,7 +65,12 @@ export function createApp(_deps: CreateAppDependencies): Application {
     cors({
       origin: (origin, callback) => {
         if (isOriginAllowed(origin, allowedOrigins)) return callback(null, true)
-        return callback(new Error(`Origin ${origin} not allowed by CORS`))
+        return callback(new HttpError({
+          status: 403,
+          code: 'CORS_ORIGIN_DENIED',
+          publicMessage: 'Origem não autorizada',
+          cause: new Error('Origin rejected by CORS allowlist'),
+        }))
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

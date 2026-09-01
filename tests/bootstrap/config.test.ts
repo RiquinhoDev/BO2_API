@@ -512,6 +512,33 @@ test('loadConfig rejects explicitly blank REDIS_HOST outside production', () => 
   expect(() => loadConfig({ ...VALID_ENV, REDIS_HOST: '   ' })).toThrow('REDIS_HOST')
 })
 
+test('operational controls default on and accept explicit kill switches', () => {
+  expect(loadConfig(VALID_ENV).operationalControls).toEqual({
+    schedulerEnabled: true,
+    clarezaRefreshEnabled: true,
+    clarezaFmpEgressEnabled: true,
+  })
+
+  expect(loadConfig({
+    ...VALID_ENV,
+    SCHEDULER_ENABLED: 'false',
+    CLAREZA_REFRESH_ENABLED: 'false',
+    CLAREZA_FMP_EGRESS_ENABLED: 'false',
+  }).operationalControls).toEqual({
+    schedulerEnabled: false,
+    clarezaRefreshEnabled: false,
+    clarezaFmpEgressEnabled: false,
+  })
+})
+
+test.each([
+  'SCHEDULER_ENABLED',
+  'CLAREZA_REFRESH_ENABLED',
+  'CLAREZA_FMP_EGRESS_ENABLED',
+])('rejects an invalid operational switch: %s', (name) => {
+  expect(() => loadConfig({ ...VALID_ENV, [name]: 'sometimes' })).toThrow(name)
+})
+
 test('configured optional integrations receive typed values', () => {
   const config = loadConfig({
     ...VALID_ENV,

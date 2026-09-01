@@ -155,7 +155,7 @@ export const getSchedulerStatus = async (req: Request, res: Response, next: Next
     }
 
     res.status(200).json(successResponse({
-        schedulerRunning: true,
+        schedulerRunning: syncSchedulerService.isSchedulerActive(),
         stats,
         activeJobs: activeJobs.map(j => ({
           id: j._id,
