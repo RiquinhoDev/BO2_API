@@ -100,6 +100,7 @@ beforeEach(async () => {
       provenance: 'fmp-exchange-variants', observedAt: '2026-09-01T18:00:00.000Z',
     }],
     processed: [{ ticker: 'AAPL', processedAt: '2026-09-01T18:00:00.000Z' }],
+    failures: [], conflicts: [],
   }, 0)
 })
 

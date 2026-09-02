@@ -36,7 +36,10 @@ const PUBLIC_DOCUMENT_IDENTITIES = new Set([
   'GET /api/health',
   'GET /api/info',
 ])
-const CANONICAL_ADMIN_IDENTITIES = new Set(['POST /api/guru/webhooks/:id/reprocess'])
+const CANONICAL_ADMIN_IDENTITIES = new Set([
+  'POST /api/clareza/operations',
+  'POST /api/guru/webhooks/:id/reprocess',
+])
 const WEBHOOK_ACK_IDENTITIES = new Set([
   'POST /api/guru/webhook',
   'POST /api/webhooks/ac/email-opened',

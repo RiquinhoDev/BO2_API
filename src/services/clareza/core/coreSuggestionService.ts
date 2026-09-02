@@ -19,6 +19,7 @@ export interface CoreSuggestionStore {
 export interface CoreSuggestionServiceDependencies {
   readonly store: CoreSuggestionStore
   readonly knownTickers: readonly string[]
+  readonly resolveAlias?: (ticker: string) => Promise<string | null>
   readonly now: () => string
 }
 
@@ -58,6 +59,10 @@ export function createCoreSuggestionService(dependencies: CoreSuggestionServiceD
       validateSubmissionId(submissionId)
       const key = query.toLocaleUpperCase('pt-PT')
       if (known.has(key)) return { outcome: 'known' as const, ticker: key }
+      const canonicalTicker = await dependencies.resolveAlias?.(key)
+      if (canonicalTicker) {
+        return { outcome: 'known' as const, ticker: canonicalTicker, viaAlias: key }
+      }
       const requestedAt = dependencies.now()
       if (Number.isNaN(new Date(requestedAt).getTime())) {
         throw new RangeError('suggestion clock returned an invalid timestamp')

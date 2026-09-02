@@ -77,7 +77,7 @@ beforeEach(() =>
 
 test('o catalogo inteiro aplica 401 ou bypass sem JWT conforme o access', async () => {
   const app = buildCatalogProbe()
-  expect(catalog).toHaveLength(417)
+  expect(catalog).toHaveLength(418)
 
   for (const route of catalog) {
     const expected = route.access === 'public' || route.access === 'signature' ? 204 : 401
@@ -89,7 +89,7 @@ test('token SUPER_ADMIN valido atravessa todas as rotas authenticated', async ()
   const app = buildCatalogProbe()
   const token = signAppToken({ id: 'admin-1', email: 'admin@example.test', role: 'SUPER_ADMIN', permissions: [] })
   const authenticated = catalog.filter((route) => route.access === 'authenticated')
-  expect(authenticated).toHaveLength(401)
+  expect(authenticated).toHaveLength(402)
 
   for (const route of authenticated) {
     const method = route.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete'

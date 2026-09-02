@@ -50,6 +50,7 @@ export const WEBHOOK_PATHS = [
 export const SUGGESTION_PATHS = ['/api/clareza/suggestions']
 
 export const HEAVY_OPERATION_PATHS = [
+  '/api/clareza/operations',
   '/api/sync/execute-pipeline',
   '/api/sync/hotmart',
   '/api/sync/hotmart/batch',

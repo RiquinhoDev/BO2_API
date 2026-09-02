@@ -42,6 +42,21 @@ describe('core suggestion service', () => {
     expect(store.increment).not.toHaveBeenCalled()
   })
 
+  it('does not write when a persisted alias already resolves the requested ticker', async () => {
+    const store = { increment: jest.fn() }
+    const resolveAlias = jest.fn().mockResolvedValue('CSP1.L')
+    const service = createCoreSuggestionService({
+      store, knownTickers: [], resolveAlias,
+      now: () => '2026-09-01T13:00:00.000Z',
+    })
+
+    await expect(service.submit(' cspx.as ', 'submission_000001')).resolves.toEqual({
+      outcome: 'known', ticker: 'CSP1.L', viaAlias: 'CSPX.AS',
+    })
+    expect(resolveAlias).toHaveBeenCalledWith('CSPX.AS')
+    expect(store.increment).not.toHaveBeenCalled()
+  })
+
   it('returns replay without increasing count and rejects invalid input', async () => {
     const store = new AtomicMemorySuggestionStore()
     const service = createCoreSuggestionService({ store, knownTickers: [], now: () => '2026-09-01T13:00:00.000Z' })

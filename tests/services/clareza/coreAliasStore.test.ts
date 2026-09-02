@@ -31,7 +31,9 @@ beforeEach(async () => ClarezaCoreAliasState.collection.deleteMany({}))
 describe('MongooseCoreAliasStore', () => {
   it('persists alias provenance and processed markers across instances', async () => {
     const store = new MongooseCoreAliasStore()
-    await expect(store.read()).resolves.toEqual({ revision: 0, state: { aliases: [], processed: [] } })
+    await expect(store.read()).resolves.toEqual({
+      revision: 0, state: { aliases: [], processed: [], failures: [], conflicts: [] },
+    })
 
     await expect(store.replace({
       aliases: [{
@@ -39,6 +41,7 @@ describe('MongooseCoreAliasStore', () => {
         provenance: 'fmp-exchange-variants', observedAt: '2026-09-01T00:00:00.000Z',
       }],
       processed: [{ ticker: 'CSP1.L', processedAt: '2026-09-01T00:00:00.000Z' }],
+      failures: [], conflicts: [],
     }, 0)).resolves.toBe(1)
 
     await expect(new MongooseCoreAliasStore().read()).resolves.toMatchObject({
@@ -49,8 +52,9 @@ describe('MongooseCoreAliasStore', () => {
 
   it('rejects a stale writer instead of losing an alias update', async () => {
     const store = new MongooseCoreAliasStore()
-    await store.replace({ aliases: [], processed: [] }, 0)
-    await expect(store.replace({ aliases: [], processed: [] }, 0))
+    const empty = { aliases: [], processed: [], failures: [], conflicts: [] }
+    await store.replace(empty, 0)
+    await expect(store.replace(empty, 0))
       .rejects.toBeInstanceOf(CoreAliasRevisionConflictError)
   })
 })
