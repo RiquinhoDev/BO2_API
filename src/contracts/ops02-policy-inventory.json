@@ -246,37 +246,7 @@
   },
   {
     "method": "POST",
-    "path": "/api/clareza/carteira/refresh",
-    "policy": "I"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/comparador/refresh",
-    "policy": "I"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/earnings/refresh",
-    "policy": "I"
-  },
-  {
-    "method": "POST",
     "path": "/api/clareza/operations",
-    "policy": "I"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/raiox/refresh",
-    "policy": "I"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/refresh",
-    "policy": "I"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/top10/refresh",
     "policy": "I"
   },
   {

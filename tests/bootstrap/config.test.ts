@@ -231,7 +231,6 @@ test('loadConfig expande secoes focadas e deixa integracoes opcionais inertes', 
     discord: { configured: false },
     slack: { configured: false },
     studentSummary: { configured: false },
-    clareza: { configured: false },
     legacyApi: { configured: false },
   })
   expect(config.renewal.acSyncEnabled).toBe(false)
@@ -352,9 +351,6 @@ test('explicit malformed optional values fail even when their feature is disable
   expect(() => loadConfig({ ...VALID_ENV, AC_DEBUG_VERIFY_DELETE: 'yes' })).toThrow('AC_DEBUG_VERIFY_DELETE')
 
   expect(() => loadConfig({ ...VALID_ENV, FMP_API_KEY: '   ' })).toThrow('FMP_API_KEY')
-  expect(() => loadConfig({ ...VALID_ENV, CLAREZA_REFRESH_TOKEN: '   ' })).toThrow(
-    'CLAREZA_REFRESH_TOKEN',
-  )
   expect(() => loadConfig({ ...VALID_ENV, OLD_API_URL: 'ftp://invalid.test' })).toThrow(
     'OLD_API_URL',
   )
@@ -553,7 +549,6 @@ test('configured optional integrations receive typed values', () => {
     DISCORD_BOT_URL: 'https://discord.example.test',
     DISCORD_MESSAGE_CHANNELS: '123:alerts,456:general',
     STUDENT_SUMMARY_TOKEN: 'student-summary-token',
-    CLAREZA_REFRESH_TOKEN: 'clareza-refresh-token',
     OLD_API_URL: 'https://legacy.example.test',
   })
 
@@ -587,10 +582,6 @@ test('configured optional integrations receive typed values', () => {
   expect(config.integrations.studentSummary).toEqual({
     configured: true,
     value: { token: 'student-summary-token' },
-  })
-  expect(config.integrations.clareza).toEqual({
-    configured: true,
-    value: { refreshToken: 'clareza-refresh-token' },
   })
   expect(config.integrations.legacyApi).toEqual({
     configured: true,

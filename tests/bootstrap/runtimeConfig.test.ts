@@ -45,7 +45,6 @@ const runtimeConfig = (): AppConfig =>
       discord: { configured: false },
       slack: { configured: false },
       studentSummary: { configured: false },
-      clareza: { configured: false },
       legacyApi: { configured: false },
     },
     renewal: {

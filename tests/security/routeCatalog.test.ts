@@ -44,11 +44,11 @@ function isLiteralPath(routePath: string): boolean {
     .every((segment) => !segment.startsWith(':') && !segment.startsWith('*'))
 }
 
-test('o catalogo cobre exatamente as 418 rotas do manifest', () => {
-  expect(manifest).toHaveLength(418)
-  expect(catalog).toHaveLength(418)
-  expect(new Set(manifest.map(key)).size).toBe(418)
-  expect(new Set(catalog.map(key)).size).toBe(418)
+test('o catalogo cobre exatamente as 402 rotas do manifest', () => {
+  expect(manifest).toHaveLength(402)
+  expect(catalog).toHaveLength(402)
+  expect(new Set(manifest.map(key)).size).toBe(402)
+  expect(new Set(catalog.map(key)).size).toBe(402)
   expect(catalog.map(key).sort()).toEqual(manifest.map(key).sort())
 })
 
@@ -70,12 +70,10 @@ test('a superficie excecional fica curta e explicita', () => {
   const routesWith = (access: string) => catalog.filter((route) => route.access === access).map(key).sort()
 
   expect(routesWith('public')).toEqual([
-    'GET /api/clareza/carteira-search',
     'GET /api/clareza/carteira/analysis',
     'GET /api/clareza/carteira/data',
     'GET /api/clareza/carteira/search',
     'GET /api/clareza/comparador',
-    'GET /api/clareza/data',
     'GET /api/clareza/earnings/data',
     'GET /api/clareza/radar',
     'GET /api/clareza/raiox',
@@ -90,7 +88,7 @@ test('a superficie excecional fica curta e explicita', () => {
     'POST /api/webhooks/ac/link-clicked',
   ])
   expect(routesWith('dead')).toEqual([])
-  expect(routesWith('authenticated')).toHaveLength(402)
+  expect(routesWith('authenticated')).toHaveLength(388)
   expect(catalog.filter((route) => route.access === 'public').every((route) => route.evidence.startsWith('public:'))).toBe(true)
 })
 /**

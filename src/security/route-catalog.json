@@ -451,21 +451,12 @@
   },
   {
     "method": "GET",
-    "path": "/api/clareza/carteira-search",
-    "access": "public",
-    "consumer": "externo",
-    "writes": false,
-    "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:45"
-  },
-  {
-    "method": "GET",
     "path": "/api/clareza/carteira/analysis",
     "access": "public",
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; geração publicada sem provider I/O; rota em src/routes/clareza.routes.ts:47"
+    "evidence": "public: HTML Clareza externo; geração publicada sem provider I/O; rota em src/routes/clareza.routes.ts:16"
   },
   {
     "method": "GET",
@@ -474,16 +465,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:43"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/carteira/legacy-data",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "compatibilidade transitória até equivalência observada; rota em src/routes/clareza.routes.ts:44"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:14"
   },
   {
     "method": "GET",
@@ -492,7 +474,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:46"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:15"
   },
   {
     "method": "GET",
@@ -501,16 +483,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:52"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/data",
-    "access": "public",
-    "consumer": "externo",
-    "writes": false,
-    "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:13"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:18"
   },
   {
     "method": "GET",
@@ -519,7 +492,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:50"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:17"
   },
   {
     "method": "GET",
@@ -528,7 +501,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:14"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:11"
   },
   {
     "method": "GET",
@@ -537,70 +510,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:33"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/raiox-diagnose",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:35"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/raiox-search",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:34"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/raiox/:ticker",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:36"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/raiox/refresh/status",
-    "access": "authenticated",
-    "consumer": "externo",
-    "writes": false,
-    "destructive": false,
-    "evidence": "Backoffice Clareza: polling do refresh assíncrono; rota em src/routes/clareza.routes.ts:63"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/reit-valuation/:ticker",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:20"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/reit/:ticker",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:21"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/stock/:ticker",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": false,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:22"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:13"
   },
   {
     "method": "GET",
@@ -609,7 +519,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "SUPER_ADMIN: lista agregada; rota em src/routes/clareza.routes.ts:57"
+    "evidence": "SUPER_ADMIN: lista agregada; rota em src/routes/clareza.routes.ts:22"
   },
   {
     "method": "GET",
@@ -618,7 +528,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "SUPER_ADMIN: export CSV limitado; rota em src/routes/clareza.routes.ts:58"
+    "evidence": "SUPER_ADMIN: export CSV limitado; rota em src/routes/clareza.routes.ts:23"
   },
   {
     "method": "GET",
@@ -627,7 +537,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:25"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:12"
   },
   {
     "method": "GET",
@@ -2611,57 +2521,12 @@
   },
   {
     "method": "POST",
-    "path": "/api/clareza/carteira/refresh",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:48"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/comparador/refresh",
-    "access": "authenticated",
-    "consumer": "externo",
-    "writes": true,
-    "destructive": false,
-    "evidence": "Backoffice/HTML Clareza externo; rota em src/routes/clareza.routes.ts:53"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/earnings/refresh",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:51"
-  },
-  {
-    "method": "POST",
     "path": "/api/clareza/operations",
     "access": "authenticated",
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "SUPER_ADMIN: refresh canónico ou aliases incrementais; rota em src/routes/clareza.routes.ts:61"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/raiox/refresh",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:39"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/refresh",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:17"
+    "evidence": "SUPER_ADMIN: refresh canónico ou aliases incrementais; rota em src/routes/clareza.routes.ts:26"
   },
   {
     "method": "POST",
@@ -2670,16 +2535,7 @@
     "consumer": "externo",
     "writes": true,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; limite dedicado e idempotencia; rota em src/routes/clareza.routes.ts:56"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/top10/refresh",
-    "access": "authenticated",
-    "consumer": "desconhecido",
-    "writes": true,
-    "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/clareza.routes.ts:28"
+    "evidence": "public: HTML Clareza externo; limite dedicado e idempotencia; rota em src/routes/clareza.routes.ts:21"
   },
   {
     "method": "POST",

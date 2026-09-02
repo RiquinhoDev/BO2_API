@@ -201,10 +201,6 @@
   },
   {
     "method": "GET",
-    "path": "/api/clareza/carteira-search"
-  },
-  {
-    "method": "GET",
     "path": "/api/clareza/carteira/analysis"
   },
   {
@@ -213,19 +209,11 @@
   },
   {
     "method": "GET",
-    "path": "/api/clareza/carteira/legacy-data"
-  },
-  {
-    "method": "GET",
     "path": "/api/clareza/carteira/search"
   },
   {
     "method": "GET",
     "path": "/api/clareza/comparador"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/data"
   },
   {
     "method": "GET",
@@ -238,34 +226,6 @@
   {
     "method": "GET",
     "path": "/api/clareza/raiox"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/raiox-diagnose"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/raiox-search"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/raiox/:ticker"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/raiox/refresh/status"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/reit-valuation/:ticker"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/reit/:ticker"
-  },
-  {
-    "method": "GET",
-    "path": "/api/clareza/stock/:ticker"
   },
   {
     "method": "GET",
@@ -1153,35 +1113,11 @@
   },
   {
     "method": "POST",
-    "path": "/api/clareza/carteira/refresh"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/comparador/refresh"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/earnings/refresh"
-  },
-  {
-    "method": "POST",
     "path": "/api/clareza/operations"
   },
   {
     "method": "POST",
-    "path": "/api/clareza/raiox/refresh"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/refresh"
-  },
-  {
-    "method": "POST",
     "path": "/api/clareza/suggestions"
-  },
-  {
-    "method": "POST",
-    "path": "/api/clareza/top10/refresh"
   },
   {
     "method": "POST",

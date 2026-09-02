@@ -1,14 +1,13 @@
-import type { IClarezaCarteiraMetrics } from '../../../models/ClarezaCarteiraData'
-import { hasCoreMetricsData } from '../carteira/carteiraMetrics'
+import { hasCoreMetricsData, type CoreMarketMetrics } from './coreMarketMetrics'
 import type { ClarezaAsset } from '../universe/clarezaUniverse.types'
 import type { CoreAssetKind } from './coreGeneration.types'
 
 export interface CoreMasterFetcher {
-  fetchItem(asset: ClarezaAsset): Promise<IClarezaCarteiraMetrics>
+  fetchItem(asset: ClarezaAsset): Promise<CoreMarketMetrics>
 }
 
 export type CoreMasterRecord =
-  | { readonly asset: ClarezaAsset; readonly status: 'available'; readonly data: IClarezaCarteiraMetrics }
+  | { readonly asset: ClarezaAsset; readonly status: 'available'; readonly data: CoreMarketMetrics }
   | { readonly asset: ClarezaAsset; readonly status: 'missing'; readonly data: null }
   | { readonly asset: ClarezaAsset; readonly status: 'failed'; readonly data: null; readonly errorCode: string }
 

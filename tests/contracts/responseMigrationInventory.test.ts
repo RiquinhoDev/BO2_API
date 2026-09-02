@@ -21,8 +21,8 @@ describe('response migration inventory', () => {
     }> = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
     const identities = inventory.map((entry) => entry.identity).sort()
 
-    expect(inventory).toHaveLength(418)
-    expect(new Set(identities).size).toBe(418)
+    expect(inventory).toHaveLength(402)
+    expect(new Set(identities).size).toBe(402)
     expect(identities).toEqual(routeCatalog.map(routeId).sort())
     for (const entry of inventory) {
       expect(entry.owner).toMatch(/^src\/.+\.ts$/)
@@ -32,7 +32,7 @@ describe('response migration inventory', () => {
       expect(entry.status).toMatch(/^(?:complete|pending-migration)$/)
     }
 
-    expect(inventory.filter((entry) => entry.status === 'complete')).toHaveLength(418)
+    expect(inventory.filter((entry) => entry.status === 'complete')).toHaveLength(402)
     expect(inventory.filter((entry) => entry.status === 'pending-migration')).toHaveLength(0)
 
     expect(inventory.filter((entry) => entry.currentFamily === '501-only')).toEqual([])

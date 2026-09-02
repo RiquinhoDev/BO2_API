@@ -6,7 +6,6 @@ import baseline from './controllerResponsibilityBaseline.json'
 const CONTROLLERS_ROOT = path.join(process.cwd(), 'src/controllers')
 
 const INTENTIONAL_HTTP_ADAPTERS = new Set([
-  'src/controllers/clarezaController.ts',
   'src/controllers/studentsController.ts',
 ])
 

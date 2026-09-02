@@ -88,10 +88,6 @@ export interface StudentSummaryIntegration {
   readonly token: string
 }
 
-export interface ClarezaIntegration {
-  readonly refreshToken: string
-}
-
 export interface LegacyApiIntegration {
   readonly apiUrl: string
 }
@@ -105,7 +101,6 @@ export interface IntegrationConfigs {
   readonly discord: IntegrationConfig<DiscordIntegration>
   readonly slack: IntegrationConfig<SlackIntegration>
   readonly studentSummary: IntegrationConfig<StudentSummaryIntegration>
-  readonly clareza: IntegrationConfig<ClarezaIntegration>
   readonly legacyApi: IntegrationConfig<LegacyApiIntegration>
 }
 

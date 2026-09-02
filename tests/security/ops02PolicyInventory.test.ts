@@ -68,12 +68,7 @@ const factualProviderScopes: readonly ProviderScopeRoute[] = [
   ['POST', '/api/guru/snapshots', 'mixed', 'guru', false],
   ['POST', '/api/guru/snapshots/historical', 'mixed', 'guru', true],
   ['PUT', '/api/guru/snapshots/:year/:month', 'mixed', 'guru', false],
-  ['POST', '/api/clareza/refresh', 'mixed', 'fmp', true],
-  ['POST', '/api/clareza/top10/refresh', 'mixed', 'fmp', true],
-  ['POST', '/api/clareza/raiox/refresh', 'mixed', 'fmp', true],
-  ['POST', '/api/clareza/carteira/refresh', 'mixed', 'fmp', true],
-  ['POST', '/api/clareza/earnings/refresh', 'mixed', 'fmp', true],
-  ['POST', '/api/clareza/comparador/refresh', 'mixed', 'fmp', true],
+  ['POST', '/api/clareza/operations', 'mixed', 'fmp', true],
   ['POST', '/api/guru/inactivation/single', 'provider', 'curseduca', false],
   ['POST', '/api/guru/inactivation/bulk', 'provider', 'curseduca', true],
   ['POST', '/api/cron/tag-rules-only', 'provider', 'activecampaign', true],
@@ -94,7 +89,7 @@ describe('OPS-02 policy inventory', () => {
       .map((decision) => routeKey(decision.method, decision.path))
       .sort()
 
-    expect(expected).toHaveLength(160)
+    expect(expected).toHaveLength(155)
     expect(actual).toEqual(expected)
     expect(new Set(actual).size).toBe(actual.length)
   })

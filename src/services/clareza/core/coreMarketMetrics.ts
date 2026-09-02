@@ -1,6 +1,4 @@
-import mongoose, { Schema } from 'mongoose'
-
-export interface IClarezaCarteiraMetrics {
+export interface CoreMarketMetrics {
   price: number | null
   change: number | null
   perf12m: number | null
@@ -48,30 +46,10 @@ export interface IClarezaCarteiraMetrics {
   updated: string
 }
 
-export interface IClarezaCarteiraItem {
-  ticker: string
-  name: string
-  type: string
-  kind: 'stock' | 'fund' | 'crypto'
-  sector: string
-  data: IClarezaCarteiraMetrics | null
+export interface CoreClock {
+  now(): Date
 }
 
-export interface IClarezaCarteiraData {
-  fetchedAt: Date
-  itemCount: number
-  errors: number
-  items: IClarezaCarteiraItem[]
+export function hasCoreMetricsData(metrics: CoreMarketMetrics): boolean {
+  return typeof metrics.price === 'number' && Number.isFinite(metrics.price) && metrics.price > 0
 }
-
-const ClarezaCarteiraDataSchema = new Schema<IClarezaCarteiraData>(
-  {
-    fetchedAt: { type: Date, default: Date.now, index: true },
-    itemCount: { type: Number, required: true },
-    errors: { type: Number, default: 0 },
-    items: { type: Schema.Types.Mixed, required: true }
-  },
-  { timestamps: false, suppressReservedKeysWarning: true }
-)
-
-export default mongoose.model<IClarezaCarteiraData>('ClarezaCarteiraData', ClarezaCarteiraDataSchema)

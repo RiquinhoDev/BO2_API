@@ -43,10 +43,6 @@ const runWarmup = (
 function startWarmups(): Promise<void> {
   const warmupPromises = [
     runWarmup(async () => {
-      const { getClarezaTop10Json } = await import('../services/clareza/clarezaTop10Service')
-      await getClarezaTop10Json()
-    }, 'Falha a aquecer cache Clareza Top10'),
-    runWarmup(async () => {
       await warmUpCache()
       await buildDashboardStats()
     }, 'Erro no warm-up'),

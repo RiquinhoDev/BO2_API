@@ -16,22 +16,13 @@ const ALLOW_TEST_SOURCE_OVERLAY = process.env.RESPONSE_CONTRACT_ALLOW_TEST_OVERL
 const TERMINAL_FAMILIES = new Set(['success-data', 'public-document', 'webhook-ack', 'redirect', 'stream-or-file', 'no-content'])
 const CURRENT_FAMILIES = new Set([...TERMINAL_FAMILIES, 'domain-envelope', 'raw-json', '501-only'])
 const PUBLIC_DOCUMENT_IDENTITIES = new Set([
-  'GET /api/clareza/carteira-search',
   'GET /api/clareza/carteira/search',
   'GET /api/clareza/carteira/data',
   'GET /api/clareza/carteira/analysis',
-  'GET /api/clareza/carteira/legacy-data',
   'GET /api/clareza/comparador',
-  'GET /api/clareza/data',
   'GET /api/clareza/earnings/data',
   'GET /api/clareza/raiox',
-  'GET /api/clareza/raiox-diagnose',
-  'GET /api/clareza/raiox-search',
-  'GET /api/clareza/raiox/:ticker',
   'GET /api/clareza/radar',
-  'GET /api/clareza/reit-valuation/:ticker',
-  'GET /api/clareza/reit/:ticker',
-  'GET /api/clareza/stock/:ticker',
   'GET /api/clareza/top10',
   'GET /api/health',
   'GET /api/info',

@@ -1,6 +1,6 @@
 import type { IntegrationConfigs } from '../config/configTypes'
 
-export type IntegrationName = keyof IntegrationConfigs
+export type IntegrationName = keyof IntegrationConfigs | 'clareza'
 
 export class IntegrationUnavailableError extends Error {
   readonly integration: IntegrationName

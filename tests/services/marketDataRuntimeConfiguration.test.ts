@@ -11,9 +11,6 @@ import {
   getHotmartSubdomain,
   getHotmartSyncUserId,
 } from '../../src/services/requestDrivenRuntimeConfig'
-import { refreshClarezaData } from '../../src/services/clareza/clarezaFmpService'
-import { refreshClarezaRaioxData } from '../../src/services/clareza/clarezaRaioxService'
-import { refreshClarezaCarteiraData } from '../../src/services/clareza/carteira/carteira.runtime'
 import { createTestRuntimeConfig } from '../support/runtimeConfig'
 
 jest.mock('axios')
@@ -96,33 +93,5 @@ test('Clareza refresh and FMP egress switches fail closed independently', () => 
 
   expect(() => assertClarezaRefreshEnabled()).toThrow(IntegrationUnavailableError)
   expect(() => getFmpApiKey()).toThrow(IntegrationUnavailableError)
-  expect(mockedAxios.get).not.toHaveBeenCalled()
-})
-
-test('disabled Clareza refresh blocks bulk refresh before FMP HTTP', async () => {
-  const base = createTestRuntimeConfig()
-  initializeRuntimeConfig({
-    ...base,
-    integrations: {
-      ...base.integrations,
-      fmp: { configured: true, value: { apiKey: 'runtime-fmp-key' } },
-    },
-    operationalControls: {
-      schedulerEnabled: true,
-      clarezaRefreshEnabled: false,
-      clarezaFmpEgressEnabled: true,
-    },
-  })
-
-  await expect(refreshClarezaData()).rejects.toBeInstanceOf(IntegrationUnavailableError)
-  await expect(refreshClarezaRaioxData()).rejects.toBeInstanceOf(IntegrationUnavailableError)
-  await expect(refreshClarezaCarteiraData()).rejects.toBeInstanceOf(IntegrationUnavailableError)
-  expect(mockedAxios.get).not.toHaveBeenCalled()
-})
-test('FMP refresh consumers reject missing config before HTTP or persistence', async () => {
-  initializeRuntimeConfig(createTestRuntimeConfig())
-
-  await expect(refreshClarezaData()).rejects.toBeInstanceOf(IntegrationUnavailableError)
-  await expect(refreshClarezaRaioxData()).rejects.toBeInstanceOf(IntegrationUnavailableError)
   expect(mockedAxios.get).not.toHaveBeenCalled()
 })

@@ -1,5 +1,4 @@
-import type { IClarezaCarteiraMetrics } from '../../../models/ClarezaCarteiraData'
-import { hasCoreMetricsData } from '../carteira/carteiraMetrics'
+import { hasCoreMetricsData, type CoreMarketMetrics } from './coreMarketMetrics'
 import type { ClarezaAsset } from '../universe/clarezaUniverse.types'
 import type { CoreAssetKind, CoreGenerationStore } from './coreGeneration.types'
 import { CoreGenerationBuilder } from './coreGenerationBuilder'
@@ -65,9 +64,9 @@ function sameItems(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((item, index) => item === right[index])
 }
 
-function decodeData(item: CoreRunCollectedItem | undefined): IClarezaCarteiraMetrics | null {
+function decodeData(item: CoreRunCollectedItem | undefined): CoreMarketMetrics | null {
   return item && typeof item.data === 'object' && item.data !== null
-    ? item.data as IClarezaCarteiraMetrics
+    ? item.data as CoreMarketMetrics
     : null
 }
 

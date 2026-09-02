@@ -79,6 +79,7 @@
     "routes:catalog:update": "node scripts/reconcile-route-catalog.mjs --write",
     "contracts:responses:check": "node scripts/generate-response-contract-catalog.mjs --check",
     "contracts:responses:update": "node scripts/generate-response-contract-catalog.mjs --write",
+    "clareza:legacy:check": "node scripts/check-clareza-legacy-runtime.mjs",
     "scalability:reads:check": "node scripts/generate-scalability-read-inventory.mjs --check",
     "scalability:reads:update": "node scripts/generate-scalability-read-inventory.mjs --write",
     "scalability:operational": "ts-node --transpile-only scripts/validate-scalability-operational.ts"

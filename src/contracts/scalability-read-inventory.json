@@ -626,10 +626,10 @@
   ],
   "scale03": {
     "summary": {
-      "planned": 24,
-      "complete": 14,
+      "planned": 22,
+      "complete": 12,
       "pending": 10,
-      "changed": 13,
+      "changed": 11,
       "alreadyCompliant": 1
     },
     "entries": [
@@ -724,30 +724,6 @@
         "require": [
           "statsCache.runSingleflight(cacheKey",
           "global-engagement-stats"
-        ]
-      },
-      {
-        "id": "raiox.raw-scan",
-        "file": "src/services/clareza/raiox/data.ts",
-        "start": "const workerCount = Math.min(",
-        "end": "async function worker()",
-        "status": "complete",
-        "disposition": "changed",
-        "require": [
-          "Math.min(Math.max(1, Math.floor(concurrency)), 10"
-        ]
-      },
-      {
-        "id": "raiox.peer-scan",
-        "file": "src/services/clareza/raiox/data.ts",
-        "start": "async function worker()",
-        "end": "// Todas as chamadas passam pelo limitador global",
-        "status": "complete",
-        "disposition": "changed",
-        "require": [
-          "firstError",
-          "results[i] = await tasks[i]()",
-          "await Promise.all(Array.from({ length: workerCount }, worker))"
         ]
       },
       {
