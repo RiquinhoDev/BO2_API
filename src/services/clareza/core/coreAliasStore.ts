@@ -28,10 +28,13 @@ export interface CoreAliasReader {
 export class MongooseCoreAliasStore implements CoreAliasReader {
   async read(): Promise<CoreAliasSnapshot> {
     const found = await ClarezaCoreAliasState.findOne({ key: 'core' }).lean()
-    if (!found) return { revision: 0, state: { aliases: [], processed: [] } }
+    if (!found) return { revision: 0, state: { aliases: [], processed: [], failures: [], conflicts: [] } }
     return {
       revision: found.revision,
-      state: { aliases: found.aliases, processed: found.processed },
+      state: {
+        aliases: found.aliases, processed: found.processed,
+        failures: found.failures ?? [], conflicts: found.conflicts ?? [],
+      },
     }
   }
 
@@ -43,7 +46,10 @@ export class MongooseCoreAliasStore implements CoreAliasReader {
       const updated = await ClarezaCoreAliasState.findOneAndUpdate({
         key: 'core', revision: expectedRevision,
       }, {
-        $set: { aliases: [...state.aliases], processed: [...state.processed], updatedAt: new Date() },
+        $set: {
+          aliases: [...state.aliases], processed: [...state.processed],
+          failures: [...state.failures], conflicts: [...state.conflicts], updatedAt: new Date(),
+        },
         $inc: { revision: 1 },
       }, { upsert: true, new: true }).lean()
       if (!updated) throw new CoreAliasRevisionConflictError()

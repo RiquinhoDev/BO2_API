@@ -5,6 +5,7 @@ import { submitClarezaSuggestion } from '../controllers/clarezaSuggestion.contro
 import { clarezaCoreController } from '../controllers/clarezaCore.controller'
 import { clarezaSuggestionAdminController } from '../controllers/clarezaSuggestionAdmin.controller'
 import { authorize } from '../middleware/auth.middleware'
+import { clarezaOperationsController } from '../controllers/clarezaOperations.controller'
 
 const router = Router()
 
@@ -55,6 +56,9 @@ router.post('/comparador/refresh', asyncRoute(clarezaController.refreshComparado
 router.post('/suggestions', asyncRoute(submitClarezaSuggestion))
 router.get('/suggestions/admin', authorize('SUPER_ADMIN'), asyncRoute(clarezaSuggestionAdminController.list))
 router.get('/suggestions/admin/export', authorize('SUPER_ADMIN'), asyncRoute(clarezaSuggestionAdminController.exportCsv))
+
+// Fronteira operacional canónica: refresh completo ou manutenção incremental de aliases.
+router.post('/operations', authorize('SUPER_ADMIN'), asyncRoute(clarezaOperationsController))
 
 router.get('/raiox/refresh/status', asyncRoute(clarezaController.getRaioxRefreshStatus))
 

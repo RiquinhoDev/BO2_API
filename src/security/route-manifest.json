@@ -1165,6 +1165,10 @@
   },
   {
     "method": "POST",
+    "path": "/api/clareza/operations"
+  },
+  {
+    "method": "POST",
     "path": "/api/clareza/raiox/refresh"
   },
   {

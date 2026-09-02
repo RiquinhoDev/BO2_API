@@ -296,6 +296,7 @@ test('limites de producao e paths pesados ficam explicitos', () => {
   })
   expect(SUGGESTION_PATHS).toEqual(['/api/clareza/suggestions'])
   expect(HEAVY_OPERATION_PATHS).toEqual([
+    '/api/clareza/operations',
     '/api/sync/execute-pipeline',
     '/api/sync/hotmart',
     '/api/sync/hotmart/batch',

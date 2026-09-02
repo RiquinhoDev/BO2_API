@@ -115,6 +115,10 @@ const REVIEWED_PROVIDER_POLICY = new Map<string, ReviewedProviderPolicy>([
     { scope: 'mixed', provider: 'guru', authorization: 'super-admin', bulk: false },
   ],
   [
+    'POST /api/clareza/operations',
+    { scope: 'mixed', provider: 'fmp', authorization: 'super-admin', bulk: true },
+  ],
+  [
     'POST /api/clareza/refresh',
     { scope: 'mixed', provider: 'fmp', authorization: 'super-admin', bulk: true },
   ],

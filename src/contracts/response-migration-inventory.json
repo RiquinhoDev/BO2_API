@@ -2328,6 +2328,14 @@
     "status": "complete"
   },
   {
+    "identity": "POST /api/clareza/operations",
+    "owner": "src/controllers/clarezaOperations.controller.ts",
+    "currentFamily": "success-data",
+    "targetFamily": "success-data",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "POST /api/clareza/raiox/refresh",
     "owner": "src/controllers/clarezaController.ts",
     "currentFamily": "success-data",
