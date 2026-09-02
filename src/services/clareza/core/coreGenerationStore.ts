@@ -133,6 +133,11 @@ export class MongooseCoreGenerationStore implements CoreGenerationStore {
     return updated ? publishedResult(updated) : { status: 'conflict' }
   }
 
+  async listGenerationIds(): Promise<readonly string[]> {
+    const found = await ClarezaCoreGeneration.find({}, 'generationId').lean()
+    return found.map(entry => entry.generationId)
+  }
+
   async retainCandidates(limit: number): Promise<void> {
     if (!Number.isInteger(limit) || limit < 0 || limit > MAX_CANDIDATE_RETENTION) {
       throw new RangeError(

@@ -101,4 +101,38 @@ describe('ClarezaDailyRefresh', () => {
     expect(refreshCore).not.toHaveBeenCalled()
     expect(refreshCompanion).not.toHaveBeenCalled()
   })
+  it('prunes old generations only after every companion is written', async () => {
+    const calls: string[] = []
+    const job = createClarezaJob({
+      assertRefreshEnabled: () => undefined,
+      refreshCore: async () => published,
+      companions: [
+        { name: 'Raio-X', refresh: async () => { calls.push('raiox'); return { total: 1, errors: 0 } } },
+      ],
+      top10: { name: 'Top 10', refresh: async () => { calls.push('top10'); return { total: 1, errors: 0 } } },
+      retention: async () => {
+        calls.push('retention')
+        return { retainedGenerations: 2, prunedCompanions: { 'Raio-X': 4 } }
+      },
+      logger: { info: jest.fn(), error: jest.fn() },
+    })
+
+    await expect(job.run()).resolves.toEqual({ success: true, total: 879, errors: 0 })
+    expect(calls).toEqual(['raiox', 'top10', 'retention'])
+  })
+
+  it('keeps the refresh successful when the pruning fails', async () => {
+    const logger = { info: jest.fn(), error: jest.fn() }
+    const job = createClarezaJob({
+      assertRefreshEnabled: () => undefined,
+      refreshCore: async () => published,
+      companions: [{ name: 'Raio-X', refresh: async () => ({ total: 1, errors: 0 }) }],
+      retention: async () => { throw new Error('quota') },
+      logger,
+    })
+
+    await expect(job.run()).resolves.toEqual({ success: true, total: 879, errors: 0 })
+    expect(logger.error).toHaveBeenCalledWith('Clareza retention failed', { total: 0, errors: 1 })
+  })
+
 })

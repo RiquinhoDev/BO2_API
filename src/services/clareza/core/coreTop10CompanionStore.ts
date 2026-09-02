@@ -58,4 +58,12 @@ export class MongooseCoreTop10CompanionStore implements CoreTop10CompanionStore 
       createdAt: collection.createdAt, points: [], failures: [...collection.errors],
     } }, { upsert: true })
   }
+
+  async prune(retainedGenerationIds: readonly string[]): Promise<number> {
+    if (!retainedGenerationIds.length) return 0
+    const result = await ClarezaCoreTop10Companion.deleteMany({
+      generationId: { $nin: [...retainedGenerationIds] },
+    })
+    return result.deletedCount ?? 0
+  }
 }

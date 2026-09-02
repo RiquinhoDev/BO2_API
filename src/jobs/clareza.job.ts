@@ -3,6 +3,8 @@ import type { CoreRefreshExecutionResult } from '../services/clareza/core/coreRe
 import { refreshCoreEarningsCompanion } from '../services/clareza/core/coreEarningsCompanion.runtime'
 import { refreshCoreRaioxCompanion } from '../services/clareza/core/coreRaioxCompanion.runtime'
 import { refreshCoreTop10Companion } from '../services/clareza/core/coreTop10Companion.runtime'
+import type { CoreRetentionReport } from '../services/clareza/core/coreRetention'
+import { runCoreRetention } from '../services/clareza/core/coreRetention.runtime'
 import { assertClarezaRefreshEnabled, getFmpApiKey } from '../services/requestDrivenRuntimeConfig'
 import { cacheService } from '../services/cache.service'
 import { RefreshJobCoordinator } from '../services/clareza/operations/refreshJobCoordinator'
@@ -30,6 +32,7 @@ export interface ClarezaJobDependencies {
   readonly refreshCore: (startedAt: string) => Promise<CoreRefreshExecutionResult>
   readonly companions: readonly NamedClarezaRefresh[]
   readonly top10?: NamedClarezaRefresh
+  readonly retention?: () => Promise<CoreRetentionReport>
   readonly logger: Pick<AppLogger, 'info' | 'error'>
 }
 
@@ -48,6 +51,25 @@ async function refreshBestEffort(
   } catch {
     loggerPort.error(`Clareza ${target.name} refresh failed`, { total: 0, errors: 1 })
     return 1
+  }
+}
+
+// A poda corre depois dos companions: as gerações vivas já têm tudo escrito,
+// por isso só sobra lixo das gerações anteriores. Falhar aqui é arrumação por
+// fazer, não um refresh falhado, logo nunca derruba o resultado do dia.
+async function pruneBestEffort(
+  retention: () => Promise<CoreRetentionReport>,
+  loggerPort: Pick<AppLogger, 'info' | 'error'>,
+): Promise<void> {
+  try {
+    const report = await retention()
+    loggerPort.info('Clareza retention completed', {
+      total: report.retainedGenerations,
+      errors: 0,
+      pruned: report.prunedCompanions,
+    })
+  } catch {
+    loggerPort.error('Clareza retention failed', { total: 0, errors: 1 })
   }
 }
 
@@ -75,6 +97,7 @@ export function createClarezaJob(dependencies: ClarezaJobDependencies) {
         const top10Errors = dependencies.top10
           ? await refreshBestEffort(dependencies.top10, core.generationId, dependencies.logger)
           : 0
+        if (dependencies.retention) await pruneBestEffort(dependencies.retention, dependencies.logger)
         return {
           success: true,
           total: core.collectedAssets,
@@ -99,6 +122,7 @@ const pipeline = createClarezaJob({
     { name: 'Earnings', refresh: refreshCoreEarningsCompanion },
   ],
   top10: { name: 'Top 10', refresh: refreshCoreTop10Companion },
+  retention: runCoreRetention,
   logger,
 })
 
