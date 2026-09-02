@@ -1,6 +1,6 @@
 import type { ClarezaAsset } from '../universe/clarezaUniverse.types'
 import { CLAREZA_UNIVERSE } from '../universe/clarezaUniverse.catalog'
-import type { Clock } from '../carteira/carteiraMetrics'
+import type { CoreClock as Clock } from './coreMarketMetrics'
 import { clarezaFmpJsonClient } from '../fmpJsonRuntime'
 import { FMP_STABLE_BASE_URL } from '../fmpJsonClient'
 import { CoreMasterCollector, type CoreMasterReport } from './coreMasterCollector'

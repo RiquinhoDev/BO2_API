@@ -92,7 +92,7 @@ router.use("/product-profiles", productProfileRoutes)
 router.use("/discovery", discoveryRoutes)
 
 // 📈 CLAREZA — Tremómetro de Ações
-router.use('/clareza', clarezaRoutes)  // GET /api/clareza/data, POST /api/clareza/refresh
+router.use('/clareza', clarezaRoutes)
 
 // ⏰ CRON SYSTEMS
 // Sistema de CRON para sincronização de utilizadores

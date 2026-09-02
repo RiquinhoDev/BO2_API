@@ -25,7 +25,6 @@ jest.mock('../../src/services/analytics/analyticsCalculator.service', () => ({
 }))
 
 import { analyticsCacheService } from '../../src/services/analytics/analyticsCache.service'
-import { runWithConcurrency } from '../../src/services/clareza/raiox/data'
 import { EngagementStatsCache } from '../../src/services/engagement/controllerSupport'
 
 const metricsOptions = (productId: string) => ({
@@ -138,29 +137,6 @@ describe('SCALE-02 partition C contracts', () => {
     await expect(first).resolves.toMatchObject({ totalStudents: 1 })
   })
 
-  it.each([10, 100, 10_000])(
-    'accounts for all %i provider tasks once with peak concurrency at most 10',
-    async (size) => {
-      let active = 0
-      let peak = 0
-      const seen = new Set<number>()
-      const tasks = Array.from({ length: size }, (_, index) => async () => {
-        active += 1
-        peak = Math.max(peak, active)
-        await Promise.resolve()
-        seen.add(index)
-        active -= 1
-        return index
-      })
-
-      const results = await runWithConcurrency(tasks, 100)
-
-      expect(peak).toBeLessThanOrEqual(10)
-      expect(seen.size).toBe(size)
-      expect(results).toEqual(Array.from({ length: size }, (_, index) => index))
-    },
-  )
-
   it('coalesces stale-cache background refreshes', async () => {
     findOne.mockImplementation(() => ({ sort: jest.fn().mockResolvedValue({ calculatedAt: new Date(), metrics: { totalStudents: 1 }, needsRefresh: () => true }) }))
     calculateMetrics.mockReturnValue(new Promise(() => undefined))
@@ -201,40 +177,4 @@ describe('SCALE-02 partition C contracts', () => {
     await expect(first).resolves.toBe(1)
   })
 
-  it('rejects invalid concurrency instead of silently skipping tasks', async () => {
-    await expect(runWithConcurrency([async () => 1], Number.NaN)).rejects.toThrow('concurrency must be a finite positive number')
-  })
-
-  it('stops consuming new provider tasks after first rejection', async () => {
-    const started: number[] = []
-    let release!: () => void
-    const gate = new Promise<void>(resolve => { release = resolve })
-    const tasks = Array.from({ length: 100 }, (_, index) => async () => { started.push(index); if (index === 0) throw new Error('provider failed'); await gate; return index })
-    const result = runWithConcurrency(tasks, 10)
-    await Promise.resolve()
-    release()
-    await expect(result).rejects.toThrow('provider failed')
-    expect(started).toEqual(Array.from({ length: 10 }, (_, index) => index))
-  })
-  it('retains the first observed provider failure while started workers settle', async () => {
-    const started: number[] = []
-    let rejectZero!: (error: Error) => void
-    let rejectOne!: (error: Error) => void
-    const zero = new Promise<number>((_, reject) => { rejectZero = reject })
-    const one = new Promise<number>((_, reject) => { rejectOne = reject })
-    const tasks = Array.from({ length: 20 }, (_, index) => async () => {
-      started.push(index)
-      if (index === 0) return zero
-      if (index === 1) return one
-      return index
-    })
-
-    const result = runWithConcurrency(tasks, 2)
-    rejectOne(new Error('first observed'))
-    await Promise.resolve()
-    rejectZero(new Error('later failure'))
-
-    await expect(result).rejects.toThrow('first observed')
-    expect(started).toEqual([0, 1])
-  })
 })

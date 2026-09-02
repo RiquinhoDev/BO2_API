@@ -1,5 +1,4 @@
-import type { IClarezaCarteiraMetrics } from '../../../models/ClarezaCarteiraData'
-import type { Clock } from '../carteira/carteiraMetrics'
+import type { CoreClock as Clock, CoreMarketMetrics } from './coreMarketMetrics'
 import type { ClarezaAsset } from '../universe/clarezaUniverse.types'
 
 type JsonRecord = Readonly<Record<string, unknown>>
@@ -65,7 +64,7 @@ export class CoreMasterMetricsFetcher {
     private readonly clock: Clock,
   ) {}
 
-  fetchItem(asset: ClarezaAsset): Promise<IClarezaCarteiraMetrics> {
+  fetchItem(asset: ClarezaAsset): Promise<CoreMarketMetrics> {
     if (asset.kind === 'crypto') return this.fetchCrypto(asset.ticker)
     if (asset.kind === 'fund') return this.fetchFund(asset.ticker)
     return this.fetchStock(asset.ticker, asset.type === 'reit')
@@ -75,7 +74,7 @@ export class CoreMasterMetricsFetcher {
     return this.fmp.get(path, { symbol: ticker, ...params })
   }
 
-  private async fetchStock(ticker: string, isReit: boolean): Promise<IClarezaCarteiraMetrics> {
+  private async fetchStock(ticker: string, isReit: boolean): Promise<CoreMarketMetrics> {
     const profile = first(await this.get('/profile', ticker)) ?? {}
     const ratios = first(await this.get('/ratios-ttm', ticker)) ?? {}
     const keyMetrics = first(await this.get('/key-metrics-ttm', ticker)) ?? {}
@@ -188,7 +187,7 @@ export class CoreMasterMetricsFetcher {
     }
   }
 
-  private async fetchFund(ticker: string): Promise<IClarezaCarteiraMetrics> {
+  private async fetchFund(ticker: string): Promise<CoreMarketMetrics> {
     const profile = first(await this.get('/profile', ticker)) ?? {}
     const ratios = first(await this.get('/ratios-ttm', ticker)) ?? {}
     const changes = first(await this.get('/stock-price-change', ticker)) ?? {}
@@ -205,7 +204,7 @@ export class CoreMasterMetricsFetcher {
     }
   }
 
-  private async fetchCrypto(ticker: string): Promise<IClarezaCarteiraMetrics> {
+  private async fetchCrypto(ticker: string): Promise<CoreMarketMetrics> {
     const quote = first(await this.get('/quote', ticker)) ?? {}
     const price = num(quote.price)
     const yearLow = num(quote.yearLow)

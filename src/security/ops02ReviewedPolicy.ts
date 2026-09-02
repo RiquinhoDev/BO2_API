@@ -119,30 +119,6 @@ const REVIEWED_PROVIDER_POLICY = new Map<string, ReviewedProviderPolicy>([
     { scope: 'mixed', provider: 'fmp', authorization: 'super-admin', bulk: true },
   ],
   [
-    'POST /api/clareza/refresh',
-    { scope: 'mixed', provider: 'fmp', authorization: 'super-admin', bulk: true },
-  ],
-  [
-    'POST /api/clareza/top10/refresh',
-    { scope: 'mixed', provider: 'fmp', authorization: 'super-admin', bulk: true },
-  ],
-  [
-    'POST /api/clareza/raiox/refresh',
-    { scope: 'mixed', provider: 'fmp', authorization: 'super-admin', bulk: true },
-  ],
-  [
-    'POST /api/clareza/carteira/refresh',
-    { scope: 'mixed', provider: 'fmp', authorization: 'super-admin', bulk: true },
-  ],
-  [
-    'POST /api/clareza/earnings/refresh',
-    { scope: 'mixed', provider: 'fmp', authorization: 'super-admin', bulk: true },
-  ],
-  [
-    'POST /api/clareza/comparador/refresh',
-    { scope: 'mixed', provider: 'fmp', authorization: 'super-admin', bulk: true },
-  ],
-  [
     'POST /api/guru/inactivation/single',
     { scope: 'provider', provider: 'curseduca', authorization: 'super-admin', bulk: false },
   ],

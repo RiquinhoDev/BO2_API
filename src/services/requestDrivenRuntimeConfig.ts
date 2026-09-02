@@ -108,11 +108,6 @@ export function getOptionalHotmartClubConfig(): HotmartClubRuntimeConfig | null 
   }
 }
 
-export function getClarezaRefreshToken(): string | undefined {
-  const integration = getRuntimeConfig().integrations.clareza
-  return integration.configured ? integration.value.refreshToken : undefined
-}
-
 export function getOptionalOldApiUrl(): string | undefined {
   const integration = getRuntimeConfig().integrations.legacyApi
   return integration.configured ? integration.value.apiUrl : undefined

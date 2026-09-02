@@ -400,14 +400,6 @@
     "status": "complete"
   },
   {
-    "identity": "GET /api/clareza/carteira-search",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "public-document",
-    "targetFamily": "public-document",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
     "identity": "GET /api/clareza/carteira/analysis",
     "owner": "src/controllers/clarezaCore.controller.ts",
     "currentFamily": "public-document",
@@ -424,14 +416,6 @@
     "status": "complete"
   },
   {
-    "identity": "GET /api/clareza/carteira/legacy-data",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "public-document",
-    "targetFamily": "public-document",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
     "identity": "GET /api/clareza/carteira/search",
     "owner": "src/controllers/clarezaCore.controller.ts",
     "currentFamily": "public-document",
@@ -442,14 +426,6 @@
   {
     "identity": "GET /api/clareza/comparador",
     "owner": "src/controllers/clarezaCore.controller.ts",
-    "currentFamily": "public-document",
-    "targetFamily": "public-document",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/clareza/data",
-    "owner": "src/controllers/clarezaController.ts",
     "currentFamily": "public-document",
     "targetFamily": "public-document",
     "frontConsumer": null,
@@ -474,62 +450,6 @@
   {
     "identity": "GET /api/clareza/raiox",
     "owner": "src/controllers/clarezaCore.controller.ts",
-    "currentFamily": "public-document",
-    "targetFamily": "public-document",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/clareza/raiox-diagnose",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "public-document",
-    "targetFamily": "public-document",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/clareza/raiox-search",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "public-document",
-    "targetFamily": "public-document",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/clareza/raiox/:ticker",
-    "owner": "src/controllers/clarezaCore.controller.ts",
-    "currentFamily": "public-document",
-    "targetFamily": "public-document",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/clareza/raiox/refresh/status",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/clareza/reit-valuation/:ticker",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "public-document",
-    "targetFamily": "public-document",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/clareza/reit/:ticker",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "public-document",
-    "targetFamily": "public-document",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "GET /api/clareza/stock/:ticker",
-    "owner": "src/controllers/clarezaController.ts",
     "currentFamily": "public-document",
     "targetFamily": "public-document",
     "frontConsumer": null,
@@ -2304,30 +2224,6 @@
     "status": "complete"
   },
   {
-    "identity": "POST /api/clareza/carteira/refresh",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "POST /api/clareza/comparador/refresh",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "POST /api/clareza/earnings/refresh",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
     "identity": "POST /api/clareza/operations",
     "owner": "src/controllers/clarezaOperations.controller.ts",
     "currentFamily": "success-data",
@@ -2336,32 +2232,8 @@
     "status": "complete"
   },
   {
-    "identity": "POST /api/clareza/raiox/refresh",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "POST /api/clareza/refresh",
-    "owner": "src/controllers/clarezaController.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
     "identity": "POST /api/clareza/suggestions",
     "owner": "src/controllers/clarezaSuggestion.controller.ts",
-    "currentFamily": "success-data",
-    "targetFamily": "success-data",
-    "frontConsumer": null,
-    "status": "complete"
-  },
-  {
-    "identity": "POST /api/clareza/top10/refresh",
-    "owner": "src/controllers/clarezaController.ts",
     "currentFamily": "success-data",
     "targetFamily": "success-data",
     "frontConsumer": null,
