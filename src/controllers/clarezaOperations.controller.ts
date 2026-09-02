@@ -4,10 +4,13 @@ import clarezaJob from '../jobs/clareza.job'
 import { successResponse } from '../contracts/responseContract'
 import { internalError } from '../security/errorHandling'
 import { runCoreAliasMaintenance } from '../services/clareza/core/coreAlias.runtime'
+import { backfillPublishedCoreCompanions } from '../services/clareza/core/coreCompanionBackfill.runtime'
+import { CoreGenerationUnavailableError } from '../services/clareza/core/coreRadarProjection'
 
 interface ClarezaOperationsDependencies {
   readonly refresh: typeof clarezaJob.run
   readonly aliases: typeof runCoreAliasMaintenance
+  readonly companions: typeof backfillPublishedCoreCompanions
 }
 
 function aliasInput(body: unknown): { readonly limit: number; readonly tickers?: readonly string[] } {
@@ -38,10 +41,17 @@ export function createClarezaOperationsController(
         const result = await dependencies.aliases(aliasInput(req.body))
         return res.json(successResponse({ operation: 'aliases', ...result }))
       }
+      if (req.body?.operation === 'companions') {
+        const result = await dependencies.companions()
+        return res.json(successResponse({ operation: 'companions', ...result }))
+      }
       return res.status(400).json({ error: 'Operação Clareza inválida.' })
     } catch (error: unknown) {
       if (error instanceof RangeError) {
         return res.status(400).json({ error: 'Parâmetros da operação inválidos.' })
+      }
+      if (error instanceof CoreGenerationUnavailableError) {
+        return res.status(503).json({ error: 'Geração Clareza publicada indisponível.' })
       }
       next(internalError(
         'Não foi possível executar a operação Clareza.',
@@ -56,4 +66,5 @@ export function createClarezaOperationsController(
 export const clarezaOperationsController = createClarezaOperationsController({
   refresh: clarezaJob.run,
   aliases: runCoreAliasMaintenance,
+  companions: backfillPublishedCoreCompanions,
 })
