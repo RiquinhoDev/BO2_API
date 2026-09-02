@@ -135,10 +135,10 @@ function valuationPillars(input: CoreEvaluationInput, context: SectorContext): r
   }
   const price = number(input.data.price)
   const dcf = number(input.data.dcf)
-  let intrinsic: number | null = null
-  let label = ''
-  let detail = ''
-  let metrics: JsonRecord[] = []
+  let intrinsic: number | null
+  let label: string
+  let detail: string
+  let metrics: JsonRecord[]
   if (price !== null && price > 0 && dcf !== null && dcf > 0) {
     intrinsic = interpolateScore((dcf - price) / price, MOS_SCALE)
     const margin = (dcf - price) / price
@@ -154,10 +154,10 @@ function valuationPillars(input: CoreEvaluationInput, context: SectorContext): r
     intrinsic = pe !== null && pe > 0 ? interpolateScore(100 / pe, EY_SCALE) : null
     label = 'Rendimento dos lucros'
     detail = 'Rendimento dos lucros'
-    if (pe !== null && pe > 0) metrics = [
+    metrics = pe !== null && pe > 0 ? [
       { label: 'P/E', value: `${fixed(pe, 1)}x` },
       { label: 'Earnings yield', value: percent(100 / pe), highlight: true },
-    ]
+    ] : []
   } else {
     const fcfYield = number(input.data.fcfYield)
     const ffoYield = value === 'reit' ? number(input.data.ffoYield) : null
@@ -166,9 +166,9 @@ function valuationPillars(input: CoreEvaluationInput, context: SectorContext): r
     const usesFfo = !(fcfYield !== null && fcfYield > 0) && ffoYield !== null && ffoYield > 0
     label = usesFfo ? 'Rendimento do FFO' : 'Rendimento do fluxo de caixa'
     detail = usesFfo ? `FFO yield de ${fixed(yieldValue ?? 0, 1)}%` : `FCF yield de ${fixed(yieldValue ?? 0, 1)}% (sem DCF fiável disponível)`
-    if (yieldValue !== null && yieldValue > 0) metrics = [{
+    metrics = yieldValue !== null && yieldValue > 0 ? [{
       label: usesFfo ? 'FFO yield' : 'FCF yield', value: percent(yieldValue), highlight: true,
-    }]
+    }] : []
   }
   if (intrinsic !== null) pillars.push({ key: 'intrinsic', label, score: intrinsic, detail, metrics })
   return pillars
