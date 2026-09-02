@@ -46,7 +46,11 @@ export function projectCarteiraGeneration(
   if (new Set(normalizedTickers).size !== normalizedTickers.length) {
     throw new RangeError('core Carteira generation contains duplicate tickers')
   }
-  const items = source.assets.map(asset => ({
+  // Como o build_carteira_output do clareza-carteira-data.php: só ativos com
+  // preço entram (sem dados de mercado ainda, ficam de fora da lista).
+  const items = source.assets
+    .filter(asset => asset.data !== null && asset.data.price !== null && asset.data.price !== undefined)
+    .map(asset => ({
     ticker: asset.ticker.trim().toUpperCase(),
     name: asset.name,
     kind: asset.kind,

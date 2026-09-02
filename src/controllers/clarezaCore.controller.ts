@@ -3,7 +3,6 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express'
 import { internalError } from '../security/errorHandling'
 import {
   getPublishedCarteira,
-  getPublishedPortfolioAnalysis,
   getPublishedRadar,
   getPublishedRaiox,
   searchPublishedRaiox,
@@ -14,13 +13,14 @@ import {
 } from '../services/clareza/core/corePublished.runtime'
 import { CoreGenerationUnavailableError } from '../services/clareza/core/coreRadarProjection'
 import { searchPublishedCarteira } from '../services/clareza/core/coreCarteiraSearch.runtime'
+import { analyzePublishedCarteira } from '../services/clareza/core/coreCarteiraAnalyze.runtime'
 import { CoreRaioxAssetUnavailableError } from '../services/clareza/core/coreRaioxComposition'
 import { CoreComparadorRequestError } from '../services/clareza/core/coreComparadorProjection'
 
 interface ClarezaCoreControllerDependencies {
   readonly radar: typeof getPublishedRadar
   readonly carteira: typeof getPublishedCarteira
-  readonly portfolioAnalysis: typeof getPublishedPortfolioAnalysis
+  readonly portfolioAnalysis: typeof analyzePublishedCarteira
   readonly search: typeof searchPublishedCarteira
   readonly raiox: typeof getPublishedRaiox
   readonly raioxSearch: typeof searchPublishedRaiox
@@ -198,7 +198,7 @@ export function createClarezaCoreController(dependencies: ClarezaCoreControllerD
 export const clarezaCoreController = createClarezaCoreController({
   radar: getPublishedRadar,
   carteira: getPublishedCarteira,
-  portfolioAnalysis: getPublishedPortfolioAnalysis,
+  portfolioAnalysis: analyzePublishedCarteira,
   search: searchPublishedCarteira,
   raiox: getPublishedRaiox,
   raioxSearch: searchPublishedRaiox,
