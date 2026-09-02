@@ -59,4 +59,12 @@ export class MongooseCoreRaioxCompanionStore implements CoreRaioxCompanionStore 
       sectorPe: [...collection.sectorPe],
     } }, { upsert: true })
   }
+
+  async prune(retainedGenerationIds: readonly string[]): Promise<number> {
+    if (!retainedGenerationIds.length) return 0
+    const result = await ClarezaCoreRaioxCompanion.deleteMany({
+      generationId: { $nin: [...retainedGenerationIds] },
+    })
+    return result.deletedCount ?? 0
+  }
 }
