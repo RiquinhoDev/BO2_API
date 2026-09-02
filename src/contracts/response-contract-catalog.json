@@ -593,8 +593,6 @@
     "path": "/api/clareza/carteira/analysis",
     "family": "public-document",
     "shapeKeys": [
-      "generationId",
-      "missing",
       "results"
     ],
     "evidence": "src/controllers/clarezaCore.controller.ts:77",

@@ -58,6 +58,17 @@ function isoDaysBefore(now: Date, days: number): string {
   return new Date(now.getTime() - days * 86_400_000).toISOString().slice(0, 10)
 }
 
+// Último dia útil ESTRITAMENTE antes de agora (salta fim de semana), como
+// o last_bday() do PHP. O snapshot setorial de "hoje" ainda não existe
+// quando o refresh corre de madrugada, após o fecho do mercado US.
+function lastBusinessDay(now: Date): string {
+  const date = new Date(now.getTime())
+  do {
+    date.setUTCDate(date.getUTCDate() - 1)
+  } while (date.getUTCDay() === 0 || date.getUTCDay() === 6)
+  return date.toISOString().slice(0, 10)
+}
+
 function compressHistory(raw: unknown, now: Date): PricePoint[] {
   if (!Array.isArray(raw)) return []
   const rows = raw.filter((value): value is JsonRecord => record(value) !== null)
@@ -141,7 +152,7 @@ export class CoreRaioxCompanionCollector {
     if (Number.isNaN(now.getTime())) throw new RangeError('Raio-X companion timestamp is invalid')
     const range = dateRange(now)
     const [sectorPeRaw, spyRaw] = await Promise.all([
-      this.fmp.get('/sector-pe-snapshot', { date: range.to }),
+      this.fmp.get('/sector-pe-snapshot', { date: lastBusinessDay(now) }),
       this.fmp.get('/historical-price-eod/light', { symbol: 'SPY', ...range }),
     ])
     const sectorPe = array(sectorPeRaw)

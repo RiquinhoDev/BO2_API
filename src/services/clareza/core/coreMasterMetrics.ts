@@ -44,6 +44,12 @@ const cagr = (oldest: unknown, newest: unknown, years: number): number | null =>
     ? round(((end / start) ** (1 / years) - 1) * 100, 2)
     : null
 }
+// perf12m (variação a 12 meses) chega cru da FMP; o PHP arredonda-o a 2
+// casas antes de gravar na cache. Mantemos a mesma fidelidade.
+const perfChange = (value: unknown): number | null => {
+  const parsed = num(value)
+  return parsed === null ? null : round(parsed, 2)
+}
 
 function marginStability(ratios: readonly JsonRecord[]): number | null {
   const margins = ratios.flatMap(row => {
@@ -132,7 +138,7 @@ export class CoreMasterMetricsFetcher {
     return {
       price,
       change: num(profile.changePercentage),
-      perf12m: num(changes['1Y']),
+      perf12m: perfChange(changes['1Y']),
       chgDay: num(changes['1D'] ?? profile.changePercentage),
       chgWeek: num(changes['5D']),
       chgMonth: num(changes['1M']),
@@ -192,7 +198,7 @@ export class CoreMasterMetricsFetcher {
     const ratios = first(await this.get('/ratios-ttm', ticker)) ?? {}
     const changes = first(await this.get('/stock-price-change', ticker)) ?? {}
     return {
-      price: num(profile.price), change: num(profile.changePercentage), perf12m: num(changes['1Y']),
+      price: num(profile.price), change: num(profile.changePercentage), perf12m: perfChange(changes['1Y']),
       perf3m: num(changes['3M']), dividendYield: percentValue(ratios.dividendYieldTTM),
       beta: num(profile.beta),
       range: typeof profile.range === 'string' ? profile.range : null,

@@ -31,13 +31,18 @@ describe('core Carteira projection', () => {
     expect(payload.items.find(item => item.ticker === 'VWCE.DE')?.evaluation).toBeNull()
   })
 
-  it('preserves a known asset when its market data is unavailable', () => {
+  it('omits an asset without market data, matching the PHP build_carteira_output', () => {
     const payload = projectCarteiraGeneration({
       ...source,
-      assets: [{ ticker: 'AAPL', name: 'Apple', kind: 'stock', type: 'growth', bucket: 'usa', sector: 'Technology', data: null, evaluation: null }],
+      assets: [
+        { ticker: 'AAPL', name: 'Apple', kind: 'stock', type: 'growth', bucket: 'usa', sector: 'Technology', data: { price: 200 }, evaluation: null },
+        { ticker: 'MSFT', name: 'Microsoft', kind: 'stock', type: 'growth', bucket: 'usa', sector: 'Technology', data: null, evaluation: null },
+        { ticker: 'GOOG', name: 'Alphabet', kind: 'stock', type: 'growth', bucket: 'usa', sector: 'Technology', data: { price: null }, evaluation: null },
+      ],
     })
 
-    expect(payload.items).toEqual([expect.objectContaining({ ticker: 'AAPL', data: null, evaluation: null })])
+    expect(payload.items.map(item => item.ticker)).toEqual(['AAPL'])
+    expect(payload.count).toBe(1)
   })
 
   it('rejects unavailable generations and duplicate normalized tickers', () => {
