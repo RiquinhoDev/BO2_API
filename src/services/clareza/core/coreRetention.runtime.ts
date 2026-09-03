@@ -4,7 +4,11 @@ import { MongooseCoreRaioxCompanionStore } from './coreRaioxCompanionStore'
 import { MongooseCoreTop10CompanionStore } from './coreTop10CompanionStore'
 import { createCoreRetention } from './coreRetention'
 
-const CORE_CANDIDATE_RETENTION = 3
+// O ponteiro de publicação protege sempre a geração publicada e a anterior, que
+// é a que o rollback usa. Este limite é o que se guarda para além dessas duas,
+// e fica em 1 porque o cluster Atlas está no limite de espaço: cada geração
+// extra arrasta os seus companions do Raio-X, que são a maior fatia da base.
+const CORE_CANDIDATE_RETENTION = 1
 
 const raiox = new MongooseCoreRaioxCompanionStore()
 const earnings = new MongooseCoreEarningsCompanionStore()

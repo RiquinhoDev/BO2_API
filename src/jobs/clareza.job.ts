@@ -54,9 +54,11 @@ async function refreshBestEffort(
   }
 }
 
-// A poda corre depois dos companions: as gerações vivas já têm tudo escrito,
-// por isso só sobra lixo das gerações anteriores. Falhar aqui é arrumação por
-// fazer, não um refresh falhado, logo nunca derruba o resultado do dia.
+// A poda corre logo a seguir à publicação e antes dos companions: nessa altura
+// o ponteiro já protege a geração nova e a anterior, portanto só apaga lixo das
+// antigas, e liberta o espaço de que a escrita dos companions vai precisar.
+// Falhar aqui é arrumação por fazer, não um refresh falhado, logo nunca derruba
+// o resultado do dia.
 async function pruneBestEffort(
   retention: () => Promise<CoreRetentionReport>,
   loggerPort: Pick<AppLogger, 'info' | 'error'>,
@@ -89,6 +91,8 @@ export function createClarezaJob(dependencies: ClarezaJobDependencies) {
           return { success: false, total: core.collectedAssets, errors }
         }
 
+        if (dependencies.retention) await pruneBestEffort(dependencies.retention, dependencies.logger)
+
         const companionErrors = await Promise.all(
           dependencies.companions.map(target => refreshBestEffort(
             target, core.generationId, dependencies.logger,
@@ -97,7 +101,6 @@ export function createClarezaJob(dependencies: ClarezaJobDependencies) {
         const top10Errors = dependencies.top10
           ? await refreshBestEffort(dependencies.top10, core.generationId, dependencies.logger)
           : 0
-        if (dependencies.retention) await pruneBestEffort(dependencies.retention, dependencies.logger)
         return {
           success: true,
           total: core.collectedAssets,
