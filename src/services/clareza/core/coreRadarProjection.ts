@@ -83,3 +83,29 @@ export function projectRadarGeneration(
     stocks,
   }
 }
+
+// Compatibilidade com o Termómetro do WordPress (clareza-termometro), que
+// ainda não foi migrado para /radar: ele espera um array cru de acções, no
+// formato { ticker, name, type, sector, data } — sem kind/bucket/evaluation,
+// que nunca existiram nessa página. Os nomes dentro de `data` são os mesmos
+// de sempre (price, pe, chgDay, ...), confirmados contra um snapshot real da
+// clarezamarketdatas anterior a este deploy.
+export interface LegacyMarketDataStock {
+  readonly ticker: string
+  readonly name: string
+  readonly type: 'growth' | 'value' | 'reit'
+  readonly sector: string
+  readonly data: Readonly<Record<string, unknown>> | null
+}
+
+export function projectLegacyMarketData(
+  payload: CoreRadarPayload,
+): readonly LegacyMarketDataStock[] {
+  return payload.stocks.map(stock => ({
+    ticker: stock.ticker,
+    name: stock.name,
+    type: stock.type,
+    sector: stock.sector,
+    data: stock.data,
+  }))
+}

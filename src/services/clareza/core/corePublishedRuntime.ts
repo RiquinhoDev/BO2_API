@@ -1,7 +1,7 @@
 import type { ClarezaAsset } from '../universe/clarezaUniverse.types'
 import type { CoreGenerationCandidate, CoreGenerationStore } from './coreGeneration.types'
 import { projectCarteiraGeneration } from './coreCarteiraProjection'
-import { projectRadarGeneration } from './coreRadarProjection'
+import { projectLegacyMarketData, projectRadarGeneration } from './coreRadarProjection'
 
 type JsonRecord = Readonly<Record<string, unknown>>
 
@@ -61,6 +61,10 @@ export function createCorePublishedRuntime(dependencies: CorePublishedRuntimeDep
   return {
     async radar() {
       return projectRadarGeneration(await read())
+    },
+
+    async legacyMarketData() {
+      return projectLegacyMarketData(projectRadarGeneration(await read()))
     },
 
     async carteira() {

@@ -9,6 +9,10 @@ import { clarezaOperationsController } from '../controllers/clarezaOperations.co
 const router = Router()
 
 router.get('/radar', asyncRoute(clarezaCoreController.radar))
+// Compatibilidade: WordPress ainda não migrado para /radar (Termómetro,
+// Mapa de Calor). Mesmos dados, array cru em vez do envelope. Remover
+// quando as duas páginas passarem a chamar /radar.
+router.get('/data', asyncRoute(clarezaCoreController.legacyMarketData))
 router.get('/top10', asyncRoute(clarezaCoreController.top10))
 router.get('/raiox', asyncRoute(clarezaCoreController.raiox))
 router.get('/carteira/data', asyncRoute(clarezaCoreController.carteira))

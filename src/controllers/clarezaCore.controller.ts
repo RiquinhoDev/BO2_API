@@ -3,6 +3,7 @@ import type { NextFunction, Request, RequestHandler, Response } from 'express'
 import { internalError } from '../security/errorHandling'
 import {
   getPublishedCarteira,
+  getPublishedLegacyMarketData,
   getPublishedRadar,
   getPublishedRaiox,
   searchPublishedRaiox,
@@ -19,6 +20,7 @@ import { CoreComparadorRequestError } from '../services/clareza/core/coreCompara
 
 interface ClarezaCoreControllerDependencies {
   readonly radar: typeof getPublishedRadar
+  readonly legacyMarketData: typeof getPublishedLegacyMarketData
   readonly carteira: typeof getPublishedCarteira
   readonly portfolioAnalysis: typeof analyzePublishedCarteira
   readonly search: typeof searchPublishedCarteira
@@ -36,6 +38,7 @@ const unavailable = (res: Response) => res.status(503).json({
 
 export function createClarezaCoreController(dependencies: ClarezaCoreControllerDependencies): {
   readonly radar: RequestHandler
+  readonly legacyMarketData: RequestHandler
   readonly carteira: RequestHandler
   readonly portfolioAnalysis: RequestHandler
   readonly search: RequestHandler
@@ -54,6 +57,20 @@ export function createClarezaCoreController(dependencies: ClarezaCoreControllerD
       } catch (error: unknown) {
         if (error instanceof CoreGenerationUnavailableError) return unavailable(res)
         next(internalError('Erro interno do servidor', 'CLAREZA_CORE_RADAR_READ_FAILED', error))
+        return
+      }
+    },
+
+    // Compatibilidade com o WordPress ainda não migrado (clareza-termometro,
+    // clareza-mapa-calor-mercado): array cru, sem o envelope do /radar.
+    legacyMarketData: async (_req: Request, res: Response, next: NextFunction) => {
+      try {
+        const payload = await dependencies.legacyMarketData()
+        res.setHeader('Cache-Control', 'public, max-age=3600')
+        return res.json(payload)
+      } catch (error: unknown) {
+        if (error instanceof CoreGenerationUnavailableError) return unavailable(res)
+        next(internalError('Erro interno do servidor', 'CLAREZA_CORE_LEGACY_DATA_READ_FAILED', error))
         return
       }
     },
@@ -197,6 +214,7 @@ export function createClarezaCoreController(dependencies: ClarezaCoreControllerD
 
 export const clarezaCoreController = createClarezaCoreController({
   radar: getPublishedRadar,
+  legacyMarketData: getPublishedLegacyMarketData,
   carteira: getPublishedCarteira,
   portfolioAnalysis: analyzePublishedCarteira,
   search: searchPublishedCarteira,

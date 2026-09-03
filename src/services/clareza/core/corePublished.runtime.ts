@@ -16,6 +16,7 @@ const runtime = createCorePublishedRuntime({
 })
 
 export const getPublishedRadar = runtime.radar
+export const getPublishedLegacyMarketData = runtime.legacyMarketData
 export const getPublishedCarteira = runtime.carteira
 export const getPublishedPortfolioAnalysis = runtime.portfolioAnalysis
 
