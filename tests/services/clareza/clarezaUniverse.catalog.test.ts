@@ -1,5 +1,6 @@
 import {
   CLAREZA_UNIVERSE,
+  CLAREZA_UNIVERSE_EXCLUSIONS,
   resolveEditorialUniverse,
   selectComparadorUniverse,
   selectEarningsUniverse,
@@ -8,12 +9,13 @@ import {
   selectRaioxUniverse,
 } from '../../../src/services/clareza/universe/clarezaUniverse.catalog'
 import { ClarezaAssetSchema } from '../../../src/services/clareza/universe/clarezaUniverse.types'
+import stockAssets from '../../../src/services/clareza/universe/data/stock.json'
 
 describe('Clareza 2.0 universe catalog', () => {
   it('loads the complete unique snapshot with explicit classifications', () => {
-    expect(CLAREZA_UNIVERSE).toHaveLength(879)
-    expect(CLAREZA_UNIVERSE.filter(({ kind }) => kind === 'stock')).toHaveLength(347)
-    expect(CLAREZA_UNIVERSE.filter(({ kind }) => kind === 'fund')).toHaveLength(517)
+    expect(CLAREZA_UNIVERSE).toHaveLength(886)
+    expect(CLAREZA_UNIVERSE.filter(({ kind }) => kind === 'stock')).toHaveLength(353)
+    expect(CLAREZA_UNIVERSE.filter(({ kind }) => kind === 'fund')).toHaveLength(518)
     expect(CLAREZA_UNIVERSE.filter(({ kind }) => kind === 'crypto')).toHaveLength(15)
 
     const tickers = CLAREZA_UNIVERSE.map(({ ticker }) => ticker)
@@ -32,11 +34,11 @@ describe('Clareza 2.0 universe catalog', () => {
   })
 
   it('applies each tool eligibility without copying catalog data', () => {
-    expect(selectRadarUniverse()).toHaveLength(347)
-    expect(selectEarningsUniverse()).toHaveLength(347)
-    expect(selectRaioxUniverse()).toHaveLength(303)
-    expect(selectComparadorUniverse()).toHaveLength(303)
-    expect(selectPortfolioUniverse()).toHaveLength(879)
+    expect(selectRadarUniverse()).toHaveLength(353)
+    expect(selectEarningsUniverse()).toHaveLength(353)
+    expect(selectRaioxUniverse()).toHaveLength(309)
+    expect(selectComparadorUniverse()).toHaveLength(309)
+    expect(selectPortfolioUniverse()).toHaveLength(886)
 
     expect(selectRadarUniverse().filter(({ type }) => type === 'reit')).toHaveLength(44)
     expect(selectRaioxUniverse().some(({ type }) => type === 'reit')).toBe(false)
@@ -72,4 +74,15 @@ describe('Clareza 2.0 universe catalog', () => {
     expect(result.assets.map(({ ticker }) => ticker)).toEqual(['AAPL', 'AAPL', 'O'])
     expect(result.missing).toEqual(['UNKNOWN'])
   })
+  it('keeps the excluded snapshot tickers out of every selection', () => {
+    expect(CLAREZA_UNIVERSE_EXCLUSIONS).toEqual(['MYTKY'])
+    expect(stockAssets.some(asset => asset.ticker === 'MYTKY')).toBe(true)
+
+    for (const ticker of CLAREZA_UNIVERSE_EXCLUSIONS) {
+      expect(CLAREZA_UNIVERSE.some(asset => asset.ticker === ticker)).toBe(false)
+      expect(selectPortfolioUniverse().some(asset => asset.ticker === ticker)).toBe(false)
+      expect(resolveEditorialUniverse([ticker]).missing).toEqual([ticker])
+    }
+  })
+
 })

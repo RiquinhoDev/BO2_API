@@ -21,7 +21,7 @@ describe('canonical core master collector', () => {
       { concurrency: 24 },
     ).collect()
 
-    expect(fetchItem).toHaveBeenCalledTimes(879)
+    expect(fetchItem).toHaveBeenCalledTimes(886)
     expect(fetchItem.mock.calls.map(([asset]) => asset.ticker).sort()).toEqual(
       CLAREZA_UNIVERSE.map(asset => asset.ticker).sort(),
     )
@@ -29,13 +29,13 @@ describe('canonical core master collector', () => {
       CLAREZA_UNIVERSE.map(asset => asset.ticker),
     )
     expect(report.coverage).toEqual({
-      total: 879,
-      available: 879,
+      total: 886,
+      available: 886,
       missing: 0,
       failed: 0,
       byKind: {
-        stock: { total: 347, available: 347, missing: 0, failed: 0 },
-        fund: { total: 517, available: 517, missing: 0, failed: 0 },
+        stock: { total: 353, available: 353, missing: 0, failed: 0 },
+        fund: { total: 518, available: 518, missing: 0, failed: 0 },
         crypto: { total: 15, available: 15, missing: 0, failed: 0 },
       },
     })
