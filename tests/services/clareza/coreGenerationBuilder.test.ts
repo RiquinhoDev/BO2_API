@@ -30,7 +30,7 @@ function master(universe: readonly ClarezaAsset[]): CoreMasterReport {
 }
 
 describe('canonical core generation builder', () => {
-  it('builds 879 immutable records and scores every stock against one full-run context', () => {
+  it('builds 886 immutable records and scores every stock against one full-run context', () => {
     const evaluator = jest.fn(evaluateCoreAsset)
     const result = new CoreGenerationBuilder(evaluator).build({
       master: master(CLAREZA_UNIVERSE),
@@ -38,15 +38,15 @@ describe('canonical core generation builder', () => {
       universeVersion: 'sha256:universe',
     })
 
-    expect(result.candidate.records).toHaveLength(879)
+    expect(result.candidate.records).toHaveLength(886)
     expect(result.candidate.records.map(record => record.ticker))
       .toEqual(CLAREZA_UNIVERSE.map(asset => asset.ticker))
-    expect(evaluator).toHaveBeenCalledTimes(347)
+    expect(evaluator).toHaveBeenCalledTimes(353)
     expect(evaluator.mock.calls[0][1].groups).not.toEqual({})
     expect(result.report).toMatchObject({
-      totalAssets: 879,
-      datasets: { data: { successfulAssets: 879, failedAssets: 0 } },
-      scoredAssets: 347,
+      totalAssets: 886,
+      datasets: { data: { successfulAssets: 886, failedAssets: 0 } },
+      scoredAssets: 353,
       failedScoringAssets: 0,
     })
     expect(result.candidate.dataVersion).toMatch(/^core-sha256:[a-f0-9]{64}$/)

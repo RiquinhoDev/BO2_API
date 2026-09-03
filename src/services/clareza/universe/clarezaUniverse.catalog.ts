@@ -9,9 +9,24 @@ import {
 } from './clarezaUniverse.types'
 
 export const CLAREZA_UNIVERSE_SOURCE = Object.freeze({
-  snapshotDate: '2026-08-31',
-  sha256: '6f2ea6eed958276178d2b64347ecfb7056b051feff428639d532d106149707dc',
+  snapshotDate: '2026-09-03',
+  sha256: '78c7f9b842e7abf912bdf8a1f6086c945eef3debbdabff1b8a1b2e14a22d7f47',
 })
+
+// Ativos presentes no snapshot PHP que ficam de fora até a fonte ser corrigida.
+// Os ficheiros em data/ continuam a espelhar o PHP linha a linha, para que a
+// próxima atualização do universo continue a ser um diff limpo.
+//
+// MYTKY (Magyar Telekom): não existe na FMP. A FMP cobre sete empresas da bolsa
+// de Budapeste (OTP.BD, MOL.BD, RICHT.BD, 4IG.BD, OPUS.BD, ZWACK.BD,
+// MASTERPLAST.BD) e a Magyar Telekom não é uma delas. O único registo é o ADR
+// OTC MYTAY, que devolve preço em USD contra financeiras em HUF e a contagem de
+// ações do ADR: dá P/E 0,32 e um DCF 90x acima do preço, ou seja, entraria no
+// Radar como a ação mais barata do universo. Sem dados é melhor do que com
+// dados errados.
+export const CLAREZA_UNIVERSE_EXCLUSIONS: readonly string[] = Object.freeze(['MYTKY'])
+
+const excluded = new Set(CLAREZA_UNIVERSE_EXCLUSIONS)
 
 const parsedUniverse = ClarezaUniverseSchema.parse([
   ...stockAssets,
@@ -21,7 +36,9 @@ const parsedUniverse = ClarezaUniverseSchema.parse([
 ])
 
 export const CLAREZA_UNIVERSE: readonly ClarezaAsset[] = Object.freeze(
-  parsedUniverse.map((asset) => Object.freeze(asset)),
+  parsedUniverse
+    .filter((asset) => !excluded.has(asset.ticker))
+    .map((asset) => Object.freeze(asset)),
 )
 
 function selectStocks(universe: readonly ClarezaAsset[]): readonly ClarezaAsset[] {

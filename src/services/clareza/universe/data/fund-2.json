@@ -256,5 +256,6 @@
   {"ticker":"QDVI.DE","name":"iShares Edge MSCI USA Value Factor UCITS ETF","kind":"fund","type":"etf","bucket":"etf","sector":"ETF"},
   {"ticker":"QDV2.DE","name":"iShares Edge MSCI USA Value Factor UCITS ETF USD (Dist)","kind":"fund","type":"etf","bucket":"etf","sector":"ETF"},
   {"ticker":"JEDI.DE","name":"VanEck Space Innovators UCITS ETF","kind":"fund","type":"etf","bucket":"etf","sector":"ETF"},
-  {"ticker":"EMEC.DE","name":"BNP Paribas Easy ECPI Circular Economy Leaders UCITS ETF EUR","kind":"fund","type":"etf","bucket":"etf","sector":"ETF"}
+  {"ticker":"EMEC.DE","name":"BNP Paribas Easy ECPI Circular Economy Leaders UCITS ETF EUR","kind":"fund","type":"etf","bucket":"etf","sector":"ETF"},
+  {"ticker":"AMEE.DE","name":"Amundi Global Hydrogen UCITS ETF Acc","kind":"fund","type":"etf","bucket":"etf","sector":"ETF"}
 ]

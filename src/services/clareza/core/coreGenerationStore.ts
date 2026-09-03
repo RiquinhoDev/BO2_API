@@ -133,8 +133,15 @@ export class MongooseCoreGenerationStore implements CoreGenerationStore {
     return updated ? publishedResult(updated) : { status: 'conflict' }
   }
 
+  // Só sobrevivem a retainCandidates o ponteiro publicado, o seu anterior e as
+  // gerações mais recentes, por isso a leitura é curta; o limite mantém-na
+  // limitada mesmo que uma poda anterior tenha falhado.
   async listGenerationIds(): Promise<readonly string[]> {
-    const found = await ClarezaCoreGeneration.find({}, 'generationId').lean()
+    const found = await ClarezaCoreGeneration
+      .find({}, 'generationId')
+      .sort({ createdAt: -1 })
+      .limit(MAX_CANDIDATE_RETENTION)
+      .lean()
     return found.map(entry => entry.generationId)
   }
 
