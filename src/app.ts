@@ -1,7 +1,7 @@
 import express, { type Application, type RequestHandler } from 'express'
 import compression from 'compression'
+import cors from 'cors'
 import { isOriginAllowed } from './security/cors'
-import { createSplitCors } from './security/publicReadCors'
 import {
   AC_WEBHOOK_PATHS,
   createAcWebhookSecurity,
@@ -62,7 +62,7 @@ export function createApp(_deps: CreateAppDependencies): Application {
   app.use(routeUsage.handler)
   app.use(httpPerimeter.helmet)
   app.use(
-    createSplitCors({
+    cors({
       origin: (origin, callback) => {
         if (isOriginAllowed(origin, allowedOrigins)) return callback(null, true)
         return callback(new HttpError({

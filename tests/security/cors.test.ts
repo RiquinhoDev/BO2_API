@@ -107,35 +107,10 @@ test('createApp sem allowlist injetada rejeita origem browser e permite pedido s
   await request(app).get('/probe').query(marker).expect(204)
 })
 
-test('leituras públicas do Clareza usam ACAO fixo em vez da allowlist', async () => {
-  const app = createApp({
-    authEnforce: false,
-    registerRoutes: (target) => {
-      target.get('/api/clareza/radar', (_req, res) => res.sendStatus(204))
-    },
-  })
-
-  const response = await request(app)
-    .get('/api/clareza/radar')
-    .set('Origin', 'https://origem-desconhecida.example')
-    .query(marker)
-    .expect(204)
-  expect(response.headers['access-control-allow-origin']).toBe('*')
-  expect(response.headers['access-control-allow-credentials']).toBeUndefined()
-})
-
-test('rotas fora da lista pública de leitura continuam presas à allowlist', async () => {
-  const app = createApp({
-    authEnforce: false,
-    registerRoutes: (target) => {
-      target.get('/api/clareza/carteira/analysis/extra', (_req, res) => res.sendStatus(204))
-    },
-  })
-
-  const response = await request(app)
-    .get('/api/clareza/carteira/analysis/extra')
-    .set('Origin', 'https://backoffice.serriquinho.com')
-    .query(marker)
-    .expect(403)
-  expect(response.headers['access-control-allow-origin']).toBeUndefined()
-})
+// Nota histórica: chegámos a testar ACAO fixo ("*") nas leituras públicas do
+// Clareza para preparar cache de CDN. Revertido em produção porque o
+// WordPress busca estas rotas com `credentials: 'include'`, e a spec de CORS
+// proíbe o browser de aceitar ACAO "*" numa resposta a um pedido credenciado
+// — falha dura no fetch, não um simples 403. Enquanto essas chamadas
+// continuarem credenciadas, estas rotas têm de ficar no CORS restrito da
+// allowlist como todas as outras.
