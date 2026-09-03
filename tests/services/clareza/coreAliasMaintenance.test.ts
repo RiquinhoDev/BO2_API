@@ -27,6 +27,18 @@ describe('core alias maintenance', () => {
     expect(selectPendingAliasAssets(universe, failed.state, 1)[0]?.ticker).toBe('CSP1.L')
   })
 
+  it('marks a definitive empty answer as processed, not as a failure to retry', () => {
+    const result = applyAliasDiscovery(empty, universe, {
+      canonicalTicker: 'CSP1.L', instrumentId: null, status: 'success', variants: [],
+      observedAt: '2026-09-01T13:00:00.000Z',
+    })
+
+    expect(result.state.aliases).toEqual([])
+    expect(result.state.failures).toEqual([])
+    expect(result.state.processed).toEqual([{ ticker: 'CSP1.L', processedAt: '2026-09-01T13:00:00.000Z' }])
+    expect(selectPendingAliasAssets(universe, result.state, 10).map(item => item.ticker)).toEqual(['SXR8.DE'])
+  })
+
   it('records only variants proven to be the same instrument and never hides a canonical ticker', () => {
     const result = applyAliasDiscovery(empty, universe, {
       canonicalTicker: 'CSP1.L', instrumentId: 'IE00B5BMR087', status: 'success', observedAt: '2026-09-01T13:00:00.000Z',

@@ -28,6 +28,27 @@ describe('core alias workflow', () => {
     }), 2)
   })
 
+  it('advances past a ticker the FMP has never heard of instead of retrying it forever', async () => {
+    const store = {
+      read: jest.fn().mockResolvedValue({
+        revision: 5, state: { aliases: [], processed: [], failures: [], conflicts: [] },
+      }),
+      replace: jest.fn().mockResolvedValue(6),
+    }
+    const run = createCoreAliasWorkflow({
+      store, fmp: { get: jest.fn().mockResolvedValue([]) },
+      universe: [{ ticker: '0GGH.L', kind: 'fund' }],
+      now: () => '2026-09-02T10:00:00.000Z',
+    })
+
+    await expect(run({ limit: 1 })).resolves.toMatchObject({
+      status: 'published', processed: 1, aliasesAdded: 0, failures: 0, remaining: 0,
+    })
+    expect(store.replace).toHaveBeenCalledWith(expect.objectContaining({
+      processed: [expect.objectContaining({ ticker: '0GGH.L' })], failures: [],
+    }), 5)
+  })
+
   it('persists a retryable failure without marking the ETF processed', async () => {
     const store = {
       read: jest.fn().mockResolvedValue({

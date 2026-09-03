@@ -96,38 +96,44 @@ export function applyAliasDiscovery(
     ]
     return { state: { ...reconciled, failures }, rejected: [], conflicts: [] }
   }
-  if (!discovery.instrumentId) throw new RangeError('alias discovery instrument identity is required')
   const universeTickers = new Set(universe.map(asset => normalize(asset.ticker)))
   const aliases = [...reconciled.aliases]
   const rejected: CoreAliasMaintenanceResult['rejected'][number][] = []
   const conflicts: CoreAliasMaintenanceResult['conflicts'][number][] = []
-  for (const variant of discovery.variants) {
-    const aliasTicker = normalize(variant.ticker)
-    if (!aliasTicker || aliasTicker === canonicalTicker) continue
-    if (universeTickers.has(aliasTicker)) {
-      rejected.push({ aliasTicker, reason: 'canonical-ticker-precedence' })
-      continue
-    }
-    if (!variant.instrumentId || variant.instrumentId !== discovery.instrumentId) {
-      rejected.push({ aliasTicker, reason: 'instrument-mismatch' })
-      continue
-    }
-    const existing = aliases.find(alias => normalize(alias.aliasTicker) === aliasTicker)
-    if (existing && normalize(existing.canonicalTicker) !== canonicalTicker) {
-      conflicts.push({
+  // Sem identidade própria (a FMP não devolveu ISIN para este ticker) não há
+  // variantes fiáveis para registar — mas isso não é falha, é uma resposta
+  // definitiva de "nada encontrado". O ticker fica processado na mesma, com
+  // zero aliases, tal como o PHP de origem.
+  const instrumentId = discovery.instrumentId
+  if (instrumentId) {
+    for (const variant of discovery.variants) {
+      const aliasTicker = normalize(variant.ticker)
+      if (!aliasTicker || aliasTicker === canonicalTicker) continue
+      if (universeTickers.has(aliasTicker)) {
+        rejected.push({ aliasTicker, reason: 'canonical-ticker-precedence' })
+        continue
+      }
+      if (!variant.instrumentId || variant.instrumentId !== instrumentId) {
+        rejected.push({ aliasTicker, reason: 'instrument-mismatch' })
+        continue
+      }
+      const existing = aliases.find(alias => normalize(alias.aliasTicker) === aliasTicker)
+      if (existing && normalize(existing.canonicalTicker) !== canonicalTicker) {
+        conflicts.push({
+          aliasTicker,
+          existingCanonicalTicker: normalize(existing.canonicalTicker),
+          proposedCanonicalTicker: canonicalTicker,
+        })
+        continue
+      }
+      if (!existing) aliases.push({
         aliasTicker,
-        existingCanonicalTicker: normalize(existing.canonicalTicker),
-        proposedCanonicalTicker: canonicalTicker,
+        canonicalTicker,
+        instrumentId,
+        provenance: 'fmp-exchange-variants',
+        observedAt: discovery.observedAt,
       })
-      continue
     }
-    if (!existing) aliases.push({
-      aliasTicker,
-      canonicalTicker,
-      instrumentId: discovery.instrumentId,
-      provenance: 'fmp-exchange-variants',
-      observedAt: discovery.observedAt,
-    })
   }
   const processed = reconciled.processed.some(item => normalize(item.ticker) === canonicalTicker)
     ? [...reconciled.processed]

@@ -39,8 +39,15 @@ function discoveryFromResponse(ticker: string, value: unknown, observedAt: strin
     }
   }
   const instrumentId = typeof canonical?.isin === 'string' && canonical.isin.trim() ? canonical.isin.trim() : null
+  // A FMP respondeu — não há erro de transporte nenhum a repetir. Só não achou
+  // uma linha própria com ISIN para este ticker (resposta vazia, ou nenhuma
+  // linha corresponde ao símbolo pedido). É uma resposta definitiva: sem
+  // variantes conhecidas, processado na mesma. Tal como o PHP de origem
+  // (clareza-carteira-data.php) marca sempre o ticker como processado, tenha
+  // ou não encontrado nada — só assim o lote seguinte avança em vez de ficar
+  // preso a tentar sempre os mesmos primeiros itens.
   if (!instrumentId) {
-    return { canonicalTicker: ticker, instrumentId: null, status: 'retryable-failure', variants: [], observedAt }
+    return { canonicalTicker: ticker, instrumentId: null, status: 'success', variants: [], observedAt }
   }
   return {
     canonicalTicker: ticker,
