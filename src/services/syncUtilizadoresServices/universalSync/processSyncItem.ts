@@ -94,6 +94,22 @@ async function ensureClassExists(
 }
 
 
+// O histórico guarda o nome da turma de onde a pessoa saiu. Quando só temos o
+// código — "Turma vROxKGWK7D", que é o que sobra quando a Hotmart não mandou
+// nome — vale a pena ir buscar o nome verdadeiro à BD antes de o gravar.
+const PARECE_CODIGO_DE_TURMA = /^Turma [A-Za-z0-9]{6,}$/
+
+async function resolvePreviousClassName(
+  previousClassId: string | undefined,
+  previousClassName: string | undefined,
+): Promise<string | undefined> {
+  if (!previousClassId) return previousClassName
+  if (previousClassName && !PARECE_CODIGO_DE_TURMA.test(previousClassName)) return previousClassName
+
+  const turma = await Class.findOne({ classId: previousClassId }).select('name').lean()
+  return turma?.name ?? previousClassName
+}
+
 export const processSyncItem = async (
   item: UniversalSourceItem,
   config: UniversalSyncConfig,
@@ -179,17 +195,18 @@ export const processSyncItem = async (
       try {
         const StudentClassHistory = (await import('../../../models/StudentClassHistory')).default
         if (ev.type === 'class-changed') {
+          const previousClassName = await resolvePreviousClassName(ev.previousClassId, ev.previousClassName)
           await StudentClassHistory.create({
             studentId: user._id,
             classId: ev.classId,
             className: ev.className,
             previousClassId: ev.previousClassId,
-            previousClassName: ev.previousClassName,
+            previousClassName,
             dateMoved: ev.dateMoved,
             reason: 'Mudança detectada no sync Hotmart',
             movedBy: 'Sistema - Sync Automático'
           })
-          logger.info(`   📝 [ClassChange] ${user.email}: "${ev.previousClassName}" → "${ev.className}"`)
+          logger.info(`   📝 [ClassChange] ${user.email}: "${previousClassName}" → "${ev.className}"`)
         } else {
           await StudentClassHistory.create({
             studentId: user._id,

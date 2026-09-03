@@ -192,7 +192,10 @@ export function buildHotmartMutationPlan(input: HotmartMutationInput): HotmartMu
       plan.classHistoryEvent = {
         type: 'class-changed',
         classId: resolvedClass.classId,
-        className: item.className || `Turma ${resolvedClass.classId}`,
+        // O nome bom é o resolvido (ensureClassExists devolve o da BD, incluindo
+        // nomes postos à mão no Backoffice). A Hotmart manda item.className vazio
+        // em muitas turmas, e o fallback enchia o histórico de "Turma vROxKGWK7D".
+        className: resolvedClass.className,
         previousClassId: oldClassId,
         previousClassName: oldClassName,
         dateMoved: clock.now(),
@@ -201,7 +204,10 @@ export function buildHotmartMutationPlan(input: HotmartMutationInput): HotmartMu
       plan.classHistoryEvent = {
         type: 'first-enrollment',
         classId: resolvedClass.classId,
-        className: item.className || `Turma ${resolvedClass.classId}`,
+        // O nome bom é o resolvido (ensureClassExists devolve o da BD, incluindo
+        // nomes postos à mão no Backoffice). A Hotmart manda item.className vazio
+        // em muitas turmas, e o fallback enchia o histórico de "Turma vROxKGWK7D".
+        className: resolvedClass.className,
         dateMoved: purchaseDate || clock.now(),
       }
     }
