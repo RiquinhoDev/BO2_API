@@ -269,7 +269,6 @@
   {"ticker":"AIR.PA","name":"Airbus","kind":"stock","type":"value","bucket":"value","sector":"Industrials"},
   {"ticker":"BTI","name":"British American Tobacco","kind":"stock","type":"value","bucket":"value","sector":"Consumer"},
   {"ticker":"BATS.L","name":"British American Tobacco (Londres)","kind":"stock","type":"value","bucket":"value","sector":"Consumer"},
-  {"ticker":"MYTKY","name":"Magyar Telekom","kind":"stock","type":"value","bucket":"value","sector":"Communication Services"},
   {"ticker":"BBD","name":"Banco Bradesco","kind":"stock","type":"value","bucket":"financials","sector":"Finance"},
   {"ticker":"FAE.MC","name":"Faes Farma","kind":"stock","type":"value","bucket":"value","sector":"Healthcare"},
   {"ticker":"CBRS","name":"Cerebras Systems","kind":"stock","type":"growth","bucket":"growth","sector":"Technology"},

@@ -1,6 +1,5 @@
 import {
   CLAREZA_UNIVERSE,
-  CLAREZA_UNIVERSE_EXCLUSIONS,
   resolveEditorialUniverse,
   selectComparadorUniverse,
   selectEarningsUniverse,
@@ -9,7 +8,6 @@ import {
   selectRaioxUniverse,
 } from '../../../src/services/clareza/universe/clarezaUniverse.catalog'
 import { ClarezaAssetSchema } from '../../../src/services/clareza/universe/clarezaUniverse.types'
-import stockAssets from '../../../src/services/clareza/universe/data/stock.json'
 
 describe('Clareza 2.0 universe catalog', () => {
   it('loads the complete unique snapshot with explicit classifications', () => {
@@ -21,6 +19,7 @@ describe('Clareza 2.0 universe catalog', () => {
     const tickers = CLAREZA_UNIVERSE.map(({ ticker }) => ticker)
     expect(new Set(tickers).size).toBe(tickers.length)
     expect(tickers).toEqual(expect.arrayContaining(['AAPL', 'THEON.AS', 'NDA-FI.HE']))
+    expect(tickers).not.toContain('MYTKY')
 
     for (const asset of CLAREZA_UNIVERSE) {
       expect(asset.ticker).toMatch(/^[A-Za-z0-9][A-Za-z0-9.-]{0,24}$/)
@@ -74,15 +73,4 @@ describe('Clareza 2.0 universe catalog', () => {
     expect(result.assets.map(({ ticker }) => ticker)).toEqual(['AAPL', 'AAPL', 'O'])
     expect(result.missing).toEqual(['UNKNOWN'])
   })
-  it('keeps the excluded snapshot tickers out of every selection', () => {
-    expect(CLAREZA_UNIVERSE_EXCLUSIONS).toEqual(['MYTKY'])
-    expect(stockAssets.some(asset => asset.ticker === 'MYTKY')).toBe(true)
-
-    for (const ticker of CLAREZA_UNIVERSE_EXCLUSIONS) {
-      expect(CLAREZA_UNIVERSE.some(asset => asset.ticker === ticker)).toBe(false)
-      expect(selectPortfolioUniverse().some(asset => asset.ticker === ticker)).toBe(false)
-      expect(resolveEditorialUniverse([ticker]).missing).toEqual([ticker])
-    }
-  })
-
 })
