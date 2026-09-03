@@ -101,7 +101,7 @@ describe('ClarezaDailyRefresh', () => {
     expect(refreshCore).not.toHaveBeenCalled()
     expect(refreshCompanion).not.toHaveBeenCalled()
   })
-  it('prunes old generations only after every companion is written', async () => {
+  it('prunes old generations before writing companions, so the space is free', async () => {
     const calls: string[] = []
     const job = createClarezaJob({
       assertRefreshEnabled: () => undefined,
@@ -118,7 +118,7 @@ describe('ClarezaDailyRefresh', () => {
     })
 
     await expect(job.run()).resolves.toEqual({ success: true, total: 879, errors: 0 })
-    expect(calls).toEqual(['raiox', 'top10', 'retention'])
+    expect(calls).toEqual(['retention', 'raiox', 'top10'])
   })
 
   it('keeps the refresh successful when the pruning fails', async () => {
