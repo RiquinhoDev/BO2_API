@@ -595,7 +595,7 @@
     "shapeKeys": [
       "results"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:77",
+    "evidence": "src/controllers/clarezaCore.controller.ts:94",
     "frontConsumer": null
   },
   {
@@ -610,7 +610,7 @@
       "universeVersion",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:65",
+    "evidence": "src/controllers/clarezaCore.controller.ts:82",
     "frontConsumer": null
   },
   {
@@ -622,7 +622,7 @@
       "query",
       "results"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:90",
+    "evidence": "src/controllers/clarezaCore.controller.ts:107",
     "frontConsumer": null
   },
   {
@@ -637,7 +637,15 @@
       "rejected",
       "results"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:148",
+    "evidence": "src/controllers/clarezaCore.controller.ts:165",
+    "frontConsumer": null
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/data",
+    "family": "public-document",
+    "shapeKeys": [],
+    "evidence": "src/controllers/clarezaCore.controller.ts:70",
     "frontConsumer": null
   },
   {
@@ -654,7 +662,7 @@
       "updated",
       "window"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:176",
+    "evidence": "src/controllers/clarezaCore.controller.ts:193",
     "frontConsumer": null
   },
   {
@@ -669,7 +677,7 @@
       "universeVersion",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:53",
+    "evidence": "src/controllers/clarezaCore.controller.ts:56",
     "frontConsumer": null
   },
   {
@@ -686,7 +694,7 @@
       "results",
       "ticker"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:104",
+    "evidence": "src/controllers/clarezaCore.controller.ts:121",
     "frontConsumer": null
   },
   {
@@ -723,7 +731,7 @@
       "universeVersion",
       "updated"
     ],
-    "evidence": "src/controllers/clarezaCore.controller.ts:188",
+    "evidence": "src/controllers/clarezaCore.controller.ts:205",
     "frontConsumer": null
   },
   {

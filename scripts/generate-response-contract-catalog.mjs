@@ -16,6 +16,7 @@ const ALLOW_TEST_SOURCE_OVERLAY = process.env.RESPONSE_CONTRACT_ALLOW_TEST_OVERL
 const TERMINAL_FAMILIES = new Set(['success-data', 'public-document', 'webhook-ack', 'redirect', 'stream-or-file', 'no-content'])
 const CURRENT_FAMILIES = new Set([...TERMINAL_FAMILIES, 'domain-envelope', 'raw-json', '501-only'])
 const PUBLIC_DOCUMENT_IDENTITIES = new Set([
+  'GET /api/clareza/data',
   'GET /api/clareza/carteira/search',
   'GET /api/clareza/carteira/data',
   'GET /api/clareza/carteira/analysis',

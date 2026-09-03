@@ -432,6 +432,14 @@
     "status": "complete"
   },
   {
+    "identity": "GET /api/clareza/data",
+    "owner": "src/controllers/clarezaCore.controller.ts",
+    "currentFamily": "public-document",
+    "targetFamily": "public-document",
+    "frontConsumer": null,
+    "status": "complete"
+  },
+  {
     "identity": "GET /api/clareza/earnings/data",
     "owner": "src/controllers/clarezaCore.controller.ts",
     "currentFamily": "public-document",

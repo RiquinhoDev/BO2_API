@@ -456,7 +456,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; geração publicada sem provider I/O; rota em src/routes/clareza.routes.ts:16"
+    "evidence": "public: HTML Clareza externo; geração publicada sem provider I/O; rota em src/routes/clareza.routes.ts:20"
   },
   {
     "method": "GET",
@@ -465,7 +465,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:14"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:15"
   },
   {
     "method": "GET",
@@ -474,7 +474,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:15"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:19"
   },
   {
     "method": "GET",
@@ -483,7 +483,16 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:18"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:22"
+  },
+  {
+    "method": "GET",
+    "path": "/api/clareza/data",
+    "access": "public",
+    "consumer": "externo",
+    "writes": false,
+    "destructive": false,
+    "evidence": "public: HTML Clareza externo (compatibilidade Termómetro/Mapa de Calor); rota em src/routes/clareza.routes.ts:15"
   },
   {
     "method": "GET",
@@ -492,7 +501,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:17"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:15"
   },
   {
     "method": "GET",
@@ -510,7 +519,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:13"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:17"
   },
   {
     "method": "GET",
@@ -519,7 +528,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "SUPER_ADMIN: lista agregada; rota em src/routes/clareza.routes.ts:22"
+    "evidence": "SUPER_ADMIN: lista agregada; rota em src/routes/clareza.routes.ts:26"
   },
   {
     "method": "GET",
@@ -528,7 +537,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "SUPER_ADMIN: export CSV limitado; rota em src/routes/clareza.routes.ts:23"
+    "evidence": "SUPER_ADMIN: export CSV limitado; rota em src/routes/clareza.routes.ts:27"
   },
   {
     "method": "GET",
@@ -537,7 +546,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:12"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:16"
   },
   {
     "method": "GET",
@@ -2526,7 +2535,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "SUPER_ADMIN: refresh canónico ou aliases incrementais; rota em src/routes/clareza.routes.ts:26"
+    "evidence": "SUPER_ADMIN: refresh canónico ou aliases incrementais; rota em src/routes/clareza.routes.ts:30"
   },
   {
     "method": "POST",
@@ -2535,7 +2544,7 @@
     "consumer": "externo",
     "writes": true,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; limite dedicado e idempotencia; rota em src/routes/clareza.routes.ts:21"
+    "evidence": "public: HTML Clareza externo; limite dedicado e idempotencia; rota em src/routes/clareza.routes.ts:25"
   },
   {
     "method": "POST",

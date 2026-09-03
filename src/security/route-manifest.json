@@ -217,6 +217,10 @@
   },
   {
     "method": "GET",
+    "path": "/api/clareza/data"
+  },
+  {
+    "method": "GET",
     "path": "/api/clareza/earnings/data"
   },
   {
