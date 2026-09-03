@@ -73,6 +73,20 @@ const toNumber = (value: unknown, fallback = 0): number => {
   return fallback
 }
 
+/**
+ * `$set` em caminhos irmãos não aplica defaults do schema a `combined.status`.
+ * Toda actualização que reconstrói `combined.*` passa por esta guarda para que
+ * um utilizador novo ou legado nunca fique sem estado.
+ */
+export function garantirCombinedStatus(
+  user: { combined?: { status?: string | null }; status?: string | null; hotmart?: { status?: string | null } },
+  updateFields: Record<string, unknown>
+): void {
+  if (updateFields['combined.status'] != null) return
+  updateFields['combined.status'] =
+    user.combined?.status ?? user.status ?? user.hotmart?.status ?? 'ACTIVE'
+}
+
 // ═══════════════════════════════════════════════════════════
 // ✅ CACHE GLOBAL DE PRODUTOS (OTIMIZAÇÃO FASE 1)
 // ═══════════════════════════════════════════════════════════
@@ -1273,17 +1287,29 @@ if (lastAccessDate) {
         // Mudança de turma
         try {
           const StudentClassHistory = (await import('../../models/StudentClassHistory')).default
+          // Gravar o nome REAL, não o que vem da Hotmart.
+          //
+          // A Hotmart devolve item.className vazio em muitas turmas, e isto
+          // caía no fallback `Turma ${classId}` — daí o histórico estar cheio
+          // de entradas como "Turma vROxKGWK7D", que não dizem nada a ninguém.
+          // O nome bom já tinha sido resolvido acima em realClassName (via
+          // ensureClassExists, que devolve o nome da BD, incluindo nomes postos
+          // à mão no Backoffice); só não estava a ser usado aqui.
+          const previousClassNameReal =
+            oldClassName && !/^Turma [A-Za-z0-9]{6,}$/.test(oldClassName)
+              ? oldClassName
+              : (await (Class as any).findOne({ classId: oldClassId }).select('name').lean())?.name || oldClassName
           await StudentClassHistory.create({
             studentId: user._id,
             classId: item.classId,
-            className: item.className || `Turma ${item.classId}`,
+            className: realClassName,
             previousClassId: oldClassId,
-            previousClassName: oldClassName,
+            previousClassName: previousClassNameReal,
             dateMoved: new Date(),
             reason: 'Mudança detectada no sync Hotmart',
             movedBy: 'Sistema - Sync Automático'
           })
-          console.log(`   📝 [ClassChange] ${user.email}: "${oldClassName}" → "${item.className || item.classId}"`)
+          console.log(`   📝 [ClassChange] ${user.email}: "${previousClassNameReal}" → "${realClassName}"`)
         } catch (error: any) {
           console.warn(`   ⚠️ Erro ao registrar mudança de turma para ${user.email}:`, error.message)
         }
@@ -1295,7 +1321,7 @@ if (lastAccessDate) {
           await StudentClassHistory.create({
             studentId: user._id,
             classId: item.classId,
-            className: item.className || `Turma ${item.classId}`,
+            className: realClassName,
             dateMoved: purchaseDate || new Date(),
             reason: 'Primeira inscrição na turma (data de compra)',
             movedBy: 'Sistema - Sync Automático'
@@ -1703,6 +1729,13 @@ if (lastAccessDate) {
     updateFields['metadata.updatedAt'] = new Date()
     updateFields['metadata.sources.discord.lastSync'] = new Date()
     needsUpdate = true
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(updateFields, 'combined.allClasses') ||
+    Object.prototype.hasOwnProperty.call(updateFields, 'combined.primaryClass')
+  ) {
+    garantirCombinedStatus(user as any, updateFields)
   }
 
   // ═══════════════════════════════════════════════════════════

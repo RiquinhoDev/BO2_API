@@ -1,0 +1,426 @@
+# O fluxo nocturno de renovações — o que corre, o que escreve, e o que está travado
+
+Levantamento feito a 2026-08-22 lendo o código e o estado real da base de
+dados de produção. Não é o que o plano diz que devia acontecer: é o que
+acontece.
+
+## A cadeia de execução
+
+Só há **um** cron que arranca sozinho e conta para renovações: o `1º`, às
+04:00. Tudo o resto pendura-se nele ou tem cron próprio.
+
+```
+04:00  1º  (DailyPipeline)                        LIGADO
+       ├─ 1  Sync Hotmart          utilizadores, produtos e TURMAS
+       ├─ 2  Sync CursEduca        utilizadores Clareza
+       ├─ 3  Pré-criar tags BO
+       ├─ 4  Recalcular engagement
+       ├─ 5  Avaliar regras de tags   escreve tags na AC
+       ├─ 6  Sync tags de testemunhos
+       └─ ▶ RenewalPipeline            só se o interruptor estiver ligado
+              ├─ Sync Hotmart (vendas)     lê Hotmart → hotmartsalehistories
+              ├─ Sync AC (leitura)         lê AC      → acrenewaldata
+              ├─ Sync AC (tags)            lê AC      → acstudenttags
+              ├─ AC Expiração (ESCRITA)    interruptor PRÓPRIO, à parte
+              ├─ Timelines                 só BD local
+              └─ Discord Roles
+
+05:00  RenewalOfferSync                           LIGADO
+05:30  DiscordRolesSync                           LIGADO
+07:00  GuruTrialCheck                             LIGADO
+07:30  RenewalAcSync                              desligado
+08:00  AcExpirationSync                           desligado
+10:00  DiscordScheduledMessages                   LIGADO
+04:30  AchievementEvaluation                      LIGADO
+06/12/18  ClarezaRefresh                          LIGADO
+```
+
+O `RenewalPipeline` **está desligado**. Corre depois do `1º` terminar de
+facto — dependência real, não uma hora fixa que assuma quanto tempo o `1º`
+demora. Uma falha dele nunca marca o `1º` como falhado.
+
+O `AcExpirationSync` tem um **segundo interruptor**, independente. Ligar o
+`RenewalPipeline` corre só as partes de leitura; a escrita na AC exige o
+segundo sim. Está desligado também.
+
+## Quem escreve o quê
+
+```
+Hotmart          nunca escrito. Só leitura.
+ActiveCampaign   duas coisas, e só duas:
+                   · tags, pelo passo 5 do 1º (regras de tags) — LIGADO
+                   · campo 332, data de expiração, pelo AcExpirationSync — desligado
+Discord          cargos R.{Mês} e mensagens do bot — LIGADO
+Nossa BD         tudo o resto
+```
+
+O `acExpirationSync` é explícito: 332 é o **único** campo que este sistema
+escreve na AC, e nunca escreve para quem está reembolsado.
+
+## As turmas: ninguém as "ajeita"
+
+Não há passo nenhum de renovações que corrija turmas. A turma vem do **passo
+1 do `1º`** — o sync da Hotmart —, que escreve `hotmart.enrolledClasses` com
+o que a Hotmart diz. Substitui.
+
+É daqui que vem a lacuna do histórico: o `studentclasshistories` só recebe
+registo em quatro sítios do `classes.controller.ts`, e todos dentro de syncs
+ou de desactivação/reactivação de turmas em bloco. Quando a turma muda pelo
+caminho normal, o valor antigo desaparece sem deixar rasto.
+
+Medido a 22/08/2026: dos 696 ciclos sem turma associada, **684 são falta de
+registo** e só 12 são mudança realmente em falta.
+
+## Dois defeitos que travam o ligar
+
+### 1. O escritor da expiração corta um ano a quem comprou dois
+
+`computeExpirationFromPurchaseDate()` é sempre **compra + 365 dias**. Não
+olha para o produto `3100292`, não olha para `[2 anos]` no nome da turma,
+não tem excepção nenhuma.
+
+Se o `AcExpirationSync` fosse ligado hoje, **165 alunos activos** receberiam
+escrita. Desses, **39 têm acesso de 2 anos** e ficariam com a expiração
+recuada um ano:
+
+```
+simaopedroliveira@gmail.com      AC tem 2027-05-31   escreveria 2026-06-01
+margarida1@windowslive.com       AC tem 2027-05-31   escreveria 2026-06-01
+rtrovisco@gmail.com              AC tem 2027-05-31   escreveria 2026-05-01
+ruben.mvlm.sequeira@hotmail.com  AC tem 2026-11-30   escreveria 2026-04-01
+```
+
+O último é o pior: `2026-04-01` já passou. Escrever isso põe um aluno activo
+com a expiração no passado, e a automação da AC corta-lhe o acesso na
+primeira corrida.
+
+### 2. A convenção da data está invertida
+
+O escritor arredonda ao **1º dia do mês seguinte** — o comentário dele
+di-lo: `compra 11/08/2026 → expira 01/09/2027`.
+
+A AC hoje não tem um único registo assim:
+
+```
+campo 332, 927 contactos com expiração
+   último dia do mês   926   (99,9%)
+   dia 1 do mês          0   (0%)
+   outro dia             1
+```
+
+E o painel compara a expiração com o fim do acesso pelo nome da turma, que
+também é o último dia do mês. Ligar o escritor punha `01/09` onde tudo o
+resto tem `31/08` — mesma intenção, meses diferentes — e o painel passava a
+marcar divergência em cada aluno que ele tocasse.
+
+### Um terceiro, menor
+
+O gatilho do escritor é `HotmartSaleHistory.latestApprovedDate ≠
+ACRenewalData.purchaseDate` — ou seja, usa a desactualização do campo **334**
+para justificar reescrever o campo **332**. São campos diferentes e o 334
+está errado em 169 dos alunos activos, por medição independente. O gatilho
+dispara por um motivo que não é o que o escritor corrige.
+
+## O Discord está ligado e a executar sozinho
+
+```
+DISCORD_ROLES_SYNC_ENABLED   true
+DISCORD_ROLES_AUTO_EXECUTE   true      executa sem aprovação manual
+DISCORD_MESSAGES_ENABLED     true
+DISCORD_ROLES_MAX_OPS_PER_RUN 150
+```
+
+A regra é: o cargo espelha sempre a turma actual na Hotmart, e o mês do
+cargo vem do fim de acesso calculado por `parseTurmaName`. Corre às 05:30 por
+cron próprio, independente do `RenewalPipeline`.
+
+As mensagens seguem a janela de renovação: a turma cujo acesso acabou no fim
+do mês M tem o cargo `R.{M}`, e nos 15 dias de M+1 recebe lembrete ao dia 8 e
+último aviso ao dia 15.
+
+Nota: o Discord usa `parseTurmaName().accessEndOgi`, que **respeita** o
+`[2 anos]`. Ou seja, o Discord já trata os 2 anos correctamente — só o
+escritor da expiração é que não.
+
+## O que fazer antes de ligar
+
+1. **Corrigir `computeExpirationFromPurchaseDate`** para respeitar os 2 anos.
+   A informação existe em três sítios: o produto `3100292` na compra, o
+   `[2 anos]` no nome da turma, e o campo `anos` do ciclo na timeline. A
+   timeline é a fonte mais fiável, porque já resolve o caso das prestações e
+   das compras no mesmo dia.
+2. **Alinhar a convenção** no último dia do mês, que é o que a AC tem em
+   99,9% dos casos e o que o painel espera.
+3. **Rever o gatilho** para disparar por mudança de acesso, não por
+   desactualização de outro campo.
+4. Só depois ligar o `RenewalPipeline`, e ainda assim deixar o
+   `AcExpirationSync` desligado uma corrida, para ver o relatório do que ele
+   *teria* escrito antes de o deixar escrever.
+
+O passo 4 é fácil de fazer: o serviço já devolve `needsWrite` separado de
+`written`. Basta uma corrida com o interruptor de escrita fechado para ter a
+lista completa sem tocar em nada.
+
+---
+
+## Decisões fechadas com o João — 2026-08-22
+
+### O que o nocturno tem de fazer, pela ordem dele
+
+```
+Hotmart: dados dos alunos
+Hotmart: vendas — detectar compras novas
+   se há compra nova → escrever a expiração: +12 meses, FIM DO MÊS
+                       (é a expiração que alinha a turma, não o contrário)
+AC: garantir as tags obrigatórias que faltem, na versão actual
+BD: actualizar tudo
+Discord: por último
+```
+
+### Regras confirmadas
+
+- **A expiração é sempre até ao FIM do mês.** Nunca o dia 1 do mês seguinte.
+  Foi assim que se corrigiu a AC à mão e é assim que continua. O
+  `computeExpirationFromPurchaseDate()` está sozinho e tem de mudar.
+- **As tags obrigatórias são três** — `Alunos OGI`, `Alunos OGI Ativos`,
+  `OGI - Aluno ou Ex-Aluno` — e o contacto tem de estar na lista
+  `Alunos OGI`. Nenhum código faz isto hoje.
+- **Sem coortes em Abril/Agosto/Outubro/Dezembro é história.** A partir de
+  2027 há turmas todos os meses, porque passaram a vender todos os dias em
+  vez de quatro lançamentos por ano.
+- **Compras de 2 anos acabaram** (última extensão a 30/09/2025). Restam 142
+  vivas, todas a terminar até 2027. Conservar, não recalcular.
+- **A Hotmart é sempre gerida à mão.** O sistema nunca lá escreve.
+
+### A janela do fim do mês
+
+Quem renova hoje entra numa turma de renovação genérica e só no fim do mês é
+movido para a turma definitiva. Nessa janela a turma é provisória.
+
+Decisão: **o painel deve acusar na mesma**, e além de acusar deve dizer o que
+falta fazer — "mover no fim do mês para a turma X". O aviso fica no BO; não é
+para silenciar.
+
+Nota: a janela não afecta o que o escritor da expiração escreve — ele calcula
+da data da compra, não da turma. Afecta só a comparação do painel.
+
+### Adiado por decisão
+
+- **O sync desfazer correcções humanas** fica para o fim: hoje só se reflecte
+  no ACTIVO/INACTIVO dentro do BO, não toca na Hotmart nem na AC.
+- **Cargo do Discord provisório** durante a janela: não é grave, corre todas
+  as noites e ajusta-se sozinho à medida que as turmas se corrigem.
+
+### Para rever quando o desenho da automação fechar
+
+- `simaoleal94@gmail.com` (396,98€, 06/08) e `beatriz.sadrudin@outlook.com`
+  (447€, 02/08) compraram a preço cheio — clientes novos — e estão na
+  `Turma Renovação | 2608`. A tag deles já diz `Aluno OGI 2610 - Turma 19`.
+  Falta decidir onde é que um aluno novo espera até a turma base abrir.
+- A **tolerância de ±2 meses** no emparelhamento tag↔ciclo foi justificada
+  com os meses sem coorte. Com coortes mensais a partir de 2027 essa folga
+  deixa de ser necessária e passa a poder roubar uma tag à coorte vizinha.
+  Deveria depender de existir coorte no mês da compra, em vez de ser fixa.
+
+### Reembolsos — decidido a 2026-08-22
+
+Divisão de trabalho, confirmada com a chefia:
+
+- **A AC trata das tags de nome fixo.** Tira a `Aluno OGI - Renovação` e
+  acrescenta a de compra reembolsada. Não precisa de nós.
+- **O Backoffice tira a tag da turma** — a `Aluno OGI 2608 - Renovação` e
+  equivalentes — porque é criada por coorte e a AC não sabe o nome dela.
+
+Âmbito, que a instrução original não cobria e os dados obrigaram a fixar:
+
+- **Só reembolsos do OGI.** O Clareza e o OTF ficam inteiramente de fora
+  desta automação. A `vaniagandra@gmail.com` foi reembolsada no Clareza e tem
+  quatro tags OGI válidas; uma regra cega tirava-lhas todas.
+- **Só a tag da própria coorte.** O nome da tag de reembolso identifica o
+  produto e a coorte: `[L2509] [OGI15] Compra reembolsada`. O
+  `exec@henriqueblanc.com` devolveu a Turma 15 e comprou a 16 — só a primeira
+  tag sai.
+
+O sinal não são duas tags: são 28 na AC, uma por coorte, mais as duas novas de
+renovação (`712` genérica e `713` antigos alunos), ambas ainda com zero
+contactos. Atraso acumulado: **8 alunos activos** com tag de turma por remover.
+
+### Premissa de trabalho enquanto a chefia não responde — 2026-08-22
+
+Assumir que a automação da AC faz o que lhe compete (tirar tags que deixaram
+de ser verdade) e **compensar depois** se não fizer.
+
+Isto só é seguro com uma condição: o sistema tem de **medir** a diferença,
+não de a assumir. Por isso o passo das tags não é "aplicar as regras" — é
+**comparar e reportar**:
+
+- o que falta e é inequívoco → acrescenta
+- o que sobra → fica listado no Backoffice à espera de decisão
+
+Assim nunca há dois donos a disputar a mesma tag. É o mesmo erro que já vimos
+nas datas de expiração, onde o sync desfazia a correcção humana.
+
+### Medição que responde à pergunta 3
+
+A `Alunos OGI Ativos` (tag 347, 929 contactos) **é** removida quando o acesso
+acaba — o contacto expirado mais antigo que ainda a tem expirou a 31/07/2026.
+Não há ninguém de Junho ou antes.
+
+O que existe é atraso: **30 alunos** expiraram a 31/07 e ainda a têm, 22 dias
+depois e uma semana depois de a janela de renovação fechar.
+
+No sentido inverso quase nada: 3 contactos válidos sem a tag, dois deles
+contas internas.
+
+A pergunta a levar deixa de ser "a AC trata disso?" e passa a ser **"ao fim de
+quanto tempo, e quem dispara?"**.
+
+---
+
+## Quem escreve as datas — decidido a 2026-08-23
+
+**O cron escreve UMA data e só uma: a expiração (campo 332).**
+
+Nunca escreve a data de compra (334) nem a da 1ª compra (337). As tags, essas,
+acrescenta e remove conforme a chefia decidir.
+
+### Porque é que isto ficou explícito
+
+A 22/08 encontrámos 191 contactos com a data de compra desalinhada e
+concluímos que havia uma "escrita em massa" de origem desconhecida. Estava
+errado: **fomos nós**.
+
+Medido a 23/08 sobre os contactos carimbados:
+
+```
+carimbo 2026-08-20    10 de 10 com tags aplicadas nesse mesmo dia
+carimbo 2026-08-21     7 de  9
+carimbo 2026-08-07     6 de  6
+```
+
+E sempre o mesmo padrão de tags:
+
+```
+Aluno OGI 2602 - Renovação Turma 13  +  Renovou
+Aluno OGI 2603 - Renovação Turma 9   +  Renovou
+Alunos OGI Ativos + Aluno OGI 26xx - Renovação Turma N + Renovou
+```
+
+**Aplicar a tag de renovação dispara uma automação da AC que acrescenta a
+`Renovou` e escreve a data de compra com o dia de hoje.** As tags aplicadas à
+mão a 20 e 21 de Agosto produziram os carimbos desses dias.
+
+### A consequência, que fica em aberto
+
+Quando o passo das tags obrigatórias entrar em funcionamento, **a AC vai
+carimbar a data de compra de cada vez que o BO aplicar uma tag**. Não é o BO a
+escrever — é a automação dela a reagir.
+
+Isto significa que o elo "Data da compra" do painel mede um campo que não
+controlamos, e que vai desalinhar-se sozinho. Os 144 corrigidos a 23/08
+voltarão a desalinhar assim que lhes tocarem numa tag.
+
+Duas saídas, ambas por decidir:
+
+1. **A automação da AC deixa de escrever a data de compra.** Pergunta concreta
+   para a chefia: *quando aplicam a tag de renovação, há uma automação que
+   preenche a data de compra com o dia de hoje — é intencional?*
+2. **Aceita-se que o campo é da AC** e o painel deixa de o tratar como "por
+   corrigir": passa a informação, não a alarme. Sem isto, alguém vai repetir a
+   limpeza de 23/08 sobre um campo que se suja sozinho.
+
+Enquanto não se decide, **não voltar a escrever o 334**.
+
+---
+
+## Mecanismo de compensação — decidido a 2026-08-23
+
+A secção anterior terminava com "não voltar a escrever o 334" à espera da
+chefia. Isso resolvia-se esperando; **mas espera bloqueia o passo 4**, e o
+passo 4 é o que aplica as tags obrigatórias. Fica assim, em vez disso:
+
+> **O cron pode escrever o campo 334, e só para o repor na data da venda da
+> Hotmart.** Nunca para outro valor, nunca por outro motivo, e nunca quando não
+> conhece a venda.
+
+Não é passar a gerir o campo. É não o deixar mentir depois de lhe termos
+mexido — o BO aplica uma tag, a automação da AC reage e carimba, o BO desfaz o
+carimbo. A responsabilidade pelo estrago é nossa, a reparação também.
+
+### O que mudou face à secção anterior
+
+A regra "o cron escreve uma data e só uma" continua a valer para a **intenção**:
+a expiração é o único campo que o BO decide. O 334 é reparação, não decisão.
+
+### Reconciliar no fim, não logo a seguir
+
+O instinto é corrigir o 334 na linha a seguir a aplicar a tag. **Não fazer
+isso.** Se a automação da AC tiver latência, a correcção imediata é sobreposta
+por ela segundos depois e o resultado fica pior do que não ter feito nada — o
+carimbo passa a existir sem deixar rasto de que tentámos.
+
+A reconciliação é o **último passo da corrida**:
+
+```
+1  sincronizar turmas/vendas
+2  gerar timelines
+3  escrever expiração (332)
+4  aplicar tags obrigatórias          ← pode disparar carimbos
+5  reembolsos
+6  reconciliar a data de compra (334) ← desfaz o que o passo 4 provocou
+```
+
+O que a automação carimbar depois do passo 6 fica para a noite seguinte. É
+auto-curável: cada corrida repõe o que a anterior não apanhou, e uma corrida
+sem tags aplicadas não escreve nada. Não depende de ganhar uma corrida contra
+a AC.
+
+### A regra do passo 6
+
+Para cada aluno activo com timeline:
+
+```
+data real   = compras[0].data do ULTIMO ciclo     (a âncora, não a última cobrança)
+```
+
+Escreve o 334 apenas se **todas** estas forem verdade:
+
+- há `data real` — existe venda na Hotmart para o último ciclo;
+- o 334 actual difere da `data real` em mais de um dia;
+- o aluno está activo.
+
+Nunca inventa: sem venda conhecida, não escreve e regista `sem-dados`.
+Nunca toca no **337** — continua fora de alcance sem autorização explícita.
+Nunca toca no **332** — esse é do passo 3.
+
+A âncora e não a última cobrança porque em planos de prestações o acesso começa
+na primeira, e foi essa a regra que já corrigiu 47 contactos que quase perdemos.
+
+### Registo obrigatório
+
+Cada escrita do passo 6 grava o valor anterior antes de escrever. Sem
+snapshot, uma reconciliação errada é irreversível — e este passo corre todas
+as noites, sem ninguém a ver.
+
+### A sonda que ainda não confirmou a causa
+
+A 23/08 apliquei a tag `Aluno OGI 2606 - Renovação` (id 725) à `eva.lrei`, com
+o 334 dela em `2025-06-03`. Minutos depois, **o 334 continuava intacto**. A
+automação não disparou.
+
+Isso não desmente a correlação de 20/21 de Agosto — 23 carimbos em 25 no mesmo
+dia das tags — mas impede afirmar a causa. Três hipóteses vivas:
+
+1. a automação reage a **tags específicas** e a `2606 - Renovação` não é uma;
+2. tem **latência** e o carimbo da eva ainda vai aparecer;
+3. o que houve a 20/21 teve **outra causa comum** — uma operação em bloco que
+   aplicou tags e escreveu datas ao mesmo tempo.
+
+**O passo 6 é correcto nas três.** Se o carimbo acontece, desfá-lo; se não
+acontece, não escreve nada. Não é preciso saber a causa para ficar protegido —
+é exactamente por isso que a compensação vale mais do que a investigação.
+
+A `eva.lrei` fica como sonda: se o 334 dela aparecer a `2026-08-23`, a
+hipótese 2 confirma-se e a latência entra no desenho. Se continuar
+`2025-06-03`, o gatilho é outro e vale a pena procurá-lo antes de ligar o
+passo 4.

@@ -647,7 +647,7 @@ export async function executeDailyPipeline(): Promise<DailyPipelineResult> {
         .lean() as { schedule?: { enabled?: boolean } } | null
 
       if (renewalPipelineJob?.schedule?.enabled) {
-        logger.info('🔗 RenewalPipeline ligado — a correr Sync Hotmart (vendas) → Sync AC → AC Expiração → Discord Roles...')
+        logger.info('🔗 RenewalPipeline ligado — a correr Sync Hotmart (vendas) → Sync AC → AC Expiração → AC Tags de turma → Reembolsos → Discord Roles → Timelines...')
         const { runRenewalPipeline } = await import('../renewal/renewalPipeline.service')
         const renewalReport = await runRenewalPipeline()
         logger.info(`🔗 RenewalPipeline concluído (success: ${renewalReport.success})`)

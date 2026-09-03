@@ -633,6 +633,15 @@ async removeTags(email: string, tagNames: string[]): Promise<void> {
     }
   }
 
+  /**
+   * Consulta uma tag sem a criar. Os escritores usam esta confirmação antes
+   * de aplicar tags de percurso; `getOrCreateTag` não é seguro para esse
+   * caminho porque tem autorização para criar.
+   */
+  public async findExistingTagByName(tagName: string): Promise<string | null> {
+    return this.findTagByName(tagName)
+  }
+
 private async findContactTag(contactId: string, tagId: string): Promise<string | null> {
   await this.checkRateLimit()
 

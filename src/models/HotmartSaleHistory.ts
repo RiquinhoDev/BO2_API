@@ -2,8 +2,9 @@
 // 📁 src/models/HotmartSaleHistory.ts
 // Histórico de compras Hotmart por aluno ativo (Sync Hotmart, Fase 1).
 //
-// Um documento por (userId, hotmartProductId) com todas as vendas
-// encontradas na Hotmart para o email desse aluno nesse produto —
+// Um documento por (userId, hotmartProductId) — a chave continua a ser o
+// produto OGI principal — com todas as vendas da família OGI encontradas
+// na Hotmart para o email desse aluno (ver OGI_PRODUCT_FAMILY_IDS) —
 // usado para melhorar a precisão de renovações e dos links enviados.
 // Escreve APENAS na nossa BD — nunca toca em nada externo.
 // ════════════════════════════════════════════════════════════
@@ -11,6 +12,11 @@
 import mongoose, { Document, Schema } from 'mongoose'
 
 export interface IHotmartSale {
+  // A que produto da família OGI pertence esta venda. Sem isto não se
+  // distinguia o OGI da Renovação de 97€ na ficha do aluno, e é essa
+  // distinção que mostra a compra dupla que dá os 2 anos de acesso.
+  hotmartProductId: string | null
+  productName: string | null
   transaction: string | null
   offerCode: string | null
   offerName: string | null
@@ -45,6 +51,8 @@ export interface IHotmartSaleHistory extends Document {
 
 const hotmartSaleSchema = new Schema<IHotmartSale>(
   {
+    hotmartProductId: { type: String, default: null },
+    productName: { type: String, default: null },
     transaction: { type: String, default: null },
     offerCode: { type: String, default: null },
     offerName: { type: String, default: null },

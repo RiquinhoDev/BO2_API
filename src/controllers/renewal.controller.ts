@@ -4,6 +4,7 @@ import { syncRenewalOffers } from '../services/renewal/renewalSync.service'
 import { getTurmasWithCoverage } from '../services/renewal/renewalCoverage.service'
 import { getRenewalPerformance } from '../services/renewal/renewalPerformance.service'
 import { parseOfferName } from '../services/renewal/turmaParser'
+import { getUnmappedBaseOffers } from '../services/renewal/unmappedBaseOffers.service'
 
 // GET /api/renewal/offers
 // Lista todas as ofertas de renovação com os dados da Hotmart + turma sugerida.
@@ -21,7 +22,8 @@ export async function listOffers(req: Request, res: Response): Promise<void> {
       .lean()
       .exec()
 
-    res.json({ total: offers.length, offers })
+    const semTurma = await getUnmappedBaseOffers()
+    res.json({ total: offers.length, offers, semTurma })
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Erro ao listar ofertas' })
   }

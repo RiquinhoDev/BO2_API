@@ -58,32 +58,69 @@ class ClassesService {
       
           console.log(`📊 Query retornou: ${classes.length} turmas de ${total} que atendem aos filtros`)
       
-      // Adicionar contagem de estudantes para cada turma
-      const classesWithStats = await Promise.all(
-        classes.map(async (cls) => {
-          let studentCount = 0
-          
-          // ✅ CORRIGIDO: Contar alunos baseado na fonte da turma
-          if (cls.source === 'curseduca_sync' && cls.curseducaUuid) {
-            // Para turmas CursEduca, contar por groupCurseducaUuid
-            studentCount = await User.countDocuments({ 
-              'curseduca.groupCurseducaUuid': cls.curseducaUuid,
-              'combined.status': 'ACTIVE' 
-            })
-          } else {
-            // Para turmas Hotmart e outras, contar por classId (comportamento original)
-            studentCount = await User.countDocuments({
-              classId: cls.classId,
-              status: 'ACTIVE'
-            })
-          }
-          
-          return {
-            ...cls,
-            studentCount
-          }
-        })
+      // ── Contagem de alunos por turma ────────────────────────────────
+      // Quantos alunos estão inscritos na turma. Activo ou inactivo é
+      // irrelevante: este número existe para espelhar a plataforma de
+      // origem — a Hotmart nas turmas OGI, a CursEduca nas da Clareza.
+      //
+      // Duas correcções face à versão anterior:
+      //   1. contava por `classId` na raiz do utilizador, campo que fica
+      //      para trás quando o aluno muda de turma — a Turma 18 | 2605
+      //      dava 90 quando tem 132. A verdade está em enrolledClasses,
+      //      que é o que o sync nocturno da Hotmart escreve.
+      //   2. filtrava por `status: 'ACTIVE'`, campo que a inactivação não
+      //      chega a escrever (o schema descarta-o), pelo que excluía
+      //      alunos ao acaso.
+      //
+      // Uma agregação em vez de um countDocuments por turma: ~75ms para
+      // todas, contra ~7s somando as chamadas individuais.
+      const idsHotmart: string[] = classes
+        .filter((cls: any) => cls.source !== 'curseduca_sync')
+        .map((cls: any) => cls.classId)
+        .filter(Boolean)
+      // As turmas CursEduca (Clareza) não têm curseducaUuid — são
+      // identificadas pelo id próprio da CursEduca, que fica em
+      // Class.curseducaId. Do lado do utilizador a inscrição vive em
+      // combined.allClasses, com source 'curseduca': é o equivalente
+      // directo do hotmart.enrolledClasses.
+      const idsCurseduca: string[] = classes
+        .filter((cls: any) => cls.source === 'curseduca_sync')
+        .map((cls: any) => cls.curseducaId ?? cls.classId)
+        .filter(Boolean)
+
+      const [porTurmaHotmart, porGrupoCurseduca] = await Promise.all([
+        idsHotmart.length
+          ? User.aggregate([
+              { $match: { 'hotmart.enrolledClasses.classId': { $in: idsHotmart } } },
+              { $unwind: '$hotmart.enrolledClasses' },
+              { $match: { 'hotmart.enrolledClasses.classId': { $in: idsHotmart } } },
+              { $group: { _id: '$hotmart.enrolledClasses.classId', n: { $sum: 1 } } }
+            ])
+          : Promise.resolve([] as any[]),
+        idsCurseduca.length
+          ? User.aggregate([
+              { $match: { 'combined.allClasses': { $elemMatch: { classId: { $in: idsCurseduca }, source: 'curseduca' } } } },
+              { $unwind: '$combined.allClasses' },
+              { $match: { 'combined.allClasses.source': 'curseduca', 'combined.allClasses.classId': { $in: idsCurseduca } } },
+              { $group: { _id: '$combined.allClasses.classId', n: { $sum: 1 } } }
+            ])
+          : Promise.resolve([] as any[])
+      ])
+
+      const contagemHotmart = new Map<string, number>(
+        porTurmaHotmart.map((r: any) => [String(r._id), Number(r.n)])
       )
+      const contagemCurseduca = new Map<string, number>(
+        porGrupoCurseduca.map((r: any) => [String(r._id), Number(r.n)])
+      )
+
+      const classesWithStats = classes.map((cls: any) => ({
+        ...cls,
+        studentCount:
+          cls.source === 'curseduca_sync'
+            ? contagemCurseduca.get(String(cls.curseducaId ?? cls.classId)) ?? 0
+            : contagemHotmart.get(String(cls.classId)) ?? 0
+      }))
       
           return {
             classes: classesWithStats,

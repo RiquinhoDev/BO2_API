@@ -408,98 +408,19 @@ ClassHistorySchema.index({ action: 1, dateMoved: -1 })
 export const ClassHistory = mongoose.models.ClassHistory || mongoose.model<IClassHistory>('ClassHistory', ClassHistorySchema)
 
 // ===== MODELO DE LISTAS DE INATIVAÇÃO =====
-
-export interface IInactivationList extends Document {
-  name: string
-  description?: string
-  classIds: string[]
-  criteria?: Record<string, any>
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED' | 'REVERTED'
-  scheduledDate?: Date
-  executedDate?: Date
-  revertedDate?: Date
-  studentsAffected: number
-  createdBy?: string
-  revertedBy?: string
-  revertReason?: string
-  results?: {
-    success: number
-    errors: number
-    details: any[]
-  }
-  createdAt: Date
-  updatedAt: Date
-}
-
-const InactivationListSchema = new Schema<IInactivationList>({
-  name: {
-    type: String,
-    required: true,
-    trim: true,
-    index: true
-  },
-  description: {
-    type: String,
-    trim: true
-  },
-  classIds: [{
-    type: String,
-    required: true
-  }],
-  criteria: {
-    type: Schema.Types.Mixed,
-    default: {}
-  },
-  status: {
-    type: String,
-    enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED', 'REVERTED'],
-    default: 'PENDING',
-    index: true
-  },
-  scheduledDate: {
-    type: Date,
-    index: true
-  },
-  executedDate: {
-    type: Date,
-    index: true
-  },
-  revertedDate: {
-    type: Date
-  },
-  studentsAffected: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  createdBy: {
-    type: String,
-    trim: true
-  },
-  revertedBy: {
-    type: String,
-    trim: true
-  },
-  revertReason: {
-    type: String,
-    trim: true
-  },
-  results: {
-    success: { type: Number, default: 0 },
-    errors: { type: Number, default: 0 },
-    details: [Schema.Types.Mixed]
-  }
-}, {
-  timestamps: true,
-  collection: 'inactivation_lists'
-})
-
-// Índices
-InactivationListSchema.index({ status: 1, createdAt: -1 })
-InactivationListSchema.index({ scheduledDate: 1 })
-InactivationListSchema.index({ classIds: 1 })
-
-export const InactivationList = mongoose.model<IInactivationList>('InactivationList', InactivationListSchema)
+//
+// Removido daqui a 2026-08-19. Havia dois modelos registados no mongoose com o
+// mesmo nome 'InactivationList': este, ligado à colecção 'inactivation_lists',
+// e o de models/InactivationList.ts, ligado a 'inactivationlists'. Quem grava
+// é o segundo — este ficou sempre vazio (0 documentos), e como o controlador
+// das estatísticas importava este, o Backoffice mostrava "0 concluídas · 0
+// pendentes" tendo 98 e 2 na base.
+//
+// O schema daqui era também mais antigo (studentsAffected, results, estado
+// 'REVERTED') e é contra ele que o Front ainda está escrito; a tradução para o
+// vocabulário real ('students[]', 'REVERSED') é feita no getInactivationLists.
+//
+// Modelo único: src/models/InactivationList.ts
 
 // ===== TIPOS E INTERFACES AUXILIARES =====
 

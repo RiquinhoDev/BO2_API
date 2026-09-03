@@ -4,6 +4,7 @@ import { classesService, studentService } from '../services/syncUtilizadoresServ
 import SyncHistory from '../models/SyncHistory'
 
 import axios from 'axios'
+import mongoose from 'mongoose'
 import jwt from 'jsonwebtoken'
 import { Class } from '../models/Class'
 import StudentClassHistory from '../models/StudentClassHistory'
@@ -699,8 +700,12 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
 
       const stats = await classesService.getClassStats(filters)
 
-      // Buscar estatísticas de inativação (Frontend espera este campo)
-      const { InactivationList } = await import('../models/Class')
+      // Estatísticas de inativação. Havia dois modelos registados com o nome
+      // 'InactivationList': o de models/Class.ts apontava para a colecção
+      // 'inactivation_lists', que está vazia, e era esse que estava aqui — daí
+      // o "0 concluídas · 0 pendentes" no Backoffice. Quem grava é o de
+      // models/InactivationList.ts, na colecção 'inactivationlists'.
+      const { default: InactivationList } = await import('../models/InactivationList')
       const [pendingLists, completedLists] = await Promise.all([
         InactivationList.countDocuments({ status: { $in: ['PENDING', 'EXECUTING'] } }),
         InactivationList.countDocuments({ status: 'COMPLETED' })
@@ -1214,7 +1219,13 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
   // ✅ Criar lista de inativação por turmas + Discord + Histórico
   createInactivationList = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { name, classIds, description, userId, platforms = ['all'] } = req.body
+      // Default = OGI apenas (Hotmart + Discord). NÃO inclui 'curseduca':
+      // o Clareza vem do CursEduca, é um produto à parte com o seu próprio
+      // ciclo de subscrição e tem sistema de inactivação próprio. Com o
+      // default anterior ('all') a inactivação de uma turma OGI cortava
+      // também o Clareza — o wizard do Front não envia `platforms`, por isso
+      // ninguém escolhia isso conscientemente.
+      const { name, classIds, description, userId, platforms = ['hotmart', 'discord'] } = req.body
 
       if (!classIds || !Array.isArray(classIds) || classIds.length === 0) {
         res.status(400).json({
@@ -1415,6 +1426,23 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
     }
   }
 
+  // Histórico de inativações.
+  //
+  // Antes isto lia o UserHistory (changeType 'INACTIVATION') — um registo por
+  // ALUNO, 3.385 deles — e fabricava uma pseudo-lista para cada, com o status
+  // e a contagem escritos à mão:
+  //     status: 'COMPLETED', studentCount: 1
+  // Daí as linhas repetidas no Backoffice (os 7 alunos inactivados a 12/06
+  // apareciam como 7 "listas" iguais) e o "Alunos 1" em todas elas. As listas
+  // REVERSED e PENDING nunca podiam aparecer, porque o status era constante.
+  //
+  // Passa a ler as listas a sério, da colecção 'inactivationlists'.
+  //
+  // Tradução de vocabulário: o Front foi escrito contra o schema antigo de
+  // models/Class.ts, que dizia 'REVERTED' e 'studentsAffected'. Quem grava é
+  // models/InactivationList.ts, que diz 'REVERSED' e 'students[]'. Traduz-se
+  // aqui, na fronteira, para não mexer no Front — os valores continuam a ser
+  // os da BD, só com o nome que o Front sabe pintar.
   getInactivationLists = async (req: Request, res: Response): Promise<void> => {
     try {
       const { status, limit = 50, offset = 0 } = req.query
@@ -1422,43 +1450,84 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
       const limitNum = Number(limit)
       const offsetNum = Number(offset)
 
-      // Query no UserHistory para inativações
-      const query: any = { changeType: 'INACTIVATION' }
+      const { default: InactivationList } = await import('../models/InactivationList')
+
+      // O Front filtra por 'REVERTED'; na BD isso é 'REVERSED'.
+      const paraBd: Record<string, string[]> = {
+        REVERTED: ['REVERSED'],
+        PENDING: ['PENDING', 'EXECUTING'],
+        COMPLETED: ['COMPLETED'],
+        FAILED: ['FAILED', 'CANCELLED']
+      }
+      const query: any = {}
       if (status) {
-        query['metadata.status'] = status
+        query.status = { $in: paraBd[String(status)] ?? [String(status)] }
       }
 
-      const total = await UserHistory.countDocuments(query)
-      
-      const inactivations = await UserHistory.find(query)
-        .sort({ changeDate: -1 })
-        .limit(limitNum)
-        .skip(offsetNum)
-        .lean()
+      const [total, docs] = await Promise.all([
+        InactivationList.countDocuments(query),
+        // Conta-se os alunos no servidor e deixa-se o array de fora: a listagem
+        // só precisa do número, e o array leva os emails de toda a gente — não
+        // há razão para os mandar para o browser.
+        (InactivationList as any).aggregate([
+          { $match: query },
+          { $sort: { createdAt: -1 } },
+          { $skip: offsetNum },
+          { $limit: limitNum },
+          { $addFields: { studentCount: { $size: { $ifNull: ['$students', []] } } } },
+          { $project: { students: 0 } }
+        ])
+      ])
 
-      // Agrupar por turma se possível
-      const lists: any[] = []
-      
-      for (const inact of inactivations) {
-        // Buscar user para pegar classId
-        const user = await User.findById(inact.userId).select('classId').lean()
-
-        if (user) {
-          const classData = await Class.findOne({ classId: (user as any).classId }).lean() as any
-
-          lists.push({
-            _id: inact._id,
-            name: `Inativação ${new Date(inact.changeDate).toLocaleDateString('pt-PT')}`,
-            classNames: classData ? [classData.name] : [],
-            createdAt: inact.changeDate,
-            status: 'COMPLETED',
-            studentCount: 1,
-            executedDate: inact.changeDate,
-            performedBy: inact.changedBy,
-            platforms: inact.metadata?.platforms || []
-          })
-        }
+      // Nomes das turmas: a lista já os costuma trazer, mas quando só tem os
+      // ids vamos buscá-los — numa só query para todas as listas da página.
+      const idsEmFalta = [
+        ...new Set(
+          docs.flatMap((d: any) =>
+            (d.classNames?.length ? [] : (d.classIds ?? []))
+          )
+        )
+      ]
+      const nomePorId = new Map<string, string>()
+      if (idsEmFalta.length) {
+        const turmas = await (Class as any)
+          .find({ classId: { $in: idsEmFalta } })
+          .select('classId name')
+          .lean()
+        for (const t of turmas as any[]) nomePorId.set(String(t.classId), t.name)
       }
+
+      const paraFront: Record<string, string> = {
+        REVERSED: 'REVERTED',
+        EXECUTING: 'PENDING',
+        CANCELLED: 'FAILED'
+      }
+
+      const lists = docs.map((d: any) => ({
+        _id: d._id,
+        name: d.name,
+        classNames: d.classNames?.length
+          ? d.classNames
+          : (d.classIds ?? []).map((id: string) => nomePorId.get(String(id)) ?? id),
+        createdAt: d.createdAt,
+        status: paraFront[d.status] ?? d.status,
+        // quantos alunos a lista abrange, a sério
+        studentCount: d.studentCount ?? d.execution?.totalProcessed ?? 0,
+        executedDate: d.execution?.completedAt ?? d.execution?.startedAt,
+        revertedAt: d.reversal?.reversedAt,
+        performedBy: d.execution?.executedBy,
+        // Só se manda 'results' quando o bloco 'execution' existe mesmo. A
+        // maioria das listas antigas não o tem, e mandar zeros faria a tabela
+        // pintar "(0✓ 0✗)" numa lista de 1642 alunos — o Front esconde a
+        // coluna quando o campo vem indefinido, que é o correcto aqui.
+        results: d.execution
+          ? {
+              success: d.execution.successCount ?? 0,
+              errors: d.execution.errorCount ?? 0,
+              details: d.execution.errors ?? []
+            }
+          : undefined
+      }))
 
       res.json({
         success: true,
@@ -1477,7 +1546,22 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
     }
   }
 
-  // 🛠️ CORRIGIDO: Usar método correto do service
+  // Reverter uma inativação.
+  //
+  // Antes recebia o _id de um registo do UserHistory e reactivava UMA pessoa —
+  // coerente com a tabela falsa que o getInactivationLists produzia, mas quer
+  // dizer que o botão "reverter" do Backoffice nunca reverteu uma inactivação
+  // inteira. Agora recebe o _id de uma lista e reverte a lista toda.
+  //
+  // Continua a aceitar um id do UserHistory: as linhas antigas do Backoffice
+  // (e qualquer link guardado) mandavam esse id, e não vale a pena parti-las.
+  //
+  // Duas diferenças de comportamento, ambas deliberadas:
+  //   - só reactiva quem estava 'ativo' antes da inactivação. Quem já estava
+  //     inactivo fica como estava — reverter é desfazer, não é dar acesso.
+  //   - os UserProduct passam a ser filtrados por plataforma. O updateMany sem
+  //     filtro reactivava também o Clareza, que é um produto à parte com o seu
+  //     próprio ciclo (mesma razão do default 'platforms' em createInactivationList).
   revertInactivation = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params
@@ -1491,65 +1575,103 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
         return
       }
 
-      // ✅ CORRIGIDO: Implementação direta de reversão
-      // Buscar o registro de inativação
-      const inactivation = await UserHistory.findById(id)
-      if (!inactivation) {
-        res.status(404).json({
-          success: false,
-          message: 'Registro de inativação não encontrado'
+      const PLATAFORMAS_OGI = ['hotmart', 'discord']
+
+      // Repõe uma pessoa ao estado anterior à inactivação.
+      const reactivar = async (studentId: any, email?: string) => {
+        await User.findByIdAndUpdate(studentId, {
+          $set: {
+            'combined.status': 'ACTIVE',
+            'hotmart.status': 'ACTIVE',
+            'discord.isActive': true
+          }
+        })
+        await UserProduct.updateMany(
+          { userId: studentId, platform: { $in: PLATAFORMAS_OGI } },
+          { $set: { status: 'ACTIVE' } }
+        )
+        await UserHistory.create({
+          userId: studentId,
+          userEmail: email,
+          changeType: 'STATUS_CHANGE',
+          previousValue: { status: 'INACTIVE' },
+          newValue: { status: 'ACTIVE' },
+          source: 'MANUAL',
+          changedBy: userId || 'Sistema',
+          reason: reason || 'Reversão de inativação'
+        })
+      }
+
+      const { default: InactivationList } = await import('../models/InactivationList')
+      const lista: any = await InactivationList.findById(id)
+
+      if (lista) {
+        if (lista.status === 'REVERSED') {
+          res.status(400).json({
+            success: false,
+            message: 'Esta lista já tinha sido revertida'
+          })
+          return
+        }
+
+        const alunos = lista.students ?? []
+        // quem já estava inactivo antes não é para reactivar
+        const aRepor = alunos.filter((a: any) => a.previousState === 'ativo')
+        let revertidos = 0
+        const erros: any[] = []
+
+        for (const aluno of aRepor) {
+          try {
+            await reactivar(aluno.studentId, aluno.email)
+            revertidos++
+          } catch (e) {
+            erros.push({ studentId: aluno.studentId, error: (e as Error).message })
+          }
+        }
+
+        lista.status = 'REVERSED'
+        lista.reversal = {
+          reversedAt: new Date(),
+          reversedBy: userId || 'Sistema',
+          reason: reason || 'Reversão manual pelo Backoffice'
+        }
+        await lista.save()
+
+        // Nota (2026-07-11): não há chamada ao Discord aqui. O endpoint legacy
+        // `${DISCORD_BOT_URL}/add-roles` nunca existiu neste repo e falhava em
+        // silêncio. Os cargos são reconciliados de noite pelo DiscordRolesSync.
+        res.json({
+          success: true,
+          message: `Lista revertida: ${revertidos} de ${alunos.length} alunos reactivados`,
+          result: {
+            success: true,
+            listName: lista.name,
+            totalNaLista: alunos.length,
+            reactivados: revertidos,
+            jaEstavamInactivos: alunos.length - aRepor.length,
+            erros
+          },
+          timestamp: new Date().toISOString()
         })
         return
       }
 
-      // Reativar o usuário
-      const updates: any = {
-        'combined.status': 'ACTIVE',
-        status: 'ACTIVE'
+      // Compatibilidade: id de um registo individual do UserHistory.
+      const inactivation = await UserHistory.findById(id)
+      if (!inactivation) {
+        res.status(404).json({
+          success: false,
+          message: 'Lista ou registo de inativação não encontrado'
+        })
+        return
       }
 
-      const platforms = inactivation.metadata?.platforms || []
-      if (platforms.includes('hotmart') || platforms.includes('all')) {
-        updates['hotmart.status'] = 'ACTIVE'
-      }
-      if (platforms.includes('curseduca') || platforms.includes('all')) {
-        updates['curseduca.memberStatus'] = 'ACTIVE'
-      }
-      if (platforms.includes('discord') || platforms.includes('all')) {
-        updates['discord.isActive'] = true
-      }
-
-      await User.findByIdAndUpdate(inactivation.userId, { $set: updates })
-
-      // Reativar UserProduct (fonte única de verdade)
-      await UserProduct.updateMany(
-        { userId: inactivation.userId },
-        { $set: { status: 'ACTIVE' } }
-      )
-
-      // Criar histórico de reativação
-      await UserHistory.create({
-        userId: inactivation.userId,
-        userEmail: inactivation.userEmail,
-        changeType: 'STATUS_CHANGE',
-        previousValue: { status: 'INACTIVE' },
-        newValue: { status: 'ACTIVE' },
-        source: 'MANUAL',
-        changedBy: userId || 'Sistema',
-        reason: reason || 'Reversão de inativação'
-      })
-
-      // Nota (2026-07-11): a chamada legacy ao Discord (`${DISCORD_BOT_URL}/add-roles`)
-      // foi removida — esse endpoint nunca existiu no repo API, pelo que falhava em
-      // silêncio desde sempre (a reversão nunca restaurou cargos no Discord). Os cargos
-      // R.* de renovação são reconciliados de noite pelo DiscordRolesSync.
-
-      const result = { success: true }
+      await reactivar(inactivation.userId, inactivation.userEmail)
 
       res.json({
         success: true,
         message: 'Inativação revertida com sucesso',
-        result,
+        result: { success: true, reactivados: 1 },
         timestamp: new Date().toISOString()
       })
     } catch (error) {
@@ -1557,6 +1679,162 @@ checkAndUpdateClassHistory = async (req: Request, res: Response): Promise<void> 
       res.status(500).json({
         success: false,
         message: 'Erro ao reverter inativação',
+        error: (error as Error).message
+      })
+    }
+  }
+
+  // Alunos de uma lista de inativação, paginados.
+  //
+  // O array students[] vive dentro do documento da lista e há listas com mais
+  // de 1600 entradas, por isso não vai na listagem — vem por aqui, à página.
+  // As entradas guardam pouco (studentId, classId, previousState) e nem sempre
+  // o email, por isso o nome e o email são buscados ao utilizador.
+  getInactivationListStudents = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params
+      const { limit = 25, offset = 0, search } = req.query
+
+      const limitNum = Math.min(Number(limit) || 25, 200)
+      const offsetNum = Number(offset) || 0
+
+      if (!mongoose.Types.ObjectId.isValid(String(id))) {
+        res.status(400).json({ success: false, message: 'ID inválido' })
+        return
+      }
+
+      const { default: InactivationList } = await import('../models/InactivationList')
+      const lista: any = await (InactivationList as any).findById(id).select('name status classIds').lean()
+      if (!lista) {
+        res.status(404).json({ success: false, message: 'Lista não encontrada' })
+        return
+      }
+
+      const termo = String(search ?? '').trim()
+      const filtroBusca = termo
+        ? [{
+            $match: {
+              $or: [
+                { email: { $regex: termo, $options: 'i' } },
+                { nome: { $regex: termo, $options: 'i' } },
+                { turma: { $regex: termo, $options: 'i' } }
+              ]
+            }
+          }]
+        : []
+
+      const resultado = await (InactivationList as any).aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(String(id)) } },
+        { $unwind: '$students' },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'students.studentId',
+            foreignField: '_id',
+            as: 'utilizador'
+          }
+        },
+        {
+          $lookup: {
+            from: 'classes',
+            localField: 'students.classId',
+            foreignField: 'classId',
+            as: 'turmaDoc'
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            studentId: '$students.studentId',
+            email: { $ifNull: ['$students.email', { $first: '$utilizador.email' }] },
+            nome: { $first: '$utilizador.name' },
+            classId: '$students.classId',
+            turma: { $ifNull: [{ $first: '$turmaDoc.name' }, '$students.classId'] },
+            estadoAnterior: '$students.previousState',
+            processado: { $ifNull: ['$students.processed', null] },
+            erro: { $ifNull: ['$students.error', null] },
+            // estado actual do aluno, para se ver se a inactivação pegou
+            estadoActual: { $first: '$utilizador.combined.status' }
+          }
+        },
+        ...filtroBusca,
+        {
+          $facet: {
+            total: [{ $count: 'n' }],
+            linhas: [
+              { $sort: { nome: 1, email: 1 } },
+              { $skip: offsetNum },
+              { $limit: limitNum }
+            ]
+          }
+        }
+      ])
+
+      const total = resultado?.[0]?.total?.[0]?.n ?? 0
+      const students = resultado?.[0]?.linhas ?? []
+
+      res.json({
+        success: true,
+        list: { _id: lista._id, name: lista.name, status: lista.status },
+        students,
+        pagination: { total, limit: limitNum, offset: offsetNum },
+        timestamp: new Date().toISOString()
+      })
+    } catch (error) {
+      console.error('❌ Erro ao buscar alunos da lista:', error)
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao buscar alunos da lista',
+        error: (error as Error).message
+      })
+    }
+  }
+
+  // Apagar uma lista do histórico.
+  //
+  // Apaga SÓ o registo. Não mexe em nenhum aluno: quem foi inactivado continua
+  // inactivo. Se a intenção for devolver o acesso, é o reverter, não isto.
+  //
+  // Consequência a ter em conta: o registo é o único sítio onde ficam guardados
+  // os alunos abrangidos e o estado que cada um tinha antes, portanto apagá-lo
+  // torna a inactivação irreversível. Por isso devolve-se o que se apagou.
+  deleteInactivationList = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params
+
+      if (!mongoose.Types.ObjectId.isValid(String(id))) {
+        res.status(400).json({ success: false, message: 'ID inválido' })
+        return
+      }
+
+      const { default: InactivationList } = await import('../models/InactivationList')
+      const lista: any = await (InactivationList as any).findById(id).lean()
+      if (!lista) {
+        res.status(404).json({ success: false, message: 'Lista não encontrada' })
+        return
+      }
+
+      const abrangidos = lista.students?.length ?? 0
+      await (InactivationList as any).findByIdAndDelete(id)
+
+      console.log(`🗑️  [InactivationList] Registo apagado: "${lista.name}" (${abrangidos} alunos abrangidos, estado ${lista.status}). Nenhum aluno foi alterado.`)
+
+      res.json({
+        success: true,
+        message: 'Registo removido do histórico. Nenhum aluno foi alterado.',
+        removed: {
+          _id: lista._id,
+          name: lista.name,
+          status: lista.status,
+          studentsAbrangidos: abrangidos
+        },
+        timestamp: new Date().toISOString()
+      })
+    } catch (error) {
+      console.error('❌ Erro ao apagar lista de inativação:', error)
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao apagar lista de inativação',
         error: (error as Error).message
       })
     }
