@@ -32,6 +32,8 @@ import {
 } from '../renewal/hotmartSalesHistory.service'
 import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServices/hotmart.helpers'
 import { fetchAllSubscriptionsPaginated } from '../guru/guruSync.service'
+import { GURU_CLAREZA_PRODUCT_IDS } from '../../config/renewalEnvironment'
+import { getOptionalGuruUserToken } from '../requestDrivenRuntimeConfig'
 
 // ─────────────────────────────────────────────────────────────
 // PRODUTOS SUPORTADOS
@@ -41,8 +43,8 @@ export const PRODUCT_KEYS = ['OGI', 'CLAREZA_MENSAL', 'CLAREZA_ANUAL'] as const
 export type ProductKey = typeof PRODUCT_KEYS[number]
 
 const CLAREZA_GURU_PRODUCT_ID: Record<'CLAREZA_MENSAL' | 'CLAREZA_ANUAL', string> = {
-  CLAREZA_MENSAL: process.env.GURU_CLAREZA_MENSAL_PRODUCT_ID?.trim() || '9fa25a47-34d8-41ef-b684-0285e1c33aa4',
-  CLAREZA_ANUAL: process.env.GURU_CLAREZA_ANUAL_PRODUCT_ID?.trim() || 'a002b78e-82cb-48a6-8d5d-33c8bded3d2e'
+  CLAREZA_MENSAL: GURU_CLAREZA_PRODUCT_IDS.CLAREZA_MENSAL,
+  CLAREZA_ANUAL: GURU_CLAREZA_PRODUCT_IDS.CLAREZA_ANUAL
 }
 
 const PRODUCT_LABELS: Record<ProductKey, string> = {
@@ -116,7 +118,7 @@ export async function syncOgiSalesPerformance(): Promise<ProductSyncReport> {
 // ─────────────────────────────────────────────────────────────
 
 const GURU_API_URL = 'https://digitalmanager.guru/api/v2'
-const GURU_USER_TOKEN = process.env.GURU_USER_TOKEN
+
 const GURU_CONCURRENCY = 5
 const GURU_BATCH_DELAY_MS = 300
 
@@ -126,7 +128,8 @@ const guruApi = axios.create({
   timeout: 20000
 })
 guruApi.interceptors.request.use((config) => {
-  if (GURU_USER_TOKEN) config.headers.Authorization = `Bearer ${GURU_USER_TOKEN}`
+  const token = getOptionalGuruUserToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 

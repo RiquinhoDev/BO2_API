@@ -5,13 +5,11 @@
 // env var (FX_RATE_<MOEDA>_EUR) sem precisar de deploy.
 // ════════════════════════════════════════════════════════════
 
+import { FX_RATES_TO_EUR } from '../config/renewalEnvironment'
+
 const APPROX_EUR_RATE: Record<string, number> = {
   EUR: 1,
-  USD: Number(process.env.FX_RATE_USD_EUR) || 0.92,
-  GBP: Number(process.env.FX_RATE_GBP_EUR) || 1.17,
-  CHF: Number(process.env.FX_RATE_CHF_EUR) || 1.05,
-  CAD: Number(process.env.FX_RATE_CAD_EUR) || 0.68,
-  BRL: Number(process.env.FX_RATE_BRL_EUR) || 0.16
+  ...FX_RATES_TO_EUR
 }
 
 export interface EurEstimate {

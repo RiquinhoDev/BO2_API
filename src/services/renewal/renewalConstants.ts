@@ -1,5 +1,7 @@
 // Oferta generica de renovacao = link por defeito para todas as turmas sem
 // oferta especial atribuida.
+import { HOTMART_OGI_PRODUCT_FAMILY_IDS } from '../../config/renewalEnvironment'
+
 export const GENERIC_RENEWAL_OFFER_CODE = '1cp00emj'
 export const GENERIC_RENEWAL_OFFER_NAME = 'Renovação turma genérica'
 
@@ -29,13 +31,7 @@ export const HOTMART_SALES_HISTORY_MAX_LOOKBACK_DAYS = 730
 // Nota: isto NÃO altera o produto usado como chave do documento nem os
 // agregados mensais — serve só para decidir que vendas entram no histórico
 // de cada aluno.
-export const OGI_PRODUCT_FAMILY_IDS: string[] = (
-  process.env.HOTMART_OGI_PRODUCT_FAMILY_IDS?.split(',').map((s) => s.trim()).filter(Boolean) ?? [
-    '1733154', // O Grande Investimento
-    '3100292', // OGI - Renovação (97€)
-    '4346330'  // OGI + OTF (pacote)
-  ]
-)
+export const OGI_PRODUCT_FAMILY_IDS: string[] = [...HOTMART_OGI_PRODUCT_FAMILY_IDS]
 
 // ── Estados varridos na consulta por email ───────────────────────────
 // Com buyer_email e SEM transaction_status a Hotmart devolve apenas

@@ -15,9 +15,12 @@ import axios from 'axios'
 import mongoose from 'mongoose'
 import ACStudentTag, { TipoTagTurma } from '../../models/ACStudentTag'
 import { User } from '../../models'
+import { getOptionalActiveCampaignCredentials } from '../requestDrivenRuntimeConfig'
 
-const AC_URL = () => process.env.AC_API_URL || ''
-const AC_HEADERS = () => ({ 'Api-Token': process.env.AC_API_KEY || '' })
+const AC_URL = (): string => getOptionalActiveCampaignCredentials()?.apiUrl ?? ''
+const AC_HEADERS = (): { 'Api-Token': string } => ({
+  'Api-Token': getOptionalActiveCampaignCredentials()?.apiKey ?? '',
+})
 
 const normalizar = (s: string) => String(s).toLowerCase().replace(/\s+/g, ' ').trim()
 

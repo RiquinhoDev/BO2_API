@@ -14,16 +14,17 @@ import Product from '../../models/product/Product'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { activeCampaignService } from '../activeCampaign/activeCampaignService'
+import { AC_RENEWAL_FIELD_IDS } from '../../config/renewalEnvironment'
 
 // IDs dos custom fields na AC (confirmados via GET /api/3/fields em 11/08/2026).
 // 332 já era usado (RENEWAL_AC_EXPIRY_FIELD_ID) — mantemos o mesmo default.
-export const AC_PURCHASE_DATE_FIELD_ID = Number(process.env.AC_PURCHASE_DATE_FIELD_ID || 334)
-export const AC_FIRST_PURCHASE_DATE_FIELD_ID = Number(process.env.AC_FIRST_PURCHASE_DATE_FIELD_ID || 337)
-export const AC_EXPIRATION_DATE_FIELD_ID = Number(process.env.RENEWAL_AC_EXPIRY_FIELD_ID || 332)
+export const AC_PURCHASE_DATE_FIELD_ID = AC_RENEWAL_FIELD_IDS.purchaseDate
+export const AC_FIRST_PURCHASE_DATE_FIELD_ID = AC_RENEWAL_FIELD_IDS.firstPurchaseDate
+export const AC_EXPIRATION_DATE_FIELD_ID = AC_RENEWAL_FIELD_IDS.expirationDate
 // Explica muitos dos "sem data de expiração": reembolsados nunca tiveram
 // expiração escrita (não há renovação a marcar). Ler estes 2 também.
-export const AC_PURCHASE_STATUS_FIELD_ID = Number(process.env.AC_PURCHASE_STATUS_FIELD_ID || 282)
-export const AC_REFUND_DATE_FIELD_ID = Number(process.env.AC_REFUND_DATE_FIELD_ID || 324)
+export const AC_PURCHASE_STATUS_FIELD_ID = AC_RENEWAL_FIELD_IDS.purchaseStatus
+export const AC_REFUND_DATE_FIELD_ID = AC_RENEWAL_FIELD_IDS.refundDate
 
 const FIELD_IDS = [
   AC_PURCHASE_DATE_FIELD_ID,

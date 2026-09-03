@@ -312,7 +312,7 @@ const job = await CronJobConfig.create({
     // sua própria execução. Registá-lo aqui também faria a cadeia correr
     // 2x (uma vez a horas fixas, outra dependente do "1º").
     if (job.name === RENEWAL_PIPELINE_JOB_NAME) {
-      console.log(`🔗 ${job.name}: sem trigger próprio — corre dentro do "1º" quando o interruptor está ligado`)
+      logger.info(`🔗 ${job.name}: sem trigger próprio — corre dentro do "1º" quando o interruptor está ligado`)
       return
     }
 

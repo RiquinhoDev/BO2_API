@@ -18,6 +18,24 @@ export function getOptionalCurseducaRuntimeSettings(): CurseducaRuntimeSettings 
   return integration.configured ? integration.value : undefined
 }
 
+// Leitura tolerante: o histórico de vendas Clareza corre sem token e limita-se
+// a não autenticar, tal como fazia quando lia a variável de ambiente à mão.
+export function getOptionalGuruUserToken(): string | undefined {
+  const integration = getRuntimeConfig().integrations.guru
+  return integration.configured ? integration.value.userToken : undefined
+}
+
+export interface ActiveCampaignCredentials {
+  readonly apiUrl: string
+  readonly apiKey: string
+}
+
+export function getOptionalActiveCampaignCredentials(): ActiveCampaignCredentials | undefined {
+  const integration = getRuntimeConfig().integrations.activeCampaign
+  if (!integration.configured) return undefined
+  return { apiUrl: integration.value.apiUrl, apiKey: integration.value.apiKey }
+}
+
 export function getGuruUserToken(): string {
   const integration = getRuntimeConfig().integrations.guru
   const token = integration.configured ? integration.value.userToken : undefined

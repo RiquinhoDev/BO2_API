@@ -1,4 +1,10 @@
 {
   "src/controllers/guru.webhook.controller.ts": 504,
+  "src/services/renewal/__tests__/acExpirationSync.test.ts": 1523,
+  "src/services/renewal/__tests__/acPurchaseDateReconcile.test.ts": 556,
+  "src/services/renewal/__tests__/renewalTimeline.generator.test.ts": 1154,
+  "src/services/renewal/acExpirationSync.service.ts": 989,
+  "src/services/renewal/hotmartSalesHistory.service.ts": 578,
+  "src/services/renewal/renewalTimeline.generator.ts": 656,
   "src/services/tagMonitoring/weeklyTagMonitoring.service.ts": 509
 }

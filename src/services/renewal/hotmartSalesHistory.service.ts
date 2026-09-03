@@ -22,6 +22,7 @@ import Product from '../../models/product/Product'
 import User from '../../models/user'
 import UserProduct from '../../models/UserProduct'
 import { getHotmartAccessToken } from '../syncUtilizadoresServices/hotmartServices/hotmart.helpers'
+import { HOTMART_OGI_PRODUCT_ID, OGI_NEW_STUDENT_PRICE_THRESHOLD_EUR } from '../../config/renewalEnvironment'
 import {
   HOTMART_SALES_HISTORY_MAX_LOOKBACK_DAYS,
   HOTMART_PER_EMAIL_STATUS_SWEEP,
@@ -39,7 +40,7 @@ const REFUND_TRANSACTION_STATUSES = new Set(['REFUNDED', 'CHARGEBACK'])
 // de "renovação" (preço reduzido) — critério dado pelo negócio, editável
 // por env var sem deploy. Só compara o valor numérico, independente da
 // moeda (a esmagadora maioria das vendas é em EUR).
-const OGI_NEW_STUDENT_PRICE_THRESHOLD = Number(process.env.OGI_NEW_STUDENT_PRICE_THRESHOLD_EUR) || 167
+const OGI_NEW_STUDENT_PRICE_THRESHOLD = OGI_NEW_STUDENT_PRICE_THRESHOLD_EUR
 
 export interface SalesHistorySyncReport {
   salesChecked: number
@@ -468,7 +469,7 @@ export async function resolveOgiProduct(): Promise<{ hotmartProductId: string; o
     .lean()
     .exec() as { _id: mongoose.Types.ObjectId; hotmartProductId?: string } | null
 
-  const envProductId = process.env.HOTMART_OGI_PRODUCT_ID?.trim()
+  const envProductId = HOTMART_OGI_PRODUCT_ID
   const hotmartProductId = envProductId || ogiProduct?.hotmartProductId
 
   if (!ogiProduct?._id || !hotmartProductId) {

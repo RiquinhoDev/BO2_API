@@ -108,6 +108,38 @@
       "count": 1
     }
   },
+  "src/routes/acRenewalData.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/routes/hotmartSalesHistory.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/routes/productSalesPerformance.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/routes/renewalTimeline.routes.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    },
+    "no-console": {
+      "count": 1
+    }
+  },
   "src/routes/users.routes.ts": {
     "@typescript-eslint/no-require-imports": {
       "count": 2
@@ -148,6 +180,88 @@
       "count": 1
     }
   },
+  "src/services/products/productSalesPerformance.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    },
+    "no-console": {
+      "count": 1
+    }
+  },
+  "src/services/renewal/__tests__/acExpirationSync.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 36
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "count": 15
+    }
+  },
+  "src/services/renewal/__tests__/acPurchaseDateReconcile.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 45
+    },
+    "@typescript-eslint/no-unused-vars": {
+      "count": 6
+    }
+  },
+  "src/services/renewal/__tests__/acTurmaTagSync.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 95
+    }
+  },
+  "src/services/renewal/__tests__/models.timeline.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 5
+    }
+  },
+  "src/services/renewal/__tests__/refundHandler.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 54
+    }
+  },
+  "src/services/renewal/__tests__/renewalPipeline.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/services/renewal/__tests__/seedTurmaTagMap.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 26
+    }
+  },
+  "src/services/renewal/__tests__/unmappedBaseOffers.service.test.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 12
+    }
+  },
+  "src/services/renewal/acExpirationSync.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "src/services/renewal/acPurchaseDateReconcile.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 21
+    },
+    "no-useless-assignment": {
+      "count": 1
+    }
+  },
+  "src/services/renewal/acRenewalDataSync.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "src/services/renewal/acStudentTagsSync.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 9
+    }
+  },
+  "src/services/renewal/acTurmaTagSync.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 8
+    }
+  },
   "src/services/renewal/activeCampaign/execution.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -161,14 +275,55 @@
       "count": 1
     }
   },
+  "src/services/renewal/discordScheduledMessages.service.ts": {
+    "no-console": {
+      "count": 2
+    }
+  },
+  "src/services/renewal/hotmartSalesHistory.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 22
+    },
+    "no-console": {
+      "count": 3
+    }
+  },
+  "src/services/renewal/refundHandler.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 28
+    }
+  },
+  "src/services/renewal/renewalMatcher.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "src/services/renewal/renewalPipeline.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
+    "no-console": {
+      "count": 4
+    }
+  },
   "src/services/renewal/renewalSync.service.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
   },
+  "src/services/renewal/renewalTimeline.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 27
+    }
+  },
   "src/services/renewal/turmaParser.ts": {
     "no-useless-escape": {
       "count": 1
+    }
+  },
+  "src/services/renewal/unmappedBaseOffers.service.ts": {
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
     }
   },
   "src/services/snapshotServices/userSnapshot.service.ts": {

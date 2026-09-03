@@ -8,6 +8,7 @@ import AcPurchaseDateEventState from '../../models/renewal/AcPurchaseDateEventSt
 import { activeCampaignService } from '../activeCampaign/activeCampaignService'
 import { agruparCiclos } from './renewalCycles'
 import type { CicloBase, VendaEntrada } from './renewalTimeline.types'
+import { readAcPurchaseDateFieldId } from '../../config/renewalEnvironment'
 
 const CAMPO_DATA_COMPRA_AC = 334
 const VINTE_QUATRO_HORAS_MS = 24 * 60 * 60 * 1000
@@ -52,7 +53,7 @@ function erroDeChaveDuplicada(error: unknown): boolean {
 }
 
 function validarCampoDataCompra(): void {
-  const configurado = process.env.AC_PURCHASE_DATE_FIELD_ID
+  const configurado = readAcPurchaseDateFieldId()
   if (configurado !== undefined && Number(configurado) !== CAMPO_DATA_COMPRA_AC) {
     throw new Error(
       `Reconciliação bloqueada: o campo de data de compra tem de ser 334 (configurado: ${configurado})`

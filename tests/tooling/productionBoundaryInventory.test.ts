@@ -10,6 +10,7 @@ const publicErrorDetail = /\.json\([^\n]*(?:error\.message|details\s*:)/
 
 const RAW_ENV_COMPOSITION_ROOTS = new Set([
   'config/appConfig.ts',
+  'config/renewalEnvironment.ts',
   ['config/test', 'Database.ts'].join(''),
   'scripts/maintenance/backfill-ac-webhook-receipt-leases.ts',
   'scripts/maintenance/ensure-users-v2-indexes.ts',
@@ -21,10 +22,15 @@ type Inventory = {
   publicErrorDetail: string[]
 }
 
+// As suites do runner do Node vivem em src/**/__tests__ (vieram assim do main) e
+// não são código de produção: lêem o ambiente para montar cenários. O inventário
+// mede a fronteira de produção, por isso não as conta.
+const TEST_DIRECTORY = '__tests__'
+
 function sourceFiles(directory: string): string[] {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const absolutePath = path.join(directory, entry.name)
-    if (entry.isDirectory()) return sourceFiles(absolutePath)
+    if (entry.isDirectory()) return entry.name === TEST_DIRECTORY ? [] : sourceFiles(absolutePath)
     return entry.isFile() && entry.name.endsWith('.ts') ? [absolutePath] : []
   })
 }

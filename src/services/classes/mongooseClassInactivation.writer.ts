@@ -9,7 +9,7 @@ import InactivationList, { type IInactivationList } from '../../models/Inactivat
 import StudentClassHistory from '../../models/StudentClassHistory'
 import { User, UserProduct } from '../../models'
 import type { IUser } from '../../models/user'
-import UserHistory, { type IUserHistory } from '../../models/UserHistory'
+import UserHistory from '../../models/UserHistory'
 import logger from '../../utils/logger'
 import { buildClassUserStatusUpdate } from './classUserStatus'
 import type {
