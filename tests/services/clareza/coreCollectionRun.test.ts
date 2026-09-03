@@ -126,4 +126,32 @@ describe('CoreCollectionRunner', () => {
       generationId: 'generation-d', universeVersion: 'universe-v1', itemKeys: ['AAPL'],
     })
   })
+
+  it('prune removes runs outside the retained generations and keeps the rest', async () => {
+    const store = new MongooseCoreCollectionRunStore()
+    await store.create({
+      runId: 'run-old', generationId: 'generation-old', universeVersion: 'universe-v1',
+      itemKeys: ['AAPL'], now,
+    })
+    await store.create({
+      runId: 'run-kept', generationId: 'generation-new', universeVersion: 'universe-v1',
+      itemKeys: ['AAPL'], now,
+    })
+
+    await expect(store.prune(['generation-new'])).resolves.toBe(1)
+
+    await expect(store.read('run-old')).resolves.toBeNull()
+    await expect(store.read('run-kept')).resolves.not.toBeNull()
+  })
+
+  it('prune refuses to run without any retained generation, to avoid wiping everything', async () => {
+    const store = new MongooseCoreCollectionRunStore()
+    await store.create({
+      runId: 'run-e', generationId: 'generation-e', universeVersion: 'universe-v1',
+      itemKeys: ['AAPL'], now,
+    })
+
+    await expect(store.prune([])).resolves.toBe(0)
+    await expect(store.read('run-e')).resolves.not.toBeNull()
+  })
 })

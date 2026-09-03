@@ -465,7 +465,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:15"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:18"
   },
   {
     "method": "GET",
@@ -501,7 +501,7 @@
     "consumer": "externo",
     "writes": false,
     "destructive": false,
-    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:15"
+    "evidence": "public: HTML Clareza externo; rota em src/routes/clareza.routes.ts:21"
   },
   {
     "method": "GET",

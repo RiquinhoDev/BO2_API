@@ -64,6 +64,6 @@ test('records the exact final 52-identity integration', () => {
       status: 'complete',
     })
   }
-  expect(inventory.filter(entry => entry.status === 'complete')).toHaveLength(402)
+  expect(inventory.filter(entry => entry.status === 'complete')).toHaveLength(403)
   expect(inventory.filter(entry => entry.status === 'pending-migration')).toHaveLength(0)
 })

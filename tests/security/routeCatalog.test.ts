@@ -44,11 +44,11 @@ function isLiteralPath(routePath: string): boolean {
     .every((segment) => !segment.startsWith(':') && !segment.startsWith('*'))
 }
 
-test('o catalogo cobre exatamente as 402 rotas do manifest', () => {
-  expect(manifest).toHaveLength(402)
-  expect(catalog).toHaveLength(402)
-  expect(new Set(manifest.map(key)).size).toBe(402)
-  expect(new Set(catalog.map(key)).size).toBe(402)
+test('o catalogo cobre exatamente as 403 rotas do manifest', () => {
+  expect(manifest).toHaveLength(403)
+  expect(catalog).toHaveLength(403)
+  expect(new Set(manifest.map(key)).size).toBe(403)
+  expect(new Set(catalog.map(key)).size).toBe(403)
   expect(catalog.map(key).sort()).toEqual(manifest.map(key).sort())
 })
 
@@ -74,6 +74,7 @@ test('a superficie excecional fica curta e explicita', () => {
     'GET /api/clareza/carteira/data',
     'GET /api/clareza/carteira/search',
     'GET /api/clareza/comparador',
+    'GET /api/clareza/data',
     'GET /api/clareza/earnings/data',
     'GET /api/clareza/radar',
     'GET /api/clareza/raiox',

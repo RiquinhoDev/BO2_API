@@ -63,8 +63,8 @@ describe('response contract catalog', () => {
     const routeIds = routeCatalog.map(routeId).sort()
     const contractIds = responseCatalog.map(routeId).sort()
 
-    expect(responseCatalog).toHaveLength(402)
-    expect(new Set(contractIds).size).toBe(402)
+    expect(responseCatalog).toHaveLength(403)
+    expect(new Set(contractIds).size).toBe(403)
     expect(contractIds).toEqual(routeIds)
   })
 
@@ -103,6 +103,7 @@ describe('response contract catalog', () => {
       'GET /api/clareza/carteira/data',
       'GET /api/clareza/carteira/search',
       'GET /api/clareza/comparador',
+      'GET /api/clareza/data',
       'GET /api/clareza/earnings/data',
       'GET /api/clareza/radar',
       'GET /api/clareza/raiox',

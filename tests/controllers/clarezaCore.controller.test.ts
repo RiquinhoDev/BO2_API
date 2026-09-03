@@ -13,6 +13,7 @@ describe('Clareza published core controller', () => {
   it('serves Radar and portfolio analysis with public cache policies', async () => {
     const dependencies = {
       radar: jest.fn().mockResolvedValue({ generationId: 'g1', stocks: [] }),
+      legacyMarketData: jest.fn(),
       carteira: jest.fn(),
       portfolioAnalysis: jest.fn().mockResolvedValue({ generationId: 'g1', results: {}, missing: [] }),
       search: jest.fn().mockResolvedValue({ query: 'AAPL', count: 1, results: [] }),
@@ -48,6 +49,7 @@ describe('Clareza published core controller', () => {
     const next = jest.fn() as NextFunction
     const unavailable = createClarezaCoreController({
       radar: jest.fn().mockRejectedValue(new CoreGenerationUnavailableError()),
+      legacyMarketData: jest.fn(),
       carteira: jest.fn(), portfolioAnalysis: jest.fn(),
       search: jest.fn(),
       raiox: jest.fn(), raioxSearch: jest.fn(),
@@ -56,7 +58,7 @@ describe('Clareza published core controller', () => {
       top10: jest.fn(),
     })
     const invalid = createClarezaCoreController({
-      radar: jest.fn(), carteira: jest.fn(),
+      radar: jest.fn(), legacyMarketData: jest.fn(), carteira: jest.fn(),
       portfolioAnalysis: jest.fn().mockRejectedValue(new RangeError('invalid')),
       search: jest.fn(),
       raiox: jest.fn(), raioxSearch: jest.fn(),

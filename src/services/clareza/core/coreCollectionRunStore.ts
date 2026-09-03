@@ -99,4 +99,12 @@ export class MongooseCoreCollectionRunStore implements CoreCollectionRunStore {
     }, { new: true }).lean()
     return updated ? decode(updated as CoreCollectionRun) : null
   }
+
+  async prune(retainedGenerationIds: readonly string[]): Promise<number> {
+    if (!retainedGenerationIds.length) return 0
+    const result = await ClarezaCoreCollectionRun.deleteMany({
+      generationId: { $nin: [...retainedGenerationIds] },
+    })
+    return result.deletedCount ?? 0
+  }
 }

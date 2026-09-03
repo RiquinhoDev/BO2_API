@@ -106,3 +106,36 @@ test('createApp sem allowlist injetada rejeita origem browser e permite pedido s
     .expect(403)
   await request(app).get('/probe').query(marker).expect(204)
 })
+
+test('leituras públicas do Clareza usam ACAO fixo em vez da allowlist', async () => {
+  const app = createApp({
+    authEnforce: false,
+    registerRoutes: (target) => {
+      target.get('/api/clareza/radar', (_req, res) => res.sendStatus(204))
+    },
+  })
+
+  const response = await request(app)
+    .get('/api/clareza/radar')
+    .set('Origin', 'https://origem-desconhecida.example')
+    .query(marker)
+    .expect(204)
+  expect(response.headers['access-control-allow-origin']).toBe('*')
+  expect(response.headers['access-control-allow-credentials']).toBeUndefined()
+})
+
+test('rotas fora da lista pública de leitura continuam presas à allowlist', async () => {
+  const app = createApp({
+    authEnforce: false,
+    registerRoutes: (target) => {
+      target.get('/api/clareza/carteira/analysis/extra', (_req, res) => res.sendStatus(204))
+    },
+  })
+
+  const response = await request(app)
+    .get('/api/clareza/carteira/analysis/extra')
+    .set('Origin', 'https://backoffice.serriquinho.com')
+    .query(marker)
+    .expect(403)
+  expect(response.headers['access-control-allow-origin']).toBeUndefined()
+})

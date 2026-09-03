@@ -77,7 +77,7 @@ beforeEach(() =>
 
 test('o catalogo inteiro aplica 401 ou bypass sem JWT conforme o access', async () => {
   const app = buildCatalogProbe()
-  expect(catalog).toHaveLength(402)
+  expect(catalog).toHaveLength(403)
 
   for (const route of catalog) {
     const expected = route.access === 'public' || route.access === 'signature' ? 204 : 401
