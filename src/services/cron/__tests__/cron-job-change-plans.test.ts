@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { planDisableTagRulesSync, planRenameProductionJobs } from '../../scripts/cron-job-change-plans'
+import { planDisableTagRulesSync, planRenameProductionJobs } from '../../../../scripts/cron-job-change-plans'
 
 describe('cron job change plans', () => {
   it('plans only the isActive change for TAG_RULES_SYNC and is idempotent once disabled', () => {

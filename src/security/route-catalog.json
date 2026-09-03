@@ -645,7 +645,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/classes.routes.ts:90"
+    "evidence": "consumer nao identificado; rota em src/routes/classes.routes.ts:97"
   },
   {
     "method": "GET",
@@ -1357,7 +1357,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "public: liveness sem credenciais; rota em src/routes/index.ts:105"
+    "evidence": "public: liveness sem credenciais; rota em src/routes/index.ts:113"
   },
   {
     "method": "GET",
@@ -1429,7 +1429,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:153"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:161"
   },
   {
     "method": "GET",
@@ -1582,7 +1582,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:54"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:56"
   },
   {
     "method": "GET",
@@ -1591,7 +1591,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:41"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:43"
   },
   {
     "method": "GET",
@@ -1924,7 +1924,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:80"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:88"
   },
   {
     "method": "GET",
@@ -2607,7 +2607,7 @@
     "consumer": "front",
     "writes": true,
     "destructive": false,
-    "evidence": "chamada do Front em <src/components/analytics/analytics/ClassAnalyticsTab.tsx>; rota em src/routes/classes.routes.ts:92"
+    "evidence": "chamada do Front em <src/components/analytics/analytics/ClassAnalyticsTab.tsx>; rota em src/routes/classes.routes.ts:99"
   },
   {
     "method": "POST",
@@ -3104,7 +3104,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:95"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:123"
   },
   {
     "method": "POST",
@@ -3113,7 +3113,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:126"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:154"
   },
   {
     "method": "POST",
@@ -3122,7 +3122,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": true,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:114"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:142"
   },
   {
     "method": "POST",
@@ -3131,7 +3131,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:75"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:77"
   },
   {
     "method": "POST",
@@ -3140,7 +3140,7 @@
     "consumer": "desconhecido",
     "writes": true,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:86"
+    "evidence": "consumer nao identificado; rota em src/routes/renewalAc.routes.ts:88"
   },
   {
     "method": "POST",
@@ -3302,7 +3302,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:78"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:86"
   },
   {
     "method": "POST",
@@ -3311,7 +3311,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:79"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:87"
   },
   {
     "method": "POST",

@@ -63,6 +63,18 @@ const INTEGRATION_TEST_FILES = Object.freeze([
   'tests/services/users/mongooseUsersV2Stats.reader.test.ts',
 ])
 
+/**
+ * Suites escritas para o runner nativo do Node (`node:test`), herdadas do main.
+ * O jest carrega-as, não vê nenhum `it()` e falha com "must contain at least one
+ * test". Correm no alvo `test:node`, não aqui.
+ */
+const NODE_RUNNER_TEST_PATHS = Object.freeze([
+  'src/models/renewal/__tests__/',
+  'src/services/renewal/__tests__/',
+  'src/services/syncUtilizadoresServices/__tests__/',
+  'src/services/cron/__tests__/',
+])
+
 const setupFiles = ['<rootDir>/tests/setupEnv.ts']
 const setupFilesAfterEnv = ['<rootDir>/tests/setup.ts']
 const testMatch = ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts']
@@ -93,6 +105,7 @@ const createJestProjects = rootDirectory => {
     '<rootDir>/tests/load/',
     '<rootDir>/tests/e2e/',
     '<rootDir>/tests/sprint1/',
+    ...NODE_RUNNER_TEST_PATHS.map(rootTestPath),
     ...integrationPaths,
   ]
 

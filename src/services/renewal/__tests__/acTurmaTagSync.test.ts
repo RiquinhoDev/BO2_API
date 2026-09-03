@@ -8,6 +8,24 @@ import ACStudentTag from '../../../models/ACStudentTag'
 import AcWriteLog from '../../../models/renewal/AcWriteLog'
 import User from '../../../models/user'
 import { activeCampaignService } from '../../activeCampaign/activeCampaignService'
+import { loadConfig } from '../../../config/appConfig'
+import { initializeRuntimeConfig } from '../../../config/runtimeConfig'
+
+// O transporte da AC lê a configuração de runtime ao construir o cliente e
+// falha fechado quando ela não existe. Este ficheiro corre no runner do Node
+// (`npm run test:node`), fora do setup do jest, por isso a configuração é
+// montada aqui — valores sintéticos, nenhum deles aponta para nada real.
+initializeRuntimeConfig(loadConfig({
+  NODE_ENV: 'test',
+  MONGO_URI: 'mongodb://127.0.0.1:27017/bo2-tests',
+  JWT_SECRET: 'test-only-jwt-secret-with-at-least-32-characters',
+  OLD_API_JWT_SECRET: 'test-only-old-api-jwt-secret-at-least-32-characters',
+  STUDENT_ACCESS_JWT_SECRET: 'test-only-student-access-secret-at-least-32-characters',
+  AC_WEBHOOK_SECRET: 'test-only-ac-webhook-secret-at-least-32-characters',
+  ALLOWED_ORIGINS: 'http://localhost:3000',
+  AC_API_URL: 'https://ac.invalid',
+  AC_API_KEY: 'test-key',
+}))
 
 const mapa = { tagNome: 'Aluno OGI 2606 - Renovação', tagId: '42' }
 

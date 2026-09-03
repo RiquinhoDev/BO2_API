@@ -21,6 +21,7 @@ import { CronJobProvisioner } from './jobProvisioning'
 import logger from '../../../utils/logger'
 
 const PROTECTED_JOB_NAMES = new Set(['ClarezaDailyRefresh'])
+const RENEWAL_PIPELINE_JOB_NAME = 'RenewalPipeline'
 
 // ─────────────────────────────────────────────────────────────
 // IN-MEMORY SCHEDULER REGISTRY

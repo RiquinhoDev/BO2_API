@@ -806,7 +806,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:42",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:44",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -1757,7 +1757,7 @@
       "timestamp",
       "uptime"
     ],
-    "evidence": "src/routes/index.ts:106",
+    "evidence": "src/routes/index.ts:114",
     "frontConsumer": null
   },
   {
@@ -1851,7 +1851,7 @@
       "name",
       "version"
     ],
-    "evidence": "src/routes/index.ts:154",
+    "evidence": "src/routes/index.ts:162",
     "frontConsumer": null
   },
   {
@@ -2048,7 +2048,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:68",
+    "evidence": "src/routes/renewalAc.routes.ts:70",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -2059,7 +2059,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:48",
+    "evidence": "src/routes/renewalAc.routes.ts:50",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -2071,7 +2071,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:28",
+    "evidence": "src/controllers/renewal.controller.ts:30",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -2082,7 +2082,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:152",
+    "evidence": "src/controllers/renewal.controller.ts:154",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -2093,7 +2093,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:139",
+    "evidence": "src/controllers/renewal.controller.ts:141",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -2938,7 +2938,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:125",
+    "evidence": "src/controllers/renewal.controller.ts:127",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -3310,7 +3310,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:23",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:25",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -3322,7 +3322,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:69",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:80",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {
@@ -3994,7 +3994,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:105",
+    "evidence": "src/routes/renewalAc.routes.ts:133",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4006,7 +4006,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:129",
+    "evidence": "src/routes/renewalAc.routes.ts:157",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4017,7 +4017,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:120",
+    "evidence": "src/routes/renewalAc.routes.ts:148",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4028,7 +4028,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:79",
+    "evidence": "src/routes/renewalAc.routes.ts:81",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4039,7 +4039,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/routes/renewalAc.routes.ts:89",
+    "evidence": "src/routes/renewalAc.routes.ts:91",
     "frontConsumer": "src/services/renewalAcSync.service.ts"
   },
   {
@@ -4050,7 +4050,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:83",
+    "evidence": "src/controllers/renewal.controller.ts:85",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -4061,7 +4061,7 @@
       "data",
       "success"
     ],
-    "evidence": "src/controllers/renewal.controller.ts:163",
+    "evidence": "src/controllers/renewal.controller.ts:165",
     "frontConsumer": "src/services/renewalOffers.service.ts"
   },
   {
@@ -4505,7 +4505,7 @@
       "meta",
       "success"
     ],
-    "evidence": "src/controllers/classes/classInactivation.controller.ts:95",
+    "evidence": "src/controllers/classes/classInactivation.controller.ts:106",
     "frontConsumer": "src/features/inactivation/inactivation.api.ts"
   },
   {

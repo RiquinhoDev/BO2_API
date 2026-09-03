@@ -6,7 +6,7 @@ import { listClasses, listClassesSimple } from '../services/classes/classDirecto
 import { fetchClassData, fetchClassDataPost, getClassDetails, getClassStats } from '../services/classes/classDetails.runtime'
 import { addOrEditClass, deleteClass } from '../services/classes/classMutations.runtime'
 import { moveMultipleStudents, moveStudent } from '../services/classes/studentMovement.runtime'
-import { createInactivationList, getInactivationLists, revertInactivation, updateClassStatus } from '../services/classes/classInactivation.runtime'
+import { createInactivationList, deleteInactivationList, getInactivationListStudents, getInactivationLists, revertInactivation, updateClassStatus } from '../services/classes/classInactivation.runtime'
 import { classesDeleteInput } from '../security/classesDestructiveInput'
 import { withValidatedInput } from '../security/validatedInput'
 const router = Router()
@@ -83,11 +83,11 @@ router.get('/inactivationLists', getInactivationLists)
 router.post('/inactivationLists/revert/:id', revertInactivation)
 
 // GET /api/classes/inactivationLists/:id/students - Alunos da lista, paginados
-router.get('/inactivationLists/:id/students', classesController.getInactivationListStudents)
+router.get('/inactivationLists/:id/students', getInactivationListStudents)
 
 // DELETE /api/classes/inactivationLists/:id - Apaga só o registo do histórico.
 // Não mexe em nenhum aluno; para devolver acesso é a rota de revert.
-router.delete('/inactivationLists/:id', classesController.deleteInactivationList)
+router.delete('/inactivationLists/:id', deleteInactivationList)
 
 
 

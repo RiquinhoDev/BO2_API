@@ -23,6 +23,7 @@ import { buildCurseducaMutationPlan, curseducaPlanToUpdateFields } from './build
 import { detectRenewal, planInactiveAutofix } from './renewalPolicy'
 import { applyAutoReactivation } from './renewalExecutor'
 import { persistUserProduct } from './userProductPersistence'
+import { garantirCombinedStatus, type CombinedStatusSource } from './builders/combinedStatus'
 
 const expirationPolicy = new HotmartExpirationPolicy({ now: () => new Date() })
 
@@ -160,6 +161,14 @@ export const processSyncItem = async (
 
     // EXECUTOR: apply the plan's field changes onto updateFields.
     Object.assign(updateFields, hotmartPlanToUpdateFields(plan))
+    // Reconstruímos combined.* neste ramo, por isso a guarda tem de correr: um
+    // $set em caminhos irmãos não aplica o default do schema a combined.status.
+    if (
+      Object.prototype.hasOwnProperty.call(updateFields, 'combined.allClasses') ||
+      Object.prototype.hasOwnProperty.call(updateFields, 'combined.primaryClass')
+    ) {
+      garantirCombinedStatus(user as CombinedStatusSource, updateFields)
+    }
     if (plan.needsUpdate) needsUpdate = true
     // Expose the pending classes to the post-branch expiration check (shared contract).
     pendingHotmartClasses = plan.hotmart.enrolledClasses
@@ -224,6 +233,15 @@ export const processSyncItem = async (
 
     // EXECUTOR: apply the plan's field changes onto updateFields.
     Object.assign(updateFields, curseducaPlanToUpdateFields(plan))
+    // Reconstruímos combined.* neste ramo, por isso a guarda tem de correr: um
+    // $set em caminhos irmãos não aplica o default do schema a combined.status.
+    if (
+      Object.prototype.hasOwnProperty.call(updateFields, 'combined.allClasses') ||
+      Object.prototype.hasOwnProperty.call(updateFields, 'combined.primaryClass')
+    ) {
+      garantirCombinedStatus(user as CombinedStatusSource, updateFields)
+    }
+
     if (plan.needsUpdate) needsUpdate = true
 
     // EXECUTOR: reconcile a PARA_INATIVAR userproduct when the member is inactive

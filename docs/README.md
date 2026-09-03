@@ -19,6 +19,7 @@ O BO2_API usa npm como package manager único: `package.json` fixa `npm@11.9.0`,
 - [Students by priority](STUDENTS_BY_PRIORITY_ENDPOINT.md) — referência ativa da rota e do contrato documentado.
 - [Tag monitoring - backend](TAG_MONITORING_BACKEND_DOCUMENTATION.md) - code reference only; confirmar contratos no código antes de qualquer decisão operacional.
 - [Proteção de tags nativas](reference/NATIVE_TAG_PROTECTION_SUMMARY.md) — resumo de referência; confirmar a implementação no código.
+- [Tags "Aluno OGI" na ActiveCampaign](reference/renewal/AC_TAGS_ALUNO_OGI.md) — inventário só-leitura das tags da AC (12/08/2026); nomes e IDs, sem cruzamento com alunos.
 - [Contexto de renovação OGI](reference/renewal/RENOVACAO_CONTEXTO_IA.md) — handoff de referência para o domínio de renovações.
 - [Plano de cargos Discord](reference/renewal/RENOVACAO_DISCORD_CARGOS_PLAN.md) — plano de referência, infraestrutura mantida desligada.
 - [Plano de renovação OGI/BO](reference/renewal/RENOVACAO_OGI_BO_PLAN.md) — plano de referência, infraestrutura mantida desligada.

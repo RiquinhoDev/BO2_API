@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { garantirCombinedStatus } from '../universalSyncService'
+import { garantirCombinedStatus } from '../universalSync/builders/combinedStatus'
 
 test('sync de turmas cria combined.status quando o utilizador não tem combined', () => {
   const updateFields: Record<string, unknown> = {

@@ -32,11 +32,55 @@ export interface InactivationListView {
   name: string
   classNames: string[]
   createdAt: Date
-  status: 'COMPLETED'
+  status: string
   studentCount: number
-  executedDate: Date
+  executedDate?: Date
+  revertedAt?: Date
   performedBy?: string
-  platforms: string[]
+  platforms?: string[]
+  // Só vem preenchido quando a lista tem mesmo bloco de execução: mandar zeros
+  // faria o Front pintar "(0✓ 0✗)" numa lista de 1642 alunos.
+  results?: { success: number; errors: number; details: unknown[] }
+}
+
+export interface InactivationListSummary {
+  _id: unknown
+  name: string
+  status: string
+}
+
+export interface InactivationStudentView {
+  studentId: unknown
+  email?: string
+  nome?: string
+  classId?: string
+  turma?: string
+  estadoAnterior?: string
+  processado?: boolean | null
+  erro?: string | null
+  estadoActual?: string
+}
+
+export interface ListStudentsFilters {
+  id: string
+  limit: number
+  offset: number
+  search?: string
+}
+
+export interface RevertOutcome {
+  listName?: string
+  totalNaLista: number
+  reactivados: number
+  jaEstavamInactivos: number
+  erros: { studentId: unknown; error: string }[]
+}
+
+export interface DeletedListView {
+  _id: unknown
+  name: string
+  status: string
+  studentsAbrangidos: number
 }
 
 export interface ClassSummaryForUpsert {
@@ -69,7 +113,18 @@ export interface ClassInactivationWriter {
   ): Promise<{ results: InactivationResult[]; totalInactivated: number }>
   findClassForUpsert(classId: string): Promise<ClassSummaryForUpsert | null>
   listInactivations(filters: ListFilters): Promise<{ lists: InactivationListView[]; total: number }>
-  revertInactivationRecord(id: string, options: { reason?: string; userId?: string }): Promise<'not_found' | 'ok'>
+  listInactivationStudents(
+    filters: ListStudentsFilters,
+  ): Promise<'not_found' | {
+    list: InactivationListSummary
+    students: InactivationStudentView[]
+    total: number
+  }>
+  revertInactivationRecord(
+    id: string,
+    options: { reason?: string; userId?: string },
+  ): Promise<'not_found' | 'already_reversed' | RevertOutcome>
+  deleteInactivationRecord(id: string): Promise<'not_found' | DeletedListView>
   applyClassStatus(
     classId: string,
     isActive: boolean,
@@ -118,7 +173,12 @@ export class ClassInactivationService {
   ) {}
 
   async createList(input: CreateListInput): Promise<CreateListResult> {
-    const platforms = input.platforms ?? ['all']
+    // Default = OGI apenas (Hotmart + Discord). NÃO inclui 'curseduca': o
+    // Clareza vem do CursEduca, é um produto à parte com o seu próprio ciclo de
+    // subscrição e tem sistema de inactivação próprio. Com o default anterior
+    // ('all') a inactivação de uma turma OGI cortava também o Clareza — o
+    // wizard do Front não envia `platforms`, por isso ninguém escolhia isso.
+    const platforms = input.platforms ?? ['hotmart', 'discord']
     const now = this.clock.now()
 
     const { results, totalInactivated } = await this.writer.inactivateClassStudents(
@@ -180,13 +240,36 @@ export class ClassInactivationService {
     return { lists, total, timestamp: this.clock.now().toISOString() }
   }
 
+  async listStudents(
+    filters: ListStudentsFilters,
+  ): Promise<'not_found' | {
+    list: InactivationListSummary
+    students: InactivationStudentView[]
+    total: number
+    timestamp: string
+  }> {
+    const found = await this.writer.listInactivationStudents(filters)
+    if (found === 'not_found') return 'not_found'
+    return { ...found, timestamp: this.clock.now().toISOString() }
+  }
+
   async revert(
     id: string,
     options: { reason?: string; userId?: string },
-  ): Promise<'not_found' | { timestamp: string }> {
+  ): Promise<'not_found' | 'already_reversed' | { result: RevertOutcome; timestamp: string }> {
     const outcome = await this.writer.revertInactivationRecord(id, options)
-    if (outcome === 'not_found') return 'not_found'
-    return { timestamp: this.clock.now().toISOString() }
+    if (outcome === 'not_found' || outcome === 'already_reversed') return outcome
+    return { result: outcome, timestamp: this.clock.now().toISOString() }
+  }
+
+  // Apaga SÓ o registo do histórico. Não mexe em nenhum aluno: quem foi
+  // inactivado continua inactivo. Como o registo é o único sítio onde ficam os
+  // alunos abrangidos e o estado anterior de cada um, apagá-lo torna a
+  // inactivação irreversível — por isso devolve-se o que se apagou.
+  async deleteList(id: string): Promise<'not_found' | { removed: DeletedListView; timestamp: string }> {
+    const removed = await this.writer.deleteInactivationRecord(id)
+    if (removed === 'not_found') return 'not_found'
+    return { removed, timestamp: this.clock.now().toISOString() }
   }
 
   async updateStatus(
