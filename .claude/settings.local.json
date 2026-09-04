@@ -52,7 +52,9 @@
       "Bash(npx playwright *)",
       "Bash(grep -B2 -A8 'Array \\\\[$')",
       "Bash(git -C \"C:/Users/sfcft/Documents/GitHub/Front\" branch -a)",
-      "Bash(git -C \"C:/Users/sfcft/Documents/GitHub/Front\" rev-parse --abbrev-ref HEAD)"
+      "Bash(git -C \"C:/Users/sfcft/Documents/GitHub/Front\" rev-parse --abbrev-ref HEAD)",
+      "Bash(railway status *)",
+      "Bash(railway run *)"
     ]
   }
 }
