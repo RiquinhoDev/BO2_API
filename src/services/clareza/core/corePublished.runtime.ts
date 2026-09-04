@@ -9,15 +9,24 @@ import { MongooseCoreEarningsCompanionStore } from './coreEarningsCompanionStore
 import { createCoreTop10Runtime } from './coreTop10Runtime'
 import { MongooseCoreTop10CompanionStore } from './coreTop10CompanionStore'
 import { CORE_TOP10_REVISION, CORE_TOP10_SELECTIONS } from './coreTop10Selection'
+import { normalizeQueryKey, normalizeSymbolKey, withCoreCache } from './coreReadCache'
+
+// Mesmos TTLs que já declarávamos em Cache-Control nestes endpoints
+// (src/controllers/clarezaCore.controller.ts): o Redis nunca promete menos
+// frescura do que o browser já aceitava.
+const READ_TTL_SECONDS = 60 * 60
+const SEARCH_TTL_SECONDS = 10 * 60
 
 const runtime = createCorePublishedRuntime({
   store: new MongooseCoreGenerationStore(),
   universe: CLAREZA_UNIVERSE,
 })
 
-export const getPublishedRadar = runtime.radar
-export const getPublishedLegacyMarketData = runtime.legacyMarketData
-export const getPublishedCarteira = runtime.carteira
+export const getPublishedRadar = withCoreCache('radar', READ_TTL_SECONDS, () => 'all', runtime.radar)
+export const getPublishedLegacyMarketData = withCoreCache(
+  'legacy-market-data', READ_TTL_SECONDS, () => 'all', runtime.legacyMarketData,
+)
+export const getPublishedCarteira = withCoreCache('carteira', READ_TTL_SECONDS, () => 'all', runtime.carteira)
 export const getPublishedPortfolioAnalysis = runtime.portfolioAnalysis
 
 const raioxRuntime = createCoreRaioxRuntime({
@@ -26,8 +35,10 @@ const raioxRuntime = createCoreRaioxRuntime({
   universe: CLAREZA_UNIVERSE,
 })
 
-export const getPublishedRaiox = raioxRuntime.asset
-export const searchPublishedRaiox = raioxRuntime.search
+export const getPublishedRaiox = withCoreCache('raiox', READ_TTL_SECONDS, normalizeSymbolKey, raioxRuntime.asset)
+export const searchPublishedRaiox = withCoreCache(
+  'raiox-search', SEARCH_TTL_SECONDS, normalizeQueryKey, raioxRuntime.search,
+)
 
 const comparadorRuntime = createCoreComparadorRuntime({
   generationStore: new MongooseCoreGenerationStore(),
@@ -35,8 +46,12 @@ const comparadorRuntime = createCoreComparadorRuntime({
   universe: CLAREZA_UNIVERSE,
 })
 
-export const getPublishedComparador = comparadorRuntime.compare
-export const searchPublishedComparador = comparadorRuntime.search
+export const getPublishedComparador = withCoreCache(
+  'comparador', READ_TTL_SECONDS, normalizeSymbolKey, comparadorRuntime.compare,
+)
+export const searchPublishedComparador = withCoreCache(
+  'comparador-search', SEARCH_TTL_SECONDS, normalizeQueryKey, comparadorRuntime.search,
+)
 
 const earningsRuntime = createCoreEarningsRuntime({
   generationStore: new MongooseCoreGenerationStore(),
@@ -45,7 +60,7 @@ const earningsRuntime = createCoreEarningsRuntime({
   now: () => new Date(),
 })
 
-export const getPublishedEarnings = earningsRuntime.read
+export const getPublishedEarnings = withCoreCache('earnings', READ_TTL_SECONDS, () => 'all', earningsRuntime.read)
 
 const top10Runtime = createCoreTop10Runtime({
   generationStore: new MongooseCoreGenerationStore(),
@@ -55,4 +70,4 @@ const top10Runtime = createCoreTop10Runtime({
   revision: CORE_TOP10_REVISION,
 })
 
-export const getPublishedTop10 = top10Runtime.read
+export const getPublishedTop10 = withCoreCache('top10', READ_TTL_SECONDS, () => 'all', top10Runtime.read)
