@@ -5,6 +5,7 @@ import { refreshCoreRaioxCompanion } from '../services/clareza/core/coreRaioxCom
 import { refreshCoreTop10Companion } from '../services/clareza/core/coreTop10Companion.runtime'
 import type { CoreRetentionReport } from '../services/clareza/core/coreRetention'
 import { runCoreRetention } from '../services/clareza/core/coreRetention.runtime'
+import { warmPublishedReadsCache } from '../services/clareza/core/coreCacheWarmup.runtime'
 import { assertClarezaRefreshEnabled, getFmpApiKey } from '../services/requestDrivenRuntimeConfig'
 import { cacheService } from '../services/cache.service'
 import { RefreshJobCoordinator } from '../services/clareza/operations/refreshJobCoordinator'
@@ -33,6 +34,7 @@ export interface ClarezaJobDependencies {
   readonly companions: readonly NamedClarezaRefresh[]
   readonly top10?: NamedClarezaRefresh
   readonly retention?: () => Promise<CoreRetentionReport>
+  readonly warmCache?: () => Promise<void>
   readonly logger: Pick<AppLogger, 'info' | 'error'>
 }
 
@@ -75,6 +77,22 @@ async function pruneBestEffort(
   }
 }
 
+// Corre por último, depois dos companions terem os dados da geração nova:
+// aquecer antes disso só cachearia a geração anterior. Melhor esforço, tal
+// como a poda — aquecer é otimização, não é o refresh em si, por isso
+// nunca deve derrubar um dia que correu bem.
+async function warmBestEffort(
+  warmCache: () => Promise<void>,
+  loggerPort: Pick<AppLogger, 'info' | 'error'>,
+): Promise<void> {
+  try {
+    await warmCache()
+    loggerPort.info('Clareza cache warmup completed', { total: 0, errors: 0 })
+  } catch {
+    loggerPort.error('Clareza cache warmup failed', { total: 0, errors: 1 })
+  }
+}
+
 export function createClarezaJob(dependencies: ClarezaJobDependencies) {
   return {
     async run(startedAt = new Date().toISOString()): Promise<{ success: boolean; total: number; errors: number }> {
@@ -101,6 +119,9 @@ export function createClarezaJob(dependencies: ClarezaJobDependencies) {
         const top10Errors = dependencies.top10
           ? await refreshBestEffort(dependencies.top10, core.generationId, dependencies.logger)
           : 0
+
+        if (dependencies.warmCache) await warmBestEffort(dependencies.warmCache, dependencies.logger)
+
         return {
           success: true,
           total: core.collectedAssets,
@@ -126,6 +147,7 @@ const pipeline = createClarezaJob({
   ],
   top10: { name: 'Top 10', refresh: refreshCoreTop10Companion },
   retention: runCoreRetention,
+  warmCache: warmPublishedReadsCache,
   logger,
 })
 

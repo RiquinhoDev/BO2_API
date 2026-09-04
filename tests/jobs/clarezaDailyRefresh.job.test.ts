@@ -135,4 +135,35 @@ describe('ClarezaDailyRefresh', () => {
     expect(logger.error).toHaveBeenCalledWith('Clareza retention failed', { total: 0, errors: 1 })
   })
 
+  it('warms the cache only after companions and top10 have the new generation', async () => {
+    const calls: string[] = []
+    const job = createClarezaJob({
+      assertRefreshEnabled: () => undefined,
+      refreshCore: async () => published,
+      companions: [
+        { name: 'Raio-X', refresh: async () => { calls.push('raiox'); return { total: 1, errors: 0 } } },
+      ],
+      top10: { name: 'Top 10', refresh: async () => { calls.push('top10'); return { total: 1, errors: 0 } } },
+      warmCache: async () => { calls.push('warm') },
+      logger: { info: jest.fn(), error: jest.fn() },
+    })
+
+    await expect(job.run()).resolves.toEqual({ success: true, total: 879, errors: 0 })
+    expect(calls).toEqual(['raiox', 'top10', 'warm'])
+  })
+
+  it('keeps the refresh successful when warming the cache fails', async () => {
+    const logger = { info: jest.fn(), error: jest.fn() }
+    const job = createClarezaJob({
+      assertRefreshEnabled: () => undefined,
+      refreshCore: async () => published,
+      companions: [{ name: 'Raio-X', refresh: async () => ({ total: 1, errors: 0 }) }],
+      warmCache: async () => { throw new Error('redis down') },
+      logger,
+    })
+
+    await expect(job.run()).resolves.toEqual({ success: true, total: 879, errors: 0 })
+    expect(logger.error).toHaveBeenCalledWith('Clareza cache warmup failed', { total: 0, errors: 1 })
+  })
+
 })
