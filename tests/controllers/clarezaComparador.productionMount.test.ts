@@ -53,7 +53,7 @@ function productionApp(correlationId = 'comparador-production-request') {
 }
 
 function adminToken(): string {
-  return signAppToken({ id: 'admin-1', email: 'admin@example.test', role: 'ADMIN', permissions: [] })
+  return signAppToken({ id: 'admin-1', email: 'admin@example.test', role: 'SUPER_ADMIN', permissions: [] })
 }
 
 beforeEach(() => {

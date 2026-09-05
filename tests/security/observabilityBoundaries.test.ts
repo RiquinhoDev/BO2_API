@@ -23,25 +23,37 @@ const JWT_SECRET = 'f1-8-test-jwt-secret-with-at-least-32-characters'
 const OLD_API_JWT_SECRET = 'f1-8-old-api-jwt-secret-with-at-least-32-characters'
 const STUDENT_ACCESS_JWT_SECRET = 'f1-8-student-access-jwt-secret-with-at-least-32-characters'
 
-test('auth regista template de rota sem URL, email ou fragmento do token', async () => {
+beforeEach(() => {
   configureJwt({
     jwtSecret: JWT_SECRET,
     oldApiJwtSecret: OLD_API_JWT_SECRET,
     studentAccessJwtSecret: STUDENT_ACCESS_JWT_SECRET,
   })
+})
+
+function adminAuthorization(): string {
+  return `Bearer ${signAppToken({
+    id: 'admin-1',
+    email: 'admin@example.test',
+    role: 'ADMIN',
+    permissions: [],
+  })}`
+}
+
+test('auth regista template de rota sem URL, email ou fragmento do token', async () => {
   const transport = new MemoryTransport()
   const logger = createStructuredLogger({ level: 'debug', transports: [transport] })
   const authenticate = createAuthenticate(logger)
   const router = express.Router()
   router.get('/by-email/:email', authenticate, (_req, res) => res.sendStatus(204))
   const app = createApp({
-    authEnforce: false,
+    authEnforce: true,
     registerRoutes: (target) => target.use('/api/users', router),
   })
   const token = signAppToken({
     id: 'admin-1',
     email: 'admin@example.test',
-    role: 'admin',
+    role: 'ADMIN',
     permissions: [],
   })
 
@@ -70,14 +82,18 @@ test('auth regista template de rota sem URL, email ou fragmento do token', async
 test('métricas guardam template em vez do email presente no path', async () => {
   const metrics = new MetricsMiddleware()
   const app = createApp({
-    authEnforce: false,
+    authEnforce: true,
     registerRoutes: (target) => {
       target.use(metrics.handler)
       target.get('/api/users/by-email/:email', (_req, res) => res.sendStatus(204))
     },
   })
 
-  await request(app).get('/api/users/by-email/joao%40example.test').query(marker).expect(204)
+  await request(app)
+    .get('/api/users/by-email/joao%40example.test')
+    .set('Authorization', adminAuthorization())
+    .query(marker)
+    .expect(204)
 
   expect(metrics.getRecent(1)).toEqual([
     expect.objectContaining({ path: '/users/by-email/:email' }),

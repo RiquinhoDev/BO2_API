@@ -55,6 +55,14 @@ function pathMatchesTemplate(template: string, pathname: string): boolean {
   ))
 }
 
+function routeSpecificity(routePath: string): number {
+  return normalizePath(routePath)
+    .split('/')
+    .filter(Boolean)
+    .filter((segment) => !segment.startsWith(':'))
+    .length
+}
+
 export function matchCatalogRouteFrom(
   routes: readonly CatalogRouteEntry[],
   method: string,
@@ -67,11 +75,14 @@ export function matchCatalogRouteFrom(
   ))
 
   if (matches.length === 0) return null
-  if (matches.length > 1) {
+
+  const mostSpecificScore = Math.max(...matches.map((route) => routeSpecificity(route.path)))
+  const mostSpecific = matches.filter((route) => routeSpecificity(route.path) === mostSpecificScore)
+  if (mostSpecific.length > 1) {
     throw new Error(`Ambiguous route catalog match for ${normalizedMethod} ${normalizePath(pathname)}`)
   }
 
-  return matches[0]
+  return mostSpecific[0]
 }
 
 export function matchCatalogRoute(

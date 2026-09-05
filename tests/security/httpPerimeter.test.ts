@@ -9,8 +9,29 @@ import {
 } from '../../src/security/httpPerimeter'
 import type { RateLimitStoreFactory } from '../../src/security/redisRateLimitStore'
 import { createErrorHandling } from '../../src/security/errorHandling'
+import { configureJwt, signAppToken } from '../../src/security/jwt'
 
 const marker = { __bo2_offline_loopback: '1' }
+const JWT_SECRET = 'http-perimeter-jwt-secret-at-least-32-characters'
+const OLD_API_JWT_SECRET = 'http-perimeter-old-api-secret-at-least-32-characters'
+const STUDENT_ACCESS_JWT_SECRET = 'http-perimeter-student-secret-at-least-32-characters'
+
+beforeEach(() => {
+  configureJwt({
+    jwtSecret: JWT_SECRET,
+    oldApiJwtSecret: OLD_API_JWT_SECRET,
+    studentAccessJwtSecret: STUDENT_ACCESS_JWT_SECRET,
+  })
+})
+
+function superAdminAuthorization(): string {
+  return `Bearer ${signAppToken({
+    id: 'http-perimeter-admin',
+    email: 'admin@example.test',
+    role: 'SUPER_ADMIN',
+    permissions: [],
+  })}`
+}
 
 const API_ONLY_CSP = {
   'default-src': ["'none'"],
@@ -77,7 +98,7 @@ function buildApp(
   storeFactory?: RateLimitStoreFactory,
 ) {
   return createApp({
-    authEnforce: false,
+    authEnforce: true,
     allowedOrigins: ['http://localhost:3000'],
     createErrorHandling: () =>
       createErrorHandling({
@@ -220,6 +241,7 @@ test('operacao pesada devolve 429 depois do limite', async () => {
   const attempt = () =>
     request(app)
       .post('/api/sync/execute-pipeline')
+      .set('Authorization', superAdminAuthorization())
       .set('X-Forwarded-For', '198.51.100.30')
       .query(marker)
 

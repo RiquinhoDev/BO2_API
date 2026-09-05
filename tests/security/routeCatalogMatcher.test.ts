@@ -13,6 +13,14 @@ describe('route catalog matcher', () => {
     })
   })
 
+  test('prefers an exact catalog route over a parameterized route', () => {
+    expect(matchCatalogRoute('GET', '/api/users/analytics')).toMatchObject({
+      method: 'GET',
+      path: '/api/users/analytics',
+      access: 'authenticated',
+    })
+  })
+
   test('normalizes method case, query strings, and one trailing slash', () => {
     expect(
       matchCatalogRoute('get', '/api/users/507f1f77bcf86cd799439011/?tab=history'),

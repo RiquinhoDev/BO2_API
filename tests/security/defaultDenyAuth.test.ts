@@ -87,7 +87,7 @@ test('o catalogo inteiro aplica 401 ou bypass sem JWT conforme o access', async 
 
 test('token valido atravessa todas as rotas authenticated', async () => {
   const app = buildCatalogProbe()
-  const token = signAppToken({ id: 'admin-1', email: 'admin@example.test', role: 'ADMIN', permissions: [] })
+  const token = signAppToken({ id: 'admin-1', email: 'admin@example.test', role: 'SUPER_ADMIN', permissions: [] })
   const authenticated = catalog.filter((route) => route.access === 'authenticated')
   expect(authenticated).toHaveLength(403)
 
@@ -121,9 +121,12 @@ test('preflight CORS termina antes da guarda JWT', async () => {
     .expect(204)
 })
 
-test('AUTH_ENFORCE=false preserva explicitamente o comportamento antigo', async () => {
+test('AUTH_ENFORCE=false desliga apenas default-deny e mantém autorização central', async () => {
   await request(buildCatalogProbe(false))
     .get('/api/users/analytics')
     .query(marker)
-    .expect(204)
+    .expect(401, {
+      success: false,
+      message: 'Não autenticado',
+    })
 })
