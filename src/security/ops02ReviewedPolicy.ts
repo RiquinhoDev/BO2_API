@@ -415,6 +415,34 @@ const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
       cap: { status: 'verified', reason: 'tag-evaluation-max-users', limit: 100 },
     },
   ],
+  [
+    'POST /api/discord-renewal/messages/send',
+    {
+      idempotency: { status: 'required', reason: 'manual-message-no-idempotency-key' },
+      killSwitch: { status: 'verified', reason: 'DISCORD_MESSAGES_ENABLED' },
+      dryRun: { status: 'verified', reason: 'POST /api/discord-renewal/messages/preview' },
+    },
+  ],
+  [
+    'POST /api/discord-renewal/scheduled/:key/test',
+    {
+      idempotency: { status: 'required', reason: 'scheduled-test-no-idempotency-key' },
+      killSwitch: { status: 'verified', reason: 'DISCORD_MESSAGES_ENABLED' },
+      dryRun: { status: 'verified', reason: 'GET /api/discord-renewal/scheduled/:key/preview' },
+    },
+  ],
+  [
+    'POST /api/discord-renewal/scheduled/run',
+    {
+      cap: { status: 'required', reason: 'scheduled-rule-count-no-finite-cap' },
+      idempotency: { status: 'required', reason: 'lastSentMonth-check-save-not-atomic' },
+      killSwitch: {
+        status: 'verified',
+        reason: 'DISCORD_SCHEDULED_MESSAGES_ENABLED+DISCORD_MESSAGES_ENABLED',
+      },
+      dryRun: { status: 'required', reason: 'scheduled-run-no-complete-dry-run' },
+    },
+  ],
 ])
 
 export function getVerifiedReconciliationReplayReason(
