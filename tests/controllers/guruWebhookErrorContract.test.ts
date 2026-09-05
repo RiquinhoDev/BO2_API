@@ -69,6 +69,19 @@ function request(overrides: Partial<Request> = {}): Request {
   return { body: {}, headers: {}, params: {}, query: {}, ...overrides } as Request
 }
 
+function rejectMigrationFind(): void {
+  const chain = {
+    select: jest.fn(),
+    sort: jest.fn(),
+    limit: jest.fn(),
+    lean: jest.fn().mockRejectedValue(new Error('mongo token=secret alice@example.test')),
+  }
+  chain.select.mockReturnValue(chain)
+  chain.sort.mockReturnValue(chain)
+  chain.limit.mockReturnValue(chain)
+  webhookModel.find.mockReturnValueOnce(chain)
+}
+
 beforeEach(() => {
   jest.clearAllMocks()
   jest.spyOn(console, 'log').mockImplementation(() => undefined)
@@ -83,7 +96,7 @@ test.each([
   ['grouped webhooks', listWebhooksGroupedByMonth, () => webhookModel.aggregate.mockRejectedValueOnce(new Error('mongo token=secret alice@example.test')), request(), 'GURU_WEBHOOK_GROUPING_FAILED'],
   ['webhook stats', getGuruStats, () => webhookModel.countDocuments.mockRejectedValueOnce(new Error('mongo token=secret alice@example.test')), request(), 'GURU_WEBHOOK_STATS_FAILED'],
   ['webhook reprocess', reprocessWebhook, () => webhookModel.findById.mockRejectedValueOnce(new Error('mongo token=secret alice@example.test')), request({ params: { id: '507f1f77bcf86cd799439011' } }), 'GURU_WEBHOOK_REPROCESS_FAILED'],
-  ['webhook migration', migrateWebhookSource, () => webhookModel.find.mockRejectedValueOnce(new Error('mongo token=secret alice@example.test')), request(), 'GURU_WEBHOOK_MIGRATION_FAILED'],
+  ['webhook migration', migrateWebhookSource, rejectMigrationFind, request(), 'GURU_WEBHOOK_MIGRATION_FAILED'],
 ] as const)('%s forwards an opaque typed error', async (_name, handler, arrange, req, code) => {
   arrange()
   const res = response()
