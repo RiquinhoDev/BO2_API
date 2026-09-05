@@ -248,10 +248,7 @@ export const getCriticalTagsStats = async (req: Request, res: Response, next: Ne
   try {
     const stats = await criticalTagManagementService.getStats()
 
-    res.json({
-      success: true,
-      data: stats,
-    })
+    res.json(successResponse(stats, { count: stats.total }))
   } catch (error: unknown) {
     next(internalError('Erro ao obter estatísticas', 'CRITICAL_TAG_STATS_FAILED', error))
   }

@@ -528,7 +528,11 @@ test('critical tag reads preserve query parsing and response envelopes', async (
   criticalTagServiceMock.getStats.mockResolvedValueOnce(stats)
   const response = await request(buildApp())
     .get('/api/tag-monitoring/critical-tags/stats').query(offlineMarker)
-  expect(response.body).toEqual({ success: true, data: stats })
+  expect(response.body).toEqual({
+    success: true,
+    data: stats,
+    meta: { count: stats.total },
+  })
 })
 
 test.each([
