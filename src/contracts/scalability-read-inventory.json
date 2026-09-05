@@ -627,9 +627,9 @@
   "scale03": {
     "summary": {
       "planned": 24,
-      "complete": 18,
-      "pending": 6,
-      "changed": 14,
+      "complete": 19,
+      "pending": 5,
+      "changed": 15,
       "alreadyCompliant": 4
     },
     "entries": [
@@ -771,8 +771,21 @@
         "id": "activity-snapshot.partial-writes",
         "file": "src/services/syncUtilizadoresServices/activitySnapshot.service.ts",
         "start": "async createMonthlySnapshots(",
-        "status": "pending",
-        "reason": "Per-user snapshot writes preserve item-level failure accounting and cannot be parallelized without write-semantics proof."
+        "status": "complete",
+        "disposition": "changed",
+        "constraint": "constrained-sequential: activity reads and snapshot writes remain ordered per user with complete partial-error accounting",
+        "evidence": [
+          "tests/services/syncUtilizadores/activitySnapshotMonthly.test.ts:68-85 (N=1/10/100, peak=1 and activity -> snapshot order on success)",
+          "tests/services/syncUtilizadores/activitySnapshotMonthly.test.ts:87-108 (totalProcessed includes failed attempts and errors preserve input order)"
+        ],
+        "require": [
+          "for (const user of users)",
+          "totalProcessed++",
+          "await this.getUserActivityForMonth(user._id, plt, normalizedMonth)",
+          "await this.createSnapshot({",
+          "snapshotsCreated++",
+          "errors.push"
+        ]
       },
       {
         "id": "achievements.partial-writes",

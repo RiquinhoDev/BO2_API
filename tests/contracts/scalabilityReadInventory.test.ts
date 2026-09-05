@@ -22,16 +22,16 @@ test('SCALE-01 inventory reconciles 40 complete reads', () => {
   expect(inventory.scale02.entries).toHaveLength(11)
   expect(run()).toContain('40 complete / 0 pending')
   expect(run()).toContain('SCALE-02 11 complete / 0 pending')
-  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 18, pending: 6, changed: 14, alreadyCompliant: 4 })
+  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 19, pending: 5, changed: 15, alreadyCompliant: 4 })
   expect(inventory.scale03.entries).toHaveLength(24)
-  expect(run()).toContain('SCALE-03 18 complete / 6 pending')
+  expect(run()).toContain('SCALE-03 19 complete / 5 pending')
 })
 
 test('SCALE-03 records reviewed changes, compliance, and honest pending decisions', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(18)
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(6)
-  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(14)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(19)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(5)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(15)
   expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'already-compliant')).toHaveLength(4)
   expect(inventory.scale03.operational.status).toBe('pending')
 })
@@ -70,6 +70,22 @@ test('SCALE-03 records testimonial provider ordering and marker gating', () => {
     expect.stringContaining('partial provider failures'),
     expect.stringContaining('recent marker'),
     expect.stringContaining('local marker persistence failure'),
+  ]))
+})
+
+test('SCALE-03 records activity snapshot partial-write accounting', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  const snapshot = inventory.scale03.entries.find(({ id }: { id: string }) => id === 'activity-snapshot.partial-writes')
+
+  expect(snapshot).toMatchObject({
+    status: 'complete',
+    disposition: 'changed',
+    constraint: expect.stringMatching(/^constrained-sequential:/),
+  })
+  expect(snapshot.evidence).toEqual(expect.arrayContaining([
+    expect.stringContaining('activitySnapshotMonthly.test.ts'),
+    expect.stringContaining('N=1/10/100'),
+    expect.stringContaining('totalProcessed'),
   ]))
 })
 

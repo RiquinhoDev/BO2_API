@@ -186,6 +186,11 @@ export class ActivitySnapshotService {
     totalProcessed: number
     snapshotsCreated: number
     duration: number
+    errors: Array<{
+      userId: string
+      platform: Platform
+      error: string
+    }>
   }> {
     const startTime = Date.now()
     
@@ -196,6 +201,7 @@ export class ActivitySnapshotService {
     
     let totalProcessed = 0
     let snapshotsCreated = 0
+    const errors: Array<{ userId: string; platform: Platform; error: string }> = []
 
     for (const plt of platforms) {
       logger.info(`🔄 Processando plataforma: ${plt}`)
@@ -207,6 +213,7 @@ export class ActivitySnapshotService {
 
       // Criar snapshots
       for (const user of users) {
+        totalProcessed++
         try {
           const activity = await this.getUserActivityForMonth(user._id, plt, normalizedMonth)
           
@@ -224,10 +231,14 @@ export class ActivitySnapshotService {
           })
 
           snapshotsCreated++
-          totalProcessed++
 
         } catch (error: unknown) {
           logger.error(`❌ Erro ao criar snapshot para user ${user._id}:`, errorMessage(error))
+          errors.push({
+            userId: user._id.toString(),
+            platform: plt,
+            error: errorMessage(error),
+          })
         }
       }
     }
@@ -239,7 +250,8 @@ export class ActivitySnapshotService {
     return {
       totalProcessed,
       snapshotsCreated,
-      duration
+      duration,
+      errors,
     }
   }
 
