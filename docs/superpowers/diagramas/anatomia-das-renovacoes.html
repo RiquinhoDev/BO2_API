@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Anatomia das Renovações</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -120,6 +125,8 @@
     padding: 2.25rem 1.5rem; overflow-x: auto;
   }
   .diagram pre.mermaid { margin: 0; background: none; display: flex; justify-content: center; min-width: min-content; }
+  .diagram .mermaid svg { max-width: 100%; height: auto; }
+  .render-note { font-size: 0.78rem; color: var(--muted); margin: 0.75rem 0 0; }
   figcaption { font-size: 0.86rem; line-height: 1.65; color: var(--muted); margin-top: 1.1rem; max-width: 38rem; }
 
   .note {
@@ -149,10 +156,13 @@
   .p-ok { background: var(--ok-bg); color: var(--ok); }
   .p-leg { background: var(--legado-bg); color: var(--legado); }
   .p-div { background: var(--diverge-bg); color: var(--diverge); }
+  .p-less { background: var(--accent-soft); color: var(--accent); }
   .p-off { background: var(--off-bg); color: var(--off); }
 
   footer { margin-top: 6.5rem; padding-top: 2rem; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
 </style>
+</head>
+<body>
 
 <div class="wrap">
 
@@ -176,7 +186,7 @@
 <h2><span class="num">DIAGRAMA 1</span>O que corre todas as noites</h2>
 
 <div class="prose">
-<p>Nove passos, em sequência. Os quatro a tracejado só correm se o seu interruptor estiver ligado — hoje nenhum está. Os outros cinco já correm há meses e só lêem ou escrevem na nossa base de dados.</p>
+<p>Nove passos, em sequência. O <code>RenewalPipeline</code> inteiro só corre quando o interruptor principal está ligado — hoje está desligado. Dentro dele, quatro fases escrevem na AC e têm interruptor próprio; o Discord tem gates próprios. As timelines não são só leitura: registam a fotografia na nossa base de dados.</p>
 </div>
 
 <figure>
@@ -197,11 +207,13 @@ flowchart TD
 
     classDef leitura fill:#ffffff,stroke:#c8cdd6,stroke-width:1px,color:#1b1d22
     classDef escrita fill:#eaeff6,stroke:#2f4f7a,stroke-width:1.5px,stroke-dasharray:5 3,color:#1b1d22
-    class S1,S2,S3,S7,S8 leitura
+    classDef externo fill:#f7f0dd,stroke:#8a6a1c,stroke-width:1px,color:#1b1d22
+    class S1,S2,S3,S8 leitura
+    class S7 externo
     class S4,S5,S6,S9 escrita
 </pre>
 </div>
-<figcaption>A tracejado, os quatro passos que escrevem para fora e que têm interruptor próprio. As timelines ficam em penúltimo de propósito: só fazem sentido com os espelhos já frescos.</figcaption>
+<figcaption>A tracejado, as quatro fases que escrevem na AC e têm interruptor próprio. O Discord é externo e tem gates separados; as timelines gravam na BD. S4 e S9 partilham a guarda <code>AcExpirationSync</code>.</figcaption>
 </figure>
 
 <div class="note">
@@ -228,21 +240,25 @@ flowchart TD
 
     F -->|BASE| G["Fim do período do nome<br/>+ 12 meses × anos<br/><small>Turma 20 &#124; 2703 → 31/03/2028</small>"]
     F -->|RENOVAÇÃO| H["Data da compra<br/>+ 12 meses × anos<br/><small>comprou 06/10 → 31/10 do ano seguinte</small>"]
+    F -->|Turma 1/2 especial| H0["Regra da linhagem especial<br/><small>código da oferta prevalece</small>"]
 
     G --> I{"É menor do que<br/>o que a AC já tem?"}
     H --> I
+    H0 --> I
     I -->|sim| J["NÃO ESCREVE<br/><small>nunca encurtamos</small>"]
-    I -->|não| K["Escreve a <b>Data de expiração</b>"]
+    I -->|não| K{"É evento novo,<br/>expiração vazia ou manual?"}
+    K -->|não| L["SÓ REPORTA<br/><small>divergente sem escrita</small>"]
+    K -->|sim| M["Escreve a <b>Data de expiração</b>"]
 
     classDef ok fill:#e9f2ec,stroke:#2f6f4f,color:#1b1d22
     classDef stop fill:#f8eae7,stroke:#a03a2c,color:#1b1d22
     classDef calc fill:#eaeff6,stroke:#2f4f7a,color:#1b1d22
-    class K ok
-    class D,J stop
-    class G,H calc
+    class M ok
+    class D,J,L stop
+    class G,H,H0 calc
 </pre>
 </div>
-<figcaption>A turma decide qual das duas regras se aplica. A oferta da compra só entra quando o aluno ainda não foi colocado — a janela entre comprar e ser colocado.</figcaption>
+<figcaption>A turma decide qual das duas regras se aplica; a oferta só é fallback enquanto o aluno ainda não foi colocado. As linhagens especiais da Turma 1/2 são a exceção documentada. Mesmo com um valor calculado, só há escrita por evento novo, expiração vazia ou seleção manual.</figcaption>
 </figure>
 
 <div class="note">
@@ -259,7 +275,7 @@ flowchart TD
 <h2><span class="num">DIAGRAMA 3</span>Onde é que o aluno fica</h2>
 
 <div class="prose">
-<p>Uma compra base e uma renovação seguem caminhos diferentes. A base é colocada de imediato; a renovação passa por uma sala de espera.</p>
+<p>Uma compra base e uma renovação seguem caminhos diferentes. A base é colocada de imediato; a renovação passa por uma sala de espera. Este é o percurso operacional vindo da Hotmart/CursEduca — o <code>RenewalPipeline</code> não move alunos entre turmas: observa a turma actual e decide as escritas permitidas.</p>
 </div>
 
 <figure>
@@ -289,7 +305,7 @@ flowchart TD
     class H,I excep
 </pre>
 </div>
-<figcaption>As duas linhagens a vermelho são as únicas excepções que sobram. Têm preço próprio: apanhá-las num movimento em massa seria erro de facturação, não cosmético.</figcaption>
+<figcaption>As duas linhagens a vermelho são as únicas excepções que sobram. Têm preço próprio: apanhá-las num movimento em massa seria erro de facturação, não cosmético. A colocação é fonte externa; o pipeline apenas a lê.</figcaption>
 </figure>
 
 <div class="note">
@@ -306,33 +322,36 @@ flowchart TD
 
 <figure>
 <div class="diagram">
-<pre class="mermaid">
-flowchart TD
-    A["Aluno colocado numa turma"] --> B{"Está activo?"}
-    B -->|não| C["Ignora<br/><small>14 alunos hoje</small>"]
-    B -->|sim| D{"Tem compra válida,<br/>não reembolsada?"}
-    D -->|não| E["Ignora<br/><small>11 alunos hoje</small>"]
-    D -->|sim| F{"A turma está na<br/>tabela de excepções?"}
-    F -->|sim| G["Usa a excepção"]
-    F -->|não| H{"A convenção<br/>resolve o nome?"}
-    H -->|não| I["RECUSA<br/><small>Equipa, genérica, agrupadas</small>"]
-    H -->|sim| J["Nome pela convenção"]
-    G --> K{"Essa tag existe<br/>mesmo na AC?"}
-    J --> K
-    K -->|não| L["RECUSA<br/><small>nunca cria uma tag</small>"]
-    K -->|sim| M{"O aluno já a tem?"}
-    M -->|sim| N["Nada a fazer<br/><small>902 alunos hoje</small>"]
-    M -->|não| O["Aplica"]
+  <pre class="mermaid">
+  flowchart TD
+      A["Aluno colocado numa turma"] --> B{"Está activo?"}
+      B -->|não| C["Ignora<br/><small>14 alunos hoje</small>"]
+      B -->|sim| D{"Tem compra válida,<br/>não reembolsada?"}
+      D -->|não| E["Ignora<br/><small>11 alunos hoje</small>"]
+      D -->|sim| F{"A turma está na<br/>tabela de excepções?"}
+      F -->|sim| G["Usa a excepção"]
+      F -->|não| H{"A convenção<br/>resolve o nome?"}
+      H -->|não| I["RECUSA<br/><small>Equipa, genérica, agrupadas</small>"]
+      H -->|sim| J["Nome pela convenção"]
+      G --> K["Nome da tag"]
+      J --> K
+      K --> L{"Tem contacto<br/>na AC?"}
+      L -->|não| M["RECUSA<br/><small>semContacto</small>"]
+      L -->|sim| N{"Essa tag existe<br/>mesmo na AC?"}
+      N -->|não| O["RECUSA<br/><small>nunca cria uma tag</small>"]
+      N -->|sim| P{"O aluno já a tem?"}
+      P -->|sim| Q["Nada a fazer<br/><small>902 alunos hoje</small>"]
+      P -->|não| R["Aplica"]
 
     classDef stop fill:#f8eae7,stroke:#a03a2c,color:#1b1d22
     classDef skip fill:#eef0f3,stroke:#6b7280,color:#1b1d22
     classDef ok fill:#e9f2ec,stroke:#2f6f4f,color:#1b1d22
-    class I,L stop
-    class C,E,N skip
-    class O ok
+      class I,M,O stop
+      class C,E,Q skip
+      class R ok
 </pre>
 </div>
-<figcaption>Cinco guardas antes de qualquer escrita. Correndo hoje contra produção, este caminho aplicaria <strong>zero</strong> tags — porque 902 alunos já as têm e os restantes estão correctamente excluídos.</figcaption>
+<figcaption>Seis guardas antes de qualquer escrita: activo, compra válida, resolução da turma, contacto na AC, tag existente e ausência da tag no aluno. Estado <code>combined.status</code> ausente não é presumido activo: fica fora até a causa ser corrigida. Correndo hoje contra produção, este caminho aplicaria <strong>zero</strong> tags — porque 902 alunos já as têm e os restantes estão correctamente excluídos.</figcaption>
 </figure>
 
 <div class="tw">
@@ -343,6 +362,7 @@ flowchart TD
     <tr><td>Inactivo</td><td class="n">14</td><td>Perderam o acesso a 31/07; não se tagam</td></tr>
     <tr><td>Sem compra válida</td><td class="n">11</td><td>Reembolsados ou sem compras; tagá-los inventaria alunos</td></tr>
     <tr><td>Turma sem tag possível</td><td class="n">3</td><td>Equipa, genérica, turma agrupada</td></tr>
+    <tr><td>Sem contacto na AC</td><td class="n">—</td><td>Guarda operacional; não isolado na fotografia</td></tr>
     <tr><td><strong>A aplicar</strong></td><td class="n"><strong>0</strong></td><td>—</td></tr>
   </tbody>
 </table>
@@ -351,7 +371,7 @@ flowchart TD
 <h2><span class="num">DIAGRAMA 5</span>Reembolsos</h2>
 
 <div class="prose">
-<p>O sistema faz duas coisas e nenhuma mais: tira a tag da turma <em>do ciclo que foi reembolsado</em> e marca o produto do aluno na nossa base de dados. <strong>Não inactiva ninguém</strong> — a inactivação continua a ser decisão humana.</p>
+<p>O sistema faz duas coisas e nenhuma mais: tira a tag da turma <em>do ciclo/coortes que foi reembolsado</em> e marca o produto do aluno na nossa base de dados. <strong>Não inactiva ninguém</strong> — a inactivação continua a ser decisão humana.</p>
 </div>
 
 <figure>
@@ -359,12 +379,12 @@ flowchart TD
 <pre class="mermaid">
 flowchart TD
     A["Venda REFUNDED<br/>ou CHARGEBACK"] --> B["Encontra o ciclo<br/>dessa transacção"]
-    B --> C{"Há compra válida<br/>no MESMO período,<br/>depois do reembolso?"}
+    B --> C{"Há recompra válida<br/>no MESMO período<br/>e ainda é a mais recente?"}
     C -->|sim| D["PROTEGIDO<br/><small>voltou a comprar · 2 alunos hoje</small>"]
     C -->|não| E["Marca o produto<br/>como reembolsado na BD"]
     E --> F{"Tem a tag desse ciclo?"}
     F -->|não| G["Nada a remover<br/><small>9 casos hoje</small>"]
-    F -->|sim| H["Remove só a tag<br/>desse ciclo<br/><small>11 alunos hoje</small>"]
+    F -->|sim| H["Remove só as tags<br/>desse ciclo/coortes<br/><small>11 alunos hoje</small>"]
 
     classDef ok fill:#e9f2ec,stroke:#2f6f4f,color:#1b1d22
     classDef skip fill:#eef0f3,stroke:#6b7280,color:#1b1d22
@@ -374,7 +394,7 @@ flowchart TD
     class E,H act
 </pre>
 </div>
-<figcaption>A tag removida é a do ciclo reembolsado, não a da turma onde o aluno está hoje. Quem foi reembolsado em Setembro e comprou outra vez em Novembro perde a tag de Setembro e mantém a de Novembro.</figcaption>
+<figcaption>A tag removida é a do ciclo reembolsado, não a da turma onde o aluno está hoje. Quem foi reembolsado em Setembro e comprou outra vez em Novembro perde as tags/coortes de Setembro e mantém as de Novembro.</figcaption>
 </figure>
 
 <div class="note">
@@ -385,29 +405,44 @@ flowchart TD
 <h2><span class="num">DIAGRAMA 6</span>Como o painel julga cada aluno</h2>
 
 <div class="prose">
-<p>Todas as noites o sistema reconstrói a história de cada aluno e compara quatro elos. Cada elo compara-se com o que está <em>acima</em> dele na hierarquia — nunca abaixo.</p>
+<p>Todas as noites o sistema reconstrói a história de cada aluno e calcula comparações independentes. Não é uma cadeia linear de quatro elos: compra, expiração, turma, tag, abertura da turma, anos de acesso e ciclos/coortes são confrontados com as fontes que realmente os explicam.</p>
 </div>
 
 <figure>
 <div class="diagram">
 <pre class="mermaid">
-flowchart LR
-    A["Vendas<br/>Hotmart"] -->|"elo 1"| B["<b>Data da compra</b><br/><small>ActiveCampaign</small>"]
-    B -->|"elo 2"| C["<b>Data de expiração</b><br/><small>ActiveCampaign</small>"]
-    C -->|"elo 3"| D["Turma"]
-    D -->|"elo 4"| E["Tag"]
+  flowchart TD
+      A["Vendas<br/>Hotmart"]
+      B["<b>Data da compra</b><br/><small>AC · campo 334</small>"]
+      C["<b>Data de expiração</b><br/><small>AC · campo 332</small>"]
+      D["Turmas<br/><small>histórico + actual</small>"]
+      E["Tags da turma<br/><small>AC</small>"]
+      F["Compra → abertura"]
+      G["Anos comprados → turma"]
+      H["Ciclos/coortes → turmas"]
 
-    classDef verdade fill:#eaeff6,stroke:#2f4f7a,stroke-width:2px,color:#1b1d22
-    classDef elo fill:#ffffff,stroke:#c8cdd6,color:#1b1d22
-    class A verdade
-    class B,C,D,E elo
+      A -->|"compara"| B
+      A -->|"regra de acesso"| C
+      D -->|"origem actual"| C
+      D -->|"percurso"| E
+      A --> F
+      D --> F
+      A --> G
+      D --> G
+      A --> H
+      D --> H
+
+      classDef verdade fill:#eaeff6,stroke:#2f4f7a,stroke-width:2px,color:#1b1d22
+      classDef elo fill:#ffffff,stroke:#c8cdd6,color:#1b1d22
+      class A verdade
+      class B,C,D,E,F,G,H elo
 </pre>
 </div>
-<figcaption>A Hotmart é a origem. Um elo que não bate diz-nos onde a cadeia partiu, não que o aluno esteja errado.</figcaption>
+<figcaption>A Hotmart é a origem das compras; a AC fornece os campos espelho e as tags; a CursEduca fornece a turma. Cada comparação pode resultar em <em>ok</em>, <em>legado</em>, <em>divergente</em>, <em>a-menos</em> ou <em>sem dados</em>.</figcaption>
 </figure>
 
 <div class="prose">
-<h3>Os quatro veredictos</h3>
+<h3>Os cinco veredictos</h3>
 </div>
 
 <div class="tw">
@@ -417,6 +452,7 @@ flowchart LR
     <tr><td><span class="pill p-ok">ok</span></td><td>O elo bate</td><td class="n">710</td></tr>
     <tr><td><span class="pill p-leg">legado</span></td><td>Diverge por causa conhecida e aceite — a coorte a funcionar como desenhada. Informação, não trabalho.</td><td class="n">84</td></tr>
     <tr><td><span class="pill p-div">divergente</span></td><td>Diverge sem explicação. É uma lista de trabalho.</td><td class="n">2</td></tr>
+    <tr><td><span class="pill p-less">a-menos</span></td><td>A duração calculada é maior do que a guardada na AC. Exige distinguir arredondamento de perda real.</td><td class="n">—</td></tr>
     <tr><td><span class="pill p-off">sem dados</span></td><td>Falta a informação para julgar</td><td class="n">17</td></tr>
   </tbody>
 </table>
@@ -430,7 +466,7 @@ flowchart LR
 <h2><span class="num">DIAGRAMA 7</span>Quando é que uma divergência é aceitável</h2>
 
 <div class="prose">
-<p>Nem toda a diferença entre o mês da compra e o mês da turma é um erro. Duas situações são normais e o sistema tem de as reconhecer, senão enche o painel de alarmes que ninguém pode resolver.</p>
+<p>Nem toda a diferença entre o mês da compra e o mês da turma é um erro. Duas situações são normais e o sistema tem de as reconhecer, senão enche o painel de alarmes que ninguém pode resolver. A janela é medida em <strong>dias</strong> — nunca em meses.</p>
 </div>
 
 <figure>
@@ -438,9 +474,9 @@ flowchart LR
 <pre class="mermaid">
 flowchart TD
     A["O mês da compra é diferente<br/>do mês da turma"] --> B{"Existia turma de renovação<br/>no mês da compra?"}
-    B -->|não| C["ACEITE<br/><small>colocação forçada · Abril de 2026 não teve turma</small>"]
+    B -->|não| C["LEGADO<br/><small>colocação forçada · Abril de 2026 não teve turma</small>"]
     B -->|sim| D{"A compra caiu a poucos dias<br/>da fronteira do mês?"}
-    D -->|sim| E["ACEITE<br/><small>janela da campanha</small>"]
+    D -->|sim| E["LEGADO<br/><small>janela da campanha · dias, não meses</small>"]
     D -->|não| F["DIVERGENTE<br/><small>colocação a rever</small>"]
 
     classDef ok fill:#e9f2ec,stroke:#2f6f4f,color:#1b1d22
@@ -455,12 +491,13 @@ flowchart TD
 <div class="note">
 <span class="label">A COLOCAÇÃO SEGUE A CAMPANHA, NÃO O CALENDÁRIO</span>
 <p>Quem compra nos últimos dias do mês entra na turma seguinte; quem compra no dia 1 entra na anterior. Isto não estava escrito em lado nenhum — descobriu-se ao medir, quando 24, 26, 27 e 28 de Fevereiro foram todos para a turma de Março, e três compras de 1 de Março foram para a de Fevereiro.</p>
+<p>A tolerância operacional é uma janela em dias (configuração actual: cinco; a sensibilidade deve ser lida a 3, 5 e 7), nunca uma aproximação de um mês.</p>
 </div>
 
-<h2><span class="num">DIAGRAMA 8</span>O que o sistema nunca faz</h2>
+<h2><span class="num">DIAGRAMA 8</span>O que o núcleo de renovações nunca faz</h2>
 
 <div class="prose">
-<p>Tão importante como o que faz. Cada uma destas linhas foi escrita depois de um incidente concreto.</p>
+<p>Tão importante como o que faz. Cada uma destas linhas foi escrita depois de um incidente concreto. O âmbito aqui é o núcleo de renovações; as regras globais de tags, o Discord e a pré-criação de tags têm controlos próprios.</p>
 </div>
 
 <figure>
@@ -469,12 +506,12 @@ flowchart TD
 flowchart TD
     A(["O sistema NUNCA"])
     A --> B["escreve na Hotmart<br/><small>é gerida à mão</small>"]
-    A --> C["encurta o acesso de alguém<br/><small>só um humano o pode fazer</small>"]
-    A --> D["cria uma tag nova na AC<br/><small>se não existe, recusa</small>"]
-    A --> E["remove uma tag<br/>fora de um reembolso"]
+    A --> C["encurta o campo 332<br/><small>nunca reduzimos a expiração</small>"]
+    A --> D["cria uma tag de percurso na AC<br/><small>se não existe, recusa</small>"]
+    A --> E["remove uma tag de percurso sem plano<br/><small>só troca de turma planeada ou reversão aprovada</small>"]
     A --> F["inactiva um aluno<br/><small>continua a ser decisão humana</small>"]
     A --> G["toca na <b>Data da 1ª compra</b><br/><small>nunca, sem autorização</small>"]
-    A --> H["escreve sem deixar rasto<br/><small>valor anterior sempre gravado</small>"]
+    A --> H["escreve na AC sem deixar rasto<br/><small>valor anterior sempre gravado</small>"]
 
     classDef never fill:#f8eae7,stroke:#a03a2c,color:#1b1d22
     classDef root fill:#1b1d22,stroke:#1b1d22,color:#ffffff
@@ -482,14 +519,14 @@ flowchart TD
     class A root
 </pre>
 </div>
-<figcaption>A última é a que torna todas as outras verificáveis: cada escrita, e cada recusa, fica gravada com o valor anterior.</figcaption>
+<figcaption>A última é a que torna as escritas desta cadeia verificáveis: cada escrita AC, e cada recusa, fica gravada com o valor anterior. Isto não descreve o <code>TAG_RULES_SYNC</code>, o Discord nem a pré-criação global de tags.</figcaption>
 </figure>
 
 <h2><span class="num">ESTADO</span>O que falta para ligar</h2>
 
 <div class="prose">
-<p>Do lado do desenvolvimento, nada. A cadeia mede bem, os três passos que a chefia definiu estão construídos e testados, e os ensaios contra a base de dados real mostram que nenhum deles aplicaria uma tag indevida nem removeria a de quem pagou.</p>
-<p><strong>Falta uma decisão:</strong> ligar os quatro interruptores.</p>
+<p>O núcleo de escritores está construído e testado, e os ensaios contra a base de dados real mostram que nenhum dos dry-runs aplicaria uma tag indevida nem removeria a de quem pagou. A vigilância e as decisões de produção continuam fora deste documento.</p>
+<p><strong>Falta uma decisão:</strong> ligar o <code>RenewalPipeline</code> e, depois, os quatro interruptores de fase. O Discord tem controlos separados.</p>
 <p>Na primeira noite, duas coisas resolvem-se sozinhas. O espelho da AC actualiza-se e os dois falsos divergentes desaparecem. E uma renovação nova passa a ter a expiração escrita na mesma noite em que a venda entra, em vez de esperar que alguém repare — como aconteceu com um aluno que renovou a 23 de Agosto e cuja ficha dizia que o acesso acabava cinco semanas depois.</p>
 </div>
 
@@ -507,3 +544,22 @@ flowchart TD
 </footer>
 
 </div>
+
+<noscript><p class="render-note">A renderização dos diagramas requer JavaScript activo.</p></noscript>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: 'strict',
+    theme: 'base',
+    flowchart: { htmlLabels: true, useMaxWidth: true },
+    themeVariables: {
+      fontFamily: 'IBM Plex Sans, system-ui, sans-serif',
+      primaryTextColor: '#1b1d22',
+      lineColor: '#6b7280',
+      textColor: '#1b1d22'
+    }
+  });
+</script>
+</body>
+</html>
