@@ -141,6 +141,56 @@ describe('ActiveCampaign operational boundary', () => {
     jest.restoreAllMocks()
   })
 
+  it('processes every active UserProduct because the manual run has no finite cap', async () => {
+    const product = { _id: { toString: () => 'product-1' }, name: 'Curso', code: 'CURSO' }
+    productFindMock.mockReturnValue({ populate: jest.fn().mockResolvedValue([product]) })
+    userProductFindMock.mockResolvedValue(Array.from({ length: 201 }, (_value, index) => ({
+      _id: `up-${index}`,
+      userId: { toString: () => `user-${index}` },
+    })))
+    evaluateMock.mockResolvedValue({ actionsExecuted: 0, errors: [] })
+    logCreateMock.mockResolvedValue(undefined)
+
+    const response = await request(appForCentralError(testCronRoute()))
+      .post('/target?__bo2_offline_loopback=1')
+      .send({})
+
+    expect(response.status).toBe(200)
+    expect(response.body.data.results).toMatchObject({
+      totalProducts: 1,
+      totalUserProducts: 201,
+      decisionsEvaluated: 201,
+    })
+    expect(evaluateMock).toHaveBeenCalledTimes(201)
+  })
+
+  it('allows concurrent manual runs to enter the same provider evaluation', async () => {
+    const product = { _id: { toString: () => 'product-1' }, name: 'Curso', code: 'CURSO' }
+    productFindMock.mockReturnValue({ populate: jest.fn().mockResolvedValue([product]) })
+    userProductFindMock.mockResolvedValue([
+      { _id: 'up-1', userId: { toString: () => 'user-1' } },
+    ])
+    let evaluations = 0
+    let release: () => void = () => undefined
+    const bothEvaluations = new Promise<void>((resolve) => { release = resolve })
+    evaluateMock.mockImplementation(async () => {
+      evaluations += 1
+      if (evaluations === 2) release()
+      await bothEvaluations
+      return { actionsExecuted: 0, errors: [] }
+    })
+    logCreateMock.mockResolvedValue(undefined)
+    const app = appForCentralError(testCronRoute())
+
+    const responses = await Promise.all([
+      request(app).post('/target?__bo2_offline_loopback=1').send({}),
+      request(app).post('/target?__bo2_offline_loopback=1').send({}),
+    ])
+
+    expect(responses.map(response => response.status)).toEqual([200, 200])
+    expect(evaluateMock).toHaveBeenCalledTimes(2)
+  })
+
   it('returns canonical read stats without changing the count query', async () => {
     countDocumentsMock.mockResolvedValue(7)
     const statsRoute: CentralErrorRoute = { kind: 'handler', handler: getStats }

@@ -299,6 +299,11 @@ export async function executeTagRulesOnly(): Promise<TagRulesOnlyResult> {
         }
       }
 
+      if (stats.failed > 0) {
+        result.success = false
+        errors.push(`Tag Rules: ${stats.failed} UserProducts falharam`)
+      }
+
       result.summary.tagsApplied = tagsApplied
       result.summary.tagsRemoved = tagsRemoved
 
