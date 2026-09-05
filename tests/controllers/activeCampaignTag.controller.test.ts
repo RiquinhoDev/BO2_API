@@ -1,5 +1,5 @@
 import { installTestRuntimeConfigHooks } from '../support/runtimeConfig'
-import express from 'express'
+import express, { type ErrorRequestHandler } from 'express'
 import request from 'supertest'
 import { withValidatedInput } from '../../src/security/validatedInput'
 import { activeCampaignTagMutationInput } from '../../src/security/activeCampaignDestructiveInput'
@@ -11,6 +11,7 @@ const mockCreateUserProduct = jest.fn()
 const mockSave = jest.fn()
 const mockFindOrCreateContact = jest.fn()
 const mockAddTag = jest.fn()
+const mockRemoveTag = jest.fn()
 
 jest.mock('../../src/models/user', () => ({
   __esModule: true,
@@ -57,6 +58,7 @@ jest.mock('../../src/services/activeCampaign/activeCampaignService', () => ({
   default: {
     findOrCreateContact: mockFindOrCreateContact,
     addTag: mockAddTag,
+    removeTag: mockRemoveTag,
   },
 }))
 
@@ -65,7 +67,10 @@ jest.mock('../../src/services/activeCampaign/decisionEngine.service', () => ({
   default: {},
 }))
 
-import { applyTagToUserProduct } from '../../src/controllers/acTags/activeCampaignProductTags.controller'
+import {
+  applyTagToUserProduct,
+  removeTagFromUserProduct,
+} from '../../src/controllers/acTags/activeCampaignProductTags.controller'
 
 installTestRuntimeConfigHooks()
 
@@ -155,4 +160,46 @@ it('creates a missing UserProduct with canonical status and progress', async () 
     status: 'ACTIVE',
     progress: { percentage: 0 },
   })
+})
+
+it('does not persist local removal when ActiveCampaign rejects the provider delete', async () => {
+  jest.clearAllMocks()
+  const userId = '507f1f77bcf86cd799439011'
+  const productId = '507f191e810c19729de860ea'
+  const userProduct = {
+    activeCampaignData: { tags: ['COURSE - Active'] },
+    save: mockSave,
+  }
+
+  mockFindUserProduct.mockResolvedValue(userProduct)
+  mockFindUserById.mockResolvedValue({ email: 'student@example.test' })
+  mockFindOrCreateContact.mockResolvedValue({ id: 'contact-1' })
+  mockRemoveTag.mockResolvedValue(false)
+
+  let capturedError: unknown
+  const captureError: ErrorRequestHandler = (error, _req, res, next) => {
+    void next
+    capturedError = error
+    res.status(500).end()
+  }
+  const app = express()
+  app.use(express.json())
+  app.post(
+    '/remove',
+    withValidatedInput(
+      activeCampaignTagMutationInput,
+      (input, req, res, next) => removeTagFromUserProduct(input, req, res, next),
+    ),
+  )
+  app.use(captureError)
+
+  const response = await request(app)
+    .post('/remove?__bo2_offline_loopback=1')
+    .send({ userId, productId, tagName: 'COURSE - Active' })
+
+  expect(response.status).toBe(500)
+  expect(capturedError).toMatchObject({
+    code: 'AC_PRODUCT_TAG_REMOVE_FAILED',
+  })
+  expect(mockSave).not.toHaveBeenCalled()
 })

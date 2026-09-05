@@ -164,7 +164,15 @@ export const removeTagFromUserProduct = async (
     await activeCampaignService.findOrCreateContact(user.email)
 
     // ✅ REMOVER TAG DIRETAMENTE (sem adicionar prefixo!)
-    await activeCampaignService.removeTag(user.email, tagName)  // ← SEM PREFIXO!
+    const removed = await activeCampaignService.removeTag(user.email, tagName)  // ← SEM PREFIXO!
+    if (!removed) {
+      next(internalError(
+        'Erro ao remover tag',
+        'AC_PRODUCT_TAG_REMOVE_FAILED',
+        new Error('ActiveCampaign não confirmou a remoção da tag'),
+      ))
+      return
+    }
 
     userProduct.activeCampaignData.tags = (userProduct.activeCampaignData.tags || []).filter(
       (t: string) => t !== tagName  // ← SEM PREFIXO!

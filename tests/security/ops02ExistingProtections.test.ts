@@ -106,7 +106,7 @@ describe('OPS-02 existing protection evidence', () => {
 
     expect(result.killSwitch).toEqual({
       status: 'required',
-      reason: 'provider-kill-switch-unverified',
+      reason: 'activecampaign-product-tag-no-kill-switch',
     })
   })
 })

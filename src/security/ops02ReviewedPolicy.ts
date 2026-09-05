@@ -201,6 +201,40 @@ function clarezaStaticUniverseCap(limit: number): ReviewedProtection {
 
 const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
   [
+    'POST /api/activecampaign/product-tags/apply',
+    {
+      idempotency: {
+        status: 'required',
+        reason: 'activecampaign-product-tag-apply-check-then-write-not-atomic',
+      },
+      killSwitch: { status: 'required', reason: 'activecampaign-product-tag-no-kill-switch' },
+      dryRun: { status: 'required', reason: 'activecampaign-product-tag-no-dry-run' },
+    },
+  ],
+  [
+    'POST /api/activecampaign/product-tags/remove',
+    {
+      idempotency: {
+        status: 'required',
+        reason: 'activecampaign-product-tag-remove-check-then-delete-not-atomic',
+      },
+      killSwitch: { status: 'required', reason: 'activecampaign-product-tag-no-kill-switch' },
+      dryRun: { status: 'required', reason: 'activecampaign-product-tag-no-dry-run' },
+    },
+  ],
+  [
+    'POST /api/activecampaign/products/:productId/tags/sync',
+    {
+      cap: { status: 'required', reason: 'activecampaign-product-tag-sync-no-finite-cap' },
+      idempotency: {
+        status: 'required',
+        reason: 'activecampaign-product-tag-sync-contact-get-then-create-not-atomic',
+      },
+      killSwitch: { status: 'required', reason: 'activecampaign-product-tag-no-kill-switch' },
+      dryRun: { status: 'required', reason: 'activecampaign-product-tag-no-dry-run' },
+    },
+  ],
+  [
     'POST /api/clareza/refresh',
     {
       cap: clarezaStaticUniverseCap(183),

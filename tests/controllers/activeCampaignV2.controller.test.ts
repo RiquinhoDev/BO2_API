@@ -132,3 +132,66 @@ it('fails a sync item without calling ActiveCampaign when its user has no email'
   expect(mockFindOrCreateContact).not.toHaveBeenCalled()
   expect(mockFindByIdAndUpdate).not.toHaveBeenCalled()
 })
+
+it('continues product sync after a provider failure and reports partial results', async () => {
+  mockFindUserProducts.mockReturnValue(populatedQuery([
+    {
+      _id: '507f1f77bcf86cd799439011',
+      userId: { _id: '507f1f77bcf86cd799439012', email: 'failed@example.test' },
+    },
+    {
+      _id: '507f1f77bcf86cd799439013',
+      userId: { _id: '507f1f77bcf86cd799439014', email: 'ok@example.test' },
+    },
+  ]))
+  mockFindOrCreateContact
+    .mockRejectedValueOnce(new Error('provider unavailable'))
+    .mockResolvedValueOnce({ id: 'contact-2' })
+  mockFindByIdAndUpdate.mockResolvedValue(undefined)
+
+  const app = express()
+  app.use(express.json())
+  app.post(
+    '/sync/:productId',
+    withValidatedInput(
+      activeCampaignProductSyncInput,
+      (input, req, res, next) => syncProductTags(input, req, res, next),
+    ),
+  )
+
+  const response = await request(app)
+    .post('/sync/507f191e810c19729de860ea?__bo2_offline_loopback=1')
+    .send({})
+
+  expect(response.status).toBe(200)
+  expect(response.body.data).toMatchObject({ synced: 1, failed: 1 })
+  expect(mockFindByIdAndUpdate).toHaveBeenCalledTimes(1)
+})
+
+it('has no service-side finite cap for product sync', async () => {
+  const rows = Array.from({ length: 201 }, (_value, index) => ({
+    _id: `507f1f77bcf86cd7994390${String(index).padStart(2, '0')}`,
+    userId: { _id: `507f1f77bcf86cd7994391${String(index).padStart(2, '0')}`, email: `user-${index}@example.test` },
+  }))
+  mockFindUserProducts.mockReturnValue(populatedQuery(rows))
+  mockFindOrCreateContact.mockResolvedValue({ id: 'contact-1' })
+  mockFindByIdAndUpdate.mockResolvedValue(undefined)
+
+  const app = express()
+  app.use(express.json())
+  app.post(
+    '/sync/:productId',
+    withValidatedInput(
+      activeCampaignProductSyncInput,
+      (input, req, res, next) => syncProductTags(input, req, res, next),
+    ),
+  )
+
+  const response = await request(app)
+    .post('/sync/507f191e810c19729de860ea?__bo2_offline_loopback=1')
+    .send({})
+
+  expect(response.status).toBe(200)
+  expect(response.body.data).toMatchObject({ synced: 201, failed: 0 })
+  expect(mockFindOrCreateContact).toHaveBeenCalledTimes(201)
+})
