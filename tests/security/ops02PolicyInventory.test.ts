@@ -15,7 +15,6 @@ const callerBulkRoutes: readonly [string, string][] = [
   ['POST', '/api/users/bulkDelete'],
   ['POST', '/api/users/bulkDeleteUnmatched'],
   ['POST', '/api/guru/inactivation/mark-discrepancies'],
-  ['POST', '/api/guru/inactivation/bulk'],
   ['POST', '/api/guru/inactivation/cleanup-duplicates'],
   ['POST', '/api/guru/inactivation/mark-stale-inactive'],
   ['POST', '/api/guru/inactivation/restore'],

@@ -134,6 +134,7 @@ export const createGuruExternalInactivationService = (
             success: true,
           })
         } else {
+          await repository.recordFailure(enrollment.id, now(), remote.error)
           result.failed += 1
           result.details.push({
             userProductId: enrollment.id,
@@ -145,12 +146,14 @@ export const createGuruExternalInactivationService = (
         }
         await sleep(500)
       } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
+        await repository.recordFailure(enrollment.id, now(), message)
         result.failed += 1
         result.details.push({
           userProductId: enrollment.id,
           email: enrollment.email,
           success: false,
-          error: error instanceof Error ? error.message : String(error),
+          error: message,
         })
       }
     }

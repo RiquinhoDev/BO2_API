@@ -416,6 +416,29 @@ const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
     },
   ],
   [
+    'POST /api/guru/inactivation/single',
+    {
+      idempotency: {
+        status: 'required',
+        reason: 'curseduca-inactivation-single-replay-repeats-provider-call',
+      },
+      killSwitch: { status: 'required', reason: 'curseduca-inactivation-no-kill-switch' },
+      dryRun: { status: 'required', reason: 'curseduca-inactivation-no-dry-run' },
+    },
+  ],
+  [
+    'POST /api/guru/inactivation/bulk',
+    {
+      cap: { status: 'required', reason: 'curseduca-inactivation-all-mode-no-finite-cap' },
+      idempotency: {
+        status: 'required',
+        reason: 'curseduca-inactivation-bulk-replay-repeats-provider-call',
+      },
+      killSwitch: { status: 'required', reason: 'curseduca-inactivation-no-kill-switch' },
+      dryRun: { status: 'required', reason: 'curseduca-inactivation-no-dry-run' },
+    },
+  ],
+  [
     'POST /api/discord-renewal/messages/send',
     {
       idempotency: { status: 'required', reason: 'manual-message-no-idempotency-key' },
