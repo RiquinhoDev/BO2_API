@@ -632,12 +632,12 @@
   {
     "method": "POST",
     "path": "/api/tags/evaluate",
-    "policy": "P:activecampaign"
+    "policy": "I"
   },
   {
     "method": "POST",
     "path": "/api/tags/evaluate-batch",
-    "policy": "PB:activecampaign"
+    "policy": "I"
   },
   {
     "method": "POST",

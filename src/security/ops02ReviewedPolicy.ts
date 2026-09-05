@@ -5,6 +5,7 @@ export type ReviewedLocalAuthorization = 'internal-write' | 'super-admin'
 export interface ReviewedLocalPolicy {
   scope: 'internal'
   authorization: ReviewedLocalAuthorization
+  bulk?: boolean
 }
 
 export interface ReviewedProviderPolicy {
@@ -78,6 +79,14 @@ const REVIEWED_LOCAL_POLICY = new Map<string, ReviewedLocalPolicy>([
   [
     'POST /api/users/syncDiscordAndHotmart',
     { scope: 'internal', authorization: 'super-admin' },
+  ],
+  [
+    'POST /api/tags/evaluate',
+    { scope: 'internal', authorization: 'super-admin', bulk: false },
+  ],
+  [
+    'POST /api/tags/evaluate-batch',
+    { scope: 'internal', authorization: 'super-admin', bulk: true },
   ],
 ])
 
@@ -398,6 +407,12 @@ const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
       },
       killSwitch: { status: 'verified', reason: 'RENEWAL_AC_RUNTIME_SWITCHES' },
       dryRun: { status: 'not-applicable', reason: 'single-recorded-reversal' },
+    },
+  ],
+  [
+    'POST /api/tags/evaluate-batch',
+    {
+      cap: { status: 'verified', reason: 'tag-evaluation-max-users', limit: 100 },
     },
   ],
 ])

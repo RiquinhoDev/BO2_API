@@ -138,7 +138,8 @@ function expandCompactDecision(value: unknown): Ops02Decision {
     ? undefined
     : reviewedProviderPolicy?.provider ?? compact.provider
 
-  const bulk = reviewedProviderPolicy?.bulk
+  const bulk = reviewedLocalPolicy?.bulk
+    ?? reviewedProviderPolicy?.bulk
     ?? (providerFamilyBulk || configuredBulkLimit !== undefined)
 
   const defaultCap = configuredBulkLimit !== undefined

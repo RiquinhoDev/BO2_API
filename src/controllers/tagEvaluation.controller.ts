@@ -4,7 +4,7 @@
 // ══════════════════════════════════════════════════════════════════════
 
 import logger from '../utils/logger'
-import { NextFunction, Request, Response } from 'express'
+import { NextFunction } from 'express'
 import mongoose from 'mongoose'
 import User from '../models/user'
 import { UserProduct } from '../models'
@@ -26,6 +26,23 @@ import {
 
 interface EvaluateTagsRequestLike {
   body: EvaluateTagsRequest
+}
+
+interface EvaluateTagsBatchRequestLike {
+  body: {
+    userIds?: string[]
+    emails?: string[]
+    limit?: number
+    dryRun?: boolean
+    updateLocalDB?: boolean
+    includeDebugInfo?: boolean
+  }
+}
+
+interface EvaluateTagsBatchResponseLike {
+  status(code: number): {
+    json(data: unknown): unknown
+  }
 }
 
 type EvaluateTagsSuccessBody = SuccessResponse<
@@ -291,7 +308,11 @@ export const evaluateTags = async (
  * POST /api/tags/evaluate-batch
  * Avalia tags para múltiplos utilizadores.
  */
-export const evaluateTagsBatch = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const evaluateTagsBatch = async (
+  req: EvaluateTagsBatchRequestLike,
+  res: EvaluateTagsBatchResponseLike,
+  next: NextFunction,
+): Promise<void> => {
   const startTime = Date.now()
 
   try {
