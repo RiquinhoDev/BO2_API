@@ -57,6 +57,13 @@ type DetailUpdate = {
   $set: {
     notificationId: string
     email: string
+    userName?: string
+    product?: string
+    class?: string
+    currentTags?: string[]
+  }
+  $setOnInsert?: {
+    detectedAt: Date
   }
 }
 
@@ -234,6 +241,45 @@ test('replay retries the notification link after an update failure', async () =>
   expect(mockDetailFindOneAndUpdate).toHaveBeenCalledTimes(2)
   expect(mockNotificationFindByIdAndUpdate).toHaveBeenCalledTimes(2)
   expect(notification.detailsIds).toEqual(['detail-1'])
+})
+
+test('replay preserves the original detail detectedAt', async () => {
+  const notification: FakeNotification = { _id: 'notification-1', detailsIds: [] }
+  const detectedAt = new Date('2026-09-01T09:00:00.000Z')
+  const detail = {
+    _id: 'detail-1',
+    notificationId: notification._id,
+    detectedAt,
+  }
+
+  mockNotificationFindOne.mockResolvedValue(notification)
+  mockDetailFindOneAndUpdate.mockImplementation(async (
+    _filter: DetailFilter,
+    update: DetailUpdate,
+  ) => {
+    Object.assign(detail, update.$set)
+    return detail
+  })
+  mockNotificationFindByIdAndUpdate.mockImplementation(async (
+    _id: string,
+    update: { $set: { detailsIds: string[] } },
+  ) => {
+    notification.detailsIds = update.$set.detailsIds
+    return notification
+  })
+
+  await tagNotificationService.createGroupedNotification(
+    'TAG_CRITICAL',
+    'ADDED',
+    36,
+    2026,
+    [student('student@example.test')],
+  )
+
+  const update = mockDetailFindOneAndUpdate.mock.calls[0][1] as DetailUpdate
+  expect(update.$set).not.toHaveProperty('detectedAt')
+  expect(update.$setOnInsert?.detectedAt).toEqual(expect.any(Date))
+  expect(detail.detectedAt).toBe(detectedAt)
 })
 
 describe.each([1, 10, 100])('notification detail sync N=%i', (size) => {

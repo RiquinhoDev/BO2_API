@@ -104,10 +104,10 @@ function indexFromEmail(email: string): number {
 function makeSnapshot(data: SnapshotData): FakeSnapshot {
   return {
     ...data,
-    compareWith: () => ({
-      added: ['TAG_CRITICAL'],
-      removed: [],
-      unchanged: [],
+    compareWith: (previousSnapshot: FakeSnapshot) => ({
+      added: data.nativeTags.filter(tag => !previousSnapshot.nativeTags.includes(tag)),
+      removed: previousSnapshot.nativeTags.filter(tag => !data.nativeTags.includes(tag)),
+      unchanged: data.nativeTags.filter(tag => previousSnapshot.nativeTags.includes(tag)),
     }),
   }
 }
@@ -215,7 +215,7 @@ function makeHarness(size: number, failurePlan: FailurePlan = {}) {
     return makeSnapshot({
       email,
       userId: `user-${index}`,
-      nativeTags: ['TAG_OLD'],
+      nativeTags: failurePlan.noNativeTags?.has(index) ? ['TAG_CRITICAL'] : ['TAG_OLD'],
       capturedAt: new Date('2026-08-30T00:00:00.000Z'),
       weekNumber: 1,
       year: 2026,
@@ -274,11 +274,10 @@ function expectedPerEmailEvents(
   size: number,
   failedProvider: Set<number>,
   failedSnapshot: Set<number>,
-  noNativeTags: Set<number> = new Set(),
 ): string[] {
   return Array.from({ length: size }, (_, index) => [
     `provider:${index}`,
-    ...(failedProvider.has(index) || noNativeTags.has(index) ? [] : [
+    ...(failedProvider.has(index) ? [] : [
       `user:${index}`,
       `snapshot:${index}`,
       ...(failedSnapshot.has(index) ? [] : [
@@ -347,30 +346,35 @@ describe.each([1, 10, 100])('weekly tag snapshot N=%i', (size) => {
     expect(harness.snapshotRows).toHaveLength(successfulCount)
   })
 
-  test('does not count contacts without native tags as errors', async () => {
-    const noNativeTags = new Set([0, Math.floor(size / 2)])
+  test('snapshots empty native tags and detects total removals without errors', async () => {
+    const noNativeTags = new Set([0])
     const harness = makeHarness(size, { noNativeTags })
     const successfulCount = size - noNativeTags.size
+    const changeTypes = [
+      'REMOVED',
+      ...(successfulCount > 0 ? ['ADDED'] : []),
+    ]
 
     const result = await weeklyTagMonitoringService.performWeeklySnapshot()
 
     expect(result).toMatchObject({
       success: true,
       totalStudents: size,
-      snapshotsCreated: successfulCount,
-      changesDetected: successfulCount > 0 ? 1 : 0,
-      notificationsCreated: successfulCount > 0 ? 1 : 0,
+      snapshotsCreated: size,
+      changesDetected: changeTypes.length,
+      notificationsCreated: changeTypes.length,
       errors: 0,
     })
     expect(harness.peak).toBe(1)
     expect(harness.events).toEqual([
       'provider:list',
       'critical-tags',
-      ...expectedPerEmailEvents(size, new Set(), new Set(), noNativeTags),
-      ...(successfulCount > 0 ? ['notification:TAG_CRITICAL:ADDED'] : []),
+      ...expectedPerEmailEvents(size, new Set(), new Set()),
+      ...changeTypes.map(changeType => `notification:TAG_CRITICAL:${changeType}`),
       'cleanup',
     ])
-    expect(harness.snapshotRows).toHaveLength(successfulCount)
+    expect(harness.snapshotRows).toHaveLength(size)
+    expect(harness.snapshotRows.filter(({ nativeTags }) => nativeTags.length === 0)).toHaveLength(noNativeTags.size)
   })
 
   test('replays the same week and emails without duplicate snapshots or notifications', async () => {

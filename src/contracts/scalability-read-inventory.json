@@ -882,12 +882,14 @@
         "disposition": "changed",
         "constraint": "constrained-sequential: provider reads, user reads, weekly snapshot upserts, previous comparison, grouped notifications and cleanup remain ordered; snapshot and detail identities converge on replay",
         "evidence": [
-          "tests/services/weeklyTagMonitoring.service.test.ts:291-314 (N=1/10/100, peak=1 and provider -> user -> snapshot -> previous -> notification -> cleanup order)",
-          "tests/services/weeklyTagMonitoring.service.test.ts:316-341 (N=1/10/100, partial provider/snapshot failures continue in input order and count errors)",
-          "tests/services/weeklyTagMonitoring.service.test.ts:343-361 (same-week replay: snapshotsCreated=0, notificationsCreated=0, and no duplicate rows)",
-          "tests/services/tagMonitoring/tagNotification.service.test.ts:80-133 (concurrent duplicate claim has no orphan details and converges on one notification)",
-          "tests/services/tagMonitoring/tagNotification.service.test.ts:135-237 (partial detail and notification-link failures are repaired by replay)",
-          "tests/services/tagMonitoring/tagNotification.service.test.ts:239-275 (N=1/10/100 detail upserts keep peak one)"
+          "tests/services/weeklyTagMonitoring.service.test.ts:297-321 (N=1/10/100, peak=1 and provider -> user -> snapshot -> previous -> notification -> cleanup order)",
+          "tests/services/weeklyTagMonitoring.service.test.ts:322-348 (N=1/10/100, partial provider/snapshot failures continue in input order and count errors)",
+          "tests/services/weeklyTagMonitoring.service.test.ts:349-379 (empty native-tag snapshots detect total removals and count the completed change)",
+          "tests/services/weeklyTagMonitoring.service.test.ts:380-399 (same-week replay: snapshotsCreated=0, notificationsCreated=0, and no duplicate rows)",
+          "tests/services/tagMonitoring/tagNotification.service.test.ts:87-141 (concurrent duplicate claim has no orphan details and converges on one notification)",
+          "tests/services/tagMonitoring/tagNotification.service.test.ts:142-245 (partial detail and notification-link failures are repaired by replay; incomplete rows are not counted as created)",
+          "tests/services/tagMonitoring/tagNotification.service.test.ts:246-285 (replay preserves the original detail detectedAt)",
+          "tests/services/tagMonitoring/tagNotification.service.test.ts:286-322 (N=1/10/100 detail upserts keep peak one)"
         ],
         "require": [
           "for (const email of batch)",

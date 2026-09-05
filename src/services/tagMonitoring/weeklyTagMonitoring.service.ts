@@ -239,15 +239,13 @@ class WeeklyTagMonitoringService {
 
       if (!allTags || allTags.length === 0) {
         logger.debug(`${email} não tem tags na AC`)
-        return { success: true }
       }
 
       // Classificar tags (BO vs Nativas)
-      const { nativeTags } = classifyTags(allTags)
+      const { nativeTags } = classifyTags(allTags || [])
 
       if (nativeTags.length === 0) {
         logger.debug(`${email} não tem tags nativas`)
-        return { success: true }
       }
 
       // Buscar userId

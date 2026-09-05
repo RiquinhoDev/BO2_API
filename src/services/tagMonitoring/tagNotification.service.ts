@@ -170,8 +170,8 @@ class TagNotificationService {
             product: student.product,
             class: student.class,
             currentTags: student.currentTags,
-            detectedAt: new Date(),
           },
+          $setOnInsert: { detectedAt: new Date() },
         },
         {
           new: true,
