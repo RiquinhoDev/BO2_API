@@ -8,7 +8,8 @@ O BO2_API usa npm como package manager único: `package.json` fixa `npm@11.9.0`,
 
 ## Active
 
-- [Plano de endurecimento](HARDENING-WORKPLAN.md) — backlog, guardas e critérios de trabalho atuais.
+- [Plano de endurecimento](HARDENING-WORKPLAN.md) — backlog, guardas e critérios atuais; checkpoint de
+  código/gates BO2_API verificado em 2026-09-05, com Docker/Railway, BD temporária e QA live ainda pendentes.
 - [Checklist pré-deploy](PRE_DEPLOY_CHECKLIST.md) — verificação operacional antes de uma publicação.
 - [Plano de renovação](RENEWAL_PLAN.md) — plano de produto com fases ainda em acompanhamento.
 - [Rotação urgente de chaves](active/URGENT_KEY_REPLACEMENT.md) — ação operacional ainda pendente; rotacionar fora do ciclo de refactor.

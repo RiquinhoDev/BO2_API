@@ -1218,8 +1218,25 @@ linha curta no ledger ativo. Plano + spec + relatório extenso ficam reservados 
 dados, operações destrutivas, mudanças de contrato e às superfícies de alto risco da Task 9. Não criar um
 novo documento quando este workplan ou o plano ativo puder receber a decisão de forma concisa.
 
-O desenvolvimento offline continua até `112/112`. A validação real acontece depois, numa janela de fim de
-semana, com stack legacy e stack `remake` em URLs distintas e promoção manual por três vagas:
+#### Checkpoint verificável — 2026-09-05 — BO2_API `remake`
+
+**Estado:** code-complete e gate-complete para o escopo atual; **não operacionalmente fechado**. O HEAD de
+código verificado antes deste registo foi `808a7bb0` (`test(security): align probes with route auth`).
+
+- Jest offline correto, com `RESPONSE_CONTRACT_FRONT_ROOT` apontado ao Front real: **469 suites passed / 2
+  skipped** e **2950 testes passed / 12 skipped**.
+- Gates frescos: `types:check`, `build`, `lint`, `routes:catalog:check` (**409** identidades),
+  `contracts:responses:check` (**409 decisions / 213 Front calls / 188 consumers**),
+  `scalability:reads:check` (**SCALE-01 40 complete / 0 pending; SCALE-02 11 / 0; SCALE-03 14 / 10
+  pending**) e `git diff --check`: todos **PASS**.
+- Inventário de fonte manuscrita em `src/`: **0 ficheiros acima de 500 linhas físicas**.
+- Warnings não bloqueantes observados nos testes: índices Mongoose duplicados e pathname reservado
+  `errors`; os erros emitidos pelos ratchets SCALE-01 são fixtures negativas esperadas e as suites passam.
+- Ainda pendente: Docker disponível/validado, Railway, domínios de teste, BD temporária isolada, browser/live
+  QA, deploy/promoção, idempotência provider OPS-02 e os **10** itens SCALE-03 pendentes.
+
+O código e os gates offline estão fechados neste checkpoint. A validação real acontece depois, numa janela de
+fim de semana, com stack legacy e stack `remake` em URLs distintas e promoção manual por três vagas:
 
 1. **Leitura real:** ambas as stacks podem ler a BD real e APIs externas em modo estritamente read-only.
    Jobs, métodos e credenciais com capacidade de escrita ficam bloqueados. Comparar respostas, agregações,
@@ -1240,7 +1257,7 @@ hosts não sensíveis e fingerprints redigidos. Sem confirmação completa, nenh
 
 Cada promoção exige aprovação manual, logs sem secrets, zero mutações fora do destino autorizado, rollback
 comprovado e zero findings Critical/Important abertos. A conclusão operacional só existe depois das três
-vagas; `104/104` por si só não a declara.
+vagas; o fecho de código/gates por si só não a declara.
 
 ### Como se mede
 Cada caixa fecha com **prova contra o código** (comando/teste), não com report. O revisor regrava o estado
