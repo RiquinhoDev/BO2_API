@@ -115,13 +115,13 @@ export const createGuruInactivationMaintenanceService = (
         : await client.getMember(record.memberId)
       if (remote?.ok && !isCurseducaEnrollmentActive(remote.value.situation)) {
         const situation = remote.value.situation ?? 'UNKNOWN'
+        await repository.updateUserSituation(record.userId, situation)
         await repository.markInactive(
           record.id,
           now(),
           'cleanup_api_check',
           `Já estava ${situation} na API CursEduca (BD desatualizada)`,
         )
-        await repository.updateUserSituation(record.userId, situation)
         result.cleanedInactive += 1
         result.details.push({
           email: record.email,

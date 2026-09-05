@@ -181,6 +181,7 @@ export class MongooseHotmartClassSyncWriter implements HotmartClassSyncWriter {
 
     const currentClassId = localUser.combined?.classId || localUser.classId || null
     let classChanged = false
+    let history: { newClassName: string; oldClassName: string } | undefined
 
     if (currentClassId !== hotmartUser.class_id) {
       userUpdates['combined.classId'] = hotmartUser.class_id
@@ -192,17 +193,7 @@ export class MongooseHotmartClassSyncWriter implements HotmartClassSyncWriter {
         const newClassName = newClassData?.name || `Turma ${hotmartUser.class_id || 'Indefinida'}`
         const oldClassData = currentClassId ? await Class.findOne({ classId: currentClassId }) : null
         const oldClassName = oldClassData?.name || `Turma ${currentClassId || 'Indefinida'}`
-
-        await StudentClassHistory.create({
-          studentId: localUser._id,
-          classId: hotmartUser.class_id,
-          className: newClassName,
-          previousClassId: currentClassId,
-          previousClassName: oldClassName,
-          dateMoved: now,
-          reason: 'Mudança detectada via sincronização completa Hotmart',
-          movedBy: 'complete_sync',
-        })
+        history = { newClassName, oldClassName }
       } catch (historyError: unknown) {
         errors.push(`Erro ao criar histórico para ${hotmartUser.email}: ${errorMessage(historyError)}`)
       }
@@ -228,11 +219,30 @@ export class MongooseHotmartClassSyncWriter implements HotmartClassSyncWriter {
       userNeedsUpdate = true
     }
 
+    let userWriteSucceeded = true
     if (userNeedsUpdate) {
       try {
         await User.findByIdAndUpdate(localUser._id, { ...userUpdates, lastSyncAt: now })
       } catch (updateError: unknown) {
+        userWriteSucceeded = false
         errors.push(`Erro ao atualizar utilizador ${hotmartUser.email}: ${errorMessage(updateError)}`)
+      }
+    }
+
+    if (history && userWriteSucceeded) {
+      try {
+        await StudentClassHistory.create({
+          studentId: localUser._id,
+          classId: hotmartUser.class_id,
+          className: history.newClassName,
+          previousClassId: currentClassId,
+          previousClassName: history.oldClassName,
+          dateMoved: now,
+          reason: 'Mudança detectada via sincronização completa Hotmart',
+          movedBy: 'complete_sync',
+        })
+      } catch (historyError: unknown) {
+        errors.push(`Erro ao criar histórico para ${hotmartUser.email}: ${errorMessage(historyError)}`)
       }
     }
 
