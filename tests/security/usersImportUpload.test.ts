@@ -6,6 +6,7 @@ import ExcelJS from 'exceljs'
 import request from 'supertest'
 import { createApp } from '../../src/app'
 import { createErrorHandling, type ErrorLogEvent } from '../../src/security/errorHandling'
+import { configureJwt, signAppToken } from '../../src/security/jwt'
 import {
   MAX_USERS_IMPORT_BYTES,
   MAX_USERS_IMPORT_UNCOMPRESSED_BYTES,
@@ -14,9 +15,30 @@ import {
   withUploadedFileCleanup,
 } from '../../src/security/usersImportUpload'
 
+const JWT_SECRET = 'users-import-upload-jwt-secret-at-least-32-characters'
+const OLD_API_JWT_SECRET = 'users-import-upload-old-api-secret-at-least-32-characters'
+const STUDENT_ACCESS_JWT_SECRET = 'users-import-upload-student-secret-at-least-32-characters'
+
+beforeAll(() => {
+  configureJwt({
+    jwtSecret: JWT_SECRET,
+    oldApiJwtSecret: OLD_API_JWT_SECRET,
+    studentAccessJwtSecret: STUDENT_ACCESS_JWT_SECRET,
+  })
+})
+
+function adminAuthorization(): string {
+  return `Bearer ${signAppToken({
+    id: 'users-import-admin',
+    email: 'admin@example.test',
+    role: 'SUPER_ADMIN',
+    permissions: [],
+  })}`
+}
+
 function buildUploadApp(uploadDirectory: string, events: ErrorLogEvent[] = []) {
   return createApp({
-    authEnforce: false,
+    authEnforce: true,
     createErrorHandling: () =>
       createErrorHandling({
         generateCorrelationId: () => 'upload-correlation-id',
@@ -42,6 +64,7 @@ test('rejeita ficheiro acima do limite com 413 e remove temporarios', async () =
   try {
     const response = await request(buildUploadApp(uploadDirectory, events))
       .post('/api/users/syncDiscordAndHotmart?__bo2_offline_loopback=1')
+      .set('Authorization', adminAuthorization())
       .attach('file', Buffer.alloc(MAX_USERS_IMPORT_BYTES + 1), {
         filename: 'demasiado-grande.xlsx',
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -133,6 +156,7 @@ test('rejeita MIME falso mesmo quando o conteúdo é XLSX válido', async () => 
   try {
     const response = await request(buildUploadApp(uploadDirectory))
       .post('/api/users/syncDiscordAndHotmart?__bo2_offline_loopback=1')
+      .set('Authorization', adminAuthorization())
       .attach('file', await validXlsxBuffer(), {
         filename: 'utilizadores.csv',
         contentType: 'text/csv',
@@ -153,6 +177,7 @@ test('rejeita XLSX malformado com 400 sem derrubar o processo', async () => {
   try {
     const response = await request(app)
       .post('/api/users/syncDiscordAndHotmart?__bo2_offline_loopback=1')
+      .set('Authorization', adminAuthorization())
       .attach('file', Buffer.from('PK\x03\x04isto-nao-e-um-xlsx'), {
         filename: 'malformado.xlsx',
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -191,6 +216,7 @@ test('rejeita zip-bomb antes de entregar o XLSX ao parser', async () => {
   try {
     const response = await request(buildUploadApp(uploadDirectory))
       .post('/api/users/syncDiscordAndHotmart?__bo2_offline_loopback=1')
+      .set('Authorization', adminAuthorization())
       .attach('file', bomb, {
         filename: 'zip-bomb.xlsx',
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -212,6 +238,7 @@ test('aceita CSV textual com os headers reais e limpa depois do handler', async 
   try {
     const response = await request(buildUploadApp(uploadDirectory))
       .post('/api/users/syncDiscordAndHotmart?__bo2_offline_loopback=1')
+      .set('Authorization', adminAuthorization())
       .attach('file', csv, { filename: 'utilizadores.csv', contentType: 'text/csv' })
 
     expect(response.status).toBe(204)
@@ -227,6 +254,7 @@ test('rejeita conteúdo arbitrário apresentado como CSV', async () => {
   try {
     const response = await request(buildUploadApp(uploadDirectory))
       .post('/api/users/syncDiscordAndHotmart?__bo2_offline_loopback=1')
+      .set('Authorization', adminAuthorization())
       .attach('file', Buffer.from('<script>alert(1)</script>'), {
         filename: 'falso.csv',
         contentType: 'text/csv',
@@ -245,6 +273,7 @@ test('aceita um XLSX válido e remove-o depois do handler', async () => {
   try {
     const response = await request(buildUploadApp(uploadDirectory))
       .post('/api/users/syncDiscordAndHotmart?__bo2_offline_loopback=1')
+      .set('Authorization', adminAuthorization())
       .attach('file', await validXlsxBuffer(), {
         filename: 'utilizadores.xlsx',
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -263,6 +292,7 @@ test('aceita no máximo um ficheiro por pedido', async () => {
   try {
     const response = await request(buildUploadApp(uploadDirectory))
       .post('/api/users/syncDiscordAndHotmart?__bo2_offline_loopback=1')
+      .set('Authorization', adminAuthorization())
       .attach('file', await validXlsxBuffer(), {
         filename: 'primeiro.xlsx',
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
