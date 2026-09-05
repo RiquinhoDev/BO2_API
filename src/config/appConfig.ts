@@ -52,8 +52,16 @@ function parseActiveCampaign(
 ): IntegrationConfig<ActiveCampaignIntegration> {
   const debugEnabled = parseBooleanFlag(env.AC_DEBUG, 'AC_DEBUG')
   const verifyDeleteEnabled = parseBooleanFlag(env.AC_DEBUG_VERIFY_DELETE, 'AC_DEBUG_VERIFY_DELETE')
+  const tagApplyEnabled = parseBooleanFlag(env.AC_TAG_APPLY_ENABLED, 'AC_TAG_APPLY_ENABLED')
   const names = ['AC_API_URL', 'AC_API_KEY', 'AC_LIST_CLAREZA', 'AC_LIST_OGI'] as const
-  if (!hasAnyValue(env, names)) return { configured: false }
+  if (!hasAnyValue(env, names)) {
+    if (tagApplyEnabled) {
+      throw new Error(
+        'CONFIG_INVALIDA: AC_TAG_APPLY_ENABLED requer credenciais ActiveCampaign completas',
+      )
+    }
+    return { configured: false }
+  }
 
   const apiUrl = parseRequiredUrl(env.AC_API_URL, 'AC_API_URL')
   const apiKey = readOptionalString(env, 'AC_API_KEY')
@@ -69,6 +77,7 @@ function parseActiveCampaign(
       webhookSecret,
       debugEnabled,
       verifyDeleteEnabled,
+      tagApplyEnabled,
       lists: {
         ...(clarezaList !== undefined ? { clareza: clarezaList } : {}),
         ...(ogiList !== undefined ? { ogi: ogiList } : {}),

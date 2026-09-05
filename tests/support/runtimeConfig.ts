@@ -9,6 +9,7 @@ export function createTestRuntimeConfig(options: {
   logLevel?: string
   serverVersion?: string
   metricsEnabled?: boolean
+  activeCampaignProductTagsEnabled?: boolean
 } = {}): AppConfig {
   const nodeEnv = options.nodeEnv ?? 'test'
   const core = {
@@ -36,7 +37,20 @@ export function createTestRuntimeConfig(options: {
       consoleLoggingEnabled: nodeEnv === 'development',
     },
     integrations: {
-      activeCampaign: { configured: false },
+      activeCampaign: options.activeCampaignProductTagsEnabled === true
+        ? {
+          configured: true,
+          value: {
+            apiUrl: 'https://activecampaign.test/',
+            apiKey: 'test-activecampaign-key',
+            webhookSecret: 'test-activecampaign-webhook-secret',
+            debugEnabled: false,
+            verifyDeleteEnabled: false,
+            tagApplyEnabled: true,
+            lists: {},
+          },
+        }
+        : { configured: false },
       fmp: { configured: false },
       hotmart: { configured: false },
       curseduca: { configured: false },

@@ -7,6 +7,7 @@ import { activeCampaignProductSyncInput } from '../../src/security/activeCampaig
 const mockFindProductById = jest.fn()
 const mockFindUserProducts = jest.fn()
 const mockFindByIdAndUpdate = jest.fn()
+const mockFindOneAndUpdate = jest.fn()
 const mockFindOrCreateContact = jest.fn()
 
 jest.mock('../../src/models/user', () => ({
@@ -32,7 +33,11 @@ jest.mock('../../src/models/product/Product', () => ({
 
 jest.mock('../../src/models/UserProduct', () => ({
   __esModule: true,
-  default: { find: mockFindUserProducts, findByIdAndUpdate: mockFindByIdAndUpdate },
+  default: {
+    find: mockFindUserProducts,
+    findByIdAndUpdate: mockFindByIdAndUpdate,
+    findOneAndUpdate: mockFindOneAndUpdate,
+  },
 }))
 
 jest.mock('../../src/models', () => ({
@@ -44,6 +49,7 @@ jest.mock('../../src/models', () => ({
   UserProduct: {
     find: mockFindUserProducts,
     findByIdAndUpdate: mockFindByIdAndUpdate,
+    findOneAndUpdate: mockFindOneAndUpdate,
   },
 }))
 
@@ -64,10 +70,11 @@ import {
   syncProductTags,
 } from '../../src/controllers/acTags/activeCampaignProductTags.controller'
 
-installTestRuntimeConfigHooks()
+installTestRuntimeConfigHooks({ activeCampaignProductTagsEnabled: true })
 
 function populatedQuery(rows: object[]) {
   return {
+    limit: jest.fn().mockReturnThis(),
     populate: jest.fn().mockReturnThis(),
     lean: jest.fn().mockResolvedValue(rows),
   }
@@ -79,6 +86,7 @@ beforeEach(() => {
     _id: '507f191e810c19729de860ea',
     name: 'Course',
   })
+  mockFindOneAndUpdate.mockResolvedValue({ _id: '507f1f77bcf86cd799439011' })
 })
 
 it('returns the canonical UserProduct progress percentage', async () => {
@@ -165,10 +173,10 @@ it('continues product sync after a provider failure and reports partial results'
 
   expect(response.status).toBe(200)
   expect(response.body.data).toMatchObject({ synced: 1, failed: 1 })
-  expect(mockFindByIdAndUpdate).toHaveBeenCalledTimes(1)
+  expect(mockFindByIdAndUpdate).not.toHaveBeenCalled()
 })
 
-it('has no service-side finite cap for product sync', async () => {
+it('rejects product sync above the finite cap before provider writes', async () => {
   const rows = Array.from({ length: 201 }, (_value, index) => ({
     _id: `507f1f77bcf86cd7994390${String(index).padStart(2, '0')}`,
     userId: { _id: `507f1f77bcf86cd7994391${String(index).padStart(2, '0')}`, email: `user-${index}@example.test` },
@@ -191,7 +199,7 @@ it('has no service-side finite cap for product sync', async () => {
     .post('/sync/507f191e810c19729de860ea?__bo2_offline_loopback=1')
     .send({})
 
-  expect(response.status).toBe(200)
-  expect(response.body.data).toMatchObject({ synced: 201, failed: 0 })
-  expect(mockFindOrCreateContact).toHaveBeenCalledTimes(201)
+  expect(response.status).toBe(413)
+  expect(mockFindOrCreateContact).not.toHaveBeenCalled()
+  expect(mockFindByIdAndUpdate).not.toHaveBeenCalled()
 })

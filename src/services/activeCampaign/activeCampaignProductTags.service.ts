@@ -1,6 +1,9 @@
 import { Product, User, UserProduct } from '../../models'
 import type { ACContact, ACContactResponse } from '../../types/activecampaign.types'
 import logger from '../../utils/logger'
+import { MAX_BULK_OPERATION_ITEMS } from '../../security/bulkOperationPolicy'
+
+export const MAX_PRODUCT_TAG_SYNC_ITEMS = MAX_BULK_OPERATION_ITEMS
 
 export interface ProductTagUser {
   email: string

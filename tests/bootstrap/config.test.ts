@@ -533,6 +533,25 @@ test('ActiveCampaign list IDs are optional but blank supplied values fail', () =
   ).toThrow('AC_LIST_OGI')
 })
 
+test('ActiveCampaign tag mutations stay disabled by default and require complete credentials when enabled', () => {
+  expect(loadConfig(VALID_ENV).integrations.activeCampaign).toEqual({ configured: false })
+
+  expect(() => loadConfig({
+    ...VALID_ENV,
+    AC_TAG_APPLY_ENABLED: 'true',
+  })).toThrow('AC_TAG_APPLY_ENABLED')
+
+  expect(loadConfig({
+    ...VALID_ENV,
+    AC_API_URL: 'https://ac.example.test',
+    AC_API_KEY: 'ac-key',
+    AC_TAG_APPLY_ENABLED: 'true',
+  }).integrations.activeCampaign).toEqual(expect.objectContaining({
+    configured: true,
+    value: expect.objectContaining({ tagApplyEnabled: true }),
+  }))
+})
+
 test('loadConfig rejects explicitly blank REDIS_HOST outside production', () => {
   expect(() => loadConfig({ ...VALID_ENV, REDIS_HOST: '   ' })).toThrow('REDIS_HOST')
 })
@@ -563,6 +582,7 @@ test('configured optional integrations receive typed values', () => {
       webhookSecret: STRONG_AC_WEBHOOK_SECRET,
       debugEnabled: true,
       verifyDeleteEnabled: true,
+      tagApplyEnabled: false,
       lists: {},
     },
   })

@@ -9,6 +9,7 @@ const mockFindProductById = jest.fn()
 const mockFindUserProduct = jest.fn()
 const mockCreateUserProduct = jest.fn()
 const mockSave = jest.fn()
+const mockFindOneAndUpdate = jest.fn()
 const mockFindOrCreateContact = jest.fn()
 const mockAddTag = jest.fn()
 const mockRemoveTag = jest.fn()
@@ -38,7 +39,11 @@ jest.mock('../../src/models/product/Product', () => ({
 
 jest.mock('../../src/models/UserProduct', () => ({
   __esModule: true,
-  default: { findOne: mockFindUserProduct, create: mockCreateUserProduct },
+  default: {
+    findOne: mockFindUserProduct,
+    create: mockCreateUserProduct,
+    findOneAndUpdate: mockFindOneAndUpdate,
+  },
 }))
 
 jest.mock('../../src/models', () => ({
@@ -50,6 +55,7 @@ jest.mock('../../src/models', () => ({
   UserProduct: {
     findOne: mockFindUserProduct,
     create: mockCreateUserProduct,
+    findOneAndUpdate: mockFindOneAndUpdate,
   },
 }))
 
@@ -72,12 +78,18 @@ import {
   removeTagFromUserProduct,
 } from '../../src/controllers/acTags/activeCampaignProductTags.controller'
 
-installTestRuntimeConfigHooks()
+installTestRuntimeConfigHooks({ activeCampaignProductTagsEnabled: true })
+
+beforeEach(() => {
+  jest.clearAllMocks()
+  mockFindOneAndUpdate.mockResolvedValue({ _id: '507f1f77bcf86cd799439012' })
+})
 
 it('initializes the complete ActiveCampaign state when applying the first tag', async () => {
   const userId = '507f1f77bcf86cd799439011'
   const productId = '507f191e810c19729de860ea'
   const userProduct = {
+    _id: '507f1f77bcf86cd799439012',
     activeCampaignData: undefined,
     save: mockSave,
   }
@@ -109,19 +121,30 @@ it('initializes the complete ActiveCampaign state when applying the first tag', 
     .send({ userId, productId, tagName: 'COURSE - Active' })
 
   expect(response.status).toBe(200)
-  expect(userProduct.activeCampaignData).toEqual({
-    contactId: 'contact-1',
-    tags: ['COURSE - Active'],
-    lists: [],
-    lastSyncAt: expect.any(Date),
-  })
-  expect(mockSave).toHaveBeenCalledTimes(1)
+  expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
+    expect.objectContaining({
+      _id: '507f1f77bcf86cd799439012',
+      'activeCampaignData.mutationClaim.ownerId': expect.any(String),
+    }),
+    expect.objectContaining({
+      $set: expect.objectContaining({
+        'activeCampaignData.contactId': 'contact-1',
+        'activeCampaignData.lists': [],
+        'activeCampaignData.lastSyncAt': expect.any(Date),
+      }),
+      $addToSet: { 'activeCampaignData.tags': 'COURSE - Active' },
+      $unset: { 'activeCampaignData.mutationClaim': 1 },
+    }),
+    { new: true },
+  )
+  expect(mockSave).not.toHaveBeenCalled()
 })
 
 it('creates a missing UserProduct with canonical status and progress', async () => {
   const userId = '507f1f77bcf86cd799439011'
   const productId = '507f191e810c19729de860ea'
   const createdUserProduct = {
+    _id: '507f1f77bcf86cd799439012',
     activeCampaignData: undefined,
     save: mockSave,
   }
@@ -167,6 +190,7 @@ it('does not persist local removal when ActiveCampaign rejects the provider dele
   const userId = '507f1f77bcf86cd799439011'
   const productId = '507f191e810c19729de860ea'
   const userProduct = {
+    _id: '507f1f77bcf86cd799439012',
     activeCampaignData: { tags: ['COURSE - Active'] },
     save: mockSave,
   }

@@ -39,6 +39,7 @@ export interface ActiveCampaignIntegration {
   readonly webhookSecret: string
   readonly debugEnabled: boolean
   readonly verifyDeleteEnabled: boolean
+  readonly tagApplyEnabled?: boolean
   readonly lists: {
     readonly clareza?: string
     readonly ogi?: string

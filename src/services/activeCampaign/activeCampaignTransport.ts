@@ -13,6 +13,8 @@ export interface ActiveCampaignTransportPolicy {
   windowMs: number
 }
 
+export const ACTIVE_CAMPAIGN_REQUEST_TIMEOUT_MS = 30_000
+
 interface ActiveCampaignTransportOptions {
   readIntegration?: () => ActiveCampaignIntegration
   now?: () => number
@@ -23,7 +25,7 @@ interface ActiveCampaignTransportOptions {
 const DEFAULT_POLICY: ActiveCampaignTransportPolicy = {
   maxRequestsPerMinute: 280,
   requestDelayMs: 200,
-  requestTimeoutMs: 30_000,
+  requestTimeoutMs: ACTIVE_CAMPAIGN_REQUEST_TIMEOUT_MS,
   maxRetries: 3,
   retryDelayMs: 2_000,
   windowMs: 60_000,

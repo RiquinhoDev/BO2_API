@@ -17,6 +17,9 @@
 - [ ] CursEduca API token válido
 - [ ] `CURSEDUCA_INACTIVATION_ENABLED=false` por defeito; executar dry-run com switch OFF e só ligar mutações em ambiente de teste isolado após limite confirmado
 - [ ] Confirmar claim durável CursEduca: uma execução concorrente recebe `409`/detalhe `inProgress`, lease de 60 s cobre o timeout do provider de 10 s, leases expirados são recuperáveis e falha/exception permite retry; validar também a janela externa de idempotency do provider
+- [ ] `AC_TAG_APPLY_ENABLED=false` por defeito; validar `dryRun` com switch OFF e só ligar apply/remove/sync em domínio Railway + BD de teste isolados
+- [ ] Confirmar claim local AC por `UserProduct`: apply/remove concorrentes recebem `409`, sync reporta `inProgress`, lease de 120 s cobre o timeout AC de 30 s e falha/exception permite retry; a criação/ligação contacto+tag no provider continua gap externo a validar
+- [ ] Confirmar sync de product-tags limitado a 200 `UserProduct` por execução, com overflow rejeitado antes de writes
 - [ ] Discord bot token válido
 - [ ] Redis URL configurado (se aplicável)
 

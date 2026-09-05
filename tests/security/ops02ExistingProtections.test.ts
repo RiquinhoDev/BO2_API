@@ -101,12 +101,12 @@ describe('OPS-02 existing protection evidence', () => {
   test.each([
     '/api/activecampaign/product-tags/apply',
     '/api/activecampaign/product-tags/remove',
-  ])('%s does not claim the nonexistent AC_TAG_APPLY_ENABLED switch', (path) => {
+  ])('%s uses the AC_TAG_APPLY_ENABLED mutation switch', (path) => {
     const result = decision('POST', path)
 
     expect(result.killSwitch).toEqual({
-      status: 'required',
-      reason: 'activecampaign-product-tag-no-kill-switch',
+      status: 'verified',
+      reason: 'AC_TAG_APPLY_ENABLED',
     })
   })
 })

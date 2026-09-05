@@ -18,7 +18,7 @@ export const activeCampaignTagRuleDeleteInput = validatedSchema({
 export const activeCampaignProductSyncInput = validatedSchema({
   params: { productId: objectId },
   query: {},
-  body: {},
+  body: { dryRun: z.boolean().optional() },
 })
 
 export const activeCampaignTagMutationInput = validatedSchema({
@@ -28,6 +28,7 @@ export const activeCampaignTagMutationInput = validatedSchema({
     userId: objectId,
     productId: objectId,
     tagName: z.string().min(1),
+    dryRun: z.boolean().optional(),
   },
 })
 

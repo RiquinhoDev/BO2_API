@@ -160,6 +160,44 @@ export const REVIEWED_PROTECTION_POLICY_TAIL: Array<[string, ReviewedProtectionP
     },
   ],
   [
+    'POST /api/activecampaign/product-tags/apply',
+    {
+      idempotency: {
+        status: 'required',
+        reason: 'activecampaign-product-tag-provider-link-create-not-atomic',
+      },
+      killSwitch: { status: 'verified', reason: 'AC_TAG_APPLY_ENABLED' },
+      dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
+    },
+  ],
+  [
+    'POST /api/activecampaign/product-tags/remove',
+    {
+      idempotency: {
+        status: 'required',
+        reason: 'activecampaign-product-tag-provider-remove-replay-unverified',
+      },
+      killSwitch: { status: 'verified', reason: 'AC_TAG_APPLY_ENABLED' },
+      dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
+    },
+  ],
+  [
+    'POST /api/activecampaign/products/:productId/tags/sync',
+    {
+      cap: {
+        status: 'verified',
+        reason: 'activecampaign-product-tag-sync-query-cap',
+        limit: MAX_BULK_OPERATION_ITEMS,
+      },
+      idempotency: {
+        status: 'required',
+        reason: 'activecampaign-product-tag-contact-create-not-atomic',
+      },
+      killSwitch: { status: 'verified', reason: 'AC_TAG_APPLY_ENABLED' },
+      dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
+    },
+  ],
+  [
     'POST /api/discord-renewal/messages/send',
     {
       idempotency: { status: 'required', reason: 'manual-message-no-idempotency-key' },

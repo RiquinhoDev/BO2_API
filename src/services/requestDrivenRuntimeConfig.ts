@@ -33,6 +33,11 @@ export function isCurseducaInactivationEnabled(): boolean {
   return integration.configured && integration.value.inactivationEnabled === true
 }
 
+export function isActiveCampaignTagMutationEnabled(): boolean {
+  const integration = getRuntimeConfig().integrations.activeCampaign
+  return integration.configured && integration.value.tagApplyEnabled === true
+}
+
 export function getGuruUserToken(): string {
   const integration = getRuntimeConfig().integrations.guru
   const token = integration.configured ? integration.value.userToken : undefined

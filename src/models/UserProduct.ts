@@ -83,6 +83,12 @@ export interface IActiveCampaignData {
   tags: string[]
   lists: string[]
   lastSyncAt?: Date
+  mutationClaim?: {
+    ownerId: string
+    operationKey: string
+    claimedAt: Date
+    expiresAt: Date
+  }
 }
 
 export interface ICommunications {
@@ -328,7 +334,8 @@ const UserProductSchema = new Schema<IUserProduct>({
     contactId: String,
     tags: [String],
     lists: [String],
-    lastSyncAt: Date
+    lastSyncAt: Date,
+    mutationClaim: Schema.Types.Mixed
   },
   
   // ═══════════════════════════════════════════════════════════

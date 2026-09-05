@@ -1,49 +1,47 @@
-import type { NextFunction, RequestHandler, Response } from 'express'
-import type { FilterQuery, Types } from 'mongoose'
+import type { NextFunction, Response } from 'express'
+import type { Types } from 'mongoose'
 
 import User from '../../models/user'
 import Product from '../../models/product/Product'
 import UserProduct from '../../models/UserProduct'
 import activeCampaignService from '../../services/activeCampaign/activeCampaignService'
-import type { IUserProduct } from '../../models/UserProduct'
 import type {
   ActiveCampaignProductSyncInput,
   ActiveCampaignTagMutationInput,
 } from '../../security/activeCampaignDestructiveInput'
-import { internalError } from '../../security/errorHandling'
+import { HttpError, internalError } from '../../security/errorHandling'
 import { successResponse } from '../../contracts/responseContract'
 import type { ValidatedRequest } from '../../security/validatedInput'
-
-type PopulatedUser = {
-  _id: Types.ObjectId
-  name?: string
-  email?: string
-}
-
-type PopulatedProduct = {
-  _id: Types.ObjectId
-  name?: string
-  code?: string
-  platform?: string
-}
-
-type PopulatedUserProduct = {
-  _id: Types.ObjectId
-  userId: PopulatedUser
-  productId: Types.ObjectId | PopulatedProduct
-  activeCampaignData?: IUserProduct['activeCampaignData']
-  progress?: IUserProduct['progress']
-}
+import { MAX_PRODUCT_TAG_SYNC_ITEMS } from '../../services/activeCampaign/activeCampaignProductTags.service'
+import {
+  claimActiveCampaignProductTagMutation,
+  releaseActiveCampaignProductTagMutation,
+} from '../../services/activeCampaign/activeCampaignProductTagClaim.service'
+import { isActiveCampaignTagMutationEnabled } from '../../services/requestDrivenRuntimeConfig'
 
 type SyncUserProduct = {
   _id: Types.ObjectId
-  userId: PopulatedUser
+  userId: {
+    _id: Types.ObjectId
+    email?: string
+  }
 }
 
 type ProductSyncResults = {
   synced: number
   failed: number
-  errors: Array<{ userProductId: Types.ObjectId; error: string }>
+  errors: Array<{ userProductId: Types.ObjectId; error: string; inProgress?: boolean }>
+}
+
+const MUTATION_CLAIM_LOST_MESSAGE =
+  'Mutação de tag ActiveCampaign perdeu o claim antes de guardar o estado local'
+
+function mutationClaimLostError(): HttpError {
+  return new HttpError({
+    status: 409,
+    code: 'AC_PRODUCT_TAG_MUTATION_LOST',
+    publicMessage: MUTATION_CLAIM_LOST_MESSAGE,
+  })
 }
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -57,7 +55,16 @@ export const applyTagToUserProduct = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { userId, productId, tagName } = input.body
+    const { userId, productId, tagName, dryRun } = input.body
+
+    if (dryRun !== true && !isActiveCampaignTagMutationEnabled()) {
+      next(new HttpError({
+        status: 503,
+        code: 'AC_PRODUCT_TAG_MUTATION_DISABLED',
+        publicMessage: 'Mutações de tags ActiveCampaign desativadas',
+      }))
+      return
+    }
 
     if (!userId || !productId || !tagName) {
       res.status(400).json({
@@ -80,6 +87,18 @@ export const applyTagToUserProduct = async (
 
     let userProduct = await UserProduct.findOne({ userId, productId })
 
+    if (!userProduct && dryRun === true) {
+      res.json(successResponse({
+        dryRun: true,
+        planned: true,
+        userId: user._id,
+        productId: product._id,
+        productName: product.name,
+        tagName,
+      }))
+      return
+    }
+
     if (!userProduct) {
       userProduct = await UserProduct.create({
         userId,
@@ -89,37 +108,79 @@ export const applyTagToUserProduct = async (
       })
     }
 
-    const acContact = await activeCampaignService.findOrCreateContact(user.email)
-
-    // ✅ USAR TAG DIRETAMENTE (sem adicionar prefixo!)
-    // Tag já vem formatada: "OGI_V1 - Inativo 7d"
-    await activeCampaignService.addTag(user.email, tagName)  // ← SEM PREFIXO!
-
-    if (!userProduct.activeCampaignData) {
-      userProduct.activeCampaignData = {
-        contactId: acContact.id,
-        tags: [],
-        lists: []
-      }
-    }
-
-    if (!userProduct.activeCampaignData.tags.includes(tagName)) {
-      userProduct.activeCampaignData.tags.push(tagName)  // ← SEM PREFIXO!
-    }
-
-    userProduct.activeCampaignData.lastSyncAt = new Date()
-    await userProduct.save()
-
-    res.json({
-      success: true,
-      data: {
+    if (dryRun === true) {
+      res.json(successResponse({
+        dryRun: true,
+        planned: !(userProduct.activeCampaignData?.tags || []).includes(tagName),
         userId: user._id,
         productId: product._id,
         productName: product.name,
-        tagApplied: tagName,
-        acContactId: acContact.id
-      },
-    })
+        tagName,
+      }))
+      return
+    }
+
+    if (userProduct._id === undefined) {
+      next(mutationClaimLostError())
+      return
+    }
+    const claim = await claimActiveCampaignProductTagMutation(userProduct._id, `tag:${tagName}`)
+    if (claim === undefined) {
+      next(new HttpError({
+        status: 409,
+        code: 'AC_PRODUCT_TAG_MUTATION_IN_PROGRESS',
+        publicMessage: 'Mutação de tag ActiveCampaign já está em processamento',
+      }))
+      return
+    }
+
+    let terminalCommitted = false
+    try {
+      const acContact = await activeCampaignService.findOrCreateContact(user.email)
+      // ✅ USAR TAG DIRETAMENTE (sem adicionar prefixo!)
+      // Tag já vem formatada: "OGI_V1 - Inativo 7d"
+      await activeCampaignService.addTag(user.email, tagName)  // ← SEM PREFIXO!
+
+      const terminalUpdate = {
+        $set: {
+          'activeCampaignData.contactId': acContact.id,
+          'activeCampaignData.lastSyncAt': new Date(),
+          ...(!userProduct.activeCampaignData
+            ? { 'activeCampaignData.lists': [] }
+            : {}),
+        },
+        $addToSet: { 'activeCampaignData.tags': tagName },
+        $unset: { 'activeCampaignData.mutationClaim': 1 },
+      }
+      const committed = await UserProduct.findOneAndUpdate(
+        {
+          _id: userProduct._id,
+          'activeCampaignData.mutationClaim.ownerId': claim.ownerId,
+        },
+        terminalUpdate,
+        { new: true },
+      )
+      if (!committed) {
+        next(mutationClaimLostError())
+        return
+      }
+      terminalCommitted = true
+
+      res.json({
+        success: true,
+        data: {
+          userId: user._id,
+          productId: product._id,
+          productName: product.name,
+          tagApplied: tagName,
+          acContactId: acContact.id
+        },
+      })
+    } finally {
+      if (!terminalCommitted) {
+        await releaseActiveCampaignProductTagMutation(userProduct._id, claim.ownerId)
+      }
+    }
     return
   } catch (error: unknown) {
     next(internalError('Erro ao aplicar tag', 'AC_PRODUCT_TAG_APPLY_FAILED', error))
@@ -135,7 +196,16 @@ export const removeTagFromUserProduct = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { userId, productId, tagName } = input.body
+    const { userId, productId, tagName, dryRun } = input.body
+
+    if (dryRun !== true && !isActiveCampaignTagMutationEnabled()) {
+      next(new HttpError({
+        status: 503,
+        code: 'AC_PRODUCT_TAG_MUTATION_DISABLED',
+        publicMessage: 'Mutações de tags ActiveCampaign desativadas',
+      }))
+      return
+    }
 
     if (!userId || !productId || !tagName) {
       res.status(400).json({
@@ -161,30 +231,72 @@ export const removeTagFromUserProduct = async (
       return
     }
 
-    await activeCampaignService.findOrCreateContact(user.email)
-
-    // ✅ REMOVER TAG DIRETAMENTE (sem adicionar prefixo!)
-    const removed = await activeCampaignService.removeTag(user.email, tagName)  // ← SEM PREFIXO!
-    if (!removed) {
-      next(internalError(
-        'Erro ao remover tag',
-        'AC_PRODUCT_TAG_REMOVE_FAILED',
-        new Error('ActiveCampaign não confirmou a remoção da tag'),
-      ))
+    if (dryRun === true) {
+      res.json(successResponse({
+        dryRun: true,
+        planned: (userProduct.activeCampaignData.tags || []).includes(tagName),
+        userId,
+        productId,
+        tagName,
+      }))
       return
     }
 
-    userProduct.activeCampaignData.tags = (userProduct.activeCampaignData.tags || []).filter(
-      (t: string) => t !== tagName  // ← SEM PREFIXO!
-    )
+    if (userProduct._id === undefined) {
+      next(mutationClaimLostError())
+      return
+    }
+    const claim = await claimActiveCampaignProductTagMutation(userProduct._id, `tag:${tagName}`)
+    if (claim === undefined) {
+      next(new HttpError({
+        status: 409,
+        code: 'AC_PRODUCT_TAG_MUTATION_IN_PROGRESS',
+        publicMessage: 'Mutação de tag ActiveCampaign já está em processamento',
+      }))
+      return
+    }
 
-    userProduct.activeCampaignData.lastSyncAt = new Date()
-    await userProduct.save()
+    let terminalCommitted = false
+    try {
+      await activeCampaignService.findOrCreateContact(user.email)
+      // ✅ REMOVER TAG DIRETAMENTE (sem adicionar prefixo!)
+      const removed = await activeCampaignService.removeTag(user.email, tagName)  // ← SEM PREFIXO!
+      if (!removed) {
+        next(internalError(
+          'Erro ao remover tag',
+          'AC_PRODUCT_TAG_REMOVE_FAILED',
+          new Error('ActiveCampaign não confirmou a remoção da tag'),
+        ))
+        return
+      }
 
-    res.json({
-      success: true,
-      data: { userId, productId, tagRemoved: tagName },
-    })
+      const committed = await UserProduct.findOneAndUpdate(
+        {
+          _id: userProduct._id,
+          'activeCampaignData.mutationClaim.ownerId': claim.ownerId,
+        },
+        {
+          $pull: { 'activeCampaignData.tags': tagName },
+          $set: { 'activeCampaignData.lastSyncAt': new Date() },
+          $unset: { 'activeCampaignData.mutationClaim': 1 },
+        },
+        { new: true },
+      )
+      if (!committed) {
+        next(mutationClaimLostError())
+        return
+      }
+      terminalCommitted = true
+
+      res.json({
+        success: true,
+        data: { userId, productId, tagRemoved: tagName },
+      })
+    } finally {
+      if (!terminalCommitted) {
+        await releaseActiveCampaignProductTagMutation(userProduct._id, claim.ownerId)
+      }
+    }
     return
   } catch (error: unknown) {
     next(internalError('Erro ao remover tag', 'AC_PRODUCT_TAG_REMOVE_FAILED', error))
@@ -192,92 +304,10 @@ export const removeTagFromUserProduct = async (
   }
 }
 
-/**
- * GET /api/activecampaign/products/:productId/tagged
- */
-export const getUsersWithTagsInProduct: RequestHandler = async (req, res, next) => {
-  try {
-    const { productId } = req.params
-    const { tag } = req.query
-
-    const product = await Product.findById(productId)
-    if (!product) {
-      res.status(404).json({ success: false, message: 'Product não encontrado' })
-      return
-    }
-
-    const query: FilterQuery<IUserProduct> = { productId }
-    if (tag) query['activeCampaignData.tags'] = tag
-
-    const userProducts = await UserProduct.find(query)
-      .populate('userId', 'name email')
-      .populate('productId', 'name code platform')
-      .lean<PopulatedUserProduct[]>()
-
-    const enrichedData = userProducts.map(up => ({
-      user: up.userId,
-      product: up.productId,
-      tags: up.activeCampaignData?.tags || [],
-      lastSync: up.activeCampaignData?.lastSyncAt,
-      progress: up.progress?.percentage || 0
-    }))
-
-    res.json({
-      success: true,
-      data: enrichedData,
-      meta: {
-        count: enrichedData.length,
-        filters: { productId, tag },
-      }
-    })
-    return
-  } catch (error: unknown) {
-    next(internalError('Erro ao buscar tags do produto', 'AC_PRODUCT_TAGGED_USERS_READ_FAILED', error))
-    return
-  }
-}
-
-/**
- * GET /api/activecampaign/product-tags/stats
- */
-export const getACStats: RequestHandler = async (_req, res, next) => {
-  try {
-    const products = await Product.find().lean()
-
-    const stats = await Promise.all(
-      products.map(async product => {
-        const userProducts = await UserProduct.find({
-          productId: product._id,
-          'activeCampaignData.tags': { $exists: true, $ne: [] }
-        }).lean()
-
-        const allTags = userProducts.flatMap(up => up.activeCampaignData?.tags || [])
-        const uniqueTags = [...new Set(allTags)]
-
-        return {
-          productId: product._id,
-          productName: product.name,
-          platform: product.platform,
-          totalUsersWithTags: userProducts.length,
-          uniqueTags: uniqueTags.length,
-          tagList: uniqueTags
-        }
-      })
-    )
-
-    res.json(successResponse(stats, {
-      summary: {
-        totalProducts: products.length,
-        totalUsersWithTags: stats.reduce((sum, stat) => sum + stat.totalUsersWithTags, 0),
-        totalUniqueTags: [...new Set(stats.flatMap(stat => stat.tagList))].length,
-      },
-    }))
-    return
-  } catch (error: unknown) {
-    next(internalError('Erro ao buscar estatísticas AC', 'AC_PRODUCT_TAG_STATS_READ_FAILED', error))
-    return
-  }
-}
+export {
+  getACStats,
+  getUsersWithTagsInProduct,
+} from './activeCampaignProductTagQueries.controller'
 
 /**
  * POST /api/activecampaign/products/:productId/tags/sync
@@ -290,6 +320,16 @@ export const syncProductTags = async (
 ): Promise<void> => {
   try {
     const { productId } = input.params
+    const dryRun = input.body.dryRun === true
+
+    if (!dryRun && !isActiveCampaignTagMutationEnabled()) {
+      next(new HttpError({
+        status: 503,
+        code: 'AC_PRODUCT_TAG_MUTATION_DISABLED',
+        publicMessage: 'Mutações de tags ActiveCampaign desativadas',
+      }))
+      return
+    }
 
     const product = await Product.findById(productId)
     if (!product) {
@@ -297,9 +337,37 @@ export const syncProductTags = async (
       return
     }
 
-    const userProducts = await UserProduct.find({ productId })
+    const userProductsQuery = UserProduct.find({ productId })
+      .limit(MAX_PRODUCT_TAG_SYNC_ITEMS + 1)
+    const userProducts = await userProductsQuery
       .populate('userId', 'email')
       .lean<SyncUserProduct[]>()
+
+    if (userProducts.length > MAX_PRODUCT_TAG_SYNC_ITEMS) {
+      next(new HttpError({
+        status: 413,
+        code: 'AC_PRODUCT_TAG_SYNC_LIMIT_EXCEEDED',
+        publicMessage: `Sincronização ActiveCampaign limitada a ${MAX_PRODUCT_TAG_SYNC_ITEMS} registos por execução`,
+      }))
+      return
+    }
+
+    if (dryRun) {
+      const errors = userProducts
+        .filter((up) => !up.userId.email)
+        .map((up) => ({
+          userProductId: up._id,
+          error: 'Utilizador sem email para sincronização ActiveCampaign',
+        }))
+      res.json(successResponse({
+        synced: 0,
+        failed: errors.length,
+        errors,
+        dryRun: true,
+        planned: userProducts.length - errors.length,
+      }, { productId, productName: product.name }))
+      return
+    }
 
     const results: ProductSyncResults = {
       synced: 0,
@@ -313,14 +381,42 @@ export const syncProductTags = async (
         if (!user.email) {
           throw new Error('Utilizador sem email para sincronização ActiveCampaign')
         }
-        const acContact = await activeCampaignService.findOrCreateContact(user.email)
+        const claim = await claimActiveCampaignProductTagMutation(up._id, 'sync')
+        if (claim === undefined) {
+          results.failed++
+          results.errors.push({
+            userProductId: up._id,
+            error: 'Mutação de tag ActiveCampaign já está em processamento',
+            inProgress: true,
+          })
+          continue
+        }
+        let terminalCommitted = false
+        try {
+          const acContact = await activeCampaignService.findOrCreateContact(user.email)
+          const committed = await UserProduct.findOneAndUpdate(
+            {
+              _id: up._id,
+              'activeCampaignData.mutationClaim.ownerId': claim.ownerId,
+            },
+            {
+              $set: {
+                'activeCampaignData.contactId': acContact.id,
+                'activeCampaignData.lastSyncAt': new Date(),
+              },
+              $unset: { 'activeCampaignData.mutationClaim': 1 },
+            },
+            { new: true },
+          )
+          if (!committed) throw new Error(MUTATION_CLAIM_LOST_MESSAGE)
 
-        await UserProduct.findByIdAndUpdate(up._id, {
-          'activeCampaignData.contactId': acContact.id,
-          'activeCampaignData.lastSyncAt': new Date()
-        })
-
-        results.synced++
+          terminalCommitted = true
+          results.synced++
+        } finally {
+          if (!terminalCommitted) {
+            await releaseActiveCampaignProductTagMutation(up._id, claim.ownerId)
+          }
+        }
       } catch (error: unknown) {
         results.failed++
         results.errors.push({
