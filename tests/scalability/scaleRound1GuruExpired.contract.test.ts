@@ -17,6 +17,55 @@ jest.mock('../../src/services/guru/guruSync.service', () => ({
 
 import { checkExpiredTrials } from '../../src/services/guru/guruTrialService'
 
+type FakeProductStatus = 'ACTIVE' | 'QUARENTENA' | 'PARA_INATIVAR'
+type FakeProduct = {
+  userId: string
+  platform: 'curseduca'
+  status: FakeProductStatus
+  metadata: Record<string, unknown>
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isFakeProductStatus(value: unknown): value is FakeProductStatus {
+  return value === 'ACTIVE' || value === 'QUARENTENA' || value === 'PARA_INATIVAR'
+}
+
+function fakeValueAt(product: FakeProduct, path: string): unknown {
+  if (path === 'userId' || path === 'platform' || path === 'status') return product[path]
+  if (path.startsWith('metadata.')) return product.metadata[path.slice('metadata.'.length)]
+  return undefined
+}
+
+function fakeMatches(product: FakeProduct, filter: Record<string, unknown>): boolean {
+  return Object.entries(filter).every(([path, expected]) => {
+    const actual = fakeValueAt(product, path)
+    if (isRecord(expected) && '$in' in expected) {
+      return Array.isArray(expected.$in) && expected.$in.includes(actual)
+    }
+    return actual === expected
+  })
+}
+
+function applyFakeUpdate(product: FakeProduct, update: Record<string, unknown>): void {
+  const set = update.$set
+  if (isRecord(set)) {
+    for (const [path, value] of Object.entries(set)) {
+      if (path === 'status' && isFakeProductStatus(value)) product.status = value
+      else if (path.startsWith('metadata.')) product.metadata[path.slice('metadata.'.length)] = value
+    }
+  }
+
+  const unset = update.$unset
+  if (isRecord(unset)) {
+    for (const path of Object.keys(unset)) {
+      if (path.startsWith('metadata.')) delete product.metadata[path.slice('metadata.'.length)]
+    }
+  }
+}
+
 describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
   test('preserves provider, enrollment-write and user-save order with one item in flight', async () => {
     jest.clearAllMocks()
@@ -46,9 +95,12 @@ describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
       await boundary(`provider:${code.slice(4)}`)
       return { last_status: 'expired' }
     })
-    mockUpdateMany.mockImplementation(async ({ userId }: { userId: string }) => {
-      await boundary(`products:${userId.slice(5)}`)
-      return { modifiedCount: 1 }
+    mockUpdateMany.mockImplementation(async ({ userId, status }: { userId: string; status: unknown }) => {
+      if (status === 'ACTIVE') {
+        await boundary(`products:${userId.slice(5)}`)
+        return { modifiedCount: 1 }
+      }
+      return { modifiedCount: 0 }
     })
 
     const result = await checkExpiredTrials()
@@ -57,12 +109,11 @@ describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
     expect(events).toEqual(Array.from({ length: size }, (_, index) => [
       `provider:${index}`,
       `products:${index}`,
-      `products:${index}`,
       `save:${index}`,
     ]).flat())
     expect(result).toEqual({
       checked: size,
-      markedForInactivation: size * 2,
+      markedForInactivation: size,
       converted: 0,
       stillInTrial: 0,
       errors: 0,
@@ -109,7 +160,16 @@ describe('expired Guru trial status restoration', () => {
       set: jest.fn(),
       save: jest.fn(async () => undefined),
     }
-    const updates: Array<[Record<string, unknown>, Record<string, unknown>]> = []
+    const products: FakeProduct[] = [
+      { userId: 'user-quarantine', platform: 'curseduca', status: 'ACTIVE', metadata: {} },
+      { userId: 'user-quarantine', platform: 'curseduca', status: 'QUARENTENA', metadata: {} },
+      {
+        userId: 'user-quarantine',
+        platform: 'curseduca',
+        status: 'PARA_INATIVAR',
+        metadata: { guruTrialExpired: true },
+      },
+    ]
     mockUserFind.mockReturnValue({
       select: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
@@ -122,40 +182,25 @@ describe('expired Guru trial status restoration', () => {
       filter: Record<string, unknown>,
       update: Record<string, unknown>,
     ) => {
-      updates.push([filter, update])
-      return { modifiedCount: 1 }
+      const matches = products.filter((product) => fakeMatches(product, filter))
+      matches.forEach((product) => applyFakeUpdate(product, update))
+      return { modifiedCount: matches.length }
     })
 
-    await checkExpiredTrials()
-    await checkExpiredTrials()
+    const expired = await checkExpiredTrials()
+    const providerActive = await checkExpiredTrials()
 
-    expect(updates).toHaveLength(4)
-    expect(updates[0]?.[0]).toMatchObject({ status: 'ACTIVE' })
-    expect(updates[0]?.[1]).toMatchObject({
-      $set: {
-        status: 'PARA_INATIVAR',
-        'metadata.guruTrialPreviousStatus': 'ACTIVE',
-      },
-    })
-    expect(updates[1]?.[0]).toMatchObject({ status: 'QUARENTENA' })
-    expect(updates[1]?.[1]).toMatchObject({
-      $set: {
-        status: 'PARA_INATIVAR',
-        'metadata.guruTrialPreviousStatus': 'QUARENTENA',
-      },
-    })
-    expect(updates[2]?.[0]).toMatchObject({
+    expect(expired.markedForInactivation).toBe(2)
+    expect(providerActive.converted).toBe(1)
+    expect(products[0]).toMatchObject({ status: 'ACTIVE' })
+    expect(products[0]?.metadata.guruTrialPreviousStatus).toBeUndefined()
+    expect(products[1]).toMatchObject({ status: 'QUARENTENA' })
+    expect(products[1]?.metadata.guruTrialPreviousStatus).toBeUndefined()
+    expect(products[2]).toEqual({
+      userId: 'user-quarantine',
+      platform: 'curseduca',
       status: 'PARA_INATIVAR',
-      'metadata.guruTrialPreviousStatus': 'ACTIVE',
+      metadata: { guruTrialExpired: true },
     })
-    expect(updates[2]?.[1]).toMatchObject({ $set: { status: 'ACTIVE' } })
-    expect(updates[3]?.[0]).toMatchObject({
-      status: 'PARA_INATIVAR',
-      'metadata.guruTrialPreviousStatus': 'QUARENTENA',
-    })
-    expect(updates[3]?.[1]).toMatchObject({ $set: { status: 'QUARENTENA' } })
-
-    const legacyFilter = updates[3]?.[0]
-    expect(legacyFilter?.['metadata.guruTrialPreviousStatus']).toBe('QUARENTENA')
   })
 })
