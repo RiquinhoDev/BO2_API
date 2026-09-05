@@ -627,10 +627,10 @@
   "scale03": {
     "summary": {
       "planned": 24,
-      "complete": 14,
-      "pending": 10,
+      "complete": 17,
+      "pending": 7,
       "changed": 13,
-      "alreadyCompliant": 1
+      "alreadyCompliant": 4
     },
     "entries": [
       {
@@ -754,8 +754,18 @@
         "id": "student-movement.ordered-writes",
         "file": "src/services/classes/studentMovement.service.ts",
         "start": "async moveMany(",
-        "status": "pending",
-        "reason": "Sequential per-student timestamps and best-effort writes are contract behavior; parallelization would change strict order and partial failures."
+        "status": "complete",
+        "disposition": "already-compliant",
+        "constraint": "constrained-sequential: one student write in flight preserves per-student timestamps, input order and best-effort partial failures",
+        "evidence": [
+          "tests/scalability/scaleFinalTask2.contract.test.ts:114-150 (N=1/10/100, peak=1, order, clocks, complete errors)",
+          "tests/services/classes/studentMovement.service.test.ts:35-48 (per-student clocks and post-batch timestamp)"
+        ],
+        "require": [
+          "for (const studentId of studentIds)",
+          "await this.writer.moveStudent({ studentId, toClassId, reason, performedBy }, movedAt)",
+          "results.errors.push"
+        ]
       },
       {
         "id": "activity-snapshot.partial-writes",
@@ -775,8 +785,19 @@
         "id": "guru-discrepancy.compensation",
         "file": "src/services/guru/guruDiscrepancy.service.ts",
         "start": "export const createGuruDiscrepancyService",
-        "status": "pending",
-        "reason": "Identity fallback, enrollment creation and status writes are dependent compensating operations with ordered result accounting."
+        "status": "complete",
+        "disposition": "already-compliant",
+        "constraint": "constrained-sequential: identity fallback, enrollment creation and status writes remain ordered dependent compensation",
+        "evidence": [
+          "tests/scalability/scaleRound1Task2.contract.test.ts:9-66 (N=1/10/100, peak=1, dependent write order)",
+          "tests/scalability/scaleRound1Task2.contract.test.ts:68-97 (dependent failure is not claimed complete)"
+        ],
+        "require": [
+          "for (const candidate of candidates)",
+          "await repository.saveCurseducaUserId(candidate.userId, memberId)",
+          "await repository.createPendingEnrollment({",
+          "await repository.markPending("
+        ]
       },
       {
         "id": "guru-trials.provider-writes",
@@ -854,8 +875,20 @@
         "id": "guru-trials.expired-writes",
         "file": "src/services/guru/guruTrialService.ts",
         "start": "export async function checkExpiredTrials",
-        "status": "pending",
-        "reason": "Expired-trial processing performs sequential user and enrollment writes with item-level failure accounting."
+        "status": "complete",
+        "disposition": "already-compliant",
+        "constraint": "constrained-sequential: provider read, dependent product writes and terminal user write stay ordered per trial",
+        "evidence": [
+          "tests/scalability/scaleRound1GuruExpired.contract.test.ts:69-150 (N=1/10/100, peak=1, order and partial failures)",
+          "tests/scalability/scaleRound1GuruExpired.contract.test.ts:153-205 (status restoration and fail-closed legacy marks)",
+          "tests/security/ops02ReplayRepairOrdering.test.ts:48-63 (products before terminal user state)"
+        ],
+        "require": [
+          "for (const user of expiredTrials)",
+          "await fetchSubscriptionById(subCode)",
+          "await markUserProductsForInactivation(user._id, user.email)",
+          "await user.save()"
+        ]
       },
       {
         "id": "product-sales.product-loop-writes",

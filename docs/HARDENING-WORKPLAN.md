@@ -1184,7 +1184,7 @@ duas métricas inclui deploy, observação, equivalência de payloads ou prontid
 - [x] **SCALE-01 inventariado:** os 40 reads classificados estão code-complete; a migração mais ampla das restantes listagens HTTP/scans continua fora deste lote.
   - **SCALE-01 (2026-08-12, code-complete):** inventário canónico 40 = 40 complete + 0 pending. Products users e course lessons preservam cardinalidade completa com batches <=200; quick heatmap é mock finito already-compliant; cohort já usa agregação completa com llowDiskUse. scalability:reads:check fixa ponteiros, limites, políticas e o baseline de sites Mongoose. Isto não fecha OPS-02 nem prova carga/latência operacional.
   - **SCALE-02 A (2026-08-11, code-complete; operacional aberto):** 11 = 11 complete + 0 pending, discriminados em 10 changed + 1 already-compliant. Comparação de produtos passou de quatro acessos para uma agregação; retenção de cohorts deixou de crescer por mês/milestone; stats de engagement incorporam contagens de plataforma; data-source stats usam um único facet; os restantes agregados completos preservam a população sem truncagem e explicitam allowDiskUse. O ratchet fixa ponteiros, tokens obrigatórios/proibidos e a distinção changed/no-op. Não prova índices implantados, explain, cardinalidade/latência real, cache distribuída nem OPS-02.
-  - **SCALE-03 B+C (2026-08-12, Round 1; operacional aberto):** inventário canónico de código 24 = 14 complete (13 changed + 1 already-compliant) + 10 pending. Esta ronda acrescenta `activity-snapshot.cohort-fanout`, com fan-out de leituras limitado e ordem preservada, e `activecampaign.manual-actions`, com pré-carregamento limitado e consumo na ordem natural; Guru permanece inalterado. As 10 decisões restantes mantêm razões explícitas de ordem, compensação, provider ou falha parcial. O gate operacional permanece `pending`: nenhum target Mongo explicitamente autorizado, não-produtivo e read-only foi carregado para `executionStats` ou probes 1/10/50. Pela mesma densidade documentada, 14/24 decisões revistas elevam Escalabilidade para **73%**, abaixo do target de 85%; as 10 decisões inseguras e a evidência operacional ausente impedem crédito adicional.
+  - **SCALE-03 B+C (2026-09-05, Round 2; operacional aberto):** inventário canónico de código 24 = 17 complete (13 changed + 4 already-compliant) + 7 pending. As três decisões agora fechadas são explicitamente `constrained-sequential`: student movement, Guru discrepancy compensation e Guru expired-trial writes; os testes N=1/10/100 provam peak 1, ordem, compensação e falha parcial, sem alterar runtime nem paralelizar. Permanecem 7 decisões com risco semântico de writes parciais, provider ou batching ainda não provado. O gate operacional permanece `pending`: nenhum target Mongo explicitamente autorizado, não-produtivo e read-only foi carregado para `executionStats` ou probes 1/10/50.
 - [ ] Idempotência e caps como **política transversal**, não caso-a-caso (OPS-02).
 ### 7. Contrato de resposta
 - [x] Envelope **único** adaptado feature a feature com migrações atómicas Front + Back (ARCH-03); não permanecem versões paralelas, aliases legacy, debug público ou respostas 501.
@@ -1221,19 +1221,19 @@ novo documento quando este workplan ou o plano ativo puder receber a decisão de
 #### Checkpoint verificável — 2026-09-05 — BO2_API `remake`
 
 **Estado:** code-complete e gate-complete para o escopo atual; **não operacionalmente fechado**. O HEAD de
-código verificado antes deste registo foi `808a7bb0` (`test(security): align probes with route auth`).
+código verificado antes deste registo foi `1748a524` (`docs(status): refresh offline closeout checkpoint`).
 
 - Jest offline correto, com `RESPONSE_CONTRACT_FRONT_ROOT` apontado ao Front real: **469 suites passed / 2
   skipped** e **2950 testes passed / 12 skipped**.
 - Gates frescos: `types:check`, `build`, `lint`, `routes:catalog:check` (**409** identidades),
   `contracts:responses:check` (**409 decisions / 213 Front calls / 188 consumers**),
-  `scalability:reads:check` (**SCALE-01 40 complete / 0 pending; SCALE-02 11 / 0; SCALE-03 14 / 10
+  `scalability:reads:check` (**SCALE-01 40 complete / 0 pending; SCALE-02 11 / 0; SCALE-03 17 / 7
   pending**) e `git diff --check`: todos **PASS**.
 - Inventário de fonte manuscrita em `src/`: **0 ficheiros acima de 500 linhas físicas**.
 - Warnings não bloqueantes observados nos testes: índices Mongoose duplicados e pathname reservado
   `errors`; os erros emitidos pelos ratchets SCALE-01 são fixtures negativas esperadas e as suites passam.
 - Ainda pendente: Docker disponível/validado, Railway, domínios de teste, BD temporária isolada, browser/live
-  QA, deploy/promoção, idempotência provider OPS-02 e os **10** itens SCALE-03 pendentes.
+  QA, deploy/promoção, idempotência provider OPS-02 e os **7** itens SCALE-03 pendentes.
 
 O código e os gates offline estão fechados neste checkpoint. A validação real acontece depois, numa janela de
 fim de semana, com stack legacy e stack `remake` em URLs distintas e promoção manual por três vagas:
