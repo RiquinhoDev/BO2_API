@@ -4,16 +4,6 @@
       "count": 1
     }
   },
-  "src/controllers/dashboardQuick.controller.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
-  "src/controllers/populateHistory.controller.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "src/controllers/sync/operations.controller.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 5
@@ -64,7 +54,7 @@
   },
   "src/jobs/resetCounters.job.ts": {
     "@typescript-eslint/no-unused-vars": {
-      "count": 5
+      "count": 1
     },
     "preserve-caught-error": {
       "count": 1
@@ -165,7 +155,7 @@
   },
   "src/services/renewal/discord/execution.ts": {
     "@typescript-eslint/no-unused-vars": {
-      "count": 5
+      "count": 3
     },
     "no-useless-assignment": {
       "count": 1
@@ -208,7 +198,7 @@
   },
   "src/services/syncUtilizadoresServices/hotmartServices/hotmart/transport.ts": {
     "@typescript-eslint/no-unused-vars": {
-      "count": 3
+      "count": 2
     },
     "preserve-caught-error": {
       "count": 2
