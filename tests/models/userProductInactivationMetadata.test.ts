@@ -13,6 +13,8 @@ describe('UserProduct inactivation audit metadata', () => {
     metadata.inactivatedBy = 'guru_integration'
     metadata.inactivatedReason = 'CursEduca access removed'
     metadata.revertReason = 'Guru active'
+    metadata.guruTrialExpired = true
+    metadata.guruTrialPreviousStatus = 'QUARENTENA'
 
     const userProduct = new UserProduct({
       userId: new mongoose.Types.ObjectId(),

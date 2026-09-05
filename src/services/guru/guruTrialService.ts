@@ -318,51 +318,67 @@ export async function syncTrialsFromGuru(): Promise<{ synced: number; errors: nu
 // ─────────────────────────────────────────────────────────────
 
 async function markUserProductsForInactivation(userId: string | import('mongoose').Types.ObjectId, email: string): Promise<number> {
-  const result = await UserProduct.updateMany(
-    {
-      userId,
-      platform: 'curseduca',
-      status: { $in: ['ACTIVE', 'QUARENTENA'] },
-    },
-    {
-      $set: {
-        status: 'PARA_INATIVAR',
-        'metadata.markedForInactivationAt': new Date(),
-        'metadata.markedForInactivationReason': `Trial Guru expirado sem conversão (${email})`,
-        'metadata.guruTrialExpired': true,
+  const markStatus = async (previousStatus: 'ACTIVE' | 'QUARENTENA'): Promise<number> => {
+    const result = await UserProduct.updateMany(
+      {
+        userId,
+        platform: 'curseduca',
+        status: previousStatus,
       },
-    }
-  )
+      {
+        $set: {
+          status: 'PARA_INATIVAR',
+          'metadata.markedForInactivationAt': new Date(),
+          'metadata.markedForInactivationReason': `Trial Guru expirado sem conversão (${email})`,
+          'metadata.guruTrialExpired': true,
+          'metadata.guruTrialPreviousStatus': previousStatus,
+        },
+      },
+    )
 
-  return result.modifiedCount || 0
+    return result.modifiedCount || 0
+  }
+
+  const activeCount = await markStatus('ACTIVE')
+  const quarantineCount = await markStatus('QUARENTENA')
+  return activeCount + quarantineCount
 }
 
 async function revertUserProductsFromTrialInactivation(
   userId: string | import('mongoose').Types.ObjectId,
 ): Promise<number> {
-  const result = await UserProduct.updateMany(
-    {
-      userId,
-      platform: 'curseduca',
-      status: 'PARA_INATIVAR',
-      'metadata.guruTrialExpired': true,
-    },
-    {
-      $set: {
-        status: 'ACTIVE',
-        'metadata.revertedAt': new Date(),
-        'metadata.revertedBy': 'guru_trial_provider_active',
-        'metadata.revertReason': 'Estado provider-active reparou marca de trial expirado',
+  const restoreStatus = async (previousStatus: 'ACTIVE' | 'QUARENTENA'): Promise<number> => {
+    const result = await UserProduct.updateMany(
+      {
+        userId,
+        platform: 'curseduca',
+        status: 'PARA_INATIVAR',
+        'metadata.guruTrialExpired': true,
+        // Legacy marks without an origin status stay fail-closed.
+        'metadata.guruTrialPreviousStatus': previousStatus,
       },
-      $unset: {
-        'metadata.markedForInactivationAt': 1,
-        'metadata.markedForInactivationReason': 1,
-        'metadata.guruTrialExpired': 1,
+      {
+        $set: {
+          status: previousStatus,
+          'metadata.revertedAt': new Date(),
+          'metadata.revertedBy': 'guru_trial_provider_active',
+          'metadata.revertReason': 'Estado provider-active reparou marca de trial expirado',
+        },
+        $unset: {
+          'metadata.markedForInactivationAt': 1,
+          'metadata.markedForInactivationReason': 1,
+          'metadata.guruTrialExpired': 1,
+          'metadata.guruTrialPreviousStatus': 1,
+        },
       },
-    },
-  )
+    )
 
-  return result.modifiedCount || 0
+    return result.modifiedCount || 0
+  }
+
+  const activeCount = await restoreStatus('ACTIVE')
+  const quarantineCount = await restoreStatus('QUARENTENA')
+  return activeCount + quarantineCount
 }
 
 // ─────────────────────────────────────────────────────────────

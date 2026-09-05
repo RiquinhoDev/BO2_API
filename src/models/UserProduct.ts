@@ -129,6 +129,8 @@ export interface IUserProduct extends Document {
     platform?: string
     markedForInactivationAt?: Date
     markedForInactivationReason?: string
+    guruTrialExpired?: boolean
+    guruTrialPreviousStatus?: 'ACTIVE' | 'QUARENTENA'
     markedFromComparison?: boolean
     inactivatedAt?: Date
     inactivatedBy?: string
@@ -384,6 +386,11 @@ const UserProductSchema = new Schema<IUserProduct>({
     platform: String,
     markedForInactivationAt: Date,
     markedForInactivationReason: String,
+    guruTrialExpired: Boolean,
+    guruTrialPreviousStatus: {
+      type: String,
+      enum: ['ACTIVE', 'QUARENTENA'],
+    },
     markedFromComparison: Boolean,
     inactivatedAt: Date,
     inactivatedBy: String,

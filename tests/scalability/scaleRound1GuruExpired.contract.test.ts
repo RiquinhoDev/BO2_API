@@ -57,11 +57,12 @@ describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
     expect(events).toEqual(Array.from({ length: size }, (_, index) => [
       `provider:${index}`,
       `products:${index}`,
+      `products:${index}`,
       `save:${index}`,
     ]).flat())
     expect(result).toEqual({
       checked: size,
-      markedForInactivation: size,
+      markedForInactivation: size * 2,
       converted: 0,
       stillInTrial: 0,
       errors: 0,
@@ -94,6 +95,67 @@ describe.each([1, 10, 100])('expired Guru trial compensation N=%i', (size) => {
     expect(mockFetchSubscriptionById).toHaveBeenCalledTimes(size)
     expect(result.errors).toBe(errors)
     expect(result.stillInTrial).toBe(size - errors)
-    expect(mockUpdateMany).toHaveBeenCalledTimes(size - errors)
+    expect(mockUpdateMany).toHaveBeenCalledTimes((size - errors) * 2)
+  })
+})
+
+describe('expired Guru trial status restoration', () => {
+  test('restores a quarantined product to QUARENTENA and leaves legacy marks fail-closed', async () => {
+    jest.clearAllMocks()
+    const user = {
+      _id: 'user-quarantine',
+      email: 'quarantine@example.test',
+      guru: { subscriptionCode: 'sub-quarantine' },
+      set: jest.fn(),
+      save: jest.fn(async () => undefined),
+    }
+    const updates: Array<[Record<string, unknown>, Record<string, unknown>]> = []
+    mockUserFind.mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      exec: jest.fn().mockResolvedValue([user]),
+    })
+    mockFetchSubscriptionById
+      .mockResolvedValueOnce({ last_status: 'expired' })
+      .mockResolvedValueOnce({ last_status: 'active' })
+    mockUpdateMany.mockImplementation(async (
+      filter: Record<string, unknown>,
+      update: Record<string, unknown>,
+    ) => {
+      updates.push([filter, update])
+      return { modifiedCount: 1 }
+    })
+
+    await checkExpiredTrials()
+    await checkExpiredTrials()
+
+    expect(updates).toHaveLength(4)
+    expect(updates[0]?.[0]).toMatchObject({ status: 'ACTIVE' })
+    expect(updates[0]?.[1]).toMatchObject({
+      $set: {
+        status: 'PARA_INATIVAR',
+        'metadata.guruTrialPreviousStatus': 'ACTIVE',
+      },
+    })
+    expect(updates[1]?.[0]).toMatchObject({ status: 'QUARENTENA' })
+    expect(updates[1]?.[1]).toMatchObject({
+      $set: {
+        status: 'PARA_INATIVAR',
+        'metadata.guruTrialPreviousStatus': 'QUARENTENA',
+      },
+    })
+    expect(updates[2]?.[0]).toMatchObject({
+      status: 'PARA_INATIVAR',
+      'metadata.guruTrialPreviousStatus': 'ACTIVE',
+    })
+    expect(updates[2]?.[1]).toMatchObject({ $set: { status: 'ACTIVE' } })
+    expect(updates[3]?.[0]).toMatchObject({
+      status: 'PARA_INATIVAR',
+      'metadata.guruTrialPreviousStatus': 'QUARENTENA',
+    })
+    expect(updates[3]?.[1]).toMatchObject({ $set: { status: 'QUARENTENA' } })
+
+    const legacyFilter = updates[3]?.[0]
+    expect(legacyFilter?.['metadata.guruTrialPreviousStatus']).toBe('QUARENTENA')
   })
 })
