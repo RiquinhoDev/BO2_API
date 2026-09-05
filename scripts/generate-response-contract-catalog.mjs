@@ -1114,7 +1114,7 @@ function ownerFromEvidence(evidence) {
   return match[1]
 }
 
-function driftMessages(reviewed, discovered, inventory) {
+function driftMessages(reviewed, discovered, inventory, { allowEvidenceRefresh = false } = {}) {
   const inventoryById = new Map(inventory.map((entry) => [entry.identity, entry]))
   const catalogById = new Map(reviewed.map((entry) => [identity(entry), entry]))
   const messages = []
@@ -1123,10 +1123,16 @@ function driftMessages(reviewed, discovered, inventory) {
     const entry = inventoryById.get(routeId)
     const catalog = catalogById.get(routeId)
     if (!entry || !catalog) continue
-    const actual = JSON.stringify({ family: decision.family, shapeKeys: decision.shapeKeys, evidence: decision.evidence, frontConsumer: decision.frontConsumer, owner: ownerFromEvidence(decision.evidence) })
+    const discoveredOwner = ownerFromEvidence(decision.evidence)
+    const actual = JSON.stringify({ family: decision.family, shapeKeys: decision.shapeKeys, evidence: decision.evidence, frontConsumer: decision.frontConsumer, owner: discoveredOwner })
     const expected = JSON.stringify({ family: entry.currentFamily, shapeKeys: catalog.shapeKeys, evidence: catalog.evidence, frontConsumer: entry.frontConsumer, owner: entry.owner })
-    if (actual !== expected) {
-      if (entry.currentFamily !== decision.family) messages.push(`${routeId} current response family changed: old=${entry.currentFamily}; new=${decision.family}`)
+    const currentFamilyChanged = entry.currentFamily !== decision.family
+    const shapeChanged = JSON.stringify(catalog.shapeKeys) !== JSON.stringify(decision.shapeKeys)
+    const frontConsumerChanged = entry.frontConsumer !== decision.frontConsumer
+    const ownerChanged = entry.owner !== discoveredOwner
+    const evidenceChanged = catalog.evidence !== decision.evidence
+    if (currentFamilyChanged) messages.push(`${routeId} current response family changed: old=${entry.currentFamily}; new=${decision.family}`)
+    if (currentFamilyChanged || shapeChanged || frontConsumerChanged || ownerChanged || (evidenceChanged && !allowEvidenceRefresh)) {
       messages.push(`${routeId} differs from reviewed migration inventory: expected ${expected}; discovered ${actual}`)
     }
     if (catalog.family !== entry.targetFamily) {
@@ -1148,11 +1154,14 @@ function main() {
   const discovered = discoverDecisions(routes)
   validateExactMembership(routes, discovered, 'discovered response decision')
 
-  const drift = driftMessages(reviewed, discovered, inventory)
+  const drift = driftMessages(reviewed, discovered, inventory, { allowEvidenceRefresh: mode === '--write' })
   if (drift.length > 0) {
     throw new Error(`Response catalog drift:\n${drift.join('\n')}`)
   }
-  const expected = serialize(reviewed)
+  const discoveredById = new Map(discovered.map((decision) => [identity(decision), decision]))
+  const expected = serialize(mode === '--write'
+    ? reviewed.map((decision) => ({ ...decision, evidence: discoveredById.get(identity(decision)).evidence }))
+    : reviewed)
   if (mode === '--write') {
     fs.writeFileSync(RESPONSE_CATALOG_PATH, expected, 'utf8')
     process.stdout.write(`Retained ${reviewed.length} reviewed response decisions.\n`)

@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import responseCatalog from '../../src/contracts/response-contract-catalog.json'
+import responseMigrationInventory from '../../src/contracts/response-migration-inventory.json'
 import routeCatalog from '../../src/security/route-catalog.json'
 import { RESPONSE_FAMILIES } from '../../src/contracts/responseContract'
 
@@ -22,6 +23,29 @@ function responseFixture() {
 
 const sha256 = (value: string): string => createHash('sha256').update(value).digest('hex')
 const fileSha = (filePath: string): string => sha256(fs.readFileSync(filePath, 'utf8'))
+
+const reviewedFields = (entry: typeof responseCatalog[number]) => ({
+  method: entry.method,
+  path: entry.path,
+  family: entry.family,
+  shapeKeys: entry.shapeKeys,
+  frontConsumer: entry.frontConsumer,
+})
+
+const currentOwnerOverrides: Record<string, string> = {
+  'GET /api/activecampaign/product-tags/stats': 'src/controllers/acTags/activeCampaignProductTagQueries.controller.ts',
+  'GET /api/activecampaign/products/:productId/tagged': 'src/controllers/acTags/activeCampaignProductTagQueries.controller.ts',
+}
+
+function writeCurrentOwnerInventory(directory: string): string {
+  const inventoryPath = path.join(directory, 'inventory.json')
+  const inventory = responseMigrationInventory.map((entry) => ({
+    ...entry,
+    owner: currentOwnerOverrides[entry.identity] ?? entry.owner,
+  }))
+  fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`, 'utf8')
+  return inventoryPath
+}
 
 function writeSourceOverlay(directory: string, sourcePath: string, contents: string): string {
   const overlayRoot = path.join(directory, 'source-overlay')
@@ -180,15 +204,72 @@ describe('response contract catalog', () => {
   test('write mode retains reviewed decisions by route identity', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-'))
     const catalogPath = path.join(directory, 'catalog.json')
-    const fixture = responseFixture().reverse()
+    const inventoryPath = writeCurrentOwnerInventory(directory)
+    const fixture = responseFixture().reverse().map((decision, index) =>
+      index === 0
+        ? { ...decision, evidence: decision.evidence.replace(/:\d+$/, ':1') }
+        : decision)
+    const staleDecision = fixture[0]
 
     try {
       fs.writeFileSync(catalogPath, JSON.stringify(fixture), 'utf8')
-      const result = runGenerator('--write', catalogPath)
-      const retained: unknown = JSON.parse(fs.readFileSync(catalogPath, 'utf8'))
+      const result = runGenerator('--write', catalogPath, {
+        RESPONSE_CONTRACT_MIGRATION_INVENTORY: inventoryPath,
+      })
+      const retained: typeof responseCatalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'))
+      const checked = runGenerator('--check', catalogPath, {
+        RESPONSE_CONTRACT_MIGRATION_INVENTORY: inventoryPath,
+      })
 
       expect(result.status).toBe(0)
-      expect(retained).toEqual(responseCatalog)
+      expect(checked.status).toBe(0)
+      expect(retained.map(reviewedFields)).toEqual(responseCatalog.map(reviewedFields))
+      expect(retained.find((entry) => routeId(entry) === routeId(staleDecision))?.evidence).not.toBe(staleDecision.evidence)
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('write mode rejects approved response drift and preserves the catalog', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-review-'))
+    const catalogPath = path.join(directory, 'catalog.json')
+    const inventoryPath = writeCurrentOwnerInventory(directory)
+    const fixture = responseFixture().map((decision, index) =>
+      index === 0 ? { ...decision, shapeKeys: [...decision.shapeKeys, 'unapproved'] } : decision)
+
+    try {
+      const before = `${JSON.stringify(fixture, null, 2)}\n`
+      fs.writeFileSync(catalogPath, before, 'utf8')
+      const result = runGenerator('--write', catalogPath, {
+        RESPONSE_CONTRACT_MIGRATION_INVENTORY: inventoryPath,
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}${result.stderr}`).toContain('differs from reviewed migration inventory')
+      expect(fs.readFileSync(catalogPath, 'utf8')).toBe(before)
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('write mode rejects owner drift and preserves the catalog', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'response-contract-owner-'))
+    const catalogPath = path.join(directory, 'catalog.json')
+    const inventoryPath = path.join(directory, 'inventory.json')
+    const inventory = responseMigrationInventory.map((entry, index) =>
+      index === 0 ? { ...entry, owner: 'src/controllers/not-approved.controller.ts' } : entry)
+
+    try {
+      fs.writeFileSync(catalogPath, `${JSON.stringify(responseFixture(), null, 2)}\n`, 'utf8')
+      fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`, 'utf8')
+      const before = fs.readFileSync(catalogPath, 'utf8')
+      const result = runGenerator('--write', catalogPath, {
+        RESPONSE_CONTRACT_MIGRATION_INVENTORY: inventoryPath,
+      })
+
+      expect(result.status).not.toBe(0)
+      expect(`${result.stdout}${result.stderr}`).toContain('owner')
+      expect(fs.readFileSync(catalogPath, 'utf8')).toBe(before)
     } finally {
       fs.rmSync(directory, { recursive: true, force: true })
     }
