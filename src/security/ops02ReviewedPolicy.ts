@@ -182,7 +182,51 @@ const providerReadCap: ReviewedProtection = {
   limit: MAX_PROVIDER_READ_ITEMS,
 }
 
+function clarezaStaticUniverseCap(limit: number): ReviewedProtection {
+  return {
+    status: 'verified',
+    reason: 'clareza-static-universe-max-items',
+    limit,
+  }
+}
+
 const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
+  [
+    'POST /api/clareza/refresh',
+    {
+      cap: clarezaStaticUniverseCap(183),
+    },
+  ],
+  [
+    'POST /api/clareza/top10/refresh',
+    {
+      cap: clarezaStaticUniverseCap(10),
+    },
+  ],
+  [
+    'POST /api/clareza/raiox/refresh',
+    {
+      cap: clarezaStaticUniverseCap(185),
+    },
+  ],
+  [
+    'POST /api/clareza/carteira/refresh',
+    {
+      cap: clarezaStaticUniverseCap(731),
+    },
+  ],
+  [
+    'POST /api/clareza/earnings/refresh',
+    {
+      cap: clarezaStaticUniverseCap(183),
+    },
+  ],
+  [
+    'POST /api/clareza/comparador/refresh',
+    {
+      cap: clarezaStaticUniverseCap(183),
+    },
+  ],
   [
     'POST /api/ac/contacts/batch-sync',
     {
@@ -308,6 +352,15 @@ const REVIEWED_PROTECTION_POLICY = new Map<string, ReviewedProtectionPolicy>([
       idempotency: {
         status: 'verified',
         reason: 'guru-snapshot-unique-period-prevents-duplicate',
+      },
+    },
+  ],
+  [
+    'PUT /api/guru/snapshots/:year/:month',
+    {
+      idempotency: {
+        status: 'verified',
+        reason: 'guru-snapshot-period-replacement-converges',
       },
     },
   ],

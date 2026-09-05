@@ -77,6 +77,8 @@ const WATCHLIST = [
   { ticker: 'SPCX',  name: 'SpaceX',                   exchange: 'NASDAQ',             currency: '$', isPrivate: false, ipoFallback: true },
 ]
 
+export const CLAREZA_TOP10_WATCHLIST_SIZE = WATCHLIST.length
+
 // ─────────────────────────────────────────────────────────────
 // FMP HELPERS (stable + fallback v3)
 // ─────────────────────────────────────────────────────────────
