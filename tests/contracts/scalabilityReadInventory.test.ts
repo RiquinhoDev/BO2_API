@@ -22,16 +22,16 @@ test('SCALE-01 inventory reconciles 40 complete reads', () => {
   expect(inventory.scale02.entries).toHaveLength(11)
   expect(run()).toContain('40 complete / 0 pending')
   expect(run()).toContain('SCALE-02 11 complete / 0 pending')
-  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 19, pending: 5, changed: 15, alreadyCompliant: 4 })
+  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 20, pending: 4, changed: 16, alreadyCompliant: 4 })
   expect(inventory.scale03.entries).toHaveLength(24)
-  expect(run()).toContain('SCALE-03 19 complete / 5 pending')
+  expect(run()).toContain('SCALE-03 20 complete / 4 pending')
 })
 
 test('SCALE-03 records reviewed changes, compliance, and honest pending decisions', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(19)
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(5)
-  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(15)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(20)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(4)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(16)
   expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'already-compliant')).toHaveLength(4)
   expect(inventory.scale03.operational.status).toBe('pending')
 })
@@ -86,6 +86,24 @@ test('SCALE-03 records activity snapshot partial-write accounting', () => {
     expect.stringContaining('activitySnapshotMonthly.test.ts'),
     expect.stringContaining('N=1/10/100'),
     expect.stringContaining('totalProcessed'),
+  ]))
+})
+
+test('SCALE-03 records achievement evaluation persistence accounting', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  const achievements = inventory.scale03.entries.find(({ id }: { id: string }) => id === 'achievements.partial-writes')
+
+  expect(achievements).toMatchObject({
+    status: 'complete',
+    disposition: 'changed',
+    constraint: expect.stringMatching(/^constrained-sequential:/),
+  })
+  expect(achievements.evidence).toEqual(expect.arrayContaining([
+    expect.stringContaining('achievementEvaluation.service.test.ts'),
+    expect.stringContaining('N=1/10/100'),
+    expect.stringContaining('processed'),
+    expect.stringContaining('evaluated'),
+    expect.stringContaining('errors'),
   ]))
 })
 

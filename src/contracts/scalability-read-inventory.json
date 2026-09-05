@@ -627,9 +627,9 @@
   "scale03": {
     "summary": {
       "planned": 24,
-      "complete": 19,
-      "pending": 5,
-      "changed": 15,
+      "complete": 20,
+      "pending": 4,
+      "changed": 16,
       "alreadyCompliant": 4
     },
     "entries": [
@@ -791,8 +791,20 @@
         "id": "achievements.partial-writes",
         "file": "src/services/achievements/achievementEvaluation.service.ts",
         "start": "export async function evaluateAllAchievements",
-        "status": "pending",
-        "reason": "Evaluation persists each user and aggregates partial failures; bounded parallel writes need equivalence evidence."
+        "status": "complete",
+        "disposition": "changed",
+        "constraint": "constrained-sequential: evaluation and targeted persistence stay ordered per user; processed counts every attempt, evaluated counts completed persistence and errors count failures",
+        "evidence": [
+          "tests/services/achievements/achievementEvaluation.service.test.ts:91-133 (N=1/10/100, peak=1, evaluation -> persistence order and successful counters)",
+          "tests/services/achievements/achievementEvaluation.service.test.ts:135-171 (N=1/10/100, processed/evaluated/errors and ordered partial failures continue through input)"
+        ],
+        "require": [
+          "for (const user of users)",
+          "processed++",
+          "await evaluateAndPersistAchievements(user, {",
+          "if (result.evaluated) evaluated++",
+          "errors++"
+        ]
       },
       {
         "id": "guru-discrepancy.compensation",

@@ -176,13 +176,13 @@ export async function evaluateAllAchievements(
   const startTime = Date.now()
 
   for (const user of users) {
+    processed++
     try {
       const result = await evaluateAndPersistAchievements(user, {
         force: options.force,
         staleMs: options.staleMs,
         backfillUnlockedAsSeen: options.backfillUnlockedAsSeen !== false
       })
-      processed++
       if (result.evaluated) evaluated++
     } catch (error: unknown) {
       errors++
