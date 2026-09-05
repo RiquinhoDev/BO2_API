@@ -68,6 +68,8 @@ test('SCALE-03 records testimonial provider ordering and marker gating', () => {
     expect.stringContaining('testimonialTagSync.service.test.ts'),
     expect.stringContaining('N=1/10/100'),
     expect.stringContaining('partial provider failures'),
+    expect.stringContaining('recent marker'),
+    expect.stringContaining('local marker persistence failure'),
   ]))
 })
 

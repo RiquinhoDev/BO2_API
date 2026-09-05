@@ -833,14 +833,19 @@
         "disposition": "changed",
         "constraint": "constrained-sequential: provider remove/add operations and the terminal local marker stay ordered per user",
         "evidence": [
-          "tests/services/activeCampaign/testimonialTagSync.service.test.ts:79-130 (N=1/10/100, peak=1, remove -> add -> local marker order)",
-          "tests/services/activeCampaign/testimonialTagSync.service.test.ts:133-190 (partial provider failures are counted and do not advance the marker)"
+          "tests/services/activeCampaign/testimonialTagSync.service.test.ts:79-131 (N=1/10/100, peak=1, remove -> add -> local marker order)",
+          "tests/services/activeCampaign/testimonialTagSync.service.test.ts:134-192 (partial provider failures are counted and do not advance the marker)",
+          "tests/services/activeCampaign/testimonialTagSync.service.test.ts:194-218 (recent marker skips before provider writes and local update)",
+          "tests/services/activeCampaign/testimonialTagSync.service.test.ts:220-261 (local marker persistence failure is reported and provider work retries)"
         ],
         "require": [
           "for (const user of users)",
+          "const lastSyncedAt = testimonialData.lastSyncedAt",
+          "result.stats.skipped += tags.length",
           "await activeCampaignService.removeTag(email, oldTag)",
           "await activeCampaignService.addTag(email, tagName)",
           "if (providerFailed)",
+          "result.stats.failed++",
           "communicationByCourse.TESTIMONIALS.lastSyncedAt"
         ]
       },

@@ -36,6 +36,7 @@ type FakeUser = {
   communicationByCourse: {
     TESTIMONIALS: {
       currentTags: string[]
+      lastSyncedAt?: Date
     }
   }
 }
@@ -188,5 +189,75 @@ describe.each([1, 10, 100])('testimonial tag sync N=%i', (size) => {
       `add:${index}`,
       ...(index % 10 !== 0 && index % 10 !== 1 ? [`update:${index}`] : []),
     ]).flat())
+  })
+
+  test('skips recent users before any provider write or local marker update', async () => {
+    const users = makeUsers(size)
+    const recent = new Date(Date.now() - 60 * 60 * 1000)
+    users.forEach(user => {
+      user.communicationByCourse.TESTIMONIALS.lastSyncedAt = recent
+    })
+    mockUserFind.mockReturnValue(queryFor(users))
+
+    const result = await syncTestimonialTags()
+
+    expect(result).toEqual({
+      success: true,
+      stats: {
+        totalUsers: size,
+        totalTags: size,
+        synced: 0,
+        skipped: size,
+        failed: 0,
+      },
+      errors: [],
+    })
+    expect(mockRemoveTag).not.toHaveBeenCalled()
+    expect(mockAddTag).not.toHaveBeenCalled()
+    expect(mockUpdateOne).not.toHaveBeenCalled()
+  })
+
+  test('reports local marker persistence failure and retries the provider work', async () => {
+    const users = makeUsers(size)
+    mockUserFind.mockReturnValue(queryFor(users))
+    mockRemoveTag.mockResolvedValue(true)
+    mockAddTag.mockResolvedValue({})
+    mockUpdateOne.mockRejectedValue(new Error('database unavailable'))
+
+    const firstResult = await syncTestimonialTags()
+
+    expect(firstResult).toEqual({
+      success: false,
+      stats: {
+        totalUsers: size,
+        totalTags: size,
+        synced: size,
+        skipped: 0,
+        failed: size,
+      },
+      errors: users.map(user => ({
+        userId: user._id.toString(),
+        email: user.email,
+        error: 'lastSyncedAt: database unavailable',
+      })),
+    })
+    expect(mockRemoveTag).toHaveBeenCalledTimes(size)
+    expect(mockAddTag).toHaveBeenCalledTimes(size)
+    expect(mockUpdateOne).toHaveBeenCalledTimes(size)
+
+    mockUpdateOne.mockResolvedValue({ acknowledged: true })
+    const retryResult = await syncTestimonialTags()
+
+    expect(retryResult.success).toBe(true)
+    expect(retryResult.stats).toEqual({
+      totalUsers: size,
+      totalTags: size,
+      synced: size,
+      skipped: 0,
+      failed: 0,
+    })
+    expect(mockRemoveTag).toHaveBeenCalledTimes(size * 2)
+    expect(mockAddTag).toHaveBeenCalledTimes(size * 2)
+    expect(mockUpdateOne).toHaveBeenCalledTimes(size * 2)
   })
 })

@@ -138,6 +138,16 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
 
         logger.info(`   🔄 ${email}: ${tags.length} tag(s) - ${tags.join(', ')}`)
 
+        const lastSyncedAt = testimonialData.lastSyncedAt
+        if (lastSyncedAt) {
+          const hoursSinceSync = (Date.now() - new Date(lastSyncedAt).getTime()) / (1000 * 60 * 60)
+          if (hoursSinceSync < 24) {
+            logger.info(`   ⏭️  ${email}: ${tags.length} tag(s) já sincronizada(s) há ${Math.floor(hoursSinceSync)}h, ignorando`)
+            result.stats.skipped += tags.length
+            continue
+          }
+        }
+
         // ═══════════════════════════════════════════════════════════
         // 3. REMOVER TAGS ANTIGAS SE FOR TAG DE CONCLUSÃO
         // ═══════════════════════════════════════════════════════════
@@ -185,16 +195,6 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
 
         for (const tagName of tags) {
           try {
-            const lastSyncedAt = testimonialData.lastSyncedAt
-            if (lastSyncedAt) {
-              const hoursSinceSync = (Date.now() - new Date(lastSyncedAt).getTime()) / (1000 * 60 * 60)
-              if (hoursSinceSync < 24) {
-                logger.info(`   ⏭️  Tag "${tagName}" já sincronizada há ${Math.floor(hoursSinceSync)}h, ignorando`)
-                result.stats.skipped++
-                continue
-              }
-            }
-
             await activeCampaignService.addTag(email, tagName)
 
             logger.info(`   ✅ Tag "${tagName}" aplicada em ${email}`)
@@ -229,7 +229,13 @@ export async function syncTestimonialTags(): Promise<TestimonialTagSyncResult> {
               }
             )
           } catch (updateError: unknown) {
-            logger.warn(`   ⚠️  Erro ao atualizar lastSyncedAt para ${email}: ${errorMessage(updateError)}`)
+            logger.error(`   ❌ Erro ao atualizar lastSyncedAt para ${email}: ${errorMessage(updateError)}`)
+            result.errors.push({
+              userId: user._id.toString(),
+              email,
+              error: `lastSyncedAt: ${errorMessage(updateError)}`
+            })
+            result.stats.failed++
           }
         }
 
