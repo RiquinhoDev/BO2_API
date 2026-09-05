@@ -11,6 +11,16 @@ import {
 
 const marker = { __bo2_offline_loopback: '1' }
 
+const authenticateAsAdmin: RequestHandler = (req, _res, next) => {
+  req.user = {
+    id: 'admin-1',
+    email: 'admin@example.test',
+    role: 'ADMIN',
+    permissions: [],
+  }
+  next()
+}
+
 function buildProbe(
   events: RouteUsageLogEvent[],
   authEnforce = false,
@@ -25,6 +35,7 @@ function buildProbe(
       authenticateRequest,
       createRouteUsageInstrumentation: () => instrumentation,
       registerRoutes: (app) => {
+        app.get('/api/probe/by-email/:email', (_req, res) => res.sendStatus(204))
         app.get('/api/users/by-email/:email', (_req, res) => res.sendStatus(204))
         app.get('/api/cron/status', (_req, res) => res.sendStatus(204))
         app.get('/api/cron-tags/status', (_req, res) => res.sendStatus(204))
@@ -39,13 +50,13 @@ test('regista o template da rota sem o email real', async () => {
   const { app, info } = buildProbe(events)
 
   await request(app)
-    .get('/api/users/by-email/joao%40example.com')
+    .get('/api/probe/by-email/joao%40example.com')
     .query(marker)
     .expect(204)
 
   expect(info).toHaveBeenCalledWith('HTTP route usage', {
     method: 'GET',
-    route: '/users/by-email/:email',
+    route: '/probe/by-email/:email',
     authenticated: false,
   })
   expect(JSON.stringify(events)).not.toContain('joao')
@@ -53,16 +64,7 @@ test('regista o template da rota sem o email real', async () => {
 
 test('regista se a autenticacao terminou antes da resposta', async () => {
   const events: RouteUsageLogEvent[] = []
-  const authenticateRequest: RequestHandler = (req, _res, next) => {
-    req.user = {
-      id: 'admin-1',
-      email: 'admin@example.test',
-      role: 'ADMIN',
-      permissions: [],
-    }
-    next()
-  }
-  const { app } = buildProbe(events, true, authenticateRequest)
+  const { app } = buildProbe(events, true, authenticateAsAdmin)
 
   await request(app)
     .get('/api/users/by-email/joao@example.com')
@@ -79,13 +81,13 @@ test('consome a funcao unica de redacao da F1.8', async () => {
   const { app } = buildProbe([])
 
   await request(app)
-    .get('/api/users/by-email/joao@example.com')
+    .get('/api/probe/by-email/joao@example.com')
     .query(marker)
     .expect(204)
 
   expect(redact).toHaveBeenCalledWith({
     method: 'GET',
-    route: '/users/by-email/:email',
+    route: '/probe/by-email/:email',
     authenticated: false,
   })
   redact.mockRestore()
@@ -93,7 +95,7 @@ test('consome a funcao unica de redacao da F1.8', async () => {
 
 test('regista a montagem api no log de uso', async () => {
   const events: RouteUsageLogEvent[] = []
-  const { app } = buildProbe(events)
+  const { app } = buildProbe(events, true, authenticateAsAdmin)
 
   await request(app).get('/api/cron-tags/status').query(marker).expect(204)
   expect(events.map(({ route, mount }) => ({ route, mount }))).toEqual([
@@ -101,7 +103,7 @@ test('regista a montagem api no log de uso', async () => {
 })
 
 test('emite Deprecation na familia api cron-tags sem marcar a familia cron viva', async () => {
-  const { app } = buildProbe([])
+  const { app } = buildProbe([], true, authenticateAsAdmin)
 
   for (const route of ['/api/cron-tags/status']) {
     const response = await request(app).get(route).query(marker).expect(204)

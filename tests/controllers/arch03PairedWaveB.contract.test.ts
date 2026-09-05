@@ -5,7 +5,7 @@ const read = (relativePath: string) =>
   fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8')
 
 test.each([
-  ['src/controllers/tagMonitoring/criticalTag.controller.ts', 7],
+  ['src/controllers/tagMonitoring/criticalTag.controller.ts', 8],
   ['src/controllers/tagMonitoring/tagNotification.controller.ts', 6],
   ['src/controllers/tagMonitoring/tagMonitoring.controller.ts', 5],
   ['src/controllers/testimonials/testimonialQueries.controller.ts', 4],
