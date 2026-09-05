@@ -17,6 +17,8 @@ const repository = (
   findOne: jest.fn(async () => undefined),
   findMany: jest.fn(async () => []),
   markDuplicates: jest.fn(async () => undefined),
+  claimInactivation: jest.fn(async () => true),
+  releaseInactivationClaim: jest.fn(async () => undefined),
   markInactive: jest.fn(async () => undefined),
   recordFailure: jest.fn(async () => undefined),
   ...overrides,
@@ -90,6 +92,33 @@ test('single forwards a canonical 503 error and performs no reads when switch is
     publicMessage: 'Inativação CursEduca desativada',
   }))
   expect(repo.findOne).not.toHaveBeenCalled()
+})
+
+test('single forwards a canonical 409 error when another claim owns the enrollment', async () => {
+  const repo = repository({
+    findOne: jest.fn(async () => ({
+      id: 'product-1',
+      userId: 'user-1',
+      memberId: 'member-1',
+      hasCurseducaUser: true,
+    })),
+    claimInactivation: jest.fn(async () => false),
+  })
+  const handlers = createGuruExternalInactivationHandlers(
+    createGuruExternalInactivationService(repo, client(), { enabled: () => true }),
+  )
+  const next = jest.fn()
+
+  await handlers.inactivateSingle({
+    params: {},
+    query: {},
+    body: { userProductId: '0123456789abcdef01234567' },
+  }, response(), next)
+
+  expect(next).toHaveBeenCalledWith(expect.objectContaining({
+    status: 409,
+    code: 'GURU_INACTIVATION_IN_PROGRESS',
+  }))
 })
 
 test('switch and cap errors render the canonical code/correlation envelope', async () => {

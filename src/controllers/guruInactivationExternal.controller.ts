@@ -46,6 +46,13 @@ export const createGuruExternalInactivationHandlers = (
           message: 'curseducaUserId não encontrado para este user',
         })
       }
+      if (result.kind === 'in-progress') {
+        return next(new HttpError({
+          status: 409,
+          code: 'GURU_INACTIVATION_IN_PROGRESS',
+          publicMessage: 'Inativação CursEduca já está em processamento',
+        }))
+      }
       if (result.kind === 'remote-failure') {
         return next(internalError(
           'Erro ao inativar no CursEduca',

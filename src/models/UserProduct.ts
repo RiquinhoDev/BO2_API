@@ -147,6 +147,9 @@ export interface IUserProduct extends Document {
     curseducaResponse?: unknown
     inactivationError?: string
     inactivationAttemptAt?: Date
+    inactivationClaimId?: string
+    inactivationClaimedAt?: Date
+    inactivationClaimExpiresAt?: Date
   }
 
   platformData?: Record<string, unknown>
@@ -406,7 +409,10 @@ const UserProductSchema = new Schema<IUserProduct>({
     fixedToActiveReason: String,
     curseducaResponse: Schema.Types.Mixed,
     inactivationError: String,
-    inactivationAttemptAt: Date
+    inactivationAttemptAt: Date,
+    inactivationClaimId: String,
+    inactivationClaimedAt: Date,
+    inactivationClaimExpiresAt: Date
   },
 
   platformData: Schema.Types.Mixed

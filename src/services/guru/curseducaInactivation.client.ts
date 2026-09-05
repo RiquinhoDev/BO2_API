@@ -5,6 +5,8 @@ export type CurseducaInactivationResult =
   | { success: true; response: unknown }
   | { success: false; error: string }
 
+export const CURSEDUCA_INACTIVATION_PROVIDER_TIMEOUT_MS = 10_000
+
 export interface CurseducaInactivationClient {
   inactivate(memberId: string | number): Promise<CurseducaInactivationResult>
 }
@@ -40,7 +42,7 @@ export const axiosCurseducaInactivationClient: CurseducaInactivationClient = {
             'Authorization': `Bearer ${settings.accessToken}`,
             'api_key': settings.apiKey,
           },
-          timeout: 10000,
+          timeout: CURSEDUCA_INACTIVATION_PROVIDER_TIMEOUT_MS,
         },
       )
       return { success: true, response: response.data }

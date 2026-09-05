@@ -1,5 +1,12 @@
-import type { CurseducaInactivationClient } from './curseducaInactivation.client'
+import {
+  CURSEDUCA_INACTIVATION_PROVIDER_TIMEOUT_MS,
+  type CurseducaInactivationClient,
+} from './curseducaInactivation.client'
+import { randomUUID } from 'node:crypto'
 import { MAX_BULK_OPERATION_ITEMS } from '../../security/bulkOperationPolicy'
+
+export const CURSEDUCA_INACTIVATION_LEASE_MS =
+  CURSEDUCA_INACTIVATION_PROVIDER_TIMEOUT_MS * 6
 
 export interface ExternalInactivationEnrollment {
   id: unknown
@@ -14,13 +21,21 @@ export interface GuruExternalInactivationRepository {
   findOne(criteria: { userProductId?: string; curseducaUserId?: string }): Promise<ExternalInactivationEnrollment | undefined>
   findMany(criteria: { userProductIds?: string[]; all?: boolean }): Promise<ExternalInactivationEnrollment[]>
   markDuplicates(ids: unknown[], at: Date): Promise<void>
+  claimInactivation(
+    id: unknown,
+    claimId: string,
+    at: Date,
+    leaseExpiresAt: Date,
+  ): Promise<boolean>
+  releaseInactivationClaim(id: unknown, claimId: string): Promise<void>
   markInactive(
     enrollment: ExternalInactivationEnrollment,
     at: Date,
     source: 'guru_integration' | 'guru_integration_bulk',
     response?: unknown,
+    claimId?: string,
   ): Promise<void>
-  recordFailure(id: unknown, at: Date, error: string): Promise<void>
+  recordFailure(id: unknown, at: Date, error: string, claimId?: string): Promise<void>
 }
 
 export interface GuruExternalInactivationOptions {
@@ -41,6 +56,7 @@ export class GuruExternalInactivationLimitError extends Error {
 export type SingleInactivationResult =
   | { kind: 'not-found' }
   | { kind: 'missing-member' }
+  | { kind: 'in-progress' }
   | { kind: 'remote-failure'; error: string }
   | { kind: 'disabled' }
   | { kind: 'dry-run'; memberId: string | number; email?: string; planned: boolean; alreadyInactive?: boolean }
@@ -52,6 +68,7 @@ export interface BulkInactivationDetail {
   memberId?: string | number
   success: boolean
   error?: string
+  inProgress?: boolean
   planned?: boolean
   alreadyInactive?: boolean
 }
@@ -69,6 +86,14 @@ export interface BulkInactivationResult {
 const defaultSleep = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds))
 
+type InactivationExecutionResult =
+  | { kind: 'in-progress' }
+  | { kind: 'failure'; error: string }
+  | { kind: 'success' }
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error)
+
 export const createGuruExternalInactivationService = (
   repository: GuruExternalInactivationRepository,
   client: CurseducaInactivationClient,
@@ -77,6 +102,55 @@ export const createGuruExternalInactivationService = (
   const now = options.now ?? (() => new Date())
   const sleep = options.sleep ?? defaultSleep
   const enabled = options.enabled ?? (() => false)
+
+  const executeInactivation = async (
+    enrollment: ExternalInactivationEnrollment,
+    memberId: string | number,
+    source: 'guru_integration' | 'guru_integration_bulk',
+  ): Promise<InactivationExecutionResult> => {
+    const claimId = randomUUID()
+    const claimedAt = now()
+    const claimed = await repository.claimInactivation(
+      enrollment.id,
+      claimId,
+      claimedAt,
+      new Date(claimedAt.getTime() + CURSEDUCA_INACTIVATION_LEASE_MS),
+    )
+    if (!claimed) return { kind: 'in-progress' }
+
+    try {
+      let remote: Awaited<ReturnType<CurseducaInactivationClient['inactivate']>>
+      try {
+        remote = await client.inactivate(memberId)
+      } catch (error: unknown) {
+        const message = errorMessage(error)
+        await repository.recordFailure(enrollment.id, now(), message, claimId)
+        return { kind: 'failure', error: message }
+      }
+
+      if (!remote.success) {
+        await repository.recordFailure(enrollment.id, now(), remote.error, claimId)
+        return { kind: 'failure', error: remote.error }
+      }
+
+      try {
+        await repository.markInactive(
+          enrollment,
+          now(),
+          source,
+          source === 'guru_integration' ? remote.response : undefined,
+          claimId,
+        )
+      } catch (error: unknown) {
+        const message = errorMessage(error)
+        await repository.recordFailure(enrollment.id, now(), message, claimId)
+        return { kind: 'failure', error: message }
+      }
+      return { kind: 'success' }
+    } finally {
+      await repository.releaseInactivationClaim(enrollment.id, claimId)
+    }
+  }
 
   const inactivateSingle = async (criteria: {
     userProductId?: string
@@ -107,17 +181,9 @@ export const createGuruExternalInactivationService = (
       }
     }
 
-    const result = await client.inactivate(enrollment.memberId)
-    if (!result.success) {
-      await repository.recordFailure(enrollment.id, now(), result.error)
-      return { kind: 'remote-failure', error: result.error }
-    }
-    await repository.markInactive(
-      enrollment,
-      now(),
-      'guru_integration',
-      result.response,
-    )
+    const result = await executeInactivation(enrollment, enrollment.memberId, 'guru_integration')
+    if (result.kind === 'in-progress') return result
+    if (result.kind === 'failure') return { kind: 'remote-failure', error: result.error }
     return {
       kind: 'success',
       memberId: enrollment.memberId,
@@ -199,40 +265,32 @@ export const createGuruExternalInactivationService = (
         })
         continue
       }
-      try {
-        const remote = await client.inactivate(enrollment.memberId)
-        if (remote.success) {
-          await repository.markInactive(enrollment, now(), 'guru_integration_bulk')
-          result.succeeded += 1
-          result.details.push({
-            userProductId: enrollment.id,
-            email: enrollment.email,
-            memberId: enrollment.memberId,
-            success: true,
-          })
-        } else {
-          await repository.recordFailure(enrollment.id, now(), remote.error)
-          result.failed += 1
-          result.details.push({
-            userProductId: enrollment.id,
-            email: enrollment.email,
-            memberId: enrollment.memberId,
-            success: false,
-            error: remote.error,
-          })
-        }
-        await sleep(500)
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error)
-        await repository.recordFailure(enrollment.id, now(), message)
+      const execution = await executeInactivation(
+        enrollment,
+        enrollment.memberId,
+        'guru_integration_bulk',
+      )
+      if (execution.kind === 'success') {
+        result.succeeded += 1
+        result.details.push({
+          userProductId: enrollment.id,
+          email: enrollment.email,
+          memberId: enrollment.memberId,
+          success: true,
+        })
+      } else {
         result.failed += 1
         result.details.push({
           userProductId: enrollment.id,
           email: enrollment.email,
+          memberId: enrollment.memberId,
           success: false,
-          error: message,
+          ...(execution.kind === 'in-progress'
+            ? { error: 'Inativação já em processamento', inProgress: true }
+            : { error: execution.error }),
         })
       }
+      await sleep(500)
     }
     return result
   }

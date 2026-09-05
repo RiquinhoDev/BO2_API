@@ -1,10 +1,14 @@
 import {
+  CURSEDUCA_INACTIVATION_LEASE_MS,
   createGuruExternalInactivationService,
   GuruExternalInactivationLimitError,
   type ExternalInactivationEnrollment,
   type GuruExternalInactivationRepository,
 } from '../../../src/services/guru/guruExternalInactivation.service'
-import type { CurseducaInactivationClient } from '../../../src/services/guru/curseducaInactivation.client'
+import {
+  CURSEDUCA_INACTIVATION_PROVIDER_TIMEOUT_MS,
+  type CurseducaInactivationClient,
+} from '../../../src/services/guru/curseducaInactivation.client'
 
 const enrollment = (
   id: string,
@@ -23,6 +27,8 @@ const repository = (
   findOne: jest.fn(async () => enrollment('product-1')),
   findMany: jest.fn(async () => [enrollment('product-1')]),
   markDuplicates: jest.fn(async () => undefined),
+  claimInactivation: jest.fn(async () => true),
+  releaseInactivationClaim: jest.fn(async () => undefined),
   markInactive: jest.fn(async () => undefined),
   recordFailure: jest.fn(async () => undefined),
   ...overrides,
@@ -32,8 +38,17 @@ const client = (
   inactivate: CurseducaInactivationClient['inactivate'],
 ): CurseducaInactivationClient => ({ inactivate })
 
-test('single replay calls the provider again because no provider idempotency guard exists', async () => {
-  const repo = repository()
+test('single replay with a stale read cannot claim after durable completion', async () => {
+  let completed = false
+  const repo = repository({
+    claimInactivation: jest.fn(async () => {
+      if (completed) return false
+      return true
+    }),
+    markInactive: jest.fn(async () => {
+      completed = true
+    }),
+  })
   const inactivate = jest.fn(async () => ({ success: true as const, response: { ok: true } }))
   const service = createGuruExternalInactivationService(repo, client(inactivate), {
     enabled: () => true,
@@ -42,8 +57,14 @@ test('single replay calls the provider again because no provider idempotency gua
   await service.inactivateSingle({ userProductId: 'product-1' })
   await service.inactivateSingle({ userProductId: 'product-1' })
 
-  expect(inactivate).toHaveBeenCalledTimes(2)
-  expect(repo.markInactive).toHaveBeenCalledTimes(2)
+  expect(inactivate).toHaveBeenCalledTimes(1)
+  expect(repo.markInactive).toHaveBeenCalledTimes(1)
+})
+
+test('claim lease exceeds the provider timeout by contract', () => {
+  expect(CURSEDUCA_INACTIVATION_LEASE_MS).toBeGreaterThan(
+    CURSEDUCA_INACTIVATION_PROVIDER_TIMEOUT_MS,
+  )
 })
 
 test('single replay converges when the repository observes local INACTIVE state', async () => {
@@ -82,8 +103,17 @@ test('single skips provider when the local enrollment is already INACTIVE', asyn
   expect(repo.markInactive).not.toHaveBeenCalled()
 })
 
-test('bulk explicit-id replay calls the provider again after local success', async () => {
-  const repo = repository()
+test('bulk explicit-id replay with a stale read cannot claim after durable completion', async () => {
+  let completed = false
+  const repo = repository({
+    claimInactivation: jest.fn(async () => {
+      if (completed) return false
+      return true
+    }),
+    markInactive: jest.fn(async () => {
+      completed = true
+    }),
+  })
   const inactivate = jest.fn(async () => ({ success: true as const, response: { ok: true } }))
   const service = createGuruExternalInactivationService(repo, client(inactivate), {
     enabled: () => true,
@@ -93,8 +123,8 @@ test('bulk explicit-id replay calls the provider again after local success', asy
   await service.inactivateBulk({ userProductIds: ['product-1'] })
   await service.inactivateBulk({ userProductIds: ['product-1'] })
 
-  expect(inactivate).toHaveBeenCalledTimes(2)
-  expect(repo.markInactive).toHaveBeenCalledTimes(2)
+  expect(inactivate).toHaveBeenCalledTimes(1)
+  expect(repo.markInactive).toHaveBeenCalledTimes(1)
 })
 
 test('bulk all mode rejects results above the finite service cap before provider writes', async () => {
@@ -166,15 +196,17 @@ test('bulk dry-run returns a deduplicated plan without provider or local mutatio
   expect(repo.recordFailure).not.toHaveBeenCalled()
 })
 
-test('concurrent single requests both reach the provider because no atomic claim exists', async () => {
-  const repo = repository()
-  let release!: () => void
-  const providerBarrier = new Promise<void>((resolve) => {
-    release = resolve
+test('concurrent single requests share one durable claim', async () => {
+  let claimed = false
+  const repo = repository({
+    claimInactivation: jest.fn(async () => {
+      if (claimed) return false
+      claimed = true
+      return true
+    }),
   })
   const inactivate = jest.fn(async () => {
-    if (inactivate.mock.calls.length === 2) release()
-    await providerBarrier
+    await Promise.resolve()
     return { success: true as const, response: { ok: true } }
   })
   const service = createGuruExternalInactivationService(repo, client(inactivate), {
@@ -186,7 +218,139 @@ test('concurrent single requests both reach the provider because no atomic claim
     service.inactivateSingle({ userProductId: 'product-1' }),
   ])
 
+  expect(inactivate).toHaveBeenCalledTimes(1)
+  expect(repo.claimInactivation).toHaveBeenCalledTimes(2)
+})
+
+test('provider exception releases the claim so a retry can run', async () => {
+  let claimed = false
+  const repo = repository({
+    claimInactivation: jest.fn(async () => {
+      if (claimed) return false
+      claimed = true
+      return true
+    }),
+    releaseInactivationClaim: jest.fn(async () => {
+      claimed = false
+    }),
+  })
+  const inactivate = jest.fn()
+    .mockRejectedValueOnce(new Error('provider crashed'))
+    .mockResolvedValueOnce({ success: true as const, response: { ok: true } })
+  const service = createGuruExternalInactivationService(repo, client(inactivate), {
+    enabled: () => true,
+  })
+
+  await expect(service.inactivateSingle({ userProductId: 'product-1' })).resolves.toEqual({
+    kind: 'remote-failure',
+    error: 'provider crashed',
+  })
+  await expect(service.inactivateSingle({ userProductId: 'product-1' })).resolves.toMatchObject({
+    kind: 'success',
+  })
+
   expect(inactivate).toHaveBeenCalledTimes(2)
+  expect(repo.recordFailure).toHaveBeenCalledWith(
+    'product-1',
+    expect.any(Date),
+    'provider crashed',
+    expect.any(String),
+  )
+})
+
+test('provider failure result releases the claim so a retry can run', async () => {
+  let claimed = false
+  const repo = repository({
+    claimInactivation: jest.fn(async () => {
+      if (claimed) return false
+      claimed = true
+      return true
+    }),
+    releaseInactivationClaim: jest.fn(async () => {
+      claimed = false
+    }),
+  })
+  const inactivate = jest.fn()
+    .mockResolvedValueOnce({ success: false as const, error: 'remote failure' })
+    .mockResolvedValueOnce({ success: true as const, response: { ok: true } })
+  const service = createGuruExternalInactivationService(repo, client(inactivate), {
+    enabled: () => true,
+  })
+
+  await expect(service.inactivateSingle({ userProductId: 'product-1' })).resolves.toEqual({
+    kind: 'remote-failure',
+    error: 'remote failure',
+  })
+  await expect(service.inactivateSingle({ userProductId: 'product-1' })).resolves.toMatchObject({
+    kind: 'success',
+  })
+
+  expect(inactivate).toHaveBeenCalledTimes(2)
+  expect(repo.releaseInactivationClaim).toHaveBeenCalledTimes(2)
+})
+
+test('expired lease is recoverable while a live lease reports in progress', async () => {
+  let current = new Date('2026-09-05T10:00:00.000Z')
+  let leaseExpiresAt = new Date('2026-09-05T10:00:30.000Z')
+  const repo = repository({
+    claimInactivation: jest.fn(async (_id, _claimId, at, nextLeaseExpiresAt) => {
+      if (leaseExpiresAt > at) return false
+      leaseExpiresAt = nextLeaseExpiresAt
+      return true
+    }),
+  })
+  const inactivate = jest.fn(async () => ({ success: true as const, response: { ok: true } }))
+  const service = createGuruExternalInactivationService(repo, client(inactivate), {
+    enabled: () => true,
+    now: () => current,
+  })
+
+  await expect(service.inactivateSingle({ userProductId: 'product-1' })).resolves.toEqual({
+    kind: 'in-progress',
+  })
+  current = new Date('2026-09-05T10:01:00.000Z')
+  await expect(service.inactivateSingle({ userProductId: 'product-1' })).resolves.toMatchObject({
+    kind: 'success',
+  })
+
+  expect(inactivate).toHaveBeenCalledTimes(1)
+})
+
+test('concurrent bulk requests reuse the per-item claim mechanism', async () => {
+  let claimed = false
+  const repo = repository({
+    claimInactivation: jest.fn(async () => {
+      if (claimed) return false
+      claimed = true
+      return true
+    }),
+  })
+  let release!: () => void
+  const providerBarrier = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const inactivate = jest.fn(async () => {
+    release()
+    await providerBarrier
+    return { success: true as const, response: { ok: true } }
+  })
+  const service = createGuruExternalInactivationService(repo, client(inactivate), {
+    enabled: () => true,
+    sleep: async () => undefined,
+  })
+
+  const [first, second] = await Promise.all([
+    service.inactivateBulk({ userProductIds: ['product-1'] }),
+    service.inactivateBulk({ userProductIds: ['product-1'] }),
+  ])
+
+  expect(inactivate).toHaveBeenCalledTimes(1)
+  expect(repo.claimInactivation).toHaveBeenCalledTimes(2)
+  expect([first.succeeded, second.succeeded]).toEqual([1, 0])
+  expect([first.failed, second.failed]).toEqual([0, 1])
+  expect([first.details[0].error, second.details[0].error]).toContain(
+    'Inativação já em processamento',
+  )
 })
 
 test('disabled service fails closed without reading or mutating state', async () => {
@@ -249,5 +413,6 @@ test('bulk continues after a provider failure and records retry metadata', async
     'product-1',
     expect.any(Date),
     'remote failure',
+    expect.any(String),
   )
 })

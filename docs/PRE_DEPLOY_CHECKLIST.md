@@ -16,6 +16,7 @@
 - [ ] Hotmart credentials válidos
 - [ ] CursEduca API token válido
 - [ ] `CURSEDUCA_INACTIVATION_ENABLED=false` por defeito; executar dry-run com switch OFF e só ligar mutações em ambiente de teste isolado após limite confirmado
+- [ ] Confirmar claim durável CursEduca: uma execução concorrente recebe `409`/detalhe `inProgress`, lease de 60 s cobre o timeout do provider de 10 s, leases expirados são recuperáveis e falha/exception permite retry; validar também a janela externa de idempotency do provider
 - [ ] Discord bot token válido
 - [ ] Redis URL configurado (se aplicável)
 
