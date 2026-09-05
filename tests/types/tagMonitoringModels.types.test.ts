@@ -31,4 +31,22 @@ describe('tag-monitoring model contracts', () => {
     expect(typeof WeeklyNativeTagSnapshot.findByWeek).toBe('function')
     expect(typeof WeeklyNativeTagSnapshot.findPreviousSnapshot).toBe('function')
   })
+
+  it('enforces one weekly snapshot per normalized email identity', () => {
+    expect(WeeklyNativeTagSnapshot.schema.indexes()).toEqual(expect.arrayContaining([
+      [
+        { email: 1, weekNumber: 1, year: 1 },
+        expect.objectContaining({ unique: true }),
+      ],
+    ]))
+  })
+
+  it('enforces one detail per notification and normalized student email', () => {
+    expect(TagChangeDetail.schema.indexes()).toEqual(expect.arrayContaining([
+      [
+        { notificationId: 1, email: 1 },
+        expect.objectContaining({ unique: true }),
+      ],
+    ]))
+  })
 })

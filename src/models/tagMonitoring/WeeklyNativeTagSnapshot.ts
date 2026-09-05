@@ -78,6 +78,10 @@ const WeeklyNativeTagSnapshotSchema = new Schema<
 
 // Índices
 WeeklyNativeTagSnapshotSchema.index({ email: 1, capturedAt: -1 })
+WeeklyNativeTagSnapshotSchema.index(
+  { email: 1, weekNumber: 1, year: 1 },
+  { unique: true }
+)
 WeeklyNativeTagSnapshotSchema.index({ weekNumber: 1, year: 1 })
 
 // TTL Index - Remove automaticamente após 6 meses (15778800 segundos)

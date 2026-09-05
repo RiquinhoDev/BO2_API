@@ -42,17 +42,10 @@ interface CriticalChange {
   students: StudentChange[]
 }
 
-/**
- * Serviço de Monitorização Semanal de Tags Nativas
- * Responsável por snapshot semanal, comparação e detecção de mudanças
- */
 class WeeklyTagMonitoringService {
   private readonly BATCH_SIZE = 50
   private readonly BATCH_DELAY_MS = 1000
 
-  /**
-   * Executa o snapshot semanal completo (método principal do CRON)
-   */
   async performWeeklySnapshot(): Promise<SnapshotResult> {
     const startTime = Date.now()
     logger.info('═══════════════════════════════════════════════════════════')
@@ -122,11 +115,6 @@ class WeeklyTagMonitoringService {
     }
   }
 
-  /**
-   * Busca emails para processar baseado no modo configurado
-   * IMPORTANTE: STUDENTS_ONLY agora inclui TODOS os alunos (ACTIVE e INACTIVE)
-   * para ter histórico completo de tags nativas
-   */
   private async getEmailsToProcess(mode: 'STUDENTS_ONLY' | 'ALL_CONTACTS'): Promise<string[]> {
     if (mode === 'STUDENTS_ONLY') {
       // Buscar TODOS os utilizadores com produtos (ACTIVE ou INACTIVE)
@@ -157,9 +145,6 @@ class WeeklyTagMonitoringService {
     }
   }
 
-  /**
-   * Processa snapshots em batches com rate limiting
-   */
   private async processSnapshotsBatch(
     emails: string[],
     criticalTagNames: string[]
@@ -186,19 +171,23 @@ class WeeklyTagMonitoringService {
           // Capturar snapshot individual
           const result = await this.captureStudentSnapshot(email, weekNumber, year)
 
-          if (result.success && result.snapshot) {
-            snapshotsCreated++
+          if (!result.success) {
+            errors++
+            continue
+          }
+          if (!result.snapshot) continue
 
-            // Detectar mudanças críticas
-            if (result.changes) {
-              await this.detectCriticalChanges(
-                email,
-                result.changes,
-                result.snapshot,
-                criticalTagNames,
-                changesMap
-              )
-            }
+          if (result.created) snapshotsCreated++
+
+          // Detectar mudanças críticas
+          if (result.changes) {
+            await this.detectCriticalChanges(
+              email,
+              result.changes,
+              result.snapshot,
+              criticalTagNames,
+              changesMap
+            )
           }
         } catch (error: unknown) {
           errors++
@@ -232,9 +221,6 @@ class WeeklyTagMonitoringService {
     return { snapshotsCreated, changes, errors }
   }
 
-  /**
-   * Captura snapshot de um único aluno
-   */
   async captureStudentSnapshot(
     email: string,
     weekNumber?: number,
@@ -242,9 +228,12 @@ class WeeklyTagMonitoringService {
   ): Promise<{
     success: boolean
     snapshot?: IWeeklyNativeTagSnapshot
+    created?: boolean
     changes?: TagChanges
   }> {
     try {
+      const normalizedEmail = email.trim().toLowerCase()
+
       // Buscar tags da ActiveCampaign
       const allTags = await activeCampaignService.getContactTagsByEmail(email)
 
@@ -262,9 +251,9 @@ class WeeklyTagMonitoringService {
       }
 
       // Buscar userId
-      const user = await User.findOne({ email }).select('_id')
+      const user = await User.findOne({ email: normalizedEmail }).select('_id')
       if (!user) {
-        logger.warn(`Utilizador não encontrado na BD: ${email}`)
+        logger.warn(`Utilizador não encontrado na BD: ${normalizedEmail}`)
         return { success: false }
       }
 
@@ -273,19 +262,38 @@ class WeeklyTagMonitoringService {
       const currentWeekNumber = weekNumber || this.getWeekNumber(currentDate)
       const currentYear = year || currentDate.getFullYear()
 
-      // Criar snapshot
-      const snapshot = await WeeklyNativeTagSnapshot.create({
-        email,
-        userId: user._id,
-        nativeTags,
-        capturedAt: currentDate,
-        weekNumber: currentWeekNumber,
-        year: currentYear,
-      })
+      // Criar ou actualizar o snapshot da identidade semanal de forma convergente.
+      const snapshotResult = await WeeklyNativeTagSnapshot.findOneAndUpdate(
+        {
+          email: normalizedEmail,
+          weekNumber: currentWeekNumber,
+          year: currentYear,
+        },
+        {
+          $set: {
+            email: normalizedEmail,
+            userId: user._id,
+            nativeTags,
+            capturedAt: currentDate,
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+          includeResultMetadata: true,
+        },
+      )
+      const snapshot = snapshotResult?.value
+
+      if (!snapshot) {
+        logger.error(`Snapshot semanal não devolvido para ${normalizedEmail}`)
+        return { success: false }
+      }
 
       // Buscar snapshot anterior
       const previousSnapshot = await WeeklyNativeTagSnapshot.findPreviousSnapshot(
-        email,
+        normalizedEmail,
         currentWeekNumber,
         currentYear
       )
@@ -299,6 +307,7 @@ class WeeklyTagMonitoringService {
       return {
         success: true,
         snapshot,
+        created: Boolean(snapshotResult.lastErrorObject?.upserted),
         changes,
       }
     } catch (error: unknown) {
@@ -307,9 +316,6 @@ class WeeklyTagMonitoringService {
     }
   }
 
-  /**
-   * Detecta mudanças em tags críticas
-   */
   private async detectCriticalChanges(
     email: string,
     changes: TagChanges,
@@ -344,9 +350,6 @@ class WeeklyTagMonitoringService {
     }
   }
 
-  /**
-   * Constrói objeto StudentChange com dados do aluno
-   */
   private async buildStudentChange(
     email: string,
     snapshot: IWeeklyNativeTagSnapshot
@@ -376,9 +379,6 @@ class WeeklyTagMonitoringService {
     }
   }
 
-  /**
-   * Cria notificações agrupadas para mudanças críticas
-   */
   private async createNotifications(changes: CriticalChange[]): Promise<number> {
     if (changes.length === 0) return 0
 
@@ -389,14 +389,14 @@ class WeeklyTagMonitoringService {
 
     for (const change of changes) {
       try {
-        await tagNotificationService.createGroupedNotification(
+        const result = await tagNotificationService.createGroupedNotificationWithStatus(
           change.tagName,
           change.changeType,
           weekNumber,
           year,
           change.students
         )
-        notificationsCreated++
+        if (result.created) notificationsCreated++
       } catch (error) {
         logger.error(`Erro ao criar notificação para ${change.tagName} ${change.changeType}:`, error)
       }
@@ -405,9 +405,6 @@ class WeeklyTagMonitoringService {
     return notificationsCreated
   }
 
-  /**
-   * Remove snapshots com mais de 6 meses
-   */
   async cleanupOldSnapshots(): Promise<number> {
     try {
       const sixMonthsAgo = new Date()
@@ -425,9 +422,6 @@ class WeeklyTagMonitoringService {
     }
   }
 
-  /**
-   * Obtém estatísticas do sistema
-   */
   async getSnapshotStats(): Promise<SnapshotStats> {
     try {
       const [totalSnapshots, uniqueStudents, lastWeek] = await Promise.all([
@@ -447,9 +441,6 @@ class WeeklyTagMonitoringService {
     }
   }
 
-  /**
-   * Estatísticas da última semana
-   */
   private async getLastWeekStats(): Promise<LastWeekStats> {
     const currentDate = new Date()
     const weekNumber = this.getWeekNumber(currentDate)

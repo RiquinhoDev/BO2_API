@@ -72,6 +72,10 @@ const TagChangeDetailSchema = new Schema<
 // Índices
 TagChangeDetailSchema.index({ notificationId: 1 })
 TagChangeDetailSchema.index({ email: 1 })
+TagChangeDetailSchema.index(
+  { notificationId: 1, email: 1 },
+  { unique: true }
+)
 TagChangeDetailSchema.index({ detectedAt: -1 })
 
 // Métodos estáticos

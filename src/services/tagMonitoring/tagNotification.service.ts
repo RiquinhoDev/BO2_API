@@ -17,6 +17,18 @@ export interface StudentChange {
   currentTags: string[]
 }
 
+export interface GroupedNotificationResult {
+  notification: ITagChangeNotification
+  created: boolean
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as { code?: unknown }).code === 11000
+}
+
 type NotificationView = Pick<ITagChangeNotification,
   '_id' | 'tagName' | 'priority' | 'changeType' | 'affectedCount' | 'weekNumber' | 'year' | 'isRead' | 'createdAt' | 'detailsIds'>
 
@@ -44,67 +56,138 @@ class TagNotificationService {
     year: number,
     students: StudentChange[]
   ): Promise<ITagChangeNotification> {
+    const result = await this.createGroupedNotificationWithStatus(
+      tagName,
+      changeType,
+      weekNumber,
+      year,
+      students,
+    )
+    return result.notification
+  }
+
+  /**
+   * Cria uma notificação agrupada e indica se a chamada criou o registo.
+   * O estado permite aos batches contabilizar replay como no-op.
+   */
+  async createGroupedNotificationWithStatus(
+    tagName: string,
+    changeType: 'ADDED' | 'REMOVED',
+    weekNumber: number,
+    year: number,
+    students: StudentChange[]
+  ): Promise<GroupedNotificationResult> {
+    const notificationKey = {
+      tagName,
+      changeType,
+      weekNumber,
+      year,
+    }
+
     try {
       // Verificar se já existe notificação para esta tag/tipo/semana
-      const existing = await TagChangeNotification.findOne({
-        tagName,
-        changeType,
-        weekNumber,
-        year,
-      })
+      let notification = await TagChangeNotification.findOne(notificationKey)
+      let created = false
 
-      if (existing) {
+      if (notification) {
         logger.warn(`Notificação já existe para ${tagName} ${changeType} na semana ${weekNumber}/${year}`)
-        return existing
+      } else {
+        // Buscar prioridade da tag antes de reclamar a identidade única.
+        const criticalTag = await CriticalTag.findOne({ tagName, isActive: true })
+        const priority: TagPriority = criticalTag?.priority || 'LOW'
+
+        try {
+          // O índice único em tag/tipo/semana torna este claim atómico entre workers.
+          notification = await TagChangeNotification.create({
+            tagName,
+            priority,
+            changeType,
+            affectedCount: students.length,
+            weekNumber,
+            year,
+            isRead: false,
+            detailsIds: [],
+          })
+          created = true
+        } catch (error: unknown) {
+          if (!isDuplicateKeyError(error)) throw error
+
+          notification = await TagChangeNotification.findOne(notificationKey)
+          if (!notification) throw error
+          logger.warn(`Notificação concorrente já existe para ${tagName} ${changeType} na semana ${weekNumber}/${year}`)
+        }
       }
 
-      // Buscar prioridade da tag
-      const criticalTag = await CriticalTag.findOne({ tagName, isActive: true })
-      const priority: TagPriority = criticalTag?.priority || 'LOW'
+      if (!notification) throw new Error('Notificação agrupada não ficou disponível')
 
-      // Criar detalhes individuais
-      const detailsPromises = students.map((student) =>
-        TagChangeDetail.create({
-          notificationId: null, // Será atualizado depois
-          email: student.email,
-          userName: student.userName,
-          product: student.product,
-          class: student.class,
-          currentTags: student.currentTags,
-          detectedAt: new Date(),
-        })
+      // Upsert determinístico: replay repara detalhes parciais sem duplicar alunos.
+      const details: ITagChangeDetail[] = []
+      for (const student of students) {
+        details.push(await this.upsertNotificationDetail(notification._id, student))
+      }
+      const detailIds = Array.from(new Map(
+        details.map((detail) => [String(detail._id), detail._id]),
+      ).values())
+
+      const updatedNotification = await TagChangeNotification.findByIdAndUpdate(
+        notification._id,
+        {
+          $set: {
+            affectedCount: students.length,
+            detailsIds: detailIds,
+          },
+        },
+        { new: true },
       )
 
-      const details = await Promise.all(detailsPromises)
-
-      // Criar notificação agrupada
-      const notification = await TagChangeNotification.create({
-        tagName,
-        priority,
-        changeType,
-        affectedCount: students.length,
-        weekNumber,
-        year,
-        isRead: false,
-        detailsIds: details.map((d) => d._id),
-      })
-
-      // Atualizar detalhes com notificationId
-      await TagChangeDetail.updateMany(
-        { _id: { $in: details.map((d) => d._id) } },
-        { $set: { notificationId: notification._id } }
-      )
-
-      logger.info(`Notificação criada: ${tagName} ${changeType} - ${students.length} alunos afetados`, {
+      logger.info(`Notificação ${created ? 'criada' : 'sincronizada'}: ${tagName} ${changeType} - ${students.length} alunos afetados`, {
         notificationId: notification._id,
         weekNumber,
         year,
       })
 
-      return notification
-    } catch (error) {
+      return { notification: updatedNotification || notification, created }
+    } catch (error: unknown) {
       logger.error('Erro ao criar notificação agrupada', { tagName, changeType, error })
       throw error
+    }
+  }
+
+  private async upsertNotificationDetail(
+    notificationId: ITagChangeNotification['_id'],
+    student: StudentChange,
+  ): Promise<ITagChangeDetail> {
+    const email = student.email.trim().toLowerCase()
+
+    try {
+      const detail = await TagChangeDetail.findOneAndUpdate(
+        { notificationId, email },
+        {
+          $set: {
+            notificationId,
+            email,
+            userName: student.userName,
+            product: student.product,
+            class: student.class,
+            currentTags: student.currentTags,
+            detectedAt: new Date(),
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+        },
+      )
+
+      if (!detail) throw new Error(`Detalhe não devolvido para ${email}`)
+      return detail
+    } catch (error: unknown) {
+      if (!isDuplicateKeyError(error)) throw error
+
+      const existing = await TagChangeDetail.findOne({ notificationId, email })
+      if (!existing) throw error
+      return existing
     }
   }
 

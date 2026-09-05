@@ -22,16 +22,16 @@ test('SCALE-01 inventory reconciles 40 complete reads', () => {
   expect(inventory.scale02.entries).toHaveLength(11)
   expect(run()).toContain('40 complete / 0 pending')
   expect(run()).toContain('SCALE-02 11 complete / 0 pending')
-  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 20, pending: 4, changed: 16, alreadyCompliant: 4 })
+  expect(inventory.scale03.summary).toEqual({ planned: 24, complete: 21, pending: 3, changed: 17, alreadyCompliant: 4 })
   expect(inventory.scale03.entries).toHaveLength(24)
-  expect(run()).toContain('SCALE-03 20 complete / 4 pending')
+  expect(run()).toContain('SCALE-03 21 complete / 3 pending')
 })
 
 test('SCALE-03 records reviewed changes, compliance, and honest pending decisions', () => {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(20)
-  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(4)
-  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(16)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'complete')).toHaveLength(21)
+  expect(inventory.scale03.entries.filter(({ status }: { status: string }) => status === 'pending')).toHaveLength(3)
+  expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'changed')).toHaveLength(17)
   expect(inventory.scale03.entries.filter(({ disposition }: { disposition?: string }) => disposition === 'already-compliant')).toHaveLength(4)
   expect(inventory.scale03.operational.status).toBe('pending')
 })
@@ -104,6 +104,30 @@ test('SCALE-03 records achievement evaluation persistence accounting', () => {
     expect.stringContaining('processed'),
     expect.stringContaining('evaluated'),
     expect.stringContaining('errors'),
+  ]))
+})
+
+test('SCALE-03 records weekly tag snapshot convergence and ordered repair', () => {
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'))
+  const weekly = inventory.scale03.entries.find(({ id }: { id: string }) => id === 'weekly-tags.snapshot-writes')
+
+  expect(weekly).toMatchObject({
+    status: 'complete',
+    disposition: 'changed',
+    constraint: expect.stringMatching(/^constrained-sequential:/),
+  })
+  expect(weekly.evidence).toEqual(expect.arrayContaining([
+    expect.stringContaining('weeklyTagMonitoring.service.test.ts'),
+    expect.stringContaining('N=1/10/100'),
+    expect.stringContaining('same-week replay'),
+    expect.stringContaining('tagNotification.service.test.ts'),
+    expect.stringContaining('concurrent duplicate claim'),
+    expect.stringContaining('partial detail'),
+  ]))
+  expect(weekly.require).toEqual(expect.arrayContaining([
+    'includeResultMetadata: true',
+    'if (result.created) snapshotsCreated++',
+    'if (result.created) notificationsCreated++',
   ]))
 })
 
