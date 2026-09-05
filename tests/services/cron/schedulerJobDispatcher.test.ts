@@ -31,6 +31,12 @@ const createDependencies = (): jest.Mocked<CronDispatchDependencies> => ({
     plan: { anomalyAborted: false, classChangesSeen: 5, planned: 3, blocked: 1, skippedDuplicates: 1 },
     execution: { applied: 2, failed: 1 }
   })),
+  runAcTagWatch: jest.fn(async () => ({
+    alunosLidos: 5,
+    eventosGravados: 3,
+    jaExistiam: 2,
+    errors: [{ contexto: 'x', error: 'boom' }]
+  })),
   evaluateAchievements: jest.fn(async () => ({ total: 5, evaluated: 4, errors: 1 })),
   executeDailyPipeline: jest.fn(async () => ({
     success: true,
@@ -102,6 +108,11 @@ describe('CronJobDispatcher', () => {
     await expect(dispatcher.execute(job('AchievementEvaluation'))).resolves.toMatchObject({
       success: false,
       stats: { total: 5, inserted: 0, updated: 4, errors: 1, skipped: 1 }
+    })
+    await expect(dispatcher.execute(job('AcTagWatch'))).resolves.toMatchObject({
+      success: false,
+      stats: { total: 5, inserted: 3, updated: 0, errors: 1, skipped: 2 },
+      errorMessage: 'x: boom'
     })
   })
 

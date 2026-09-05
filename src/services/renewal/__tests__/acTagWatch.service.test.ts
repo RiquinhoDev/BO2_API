@@ -4,7 +4,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const SERVICO = path.join(__dirname, '..', 'acTagWatch.service.ts')
-const fonte = fs.readFileSync(SERVICO, 'utf8')
+const CONTEXTO = path.join(__dirname, '..', 'acTagWatch.context.ts')
+// O contexto (coorte, timelines) saiu do service.ts para o manter abaixo
+// de 500 linhas — as garantias abaixo olham para os dois ficheiros como
+// se fossem um só, que é como o comportamento se comporta de facto.
+const fonte = fs.readFileSync(SERVICO, 'utf8') + '\n' + fs.readFileSync(CONTEXTO, 'utf8')
 
 // ── A garantia que nao se negoceia ──────────────────────────────────
 // Feia de proposito: le o proprio ficheiro. Um teste de comportamento

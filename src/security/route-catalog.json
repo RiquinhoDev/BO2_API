@@ -1366,7 +1366,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "public: liveness sem credenciais; rota em src/routes/index.ts:113"
+    "evidence": "public: liveness sem credenciais; rota em src/routes/index.ts:115"
   },
   {
     "method": "GET",
@@ -1438,7 +1438,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:161"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:163"
   },
   {
     "method": "GET",
@@ -1933,7 +1933,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:88"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:90"
   },
   {
     "method": "GET",
@@ -3311,7 +3311,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:86"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:88"
   },
   {
     "method": "POST",
@@ -3320,7 +3320,7 @@
     "consumer": "desconhecido",
     "writes": false,
     "destructive": false,
-    "evidence": "consumer nao identificado; rota em src/routes/index.ts:87"
+    "evidence": "consumer nao identificado; rota em src/routes/index.ts:89"
   },
   {
     "method": "POST",
