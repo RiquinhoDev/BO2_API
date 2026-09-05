@@ -15,6 +15,7 @@
 - [ ] Active Campaign API keys válidos
 - [ ] Hotmart credentials válidos
 - [ ] CursEduca API token válido
+- [ ] `CURSEDUCA_INACTIVATION_ENABLED=false` por defeito; executar dry-run com switch OFF e só ligar mutações em ambiente de teste isolado após limite confirmado
 - [ ] Discord bot token válido
 - [ ] Redis URL configurado (se aplicável)
 
@@ -235,4 +236,3 @@ _Espaço para notas específicas deste deploy:_
 ---
 
 ✨ **Boa sorte no deploy!** 🚀
-

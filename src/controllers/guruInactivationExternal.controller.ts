@@ -4,13 +4,15 @@ import type {
   GuruInactivationBulkInput,
   GuruInactivationSingleInput,
 } from '../security/guruDestructiveInput'
-import { internalError } from '../security/errorHandling'
+import { HttpError, internalError } from '../security/errorHandling'
 import { axiosCurseducaInactivationClient } from '../services/guru/curseducaInactivation.client'
 import {
   createGuruExternalInactivationService,
+  GuruExternalInactivationLimitError,
   type GuruExternalInactivationService,
 } from '../services/guru/guruExternalInactivation.service'
 import { mongooseGuruExternalInactivationRepository } from '../services/guru/mongooseGuruExternalInactivation.repository'
+import { isCurseducaInactivationEnabled } from '../services/requestDrivenRuntimeConfig'
 
 export const createGuruExternalInactivationHandlers = (
   service: GuruExternalInactivationService,
@@ -28,6 +30,13 @@ export const createGuruExternalInactivationHandlers = (
     }
     try {
       const result = await service.inactivateSingle(input.body)
+      if (result.kind === 'disabled') {
+        return next(new HttpError({
+          status: 503,
+          code: 'GURU_INACTIVATION_DISABLED',
+          publicMessage: 'Inativação CursEduca desativada',
+        }))
+      }
       if (result.kind === 'not-found') {
         return res.status(404).json({ success: false, message: 'UserProduct não encontrado' })
       }
@@ -44,10 +53,21 @@ export const createGuruExternalInactivationHandlers = (
           result.error,
         ))
       }
+      if (result.kind === 'dry-run') {
+        return res.json(successResponse({
+          message: 'Plano de inativação gerado; nenhuma mutação executada',
+          dryRun: true,
+          planned: result.planned,
+          alreadyInactive: result.alreadyInactive === true,
+          memberId: result.memberId,
+          email: result.email,
+        }))
+      }
       return res.json(successResponse({
         message: 'Membro inativado com sucesso',
         memberId: result.memberId,
         email: result.email,
+        ...(result.alreadyInactive ? { alreadyInactive: true } : {}),
       }))
     } catch (error: unknown) {
       return next(internalError(
@@ -71,6 +91,21 @@ export const createGuruExternalInactivationHandlers = (
     }
     try {
       const result = await service.inactivateBulk(input.body)
+      if (result.disabled) {
+        return next(new HttpError({
+          status: 503,
+          code: 'GURU_INACTIVATION_DISABLED',
+          publicMessage: 'Inativação CursEduca desativada',
+        }))
+      }
+      if (result.dryRun) {
+        return res.json(successResponse({
+          message: result.processed === 0
+            ? 'Plano vazio; nenhuma mutação executada'
+            : `Plano de ${result.processed} membros; nenhuma mutação executada`,
+          ...result,
+        }))
+      }
       if (result.processed === 0) {
         return res.json(successResponse({
           message: 'Nenhum user para inativar',
@@ -84,6 +119,14 @@ export const createGuruExternalInactivationHandlers = (
         ...result,
       }))
     } catch (error: unknown) {
+      if (error instanceof GuruExternalInactivationLimitError) {
+        return next(new HttpError({
+          status: 413,
+          code: 'GURU_INACTIVATION_LIMIT_EXCEEDED',
+          publicMessage: `Inativação CursEduca limitada a ${error.limit} registos por execução`,
+          cause: error,
+        }))
+      }
       return next(internalError(
         'Erro ao inativar membros no CursEduca',
         'GURU_INACTIVATION_BULK_FAILED',
@@ -97,6 +140,7 @@ const handlers = createGuruExternalInactivationHandlers(
   createGuruExternalInactivationService(
     mongooseGuruExternalInactivationRepository,
     axiosCurseducaInactivationClient,
+    { enabled: isCurseducaInactivationEnabled },
   ),
 )
 

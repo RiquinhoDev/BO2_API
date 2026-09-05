@@ -12,6 +12,7 @@ export const guruInactivationSingleInput = validatedSchema({
   body: {
     userProductId: objectId.optional(),
     curseducaUserId: z.string().min(1).optional(),
+    dryRun: z.boolean().optional(),
   },
 })
 
@@ -21,6 +22,7 @@ export const guruInactivationBulkInput = validatedSchema({
   body: {
     userProductIds: z.array(objectId).max(MAX_BULK_OPERATION_ITEMS).optional(),
     all: z.boolean().optional(),
+    dryRun: z.boolean().optional(),
   },
 })
 

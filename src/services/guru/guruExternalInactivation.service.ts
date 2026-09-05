@@ -1,4 +1,5 @@
 import type { CurseducaInactivationClient } from './curseducaInactivation.client'
+import { MAX_BULK_OPERATION_ITEMS } from '../../security/bulkOperationPolicy'
 
 export interface ExternalInactivationEnrollment {
   id: unknown
@@ -6,6 +7,7 @@ export interface ExternalInactivationEnrollment {
   email?: string
   memberId?: string | number
   hasCurseducaUser: boolean
+  status?: string
 }
 
 export interface GuruExternalInactivationRepository {
@@ -24,13 +26,25 @@ export interface GuruExternalInactivationRepository {
 export interface GuruExternalInactivationOptions {
   now?: () => Date
   sleep?: (milliseconds: number) => Promise<void>
+  enabled?: () => boolean
+}
+
+export class GuruExternalInactivationLimitError extends Error {
+  readonly limit = MAX_BULK_OPERATION_ITEMS
+
+  constructor() {
+    super(`Inativação CursEduca limitada a ${MAX_BULK_OPERATION_ITEMS} registos por execução`)
+    this.name = 'GuruExternalInactivationLimitError'
+  }
 }
 
 export type SingleInactivationResult =
   | { kind: 'not-found' }
   | { kind: 'missing-member' }
   | { kind: 'remote-failure'; error: string }
-  | { kind: 'success'; memberId: string | number; email?: string }
+  | { kind: 'disabled' }
+  | { kind: 'dry-run'; memberId: string | number; email?: string; planned: boolean; alreadyInactive?: boolean }
+  | { kind: 'success'; memberId: string | number; email?: string; alreadyInactive?: boolean }
 
 export interface BulkInactivationDetail {
   userProductId: unknown
@@ -38,6 +52,8 @@ export interface BulkInactivationDetail {
   memberId?: string | number
   success: boolean
   error?: string
+  planned?: boolean
+  alreadyInactive?: boolean
 }
 
 export interface BulkInactivationResult {
@@ -45,6 +61,9 @@ export interface BulkInactivationResult {
   succeeded: number
   failed: number
   details: BulkInactivationDetail[]
+  disabled?: boolean
+  dryRun?: boolean
+  planned?: number
 }
 
 const defaultSleep = (milliseconds: number): Promise<void> =>
@@ -57,14 +76,36 @@ export const createGuruExternalInactivationService = (
 ) => {
   const now = options.now ?? (() => new Date())
   const sleep = options.sleep ?? defaultSleep
+  const enabled = options.enabled ?? (() => false)
 
   const inactivateSingle = async (criteria: {
     userProductId?: string
     curseducaUserId?: string
+    dryRun?: boolean
   }): Promise<SingleInactivationResult> => {
+    const dryRun = criteria.dryRun === true
+    if (!dryRun && !enabled()) return { kind: 'disabled' }
+
     const enrollment = await repository.findOne(criteria)
     if (!enrollment) return { kind: 'not-found' }
     if (!enrollment.memberId) return { kind: 'missing-member' }
+    if (dryRun) {
+      return {
+        kind: 'dry-run',
+        memberId: enrollment.memberId,
+        email: enrollment.email,
+        planned: enrollment.status !== 'INACTIVE',
+        ...(enrollment.status === 'INACTIVE' ? { alreadyInactive: true } : {}),
+      }
+    }
+    if (enrollment.status === 'INACTIVE') {
+      return {
+        kind: 'success',
+        memberId: enrollment.memberId,
+        email: enrollment.email,
+        alreadyInactive: true,
+      }
+    }
 
     const result = await client.inactivate(enrollment.memberId)
     if (!result.success) {
@@ -87,8 +128,21 @@ export const createGuruExternalInactivationService = (
   const inactivateBulk = async (criteria: {
     userProductIds?: string[]
     all?: boolean
+    dryRun?: boolean
   }): Promise<BulkInactivationResult> => {
+    const dryRun = criteria.dryRun === true
+    if (!dryRun && !enabled()) {
+      return { processed: 0, succeeded: 0, failed: 0, details: [], disabled: true }
+    }
+
+    if ((criteria.userProductIds?.length ?? 0) > MAX_BULK_OPERATION_ITEMS) {
+      throw new GuruExternalInactivationLimitError()
+    }
     const enrollments = await repository.findMany(criteria)
+    if (criteria.all === true && enrollments.length > MAX_BULK_OPERATION_ITEMS) {
+      throw new GuruExternalInactivationLimitError()
+    }
+
     const unique: ExternalInactivationEnrollment[] = []
     const duplicateIds: unknown[] = []
     const seenMemberIds = new Set<string>()
@@ -102,13 +156,14 @@ export const createGuruExternalInactivationService = (
         duplicateIds.push(enrollment.id)
       }
     }
-    if (duplicateIds.length > 0) await repository.markDuplicates(duplicateIds, now())
+    if (!dryRun && duplicateIds.length > 0) await repository.markDuplicates(duplicateIds, now())
 
     const result: BulkInactivationResult = {
       processed: 0,
       succeeded: 0,
       failed: 0,
       details: [],
+      ...(dryRun ? { dryRun: true, planned: 0 } : {}),
     }
     for (const enrollment of unique) {
       result.processed += 1
@@ -119,6 +174,28 @@ export const createGuruExternalInactivationService = (
           email: enrollment.email,
           success: false,
           error: 'curseducaUserId não encontrado',
+        })
+        continue
+      }
+      if (enrollment.status === 'INACTIVE') {
+        if (!dryRun) result.succeeded += 1
+        result.details.push({
+          userProductId: enrollment.id,
+          email: enrollment.email,
+          memberId: enrollment.memberId,
+          success: true,
+          alreadyInactive: true,
+        })
+        continue
+      }
+      if (dryRun) {
+        result.planned = (result.planned ?? 0) + 1
+        result.details.push({
+          userProductId: enrollment.id,
+          email: enrollment.email,
+          memberId: enrollment.memberId,
+          success: true,
+          planned: true,
         })
         continue
       }

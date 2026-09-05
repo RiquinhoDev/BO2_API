@@ -1,5 +1,6 @@
 import type { ReviewedProtectionPolicy } from './ops02ReviewedPolicy'
 import { MAX_PROVIDER_READ_ITEMS } from './providerReadBatchPolicy'
+import { MAX_BULK_OPERATION_ITEMS } from './bulkOperationPolicy'
 
 const providerReadCap = {
   status: 'verified' as const,
@@ -138,20 +139,24 @@ export const REVIEWED_PROTECTION_POLICY_TAIL: Array<[string, ReviewedProtectionP
         status: 'required',
         reason: 'curseduca-inactivation-single-replay-repeats-provider-call',
       },
-      killSwitch: { status: 'required', reason: 'curseduca-inactivation-no-kill-switch' },
-      dryRun: { status: 'required', reason: 'curseduca-inactivation-no-dry-run' },
+      killSwitch: { status: 'verified', reason: 'CURSEDUCA_INACTIVATION_ENABLED' },
+      dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
     },
   ],
   [
     'POST /api/guru/inactivation/bulk',
     {
-      cap: { status: 'required', reason: 'curseduca-inactivation-all-mode-no-finite-cap' },
+      cap: {
+        status: 'verified',
+        reason: 'curseduca-inactivation-max-items-per-run',
+        limit: MAX_BULK_OPERATION_ITEMS,
+      },
       idempotency: {
         status: 'required',
         reason: 'curseduca-inactivation-bulk-replay-repeats-provider-call',
       },
-      killSwitch: { status: 'required', reason: 'curseduca-inactivation-no-kill-switch' },
-      dryRun: { status: 'required', reason: 'curseduca-inactivation-no-dry-run' },
+      killSwitch: { status: 'verified', reason: 'CURSEDUCA_INACTIVATION_ENABLED' },
+      dryRun: { status: 'verified', reason: 'dry-run-no-provider-or-local-mutation' },
     },
   ],
   [

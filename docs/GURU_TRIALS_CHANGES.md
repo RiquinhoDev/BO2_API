@@ -8,7 +8,7 @@
 
 ## ⚠️ Princípio Fundamental
 
-**Nada inativa automaticamente.** O cron e o `checkExpiredTrials()` apenas **MARCAM** `UserProduct.status = PARA_INATIVAR`. A inativação real no CursEduca (chamada API) continua a ser feita manualmente na tab "Gerir Subscrições" / fluxo de inativação existente (`inactivateSingle` / `inactivateBulk`). **Não foi tocado.**
+**Nada inativa automaticamente.** O cron e o `checkExpiredTrials()` apenas **MARCAM** `UserProduct.status = PARA_INATIVAR`. A inativação real no CursEduca (chamada API) continua a ser feita manualmente na tab "Gerir Subscrições" / fluxo de inativação existente (`inactivateSingle` / `inactivateBulk`). A execução com mutação exige `CURSEDUCA_INACTIVATION_ENABLED=true`; `dryRun` pode gerar o plano com o switch desligado e não faz mutações. O fluxo limita `all=true` a 200 registos e salta estados locais já `INACTIVE`. Replay concorrente ainda requer prova adicional de claim/idempotency no provider.
 
 ---
 

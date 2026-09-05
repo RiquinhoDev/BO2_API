@@ -115,7 +115,11 @@ function parseHotmart(env: NodeJS.ProcessEnv): IntegrationConfig<HotmartIntegrat
 }
 
 function parseCurseduca(env: NodeJS.ProcessEnv): IntegrationConfig<CurseducaIntegration> {
-  return configuredCredentialGroup(
+  const inactivationEnabled = parseBooleanFlag(
+    env.CURSEDUCA_INACTIVATION_ENABLED,
+    'CURSEDUCA_INACTIVATION_ENABLED',
+  )
+  const credentials = configuredCredentialGroup(
     env,
     ['CURSEDUCA_API_URL', 'CURSEDUCA_API_KEY', 'CURSEDUCA_AccessToken'],
     (values) => ({
@@ -124,6 +128,19 @@ function parseCurseduca(env: NodeJS.ProcessEnv): IntegrationConfig<CurseducaInte
       accessToken: values.CURSEDUCA_AccessToken,
     }),
   )
+  if (inactivationEnabled && !credentials.configured) {
+    throw new Error(
+      'CONFIG_INVALIDA: CURSEDUCA_INACTIVATION_ENABLED requer credenciais CursEduca completas',
+    )
+  }
+  if (!credentials.configured) return credentials
+  return {
+    configured: true,
+    value: {
+      ...credentials.value,
+      inactivationEnabled,
+    },
+  }
 }
 
 function parseGuru(env: NodeJS.ProcessEnv): IntegrationConfig<GuruIntegration> {

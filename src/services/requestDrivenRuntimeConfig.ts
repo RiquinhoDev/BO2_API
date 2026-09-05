@@ -10,12 +10,27 @@ export interface CurseducaRuntimeSettings {
 export function getCurseducaRuntimeSettings(): CurseducaRuntimeSettings {
   const integration = getRuntimeConfig().integrations.curseduca
   if (!integration.configured) throw new IntegrationUnavailableError('curseduca')
-  return integration.value
+  return {
+    apiUrl: integration.value.apiUrl,
+    apiKey: integration.value.apiKey,
+    accessToken: integration.value.accessToken,
+  }
 }
 
 export function getOptionalCurseducaRuntimeSettings(): CurseducaRuntimeSettings | undefined {
   const integration = getRuntimeConfig().integrations.curseduca
-  return integration.configured ? integration.value : undefined
+  return integration.configured
+    ? {
+      apiUrl: integration.value.apiUrl,
+      apiKey: integration.value.apiKey,
+      accessToken: integration.value.accessToken,
+    }
+    : undefined
+}
+
+export function isCurseducaInactivationEnabled(): boolean {
+  const integration = getRuntimeConfig().integrations.curseduca
+  return integration.configured && integration.value.inactivationEnabled === true
 }
 
 export function getGuruUserToken(): string {

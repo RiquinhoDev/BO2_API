@@ -7,6 +7,7 @@ import {
   getCurseducaRuntimeSettings,
   getGuruAccountToken,
   getGuruUserToken,
+  isCurseducaInactivationEnabled,
   getSlackWebhookUrl,
   getStudentSummaryToken,
 } from '../../src/services/requestDrivenRuntimeConfig'
@@ -16,6 +17,7 @@ const ENV_KEYS = [
   'CURSEDUCA_API_URL',
   'CURSEDUCA_API_KEY',
   'CURSEDUCA_AccessToken',
+  'CURSEDUCA_INACTIVATION_ENABLED',
   'GURU_USER_TOKEN',
   'GURU_ACCOUNT_TOKEN',
   'SLACK_WEBHOOK_URL',
@@ -45,6 +47,7 @@ test('request-driven integrations use immutable runtime config instead of ambien
           apiUrl: 'https://curseduca.runtime.invalid',
           apiKey: 'runtime-api-key',
           accessToken: 'runtime-access-token',
+          inactivationEnabled: true,
         },
       },
       guru: {
@@ -66,6 +69,7 @@ test('request-driven integrations use immutable runtime config instead of ambien
     apiKey: 'runtime-api-key',
     accessToken: 'runtime-access-token',
   })
+  expect(isCurseducaInactivationEnabled()).toBe(true)
   expect(getGuruUserToken()).toBe('runtime-user-token')
   expect(getGuruAccountToken()).toBe('runtime-account-token')
   expect(getSlackWebhookUrl()).toBe('https://slack.runtime.invalid')
@@ -80,4 +84,5 @@ test('required request-driven integrations fail closed before any HTTP can start
   expect(() => getGuruAccountToken()).toThrow(IntegrationUnavailableError)
   expect(getSlackWebhookUrl()).toBeUndefined()
   expect(getStudentSummaryToken()).toBeUndefined()
+  expect(isCurseducaInactivationEnabled()).toBe(false)
 })

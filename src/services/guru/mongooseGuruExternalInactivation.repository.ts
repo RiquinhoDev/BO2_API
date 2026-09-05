@@ -1,5 +1,6 @@
 import User, { type IUser } from '../../models/user'
 import UserProduct from '../../models/UserProduct'
+import { MAX_BULK_OPERATION_ITEMS } from '../../security/bulkOperationPolicy'
 import type {
   ExternalInactivationEnrollment,
   GuruExternalInactivationRepository,
@@ -10,6 +11,7 @@ type PopulatedEnrollment = {
   _id: unknown
   userId: PopulatedUser
   platformUserId?: string
+  status?: string
 }
 
 const toEnrollment = (item: PopulatedEnrollment): ExternalInactivationEnrollment => ({
@@ -18,6 +20,7 @@ const toEnrollment = (item: PopulatedEnrollment): ExternalInactivationEnrollment
   email: item.userId?.email,
   memberId: item.platformUserId || item.userId?.curseduca?.curseducaUserId,
   hasCurseducaUser: Boolean(item.userId?.curseduca),
+  status: item.status,
 })
 
 export const mongooseGuruExternalInactivationRepository: GuruExternalInactivationRepository = {
@@ -35,7 +38,9 @@ export const mongooseGuruExternalInactivationRepository: GuruExternalInactivatio
     const filter = all === true
       ? { platform: 'curseduca', status: 'PARA_INATIVAR' }
       : { _id: { $in: userProductIds ?? [] } }
-    const enrollments = await UserProduct.find(filter)
+    const query = UserProduct.find(filter)
+    if (all === true) query.sort({ _id: 1 }).limit(MAX_BULK_OPERATION_ITEMS + 1)
+    const enrollments = await query
       .populate<{ userId: PopulatedUser }>('userId', 'email curseduca')
       .lean()
     return enrollments.map(toEnrollment)

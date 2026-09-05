@@ -318,6 +318,31 @@ test('partial credential groups fail before an integration can be used', () => {
   ).toThrow('CURSEDUCA_API_URL')
 })
 
+test('CursEduca inactivation switch is false by default and requires complete credentials when enabled', () => {
+  expect(loadConfig(VALID_ENV).integrations.curseduca).toEqual({ configured: false })
+
+  expect(() => loadConfig({
+    ...VALID_ENV,
+    CURSEDUCA_INACTIVATION_ENABLED: 'true',
+  })).toThrow('CURSEDUCA_INACTIVATION_ENABLED')
+
+  expect(loadConfig({
+    ...VALID_ENV,
+    CURSEDUCA_API_URL: 'https://curseduca.example.test',
+    CURSEDUCA_API_KEY: 'curseduca-api-key',
+    CURSEDUCA_AccessToken: 'curseduca-access-token',
+    CURSEDUCA_INACTIVATION_ENABLED: 'true',
+  }).integrations.curseduca).toEqual({
+    configured: true,
+    value: {
+      apiUrl: 'https://curseduca.example.test/',
+      apiKey: 'curseduca-api-key',
+      accessToken: 'curseduca-access-token',
+      inactivationEnabled: true,
+    },
+  })
+})
+
 test.each([
   [{}, false],
   [{ GROUP_FIRST: 'first', GROUP_SECOND: 'second' }, true],

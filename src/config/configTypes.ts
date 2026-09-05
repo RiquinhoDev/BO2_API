@@ -60,6 +60,7 @@ export interface CurseducaIntegration {
   readonly apiUrl: string
   readonly apiKey: string
   readonly accessToken: string
+  readonly inactivationEnabled: boolean
 }
 
 export interface GuruIntegration {

@@ -31,6 +31,7 @@ jest.mock('../../src/services/requestDrivenRuntimeConfig', () => ({
     accessToken: 'offline-token',
     apiKey: 'offline-key',
   })),
+  isCurseducaInactivationEnabled: jest.fn(() => true),
 }))
 
 import { inactivateBulk, inactivateSingle } from '../../src/controllers/guruInactivationExternal.controller'
